@@ -16,7 +16,7 @@ import { WorkflowDialog } from '../common/WorkflowDialog';
 import { HostCapacity } from './HostCapacity';
 import './project-overview.css';
 
-type Summary = { value?: ProjectOverview; error?: string };
+type Summary = { value?: ProjectOverview; error?: string; sourceBusy?: boolean };
 type Picked = { project: Project; item: SwarmQueueItem; canExecute: boolean };
 type QueueAction = 'pause' | 'resume' | 'cancel' | 'priority';
 type Outcome = { name: string; state: 'changed' | 'skipped' | 'failed' | 'unconfirmed'; message: string };
@@ -66,7 +66,8 @@ function ScopedOverview({ projects }: { projects: Project[] }) {
             const value = await projectOverviewApi.get(id, controller.signal);
             if (!controller.signal.aborted) setSummaries(previous => ({ ...previous, [id]: { value } }));
           } catch (cause) {
-            if (!controller.signal.aborted) setSummaries(previous => ({ ...previous, [id]: { error: errorText(cause) } }));
+            if (!controller.signal.aborted) setSummaries(previous => ({ ...previous, [id]: cause instanceof ApiError && cause.status === 409 && String(cause.code) === 'branch_busy' && previous[id]?.value
+              ? { value: previous[id].value, sourceBusy: true } : { error: errorText(cause) } }));
           }
         }
       }));
@@ -151,7 +152,7 @@ function ProjectCard({ project, summary, refresh, picked, pending, onSelect, onF
   const value = summary?.value;
   const counts = value?.execution;
   function openNext() {
-    if (!value) return;
+    if (!value || summary?.sourceBusy) return;
     const lens = (['discover', 'design', 'develop', 'files', 'merge', 'deploy'].includes(value.nextAction.lens) ? value.nextAction.lens : undefined) as Lens | undefined;
     useCockpit.getState().selectProject(project.id, lens);
     const state = useCockpit.getState(), destination = state.pendingNavigation;
@@ -164,20 +165,21 @@ function ProjectCard({ project, summary, refresh, picked, pending, onSelect, onF
     useCockpit.setState({ projectRunInspection: scope && lens === 'develop' && typeof runId === 'string' && runId
       ? { scope, projectId: project.id, runId, refresh: true } : null });
   }
-  return <li className="overview-card"><header><h3><button className="overview-project-open" onClick={() => useCockpit.getState().selectProject(project.id)} aria-label={`Open project ${project.name}`}>{project.name}<NavigationIcon name="chevron-right" /></button></h3>{value && <Badge variant="outline">{value.phase.label}</Badge>}</header>
+  return <li className="overview-card"><header><h3><button className="overview-project-open" onClick={() => useCockpit.getState().selectProject(project.id)} aria-label={`Open project ${project.name}`}>{project.name}<NavigationIcon name="chevron-right" /></button></h3>{value && <Badge variant="outline">{summary?.sourceBusy && 'Last recorded: '}{value.phase.label}</Badge>}</header>
     {!summary ? <p role="status">Loading project context…</p> : summary.error ? <p className="overview-warning" role="status">Summary unavailable. {summary.error}</p> : value && <>
+      {summary.sourceBusy && <p className="overview-warning" role="status">Source is being prepared; showing last recorded context. Queue controls remain available. Activity counts are recorded, not live.</p>}
       <p className="overview-goal">{value.goal?.text || (value.goal ? 'Add the outcome you want to build.' : 'Saved context could not be read.')}{value.goal?.truncated && '…'}</p>
       <dl className="overview-counts" aria-label="Recorded swarm queue activity">{(['running', 'queued', 'blocked'] as const).map(state => <div key={state}><dt>{state === 'running' ? 'Running' : state === 'queued' ? 'Queued' : 'Blocked'}</dt><dd>{counts?.[state] ?? '—'}</dd></div>)}</dl>
       {counts?.status === 'unavailable' && <p className="overview-warning">Queue activity unavailable; no zero counts inferred.</p>}
       {!!counts?.paused && <p className="overview-meta">{counts.paused} paused</p>}{!!counts?.reserved && <p className="overview-meta">{counts.reserved} reserved for dispatch</p>}{!!counts?.unknown && <p className="overview-warning">{counts.unknown} {counts.unknown === 1 ? 'outcome needs' : 'outcomes need'} reconciliation in the project.</p>}
       {counts?.dispatchPaused && <p className="overview-warning">Workspace dispatch is paused.</p>}
     </>}
-    <footer>{value && <Button variant="secondary" onClick={openNext}>{value.nextAction.label}</Button>}<Button variant="ghost" onClick={() => useCockpit.getState().selectProject(project.id)}>Open project</Button><Button variant="ghost" disabled={pending} aria-expanded={showQueue} onClick={() => { if (showQueue) onForget(project.id); setShowQueue(value => !value); }}>{showQueue ? 'Hide queue' : 'Manage queue'}</Button></footer>
+    <footer>{value && !summary?.sourceBusy && <Button variant="secondary" onClick={openNext}>{value.nextAction.label}</Button>}<Button variant="ghost" onClick={() => useCockpit.getState().selectProject(project.id)}>Open project</Button><Button variant="ghost" disabled={pending} aria-expanded={showQueue} onClick={() => { if (showQueue) onForget(project.id); setShowQueue(value => !value); }}>{showQueue ? 'Hide queue' : 'Manage queue'}</Button></footer>
     {value && <>
 
       {value.questions.items.length > 0 && <details className="overview-questions"><summary>{value.questions.count === null ? 'Known questions to resolve' : `${value.questions.count} ${value.questions.count === 1 ? 'question' : 'questions'} to resolve`}</summary><ul>{value.questions.items.map(question => <li key={`${question.source}:${question.id}`}>{question.text}{question.truncated && '…'}</li>)}</ul>{!!value.questions.omitted && <p>{value.questions.omitted} more in the project.</p>}</details>}
       {value.questions.status !== 'recorded' && <p className="overview-meta">Question history is incomplete. Open the project for its available context.</p>}
-      {value.latestRun?.status === 'recorded' && <p className="overview-meta">Latest run: {value.latestRun.state?.replace(/_/g, ' ') || 'recorded'}. {value.latestRun.contextStatus === 'changed' ? 'Project context changed; review the run against the current brief and plan.' : value.latestRun.contextStatus === 'unavailable' ? 'Its context comparison is unavailable.' : 'Open the run for its checks and review evidence.'}</p>}
+      {value.latestRun?.status === 'recorded' && <p className="overview-meta">{summary?.sourceBusy ? 'Last recorded run' : 'Latest run'}: {value.latestRun.state?.replace(/_/g, ' ') || 'recorded'}. {value.latestRun.contextStatus === 'changed' ? 'Project context changed; review the run against the current brief and plan.' : value.latestRun.contextStatus === 'unavailable' ? 'Its context comparison is unavailable.' : 'Open the run for its checks and review evidence.'}</p>}
       {value.latestRun?.status === 'unavailable' && <p className="overview-meta">Latest run history unavailable. Open the project to inspect its saved runs.</p>}
       <details className="overview-details"><summary>Context and observation</summary>{value.context && <p>Brief v{value.context.briefRevision} · Definition {value.context.definitionStatus || 'draft'} · Design {value.context.designStatus || 'draft'} · Plan v{value.context.planRevision}. {value.context.tasks.recordedDone} of {value.context.tasks.total} tasks marked done by a person; this is not verification evidence.</p>}<p>Observed {new Date(value.observedAt).toLocaleTimeString()}. Running is a recorded queue state, not a live process check. Direct sessions are shown inside the project.</p>{value.limitations.map((text, index) => <p key={index}>{text}</p>)}</details>
     </>}

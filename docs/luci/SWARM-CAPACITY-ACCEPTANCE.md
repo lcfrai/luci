@@ -64,9 +64,21 @@ now uses the production 60-second readiness budget and records startup, exit
 and registry diagnostics; it fails immediately if the intended live count drops.
 Admission inputs are also explicit: a synthetic 16 GiB execution pool retains
 25% headroom while fitting three requested 4 GiB workers. A 12 GiB pool correctly
-admits only two. The corrected short mechanics check passes; a corrected
-sustained run is still required. These observations do not change production
-limits or establish native workstation capacity.
+admits only two. The corrected ten-minute run passes against source
+`e81b586077f8af97e5e59472e34eafd161f16b8a`: 628.11 seconds elapsed, 602 samples,
+three live workers in all 600 workload samples, six successful task results and
+one deliberate exit-2 failure. Fair admission, retained captured context through
+service reopen and amendment, and cancellation before allocation passed.
+
+The sampled simultaneous RSS sum for the test control plane and its controlled
+workers peaked at 158,851,072 bytes (151.49 MiB); shared pages can be counted
+more than once. This excludes browsers, Docker and models. Each worker actually
+touched 16 MiB; requested 4 GiB limits were synthetic scheduling inputs, not
+enforced memory consumption. The host also performed unrelated build work.
+These observations do not change production limits, prove whole-application
+memory use or establish native workstation capacity. The earlier failed run
+remains a failure. The installed Docker/browser mixed workload is a separate
+gate, and successful process exit still requires result review and checks.
 
 ## Terminal memory and recovery
 

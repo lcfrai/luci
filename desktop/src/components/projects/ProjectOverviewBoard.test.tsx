@@ -4,7 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ProjectOverviewBoard } from './ProjectOverviewBoard';
 import { projectOverviewApi, type ProjectOverview } from '../../api/projectOverview';
 import { swarmQueueApi, type ProjectSwarmQueue, type SwarmQueueItem } from '../../api/swarmQueue';
-import { ApiError } from '../../api/client';
+import { ApiError, type ProblemCode } from '../../api/client';
 import { personalPermissions, teamsApi, type ProjectAccess } from '../../api/teams';
 import { resetCockpit, useCockpit } from '../../store/store';
 
@@ -94,6 +94,38 @@ it('keeps unavailable counters and incomplete question history distinct from zer
   await screen.findByText('Queue activity unavailable; no zero counts inferred.');
   expect(within(screen.getByLabelText('Recorded swarm queue activity')).getAllByText('—')).toHaveLength(3);
   expect(screen.getByText(/Question history is incomplete/)).toBeTruthy();
+});
+it('retains explicitly recorded context during source preparation while keeping queue intervention available', async () => {
+  const user = userEvent.setup(); render(<ProjectOverviewBoard projects={[projects[0]]} />);
+  await screen.findByText('Build p1');
+  vi.mocked(projectOverviewApi.get).mockRejectedValueOnce(new ApiError('branch_busy' as ProblemCode, 'Project source is locked.', 409));
+  await user.click(screen.getByRole('button', { name: 'Refresh overview' }));
+  await screen.findByText(/Source is being prepared; showing last recorded context/);
+  expect(screen.getByText('Build p1')).toBeTruthy();
+  expect(screen.getByText('Last recorded: Develop')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Review the plan' })).toBeNull();
+  expect(screen.getByText(/Activity counts are recorded, not live/)).toBeTruthy();
+  await user.click(screen.getByRole('button', { name: 'Manage queue' }));
+  await user.click(await screen.findByRole('checkbox', { name: 'Select Build comments in Notes' }));
+  await user.click(screen.getByRole('button', { name: 'Pause waiting' }));
+  await screen.findByText('1 changed · 0 failed · 0 unconfirmed · 0 skipped');
+  await screen.findByRole('button', { name: 'Review the plan' });
+  expect(screen.queryByText(/showing last recorded context/)).toBeNull();
+  expect(swarmQueueApi.control).toHaveBeenCalledExactlyOnceWith('p1', expect.objectContaining({ revision: 2 }), 'pause', 'normal');
+});
+it.each([403, 500])('clears retained private context when a later read fails with status %i', async status => {
+  const user = userEvent.setup(); render(<ProjectOverviewBoard projects={[projects[0]]} />);
+  await screen.findByText('Build p1');
+  vi.mocked(projectOverviewApi.get).mockRejectedValueOnce(new ApiError('branch_busy' as ProblemCode, 'Project source is locked.', 409));
+  await user.click(screen.getByRole('button', { name: 'Refresh overview' }));
+  await screen.findByText('Last recorded: Develop');
+  vi.mocked(projectOverviewApi.get).mockRejectedValueOnce(new ApiError('internal', 'Access or context unavailable.', status));
+  await user.click(screen.getByRole('button', { name: 'Refresh overview' }));
+  await screen.findByText('Summary unavailable. Access or context unavailable.');
+  expect(screen.queryByText('Build p1')).toBeNull();
+  expect(screen.queryByText('Last recorded: Develop')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Review the plan' })).toBeNull();
+  expect(screen.queryByLabelText('Recorded swarm queue activity')).toBeNull();
 });
 it('bounds concurrent summaries to four and never starts the fifth while four are pending', async () => {
   const resolves: (() => void)[] = [];

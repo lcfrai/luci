@@ -33,6 +33,24 @@ Change revisions only between test batches. Record the full revision with every
 result; never replace code underneath a running test. Keep failed and successful
 evidence and remaining coverage intact.
 
+### Prepared Windows baseline — 8 October 2026
+
+The local tester has retrieved and independently verified
+`e81b586077f8af97e5e59472e34eafd161f16b8a` into
+`E:\Luci-local-acceptance\checkouts\e81b5860`. `npm ci` passed with task-local
+Node 24.19.0 and npm 10.9.3; Go 1.26.3 is available. Caches and temporary files
+are on E:, and the existing checkout, system Node and application data are
+untouched. Docker Desktop had not yet been started, and no application or
+acceptance workload had been launched. This is preparation, not a Windows pass
+or the final handoff candidate. Identify every replacement revision explicitly.
+
+The handoff must include reproducible helpers and sanitized completed reports
+in the retrievable source or an accessible evidence artifact. Ignored
+`artifacts/` paths alone do not meet that requirement. Record source/package
+identity and distinguish completed controlled, installed and native checks.
+Cloud-originated findings use `CLOUD-` IDs to avoid collision with the local
+tester's `LOCAL-` IDs.
+
 ## Findings and acknowledgement
 
 Use stable IDs such as `LOCAL-001`. Each finding records:

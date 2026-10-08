@@ -14,6 +14,37 @@ The owner has authorized an ongoing Windows test/correction loop in
 revisions and reports stable issue IDs; the implementation thread acknowledges,
 fixes and sends exact revisions for retest while other testing continues.
 
+## Current acceptance checkpoint — 8 October 2026
+
+Accessible source checkpoint:
+`e81b586077f8af97e5e59472e34eafd161f16b8a` on
+`codex/luci-production-runs`. The local tester has prepared that exact revision
+with isolated E: source/caches and supported runtimes, without starting the app.
+It is not the finished local candidate. Source checks, a clean portable package,
+portable startup/persistence checks and the corrected ten-minute controlled
+scheduler run pass. Installed Home bulk actions, partial permission failure and
+exact-run navigation also pass against that package.
+
+The actual Docker/Codex four-project run has not yet passed end to end. Partial
+runs proved real task output, review/integration and restart of the service with
+the same worker/container/context, but exposed a queue-read defect and fixture
+problems. Keep those failed receipts and their limited evidence. The deterministic
+provider in this run tests native execution mechanics, not model reasoning.
+
+| ID | Priority / owner | Observed defect and expected behavior | State / evidence |
+| --- | --- | --- | --- |
+| CLOUD-001 | High / cloud implementation | Workspace preparation holds the source lock, making queue reads and controls return `branch_busy`. Private queue reads and pause/resume/cancel/priority must remain usable while source-dependent operations stay guarded. | Source correction and production-router race/fresh-permission regressions pass; matching installed retest pending. |
+| CLOUD-002 | High / cloud implementation | A completed swarm task uses an interactive CLI that can remain open and retain capacity. Task execution must end or visibly request intervention, release owned resources when safe, and let other projects progress without manually stopping every completed task. | Fixing. Preserve saved approval policy; no success or integration may be inferred from process exit. Direct interactive terminals retain their purpose. |
+| CLOUD-003 | Medium / cloud implementation | Transient source locking removes a previously loaded project summary. Retain explicitly labelled last-recorded context only for `branch_busy`, hide stale next actions, and clear private summaries on access denial. | Source correction, 23 focused Home tests and TypeScript pass; matching installed retest pending. |
+
+Before the initial Windows acceptance handoff: finish the task lifecycle,
+integrate and publish the exact corrected revision, pass the installed
+four-project workflow with owned-resource observations, and include sanitized
+reports and reproduction helpers in retrievable source. Native Windows,
+live-provider quality and the sustained realistic workstation workload remain
+local acceptance gates. No cloud-only merchant or deployment prerequisite blocks
+these steps. See [LOCAL-TEST-LOOP.md](LOCAL-TEST-LOOP.md) for coordination.
+
 ## Swarm coordination and context integration — 8 October 2026
 
 The interface must be a real interactive application using polished shadcn/ui
@@ -66,11 +97,11 @@ preserved initial failures are in
 `artifacts/quality-swarm/full-baseline/verification.json`. The controlled tiny-job
 benchmark showed concurrency but no speedup; see the comparison document.
 
-This checkpoint is not the local acceptance candidate. Remaining implementation
-includes global fair resource admission and durable queues, the cross-project
-overview and scoped action controls, the shadcn/ui migration, and bounded
-terminal/session memory. Those changes require sustained four-project evidence
-before the integrated Windows handoff.
+This historical foundation checkpoint was not the local acceptance candidate.
+The following integration adds global fair resource admission and durable
+queues, the cross-project overview and scoped action controls, the shadcn/ui
+migration, and bounded terminal/session memory. Installed and native acceptance
+remain separate from their source verification.
 
 ### Four-project integration pass — source verified, installed acceptance open
 
@@ -109,7 +140,7 @@ preserves overload closure before cancelling its peer connection. The retained
 Docker candidate includes these sandbox changes; its exact exported bytes and
 actual installed runtime still require verification before handoff.
 
-Tracked evidence for this pass is under `artifacts/quality-swarm/` (queue UI and
+Working evidence for this pass is under ignored `artifacts/quality-swarm/` (queue UI and
 contract checks, terminal-limits, navigation-regressions and source-export checks)
 and `artifacts/resource-probes-test.log`. The sustained four-project controlled
 process test is exercising actual scheduler/allocation paths. Its first
@@ -118,8 +149,11 @@ all 601 samples and the failure are retained. Diagnostics reproduced a fixture
 startup deadline of 100 ms; the corrected fixture uses the production readiness
 budget. Its synthetic execution capacity now admits the intended three 4 GiB
 requests while retaining 25% headroom. The corrected short run passes with six
-successful results and one deliberate exit-2 failure; the final ten-minute
-workload is in progress. Earlier failures are not passing endurance evidence. Controlled telemetry/provider
+successful results and one deliberate exit-2 failure. The corrected ten-minute
+workload also passes: 602 samples, three live workers in all 600 workload samples,
+six successful results and one deliberate failure. See
+[SWARM-CAPACITY-ACCEPTANCE.md](SWARM-CAPACITY-ACCEPTANCE.md) for measured scope.
+Earlier failures are not passing endurance evidence. Controlled telemetry/provider
 fixtures do not establish native Windows capacity or live-model output quality.
 The broader goal and all unverified local acceptance gates remain open.
 

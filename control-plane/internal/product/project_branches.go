@@ -112,7 +112,7 @@ func (s *Server) guardProjectSourceRoutes(mux Registrar) Registrar {
 }
 
 func (g *branchSourceRegistrar) HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request)) {
-	if pattern == "POST /v1/product/projects/{id}/runs/{runId}/swarm/tasks/{taskId}/integrate" || pattern == "POST /v1/product/projects/{id}/runs/{runId}/swarm/tasks/{taskId}/reserve" || !strings.Contains(pattern, "/v1/product/projects/{id}/") || strings.Contains(pattern, "/git/branches") || strings.HasSuffix(pattern, "/git/switch") || strings.Contains(pattern, "/git/branch-operations/") || strings.Contains(pattern, "/releases/{releaseId}/") || strings.HasSuffix(pattern, "/configuration") || strings.Contains(pattern, "/checks/{runId}") {
+	if projectRouteUsesPrivateQueue(pattern) || pattern == "POST /v1/product/projects/{id}/runs/{runId}/swarm/tasks/{taskId}/integrate" || pattern == "POST /v1/product/projects/{id}/runs/{runId}/swarm/tasks/{taskId}/reserve" || !strings.Contains(pattern, "/v1/product/projects/{id}/") || strings.Contains(pattern, "/git/branches") || strings.HasSuffix(pattern, "/git/switch") || strings.Contains(pattern, "/git/branch-operations/") || strings.Contains(pattern, "/releases/{releaseId}/") || strings.HasSuffix(pattern, "/configuration") || strings.Contains(pattern, "/checks/{runId}") {
 		g.base.HandleFunc(pattern, handler)
 		return
 	}
@@ -129,6 +129,23 @@ func (g *branchSourceRegistrar) HandleFunc(pattern string, handler func(http.Res
 		defer release()
 		handler(w, r)
 	})
+}
+
+// CLOUD-001: queue visibility and intervention use private receipts, never the
+// checkout being copied or switched. Keep this list exact: enqueue resolves
+// reviewed source, and run/overview/reconciliation inspect canonical context.
+// GET's standard ServeMux matching also admits HEAD without changing state.
+func projectRouteUsesPrivateQueue(pattern string) bool {
+	switch pattern {
+	case "GET /v1/product/projects/{id}/swarm-queue",
+		"POST /v1/product/projects/{id}/swarm-queue/{queueId}/pause",
+		"POST /v1/product/projects/{id}/swarm-queue/{queueId}/resume",
+		"POST /v1/product/projects/{id}/swarm-queue/{queueId}/cancel",
+		"POST /v1/product/projects/{id}/swarm-queue/{queueId}/priority":
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *Server) branchGuard(id string) *sync.RWMutex {
