@@ -202,7 +202,10 @@ func (g *executionAdmission) reserveCheck(ctx context.Context, prepared backend.
 			out.Code, out.Message = "check_limit", "The current per-user check limit is occupied. No command was started."
 			return nil
 		}
-		demand := executionCapacityDemand{RequiredCreateDiskBytes: estimate.Bytes}
+		// ownRef is nonempty only for this identity/actor/resources-matched,
+		// durable created lease. Its next RPC is Start of that immutable ref,
+		// so revalidation must not reserve another pair of VFS image copies.
+		demand := executionCapacityDemand{RequiredCreateDiskBytes: estimate.Bytes, CreateAcknowledged: ownRef != ""}
 		observed := map[string]bool{}
 		for _, c := range snap.Execution.Containers {
 			if ownRef != "" && c.ID == ownRef && c.Kind == "check" {

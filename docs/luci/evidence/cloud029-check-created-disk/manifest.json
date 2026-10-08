@@ -1,0 +1,55 @@
+{
+  "scope": "CLOUD-029 controlled real HTTP/product/private-ledger regression and phase-aware created-check disk correction; no installed success claim.",
+  "baseProductSource": "d6eaa540960fb11c6d425104f3da136bf9217712",
+  "triggeringHarnessSource": "81f2ba5b194a81a4f2ad167e466793f59162b387",
+  "before": {
+    "exitCode": 1,
+    "reason": "Expected successful acknowledged check was blocked execution_disk_pressure",
+    "command": "GOMAXPROCS=2 go test -p 1 ./internal/api -run '^TestProjectCheckHTTPDiskAdmissionAcrossCreate/acknowledged-create-needs-no-second-copy$' -count=1 -timeout=60s -v",
+    "originalLog": "before.log"
+  },
+  "intermediateFocused": {
+    "exitCode": 0,
+    "command": "GOMAXPROCS=2 go test -p 1 ./internal/api -run '^TestProjectCheckHTTPDiskAdmission' -count=1 -timeout=90s -v",
+    "originalLog": "after.log",
+    "note": "Ran before adding the two final Windows host-storage cases."
+  },
+  "finalValidation": {
+    "exitCode": 0,
+    "command": "GOMAXPROCS=2 go test -p 1 ./internal/api -run '^(TestProjectCheck|TestExecutionAdmission|TestExecution.*Disk|TestExecutionWindowsHostStorage)' -count=1 -timeout=120s -v",
+    "originalLog": "validation.log",
+    "topLevelTests": 34,
+    "subtests": 86,
+    "passedRecords": 120,
+    "skipped": 0,
+    "failed": 0
+  },
+  "sourceHashes": {
+    "control-plane/internal/api/execution_capacity.go": "a97113455a9da43a0d2402fde940cc07d357a85b4228fa552208b7c239d0b217",
+    "control-plane/internal/api/execution_check_leases.go": "10bd7e5ccb8039920340acead9ebb5a786dcc9d1113f668024160eae7017613c",
+    "control-plane/internal/api/project_check_disk_admission_test.go": "7a5cc1ef3f553a71ebb7868e0418064bd32fd5f7c16eb5ec7087582d67de39ac",
+    "control-plane/internal/api/check_execution.go": "927fd3cbaea388ad4455a40c547e2e954617eef515e3ea67ca41227ceb4f7481",
+    "control-plane/internal/api/execution_disk_demand.go": "9355f0b20a52aca1fb9fbec7addd17f119eba13f65d64a27af7b319b24e45f1d",
+    "control-plane/internal/api/project_check_execution_test.go": "d334137904f66267d51644a3f2bc4470470dbab9e2b9d85acbd46823f7051d33",
+    "control-plane/internal/api/execution_leases_test.go": "fb71d25e4f11adf3b3a16bd8eb8c0a4d3f00cbf45726b014dc2bf675ecd48a2b",
+    "control-plane/internal/resourcebudget/cgroup_linux.go": "1843acdc15db9f9876545a1393bf6c21b93bc01873a64d8651be3adb26b5a4d1",
+    "control-plane/go.mod": "46639d620d215ff94c6e6d2ea2bf52c74abdf501811248e8905aad3846ae0341",
+    "control-plane/go.sum": "fad248c401dce6545f51ad4beba435f67999c8605be35232f5261b69c7b50344"
+  },
+  "beforeProductFilesEqualInstalledSource": {
+    "control-plane/internal/api/execution_capacity.go": true,
+    "control-plane/internal/api/execution_check_leases.go": true
+  },
+  "tools": {
+    "go": "go version go1.26.3 linux/amd64"
+  },
+  "productionFilesChanged": [
+    "control-plane/internal/api/execution_capacity.go",
+    "control-plane/internal/api/execution_check_leases.go"
+  ],
+  "testFileAdded": "control-plane/internal/api/project_check_disk_admission_test.go",
+  "noRealDockerOrNetworkOperations": true,
+  "memoryHeadroomChanged": false,
+  "diskWorkingReserveChanged": false,
+  "inputPrivacy": "Only selected resource/check/transport metadata; no private account/provider/authentication data exported."
+}

@@ -1,0 +1,8 @@
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate/acknowledged-create-needs-no-second-copy
+    project_check_disk_admission_test.go:150: status=blocked code=execution_disk_pressure, want status=passed code=
+--- FAIL: TestProjectCheckHTTPDiskAdmissionAcrossCreate (0.24s)
+    --- FAIL: TestProjectCheckHTTPDiskAdmissionAcrossCreate/acknowledged-create-needs-no-second-copy (0.24s)
+FAIL
+FAIL	github.com/lcfrai/luci/control-plane/internal/api	0.253s
+FAIL

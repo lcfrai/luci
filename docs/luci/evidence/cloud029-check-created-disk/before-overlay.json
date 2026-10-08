@@ -1,0 +1,7 @@
+{
+  "Replace": {
+    "/workspace/luci/control-plane/internal/api/execution_capacity.go": "/workspace/luci/docs/luci/evidence/cloud029-check-created-disk/before/execution_capacity.go",
+    "/workspace/luci/control-plane/internal/api/execution_check_leases.go": "/workspace/luci/docs/luci/evidence/cloud029-check-created-disk/before/execution_check_leases.go",
+    "/workspace/luci/control-plane/internal/api/project_check_disk_admission_test.go": "/workspace/luci/docs/luci/evidence/cloud029-check-created-disk/before/project_check_disk_admission_test.go"
+  }
+}

@@ -1,0 +1,242 @@
+=== RUN   TestExecutionCreateDiskEstimateUsesObservedDriverWithoutChangingRawTelemetry
+=== RUN   TestExecutionCreateDiskEstimateUsesObservedDriverWithoutChangingRawTelemetry/vfs
+=== RUN   TestExecutionCreateDiskEstimateUsesObservedDriverWithoutChangingRawTelemetry/overlay
+=== RUN   TestExecutionCreateDiskEstimateUsesObservedDriverWithoutChangingRawTelemetry/overlay2
+=== RUN   TestExecutionCreateDiskEstimateUsesObservedDriverWithoutChangingRawTelemetry/overlayfs
+=== RUN   TestExecutionCreateDiskEstimateUsesObservedDriverWithoutChangingRawTelemetry/fuse-overlayfs
+--- PASS: TestExecutionCreateDiskEstimateUsesObservedDriverWithoutChangingRawTelemetry (0.00s)
+    --- PASS: TestExecutionCreateDiskEstimateUsesObservedDriverWithoutChangingRawTelemetry/vfs (0.00s)
+    --- PASS: TestExecutionCreateDiskEstimateUsesObservedDriverWithoutChangingRawTelemetry/overlay (0.00s)
+    --- PASS: TestExecutionCreateDiskEstimateUsesObservedDriverWithoutChangingRawTelemetry/overlay2 (0.00s)
+    --- PASS: TestExecutionCreateDiskEstimateUsesObservedDriverWithoutChangingRawTelemetry/overlayfs (0.00s)
+    --- PASS: TestExecutionCreateDiskEstimateUsesObservedDriverWithoutChangingRawTelemetry/fuse-overlayfs (0.00s)
+=== RUN   TestExecutionCreateDiskEstimateRejectsUnknownAndOverflow
+=== RUN   TestExecutionCreateDiskEstimateRejectsUnknownAndOverflow/missing_driver
+=== RUN   TestExecutionCreateDiskEstimateRejectsUnknownAndOverflow/unknown_driver
+=== RUN   TestExecutionCreateDiskEstimateRejectsUnknownAndOverflow/unreviewed_driver
+=== RUN   TestExecutionCreateDiskEstimateRejectsUnknownAndOverflow/driver_not_exact
+=== RUN   TestExecutionCreateDiskEstimateRejectsUnknownAndOverflow/missing_image
+=== RUN   TestExecutionCreateDiskEstimateRejectsUnknownAndOverflow/zero_image
+=== RUN   TestExecutionCreateDiskEstimateRejectsUnknownAndOverflow/copy_overflow
+=== RUN   TestExecutionCreateDiskEstimateRejectsUnknownAndOverflow/multiply_overflow
+=== RUN   TestExecutionCreateDiskEstimateRejectsUnknownAndOverflow/reserve_overflow
+=== RUN   TestExecutionCreateDiskEstimateRejectsUnknownAndOverflow/negative_pending
+=== RUN   TestExecutionCreateDiskEstimateRejectsUnknownAndOverflow/negative_reserve
+=== RUN   TestExecutionCreateDiskEstimateRejectsUnknownAndOverflow/zero_allocation
+--- PASS: TestExecutionCreateDiskEstimateRejectsUnknownAndOverflow (0.00s)
+    --- PASS: TestExecutionCreateDiskEstimateRejectsUnknownAndOverflow/missing_driver (0.00s)
+    --- PASS: TestExecutionCreateDiskEstimateRejectsUnknownAndOverflow/unknown_driver (0.00s)
+    --- PASS: TestExecutionCreateDiskEstimateRejectsUnknownAndOverflow/unreviewed_driver (0.00s)
+    --- PASS: TestExecutionCreateDiskEstimateRejectsUnknownAndOverflow/driver_not_exact (0.00s)
+    --- PASS: TestExecutionCreateDiskEstimateRejectsUnknownAndOverflow/missing_image (0.00s)
+    --- PASS: TestExecutionCreateDiskEstimateRejectsUnknownAndOverflow/zero_image (0.00s)
+    --- PASS: TestExecutionCreateDiskEstimateRejectsUnknownAndOverflow/copy_overflow (0.00s)
+    --- PASS: TestExecutionCreateDiskEstimateRejectsUnknownAndOverflow/multiply_overflow (0.00s)
+    --- PASS: TestExecutionCreateDiskEstimateRejectsUnknownAndOverflow/reserve_overflow (0.00s)
+    --- PASS: TestExecutionCreateDiskEstimateRejectsUnknownAndOverflow/negative_pending (0.00s)
+    --- PASS: TestExecutionCreateDiskEstimateRejectsUnknownAndOverflow/negative_reserve (0.00s)
+    --- PASS: TestExecutionCreateDiskEstimateRejectsUnknownAndOverflow/zero_allocation (0.00s)
+=== RUN   TestExecutionAdmissionVFSAccountsForBothCopiesAndDurablePendingWorkers
+--- PASS: TestExecutionAdmissionVFSAccountsForBothCopiesAndDurablePendingWorkers (0.06s)
+=== RUN   TestExecutionAdmissionDiskCountsOnlyUnobservedCopies
+--- PASS: TestExecutionAdmissionDiskCountsOnlyUnobservedCopies (0.01s)
+=== RUN   TestExecutionAdmissionUnknownOrOverflowingDiskEstimateRetainsQueue
+=== RUN   TestExecutionAdmissionUnknownOrOverflowingDiskEstimateRetainsQueue/unknown_driver
+=== RUN   TestExecutionAdmissionUnknownOrOverflowingDiskEstimateRetainsQueue/missing_driver
+=== RUN   TestExecutionAdmissionUnknownOrOverflowingDiskEstimateRetainsQueue/vfs_overflow
+=== RUN   TestExecutionAdmissionUnknownOrOverflowingDiskEstimateRetainsQueue/reserve_overflow
+=== RUN   TestExecutionAdmissionUnknownOrOverflowingDiskEstimateRetainsQueue/zero_image
+--- PASS: TestExecutionAdmissionUnknownOrOverflowingDiskEstimateRetainsQueue (0.04s)
+    --- PASS: TestExecutionAdmissionUnknownOrOverflowingDiskEstimateRetainsQueue/unknown_driver (0.01s)
+    --- PASS: TestExecutionAdmissionUnknownOrOverflowingDiskEstimateRetainsQueue/missing_driver (0.01s)
+    --- PASS: TestExecutionAdmissionUnknownOrOverflowingDiskEstimateRetainsQueue/vfs_overflow (0.01s)
+    --- PASS: TestExecutionAdmissionUnknownOrOverflowingDiskEstimateRetainsQueue/reserve_overflow (0.01s)
+    --- PASS: TestExecutionAdmissionUnknownOrOverflowingDiskEstimateRetainsQueue/zero_image (0.01s)
+=== RUN   TestExecutionWindowsHostStorageRefusesNewWorkWithoutReleasingExistingLease
+=== RUN   TestExecutionWindowsHostStorageRefusesNewWorkWithoutReleasingExistingLease/missing
+=== RUN   TestExecutionWindowsHostStorageRefusesNewWorkWithoutReleasingExistingLease/confirmation
+=== RUN   TestExecutionWindowsHostStorageRefusesNewWorkWithoutReleasingExistingLease/relocated
+=== RUN   TestExecutionWindowsHostStorageRefusesNewWorkWithoutReleasingExistingLease/stale
+=== RUN   TestExecutionWindowsHostStorageRefusesNewWorkWithoutReleasingExistingLease/unmeasured
+=== RUN   TestExecutionWindowsHostStorageRefusesNewWorkWithoutReleasingExistingLease/low-host-large-guest
+--- PASS: TestExecutionWindowsHostStorageRefusesNewWorkWithoutReleasingExistingLease (0.07s)
+    --- PASS: TestExecutionWindowsHostStorageRefusesNewWorkWithoutReleasingExistingLease/missing (0.01s)
+    --- PASS: TestExecutionWindowsHostStorageRefusesNewWorkWithoutReleasingExistingLease/confirmation (0.01s)
+    --- PASS: TestExecutionWindowsHostStorageRefusesNewWorkWithoutReleasingExistingLease/relocated (0.01s)
+    --- PASS: TestExecutionWindowsHostStorageRefusesNewWorkWithoutReleasingExistingLease/stale (0.01s)
+    --- PASS: TestExecutionWindowsHostStorageRefusesNewWorkWithoutReleasingExistingLease/unmeasured (0.01s)
+    --- PASS: TestExecutionWindowsHostStorageRefusesNewWorkWithoutReleasingExistingLease/low-host-large-guest (0.01s)
+=== RUN   TestExecutionWindowsHostStorageCountsDriverAwarePendingCopiesAcrossReopen
+--- PASS: TestExecutionWindowsHostStorageCountsDriverAwarePendingCopiesAcrossReopen (0.01s)
+=== RUN   TestExecutionAdmissionSerializesIndependentControllersBeforeAnyAllocation
+--- PASS: TestExecutionAdmissionSerializesIndependentControllersBeforeAnyAllocation (0.04s)
+=== RUN   TestExecutionAdmissionRechecksExistingLeaseForNewPressure
+--- PASS: TestExecutionAdmissionRechecksExistingLeaseForNewPressure (0.01s)
+=== RUN   TestExecutionAdmissionDoesNotReplayUnconfirmedChildAfterReopen
+--- PASS: TestExecutionAdmissionDoesNotReplayUnconfirmedChildAfterReopen (0.01s)
+=== RUN   TestExecutionAdmissionHonorsActualPolicyAndMissingTelemetry
+=== RUN   TestExecutionAdmissionHonorsActualPolicyAndMissingTelemetry/unknown_effective_host_CPU
+=== RUN   TestExecutionAdmissionHonorsActualPolicyAndMissingTelemetry/stale_host_disk
+=== RUN   TestExecutionAdmissionHonorsActualPolicyAndMissingTelemetry/stale
+=== RUN   TestExecutionAdmissionHonorsActualPolicyAndMissingTelemetry/incomplete_engine_inventory
+=== RUN   TestExecutionAdmissionHonorsActualPolicyAndMissingTelemetry/unknown_VM_disk
+=== RUN   TestExecutionAdmissionHonorsActualPolicyAndMissingTelemetry/allocation_disk_demand
+--- PASS: TestExecutionAdmissionHonorsActualPolicyAndMissingTelemetry (0.03s)
+    --- PASS: TestExecutionAdmissionHonorsActualPolicyAndMissingTelemetry/unknown_effective_host_CPU (0.00s)
+    --- PASS: TestExecutionAdmissionHonorsActualPolicyAndMissingTelemetry/stale_host_disk (0.00s)
+    --- PASS: TestExecutionAdmissionHonorsActualPolicyAndMissingTelemetry/stale (0.00s)
+    --- PASS: TestExecutionAdmissionHonorsActualPolicyAndMissingTelemetry/incomplete_engine_inventory (0.01s)
+    --- PASS: TestExecutionAdmissionHonorsActualPolicyAndMissingTelemetry/unknown_VM_disk (0.00s)
+    --- PASS: TestExecutionAdmissionHonorsActualPolicyAndMissingTelemetry/allocation_disk_demand (0.00s)
+=== RUN   TestExecutionAdmissionAncillaryWorkloadsConsumeResourcesNotAgentSlots
+=== RUN   TestExecutionAdmissionAncillaryWorkloadsConsumeResourcesNotAgentSlots/bounded_services
+=== RUN   TestExecutionAdmissionAncillaryWorkloadsConsumeResourcesNotAgentSlots/unbounded_measured_services
+--- PASS: TestExecutionAdmissionAncillaryWorkloadsConsumeResourcesNotAgentSlots (0.02s)
+    --- PASS: TestExecutionAdmissionAncillaryWorkloadsConsumeResourcesNotAgentSlots/bounded_services (0.01s)
+    --- PASS: TestExecutionAdmissionAncillaryWorkloadsConsumeResourcesNotAgentSlots/unbounded_measured_services (0.01s)
+=== RUN   TestExecutionAdmissionNeverTreatsMissingAncillaryStatsAsZero
+--- PASS: TestExecutionAdmissionNeverTreatsMissingAncillaryStatsAsZero (0.01s)
+=== RUN   TestExecutionAdmissionLegacySubscriptionHoldsProviderCapacity
+--- PASS: TestExecutionAdmissionLegacySubscriptionHoldsProviderCapacity (0.00s)
+=== RUN   TestExecutionAdmissionSharedTeamQuotaCannotBeBypassedByAnotherMember
+--- PASS: TestExecutionAdmissionSharedTeamQuotaCannotBeBypassedByAnotherMember (0.01s)
+=== RUN   TestExecutionAdmissionReplacementRetainsOneExactSessionReservation
+--- PASS: TestExecutionAdmissionReplacementRetainsOneExactSessionReservation (0.01s)
+=== RUN   TestExecutionAdmissionRefusesLinkedPrivateState
+=== RUN   TestExecutionAdmissionRefusesLinkedPrivateState/root_symlink
+=== RUN   TestExecutionAdmissionRefusesLinkedPrivateState/lock_hardlink
+=== RUN   TestExecutionAdmissionRefusesLinkedPrivateState/ledger_symlink
+--- PASS: TestExecutionAdmissionRefusesLinkedPrivateState (0.01s)
+    --- PASS: TestExecutionAdmissionRefusesLinkedPrivateState/root_symlink (0.00s)
+    --- PASS: TestExecutionAdmissionRefusesLinkedPrivateState/lock_hardlink (0.00s)
+    --- PASS: TestExecutionAdmissionRefusesLinkedPrivateState/ledger_symlink (0.00s)
+=== RUN   TestExecutionAdmissionRejectsCorruptOwnershipAndResourceLedgerWithoutRepair
+=== RUN   TestExecutionAdmissionRejectsCorruptOwnershipAndResourceLedgerWithoutRepair/huge_memory
+=== RUN   TestExecutionAdmissionRejectsCorruptOwnershipAndResourceLedgerWithoutRepair/huge_cpu
+=== RUN   TestExecutionAdmissionRejectsCorruptOwnershipAndResourceLedgerWithoutRepair/scope
+=== RUN   TestExecutionAdmissionRejectsCorruptOwnershipAndResourceLedgerWithoutRepair/actor
+=== RUN   TestExecutionAdmissionRejectsCorruptOwnershipAndResourceLedgerWithoutRepair/state
+=== RUN   TestExecutionAdmissionRejectsCorruptOwnershipAndResourceLedgerWithoutRepair/unknown_field
+=== RUN   TestExecutionAdmissionRejectsCorruptOwnershipAndResourceLedgerWithoutRepair/trailing_data
+--- PASS: TestExecutionAdmissionRejectsCorruptOwnershipAndResourceLedgerWithoutRepair (0.03s)
+    --- PASS: TestExecutionAdmissionRejectsCorruptOwnershipAndResourceLedgerWithoutRepair/huge_memory (0.00s)
+    --- PASS: TestExecutionAdmissionRejectsCorruptOwnershipAndResourceLedgerWithoutRepair/huge_cpu (0.00s)
+    --- PASS: TestExecutionAdmissionRejectsCorruptOwnershipAndResourceLedgerWithoutRepair/scope (0.00s)
+    --- PASS: TestExecutionAdmissionRejectsCorruptOwnershipAndResourceLedgerWithoutRepair/actor (0.00s)
+    --- PASS: TestExecutionAdmissionRejectsCorruptOwnershipAndResourceLedgerWithoutRepair/state (0.00s)
+    --- PASS: TestExecutionAdmissionRejectsCorruptOwnershipAndResourceLedgerWithoutRepair/unknown_field (0.00s)
+    --- PASS: TestExecutionAdmissionRejectsCorruptOwnershipAndResourceLedgerWithoutRepair/trailing_data (0.00s)
+=== RUN   TestExecutionAdmissionReleasesConfirmedSessionBeforeRegistryForget
+--- PASS: TestExecutionAdmissionReleasesConfirmedSessionBeforeRegistryForget (0.01s)
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate/new-create-needs-both-vfs-copies
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate/acknowledged-create-needs-no-second-copy
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate/acknowledged-visible-create-needs-no-second-copy
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-working-reserve
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-host-memory-headroom
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-execution-memory
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-fresh-host
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-fresh-execution
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-fresh-disk
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-confirmed-host-storage
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-host-volume-reserve
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-complete-inventory
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-same-engine
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-other-workload-limits
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate/unacknowledged-create-retains-capacity
+--- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate (4.18s)
+    --- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate/new-create-needs-both-vfs-copies (0.31s)
+    --- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate/acknowledged-create-needs-no-second-copy (0.24s)
+    --- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate/acknowledged-visible-create-needs-no-second-copy (0.21s)
+    --- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-working-reserve (0.22s)
+    --- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-host-memory-headroom (0.22s)
+    --- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-execution-memory (0.22s)
+    --- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-fresh-host (0.53s)
+    --- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-fresh-execution (0.29s)
+    --- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-fresh-disk (0.23s)
+    --- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-confirmed-host-storage (0.25s)
+    --- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-host-volume-reserve (0.21s)
+    --- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-complete-inventory (0.22s)
+    --- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-same-engine (0.23s)
+    --- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-other-workload-limits (0.25s)
+    --- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate/unacknowledged-create-retains-capacity (0.54s)
+=== RUN   TestProjectCheckHTTPDiskAdmissionKeepsOtherPendingCopyAfterCreate
+--- PASS: TestProjectCheckHTTPDiskAdmissionKeepsOtherPendingCopyAfterCreate (0.55s)
+=== RUN   TestProjectCheckHTTPAccountsSharePendingCapacityBeforeCreate
+--- PASS: TestProjectCheckHTTPAccountsSharePendingCapacityBeforeCreate (0.46s)
+=== RUN   TestProjectCheckHTTPRechecksRevokedAuthorityBeforeCreate
+--- PASS: TestProjectCheckHTTPRechecksRevokedAuthorityBeforeCreate (0.23s)
+=== RUN   TestProjectCheckHTTPCleanupFailureKeepsOutputAcrossReopenWithoutReplay
+--- PASS: TestProjectCheckHTTPCleanupFailureKeepsOutputAcrossReopenWithoutReplay (0.28s)
+=== RUN   TestProjectCheckHTTPRejectsHostAndBrowserAuthorityInputs
+=== RUN   TestProjectCheckHTTPRejectsHostAndBrowserAuthorityInputs/host
+=== RUN   TestProjectCheckHTTPRejectsHostAndBrowserAuthorityInputs/actor
+=== RUN   TestProjectCheckHTTPRejectsHostAndBrowserAuthorityInputs/source
+=== RUN   TestProjectCheckHTTPRejectsHostAndBrowserAuthorityInputs/memory
+--- PASS: TestProjectCheckHTTPRejectsHostAndBrowserAuthorityInputs (0.16s)
+    --- PASS: TestProjectCheckHTTPRejectsHostAndBrowserAuthorityInputs/host (0.00s)
+    --- PASS: TestProjectCheckHTTPRejectsHostAndBrowserAuthorityInputs/actor (0.00s)
+    --- PASS: TestProjectCheckHTTPRejectsHostAndBrowserAuthorityInputs/source (0.00s)
+    --- PASS: TestProjectCheckHTTPRejectsHostAndBrowserAuthorityInputs/memory (0.00s)
+=== RUN   TestProjectCheckHTTPPendingCheckBlocksIndependentWorkerAdmission
+--- PASS: TestProjectCheckHTTPPendingCheckBlocksIndependentWorkerAdmission (0.95s)
+=== RUN   TestProjectCheckHTTPExistingWorkerBlocksCheckWithoutProviderLease
+--- PASS: TestProjectCheckHTTPExistingWorkerBlocksCheckWithoutProviderLease (0.73s)
+=== RUN   TestProjectCheckHTTPSettledUnknownHistoryAllowsNextCheck
+--- PASS: TestProjectCheckHTTPSettledUnknownHistoryAllowsNextCheck (2.01s)
+=== RUN   TestProjectCheckHTTPFinishedObservationPreservesLaterCommandOutcome
+=== RUN   TestProjectCheckHTTPFinishedObservationPreservesLaterCommandOutcome/passed
+=== RUN   TestProjectCheckHTTPFinishedObservationPreservesLaterCommandOutcome/failed
+=== RUN   TestProjectCheckHTTPFinishedObservationPreservesLaterCommandOutcome/prepare-blocked
+=== RUN   TestProjectCheckHTTPFinishedObservationPreservesLaterCommandOutcome/cleanup-pending
+=== RUN   TestProjectCheckHTTPFinishedObservationPreservesLaterCommandOutcome/unstarted-after-progress
+--- PASS: TestProjectCheckHTTPFinishedObservationPreservesLaterCommandOutcome (1.19s)
+    --- PASS: TestProjectCheckHTTPFinishedObservationPreservesLaterCommandOutcome/passed (0.26s)
+    --- PASS: TestProjectCheckHTTPFinishedObservationPreservesLaterCommandOutcome/failed (0.25s)
+    --- PASS: TestProjectCheckHTTPFinishedObservationPreservesLaterCommandOutcome/prepare-blocked (0.22s)
+    --- PASS: TestProjectCheckHTTPFinishedObservationPreservesLaterCommandOutcome/cleanup-pending (0.24s)
+    --- PASS: TestProjectCheckHTTPFinishedObservationPreservesLaterCommandOutcome/unstarted-after-progress (0.22s)
+=== RUN   TestProjectCheckHTTPUnacknowledgedCreateRequiresReviewedFenceAndFreshEditor
+=== RUN   TestProjectCheckHTTPUnacknowledgedCreateRequiresReviewedFenceAndFreshEditor/complete
+=== RUN   TestProjectCheckHTTPUnacknowledgedCreateRequiresReviewedFenceAndFreshEditor/proof-retry
+=== RUN   TestProjectCheckHTTPUnacknowledgedCreateRequiresReviewedFenceAndFreshEditor/revoke-after-proof
+--- PASS: TestProjectCheckHTTPUnacknowledgedCreateRequiresReviewedFenceAndFreshEditor (1.17s)
+    --- PASS: TestProjectCheckHTTPUnacknowledgedCreateRequiresReviewedFenceAndFreshEditor/complete (0.62s)
+    --- PASS: TestProjectCheckHTTPUnacknowledgedCreateRequiresReviewedFenceAndFreshEditor/proof-retry (0.29s)
+    --- PASS: TestProjectCheckHTTPUnacknowledgedCreateRequiresReviewedFenceAndFreshEditor/revoke-after-proof (0.26s)
+=== RUN   TestProjectCheckHTTPObservationBudgetPreservesPeerProgressAfterReopen
+--- PASS: TestProjectCheckHTTPObservationBudgetPreservesPeerProgressAfterReopen (0.52s)
+=== RUN   TestProjectCheckHTTPFinishedReceiptSurvivesFinalPublicationBoundary
+=== RUN   TestProjectCheckHTTPFinishedReceiptSurvivesFinalPublicationBoundary/controller-after-command
+=== RUN   TestProjectCheckHTTPFinishedReceiptSurvivesFinalPublicationBoundary/completion-ack
+--- PASS: TestProjectCheckHTTPFinishedReceiptSurvivesFinalPublicationBoundary (0.47s)
+    --- PASS: TestProjectCheckHTTPFinishedReceiptSurvivesFinalPublicationBoundary/controller-after-command (0.23s)
+    --- PASS: TestProjectCheckHTTPFinishedReceiptSurvivesFinalPublicationBoundary/completion-ack (0.23s)
+=== RUN   TestProjectCheckHTTPRetiredReservationCannotBeRecreatedByDelayedController
+--- PASS: TestProjectCheckHTTPRetiredReservationCannotBeRecreatedByDelayedController (0.20s)
+=== RUN   TestProjectCheckReservedClaimRequiresExactPendingOwnership
+=== RUN   TestProjectCheckReservedClaimRequiresExactPendingOwnership/exact
+=== RUN   TestProjectCheckReservedClaimRequiresExactPendingOwnership/absent
+=== RUN   TestProjectCheckReservedClaimRequiresExactPendingOwnership/created
+=== RUN   TestProjectCheckReservedClaimRequiresExactPendingOwnership/actor
+=== RUN   TestProjectCheckReservedClaimRequiresExactPendingOwnership/memory
+=== RUN   TestProjectCheckReservedClaimRequiresExactPendingOwnership/cpu
+=== RUN   TestProjectCheckReservedClaimRequiresExactPendingOwnership/engine
+=== RUN   TestProjectCheckReservedClaimRequiresExactPendingOwnership/instance
+=== RUN   TestProjectCheckReservedClaimRequiresExactPendingOwnership/command
+=== RUN   TestProjectCheckReservedClaimRequiresExactPendingOwnership/project
+=== RUN   TestProjectCheckReservedClaimRequiresExactPendingOwnership/scope
+--- PASS: TestProjectCheckReservedClaimRequiresExactPendingOwnership (0.43s)
+    --- PASS: TestProjectCheckReservedClaimRequiresExactPendingOwnership/exact (0.01s)
+    --- PASS: TestProjectCheckReservedClaimRequiresExactPendingOwnership/absent (0.00s)
+    --- PASS: TestProjectCheckReservedClaimRequiresExactPendingOwnership/created (0.00s)
+    --- PASS: TestProjectCheckReservedClaimRequiresExactPendingOwnership/actor (0.00s)
+    --- PASS: TestProjectCheckReservedClaimRequiresExactPendingOwnership/memory (0.00s)
+    --- PASS: TestProjectCheckReservedClaimRequiresExactPendingOwnership/cpu (0.00s)
+    --- PASS: TestProjectCheckReservedClaimRequiresExactPendingOwnership/engine (0.00s)
+    --- PASS: TestProjectCheckReservedClaimRequiresExactPendingOwnership/instance (0.00s)
+    --- PASS: TestProjectCheckReservedClaimRequiresExactPendingOwnership/command (0.00s)
+    --- PASS: TestProjectCheckReservedClaimRequiresExactPendingOwnership/project (0.00s)
+    --- PASS: TestProjectCheckReservedClaimRequiresExactPendingOwnership/scope (0.00s)
+PASS
+ok  	github.com/lcfrai/luci/control-plane/internal/api	14.224s

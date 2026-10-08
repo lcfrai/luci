@@ -1,0 +1,12 @@
+{
+  "reviewer": "/root/check_frontend/cohort_review",
+  "scope": "Read-only component/disclosure/selector/source review; no child execution",
+  "findings": [
+    "Closed native disclosure at both navigation targets confirmed.",
+    "Priority exact label includes select options; actual Chromium confirmed zero old exact-label matches.",
+    "No payload/privacy issue in controlled fixture.",
+    "Successful attempt closed owned Chromium and Vite. Emergency watchdog exits directly and does not establish cleanup on its unexercised timeout path; no general lifecycle robustness claim."
+  ],
+  "productSourceChanged": false,
+  "originalAndCorrectedBindingPreserved": true
+}

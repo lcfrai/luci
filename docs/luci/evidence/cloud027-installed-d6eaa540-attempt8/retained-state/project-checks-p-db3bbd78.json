@@ -1,0 +1,67 @@
+[
+  {
+    "revision": 7,
+    "resourcesHeld": false,
+    "stage": "admission",
+    "reasonCode": "memory_pressure",
+    "id": "check-5dc4776e13de1b78cccc2d9c",
+    "projectId": "p-db3bbd78",
+    "commit": "5f922cd77fbfaa546411b6018cd20f6c7d3d94b8",
+    "dirty": false,
+    "execution": "docker",
+    "memoryMiB": 1024,
+    "cpuMillis": 1000,
+    "sourceDigest": "14bdd636fe82adddecec9de07668fff0aff3fd921f95d2b44b12fc5c01874ace",
+    "sourceChanged": false,
+    "status": "blocked",
+    "commands": [
+      {
+        "label": "node",
+        "executable": "node",
+        "args": [
+          "verify.mjs",
+          "final"
+        ],
+        "allocationId": "checkexec-cd12e3e523b5df52975dc4a6",
+        "stage": "admission",
+        "reasonCode": "memory_pressure",
+        "message": "Available memory cannot preserve the configured headroom for another worker.",
+        "cleanupConfirmed": true,
+        "status": "blocked",
+        "output": "",
+        "truncated": false
+      }
+    ],
+    "createdAt": "2026-10-08T21:11:34.320405691Z",
+    "updatedAt": "2026-10-08T21:12:00.675751049Z",
+    "message": "Available memory cannot preserve the configured headroom for another worker.",
+    "requirementIds": [
+      "AC-dag"
+    ],
+    "requirementSnapshots": [
+      {
+        "id": "AC-dag",
+        "title": "Reviewed dependency join",
+        "acceptance": "Only integrated current alpha and beta results release the join; preserve the conflicting prior beta workspace and require fresh integration review after target movement."
+      }
+    ],
+    "specificationRevision": 2,
+    "specificationDigest": "7b8a6891a3a01cf5dc6d5dcb1f4e1161f84775f4623c35feda6b609871ed4ecb",
+    "designPlanRevision": 2,
+    "designPlanDigest": "c4db0156ddafaa0ef6f9a59cd4bab443da1f6cdd197ee83a15dec46b743842f2",
+    "evidenceStatus": "unverified",
+    "staleReasons": [
+      "The commands have not finished."
+    ],
+    "approvalSelection": {
+      "specificationApprovalId": "approval-8478b115b37d6240f03877c3",
+      "specificationRevision": 2,
+      "specificationDigest": "7b8a6891a3a01cf5dc6d5dcb1f4e1161f84775f4623c35feda6b609871ed4ecb",
+      "designApprovalId": "approval-6328f34649bd105ef3ce1bcf",
+      "designRevision": 2,
+      "designDigest": "c4db0156ddafaa0ef6f9a59cd4bab443da1f6cdd197ee83a15dec46b743842f2",
+      "briefDigest": "7dbfe7016cadf3cdac3c78a4a47e6146f08f467a45e58da8aaf8ec67fe26203d",
+      "sketchDigest": "bc6784cb74221f3e219311605fb3e1693532d265502b07c51847dfee39f8569b"
+    }
+  }
+]

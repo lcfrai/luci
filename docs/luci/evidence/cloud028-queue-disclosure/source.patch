@@ -1,0 +1,31 @@
+--- a/scripts/acceptance/sustained-four-project/sustained.mjs
++++ b/scripts/acceptance/sustained-four-project/sustained.mjs
+@@ -11,6 +11,7 @@
+ import { fileURLToPath } from 'node:url';
+ import { setTimeout as delay } from 'node:timers/promises';
+ import { mixedTaskCommand } from './task-command.mjs';
++import { openQueueControls } from './queue-controls.mjs';
+ import { projectWorkload } from './workloads.mjs';
+ import {contextFileNames, verifyTaskContext} from './task-context.mjs';
+ import {parseSourceBindingOptions,validateSourceBinding,validateHelperLocation} from './source-binding.mjs';
+@@ -99,7 +100,7 @@
+ assert.match(bridge, /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/);
+ writeFileSync(join(evidence, 'package-provenance.json'), provenanceBytes, { mode: 0o600, flag: 'wx' });
+ writeFileSync(join(evidence,'image-provenance.json'),readFileSync(resolve(imageEvidencePath)),{mode:0o600,flag:'wx'});
+-const driverNames=['sustained.mjs','task-command.mjs','workloads.mjs','interaction-metrics.mjs','latency-diagnostics.mjs','task-context.mjs','source-binding.mjs','run-with-observer.py'];
++const driverNames=['sustained.mjs','task-command.mjs','workloads.mjs','interaction-metrics.mjs','latency-diagnostics.mjs','task-context.mjs','source-binding.mjs','queue-controls.mjs','run-with-observer.py'];
+ const reusedHelpers=['four-project-queue/native-terminal-diagnostics.mjs','four-project-queue/sample-linux-owned.py','launch-recovery/fenced-docker-proxy.mjs','launch-recovery/worker-create-guard.mjs','launch-recovery/durable-acceptance-journal.mjs','launch-recovery/acceptance-lifecycle.mjs','launch-recovery/acceptance-startup.mjs'];
+ mkdirSync(join(evidence, 'accepted-harness'), { mode: 0o700 });
+ for (const name of driverNames) writeFileSync(join(evidence, 'accepted-harness', name), readFileSync(new URL(name, import.meta.url)), { mode: 0o600, flag: 'wx' });
+@@ -402,9 +403,9 @@
+  for(const owner of projectStates){project=owner.owner;assert.deepEqual(canonical(),owner.canonicalBefore);}check('Four distinct unsent idea drafts restore to their own project without changing approved source context');
+ }
+ async function queueControls(first){
+- setStage('loaded-queue-controls');await openProject(first);const queueRegion=page.getByRole('region',{name:'Background task queue',exact:true});const cancelRow=queueRegion.locator('li').filter({hasText:'Cancel this extra queued task'}),entry=first.queued.find(value=>value.taskId==='cancel-a');assert(entry);const before=effects();await action(first.route+'/swarm-queue/'+entry.id+'/cancel',()=>cancelRow.getByRole('button',{name:'Cancel queued task',exact:true}).click());
++ setStage('loaded-queue-controls');await openProject(first);const queueRegion=await openQueueControls(page,health);const cancelRow=queueRegion.locator('li').filter({hasText:'Cancel this extra queued task'}),entry=first.queued.find(value=>value.taskId==='cancel-a');assert(entry);const before=effects();await action(first.route+'/swarm-queue/'+entry.id+'/cancel',()=>cancelRow.getByRole('button',{name:'Cancel queued task',exact:true}).click());
+  const queue=await api('GET',first.route+'/swarm-queue'),canceled=queue.items.find(value=>value.id===entry.id);assert.equal(canceled.state,'cancelled');assert(!canceled.childId&&!canceled.operationId);assert.deepEqual(effects(),before);assert(!privateRun(first).operations.some(value=>value.taskId==='cancel-a'));
+- const next=projectStates[1];await openProject(next);await action(next.route+'/swarm-queue/'+next.queued[0].id+'/priority',()=>page.getByLabel('Priority for '+titles.get(next.task),{exact:true}).selectOption('high'));const latest=await api('GET',next.route+'/swarm-queue');assert.equal(latest.items.find(value=>value.id===next.queued[0].id).priority,'high');check('Browser cancellation prevents allocation and queued priority changes retain exact project ownership');
++ const next=projectStates[1];await openProject(next);const nextQueue=await openQueueControls(page,health);await action(next.route+'/swarm-queue/'+next.queued[0].id+'/priority',()=>nextQueue.getByRole('combobox',{name:'Priority for '+titles.get(next.task),exact:true}).selectOption('high'));const latest=await api('GET',next.route+'/swarm-queue');assert.equal(latest.items.find(value=>value.id===next.queued[0].id).priority,'high');check('Browser cancellation prevents allocation and queued priority changes retain exact project ownership');
+ }
+ async function activeRestart(worker){
+  setStage('active-command-restart');const before=effects(),original=live(worker.session.id),beforeRows=taskEvents.get(worker.task)??[];assert(beforeRows.some(row=>row.type==='command-start'&&row.label==='fuzz'));assert(!beforeRows.some(row=>row.type==='command-end'&&row.label==='fuzz'));

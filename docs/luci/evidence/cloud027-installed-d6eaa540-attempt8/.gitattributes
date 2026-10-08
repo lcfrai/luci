@@ -1,0 +1,4 @@
+# Preserve captured evidence bytes across platforms.
+** -text
+package/build.log -whitespace
+result/retained-b1.patch -whitespace

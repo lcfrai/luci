@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "passed": false,
+  "status": "cleanup-incomplete",
+  "stage": "product-check-verification",
+  "at": "2026-10-08T21:12:00.825Z",
+  "scenarioDeadlineMs": 900000,
+  "cleanupDeadlineMs": 180000,
+  "driver": {
+    "pid": 1975886,
+    "parentPid": 1975885,
+    "group": 1975873,
+    "session": 1975873,
+    "startTicks": 23970596
+  },
+  "controllers": [
+    {
+      "pid": 1976084,
+      "start": "23971163",
+      "group": 1976084,
+      "status": "R"
+    }
+  ],
+  "signal": null,
+  "failure": {
+    "locations": []
+  },
+  "dockerRequestsDrained": false,
+  "startupResources": [
+    {
+      "name": "provider",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "name": "proxy",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "name": "browser",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "name": "browser-context",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false,
+      "parent": "browser",
+      "closedByParent": false
+    },
+    {
+      "name": "browser-page",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false,
+      "parent": "browser-context",
+      "closedByParent": false
+    }
+  ],
+  "originalReceiptComplete": false
+}

@@ -1,0 +1,559 @@
+{
+  "attempt": 8,
+  "installedProductSource": "d6eaa540960fb11c6d425104f3da136bf9217712",
+  "helperSource": "81f2ba5b194a81a4f2ad167e466793f59162b387",
+  "actualFinalCheck": {
+    "id": "check-5dc4776e13de1b78cccc2d9c",
+    "projectId": "p-db3bbd78",
+    "status": "blocked",
+    "reasonCode": "memory_pressure",
+    "stage": "admission",
+    "resourcesHeld": false,
+    "createdAt": "2026-10-08T21:11:34.320405691Z",
+    "updatedAt": "2026-10-08T21:12:00.675751049Z"
+  },
+  "actualCommand": {
+    "allocationId": "checkexec-cd12e3e523b5df52975dc4a6",
+    "status": "blocked",
+    "reasonCode": "memory_pressure",
+    "cleanupConfirmed": true
+  },
+  "actualDockerCounts": {
+    "total": 1056,
+    "create": 5,
+    "worker": 4,
+    "fence": 0,
+    "start": 4,
+    "check": 1
+  },
+  "admissions": [
+    {
+      "at": "2026-10-08T21:11:34.166Z",
+      "hostObservedAt": "2026-10-08T21:11:33.502221092Z",
+      "executionObservedAt": "2026-10-08T21:11:33.634196252Z",
+      "hostAvailableBytes": 10043498496,
+      "hostTotalBytes": 34359738368,
+      "executionTotalBytes": 35743784960,
+      "rootFreeBytes": 6459842560,
+      "imageVirtualSizeBytes": 2294629077,
+      "estimatedCreateDiskBytes": 4589258154,
+      "storageDriver": "vfs",
+      "containerCount": 0,
+      "reservations": 0,
+      "selfReservationCountedOnce": false,
+      "scope": "Fresh acceptance guard cross-checks the exact production creating lease; installed mixed-account load and responsiveness remain separate gates",
+      "hostAdmissionThresholdBytes": 9663676416,
+      "marginBytes": 379822080
+    },
+    {
+      "at": "2026-10-08T21:11:34.869Z",
+      "hostObservedAt": "2026-10-08T21:11:34.445480498Z",
+      "executionObservedAt": "2026-10-08T21:11:34.468953981Z",
+      "hostAvailableBytes": 10035089408,
+      "hostTotalBytes": 34359738368,
+      "executionTotalBytes": 35743784960,
+      "rootFreeBytes": 6459822080,
+      "imageVirtualSizeBytes": 2294629077,
+      "estimatedCreateDiskBytes": 4589258154,
+      "storageDriver": "vfs",
+      "containerCount": 0,
+      "reservations": 1,
+      "selfReservationCountedOnce": true,
+      "scope": "Fresh acceptance guard cross-checks the exact production creating lease; installed mixed-account load and responsiveness remain separate gates",
+      "hostAdmissionThresholdBytes": 9663676416,
+      "marginBytes": 371412992
+    }
+  ],
+  "selectedIndependentObserverSamples": [
+    {
+      "line": 254,
+      "observedAt": "2026-10-08T21:11:31.095718+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16278368256,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 6460080128,
+      "tmpAvailableBytes": 439513088
+    },
+    {
+      "line": 255,
+      "observedAt": "2026-10-08T21:11:31.473987+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16247635968,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 6460071936,
+      "tmpAvailableBytes": 422998016
+    },
+    {
+      "line": 256,
+      "observedAt": "2026-10-08T21:11:32.472324+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16154841088,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 6459858944,
+      "tmpAvailableBytes": 435564544
+    },
+    {
+      "line": 257,
+      "observedAt": "2026-10-08T21:11:33.755755+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16179113984,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 6459854848,
+      "tmpAvailableBytes": 440954880
+    },
+    {
+      "line": 258,
+      "observedAt": "2026-10-08T21:11:34.465964+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16186224640,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 6459834368,
+      "tmpAvailableBytes": 437825536
+    },
+    {
+      "line": 259,
+      "observedAt": "2026-10-08T21:11:35.471734+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16203214848,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 6039248896,
+      "tmpAvailableBytes": 437825536
+    },
+    {
+      "line": 260,
+      "observedAt": "2026-10-08T21:11:36.529591+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16213635072,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 5924642816,
+      "tmpAvailableBytes": 437825536
+    },
+    {
+      "line": 261,
+      "observedAt": "2026-10-08T21:11:37.463661+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16251891712,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 5659758592,
+      "tmpAvailableBytes": 437825536
+    },
+    {
+      "line": 262,
+      "observedAt": "2026-10-08T21:11:38.904322+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16269561856,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 5453111296,
+      "tmpAvailableBytes": 438792192
+    },
+    {
+      "line": 263,
+      "observedAt": "2026-10-08T21:11:39.484117+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16277606400,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 5380263936,
+      "tmpAvailableBytes": 448081920
+    },
+    {
+      "line": 264,
+      "observedAt": "2026-10-08T21:11:40.455991+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16298061824,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 5311528960,
+      "tmpAvailableBytes": 448081920
+    },
+    {
+      "line": 265,
+      "observedAt": "2026-10-08T21:11:41.526720+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16300011520,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 5297709056,
+      "tmpAvailableBytes": 448081920
+    },
+    {
+      "line": 266,
+      "observedAt": "2026-10-08T21:11:42.479111+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16314933248,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 5238464512,
+      "tmpAvailableBytes": 448081920
+    },
+    {
+      "line": 267,
+      "observedAt": "2026-10-08T21:11:43.518373+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16321286144,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 5219590144,
+      "tmpAvailableBytes": 448081920
+    },
+    {
+      "line": 268,
+      "observedAt": "2026-10-08T21:11:44.478572+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16322199552,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 4697989120,
+      "tmpAvailableBytes": 448081920
+    },
+    {
+      "line": 269,
+      "observedAt": "2026-10-08T21:11:45.613589+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16325521408,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 4519825408,
+      "tmpAvailableBytes": 448081920
+    },
+    {
+      "line": 270,
+      "observedAt": "2026-10-08T21:11:46.469856+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16322768896,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 4358766592,
+      "tmpAvailableBytes": 448081920
+    },
+    {
+      "line": 271,
+      "observedAt": "2026-10-08T21:11:47.640653+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16322744320,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 4102803456,
+      "tmpAvailableBytes": 448081920
+    },
+    {
+      "line": 272,
+      "observedAt": "2026-10-08T21:11:48.444444+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16329715712,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 4085231616,
+      "tmpAvailableBytes": 448081920
+    },
+    {
+      "line": 273,
+      "observedAt": "2026-10-08T21:11:49.472723+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16312504320,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 3772358656,
+      "tmpAvailableBytes": 448081920
+    },
+    {
+      "line": 274,
+      "observedAt": "2026-10-08T21:11:50.517671+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16313524224,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 3473195008,
+      "tmpAvailableBytes": 448081920
+    },
+    {
+      "line": 275,
+      "observedAt": "2026-10-08T21:11:51.474619+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16304881664,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 3373199360,
+      "tmpAvailableBytes": 448081920
+    },
+    {
+      "line": 276,
+      "observedAt": "2026-10-08T21:11:52.454562+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16304738304,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 3251933184,
+      "tmpAvailableBytes": 448081920
+    },
+    {
+      "line": 277,
+      "observedAt": "2026-10-08T21:11:53.455287+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16302051328,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 3008782336,
+      "tmpAvailableBytes": 448081920
+    },
+    {
+      "line": 278,
+      "observedAt": "2026-10-08T21:11:54.473384+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16301953024,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 2956738560,
+      "tmpAvailableBytes": 448081920
+    },
+    {
+      "line": 279,
+      "observedAt": "2026-10-08T21:11:55.486518+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16308723712,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 2904371200,
+      "tmpAvailableBytes": 448081920
+    },
+    {
+      "line": 280,
+      "observedAt": "2026-10-08T21:11:56.491603+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16351358976,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 2859757568,
+      "tmpAvailableBytes": 448081920
+    },
+    {
+      "line": 281,
+      "observedAt": "2026-10-08T21:11:57.477054+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16355995648,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 2684678144,
+      "tmpAvailableBytes": 448081920
+    },
+    {
+      "line": 282,
+      "observedAt": "2026-10-08T21:11:58.467174+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16367419392,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 1828446208,
+      "tmpAvailableBytes": 448081920
+    },
+    {
+      "line": 283,
+      "observedAt": "2026-10-08T21:11:59.475274+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16368533504,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 1730125824,
+      "tmpAvailableBytes": 448081920
+    },
+    {
+      "line": 284,
+      "observedAt": "2026-10-08T21:12:00.456071+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16304828416,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 5659566080,
+      "tmpAvailableBytes": 448081920
+    },
+    {
+      "line": 285,
+      "observedAt": "2026-10-08T21:12:01.473847+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16708976640,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 6465085440,
+      "tmpAvailableBytes": 518803456
+    },
+    {
+      "line": 286,
+      "observedAt": "2026-10-08T21:12:03.741033+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16753516544,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 6465081344,
+      "tmpAvailableBytes": 518803456
+    },
+    {
+      "line": 287,
+      "observedAt": "2026-10-08T21:12:03.891355+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16753512448,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 6465081344,
+      "tmpAvailableBytes": 518803456
+    },
+    {
+      "line": 288,
+      "observedAt": "2026-10-08T21:12:04.867206+00:00",
+      "physicalMemory": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 16913031168,
+        "SwapTotal": 0,
+        "SwapFree": 0
+      },
+      "rootAvailableBytes": 6464196608,
+      "tmpAvailableBytes": 518803456
+    }
+  ],
+  "checkTransport": [
+    {
+      "requestSequence": 967,
+      "method": "POST",
+      "path": "/v1.51/containers/create",
+      "requestedAt": "2026-10-08T21:11:34.487Z",
+      "forwardedAt": "2026-10-08T21:11:34.922Z",
+      "status": 201,
+      "respondedAt": "2026-10-08T21:11:59.610Z",
+      "completedAt": "2026-10-08T21:11:59.610Z",
+      "deliveredAt": "2026-10-08T21:11:59.612Z"
+    },
+    {
+      "requestSequence": 1045,
+      "method": "GET",
+      "path": "/v1.51/containers/e345c07b0503fe359f1f4b32b5aeea734e756da0eb62ae5c6ce38af1e3332c91/json",
+      "requestedAt": "2026-10-08T21:11:59.636Z",
+      "forwardedAt": "2026-10-08T21:11:59.637Z",
+      "status": 200,
+      "respondedAt": "2026-10-08T21:11:59.638Z",
+      "completedAt": "2026-10-08T21:11:59.638Z",
+      "deliveredAt": "2026-10-08T21:11:59.638Z"
+    },
+    {
+      "requestSequence": 1047,
+      "method": "DELETE",
+      "path": "/v1.51/containers/e345c07b0503fe359f1f4b32b5aeea734e756da0eb62ae5c6ce38af1e3332c91",
+      "requestedAt": "2026-10-08T21:11:59.649Z",
+      "forwardedAt": "2026-10-08T21:11:59.650Z",
+      "status": 204,
+      "respondedAt": "2026-10-08T21:12:00.611Z",
+      "completedAt": "2026-10-08T21:12:00.611Z"
+    },
+    {
+      "requestSequence": 1052,
+      "method": "GET",
+      "path": "/v1.51/containers/e345c07b0503fe359f1f4b32b5aeea734e756da0eb62ae5c6ce38af1e3332c91/json",
+      "requestedAt": "2026-10-08T21:12:00.624Z",
+      "forwardedAt": "2026-10-08T21:12:00.624Z",
+      "status": 404,
+      "respondedAt": "2026-10-08T21:12:00.625Z",
+      "completedAt": "2026-10-08T21:12:00.625Z",
+      "deliveredAt": "2026-10-08T21:12:00.625Z"
+    },
+    {
+      "requestSequence": 1055,
+      "method": "GET",
+      "path": "/v1.51/containers/e345c07b0503fe359f1f4b32b5aeea734e756da0eb62ae5c6ce38af1e3332c91/json",
+      "requestedAt": "2026-10-08T21:12:00.643Z",
+      "forwardedAt": "2026-10-08T21:12:00.643Z",
+      "status": 404,
+      "respondedAt": "2026-10-08T21:12:00.645Z",
+      "completedAt": "2026-10-08T21:12:00.645Z",
+      "deliveredAt": "2026-10-08T21:12:00.645Z"
+    }
+  ],
+  "findings": {
+    "actualRefusal": "memory_pressure after successful Create and before any Start; cleanup confirmed and resources released.",
+    "ownMemoryAccounting": "reserveCheck excludes its own ledger entry and exact own observed check ref; evaluateExecutionCapacity adds the requested 1GiB once. No self-memory double count found.",
+    "effectiveMemoryRule": "Minimum of physical MemAvailable and every visible cgroup memory.max-minus-memory.current bound. Reclaimable-file usage is not discounted.",
+    "memoryLimitation": "The independent observer did not capture outer cgroup memory.current/max/stat; exact post-Create admission snapshot was not retained. Physical MemAvailable exceeding9GiB does not disprove effective cgroup pressure.",
+    "separateConfirmedDefect": "CLOUD-029: pre-Start revalidation unconditionally reserved a new VFS copy pair despite durable exact Create ACK; reproduced independently by real HTTP/product/private-ledger test with controlled backend.",
+    "diskTimingLimitation": "Last independent disk sample is135ms before Create ACK; no disk sample exists in the40ms ACK-to-Delete-forward interval. These are near-ACK observations, not the exact refused snapshot.",
+    "nextRetest": "After bounded environment memory relief and rebuild containing CLOUD-029, retain actual cgroup/effective-memory samples across Create and Start; rerun installed final-check workflow with unchanged memory headroom and disk working reserve."
+  },
+  "sourceHashes": {
+    "artifacts/quality-swarm/dependency-d6eaa540-helper-81f2ba5b-attempt8/result/result.json": "406cdc014b15c991e9abbca8865e56f75955825f98bfdc5f1424cce4dd449443",
+    "artifacts/quality-swarm/dependency-d6eaa540-helper-81f2ba5b-attempt8/observer/samples.jsonl": "620a4f8e38a7797866133f925a29a5c37549a5793cd903cbd53b3a8d14c429ba",
+    "/workspace/.c/.ls-nai66otd/luci-dag-L6Z17l/state/sessions/project-checks/p-db3bbd78.json": "5560779472c98d386aa9d099426ca4ed6b4b83fa4664951d93f26e9729e7c9bd"
+  }
+}

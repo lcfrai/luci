@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "at": "2026-10-08T21:11:34.488Z",
+  "stage": "product-check-verification",
+  "phase": "identify-create",
+  "bodyBytes": 2617,
+  "bodySHA256": "5f59ce832444d51442af2625b0b7f271a59961bb842584a9d8328a0772d8fca4",
+  "outcome": "identified",
+  "forwarded": false,
+  "requestSequence": 967,
+  "ordinal": 5,
+  "kind": "check"
+}

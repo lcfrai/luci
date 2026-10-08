@@ -1,0 +1,126 @@
+{
+  "passed": true,
+  "scope": "CLOUD028 actual complete SwarmRunQueue component and actual swarmQueueApi validation with controlled HTTP transport; exact original/corrected queueControls source extraction",
+  "limitations": [
+    "No installed app, backend, Docker, provider, model or sustained performance execution.",
+    "Only the actual queue component is mounted; project navigation remounts this component fixture, not AppShell.",
+    "Source-driver private run/effect reads are controlled fixtures; zero Docker effects are not an installed allocation witness."
+  ],
+  "startedAt": "2026-10-08T21:14:57.195Z",
+  "productCommit": "d6eaa540960fb11c6d425104f3da136bf9217712",
+  "helperCheckout": "81f2ba5b194a81a4f2ad167e466793f59162b387",
+  "originalDriverSHA256": "6655917e3b326bf192609ad071dca57b799a1e178c7d25879bf0d4b13cd47549",
+  "correctedDriverSHA256": "6d9e4e1a45c778c5d2066738f3b34930a477d6cf8bcadeec10dab5c975792d32",
+  "helperSHA256": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0",
+  "fixtureSHA256": "f3a699ed0156cd03144710d8704dcbdc337cc8092243551e953607cf5bb90fd1",
+  "runnerSHA256": "22b2b073426138a62887173325d079487722677cadd9805cd75c2b1dc42e1b06",
+  "checks": [
+    {
+      "label": "original-exact-driver-refuses-hidden-cancel-1440",
+      "passed": true,
+      "expectedFailure": "TimeoutError",
+      "writes": 0,
+      "mounts": [
+        {
+          "projectId": "p-a",
+          "initiallyClosed": true
+        }
+      ]
+    },
+    {
+      "label": "corrected-exact-driver-cancel-and-priority-1440",
+      "passed": true,
+      "mutations": [
+        {
+          "method": "POST",
+          "pathname": "/v1/product/projects/p-a/swarm-queue/q-cancel-a/cancel",
+          "body": {
+            "expectedRevision": 2
+          }
+        },
+        {
+          "method": "POST",
+          "pathname": "/v1/product/projects/p-b/swarm-queue/q-build-b/priority",
+          "body": {
+            "expectedRevision": 2,
+            "priority": "high"
+          }
+        }
+      ],
+      "mounts": [
+        {
+          "projectId": "p-a",
+          "initiallyClosed": true
+        },
+        {
+          "projectId": "p-b",
+          "initiallyClosed": true
+        }
+      ]
+    },
+    {
+      "label": "open-disclosure-idempotent-and-priority-selector-1440",
+      "passed": true,
+      "oldExactLabelCount": 0,
+      "exactAccessibleComboboxCount": 1,
+      "additionalWrites": 0
+    },
+    {
+      "label": "original-exact-driver-refuses-hidden-cancel-390",
+      "passed": true,
+      "expectedFailure": "TimeoutError",
+      "writes": 0,
+      "mounts": [
+        {
+          "projectId": "p-a",
+          "initiallyClosed": true
+        }
+      ]
+    },
+    {
+      "label": "corrected-exact-driver-cancel-and-priority-390",
+      "passed": true,
+      "mutations": [
+        {
+          "method": "POST",
+          "pathname": "/v1/product/projects/p-a/swarm-queue/q-cancel-a/cancel",
+          "body": {
+            "expectedRevision": 2
+          }
+        },
+        {
+          "method": "POST",
+          "pathname": "/v1/product/projects/p-b/swarm-queue/q-build-b/priority",
+          "body": {
+            "expectedRevision": 2,
+            "priority": "high"
+          }
+        }
+      ],
+      "mounts": [
+        {
+          "projectId": "p-a",
+          "initiallyClosed": true
+        },
+        {
+          "projectId": "p-b",
+          "initiallyClosed": true
+        }
+      ]
+    },
+    {
+      "label": "open-disclosure-idempotent-and-priority-selector-390",
+      "passed": true,
+      "oldExactLabelCount": 0,
+      "exactAccessibleComboboxCount": 1,
+      "additionalWrites": 0
+    }
+  ],
+  "errors": [],
+  "cleanup": [
+    "owned Chromium closed",
+    "owned Vite closed"
+  ],
+  "browserVersion": "151.0.7922.173",
+  "finishedAt": "2026-10-08T21:15:05.504Z"
+}

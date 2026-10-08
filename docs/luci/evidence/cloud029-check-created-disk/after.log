@@ -1,0 +1,32 @@
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate/new-create-needs-both-vfs-copies
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate/acknowledged-create-needs-no-second-copy
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate/acknowledged-visible-create-needs-no-second-copy
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-working-reserve
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-host-memory-headroom
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-execution-memory
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-fresh-host
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-fresh-execution
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-fresh-disk
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-complete-inventory
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-same-engine
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-other-workload-limits
+=== RUN   TestProjectCheckHTTPDiskAdmissionAcrossCreate/unacknowledged-create-retains-capacity
+--- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate (3.09s)
+    --- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate/new-create-needs-both-vfs-copies (0.21s)
+    --- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate/acknowledged-create-needs-no-second-copy (0.19s)
+    --- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate/acknowledged-visible-create-needs-no-second-copy (0.22s)
+    --- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-working-reserve (0.20s)
+    --- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-host-memory-headroom (0.19s)
+    --- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-execution-memory (0.19s)
+    --- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-fresh-host (0.24s)
+    --- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-fresh-execution (0.56s)
+    --- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-fresh-disk (0.23s)
+    --- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-complete-inventory (0.20s)
+    --- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-same-engine (0.26s)
+    --- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate/created-still-needs-other-workload-limits (0.20s)
+    --- PASS: TestProjectCheckHTTPDiskAdmissionAcrossCreate/unacknowledged-create-retains-capacity (0.19s)
+=== RUN   TestProjectCheckHTTPDiskAdmissionKeepsOtherPendingCopyAfterCreate
+--- PASS: TestProjectCheckHTTPDiskAdmissionKeepsOtherPendingCopyAfterCreate (0.42s)
+PASS
+ok  	github.com/lcfrai/luci/control-plane/internal/api	3.537s

@@ -1,0 +1,33 @@
+{
+  "label": "beta-conflict-retained",
+  "status": 409,
+  "requestedRevision": 19,
+  "publicRevisionBefore": 19,
+  "privateRevisionBefore": 19,
+  "privateRevisionAfter": 19,
+  "before": {
+    "effects": {
+      "create": 2,
+      "start": 2,
+      "destroy": 2
+    },
+    "primaryCommit": "7a35ff351eb7f89e4b2a3e80ec081c54341a3095",
+    "joinOperationIds": []
+  },
+  "after": {
+    "effects": {
+      "create": 2,
+      "start": 2,
+      "destroy": 2
+    },
+    "primaryCommit": "7a35ff351eb7f89e4b2a3e80ec081c54341a3095",
+    "joinOperationIds": []
+  },
+  "response": {
+    "message": "Integrate this task's dependencies before starting it.",
+    "error": "project_run_conflict"
+  },
+  "truncatedFields": [],
+  "at": "2026-10-08T21:09:36.444Z",
+  "classification": "unclassified-response"
+}

@@ -1,0 +1,12 @@
+{
+  "width": 390,
+  "name": "TimeoutError",
+  "message": "locator.click: Timeout 750ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('region', { name: 'Background task queue', exact: true }).locator('li').filter({ hasText: 'Cancel this extra queued task' }).getByRole('button', { name: 'Cancel queued task', exact: true })\u001b[22m\n",
+  "mutations": [],
+  "mounts": [
+    {
+      "projectId": "p-a",
+      "initiallyClosed": true
+    }
+  ]
+}

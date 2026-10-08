@@ -1,0 +1,43 @@
+{
+  "classification": "unclassified-response",
+  "requestedRevision": 17,
+  "status": 409,
+  "response": {
+    "message": "The reviewed source, target or task status changed. Refresh the complete integration review.",
+    "error": "project_run_conflict"
+  },
+  "truncatedFields": [],
+  "responseObserved": true,
+  "requestFailure": null,
+  "before": {
+    "startedAt": "2026-10-08T21:09:33.818Z",
+    "errors": {},
+    "effects": {
+      "create": 2,
+      "start": 2,
+      "destroy": 2
+    },
+    "primaryCommit": "7a35ff351eb7f89e4b2a3e80ec081c54341a3095",
+    "primaryStatusSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "privateRevision": 17,
+    "integrationCheckoutExists": false,
+    "publicRevision": 17,
+    "finishedAt": "2026-10-08T21:09:33.827Z"
+  },
+  "after": {
+    "startedAt": "2026-10-08T21:09:34.001Z",
+    "errors": {},
+    "effects": {
+      "create": 2,
+      "start": 2,
+      "destroy": 2
+    },
+    "primaryCommit": "7a35ff351eb7f89e4b2a3e80ec081c54341a3095",
+    "primaryStatusSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "privateRevision": 17,
+    "integrationCheckoutExists": false,
+    "publicRevision": 17,
+    "finishedAt": "2026-10-08T21:09:34.014Z"
+  },
+  "phase": "after-request"
+}

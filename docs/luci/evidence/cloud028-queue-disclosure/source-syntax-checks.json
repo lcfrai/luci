@@ -1,0 +1,27 @@
+{
+  "scope": "Syntax only; the actual controlled component browser regression is separately retained.",
+  "checks": [
+    {
+      "command": [
+        "node",
+        "--check",
+        "scripts/acceptance/sustained-four-project/sustained.mjs"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": "",
+      "sha256": "6d9e4e1a45c778c5d2066738f3b34930a477d6cf8bcadeec10dab5c975792d32"
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "scripts/acceptance/sustained-four-project/queue-controls.mjs"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": "",
+      "sha256": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0"
+    }
+  ]
+}

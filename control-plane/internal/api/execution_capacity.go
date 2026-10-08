@@ -20,6 +20,7 @@ type executionCapacityDemand struct {
 	PendingAllocations       int
 	PendingDiskBytes         uint64
 	RequiredCreateDiskBytes  uint64
+	CreateAcknowledged       bool
 }
 
 func freshExecutionCapacity(snap resourcebudget.Snapshot, now time.Time) bool {
@@ -77,7 +78,12 @@ func evaluateExecutionCapacity(snap resourcebudget.Snapshot, policy product.Swar
 	if !bounded {
 		return "execution_disk_estimate_unavailable", "Pending execution storage demand exceeds supported capacity accounting."
 	}
-	if demand.RequiredCreateDiskBytes != 0 {
+	if demand.CreateAcknowledged {
+		// The exact immutable check already has its durable Create ACK. Its
+		// image copies occupy measured disk; Start does not create them again.
+		// Keep every other pending allocation and the working reserve charged.
+		diskDemand -= createDisk.Bytes
+	} else if demand.RequiredCreateDiskBytes != 0 {
 		// The typed check adapter pins its actual configured image before
 		// admission. Worker callers retain the sampled configured-image demand.
 		diskDemand -= createDisk.Bytes

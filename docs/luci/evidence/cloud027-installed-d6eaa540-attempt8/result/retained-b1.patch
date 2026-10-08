@@ -1,0 +1,48 @@
+diff --git a/beta.mjs b/beta.mjs
+new file mode 100644
+index 0000000..dcd9ab6
+--- /dev/null
++++ b/beta.mjs
+@@ -0,0 +1 @@
++export const beta = 25;
+diff --git a/receipt-b1.json b/receipt-b1.json
+new file mode 100644
+index 0000000..04c1847
+--- /dev/null
++++ b/receipt-b1.json
+@@ -0,0 +1,28 @@
++{
++  "variant": "b1",
++  "taskId": "task-b",
++  "operation": "op-cd2a73bcdc9531b89594b0ca",
++  "baseCommit": "05c074a6b2094399a0b9e2837c4c2c4e8cb3f347",
++  "contextHashes": {
++    ".luci/brief.json": "7dc2f66b1549951adc83e7d78eb17a017be9d74e160e5ca629a367d98235a1d4",
++    ".luci/design-handoff.json": "fa5dc2c02e2dcc733d3d1759e520dbafc36bce0345fa352985f967e07ff089ae",
++    ".luci/design-handoff.md": "b1e97fda87a5d2716eeb8dc34159c15aa0d65023cc7ed61e74c0ed46b0348c04",
++    ".luci/design.json": "ff6eb4ab1920e45f496ba066f8d699cd37e574b7af635ec19578e97b60c37833",
++    ".luci/plan.json": "258387e50221f67423894de698b190f9f87f938922d3814998c5560a7661edfe",
++    ".luci/specification.json": "8bd2436d7878ad9e98700726193e293bdd5098bf8181b5070dd22527347c2a6a",
++    ".luci/specification.md": "e542a1c20c446cbef918f123252cc4d1b4cd793d526c815d833727b42fca606f",
++    ".luci/task-handoffs.json": "3bb4b1d76cb7d9809620930fe0e345b0c0239c66008089308d55cdd5fb9df4b5",
++    "LUCI.md": "31d62250436ad56b9aed1c5f8da79da0dbe9457b85311c0864e22563cecabd46",
++    "manifest.json": "3ab09580d0b991afc57317888eb0d924c0e9310689f2f18e061ae5a451ec2ab0"
++  },
++  "check": {
++    "code": 0,
++    "signal": null,
++    "stdout": "DAG_CHECK_OK b1\n",
++    "elapsedMs": 56
++  },
++  "outputs": {
++    "beta.mjs": "d5e2ceacb02acd078fd4f622daf8f3c27c1b1a48cbd6161fddfdfb2219ad26ed",
++    "shared.txt": "f2c82decdd7181cf98945929a62598db7e6b477e11f6e0eb0ae97020eff151ad"
++  }
++}
+diff --git a/shared.txt b/shared.txt
+new file mode 100644
+index 0000000..65b2df8
+--- /dev/null
++++ b/shared.txt
+@@ -0,0 +1 @@
++beta
