@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "status": "failed-before-idle-and-workload",
+  "sourceCommit": "919cffe014d1104d9e65fa19351683d182355f36",
+  "packageSourceDirty": false,
+  "harnessCheckout": {
+    "commit": "07026fa03e8550145225506ad439fc03da9a310f",
+    "dirty": true
+  },
+  "startedAt": "2026-10-08T12:37:05.471Z",
+  "finishedAt": "2026-10-08T12:37:40.348Z",
+  "elapsedMs": 34720,
+  "rawReport": "artifacts/quality-swarm/sustained-mixed-919cffe0-attempt1/result.json",
+  "rawReportSHA256": "6dc5496545aa12640fb568b1fb38c39166fc57d62a58bc9193e199c566aee72c",
+  "failedScreenshotSHA256": "8140149fc44767b13fedb05b39ae46e63668034d35e737c2b1efb59ad37e1232",
+  "failedStage": "unsent-draft-isolation",
+  "failure": "Exact label locator The idea timed out before any worker; the populated field was visible. Source-faithful Chromium reproduction proved the exact accessible textbox role resolves it.",
+  "wrapperExitCode": 1,
+  "phasesReached": [],
+  "dockerCounts": {
+    "total": 105,
+    "create": 0,
+    "worker": 0,
+    "fence": 0,
+    "start": 0
+  },
+  "controllersStopped": true,
+  "dockerRequestsDrained": true,
+  "runtimeCleanup": {
+    "containers": 0,
+    "volumes": 0,
+    "ownedServiceProcesses": 0,
+    "ownedBrowserProcesses": 0,
+    "protectedImagePackageAndHelpersUnchanged": true,
+    "rootFreeBytes": 6611300352
+  },
+  "privateFixtureRetained": true,
+  "externalModelCalls": 0,
+  "cloudResourcesCreated": 0,
+  "observer": {
+    "directory": "artifacts/quality-swarm/sustained-mixed-919cffe0-attempt1-observer",
+    "samples": 56,
+    "durationSeconds": 55.865941583004314,
+    "containerIdentitiesObserved": 0,
+    "metadataSHA256": "fdae242244852544e02e42c5e1e5ab69d93928a34eaa935782da52f0accf2556",
+    "samplesSHA256": "b62340970cd865f7cadf9a3631aa6f7dc4dbf2b089362784aebcc76854ac4faa",
+    "summarySHA256": "175c6b12a59f327575cf849abdb3134e852e3c0b87548cf7a5e4e1031666c2fd",
+    "selfCostSHA256": "04fab703524ab49934f83f9bf786492aaec4d44a152703881df0b7e8a3d743de",
+    "selfCost": {
+      "status": "completed",
+      "exitCode": 0,
+      "scope": "Observer interpreter RUSAGE_SELF, including interpreter imports and launcher; excludes spawned Docker CLI/helpers and all Docker daemon work.",
+      "wallSeconds": 56.01836410400574,
+      "userCPUSeconds": 7.852435,
+      "systemCPUSeconds": 5.316778,
+      "cpuSecondsPerWallSecond": 0.23508742553691067,
+      "maxRSSBytes": 19046400,
+      "units": "Linux ru_maxrss KiB converted to bytes; block counts are I/O operations, not bytes. Lifetime wall uses CLOCK_BOOTTIME minus /proc creation ticks, with tick-resolution uncertainty."
+    }
+  },
+  "correction": {
+    "scope": "Only six exact label locators become exact accessible textbox-role locators. All value, draft, navigation, timing, resource and cleanup assertions remain unchanged.",
+    "sourceReference": "https://github.com/lcfrai/luci/blob/919cffe014d1104d9e65fa19351683d182355f36/desktop/src/components/definition/DefinitionWorkspace.tsx#L233",
+    "correctedSHA256": {
+      "sustained.mjs": "e4e9cea507161739a242cb3f8b617f95d1ea882ac5705d071ecec411655f7a80",
+      "interaction-metrics.mjs": "d7eaa9befabbf8d3400eac7952fb5fa995c7cb770cab975a437d655c9c9e4796",
+      "selector-browser.test.mjs": "078278bc9382f467645845d6ee6d868babeec29bfc0f7f10873c8165cad70b5a"
+    },
+    "browserReproductionSHA256": "79cfc629827460d6f6049a6baef4a112f4b188ecb458f1c8a09c0fb1d36b9c8b",
+    "browserReproduction": {
+      "labelCount": 0,
+      "roleCount": 1,
+      "labelText": "The ideaBuild Escaped UI renderer with explicit verified behavior.",
+      "roleValue": "Build Escaped UI renderer with explicit verified behavior.",
+      "passed": true,
+      "scope": "Source-faithful controlled HTML in actual Chromium; no Luci service, Docker or provider",
+      "browserVersion": "151.0.7922.173"
+    },
+    "helperChecks": {
+      "passed": 10,
+      "failed": 0
+    },
+    "browserRegression": {
+      "passed": 1,
+      "failed": 0
+    },
+    "review": "Independent navigation review found no blocker; read-only, no runtime claim."
+  },
+  "limitations": [
+    "No quiet idle baseline, latency calibration or mixed task phase ran.",
+    "Observed resource use is setup/failed-navigation/cleanup only, not a sustained workload result.",
+    "Observer own-process CPU excludes spawned Docker CLI/helpers and daemon cost; one core CPU-seconds per wall second is not total host percentage.",
+    "Failed attempt and private fixture remain separate; no automatic retry occurred."
+  ]
+}

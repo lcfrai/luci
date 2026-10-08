@@ -40,14 +40,14 @@ export function interactionRunner({page,owners,receipt,assertHealthy,phase}) {
   await measured('project-switch',owner,async()=>{await page.getByRole('button',{name:'All projects',exact:true}).click();await page.getByRole('heading',{name:'Across your projects',exact:true}).waitFor();await page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true}).click();},async()=>{
    // The calibrated lens is Define. Its actual loaded value is the witness,
    // rather than a title that could render before stale content is replaced.
-   const field=page.getByLabel('The idea',{exact:true});await field.waitFor();
+   const field=page.getByRole('textbox',{name:'The idea',exact:true});await field.waitFor();
    await field.evaluate((el,value)=>new Promise((done,reject)=>{const until=performance.now()+10000;const sample=()=>{if(el.isConnected&&el.value===value)return done();if(performance.now()>=until)return reject(Error('Expected project context did not render'));requestAnimationFrame(sample);};sample();}),values.get(owner.owner.id));
    assert.equal(await field.inputValue(),values.get(owner.owner.id));
   });current=owner;
  }
  async function typeRound(){
   const owner=current;assert(owner);assertHealthy();
-  const field=page.getByLabel('The idea',{exact:true}),expected=values.get(owner.owner.id);
+  const field=page.getByRole('textbox',{name:'The idea',exact:true}),expected=values.get(owner.owner.id);
   await field.focus();await field.press('End');
   await measured('input',owner,()=>field.press('x'),async()=>{await page.waitForFunction(value=>document.activeElement?.value===value,expected+'x',{timeout:10000});});
   await measured('input',owner,()=>field.press('Backspace'),async()=>{await page.waitForFunction(value=>document.activeElement?.value===value,expected,{timeout:10000});});
@@ -59,6 +59,6 @@ export function interactionRunner({page,owners,receipt,assertHealthy,phase}) {
   async calibrate(rounds=100){for(let index=0;index<rounds;index++){await switchTo(owners[index%owners.length]);await typeRound();}},
   async round(index){await switchTo(owners[index%owners.length]);await typeRound();},
   expected(owner,value){values.set(owner.owner.id,value);},
-  async warm(){for(const owner of owners){await page.getByRole('button',{name:'All projects',exact:true}).click();await page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true}).click();await page.getByRole('button',{name:'Define',exact:true}).click();assert.equal(await page.getByLabel('The idea',{exact:true}).inputValue(),values.get(owner.owner.id));}current=owners.at(-1);},
+  async warm(){for(const owner of owners){await page.getByRole('button',{name:'All projects',exact:true}).click();await page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true}).click();await page.getByRole('button',{name:'Define',exact:true}).click();assert.equal(await page.getByRole('textbox',{name:'The idea',exact:true}).inputValue(),values.get(owner.owner.id));}current=owners.at(-1);},
  };
 }

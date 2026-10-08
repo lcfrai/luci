@@ -1,0 +1,9 @@
+{
+  "labelCount": 0,
+  "roleCount": 1,
+  "labelText": "The ideaBuild Escaped UI renderer with explicit verified behavior.",
+  "roleValue": "Build Escaped UI renderer with explicit verified behavior.",
+  "passed": true,
+  "scope": "Source-faithful controlled HTML in actual Chromium; no Luci service, Docker or provider",
+  "browserVersion": "151.0.7922.173"
+}
