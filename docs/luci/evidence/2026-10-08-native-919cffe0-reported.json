@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "919cffe014d1104d9e65fa19351683d182355f36",
+  "scope": "Relayed native Windows release app, storage UI/HTTP, explicit state isolation and focused controlled recovery tests",
+  "provenance": {
+    "reportedBy": "originating local thread 01a1199f-7500-7843-b02b-081081e536fa",
+    "rawLocalArtifactsInspectedByCloud": false,
+    "evidenceRoot": "E:/Luci-local-acceptance/evidence/919cffe0/"
+  },
+  "packaging": {
+    "documentedFullNativeBuild": "passed",
+    "installerExecution": "not claimed"
+  },
+  "LOCAL-004": {
+    "status": "corrected explicit-state behavior verified at this revision",
+    "runtimeInfoExactIsolatedState": true,
+    "normalAltF4OwnedAppAndSidecarStopped": true,
+    "ordinaryStateEntries": 7,
+    "methods": [
+      "refreshed .NET metadata",
+      "read-only GetFileInformationByHandle"
+    ],
+    "preserved": [
+      "content hashes",
+      "file IDs",
+      "creation time",
+      "last-write time",
+      "length",
+      "attributes"
+    ],
+    "lastAccess": "observer-sensitive changes retained separately",
+    "historical2dcfTimestampAnomaly": "unexplained; not retroactively passed"
+  },
+  "LOCAL-005": {
+    "status": "native UI/HTTP correction verified",
+    "refreshScenarios": 6,
+    "perRefresh": {
+      "executionStorageGET": 1,
+      "setupCheckPOST": 0,
+      "dependenciesCheckPOST": 0,
+      "runtimeInstallPOST": 0
+    },
+    "navigation": "Settings Appearance/Back/Close and onboarding alternate setup/Continue remain usable with held real response delivery",
+    "lateResponseReopensDepartedUI": false,
+    "actualBackingVHDConfirmationPOST": 1,
+    "unsavedProjectsFolderPreserved": true,
+    "storageAdviceInvalidatedWithoutFullCheck": true,
+    "backgroundMeasurementLeavesReadinessStale": true,
+    "explicitCheckReadinessPOST": 1,
+    "explicitCheckClearsStaleAdvice": true,
+    "runtimeInstalled": false,
+    "exactProcessStartTrace": "unverified; WMI/CIM/ETW denied at current Windows session authority"
+  },
+  "focusedRecovery": {
+    "distinctTopLevelPass": 39,
+    "subtestPass": 58,
+    "skipped": 0,
+    "assertionFailures": 0,
+    "retainedFailure": "One product-package invocation hit tester five-minute timeout after ten passes; remaining exact case separately passed in 23.317 seconds with four subtests. This is not a full product-package pass.",
+    "actualNativeMechanisms": [
+      "child process death releases Windows lifecycle lock"
+    ],
+    "controlledMechanisms": [
+      "backend named-pipe/proof fixtures"
+    ],
+    "notClaimed": [
+      "actual installed controller crash on Windows",
+      "live provider behavior"
+    ]
+  },
+  "preservation": {
+    "trackedFilesUnchanged": 1911,
+    "ownedNativeDriverWebViewProcessesRemaining": 0,
+    "ownedListenersRemaining": 0,
+    "existingDockerContainersPreserved": 107,
+    "originalRunningDockerContainersPreserved": 4
+  },
+  "open": [
+    "Windows sustained four-project workload and resource/responsiveness",
+    "live-provider output quality",
+    "LOCAL-007 native retest",
+    "exact process-start tracing"
+  ]
+}

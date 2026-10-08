@@ -95,3 +95,11 @@ live-provider gates. Do not treat this index as a handoff-ready notification.
   two owned shutdowns. All 1,808 tracked hashes/HEAD and original checkouts remain
   unchanged. LOCAL-004 metadata preservation and LOCAL-007 rapid-click selection
   remain unresolved; this is relayed evidence, not a cloud native rerun.
+
+- [Installed uncertain-launch recovery](2026-10-08-cloud009-installed-recovery.md):
+  actual Linux crashes, delayed requests/lost acknowledgement and successor
+  integration against clean `919cffe0`; scripted provider and retained failures.
+- [Native 919cffe0 reported scope](2026-10-08-native-919cffe0-reported.json):
+  corrected state isolation, storage UI/HTTP and focused Windows recovery tests.
+- [Project selection stability](2026-10-08-local007-navigation.md): controlled
+  source geometry/keyboard correction; original native cause remains unconfirmed.

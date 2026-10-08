@@ -1,0 +1,909 @@
+{
+  "schemaVersion": 1,
+  "status": "both-installed-scenarios-passed",
+  "scope": "Real installed Linux control plane, browser consent/review, actual Docker and native Codex task lifecycle with a deliberately scripted local provider. Recovery/capacity/context/integration mechanics only.",
+  "qualification": "Clean application package919cffe0 is independent of newer helper/source checkout revisions. Helper bytes are captured and checked, while unrelated source-only edits explain dirty harness checkout observations.",
+  "packageProvenanceSHA256": "817f26c566d1ccfea4f2189bc67aac0028b7cc8435105a522b19a8e73f9aa248",
+  "imageProvenanceSHA256": "cb78db912e1afc2c6af08911799b4f082a4eafc3d441f72f0f030f5ca2efe102",
+  "successfulScenarios": [
+    {
+      "scenario": "delayed-create",
+      "status": "passed",
+      "wrapperExitCode": 0,
+      "sourceCommit": "919cffe014d1104d9e65fa19351683d182355f36",
+      "packageSourceDirty": false,
+      "reviewedHelperCommit": "d4d065f56054b46890262b482eb0129214ad93fe",
+      "observedHarnessCheckout": {
+        "commit": "d4d065f56054b46890262b482eb0129214ad93fe",
+        "dirty": true
+      },
+      "driverSHA256": "2a841737588295e89e06157ebaae75a47e949259daab396ad18f3172c47f58d2",
+      "helperSHA256": {
+        "fenced-docker-proxy.mjs": "a1a88540e28775530808a34c0e0011192eb0692bd3fc71d36428ab46059eaefa",
+        "worker-create-guard.mjs": "ea1334921e08c21e927a88eccdf83443e1919cb6e3b49c8c0bc791a6b318718e",
+        "run-with-observer.py": "bf00e39a9491dc11695859558a63021743c2ee4603e05adaf898fc5d9f905596"
+      },
+      "reusedHelperSHA256": {
+        "scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+        "scripts/acceptance/four-project-queue/sample-linux-owned.py": "f9bdd159bb27d19b38df602146319ff9a9b2c828c89038057ed5b58524f4c0ad"
+      },
+      "binarySHA256": "0dda3e73aff0f7196ba30286af6c28efd23f00bf0c073a38e764151307ead811",
+      "webIndexSHA256": "12f0f68a278899a09c194a3d774163672e34725882d1cf5f837f5bb097758f49",
+      "packageIntegrity": {
+        "archiveSHA256": "210780c433ff590d2e5ee181065a619d9d5ab0f64b8e143e55084b88f89c1fc5",
+        "verifiedMembers": 1123,
+        "allMembersMatch": true
+      },
+      "image": {
+        "reference": "luci/sandbox:verified-candidate-20261008t061146z-87b06740",
+        "id": "sha256:42597a985b20f2aee31a629a320980f02180bde307b6ffdd3ec60b257a82af5b"
+      },
+      "engineIdentitySHA256": "9ccbe65e5da6fcbddb4f24a682abf7d4e4ddf8dff3a453fca0c0dbd34de76de5",
+      "originalReceiptSHA256": "ac5f428876df2150cb15c71af3d193e0f244923a086ed15e67ba7c787031b027",
+      "observedInterval": {
+        "startedAt": "2026-10-08T12:16:19.804Z",
+        "finishedAt": "2026-10-08T12:17:40.801Z",
+        "elapsedMs": 80808
+      },
+      "bounds": {
+        "scenarioDeadlineMs": 900000,
+        "originalHoldMs": 600000,
+        "upstreamRequestMs": 120000,
+        "maxCreates": 3,
+        "maxStarts": 1,
+        "preCreateFreeBytes": 6442450944,
+        "runningReserveBytes": 1073741824,
+        "workerMemoryBytes": 1073741824,
+        "workerNanoCPUs": 1000000000
+      },
+      "checks": [
+        {
+          "name": "Live allocation refuses recovery promptly without intent or effects",
+          "passed": true,
+          "error": "project_run_conflict",
+          "elapsedMs": 6
+        },
+        {
+          "name": "Root process death and restart preserve exact original child, context and retained capacity",
+          "passed": true
+        },
+        {
+          "name": "Original uploaded request reaches the real daemon after recovery and cannot allocate or start a worker",
+          "passed": true,
+          "status": 409
+        },
+        {
+          "name": "Another project completes a real isolated native task, frees capacity naturally and integrates only after browser review",
+          "passed": true
+        }
+      ],
+      "controllerCrashes": [
+        {
+          "label": "original-request-held",
+          "signal": "SIGKILL",
+          "reaped": true,
+          "at": "2026-10-08T12:16:29.235Z"
+        }
+      ],
+      "controllerLifecycle": [
+        {
+          "action": "start",
+          "at": "2026-10-08T12:16:20.345Z"
+        },
+        {
+          "action": "start",
+          "at": "2026-10-08T12:16:29.398Z"
+        },
+        {
+          "action": "stop",
+          "at": "2026-10-08T12:17:39.939Z",
+          "stopped": true,
+          "exitCode": null,
+          "forced": false
+        }
+      ],
+      "recoveryCheckpoints": [
+        {
+          "stage": "finalized",
+          "at": "2026-10-08T12:16:32.927Z",
+          "operationStatus": "cancelled",
+          "hasProof": true,
+          "hasRetirement": true,
+          "finalizedAt": "2026-10-08T12:16:32.85588283Z",
+          "leaseRetained": false,
+          "fenceState": "retired",
+          "registryStatus": "exited",
+          "acknowledgedFenceIdentitySHA256": "ea28b507c2b07c54faad5a68a74d915f4b48150d26f33ee12e39a25b0b206710",
+          "sameRetirementIntent": true
+        }
+      ],
+      "lateOriginal": {
+        "method": "POST",
+        "status": 409,
+        "forwardedAt": "2026-10-08T12:16:33.019Z",
+        "completedAt": "2026-10-08T12:16:33.022Z",
+        "realDaemonResponse": true
+      },
+      "dockerRequestCounts": {
+        "total": 374,
+        "create": 3,
+        "worker": 2,
+        "fence": 1,
+        "start": 1
+      },
+      "actualSuccessfulWorkerCreates": 1,
+      "dockerMutationChronology": [
+        {
+          "method": "POST",
+          "kind": "worker",
+          "ordinal": 1,
+          "requestedAt": "2026-10-08T12:16:28.981Z",
+          "forwardedAt": "2026-10-08T12:16:33.019Z",
+          "respondedAt": "2026-10-08T12:16:33.021Z",
+          "completedAt": "2026-10-08T12:16:33.022Z",
+          "status": 409,
+          "action": "create"
+        },
+        {
+          "method": "POST",
+          "kind": "fence",
+          "ordinal": 2,
+          "requestedAt": "2026-10-08T12:16:32.691Z",
+          "forwardedAt": "2026-10-08T12:16:32.737Z",
+          "respondedAt": "2026-10-08T12:16:32.746Z",
+          "completedAt": "2026-10-08T12:16:32.746Z",
+          "deliveredAt": "2026-10-08T12:16:32.746Z",
+          "status": 201,
+          "action": "create",
+          "containerIdentitySHA256": "ea28b507c2b07c54faad5a68a74d915f4b48150d26f33ee12e39a25b0b206710"
+        },
+        {
+          "method": "POST",
+          "kind": "worker",
+          "ordinal": 3,
+          "requestedAt": "2026-10-08T12:16:33.480Z",
+          "forwardedAt": "2026-10-08T12:16:33.519Z",
+          "respondedAt": "2026-10-08T12:17:06.147Z",
+          "completedAt": "2026-10-08T12:17:06.147Z",
+          "deliveredAt": "2026-10-08T12:17:06.148Z",
+          "status": 201,
+          "action": "create",
+          "containerIdentitySHA256": "b1cc50e307973cb33d081d47c4d96688bbcd00570fb248bf61b2519d755750ae"
+        },
+        {
+          "method": "POST",
+          "kind": "worker",
+          "requestedAt": "2026-10-08T12:17:06.149Z",
+          "forwardedAt": "2026-10-08T12:17:06.150Z",
+          "respondedAt": "2026-10-08T12:17:06.355Z",
+          "completedAt": "2026-10-08T12:17:06.356Z",
+          "status": 204,
+          "action": "start",
+          "containerIdentitySHA256": "b1cc50e307973cb33d081d47c4d96688bbcd00570fb248bf61b2519d755750ae"
+        },
+        {
+          "method": "DELETE",
+          "kind": "worker",
+          "requestedAt": "2026-10-08T12:17:29.312Z",
+          "forwardedAt": "2026-10-08T12:17:29.313Z",
+          "respondedAt": "2026-10-08T12:17:30.675Z",
+          "completedAt": "2026-10-08T12:17:30.675Z",
+          "status": 204,
+          "action": "remove",
+          "containerIdentitySHA256": "b1cc50e307973cb33d081d47c4d96688bbcd00570fb248bf61b2519d755750ae"
+        }
+      ],
+      "transportDrain": {
+        "closedAt": "2026-10-08T12:17:39.984Z",
+        "pendingRequests": 0,
+        "activeHandlers": 0,
+        "pendingBodyBytes": 0,
+        "uncertainMutation": false,
+        "drained": true
+      },
+      "transportFailures": [],
+      "transportObservationsDropped": 0,
+      "resourceAdmission": [
+        {
+          "stage": "review-delayed-create-recovery",
+          "kind": "fence",
+          "ordinal": 2,
+          "rootFreeBytes": 6623879168,
+          "requiredBytes": 6442450944,
+          "at": "2026-10-08T12:16:32.736Z"
+        },
+        {
+          "stage": "release-real-late-request",
+          "kind": "worker",
+          "ordinal": 1,
+          "rootFreeBytes": 6623789056,
+          "requiredBytes": 6442450944,
+          "at": "2026-10-08T12:16:33.019Z"
+        },
+        {
+          "stage": "independent-project-advance",
+          "kind": "worker",
+          "ordinal": 3,
+          "rootFreeBytes": 6623518720,
+          "requiredBytes": 6442450944,
+          "at": "2026-10-08T12:16:33.519Z"
+        }
+      ],
+      "minimumObservedRootFreeBytes": 1883996160,
+      "context": {
+        "originalCapturedFileSHA256": {
+          ".luci/brief.json": "97d1a8be4959f82d80a6cceff1074b0069bfdeeeffe60d91c06ca2a7ad2ea797",
+          ".luci/design-handoff.json": "debc9a2e7acecb21e60c2fcc9e00939ff6c5b846e805ded68262c888b0b2bd5b",
+          ".luci/design-handoff.md": "d0f8b4bb5edd5739d8494b35db2c4ddf36cf9df20ffdf8eb8997e122ede6591c",
+          ".luci/design.json": "ee69239ca625c228c56879b94d4d5a12b722efce339a8051a7711ef3346aa574",
+          ".luci/plan.json": "d1ed21d78341ee1134f8a8d4b0eb3f91a6fbce857197ebd83cd258a62069ba68",
+          ".luci/specification.json": "f211150cf5503a8ad75797e6727fee16f6e2ff534e1da23b4f39ee4d7c98b871",
+          ".luci/specification.md": "a35a4b9653a287c9f9bfb9cf260ed112178bc54579e925cf6242c15b0a7b7406",
+          "LUCI.md": "7ba43366cb45090dbaab902f30734567a506c8cffa6666d6324df2f6823b1147",
+          "manifest.json": "fcd54e2b721d010f4ab30e94a0cf82a3a0cc072b8e61c7e07909260a488b3ae9"
+        },
+        "successorCapturedFileSHA256": {
+          ".luci/brief.json": "d80f2d06bd628c591b0a70c5acb33535f9b283626f4609b76d9d45f1a07a720f",
+          ".luci/design-handoff.json": "677df28ba381a75a3dd75371011adfd6dc89fa002b31de1eff6c4bbc1d6ff003",
+          ".luci/design-handoff.md": "a2ba7d1120eaac57e5f928598149bc0ced0f9aa4173ab61e539063071a4f7294",
+          ".luci/design.json": "5365030139c1448e0aa606976737cb59d0dfc840a988d5f208486b940abc8c9d",
+          ".luci/plan.json": "64511d5326486480b2bd73a1ca6c5cdb514ab00dbd57115047fbeba1d76b2387",
+          ".luci/specification.json": "15f0a18c8747ca4983d42a26683556974662f98fa88b5f66ab7e60a1cab2cbc1",
+          ".luci/specification.md": "23fe615a28830e544ec3f5b24c56de461f59bfb516c3d717908401636c3272df",
+          "LUCI.md": "968d03b43882bdcfc947a9080cf2b7bb3a000e9fd3b6a98cec24848a7a330c50",
+          "manifest.json": "08574e7f290f9714fd36d470c9f9011c591910eb29a6fc472bdc4ba490d519ec"
+        },
+        "originalContextRetained": true,
+        "canonicalOriginalSourceRetained": true,
+        "successorReadOnlyCapturedContext": true,
+        "crossProjectContextChecksPassed": true
+      },
+      "successorResult": {
+        "task": "build-b",
+        "changedPaths": [
+          "build-b-result.txt"
+        ],
+        "baseCommit": "e00ba91a9df7708bfa0905cd847f4bf5a7d8ccbb",
+        "taskCommit": "cfcf6f94fe9d4c59368fd65ef44013242110c47d",
+        "integrationCommit": "36ffbaa2cfba5ce7e0c81b2edb1e9a7e5708f4ef",
+        "outputSHA256": "f009d9ebd4e4c22374f16f092ef4a8df764866db69c6be9cb977657389390624",
+        "naturalCompletion": {
+          "sessionStatus": "exited",
+          "recordedExitReason": "process exited",
+          "cleanNativeExitFrame": true,
+          "exitFrameObservedAt": "2026-10-08T12:17:12.216Z",
+          "stoppedAndAbsentObservedAt": "2026-10-08T12:17:30.834Z",
+          "queueCompletedObservedAt": "2026-10-08T12:17:31.319Z",
+          "queueState": "completed",
+          "codingDispatches": 1,
+          "finalResponseRequests": 1,
+          "finalResponseAborts": 0,
+          "finalResponseRetries": 0,
+          "integratedBeforeExit": false
+        },
+        "capacityPublicationObservation": {
+          "firstPresentAt": "2026-10-08T12:17:07.147Z",
+          "lastPresentAt": "2026-10-08T12:17:31.266Z",
+          "firstAbsentAt": "2026-10-08T12:17:31.319Z",
+          "samples": 174,
+          "unavailableSamples": 0
+        },
+        "terminalObservation": {
+          "frames": 6,
+          "stdoutFrames": 5,
+          "stdoutBytes": 7584,
+          "exitFrames": 1,
+          "closed": true,
+          "socketError": true,
+          "trustEnterSent": false,
+          "firstOutputAt": "2026-10-08T12:17:06.852Z",
+          "lastOutputAt": "2026-10-08T12:17:07.174Z",
+          "exitObservedAt": "2026-10-08T12:17:12.216Z",
+          "exit": {
+            "classification": "exit-status",
+            "code": 0
+          },
+          "closeCode": 1006,
+          "closeWasClean": false,
+          "bufferTruncated": false
+        }
+      },
+      "testOnlyFenceTeardown": [
+        {
+          "immutableID": true,
+          "force": false,
+          "controllersDead": true,
+          "originalRequestsDrained": true,
+          "at": "2026-10-08T12:17:40.140Z"
+        }
+      ],
+      "cleanup": {
+        "controllersStopped": true,
+        "dockerRequestsDrained": true,
+        "errors": [],
+        "fixtureRemoved": true,
+        "containers": 0,
+        "volumes": 0,
+        "ownedServiceProcesses": 0,
+        "ownedBrowserProcesses": 0,
+        "protectedImageAndPackageUnchanged": true,
+        "rootFreeBytes": 6618718208
+      },
+      "observer": {
+        "sampleCount": 102,
+        "durationSeconds": 102.08431387599558,
+        "driverExitObserved": true,
+        "fullImageContainerIdentityCount": 1,
+        "metadataSHA256": "6de663acd9dc816d488a20afdf634f81bea6858c56a218250e444d8c3d19e87a",
+        "samplesSHA256": "51acf9a6bd6c29d67bb16a8f325ad5d6d21979f06123655daf6b2c16c4e48848",
+        "summarySHA256": "11f9cc3fd2e92fb8f6c8bf628be935abc2e6c63d7fe9de87f1397e8d9693d110",
+        "acceptedSamplerSHA256": "f9bdd159bb27d19b38df602146319ff9a9b2c828c89038057ed5b58524f4c0ad",
+        "scope": "Frozen exact-instance Linux process/container sampler. Inert scratch markers are outside its full-image cgroup accounting. Detailed resource attribution is a separate analysis."
+      },
+      "externalModelCalls": 0,
+      "cloudResourcesCreated": 0,
+      "scriptedProviderRequests": 2
+    },
+    {
+      "scenario": "delayed-start",
+      "status": "passed",
+      "wrapperExitCode": 0,
+      "sourceCommit": "919cffe014d1104d9e65fa19351683d182355f36",
+      "packageSourceDirty": false,
+      "reviewedHelperCommit": "d4d065f56054b46890262b482eb0129214ad93fe",
+      "observedHarnessCheckout": {
+        "commit": "675ed402385b4082afda539b63fb0ff03565f58e",
+        "dirty": true
+      },
+      "driverSHA256": "2a841737588295e89e06157ebaae75a47e949259daab396ad18f3172c47f58d2",
+      "helperSHA256": {
+        "fenced-docker-proxy.mjs": "a1a88540e28775530808a34c0e0011192eb0692bd3fc71d36428ab46059eaefa",
+        "worker-create-guard.mjs": "ea1334921e08c21e927a88eccdf83443e1919cb6e3b49c8c0bc791a6b318718e",
+        "run-with-observer.py": "bf00e39a9491dc11695859558a63021743c2ee4603e05adaf898fc5d9f905596"
+      },
+      "reusedHelperSHA256": {
+        "scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+        "scripts/acceptance/four-project-queue/sample-linux-owned.py": "f9bdd159bb27d19b38df602146319ff9a9b2c828c89038057ed5b58524f4c0ad"
+      },
+      "binarySHA256": "0dda3e73aff0f7196ba30286af6c28efd23f00bf0c073a38e764151307ead811",
+      "webIndexSHA256": "12f0f68a278899a09c194a3d774163672e34725882d1cf5f837f5bb097758f49",
+      "packageIntegrity": {
+        "archiveSHA256": "210780c433ff590d2e5ee181065a619d9d5ab0f64b8e143e55084b88f89c1fc5",
+        "verifiedMembers": 1123,
+        "allMembersMatch": true
+      },
+      "image": {
+        "reference": "luci/sandbox:verified-candidate-20261008t061146z-87b06740",
+        "id": "sha256:42597a985b20f2aee31a629a320980f02180bde307b6ffdd3ec60b257a82af5b"
+      },
+      "engineIdentitySHA256": "9ccbe65e5da6fcbddb4f24a682abf7d4e4ddf8dff3a453fca0c0dbd34de76de5",
+      "originalReceiptSHA256": "458bc861235d2e0a34ba1dfdb0243d6d2040ec8c166b85425aed5368496e3dfb",
+      "observedInterval": {
+        "startedAt": "2026-10-08T12:20:12.294Z",
+        "finishedAt": "2026-10-08T12:22:23.948Z",
+        "elapsedMs": 131308
+      },
+      "bounds": {
+        "scenarioDeadlineMs": 900000,
+        "originalHoldMs": 600000,
+        "upstreamRequestMs": 120000,
+        "maxCreates": 4,
+        "maxStarts": 2,
+        "preCreateFreeBytes": 6442450944,
+        "runningReserveBytes": 1073741824,
+        "workerMemoryBytes": 1073741824,
+        "workerNanoCPUs": 1000000000
+      },
+      "checks": [
+        {
+          "name": "Live allocation refuses recovery promptly without intent or effects",
+          "passed": true,
+          "error": "project_run_conflict",
+          "elapsedMs": 10
+        },
+        {
+          "name": "Root process death and restart preserve exact original child, context and retained capacity",
+          "passed": true
+        },
+        {
+          "name": "A real created fence without acknowledgement retains capacity and requires reviewed retry",
+          "passed": true
+        },
+        {
+          "name": "Reviewed retry resumes durable proof after a second root death without replacing the acknowledged fence",
+          "passed": true
+        },
+        {
+          "name": "Original uploaded request reaches the real daemon after recovery and cannot allocate or start a worker",
+          "passed": true,
+          "status": 404
+        },
+        {
+          "name": "Another project completes a real isolated native task, frees capacity naturally and integrates only after browser review",
+          "passed": true
+        }
+      ],
+      "controllerCrashes": [
+        {
+          "label": "original-request-held",
+          "signal": "SIGKILL",
+          "reaped": true,
+          "at": "2026-10-08T12:20:59.492Z"
+        },
+        {
+          "label": "proof-and-retirement-persisted-before-capacity-release",
+          "signal": "SIGKILL",
+          "reaped": true,
+          "at": "2026-10-08T12:21:09.393Z"
+        }
+      ],
+      "controllerLifecycle": [
+        {
+          "action": "start",
+          "at": "2026-10-08T12:20:13.046Z"
+        },
+        {
+          "action": "start",
+          "at": "2026-10-08T12:20:59.659Z"
+        },
+        {
+          "action": "start",
+          "at": "2026-10-08T12:21:09.556Z"
+        },
+        {
+          "action": "stop",
+          "at": "2026-10-08T12:22:22.839Z",
+          "stopped": true,
+          "exitCode": 0,
+          "forced": false
+        }
+      ],
+      "recoveryCheckpoints": [
+        {
+          "stage": "lost-ack",
+          "at": "2026-10-08T12:21:06.239Z",
+          "operationStatus": "dispatching",
+          "hasProof": false,
+          "hasRetirement": false,
+          "finalizedAt": null,
+          "leaseRetained": true,
+          "fenceState": "intent",
+          "registryStatus": "starting",
+          "sameRetirementIntent": true
+        },
+        {
+          "stage": "proof-persisted-before-finalize",
+          "at": "2026-10-08T12:21:09.174Z",
+          "operationStatus": "cancelled",
+          "hasProof": true,
+          "hasRetirement": true,
+          "finalizedAt": null,
+          "leaseRetained": true,
+          "fenceState": "proved",
+          "registryStatus": "starting",
+          "acknowledgedFenceIdentitySHA256": "b2a008fec4c63dbde1ff8d7a3001fe299761adb86a4cbf9849f4aa2ad367e601",
+          "sameRetirementIntent": true
+        },
+        {
+          "stage": "restarted-with-proof",
+          "at": "2026-10-08T12:21:09.766Z",
+          "operationStatus": "cancelled",
+          "hasProof": true,
+          "hasRetirement": true,
+          "finalizedAt": null,
+          "leaseRetained": true,
+          "fenceState": "proved",
+          "registryStatus": "exited",
+          "acknowledgedFenceIdentitySHA256": "b2a008fec4c63dbde1ff8d7a3001fe299761adb86a4cbf9849f4aa2ad367e601",
+          "sameRetirementIntent": true
+        },
+        {
+          "stage": "finalized",
+          "at": "2026-10-08T12:21:11.781Z",
+          "operationStatus": "cancelled",
+          "hasProof": true,
+          "hasRetirement": true,
+          "finalizedAt": "2026-10-08T12:21:11.755432061Z",
+          "leaseRetained": false,
+          "fenceState": "retired",
+          "registryStatus": "exited",
+          "acknowledgedFenceIdentitySHA256": "b2a008fec4c63dbde1ff8d7a3001fe299761adb86a4cbf9849f4aa2ad367e601",
+          "sameRetirementIntent": true
+        }
+      ],
+      "lateOriginal": {
+        "method": "POST",
+        "status": 404,
+        "forwardedAt": "2026-10-08T12:21:11.859Z",
+        "completedAt": "2026-10-08T12:21:11.864Z",
+        "realDaemonResponse": true
+      },
+      "dockerRequestCounts": {
+        "total": 566,
+        "create": 4,
+        "worker": 2,
+        "fence": 2,
+        "start": 2
+      },
+      "actualSuccessfulWorkerCreates": 2,
+      "dockerMutationChronology": [
+        {
+          "method": "POST",
+          "kind": "worker",
+          "ordinal": 1,
+          "requestedAt": "2026-10-08T12:20:20.953Z",
+          "forwardedAt": "2026-10-08T12:20:20.996Z",
+          "respondedAt": "2026-10-08T12:20:59.186Z",
+          "completedAt": "2026-10-08T12:20:59.186Z",
+          "deliveredAt": "2026-10-08T12:20:59.186Z",
+          "status": 201,
+          "action": "create",
+          "containerIdentitySHA256": "a22b1cba4df9a3ffe63081921c749a7509585a62f467bc5faaececd322ca0fb2"
+        },
+        {
+          "method": "POST",
+          "kind": "worker",
+          "requestedAt": "2026-10-08T12:20:59.188Z",
+          "forwardedAt": "2026-10-08T12:21:11.859Z",
+          "respondedAt": "2026-10-08T12:21:11.864Z",
+          "completedAt": "2026-10-08T12:21:11.864Z",
+          "status": 404,
+          "action": "start",
+          "containerIdentitySHA256": "a22b1cba4df9a3ffe63081921c749a7509585a62f467bc5faaececd322ca0fb2"
+        },
+        {
+          "method": "DELETE",
+          "kind": "worker",
+          "requestedAt": "2026-10-08T12:21:03.924Z",
+          "forwardedAt": "2026-10-08T12:21:03.925Z",
+          "respondedAt": "2026-10-08T12:21:06.093Z",
+          "completedAt": "2026-10-08T12:21:06.095Z",
+          "status": 204,
+          "action": "remove",
+          "containerIdentitySHA256": "a22b1cba4df9a3ffe63081921c749a7509585a62f467bc5faaececd322ca0fb2"
+        },
+        {
+          "method": "POST",
+          "kind": "fence",
+          "ordinal": 2,
+          "requestedAt": "2026-10-08T12:21:06.124Z",
+          "forwardedAt": "2026-10-08T12:21:06.188Z",
+          "respondedAt": "2026-10-08T12:21:06.203Z",
+          "completedAt": "2026-10-08T12:21:06.203Z",
+          "status": 201,
+          "action": "create",
+          "containerIdentitySHA256": "c3d74f766e3def7f315af76bbe1ff9d9e8e1db07bc5078ead28db638d34dc8e7"
+        },
+        {
+          "method": "DELETE",
+          "kind": "fence",
+          "requestedAt": "2026-10-08T12:21:09.010Z",
+          "forwardedAt": "2026-10-08T12:21:09.010Z",
+          "respondedAt": "2026-10-08T12:21:09.016Z",
+          "completedAt": "2026-10-08T12:21:09.017Z",
+          "status": 204,
+          "action": "remove",
+          "containerIdentitySHA256": "c3d74f766e3def7f315af76bbe1ff9d9e8e1db07bc5078ead28db638d34dc8e7"
+        },
+        {
+          "method": "POST",
+          "kind": "fence",
+          "ordinal": 3,
+          "requestedAt": "2026-10-08T12:21:09.037Z",
+          "forwardedAt": "2026-10-08T12:21:09.079Z",
+          "respondedAt": "2026-10-08T12:21:09.091Z",
+          "completedAt": "2026-10-08T12:21:09.092Z",
+          "deliveredAt": "2026-10-08T12:21:09.092Z",
+          "status": 201,
+          "action": "create",
+          "containerIdentitySHA256": "b2a008fec4c63dbde1ff8d7a3001fe299761adb86a4cbf9849f4aa2ad367e601"
+        },
+        {
+          "method": "POST",
+          "kind": "worker",
+          "ordinal": 4,
+          "requestedAt": "2026-10-08T12:21:12.391Z",
+          "forwardedAt": "2026-10-08T12:21:12.438Z",
+          "respondedAt": "2026-10-08T12:21:41.075Z",
+          "completedAt": "2026-10-08T12:21:41.075Z",
+          "deliveredAt": "2026-10-08T12:21:41.075Z",
+          "status": 201,
+          "action": "create",
+          "containerIdentitySHA256": "67a3f5b685be22dab935d652b394b5004750ac6384ccf1be277d0305da92f206"
+        },
+        {
+          "method": "POST",
+          "kind": "worker",
+          "requestedAt": "2026-10-08T12:21:41.076Z",
+          "forwardedAt": "2026-10-08T12:21:41.076Z",
+          "respondedAt": "2026-10-08T12:21:41.226Z",
+          "completedAt": "2026-10-08T12:21:41.227Z",
+          "status": 204,
+          "action": "start",
+          "containerIdentitySHA256": "67a3f5b685be22dab935d652b394b5004750ac6384ccf1be277d0305da92f206"
+        },
+        {
+          "method": "DELETE",
+          "kind": "worker",
+          "requestedAt": "2026-10-08T12:22:09.513Z",
+          "forwardedAt": "2026-10-08T12:22:09.513Z",
+          "respondedAt": "2026-10-08T12:22:12.606Z",
+          "completedAt": "2026-10-08T12:22:12.607Z",
+          "status": 204,
+          "action": "remove",
+          "containerIdentitySHA256": "67a3f5b685be22dab935d652b394b5004750ac6384ccf1be277d0305da92f206"
+        }
+      ],
+      "transportDrain": {
+        "closedAt": "2026-10-08T12:22:22.860Z",
+        "pendingRequests": 0,
+        "activeHandlers": 0,
+        "pendingBodyBytes": 0,
+        "uncertainMutation": false,
+        "drained": true
+      },
+      "transportFailures": [],
+      "transportObservationsDropped": 0,
+      "resourceAdmission": [
+        {
+          "stage": "original-launch",
+          "kind": "worker",
+          "ordinal": 1,
+          "rootFreeBytes": 6622298112,
+          "requiredBytes": 6442450944,
+          "at": "2026-10-08T12:20:20.996Z"
+        },
+        {
+          "stage": "review-lost-ack-recovery",
+          "kind": "fence",
+          "ordinal": 2,
+          "rootFreeBytes": 6622081024,
+          "requiredBytes": 6442450944,
+          "at": "2026-10-08T12:21:06.188Z"
+        },
+        {
+          "stage": "review-retry-before-second-crash",
+          "kind": "fence",
+          "ordinal": 3,
+          "rootFreeBytes": 6622068736,
+          "requiredBytes": 6442450944,
+          "at": "2026-10-08T12:21:09.078Z"
+        },
+        {
+          "stage": "independent-project-advance",
+          "kind": "worker",
+          "ordinal": 4,
+          "rootFreeBytes": 6621691904,
+          "requiredBytes": 6442450944,
+          "at": "2026-10-08T12:21:12.438Z"
+        }
+      ],
+      "minimumObservedRootFreeBytes": 1882189824,
+      "context": {
+        "originalCapturedFileSHA256": {
+          ".luci/brief.json": "b43cfb2a07344955aab66c6e6dbdd87ce23786200d84c5c34f8b18fd45bc823a",
+          ".luci/design-handoff.json": "7b462611de1583531ae8fbad52aa031b9de8a00655627666e5f359c3aa559ac9",
+          ".luci/design-handoff.md": "13a9e11b3e0bd255819cda7c1581d0c0766b2cef935489155ac70b0229decd53",
+          ".luci/design.json": "8aeaea0f9d703d954a22bf1fa8549915870a186cd9c6021d0be5b62d1367747d",
+          ".luci/plan.json": "713d482fadaf48af96bf14161398c09123b77d0370e7e007c5cbb7838dbc72ee",
+          ".luci/specification.json": "b1d4bc8a0db216f738acbb7c3904855e0767aad4ba53a3bd77b95eaf52b00194",
+          ".luci/specification.md": "1f7f15fa62e1b7c6d0b62c0c53e7a4d094e1099650fd5042e7c34a4bdcab3209",
+          "LUCI.md": "d1336b8f1289bb874d31c2f2605d5e92151f18b339b9453fa9031014c8ea91cd",
+          "manifest.json": "e2be2c87bc6c3ba628a35fdf39703bbf614586b42275c40f2a58a262f2713a6a"
+        },
+        "successorCapturedFileSHA256": {
+          ".luci/brief.json": "23207035c6798fe54e736594243007646263963d5cb211afcab8206379c08ab5",
+          ".luci/design-handoff.json": "764e47895051b3ff44876424ba866170455af8f33d8375f47db42d7e60246809",
+          ".luci/design-handoff.md": "d4fb5d96f39e630c71a2522f9f479dce73c0704d72a5f0e81c8456f7fa6b19f4",
+          ".luci/design.json": "349997c1d42c67c4e9e17e19c3a26b376d21510db88843624830056e79c7d8e8",
+          ".luci/plan.json": "6162982b8cd5bf937010a313784cc386b2d832dd45b556b4111a15f97a4de86e",
+          ".luci/specification.json": "f4596859b9553319bb1587593f3cf8a0ebd3832232bdceff74983dffd7cbde54",
+          ".luci/specification.md": "7c8f3cafde153796f1dc33cff033c1961b8c3f54546d71246b04a170b65ef3ba",
+          "LUCI.md": "8cf7787ea7dce71813e30bce31ed054311110fead5be723a5c8ba40740a31013",
+          "manifest.json": "2b4f72ad428715eaa4609b5c31a2756f19e193e37583654b55d885cedc3d7bbb"
+        },
+        "originalContextRetained": true,
+        "canonicalOriginalSourceRetained": true,
+        "successorReadOnlyCapturedContext": true,
+        "crossProjectContextChecksPassed": true
+      },
+      "successorResult": {
+        "task": "build-b",
+        "changedPaths": [
+          "build-b-result.txt"
+        ],
+        "baseCommit": "2c73cd27dbe05b5473af0d8180aa57673fcf5f81",
+        "taskCommit": "4baab1803728dbf970165fe0b4f007c319d78a1f",
+        "integrationCommit": "9ef7270abbd4e7b63cf57ed4c37eb8d7db420858",
+        "outputSHA256": "f009d9ebd4e4c22374f16f092ef4a8df764866db69c6be9cb977657389390624",
+        "naturalCompletion": {
+          "sessionStatus": "exited",
+          "recordedExitReason": "process exited",
+          "cleanNativeExitFrame": true,
+          "exitFrameObservedAt": "2026-10-08T12:21:46.993Z",
+          "stoppedAndAbsentObservedAt": "2026-10-08T12:22:12.763Z",
+          "queueCompletedObservedAt": "2026-10-08T12:22:12.785Z",
+          "queueState": "completed",
+          "codingDispatches": 1,
+          "finalResponseRequests": 1,
+          "finalResponseAborts": 0,
+          "finalResponseRetries": 0,
+          "integratedBeforeExit": false
+        },
+        "capacityPublicationObservation": {
+          "firstPresentAt": "2026-10-08T12:21:41.790Z",
+          "lastPresentAt": "2026-10-08T12:22:12.552Z",
+          "firstAbsentAt": "2026-10-08T12:22:12.690Z",
+          "samples": 209,
+          "unavailableSamples": 0
+        },
+        "terminalObservation": {
+          "frames": 8,
+          "stdoutFrames": 7,
+          "stdoutBytes": 7584,
+          "exitFrames": 1,
+          "closed": true,
+          "socketError": true,
+          "trustEnterSent": false,
+          "firstOutputAt": "2026-10-08T12:21:41.648Z",
+          "lastOutputAt": "2026-10-08T12:21:41.810Z",
+          "exitObservedAt": "2026-10-08T12:21:46.993Z",
+          "exit": {
+            "classification": "exit-status",
+            "code": 0
+          },
+          "closeCode": 1006,
+          "closeWasClean": false,
+          "bufferTruncated": false
+        }
+      },
+      "testOnlyFenceTeardown": [
+        {
+          "immutableID": true,
+          "force": false,
+          "controllersDead": true,
+          "originalRequestsDrained": true,
+          "at": "2026-10-08T12:22:23.156Z"
+        }
+      ],
+      "cleanup": {
+        "controllersStopped": true,
+        "dockerRequestsDrained": true,
+        "errors": [],
+        "fixtureRemoved": true,
+        "containers": 0,
+        "volumes": 0,
+        "ownedServiceProcesses": 0,
+        "ownedBrowserProcesses": 0,
+        "protectedImageAndPackageUnchanged": true,
+        "rootFreeBytes": 6616879104
+      },
+      "observer": {
+        "sampleCount": 152,
+        "durationSeconds": 153.26574802800315,
+        "driverExitObserved": true,
+        "fullImageContainerIdentityCount": 2,
+        "metadataSHA256": "820aae1d6d565e40eb947204ebeb78daa38fbdc7b8122864f40536ccf9f85cf9",
+        "samplesSHA256": "4341c1cafbfc0fe389867f7d4119f6bccd1b0d08baf5d03b19f222a2392062ec",
+        "summarySHA256": "6f023ca56b1b0830515af03dcbc5491aaa03646c8cde188bf2f0905c21d501b0",
+        "acceptedSamplerSHA256": "f9bdd159bb27d19b38df602146319ff9a9b2c828c89038057ed5b58524f4c0ad",
+        "scope": "Frozen exact-instance Linux process/container sampler. Inert scratch markers are outside its full-image cgroup accounting. Detailed resource attribution is a separate analysis."
+      },
+      "externalModelCalls": 0,
+      "cloudResourcesCreated": 0,
+      "scriptedProviderRequests": 2,
+      "lostAcknowledgement": {
+        "httpStatus": 409,
+        "unacknowledgedFenceIdentitySHA256": "c3d74f766e3def7f315af76bbe1ff9d9e8e1db07bc5078ead28db638d34dc8e7",
+        "acknowledgedReplacementIdentitySHA256": "b2a008fec4c63dbde1ff8d7a3001fe299761adb86a4cbf9849f4aa2ad367e601",
+        "sameIntent": true,
+        "newAcknowledgedID": true,
+        "acknowledgedProofReusedAfterSecondCrash": true
+      }
+    }
+  ],
+  "preservedFailedAttempts": [
+    {
+      "attempt": "installed-create-919cffe0-attempt1",
+      "status": "failed",
+      "reason": "Pre-forward fixture guard refused Create; the original assertion was not retained. A separate source-faithful reproduction exposed an omitted required read-only Git administration mount. The subsequent attempt identified an additional SDK capability-wire mismatch.",
+      "originalReceiptSHA256": "fa88818438dcd8eb7cdf0bd3f73b8593aabc0b63c5e40dedb698fd35b3ff4f90",
+      "observedInterval": {
+        "startedAt": "2026-10-08T11:53:15.204Z",
+        "finishedAt": "2026-10-08T11:55:25.325Z",
+        "elapsedMs": 129738
+      },
+      "sourceCommit": "919cffe014d1104d9e65fa19351683d182355f36",
+      "observedHarnessCheckout": {
+        "commit": "919cffe014d1104d9e65fa19351683d182355f36",
+        "dirty": false
+      },
+      "driverSHA256": "4e20fc62d3b3ab69fb11b245a60617d51d119cf0df324e484fc11e1a72df5262",
+      "helperSHA256": {
+        "fenced-docker-proxy.mjs": "a1a88540e28775530808a34c0e0011192eb0692bd3fc71d36428ab46059eaefa",
+        "worker-create-guard.mjs": "a76a8813e0e998bf744d22efe507bac69cccc2f83db064f1ca2da4ff6f32d4e8",
+        "run-with-observer.py": "bf00e39a9491dc11695859558a63021743c2ee4603e05adaf898fc5d9f905596"
+      },
+      "failedStage": "original-launch",
+      "safeGuardDiagnostic": [],
+      "forwardedCreates": 0,
+      "starts": 0,
+      "intendedControllerCrashes": 0,
+      "controllersStopped": true,
+      "dockerRequestsDrained": true,
+      "runtimeCleanup": {
+        "containers": 0,
+        "volumes": 0,
+        "ownedServiceProcesses": 0,
+        "ownedBrowserProcesses": 0,
+        "protectedImageAndPackageUnchanged": true,
+        "rootFreeBytes": 6666788864
+      },
+      "wrapperExitCode": 1,
+      "privateFixtureRetained": true
+    },
+    {
+      "attempt": "installed-create-919cffe0-attempt2",
+      "status": "failed",
+      "reason": "Pre-forward fixture guard expected pre-serialization capability names; actual safe source frame identified CapAdd and pinned Docker SDK normalization confirmed the wire mismatch.",
+      "originalReceiptSHA256": "59e99deada7a224124c3d06f9876f2aa0d63aee44829bf1a230ebba7c61374d1",
+      "observedInterval": {
+        "startedAt": "2026-10-08T12:02:55.513Z",
+        "finishedAt": "2026-10-08T12:05:05.526Z",
+        "elapsedMs": 129728
+      },
+      "sourceCommit": "919cffe014d1104d9e65fa19351683d182355f36",
+      "observedHarnessCheckout": {
+        "commit": "d326ad3b85beed2d22e9ec736731cfde0232c3ea",
+        "dirty": false
+      },
+      "driverSHA256": "61e209d0c1d319f2737b7823b8f5dc32fec41686051108df4c4aa8d6d4feda22",
+      "helperSHA256": {
+        "fenced-docker-proxy.mjs": "a1a88540e28775530808a34c0e0011192eb0692bd3fc71d36428ab46059eaefa",
+        "worker-create-guard.mjs": "56ffc66efbfe109641b2faef8a57a1bd7627385407d091e1b61ae96ab1a1dea0",
+        "run-with-observer.py": "bf00e39a9491dc11695859558a63021743c2ee4603e05adaf898fc5d9f905596"
+      },
+      "failedStage": "original-launch",
+      "safeGuardDiagnostic": [
+        {
+          "at": "2026-10-08T12:03:04.662Z",
+          "name": "AssertionError",
+          "frames": [
+            "launch-recovery/worker-create-guard.mjs:20:48)",
+            "launch-recovery/recovery.mjs:381:95)",
+            "launch-recovery/recovery.mjs:386:13)",
+            "launch-recovery/fenced-docker-proxy.mjs:230:63",
+            "launch-recovery/fenced-docker-proxy.mjs:230:20)"
+          ]
+        }
+      ],
+      "forwardedCreates": 0,
+      "starts": 0,
+      "intendedControllerCrashes": 0,
+      "controllersStopped": true,
+      "dockerRequestsDrained": true,
+      "runtimeCleanup": {
+        "containers": 0,
+        "volumes": 0,
+        "ownedServiceProcesses": 0,
+        "ownedBrowserProcesses": 0,
+        "protectedImageAndPackageUnchanged": true,
+        "rootFreeBytes": 6664327168
+      },
+      "wrapperExitCode": 1,
+      "privateFixtureRetained": true
+    }
+  ],
+  "limitations": [
+    "The provider and implementation tool output are deliberately scripted; no live-model reasoning, broad build quality, real token/cost or market-leadership claim.",
+    "Two projects per recovery scenario and one executing worker at a time; this is not the separate four-project sustained mixed-workload or Windows acceptance.",
+    "One-sided injected Docker delays/lost acknowledgement and exact owned controller SIGKILL are explicitly authorized fixtures. No recovery proof is fabricated by the transport.",
+    "Production recovery markers remain permanent. Test-only marker removal occurs only after all exact controllers are dead and all captured requests drained, with fresh exact immutable-ID inspection and non-force removal.",
+    "Explicit native exit-status0 precedes WebSocket1006/socketError observations in both successors; a clean WebSocket shutdown is not claimed.",
+    "First successful scenario records control-plane stop exitCode null despite verified no remaining owned process and no force; this is kept distinct from native task exit0.",
+    "Lease/queue timestamps are sampled observations, not exact atomic release instants.",
+    "Raw observer time series exist with hashes; no observer self-cost, complete Docker-daemon overhead, memory-leak, whole-computer responsiveness or isolated performance claim from this curation.",
+    "Existing image/runtime installation, Windows execution, live-provider quality, full local product acceptance, public release/billing and cloud capabilities remain outside this witness."
+  ],
+  "sanitization": "Allowlisted immutable fields only: no credentials, headers, environment values, raw provider prompts, private state paths, usernames or host PIDs. Fixture immutable container identities are SHA256 references; context bodies are hashes only."
+}

@@ -573,3 +573,18 @@ after the real DependencySetup initial checks settle. Polling cannot prove the
 absence of short-lived processes. For LOCAL-004, refreshed .NET and native
 handle observations now agree on all seven baseline entries; the original
 anomaly remains retained pending a controlled application-cycle comparison.
+
+### Native 919cffe0 batch closed
+
+The local tester reports LOCAL-004 corrected explicit-state behavior verified
+using seven normal-state entries, refreshed .NET metadata and native read-only
+handles. Contents, IDs, creation/last-write times, lengths and attributes stayed
+unchanged; observer-sensitive LastAccess changes are separate. The original
+2dcf245d historical timestamp anomaly remains unexplained. LOCAL-005 passes
+actual native UI/HTTP scenarios; denied process tracing remains unverified.
+The focused controlled Windows recovery outcomes total 39 top-level and 58
+subtest passes. Preserve the timed-out product invocation and the separately
+passing continuation; do not call it a complete product-package pass. All owned
+app/driver/WebView processes and ports are stopped, existing Docker inventory
+is preserved, and 1,911 tracked hashes are unchanged. See the
+[relayed scope](evidence/2026-10-08-native-919cffe0-reported.json).
