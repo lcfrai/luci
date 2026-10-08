@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "at": "2026-10-08T23:39:38.559586+00:00",
+  "finishedAt": "2026-10-08T23:39:42.978582+00:00",
+  "scope": "Independent failed-fixture immutable-ID removal; not product recovery or charge release",
+  "originalReceipt": {
+    "originalPath": "artifacts/quality-swarm/check-recovery-d348f012-helper-fdde0470-attempt2/independent-failed-fixture-cleanup-private.json",
+    "originalBytes": 43349,
+    "originalSHA256": "58ef3f1005bfc5bf0c6564f1a4b23fcaa249f9357f70da59463c4c944baf218e"
+  },
+  "intentReceipt": {
+    "originalPath": "artifacts/quality-swarm/check-recovery-d348f012-helper-fdde0470-attempt2/manual-cleanup-intent-private.json",
+    "originalBytes": 22373,
+    "originalSHA256": "a9de675b3b6ab9a70187831dd2e359628028b4bf18a1bab122f3e0d2d434c24a"
+  },
+  "proxyClosure": {
+    "closedAt": "2026-10-08T23:37:31.372Z",
+    "pendingRequests": 0,
+    "activeHandlers": 0,
+    "pendingBodyBytes": 0,
+    "uncertainMutation": false,
+    "drained": true
+  },
+  "containerBefore": {
+    "Id": "e7e0fb5f949168405baa74a5e90852c3d83f50f34214e354e3bead37ad1acb01",
+    "Name": "/luci-check-checkexec-f9598a2d0fc6f839909c0f25",
+    "Image": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+    "State": {
+      "Status": "created",
+      "Running": false,
+      "Paused": false,
+      "Restarting": false,
+      "OOMKilled": false,
+      "Dead": false,
+      "Pid": 0,
+      "ExitCode": 0,
+      "Error": "",
+      "StartedAt": "0001-01-01T00:00:00Z",
+      "FinishedAt": "0001-01-01T00:00:00Z"
+    }
+  },
+  "removal": {
+    "exactContainerId": "e7e0fb5f949168405baa74a5e90852c3d83f50f34214e354e3bead37ad1acb01",
+    "method": "docker container rm by exact immutable ID, without force",
+    "basis": "Independent parent operator action; not product recovery"
+  },
+  "containersAfter": [],
+  "volumesAfter": [],
+  "processesAfter": [],
+  "privateFixtureFileComparison": {
+    "comparedFiles": 110,
+    "allRecordedBytesUnchanged": true,
+    "perFileMetadataPublished": false
+  },
+  "retainedProductCharge": [
+    {
+      "id": "checkexec-f9598a2d0fc6f839909c0f25",
+      "state": "creating",
+      "resources": {
+        "CPUMillis": 1000,
+        "MemoryMiB": 1024
+      }
+    }
+  ],
+  "retainedLedgerSHA256": "1a04ef3f21e9961c1c50d9cda612ec170b2018c76d8446e3db263fb88b1be15a",
+  "ledgerStillMatchesFailedReport": true,
+  "heldLeaseManuallyChanged": false,
+  "productRecoveryPassed": false,
+  "automaticContainerAndLeaseCleanupCertified": false,
+  "productLeaseReleaseVerified": false,
+  "limitations": [
+    "Successful controller/proxy/browser teardown does not certify removal of the held container or release of its creating lease.",
+    "Independent exact-ID removal is not product recovery, natural completion or automatic reservation release.",
+    "Private fixture paths and per-file inventories are excluded."
+  ]
+}

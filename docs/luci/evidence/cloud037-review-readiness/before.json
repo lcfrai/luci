@@ -1,0 +1,15 @@
+{
+  "head": "a976aac7ee0fc80b2eb9c08ffd7c8eb5d2531edc",
+  "files": [
+    {
+      "path": "scripts/acceptance/check-create-recovery/installed-recovery.mjs",
+      "sha256": "d9f2276ac2aaf29a1434155d7a31c80576e5514d2e65f2fb97af084e3fd538f7",
+      "bytes": 43755
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/review-readiness.test.mjs",
+      "sha256": "a2c051dfe70fcd2b12f22a12cb659e33029e8c4eb61d4febb33fb71b99078371",
+      "bytes": 5319
+    }
+  ]
+}

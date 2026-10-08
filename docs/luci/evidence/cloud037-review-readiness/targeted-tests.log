@@ -1,0 +1,13 @@
+✔ Actual recovery opening waits for delayed check history before exact single-control click (17.275807ms)
+✔ Duplicate recovery controls remain an error after history readiness, without clicking (4.676621ms)
+✔ Unavailable recovery control fails the wait without clicking or recovery mutation (10.411734ms)
+✔ Ready controls still require the exact recovery GET and unmodified review (20.545698ms)
+✔ Recovery dialog retains exact check identity and requires unchecked confirmation (12.976746ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 175.187488

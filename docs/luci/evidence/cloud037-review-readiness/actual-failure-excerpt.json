@@ -1,0 +1,42 @@
+{
+  "source": "artifacts/quality-swarm/check-recovery-d348f012-helper-fdde0470-attempt2/result/report.json",
+  "reportSHA256": "1547c7a543f50711ab244d9c2eff003ca121651a6cd671040ef7d2a2109a2e28",
+  "failedStage": "read-and-dismiss-exact-recovery",
+  "failure": {
+    "errorName": "AssertionError",
+    "errorCode": "ERR_ASSERTION",
+    "locations": [
+      {
+        "file": "installed-recovery.mjs",
+        "line": 171,
+        "column": 137
+      },
+      {
+        "file": "installed-recovery.mjs",
+        "line": 289,
+        "column": 63
+      },
+      {
+        "file": "recovery-scenario.mjs",
+        "line": 182,
+        "column": 3
+      },
+      {
+        "file": "installed-recovery.mjs",
+        "line": 344,
+        "column": 16
+      },
+      {
+        "file": "installed-recovery.mjs",
+        "line": 324,
+        "column": 5
+      },
+      {
+        "file": "installed-recovery.mjs",
+        "line": 368,
+        "column": 79
+      }
+    ]
+  },
+  "limitation": "The published installed failure does not retain actual and expected count operands or an asynchronous history timing trace."
+}

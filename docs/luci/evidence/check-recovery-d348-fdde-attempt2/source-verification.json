@@ -1,0 +1,10 @@
+{
+  "mode": "Read-only retained-byte and Git-blob validation; no current helper execution",
+  "productCommit": "d348f0127a920aab05b54a4192baa8ed3800fe54",
+  "helperCommit": "fdde0470025e612c631fb97128c6f0a8df8e99b1",
+  "acceptedFilesVerified": 11,
+  "allAcceptedFilesMatchBindingAndPinnedGitCommit": true,
+  "historicalManifestPinsAreNotActualProductIdentity": true,
+  "actualInvocationCaptured": true,
+  "invocationOriginalSHA256": "7a8e3cb50d5a1159f0fad1527df2b8205068154d64659040141f06d5f2e2e951"
+}

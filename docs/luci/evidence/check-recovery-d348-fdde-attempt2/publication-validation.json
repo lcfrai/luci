@@ -1,0 +1,17 @@
+{
+  "at": "2026-10-08T23:43:01.249109+00:00",
+  "mode": "Read-only artifact publication; no runtime, browser, Docker command, build or test",
+  "exactPrivateRootsInspectedInMemory": 2,
+  "recursiveJSONDocumentsChecked": 148,
+  "recursiveStringFieldsChecked": 37811,
+  "exactPrivateRootMatches": 0,
+  "knownRetainedCredentialFilesInspectedInMemory": 1,
+  "knownRetainedCredentialScalarsChecked": 2,
+  "knownRetainedCredentialMatches": 0,
+  "privateFileInventoriesPublished": false,
+  "originalInputHashesUnchanged": true,
+  "limitations": [
+    "Ephemeral credentials no longer retained cannot be re-read.",
+    "A scope-limited private-material check does not claim universal secret detection."
+  ]
+}

@@ -1,0 +1,26 @@
+✖ Actual recovery opening waits for delayed check history before exact single-control click (13.938535ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 197.944954
+
+✖ failing tests:
+
+test at scripts/acceptance/check-create-recovery/review-readiness.test.mjs:45:1
+✖ Actual recovery opening waits for delayed check history before exact single-control click (13.938535ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at openRecovery (evalmachine.<anonymous>:4:137) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

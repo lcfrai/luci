@@ -1,0 +1,12 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "--test-concurrency=1",
+    "scripts/acceptance/check-create-recovery/known-controller.test.mjs"
+  ],
+  "exitCode": 0,
+  "testSHA256": "584fec6c0349d9d8c26705531457408f3efeea056f2a9004b8fec506a58531e5",
+  "at": "2026-10-08T23:45:48.490210+00:00"
+}

@@ -1,0 +1,68 @@
+{
+  "files": {
+    "after.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "installed-recovery.mjs": {
+      "sha256": "7ff156dd21d9ebdd724ecd9a3ee43eda3cfc4ea0146cf43986370ec8027e7761",
+      "bytes": 44154
+    },
+    "known-controller.test.mjs": {
+      "sha256": "584fec6c0349d9d8c26705531457408f3efeea056f2a9004b8fec506a58531e5",
+      "bytes": 1258
+    },
+    "before-installed-recovery.mjs": {
+      "sha256": "64912fd17e994fc222d1b2ed7fd0d04481e5cc3e0d706b0b0c83bc663277890c",
+      "bytes": 43796
+    },
+    "after-result.json": {
+      "sha256": "9db9f24ed021a56e0b8ce4e3592ed3ab9ee2a5f25e62e181b4b985052dd96533",
+      "bytes": 322
+    },
+    "before-result.json": {
+      "sha256": "cf83122e52c0fd3ed27b50e62d16b56eeb53454f94bffe751d8496e96060152e",
+      "bytes": 322
+    },
+    "README.md": {
+      "sha256": "9ae15e2d39ee9d55cebfe973a5c00f1c4a6e83df7a454f3f57187d104858048b",
+      "bytes": 2063
+    },
+    "affected.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "affected.tap": {
+      "sha256": "3492ff09cd73df05d8a893c2ab959336b02679510959650aba2d640242dc67c6",
+      "bytes": 74111
+    },
+    "binding.json": {
+      "sha256": "fa5da742f49bd673c1e66af96b4348cf22373a94e7937c0aa28a1902dddf7ecc",
+      "bytes": 5504
+    },
+    "review-readiness.test.mjs": {
+      "sha256": "a2c051dfe70fcd2b12f22a12cb659e33029e8c4eb61d4febb33fb71b99078371",
+      "bytes": 5319
+    },
+    "controller-stop.test.mjs": {
+      "sha256": "09d855ca4c6c2678dfba784415fe42f66baf87e1edd6208b33fb5c93aee97588",
+      "bytes": 3810
+    },
+    "after.tap": {
+      "sha256": "95c5f93745f66d01ecc951752c13abca0b0edcc4e4078f575d97ae47ed734c26",
+      "bytes": 531
+    },
+    "before.tap": {
+      "sha256": "3e8ac94a14f138da58a234ada37b494e7bbe6d206c8e8d09e9ed7599a556204d",
+      "bytes": 1611
+    },
+    "affected-result.json": {
+      "sha256": "9de5482e21e981d4744caf8588fb2fd21f700e01ad2b88d0c523ef6be9910b38",
+      "bytes": 883
+    },
+    "before.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  }
+}

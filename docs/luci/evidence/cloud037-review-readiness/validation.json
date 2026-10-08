@@ -1,0 +1,59 @@
+{
+  "issue": "CLOUD-037",
+  "baseHelperCommit": "a976aac7ee0fc80b2eb9c08ffd7c8eb5d2531edc",
+  "selectedProduct": "d348f0127a920aab05b54a4192baa8ed3800fe54",
+  "runtimeInvoked": false,
+  "browserRuns": 0,
+  "compilerRuns": 0,
+  "modelCalls": 0,
+  "cwd": "/workspace/luci",
+  "setup": "source /workspace/.luci-tools/activate.sh",
+  "sameRegressionBytes": true,
+  "checks": [
+    {
+      "command": "timeout 30s node --test --test-concurrency=1 --test-name-pattern='Actual recovery opening' scripts/acceptance/check-create-recovery/review-readiness.test.mjs",
+      "log": "before-regression.log",
+      "exitCode": 1,
+      "tests": 1,
+      "failed": 1,
+      "failure": "Controlled deferred history returned count zero; original openRecovery asserted one."
+    },
+    {
+      "command": "timeout 30s node --test --test-concurrency=1 --test-name-pattern='Actual recovery opening' scripts/acceptance/check-create-recovery/review-readiness.test.mjs",
+      "log": "after-regression.log",
+      "exitCode": 0,
+      "tests": 1,
+      "passed": 1
+    },
+    {
+      "command": "timeout 30s node --test --test-concurrency=1 scripts/acceptance/check-create-recovery/review-readiness.test.mjs",
+      "log": "targeted-tests.log",
+      "exitCode": 0,
+      "tests": 5,
+      "passed": 5
+    }
+  ],
+  "testedSources": [
+    {
+      "path": "scripts/acceptance/check-create-recovery/installed-recovery.mjs",
+      "sha256": "64912fd17e994fc222d1b2ed7fd0d04481e5cc3e0d706b0b0c83bc663277890c",
+      "bytes": 43796
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/review-readiness.test.mjs",
+      "sha256": "a2c051dfe70fcd2b12f22a12cb659e33029e8c4eb61d4febb33fb71b99078371",
+      "bytes": 5319
+    }
+  ],
+  "limits": [
+    "Actual openRecovery body executes in VM with controlled deferred locator/history and response observations.",
+    "No actual browser timing trace was collected and no installed recovery claim follows.",
+    "No fixture private state, runtime mutation, recovery request or command replay performed."
+  ],
+  "frontendContract": {
+    "path": "desktop/src/components/journey/ProjectChecks.tsx",
+    "sha256": "efd6677ccf54a4bd1e4d802d4845e6575a964bd335907b0513baa79d7ae7bcb5",
+    "retrievableAtCommit": "d348f0127a920aab05b54a4192baa8ed3800fe54",
+    "behavior": "useEffect calls load(true); load awaits productApi.checks before setRuns; heading is rendered independently."
+  }
+}
