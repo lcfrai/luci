@@ -1,0 +1,6 @@
+{"driverPID": 2000801, "startTicks": "24184090", "samplerPID": 2000802, "observationDirectory": "/workspace/luci/artifacts/quality-swarm/sustained-4df94ab9-helper-5d306b6d-attempt3/observer", "observerSelfCost": "/workspace/luci/artifacts/quality-swarm/sustained-4df94ab9-helper-5d306b6d-attempt3/observer-observer-self-cost.json"}
+PASS Four distinct unsent idea drafts restore to their own project without changing approved source context
+PASS Browser cancellation prevents allocation and queued priority changes retain exact project ownership
+PASS Service restart preserves a real active fuzz command and exact worker/context without replay
+FAIL /workspace/luci/artifacts/quality-swarm/sustained-4df94ab9-helper-5d306b6d-attempt3/result/result.json
+{"samples": 440, "durationSeconds": 440.6352132720058, "containerCount": 1, "driverExitObserved": true}

@@ -1,0 +1,60 @@
+{
+  "at": "2026-10-08T21:58:33.343032+00:00",
+  "method": "Independent read-only post-wrapper Docker inventory, observed PID/start identities and exact fixture ledger; no manual repair/removal",
+  "containers": [],
+  "volumes": [],
+  "sampledProcessIdentityCount": 14,
+  "sampledProcessesStillPresent": [
+    {
+      "pid": 2001533,
+      "startTicks": 24184936,
+      "state": "Z",
+      "parentPid": 1,
+      "comm": "chromium"
+    },
+    {
+      "pid": 2001534,
+      "startTicks": 24184936,
+      "state": "Z",
+      "parentPid": 1,
+      "comm": "chromium"
+    }
+  ],
+  "sampledProcessChecksUnknown": [],
+  "executionLedgerSHA256": "3698bc374c3b1f7754056fb9bfe419afd8c4f685289f4f121652a3ceac12d460",
+  "executionLedger": {
+    "version": 1,
+    "leases": [
+      {
+        "id": "queue-5e00d2dff81ac9d3cc2191bd",
+        "scope": "de274530aa9fb36542caa2562df1848592bd11d87fd0c2a928a373817e0ab128",
+        "actor": {
+          "userId": "user-rWmWQ6JwsJdYBNYknUOHqU",
+          "projectId": "p-c209f019"
+        },
+        "projectId": "p-c209f019",
+        "provider": "agent-e5c1c456967c9ffa44942ef9",
+        "providerLimit": 1,
+        "sessionId": "s-fac80621",
+        "sandboxId": "s-fac80621",
+        "state": "backend-settled",
+        "launchGuard": 1,
+        "fenceProtocol": 1,
+        "fenceEngineId": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+        "fenceInstanceId": "974ba5e8-7a9e-4e32-9f87-3e10fb301b68",
+        "resources": {
+          "CPUMillis": 1000,
+          "MemoryMiB": 1024
+        },
+        "createdAt": "2026-10-08T21:45:40.517569377Z",
+        "updatedAt": "2026-10-08T21:46:11.234452497Z"
+      }
+    ]
+  },
+  "productLeaseReleaseVerified": false,
+  "automaticCleanupCertified": false,
+  "driverCleanupErrors": [
+    "Error: Unexpected full worker remained; exact failed-fixture cleanup required\n    at file:///workspace/luci/scripts/acceptance/sustained-four-project/sustained.mjs:541:1083\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)"
+  ],
+  "scope": "Current Docker inventory alone does not prove product capacity release. One exactbackend-settled lease remains charged1GiB/1000mCPU. No ledger repair or original failed-fixture recovery performed. Sampling cannot prove absence of never-observed descendants."
+}

@@ -1,0 +1,6 @@
+--- FAIL: TestApprovedRequirement (0.00s)
+    engine_test.go:29: APPROVED_REQUIREMENT_UNIMPLEMENTED: render escaped text/order: got "" want "<section><h1>A&lt;&amp;</h1><ul><li>first</li><li>quote &#34; and &#39;</li></ul></section>\n"
+FAIL
+FAIL	fixture.local/workload	0.005s
+?   	fixture.local/workload/cmd/app	[no test files]
+FAIL

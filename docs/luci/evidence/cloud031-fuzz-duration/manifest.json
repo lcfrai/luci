@@ -1,0 +1,91 @@
+{
+  "issue": "CLOUD-031",
+  "scope": "Acceptance helper duration parser; installed attempt remains failed. No product or workload behavior change.",
+  "installedProductSource": "4df94ab9dad0e9fedd28a873bbadc56720e1402e",
+  "installedHelperSource": "5d306b6dae3cc9d0a4d9cbf95f8142c37958964f",
+  "installedResult": {
+    "passed": false,
+    "failedStage": "active-command-restart",
+    "resultSHA256": "582b60536d93aac1d31b73c675fe46683c5c71042c92e8e38ac28a301b2c40ab"
+  },
+  "retainedFixture": {
+    "sourceReceiptSHA256": "14bd9e9de6fb65382fcffacce74fa895cec63322c874902387cc099f238a492f",
+    "originalReceiptBytes": 31537,
+    "decodedFuzzLogBytes": 4316,
+    "decodedFuzzLogSHA256": "506a10848d01b2bb297279b64634aef1bf641c3dcef52080f5683c8cf99161aa",
+    "syntheticCorpusEntries": 79,
+    "boundedCommandLogs": 6,
+    "originalPayloadEqualsRetainedSource": true,
+    "privacy": "Original receipt contains only the declared synthetic task, command/event records, synthetic Go fuzz corpus and six bounded command logs. Each decoded payload was checked; no account, provider or credential record is included.",
+    "licensing": "Diagnostic output and generated corpus come from this repository's synthetic fixture. No external source code or new dependency was copied."
+  },
+  "oldParser": {
+    "activeFuzzSeconds": 57,
+    "fuzzExecutions": 2560985,
+    "generatedAssertionExitCode": 1
+  },
+  "fixedParser": {
+    "activeFuzzSeconds": 150,
+    "fuzzExecutions": 6993018,
+    "basis": "Go fuzz progress record elapsed2m30s, not command wall time or package summary"
+  },
+  "wallElapsedMs": 182028.482164,
+  "unchangedRequirements": {
+    "activeFuzzSecondsPerInitialWorker": 150,
+    "fourWorkerActiveFuzzSeconds": 600,
+    "positiveExecutions": true,
+    "successfulFuzzCommand": true,
+    "originalOutputBoundBytes": 1048576
+  },
+  "validation": [
+    {
+      "command": "node --test /workspace/.luci-tools/cloud031-fuzz-duration/before-regression.mjs",
+      "exitCode": 1,
+      "passed": 0,
+      "failed": 1,
+      "log": "before.log",
+      "scope": "Exact original generated post-fuzz assertion executed in a bounded VM with retained output; no task command executed."
+    },
+    {
+      "command": "node --test /workspace/.luci-tools/cloud031-fuzz-duration/after/task-command.test.mjs /workspace/.luci-tools/cloud031-fuzz-duration/after/helper.test.mjs",
+      "exitCode": 0,
+      "passed": 9,
+      "failed": 0,
+      "log": "after.log"
+    },
+    {
+      "command": "node --test scripts/acceptance/sustained-four-project/task-command.test.mjs scripts/acceptance/sustained-four-project/helper.test.mjs",
+      "workingDirectory": "/workspace/luci",
+      "exitCode": 0,
+      "passed": 9,
+      "failed": 0,
+      "log": "repository-tests.log"
+    }
+  ],
+  "tools": {
+    "node": "v24.19.0",
+    "retainedWorkerGo": "go version go1.26.8 linux/amd64"
+  },
+  "sourceSHA256": {
+    "scripts/acceptance/sustained-four-project/task-command.mjs": "30073ae0b120c65e331c447893049ff7d7f0a66e930360bbd0b73fff907c2208",
+    "scripts/acceptance/sustained-four-project/task-command.test.mjs": "1f64321fba1e0ce5cdeff2ac62b69e40c851cc4baf0e8f380680d233066b256d",
+    "scripts/acceptance/sustained-four-project/fixtures/go-fuzz-progress.txt": "506a10848d01b2bb297279b64634aef1bf641c3dcef52080f5683c8cf99161aa",
+    "scripts/acceptance/sustained-four-project/fixtures/.gitattributes": "66218437341338747977e9a573617d0bdb85bafb5b4cd8f07c1fb72ef4dfa9d6",
+    "scripts/acceptance/sustained-four-project/helper.test.mjs": "97c80e81827056aaa2c4ac346296e6cce1d0f375fe6ba65ad6ce5b355dd7b9ab",
+    "scripts/acceptance/sustained-four-project/workloads.mjs": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306",
+    "scripts/acceptance/sustained-four-project/interaction-metrics.mjs": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502",
+    "scripts/acceptance/sustained-four-project/latency-diagnostics.mjs": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96"
+  },
+  "acceptedOriginalHelperSHA256": "414015af6ea915ccd3c838c3a316b7f08e079b70cc5de299a7991bb0b5f9f6fe",
+  "runtimeEffects": {
+    "newDockerOperations": 0,
+    "newBrowsers": 0,
+    "GoCompilations": 0,
+    "newFuzzCommands": 0,
+    "modelCalls": 0
+  },
+  "limitations": [
+    "The original sustained run remains failed; corrected parsing does not manufacture a task completion, commit, review or four-project success.",
+    "Only the first retained150-second fuzz phase is established by this log; three other initial phases and the amendment remain unproved by this capsule."
+  ]
+}

@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "passed": false,
+  "status": "cleanup-incomplete",
+  "stage": "active-command-restart",
+  "at": "2026-10-08T21:49:49.872Z",
+  "preparationDeadlineMs": 120000,
+  "scenarioDeadlineMs": 1800000,
+  "cleanupDeadlineMs": 180000,
+  "totalDeadlineMs": 2100000,
+  "driver": {
+    "pid": 2000801,
+    "parentPid": 2000800,
+    "group": 2000787,
+    "session": 2000787,
+    "startTicks": 24184090
+  },
+  "controllers": [
+    {
+      "pid": 2001005,
+      "start": "24184646",
+      "group": 2001005,
+      "status": "R"
+    },
+    {
+      "pid": 2007805,
+      "start": "24208559",
+      "group": 2007805,
+      "status": "R"
+    }
+  ],
+  "signal": null,
+  "failure": {
+    "errorName": "AssertionError",
+    "errorCode": "ERR_ASSERTION",
+    "locations": [
+      {
+        "file": "sustained.mjs",
+        "line": 299,
+        "column": 570
+      }
+    ]
+  },
+  "controllersStopped": false,
+  "dockerRequestsDrained": false,
+  "dockerMutationStateCertain": false,
+  "workflowOperationUnsettled": true,
+  "startupResources": [
+    {
+      "name": "provider",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "name": "proxy",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "name": "browser",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "name": "browser-context",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false,
+      "parent": "browser",
+      "closedByParent": false
+    },
+    {
+      "name": "browser-page",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false,
+      "parent": "browser-context",
+      "closedByParent": false
+    }
+  ],
+  "originalReceiptComplete": false
+}

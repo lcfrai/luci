@@ -1,0 +1,143 @@
+{
+  "sourceCommit": "4df94ab9dad0e9fedd28a873bbadc56720e1402e",
+  "helperCommit": "5d306b6dae3cc9d0a4d9cbf95f8142c37958964f",
+  "helperBindings": [
+    {
+      "sourcePath": "scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs",
+      "capturedPath": "result/accepted-harness/four-project-queue_native-terminal-diagnostics.mjs",
+      "bytes": 6811,
+      "sha256": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+      "matchesPinnedHelperCommit": true
+    },
+    {
+      "sourcePath": "scripts/acceptance/four-project-queue/sample-linux-owned.py",
+      "capturedPath": "result/accepted-harness/four-project-queue_sample-linux-owned.py",
+      "bytes": 35379,
+      "sha256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+      "matchesPinnedHelperCommit": true
+    },
+    {
+      "sourcePath": "scripts/acceptance/sustained-four-project/interaction-metrics.mjs",
+      "capturedPath": "result/accepted-harness/interaction-metrics.mjs",
+      "bytes": 9846,
+      "sha256": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502",
+      "matchesPinnedHelperCommit": true
+    },
+    {
+      "sourcePath": "scripts/acceptance/sustained-four-project/latency-diagnostics.mjs",
+      "capturedPath": "result/accepted-harness/latency-diagnostics.mjs",
+      "bytes": 7545,
+      "sha256": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96",
+      "matchesPinnedHelperCommit": true
+    },
+    {
+      "sourcePath": "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs",
+      "capturedPath": "result/accepted-harness/launch-recovery_acceptance-lifecycle.mjs",
+      "bytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "matchesPinnedHelperCommit": true
+    },
+    {
+      "sourcePath": "scripts/acceptance/launch-recovery/acceptance-startup.mjs",
+      "capturedPath": "result/accepted-harness/launch-recovery_acceptance-startup.mjs",
+      "bytes": 4637,
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "matchesPinnedHelperCommit": true
+    },
+    {
+      "sourcePath": "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs",
+      "capturedPath": "result/accepted-harness/launch-recovery_durable-acceptance-journal.mjs",
+      "bytes": 6670,
+      "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+      "matchesPinnedHelperCommit": true
+    },
+    {
+      "sourcePath": "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs",
+      "capturedPath": "result/accepted-harness/launch-recovery_fenced-docker-proxy.mjs",
+      "bytes": 35707,
+      "sha256": "48e97d6d5c915cf80c99f0c79a8fb16261eb219616f878fa1ce103ee2c59303d",
+      "matchesPinnedHelperCommit": true
+    },
+    {
+      "sourcePath": "scripts/acceptance/launch-recovery/worker-create-guard.mjs",
+      "capturedPath": "result/accepted-harness/launch-recovery_worker-create-guard.mjs",
+      "bytes": 5545,
+      "sha256": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+      "matchesPinnedHelperCommit": true
+    },
+    {
+      "sourcePath": "scripts/acceptance/sustained-four-project/queue-controls.mjs",
+      "capturedPath": "result/accepted-harness/queue-controls.mjs",
+      "bytes": 711,
+      "sha256": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0",
+      "matchesPinnedHelperCommit": true
+    },
+    {
+      "sourcePath": "scripts/acceptance/sustained-four-project/run-with-observer.py",
+      "capturedPath": "result/accepted-harness/run-with-observer.py",
+      "bytes": 17220,
+      "sha256": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a",
+      "matchesPinnedHelperCommit": true
+    },
+    {
+      "sourcePath": "scripts/acceptance/sustained-four-project/source-binding.mjs",
+      "capturedPath": "result/accepted-harness/source-binding.mjs",
+      "bytes": 2768,
+      "sha256": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796",
+      "matchesPinnedHelperCommit": true
+    },
+    {
+      "sourcePath": "scripts/acceptance/sustained-four-project/sustained.mjs",
+      "capturedPath": "result/accepted-harness/sustained.mjs",
+      "bytes": 86152,
+      "sha256": "6d9e4e1a45c778c5d2066738f3b34930a477d6cf8bcadeec10dab5c975792d32",
+      "matchesPinnedHelperCommit": true
+    },
+    {
+      "sourcePath": "scripts/acceptance/sustained-four-project/task-command.mjs",
+      "capturedPath": "result/accepted-harness/task-command.mjs",
+      "bytes": 10172,
+      "sha256": "414015af6ea915ccd3c838c3a316b7f08e079b70cc5de299a7991bb0b5f9f6fe",
+      "matchesPinnedHelperCommit": true
+    },
+    {
+      "sourcePath": "scripts/acceptance/sustained-four-project/task-context.mjs",
+      "capturedPath": "result/accepted-harness/task-context.mjs",
+      "bytes": 2439,
+      "sha256": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2",
+      "matchesPinnedHelperCommit": true
+    },
+    {
+      "sourcePath": "scripts/acceptance/sustained-four-project/workloads.mjs",
+      "capturedPath": "result/accepted-harness/workloads.mjs",
+      "bytes": 18691,
+      "sha256": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306",
+      "matchesPinnedHelperCommit": true
+    }
+  ],
+  "observerMatchesPinnedHelper": true,
+  "rawReportsCopiedWithoutRedaction": true,
+  "originalPrivateFailureReviewed": {
+    "originalBytes": 31537,
+    "originalSHA256": "14bd9e9de6fb65382fcffacce74fa895cec63322c874902387cc099f238a492f",
+    "decodedFiles": 85,
+    "syntheticFuzzCorpusFiles": 79,
+    "workloadLogs": 6,
+    "review": "Only explicit bounded receipt, synthetic Go fuzz corpus and fixture workload logs. Credential-bearing fixture home/state/source files not traversed or exported."
+  },
+  "boundedTextPatternScan": {
+    "privateKeyHeaders": 0,
+    "providerCredentialPatterns": 0,
+    "nonemptyCredentialJSONValues": 0,
+    "longBearerValues": 0
+  },
+  "visualReview": "Failed-stage screenshot shows synthetic four-project acceptance UI and no credentials.",
+  "exclusions": [
+    "No fixture home, credentials, configuration, tokens, account databases or conversation/session database copied.",
+    "Independent closure embeds only its explicitly observed ledger metadata; publication does not modify or repair the private fixture."
+  ],
+  "limitations": [
+    "Pattern scanning alone is not proof of absence of all secrets; explicit allowlist and bounded receipt review were also used.",
+    "Helper bindings are exact; product package/image identities are retained build/run assertions, not a new build or remote artifact download."
+  ]
+}

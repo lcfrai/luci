@@ -1,0 +1,6 @@
+AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+  assert(!/Process exited with code (?:[1-9]\d*|-\d+)|"exit_code"\s*:\s*(?:[1-9]\d*|-\d+)|Command failed/.test(raw))
+
+    at Server.<anonymous> (file:///workspace/luci/scripts/acceptance/sustained-four-project/sustained.mjs:299:570)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)

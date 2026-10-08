@@ -1,0 +1,17 @@
+✔ Generated native worker programs parse with actual fixture strings, without execution (13.006202ms)
+✔ Command refuses unexpected task identity and unbounded duration (13.74087ms)
+✔ Nearest rank summaries preserve slow failures instead of survivor-only quantiles (0.554636ms)
+✔ Failure on first All projects click is inside project-switch measurement (3.172664ms)
+✔ Retained installed Go output has exact byte binding and150seconds of fuzz progress (13.099883ms)
+✔ Seconds, minutes and hours preserve elapsed units (0.555989ms)
+✔ Final newline is optional, CRLF is accepted and summaries preserve maxima (0.208424ms)
+✔ Baseline coverage and package/wall duration cannot stand in for active progress (17.010991ms)
+✔ Malformed progress, unsupported duration units and unsafe numbers are refused (6.56531ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 153.55583

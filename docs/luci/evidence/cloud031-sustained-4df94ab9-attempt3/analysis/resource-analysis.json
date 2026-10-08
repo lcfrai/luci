@@ -1,0 +1,460 @@
+{
+  "source": "Derived read-only analysis of byte-bound raw attempt 3 receipts, not a new run or atomic admission snapshot",
+  "observedSampleCount": 440,
+  "overall": {
+    "samples": 440,
+    "statusCounts": {
+      "not-observed": 29,
+      "observed": 411
+    },
+    "validObservationCount": 411,
+    "effectiveAvailableMinBytes": 9551831040,
+    "effectiveAvailableMaxBytes": 16449658880,
+    "physicalAvailableMinBytes": 20970274816,
+    "physicalAvailableMaxBytes": 22234005504,
+    "firstObservedAt": "2026-10-08T21:42:51.946876+00:00",
+    "lastObservedAt": "2026-10-08T21:50:12.407208+00:00"
+  },
+  "controlPlaneIdentities": [
+    [
+      2001005,
+      24184646
+    ],
+    [
+      2007805,
+      24208559
+    ]
+  ],
+  "samplerDurationSeconds": {
+    "p50": 0.0005968399927951396,
+    "p95": 0.0011977959948126227,
+    "max": 0.005023182980949059
+  },
+  "phaseSummaries": [
+    {
+      "name": "quiet-app-open-idle",
+      "intervalStart": "2026-10-08T21:43:17.881Z",
+      "intervalEnd": "2026-10-08T21:44:18.162Z",
+      "endBasis": "Recorded phase end",
+      "samples": 61,
+      "statusCounts": {
+        "observed": 61
+      },
+      "validObservationCount": 61,
+      "effectiveAvailableMinBytes": 15859236864,
+      "effectiveAvailableMaxBytes": 16076357632,
+      "physicalAvailableMinBytes": 21400096768,
+      "physicalAvailableMaxBytes": 21668065280,
+      "firstObservedAt": "2026-10-08T21:43:18.097798+00:00",
+      "lastObservedAt": "2026-10-08T21:44:18.146822+00:00"
+    },
+    {
+      "name": "idle-interactive-calibration",
+      "intervalStart": "2026-10-08T21:44:18.162Z",
+      "intervalEnd": "2026-10-08T21:45:40.499Z",
+      "endBasis": "Recorded phase end",
+      "samples": 82,
+      "statusCounts": {
+        "observed": 82
+      },
+      "validObservationCount": 82,
+      "effectiveAvailableMinBytes": 15893925888,
+      "effectiveAvailableMaxBytes": 16036614144,
+      "physicalAvailableMinBytes": 21435797504,
+      "physicalAvailableMaxBytes": 21632937984,
+      "firstObservedAt": "2026-10-08T21:44:19.151501+00:00",
+      "lastObservedAt": "2026-10-08T21:45:40.220030+00:00"
+    },
+    {
+      "name": "loaded",
+      "intervalStart": "2026-10-08T21:45:40.502Z",
+      "intervalEnd": "2026-10-08T21:49:49.870Z",
+      "endBasis": "Driver-caught-failure journal event; incomplete loaded phase",
+      "samples": 249,
+      "statusCounts": {
+        "observed": 248,
+        "not-observed": 1
+      },
+      "validObservationCount": 248,
+      "effectiveAvailableMinBytes": 9551831040,
+      "effectiveAvailableMaxBytes": 15904591872,
+      "physicalAvailableMinBytes": 20970274816,
+      "physicalAvailableMaxBytes": 21590097920,
+      "firstObservedAt": "2026-10-08T21:45:41.218708+00:00",
+      "lastObservedAt": "2026-10-08T21:49:49.294223+00:00"
+    }
+  ],
+  "eventBrackets": [
+    {
+      "name": "create-requestedAt",
+      "at": "2026-10-08T21:45:40.899Z",
+      "requestSequence": 509,
+      "bracket": {
+        "before": {
+          "sampleIndex": 168,
+          "observedAt": "2026-10-08T21:45:40.220030+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0006580719782505184,
+          "physicalAvailableBytes": 21533192192,
+          "summedProcessRSSBytes": 1188691968,
+          "controlPlaneRSSBytes": 56819712,
+          "observations": [
+            {
+              "pid": 2001005,
+              "startTicks": 24184646,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 15948468224,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -678.9699999999999
+        },
+        "after": {
+          "sampleIndex": 169,
+          "observedAt": "2026-10-08T21:45:41.218708+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0005719620094168931,
+          "physicalAvailableBytes": 21533474816,
+          "summedProcessRSSBytes": 1189031936,
+          "controlPlaneRSSBytes": 57061376,
+          "observations": [
+            {
+              "pid": 2001005,
+              "startTicks": 24184646,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 15904591872,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 319.70799999999997
+        }
+      }
+    },
+    {
+      "name": "create-respondedAt",
+      "at": "2026-10-08T21:46:10.679Z",
+      "requestSequence": 509,
+      "bracket": {
+        "before": {
+          "sampleIndex": 198,
+          "observedAt": "2026-10-08T21:46:10.258504+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0006165890081319958,
+          "physicalAvailableBytes": 21544857600,
+          "summedProcessRSSBytes": 1150451712,
+          "controlPlaneRSSBytes": 56778752,
+          "observations": [
+            {
+              "pid": 2001005,
+              "startTicks": 24184646,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10272358400,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -420.496
+        },
+        "after": {
+          "sampleIndex": 199,
+          "observedAt": "2026-10-08T21:46:11.264367+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0006918830040376633,
+          "physicalAvailableBytes": 21516009472,
+          "summedProcessRSSBytes": 1150451712,
+          "controlPlaneRSSBytes": 56778752,
+          "observations": [
+            {
+              "pid": 2001005,
+              "startTicks": 24184646,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10174656512,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 585.367
+        }
+      }
+    },
+    {
+      "name": "create-deliveredAt",
+      "at": "2026-10-08T21:46:10.680Z",
+      "requestSequence": 509,
+      "bracket": {
+        "before": {
+          "sampleIndex": 198,
+          "observedAt": "2026-10-08T21:46:10.258504+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0006165890081319958,
+          "physicalAvailableBytes": 21544857600,
+          "summedProcessRSSBytes": 1150451712,
+          "controlPlaneRSSBytes": 56778752,
+          "observations": [
+            {
+              "pid": 2001005,
+              "startTicks": 24184646,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10272358400,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -421.496
+        },
+        "after": {
+          "sampleIndex": 199,
+          "observedAt": "2026-10-08T21:46:11.264367+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0006918830040376633,
+          "physicalAvailableBytes": 21516009472,
+          "summedProcessRSSBytes": 1150451712,
+          "controlPlaneRSSBytes": 56778752,
+          "observations": [
+            {
+              "pid": 2001005,
+              "startTicks": 24184646,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10174656512,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 584.367
+        }
+      }
+    },
+    {
+      "name": "start-requestedAt",
+      "at": "2026-10-08T21:46:10.738Z",
+      "requestSequence": 604,
+      "bracket": {
+        "before": {
+          "sampleIndex": 198,
+          "observedAt": "2026-10-08T21:46:10.258504+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0006165890081319958,
+          "physicalAvailableBytes": 21544857600,
+          "summedProcessRSSBytes": 1150451712,
+          "controlPlaneRSSBytes": 56778752,
+          "observations": [
+            {
+              "pid": 2001005,
+              "startTicks": 24184646,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10272358400,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -479.496
+        },
+        "after": {
+          "sampleIndex": 199,
+          "observedAt": "2026-10-08T21:46:11.264367+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0006918830040376633,
+          "physicalAvailableBytes": 21516009472,
+          "summedProcessRSSBytes": 1150451712,
+          "controlPlaneRSSBytes": 56778752,
+          "observations": [
+            {
+              "pid": 2001005,
+              "startTicks": 24184646,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10174656512,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 526.3670000000001
+        }
+      }
+    },
+    {
+      "name": "start-respondedAt",
+      "at": "2026-10-08T21:46:10.968Z",
+      "requestSequence": 604,
+      "bracket": {
+        "before": {
+          "sampleIndex": 198,
+          "observedAt": "2026-10-08T21:46:10.258504+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0006165890081319958,
+          "physicalAvailableBytes": 21544857600,
+          "summedProcessRSSBytes": 1150451712,
+          "controlPlaneRSSBytes": 56778752,
+          "observations": [
+            {
+              "pid": 2001005,
+              "startTicks": 24184646,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10272358400,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -709.496
+        },
+        "after": {
+          "sampleIndex": 199,
+          "observedAt": "2026-10-08T21:46:11.264367+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0006918830040376633,
+          "physicalAvailableBytes": 21516009472,
+          "summedProcessRSSBytes": 1150451712,
+          "controlPlaneRSSBytes": 56778752,
+          "observations": [
+            {
+              "pid": 2001005,
+              "startTicks": 24184646,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10174656512,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 296.367
+        }
+      }
+    },
+    {
+      "name": "active-restart-startedAt",
+      "at": "2026-10-08T21:46:55.703Z",
+      "bracket": {
+        "before": {
+          "sampleIndex": 243,
+          "observedAt": "2026-10-08T21:46:55.258693+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0005098990222904831,
+          "physicalAvailableBytes": 21057818624,
+          "summedProcessRSSBytes": 1259184128,
+          "controlPlaneRSSBytes": 57462784,
+          "observations": [
+            {
+              "pid": 2001005,
+              "startTicks": 24184646,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 9723604992,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -444.307
+        },
+        "after": {
+          "sampleIndex": 245,
+          "observedAt": "2026-10-08T21:46:57.267336+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0006604660011362284,
+          "physicalAvailableBytes": 21237288960,
+          "summedProcessRSSBytes": 1325400064,
+          "controlPlaneRSSBytes": 115048448,
+          "observations": [
+            {
+              "pid": 2007805,
+              "startTicks": 24208559,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 9844932608,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 1564.336
+        }
+      }
+    },
+    {
+      "name": "active-restart-finishedAt",
+      "at": "2026-10-08T21:46:58.547Z",
+      "bracket": {
+        "before": {
+          "sampleIndex": 246,
+          "observedAt": "2026-10-08T21:46:58.278761+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0006195849855430424,
+          "physicalAvailableBytes": 21183557632,
+          "summedProcessRSSBytes": 1353310208,
+          "controlPlaneRSSBytes": 124878848,
+          "observations": [
+            {
+              "pid": 2007805,
+              "startTicks": 24208559,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 9804447744,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -268.23900000000003
+        },
+        "after": {
+          "sampleIndex": 247,
+          "observedAt": "2026-10-08T21:46:59.357946+00:00",
+          "status": "observed",
+          "durationSeconds": 0.00064070601365529,
+          "physicalAvailableBytes": 21122387968,
+          "summedProcessRSSBytes": 1376157696,
+          "controlPlaneRSSBytes": 130777088,
+          "observations": [
+            {
+              "pid": 2007805,
+              "startTicks": 24208559,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 9795006464,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 810.9459999999999
+        }
+      }
+    }
+  ],
+  "limitations": [
+    "Samples are sequential approximately 1 Hz observations; nearest bracketing counters are not the actual admission decision or an atomic measurement.",
+    "The cgroup and physical counters measure different scopes. The effective formula clamps physical available against visible cgroup limits minus current; no reclaimable-cache discount is applied.",
+    "The host cgroup includes unrelated workload, retained RAM-backed files and observation work. It is not memory attributable solely to Luci.",
+    "Process RSS sums include test driver/browser and double-count shared pages. Container memory is separate; do not add overlapping values indiscriminately.",
+    "Missing/identity-only rows are explicitly retained. Visible ancestors only; no claim about hidden cgroups.",
+    "No matched no-observer run or causal observer overhead estimate is available. No whole-computer or Windows responsiveness is established."
+  ],
+  "bindings": {
+    "observer/samples.jsonl": {
+      "bytes": 2725716,
+      "sha256": "359504a93573112470c5199bee5b1ce072da9ce8a1491769b14b7ab81c9f5684"
+    },
+    "observer/metadata.json": {
+      "bytes": 2951,
+      "sha256": "ca08156799fae5a58a1f5076096658c0d4e80c762bde53925dc7406657111c1f"
+    },
+    "observer/summary.json": {
+      "bytes": 2867,
+      "sha256": "183dcd76c24ea9b0f9299b2150efff02e6cd7bf8b584003e6b1c52b2a24a557d"
+    },
+    "result/result.json": {
+      "bytes": 12424486,
+      "sha256": "582b60536d93aac1d31b73c675fe46683c5c71042c92e8e38ac28a301b2c40ab"
+    },
+    "result/diagnostic-journal.jsonl": {
+      "bytes": 10250,
+      "sha256": "d5017de35c7bbcb68ff0275bcb94158372ee3cb49d1e0344e258245ff69b5f45"
+    }
+  }
+}

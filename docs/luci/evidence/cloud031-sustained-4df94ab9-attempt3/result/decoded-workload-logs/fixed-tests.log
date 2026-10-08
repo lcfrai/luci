@@ -1,0 +1,31 @@
+{"Time":"2026-10-08T21:46:47.68465557Z","Action":"start","Package":"fixture.local/workload"}
+{"Time":"2026-10-08T21:46:47.692175657Z","Action":"run","Package":"fixture.local/workload","Test":"TestApprovedRequirement"}
+{"Time":"2026-10-08T21:46:47.692198311Z","Action":"output","Package":"fixture.local/workload","Test":"TestApprovedRequirement","Output":"=== RUN   TestApprovedRequirement\n"}
+{"Time":"2026-10-08T21:46:47.693103816Z","Action":"output","Package":"fixture.local/workload","Test":"TestApprovedRequirement","Output":"--- PASS: TestApprovedRequirement (0.00s)\n"}
+{"Time":"2026-10-08T21:46:47.693114422Z","Action":"pass","Package":"fixture.local/workload","Test":"TestApprovedRequirement","Elapsed":0}
+{"Time":"2026-10-08T21:46:47.693119299Z","Action":"run","Package":"fixture.local/workload","Test":"TestDeterministicRendering"}
+{"Time":"2026-10-08T21:46:47.693125298Z","Action":"output","Package":"fixture.local/workload","Test":"TestDeterministicRendering","Output":"=== RUN   TestDeterministicRendering\n"}
+{"Time":"2026-10-08T21:46:47.693131978Z","Action":"output","Package":"fixture.local/workload","Test":"TestDeterministicRendering","Output":"--- PASS: TestDeterministicRendering (0.00s)\n"}
+{"Time":"2026-10-08T21:46:47.693224918Z","Action":"pass","Package":"fixture.local/workload","Test":"TestDeterministicRendering","Elapsed":0}
+{"Time":"2026-10-08T21:46:47.693274353Z","Action":"run","Package":"fixture.local/workload","Test":"FuzzApprovedInvariant"}
+{"Time":"2026-10-08T21:46:47.693277368Z","Action":"output","Package":"fixture.local/workload","Test":"FuzzApprovedInvariant","Output":"=== RUN   FuzzApprovedInvariant\n"}
+{"Time":"2026-10-08T21:46:47.693708427Z","Action":"run","Package":"fixture.local/workload","Test":"FuzzApprovedInvariant/seed#0"}
+{"Time":"2026-10-08T21:46:47.693714927Z","Action":"output","Package":"fixture.local/workload","Test":"FuzzApprovedInvariant/seed#0","Output":"=== RUN   FuzzApprovedInvariant/seed#0\n"}
+{"Time":"2026-10-08T21:46:47.693823Z","Action":"output","Package":"fixture.local/workload","Test":"FuzzApprovedInvariant/seed#0","Output":"--- PASS: FuzzApprovedInvariant/seed#0 (0.00s)\n"}
+{"Time":"2026-10-08T21:46:47.693830261Z","Action":"pass","Package":"fixture.local/workload","Test":"FuzzApprovedInvariant/seed#0","Elapsed":0}
+{"Time":"2026-10-08T21:46:47.693833346Z","Action":"run","Package":"fixture.local/workload","Test":"FuzzApprovedInvariant/seed#1"}
+{"Time":"2026-10-08T21:46:47.693964764Z","Action":"output","Package":"fixture.local/workload","Test":"FuzzApprovedInvariant/seed#1","Output":"=== RUN   FuzzApprovedInvariant/seed#1\n"}
+{"Time":"2026-10-08T21:46:47.693969851Z","Action":"output","Package":"fixture.local/workload","Test":"FuzzApprovedInvariant/seed#1","Output":"--- PASS: FuzzApprovedInvariant/seed#1 (0.00s)\n"}
+{"Time":"2026-10-08T21:46:47.693975229Z","Action":"pass","Package":"fixture.local/workload","Test":"FuzzApprovedInvariant/seed#1","Elapsed":0}
+{"Time":"2026-10-08T21:46:47.693977944Z","Action":"run","Package":"fixture.local/workload","Test":"FuzzApprovedInvariant/seed#2"}
+{"Time":"2026-10-08T21:46:47.693979816Z","Action":"output","Package":"fixture.local/workload","Test":"FuzzApprovedInvariant/seed#2","Output":"=== RUN   FuzzApprovedInvariant/seed#2\n"}
+{"Time":"2026-10-08T21:46:47.694038234Z","Action":"output","Package":"fixture.local/workload","Test":"FuzzApprovedInvariant/seed#2","Output":"--- PASS: FuzzApprovedInvariant/seed#2 (0.00s)\n"}
+{"Time":"2026-10-08T21:46:47.694040708Z","Action":"pass","Package":"fixture.local/workload","Test":"FuzzApprovedInvariant/seed#2","Elapsed":0}
+{"Time":"2026-10-08T21:46:47.694045736Z","Action":"output","Package":"fixture.local/workload","Test":"FuzzApprovedInvariant","Output":"--- PASS: FuzzApprovedInvariant (0.00s)\n"}
+{"Time":"2026-10-08T21:46:47.69404824Z","Action":"pass","Package":"fixture.local/workload","Test":"FuzzApprovedInvariant","Elapsed":0}
+{"Time":"2026-10-08T21:46:47.694050733Z","Action":"output","Package":"fixture.local/workload","Output":"PASS\n"}
+{"Time":"2026-10-08T21:46:47.695595803Z","Action":"output","Package":"fixture.local/workload","Output":"ok  \tfixture.local/workload\t0.010s\n"}
+{"Time":"2026-10-08T21:46:47.695614291Z","Action":"pass","Package":"fixture.local/workload","Elapsed":0.011}
+{"Time":"2026-10-08T21:46:47.735391637Z","Action":"start","Package":"fixture.local/workload/cmd/app"}
+{"Time":"2026-10-08T21:46:47.735424666Z","Action":"output","Package":"fixture.local/workload/cmd/app","Output":"?   \tfixture.local/workload/cmd/app\t[no test files]\n"}
+{"Time":"2026-10-08T21:46:47.735430475Z","Action":"skip","Package":"fixture.local/workload/cmd/app","Elapsed":0}

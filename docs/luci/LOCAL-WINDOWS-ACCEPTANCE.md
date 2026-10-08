@@ -16,6 +16,10 @@ public DNS and hosted infrastructure do not block this local milestone.
 
 ## Pending correction retest scopes
 
+- **CLOUD-029 / CLOUD-030:** exact acknowledged check allocations reserve only remaining disk demand before Start, while keeping memory/CPU, other leases, working reserve and Windows backing-volume checks. Linux source passes and attempts 8/9 do not establish a check Start. Capture effective host/guest/backing measurements around refusal/admission; physical RAM alone is insufficient. Linux cgroup sampler evidence is not a Windows sampler replacement.
+- **CLOUD-031 / CLOUD-032:** sustained helper duration parsing is corrected for Go minute/hour progress. Keep 150 seconds per fuzz workload and the 300/100 ms project-switch/input p95 targets. Preserve the failed Linux unloaded and partial loaded cohorts; native interaction/resource acceptance remains unverified. No need to rerun unchanged earlier native checks solely for this helper change.
+- **Fresh unknown-Create recovery:** use a fresh isolated fixture, current Edit authority and explicit reviewed recovery; confirm exact settlement/absence/fence before releasing only its charged allocation. Preserve history/output and verify no command replay. Never repair attempt 7 or any private ledger by hand. The Linux exclusive-daemon acceptance helper must not run against Dylan's shared Docker inventory.
+
 - **CLOUD-021 (ready for native retest):** dependency-blocked work should explain its prerequisites
   from private current state even while a reader holds source admission. A ready
   task must still obtain source admission and final authoritative validation.

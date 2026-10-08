@@ -1,0 +1,39 @@
+{"scope":"Only the exact generated post-fuzz assertions execute; no child process or wall-time substitution","fuzzRow":{"elapsedMs":182028.482164,"activeFuzzSeconds":57,"fuzzExecutions":2560985}}
+✖ Retained successful 150-second Go fuzz output passes the generated duration assertion (18.278589ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 132.784609
+
+✖ failing tests:
+
+test at ../.luci-tools/cloud031-fuzz-duration/before-regression.mjs:7:1
+✖ Retained successful 150-second Go fuzz output passes the generated duration assertion (18.278589ms)
+  node:internal/assert/utils:77
+      throw err;
+      ^
+  
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert(fuzz.row.activeFuzzSeconds>=config.durationSeconds)
+  
+      at evalmachine.<anonymous>:1:417
+      at Script.runInContext (node:vm:149:12)
+      at Script.runInNewContext (node:vm:154:17)
+      at Object.runInNewContext (node:vm:310:38)
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud031-fuzz-duration/before-regression.mjs:15:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

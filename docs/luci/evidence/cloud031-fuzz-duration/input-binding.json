@@ -1,0 +1,32 @@
+{
+  "sourcePrivateReceipt": "/workspace/luci/artifacts/quality-swarm/sustained-4df94ab9-helper-5d306b6d-attempt3/result/build-a-private-failure.json",
+  "sourceReceiptSHA256": "14bd9e9de6fb65382fcffacce74fa895cec63322c874902387cc099f238a492f",
+  "fuzzLogSHA256": "506a10848d01b2bb297279b64634aef1bf641c3dcef52080f5683c8cf99161aa",
+  "fuzzLogBytes": 4316,
+  "recordedFuzzCommand": {
+    "label": "fuzz",
+    "executable": "go",
+    "args": [
+      "test",
+      "-run",
+      "^$",
+      "-fuzz",
+      "^FuzzApprovedInvariant$",
+      "-fuzztime=150s",
+      "-parallel=1",
+      "-test.fuzzcachedir=/tmp/luci-mixed-v9Da3g/corpus"
+    ],
+    "startedAt": "2026-10-08T21:46:47.754Z",
+    "finishedAt": "2026-10-08T21:49:49.783Z",
+    "elapsedMs": 182028.482164,
+    "code": 0,
+    "signal": null,
+    "outputBytes": 4316,
+    "outputSHA256": "506a10848d01b2bb297279b64634aef1bf641c3dcef52080f5683c8cf99161aa",
+    "activeFuzzSeconds": 57,
+    "fuzzExecutions": 2560985
+  },
+  "acceptedHelper": "/workspace/luci/artifacts/quality-swarm/sustained-4df94ab9-helper-5d306b6d-attempt3/result/accepted-harness/task-command.mjs",
+  "acceptedHelperSHA256": "414015af6ea915ccd3c838c3a316b7f08e079b70cc5de299a7991bb0b5f9f6fe",
+  "currentHelperEqualsAccepted": true
+}

@@ -1,11 +1,35 @@
 // Generates an explicit scripted native tool command. Import has no side effects.
 import assert from 'node:assert/strict';
+
+// Go's fuzz progress formats whole-second elapsed durations as 57s, 1m0s,
+// 2m30s, or 1h0m0s. Only those progress records establish active fuzz time;
+// command wall time and the package's final test duration do not substitute.
+export function parseGoFuzzProgress(output) {
+ assert.equal(typeof output,'string');assert(Buffer.byteLength(output)<=1024**2,'Fuzz progress output exceeds1MiB');
+ let activeFuzzSeconds=0,fuzzExecutions=0,count=0;
+ for(const line of output.split(/\r?\n/)){
+  if(!line.startsWith('fuzz: elapsed: ')||!line.includes(', execs:'))continue;
+  const progress=/^fuzz: elapsed: ([^,]+), execs: (\d+)(?= \(|$)/.exec(line);
+  assert(progress,'Malformed Go fuzz progress');
+  const duration=/^(?:(\d+)h)?(?:(\d+)m)?(\d+)s$/.exec(progress[1]);
+  assert(duration,'Unsupported Go fuzz elapsed duration');
+  const hours=Number(duration[1]??0),minutes=Number(duration[2]??0),seconds=Number(duration[3]);
+  assert((duration[1]===undefined||minutes<60)&&((duration[1]===undefined&&duration[2]===undefined)||seconds<60),'Malformed Go fuzz duration components');
+  const elapsed=hours*3600+minutes*60+seconds,executions=Number(progress[2]);
+  assert(Number.isSafeInteger(elapsed)&&elapsed>=0&&Number.isSafeInteger(executions)&&executions>=0,'Go fuzz progress exceeds safe numeric bounds');
+  activeFuzzSeconds=Math.max(activeFuzzSeconds,elapsed);fuzzExecutions=Math.max(fuzzExecutions,executions);count++;
+ }
+ assert(count>0,'No Go fuzz execution progress was recorded');
+ return {activeFuzzSeconds,fuzzExecutions};
+}
+
 export function mixedTaskCommand({ task, operation, projectId, implementation, expectedOutput, authorityRoot, contextNames, durationSeconds=150 }) {
  assert(/^(build-[abcd]|amend-a)$/.test(task));assert(Number.isInteger(durationSeconds)&&durationSeconds>=0&&durationSeconds<=150);
  const config={task,operation,projectId,implementation,expectedOutput,authorityRoot,contextNames,durationSeconds};
  const script=String.raw`const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),crypto=require('node:crypto'),os=require('node:os'),assert=require('node:assert/strict');
 const config=JSON.parse(Buffer.from('${Buffer.from(JSON.stringify(config)).toString('base64')}','base64'));
 const hash=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
+const parseGoFuzzProgress=${parseGoFuzzProgress.toString()};
 const events=[],commands=[];let active;
 function stopGroup(child,signal='SIGKILL'){if(!child?.pid||child.groupSettled)return;try{process.kill(-child.pid,signal);}catch(e){if(e.code!=='ESRCH')throw e;}}
 const stamp=()=>new Date().toISOString();
@@ -37,7 +61,7 @@ function bytes(root){let total=0;for(const name of fs.readdirSync(root)){const f
   const fixed=await command('fixed-tests','go',['test','-json','-count=1','./...']);const testRows=fixed.output.split('\n').filter(Boolean).map(line=>JSON.parse(line));assert(!testRows.some(row=>row.Action==='fail'));fixed.row.testsPassed=testRows.filter(row=>row.Action==='pass'&&row.Test).map(row=>row.Test);assert(fixed.row.testsPassed.includes('TestApprovedRequirement'));assert(fixed.row.testsPassed.length>=3);const result=await command('artifact-behavior',path.join(scratch,'app'),[]);assert.equal(result.output,config.expectedOutput);
   if(config.durationSeconds){
    const fuzz=await command('fuzz','go',['test','-run','^$','-fuzz','^FuzzApprovedInvariant$','-fuzztime='+config.durationSeconds+'s','-parallel=1','-test.fuzzcachedir='+path.join(scratch,'corpus')],0,(config.durationSeconds+180)*1000);
-   assert(fuzz.row.elapsedMs>=config.durationSeconds*1000);assert(/PASS/.test(fuzz.output));const progress=[...fuzz.output.matchAll(/fuzz: elapsed: (\d+)s, execs: (\d+)/g)].map(value=>({seconds:Number(value[1]),executions:Number(value[2])}));assert(progress.length);fuzz.row.activeFuzzSeconds=Math.max(...progress.map(value=>value.seconds));fuzz.row.fuzzExecutions=Math.max(...progress.map(value=>value.executions));assert(fuzz.row.activeFuzzSeconds>=config.durationSeconds);assert(fuzz.row.fuzzExecutions>0);
+   assert(fuzz.row.elapsedMs>=config.durationSeconds*1000);assert(/PASS/.test(fuzz.output));Object.assign(fuzz.row,parseGoFuzzProgress(fuzz.output));assert(fuzz.row.activeFuzzSeconds>=config.durationSeconds);assert(fuzz.row.fuzzExecutions>0);
   }
   // Bounded diagnostic stress is separate from useful build/test duration.
   for(let line=0;line<64;line++)console.log('MIXED_DIAGNOSTIC '+config.task+' '+String(line).padStart(4,'0')+' '+'.'.repeat(224));
