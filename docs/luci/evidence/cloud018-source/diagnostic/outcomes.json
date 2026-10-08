@@ -1,0 +1,2156 @@
+[
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestNewFileStoreOnAMissingFileIsAnEmptyStoreNotAnError",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestSessionsSurviveAReopen",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestDocumentUsesTheContractFieldNames",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestUnparseableDocumentIsQuarantinedAndTheStoreStartsEmpty",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestSchemaVersionFromTheFutureIsAHardErrorAndTouchesNothing",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestSchemaVersionBelowOneIsQuarantined",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestLoadIgnoresALeftoverTempFile",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestWorktreeReadyFlagSurvivesAReopen",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestUnknownWorktreeIsNotReady",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestWorktreeFlagsSnapshotIsACopy",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestSetWorktreeReadyRejectsAnEmptyID",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestSessionsAndWorktreeFlagsShareOneDocument",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestImplementationContextSurvivesReopenWithoutSharingMutableInputs",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestReviewedContextReceiptIsPrivateDurableAndIndependentlyCloned",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestProjectRunChildBindingSurvivesRegistryRestart",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationPageBoundsScanAndReturnsOnlyEndedTaskMetadata",
+    "Action": "pass",
+    "Elapsed": 0.06
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationPageCapsResultsWrapsAndSkipsCompletedOrUnboundRows",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationWatermarkSurvivesRestartAndOldRowsBackfill",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestProjectRunSessionsPreservesExactConflictUnionAndDetachedRecords",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestProjectRunSessionsIndexesFollowCommittedRebindingAndLoad",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationIndexesRollbackAllFailedPublications/create",
+    "Action": "pass",
+    "Elapsed": 0.21
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationIndexesRollbackAllFailedPublications/update",
+    "Action": "pass",
+    "Elapsed": 0.21
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationIndexesRollbackAllFailedPublications/delete",
+    "Action": "pass",
+    "Elapsed": 0.21
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationIndexesRollbackAllFailedPublications/mutate-error",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationIndexesRollbackAllFailedPublications/changed-id",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationIndexesRollbackAllFailedPublications",
+    "Action": "pass",
+    "Elapsed": 0.63
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationReadersRemainConsistentWithConcurrentUpdates",
+    "Action": "pass",
+    "Elapsed": 0.02
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationWatermarkResetsOnlyForChangedTaskGeneration/worktree",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationWatermarkResetsOnlyForChangedTaskGeneration/immutable-ref",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationWatermarkResetsOnlyForChangedTaskGeneration/auth",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationWatermarkResetsOnlyForChangedTaskGeneration/connection-revision",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationWatermarkResetsOnlyForChangedTaskGeneration/implementation",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationWatermarkResetsOnlyForChangedTaskGeneration/model",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationWatermarkResetsOnlyForChangedTaskGeneration/connection",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationWatermarkResetsOnlyForChangedTaskGeneration/connection-kind",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationWatermarkResetsOnlyForChangedTaskGeneration/connection-protocol",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationWatermarkResetsOnlyForChangedTaskGeneration/operation",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationWatermarkResetsOnlyForChangedTaskGeneration/sandbox",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationWatermarkResetsOnlyForChangedTaskGeneration/harness",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationWatermarkResetsOnlyForChangedTaskGeneration/effort",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationWatermarkResetsOnlyForChangedTaskGeneration/project",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationWatermarkResetsOnlyForChangedTaskGeneration/run",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationWatermarkResetsOnlyForChangedTaskGeneration/status",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationWatermarkResetsOnlyForChangedTaskGeneration/exit-reason",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationWatermarkResetsOnlyForChangedTaskGeneration/permission",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationWatermarkResetsOnlyForChangedTaskGeneration/private-connection",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationWatermarkResetsOnlyForChangedTaskGeneration/nested-implementation",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationWatermarkResetsOnlyForChangedTaskGeneration/accounting-and-display",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationWatermarkResetsOnlyForChangedTaskGeneration/failed-publication-keeps-old-watermark",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestTaskObservationWatermarkResetsOnlyForChangedTaskGeneration",
+    "Action": "pass",
+    "Elapsed": 0.08
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestWriteAtomicCreatesTheFileAndItsDirectory",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestWriteAtomicReplacesAFileThatAlreadyExists",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestWriteAtomicWhileAReaderHoldsTheTargetOpen",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestWriteAtomicLeavesNoTempFileBehind",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestWriteAtomicFailureLeavesThePreviousContentIntact",
+    "Action": "pass",
+    "Elapsed": 0.2
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestFileStoreSatisfiesTheStoreContract/CreateGetListDelete",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestFileStoreSatisfiesTheStoreContract/CreateRejectsDuplicateAndEmptyID",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestFileStoreSatisfiesTheStoreContract/CreateClonesTheSessionItIsGiven",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestFileStoreSatisfiesTheStoreContract/CreateStampsUpdatedAtAndNormalisesTimesToUTC",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestFileStoreSatisfiesTheStoreContract/UpdateAppliesAndStamps",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestFileStoreSatisfiesTheStoreContract/UpdateErrorDiscardsTheChange",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestFileStoreSatisfiesTheStoreContract/UpdateStampsInUTCAndRefusesAnIDChange",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestFileStoreSatisfiesTheStoreContract/TheSealHolds",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestFileStoreSatisfiesTheStoreContract/ListReturnsClones",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestFileStoreSatisfiesTheStoreContract/ListIsOrderedByCreatedAt",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestFileStoreSatisfiesTheStoreContract/DeleteRemovesOnlyItsOwnRecord",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestFileStoreSatisfiesTheStoreContract/ConcurrentUpdatesAllLand",
+    "Action": "pass",
+    "Elapsed": 0.07
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestFileStoreSatisfiesTheStoreContract",
+    "Action": "pass",
+    "Elapsed": 0.11
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestASaveFailureRollsTheIndexBack",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestSessionJSONKeySet",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestSessionTimesSerialiseAsRFC3339UTC",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestSessionRoundTripsThroughJSON",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestStatusValues",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestCloneDeepCopiesArgs",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestCloneDeepCopiesEarlierConversationIDs",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestCloneCopiesEveryOtherField",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestCloneCoversEveryReferenceTypedField",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestDefaultPathIsSessionsJSONUnderTheSessionsStateDir",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+    "Test": "TestSentinelsAreDistinct",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRunCommandArgumentsNeverStartService/help",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRunCommandArgumentsNeverStartService/short_help",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRunCommandArgumentsNeverStartService/version",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRunCommandArgumentsNeverStartService/unknown_option",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRunCommandArgumentsNeverStartService/secret-shaped_option",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRunCommandArgumentsNeverStartService/unknown_command",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRunCommandArgumentsNeverStartService/option_value",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRunCommandArgumentsNeverStartService/bare_separator",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRunCommandArgumentsNeverStartService/empty_argument",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRunCommandArgumentsNeverStartService/conflicting_options",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRunCommandArgumentsNeverStartService/repeated_option",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRunCommandArgumentsNeverStartService/help_with_extra_argument",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRunCommandArgumentsNeverStartService/unknown_before_help",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRunCommandArgumentsNeverStartService",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRunCommandNoArgumentsPreservesServiceResult/0",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRunCommandNoArgumentsPreservesServiceResult/1",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRunCommandNoArgumentsPreservesServiceResult/2",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRunCommandNoArgumentsPreservesServiceResult/23",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRunCommandNoArgumentsPreservesServiceResult",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestBillingConfigIsExplicitManagementOnly",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestBrowserGatewayConfigurationIsExplicitAndSeparate",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestGitIdentityIsAPairOrNothing",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestNoCABundleIsTodaysBehaviour",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAValidCABundleIsAccepted",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAMissingCABundleStopsStartupWithItsOwnSentence",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestACABundleWithNoCertificateStopsStartupWithItsOwnSentence/a_PEM_block_that_is_not_a_certificate",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestACABundleWithNoCertificateStopsStartupWithItsOwnSentence/a_CERTIFICATE_block_x509_cannot_parse",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestACABundleWithNoCertificateStopsStartupWithItsOwnSentence/a_real_certificate_under_a_label_that_is_not_CERTIFICATE",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestACABundleWithNoCertificateStopsStartupWithItsOwnSentence/a_binary_DER_export,_not_PEM",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestACABundleWithNoCertificateStopsStartupWithItsOwnSentence/an_empty_file",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestACABundleWithNoCertificateStopsStartupWithItsOwnSentence",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestACABundlePathMustBeAnAbsoluteFile",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRunRefusesAMissingCABundleWithExitCode2",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestExecutionStorageUsesTrustedSharedWorkerDirectory",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestExecutionStorageRecoveringStatusNeverInitializesBackend",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestServeReapsItsOwnOrphanWithTheIDItLoadedAndSparesAnothers",
+    "Action": "pass",
+    "Elapsed": 0.02
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRestartRecoveryKeepsAPreUpgradeSessionWhoseSandboxIsStillRunning",
+    "Action": "pass",
+    "Elapsed": 0.02
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAnInProjectOriginIsCaughtHoweverGitReachedIt/chain",
+    "Action": "pass",
+    "Elapsed": 0.02
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAnInProjectOriginIsCaughtHoweverGitReachedIt/relative",
+    "Action": "pass",
+    "Elapsed": 0.02
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAnInProjectOriginIsCaughtHoweverGitReachedIt/linked",
+    "Action": "pass",
+    "Elapsed": 0.02
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAnInProjectOriginIsCaughtHoweverGitReachedIt/linked-slash",
+    "Action": "pass",
+    "Elapsed": 0.02
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAnInProjectOriginIsCaughtHoweverGitReachedIt",
+    "Action": "pass",
+    "Elapsed": 0.09
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAShowOriginAnswerIsOneRawRecordOrAnError/a_file,_raw_backslashes_and_a_non-ASCII_byte",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAShowOriginAnswerIsOneRawRecordOrAnError/a_file_whose_name_holds_a_quote_and_a_tab",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAShowOriginAnswerIsOneRawRecordOrAnError/an_empty_value",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAShowOriginAnswerIsOneRawRecordOrAnError/a_value_kept_byte_for_byte",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAShowOriginAnswerIsOneRawRecordOrAnError/--default's_answer_names_no_file",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAShowOriginAnswerIsOneRawRecordOrAnError/no_answer",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAShowOriginAnswerIsOneRawRecordOrAnError/the_quoted_form,_without_-z",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAShowOriginAnswerIsOneRawRecordOrAnError/an_unquoted_line,_without_-z",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAShowOriginAnswerIsOneRawRecordOrAnError/two_records",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAShowOriginAnswerIsOneRawRecordOrAnError/a_file_with_no_name",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAShowOriginAnswerIsOneRawRecordOrAnError/a_blob",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAShowOriginAnswerIsOneRawRecordOrAnError/standard_input",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAShowOriginAnswerIsOneRawRecordOrAnError/a_command_line_that_names_a_file",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAShowOriginAnswerIsOneRawRecordOrAnError/a_record_with_no_terminator",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAShowOriginAnswerIsOneRawRecordOrAnError/a_value_and_no_origin",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAShowOriginAnswerIsOneRawRecordOrAnError/an_origin_type_git_never_names",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAShowOriginAnswerIsOneRawRecordOrAnError",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAnOriginGitWouldQuoteIsStillTheFileThatSetTheValue/core.excludesFile,_absolute_backslash_path",
+    "Action": "pass",
+    "Elapsed": 0.03
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAnOriginGitWouldQuoteIsStillTheFileThatSetTheValue/core.excludesFile,_relative_backslash_separator",
+    "Action": "pass",
+    "Elapsed": 0.02
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAnOriginGitWouldQuoteIsStillTheFileThatSetTheValue/core.excludesFile,_relative_non-ASCII_name",
+    "Action": "pass",
+    "Elapsed": 0.02
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAnOriginGitWouldQuoteIsStillTheFileThatSetTheValue/core.attributesFile,_absolute_backslash_path",
+    "Action": "pass",
+    "Elapsed": 0.02
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAnOriginGitWouldQuoteIsStillTheFileThatSetTheValue/core.attributesFile,_relative_backslash_separator",
+    "Action": "pass",
+    "Elapsed": 0.02
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAnOriginGitWouldQuoteIsStillTheFileThatSetTheValue/core.attributesFile,_relative_non-ASCII_name",
+    "Action": "pass",
+    "Elapsed": 0.02
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAnOriginGitWouldQuoteIsStillTheFileThatSetTheValue",
+    "Action": "pass",
+    "Elapsed": 0.14
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestTheGlobalGitFilesAreTheHostGitsOwnAnswer/both_unset,_no_XDG_CONFIG_HOME",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestTheGlobalGitFilesAreTheHostGitsOwnAnswer/XDG_CONFIG_HOME_set",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestTheGlobalGitFilesAreTheHostGitsOwnAnswer/a_relative_core.excludesFile,_an_empty_core.attributesFile",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestTheGlobalGitFilesAreTheHostGitsOwnAnswer/excludes_set_in_the_global_scope",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestTheGlobalGitFilesAreTheHostGitsOwnAnswer",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAGlobalGitFileTheHostsGitCannotReadIsAnError/excludes",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAGlobalGitFileTheHostsGitCannotReadIsAnError/attributes",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAGlobalGitFileTheHostsGitCannotReadIsAnError/excludes,_in_the_probe",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAGlobalGitFileTheHostsGitCannotReadIsAnError",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestTheRealHostGitNamesItsGlobalFiles",
+    "Action": "pass",
+    "Elapsed": 0.05
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestTheRealHostGitNamesTheOriginOfAnIncludedGlobalFileSetting",
+    "Action": "pass",
+    "Elapsed": 0.02
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestHostConfigGitIsBoundedForACreateAndNotForAPoll",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAHostConfigReadsBudgetIsSizedFromTheReadAndNotFromOneGit",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestTheIdentityReadIsNotBoundedLikeAReadThatCanFailACreate",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestEveryHostConfigReadIsBoundedInTotalAndNotPerGit/line_endings",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestEveryHostConfigReadIsBoundedInTotalAndNotPerGit/global_files",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestEveryHostConfigReadIsBoundedInTotalAndNotPerGit/identity",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestEveryHostConfigReadIsBoundedInTotalAndNotPerGit",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAHostConfigReadSaysWhenItWasItsOwnBudgetThatRanOut",
+    "Action": "pass",
+    "Elapsed": 0.02
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAKilledLineEndingsReadFailsTheCreateAndNamesTheBound",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestHostGitAnswersAfterAReaperRemovesItsDirectory",
+    "Action": "pass",
+    "Elapsed": 0.12
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestHostGitLeavesNothingInTheTempDirectory",
+    "Action": "pass",
+    "Elapsed": 0.07
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestEveryHostGitRunsInADirectoryOfItsOwn",
+    "Action": "pass",
+    "Elapsed": 0.06
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestHostGitMakesARelativeTempDirectoryAbsolute",
+    "Action": "pass",
+    "Elapsed": 0.03
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestARepoLocalExcludesFileNamingASecretIsNotMountedButAGlobalOneIs",
+    "Action": "pass",
+    "Elapsed": 0.04
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestARepoLocalAutocrlfDoesNotChangeWhatTheSandboxGets",
+    "Action": "pass",
+    "Elapsed": 0.03
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestARepoLocalIdentityIsNotTheOneCommitsAreMadeAs",
+    "Action": "pass",
+    "Elapsed": 0.02
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestHostGitFindsNoRepositoryEvenWhenTempIsInsideOne",
+    "Action": "pass",
+    "Elapsed": 0.04
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestHostGitFindsNoRepositoryWhenTempIsTheRepositoryRoot",
+    "Action": "pass",
+    "Elapsed": 0.05
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestHostConfigDefaultCannotReadASettingAddedAfterTheMissingAnswer",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestHostConfigDefaultDoesNotAdoptProcessFailureAsAnUnsetSetting/cancellation",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestHostConfigDefaultDoesNotAdoptProcessFailureAsAnUnsetSetting/another_quiet_exit_code",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestHostConfigDefaultDoesNotAdoptProcessFailureAsAnUnsetSetting/error_with_stderr",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestHostConfigDefaultDoesNotAdoptProcessFailureAsAnUnsetSetting/error_with_partial_stdout",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestHostConfigDefaultDoesNotAdoptProcessFailureAsAnUnsetSetting/Git_abort",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestHostConfigDefaultDoesNotAdoptProcessFailureAsAnUnsetSetting/no_actual_exit_code",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestHostConfigDefaultDoesNotAdoptProcessFailureAsAnUnsetSetting/never_started",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestHostConfigDefaultDoesNotAdoptProcessFailureAsAnUnsetSetting/not_a_Git-owned_nonzero_answer",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestHostConfigDefaultDoesNotAdoptProcessFailureAsAnUnsetSetting/timeout",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestHostConfigDefaultDoesNotAdoptProcessFailureAsAnUnsetSetting",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestHostConfigConfiguredValueKeepsItsIncludedFileOrigin",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestHostConfigDefaultRequiresOneCompleteValueAndNoConfiguredOriginGuess/multiple_values",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestHostConfigDefaultRequiresOneCompleteValueAndNoConfiguredOriginGuess/origin_record",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestHostConfigDefaultRequiresOneCompleteValueAndNoConfiguredOriginGuess/no_terminator",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestHostConfigDefaultRequiresOneCompleteValueAndNoConfiguredOriginGuess",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAnExplicitIdentityWinsAndTheHostIsNeverAsked",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestWithNothingSetTheHostGitIsAskedOutsideAnyRepository",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestHalfAnExplicitPairIsNotAnIdentity",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestNoIdentityAnywhereIsASentenceNamingBothFixes",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAnIdentLineThatIsNotOneIsRefused",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestTheLineEndingsAreTheHostGitsOwnAnswer/git_for_windows'_installer_default",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestTheLineEndingsAreTheHostGitsOwnAnswer/unset_on_windows",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestTheLineEndingsAreTheHostGitsOwnAnswer/unset_on_linux",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestTheLineEndingsAreTheHostGitsOwnAnswer/input",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestTheLineEndingsAreTheHostGitsOwnAnswer/an_explicit_eol,_in_git's_case-blind_spelling",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestTheLineEndingsAreTheHostGitsOwnAnswer/crlf_on_linux",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestTheLineEndingsAreTheHostGitsOwnAnswer/an_eol_git_does_not_know",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestTheLineEndingsAreTheHostGitsOwnAnswer/set_in_the_global_scope,_over_the_system's",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestTheLineEndingsAreTheHostGitsOwnAnswer",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestWithGitConfigNoSystemTheSystemScopeIsNotRead",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestWithGitConfigNoSystemFalseTheSystemScopeStillCounts",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestALineEndingSettingTheHostsGitCannotReadIsAnError/autocrlf_is_not_a_word_git_knows",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestALineEndingSettingTheHostsGitCannotReadIsAnError/the_raw_read_fails_too",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestALineEndingSettingTheHostsGitCannotReadIsAnError/core.eol_cannot_be_read",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestALineEndingSettingTheHostsGitCannotReadIsAnError/the_global_scope_cannot_be_read",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestALineEndingSettingTheHostsGitCannotReadIsAnError",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestNativeIsCRLFOnWindowsAndLFElsewhere",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestTheRealHostGitAnswersFromItsOwnScopes",
+    "Action": "pass",
+    "Elapsed": 0.03
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestEachLineEndingKeyIsReadFromItsOwnScope",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestPortablePackageIdentityRequiresPortableLauncherButRemainsOptional/direct-service",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestPortablePackageIdentityRequiresPortableLauncherButRemainsOptional/legacy-portable",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestPortablePackageIdentityRequiresPortableLauncherButRemainsOptional/verified-portable",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestPortablePackageIdentityRequiresPortableLauncherButRemainsOptional/outside-portable",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestPortablePackageIdentityRequiresPortableLauncherButRemainsOptional/malformed",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestPortablePackageIdentityRequiresPortableLauncherButRemainsOptional/short",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestPortablePackageIdentityRequiresPortableLauncherButRemainsOptional/worker",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestPortablePackageIdentityRequiresPortableLauncherButRemainsOptional",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestLocalAccessCapabilityRequiresExplicitLoopbackAndNeverWorkers",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestPortableOwnerAccessRequiresExplicitPrivateLoopbackAndNeverNativeOrWorker/ipv4",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestPortableOwnerAccessRequiresExplicitPrivateLoopbackAndNeverNativeOrWorker/ipv6",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestPortableOwnerAccessRequiresExplicitPrivateLoopbackAndNeverNativeOrWorker/public_address",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestPortableOwnerAccessRequiresExplicitPrivateLoopbackAndNeverNativeOrWorker/hostname",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestPortableOwnerAccessRequiresExplicitPrivateLoopbackAndNeverNativeOrWorker/public_opt_in",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestPortableOwnerAccessRequiresExplicitPrivateLoopbackAndNeverNativeOrWorker/worker",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestPortableOwnerAccessRequiresExplicitPrivateLoopbackAndNeverNativeOrWorker/native",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestPortableOwnerAccessRequiresExplicitPrivateLoopbackAndNeverNativeOrWorker",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestManagedRootAndOrphanWorkerLeaseBeforeAnyStateWrite/initial-bootstrap",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestManagedRootAndOrphanWorkerLeaseBeforeAnyStateWrite/requested-root",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestManagedRootAndOrphanWorkerLeaseBeforeAnyStateWrite/bound-root",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestManagedRootAndOrphanWorkerLeaseBeforeAnyStateWrite/worker",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestManagedRootAndOrphanWorkerLeaseBeforeAnyStateWrite",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestManagedShutdownNeedsOwnedPrivateToken",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestPublicIngressConfigurationAndWebBoundary",
+    "Action": "pass",
+    "Elapsed": 0.03
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRecoveringBackendLaunchFencePreservesExactProofAndRefusesFallback",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRecoveringBackendStoppedCleanupKeepsImmutableProofAndNeverForces",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRecoveringBackendRemainsOfflineThenDelegatesWhenFactoryRecovers",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestClosingAnOfflineRecoveringBackendDoesNotInitializeDocker",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRestartThenSweepRecoversExactInterruptedCreatedChildWithoutDispatch/present-at-restart",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRestartThenSweepRecoversExactInterruptedCreatedChildWithoutDispatch/arrives-after-restart",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRestartThenSweepRecoversExactInterruptedCreatedChildWithoutDispatch",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestScannerGitFixtureIgnoresInheritedRepositoryRedirection",
+    "Action": "pass",
+    "Elapsed": 0.03
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestServeRefusesAWorktreeSwappedInsideAConversationStore",
+    "Action": "skip",
+    "Elapsed": 0.03
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestNewScannerRefusesAWorktreeSwappedInsideAConversationStore/the_location_itself",
+    "Action": "skip",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestNewScannerRefusesAWorktreeSwappedInsideAConversationStore/a_directory_on_the_way",
+    "Action": "skip",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestNewScannerRefusesAWorktreeSwappedInsideAConversationStore",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestNewScannerRefusesAConversationStoreRootThatIsNotAbsolute",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestStoppedTaskCleanupWiringDeniesUntilProofPublication",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestStoppedTaskCleanupWiringPublicationIsRaceSafe",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestWorkerDiagnosticsArePrivateWorkerOnlyAndUnavailableStorageIsNonfatal",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestLoadConfigDefaultsAreAWorkingLaptop",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestInapplicableBackendVariablesWarnAndNameTheBackend",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestTheReaperIsWiredWithMoreGraceThanOneReadyTimeout",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRunRefusesANonLoopbackBindWithExitCode2",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestKubeconfigIsRefusedRatherThanIgnored",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRecoverClearsTheEndpointOfANonLoopbackSandbox",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRecoverNeverResurrectsAnExitedSession",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRecoverReportsAStillStartingSandboxAsStarting",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRecoverSettlesMissingAndStoppedSandboxes",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRecoverChangesNothingWhenTheBackendIsDown",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRecoverRepublishesTheEndpoint",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestRecoverKeepsEveryConversationID",
+    "Action": "pass",
+    "Elapsed": 0.03
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestServeRefusesACorruptInstanceID",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestNewBackendHandsDockerTheInstanceID",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestLoadConfigRejectsAnUnknownBackendAndNamesBoth",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAllowedOriginsReplaceTheDefaultsAndAnEmptyListIsAnError",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestLogLevelFallsBackLoudlyAndNeverExits",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestHarnessAllowUnverifiedWarnsThatNothingReadsItYet",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestReapIntervalCannotOutrunTheCockpitsAttachBudget",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestIdleWindowsAndSizesRejectNonsenseRatherThanDefaulting",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestReadyTimeoutIsSettableAndDefaultsToTheBackendConstant",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestAllowPublicBindIsTheOnlyWayPast",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestReapIntervalIsClampedRatherThanTrusted",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestServeMintsTheInstanceIDOnceAndARestartKeepsIt",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestLoadConfigRefusesANonLoopbackBind",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestConversationsDirIsAbsoluteEvenForARelativeStateDir",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestWorkerConversationStoreOverrideIsAbsoluteAndIndependentOfRegistry",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+    "Test": "TestTheInstanceIDLivesInTheSameStateDirectoryAsTheRegistry",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestProjectRunSessionPairsRefusePartialAndUnconfiguredBeforeAllocation",
+    "Action": "pass",
+    "Elapsed": 0.02
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestProjectRunReservedSessionConcurrentDispatchAndReplayAllocateOnce/gateway",
+    "Action": "pass",
+    "Elapsed": 2.95
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestProjectRunReservedSessionConcurrentDispatchAndReplayAllocateOnce/subscription",
+    "Action": "pass",
+    "Elapsed": 2.58
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestProjectRunReservedSessionConcurrentDispatchAndReplayAllocateOnce",
+    "Action": "pass",
+    "Elapsed": 5.54
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestProjectRunSessionProjectionKeepsPairAndOmitsPrivateGeneration",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestConfirmStoppedTaskCleanupRequiresExactActualLaunchReceipt/missing_ledger",
+    "Action": "pass",
+    "Elapsed": 0.08
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestConfirmStoppedTaskCleanupRequiresExactActualLaunchReceipt/corrupt_ledger",
+    "Action": "pass",
+    "Elapsed": 0.05
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestConfirmStoppedTaskCleanupRequiresExactActualLaunchReceipt/no_lease",
+    "Action": "pass",
+    "Elapsed": 0.03
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestConfirmStoppedTaskCleanupRequiresExactActualLaunchReceipt/legacy_guard",
+    "Action": "pass",
+    "Elapsed": 0.04
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestConfirmStoppedTaskCleanupRequiresExactActualLaunchReceipt/prebackend",
+    "Action": "pass",
+    "Elapsed": 0.02
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestConfirmStoppedTaskCleanupRequiresExactActualLaunchReceipt/pending_create",
+    "Action": "pass",
+    "Elapsed": 0.04
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestConfirmStoppedTaskCleanupRequiresExactActualLaunchReceipt/foreign_scope",
+    "Action": "pass",
+    "Elapsed": 0.05
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestConfirmStoppedTaskCleanupRequiresExactActualLaunchReceipt/foreign_sandbox",
+    "Action": "pass",
+    "Elapsed": 0.03
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestConfirmStoppedTaskCleanupRequiresExactActualLaunchReceipt/conflicting_pending_lease",
+    "Action": "pass",
+    "Elapsed": 0.02
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestConfirmStoppedTaskCleanupRequiresExactActualLaunchReceipt/duplicate_settled_lease",
+    "Action": "pass",
+    "Elapsed": 0.02
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestConfirmStoppedTaskCleanupRequiresExactActualLaunchReceipt/wrong_operation",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestConfirmStoppedTaskCleanupRequiresExactActualLaunchReceipt/wrong_worktree",
+    "Action": "pass",
+    "Elapsed": 0.02
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestConfirmStoppedTaskCleanupRequiresExactActualLaunchReceipt/changed_request",
+    "Action": "pass",
+    "Elapsed": 0.02
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestConfirmStoppedTaskCleanupRequiresExactActualLaunchReceipt/no_ref",
+    "Action": "pass",
+    "Elapsed": 0.03
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestConfirmStoppedTaskCleanupRequiresExactActualLaunchReceipt/canceled",
+    "Action": "pass",
+    "Elapsed": 0.02
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestConfirmStoppedTaskCleanupRequiresExactActualLaunchReceipt",
+    "Action": "pass",
+    "Elapsed": 2.83
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestConfirmStoppedTaskCleanupOnlyIdentifiesExactSerialRunForLegacyFallback",
+    "Action": "pass",
+    "Elapsed": 0.69
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestStoppedTaskCleanupRetriesAfterFailedRemoveWithoutLosingSettledLease",
+    "Action": "pass",
+    "Elapsed": 2.43
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskCompletionObserverManualExitAfterCleanupRestartUpdatesReportAndHome",
+    "Action": "pass",
+    "Elapsed": 1.33
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskCompletionObserverRetriesBusyAndCleanupFailureWithoutDispatch",
+    "Action": "pass",
+    "Elapsed": 1.28
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskCompletionObserverRejectsStaleAndForeignGenerations/restarted",
+    "Action": "pass",
+    "Elapsed": 0.92
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskCompletionObserverRejectsStaleAndForeignGenerations/ref",
+    "Action": "pass",
+    "Elapsed": 0.93
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskCompletionObserverRejectsStaleAndForeignGenerations/project",
+    "Action": "pass",
+    "Elapsed": 1.11
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskCompletionObserverRejectsStaleAndForeignGenerations/operation",
+    "Action": "pass",
+    "Elapsed": 1.08
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskCompletionObserverRejectsStaleAndForeignGenerations/request",
+    "Action": "pass",
+    "Elapsed": 0.97
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskCompletionObserverRejectsStaleAndForeignGenerations",
+    "Action": "pass",
+    "Elapsed": 5.01
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskCompletionObserverCASAfterReportPublicationDoesNotMarkReplacement",
+    "Action": "pass",
+    "Elapsed": 1.18
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskHandoffActualAPIDependencyContextKeepsClaimsAndEvidenceSeparate",
+    "Action": "pass",
+    "Elapsed": 5.06
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskHandoffOutputCollectorRequiresBoundSafeFile/symlink",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskHandoffOutputCollectorRequiresBoundSafeFile/hardlink",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskHandoffOutputCollectorRequiresBoundSafeFile",
+    "Action": "pass",
+    "Elapsed": 1.25
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskHandoffPurgeKeepsUncapturedOwnershipThenRetainsCapturedQuestions",
+    "Action": "pass",
+    "Elapsed": 1.86
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskHandoffPurgeAcceptsExplicitNonCapturedReceipts/missing",
+    "Action": "pass",
+    "Elapsed": 1.45
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskHandoffPurgeAcceptsExplicitNonCapturedReceipts/invalid",
+    "Action": "pass",
+    "Elapsed": 1.28
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskHandoffPurgeAcceptsExplicitNonCapturedReceipts/unavailable",
+    "Action": "pass",
+    "Elapsed": 1.13
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskHandoffPurgeAcceptsExplicitNonCapturedReceipts",
+    "Action": "pass",
+    "Elapsed": 3.85
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestCloud011OrchestratorRetainsExactHandoffAfterIntegration",
+    "Action": "pass",
+    "Elapsed": 4.12
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestCloud011OrchestratorHandoffBoundsUnknownAndLegacy",
+    "Action": "pass",
+    "Elapsed": 1.79
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmSchedulerDelayedObservationCannotUndoPauseOrCancellation",
+    "Action": "pass",
+    "Elapsed": 1.34
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmSchedulerSharedHostPolicySerializesWorkersAndKeepsReadsInert",
+    "Action": "pass",
+    "Elapsed": 0.04
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmSchedulerSharedPolicyRejectsUnsafeAndCopiedState",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmSchedulerPressurePrecedesCloneAndBatchConsentIsAtomic",
+    "Action": "pass",
+    "Elapsed": 2.72
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmSchedulerInterruptedLaunchReopensWithoutReplay",
+    "Action": "pass",
+    "Elapsed": 2.28
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmSchedulerProjectFairnessAgingAndScopedProjection",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmSchedulerItemControlsDoNotConflictWithOtherItems",
+    "Action": "pass",
+    "Elapsed": 1.1
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmSchedulerExitRetainsUnconfirmedResourcesAndRetriesRelease",
+    "Action": "pass",
+    "Elapsed": 1.95
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmSchedulerRetiredAllocationCanBeExplicitlyQueuedAgain",
+    "Action": "pass",
+    "Elapsed": 1.28
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmSchedulerCorruptOrCopiedLedgerNeverRepairsOrDispatches/truncated",
+    "Action": "pass",
+    "Elapsed": 1.16
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmSchedulerCorruptOrCopiedLedgerNeverRepairsOrDispatches/foreign-account",
+    "Action": "pass",
+    "Elapsed": 1.41
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmSchedulerCorruptOrCopiedLedgerNeverRepairsOrDispatches/duplicate-task",
+    "Action": "pass",
+    "Elapsed": 1.15
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmSchedulerCorruptOrCopiedLedgerNeverRepairsOrDispatches",
+    "Action": "pass",
+    "Elapsed": 3.73
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmSchedulerRefusalAfterClaimRemainsUnknown",
+    "Action": "pass",
+    "Elapsed": 1.57
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmSchedulerRunCancellationUpdatesQueueWhileGloballyPaused",
+    "Action": "pass",
+    "Elapsed": 1.11
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmSchedulerFourBlockedProjectsBoundWritesAndWakePromptly",
+    "Action": "pass",
+    "Elapsed": 5.06
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffHTTPSharedContract",
+    "Action": "pass",
+    "Elapsed": 1.84
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffReportStrictClaimSchema/absent_questions",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffReportStrictClaimSchema/null_questions",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffReportStrictClaimSchema/duplicate_field",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffReportStrictClaimSchema/unknown_authority",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffReportStrictClaimSchema/trailing",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffReportStrictClaimSchema/too_large",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffReportStrictClaimSchema/duplicate_nested",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffReportStrictClaimSchema/valid",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffReportStrictClaimSchema/traversal",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffReportStrictClaimSchema/unknown_check",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffReportStrictClaimSchema/invalid_utf8",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffReportStrictClaimSchema",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffRecordedClaimsQuestionsAndFrozenDependency",
+    "Action": "pass",
+    "Elapsed": 3.22
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffObjectRefusesSymlinkAndForeignDigest",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffReadAudit",
+    "Action": "pass",
+    "Elapsed": 1.3
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffMissingReportDoesNotHideIndependentChecks",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffCompactIndexPreservesUnknownsAndVisibleOmission",
+    "Action": "pass",
+    "Elapsed": 0.4
+  }
+]

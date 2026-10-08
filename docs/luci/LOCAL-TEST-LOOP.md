@@ -625,3 +625,124 @@ The fixed-coordinate WebDriver sequences include intervening DOM reads. They
 verify selection/disclosure behavior, not human-speed stress or input latency.
 The four saved purposes are the measured context fields; they do not establish
 four complete application definitions or any built outputs.
+
+
+## Published context/continuation correction — 8 October 2026
+
+**LOCAL FIX READY TO RETEST** was posted for exact
+`29be4018f951ba2b3f33ae63067e4b7257da0c7a` on `codex/luci-production-runs`.
+It contains CLOUD-010/011/012/015/016 and the retrievable
+[source-verification receipt](evidence/2026-10-08-cloud010-015-source-verification.md).
+The local tester acknowledged the revision and is preparing an isolated Windows
+source-only batch for older attention, reports/questions and checkpoint APIs.
+That is not a matching-package or full installed acceptance pass. Earlier native
+`675ed402`/`919cffe0` results retain their original scope. The runtime changed;
+rebuild the matching native resources/image before installed checks. Dependency
+locks did not change. Keep revisions fixed within each batch.
+
+The clean Linux `29be4018` package has 1,181 archive-matched extracted files,
+347 licence components and no missing licences. Its new sandbox image
+`sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98`
+has exported entrypoint/runtime bytes verified against its source build. This
+proves package/image identity, not the unfinished installed workflows.
+
+The first installed continuation attempt failed in its driver: a manual start
+returned an exact worker, but the driver waited for a recorded running operation
+without invoking the required status reconciliation before releasing its scripted
+provider. No task command completed. One worker was created; the failed attempt
+closed and drained with zero owned containers, volumes, controllers or browser
+processes. Its 184 observer samples and 185.88-second observation remain failed
+workflow evidence. The retry must demonstrate the corrected automatic status
+observation after Start; an explicit Check team status action must not mask a
+regression, and dispatching must not count as confirmed running. Matching continuation,
+join/conflict, sustained workload, native runtime/recovery and model quality gates
+remain open. This is not **LOCAL TEST HANDOFF READY**.
+
+
+The local tester's later partial `29be4018` report records locked npm installation,
+414/414 tests across 15 actual component/API files and TypeScript passing, with
+no frontend skips/failures. This includes the actual orchestrator understanding
+file and the CLOUD-015 returned-conflict/positive-path regressions. Backend buckets
+and final source-hash/cleanup verification were still running; do not promote this
+to a closed native/installed result. A wrapper guard aborted before tests and its
+fresh diagnostic retry remains in the tester's evidence. No Docker/user workload
+was touched.
+
+The installed-driver diagnosis also established two product clarity gaps:
+CLOUD-017 manual-start acknowledgement was not followed by status observation,
+and CLOUD-018 manual-only completion lacked background product observation/report
+capture. Both are being corrected before the next matching installed attempt.
+These findings do not rewrite the `29be4018` scoped passes or authorize changing
+its source while the Windows batch is running.
+
+### Provisional LOCAL-008 focus observation
+
+The Windows tester reports 17 controlled Edge source-fixture checks passing at
+`29be4018`, followed by an immediate focus assertion failing after Escape closed
+Reviewed context at 390 px. The desktop-width close passed. Focus had not yet
+been serialized, so this is **P2, cause unconfirmed**, pending a narrow deferred
+focus/next-key diagnostic; it is not a native application or data-isolation
+failure. The original failed receipt and separate helper profile-cleanup EPERM
+remain retained locally. Source was unchanged and known owned Edge processes
+were closed. No full rendered or performance pass is inferred.
+
+The follow-up source inspection confirms Radix focus restoration is deferred
+through a zero-delay timer; the original failure screenshot already shows the
+trigger focus ring. The exact Windows timing/next-key diagnostic is prepared
+but held while available RAM is below the tester's extra-browser threshold.
+This supports a timing hypothesis, not a completed native or rendered retest.
+
+The checkpoint bucket at the same pinned revision reached its declared
+eight-minute package timeout during the disjoint reviewed-integration case.
+Before timeout, three top-level and 13 subtest outcomes passed, including unsafe
+symlink/hardlink output and fresh-authority/lifecycle cases. The final stack
+waited on a Git child; individual fixtures took approximately 22–50 seconds.
+No assertion failure, product cause or RAM-exhaustion diagnosis is inferred.
+The tester retains the original timeout and runs only unfinished cases in
+bounded separate invocations while independent API buckets continue. This
+does not establish a full pass of the original package invocation.
+
+
+### Closed Windows source batch at `29be4018`
+
+The local tester reports HEAD and all 2,052 tracked hashes unchanged and a clean
+checkout. Frontend 414/414 tests in 15 files and TypeScript passed. Completed
+API checkpoint, product/API handoff, older-review attention and management
+invocations passed without failures or skips. The original product-checkpoint
+timeout remains failed as an invocation; eight unfinished cases are prepared
+for separate bounded continuations. All 34 sampled owned source processes exited.
+See the [relayed counts and limits](evidence/2026-10-08-native-29be4018-source-reported.json).
+
+The next runner was held with 1.696 GiB host RAM available; the extra-browser
+threshold is 2.5 GiB. No user applications were stopped. The source watcher is
+not application performance acceptance. LOCAL-008 diagnosis is also held; its
+original focus assertion and 17 passing rendered checks remain retained.
+CLOUD-010/011/012/015 stay partially verified and ready for installed retest,
+not fully accepted. Cloud-side CLOUD-017/018 work continues independently.
+
+
+### Manual task observation correction, ready for integration
+
+CLOUD-017 validates a successful Start acknowledgement, rereads the revision and
+observes the exact worker once; an observation failure leaves the acknowledged
+session accessible without replay. CLOUD-018 observes durable ended sessions
+independently of queue dispatch, captures guarded reports and preserves uncertainty
+and capacity when cleanup/ownership is unresolved. A changed task generation
+cannot inherit the prior completion watermark. The visible active build performs
+bounded read-only refresh, pausing for reviews and queue consent; unstarted or
+retired cancelled tasks do not keep polling.
+
+Backend source verification passes 356 race-enabled outcomes with three
+Windows-only skips on Linux, plus 14 outcomes after the queue-read correction
+(partly overlapping). Final frontend verification passes 122 tests in eight
+affected files and TypeScript. The first frontend typecheck failure is retained
+separately. Continuation helper checks pass 28 Node tests, four mocked Python
+tests and 11 syntax checks; these do not establish installed behavior.
+
+The next installed continuation must prove automatic start status, the already-open
+task card changing to review, exact captured reports and Home attention before
+manual refresh/reconciliation. The old clean `29be4018` package was preserved
+under `artifacts/releases/0.5.0-29be4018-continuation-failed`; its original archive
+hashes remain the identities in the failed receipt. Matching package/runtime,
+installed continuation/conflict/sustained results and native/live-provider
+acceptance remain separate gates.

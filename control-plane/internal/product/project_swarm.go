@@ -436,20 +436,7 @@ func (s *Server) observeProjectSwarm(ctx context.Context, path string, run Proje
 		if err != nil {
 			return run, err
 		}
-		status, message := "unknown", "The reserved child cannot be identified. Its outcome is unknown; no replacement was launched."
-		if len(children) == 1 && children[0].ID == op.ChildID && projectRunSessionBindingMatches(run, op, children[0]) {
-			child := children[0]
-			status, message = "running", "The existing agent is running in its isolated checkout."
-			if child.Status == registry.StatusExited {
-				status, message = "review-required", "The agent process ended. Its exit code and task correctness are not established by this observation. Review retained changes and verification evidence before integration."
-				if child.ExitReason == "project-run-outcome-unknown" || child.ExitReason == "sandbox disappeared" {
-					status, message = "unknown", "The agent runtime disappeared or its launch outcome is unconfirmed. Inspect the retained session; no replacement was launched and no task result was inferred."
-				} else if child.ExitReason != "process exited" && child.ExitReason != "exited" && child.ExitReason != "" {
-					status = "failed"
-					message = "The agent stopped without a confirmed successful result. Retain and inspect its checkout before retrying."
-				}
-			}
-		}
+		status, message := observedSwarmOperation(run, op, children)
 		run, err = s.projectRuns.ObserveOperation(run.ProjectID, path, run.ID, run.Revision, op.ID, op.ChildID, status, message)
 		if err != nil {
 			return run, err

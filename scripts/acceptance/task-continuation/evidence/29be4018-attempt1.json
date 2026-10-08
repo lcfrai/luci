@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "issues": [
+    "CLOUD-012",
+    "CLOUD-017"
+  ],
+  "status": "failed-helper-prerequisite",
+  "productSource": "29be4018f951ba2b3f33ae63067e4b7257da0c7a",
+  "package": {
+    "binarySHA256": "2d4bcd47f4ece6d02c7657663a2f0aac777bd6e60d978941b52cd514345737ec",
+    "webIndexSHA256": "855f4f8f68cdc0690f287055763c0918793dae734fbf2b95f11268b42f9ee7e5",
+    "archiveSHA256": "9ee5cca3bfa43e6e52aac73be816a524bcae87f64913c11d5b75d3e49ceb0783",
+    "allInstalledMembersMatched": true
+  },
+  "imageID": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+  "startedAt": "2026-10-08T14:14:03.425Z",
+  "finishedAt": "2026-10-08T14:16:45.054Z",
+  "elapsedMilliseconds": 161203,
+  "scope": "One installed Linux/Docker continuation attempt with a scripted local provider, exactly one allocated worker and no completed fixture task commands. No Windows, live-model, checkpoint, integration, or full-product pass is claimed.",
+  "limits": {
+    "scenarioDeadlineMs": 900000,
+    "upstreamRequestMs": 120000,
+    "maxCreates": 2,
+    "maxStarts": 2,
+    "preCreateFreeBytes": 6442450944,
+    "runningReserveBytes": 1073741824,
+    "workerMemoryBytes": 1073741824,
+    "workerNanoCPUs": 1000000000,
+    "pidsLimit": 256
+  },
+  "progress": {
+    "browserPreparedTeam": true,
+    "browserSessionCreateHTTP": 201,
+    "createdWorkers": 1,
+    "startedWorkers": 1,
+    "fixtureTaskCommandsCompleted": 0,
+    "checkpointReservations": 0,
+    "reviewedIntegrations": 0,
+    "observedOperation": "dispatching",
+    "observedRegistry": "idle",
+    "observedContainer": "running"
+  },
+  "failure": {
+    "stage": "native-command-partial",
+    "message": "Verified exact task bundle before native command did not complete within its bounded prerequisite window",
+    "cause": "Manual-start helper awaited operation running without invoking the available production observation. The actual acknowledged worker stayed gated behind the helper provider prerequisite. Its bounded timeout ended the attempt.",
+    "classification": "Helper orchestration mismatch; not an observed backend allocation failure.",
+    "separateProductFinding": "Existing manual-start UI showed Start outcome unconfirmed after its successful start acknowledgement until a status check. CLOUD-017 addresses that product clarity gap."
+  },
+  "cleanup": {
+    "controllersStopped": true,
+    "dockerRequestsDrained": true,
+    "containers": 0,
+    "volumes": 0,
+    "ownedServiceProcesses": 0,
+    "ownedBrowserProcesses": 0,
+    "protectedImagePackageAndHelpersUnchanged": true,
+    "rootFreeBytes": 6596075520,
+    "workerCleanup": "Exact acknowledged owned worker stopped and removed only after controller/proxy drain; this was failure cleanup, not a natural successful task exit.",
+    "privateFixturePreserved": true,
+    "additionalSignal": "No manual SIGTERM was sent: the exact driver had already exited when its identity was checked."
+  },
+  "observer": {
+    "samples": 184,
+    "durationSeconds": 185.87984568200773,
+    "scope": "Independent Linux owned-process/container sampler; not Windows observation."
+  },
+  "originalHelperSources": {
+    "scripts/acceptance/task-continuation/checkpoint-contract.mjs": "96193cd773d9c0381072c1bd02a7fcf343b948d79682b736ebb0cb85be8c0f83",
+    "scripts/acceptance/task-continuation/checkpoint-contract.test.mjs": "ae50750cdcab182522a17bcc91ce761252f3551315f04273a9700fadfab05fe9",
+    "scripts/acceptance/task-continuation/context-contract.test.mjs": "1a015521f526123ea30c2085f2add55e40e81334f398a8d6a1efcb60eff280a1",
+    "scripts/acceptance/task-continuation/continuation-context.mjs": "0b0a91981bde41ec2ce5650e7d82d44e8054d5b501eb600333d2acb259f227fb",
+    "scripts/acceptance/task-continuation/continuation-fixture.mjs": "384e633cbe6a9033be54698b64dad73ef559cf454d0db4c9af03c9953dcdb97c",
+    "scripts/acceptance/task-continuation/continuation.mjs": "2b46975b3661b1fbc0b97dd96391eb65ba4b83105e9d5a83eec0bbac1c801b8e",
+    "scripts/acceptance/task-continuation/helper.test.mjs": "5efc22bfa8df73a66efcb50ac65f750fbfcb4fcee6fdc8e7c955b784f887a1dd",
+    "scripts/acceptance/task-continuation/run-with-observer.py": "cc27edcd9c624f874a096596e6a393483a054efb9e783da8ee8eb40467c3639a",
+    "scripts/acceptance/task-continuation/run_with_observer_test.py": "16d056f5c3b5cb4febdb0765c4a458b3afc9276b0c22f46902391145f6a71d1e",
+    "scripts/acceptance/task-continuation/README.md": "08daaad57ec894317074a79d0b02c73688b6bd88950d4d619d54be45826e48da",
+    "scripts/acceptance/launch-recovery/worker-create-guard.mjs": "0036995ceaeb9d16073f21ddcb126a6e328df23a838e1458362b59416a236312",
+    "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs": "a1a88540e28775530808a34c0e0011192eb0692bd3fc71d36428ab46059eaefa",
+    "scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+    "scripts/acceptance/four-project-queue/sample-linux-owned.py": "f9bdd159bb27d19b38df602146319ff9a9b2c828c89038057ed5b58524f4c0ad"
+  },
+  "helperSourcesUnchangedDuringRun": true,
+  "originalEvidence": {
+    "directory": "artifacts/quality-swarm/continuation-29be4018-attempt1",
+    "resultSHA256": "4b8115569a40b5b5f442a6f4ef7173b6c61b2a25d502076962cd6f237b752bca",
+    "observerSamplesSHA256": "266a1c393bb51c6fded04274fcd314f7679589504182e612047e50f62f5371b3",
+    "driverLogSHA256": "9f1c1c4e32f34207147cb8a5fbc7811df6d63efdeec2d2d8f2d328e52f6c784f"
+  },
+  "nextAttempt": "Requires fresh evidence, a matching CLOUD-017 product package and separate exclusive scheduling. The helper now requires actual automatic post-start reconciliation and visible running state; it has no manual fallback."
+}

@@ -1,0 +1,156 @@
+{
+  "version": 1,
+  "issue": "CLOUD-017",
+  "status": "source-verified-installed-acceptance-pending",
+  "scope": "CLOUD-017 manual-start reconciliation UI. Controlled API tests; no installed/Docker/native/model claim.",
+  "startedAt": "2026-10-08T14:28:49.824924+00:00",
+  "finishedAt": "2026-10-08T14:29:31.962382+00:00",
+  "baseCommit": "29be4018f951ba2b3f33ae63067e4b7257da0c7a",
+  "sourceBindingNote": "This verifies the uncommitted CLOUD-017 correction on the named base commit. The base commit alone does not contain the correction. The 432-entry manifest binds the tested frontend inputs.",
+  "commands": [
+    {
+      "command": [
+        "npm",
+        "test",
+        "--",
+        "--maxWorkers=2",
+        "--reporter=json",
+        "--outputFile=<repo>/artifacts/quality-swarm/cloud017-ui/focused/vitest.json",
+        "src/components/journey/ProjectSwarm.test.tsx",
+        "src/components/journey/ProjectSwarmQueue.test.tsx",
+        "src/components/journey/SwarmCheckpoint.test.tsx",
+        "src/components/journey/SwarmLaunchRecovery.test.tsx",
+        "src/components/journey/SwarmTaskHandoff.test.tsx"
+      ],
+      "start": "2026-10-08T14:28:49.827606+00:00",
+      "end": "2026-10-08T14:29:06.987037+00:00",
+      "exitCode": 0,
+      "workingDirectory": "<repo>/desktop"
+    },
+    {
+      "command": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "start": "2026-10-08T14:29:06.987512+00:00",
+      "end": "2026-10-08T14:29:31.905951+00:00",
+      "exitCode": 0,
+      "workingDirectory": "<repo>/desktop"
+    }
+  ],
+  "commandSanitization": "Only the absolute repository prefix in command arguments is replaced by <repo>. Working directory was the desktop directory; all other arguments and reported timestamps/exit codes are unchanged.",
+  "tests": {
+    "files": 5,
+    "numTotalTests": 90,
+    "numPassedTests": 90,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "byFile": [
+      {
+        "path": "desktop/src/components/journey/ProjectSwarm.test.tsx",
+        "status": "passed",
+        "counts": {
+          "passed": 35,
+          "failed": 0,
+          "pending": 0
+        }
+      },
+      {
+        "path": "desktop/src/components/journey/ProjectSwarmQueue.test.tsx",
+        "status": "passed",
+        "counts": {
+          "passed": 3,
+          "failed": 0,
+          "pending": 0
+        }
+      },
+      {
+        "path": "desktop/src/components/journey/SwarmCheckpoint.test.tsx",
+        "status": "passed",
+        "counts": {
+          "passed": 10,
+          "failed": 0,
+          "pending": 0
+        }
+      },
+      {
+        "path": "desktop/src/components/journey/SwarmLaunchRecovery.test.tsx",
+        "status": "passed",
+        "counts": {
+          "passed": 14,
+          "failed": 0,
+          "pending": 0
+        }
+      },
+      {
+        "path": "desktop/src/components/journey/SwarmTaskHandoff.test.tsx",
+        "status": "passed",
+        "counts": {
+          "passed": 28,
+          "failed": 0,
+          "pending": 0
+        }
+      }
+    ]
+  },
+  "typecheckExit": 0,
+  "testsExit": 0,
+  "source": {
+    "count": 432,
+    "unchanged": true,
+    "manifest": "source-inputs.json",
+    "manifestSHA256": "fe5ddd8c8d5d9fea72002937b78abcec031d211ec60f69a41d16ad6061068745",
+    "changedProductFiles": {
+      "desktop/src/components/journey/ProjectSwarm.tsx": "767ba9709fc6376d458f6c1e99687e465efd92af1c18329e561dd7292147b9b6",
+      "desktop/src/components/journey/ProjectSwarm.test.tsx": "ee5b7629524e714680ae9ce127eedfa69eaeae52c8907b62e44564e4be98ea8c"
+    }
+  },
+  "originalEvidence": {
+    "result.json": {
+      "path": "artifacts/quality-swarm/cloud017-ui/focused/result.json",
+      "sha256": "bc82e1288209795b83d925a267c4108a8d64b2b8a26dae2dced9ca762dc9a1b7"
+    },
+    "vitest.json": {
+      "path": "artifacts/quality-swarm/cloud017-ui/focused/vitest.json",
+      "sha256": "8370ea15451c376b832d71ab6a3cf9460df5e49a873aee6dc3c6a6d90a31da71"
+    },
+    "tests.log": {
+      "path": "artifacts/quality-swarm/cloud017-ui/focused/tests.log",
+      "sha256": "82dda9a1aeaecf988988aaa7e26866164dc80c1e4cd2c44d442078aaf3cab37c"
+    },
+    "typecheck.log": {
+      "path": "artifacts/quality-swarm/cloud017-ui/focused/typecheck.log",
+      "sha256": "6d51e3ec9a9d283eee096e5e9403c5d963c9468e9756fd61f3e9e0d3df1bde71"
+    },
+    "source-before.json": {
+      "path": "artifacts/quality-swarm/cloud017-ui/focused/source-before.json",
+      "sha256": "fe5ddd8c8d5d9fea72002937b78abcec031d211ec60f69a41d16ad6061068745"
+    },
+    "source-after.json": {
+      "path": "artifacts/quality-swarm/cloud017-ui/focused/source-after.json",
+      "sha256": "fe5ddd8c8d5d9fea72002937b78abcec031d211ec60f69a41d16ad6061068745"
+    }
+  },
+  "priorInstalledAttempt": {
+    "evidence": "scripts/acceptance/task-continuation/evidence/29be4018-attempt1.json",
+    "sha256": "0701f27770d3f99504e98ebf6ebd31b7a579a4a5f591e0bb18f1ab283abe720e",
+    "status": "failed-helper-prerequisite",
+    "diagnosis": "The 29be4018 continuation helper waited for the operation to become running without invoking production reconciliation. Its exact acknowledged worker stayed behind the scripted-provider prerequisite until timeout. Separately, the product showed a started notice with Start outcome unconfirmed because manual Start only reread the run. CLOUD-017 corrects this UI action; the referenced installed attempt is not a pass."
+  },
+  "correction": [
+    "After validating the exact 201 session identity, preserve its acknowledgement and fetch the current run revision.",
+    "Reconcile the existing worker once using that fresh revision, then display the authoritative returned status.",
+    "If observation fails or the revision is stale, keep the acknowledged child inspectable, stop the current batch and require explicit status inspection; do not replay reservation or session creation.",
+    "A lost or mismatched 201 remains unconfirmed. Late results cannot update a different project/run or revoked authority.",
+    "The next task in a manual batch uses the preceding reconciliation result revision."
+  ],
+  "limitations": [
+    "Controlled API mocks exercise the frontend contract; no installed-package, real Docker, native Windows, live-model or performance pass is claimed.",
+    "The original test mocked running directly on Create; its replacement models dispatching until explicit reconciliation.",
+    "This is an affected-five-file test pass and full TypeScript check, not another complete frontend-suite run or a production build.",
+    "The separate CLOUD-018 background completion/report observation is outside this UI receipt.",
+    "Matching installed continuation acceptance must require the automatic post-start reconciliation and actual visible status without a manual fallback."
+  ]
+}

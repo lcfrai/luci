@@ -12,6 +12,7 @@ interface Props {
   run: ProjectRun; canEdit: boolean; canExecute: boolean; busy: boolean;
   onBusy(label: string): void;
   onQueueChange(queue: ProjectSwarmQueue): void;
+  onConsentChange?(open: boolean): void;
 }
 /** Queue consent names saved task inputs. A read, tab switch or retrying a read never enqueues work. */
 export function SwarmRunQueue(props: Props) {
@@ -23,6 +24,11 @@ export function SwarmRunQueue(props: Props) {
   const [priority, setPriority] = useState<QueuePriority>('normal');
   const [unconfirmed, setUnconfirmed] = useState(false);
   const current = useRef(props); current.current = props;
+  useEffect(() => { current.current.onConsentChange?.(confirm); }, [confirm, run.projectId, run.id]);
+  useEffect(() => {
+    const notify = props.onConsentChange;
+    return () => notify?.(false);
+  }, [run.projectId, run.id]);
   const epoch = useRef(0), live = useRef(true), working = useRef(false), reading = useRef(false);
   const identity = `${run.projectId}:${run.id}:${canEdit}:${canExecute}:${capability.signature}`;
   const previousIdentity = useRef(identity);

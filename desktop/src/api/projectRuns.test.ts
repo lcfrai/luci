@@ -24,6 +24,12 @@ it('rejects foreign project/run results instead of allowing their actions', asyn
   await expect(projectRunsApi.cancel('p-1', 'run-1', 1)).rejects.toThrow('another project');
 });
 
+it('passes a selected-view cancellation signal only to its read request',async()=>{
+  const controller=new AbortController(),request=vi.spyOn(productApi,'request').mockResolvedValue({run:receipt});
+  expect(await projectRunsApi.get('p-1','run-1',controller.signal)).toBe(receipt);
+  expect(request).toHaveBeenCalledExactlyOnceWith('/v1/product/projects/p-1/runs/run-1',undefined,'GET',30_000,controller.signal);
+});
+
 it('validates the child reservation and propagates stale-revision failure without replay', async () => {
   const request = vi.spyOn(productApi, 'request').mockResolvedValue({ run: receipt, operation: { id: 'op-1', childId: 's-foreign' } });
   await expect(projectRunsApi.reserve('p-1', 'run-1', 3, 'idempotency-key-1')).rejects.toThrow('reservation could not be verified');

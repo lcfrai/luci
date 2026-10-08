@@ -1,0 +1,86 @@
+[
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskCompletionObserverManualExitAfterCleanupRestartUpdatesReportAndHome",
+    "Action": "pass",
+    "Elapsed": 1.14
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskCompletionObserverRetriesBusyAndCleanupFailureWithoutDispatch",
+    "Action": "pass",
+    "Elapsed": 1.58
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskCompletionObserverQueueReadFailureRetainsCaptureUntilOwnershipRecovers",
+    "Action": "pass",
+    "Elapsed": 1.16
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskCompletionObserverRejectsStaleAndForeignGenerations/restarted",
+    "Action": "pass",
+    "Elapsed": 0.95
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskCompletionObserverRejectsStaleAndForeignGenerations/ref",
+    "Action": "pass",
+    "Elapsed": 0.99
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskCompletionObserverRejectsStaleAndForeignGenerations/project",
+    "Action": "pass",
+    "Elapsed": 0.96
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskCompletionObserverRejectsStaleAndForeignGenerations/operation",
+    "Action": "pass",
+    "Elapsed": 1.26
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskCompletionObserverRejectsStaleAndForeignGenerations/request",
+    "Action": "pass",
+    "Elapsed": 0.96
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskCompletionObserverRejectsStaleAndForeignGenerations",
+    "Action": "pass",
+    "Elapsed": 5.12
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskCompletionObserverCASAfterReportPublicationDoesNotMarkReplacement",
+    "Action": "pass",
+    "Elapsed": 1.23
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmSchedulerCorruptOrCopiedLedgerNeverRepairsOrDispatches/truncated",
+    "Action": "pass",
+    "Elapsed": 1.72
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmSchedulerCorruptOrCopiedLedgerNeverRepairsOrDispatches/foreign-account",
+    "Action": "pass",
+    "Elapsed": 1.43
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmSchedulerCorruptOrCopiedLedgerNeverRepairsOrDispatches/duplicate-task",
+    "Action": "pass",
+    "Elapsed": 1.87
+  },
+  {
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmSchedulerCorruptOrCopiedLedgerNeverRepairsOrDispatches",
+    "Action": "pass",
+    "Elapsed": 5.02
+  }
+]

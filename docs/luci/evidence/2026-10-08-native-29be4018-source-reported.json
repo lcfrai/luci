@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "source": "Local tester delegation; raw Windows artifacts retained locally and not independently inspected in this cloud thread",
+  "revision": "29be4018f951ba2b3f33ae63067e4b7257da0c7a",
+  "scope": "Native Windows controlled source/fixture validation, not installed runtime, real Git conflict journey, live provider or app performance acceptance",
+  "provenance": {
+    "headUnchanged": true,
+    "trackedHashesUnchanged": 2052,
+    "workingTreeClean": true
+  },
+  "frontend": {
+    "tests": 414,
+    "files": 15,
+    "passed": 414,
+    "failed": 0,
+    "skipped": 0,
+    "typescript": "passed"
+  },
+  "goCompletedInvocations": [
+    {
+      "scope": "API checkpoint",
+      "topLevelPassed": 3,
+      "subtestsPassed": 5
+    },
+    {
+      "scope": "product handoff",
+      "topLevelPassed": 9,
+      "subtestsPassed": 11
+    },
+    {
+      "scope": "API handoff",
+      "topLevelPassed": 7,
+      "subtestsPassed": 5
+    },
+    {
+      "scope": "older review attention",
+      "topLevelPassed": 5,
+      "subtestsPassed": 0
+    },
+    {
+      "scope": "management handoff",
+      "topLevelPassed": 1,
+      "subtestsPassed": 0
+    }
+  ],
+  "completedInvocationFailures": 0,
+  "completedInvocationSkips": 0,
+  "productCheckpointOriginalInvocation": {
+    "outcome": "timeout",
+    "deadlineMinutes": 8,
+    "passedBeforeTimeout": {
+      "topLevel": 3,
+      "subtests": 13
+    },
+    "location": "TestSwarmCheckpointPrimaryDriftRequiresExactAffectedBaseIdentity/disjoint-reviewed-integration",
+    "observedWait": "synchronous Git child",
+    "assertionFailureObserved": false,
+    "productCauseEstablished": false,
+    "unfinishedTopLevelCases": 8,
+    "continuation": "Prepared individual four-minute invocations; not yet run, no repeat of completed cases"
+  },
+  "cleanup": {
+    "sampledOwnedSourceProcessIdentities": 34,
+    "allGone": true
+  },
+  "resourceScope": {
+    "sourceOnly": true,
+    "minimumHostAvailableGiB": 1.314,
+    "samplesBelowOneGiB": 0,
+    "nextRunnerGateAvailableGiB": 1.696,
+    "additionalBrowserMinimumGiB": 2.5,
+    "userApplicationsStopped": false,
+    "applicationPerformanceClaim": false
+  },
+  "LOCAL-008": {
+    "status": "unconfirmed",
+    "priorRenderedChecksPassed": 17,
+    "immediateDialogFocusAssertion": "failed; original retained",
+    "diagnostic": "Deferred-focus/next-key Windows diagnostic held below browser RAM threshold"
+  },
+  "evidence": [
+    "E:/Luci-local-acceptance/evidence/29be4018/source-focused-retry/result.json",
+    "E:/Luci-local-acceptance/evidence/29be4018/source-focused/resource-watch/attempt-2-summary.json"
+  ],
+  "remaining": [
+    "Eight unfinished product checkpoint source cases",
+    "Focused LOCAL-008 Windows timing diagnostic",
+    "Matching installed context/checkpoint/conflict journeys",
+    "Live-provider quality",
+    "Sustained four-project resource and responsiveness acceptance"
+  ]
+}

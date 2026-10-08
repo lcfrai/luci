@@ -13,6 +13,8 @@ import { setTimeout as delay } from 'node:timers/promises';
 import {taskContracts,variants,seedFiles as initialFiles,variantFor,changedPaths,taskCommand,taskHandoff,answer,question,partialFiles,finalFiles} from './continuation-fixture.mjs';
 import {contextFilesV1,contextFileNames,dependencyFile,validateContinuationContext} from './continuation-context.mjs';
 import {validateCheckpointReview,validatePreviousAttempt,validateSeedOperation} from './checkpoint-contract.mjs';
+import {reconcileManualStart} from './manual-start.mjs';
+import {automaticCompletion,assertReadOnlyCompletionRequests,inPlaceCompletion} from './automatic-completion.mjs';
 
 const here=dirname(fileURLToPath(import.meta.url)),repo=resolve(process.env.LUCI_ACCEPTANCE_REPO??resolve(here,'../../..')),args=process.argv.slice(2);
 const {chromium}=await import(join(repo,'desktop/node_modules/playwright/index.mjs'));
@@ -78,7 +80,7 @@ if (existsSync(evidence)) assert.equal(readdirSync(evidence).length, 0, 'Use a f
 mkdirSync(evidence, { recursive: true, mode: 0o700 });
 writeFileSync(join(evidence, 'package-provenance.json'), provenanceBytes, { mode: 0o600, flag: 'wx' });
 writeFileSync(join(evidence,'image-provenance.json'),readFileSync(resolve(imageEvidencePath)),{mode:0o600,flag:'wx'});
-const driverNames=['continuation.mjs','continuation-fixture.mjs','continuation-context.mjs','checkpoint-contract.mjs','run-with-observer.py'];
+const driverNames=['continuation.mjs','continuation-fixture.mjs','continuation-context.mjs','checkpoint-contract.mjs','manual-start.mjs','automatic-completion.mjs','run-with-observer.py'];
 const reusedHelpers=['four-project-queue/native-terminal-diagnostics.mjs','four-project-queue/sample-linux-owned.py','launch-recovery/fenced-docker-proxy.mjs','launch-recovery/worker-create-guard.mjs'];
 mkdirSync(join(evidence, 'accepted-harness'), { mode: 0o700 });
 for (const name of driverNames) writeFileSync(join(evidence, 'accepted-harness', name), readFileSync(new URL(name, import.meta.url)), { mode: 0o600, flag: 'wx' });
@@ -97,7 +99,7 @@ const receipt = {
   helperSHA256: Object.fromEntries(driverNames.filter(name=>name!=='continuation.mjs').map(name => [name, sha(readFileSync(new URL(name, import.meta.url)))])),
   reusedHelperSHA256:Object.fromEntries(reusedHelpers.map(name=>['scripts/acceptance/'+name,sha(readFileSync(join(repo,'scripts/acceptance',name)))])),
   image: { reference: image, id: imageInfo.Id }, releaseImage: { reference: releaseImage, id: releaseImageInfo.Id },
-  scope: 'Installed complete checkpoint review, stale/unauthenticated refusal, genuine lost HTTP reservation reply, exact idempotent readback, reserved-seed controller restart, attributed previous-attempt context, natural exits and reviewed integration. Scripted provider; no live-model or Windows claim.',
+  scope: 'Installed automatic start/completion/report/Home observation, complete checkpoint review, stale/unauthenticated refusal, genuine lost HTTP reservation reply, exact idempotent readback, reserved-seed controller restart, attributed previous-attempt context, natural exits and reviewed integration. Scripted provider; no live-model or Windows claim.',
   limitations: ['Existing trusted Docker images; installation is not exercised.', 'Provider output is deliberately scripted; this proves actual CLI, Docker, task coordination and review mechanics. It does not measure model reasoning, production application quality, cloud deployment or Windows behavior.'],
   externalModelCalls: 0, cloudResourcesCreated: 0, setupScaffolding: ['API-seeded personal owner and one deterministic source/check/context fixture','API-configured one-worker policy; browser starts, report answer, checkpoint and integration consent','Explicit stale-review and blocked-dependency API probes; no fixture repair of private product ledgers','Local scripted provider, no external model calls'], checks: [], browserMutations: [], browserErrors: [], cleanup: [],
 };
@@ -361,7 +363,56 @@ async function saveContext(projectOwner,connectionID){
 function gitAt(directory,...args){assert(isFixturePath(directory));return execFileSync('git',['-c','core.hooksPath=/dev/null',...args],{cwd:directory,env:{PATH:process.env.PATH,HOME:join(fixture,'home'),GIT_CONFIG_NOSYSTEM:'1',GIT_CONFIG_GLOBAL:join(fixture,'home/.gitconfig'),GIT_OPTIONAL_LOCKS:'0'},encoding:'utf8',timeout:15000,maxBuffer:1024*1024}).trim();}
 function isFixturePath(directory){return typeof directory==='string'&&directory.startsWith(fixture+sep)&&realpathSync(directory)===directory&&lstatSync(directory).isDirectory();}
 async function refreshRun(){owner.run=(await api('GET',owner.route+'/runs/'+owner.run.id)).run;run=owner.run;return run;}
-async function reconcile(){await openProject(owner);owner.run=(await action(owner.route+'/runs/'+owner.run.id+'/swarm/reconcile',()=>page.getByRole('button',{name:'Check team status',exact:true}).click())).run;run=owner.run;}
+async function observeAutomaticCompletion(key,worker){
+ stage='automatic-completion-'+key;
+ const startedAt=new Date().toISOString(),deadline=Date.now()+60000,before=effects(),apiStart=receipt.apiActions.length,browserStart=receipt.browserMutations.length;
+ const readBudget=()=>{assert(Date.now()<deadline,'Automatic completion exceeded its 60-second observation deadline');return Math.max(1,Math.min(10000,deadline-Date.now()));};
+ const expected={projectId:owner.owner.id,runId:owner.run.id,operation:worker.operation,sourceCommit:observations.get(key).commit,contextDigest:initialBundles.get(worker.session.id)['manifest.json'].sha256,report:taskHandoff(key),sourceDirty:key==='partial',attentionKind:key==='partial'?'task-question':'task-review'};
+ const handoffPath=owner.route+'/runs/'+owner.run.id+'/swarm/operations/'+worker.operation.id+'/handoff';
+ let samples=0;
+ const observed=await until('Automatic terminal run, captured report and Home attention '+key,async()=>{
+  samples++;const latest=(await api('GET',owner.route+'/runs/'+owner.run.id,undefined,200,readBudget())).run;owner.run=latest;run=latest;const op=latest.operations.find(value=>value.id===worker.operation.id);
+  const handoff=op?.handoff?.status==='captured'?(await api('GET',handoffPath,undefined,200,readBudget())).handoff:null;
+  const overview=await api('GET',owner.route+'/overview',undefined,200,readBudget());
+  const value=automaticCompletion({run:latest,handoff,overview,expected});
+  if(!value)await delay(850);return value;
+ },60000);
+ assert(Date.now()<=deadline,'Automatic completion was observed after its deadline');
+ const backendObservedAt=new Date().toISOString();
+ const inPlace=await until('Current task card automatically exposes the exact completed attempt '+key,async()=>{
+  readBudget();const card=taskRow(worker.taskId),review=card.getByRole('button',{name:'Review task changes',exact:true}),report=card.getByRole('button',{name:'Task result and questions',exact:true});
+  const reviewVisible=await review.isVisible(),reportVisible=await report.isVisible();
+  return inPlaceCompletion({statusVisible:await card.getByText('Awaiting review',{exact:true}).isVisible(),reviewVisible,reviewEnabled:reviewVisible&&await review.isEnabled(),reportVisible,reportEnabled:reportVisible&&await report.isEnabled(),questionVisible:await card.getByText(/^1 agent-reported question needs an answer\./).isVisible(),scopeText:await card.locator('[data-task-scope]').textContent()},expected);
+ },Math.max(1,deadline-Date.now()));
+ assert(Date.now()<=deadline,'In-place task completion appeared after its deadline');
+ inPlace.observedAt=new Date().toISOString();
+ await page.screenshot({path:join(evidence,'automatic-task-card-'+key+'.png'),fullPage:true});
+ assertReadOnlyCompletionRequests([...receipt.apiActions.slice(apiStart),...receipt.browserMutations.slice(browserStart)],owner.route);
+ // Opening Home and its exact recorded build is read-only. Neither the fixture
+ // nor the browser may post a reconcile/collect to manufacture completion.
+ await page.getByRole('button',{name:'All projects',exact:true}).click();await page.getByRole('heading',{name:'Across your projects',exact:true}).waitFor();
+ const card=page.locator('.overview-card').filter({has:page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true})});assert.equal(await card.count(),1);
+ const attention=card.getByRole('region',{name:'Recorded review work',exact:true});await attention.waitFor();
+ const label=key==='partial'?'Review reported task questions':'Task changes to review';await attention.getByRole('button',{name:'Inspect '+owner.run.id+': '+label,exact:true}).waitFor();
+ await page.screenshot({path:join(evidence,'automatic-home-'+key+'.png'),fullPage:true});
+ assertReadOnlyCompletionRequests([...receipt.apiActions.slice(apiStart),...receipt.browserMutations.slice(browserStart)],owner.route);
+ assert.deepEqual(effects(),before,'Automatic observation must not allocate, start or clean another worker');
+ (receipt.automaticCompletions??=[]).push({variant:key,startedAt,backendObservedAt,homeObservedAt:new Date().toISOString(),samples,operationID:worker.operation.id,childID:worker.session.id,recordedStatus:observed.operation.status,handoffDigest:observed.handoff.digest,sourceCommit:observed.handoff.receipt.sourceCommit,sourceDirty:observed.handoff.receipt.sourceDirty,contextDigest:observed.handoff.receipt.contextDigest,inPlace,attention:observed.attention,homeVisible:true,manualReconcile:false,manualCollection:false,recordedChecks:observed.handoff.recordedChecks,integrated:false});
+ check('Natural exit automatically captured and surfaced on Home',{variant:key,operationID:worker.operation.id,kind:observed.attention.kind,samples});
+ await openProject(owner);await taskRow(worker.taskId).getByText('Awaiting review',{exact:true}).waitFor();return observed;
+}
+async function startManualTask(key,label){
+ const variant=variants[key],path=owner.route+'/runs/'+owner.run.id+'/swarm/reconcile',priorChecks=receipt.browserMutations.filter(item=>item.method==='POST'&&item.path===path).length;
+ // CLOUD-017 must perform the real post-start observation. This is armed
+ // before the click; a manual status action would hide a regression here.
+ const observed=page.waitForResponse(response=>new URL(response.url()).pathname===path&&response.request().method()==='POST',{timeout:remainingBudget(150000)});observed.catch(()=>{});
+ const session=await action('/v1/sessions',()=>taskRow(variant.taskId).getByRole('button',{name:label,exact:true}).click(),201),before=effects();
+ const confirmed=await reconcileManualStart({session,selection:{projectId:owner.owner.id,runId:owner.run.id,taskId:variant.taskId,attempt:variant.attempt},readRun:refreshRun,reconcileRun:async()=>{const response=await observed;assert.equal(response.status(),200,'Automatic post-start observation must succeed');const result=await response.json();owner.run=result.run;run=owner.run;return run;}});
+ await taskRow(variant.taskId).getByText('Recorded as running',{exact:true}).waitFor();assert.equal(await taskRow(variant.taskId).getByText('Start outcome unconfirmed',{exact:true}).count(),0);
+ assert.equal(receipt.browserMutations.filter(item=>item.method==='POST'&&item.path===path).length,priorChecks+1,'Exactly one automatic observation, no manual fallback or replay');
+ assert.deepEqual(effects(),before,'Status observation must not allocate or start another worker');
+ (receipt.manualStartObservations??=[]).push({variant:key,sessionID:session.id,operationID:confirmed.operation.id,beforeStatus:confirmed.beforeStatus,observedStatus:confirmed.operation.status,beforeRevision:confirmed.beforeRevision,observedRevision:confirmed.run.revision,automaticBrowserReconcile:true,manualFallback:false});check('Exact manual child automatically observed as running',{variant:key,operationID:confirmed.operation.id});return session;
+}
 async function complete(key){stage='native-command-'+key;const worker=await queuedChild(key);await until('Native exact result '+key,()=>observations.has(key),120000);assert.equal(gitAt(worker.checkout,'rev-parse','HEAD'),observations.get(key).commit);assert.deepEqual(bundleSnapshot(worker.session.id),initialBundles.get(worker.session.id));await completeNaturally(worker,owner);return worker;}
 function sourceSnapshot(directory,files){
  const values={};for(const [name,expected] of Object.entries(files)){assert(!name.includes('/')&&!name.includes('..'));const path=join(directory,name),info=lstatSync(path);assert(info.isFile()&&!info.isSymbolicLink()&&info.nlink===1);const bytes=readFileSync(path);assert.equal(bytes.toString('utf8'),expected);values[name]={sha256:sha(bytes),bytes:bytes.length,mode:info.mode&0o777};}
@@ -411,8 +462,8 @@ try {
  await prepare(owner);run=owner.run;
  const pristinePrimary={head:gitAt(owner.owner.path,'rev-parse','HEAD'),status:gitAt(owner.owner.path,'status','--porcelain'),canonical:canonical()};assert.equal(pristinePrimary.head,owner.initialHead);assert.equal(pristinePrimary.status,'');
  await assertJoinBlocked('before-first-start');
- stage='browser-start-partial';await openProject(owner);await action('/v1/sessions',()=>taskRow('task-work').getByRole('button',{name:'Start task',exact:true}).click(),201);
- const partial=await complete('partial');await reconcile();
+ stage='browser-start-partial';await openProject(owner);await startManualTask('partial','Start task');
+ const partial=await complete('partial');await observeAutomaticCompletion('partial',partial);
  const original=owner.run.operations.find(op=>op.id===partial.operation.id);assert.equal(original.status,'review-required');assert.equal(original.handoff?.status,'captured');partial.operation=original;
  const originalSnapshot=sourceSnapshot(partial.checkout,partialFiles);assert.equal(originalSnapshot.head,observations.get('partial').commit);assert.notEqual(originalSnapshot.head,owner.initialHead);assert.deepEqual(originalSnapshot.status.split('\n').map(v=>v.trim()).sort(),['?? note.txt','M work.mjs']);assert.equal(gitAt(partial.checkout,'show','HEAD:committed.mjs'),partialFiles['committed.mjs'].trim());assert.equal(gitAt(partial.checkout,'show','HEAD:work.mjs'),initialFiles['work.mjs'].trim());
  assertPrimary(pristinePrimary);await assertJoinBlocked('after-partial-exit');
@@ -453,11 +504,11 @@ try {
  assert.deepEqual(privateRun(owner),runBeforeRestart);assert.deepEqual(sourceSnapshot(seed.path,partialFiles),seedSnapshot);assert.deepEqual(sourceSnapshot(partial.checkout,partialFiles),originalSnapshot);assertPrimary(pristinePrimary);await api('GET','/v1/sessions/'+next.childId,undefined,404);assert.equal(effects().create,1);assert.equal(effects().start,1);
  page=await context.newPage();page.setDefaultTimeout(15000);page.on('pageerror',error=>{receipt.browserErrors.push(scrub(error));stopOnFailure(Error('Browser script error'));});await refreshRun();await openProject(owner);await taskRow('task-work').getByRole('button',{name:'Continue reserved task',exact:true}).waitFor();await page.screenshot({path:join(evidence,'reserved-seed-after-restart.png'),fullPage:true});await assertJoinBlocked('after-controller-restart');
  check('Controller restart preserves the reserved seed without allocation or replay',{seedCommit:seedSnapshot.head,privateRunUnchanged:true,unstartedChild:next.childId});
- stage='browser-start-successor';await action('/v1/sessions',()=>taskRow('task-work').getByRole('button',{name:'Continue reserved task',exact:true}).click(),201);const finish=await complete('finish');assert.equal(finish.operation.id,next.id);await reconcile();await assertJoinBlocked('after-successor-exit-before-integration');assert.deepEqual(sourceSnapshot(partial.checkout,partialFiles),originalSnapshot);assertPrimary(pristinePrimary);
+ stage='browser-start-successor';await startManualTask('finish','Continue reserved task');const finish=await complete('finish');assert.equal(finish.operation.id,next.id);await observeAutomaticCompletion('finish',finish);await assertJoinBlocked('after-successor-exit-before-integration');assert.deepEqual(sourceSnapshot(partial.checkout,partialFiles),originalSnapshot);assertPrimary(pristinePrimary);
  check('Successor reads the exact reviewed seed and separately attributed prior report and answer',{operationID:finish.operation.id,contextHashes:hashes(initialBundles.get(finish.session.id)),previousAttemptDigest:previousAttempt.digest,reportedChecksRemainClaims:true});
  stage='browser-review-final-integration';const accepted=await integrate('finish');assert.equal(accepted.sourceCommit,observations.get('finish').commit);assert.equal(gitAt(owner.owner.path,'rev-parse','HEAD'),accepted.commit);assert.equal(gitAt(owner.owner.path,'status','--porcelain'),'');for(const [name,text] of Object.entries(finalFiles))assert.equal(readFileSync(join(owner.owner.path,name),'utf8'),text);assert.deepEqual(canonical(),owner.canonicalBefore);
  const checkHead=gitAt(owner.owner.path,'rev-parse','HEAD'),checkStart=Date.now();const finalOutput=execFileSync(process.execPath,['verify.mjs','final'],{cwd:owner.owner.path,env:{PATH:process.env.PATH},encoding:'utf8',timeout:15000,maxBuffer:1024*1024});assert.equal(finalOutput,'CONTINUATION_CHECK_OK final\n');assert.equal(gitAt(owner.owner.path,'rev-parse','HEAD'),checkHead);assert.equal(gitAt(owner.owner.path,'status','--porcelain'),'');
- await refreshRun();assert.equal(run.operations.length,2);assert(!run.operations.some(op=>op.taskId==='task-join'));assert.equal(run.swarm.tasks.find(t=>t.id==='task-join').operationId??'','');assert.equal(run.swarm.tasks.find(t=>t.id==='task-work').integration.state,'integrated');assert.notEqual(run.state,'complete');assert.deepEqual(sourceSnapshot(partial.checkout,partialFiles),originalSnapshot);for(const w of taskData.values())assert.deepEqual(bundleSnapshot(w.session.id),initialBundles.get(w.session.id));assert.equal(effects().create,2);assert.equal(effects().start,2);assert.equal(observations.size,2);assert.equal(receipt.naturalCompletions.length,2);assert.equal(workerContainers().length,0);assert.equal(receipt.browserErrors.length,0);
+ await refreshRun();assert.equal(run.operations.length,2);assert(!run.operations.some(op=>op.taskId==='task-join'));assert.equal(run.swarm.tasks.find(t=>t.id==='task-join').operationId??'','');assert.equal(run.swarm.tasks.find(t=>t.id==='task-work').integration.state,'integrated');assert.notEqual(run.state,'complete');assert.deepEqual(sourceSnapshot(partial.checkout,partialFiles),originalSnapshot);for(const w of taskData.values())assert.deepEqual(bundleSnapshot(w.session.id),initialBundles.get(w.session.id));assert.equal(effects().create,2);assert.equal(effects().start,2);assert.equal(observations.size,2);assert.equal(receipt.naturalCompletions.length,2);assert.equal(receipt.automaticCompletions.length,2);assert.equal(workerContainers().length,0);assert.equal(receipt.browserErrors.length,0);
  await openProject(owner);await page.screenshot({path:join(evidence,'continued-task-integrated.png'),fullPage:true});
  receipt.final={primaryCommit:checkHead,sourceHashes:Object.fromEntries(Object.keys(finalFiles).map(name=>[name,sha(readFileSync(join(owner.owner.path,name)))])),independentCheck:{command:'node verify.mjs final',exitCode:0,stdout:finalOutput,elapsedMs:Date.now()-checkStart,sourceCommit:checkHead,scope:'Acceptance-harness check, not a product-joined verification receipt'},runState:run.state,dependentTask:'Not authorized or started; now eligible only after the accepted integration.',retainedOriginalUnchanged:true};
  check('Reviewed integration and independent exact output checks pass without starting the dependent task',receipt.final);receipt.passed=true;

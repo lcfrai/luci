@@ -78,6 +78,10 @@ type Enumerator interface {
 // because the reaper derives idle on its sweep and this package never computes
 // it.
 type Deps struct {
+	// ObserveTaskCompletions enables the trusted runtime background observer.
+	// Tests and embedded consumers may drive ObserveTaskSessionsOnce explicitly.
+	ObserveTaskCompletions bool
+
 	ExecutionStateDir         string
 	ResourceSnapshot          func() resourcebudget.Snapshot
 	AuthorizeExecution        management.ExecutionAuthorizer
@@ -345,6 +349,7 @@ func (rs *routes) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // API is the whole HTTP surface as one handler.
 type API struct {
+	taskObservations        taskCompletionObservations
 	execution               *executionAdmission
 	deps                    Deps
 	handler                 http.Handler
@@ -425,7 +430,11 @@ func New(d Deps) (*API, error) {
 		d.Product.SetRuntimeResourceSnapshot(d.ResourceSnapshot)
 		d.Product.SetProjectRunSelectionResolver(a.ResolveProjectRunSelection)
 		d.Product.SetProjectRunSessionObserver(a.ObserveProjectRunSessions)
-		d.Product.SetSwarmSchedulerRuntime(product.SwarmSchedulerRuntime{CaptureActor: a.captureQueuedActor, Admit: a.admitQueuedSwarm, Dispatch: a.dispatchQueuedSwarm, Release: a.execution.release, Resources: a.queuedResourceView})
+		var observeTasks func(context.Context) error
+		if d.ObserveTaskCompletions {
+			observeTasks = a.ObserveTaskSessionsOnce
+		}
+		d.Product.SetSwarmSchedulerRuntime(product.SwarmSchedulerRuntime{ObserveTasks: observeTasks, CaptureActor: a.captureQueuedActor, Admit: a.admitQueuedSwarm, Dispatch: a.dispatchQueuedSwarm, Release: a.execution.release, Resources: a.queuedResourceView})
 		d.Product.SetProjectSwarmWorktreeObserver(a.observeSwarmWorktree)
 	}
 

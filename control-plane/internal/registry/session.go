@@ -118,6 +118,11 @@ type Session struct {
 	// privately reserved operation. Both are recorded before sandbox allocation.
 	ProjectRunID          string `json:"projectRunId,omitempty"`
 	ProjectRunOperationID string `json:"projectRunOperationId,omitempty"`
+	// TaskObservationComplete is a private controller watermark: the exact ended
+	// attempt has been reconciled into its durable run and retained handoff.
+	// It is not evidence of successful work. Older records omit it and are
+	// eligible for bounded observation after reopening.
+	TaskObservationComplete bool `json:"taskObservationComplete,omitempty"`
 }
 
 // Clone returns a copy that shares nothing with s.

@@ -1,0 +1,692 @@
+{
+  "version": 1,
+  "issue": "CLOUD-018",
+  "status": "source-verified-installed-acceptance-pending",
+  "scope": "Selected active swarm view refresh; controlled frontend component and API contract tests.",
+  "baseCommit": "29be4018f951ba2b3f33ae63067e4b7257da0c7a",
+  "sourceBindingNote": "The named base commit alone does not contain these uncommitted corrections. The final 433-input manifest binds the checked frontend snapshot; compare its changed source hashes to the integrated revision.",
+  "commandSanitization": "Only the absolute repository prefix was replaced by <repo>. Commands ran in <repo>/desktop. UTC timings, exit codes, counts and raw artifact hashes are unchanged.",
+  "final": {
+    "stage": "final",
+    "scope": "CLOUD-018 selected active swarm read refresh; controlled component/API contracts, no installed/Docker/native/model acceptance.",
+    "startedAt": "2026-10-08T14:59:46.743007+00:00",
+    "head": "29be4018f951ba2b3f33ae63067e4b7257da0c7a",
+    "commands": [
+      {
+        "command": [
+          "npm",
+          "test",
+          "--",
+          "--maxWorkers=2",
+          "--reporter=json",
+          "--outputFile=<repo>/artifacts/quality-swarm/cloud018-ui/final/vitest.json",
+          "src/api/projectRuns.test.ts",
+          "src/components/journey/ProjectSwarmRefresh.test.tsx",
+          "src/components/journey/ProjectSwarm.test.tsx",
+          "src/components/journey/ProjectSwarmQueue.test.tsx",
+          "src/components/journey/SwarmCheckpoint.test.tsx",
+          "src/components/journey/SwarmLaunchRecovery.test.tsx",
+          "src/components/journey/SwarmTaskHandoff.test.tsx",
+          "src/components/journey/SwarmRunQueue.test.tsx"
+        ],
+        "start": "2026-10-08T14:59:46.749345+00:00",
+        "end": "2026-10-08T15:00:05.823477+00:00",
+        "exitCode": 0
+      },
+      {
+        "command": [
+          "npm",
+          "run",
+          "typecheck"
+        ],
+        "start": "2026-10-08T15:00:05.823545+00:00",
+        "end": "2026-10-08T15:00:38.145117+00:00",
+        "exitCode": 0
+      }
+    ],
+    "predecessor": "artifacts/quality-swarm/cloud018-ui/consent-verified/result.json",
+    "testsExit": 0,
+    "typecheckExit": 0,
+    "finishedAt": "2026-10-08T15:00:38.210524+00:00",
+    "sourceCount": 433,
+    "sourceUnchanged": true,
+    "counts": {
+      "numTotalTests": 122,
+      "numPassedTests": 122,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0
+    },
+    "files": 8,
+    "passed": true,
+    "workingDirectory": "<repo>/desktop",
+    "manifest": "final-source-inputs.json",
+    "manifestSHA256": "60e5589b8e0d8bf375ffab267ac3ceed093d7b2a25006c40b89e26e016b81d57",
+    "originalArtifacts": {
+      "result.json": {
+        "path": "artifacts/quality-swarm/cloud018-ui/final/result.json",
+        "sha256": "e58f381014cde8c90f21f5823ac90c20f8ea052362b4fee1d92a9f26fec19ba7"
+      },
+      "vitest.json": {
+        "path": "artifacts/quality-swarm/cloud018-ui/final/vitest.json",
+        "sha256": "d078b2bc0e0f66a5befac8a6449ac67134fdfc1e86b5c90e8fb512a55612a4cb"
+      },
+      "tests.log": {
+        "path": "artifacts/quality-swarm/cloud018-ui/final/tests.log",
+        "sha256": "71ee39fbc4b5c4c253aefa45b5ce907366d3ea9b46f7d7c68014b4a19f3e2cc9"
+      },
+      "typecheck.log": {
+        "path": "artifacts/quality-swarm/cloud018-ui/final/typecheck.log",
+        "sha256": "6d51e3ec9a9d283eee096e5e9403c5d963c9468e9756fd61f3e9e0d3df1bde71"
+      },
+      "source-before.json": {
+        "path": "artifacts/quality-swarm/cloud018-ui/final/source-before.json",
+        "sha256": "60e5589b8e0d8bf375ffab267ac3ceed093d7b2a25006c40b89e26e016b81d57"
+      },
+      "source-after.json": {
+        "path": "artifacts/quality-swarm/cloud018-ui/final/source-after.json",
+        "sha256": "60e5589b8e0d8bf375ffab267ac3ceed093d7b2a25006c40b89e26e016b81d57"
+      }
+    },
+    "byFile": [
+      {
+        "path": "desktop/src/api/projectRuns.test.ts",
+        "status": "passed",
+        "counts": {
+          "passed": 4,
+          "failed": 0,
+          "pending": 0,
+          "todo": 0
+        }
+      },
+      {
+        "path": "desktop/src/components/journey/ProjectSwarm.test.tsx",
+        "status": "passed",
+        "counts": {
+          "passed": 35,
+          "failed": 0,
+          "pending": 0,
+          "todo": 0
+        }
+      },
+      {
+        "path": "desktop/src/components/journey/ProjectSwarmQueue.test.tsx",
+        "status": "passed",
+        "counts": {
+          "passed": 4,
+          "failed": 0,
+          "pending": 0,
+          "todo": 0
+        }
+      },
+      {
+        "path": "desktop/src/components/journey/ProjectSwarmRefresh.test.tsx",
+        "status": "passed",
+        "counts": {
+          "passed": 17,
+          "failed": 0,
+          "pending": 0,
+          "todo": 0
+        }
+      },
+      {
+        "path": "desktop/src/components/journey/SwarmCheckpoint.test.tsx",
+        "status": "passed",
+        "counts": {
+          "passed": 10,
+          "failed": 0,
+          "pending": 0,
+          "todo": 0
+        }
+      },
+      {
+        "path": "desktop/src/components/journey/SwarmLaunchRecovery.test.tsx",
+        "status": "passed",
+        "counts": {
+          "passed": 14,
+          "failed": 0,
+          "pending": 0,
+          "todo": 0
+        }
+      },
+      {
+        "path": "desktop/src/components/journey/SwarmRunQueue.test.tsx",
+        "status": "passed",
+        "counts": {
+          "passed": 10,
+          "failed": 0,
+          "pending": 0,
+          "todo": 0
+        }
+      },
+      {
+        "path": "desktop/src/components/journey/SwarmTaskHandoff.test.tsx",
+        "status": "passed",
+        "counts": {
+          "passed": 28,
+          "failed": 0,
+          "pending": 0,
+          "todo": 0
+        }
+      }
+    ]
+  },
+  "precedingStages": [
+    {
+      "stage": "focused",
+      "scope": "CLOUD-018 selected active swarm read refresh; controlled component/API contracts, no installed/Docker/native/model acceptance.",
+      "startedAt": "2026-10-08T14:49:45.924891+00:00",
+      "head": "29be4018f951ba2b3f33ae63067e4b7257da0c7a",
+      "commands": [
+        {
+          "command": [
+            "npm",
+            "test",
+            "--",
+            "--maxWorkers=2",
+            "--reporter=json",
+            "--outputFile=<repo>/artifacts/quality-swarm/cloud018-ui/focused/vitest.json",
+            "src/api/projectRuns.test.ts",
+            "src/components/journey/ProjectSwarmRefresh.test.tsx",
+            "src/components/journey/ProjectSwarm.test.tsx",
+            "src/components/journey/ProjectSwarmQueue.test.tsx",
+            "src/components/journey/SwarmCheckpoint.test.tsx",
+            "src/components/journey/SwarmLaunchRecovery.test.tsx",
+            "src/components/journey/SwarmTaskHandoff.test.tsx"
+          ],
+          "start": "2026-10-08T14:49:45.928005+00:00",
+          "end": "2026-10-08T14:50:03.942313+00:00",
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "npm",
+            "run",
+            "typecheck"
+          ],
+          "start": "2026-10-08T14:50:03.942458+00:00",
+          "end": "2026-10-08T14:50:27.452098+00:00",
+          "exitCode": 2
+        }
+      ],
+      "testsExit": 0,
+      "typecheckExit": 2,
+      "finishedAt": "2026-10-08T14:50:27.495855+00:00",
+      "sourceCount": 433,
+      "sourceUnchanged": true,
+      "counts": {
+        "numTotalTests": 107,
+        "numPassedTests": 107,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0
+      },
+      "files": 7,
+      "passed": false,
+      "workingDirectory": "<repo>/desktop",
+      "manifest": "focused-source-inputs.json",
+      "manifestSHA256": "0b88800396383dfc1f745fe959bedaca6f552c08e94642f13f92d6fd4985d070",
+      "originalArtifacts": {
+        "result.json": {
+          "path": "artifacts/quality-swarm/cloud018-ui/focused/result.json",
+          "sha256": "abfa6202abc512b3ee816715d79aad506bcb1edff47cfc63b426cbff94688615"
+        },
+        "vitest.json": {
+          "path": "artifacts/quality-swarm/cloud018-ui/focused/vitest.json",
+          "sha256": "4ebcd3374a4ce2714742ba7085a22164b77d9f07aa7b54a72de48f4f723cfe1d"
+        },
+        "tests.log": {
+          "path": "artifacts/quality-swarm/cloud018-ui/focused/tests.log",
+          "sha256": "a42c74aa927439a9e6292053172d1d4e93afddeb3c087fe82aaebdd9160b4a9b"
+        },
+        "typecheck.log": {
+          "path": "artifacts/quality-swarm/cloud018-ui/focused/typecheck.log",
+          "sha256": "cf49341d61b73cf25d40994bea0c9fa6aa173298775e0e6191cce1678c6c7a21"
+        },
+        "source-before.json": {
+          "path": "artifacts/quality-swarm/cloud018-ui/focused/source-before.json",
+          "sha256": "0b88800396383dfc1f745fe959bedaca6f552c08e94642f13f92d6fd4985d070"
+        },
+        "source-after.json": {
+          "path": "artifacts/quality-swarm/cloud018-ui/focused/source-after.json",
+          "sha256": "0b88800396383dfc1f745fe959bedaca6f552c08e94642f13f92d6fd4985d070"
+        }
+      },
+      "byFile": [
+        {
+          "path": "desktop/src/api/projectRuns.test.ts",
+          "status": "passed",
+          "counts": {
+            "passed": 4,
+            "failed": 0,
+            "pending": 0,
+            "todo": 0
+          }
+        },
+        {
+          "path": "desktop/src/components/journey/ProjectSwarm.test.tsx",
+          "status": "passed",
+          "counts": {
+            "passed": 35,
+            "failed": 0,
+            "pending": 0,
+            "todo": 0
+          }
+        },
+        {
+          "path": "desktop/src/components/journey/ProjectSwarmQueue.test.tsx",
+          "status": "passed",
+          "counts": {
+            "passed": 3,
+            "failed": 0,
+            "pending": 0,
+            "todo": 0
+          }
+        },
+        {
+          "path": "desktop/src/components/journey/ProjectSwarmRefresh.test.tsx",
+          "status": "passed",
+          "counts": {
+            "passed": 13,
+            "failed": 0,
+            "pending": 0,
+            "todo": 0
+          }
+        },
+        {
+          "path": "desktop/src/components/journey/SwarmCheckpoint.test.tsx",
+          "status": "passed",
+          "counts": {
+            "passed": 10,
+            "failed": 0,
+            "pending": 0,
+            "todo": 0
+          }
+        },
+        {
+          "path": "desktop/src/components/journey/SwarmLaunchRecovery.test.tsx",
+          "status": "passed",
+          "counts": {
+            "passed": 14,
+            "failed": 0,
+            "pending": 0,
+            "todo": 0
+          }
+        },
+        {
+          "path": "desktop/src/components/journey/SwarmTaskHandoff.test.tsx",
+          "status": "passed",
+          "counts": {
+            "passed": 28,
+            "failed": 0,
+            "pending": 0,
+            "todo": 0
+          }
+        }
+      ]
+    },
+    {
+      "stage": "verified",
+      "scope": "CLOUD-018 selected active swarm read refresh; controlled component/API contracts, no installed/Docker/native/model acceptance.",
+      "startedAt": "2026-10-08T14:54:27.407364+00:00",
+      "head": "29be4018f951ba2b3f33ae63067e4b7257da0c7a",
+      "commands": [
+        {
+          "command": [
+            "npm",
+            "test",
+            "--",
+            "--maxWorkers=2",
+            "--reporter=json",
+            "--outputFile=<repo>/artifacts/quality-swarm/cloud018-ui/verified/vitest.json",
+            "src/api/projectRuns.test.ts",
+            "src/components/journey/ProjectSwarmRefresh.test.tsx",
+            "src/components/journey/ProjectSwarm.test.tsx",
+            "src/components/journey/ProjectSwarmQueue.test.tsx",
+            "src/components/journey/SwarmCheckpoint.test.tsx",
+            "src/components/journey/SwarmLaunchRecovery.test.tsx",
+            "src/components/journey/SwarmTaskHandoff.test.tsx"
+          ],
+          "start": "2026-10-08T14:54:27.410455+00:00",
+          "end": "2026-10-08T14:54:45.059473+00:00",
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "npm",
+            "run",
+            "typecheck"
+          ],
+          "start": "2026-10-08T14:54:45.059621+00:00",
+          "end": "2026-10-08T14:55:08.944542+00:00",
+          "exitCode": 0
+        }
+      ],
+      "predecessor": "artifacts/quality-swarm/cloud018-ui/focused/result.json",
+      "testsExit": 0,
+      "typecheckExit": 0,
+      "finishedAt": "2026-10-08T14:55:08.961019+00:00",
+      "sourceCount": 433,
+      "sourceUnchanged": true,
+      "counts": {
+        "numTotalTests": 108,
+        "numPassedTests": 108,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0
+      },
+      "files": 7,
+      "passed": true,
+      "workingDirectory": "<repo>/desktop",
+      "manifest": "verified-source-inputs.json",
+      "manifestSHA256": "44d19190ff13532ee4d808e872f72814835e2dc4f8e9e625da45ab1f94d48126",
+      "originalArtifacts": {
+        "result.json": {
+          "path": "artifacts/quality-swarm/cloud018-ui/verified/result.json",
+          "sha256": "574e8b8d001887483517f25369225ae69f53cffb5ff3f3b632e19790a757dc22"
+        },
+        "vitest.json": {
+          "path": "artifacts/quality-swarm/cloud018-ui/verified/vitest.json",
+          "sha256": "51f42e1619419020131776ffea350bd62139e47be2ac5c48617c941ebbdee6b9"
+        },
+        "tests.log": {
+          "path": "artifacts/quality-swarm/cloud018-ui/verified/tests.log",
+          "sha256": "1ed4015ab2dbc7f4c77b31156d6f4b55e517dc72755f702273da3a9891b5ff7d"
+        },
+        "typecheck.log": {
+          "path": "artifacts/quality-swarm/cloud018-ui/verified/typecheck.log",
+          "sha256": "6d51e3ec9a9d283eee096e5e9403c5d963c9468e9756fd61f3e9e0d3df1bde71"
+        },
+        "source-before.json": {
+          "path": "artifacts/quality-swarm/cloud018-ui/verified/source-before.json",
+          "sha256": "44d19190ff13532ee4d808e872f72814835e2dc4f8e9e625da45ab1f94d48126"
+        },
+        "source-after.json": {
+          "path": "artifacts/quality-swarm/cloud018-ui/verified/source-after.json",
+          "sha256": "44d19190ff13532ee4d808e872f72814835e2dc4f8e9e625da45ab1f94d48126"
+        }
+      },
+      "byFile": [
+        {
+          "path": "desktop/src/api/projectRuns.test.ts",
+          "status": "passed",
+          "counts": {
+            "passed": 4,
+            "failed": 0,
+            "pending": 0,
+            "todo": 0
+          }
+        },
+        {
+          "path": "desktop/src/components/journey/ProjectSwarm.test.tsx",
+          "status": "passed",
+          "counts": {
+            "passed": 35,
+            "failed": 0,
+            "pending": 0,
+            "todo": 0
+          }
+        },
+        {
+          "path": "desktop/src/components/journey/ProjectSwarmQueue.test.tsx",
+          "status": "passed",
+          "counts": {
+            "passed": 3,
+            "failed": 0,
+            "pending": 0,
+            "todo": 0
+          }
+        },
+        {
+          "path": "desktop/src/components/journey/ProjectSwarmRefresh.test.tsx",
+          "status": "passed",
+          "counts": {
+            "passed": 14,
+            "failed": 0,
+            "pending": 0,
+            "todo": 0
+          }
+        },
+        {
+          "path": "desktop/src/components/journey/SwarmCheckpoint.test.tsx",
+          "status": "passed",
+          "counts": {
+            "passed": 10,
+            "failed": 0,
+            "pending": 0,
+            "todo": 0
+          }
+        },
+        {
+          "path": "desktop/src/components/journey/SwarmLaunchRecovery.test.tsx",
+          "status": "passed",
+          "counts": {
+            "passed": 14,
+            "failed": 0,
+            "pending": 0,
+            "todo": 0
+          }
+        },
+        {
+          "path": "desktop/src/components/journey/SwarmTaskHandoff.test.tsx",
+          "status": "passed",
+          "counts": {
+            "passed": 28,
+            "failed": 0,
+            "pending": 0,
+            "todo": 0
+          }
+        }
+      ]
+    },
+    {
+      "stage": "consent-verified",
+      "scope": "CLOUD-018 selected active swarm read refresh; controlled component/API contracts, no installed/Docker/native/model acceptance.",
+      "startedAt": "2026-10-08T14:57:46.511533+00:00",
+      "head": "29be4018f951ba2b3f33ae63067e4b7257da0c7a",
+      "commands": [
+        {
+          "command": [
+            "npm",
+            "test",
+            "--",
+            "--maxWorkers=2",
+            "--reporter=json",
+            "--outputFile=<repo>/artifacts/quality-swarm/cloud018-ui/consent-verified/vitest.json",
+            "src/api/projectRuns.test.ts",
+            "src/components/journey/ProjectSwarmRefresh.test.tsx",
+            "src/components/journey/ProjectSwarm.test.tsx",
+            "src/components/journey/ProjectSwarmQueue.test.tsx",
+            "src/components/journey/SwarmCheckpoint.test.tsx",
+            "src/components/journey/SwarmLaunchRecovery.test.tsx",
+            "src/components/journey/SwarmTaskHandoff.test.tsx",
+            "src/components/journey/SwarmRunQueue.test.tsx"
+          ],
+          "start": "2026-10-08T14:57:46.518484+00:00",
+          "end": "2026-10-08T14:58:13.473475+00:00",
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "npm",
+            "run",
+            "typecheck"
+          ],
+          "start": "2026-10-08T14:58:13.473787+00:00",
+          "end": "2026-10-08T14:58:52.369515+00:00",
+          "exitCode": 0
+        }
+      ],
+      "predecessor": "artifacts/quality-swarm/cloud018-ui/verified/result.json",
+      "testsExit": 0,
+      "typecheckExit": 0,
+      "finishedAt": "2026-10-08T14:58:52.408652+00:00",
+      "sourceCount": 433,
+      "sourceUnchanged": true,
+      "counts": {
+        "numTotalTests": 119,
+        "numPassedTests": 119,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0
+      },
+      "files": 8,
+      "passed": true,
+      "workingDirectory": "<repo>/desktop",
+      "manifest": "consent-verified-source-inputs.json",
+      "manifestSHA256": "fcdfe6a94130a8fc8cd236407c12fcb16b3602a12f63dd954c401e2d4650f16c",
+      "originalArtifacts": {
+        "result.json": {
+          "path": "artifacts/quality-swarm/cloud018-ui/consent-verified/result.json",
+          "sha256": "62cfdd78eced0f76f10a8b37338c7450b054d33c5e2c420a9e8f023913e0afda"
+        },
+        "vitest.json": {
+          "path": "artifacts/quality-swarm/cloud018-ui/consent-verified/vitest.json",
+          "sha256": "ff078df85becc56ed66a3eb5f4827754c127a63dcdf4e2d860ca0b1a6d01f57f"
+        },
+        "tests.log": {
+          "path": "artifacts/quality-swarm/cloud018-ui/consent-verified/tests.log",
+          "sha256": "5f2a37b836cfd7dcfb1383293a5f6cd2af26327fafc704c67f03b29e8d3f951c"
+        },
+        "typecheck.log": {
+          "path": "artifacts/quality-swarm/cloud018-ui/consent-verified/typecheck.log",
+          "sha256": "6d51e3ec9a9d283eee096e5e9403c5d963c9468e9756fd61f3e9e0d3df1bde71"
+        },
+        "source-before.json": {
+          "path": "artifacts/quality-swarm/cloud018-ui/consent-verified/source-before.json",
+          "sha256": "fcdfe6a94130a8fc8cd236407c12fcb16b3602a12f63dd954c401e2d4650f16c"
+        },
+        "source-after.json": {
+          "path": "artifacts/quality-swarm/cloud018-ui/consent-verified/source-after.json",
+          "sha256": "fcdfe6a94130a8fc8cd236407c12fcb16b3602a12f63dd954c401e2d4650f16c"
+        }
+      },
+      "byFile": [
+        {
+          "path": "desktop/src/api/projectRuns.test.ts",
+          "status": "passed",
+          "counts": {
+            "passed": 4,
+            "failed": 0,
+            "pending": 0,
+            "todo": 0
+          }
+        },
+        {
+          "path": "desktop/src/components/journey/ProjectSwarm.test.tsx",
+          "status": "passed",
+          "counts": {
+            "passed": 35,
+            "failed": 0,
+            "pending": 0,
+            "todo": 0
+          }
+        },
+        {
+          "path": "desktop/src/components/journey/ProjectSwarmQueue.test.tsx",
+          "status": "passed",
+          "counts": {
+            "passed": 4,
+            "failed": 0,
+            "pending": 0,
+            "todo": 0
+          }
+        },
+        {
+          "path": "desktop/src/components/journey/ProjectSwarmRefresh.test.tsx",
+          "status": "passed",
+          "counts": {
+            "passed": 14,
+            "failed": 0,
+            "pending": 0,
+            "todo": 0
+          }
+        },
+        {
+          "path": "desktop/src/components/journey/SwarmCheckpoint.test.tsx",
+          "status": "passed",
+          "counts": {
+            "passed": 10,
+            "failed": 0,
+            "pending": 0,
+            "todo": 0
+          }
+        },
+        {
+          "path": "desktop/src/components/journey/SwarmLaunchRecovery.test.tsx",
+          "status": "passed",
+          "counts": {
+            "passed": 14,
+            "failed": 0,
+            "pending": 0,
+            "todo": 0
+          }
+        },
+        {
+          "path": "desktop/src/components/journey/SwarmRunQueue.test.tsx",
+          "status": "passed",
+          "counts": {
+            "passed": 10,
+            "failed": 0,
+            "pending": 0,
+            "todo": 0
+          }
+        },
+        {
+          "path": "desktop/src/components/journey/SwarmTaskHandoff.test.tsx",
+          "status": "passed",
+          "counts": {
+            "passed": 28,
+            "failed": 0,
+            "pending": 0,
+            "todo": 0
+          }
+        }
+      ]
+    }
+  ],
+  "changedFiles": {
+    "desktop/src/api/projectRuns.ts": "40879cf149cbec8b2e0a1ea2ac5b190a6bde165c235dbd2358cb6d2fe7803c82",
+    "desktop/src/api/projectRuns.test.ts": "79c7be4044547b7efc7777c2151075087df980d19a0ea11fc2663c2634e7fcb1",
+    "desktop/src/components/journey/ProjectSwarm.tsx": "cdf395b37dc8799b8f4d22f98462411ffcd977d8dc53eabe60581c11224b4503",
+    "desktop/src/components/journey/ProjectSwarmRefresh.test.tsx": "1a85d15bdc363863344eac59b5feb35053c10fd5a22643d274d6e6a554cd0c45",
+    "desktop/src/components/journey/ProjectSwarmQueue.test.tsx": "025759cee4d432e1ea0ea119d4c7f0b47761bbe0a9842b0c465250f173a4833e",
+    "desktop/src/components/journey/SwarmRunQueue.tsx": "b7ae10435c5ab7ac7157890fd7049f9d5b51e8573fc0cf617941c997dedf0c8a"
+  },
+  "failureLineage": [
+    {
+      "stage": "focused",
+      "testsPassed": 107,
+      "typecheckExit": 2,
+      "diagnostic": "TS2367: the TaskHandoffReference status union excludes not-recorded, so comparing its status to not-recorded is invalid.",
+      "correction": "Operation.handoff is absent before capture and present only for final captured/missing/invalid/unavailable states. Terminal polling now waits for an absent reference only."
+    },
+    {
+      "stage": "verified",
+      "testsPassed": 108,
+      "typecheckExit": 0,
+      "subsequentChange": "Propagate exact queue consent state so selected-run refresh pauses while queue authorization is open."
+    },
+    {
+      "stage": "consent-verified",
+      "testsPassed": 119,
+      "typecheckExit": 0,
+      "subsequentChange": "Exclude cancelled attempts from terminal report waiting: cancelling an unstarted reservation or finalizing retirement need not leave any registry child capable of producing a report."
+    }
+  ],
+  "behavior": [
+    "Read the selected visible active run at five-second intervals with at most one background run request in flight. GET never starts, reconciles, integrates, approves or replays work.",
+    "Only ready owned task operations qualify. Observed review-required/succeeded/failed modern attempts continue until a final handoff reference exists. Unstarted reservations, cancelled/retired attempts and legacy terminal operations do not poll for a report that may never arrive.",
+    "Visibility changes, unmount, project/run or authority changes abort and fence outstanding reads; stale revisions never replace newer visible state.",
+    "Pause background run reads during user actions and all task/queue consent dialogs. Resume on the first scheduled interval after closing or becoming visible, preserving user review and current CAS.",
+    "Transient failures retain recorded status with one stable warning. Confirmed 401/403 stops the current automatic read loop; explicit access refresh is required.",
+    "A recorded completion renders Awaiting review, available review/result controls and bounded unanswered-question cues without navigation, reconciliation or focus movement."
+  ],
+  "limitations": [
+    "No installed package, real Docker, native Windows, real provider/model or performance acceptance is claimed.",
+    "This is an affected eight-file frontend test batch and a full TypeScript check; it is not a full frontend-suite repeat or a production build.",
+    "Counts from preceding stages repeat cases and must not be added as unique coverage. The original compiler failure is preserved rather than replaced.",
+    "Actual matching-package acceptance must prove backend completion observation and the already-open UI update after the exact real worker exits.",
+    "Legacy terminal attempts and explicitly retired attempts retain manual Check team status/report inspection. Unknown active outcomes remain unknown and can still require explicit recovery."
+  ]
+}

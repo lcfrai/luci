@@ -215,7 +215,15 @@ func (a *API) ResolveProjectRunSelection(ctx context.Context, req product.Projec
 // without starting or repairing anything. Conflicting ownership is returned to
 // the product adapter for rejection rather than hidden by a filtering query.
 func (a *API) ObserveProjectRunSessions(ctx context.Context, projectID, runID, operationID string) ([]registry.Session, error) {
-	rows, err := a.deps.Store.List()
+	var rows []registry.Session
+	var err error
+	if indexed, ok := a.deps.Store.(interface {
+		ProjectRunSessions(string, string) ([]registry.Session, error)
+	}); ok {
+		rows, err = indexed.ProjectRunSessions(runID, operationID)
+	} else {
+		rows, err = a.deps.Store.List()
+	}
 	if err != nil {
 		return nil, err
 	}

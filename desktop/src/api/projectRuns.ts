@@ -90,8 +90,10 @@ export const projectRunsApi = {
     const result = await productApi.request<{ runs: ProjectRun[] }>(path(project));
     return result.runs.map(run => owned(project, run));
   },
-  async get(project: string, id: string) {
-    const result = await productApi.request<{ run: ProjectRun }>(path(project, id));
+  async get(project: string, id: string, signal?: AbortSignal) {
+    const result = signal
+      ? await productApi.request<{ run: ProjectRun }>(path(project, id), undefined, 'GET', 30_000, signal)
+      : await productApi.request<{ run: ProjectRun }>(path(project, id));
     return owned(project, result.run, id);
   },
   async create(project: string, input: CreateProjectRun) {

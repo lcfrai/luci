@@ -1,0 +1,226 @@
+{
+  "version": 1,
+  "issues": [
+    "CLOUD-012",
+    "CLOUD-017",
+    "CLOUD-018"
+  ],
+  "status": "passed-preparation-only",
+  "verifiedAt": "2026-10-08T14:42:28.485222+00:00",
+  "checkoutHead": "29be4018f951ba2b3f33ae63067e4b7257da0c7a",
+  "scope": "Controlled continuation helper oracles, mocked Python wrapper lifecycle and syntax only. No Docker, browser, Luci, Go/compiler or external model executed. Installed workflow awaits matching17+18 package.",
+  "nodeTests": 28,
+  "nodePass": 28,
+  "pythonTests": 4,
+  "syntaxChecks": 11,
+  "sourceFiles": 15,
+  "sourceUnchanged": true,
+  "sources": {
+    "scripts/acceptance/task-continuation/README.md": "04f3fd2c9f50f8a0047a9488b8d9324f09ffd0b5cbbd8bc5d109cc3ba7357b95",
+    "scripts/acceptance/task-continuation/automatic-completion.mjs": "d440222b8c3ac36198e505e1f5e0018a852a14478ddd7d50bb700f15a3361488",
+    "scripts/acceptance/task-continuation/automatic-completion.test.mjs": "02809fcf508e8f321ff31176b29b6f5dc3465a6272fe0a13ea9267aea07155d4",
+    "scripts/acceptance/task-continuation/checkpoint-contract.mjs": "96193cd773d9c0381072c1bd02a7fcf343b948d79682b736ebb0cb85be8c0f83",
+    "scripts/acceptance/task-continuation/checkpoint-contract.test.mjs": "ae50750cdcab182522a17bcc91ce761252f3551315f04273a9700fadfab05fe9",
+    "scripts/acceptance/task-continuation/context-contract.test.mjs": "1a015521f526123ea30c2085f2add55e40e81334f398a8d6a1efcb60eff280a1",
+    "scripts/acceptance/task-continuation/continuation-context.mjs": "0b0a91981bde41ec2ce5650e7d82d44e8054d5b501eb600333d2acb259f227fb",
+    "scripts/acceptance/task-continuation/continuation-fixture.mjs": "384e633cbe6a9033be54698b64dad73ef559cf454d0db4c9af03c9953dcdb97c",
+    "scripts/acceptance/task-continuation/continuation.mjs": "3ae038e4397e80c3cab41ee6688b2587790e6f550830a1f5ac028431a08a79f0",
+    "scripts/acceptance/task-continuation/evidence/29be4018-attempt1.json": "0701f27770d3f99504e98ebf6ebd31b7a579a4a5f591e0bb18f1ab283abe720e",
+    "scripts/acceptance/task-continuation/helper.test.mjs": "5efc22bfa8df73a66efcb50ac65f750fbfcb4fcee6fdc8e7c955b784f887a1dd",
+    "scripts/acceptance/task-continuation/manual-start.mjs": "47cd7b0bea24cf2fbf8fd33b95762e181618e602283ca302c32b87b5ae3b2d40",
+    "scripts/acceptance/task-continuation/manual-start.test.mjs": "fd32c101fcbeb61af4770bab3014e9f0aae890767e49c20ef43fde279f0b8674",
+    "scripts/acceptance/task-continuation/run-with-observer.py": "cc27edcd9c624f874a096596e6a393483a054efb9e783da8ee8eb40467c3639a",
+    "scripts/acceptance/task-continuation/run_with_observer_test.py": "16d056f5c3b5cb4febdb0765c4a458b3afc9276b0c22f46902391145f6a71d1e"
+  },
+  "commands": [
+    {
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=1",
+        "automatic-completion.test.mjs",
+        "checkpoint-contract.test.mjs",
+        "context-contract.test.mjs",
+        "helper.test.mjs",
+        "manual-start.test.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 5.100295640993863,
+      "log": "artifacts/quality-swarm/continuation-in-place-observation-correction/00-command.log",
+      "logSHA256": "0c72c93afb4b784b8514318485ad911fce76a521987862bff734a11fca14b1fc",
+      "workingDirectory": "scripts/acceptance/task-continuation"
+    },
+    {
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "run_with_observer_test.py"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.7200500649923924,
+      "log": "artifacts/quality-swarm/continuation-in-place-observation-correction/01-command.log",
+      "logSHA256": "dda497f9af0c40a36181410a363accdd55be9dec22c3664c384bffc3f14ad176",
+      "workingDirectory": "scripts/acceptance/task-continuation"
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "automatic-completion.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.09541696700034663,
+      "log": "artifacts/quality-swarm/continuation-in-place-observation-correction/02-command.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "workingDirectory": "scripts/acceptance/task-continuation"
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "automatic-completion.test.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.23588419501902536,
+      "log": "artifacts/quality-swarm/continuation-in-place-observation-correction/03-command.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "workingDirectory": "scripts/acceptance/task-continuation"
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "checkpoint-contract.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.17895548502565362,
+      "log": "artifacts/quality-swarm/continuation-in-place-observation-correction/04-command.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "workingDirectory": "scripts/acceptance/task-continuation"
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "checkpoint-contract.test.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.15111748900380917,
+      "log": "artifacts/quality-swarm/continuation-in-place-observation-correction/05-command.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "workingDirectory": "scripts/acceptance/task-continuation"
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "context-contract.test.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.17202532500959933,
+      "log": "artifacts/quality-swarm/continuation-in-place-observation-correction/06-command.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "workingDirectory": "scripts/acceptance/task-continuation"
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "continuation-context.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.12707417699857615,
+      "log": "artifacts/quality-swarm/continuation-in-place-observation-correction/07-command.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "workingDirectory": "scripts/acceptance/task-continuation"
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "continuation-fixture.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.255507931986358,
+      "log": "artifacts/quality-swarm/continuation-in-place-observation-correction/08-command.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "workingDirectory": "scripts/acceptance/task-continuation"
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "continuation.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.30261551798321307,
+      "log": "artifacts/quality-swarm/continuation-in-place-observation-correction/09-command.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "workingDirectory": "scripts/acceptance/task-continuation"
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "helper.test.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.13662868298706599,
+      "log": "artifacts/quality-swarm/continuation-in-place-observation-correction/10-command.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "workingDirectory": "scripts/acceptance/task-continuation"
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "manual-start.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.11528150699450634,
+      "log": "artifacts/quality-swarm/continuation-in-place-observation-correction/11-command.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "workingDirectory": "scripts/acceptance/task-continuation"
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "manual-start.test.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.27480340300826356,
+      "log": "artifacts/quality-swarm/continuation-in-place-observation-correction/12-command.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "workingDirectory": "scripts/acceptance/task-continuation"
+    }
+  ],
+  "diffCheckExitCode": 0,
+  "review": "Independent bounded source review found no remaining schema/selector/orchestration blocker. This is not runtime proof.",
+  "contract": {
+    "deadlineSeconds": 60,
+    "automaticStartResponseRequired": true,
+    "naturalNativeExitAndActualContainerAbsenceRequired": true,
+    "exactCapturedReportRequired": true,
+    "alreadyOpenTaskCardUpdateRequiredBeforeNavigation": true,
+    "homeExactBuildAttentionRequired": true,
+    "mutationFallback": false,
+    "queuedWorkRequired": false,
+    "dispatchPauseSupported": true
+  },
+  "retainedFailedAttempt": "scripts/acceptance/task-continuation/evidence/29be4018-attempt1.json",
+  "supersededPreparationReceipt": "artifacts/quality-swarm/continuation-automatic-observation-correction/verification.json",
+  "publication": {
+    "curatedAt": "2026-10-08T14:43:48.416727+00:00",
+    "receipt": "scripts/acceptance/task-continuation/evidence/automatic-observation-preparation.json",
+    "receiptAddedAfterVerification": true,
+    "receiptWasNotATestInput": true,
+    "manifestScope": "The 15 recorded files include helper code/tests, README and the retained failed-attempt receipt. They were identical before and after the controlled batch. This new publication receipt was added afterward and is intentionally absent from that manifest.",
+    "sourceState": "The checkoutHead records the base commit. The verified helper corrections were uncommitted working-tree bytes identified by the explicit SHA-256 manifest; this is not a clean installed-package assertion.",
+    "originalReceipt": "artifacts/quality-swarm/continuation-in-place-observation-correction/verification.json",
+    "originalReceiptSHA256": "d6d6499f888dd89d2367d61b4149cdfb2abd4e3b16047e885cde03b9bbb6ea19",
+    "logs": "Original command logs and earlier preparation artifacts remain retained under artifacts/quality-swarm. Their hashes are recorded here; no private fixture or credentials are published.",
+    "runtimeStatus": "Installed continuation remains unverified after the preserved 29be4018 failure. A matching CLOUD-017/018 package and a separately authorized exclusive runtime window are required."
+  }
+}

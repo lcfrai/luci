@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../../api';
+import { ApiError } from '../../api/client';
 import { errorText } from '../../api/product';
 import { projectRunsApi, runOperationNeedsRecovery, runOperationNeedsReview, runSessionRequest, type ProjectRun, type RunOperation, type SwarmTask } from '../../api/projectRuns';
 import { swarmTaskCapability } from '../../api/swarmTaskCapability';
@@ -20,6 +21,15 @@ import './project-swarm.css';
 const inFlight = (operation?: RunOperation) => !!operation && (runOperationNeedsRecovery(operation) || ['reserved', 'dispatching', 'running', 'unknown'].includes(operation.status) || operation.allocation === 'allocating' || operation.allocation === 'unknown');
 const integrated = (task: SwarmTask) => task.integration?.state === 'integrated';
 const operationFor = (run: ProjectRun, task: SwarmTask) => run.operations.find(item => item.id === task.operationId);
+const startIdentity = (run: ProjectRun, operation: RunOperation) => JSON.stringify([run.projectId, run.id, operation.id, operation.childId]);
+const awaitsObservation = (operation: RunOperation) => {
+  if (!operation.taskId || !operation.childId || !operation.worktreeId || operation.allocation !== 'ready') return false;
+  if (['dispatching', 'running', 'unknown'].includes(operation.status)) return true;
+  const modern = /^[a-f0-9]{64}$/.test(operation.dependencyContext?.digest ?? operation.implementation?.dependencyContextDigest ?? '');
+  // Cancellation can retire an unstarted reservation with no registry child;
+  // there will be no automatic completion report to wait for in that case.
+  return modern && !runOperationNeedsRecovery(operation) && ['review-required', 'succeeded', 'failed'].includes(operation.status) && !operation.handoff;
+};
 const unansweredQuestions = (operation?: RunOperation) => {
   const value = operation?.handoff;
   return value?.status === 'captured' && Number.isSafeInteger(value.questions) && value.questions >= 0 && value.questions <= 8 &&
@@ -42,7 +52,7 @@ function waitingReason(run: ProjectRun, task: SwarmTask) {
   if (overlap) return `Wait for ${overlap.title}: intended files overlap or have not been specified.`;
   return '';
 }
-function taskStatus(run: ProjectRun, task: SwarmTask, taskAllowed: boolean) {
+function taskStatus(run: ProjectRun, task: SwarmTask, taskAllowed: boolean, startAcknowledged = false) {
   if (integrated(task)) return 'Integrated';
   if (task.integration) return 'Integration outcome unconfirmed';
   const operation = operationFor(run, task);
@@ -52,6 +62,7 @@ function taskStatus(run: ProjectRun, task: SwarmTask, taskAllowed: boolean) {
   if (runOperationNeedsRecovery(operation)) return 'Recovery pending · finish recovery to release capacity';
   if (operation?.allocation === 'unknown') return 'Workspace outcome unconfirmed';
   if (operation?.allocation === 'allocating') return 'Preparing workspace';
+  if (startAcknowledged && operation && ['reserved', 'dispatching', 'unknown'].includes(operation.status)) return 'Started · current status unconfirmed';
   if (operation?.status === 'reserved') return 'Reserved · not started';
   if (operation?.status === 'running') return 'Recorded as running';
   if (operation?.status === 'dispatching' || operation?.status === 'unknown') return 'Start outcome unconfirmed';
@@ -84,16 +95,65 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
   const [handoff, setHandoff] = useState<{projectId: string; runId: string; operationId: string; childId: string} | null>(null);
   const [queuedTasks, setQueuedTasks] = useState<string[]>([]);
   const [queuedOperations, setQueuedOperations] = useState<string[]>([]);
+  const [queueConsent, setQueueConsent] = useState<string | null>(null);
   const queueSignature = useRef('');
   const [error, setError] = useState(''), [notice, setNotice] = useState('');
+  const [readNotice, setReadNotice] = useState(''), [readCycle, setReadCycle] = useState(0);
+  useEffect(() => { setReadNotice(''); }, [run.projectId, run.id]);
   const live = useRef(true), working = useRef(false), generation = useRef(0);
+  const backgroundRead = useRef<{controller: AbortController; epoch: number} | null>(null);
+  const readEpoch = useRef(0);
+  useEffect(() => { live.current = true; return () => { live.current = false; generation.current++; backgroundRead.current?.controller.abort(); }; }, []);
   const current = useRef({run, canEdit, canExecute, taskAllowed: capability.allowed}); current.current = {run, canEdit, canExecute, taskAllowed: capability.allowed};
   const authorityKey = `${run.projectId}:${run.id}:${canEdit}:${canExecute}:${capability.signature}`;
   const authority = useRef(authorityKey);
   if (authority.current !== authorityKey) { authority.current = authorityKey; generation.current++; }
+  const queueScope = JSON.stringify([run.projectId, run.id]);
   const keys = useRef(new Map<string, string>()), uncertain = useRef(new Set<string>());
+  const acknowledgedStarts = useRef(new Set<string>());
   const [, setUncertainVersion] = useState(0);
-  useEffect(() => { live.current = true; return () => { live.current = false; generation.current++; }; }, []);
+  const readReady = projectAccess.canRead && !projectAccess.loading && !projectAccess.error;
+  const pauseReads = busy || !!dialog || !!review || !!retire || !!launchRecovery || !!checkpoint || !!workspace || !!handoff || queueConsent === queueScope;
+  const readBoundary = JSON.stringify([run.projectId, run.id, readReady, pauseReads, canEdit, canExecute, capability.signature]);
+  const previousReadBoundary = useRef(readBoundary);
+  if (previousReadBoundary.current !== readBoundary) { previousReadBoundary.current = readBoundary; readEpoch.current++; }
+  const readState = useRef({readReady, pauseReads}); readState.current = {readReady, pauseReads};
+  const observing = !!run.swarm && run.operations.some(awaitsObservation);
+  useEffect(() => {
+    if (!readReady || pauseReads || !observing) return;
+    let stopped = false, denied = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const epoch = generation.current, boundary = readEpoch.current;
+    const usableRead = () => !stopped && live.current && generation.current === epoch && readEpoch.current === boundary &&
+      readState.current.readReady && !readState.current.pauseReads && !working.current;
+    const schedule = () => { clearTimeout(timer); if (usableRead() && !denied && document.visibilityState !== 'hidden') timer = setTimeout(() => void refresh(), 5000); };
+    async function refresh() {
+      if (!usableRead() || document.visibilityState === 'hidden') return;
+      if (backgroundRead.current) { schedule(); return; }
+      const controller = new AbortController(); backgroundRead.current = {controller, epoch: boundary};
+      try {
+        const value = await projectRunsApi.get(run.projectId, run.id, controller.signal);
+        if (!usableRead() || controller.signal.aborted) return;
+        if (value.revision > current.current.run.revision) remember(value, epoch);
+        setReadNotice('');
+      } catch (cause) {
+        if (!usableRead() || controller.signal.aborted) return;
+        denied = cause instanceof ApiError && (cause.status === 401 || cause.status === 403);
+        setReadNotice(denied ? 'Automatic status refresh was refused. Refresh project access before checking task status.'
+          : 'Automatic status refresh is unavailable. Showing the last recorded status; use Check team status to inspect it explicitly.');
+      } finally {
+        if (backgroundRead.current?.controller === controller) backgroundRead.current = null;
+        schedule();
+      }
+    }
+    const visibility = () => {
+      clearTimeout(timer);
+      if (document.visibilityState === 'hidden') backgroundRead.current?.controller.abort();
+      else schedule();
+    };
+    schedule(); document.addEventListener('visibilitychange', visibility);
+    return () => { stopped = true; clearTimeout(timer); backgroundRead.current?.controller.abort(); document.removeEventListener('visibilitychange', visibility); };
+  }, [run.projectId, run.id, readReady, pauseReads, observing, canEdit, canExecute, capability.signature, readCycle]);
   useEffect(() => { setReview(null); setApproved(false); setRetire(null); setLaunchRecovery(null); setCheckpoint(null); setDialog(null); }, [run.projectId, run.id, run.revision, canEdit, canExecute, capability.signature]);
   const usable = (epoch: number) => live.current && generation.current === epoch;
   const blocked = !!run.codingBlocker || !!run.contextFreshness && run.contextFreshness.status !== 'current' || ['cancelled', 'complete'].includes(run.state);
@@ -128,10 +188,11 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
   async function operate(label: string, action: (epoch: number) => Promise<void>, requires: 'read' | 'edit' | 'execute' = 'execute') {
     if (working.current || busy || requires !== 'read' && !canEdit || requires === 'execute' && !canExecute) return;
     const epoch = generation.current;
+    readEpoch.current++; backgroundRead.current?.controller.abort();
     working.current = true; onBusy(label); setError(''); setNotice('');
     try { await action(epoch); }
     catch (cause) { if (usable(epoch)) setError(errorText(cause)); }
-    finally { working.current = false; if (live.current) onBusy(''); }
+    finally { working.current = false; if (live.current) { onBusy(''); setReadCycle(value => value + 1); } }
   }
   async function control(action: 'pause' | 'resume' | 'cancel' | 'reconcile', epoch: number) {
     if (action === 'resume' && !current.current.taskAllowed) return;
@@ -152,17 +213,39 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
       saved = reservation.run; operation = reservation.operation;
     }
     if (!usable(epoch) || !current.current.canExecute || !current.current.canEdit || !current.current.taskAllowed) return;
-    if (operation.status !== 'reserved' || operation.allocation !== 'ready') throw new Error('Check team status before starting this reserved task. An uncertain start is never replayed.');
+    if (operation.status !== 'reserved' || operation.allocation !== 'ready' || acknowledgedStarts.current.has(startIdentity(saved, operation))) throw new Error('Check team status before starting this reserved task. An uncertain start is never replayed.');
     uncertain.current.add(task.id); setUncertainVersion(value => value + 1);
     const session = await api.createSession(runSessionRequest(saved, operation));
     if (!usable(epoch)) return;
     if (session.id !== operation.childId || session.worktreeId !== operation.worktreeId || session.projectId !== saved.projectId || session.projectRunId !== saved.id || session.projectRunOperationId !== operation.id) throw new Error('The session did not match its task reservation. Check team status before continuing.');
     useCockpit.getState().upsertSession(session);
-    const value = await projectRunsApi.get(saved.projectId, saved.id);
-    if (!remember(value, epoch)) return;
+    acknowledgedStarts.current.add(startIdentity(saved, operation));
     uncertain.current.delete(task.id); setUncertainVersion(value => value + 1);
-    setNotice('Task session started in its isolated workspace. Review its changes before integration, then verify the complete build.');
-    return value;
+    try {
+      // Session creation records dispatch intent. A read alone cannot join its
+      // registry observation into the run; reconcile once using a fresh CAS.
+      const latest = await projectRunsApi.get(saved.projectId, saved.id);
+      if (!usable(epoch)) return;
+      if (latest.revision < current.current.run.revision) throw new Error('A newer build revision is already visible.');
+      if (!remember(latest, epoch)) return;
+      const value = await projectSwarmApi.control(saved.projectId, saved.id, 'reconcile', latest.revision);
+      if (!usable(epoch)) return;
+      if (value.revision < current.current.run.revision) throw new Error('A newer build revision is already visible.');
+      if (!remember(value, epoch)) return;
+      const observedTask = value.swarm?.tasks.find(item => item.id === task.id);
+      const observed = observedTask && operationFor(value, observedTask);
+      if (!observed || observed.id !== operation.id || observed.childId !== operation.childId || ['reserved', 'dispatching', 'unknown'].includes(observed.status)) {
+        setNotice('Task started; its current status is still unconfirmed. Check team status before continuing. No start was repeated.');
+        return;
+      }
+      setNotice('Task session started in its isolated workspace. Its recorded status is shown below. Review its changes before integration, then verify the complete build.');
+      return value;
+    } catch (cause) {
+      if (usable(epoch)) setError(`Task started; current status could not be checked. Check team status before continuing. No start was repeated. ${errorText(cause)}`);
+      // The validated child remains in the session store. Stop this batch;
+      // neither a lost read nor a stale reconciliation authorizes a replay.
+      return;
+    }
   }
   async function startReady(epoch: number) {
     let saved = run;
@@ -182,13 +265,15 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
     setQueuedOperations(previous => previous.length === owned.length && previous.every((id, i) => id === owned[i]) ? previous : owned);
     const signature = JSON.stringify(items.map(item => [item.id, item.operationId, item.childId, item.state]));
     if (signature === queueSignature.current) return;
-    if (busy || working.current || !items.some(item => item.operationId)) return;
+    if (busy || working.current || readState.current.pauseReads || !readState.current.readReady || backgroundRead.current || !items.some(item => item.operationId)) return;
     queueSignature.current = signature;
-    const epoch = generation.current;
-    void projectRunsApi.get(run.projectId, run.id).then(value => {
-      if (usable(epoch) && !working.current && value.revision >= current.current.run.revision) remember(value, epoch);
+    const epoch = generation.current, boundary = readEpoch.current, controller = new AbortController();
+    backgroundRead.current = {controller, epoch: boundary};
+    void projectRunsApi.get(run.projectId, run.id, controller.signal).then(value => {
+      if (usable(epoch) && boundary === readEpoch.current && !controller.signal.aborted && !working.current && !readState.current.pauseReads && value.revision >= current.current.run.revision) remember(value, epoch);
       else if (queueSignature.current === signature) queueSignature.current = '';
-    }).catch(() => { if (queueSignature.current === signature) queueSignature.current = ''; });
+    }).catch(() => { if (queueSignature.current === signature) queueSignature.current = ''; })
+      .finally(() => { if (backgroundRead.current?.controller === controller) backgroundRead.current = null; });
   }
   async function readReview(task: SwarmTask, epoch: number) {
     const value = await projectSwarmApi.review(run.projectId, run, task.id);
@@ -286,23 +371,27 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
     </> : <>
       <p>{run.swarm.state === 'ready' ? capability.allowed ? 'New starts enabled' : 'New starts unavailable for this saved agent configuration' : run.swarm.state === 'paused' ? 'New starts paused' : 'Future starts cancelled'} · {active} of {run.swarm.maxParallel} agent slots occupied</p>
       <p className="journey-muted">Status is recorded, not a live process guarantee. Check team status after an interruption. Pausing future starts leaves existing agents running.</p>
+      {readNotice && <p role="status" className="journey-warning">{readNotice}</p>}
       <div className="journey-actions">
         <Button disabled={!canEdit || !canExecute || busy || blocked || !capability.allowed || !batchReady.length} onClick={() => void operate('Starting ready tasks', startReady)}>Start ready tasks{batchReady.length ? ` (${batchReady.length})` : ''}</Button>
         <Button variant="secondary" disabled={!canEdit || busy} onClick={() => void operate('Checking team status', epoch => control('reconcile', epoch), 'edit')}>Check team status</Button>
         {run.swarm.state === 'ready' ? <Button variant="tertiary" disabled={!canEdit || busy} onClick={() => void operate('Pausing new starts', epoch => control('pause', epoch), 'edit')}>Pause new starts</Button> : run.swarm.state === 'paused' ? <Button variant="secondary" disabled={!canEdit || !canExecute || busy || blocked || !capability.allowed} onClick={() => void operate('Enabling new starts', epoch => control('resume', epoch))}>Resume new starts</Button> : null}
         {run.swarm.state !== 'cancelled' && <Button variant="tertiary" disabled={!canEdit || busy} onClick={() => setDialog('cancel')}>Cancel remaining tasks</Button>}
       </div>
-      <SwarmRunQueue key={`${run.projectId}:${run.id}`} run={run} canEdit={canEdit} canExecute={canExecute} busy={busy} onBusy={onBusy} onQueueChange={queueChanged} />
+      <SwarmRunQueue key={`${run.projectId}:${run.id}`} run={run} canEdit={canEdit} canExecute={canExecute} busy={busy} onBusy={onBusy} onQueueChange={queueChanged}
+        onConsentChange={open => setQueueConsent(previous => open ? queueScope : previous === queueScope ? null : previous)} />
       <ol className="project-swarm-tasks">{tasks.map(task => {
         const operation = operationFor(run, task), reason = waitingReason(run, task);
         const uncertainStart = uncertain.current.has(task.id);
-        const resumable = operation?.status === 'reserved' && operation.allocation === 'ready';
+        const startAcknowledged = !!operation && acknowledgedStarts.current.has(startIdentity(run, operation));
+        const acknowledgedUnconfirmed = startAcknowledged && !!operation && ['reserved', 'dispatching', 'unknown'].includes(operation.status);
+        const resumable = operation?.status === 'reserved' && operation.allocation === 'ready' && !startAcknowledged;
         const queuedReservation = !!operation && resumable && queuedOperations.includes(operation.id);
         const retryable = operation && !runOperationNeedsRecovery(operation) && ['failed', 'cancelled'].includes(operation.status);
         const retained = run.operations.filter(item => item.taskId === task.id && item.id !== task.operationId);
         const earlierQuestions = retained.reduce((count, item) => count + unansweredQuestions(item), 0);
         return <li key={task.id} ref={element => { if (element) taskRows.current.set(task.id, element); else taskRows.current.delete(task.id); }}>
-          <div className="project-swarm-heading"><h4 tabIndex={-1} data-task-heading>{task.title}</h4><span>{taskStatus(run, task, capability.allowed)}</span></div>
+          <div className="project-swarm-heading"><h4 tabIndex={-1} data-task-heading>{task.title}</h4><span>{taskStatus(run, task, capability.allowed, startAcknowledged)}</span></div>
           {reason && <p>{reason}</p>}
           {queuedTasks.includes(task.id) && !operation && <p>Authorized in the background queue above. Luci will start it when its dependencies and capacity allow.</p>}
           {queuedReservation && <p>This reservation belongs to the background queue. Use its queue controls; if it cannot continue, retain its output and authorize a fresh attempt.</p>}
@@ -329,12 +418,12 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
             {!task.integration && (!operation || resumable || retryable) && <Button data-task-start variant="secondary" disabled={!canEdit || !canExecute || busy || blocked || !capability.allowed || !!reason || uncertainStart || queuedTasks.includes(task.id) || queuedReservation} onClick={() => void operate('Starting task', epoch => startTask(run, task, epoch).then(() => undefined))}>{resumable ? 'Continue reserved task' : retryable ? 'Retry in a new workspace' : 'Start task'}</Button>}
             {operation && !inFlight(operation) && !task.integration && <Button variant="secondary" disabled={busy} onClick={() => void operate('Reading task changes', epoch => readReview(task, epoch), 'read')}>Review task changes</Button>}
             {operation && <Button variant="tertiary" disabled={busy || !projectAccess.canRead} onClick={() => setHandoff({projectId: run.projectId, runId: run.id, operationId: operation.id, childId: operation.childId})}>Task result and questions</Button>}
-            {operation && operation.status === 'running' && !operation.absenceRetirement && !operation.recovery && operation.allocation === 'ready' && <Button variant="secondary" disabled={busy} onClick={() => void operate('Opening task session', () => onOpenSession(operation), 'read')}>Open task session</Button>}
+            {operation && (operation.status === 'running' || acknowledgedUnconfirmed) && !operation.absenceRetirement && !operation.recovery && operation.allocation === 'ready' && <Button variant="secondary" disabled={busy} onClick={() => void operate('Opening task session', () => onOpenSession(operation), 'read')}>Open task session</Button>}
           </div>
           {operation && <details className="project-swarm-more-actions">
             <summary>More task actions</summary>
             <div className="journey-actions">
-            {operation && operation.status !== 'running' && !operation.absenceRetirement && !operation.recovery && operation.allocation === 'ready' && operation.status !== 'reserved' && <Button variant="secondary" disabled={busy} onClick={() => void operate('Opening task session', () => onOpenSession(operation), 'read')}>Open task session</Button>}
+            {operation && operation.status !== 'running' && !acknowledgedUnconfirmed && !operation.absenceRetirement && !operation.recovery && operation.allocation === 'ready' && operation.status !== 'reserved' && <Button variant="secondary" disabled={busy} onClick={() => void operate('Opening task session', () => onOpenSession(operation), 'read')}>Open task session</Button>}
             {operation && !task.integration && !inFlight(operation) && operation.allocation === 'ready' && ['failed', 'cancelled', 'review-required', 'succeeded'].includes(operation.status) && <Button variant="secondary" disabled={busy || !canEdit || !canExecute || blocked || !capability.allowed || !!reason || queuedTasks.includes(task.id)} onClick={() => {
               setError(''); setCheckpoint({projectId: run.projectId, runId: run.id, taskId: task.id, operationId: operation.id, childId: operation.childId, revision: run.revision, epoch: generation.current});
             }}>Continue from retained changes</Button>}

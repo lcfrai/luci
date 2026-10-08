@@ -101,6 +101,16 @@ func (s *Server) RunSwarmSchedulerOnce(ctx context.Context) error {
 		s.swarmScheduler.policyRevision = row.PolicyRevision
 	}
 	s.swarmScheduler.mu.Unlock()
+	// Completion observation survives empty/paused queues and unavailable new
+	// execution authority, including a queue read failure. Exact report capture
+	// still requires intact ownership records; observation must not infer a
+	// missing queue binding from corrupt state. Failures leave durable rows
+	// pending, while unrelated scheduling retains its own admission checks.
+	if runtime.ObserveTasks != nil {
+		observationCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+		_ = runtime.ObserveTasks(observationCtx)
+		cancel()
+	}
 	if err != nil {
 		return err
 	}

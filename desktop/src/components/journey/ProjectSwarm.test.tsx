@@ -4,6 +4,7 @@ import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { api } from '../../api';
+import { ApiError } from '../../api/client';
 import { projectRunsApi, type ProjectRun, type RunOperation } from '../../api/projectRuns';
 import { projectSwarmApi, type SwarmReview } from '../../api/projectSwarm';
 import { swarmHarnessFixture, swarmRunFixture } from '../../test/swarmFixtures';
@@ -15,6 +16,7 @@ vi.mock('./SwarmRunQueue', () => ({ SwarmRunQueue: () => null }));
 const base = swarmRunFixture;
 const op = (run: ProjectRun, id: string, status = 'reserved'): RunOperation => ({id: `op-${id}`, kind: 'session', taskId: id, childId: `session-${id}`, worktreeId: `isolated-${id}`, attempt: 1, status, allocation: 'ready', baseCommit: 'a'.repeat(40), implementation: {...run.input.implementation, worktreeId: `isolated-${id}`, taskIds: [id], taskTitles: [`Build ${id}`]}, requestDigest: 'request', createdAt: run.createdAt, updatedAt: run.updatedAt});
 const attach = (run: ProjectRun, operation: RunOperation): ProjectRun => ({...run, revision: run.revision + 1, operations: [...run.operations.filter(item => item.id !== operation.id), operation], swarm: {...run.swarm!, tasks: run.swarm!.tasks.map(item => item.id === operation.taskId ? {...item, operationId: operation.id} : item)}});
+const child = (run: ProjectRun, operation: RunOperation) => aSession({id:operation.childId,worktreeId:operation.worktreeId!,projectId:run.projectId,projectRunId:run.id,projectRunOperationId:operation.id,status:'starting'});
 function Harness({initial = base(), canEdit = true, canExecute = true, updated = vi.fn()} : {initial?: ProjectRun; canEdit?: boolean; canExecute?: boolean; updated?: (run: ProjectRun) => void}) {
   const [run, setRun] = useState(initial), [busy, setBusy] = useState('');
   return <ProjectSwarm run={run} canEdit={canEdit} canExecute={canExecute} busy={!!busy} onBusy={setBusy} onUpdate={value => {setRun(value); updated(value);}} onOpenSession={vi.fn()} />;
@@ -73,7 +75,7 @@ it('does not launch a delayed reservation after a task capability is revoked and
   expect(create).not.toHaveBeenCalled(); expect(updated).not.toHaveBeenCalled();
 });
 
-it('starts independent tasks with separate captured contexts and keeps dependent work waiting', async () => {
+it('reconciles each acknowledged dispatch with a fresh revision before starting the next independent task', async () => {
   let saved = base();
   const reserve = vi.spyOn(projectSwarmApi, 'reserve').mockImplementation(async (_project, _run, id, revision) => {
     expect(revision).toBe(saved.revision);
@@ -81,32 +83,119 @@ it('starts independent tasks with separate captured contexts and keeps dependent
   });
   const create = vi.spyOn(api, 'createSession').mockImplementation(async request => {
     const operation = saved.operations.find(item => item.id === request.projectRunOperationId)!;
-    saved = attach(saved, {...operation, status: 'running'});
-    return aSession({id: operation.childId, worktreeId: operation.worktreeId!, projectId: 'p-1', projectRunId: 'run-1', projectRunOperationId: operation.id});
+    saved = attach(saved, {...operation, status: 'dispatching'});
+    return child(saved,operation);
   });
-  vi.spyOn(projectRunsApi, 'get').mockImplementation(async () => saved);
+  const get=vi.spyOn(projectRunsApi, 'get').mockImplementation(async () => saved);
+  const reconcile=vi.spyOn(projectSwarmApi,'control').mockImplementation(async(project,run,action,revision)=>{
+    expect([project,run,action,revision]).toEqual([saved.projectId,saved.id,'reconcile',saved.revision]);
+    const dispatching=saved.operations.find(item=>item.status==='dispatching')!;
+    saved=attach(saved,{...dispatching,status:'running'});return saved;
+  });
   render(<Harness />);
   expect(screen.getByText('Waiting for reviewed integration: Build a; Build b.')).not.toBeNull();
   await userEvent.click(screen.getByRole('button', {name: 'Start ready tasks (2)'}));
-  await waitFor(() => expect(create).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(screen.getAllByText('Recorded as running')).toHaveLength(2));
+  expect(create).toHaveBeenCalledTimes(2);expect(get).toHaveBeenCalledTimes(2);expect(reconcile).toHaveBeenCalledTimes(2);
+  expect(reserve.mock.calls.map(call=>call[3])).toEqual([1,4]);expect(reconcile.mock.calls.map(call=>call[3])).toEqual([3,6]);
   expect(reserve.mock.calls.map(call => call[2])).toEqual(['a', 'b']);
   expect(create.mock.calls.map(([request]) => [request.worktreeId, request.implementationContext?.taskIds, request.model, request.agentConnectionId])).toEqual([
     ['isolated-a', ['a'], 'recorded-model', 'saved'], ['isolated-b', ['b'], 'recorded-model', 'saved'],
   ]);
   expect(screen.getByText('New starts enabled · 2 of 2 agent slots occupied')).not.toBeNull();
   expect(screen.getByText('Waiting for reviewed integration: Build a; Build b.')).not.toBeNull();
+  expect(screen.queryByText('Start outcome unconfirmed')).toBeNull();expect(screen.getAllByRole('button',{name:'Open task session'})).toHaveLength(2);
+});
+
+it.each(['get-failure','reconcile-failure','reconcile-conflict'] as const)('retains the acknowledged child after %s without replaying or continuing the batch',async failure=>{
+  const initial=base(),operation=op(initial,'a'),reserved=attach(initial,operation),dispatching=attach(reserved,{...operation,status:'dispatching'});
+  const reserve=vi.spyOn(projectSwarmApi,'reserve').mockResolvedValue({run:reserved,operation});
+  const session=child(reserved,operation),create=vi.spyOn(api,'createSession').mockResolvedValue(session);
+  const get=vi.spyOn(projectRunsApi,'get');
+  if(failure==='get-failure')get.mockRejectedValue(new Error('Status unavailable.'));else get.mockResolvedValue(dispatching);
+  const reconcile=vi.spyOn(projectSwarmApi,'control').mockRejectedValue(failure==='reconcile-conflict'?new ApiError('conflict','Build changed.',409):new Error('Observation unavailable.'));
+  render(<Harness initial={initial}/>);await userEvent.click(screen.getByRole('button',{name:'Start ready tasks (2)'}));
+  await screen.findByText(/Task started; current status could not be checked/);
+  expect(screen.getByText('Started · current status unconfirmed')).not.toBeNull();
+  expect(screen.queryByText('Start outcome unconfirmed')).toBeNull();expect(screen.queryByText('Reserved · not started')).toBeNull();
+  expect(screen.queryByText(/The start result is unconfirmed/)).toBeNull();
+  expect(screen.queryByRole('button',{name:'Continue reserved task'})).toBeNull();
+  expect(screen.getByRole('button',{name:'Open task session'})).toHaveProperty('disabled',false);
+  expect(useCockpit.getState().sessions[session.id]).toEqual(session);
+  expect(reserve).toHaveBeenCalledOnce();expect(create).toHaveBeenCalledOnce();expect(get).toHaveBeenCalledOnce();
+  expect(reconcile).toHaveBeenCalledTimes(failure==='get-failure'?0:1);
+});
+
+it('preserves authoritative terminal status when the acknowledged worker has already exited',async()=>{
+  const initial=base(),operation=op(initial,'a'),reserved=attach(initial,operation),dispatching=attach(reserved,{...operation,status:'dispatching'});
+  vi.spyOn(projectSwarmApi,'reserve').mockResolvedValue({run:reserved,operation});vi.spyOn(api,'createSession').mockResolvedValue(child(reserved,operation));
+  vi.spyOn(projectRunsApi,'get').mockResolvedValue(dispatching);vi.spyOn(projectSwarmApi,'control').mockResolvedValue(attach(dispatching,{...operation,status:'review-required'}));
+  render(<Harness/>);await userEvent.click(screen.getAllByRole('button',{name:'Start task'})[0]);
+  await screen.findByText('Awaiting review');expect(screen.queryByText('Recorded as running')).toBeNull();
+  expect(screen.queryByText('Start outcome unconfirmed')).toBeNull();expect(screen.getByRole('button',{name:'Review task changes'})).not.toBeNull();
+});
+
+it.each(['get','reconcile'] as const)('refuses stale %s observations without replacing a newer run or replaying',async stage=>{
+  const initial=base(),operation=op(initial,'a'),reserved=attach(initial,operation),dispatching=attach(reserved,{...operation,status:'dispatching'});
+  vi.spyOn(projectSwarmApi,'reserve').mockResolvedValue({run:reserved,operation});const create=vi.spyOn(api,'createSession').mockResolvedValue(child(reserved,operation));
+  vi.spyOn(projectRunsApi,'get').mockResolvedValue(stage==='get'?initial:dispatching);
+  const reconcile=vi.spyOn(projectSwarmApi,'control').mockResolvedValue(reserved),updated=vi.fn();
+  render(<Harness updated={updated}/>);await userEvent.click(screen.getAllByRole('button',{name:'Start task'})[0]);
+  await screen.findByText(/Task started; current status could not be checked/);
+  expect(updated.mock.calls.map(([run])=>run.revision)).toEqual(stage==='get'?[2]:[2,3]);
+  expect(create).toHaveBeenCalledOnce();expect(reconcile).toHaveBeenCalledTimes(stage==='get'?0:1);
+});
+
+it.each(['get','reconcile'] as const)('fences a late %s response after execution authority is revoked and restored',async stage=>{
+  const initial=base(),operation=op(initial,'a'),reserved=attach(initial,operation),dispatching=attach(reserved,{...operation,status:'dispatching'});
+  let finish!:(value:ProjectRun)=>void;const delayed=new Promise<ProjectRun>(resolve=>{finish=resolve;});
+  vi.spyOn(projectSwarmApi,'reserve').mockResolvedValue({run:reserved,operation});const create=vi.spyOn(api,'createSession').mockResolvedValue(child(reserved,operation));
+  const get=vi.spyOn(projectRunsApi,'get').mockReturnValue(stage==='get'?delayed:Promise.resolve(dispatching));
+  const reconcile=vi.spyOn(projectSwarmApi,'control').mockReturnValue(delayed),updated=vi.fn();
+  const view=render(<Harness updated={updated}/>);await userEvent.click(screen.getAllByRole('button',{name:'Start task'})[0]);
+  await waitFor(()=>expect(stage==='get'?get:reconcile).toHaveBeenCalledOnce());
+  const updates=updated.mock.calls.length;view.rerender(<Harness updated={updated} canExecute={false}/>);view.rerender(<Harness updated={updated}/>);
+  await act(async()=>finish(attach(dispatching,{...operation,status:'running'})));
+  expect(updated).toHaveBeenCalledTimes(updates);expect(reconcile).toHaveBeenCalledTimes(stage==='get'?0:1);expect(create).toHaveBeenCalledOnce();
+  expect(screen.queryByText('Recorded as running')).toBeNull();
+});
+
+it('does not inspect or upsert a late successful create after switching project and run',async()=>{
+  const initial=base(),operation=op(initial,'a'),reserved=attach(initial,operation);
+  let finish!:(value:ReturnType<typeof child>)=>void;const create=vi.spyOn(api,'createSession').mockReturnValue(new Promise(resolve=>{finish=resolve;}));
+  vi.spyOn(projectSwarmApi,'reserve').mockResolvedValue({run:reserved,operation});const get=vi.spyOn(projectRunsApi,'get'),reconcile=vi.spyOn(projectSwarmApi,'control');
+  const props={canEdit:true,canExecute:true,busy:false,onBusy:vi.fn(),onUpdate:vi.fn(),onOpenSession:vi.fn()};
+  const view=render(<ProjectSwarm {...props} run={initial}/>);await userEvent.click(screen.getAllByRole('button',{name:'Start task'})[0]);
+  await waitFor(()=>expect(create).toHaveBeenCalledOnce());view.rerender(<ProjectSwarm {...props} run={{...initial,id:'other-run',projectId:'other-project'}}/>);
+  await act(async()=>finish(child(reserved,operation)));
+  expect(get).not.toHaveBeenCalled();expect(reconcile).not.toHaveBeenCalled();expect(useCockpit.getState().sessions[operation.childId]).toBeUndefined();
 });
 
 it('does not silently retry a lost start response and keeps the reserved child visible', async () => {
   const initial = base(), operation = op(initial, 'a'), saved = attach(initial, operation);
   const reserve = vi.spyOn(projectSwarmApi, 'reserve').mockResolvedValue({run: saved, operation});
   const create = vi.spyOn(api, 'createSession').mockRejectedValue(new Error('Connection interrupted'));
+  const get=vi.spyOn(projectRunsApi,'get'),reconcile=vi.spyOn(projectSwarmApi,'control');
   render(<Harness initial={initial} />);
   await userEvent.click(screen.getAllByRole('button', {name: 'Start task'})[0]);
   await screen.findByRole('alert');
   expect(screen.getByText(/start result is unconfirmed/)).not.toBeNull();
   expect(screen.getByRole('button', {name: 'Continue reserved task'})).toHaveProperty('disabled', true);
   expect(reserve).toHaveBeenCalledTimes(1); expect(create).toHaveBeenCalledTimes(1);
+  expect(get).not.toHaveBeenCalled();expect(reconcile).not.toHaveBeenCalled();
+});
+
+it('does not acknowledge or reconcile a successful response for a different child',async()=>{
+  const initial=base(),operation=op(initial,'a'),saved=attach(initial,operation);
+  vi.spyOn(projectSwarmApi,'reserve').mockResolvedValue({run:saved,operation});
+  const create=vi.spyOn(api,'createSession').mockResolvedValue({...child(saved,operation),id:'foreign-child'});
+  const get=vi.spyOn(projectRunsApi,'get'),reconcile=vi.spyOn(projectSwarmApi,'control');
+  render(<Harness/>);await userEvent.click(screen.getAllByRole('button',{name:'Start task'})[0]);
+  await screen.findByText(/session did not match its task reservation/);
+  expect(screen.getByText(/The start result is unconfirmed/)).not.toBeNull();
+  expect(screen.getByRole('button',{name:'Continue reserved task'})).toHaveProperty('disabled',true);
+  expect(useCockpit.getState().sessions['foreign-child']).toBeUndefined();
+  expect(create).toHaveBeenCalledOnce();expect(get).not.toHaveBeenCalled();expect(reconcile).not.toHaveBeenCalled();
 });
 
 it('fences a delayed reservation after execution authority changes, even if later restored', async () => {

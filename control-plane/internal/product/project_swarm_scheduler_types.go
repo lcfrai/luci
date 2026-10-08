@@ -38,6 +38,9 @@ type SwarmDispatchResult struct {
 	Message    string `json:"message,omitempty"`
 }
 type SwarmSchedulerRuntime struct {
+	// ObserveTasks records existing terminal task output independently of queue
+	// admission. It never starts work or supplies execution authority.
+	ObserveTasks func(context.Context) error
 	CaptureActor func(context.Context, string) (management.ExecutionActorRef, error)
 	Admit        func(context.Context, SwarmAdmissionRequest) (SwarmAdmissionResult, error)
 	Dispatch     func(context.Context, SwarmDispatchRequest) (SwarmDispatchResult, error)

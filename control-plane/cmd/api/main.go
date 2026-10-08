@@ -299,10 +299,11 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		executionReady.Store(true)
 	}
 	handler, err := api.New(api.Deps{
-		ExecutionStateDir: executionStateDir,
-		ResourceSnapshot:  sampler.Latest,
-		ExecutionReady:    executionReady.Load,
-		ManagedExecution:  cfg.Worker,
+		ObserveTaskCompletions: true,
+		ExecutionStateDir:      executionStateDir,
+		ResourceSnapshot:       sampler.Latest,
+		ExecutionReady:         executionReady.Load,
+		ManagedExecution:       cfg.Worker,
 		AuthorizeExecutionControl: func(ctx context.Context, ref management.ExecutionActorRef) error {
 			if !executionReady.Load() || executionControlAuthority == nil {
 				return management.ErrExecutionAuthority

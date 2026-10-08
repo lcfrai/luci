@@ -1,0 +1,177 @@
+{
+  "issue": "CLOUD-018",
+  "status": "source-verification-passed-installed-retest-pending",
+  "environment": {
+    "os": "Linux",
+    "architecture": "amd64",
+    "go": "go1.26.3",
+    "GOMAXPROCS": 2,
+    "raceDetector": true
+  },
+  "sourceProvenance": "Uncommitted CLOUD-018 source on base 29be4018f951ba2b3f33ae63067e4b7257da0c7a. Each command binds all control-plane Go files and workspace/module files by SHA-256 before and after; equal manifests prove only those inputs unchanged. Frontend and docs edits outside those inputs were allowed. No later commit is inferred.",
+  "batches": [
+    {
+      "id": "diagnostic",
+      "verification": {
+        "startedAt": "2026-10-08T14:41:36.347047+00:00",
+        "finishedAt": "2026-10-08T14:43:59.197047+00:00",
+        "durationSeconds": 142.8500022259832,
+        "GOMAXPROCS": 2,
+        "results": [
+          {
+            "command": [
+              "go",
+              "test",
+              "-race",
+              "-p",
+              "1",
+              "-count=1",
+              "-timeout=5m",
+              "-json",
+              "./control-plane/internal/registry",
+              "./control-plane/cmd/api"
+            ],
+            "exitCode": 0,
+            "testOutcomes": {
+              "pass": 279,
+              "skip": 3
+            },
+            "packageOutcomes": {
+              "pass": 2
+            },
+            "failures": []
+          },
+          {
+            "command": [
+              "go",
+              "test",
+              "-race",
+              "-p",
+              "1",
+              "-count=1",
+              "-timeout=5m",
+              "-json",
+              "./control-plane/internal/api",
+              "./control-plane/internal/product",
+              "-run",
+              "Test(TaskCompletionObserver|TaskHandoff|StoppedTaskCleanup|ConfirmStoppedTaskCleanup|ProjectRun.*Session|SwarmScheduler|ProjectSwarmScheduler|Cloud011Orchestrator)"
+            ],
+            "exitCode": 0,
+            "testOutcomes": {
+              "pass": 77
+            },
+            "packageOutcomes": {
+              "pass": 2
+            },
+            "failures": []
+          }
+        ],
+        "sourceInputs": 674,
+        "changedInputs": [],
+        "headAtStart": "29be4018f951ba2b3f33ae63067e4b7257da0c7a",
+        "passed": true
+      },
+      "expectedSkips": [
+        {
+          "package": "github.com/lcfrai/luci/control-plane/cmd/api",
+          "test": "TestServeRefusesAWorktreeSwappedInsideAConversationStore",
+          "reason": "Windows junction/reparse-point assertion is not applicable on Linux."
+        },
+        {
+          "package": "github.com/lcfrai/luci/control-plane/cmd/api",
+          "test": "TestNewScannerRefusesAWorktreeSwappedInsideAConversationStore/the_location_itself",
+          "reason": "Windows junction/reparse-point assertion is not applicable on Linux."
+        },
+        {
+          "package": "github.com/lcfrai/luci/control-plane/cmd/api",
+          "test": "TestNewScannerRefusesAWorktreeSwappedInsideAConversationStore/a_directory_on_the_way",
+          "reason": "Windows junction/reparse-point assertion is not applicable on Linux."
+        }
+      ],
+      "artifacts": {
+        "report.json": "740128c2d752e2286c14b4c30bdd9e148524a45a3cb2c9de8c0c54e64f521095",
+        "source-after.json": "df8e6dac8721085de26a4cc7e362d3c05f4b8cb5af69cd1cb0037a1d85eec5d1",
+        "source-before.json": "df8e6dac8721085de26a4cc7e362d3c05f4b8cb5af69cd1cb0037a1d85eec5d1",
+        "test-events-0.jsonl": "fd87a0b4441ffd166e46cfb9466d5e7990adf9ff52c0d9527dc6c3974065d0b2",
+        "test-events-1.jsonl": "c703b662d6b90ecd1dd15ea10195308763c6abfba9590553138e3ddd9ac31b67"
+      },
+      "publicSourceManifest": "diagnostic/tested-source.json",
+      "publicOutcomes": "diagnostic/outcomes.json"
+    },
+    {
+      "id": "queue-read-followup",
+      "verification": {
+        "startedAt": "2026-10-08T14:48:45.993147+00:00",
+        "finishedAt": "2026-10-08T14:49:56.459742+00:00",
+        "durationSeconds": 70.46650067000883,
+        "GOMAXPROCS": 2,
+        "results": [
+          {
+            "command": [
+              "go",
+              "test",
+              "-race",
+              "-p",
+              "1",
+              "-count=1",
+              "-timeout=5m",
+              "-json",
+              "./control-plane/internal/api",
+              "./control-plane/internal/product",
+              "-run",
+              "Test(TaskCompletionObserver|SwarmSchedulerCorruptOrCopiedLedgerNeverRepairsOrDispatches)"
+            ],
+            "exitCode": 0,
+            "testOutcomes": {
+              "pass": 14
+            },
+            "packageOutcomes": {
+              "pass": 2
+            },
+            "failures": []
+          }
+        ],
+        "sourceInputs": 674,
+        "changedInputs": [],
+        "headAtStart": "29be4018f951ba2b3f33ae63067e4b7257da0c7a",
+        "passed": true
+      },
+      "expectedSkips": [],
+      "artifacts": {
+        "report.json": "579e8cb36708381a484e7d98246a7a45e11b75030f43176da27dfc89fd466cb6",
+        "source-after.json": "54e043765cb0cde7476182622f606c9ec7a1c8fc999b81f9e99f0c72ec086656",
+        "source-before.json": "54e043765cb0cde7476182622f606c9ec7a1c8fc999b81f9e99f0c72ec086656",
+        "test-events-0.jsonl": "38a3cfdab25f2354d80161c3713dcd2d1c701777fca27871327895d63c7f3be6"
+      },
+      "publicSourceManifest": "queue-read-followup/tested-source.json",
+      "publicOutcomes": "queue-read-followup/outcomes.json"
+    }
+  ],
+  "claims": [
+    "Manual task completion uses the existing scheduler wake/timer independently of queue items and dispatch pause; GET routes remain read-only.",
+    "Bounded registry selection scans at most128 metadata entries and returns at most8 candidates per turn; it copies no full captured context for inactive history.",
+    "Real HTTP session creation, private Git/context, registry persistence and real reaper logic are exercised with explicitly controlled backend process states.",
+    "Exact child/project/run/operation/request/sandbox generation is checked before capture and again before the durable completion watermark; generation-changing updates clear an existing watermark.",
+    "Restart retries after exact stopped cleanup or a transient lifecycle lock; cleanup failure does not release held capacity.",
+    "Recorded worker claims and unanswered questions reach the canonical handoff and Home attention without being accepted as verified checks or integration.",
+    "Malformed queue data does not suppress a recorded terminal fact. Unprovable report ownership stays pending, the private queue is neither repaired nor dispatched, and restored ownership allows capture.",
+    "Observation errors retain pending rows and produce a bounded local warning when the aggregate error changes; identical consecutive errors do not flood the log."
+  ],
+  "limits": [
+    "Controlled backend mechanics, not live-model reasoning, real Docker lifecycle, native Windows execution, installed-browser acceptance, or a performance guarantee.",
+    "The installed continuation witness and selected-view refresh are separate verification scopes and were still pending at this receipt.",
+    "Report capture still fails closed when its private queue/lease ownership or exact stopped/fenced proof cannot be validated. No queue-corruption repair is implemented.",
+    "A pre-existing full Go/sandbox run retained a separate terminal-transport failure; these focused passes do not replace that entire run.",
+    "The three skipped assertions require native Windows junction/reparse-point behavior."
+  ],
+  "failureLineage": {
+    "theseBatches": "No test failures or input changes in either CLOUD-018 batch.",
+    "priorFullBatch": {
+      "artifact": "artifacts/quality-swarm/cloud010-012-integrated/go/report.json",
+      "passedTests": 3023,
+      "skippedTests": 29,
+      "failedTests": 1,
+      "failure": "sandboxd TestLargeStdinFrameIsAccepted: terminal output consumer too slow; separate CLOUD-016 follow-up, not hidden by this receipt."
+    }
+  }
+}

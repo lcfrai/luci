@@ -1,0 +1,11 @@
+# CLOUD-018: selected task status refresh
+
+The selected swarm run now reads recorded status every five seconds while visible and while an eligible task is active or awaiting its captured report. This makes automatic backend completion visible in place: the task changes to **Awaiting review**, with its review/result controls and reported-question cue. These reads do not start, reconcile, integrate or approve work.
+
+[Verification receipt](verification.json) records **122 passing tests across 8 affected files**, no failed/skipped/todo tests, and a passing TypeScript check. The final check ran from **2026-10-08 14:59:46 to 15:00:38 UTC**, with [433 unchanged frontend inputs](final-source-inputs.json). This was dirty source based on `29be4018f951ba2b3f33ae63067e4b7257da0c7a`; that commit alone does not contain the correction. Exact commands, UTC boundaries, changed-file hashes and raw-artifact hashes accompany the receipt.
+
+The tests exercise one in-flight request, visibility recovery, late scope/revocation responses, monotonically newer revisions, final report states, permission refusal, stable focus, and integration/queue consent that stays open during completion. Queue priority remains selected; no task is enqueued by a refresh. An unstarted cancellation or finalized recovery does not leave an idle polling loop waiting for a nonexistent worker report. Explicit status inspection remains available.
+
+The initial batch passed 107 tests but failed TypeScript because an operation's handoff reference cannot have the `not-recorded` status; absence represents that state. The corrected batch passed 108 tests. Protecting the child queue dialog then passed 119 tests. The final cancelled-attempt exclusion and three regressions produced 122 passing tests. Every stage and its input manifest is retained in the receipt; these repeated counts are not additive.
+
+These are controlled component/API contract checks, not installed, Docker, native Windows, live-model or performance acceptance. No browser, provider or Docker workload was started. The [backend observer receipt](../verification.json) is separate. Matching-package acceptance must still show an actual worker's completion reaching the already-open view without navigation or manual reconciliation.

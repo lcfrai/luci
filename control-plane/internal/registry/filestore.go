@@ -60,6 +60,11 @@ type FileStore struct {
 	sessions map[string]Session
 	order    []string // session ids in creation order; List preserves it
 
+	// These lookup indexes are ephemeral. They change only after a successful
+	// document publication, under mu, and are rebuilt when the store opens.
+	operationSessions map[string]map[string]struct{}
+	legacyRunSessions map[string]map[string]struct{}
+
 	// flags is the per-worktree state the control plane owns, keyed by worktree
 	// id. It lives beside the sessions in the same document and is written by
 	// the same atomic replace, so a crash cannot leave the two disagreeing.
@@ -78,9 +83,11 @@ type FileStore struct {
 // schemaVersion is an error — see load.
 func NewFileStore(path string) (*FileStore, error) {
 	s := &FileStore{
-		path:     path,
-		sessions: make(map[string]Session),
-		flags:    make(map[string]WorktreeFlags),
+		path:              path,
+		sessions:          make(map[string]Session),
+		flags:             make(map[string]WorktreeFlags),
+		operationSessions: make(map[string]map[string]struct{}),
+		legacyRunSessions: make(map[string]map[string]struct{}),
 	}
 	if err := s.load(); err != nil {
 		return nil, err
@@ -139,6 +146,7 @@ func (s *FileStore) load() error {
 		}
 		s.sessions[sess.ID] = sess
 		s.order = append(s.order, sess.ID)
+		s.indexTaskSessionLocked(sess)
 	}
 	for id, flags := range doc.WorktreeFlags {
 		if id == "" {
@@ -232,6 +240,7 @@ func (s *FileStore) Create(sess Session) error {
 		s.order = s.order[:len(s.order)-1]
 		return err
 	}
+	s.indexTaskSessionLocked(rec)
 	return nil
 }
 
@@ -313,6 +322,11 @@ func (s *FileStore) Update(id string, mutate func(*Session) error) (Session, err
 		// would rename the session with nothing to show why.
 		return Session{}, fmt.Errorf("registry: Update %s: mutate changed the session id to %q", id, working.ID)
 	}
+	if before.TaskObservationComplete && !sameTaskObservationGeneration(before, working) {
+		// A watermark from an older task binding/outcome must never suppress
+		// observation of a replacement, even when the mutator copied it along.
+		working.TaskObservationComplete = false
+	}
 
 	// The store owns both stamps: CreatedAt is a fact about the past, and
 	// UpdatedAt is what the cockpit sorts and ages by, so neither is left to the
@@ -331,6 +345,8 @@ func (s *FileStore) Update(id string, mutate func(*Session) error) (Session, err
 		s.sessions[id] = before
 		return Session{}, err
 	}
+	s.unindexTaskSessionLocked(before)
+	s.indexTaskSessionLocked(committed)
 	return committed.Clone(), nil
 }
 
@@ -366,6 +382,7 @@ func (s *FileStore) Delete(id string) error {
 		s.order = prevOrder
 		return err
 	}
+	s.unindexTaskSessionLocked(before)
 	return nil
 }
 
