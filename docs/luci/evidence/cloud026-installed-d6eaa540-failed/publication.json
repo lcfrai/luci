@@ -336,8 +336,8 @@
     },
     {
       "path": ".gitattributes",
-      "bytes": 62,
-      "sha256": "f3dd97a7fb5258d837e7afde8078a11aab1aa336703b7d26cab1d25d1efc3480",
+      "bytes": 92,
+      "sha256": "9b69265e90badcec1381ad924cbd69707dc5613e891591c9103c39aff19d17d1",
       "originalPath": null,
       "note": "Publication explanatory metadata; not a captured runtime original."
     },
@@ -362,5 +362,16 @@
       "originalPath": null,
       "note": "Publication explanatory metadata; not a captured runtime original."
     }
-  ]
+  ],
+  "publicationMetadataCorrection": {
+    "previousPublishedRevision": "dfcf349d23c54d1daa21a0f99aa91b5533d0ed9e",
+    "reason": "Root added a scoped whitespace exemption for verbatim Vite build output before staging; correct its metadata digest. Raw run evidence is unchanged.",
+    "previousAttributesEntry": {
+      "path": ".gitattributes",
+      "bytes": 62,
+      "sha256": "f3dd97a7fb5258d837e7afde8078a11aab1aa336703b7d26cab1d25d1efc3480",
+      "originalPath": null,
+      "note": "Publication explanatory metadata; not a captured runtime original."
+    }
+  }
 }
