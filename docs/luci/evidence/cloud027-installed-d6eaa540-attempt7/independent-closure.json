@@ -1,0 +1,35 @@
+{
+  "at": "2026-10-08T20:57:20.164741+00:00",
+  "scope": "Independent read-only inventory after failed fixture/controller/proxy exit. No allocation removal, state edit or product capacity release.",
+  "containers": [],
+  "volumes": [],
+  "controllersStopped": true,
+  "driverCleanupCertified": false,
+  "driverDockerRequestsDrained": false,
+  "proxyCloseObservation": {
+    "closedAt": "2026-10-08T20:53:18.751Z",
+    "pendingRequests": 0,
+    "activeHandlers": 0,
+    "pendingBodyBytes": 0,
+    "uncertainMutation": false,
+    "drained": true
+  },
+  "retainedWorkerLeases": 0,
+  "retainedCheckLeases": [
+    {
+      "state": "creating",
+      "id": "checkexec-3dd51b08a625b6a854496e17",
+      "memoryMiB": 1024,
+      "cpuMillis": 1000
+    }
+  ],
+  "checkReceipts": [
+    {
+      "id": "check-f12ba20e05c62f619727b2eb",
+      "status": "unknown",
+      "reasonCode": "check_create_unconfirmed",
+      "resourcesHeld": true
+    }
+  ],
+  "privateLedgerSHA256": "9788f64a3b5a0825433433f7161ed231f0f0d8850db44d580e00c4443a17ab74"
+}

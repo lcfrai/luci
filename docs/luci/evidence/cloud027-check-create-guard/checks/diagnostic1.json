@@ -1,0 +1,57 @@
+{
+  "at": "2026-10-08T20:59:47.911731+00:00",
+  "scope": "Offline source-contract, durable checkpoint and exact driver seam; synthetic checks, no Docker/browser/API/application/network.",
+  "inputs": {
+    "scripts/acceptance/task-dependencies/dag.mjs": "1b39edb0c583c5cc171b7fc96f1812754b8d34a6c781821d1ea2757a9ed31c2f",
+    "scripts/acceptance/task-dependencies/identify-create-guard.mjs": "1fea09704ec11be34ab7b2184482462ab9d69f8aea3b923fc818a53b0ce3ec70",
+    "scripts/acceptance/task-dependencies/identify-create-guard.test.mjs": "a591651cf150b0a5f86a4a40c13f9bc13e49b101dc7e4c10a6b7f36842b4e3dc",
+    "scripts/acceptance/task-dependencies/project-check-guard.mjs": "4b4ff5957955c3e26d7153a808e518e6a4431f10878659e44bfc6c915486876f",
+    "scripts/acceptance/task-dependencies/project-check-guard.test.mjs": "48fe466d8df0c74a4aed8181bcc66fd72b0e3fd17e2aa50164cccb31274db391",
+    "scripts/acceptance/task-dependencies/source-read-cohort.mjs": "bc4a630ffe43ad711e423f19afb6e614679151d3d2bce5f92774e005c42b9356",
+    "scripts/acceptance/task-dependencies/source-read-cohort.test.mjs": "ea49f839acc1fc64658525dc57b63c843a77b17f344a05ad9c4f57cfde517bc0",
+    "scripts/acceptance/task-dependencies/stale-review-probe.mjs": "79aa3ec4acd6c597fbd79c2bba2594355252bd8d49f16777f212e427563d263a",
+    "scripts/acceptance/task-dependencies/stale-review-probe.test.mjs": "4824669aa540caa9fb64428f4581651a05ce70682ba0f8b00a322c951456b206"
+  },
+  "inputsAfter": {
+    "scripts/acceptance/task-dependencies/dag.mjs": "1b39edb0c583c5cc171b7fc96f1812754b8d34a6c781821d1ea2757a9ed31c2f",
+    "scripts/acceptance/task-dependencies/identify-create-guard.mjs": "1fea09704ec11be34ab7b2184482462ab9d69f8aea3b923fc818a53b0ce3ec70",
+    "scripts/acceptance/task-dependencies/identify-create-guard.test.mjs": "a591651cf150b0a5f86a4a40c13f9bc13e49b101dc7e4c10a6b7f36842b4e3dc",
+    "scripts/acceptance/task-dependencies/project-check-guard.mjs": "4b4ff5957955c3e26d7153a808e518e6a4431f10878659e44bfc6c915486876f",
+    "scripts/acceptance/task-dependencies/project-check-guard.test.mjs": "48fe466d8df0c74a4aed8181bcc66fd72b0e3fd17e2aa50164cccb31274db391",
+    "scripts/acceptance/task-dependencies/source-read-cohort.mjs": "bc4a630ffe43ad711e423f19afb6e614679151d3d2bce5f92774e005c42b9356",
+    "scripts/acceptance/task-dependencies/source-read-cohort.test.mjs": "ea49f839acc1fc64658525dc57b63c843a77b17f344a05ad9c4f57cfde517bc0",
+    "scripts/acceptance/task-dependencies/stale-review-probe.mjs": "79aa3ec4acd6c597fbd79c2bba2594355252bd8d49f16777f212e427563d263a",
+    "scripts/acceptance/task-dependencies/stale-review-probe.test.mjs": "4824669aa540caa9fb64428f4581651a05ce70682ba0f8b00a322c951456b206"
+  },
+  "unchanged": true,
+  "results": [
+    {
+      "command": [
+        "node",
+        "--check",
+        "scripts/acceptance/task-dependencies/dag.mjs"
+      ],
+      "exitCode": 0
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "scripts/acceptance/task-dependencies/identify-create-guard.mjs"
+      ],
+      "exitCode": 0
+    },
+    {
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=1",
+        "scripts/acceptance/task-dependencies/identify-create-guard.test.mjs",
+        "scripts/acceptance/task-dependencies/project-check-guard.test.mjs",
+        "scripts/acceptance/task-dependencies/source-read-cohort.test.mjs",
+        "scripts/acceptance/task-dependencies/stale-review-probe.test.mjs"
+      ],
+      "exitCode": 0
+    }
+  ]
+}

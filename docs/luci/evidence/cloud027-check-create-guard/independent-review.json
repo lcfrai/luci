@@ -1,0 +1,11 @@
+{
+  "reviewer": "/root/check_frontend/cohort_review",
+  "scope": "Read-only source review. No edits, tests, runtime checks, commits or pushes.",
+  "result": "No concrete problems found in reviewed scope.",
+  "checked": [
+    "22-character URL-safe owner regex matches management.opaqueID(user-).",
+    "Exact bootstrap owner/project binding remains enforced by unchanged assert.deepEqual(lease.actor, actor) and identity checks.",
+    "Diagnostics contain bounded metadata, body size/hash, error classification and allowlisted basename locations, no payload or error text.",
+    "Both identity phases persist diagnostics before forwarding; guard or persistence failures prevent forwarding."
+  ]
+}

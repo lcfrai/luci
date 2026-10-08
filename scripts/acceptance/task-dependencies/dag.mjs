@@ -17,6 +17,7 @@ import {verifyTaskContextDelivery} from '../task-context-delivery.mjs';
 import {recordDependencyProbe,assertDependencyRefusal} from './dependency-probe.mjs';
 import {probeStaleReview} from './stale-review-probe.mjs';
 import {observeSourceReadCohort,sourceReadUI} from './source-read-cohort.mjs';
+import {assertBootstrapOwnerID,diagnoseCreateGuard} from './identify-create-guard.mjs';
 import {selectAuthorizedTask,taskFailureDiagnostic,assertExactTaskFailure} from './queued-failure.mjs';
 import {checkCommand,validateCheckCreate,assertRecordedCheck,assertCheckCapacity,assertJoinedCheck,assertOwnedCheckContainer} from './project-check-guard.mjs';
 import {taskContracts,variants,seedFiles as initialFiles,variantFor,changedPaths,taskCommand,taskHandoff,expectedResult} from './dag-fixture.mjs';
@@ -95,7 +96,7 @@ process.on('uncaughtExceptionMonitor',(error,origin)=>{try{journal.record('drive
 process.on('exit',exitCode=>{try{journal.record('driver-exit',{exitCode});journal.close();}catch{}});
 writeFileSync(join(evidence, 'package-provenance.json'), provenanceBytes, { mode: 0o600, flag: 'wx' });
 writeFileSync(join(evidence,'image-provenance.json'),readFileSync(resolve(imageEvidencePath)),{mode:0o600,flag:'wx'});
-const driverNames=['dag.mjs','dag-fixture.mjs','context-contract.mjs','dependency-probe.mjs','stale-review-probe.mjs','source-read-cohort.mjs','queued-failure.mjs','project-check-guard.mjs','run-with-observer.py'];
+const driverNames=['dag.mjs','dag-fixture.mjs','context-contract.mjs','dependency-probe.mjs','stale-review-probe.mjs','source-read-cohort.mjs','identify-create-guard.mjs','queued-failure.mjs','project-check-guard.mjs','run-with-observer.py'];
 const reusedHelpers=['task-context-delivery.mjs','four-project-queue/native-terminal-diagnostics.mjs','four-project-queue/sample-linux-owned.py','launch-recovery/fenced-docker-proxy.mjs','launch-recovery/worker-create-guard.mjs','launch-recovery/durable-acceptance-journal.mjs','launch-recovery/acceptance-lifecycle.mjs','launch-recovery/acceptance-startup.mjs'];
 mkdirSync(join(evidence, 'accepted-harness'), { mode: 0o700 });
 for (const name of driverNames) writeFileSync(join(evidence, 'accepted-harness', name), readFileSync(new URL(name, import.meta.url)), { mode: 0o600, flag: 'wx' });
@@ -399,7 +400,15 @@ function privateRun(owner){const record=privateJSON(join(fixture,'state/sessions
 function privateCheckLedger(){return privateJSON(join(fixture,'state/control-plane/execution/leases.json'));}
 function instanceID(){const value=readFileSync(join(fixture,'state/instance/instance-id'),'utf8').trim();assert(value.length>0&&value.length<=200);return value;}
 function workerContainers(){return docker('ps','-aq','--no-trunc','--filter','label=luci.managed=true').split(/\s+/).filter(Boolean);}
-function identifyCreate(bytes,meta){
+let identifyGuardSequence=0;
+function identifyCreate(bytes,meta,phase='identify-create'){
+ return diagnoseCreateGuard({bytes,stage,phase,requestSequence:meta.requestSequence,ordinal:meta.ordinal,identify:()=>identifyOwnedCreate(bytes,meta),persist:value=>{
+  assert(identifyGuardSequence<10,'At most two identity guards for each of five permitted Creates');
+  writeFailureCheckpoint(join(evidence,'identify-create-'+String(++identifyGuardSequence).padStart(2,'0')+'.json'),value);
+  (receipt.identifyCreateDiagnostics??=[]).push(value);
+ }});
+}
+function identifyOwnedCreate(bytes,meta){
  health();
  const input=JSON.parse(bytes);
  if(input.Labels?.['luci.check']==='true'){
@@ -409,7 +418,7 @@ function identifyCreate(bytes,meta){
   const candidates=history.filter(row=>row.id===checkID);assert.equal(candidates.length,1);
   const recorded=candidates[0];const current=privateRun(owner);assert.equal(current.id,checkConsent.run.id);assert.deepEqual(current.input,checkConsent.run.input);
   assert.equal(gitAt(owner.owner.path,'rev-parse','HEAD'),checkConsent.commit);assert.equal(gitAt(owner.owner.path,'status','--porcelain'),'');
-  const checkEngineInfo=JSON.parse(docker('info','--format','{{json .}}'));assert.equal(checkEngineInfo.ID,engineID);assert.match(fixtureOwnerID??'',/^user-[a-f0-9]{24}$/);
+  const checkEngineInfo=JSON.parse(docker('info','--format','{{json .}}'));assert.equal(checkEngineInfo.ID,engineID);assertBootstrapOwnerID(fixtureOwnerID);
   const identity=validateCheckCreate(input,{name:meta.name,fixture,primary:owner.owner.path,check:recorded,run:current,commit:checkConsent.commit,sourceDigest:checkConsent.sourceDigest,imageID:imageInfo.Id,uid:process.getuid(),gid:process.getgid(),ledger:privateCheckLedger(),scopeDigest:sha(resolve(join(fixture,'state/conversations'))),actor:{userId:fixtureOwnerID,projectId:owner.owner.id},engineID,instance:instanceID(),imageVirtualSize:imageInfo.Size,storageDriver:checkEngineInfo.Driver});
   if(checkIdentity)assert.deepEqual(identity,checkIdentity);else checkIdentity=identity;return 'check';
  }
@@ -424,7 +433,7 @@ async function checkAdmission(identity=null){
  (receipt.checkResourceAdmissions??=[]).push(measurement);return measurement;
 }
 async function admission({kind,ordinal,body,...meta}){
- try{if(kind==='check'){assert.equal(ordinal,5,'One separate check follows exactly four worker Creates');assert.equal(proxy.observations.counts.worker,4);assert.equal(proxy.observations.counts.check,1);identifyCreate(body,meta);await checkAdmission(checkIdentity);health();return;}assert.equal(kind,'worker');assert(ordinal>=1&&ordinal<=4);identifyCreate(body,meta);const free=rootFree();assert(free>=6*1024**3,'Six GiB pre-create guard remains mandatory');assert.equal(workerContainers().length,0,'No overlapping full worker permitted');(receipt.resourceObservations??=[]).push({at:new Date().toISOString(),stage,ordinal,rootFreeBytes:free});}catch(error){stopOnFailure(error);throw error;}
+ try{if(kind==='check'){assert.equal(ordinal,5,'One separate check follows exactly four worker Creates');assert.equal(proxy.observations.counts.worker,4);assert.equal(proxy.observations.counts.check,1);identifyCreate(body,{...meta,ordinal},'before-create');await checkAdmission(checkIdentity);health();return;}assert.equal(kind,'worker');assert(ordinal>=1&&ordinal<=4);identifyCreate(body,{...meta,ordinal},'before-create');const free=rootFree();assert(free>=6*1024**3,'Six GiB pre-create guard remains mandatory');assert.equal(workerContainers().length,0,'No overlapping full worker permitted');(receipt.resourceObservations??=[]).push({at:new Date().toISOString(),stage,ordinal,rootFreeBytes:free});}catch(error){stopOnFailure(error);throw error;}
 }
 function health(){if(closing)throw Error('Workflow is closing');workflowControl?.assertActive();remaining();if(fixtureError)throw fixtureError;if(service&&service.exitCode!==null)throw Error('Owned service exited unexpectedly');}
 async function timed(promise,ms,label){let timer;try{return await Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error(label+' deadline exceeded')),ms);})]);}finally{clearTimeout(timer);}}

@@ -1,0 +1,87 @@
+{
+  "installedProductSource": "d6eaa540960fb11c6d425104f3da136bf9217712",
+  "helperHead": "fdd4c0e823f2c324e39117bcbdbe34c96135f79d",
+  "sources": [
+    {
+      "path": "control-plane/internal/backend/checks.go",
+      "sha256": "090393a01b586f1d2ede865f3e0dbed3c01c013fb975be4f0ecc326f2076602a",
+      "equalsInstalledProductSource": true,
+      "equalsHelperHead": true
+    },
+    {
+      "path": "control-plane/internal/backend/backend.go",
+      "sha256": "b7e25e056c72fe6b0227fdfc6d024b0cbf3d00c02fb46da90378ed1cbeb9148c",
+      "equalsInstalledProductSource": true,
+      "equalsHelperHead": true
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/checks.go",
+      "sha256": "69ae5e5a08b6cd9480c24328fa2779ed9f8a0e5f25e232fe8c7877aebfd56c78",
+      "equalsInstalledProductSource": true,
+      "equalsHelperHead": true
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/docker.go",
+      "sha256": "b865a8eea8a313ad818686f372724e2a97874ba8532c0041ad6cc5d3b0d0d46c",
+      "equalsInstalledProductSource": true,
+      "equalsHelperHead": true
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/launch_fence.go",
+      "sha256": "6ad13e1b9164db520e83ecaee63b332251f6d24c2a5bfe1beba7f9d57578d8ac",
+      "equalsInstalledProductSource": true,
+      "equalsHelperHead": true
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/checks_test.go",
+      "sha256": "dd9bb11ec670b361e44dc735a07b8290b682985dfd1af9e9b6a383d02db6f7b2",
+      "equalsInstalledProductSource": true,
+      "equalsHelperHead": true
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/check_resource_limits_test.go",
+      "sha256": "8daf3b378e77be54c8d0dfa063f6926fca0f6f5db16ae3eabb318efe27181048",
+      "equalsInstalledProductSource": true,
+      "equalsHelperHead": true
+    },
+    {
+      "path": "control-plane/internal/api/check_execution.go",
+      "sha256": "927fd3cbaea388ad4455a40c547e2e954617eef515e3ea67ca41227ceb4f7481",
+      "equalsInstalledProductSource": true,
+      "equalsHelperHead": true
+    },
+    {
+      "path": "control-plane/go.mod",
+      "sha256": "46639d620d215ff94c6e6d2ea2bf52c74abdf501811248e8905aad3846ae0341",
+      "equalsInstalledProductSource": true,
+      "equalsHelperHead": true
+    },
+    {
+      "path": "control-plane/go.sum",
+      "sha256": "fad248c401dce6545f51ad4beba435f67999c8605be35232f5261b69c7b50344",
+      "equalsInstalledProductSource": true,
+      "equalsHelperHead": true
+    }
+  ],
+  "sdk": {
+    "path": "/tmp/luci-retained-tools/go-mod/github.com/docker/docker@v28.3.3+incompatible/client/container_create.go",
+    "sha256": "a89a5c1e60444a615322c7599d04ec2c83195cd5ffb444890b6033bcb65e8d13"
+  },
+  "tools": {
+    "go": "go version go1.26.3 linux/amd64",
+    "node": "v24.19.0"
+  },
+  "commands": [
+    "source /workspace/.luci-tools/activate.sh",
+    "cd /workspace/luci/control-plane",
+    "CLOUD027_WIRE_STAGE=/workspace/.luci-tools/cloud027-wire-contract GOMAXPROCS=2 go test -p 1 -overlay /workspace/.luci-tools/cloud027-wire-contract/overlay.json ./internal/backend/dockerbe -run '^TestCloud027ProductionCheckWire$' -count=1 -v",
+    "node /workspace/.luci-tools/cloud027-wire-contract/compare-wire.mjs"
+  ],
+  "result": {
+    "goTest": "1 passed",
+    "wireGuard": "passed",
+    "originalRequestBodyCaptured": false,
+    "networkConnections": 0,
+    "DockerOperations": 0
+  }
+}

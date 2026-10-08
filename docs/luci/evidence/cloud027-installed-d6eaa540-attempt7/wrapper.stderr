@@ -1,0 +1,12 @@
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ 'unknown'
+- 'passed'
+
+    at assertRecordedCheck (file:///workspace/luci/scripts/acceptance/task-dependencies/project-check-guard.mjs:61:10)
+    at verifyCombinedBuild (file:///workspace/luci/scripts/acceptance/task-dependencies/dag.mjs:496:2)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async file:///workspace/luci/scripts/acceptance/task-dependencies/dag.mjs:563:107
+    at async Object.run (file:///workspace/luci/scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs:29:19)
+    at async file:///workspace/luci/scripts/acceptance/task-dependencies/dag.mjs:511:2

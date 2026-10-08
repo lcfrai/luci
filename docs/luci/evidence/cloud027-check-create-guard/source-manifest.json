@@ -1,0 +1,51 @@
+{
+  "scope": "CLOUD027 acceptance-helper correction, no product source changes or installed runtime rerun.",
+  "installedProductCommit": "d6eaa540960fb11c6d425104f3da136bf9217712",
+  "failedHelperCommit": "fdd4c0e823f2c324e39117bcbdbe34c96135f79d",
+  "baselineDAG_SHA256": "d22b36623e2c8e478ee80b09954c116f1d0a106bd0f05c54ed318e86e2bd925e",
+  "baselineMatchesAttempt7AcceptedHarness": true,
+  "checkedFiles": {
+    "scripts/acceptance/task-dependencies/dag.mjs": {
+      "sha256": "1b39edb0c583c5cc171b7fc96f1812754b8d34a6c781821d1ea2757a9ed31c2f",
+      "bytes": 93636
+    },
+    "scripts/acceptance/task-dependencies/identify-create-guard.mjs": {
+      "sha256": "1fea09704ec11be34ab7b2184482462ab9d69f8aea3b923fc818a53b0ce3ec70",
+      "bytes": 2137
+    },
+    "scripts/acceptance/task-dependencies/identify-create-guard.test.mjs": {
+      "sha256": "a591651cf150b0a5f86a4a40c13f9bc13e49b101dc7e4c10a6b7f36842b4e3dc",
+      "bytes": 9624
+    },
+    "scripts/acceptance/task-dependencies/project-check-guard.mjs": {
+      "sha256": "4b4ff5957955c3e26d7153a808e518e6a4431f10878659e44bfc6c915486876f",
+      "bytes": 15955
+    },
+    "scripts/acceptance/task-dependencies/project-check-guard.test.mjs": {
+      "sha256": "48fe466d8df0c74a4aed8181bcc66fd72b0e3fd17e2aa50164cccb31274db391",
+      "bytes": 14121
+    },
+    "scripts/acceptance/task-dependencies/source-read-cohort.mjs": {
+      "sha256": "bc4a630ffe43ad711e423f19afb6e614679151d3d2bce5f92774e005c42b9356",
+      "bytes": 8583
+    },
+    "scripts/acceptance/task-dependencies/source-read-cohort.test.mjs": {
+      "sha256": "ea49f839acc1fc64658525dc57b63c843a77b17f344a05ad9c4f57cfde517bc0",
+      "bytes": 12265
+    },
+    "scripts/acceptance/task-dependencies/stale-review-probe.mjs": {
+      "sha256": "79aa3ec4acd6c597fbd79c2bba2594355252bd8d49f16777f212e427563d263a",
+      "bytes": 4634
+    },
+    "scripts/acceptance/task-dependencies/stale-review-probe.test.mjs": {
+      "sha256": "4824669aa540caa9fb64428f4581651a05ce70682ba0f8b00a322c951456b206",
+      "bytes": 10167
+    }
+  },
+  "managementContract": {
+    "path": "control-plane/internal/management/management.go",
+    "sha256": "ebc33dbb061d32f0d30f162b76eb89f1996986aab43faa85cbd350664585ce68",
+    "unchangedFromInstalledProduct": true
+  },
+  "patchSHA256": "729f27da8e7b26692e2bf60a5149ac18b3ee0e5c3b1fca353195605edf8a8998"
+}

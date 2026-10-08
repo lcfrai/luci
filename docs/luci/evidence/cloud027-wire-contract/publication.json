@@ -1,0 +1,40 @@
+{
+  "scope": "Publication of already-completed controlled production SDK wire/digest reproduction. Tests were not rerun for publication.",
+  "productSource": "d6eaa540960fb11c6d425104f3da136bf9217712",
+  "helperHead": "fdd4c0e823f2c324e39117bcbdbe34c96135f79d",
+  "copiedFrom": "/workspace/.luci-tools/cloud027-wire-contract",
+  "sourceEqualsPublished": {
+    "compare-wire.mjs": true,
+    "go-test.log": true,
+    "guard-input.json": true,
+    "input-source-hashes.json": true,
+    "manifest.json": true,
+    "overlay.json": true,
+    "probe-input.json": true,
+    "production-command-digest-input.json": true,
+    "production-create-wire.json": true,
+    "production-probe-result.json": true,
+    "wire-parity-result.json": true,
+    "wire_contract_test.go": true
+  },
+  "helperSnapshotEqualsExecutedHash": true,
+  "sanitization": {
+    "selectedInputCredentialKeys": 0,
+    "wireEnvironment": "Only HOME, GOCACHE, GOMODCACHE, npm_config_cache with controlled /tmp paths",
+    "runInputFields": [
+      "requirements",
+      "approvals"
+    ],
+    "accountDatabaseExported": false,
+    "providerConfigurationExported": false,
+    "credentialRecordsExported": false,
+    "secretPatternMatches": 0,
+    "fixtureIdentifiersAndAbsoluteSourcePathsRetained": "Non-secret identity/path bindings are preserved because they determine the production command digest."
+  },
+  "originalRequestBodyCaptured": false,
+  "lifecycleModel": "Only check.status and command.status are modeled running from retained unknown status for the Create-time helper comparison.",
+  "gitEvidencePreservation": {
+    ".gitignore": "Directory-local !*.log preserves the manifest-bound test log in normal staging.",
+    ".gitattributes": "** -text preserves evidence bytes across platforms; go-test.log -whitespace preserves raw output."
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "scope": "Offline exact former assertion evaluated against the trusted retained-fixture owner ID supplied by the coordinating agent; not a replay of the original Docker request.",
+  "trustedFixtureOwnerID": "user-zrRnlGWRa3y_G022kbVzWv",
+  "originalAssertion": "assert.match(fixtureOwnerID??'',/^user-[a-f0-9]{24}$/);",
+  "offlineOutcome": "ERR_ASSERTION; observed ID conforms to management.opaqueID but not the former hex24 helper assertion",
+  "originalCreateBodyRetained": false,
+  "originalIdentifyAssertionTraceRetained": false,
+  "actualReceiptFailure": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'unknown'\n- 'passed'\n\n    at assertRecordedCheck (file:///workspace/luci/scripts/acceptance/task-dependencies/project-check-guard.mjs:61:10)\n    at verifyCombinedBuild (file:///workspace/luci/scripts/acceptance/task-dependencies/dag.mjs:496:2)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async file:///workspace/luci/scripts/acceptance/task-dependencies/dag.mjs:563:107\n    at async Object.run (file:///workspace/luci/scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs:29:19)\n    at async file:///workspace/luci/scripts/acceptance/task-dependencies/dag.mjs:511:2",
+  "actualProxyCreateObservation": {
+    "method": "POST",
+    "path": "/v1.51/containers/create",
+    "requestedAt": "2026-10-08T20:53:18.104Z",
+    "requestSequence": 965,
+    "ordinal": 5,
+    "name": "luci-check-checkexec-3dd51b08a625b6a854496e17",
+    "labels": {
+      "luci.instance": "d09e13cd-8f52-4878-96f4-d0cc3781fec1"
+    },
+    "proxyStatus": 503,
+    "completedAt": "2026-10-08T20:53:18.238Z",
+    "failure": "request-guard-failed"
+  },
+  "originalReportPath": "artifacts/quality-swarm/dependency-d6eaa540-helper-fdd4c0e8-attempt7/result/result.json",
+  "originalReportSHA256": "e695f4629066fca4b6d4acdae3b567492e585d8a114d121452919dd9789d8560",
+  "limits": "The original transport retained only request-guard-failed. The new synthetic diagnostic stack is a unit fixture, not a recovered historical trace. No conclusion about runtime cleanup/recovery is made here."
+}

@@ -1,0 +1,33 @@
+{
+  "Spec": {
+    "Identity": {
+      "protocol": 1,
+      "engineId": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+      "instanceId": "d09e13cd-8f52-4878-96f4-d0cc3781fec1",
+      "allocationId": "checkexec-3dd51b08a625b6a854496e17",
+      "checkId": "check-f12ba20e05c62f619727b2eb",
+      "commandIndex": 0,
+      "scopeDigest": "5731b95c25893927d48da3b1db912f5dd4370333913b680494ea2a5009a6496f",
+      "projectId": "p-3abdfc44",
+      "commandDigest": "5618b598926cf059913c6b939a8ea15bd2c5a690ff74395de6af5eea1d8eb838"
+    },
+    "Executable": "node",
+    "Args": [
+      "verify.mjs",
+      "final"
+    ],
+    "SourceDirectory": "/workspace/.c/.ls-80vd8jqk/luci-dag-ptDWsW/projects/reviewed-dag-fixture",
+    "SourceDigest": "a83dcb0d30237340c3d0b0c82e13a415f4bbd3b1f26de0fd54ac0dd3f7dc4b14",
+    "Resources": {
+      "CPUMillis": 1000,
+      "MemoryMiB": 1024
+    },
+    "UserID": 1000,
+    "GroupID": 1000
+  },
+  "ImageID": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+  "ImageReference": "luci/sandbox:verified-candidate-20261008t140025z-a4a2e82b",
+  "ImageVirtualSize": 2294629077,
+  "StorageDriver": "vfs",
+  "APIVersion": "1.51"
+}

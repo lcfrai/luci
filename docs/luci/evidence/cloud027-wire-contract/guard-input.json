@@ -1,0 +1,162 @@
+{
+  "fixture": "/workspace/.c/.ls-80vd8jqk/luci-dag-ptDWsW",
+  "primary": "/workspace/.c/.ls-80vd8jqk/luci-dag-ptDWsW/projects/reviewed-dag-fixture",
+  "check": {
+    "revision": 7,
+    "resourcesHeld": true,
+    "stage": "create",
+    "reasonCode": "check_create_unconfirmed",
+    "id": "check-f12ba20e05c62f619727b2eb",
+    "projectId": "p-3abdfc44",
+    "commit": "2fbe99a610f06b6234c2012433f1993dce0e322c",
+    "dirty": false,
+    "execution": "docker",
+    "memoryMiB": 1024,
+    "cpuMillis": 1000,
+    "sourceDigest": "a83dcb0d30237340c3d0b0c82e13a415f4bbd3b1f26de0fd54ac0dd3f7dc4b14",
+    "sourceChanged": false,
+    "status": "unknown",
+    "commands": [
+      {
+        "label": "node",
+        "executable": "node",
+        "args": [
+          "verify.mjs",
+          "final"
+        ],
+        "allocationId": "checkexec-3dd51b08a625b6a854496e17",
+        "stage": "create",
+        "reasonCode": "check_create_unconfirmed",
+        "message": "Docker creation is unconfirmed. Review this exact retained attempt to stop and recover it.",
+        "cleanupConfirmed": false,
+        "status": "unknown",
+        "output": "",
+        "truncated": false
+      }
+    ],
+    "createdAt": "2026-10-08T20:53:17.929690851Z",
+    "updatedAt": "2026-10-08T20:53:18.402300705Z",
+    "message": "Docker creation is unconfirmed. Review this exact retained attempt to stop and recover it.",
+    "requirementIds": [
+      "AC-dag"
+    ],
+    "requirementSnapshots": [
+      {
+        "id": "AC-dag",
+        "title": "Reviewed dependency join",
+        "acceptance": "Only integrated current alpha and beta results release the join; preserve the conflicting prior beta workspace and require fresh integration review after target movement."
+      }
+    ],
+    "specificationRevision": 2,
+    "specificationDigest": "13f26d462d9ba868bf3edf200c5f4921be174bcb84a390facb90e800797a92de",
+    "designPlanRevision": 2,
+    "designPlanDigest": "f475840038a0bd9b99079722067e150f8f217eeeac16f1ec5b647f7f4f113a22",
+    "evidenceStatus": "unverified",
+    "staleReasons": [
+      "The commands have not finished."
+    ],
+    "approvalSelection": {
+      "specificationApprovalId": "approval-8a4224ac722a1150cf75946a",
+      "specificationRevision": 2,
+      "specificationDigest": "13f26d462d9ba868bf3edf200c5f4921be174bcb84a390facb90e800797a92de",
+      "designApprovalId": "approval-75e63224e57010e91adad20f",
+      "designRevision": 2,
+      "designDigest": "f475840038a0bd9b99079722067e150f8f217eeeac16f1ec5b647f7f4f113a22",
+      "briefDigest": "3122c16f285dacd54572cdaa963bc48ce608fa81b82355c994d1a2e8d0f4504f",
+      "sketchDigest": "5cad5297e75866be3f124bc69bc83e49672c3c5ab878048979ba10ca171fbcb4"
+    }
+  },
+  "run": {
+    "id": "run-6a22a81b7ad94a1036ef23bb",
+    "projectId": "p-3abdfc44",
+    "input": {
+      "requirements": [
+        {
+          "id": "AC-dag",
+          "title": "Reviewed dependency join",
+          "acceptance": "Only integrated current alpha and beta results release the join; preserve the conflicting prior beta workspace and require fresh integration review after target movement."
+        }
+      ],
+      "approvals": {
+        "specificationApprovalId": "approval-8a4224ac722a1150cf75946a",
+        "specificationRevision": 2,
+        "specificationDigest": "13f26d462d9ba868bf3edf200c5f4921be174bcb84a390facb90e800797a92de",
+        "designApprovalId": "approval-75e63224e57010e91adad20f",
+        "designRevision": 2,
+        "designDigest": "f475840038a0bd9b99079722067e150f8f217eeeac16f1ec5b647f7f4f113a22",
+        "briefDigest": "3122c16f285dacd54572cdaa963bc48ce608fa81b82355c994d1a2e8d0f4504f",
+        "sketchDigest": "5cad5297e75866be3f124bc69bc83e49672c3c5ab878048979ba10ca171fbcb4"
+      }
+    },
+    "swarm": {
+      "tasks": [
+        {
+          "id": "task-a",
+          "integration": {
+            "state": "integrated"
+          }
+        },
+        {
+          "id": "task-b",
+          "integration": {
+            "state": "integrated"
+          }
+        },
+        {
+          "id": "task-join",
+          "integration": {
+            "state": "integrated"
+          }
+        }
+      ]
+    }
+  },
+  "name": "luci-check-checkexec-3dd51b08a625b6a854496e17",
+  "commit": "2fbe99a610f06b6234c2012433f1993dce0e322c",
+  "sourceDigest": "a83dcb0d30237340c3d0b0c82e13a415f4bbd3b1f26de0fd54ac0dd3f7dc4b14",
+  "imageID": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+  "uid": 1000,
+  "gid": 1000,
+  "ledger": {
+    "version": 1,
+    "leases": [],
+    "checks": [
+      {
+        "id": "checkexec-3dd51b08a625b6a854496e17",
+        "scope": "5731b95c25893927d48da3b1db912f5dd4370333913b680494ea2a5009a6496f",
+        "actor": {
+          "userId": "user-zrRnlGWRa3y_G022kbVzWv",
+          "projectId": "p-3abdfc44"
+        },
+        "identity": {
+          "protocol": 1,
+          "engineId": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+          "instanceId": "d09e13cd-8f52-4878-96f4-d0cc3781fec1",
+          "allocationId": "checkexec-3dd51b08a625b6a854496e17",
+          "checkId": "check-f12ba20e05c62f619727b2eb",
+          "commandIndex": 0,
+          "scopeDigest": "5731b95c25893927d48da3b1db912f5dd4370333913b680494ea2a5009a6496f",
+          "projectId": "p-3abdfc44",
+          "commandDigest": "5618b598926cf059913c6b939a8ea15bd2c5a690ff74395de6af5eea1d8eb838"
+        },
+        "resources": {
+          "CPUMillis": 1000,
+          "MemoryMiB": 1024
+        },
+        "createDiskBytes": 4589258154,
+        "state": "creating",
+        "createdAt": "2026-10-08T20:53:18.002645413Z",
+        "updatedAt": "2026-10-08T20:53:18.068027625Z"
+      }
+    ]
+  },
+  "scopeDigest": "5731b95c25893927d48da3b1db912f5dd4370333913b680494ea2a5009a6496f",
+  "actor": {
+    "userId": "user-zrRnlGWRa3y_G022kbVzWv",
+    "projectId": "p-3abdfc44"
+  },
+  "engineID": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+  "instance": "d09e13cd-8f52-4878-96f4-d0cc3781fec1",
+  "imageVirtualSize": 2294629077,
+  "storageDriver": "vfs"
+}

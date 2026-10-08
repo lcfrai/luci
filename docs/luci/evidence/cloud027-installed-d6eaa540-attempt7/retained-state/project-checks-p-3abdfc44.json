@@ -1,0 +1,67 @@
+[
+  {
+    "revision": 7,
+    "resourcesHeld": true,
+    "stage": "create",
+    "reasonCode": "check_create_unconfirmed",
+    "id": "check-f12ba20e05c62f619727b2eb",
+    "projectId": "p-3abdfc44",
+    "commit": "2fbe99a610f06b6234c2012433f1993dce0e322c",
+    "dirty": false,
+    "execution": "docker",
+    "memoryMiB": 1024,
+    "cpuMillis": 1000,
+    "sourceDigest": "a83dcb0d30237340c3d0b0c82e13a415f4bbd3b1f26de0fd54ac0dd3f7dc4b14",
+    "sourceChanged": false,
+    "status": "unknown",
+    "commands": [
+      {
+        "label": "node",
+        "executable": "node",
+        "args": [
+          "verify.mjs",
+          "final"
+        ],
+        "allocationId": "checkexec-3dd51b08a625b6a854496e17",
+        "stage": "create",
+        "reasonCode": "check_create_unconfirmed",
+        "message": "Docker creation is unconfirmed. Review this exact retained attempt to stop and recover it.",
+        "cleanupConfirmed": false,
+        "status": "unknown",
+        "output": "",
+        "truncated": false
+      }
+    ],
+    "createdAt": "2026-10-08T20:53:17.929690851Z",
+    "updatedAt": "2026-10-08T20:53:18.402300705Z",
+    "message": "Docker creation is unconfirmed. Review this exact retained attempt to stop and recover it.",
+    "requirementIds": [
+      "AC-dag"
+    ],
+    "requirementSnapshots": [
+      {
+        "id": "AC-dag",
+        "title": "Reviewed dependency join",
+        "acceptance": "Only integrated current alpha and beta results release the join; preserve the conflicting prior beta workspace and require fresh integration review after target movement."
+      }
+    ],
+    "specificationRevision": 2,
+    "specificationDigest": "13f26d462d9ba868bf3edf200c5f4921be174bcb84a390facb90e800797a92de",
+    "designPlanRevision": 2,
+    "designPlanDigest": "f475840038a0bd9b99079722067e150f8f217eeeac16f1ec5b647f7f4f113a22",
+    "evidenceStatus": "unverified",
+    "staleReasons": [
+      "The commands have not finished."
+    ],
+    "approvalSelection": {
+      "specificationApprovalId": "approval-8a4224ac722a1150cf75946a",
+      "specificationRevision": 2,
+      "specificationDigest": "13f26d462d9ba868bf3edf200c5f4921be174bcb84a390facb90e800797a92de",
+      "designApprovalId": "approval-75e63224e57010e91adad20f",
+      "designRevision": 2,
+      "designDigest": "f475840038a0bd9b99079722067e150f8f217eeeac16f1ec5b647f7f4f113a22",
+      "briefDigest": "3122c16f285dacd54572cdaa963bc48ce608fa81b82355c994d1a2e8d0f4504f",
+      "sketchDigest": "5cad5297e75866be3f124bc69bc83e49672c3c5ab878048979ba10ca171fbcb4"
+    }
+  }
+]

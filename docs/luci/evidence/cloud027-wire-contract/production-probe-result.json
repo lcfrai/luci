@@ -1,0 +1,20 @@
+{
+  "apiVersion": "1.51",
+  "calls": [
+    "HEAD /_ping",
+    "GET /v1.51/info",
+    "GET /v1.51/images/luci/sandbox:verified-candidate-20261008t140025z-a4a2e82b/json",
+    "GET /v1.51/info",
+    "GET /v1.51/info",
+    "GET /v1.51/images/luci/sandbox:verified-candidate-20261008t140025z-a4a2e82b/json",
+    "GET /v1.51/info",
+    "POST /v1.51/containers/create"
+  ],
+  "commandDigest": "5618b598926cf059913c6b939a8ea15bd2c5a690ff74395de6af5eea1d8eb838",
+  "creates": 1,
+  "networkConnections": 0,
+  "realDockerOperations": 0,
+  "removes": 0,
+  "scope": "Controlled production PrepareCheck/CreateCheck/SDK capture; not the uncaptured original request",
+  "starts": 0
+}

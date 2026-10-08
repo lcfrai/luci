@@ -1,0 +1,4 @@
+=== RUN   TestCloud027ProductionCheckWire
+--- PASS: TestCloud027ProductionCheckWire (0.01s)
+PASS
+ok  	github.com/lcfrai/luci/control-plane/internal/backend/dockerbe	0.019s

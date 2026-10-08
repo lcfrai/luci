@@ -1,0 +1,33 @@
+{
+  "label": "before-starts",
+  "status": 409,
+  "requestedRevision": 2,
+  "publicRevisionBefore": 2,
+  "privateRevisionBefore": 2,
+  "privateRevisionAfter": 2,
+  "before": {
+    "effects": {
+      "create": 0,
+      "start": 0,
+      "destroy": 0
+    },
+    "primaryCommit": "c507ac276804c75c958f3a00423eee2af82b9dd2",
+    "joinOperationIds": []
+  },
+  "after": {
+    "effects": {
+      "create": 0,
+      "start": 0,
+      "destroy": 0
+    },
+    "primaryCommit": "c507ac276804c75c958f3a00423eee2af82b9dd2",
+    "joinOperationIds": []
+  },
+  "response": {
+    "message": "Integrate this task's dependencies before starting it.",
+    "error": "project_run_conflict"
+  },
+  "truncatedFields": [],
+  "at": "2026-10-08T20:49:11.510Z",
+  "classification": "unclassified-response"
+}

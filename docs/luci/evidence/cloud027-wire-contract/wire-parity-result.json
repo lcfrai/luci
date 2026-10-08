@@ -1,0 +1,42 @@
+{
+  "scope": "Controlled production source and real SDK serialization with retained fixture parameters; not an original-request capture or installed rerun",
+  "checks": {
+    "productionGoStructDigestMatchesRetainedLease": true,
+    "helperDigestMatchesProductionGoStruct": true,
+    "retainedUnknownHistoryRefused": true,
+    "productionSDKWireAcceptedByCurrentGuard": true
+  },
+  "limitations": [
+    "Retained check history is post-refusal unknown. The Create-time comparison models only check.status and command.status as running; no original running snapshot or request body was retained.",
+    "Daemon responses are provided by the existing in-memory checkProbe. This does not prove real Docker execution."
+  ],
+  "hashes": {
+    "probe-input.json": "f3dcc56ea1fe056e5e2b460583a1ba2db5a810f4321ef569efa1973bd765fd0e",
+    "guard-input.json": "37b6b2073beb5d48b20da20235b0eb820684aab5b4e5daa00bb52b7980f60feb",
+    "production-command-digest-input.json": "5618b598926cf059913c6b939a8ea15bd2c5a690ff74395de6af5eea1d8eb838",
+    "production-create-wire.json": "7aaa1ff595a1b599c03564d06fd1f4ef5f42989668451dbedb37a1b8ae196baa",
+    "production-probe-result.json": "6d3049980356c47ebc92ebb770afdadd73c20ac6bd8e88e088f5a35c996829a2",
+    "wire_contract_test.go": "632ff8789d0a5c54d3ba4834abd52875fc2ab3541169b6174f16be69e13d751b",
+    "compare-wire.mjs": "60d0f13b671bad04ba7672d10e5ae0b7f92aec154cdfe8d0479135e21600c74a",
+    "control-plane/internal/backend/checks.go": "090393a01b586f1d2ede865f3e0dbed3c01c013fb975be4f0ecc326f2076602a",
+    "control-plane/internal/backend/backend.go": "b7e25e056c72fe6b0227fdfc6d024b0cbf3d00c02fb46da90378ed1cbeb9148c",
+    "control-plane/internal/backend/dockerbe/checks.go": "69ae5e5a08b6cd9480c24328fa2779ed9f8a0e5f25e232fe8c7877aebfd56c78",
+    "control-plane/internal/backend/dockerbe/checks_test.go": "dd9bb11ec670b361e44dc735a07b8290b682985dfd1af9e9b6a383d02db6f7b2",
+    "control-plane/internal/backend/dockerbe/check_resource_limits_test.go": "8daf3b378e77be54c8d0dfa063f6926fca0f6f5db16ae3eabb318efe27181048",
+    "control-plane/go.mod": "46639d620d215ff94c6e6d2ea2bf52c74abdf501811248e8905aad3846ae0341",
+    "control-plane/go.sum": "fad248c401dce6545f51ad4beba435f67999c8605be35232f5261b69c7b50344",
+    "scripts/acceptance/task-dependencies/project-check-guard.mjs": "4b4ff5957955c3e26d7153a808e518e6a4431f10878659e44bfc6c915486876f"
+  },
+  "modeledLifecycleFields": {
+    "before": {
+      "checkStatus": "unknown",
+      "commandStatus": "unknown"
+    },
+    "after": {
+      "checkStatus": "running",
+      "commandStatus": "running"
+    }
+  },
+  "commandDigest": "5618b598926cf059913c6b939a8ea15bd2c5a690ff74395de6af5eea1d8eb838",
+  "passed": true
+}

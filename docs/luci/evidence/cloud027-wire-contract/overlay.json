@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "/workspace/luci/control-plane/internal/backend/dockerbe/cloud027_wire_contract_test.go": "/workspace/.luci-tools/cloud027-wire-contract/wire_contract_test.go"
+  }
+}
