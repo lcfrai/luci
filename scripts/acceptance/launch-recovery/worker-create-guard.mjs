@@ -25,11 +25,12 @@ export function validateWorkerCreate(input,{fixture,projectID,runID,operationID,
  const root=realpathSync(fixture);assert.equal(root,resolve(fixture));
  const expected=new Map([
   ['/home/dev/work',{path:join(root,'projects','.luci-swarms',projectID,runID,operationID),readOnly:false,required:true}],
+  ['/home/dev/work/.git/worktrees',{path:join(root,'projects','.luci-swarms',projectID,runID,operationID,'.git','worktrees'),readOnly:true,required:true}],
   ['/home/dev/.luci-reviewed-context',{path:join(root,'state','conversations','local','.reviewed-context',session.id),readOnly:true,required:true}],
   ['/home/dev/.luci-agent',{path:join(root,'state','conversations','native','local',session.worktreeId,'codex',session.conversationId),readOnly:false,required:true}],
   ['/home/dev/.claude/projects',{path:join(root,'state','conversations','local',session.worktreeId),readOnly:false,required:false}],
  ]);
- const binds=workerBinds(input),seen=new Set();assert(binds.length>=3&&binds.length<=4);
+ const binds=workerBinds(input),seen=new Set();assert(binds.length>=4&&binds.length<=5);
  for(const bind of binds){
   assert(!seen.has(bind.Target));seen.add(bind.Target);const allowed=expected.get(bind.Target);assert(allowed,'Unexpected fixture mount destination');assert.equal(bind.ReadOnly,allowed.readOnly);assert(isAbsolute(bind.Source));assert.equal(bind.Source,allowed.path);assert.equal(realpathSync(bind.Source),allowed.path);assert(lstatSync(bind.Source).isDirectory());
   // Every ancestor through the unique fixture root must be an ordinary directory;

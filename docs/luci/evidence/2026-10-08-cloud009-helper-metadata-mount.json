@@ -1,0 +1,37 @@
+{
+  "scope": "Staged harness-only correction; no installed rerun or product change",
+  "priorInstalledAttempt": "artifacts/cloud009/installed-create-919cffe0-attempt1/result.json",
+  "priorInstalledReceiptSHA256": "fa88818438dcd8eb7cdf0bd3f73b8593aabc0b63c5e40dedb698fd35b3ff4f90",
+  "diagnosis": "Production sessionWorktreeAdmin + sessionMounts adds the clone Git worktrees read-only protection. Original guard rejects its destination. The exact original callback assertion was not retained; this mismatch is reproduced separately against the original helper using a source-faithful controlled input.",
+  "checks": {
+    "originalGuardControlledPositive": {
+      "exitCode": 1,
+      "assertion": "Unexpected fixture mount destination",
+      "command": "node --test --test-name-pattern='only exact owned' original-guard-reproduction.test.mjs"
+    },
+    "correctedGuardCases": {
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0,
+      "command": "node --test worker-create-guard.test.mjs"
+    },
+    "correctedDriverSyntax": {
+      "exitCode": 0,
+      "command": "node --check recovery.mjs"
+    }
+  },
+  "sources": {
+    "worker-create-guard.mjs": {
+      "beforeSHA256": "a76a8813e0e998bf744d22efe507bac69cccc2f83db064f1ca2da4ff6f32d4e8",
+      "afterSHA256": "56ffc66efbfe109641b2faef8a57a1bd7627385407d091e1b61ae96ab1a1dea0"
+    },
+    "worker-create-guard.test.mjs": {
+      "beforeSHA256": "8da660e158ba27eb565b74bfbdca46435ee520e93d0bd93c4f4e405cb86271a4",
+      "afterSHA256": "8fea991d1e289fbad1b907e05f6e6951eaf1a21cb235eb9cece3c7a4c751849f"
+    },
+    "recovery.mjs": {
+      "beforeSHA256": "4e20fc62d3b3ab69fb11b245a60617d51d119cf0df324e484fc11e1a72df5262",
+      "afterSHA256": "61e209d0c1d319f2737b7823b8f5dc32fec41686051108df4c4aa8d6d4feda22"
+    }
+  }
+}

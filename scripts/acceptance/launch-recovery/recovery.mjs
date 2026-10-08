@@ -382,6 +382,16 @@ function identifyCreate(bytes,meta){
  if(owners[0].task==='build-a'){assert(!originalCreate,'The original launch may not be replayed');originalCreate=input;}
  return 'worker';
 }
+function guardedIdentifyCreate(bytes,meta){
+ try{return identifyCreate(bytes,meta);}catch(error){
+  // Keep only error type and local source locations: assertions can contain
+  // private create/environment values, so never retain the raw message/body.
+  const frames=String(error?.stack??'').split('\n').filter(line=>/^\s+at /.test(line)&&line.includes('/launch-recovery/')).map(line=>line.replace(/^.*\/launch-recovery\//,'launch-recovery/').slice(0,240)).slice(0,6);
+  (receipt.createGuardFailures??=[]).push({at:new Date().toISOString(),name:error?.name==='AssertionError'?'AssertionError':'CreateGuardError',frames});
+  stopOnFailure(Error('Fixture Create identity/config guard refused; inspect retained safe source locations'));
+  throw error;
+ }
+}
 function admission({kind,ordinal,body}){
  try{assert(ordinal>=1&&ordinal<=(scenario==='delayed-create'?3:4));const free=rootFree(),required=6*1024**3;assert(free>=required,'Fresh shape-specific disk admission failed');assert.equal(workerContainers().length,0,'Only one full-image allocation at a time');if(kind==='fence')validateFence(JSON.parse(body));else {const input=JSON.parse(body),session=row(input.Labels['luci.session-id']),owner=projectStates.find(value=>value.owner.id===session.projectId);assert(owner);const op=privateRun(owner).operations.find(value=>value.childId===session.id);assert(op);validateWorkerCreate(input,{fixture,projectID:owner.owner.id,runID:owner.run.id,operationID:op.id,session,images:[image,imageInfo.Id],instance:instanceID(),uid:process.getuid(),gid:process.getgid()});}receipt.resourceObservations??=[];receipt.resourceObservations.push({stage,kind,ordinal,rootFreeBytes:free,requiredBytes:required,at:new Date().toISOString()});}catch(error){stopOnFailure(error);throw error;}
 }
@@ -453,7 +463,7 @@ try {
  startProvider();await new Promise((done,reject)=>provider.once('error',reject).listen(0,bridge,done));providerBase='http://host.docker.internal:'+provider.address().port+'/v1';
  const port=await freePort(),preview=await freePort();base='http://127.0.0.1:'+port;
  const upstream=process.env.DOCKER_HOST||'unix:///var/run/docker.sock';assert(upstream.startsWith('unix://'));
- proxy=await startFencedDockerProxy({socketPath:join(fixture,'docker-proxy.sock'),upstreamSocketPath:upstream.slice(7),identifyCreate,beforeCreate:admission,maxCreates:receipt.bounds.maxCreates,maxCreatesByKind:{worker:2,fence:scenario==='delayed-create'?1:2},maxStarts:receipt.bounds.maxStarts,maxObservations:20000,upstreamTimeoutMs:120000,holdTimeoutMs:600000});
+ proxy=await startFencedDockerProxy({socketPath:join(fixture,'docker-proxy.sock'),upstreamSocketPath:upstream.slice(7),identifyCreate:guardedIdentifyCreate,beforeCreate:admission,maxCreates:receipt.bounds.maxCreates,maxCreatesByKind:{worker:2,fence:scenario==='delayed-create'?1:2},maxStarts:receipt.bounds.maxStarts,maxObservations:20000,upstreamTimeoutMs:120000,holdTimeoutMs:600000});
  proxy.armGate({id:'original',phase:'before-forward',method:'POST',pathPattern:scenario==='delayed-create'?/\/containers\/create$/:/\/containers\/[a-f0-9]{64}\/start$/,match:meta=>meta.kind==='worker'&&(scenario==='delayed-create'?meta.ordinal===1:meta.labels?.['luci.session-id']===originalCreate?.Labels?.['luci.session-id'])});
  writeFileSync(join(fixture,'docker/config.json'),JSON.stringify({cliPluginsExtraDirs:process.env.DOCKER_CONFIG?[join(process.env.DOCKER_CONFIG,'cli-plugins')]:[]}),{mode:0o600});
  env=Object.fromEntries(['PATH','LANG','LC_ALL','TZ'].filter(name=>process.env[name]).map(name=>[name,process.env[name]]));
