@@ -89,3 +89,9 @@ live-provider gates. Do not treat this index as a handoff-ready notification.
 - [Reported native storage confirmation](2026-10-08-native-storage-confirmation-reported.json):
   actual Windows host confirmation, member denial, restart persistence and
   unchanged source; LOCAL-005 and workload acceptance remain open.
+
+- [Reported native 2dc own-sidecar lifecycle](2026-10-08-native-lifecycle-2dcf245d-reported.md):
+  actual isolated release startup, owner/four definitions, controlled reopen and
+  two owned shutdowns. All 1,808 tracked hashes/HEAD and original checkouts remain
+  unchanged. LOCAL-004 metadata preservation and LOCAL-007 rapid-click selection
+  remain unresolved; this is relayed evidence, not a cloud native rerun.

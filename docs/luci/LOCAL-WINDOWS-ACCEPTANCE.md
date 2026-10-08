@@ -1,16 +1,28 @@
 # Local Windows handoff and acceptance
 
-**Integrated handoff preparation — final revision pending.** This document is
-not a readiness announcement. The next handoff must supply a full retrievable
-commit after the storage-confirmation/shared-observation and CLOUD-008 changes
-are integrated and checked. Do not substitute the moving branch tip. The
-verified `2819ce9e` scopes below remain evidence for that earlier build; they do
-not verify later changes or finish the local product.
+**Focused native corrections are available; full local handoff remains open.**
+The native tester reports clean packaging and actual isolated release-app
+startup/reopen/shutdown at `2dcf245daca98d93e9cf7a40399b8fc78f4608a2`.
+Owner creation, four distinct saved definitions, returning sign-in and two owned
+shutdowns passed their scope. LOCAL-004 remains open because one ordinary-state
+directory had an unexplained first-cycle historical timestamp difference;
+second-cycle metadata matched. LOCAL-007 is an unconfirmed rapid-click selection
+observation. See the [relayed lifecycle receipt](evidence/2026-10-08-native-lifecycle-2dcf245d-reported.md).
 
-First native acceptance is performed by the originating local testing thread
+The later published source correction
+`919cffe014d1104d9e65fa19351683d182355f36` on `codex/luci-production-runs` is
+available for focused LOCAL-005 cached-refresh/navigation retest. CLOUD-009
+installed delayed-request/lost-ack recovery, native workload/resource acceptance
+and live-provider quality remain open. The first installed recovery attempt was
+rejected by its acceptance helper before request forwarding; it is not product
+recovery evidence. Use exact revisions and matching packages; neither a moving
+branch nor the earlier native package verifies the later corrections.
+
+Native acceptance is performed by the originating local testing thread
 `01a1199f-7500-7843-b02b-081081e536fa` on host `local`, using an isolated checkout
 and preserving the owner's existing changes. The cloud implementation thread
-will send the exact tested revision and handoff when ready, or post
+provides exact revisions for focused corrections and will send the final handoff
+when its remaining gates are met, or post
 **LOCAL TEST HANDOFF READY** if thread messaging is unavailable. No cloud agent
 should start processes on the owner's machine as part of this handoff.
 
@@ -69,11 +81,13 @@ build tools/Windows SDK and Microsoft Edge WebView2. Follow the official
 
 The local tester has reported the native prerequisites present: Rust/cargo
 1.99 with the MSVC target, VS Build Tools 2019 16.11.53/VC 14.29.30133, Windows
-SDK 10.0.19041.0, WebView2 154.0.4258.62 and Python 3.13.5/3.11.15. Conflicting
-native64/WOW6432Node SDK registry discovery is an **unproven packaging concern**.
-Do not reinstall or change global SDK registration preemptively; retain a real
-packaging failure and resolve supported discovery only if it occurs. Presence
-of these tools does not establish a successful native package.
+SDK 10.0.19041.0, WebView2 154.0.4258.62 and Python 3.13.5/3.11.15. The documented
+native release build subsequently passed at exact `2dcf245d`, including full
+Tauri compilation, matching sidecar/resources and unsigned NSIS generation,
+with all 1,808 tracked hashes and HEAD unchanged. The [packaging receipt](evidence/2026-10-08-native-package-2dcf245d-reported.json)
+records 616 native licence components with none missing. The installer was not
+executed. Preserve this working toolchain; the earlier SDK registry-discovery
+concern did not establish a need to reinstall or change global registration.
 
 Docker is required for isolated agent execution, checks and container previews.
 Defining and designing a project remain available before Docker is ready. The
@@ -86,26 +100,31 @@ optional for an application that does not use it; the stack requires another
 least 8 GiB RAM and 4 CPUs and verify the actual remaining headroom. Do not confuse
 Docker Desktop's Linux VM capacity with the Windows drive's free space.
 
-The first local preflight found Docker Desktop stopped and its existing VHD on
-C:, with only 4.22 GiB free on that drive, despite ample E:/F: capacity. The
-latest local report has Docker Desktop 4.48.0 (207573), Linux engine 28.5.1 and
-the existing inventory running, with the supported relocation still awaiting
-Windows unlock and C: last reported at 3.49 GiB free. A cold backup on E: has
-been hash-verified. These are historical observations, tracked as
-`LOCAL-ENV-001` in [LOCAL-TEST-LOOP.md](LOCAL-TEST-LOOP.md). Before any
-image pull, runtime build or agent workload, confirm Docker Desktop's actual
-disk-image location and record free space on that physical backing volume as
-well as in the Linux engine. Recheck these observations rather than treating the
-earlier numbers as current capacity. A VHD's file length and the VM's `df` output
-are not substitutes for host-volume free space.
+**LOCAL-ENV-001 relocation is reported verified.** Docker Desktop 4.48.0
+(207573), Linux engine 28.5.1 and the same engine identity remained healthy after
+the supported move to E:. Desktop UI, the active VHD and `CustomWslDistroDir`
+agreed; the old C: VHD was absent and the hash-verified cold backup was retained.
+The local tester reverified 107 container IDs/states, 196 image rows (178 distinct
+IDs), 155 volume IDs and the four original running containers. The later native
+app batch also left those four user Docker containers unchanged.
 
-Read-only native checks include `Get-Volume -DriveLetter C,E,F` and inspecting
-the configured image location in Docker Desktop's settings. Keep the existing
-image and application data intact. If relocation is selected, use Docker
-Desktop's supported disk-image-location workflow with an explicit local plan;
-do not manually move/delete its live VHD or unregister WSL distributions.
-The local tester owns this preparation. This cloud task does not initiate changes
-on the owner's machine or infer that launching the engine resolves disk pressure.
+Reported post-move space was approximately C: 74.20 GiB, E: 903.27 GiB and
+Linux guest 886 GiB. These are dated observations, not current admission capacity.
+The more recent source-app report had only about 2.91 GiB host available RAM;
+separate native build-only samples reached a minimum of 2.578 GiB. No agent or
+sustained-workload capacity follows from the successful relocation or app smoke.
+Recheck physical/guest space and host available memory before any runtime pull,
+build or worker allocation. Do not reduce resource guards merely to run a test.
+
+Read-only checks include `Get-Volume -DriveLetter C,E,F`, Docker Desktop's actual
+configured location, and Luci's [read-only storage probe](WINDOWS-DOCKER-STORAGE.md).
+The product separately uses fresh guest capacity and the conservative minimum
+across eligible mounted writable local volumes; even an unrelated low drive can
+limit new work. A VHD's file length or guest `df` does not establish physical
+backing-volume headroom. Preserve all existing data and the verified backup;
+there is no remaining instruction here to move the live VHD, unregister WSL or
+change global Docker settings. The local tester owns machine preparation; this
+cloud task does not initiate changes on that machine.
 
 No hosted Luci account, Luci licence subscription, AWS/Azure account or cloud
 credit is required. Choose your own model connection in the app. Provider API
@@ -116,12 +135,14 @@ files are not automatically imported into Luci.
 
 The local tester already uses `E:\Luci-local-acceptance`. Prepare a new checkout
 there for the next pinned batch; preserve earlier checkouts and evidence,
-including the contaminated `9898cf5d` diagnostic checkout. Replace the pending
-value only with the final full commit supplied by the implementation thread:
+including the contaminated `9898cf5d` diagnostic checkout. The exact revision
+below is for focused LOCAL-005 and CLOUD-009 source retests, not a declaration
+of full local acceptance. Use the later exact revision if the final handoff
+supplies one, and preserve prior native packages with their original evidence:
 
 ```powershell
-$candidate = 'PENDING_FULL_COMMIT_FROM_HANDOFF'
-if ($candidate -notmatch '^[0-9a-f]{40}$') { throw 'Wait for the exact integrated handoff commit.' }
+$candidate = '919cffe014d1104d9e65fa19351683d182355f36' # Published focused correction.
+if ($candidate -notmatch '^[0-9a-f]{40}$') { throw 'Select an exact published correction or handoff commit.' }
 $checkout = Join-Path 'E:\Luci-local-acceptance\checkouts' $candidate.Substring(0, 8)
 if (Test-Path -LiteralPath $checkout) { throw 'Choose a new checkout; preserve prior evidence.' }
 git clone --branch codex/luci-production-runs https://github.com/lcfrai/luci.git $checkout
@@ -356,6 +377,14 @@ Portable runtime use does not need host Go, Node or Python.
 
 ### Isolated native WebView acceptance — LOCAL-004 / LOCAL-006 corrections
 
+The local tester has now reported actual release startup, first-owner setup,
+controlled reopen with four persisted definitions and two exact owned shutdowns
+at `2dcf245d`. Carry those results forward for unchanged behavior. Full ordinary
+state metadata preservation remains open for the first-cycle historical
+527.7-microsecond directory timestamp difference; the second cycle matched.
+Reproduce only affected checks on a newer candidate, retaining the unresolved
+comparison and the original normal-state baseline.
+
 With the native prerequisites installed, use
 `./scripts/build-release.ps1 -Version 0.5.0 -Native` at the exact fixed revision
 supplied by the LOCAL FIX READY TO RETEST handoff. **`8f78804f` ignores explicit state; the first correction `656a1ae1` still
@@ -457,7 +486,7 @@ not permission to substitute terminal work and call the application complete.
 | Priority / gate | Reproducible acceptance and required evidence |
 | --- | --- |
 | P0: Startup and configuration | Fresh source or matching package starts; owner creation and returning sign-in work; missing/stopped Docker has an actionable remedy; runtime installation succeeds; real selected provider completes a task. Repeat launch with an occupied port and a stopped engine; retain the truthful failures and recovery. |
-| P0: Physical storage and host authority | In host Super Admin Settings, review and confirm the actual active/pending local layout. Record fresh, separate host-minimum and engine-guest values. Missing, stale, changed or unreadable observations block new preparation/worker starts; members cannot view the private path or confirm it. Refresh/status polling must not launch native probes or Docker work. Restart with the same private state and verify workers consume the gateway observation. Keep this gate open while relocation or sufficient space is unresolved. |
+| P0: Physical storage and host authority | In host Super Admin Settings, review and confirm the actual active/pending local layout. Record fresh, separate host-minimum and engine-guest values. Missing, stale, changed or unreadable observations block new preparation/worker starts; members cannot view the private path or confirm it. Refresh/status polling must not launch native probes or Docker work. Restart with the same private state and verify workers consume the gateway observation. Relocation and reported owner/member/restart confirmation passed separately; current freshness, exact producer counts and sufficient RAM/space for workload still need measurement. |
 | P0: Four-project operator flow | Follow the mixed-workload sequence in [SWARM-CAPACITY-ACCEPTANCE.md](SWARM-CAPACITY-ACCEPTANCE.md): choose projects, create/delegate scoped work, distinguish queued/running/blocked/review states, prioritize, pause/resume/cancel/retry where supported, and review exact changes. Bulk selection must show scope, cleared/stale selections and per-item failure. No project must disappear, inherit another project's context, starve or silently duplicate work. |
 | P0: Shared understanding | Describe a small facilities-maintenance app: staff report and comment on jobs; managers assign and change status; saved records survive restart; phone and desktop are usable. Review the proposed requirements, data/role rules, screens and acceptance checks. Resolve meaningful ambiguity and approve the agreed scope before execution. Show what is captured for the run and what remains a proposed amendment. |
 | P0: Real parallel execution | Decompose at least two independent tasks and one task depending on both, with explicit acceptance criteria and integration boundaries. Start with a provider that permits concurrency. Prove independent tasks overlap in distinct worktrees/containers; the dependent task must wait for accepted prerequisites. Agents must write the actual application. Record task/run/session IDs, branches, source revisions and timestamps. Manual copy-in of a prebuilt app does not pass. |
@@ -468,7 +497,7 @@ not permission to substitute terminal work and call the application complete.
 | P1: Context and handoffs | Inspect each task's assigned context, captured requirements/design/plan and prior accepted outcomes. Compare an active run against a later reviewed amendment. Resume a stopped session and verify its captured context remains correct. A replacement agent must understand completed work, unresolved questions, verification evidence and the next task without relying on an unbounded chat transcript. |
 | P1: Efficiency and quality | Run the same approved workload from the same starting commit with concurrency one, then with a bounded parallel configuration. Record preparation, active, waiting, verification and total wall time; peak active agents; available memory/CPU data; actual reported tokens/cost or explicitly unavailable usage; retries, conflicts and failed checks. Report speedup only for equally accepted outcomes. Parallel activity is not itself evidence of a faster or better result. |
 | P1: Operator polish | During real activity, identify the current phase, task owner, dependency/blocker, running work, next decision and exact built scope without reading logs. Exercise keyboard navigation, phone-width view, 400% zoom, unsent-text preservation and long failure messages. Pause/cancel/retry/review must have clear consequences and trustworthy feedback. |
-| P1: Native Windows lifecycle | Use the exact LOCAL-004 fixed native candidate with fresh explicit state/projects and a process-local WebView profile. Verify `runtime_info`, first-owner setup, reopen, unchanged normal-state roots and owned-sidecar shutdown; verify external mode has no service ownership. Perform installer/upgrade/uninstall acceptance only in a disposable VM with retained project/private-state hashes. A Linux build or cross-compilation does not pass this gate. |
+| P1: Native Windows lifecycle | Use the exact LOCAL-004 fixed native candidate with fresh explicit state/projects and a process-local WebView profile. Verify `runtime_info`, first-owner setup, reopen, unchanged normal-state roots and owned-sidecar shutdown; verify external mode has no service ownership. Perform installer/upgrade/uninstall acceptance only in a disposable VM with retained project/private-state hashes. The actual 2dc packaging and startup/reopen/shutdown smoke passed their reported scopes; first-cycle normal-state metadata preservation, external mode and disposable-VM installer lifecycle remain open. A Linux build or cross-compilation does not pass those gates. |
 
 Retain a small sanitized report with failed attempts, source/package hashes,
 actual provider/model, hardware and limits, task timings, resulting commit,
@@ -477,6 +506,17 @@ Keep credentials, private conversation/state files and raw provider request logs
 out of reports. Record unsupported or unverified behavior explicitly.
 
 ## Current evidence and remaining limits
+
+The latest [reported native2dc lifecycle](evidence/2026-10-08-native-lifecycle-2dcf245d-reported.md)
+supplements its [clean native package](evidence/2026-10-08-native-package-2dcf245d-reported.json):
+actual release UI, isolated own-sidecar startup, manually authored four-project
+context, controlled reopen and two owned shutdowns. Source HEAD/all 1,808 tracked
+hashes and both checkouts remained clean; no owned process, port or container
+remained. This report is relayed, with native raw artifacts retained locally.
+LOCAL-004 metadata diagnosis and LOCAL-007 reproduction remain open; no worker,
+model, sustained responsiveness, installer or later 919 correction is verified by
+that batch. The following 2819 evidence is historical and remains valid only for
+its named scope.
 
 At exact `2819ce9eacf62b2d73a1522b2db25301a7b393d4`:
 

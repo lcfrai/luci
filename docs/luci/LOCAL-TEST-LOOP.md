@@ -514,3 +514,41 @@ installation; this is not app responsiveness or workload acceptance. See the
 [reported native packaging receipt](evidence/2026-10-08-native-package-2dcf245d-reported.json).
 The local tester proceeds with isolated native own-sidecar smoke; newer
 LOCAL-005/CLOUD-009 code still needs its own pinned correction/installed checks.
+
+
+### Reported native own-sidecar startup and controlled reopen at `2dcf245d`
+
+The local tester reports the actual release app selected the exact explicit
+isolated E: state through `runtime_info`, with no startup error. Native controls
+created the owner and four unique revision-1 project definitions, and switched
+among them. Returning-owner sign-in after controlled reopen passed; all four
+definitions persisted, and switches with a stabilized tree selected the intended
+projects. Both exact-window Alt+F4 cycles exited the app and its exact owned
+sidecar. All 1,808 tracked-file hashes and HEAD remained unchanged; candidate
+and original checkouts stayed clean. Final owned processes/ports/containers were
+zero, and the four original user Docker containers were unchanged.
+
+LOCAL-004's full preservation gate stays **open**. Both cycles preserve normal
+state contents, paths, lengths and attributes; the legacy root remains absent.
+The first cycle has one instance-directory last-write difference of 527.7
+microseconds, with both values dated 2 October rather than the current test date.
+Cause is unconfirmed and no product overwrite is established. The second cycle's
+metadata matches exactly. The local tester will refresh handle-based metadata;
+the later pass does not erase the earlier observation.
+
+LOCAL-007 is **P2, unconfirmed**, assigned to cloud UI investigation: a rapid click
+while the tree expanded selected delta instead of intended gamma. Later stable
+switches passed and no cross-project write/leak was observed. Retain the first
+observation; do not call it a reproduced product defect or a completed fix.
+Platform-inappropriate Windows shortcut glyphs are a separate minor UI correction.
+
+The [sanitized reported lifecycle receipt](evidence/2026-10-08-native-lifecycle-2dcf245d-reported.md)
+contains these scopes. The cloud session has not inspected the raw native
+artifacts or their hashes. No installer, provider inference or Docker worker ran
+in this lifecycle batch. LOCAL-005's correction is now available at exact
+`919cffe014d1104d9e65fa19351683d182355f36` for focused native refresh/navigation
+retest. CLOUD-009 installed attempt 1 stopped at acceptance-helper request
+validation before forwarding and establishes no product recovery result.
+Installed fault recovery, native delayed-request/lost-ack scenarios, sustained
+four-project responsiveness and live-provider quality remain open. The broader
+local-first goal is unchanged and unfinished.

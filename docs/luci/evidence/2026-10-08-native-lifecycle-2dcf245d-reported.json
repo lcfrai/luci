@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "2dcf245daca98d93e9cf7a40399b8fc78f4608a2",
+  "scope": "Relayed actual Windows release WebView own-sidecar startup, manually authored context and controlled reopen; partial local acceptance only",
+  "provenance": {
+    "reportedBy": "originating local test thread, relayed by the coordinating implementation thread",
+    "basis": [
+      "Earlier relayed partial report dated 2026-10-08T11:55:01.524626Z",
+      "Later relayed controlled-reopen, second shutdown, source-preservation and cleanup report"
+    ],
+    "rawNativeArtifactsInspectedByCloud": false,
+    "rawNativeArtifactHashesAvailableToCloud": false,
+    "localEvidence": "E:/Luci-local-acceptance/evidence/2dcf245d/native-lifecycle/"
+  },
+  "reportedPassed": {
+    "releaseRuntimeInfoExactExplicitIsolatedState": true,
+    "startupErrorAbsent": true,
+    "firstOwnerCreatedThroughNativeControls": true,
+    "distinctProjects": 4,
+    "distinctDefinitionsRevision": 1,
+    "initialContextSwitches": 4,
+    "returningOwnerSignIn": true,
+    "allFourDefinitionsPersistedAfterReopen": true,
+    "stableTreeContextSwitchesAfterReopen": true,
+    "exactWindowAltF4Cycles": 2,
+    "applicationAndExactOwnedSidecarExitedEachCycle": true
+  },
+  "ordinaryState": {
+    "contentsPathsLengthsAttributesUnchangedBothCycles": true,
+    "legacyRootRemainedAbsent": true,
+    "firstCycle": {
+      "metadataExact": false,
+      "observedItem": "one ordinary-state instance directory",
+      "lastWriteDeltaMicroseconds": 527.7,
+      "timestampCalendarDate": "2026-10-02",
+      "currentDateWriteObserved": false,
+      "cause": "unconfirmed; refreshed handle-based metadata comparison planned by local tester",
+      "attributedProductOverwrite": false
+    },
+    "secondCycle": {
+      "metadataExact": true
+    },
+    "local004FullPreservationGate": "open pending first-cycle metadata diagnosis"
+  },
+  "sourcePreservation": {
+    "trackedFilesUnchanged": 1808,
+    "headUnchanged": true,
+    "candidateCheckoutClean": true,
+    "originalCheckoutClean": true
+  },
+  "cleanup": {
+    "ownedProcessesRemaining": 0,
+    "ownedPortsRemaining": 0,
+    "ownedContainersRemaining": 0,
+    "originalUserDockerContainersUnchanged": 4
+  },
+  "navigationObservation": {
+    "issueID": "LOCAL-007",
+    "priority": "P2",
+    "status": "unconfirmed",
+    "reportedBehavior": "One rapid click while the project tree expanded selected delta instead of intended gamma. Later stable-tree switching passed.",
+    "crossProjectWriteOrLeakObserved": false,
+    "reproductionAndCause": "not established; source investigation pending"
+  },
+  "ancillaryObservation": "Platform-inappropriate Windows shortcut glyphs are assigned separately to the UI owner; no fix is claimed by this receipt.",
+  "retainedHarnessFaults": [
+    "initial readiness race",
+    "GET request body",
+    "decorative label lookup"
+  ],
+  "excludedClaims": [
+    "Installer execution, upgrade or uninstall",
+    "Provider inference or generated application quality",
+    "Docker worker or sustained agent workload",
+    "LOCAL-005 cached-refresh correction, which is later than this revision",
+    "CLOUD-009 installed uncertain-launch recovery, which is later than this revision",
+    "Full local milestone or cloud-capable product completion"
+  ]
+}
