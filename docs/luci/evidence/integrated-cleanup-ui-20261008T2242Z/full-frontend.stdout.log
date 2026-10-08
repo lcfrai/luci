@@ -1,0 +1,5 @@
+
+> @lcfr/luci-desktop@0.5.0 test
+> vitest run --maxWorkers=1 --no-file-parallelism --reporter=json --outputFile=/workspace/luci/artifacts/quality-swarm/integrated-cleanup-ui-20261008T2242Z/vitest.json
+
+JSON report written to /workspace/luci/artifacts/quality-swarm/integrated-cleanup-ui-20261008T2242Z/vitest.json

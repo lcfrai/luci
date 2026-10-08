@@ -7,3 +7,5 @@ The subsequent TypeScript check **failed** with TS2550: the new `Object.hasOwn` 
 Commands, elapsed time, original stdout/stderr, exact source hashes and test report are retained. vitest.json.gz decodes to the unchanged original JSON, with both hashes in capture-bindings.json. The canvas-not-implemented fixture warning remains in stderr and did not fail the run. No browser, installed package, Windows, provider or performance acceptance is credited.
 
 The capture wrapper itself returned zero after writing both command outcomes; it did not aggregate the failing typecheck into its own exit code. This wrapper limitation is retained with its exact source. The underlying `tsc` exit code 2 is explicit in commands.json/result.json and is not a passing validation result. Future orchestration must propagate aggregate failure.
+
+LOCAL-017 publication correction: four original stdout/stderr log files were initially omitted from Git by its log ignore rule. They are now explicitly tracked, with unchanged declared hashes and byte counts. No test rerun or reclassification of the original typecheck failure occurred.
