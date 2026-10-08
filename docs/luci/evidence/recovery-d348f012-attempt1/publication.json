@@ -18,7 +18,7 @@
   ],
   "transformations": [
     "Full check report, phase receipts, journal and observation originals retained byte-identically after gzip decoding where compressed.",
-    "Worker result retains failed outcome; only residual private hierarchy in ENOENT is redacted.",
+    "Worker result retains failed outcome; residual private hierarchy in ENOENT and retained-fixture path are redacted.",
     "Worker wrapper omits privateFixtureParent.",
     "Package provenance omits packageDir and archive host paths; subject names and hashes remain.",
     "Independent closure is an allowlisted projection bound to both original private record hashes.",
@@ -38,8 +38,8 @@
     {
       "path": "README.md",
       "operation": "New explanatory or derived publication artifact",
-      "bytes": 8252,
-      "sha256": "ee63786f251f7e1484f7277de6b3c7048113f1279a77c7c0d22aba52ce83ec65"
+      "bytes": 8710,
+      "sha256": "84116018e32ce0419b26e4401b47405bfdff20ead81a6a1b927048f45351c73e"
     },
     {
       "path": "check/independent-scoped-closure.json",
@@ -317,8 +317,8 @@
     },
     {
       "path": "publication-validation.json",
-      "bytes": 706,
-      "sha256": "d836e92a507fd4b5634e42227dfffadd93057b3e063bd4ef3a02a0563610fadd"
+      "bytes": 1399,
+      "sha256": "0a1909fa1931fafb21fab5a4ce393a372d6b934dd501f33d6098079f62dcaa05"
     },
     {
       "path": "source-verification.json",
@@ -526,14 +526,14 @@
     },
     {
       "path": "worker/result/result.sanitized.json.gz",
-      "bytes": 2689,
-      "sha256": "e63a203be34824d3e0be3bcf87e0a422351ddded04ba1f13fd5458607549634b",
+      "bytes": 2668,
+      "sha256": "eccc3f9b587c4cea84cf1bed9d18dae6d08a48b2cc571353cdabed29b7167225",
       "originalPath": "artifacts/quality-swarm/worker-recovery-d348f012-attempt1/result/result.json",
       "originalBytes": 16025,
       "originalSHA256": "c77fc9cc511bc0167fe5c8a80506e6391b049b85e62dc2206e4311ff9ac3bd0e",
-      "operation": "JSON projection/redaction; original remains unchanged; deterministic gzip mtime=0",
-      "decodedBytes": 15943,
-      "decodedSHA256": "b46eb5b5654c335c9c6d5ee5754941fa270895e3fd0e47f79a7e9c117b97b80e"
+      "operation": "JSON path redaction: /failure/message and /fixtureRetained/path; original remains unchanged; deterministic gzip mtime=0",
+      "decodedBytes": 15918,
+      "decodedSHA256": "93723ba9375df64273576585bfde24d5b3411b46178778198454571d7b6cdf0e"
     },
     {
       "path": "worker/result/source-binding.json",
@@ -579,5 +579,18 @@
       "originalSHA256": "84ff221023f4a593457b23c6e75a0bca6388bc27e0447fac34934908601c68ca",
       "operation": "JSON projection/redaction; original remains unchanged"
     }
-  ]
+  ],
+  "publicationCorrection": {
+    "at": "2026-10-08T23:37:46.251007+00:00",
+    "priorCommit": "fdde0470",
+    "reason": "Retained fixture path at worker result /fixtureRetained/path was not covered by the initial regex-only path check.",
+    "changedResultField": "/fixtureRetained/path",
+    "exactPrivateRootsInspectedInMemory": 4,
+    "recursiveJSONDocumentsChecked": 199,
+    "recursiveStringFieldsChecked": 40100,
+    "exactPrivateRootMatchesAfterCorrection": 0,
+    "originalFailedReceiptUnchanged": true,
+    "priorGitHistoryRewritten": false,
+    "mode": "Documentation-only correction; no runtime fixture, product/helper source, browser, Docker command or test process changed."
+  }
 }

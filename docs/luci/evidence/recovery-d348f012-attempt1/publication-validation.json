@@ -10,5 +10,18 @@
   "limitations": [
     "Only retained credential material available in the fresh private fixture was checked; ephemeral credentials not retained cannot be re-read.",
     "Credential-pattern and path checks supplement allowlisting and do not assert universal secret detection."
-  ]
+  ],
+  "publicationCorrection": {
+    "at": "2026-10-08T23:37:46.251007+00:00",
+    "priorCommit": "fdde0470",
+    "reason": "Retained fixture path at worker result /fixtureRetained/path was not covered by the initial regex-only path check.",
+    "changedResultField": "/fixtureRetained/path",
+    "exactPrivateRootsInspectedInMemory": 4,
+    "recursiveJSONDocumentsChecked": 199,
+    "recursiveStringFieldsChecked": 40100,
+    "exactPrivateRootMatchesAfterCorrection": 0,
+    "originalFailedReceiptUnchanged": true,
+    "priorGitHistoryRewritten": false,
+    "mode": "Documentation-only correction; no runtime fixture, product/helper source, browser, Docker command or test process changed."
+  }
 }
