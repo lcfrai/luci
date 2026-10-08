@@ -1,0 +1,12 @@
+{
+  "files": {
+    "README.md": "3af2de344ea63345496ac4d7c0065cff0f32baf515fe25b94b2efcf8a3afb6a3",
+    "affected-full-inputs.json": "5e47e4396ed0611583cfc18868f2f3e20a1fea241b2f9acf23ab888472349205",
+    "affected-full-report.json": "ccc7bdbb25e7403522dc7bfb39541db5f31e37d104d2b97bfd96772fd5e2b17b",
+    "diagnostic-inputs.json": "83958d015604ec34bd105d07cf8fee7617585badaea0bd6ccfd1ba7798fb8400",
+    "diagnostic-report.json": "3564078bffbc7e6e92ffa5eedf1465c0c8e0ddd2bc3f775716c8336eb926d200",
+    "final-focused-inputs.json": "74e147e382719956a2704ccb3d4d6d062af141778234a759afd1050740c9470b",
+    "final-focused-report.json": "1b8513a318fa9ef6b7462e1752d59534e817375f7fea188e3e8214a30433931c",
+    "verification.json": "d683b478b2ccef593979fb6257e179f89679dd4e13360836610cebe0b554be25"
+  }
+}

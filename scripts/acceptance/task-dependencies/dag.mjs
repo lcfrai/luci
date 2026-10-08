@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import {verifyTaskContextDelivery} from '../task-context-delivery.mjs';
 import {recordDependencyProbe,assertDependencyRefusal} from './dependency-probe.mjs';
+import {selectAuthorizedTask,taskFailureDiagnostic,assertExactTaskFailure} from './queued-failure.mjs';
 import {taskContracts,variants,seedFiles as initialFiles,variantFor,changedPaths,taskCommand,taskHandoff,expectedResult} from './dag-fixture.mjs';
 import {contextFilesV1,contextFileNames,dependencyFile,validateContextManifest} from './context-contract.mjs';
 
@@ -81,7 +82,7 @@ if (existsSync(evidence)) assert.equal(readdirSync(evidence).length, 0, 'Use a f
 mkdirSync(evidence, { recursive: true, mode: 0o700 });
 writeFileSync(join(evidence, 'package-provenance.json'), provenanceBytes, { mode: 0o600, flag: 'wx' });
 writeFileSync(join(evidence,'image-provenance.json'),readFileSync(resolve(imageEvidencePath)),{mode:0o600,flag:'wx'});
-const driverNames=['dag.mjs','dag-fixture.mjs','context-contract.mjs','dependency-probe.mjs','run-with-observer.py'];
+const driverNames=['dag.mjs','dag-fixture.mjs','context-contract.mjs','dependency-probe.mjs','queued-failure.mjs','run-with-observer.py'];
 const reusedHelpers=['task-context-delivery.mjs','four-project-queue/native-terminal-diagnostics.mjs','four-project-queue/sample-linux-owned.py','launch-recovery/fenced-docker-proxy.mjs','launch-recovery/worker-create-guard.mjs'];
 mkdirSync(join(evidence, 'accepted-harness'), { mode: 0o700 });
 for (const name of driverNames) writeFileSync(join(evidence, 'accepted-harness', name), readFileSync(new URL(name, import.meta.url)), { mode: 0o600, flag: 'wx' });
@@ -309,7 +310,27 @@ async function openTaskActions(taskID){
  assert.equal(await summary.evaluate(node=>node.parentElement.tagName==='DETAILS'&&node.parentElement.open),true);
 }
 async function queuedChild(key){
- const contract=variants[key];assert(contract);const queued=await until('Exact authorized DAG child '+key,async()=>{const queue=await api('GET',owner.route+'/swarm-queue');return queue.items.find(item=>item.taskId===contract.taskId&&item.childId&&item.state==='running'&&![...taskData.values()].some(value=>value.session.id===item.childId));},150000);
+ const contract=variants[key];assert(contract);const authorization=owner.queueAuthorizations?.get(contract.taskId);assert(authorization,'The exact task needs a retained explicit queue authorization');
+ const queued=await until('Exact authorized DAG child '+key,async()=>{
+  const queue=await api('GET',owner.route+'/swarm-queue');
+  const candidate=selectAuthorizedTask(queue.items,authorization,[...taskData.values()].map(value=>value.session.id));
+  if(candidate?.state==='failed'){
+   const input={variant:key,authorization,queueItem:candidate,expectedAttempt:contract.attempt};
+   const diagnostic=taskFailureDiagnostic(input),path=join(evidence,'queued-failure-'+key+'.json');
+   (receipt.queuedFailures??=[]).push(diagnostic);writeFileSync(path,JSON.stringify(diagnostic,null,2)+'\n',{mode:0o600,flag:'wx'});
+   // Preserve queue evidence even if either subsequent read or identity check fails.
+   const failedSession=await api('GET','/v1/sessions/'+candidate.childId);
+   Object.assign(diagnostic,taskFailureDiagnostic({...input,session:failedSession}));
+   writeFileSync(path,JSON.stringify(diagnostic,null,2)+'\n',{mode:0o600});
+   const failedRun=(await api('GET',owner.route+'/runs/'+owner.run.id)).run;
+   Object.assign(diagnostic,taskFailureDiagnostic({...input,session:failedSession,run:failedRun}));
+   writeFileSync(path,JSON.stringify(diagnostic,null,2)+'\n',{mode:0o600});
+   assertExactTaskFailure(diagnostic);diagnostic.classification='exact-authorized-task-failed';
+   writeFileSync(path,JSON.stringify(diagnostic,null,2)+'\n',{mode:0o600});
+   throw Error('Exact authorized DAG child '+key+' failed: '+diagnostic.queue.reasonCode+'; retained public queue/session/operation diagnostic. No retry was authorized.');
+  }
+  return candidate;
+ },150000);
  const session=await api('GET','/v1/sessions/'+queued.childId);ownedSessions.add(session.id);owner.run=(await api('GET',owner.route+'/runs/'+owner.run.id)).run;run=owner.run;
  const operation=run.operations.find(op=>op.taskId===contract.taskId&&op.childId===session.id);assert(operation);assert.equal(operation.attempt,contract.attempt);const worktrees=(await api('GET','/v1/projects/'+owner.owner.id+'/worktrees')).worktrees,checkout=worktrees.find(w=>w.id===operation.worktreeId);assert(checkout);
  const state={task:key,taskId:contract.taskId,owner:owner.owner,operation,session,checkout:checkout.path,count:0,requestedLimits:{memoryMiB:queued.memoryMiB,cpuMillis:queued.cpuMillis}};taskData.set(key,state);
@@ -355,7 +376,7 @@ async function timed(promise,ms,label){let timer;try{return await Promise.race([
 
 
 async function prepare(owner){await openProject(owner);await page.getByRole('button',{name:'Prepare agent team',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Prepare agent team',exact:true});await dialog.getByRole('combobox').selectOption('1');assert.equal(await dialog.getByRole('combobox').inputValue(),'1');owner.run=(await action(owner.route+'/runs/'+owner.run.id+'/swarm',()=>dialog.getByRole('button',{name:'Prepare team',exact:true}).click(),201)).run;}
-async function queueOwner(expectedTaskIds){await openProject(owner);await page.getByRole('button',{name:/^Queue reviewed tasks/}).click();const result=await action(owner.route+'/runs/'+owner.run.id+'/swarm/queue',()=>page.getByRole('dialog',{name:'Queue reviewed work',exact:true}).getByRole('button',{name:'Authorize queued tasks',exact:true}).click(),201);assert.deepEqual(result.items.map(item=>item.taskId).sort(),[...expectedTaskIds].sort());(receipt.queueConsents??=[]).push({at:new Date().toISOString(),taskIds:expectedTaskIds,items:result.items});owner.queued=result.items;}
+async function queueOwner(expectedTaskIds){await openProject(owner);await page.getByRole('button',{name:/^Queue reviewed tasks/}).click();const result=await action(owner.route+'/runs/'+owner.run.id+'/swarm/queue',()=>page.getByRole('dialog',{name:'Queue reviewed work',exact:true}).getByRole('button',{name:'Authorize queued tasks',exact:true}).click(),201);assert.deepEqual(result.items.map(item=>item.taskId).sort(),[...expectedTaskIds].sort());(receipt.queueConsents??=[]).push({at:new Date().toISOString(),taskIds:expectedTaskIds,items:result.items});owner.queued=result.items;owner.queueAuthorizations??=new Map();for(const item of result.items){assert.equal(item.projectId,owner.owner.id);assert.equal(item.runId,owner.run.id);owner.queueAuthorizations.set(item.taskId,{id:item.id,projectId:item.projectId,runId:item.runId,taskId:item.taskId});}}
 function seedSource(project){for(const [name,text] of Object.entries(initialFiles)){assert(['verify.mjs','README.md'].includes(name));const file=join(project.path,name);assert(!existsSync(file)||lstatSync(file).isFile());writeFileSync(file,text,{mode:0o600});}}
 async function saveContext(projectOwner,connectionID){
  project=projectOwner;projectRoute='/v1/product/projects/'+project.id;const goal='Build alpha and beta in isolated serial attempts, review their shared-file integration conflict, then join only the current integrated results.';

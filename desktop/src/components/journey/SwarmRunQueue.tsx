@@ -7,7 +7,7 @@ import { useCockpit } from '../../store/store';
 import { Button } from '../fluid/components/button';
 import { WorkflowDialog } from '../common/WorkflowDialog';
 
-const unfinished = (item: SwarmQueueItem) => !['cancelled', 'completed'].includes(item.state);
+const unfinished = (item: SwarmQueueItem) => !['cancelled', 'completed', 'failed'].includes(item.state);
 interface Props {
   run: ProjectRun; canEdit: boolean; canExecute: boolean; busy: boolean;
   onBusy(label: string): void;
@@ -61,6 +61,7 @@ export function SwarmRunQueue(props: Props) {
   useEffect(() => { setConfirm(false); }, [run.revision, canEdit, canExecute, capability.signature]);
   const items = queue?.items.filter(item => item.runId === run.id) ?? [];
   const pending = items.filter(unfinished);
+  const failures = items.filter(item => item.state === 'failed');
   const candidates = run.swarm?.tasks.filter(task => !task.integration &&
     (!task.operationId || run.operations.some(operation => operation.id === task.operationId && operation.status === 'cancelled' && !runOperationNeedsRecovery(operation))) &&
     !pending.some(item => item.taskId === task.id)) ?? [];
@@ -97,13 +98,18 @@ export function SwarmRunQueue(props: Props) {
     if (usable(generation)) { receive(result); setNotice(action === 'cancel' ? 'Future starts cancelled for this queue entry. Existing sessions and saved output are retained.' : 'Queue updated. Active work keeps its own session controls.'); }
   }
   return <section className="swarm-run-queue" aria-label="Background task queue">
-    <div className="project-swarm-heading"><h4>Keep work moving across projects</h4><Button variant="tertiary" disabled={busy} onClick={() => void refresh()}>Refresh queue</Button></div>
-    <p>Queue reviewed tasks once. Luci waits for dependencies, shares capacity across projects, and keeps each task’s context separate. Review each result before integrating it.</p>
+    <div className="project-swarm-heading"><h4>Background queue</h4>
+      <Button disabled={!queue || !canEdit || !canExecute || busy || unconfirmed || sourceBlocked || !capability.allowed || !candidates.length} onClick={() => { setConfirm(true); setNotice(''); }}>Queue reviewed tasks{candidates.length ? ` (${candidates.length})` : ''}</Button>
+    </div>
     {!capability.allowed && <p className="journey-warning">{capability.reason}</p>}
     {error && <p role="status" className="journey-warning">Queue update unavailable: {error}</p>}
     {notice && <p role="status">{notice}</p>}
     {queue?.dispatchPaused && <p role="status">Background starts are paused for this workspace. Manage this in the projects overview.</p>}
-    <Button disabled={!queue || !canEdit || !canExecute || busy || unconfirmed || sourceBlocked || !capability.allowed || !candidates.length} onClick={() => { setConfirm(true); setNotice(''); }}>Queue reviewed tasks{candidates.length ? ` (${candidates.length})` : ''}</Button>
+    {(failures.length > 0 || pending.some(item => ['blocked', 'unknown'].includes(item.state))) && <p className="journey-warning">Queued work needs attention. Open Queue status and controls to inspect it before continuing.</p>}
+    <details className="swarm-queue-controls"><summary>Queue status and controls{pending.length ? ` · ${pending.length} active or waiting` : ''}</summary>
+      <Button variant="tertiary" disabled={busy} onClick={() => void refresh()}>Refresh queue</Button>
+      <p>Queue reviewed tasks once. Luci waits for dependencies and capacity across projects. Review each result before integrating it.</p>
+    {failures.length > 0 && <ul className="swarm-run-queue-items">{failures.map(item => <li key={item.id}><strong>{item.taskTitle}</strong> · Failed<p>{item.reason || 'The attempt failed. Inspect its recorded outcome before retrying.'}</p><p>Review this attempt in the task list. A new start requires explicit recovery and fresh authorization.</p></li>)}</ul>}
     {pending.length > 0 && <ul className="swarm-run-queue-items">{pending.map(item => <li key={item.id}>
       <div><strong>{item.taskTitle}</strong> <span>{item.state}</span></div>
       {item.reason && <p>{item.reason}</p>}
@@ -117,6 +123,7 @@ export function SwarmRunQueue(props: Props) {
       {item.state === 'unknown' && <p>Inspect the task session and retained output, then check team status. An uncertain start is never replayed automatically.</p>}
     </li>)}</ul>}
     {queue?.hasMore && <p>Only part of the project queue is shown. Refresh as earlier entries complete to inspect remaining work.</p>}
+    </details>
     {confirm && <WorkflowDialog title="Queue reviewed work" description="Authorize these exact saved tasks to start automatically as capacity becomes available. Dependent tasks wait for reviewed integration. Your configured model connection may incur usage charges." busy={busy} onClose={() => setConfirm(false)}>
       <p>{run.input.route.harness} · {run.input.route.model || 'Configured model'} · up to {run.swarm?.maxParallel} agents in this build, within workspace and provider limits.</p>
       <p>Saved permission: {capability.mode}. Tasks run commands without interactive approvals inside isolated Docker workspaces and exit after their response. Their output still needs review; queue completion does not accept or integrate changes.</p>

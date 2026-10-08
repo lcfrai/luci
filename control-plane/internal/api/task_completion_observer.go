@@ -110,7 +110,7 @@ func (a *API) observeTaskCompletionCandidate(ctx context.Context, candidate regi
 	}
 	_, err = a.deps.Store.Update(row.ID, func(current *registry.Session) error {
 		if !sameTaskObservationCandidate(candidate, *current) || current.Status != registry.StatusExited ||
-			current.WorktreeID != row.WorktreeID || product.ProjectRunSessionRequestDigest(*current) != product.ProjectRunSessionRequestDigest(row) {
+			current.WorktreeID != row.WorktreeID || current.StartFailure != row.StartFailure || product.ProjectRunSessionRequestDigest(*current) != product.ProjectRunSessionRequestDigest(row) {
 			return product.ErrProjectRunConflict
 		}
 		current.TaskObservationComplete = true

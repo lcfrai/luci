@@ -95,8 +95,9 @@ type Session struct {
 	// on the REST surface.
 	CarriedConversationID string `json:"carriedConversationId"`
 
-	Status     Status `json:"status"`
-	ExitReason string `json:"exitReason"`
+	Status       Status              `json:"status"`
+	ExitReason   string              `json:"exitReason"`
+	StartFailure SessionStartFailure `json:"startFailure,omitzero"`
 
 	Backend     string `json:"backend"`     // backend.Kind, held as a string so
 	SandboxID   string `json:"sandboxId"`   // registry imports no other package
@@ -119,7 +120,8 @@ type Session struct {
 	ProjectRunID          string `json:"projectRunId,omitempty"`
 	ProjectRunOperationID string `json:"projectRunOperationId,omitempty"`
 	// TaskObservationComplete is a private controller watermark: the exact ended
-	// attempt has been reconciled into its durable run and retained handoff.
+	// attempt has been reconciled into its durable run and retained handoff or
+	// positively recorded pre-allocation diagnostic.
 	// It is not evidence of successful work. Older records omit it and are
 	// eligible for bounded observation after reopening.
 	TaskObservationComplete bool `json:"taskObservationComplete,omitempty"`

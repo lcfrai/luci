@@ -176,6 +176,8 @@ function ProjectCard({ project, summary, refresh, picked, pending, onSelect, onF
       <dl className="overview-counts" aria-label="Recorded swarm queue activity">{(['running', 'queued', 'blocked'] as const).map(state => <div key={state}><dt>{state === 'running' ? 'Running' : state === 'queued' ? 'Queued' : 'Blocked'}</dt><dd>{counts?.[state] ?? '—'}</dd></div>)}</dl>
       {counts?.status === 'unavailable' && <p className="overview-warning">Queue activity unavailable; no zero counts inferred.</p>}
       {!!counts?.paused && <p className="overview-meta">{counts.paused} paused</p>}{!!counts?.reserved && <p className="overview-meta">{counts.reserved} reserved for dispatch</p>}{!!counts?.unknown && <p className="overview-warning">{counts.unknown} {counts.unknown === 1 ? 'outcome needs' : 'outcomes need'} reconciliation in the project.</p>}
+      {counts?.status === 'recorded' && counts.failed == null && <p className="overview-meta">Failure history is unavailable; no zero count inferred.</p>}
+      {!!counts?.failed && <p className="overview-warning">{counts.failed} {counts.failed === 1 ? 'failed queue entry' : 'failed queue entries'}. Review the saved run before choosing a new attempt.</p>}
       {counts?.dispatchPaused && <p className="overview-warning">Workspace dispatch is paused.</p>}
       {value.attention?.status === 'recorded'
         ? <RecordedRunAttention {...value.attention} compact initialLimit={1} count={value.attention.count ?? 0} omitted={value.attention.omitted ?? 0} stale={summary.sourceBusy} onInspect={runId => openDestination('develop', runId)} onOpenHistory={() => openDestination('develop')} />
@@ -192,11 +194,11 @@ function ProjectCard({ project, summary, refresh, picked, pending, onSelect, onF
     </>}
 
 
-    {showQueue && <ProjectQueue project={project} refresh={refresh} picked={picked} pending={pending} onSelect={onSelect} />}
+    {showQueue && <ProjectQueue project={project} refresh={refresh} picked={picked} pending={pending} onSelect={onSelect} onInspect={value && !summary?.sourceBusy && scope ? runId => openDestination('develop', runId) : undefined} />}
   </li>;
 }
 
-function ProjectQueue({ project, refresh, picked, pending, onSelect }: { project: Project; refresh: number; picked: Record<string, Picked>; pending: boolean; onSelect(project: Project, item: SwarmQueueItem, selected: boolean, canExecute: boolean): void }) {
+function ProjectQueue({ project, refresh, picked, pending, onSelect, onInspect }: { project: Project; refresh: number; picked: Record<string, Picked>; pending: boolean; onSelect(project: Project, item: SwarmQueueItem, selected: boolean, canExecute: boolean): void; onInspect?(runId: string): void }) {
   const access = useTeamProjectPermissions(project.id);
   const [queue, setQueue] = useState<ProjectSwarmQueue | null>(null);
   const [error, setError] = useState('');
@@ -210,9 +212,9 @@ function ProjectQueue({ project, refresh, picked, pending, onSelect }: { project
     return () => controller.abort();
   }, [project.id, access.permissions.read, refresh, retry]);
   if (!access.permissions.read) return <p className="overview-warning">{access.loading ? 'Checking project access…' : 'Project access is unavailable.'}</p>;
-  return <section className="overview-queue" aria-label={`${project.name} queue`}><h4>Waiting and active work</h4>
+  return <section className="overview-queue" aria-label={`${project.name} queue`}><h4>Queued work and recorded outcomes</h4>
     {error ? <p role="alert">{error} <Button variant="secondary" onClick={() => setRetry(value => value + 1)}>Retry queue</Button></p> : !queue ? <p role="status">Loading queue…</p> : <>
-      {queue.items.length === 0 ? <p>No queued swarm work. Prepare and review tasks inside the project before adding them.</p> : <ul>{queue.items.slice(0, limit).map(item => <li key={item.id}><label className="overview-queue-title"><input type="checkbox" aria-label={`Select ${item.taskTitle} in ${project.name}`} checked={!!picked[itemKey(item)]} disabled={pending || !access.permissions.edit || !eligible(item, 'priority')} onChange={event => onSelect(project, item, event.target.checked, access.permissions.execute)} /><strong>{item.taskTitle}</strong></label><div className="overview-queue-state"><Badge variant={item.state === 'blocked' || item.state === 'unknown' ? 'destructive' : 'secondary'}>{item.state}</Badge><span>{item.priority} priority</span></div>{item.reason && <p>{item.reason}</p>}{['blocked', 'unknown'].includes(item.state) && <p>Open the project to inspect the run and retained output before retrying. Retrying requires a new reviewed task entry.</p>}</li>)}</ul>}
+      {queue.items.length === 0 ? <p>No queued swarm work. Prepare and review tasks inside the project before adding them.</p> : <ul>{queue.items.slice(0, limit).map(item => <li key={item.id}><label className="overview-queue-title"><input type="checkbox" aria-label={`Select ${item.taskTitle} in ${project.name}`} checked={!!picked[itemKey(item)]} disabled={pending || !access.permissions.edit || !eligible(item, 'priority')} onChange={event => onSelect(project, item, event.target.checked, access.permissions.execute)} /><strong>{item.taskTitle}</strong></label><div className="overview-queue-state"><Badge variant={['blocked', 'unknown', 'failed'].includes(item.state) ? 'destructive' : 'secondary'}>{item.state}</Badge><span>{item.priority} priority</span></div>{item.reason && <p>{item.reason}</p>}{item.state === 'failed' && <><p>This queue entry is finished with a failure. It is not waiting or completed successfully, and will not replay. Review its saved run before authorizing a new attempt.</p><Button variant="secondary" disabled={pending || !onInspect} onClick={() => onInspect?.(item.runId)}>Inspect failed task</Button></>}{['blocked', 'unknown'].includes(item.state) && <p>Open the project to inspect the run and retained output before retrying. Retrying requires a new reviewed task entry.</p>}</li>)}</ul>}
       {queue.items.length > limit && <Button variant="ghost" onClick={() => setLimit(value => value + 30)}>Show more queued tasks</Button>}{queue.hasMore && <p>Only part of this queue is listed. Open the project for remaining work.</p>}
       {!access.permissions.edit ? <p>Editing permission is required to change queued work.</p> : !access.permissions.execute && <p>You can pause, cancel or reprioritize waiting work. Execution permission is required to resume it.</p>}
     </>}

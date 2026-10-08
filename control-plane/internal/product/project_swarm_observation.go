@@ -11,8 +11,8 @@ import (
 // This service callback is not a user action or execution authority: it cannot
 // reserve, launch, accept, integrate or release a task. Registry records are its
 // durable work source, so an interrupted callback can be retried after restart.
-// A true result means the exact task's canonical receipt was validated (or the
-// record is positively identified as a non-task run).
+// A true result means the exact task's canonical report or pre-allocation
+// diagnostic was validated (or the record is a positively identified non-task run).
 func (s *Server) ObserveTaskCompletion(ctx context.Context, observed registry.Session) (bool, error) {
 	if err := ctx.Err(); err != nil {
 		return false, err
@@ -56,7 +56,7 @@ func (s *Server) ObserveTaskCompletion(ctx context.Context, observed registry.Se
 	}
 	if !projectRunOperationTerminal(op.Status) {
 		status, message := observedSwarmOperation(run, *op, children)
-		run, err = s.projectRuns.ObserveOperation(run.ProjectID, p.Path, run.ID, run.Revision, op.ID, op.ChildID, status, message)
+		run, err = s.projectRuns.ObserveOperation(run.ProjectID, p.Path, run.ID, run.Revision, op.ID, op.ChildID, status, message, observedSwarmStartFailure(run, *op, children))
 		if err != nil {
 			return false, err
 		}
@@ -64,6 +64,11 @@ func (s *Server) ObserveTaskCompletion(ctx context.Context, observed registry.Se
 	}
 	if op == nil || !projectRunOperationTerminal(op.Status) {
 		return false, ErrProjectRunPending // disappearance is not an ordinary exit
+	}
+	if op.StartFailure.Valid() && op.StartFailure == observed.StartFailure {
+		// No worker output is expected. This only closes diagnostic observation;
+		// lifecycle retirement and capacity still use their independent guards.
+		return true, ctx.Err()
 	}
 	if op.Handoff != nil {
 		// A previously published receipt can survive a crash before the registry
@@ -110,7 +115,7 @@ func (s *Server) ObserveTaskCompletion(ctx context.Context, observed registry.Se
 func sameTaskCompletionGeneration(a, b registry.Session) bool {
 	return a.ID == b.ID && a.ProjectID == b.ProjectID && a.WorktreeID == b.WorktreeID &&
 		a.ProjectRunID == b.ProjectRunID && a.ProjectRunOperationID == b.ProjectRunOperationID &&
-		a.SandboxID == b.SandboxID && a.SandboxRef == b.SandboxRef && a.Status == b.Status &&
+		a.SandboxID == b.SandboxID && a.SandboxRef == b.SandboxRef && a.Status == b.Status && a.StartFailure == b.StartFailure &&
 		a.UpdatedAt.Equal(b.UpdatedAt) && ProjectRunSessionRequestDigest(a) == ProjectRunSessionRequestDigest(b)
 }
 
@@ -120,6 +125,9 @@ func observedSwarmOperation(run ProjectRun, op ProjectRunOperation, children []r
 		child := children[0]
 		status, message = "running", "The existing agent is running in its isolated checkout."
 		if child.Status == registry.StatusExited {
+			if failure := observedSwarmStartFailure(run, op, children); failure.Valid() {
+				return "failed", failure.Message
+			}
 			status, message = "review-required", "The agent process ended. Its exit code and task correctness are not established by this observation. Review retained changes and verification evidence before integration."
 			if child.ExitReason == "project-run-outcome-unknown" || child.ExitReason == "sandbox disappeared" {
 				status, message = "unknown", "The agent runtime disappeared or its launch outcome is unconfirmed. Inspect the retained session; no replacement was launched and no task result was inferred."
@@ -129,4 +137,16 @@ func observedSwarmOperation(run ProjectRun, op ProjectRunOperation, children []r
 		}
 	}
 	return status, message
+}
+
+// Only an exact exited registry child can supply this bounded diagnostic. A
+// missing field on historical rows remains unknown; never infer it from text.
+func observedSwarmStartFailure(run ProjectRun, op ProjectRunOperation, children []registry.Session) registry.SessionStartFailure {
+	if len(children) == 1 {
+		child := children[0]
+		if child.ID == op.ChildID && projectRunSessionBindingMatches(run, op, child) && child.Status == registry.StatusExited && child.SandboxRef == "" && child.StartFailure.Valid() {
+			return child.StartFailure
+		}
+	}
+	return registry.SessionStartFailure{}
 }

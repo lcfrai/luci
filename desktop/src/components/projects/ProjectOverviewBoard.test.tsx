@@ -14,10 +14,10 @@ vi.mock('../teams/TeamWorkspaceProvider', () => ({ useTeamWorkspace: () => envir
 vi.mock('../auth/AuthProvider', () => ({ useAuth: () => ({ profile: { user: { role: 'member' } } }) }));
 const projects = [{ id: 'p1', name: 'Notes', path: '/private/notes' }, { id: 'p2', name: 'Shop', path: '/private/shop' }];
 function overview(projectId: string): ProjectOverview {
-  return { projectId, observedAt: new Date().toISOString(), status: 'ready', goal: { text: `Build ${projectId}`, revision: 1, updatedAt: '', truncated: false }, phase: { id: 'develop', label: 'Develop' }, context: { briefRevision: 1, specificationRevision: 1, definitionStatus: 'approved', designRevision: 1, designStatus: 'approved', planRevision: 2, tasks: { total: 3, recordedDone: 1 } }, questions: { status: 'recorded', count: 0, items: [], omitted: 0 }, execution: { scope: 'swarm-queue', status: 'recorded', observedAt: '', running: 1, queued: 2, paused: 0, reserved: 0, blocked: 0, unknown: 0, dispatchPaused: false }, nextAction: { id: 'review-plan', label: 'Review the plan', lens: 'develop' }, limitations: [] };
+  return { projectId, observedAt: new Date().toISOString(), status: 'ready', goal: { text: `Build ${projectId}`, revision: 1, updatedAt: '', truncated: false }, phase: { id: 'develop', label: 'Develop' }, context: { briefRevision: 1, specificationRevision: 1, definitionStatus: 'approved', designRevision: 1, designStatus: 'approved', planRevision: 2, tasks: { total: 3, recordedDone: 1 } }, questions: { status: 'recorded', count: 0, items: [], omitted: 0 }, execution: { scope: 'swarm-queue', status: 'recorded', observedAt: '', running: 1, queued: 2, paused: 0, reserved: 0, blocked: 0, unknown: 0, failed: 0, dispatchPaused: false }, nextAction: { id: 'review-plan', label: 'Review the plan', lens: 'develop' }, limitations: [] };
 }
 function item(projectId: string, state: SwarmQueueItem['state'] = 'queued'): SwarmQueueItem { return { id: `q-${projectId}`, revision: 2, projectId, runId: 'r1', taskId: 't1', taskTitle: 'Build comments', state, priority: 'normal', queuedAt: '', updatedAt: '' }; }
-function queue(projectId: string): ProjectSwarmQueue { return { revision: 7, observedAt: '', dispatchPaused: false, hasMore: false, counts: { queued: 1, paused: 0, reserved: 0, running: 0, blocked: 0, unknown: 0, completed: 0, cancelled: 0 }, items: [item(projectId)] }; }
+function queue(projectId: string): ProjectSwarmQueue { return { revision: 7, observedAt: '', dispatchPaused: false, hasMore: false, counts: { queued: 1, paused: 0, reserved: 0, running: 0, blocked: 0, unknown: 0, completed: 0, failed: 0, cancelled: 0 }, items: [item(projectId)] }; }
 beforeEach(() => {
   vi.restoreAllMocks(); resetCockpit(); useCockpit.getState().setProjects(projects);
   environment.scope = 'account-one'; environment.teamId = ''; environment.edit = true; environment.execute = true;
@@ -44,6 +44,52 @@ it('opens the exact overview run in its project scope instead of a previous insp
   expect(useCockpit.getState().selection.projectId).toBe('p1');
   expect(useCockpit.getState().lens).toBe('develop');
   expect(useCockpit.getState().projectRunInspection).toEqual({ scope: 'account-one:p1', projectId: 'p1', runId: 'run-latest', refresh: true });
+  expect(swarmQueueApi.control).not.toHaveBeenCalled();
+});
+
+it('shows a terminal failed entry without waiting controls and opens its exact run behind the draft guard', async () => {
+  const value = overview('p1'); value.execution = { ...value.execution, running: 0, queued: 0, failed: 1 };
+  vi.mocked(projectOverviewApi.get).mockResolvedValue(value);
+  const failed = { ...item('p1', 'failed'), runId: 'failed-provider-attempt', reasonCode: 'provider_limit', reason: 'Provider reservation failed before commands started.' };
+  vi.mocked(swarmQueueApi.get).mockResolvedValue({ ...queue('p1'), counts: { ...queue('p1').counts, queued: 0, failed: 1 }, items: [failed] });
+  useCockpit.getState().selectProject('p2', 'design');
+  useCockpit.getState().setUnsavedProjectDraft('design', { projectId: 'p2', label: 'Design', lens: 'design' });
+  const user = userEvent.setup(); render(<ProjectOverviewBoard projects={[projects[0]]} />);
+  await screen.findByText('1 failed queue entry. Review the saved run before choosing a new attempt.');
+  await user.click(screen.getByRole('button', { name: 'Manage queue' }));
+  const section = await screen.findByRole('region', { name: 'Notes queue' });
+  await within(section).findByText(failed.reason);
+  expect((within(section).getByRole('checkbox', { name: 'Select Build comments in Notes' }) as HTMLInputElement).disabled).toBe(true);
+  expect(within(section).getByText('failed')).toBeTruthy();
+  expect(within(section).queryByRole('button', { name: /resume|priority|retry/i })).toBeNull();
+  expect(screen.queryByRole('region', { name: 'Selected queued tasks' })).toBeNull();
+  await user.click(within(section).getByRole('button', { name: 'Inspect failed task' }));
+  expect(useCockpit.getState().selection.projectId).toBe('p2');
+  expect(useCockpit.getState().pendingNavigation).toEqual({ kind: 'project', projectId: 'p1', lens: 'develop' });
+  expect(useCockpit.getState().projectRunInspection).toEqual({ scope: 'account-one:p1', projectId: 'p1', runId: failed.runId, refresh: true });
+  act(() => useCockpit.getState().cancelNavigation());
+  expect(useCockpit.getState().projectRunInspection).toBeNull();
+  expect(swarmQueueApi.control).not.toHaveBeenCalled();
+});
+
+it('keeps failed-entry inspection unavailable while its project context is stale or denied', async () => {
+  const value = overview('p1'); value.execution.failed = 1;
+  vi.mocked(projectOverviewApi.get).mockResolvedValue(value);
+  vi.mocked(swarmQueueApi.get).mockResolvedValue({ ...queue('p1'), counts: { ...queue('p1').counts, queued: 0, failed: 1 }, items: [item('p1', 'failed')] });
+  const user = userEvent.setup(); render(<ProjectOverviewBoard projects={[projects[0]]} />);
+  await screen.findByText('Build p1');
+  await user.click(screen.getByRole('button', { name: 'Manage queue' }));
+  expect((await screen.findByRole('button', { name: 'Inspect failed task' }) as HTMLButtonElement).disabled).toBe(false);
+  vi.mocked(projectOverviewApi.get).mockRejectedValueOnce(new ApiError('branch_busy' as ProblemCode, 'Preparing source.', 409));
+  await user.click(screen.getByRole('button', { name: 'Refresh overview' }));
+  await screen.findByText(/Source is being prepared/);
+  expect((await screen.findByRole('button', { name: 'Inspect failed task' }) as HTMLButtonElement).disabled).toBe(true);
+  vi.mocked(projectOverviewApi.get).mockRejectedValueOnce(new ApiError('permission_denied' as ProblemCode, 'Access revoked', 403));
+  vi.mocked(swarmQueueApi.get).mockRejectedValueOnce(new ApiError('permission_denied' as ProblemCode, 'Access revoked', 403));
+  await user.click(screen.getByRole('button', { name: 'Refresh overview' }));
+  await screen.findByText('Summary unavailable. Access revoked');
+  expect(screen.queryByRole('button', { name: 'Inspect failed task' })).toBeNull();
+  expect(screen.queryByText(/1 failed queue entry/)).toBeNull();
   expect(swarmQueueApi.control).not.toHaveBeenCalled();
 });
 
@@ -184,7 +230,7 @@ it('preserves an in-progress queue click while its project summary arrives', asy
   expect(swarmQueueApi.control).not.toHaveBeenCalled();
 });
 it('keeps unavailable counters and incomplete question history distinct from zero', async () => {
-  const value = overview('p1'); value.execution = { ...value.execution, status: 'unavailable', running: null, queued: null, paused: null, reserved: null, blocked: null, unknown: null }; value.questions.status = 'partial'; value.questions.count = null;
+  const value = overview('p1'); value.execution = { ...value.execution, status: 'unavailable', running: null, queued: null, paused: null, reserved: null, blocked: null, unknown: null, failed: null }; value.questions.status = 'partial'; value.questions.count = null;
   vi.mocked(projectOverviewApi.get).mockResolvedValue(value); render(<ProjectOverviewBoard projects={[projects[0]]} />);
   await screen.findByText('Queue activity unavailable; no zero counts inferred.');
   expect(within(screen.getByLabelText('Recorded swarm queue activity')).getAllByText('—')).toHaveLength(3);
@@ -358,4 +404,12 @@ it('resumes only projects with fresh execution access and preserves partial outc
   expect(screen.getByText('Failed: Execution access is required to resume this project’s queued work.')).toBeTruthy();
   await user.click(screen.getByRole('button', { name: 'Refresh overview' }));
   expect(swarmQueueApi.control).toHaveBeenCalledTimes(1);
+});
+
+it('labels a legacy unknown failure count without claiming no failures', async () => {
+  const value = overview('p1'); value.execution.failed = null;
+  vi.mocked(projectOverviewApi.get).mockResolvedValue(value);
+  render(<ProjectOverviewBoard projects={[projects[0]]} />);
+  await screen.findByText('Failure history is unavailable; no zero count inferred.');
+  expect(screen.queryByText(/0 failed queue entries/)).toBeNull();
 });

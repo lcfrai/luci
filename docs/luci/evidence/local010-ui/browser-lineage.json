@@ -1,0 +1,62 @@
+[
+  {
+    "stage": "before",
+    "passed": false,
+    "startedAt": "2026-10-08T16:19:47.293Z",
+    "finishedAt": "2026-10-08T16:20:08.315Z",
+    "sourceUnchanged": true,
+    "checks": 0,
+    "explanation": "Fixture git.log missing; corrected controlled data, not product.",
+    "rawReceiptSHA256": "90c962c0e96856816fd831dd59878abd85aacf6c3dac96479d7ffdc5efb5a312"
+  },
+  {
+    "stage": "layout-diagnostic",
+    "passed": false,
+    "startedAt": "2026-10-08T16:23:01.894Z",
+    "finishedAt": "2026-10-08T16:23:08.767Z",
+    "sourceUnchanged": true,
+    "checks": 0,
+    "explanation": "New queue CTA inherited a status span colour; fixed CSS direct-child selector and reran axe.",
+    "rawReceiptSHA256": "d3290384b11d89039165af93cd454ab800b173bbcdb67e9fccbf1626dc68bfba"
+  },
+  {
+    "stage": "browser",
+    "passed": false,
+    "startedAt": "2026-10-08T16:39:02.744Z",
+    "finishedAt": "2026-10-08T16:39:26.320Z",
+    "sourceUnchanged": true,
+    "checks": 6,
+    "explanation": "Actual integration-review focus failed after asynchronous load; corrected scoped opener capture.",
+    "rawReceiptSHA256": "88313cee821c372f628e53bde90f32440d6d4d134129c1805ed6baaf106b07d3"
+  },
+  {
+    "stage": "browser-focus-corrected",
+    "passed": false,
+    "startedAt": "2026-10-08T16:43:31.320Z",
+    "finishedAt": "2026-10-08T16:43:40.826Z",
+    "sourceUnchanged": true,
+    "checks": 8,
+    "explanation": "Strict helper selector matched visible uncertainty plus hidden historical receipt; scoped to task card.",
+    "rawReceiptSHA256": "3c338887afe0d5ed875f359f83481cdcdf83e5b32c6eea4c423973d4598a7b4b"
+  },
+  {
+    "stage": "layout-contrast-corrected",
+    "passed": true,
+    "startedAt": "2026-10-08T16:23:56.766Z",
+    "finishedAt": "2026-10-08T16:24:07.295Z",
+    "sourceUnchanged": true,
+    "checks": 4,
+    "explanation": "Intermediate successful geometry check before final layout.",
+    "rawReceiptSHA256": "a8e47f1f9e048ae1120fdec305cb02677e845ad2de09cbd41895811914657516"
+  },
+  {
+    "stage": "browser-scoped-selector",
+    "passed": true,
+    "startedAt": "2026-10-08T16:44:15.677Z",
+    "finishedAt": "2026-10-08T16:44:33.375Z",
+    "sourceUnchanged": true,
+    "checks": 20,
+    "explanation": "Final twenty-check witness passed.",
+    "rawReceiptSHA256": "d4659b642e66930281b6d2cba8309956e20fc261f652e70a402ff64d03cb8ff6"
+  }
+]

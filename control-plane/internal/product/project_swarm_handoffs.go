@@ -31,6 +31,9 @@ func (s *Server) captureTaskHandoff(ctx context.Context, projectPath string, run
 	if op == nil || op.TaskID == "" || op.Allocation != "ready" || op.Implementation == nil {
 		return run, ErrProjectRunInvalid
 	}
+	if op.StartFailure.Valid() {
+		return run, errors.New("This attempt was refused before sandbox allocation. Its recorded start diagnostic is retained; there is no worker report to capture.")
+	}
 	if op.Handoff != nil && !refresh {
 		return run, nil
 	}

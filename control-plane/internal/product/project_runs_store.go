@@ -76,6 +76,7 @@ type ProjectRunOperation struct {
 	CreatedAt           string                          `json:"createdAt"`
 	UpdatedAt           string                          `json:"updatedAt"`
 	Message             string                          `json:"message,omitempty"`
+	StartFailure        registry.SessionStartFailure    `json:"startFailure,omitzero"`
 }
 
 type ProjectRunCommandEvidence struct {
@@ -632,6 +633,9 @@ func validateStoredProjectRun(row storedProjectRun) error {
 		if !strings.HasPrefix(op.ID, "op-") || len(op.ID) != 27 || !prototypeReleaseID.MatchString(op.ID) || seen[op.ID] || op.Kind != "session" || !strings.HasPrefix(op.ChildID, "s-") || len(op.ChildID) != 10 || !prototypeReleaseID.MatchString(op.ChildID) || children[op.ChildID] || op.Attempt != attempts[op.Kind] || !hexDigest(op.RequestDigest) || !validOperationStatus(op.Status) || len(op.Message) > 4000 {
 			return ErrProjectRunInvalid
 		}
+		if !op.StartFailure.IsZero() && (!op.StartFailure.Valid() || op.Status != "failed" && op.Status != "cancelled") {
+			return ErrProjectRunInvalid
+		}
 		for _, at := range []string{op.CreatedAt, op.UpdatedAt} {
 			if _, err := time.Parse(time.RFC3339Nano, at); err != nil {
 				return ErrProjectRunInvalid
@@ -832,10 +836,20 @@ func (s *ProjectRunStore) ClaimOperation(projectID, projectPath, id string, expe
 	return run, op, claimed && err == nil, err
 }
 
-func (s *ProjectRunStore) ObserveOperation(projectID, projectPath, id string, expectedRevision int, operationID, childID, status, message string) (ProjectRun, error) {
+func (s *ProjectRunStore) ObserveOperation(projectID, projectPath, id string, expectedRevision int, operationID, childID, status, message string, failures ...registry.SessionStartFailure) (ProjectRun, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if !validOperationStatus(status) || status == "reserved" || status == "dispatching" || len(message) > 4000 {
+		return ProjectRun{}, ErrProjectRunInvalid
+	}
+	var startFailure registry.SessionStartFailure
+	if len(failures) > 1 {
+		return ProjectRun{}, ErrProjectRunInvalid
+	}
+	if len(failures) == 1 {
+		startFailure = failures[0]
+	}
+	if !startFailure.IsZero() && (!startFailure.Valid() || status != "failed") {
 		return ProjectRun{}, ErrProjectRunInvalid
 	}
 	return s.mutate(projectID, projectPath, id, expectedRevision, func(row *storedProjectRun) (bool, error) {
@@ -853,11 +867,17 @@ func (s *ProjectRunStore) ObserveOperation(projectID, projectPath, id string, ex
 			if projectRunOperationTerminal(op.Status) && op.Status != status {
 				return false, ErrProjectRunConflict
 			}
-			if op.Status == status && op.Message == message {
+			if !op.StartFailure.IsZero() && !startFailure.IsZero() && op.StartFailure != startFailure {
+				return false, ErrProjectRunConflict
+			}
+			if op.Status == status && op.Message == message && (startFailure.IsZero() || op.StartFailure == startFailure) {
 				return false, nil
 			}
 			op.Status = status
 			op.Message = message
+			if !startFailure.IsZero() {
+				op.StartFailure = startFailure
+			}
 			op.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
 			if row.Run.State != "cancelled" && row.Run.State != "complete" {
 				switch status {

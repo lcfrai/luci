@@ -774,8 +774,9 @@ type sessionJSON struct {
 	ProjectRunID            string                          `json:"projectRunId,omitempty"`
 	ProjectRunOperationID   string                          `json:"projectRunOperationId,omitempty"`
 
-	Status     string `json:"status"`
-	ExitReason string `json:"exitReason"`
+	Status       string                       `json:"status"`
+	ExitReason   string                       `json:"exitReason"`
+	StartFailure registry.SessionStartFailure `json:"startFailure,omitzero"`
 
 	Backend   string `json:"backend"`
 	Isolation string `json:"isolation"`
@@ -816,6 +817,7 @@ func toJSON(s registry.Session, base string) sessionJSON {
 		ProjectRunOperationID:   s.ProjectRunOperationID,
 		Status:                  string(s.Status),
 		ExitReason:              s.ExitReason,
+		StartFailure:            publicSessionStartFailure(s),
 		Backend:                 s.Backend,
 		// isolationFor is task 10's and is the package's only mapping of
 		// contract §3.4's enum — group-C ruling 6. registry.Session.Backend is
@@ -1461,26 +1463,26 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		revalidateExecution = func(ctx context.Context) error {
 			current, err := a.authorizeExecution(ctx, executionActor, string(harnessID), agentConnection.ID != "")
 			if err != nil {
-				return err
+				return admissionFailure("execution_authority_changed", err)
 			}
 			resources := a.sessionResources(ctx)
 			if executionActor.UserID != "" {
 				resources = clampSessionResources(resources, current.Policy)
 			}
 			if resources != allocatedResources {
-				return errors.New("The worker resource policy changed before allocation.")
+				return admissionFailure("resource_policy_changed", errors.New("The worker resource policy changed before allocation."))
 			}
 			policy, err := a.deps.Product.SwarmSchedulerPolicy()
 			if err != nil {
-				return err
+				return admissionFailure("resource_policy_unavailable", err)
 			}
 			provider, limit := providerCapacity(product.ProjectRunRoute{Harness: string(harnessID), Connection: agentConnection}, policy)
 			decision, err := a.execution.reserve(ctx, executionLeaseID, projectID, provider, limit, executionActor, current, policy)
 			if err != nil {
-				return err
+				return admissionContextFailure(ctx, err)
 			}
 			if decision.State != "admitted" {
-				return errors.New(decision.Message)
+				return admissionDecisionFailure(decision)
 			}
 			return nil
 		}
@@ -1772,6 +1774,7 @@ func (a *API) watchSessionReady(sessionID, sandboxID, endpoint string) {
 		sess.Status = registry.StatusRunning
 		sess.Endpoint = endpoint
 		sess.ExitReason = ""
+		sess.StartFailure = registry.SessionStartFailure{}
 		return nil
 	}); err != nil && !errors.Is(err, sessionErrMoved) && !errors.Is(err, registry.ErrNotFound) {
 		a.sessionLog().Error("mark the session running", "sessionId", sessionID, "err", err)
@@ -2308,6 +2311,7 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		sess.EarlierConversationIDs = earlier
 		sess.Status = registry.StatusStarting
 		sess.ExitReason = ""
+		sess.StartFailure = registry.SessionStartFailure{}
 		// AttachCount is deliberately untouched. Task 12's relay defer
 		// decrements it when the dropped socket notices; zeroing it here would
 		// take the count negative.

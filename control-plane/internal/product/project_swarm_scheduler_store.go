@@ -27,7 +27,7 @@ func swarmQueuePriority(priority string) bool {
 }
 func swarmQueueState(state string) bool {
 	switch state {
-	case "queued", "paused", "claiming", "reserved", "dispatching", "running", "completed", "cancelled", "blocked", "unknown":
+	case "queued", "paused", "claiming", "reserved", "dispatching", "running", "completed", "failed", "cancelled", "blocked", "unknown":
 		return true
 	}
 	return false
@@ -39,7 +39,9 @@ func swarmQueueActive(state string) bool {
 	}
 	return false
 }
-func swarmQueueTerminal(state string) bool { return state == "completed" || state == "cancelled" }
+func swarmQueueTerminal(state string) bool {
+	return state == "completed" || state == "failed" || state == "cancelled"
+}
 func (s *Server) schedulerNow() time.Time {
 	if s.swarmScheduler.now != nil {
 		return s.swarmScheduler.now().UTC()
@@ -175,6 +177,8 @@ func queueProjectSnapshot(row swarmSchedulerLedger, projectID string) ProjectSwa
 			result.Counts.Unknown++
 		case "completed":
 			result.Counts.Completed++
+		case "failed":
+			result.Counts.Failed++
 		case "cancelled":
 			result.Counts.Cancelled++
 		}

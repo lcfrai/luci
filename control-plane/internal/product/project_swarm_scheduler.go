@@ -3,6 +3,7 @@ package product
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 )
 
@@ -379,6 +380,14 @@ func (s *Server) RunSwarmSchedulerOnce(ctx context.Context) error {
 			continue
 		}
 		state := result.State
+		if state == "failed" && result.SessionID == op.ChildID {
+			// The executor result is not outcome or release authority. Observe the
+			// durable exact child and use the existing lifecycle release guard.
+			if err = s.reconcileQueuedSwarm(ctx, item, runtime); err != nil {
+				return err
+			}
+			continue
+		}
 		if state == "waiting" || state == "blocked" {
 			inspected, inspectErr := s.GetProjectSwarmRun(item.ProjectID, item.RunID)
 			latestOp := swarmOperation(&inspected, op.ID)
@@ -496,14 +505,25 @@ func (s *Server) reconcileQueuedSwarm(ctx context.Context, item swarmQueueRecord
 	switch op.Status {
 	case "running":
 		state, code, reason = "running", "running", "The exact reserved agent is running in its isolated checkout."
-	case "succeeded", "review-required", "failed":
+	case "succeeded", "review-required":
 		state, code, reason = "completed", "review_required", "The agent stopped. Review its retained changes and verify the result; process exit does not integrate dependencies."
+	case "failed":
+		state, code, reason = "failed", "worker_failed", "The worker failed. Inspect its retained output and verify any changes before deciding whether to retry; no result was accepted or integrated."
+		if op.StartFailure.Valid() {
+			code, reason = op.StartFailure.ReasonCode, op.StartFailure.Message
+		}
 	case "cancelled":
 		state, code, reason = "cancelled", "attempt_retired", "The attempt was retired. Retained work remains available."
 	}
 	if swarmQueueTerminal(state) {
 		if err = s.releaseQueueLease(ctx, item.ID, runtime); err != nil {
-			return s.schedulerSetReason(item.ID, "unknown", "resource_release_pending", "The child recorded an exit, but its execution reservation cannot yet be confirmed released. Capacity remains held.")
+			if state == "failed" {
+				// Preserve the recorded failure while showing its independent held
+				// reservation. Terminal cleanup retries without launching this item.
+				reason += " Its execution reservation remains held pending confirmed release."
+			} else {
+				return s.schedulerSetReason(item.ID, "unknown", "resource_release_pending", "The child recorded an exit, but its execution reservation cannot yet be confirmed released. Capacity remains held.")
+			}
 		}
 	}
 	if err = s.schedulerUpdate(item.ID, func(current *swarmQueueRecord) error {
@@ -526,6 +546,9 @@ func (s *Server) releaseQueueLease(ctx context.Context, id string, runtime Swarm
 		releasedCapacity = item.MemoryMiB > 0 || item.CPUMillis > 0
 		item.MemoryMiB = 0
 		item.CPUMillis = 0
+		if item.State == "failed" {
+			item.Reason = strings.TrimSuffix(item.Reason, " Its execution reservation remains held pending confirmed release.")
+		}
 		return nil
 	})
 	if err == nil && releasedCapacity {

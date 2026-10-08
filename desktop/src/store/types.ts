@@ -164,6 +164,12 @@ export interface ImplementationContext extends ImplementationContextRequest {
   requirementIds: string[];
 }
 
+export interface StartFailure {
+  stage: "provider-reservation" | "run-revalidation" | "admission" | "lifecycle-lock" | "launch-journal";
+  reasonCode: string;
+  message: string;
+}
+
 export interface Session {
   id: SessionId;
   title: string;
@@ -197,6 +203,8 @@ export interface Session {
   /** Free text for the user: "killed", "process exited", "idle timeout",
    *  "sandbox disappeared while the app was not running". Rendered verbatim. */
   exitReason: string;
+  /** Authoritative pre-start failure; it does not establish command execution or a reviewed result. */
+  startFailure?: StartFailure;
   backend: string;
   isolation: Isolation;
   /** RFC 3339 with a Z offset. Kept as strings; parsed only at the point of display. */

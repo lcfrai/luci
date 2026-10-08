@@ -29,7 +29,7 @@ func projectRunAttentionKind(run ProjectRun) string {
 				continue
 			}
 			op := swarmOperation(&run, task.OperationID)
-			if op != nil && (op.Status == "review-required" || op.Status == "succeeded" || op.Status == "failed" && op.Allocation == "ready") {
+			if op != nil && (op.Status == "review-required" || op.Status == "succeeded" || op.Status == "failed" && op.Allocation == "ready" && op.StartFailure.IsZero()) {
 				return "task-review"
 			}
 		}

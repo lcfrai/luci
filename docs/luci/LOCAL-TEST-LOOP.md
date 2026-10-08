@@ -872,3 +872,36 @@ assessment remain distinct. Backend and sandbox did not change. This is source
 and controlled-browser evidence pending its own published integrated revision;
 it does not replace the original failed full frontend history, the LOCAL-008
 Windows diagnostic or matching installed/native coverage.
+
+### Dependency attempt 2 and task scan-density follow-up
+
+Clean `3b8054e69340bce37afe3aec17189a33c2fb2991` now has a second failed installed dependency attempt. A completed naturally; B failed before Backend.Create with the generic retained access/capacity message. The specific condition was discarded, and the queue projected review-required completion despite the failed start. CLOUD-019 is owned by cloud implementation and fixing; this is separate from attempt 1's unclassified HTTP 409. One Create/Start/native result occurred; independent closure confirmed zero owned resources. No integration/conflict/join or sustained pass follows.
+
+LOCAL-010 is an accepted P3 UI improvement from the local tester's published-image/source review: reduce recurring guidance above task status and review actions, retaining accessible help and meaningful permissions/uncertainty. Cloud owns implementation and controlled four-project app-shell verification. Current native available RAM is reported around 1.1–1.3 GiB; no new heavy local checks or user-application stops are authorized by this update. Both issues need exact correction/source evidence in the next handoff; the full local milestone remains open.
+
+The local tester independently audited `3b8054e6` public continuation manifests and frontend inputs: 11 original/12 publication members, 2,610 passing tests across 153 files, 416 full-run inputs, 433 broader inputs and 436 browser application inputs match. These are source/public-receipt audits, not local hashing of the cloud package/image or new native execution. Second private-lease disappearance was not observed in C012. LOCAL-011 tracks publication of the exact original bespoke browser helper/fixture; source/component provenance is already verified. See [reported audit](evidence/task-review-polish/native-source-audit-reported.json).
+
+
+### CLOUD-019 / LOCAL-010 / LOCAL-011 source correction checkpoint
+
+CLOUD-019 now distinguishes a positively recorded pre-allocation failure from an
+ambiguous backend launch and a completed worker. Fixed public stage/reason text
+survives restart and reaches the task, queue and Home; no automatic replay or
+capacity release follows from the diagnostic. Final targeted Linux race checks
+pass 102 outcomes with 682 unchanged inputs. The preceding full affected result
+(1,747 passes, one obsolete expectation failure, eight skips) is preserved; its
+changed seams pass the final run. [Receipt](evidence/cloud019-source/README.md).
+The exact original installed rejection condition is still unknown.
+
+LOCAL-010 passes 20 controlled four-project app-shell checks and the affected
+frontend checks/TypeScript. Tasks and review actions appear earlier; review-dialog
+focus restoration is tied to the exact task and authority. The phone understanding
+pane's occlusion and LOCAL-008's distinct Windows uncertainty remain explicit.
+[Before/after and source proof](evidence/local010-ui/README.md).
+LOCAL-011 exact original driver/fixture bytes and a separate portability adapter
+are now included with reproducible commands; historical receipts are unchanged.
+
+The next package must match the published correction. Dependency conflict/join,
+actual product-recorded whole-build verification and sustained four-project work
+are pending. The local tester may audit or retest the new source between batches
+when resources permit; this is not the integrated LOCAL TEST HANDOFF READY notice.

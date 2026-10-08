@@ -204,8 +204,8 @@ func TestSwarmTaskPermissionsRefuseBeforePreparationAllocationOrQueue(t *testing
 
 func TestSwarmKnownFailureAndDisappearanceKeepDistinctUnverifiedOutcomes(t *testing.T) {
 	for _, tc := range []struct{ reason, status, queueState string }{
-		{"exit code 1", "failed", "completed"},
-		{"killed", "failed", "completed"},
+		{"exit code 1", "failed", "failed"},
+		{"killed", "failed", "failed"},
 		{"sandbox disappeared", "unknown", "unknown"},
 		{"project-run-outcome-unknown", "unknown", "unknown"},
 	} {

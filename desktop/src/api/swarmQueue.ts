@@ -1,6 +1,6 @@
 import { productApi } from './product';
 export type QueuePriority = 'low' | 'normal' | 'high';
-export type QueueState = 'queued' | 'paused' | 'reserved' | 'running' | 'blocked' | 'unknown' | 'completed' | 'cancelled';
+export type QueueState = 'queued' | 'paused' | 'reserved' | 'running' | 'blocked' | 'unknown' | 'completed' | 'failed' | 'cancelled';
 export interface SwarmQueueItem {
   id: string; revision: number; projectId: string; runId: string; taskId: string; taskTitle: string;
   priority: QueuePriority; state: QueueState; queuedAt: string; updatedAt: string;
@@ -10,11 +10,11 @@ export interface ProjectSwarmQueue {
   revision: number; observedAt: string; dispatchPaused: boolean;
   counts: Record<QueueState, number>; items: SwarmQueueItem[]; hasMore: boolean;
 }
-const states: QueueState[] = ['queued', 'paused', 'reserved', 'running', 'blocked', 'unknown', 'completed', 'cancelled'];
+const states: QueueState[] = ['queued', 'paused', 'reserved', 'running', 'blocked', 'unknown', 'completed', 'failed', 'cancelled'];
 const path = (project: string) => `/v1/product/projects/${encodeURIComponent(project)}`;
 function ownedItem(project: string, item: SwarmQueueItem): SwarmQueueItem {
   if (!item || item.projectId !== project || typeof item.id !== 'string' || !item.id ||
-      !Number.isInteger(item.revision) || item.revision < 1 || typeof item.runId !== 'string' || typeof item.taskId !== 'string' ||
+      !Number.isInteger(item.revision) || item.revision < 1 || typeof item.runId !== 'string' || !item.runId || typeof item.taskId !== 'string' || !item.taskId ||
       typeof item.taskTitle !== 'string' || !states.includes(item.state) || !['low', 'normal', 'high'].includes(item.priority) ||
       typeof item.queuedAt !== 'string' || typeof item.updatedAt !== 'string') {
     throw new Error('The queued task does not match this project. Refresh its queue before continuing.');
@@ -50,6 +50,7 @@ export const swarmQueueApi = {
   },
   async control(project: string, item: SwarmQueueItem, action: 'pause' | 'resume' | 'cancel' | 'priority', priority?: QueuePriority) {
     ownedItem(project, item);
+    if (item.state === 'failed') throw new Error('This queue entry failed. Inspect its saved run before reviewing a new attempt; failed work cannot be resumed or reprioritized.');
     const value = await productApi.request<{ item: SwarmQueueItem; queue: ProjectSwarmQueue }>(`${path(project)}/swarm-queue/${encodeURIComponent(item.id)}/${action}`, { expectedRevision: item.revision, ...(action === 'priority' ? { priority } : {}) });
     const receipt = ownedItem(project, value.item);
     if (receipt.id !== item.id || receipt.runId !== item.runId || receipt.taskId !== item.taskId) throw new Error('The queue action receipt does not match this task. Refresh the queue before continuing.');

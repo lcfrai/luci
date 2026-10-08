@@ -7,7 +7,7 @@ export interface ProjectOverview {
   phase: { id: string; label: string };
   context: { briefRevision: number; specificationRevision: number; definitionStatus: string; designRevision: number; designStatus: string; planRevision: number; tasks: { total: number; recordedDone: number } } | null;
   questions: { status: 'recorded' | 'partial' | 'unavailable'; count: number | null; items: { id: string; source: 'definition' | 'orchestrator'; text: string; truncated: boolean }[]; omitted: number | null };
-  execution: { scope: 'swarm-queue'; status: 'recorded' | 'unavailable'; observedAt: string; queued: number | null; paused: number | null; reserved: number | null; running: number | null; blocked: number | null; unknown: number | null; dispatchPaused: boolean | null };
+  execution: { scope: 'swarm-queue'; status: 'recorded' | 'unavailable'; observedAt: string; queued: number | null; paused: number | null; reserved: number | null; running: number | null; blocked: number | null; unknown: number | null; failed: number | null; dispatchPaused: boolean | null };
   nextAction: { id: string; label: string; lens: string; runId?: string; reason?: string };
   latestRun?: { status: 'recorded' | 'none' | 'unavailable'; id?: string; state?: string; updatedAt?: string; contextStatus?: 'current' | 'changed' | 'unavailable'; contextReason?: string };
   attention?: { status: 'recorded' | 'unavailable'; count: number | null; items: ProjectRunAttention[]; omitted: number | null };
@@ -32,10 +32,13 @@ export const projectOverviewApi = {
       value.questions.items.some(item => typeof item.text !== 'string' || typeof item.id !== 'string') ||
       !value.execution || value.execution.scope !== 'swarm-queue' || !['recorded', 'unavailable'].includes(value.execution.status) ||
       ['queued', 'paused', 'reserved', 'running', 'blocked', 'unknown'].some(key => !count(value.execution[key as 'queued'])) ||
+      (value.execution.failed !== undefined && (!count(value.execution.failed) ||
+        (value.execution.status === 'recorded' ? value.execution.failed === null : value.execution.failed !== null))) ||
       !validAttention(value.attention) ||
       !Array.isArray(value.limitations) || value.limitations.some(item => typeof item !== 'string')) {
       throw new Error('This project summary could not be read. Refresh it before continuing.');
     }
-    return value;
+    // Older services omitted failure counts; retain unknown rather than inventing zero.
+    return value.execution.failed === undefined ? { ...value, execution: { ...value.execution, failed: null } } : value;
   },
 };

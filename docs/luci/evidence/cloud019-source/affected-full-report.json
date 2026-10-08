@@ -1,0 +1,48 @@
+{
+  "startedAt": "2026-10-08T16:31:40.493128+00:00",
+  "finishedAt": "2026-10-08T16:45:14.706452+00:00",
+  "durationSeconds": 814.2133975480101,
+  "GOMAXPROCS": 2,
+  "results": [
+    {
+      "command": [
+        "go",
+        "test",
+        "-race",
+        "-p",
+        "1",
+        "-count=1",
+        "-timeout=10m",
+        "-json",
+        "./control-plane/internal/api",
+        "./control-plane/internal/product",
+        "./control-plane/internal/registry"
+      ],
+      "exitCode": 1,
+      "testOutcomes": {
+        "pass": 1747,
+        "skip": 8,
+        "fail": 1
+      },
+      "packageOutcomes": {
+        "fail": 1,
+        "pass": 2
+      },
+      "failures": [
+        {
+          "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+          "Test": "TestQueuedDispatchRechecksFreshAuthorityAfterDurableClaim",
+          "Elapsed": 1.04
+        },
+        {
+          "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+          "Elapsed": 186.692
+        }
+      ]
+    }
+  ],
+  "sourceInputs": 681,
+  "changedInputs": [],
+  "headAtStart": "3b8054e69340bce37afe3aec17189a33c2fb2991",
+  "passed": false
+}

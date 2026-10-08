@@ -72,12 +72,14 @@ The context check requires the actual public `reviewedContextDelivery` receipt, 
 
 A negative dependency probe records its bounded response error/code/message, requested and observed revisions, and source/allocation snapshots before checking the exact dependency refusal. Stale revisions, busy source locks and other HTTP 409 responses fail; the driver never automatically retries the POST. Attempt 1 on `c4400f11` stopped after two natural worker exits because its post-exit refusal wording did not match. That older helper did not retain the response body or requested revision, so its reason remains unavailable; it did not exercise conflict recovery, integration or join.
 
+The driver also stops on a terminal `failed` queue entry belonging to the exact explicit queue authorization and previously unseen child. It saves bounded public queue, session and current operation diagnostics before failing, including `startFailure` when available. An older failed B1 cannot be selected after B2 receives its own authorization. Unknown outcomes keep the existing bounded observation behavior; the diagnostic never grants a retry or creates a worker. Attempt 2 on `3b8054e6` completed A but B1 was refused before sandbox allocation; its generic old record cannot establish the particular access/capacity condition. Both earlier failures remain separate.
+
 ## Preparation checks
 
 From this directory:
 
 ```sh
-node --test --test-concurrency=1 ../task-context-delivery.test.mjs helper.test.mjs context-contract.test.mjs dependency-probe.test.mjs
+node --test --test-concurrency=1 ../task-context-delivery.test.mjs helper.test.mjs context-contract.test.mjs dependency-probe.test.mjs queued-failure.test.mjs
 python3 -m unittest run_with_observer_test.py
 node --check dag.mjs
 node --test --test-concurrency=1 ../launch-recovery/worker-create-guard.test.mjs

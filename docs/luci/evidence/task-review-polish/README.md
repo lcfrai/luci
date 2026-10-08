@@ -22,3 +22,10 @@ retrievable here. Screenshots preserve their actual scroll positions. The origin
 LOCAL-008 Windows focus-timing question remains open; the Linux observations do
 not explain or retroactively pass that result. Sustained performance and live-model
 quality remain separate gates.
+
+The exact historical browser driver and its decoded embedded fixture are now
+preserved under [task-review-polish reproduction](../../../../scripts/acceptance/task-review-polish/README.md).
+Their original hashes remain unchanged. A separate preparation-only path adapter
+is explicit about its derived bytes; publication does not rerun the browser or
+close the native LOCAL-008 timing question. This addresses LOCAL-011's missing
+reproduction-source gap when this revision is published.

@@ -29,9 +29,10 @@ type preparedSessionAllocation struct {
 }
 
 type sessionAllocationError struct {
-	Kind      string
-	SessionID string
-	Cause     error
+	Kind         string
+	SessionID    string
+	Cause        error
+	StartFailure registry.SessionStartFailure
 }
 
 func (e *sessionAllocationError) Error() string { return e.Cause.Error() }
@@ -40,9 +41,16 @@ func (e *sessionAllocationError) Unwrap() error { return e.Cause }
 func (a *API) allocatePreparedSession(ctx context.Context, prepared preparedSessionAllocation) (registry.Session, error) {
 	row, spec := prepared.Record, prepared.Spec
 	failure := func(kind string, err error) (registry.Session, error) {
-		return registry.Session{}, &sessionAllocationError{kind, row.ID, err}
+		return registry.Session{}, &sessionAllocationError{Kind: kind, SessionID: row.ID, Cause: err}
 	}
-	if row.ID == "" || row.ID != spec.ID || row.ID != spec.SessionID || row.Status != registry.StatusStarting || row.SandboxID != row.ID {
+	refuseStart := func(kind, stage string, err error) (registry.Session, error) {
+		diagnostic := a.recordSessionStartFailure(row, stage, err)
+		if diagnostic.IsZero() {
+			kind = "record-start"
+		}
+		return registry.Session{}, &sessionAllocationError{Kind: kind, SessionID: row.ID, Cause: err, StartFailure: diagnostic}
+	}
+	if row.ID == "" || row.ID != spec.ID || row.ID != spec.SessionID || row.Status != registry.StatusStarting || row.SandboxID != row.ID || !row.StartFailure.IsZero() {
 		return failure("invalid", errors.New("The prepared session has no matching durable execution identity."))
 	}
 	if !sessionRestarts.acquire(row.ID) {
@@ -63,33 +71,28 @@ func (a *API) allocatePreparedSession(ctx context.Context, prepared preparedSess
 		return failure("record", err)
 	}
 	if err := a.leaseCodexConnection(prepared.Account, row.ID); err != nil {
-		a.markSessionExited(row.ID, "the saved ChatGPT connection could not be reserved")
-		return failure("account", err)
+		return refuseStart("account", "provider-reservation", err)
 	}
 	if prepared.Revalidate != nil {
 		if err := prepared.Revalidate(); err != nil {
-			a.markSessionExited(row.ID, "the reserved project run changed before sandbox allocation")
-			return failure("changed", err)
+			return refuseStart("changed", "run-revalidation", err)
 		}
 	}
 	if prepared.BeforeAllocate != nil {
 		if err := prepared.BeforeAllocate(ctx); err != nil {
-			a.markSessionExited(row.ID, "execution access or capacity changed before sandbox allocation")
-			return failure("changed", err)
+			return refuseStart("changed", "admission", err)
 		}
 	}
 	if prepared.ExecutionLeaseID != "" {
 		release, err := a.execution.acquireLaunchLifecycle(ctx, prepared.ExecutionLeaseID, row)
 		if err != nil {
-			a.markSessionExited(row.ID, "the exact worker lifecycle could not be reserved")
-			return failure("changed", err)
+			return refuseStart("changed", "lifecycle-lock", err)
 		}
 		defer release()
 	}
 	if prepared.BeforeBackendStart != nil {
 		if err := prepared.BeforeBackendStart(ctx); err != nil {
-			a.markSessionExited(row.ID, "execution launch was retired or could not be recorded")
-			return failure("changed", err)
+			return refuseStart("changed", "launch-journal", err)
 		}
 	}
 	createCtx, cancel := a.sessionCreateContext(ctx)
@@ -98,7 +101,7 @@ func (a *API) allocatePreparedSession(ctx context.Context, prepared preparedSess
 	if err != nil {
 		a.sessionLog().Error("create the sandbox", "sessionId", row.ID, "err", err)
 		a.destroyAfterFailedCreate(row.ID, row.ID)
-		a.markSessionExited(row.ID, "the sandbox could not be created")
+		a.markSessionAllocationUnconfirmed(row, "the sandbox could not be created")
 		return failure("backend", err)
 	}
 	if sb.ID != spec.ID {
@@ -112,7 +115,7 @@ func (a *API) allocatePreparedSession(ctx context.Context, prepared preparedSess
 		// This identity was bound before dispatch. Never destroy an arbitrary
 		// backend-returned ID, especially when a mismatched ID caused failure.
 		a.destroyAfterFailedCreate(row.ID, row.ID)
-		a.markSessionExited(row.ID, "execution launch acknowledgment could not be recorded")
+		a.markSessionAllocationUnconfirmed(row, "execution launch acknowledgment could not be recorded")
 		return failure("record-backend", err)
 	}
 	stored, err := a.deps.Store.Update(row.ID, func(value *registry.Session) error {
@@ -137,6 +140,10 @@ func (a *API) writeSessionAllocationProblem(w http.ResponseWriter, r *http.Reque
 	var failure *sessionAllocationError
 	if !errors.As(err, &failure) {
 		a.internal(w, r, "allocate session", err)
+		return
+	}
+	if failure.StartFailure.Valid() {
+		httpx.WriteProblem(w, 409, httpx.CodeConflict, failure.StartFailure.Message, map[string]string{"id": failure.SessionID, "stage": failure.StartFailure.Stage, "reasonCode": failure.StartFailure.ReasonCode})
 		return
 	}
 	switch failure.Kind {

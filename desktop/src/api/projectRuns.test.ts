@@ -37,3 +37,15 @@ it('validates the child reservation and propagates stale-revision failure withou
   await expect(projectRunsApi.joinCheck('p-1', 'run-1', 2, 'check-1')).rejects.toThrow('The run changed');
   expect(request).toHaveBeenCalledTimes(2);
 });
+
+
+it.each(['provider-reservation','run-revalidation','admission','lifecycle-lock','launch-journal'])('retains a validated %s pre-launch diagnostic from the owned run',async stage=>{
+  const value={...receipt,operations:[{...receipt.operations[0],status:'failed',startFailure:{stage,reasonCode:'start_refused',message:'The task could not start.'}}]};
+  const request=vi.spyOn(productApi,'request').mockResolvedValue({run:value});
+  expect((await projectRunsApi.get('p-1','run-1')).operations[0].startFailure).toEqual(value.operations[0].startFailure);expect(request).toHaveBeenCalledOnce();
+});
+
+it.each([{stage:'future-stage',reasonCode:'refused',message:'Refused'}, {stage:'admission',reasonCode:'',message:'Refused'}, {stage:'admission',reasonCode:'refused',message:''}, null])('refuses an unknown or malformed start diagnostic without replay',async startFailure=>{
+  const request=vi.spyOn(productApi,'request').mockResolvedValue({run:{...receipt,operations:[{...receipt.operations[0],startFailure}]}});
+  await expect(projectRunsApi.get('p-1','run-1')).rejects.toThrow('task start diagnostic could not be verified');expect(request).toHaveBeenCalledOnce();
+});

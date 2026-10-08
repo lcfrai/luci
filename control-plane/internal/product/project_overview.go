@@ -74,6 +74,7 @@ type ProjectOverviewExecution struct {
 	Running        *int   `json:"running"`
 	Blocked        *int   `json:"blocked"`
 	Unknown        *int   `json:"unknown"`
+	Failed         *int   `json:"failed"`
 	DispatchPaused *bool  `json:"dispatchPaused"`
 }
 
@@ -104,12 +105,12 @@ func (s *Server) getProjectOverview(w http.ResponseWriter, r *http.Request) {
 		if queue.ObservedAt == "" {
 			queue.ObservedAt = time.Now().UTC().Format(time.RFC3339Nano)
 		}
-		view.Execution = ProjectOverviewExecution{Scope: "swarm-queue", Status: "recorded", ObservedAt: overviewTimestamp(queue.ObservedAt), Queued: &c.Queued, Paused: &c.Paused, Reserved: &c.Reserved, Running: &c.Running, Blocked: &c.Blocked, Unknown: &c.Unknown, DispatchPaused: &queue.DispatchPaused}
+		view.Execution = ProjectOverviewExecution{Scope: "swarm-queue", Status: "recorded", ObservedAt: overviewTimestamp(queue.ObservedAt), Queued: &c.Queued, Paused: &c.Paused, Reserved: &c.Reserved, Running: &c.Running, Blocked: &c.Blocked, Unknown: &c.Unknown, Failed: &c.Failed, DispatchPaused: &queue.DispatchPaused}
 		// These are recorded ledger states. Opening the queue performs no implicit
 		// reconciliation; the operator chooses any retry or change of execution.
 		runContextNeedsReview := view.LatestRun.Status == "recorded" && view.LatestRun.ContextStatus != "current"
-		if !runContextNeedsReview && c.Unknown+c.Blocked > 0 {
-			view.NextAction = OrchestratorAction{ID: "inspect-queue", Label: "Review work needing attention", Lens: "develop", Reason: "Queued work has a recorded blocker or an unconfirmed outcome."}
+		if !runContextNeedsReview && c.Unknown+c.Blocked+c.Failed > 0 {
+			view.NextAction = OrchestratorAction{ID: "inspect-queue", Label: "Review work needing attention", Lens: "develop", Reason: "Queued work has a recorded failure, blocker or an unconfirmed outcome."}
 		} else if !runContextNeedsReview && !view.LatestRun.taskReviewRequired && len(view.Attention.Items) == 0 && c.Running+c.Reserved+c.Queued+c.Paused > 0 && len(view.Questions.Items) == 0 {
 			view.NextAction = OrchestratorAction{ID: "inspect-queue", Label: "Follow queued work", Lens: "develop", Reason: "Open the project's queue to inspect recorded progress or change its priority."}
 		}

@@ -1,0 +1,72 @@
+{
+  "baselineDesktopSourceCommit": "3b8054e69340bce37afe3aec17189a33c2fb2991",
+  "baselineExactHelper": {
+    "source-browser.mjs": "52637d749d96e8709fc6539842def40c9ef7447ef06be886f29d64cca4f968b8",
+    "fixture.tsx": "0a34feef2031ac2573c7905d417eb10b742f6c9ad1d66c2d62899ca4f31e22b9"
+  },
+  "before": [
+    {
+      "label": "initial-task-position-1440",
+      "geometry": {
+        "top": 1047.703125,
+        "height": 288.0625
+      },
+      "overviewOpen": true
+    },
+    {
+      "label": "initial-task-position-390",
+      "geometry": {
+        "top": 1554.609375,
+        "height": 336.84375
+      },
+      "overviewOpen": true
+    }
+  ],
+  "after": [
+    {
+      "label": "initial-task-position-1440",
+      "geometry": {
+        "top": 451.984375,
+        "height": 212.890625
+      },
+      "reviewAction": {
+        "x": 420,
+        "y": 133,
+        "width": 115.859375,
+        "height": 36
+      },
+      "overviewOpen": true
+    },
+    {
+      "label": "next-task-visible-1440",
+      "focus": {
+        "text": "alpha review and follow-up",
+        "top": 689.875,
+        "bottom": 710.875
+      }
+    },
+    {
+      "label": "initial-task-position-390",
+      "geometry": {
+        "top": 748.28125,
+        "height": 239.28125
+      },
+      "reviewAction": {
+        "x": 12,
+        "y": 353,
+        "width": 115.859375,
+        "height": 44
+      },
+      "overviewOpen": true
+    },
+    {
+      "label": "next-task-visible-390",
+      "focus": {
+        "text": "alpha review and follow-up",
+        "top": 280.5625,
+        "bottom": 301.5625
+      }
+    }
+  ],
+  "limit": "Initial phone raw card coordinates can lie behind the open Project understanding pane. The visible early review action and focused task heading are measured separately; no initial phone-card visibility claim."
+}

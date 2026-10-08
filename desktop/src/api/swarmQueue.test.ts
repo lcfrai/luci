@@ -37,3 +37,29 @@ it('refuses foreign, incomplete and duplicate receipts and never automatically r
   await expect(swarmQueueApi.enqueueMany('p-1', 'run-1', ['a','b'], 1, 'key')).rejects.toThrow('interrupted');
   expect(request).toHaveBeenCalledTimes(5);
 });
+
+it('retains a terminal failure distinctly and refuses every queue control before transport', async () => {
+  const item = swarmQueueItem({ state: 'failed', reasonCode: 'provider_limit', reason: 'Provider reservation failed.' });
+  const request = vi.spyOn(productApi, 'request').mockResolvedValue(swarmQueueFixture([item]));
+  const value = await swarmQueueApi.get('p-1');
+  expect(value.items[0]).toEqual(item);
+  expect(value.counts.failed).toBe(1);
+  expect(value.counts.queued).toBe(0);
+  expect(value.counts.completed).toBe(0);
+  for (const action of ['pause', 'resume', 'cancel', 'priority'] as const) {
+    await expect(swarmQueueApi.control('p-1', item, action, 'high')).rejects.toThrow('Inspect its saved run');
+  }
+  expect(request).toHaveBeenCalledTimes(1);
+});
+
+it.each([undefined, null, -1, 0.5, '1'])('rejects an absent or invalid failed count: %s', async failed => {
+  const value = swarmQueueFixture();
+  vi.spyOn(productApi, 'request').mockResolvedValue({ ...value, counts: { ...value.counts, failed } });
+  await expect(swarmQueueApi.get('p-1')).rejects.toThrow('queue could not be read');
+});
+
+it('does not treat an unknown future queue state as failed or completed', async () => {
+  const value = swarmQueueFixture();
+  vi.spyOn(productApi, 'request').mockResolvedValue({ ...value, items: [{ ...swarmQueueItem(), state: 'future-terminal-state' }] });
+  await expect(swarmQueueApi.get('p-1')).rejects.toThrow('does not match this project');
+});

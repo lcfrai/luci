@@ -1,0 +1,50 @@
+// Controlled source fixture. Real AppShell/Develop/Run/Swarm/Queue/Understanding;
+// API responses and account permissions are fixtures, never execution evidence.
+import '../../../desktop/src/styles/app.css';
+import React from 'react';
+import {createRoot} from 'react-dom/client';
+import {AppShell} from '../../../desktop/src/components/AppShell';
+import {resetCockpit,useCockpit} from '../../../desktop/src/store/store';
+import {aProject,aBranch,aWorktree,aMachine} from '../../../desktop/src/test/fixtures';
+import {handoffFixture,handoffAnswerResult} from '../../../desktop/src/test/handoffFixtures';
+import {swarmHarnessFixture,swarmQueueFixture} from '../../../desktop/src/test/swarmFixtures';
+import {context,view} from '../../../desktop/src/components/orchestrator/fixtures';
+import {productApi} from '../../../desktop/src/api/product';
+import {definitionApi} from '../../../desktop/src/api/definition';
+import {designPlanApi} from '../../../desktop/src/api/designPlan';
+import {projectRunsApi} from '../../../desktop/src/api/projectRuns';
+import {projectSwarmApi} from '../../../desktop/src/api/projectSwarm';
+import {swarmQueueApi} from '../../../desktop/src/api/swarmQueue';
+import {swarmHandoffApi} from '../../../desktop/src/api/swarmHandoff';
+import {orchestratorApi} from '../../../desktop/src/api/orchestrator';
+import {api} from '../../../desktop/src/api';
+const ids=['alpha','beta','gamma','delta'];
+const fixtures=Object.fromEntries(ids.map(id=>{
+ const f=handoffFixture();f.run.projectId=id;f.run.id='run-'+id;f.run.worktreeId='main-'+id;f.run.input.implementation.projectId=id;f.run.input.implementation.worktreeId='main-'+id;
+ f.run.state='awaiting-checks';f.run.reason='Review retained task changes and integrate accepted work before verifying the combined build.';f.run.contextFreshness={status:'current',reason:'The saved reviewed context still matches. Source and model availability are checked separately.'};f.run.allowedActions=['reconcile','cancel'];
+ f.run.swarm.tasks[0].title=id+' implementation';f.run.swarm.tasks[1].title=id+' review and follow-up';f.run.swarm.tasks[2].title=id+' combined verification';
+ f.operation.message='The agent process ended. Its exit code and task correctness are not established by this observation. Review retained changes and verification evidence before integration.';
+ f.operation.handoff={status:'captured',digest:f.handoff.digest,summary:'Worker report',questions:1,unanswered:1,capturedAt:f.run.updatedAt};
+ if(id==='alpha'){f.run.swarm.tasks[0].integration={state:'integrated',commit:'c'.repeat(40),sourceCommit:'b'.repeat(40),targetCommit:'a'.repeat(40),reviewDigest:'d'.repeat(64),integratedAt:f.run.updatedAt};f.operation.handoff.unanswered=0;f.run.operations.push({...f.operation,id:'op-b',taskId:'b',childId:'child-b',worktreeId:'task-b'});f.run.swarm.tasks[1].operationId='op-b';}
+ if(id==='gamma'){f.run.operations=[];f.run.swarm.tasks[0].operationId=undefined;f.run.state='ready';}
+ if(id==='delta'){f.operation.status='unknown';f.operation.message='The runtime outcome is unconfirmed. Check team status before retrying; no replacement was started.';f.operation.handoff=undefined;}
+ f.handoff.projectId=id;f.handoff.runId=f.run.id;f.handoff.receipt.projectId=id;f.handoff.receipt.runId=f.run.id;
+ return [id,f];
+}));
+window.__developFixture={reads:[],writes:[],starts:0,selected:()=>useCockpit.getState().selection.projectId};
+const facts=id=>{const c=context(id);c.brief.purpose='Build '+id+' with reviewed context and dependable task handoffs.';c.specification.purpose=c.brief.purpose;c.designPlan.status='approved';return c;};
+productApi.brief=async id=>facts(id).brief;productApi.design=async id=>({projectId:id,revision:0,briefRevision:1,description:'',elements:[],appState:{},files:{},updatedAt:''});
+definitionApi.get=async id=>facts(id).specification;designPlanApi.get=async id=>facts(id).designPlan;
+productApi.git=async id=>({projectId:id,branch:'main',clean:true,changes:[],log:[],commits:[],remotes:[]});productApi.plan=async id=>facts(id).plan;
+productApi.agentConnections=async()=>({revision:1,activeConnectionId:'saved',connections:[{id:'saved',revision:1,name:'Controlled provider',kind:'compatible-api',enabled:true,configured:true,keyPresent:true,endpoints:{responses:'https://invalid.example'},models:{codex:'recorded-model'}}]});
+projectRunsApi.list=async id=>[structuredClone(fixtures[id].run)];projectRunsApi.get=async id=>structuredClone(fixtures[id].run);
+swarmQueueApi.get=async()=>swarmQueueFixture();swarmQueueApi.enqueueMany=async()=>{throw Error('No queue mutation in this witness.');};
+projectSwarmApi.review=async(project,run,taskId)=>{const op=run.operations.find(op=>op.taskId===taskId);window.__developFixture.reads.push({kind:'review',projectId:project,runId:run.id,operationId:op.id,taskId});return {taskId,operationId:op.id,sourceCommit:'b'.repeat(40),targetCommit:'a'.repeat(40),reviewDigest:'d'.repeat(64),paths:['src/a.ts'],patch:'+reviewed fixture',canIntegrate:true,reason:'Controlled review; no integration requested.'};};
+swarmHandoffApi.get=async(project,run,op)=>{window.__developFixture.reads.push({kind:'report',projectId:project,runId:run,operationId:op.id});const h=structuredClone(fixtures[project].handoff);h.taskId=op.taskId;h.operationId=op.id;h.receipt.taskId=op.taskId;h.receipt.operationId=op.id;h.receipt.childId=op.childId;h.receipt.worktreeId=op.worktreeId;return h;};
+swarmHandoffApi.answer=async()=>{throw Error('No answer mutation in this witness.');};
+orchestratorApi.get=async id=>view({projectId:id,context:{...facts(id),needsAttention:id==='gamma'?[]:[{id:fixtures[id].run.id,state:fixtures[id].run.state,kind:'task-review',contextStatus:'current'}]},nextAction:{id:'inspect-run',runId:fixtures[id].run.id,label:'Review task changes',reason:'Review retained task changes before verifying the combined build.',lens:'develop'}});
+api.createSession=async()=>{window.__developFixture.starts++;throw Error('Execution forbidden in this controlled witness.');};
+resetCockpit();useCockpit.setState({projects:ids.map(id=>aProject({id,name:id,path:'/fixture/'+id})),machines:[aMachine()],harnesses:[swarmHarnessFixture()],branchesByProject:Object.fromEntries(ids.map(id=>[id,[aBranch({id:'branch-'+id,projectId:id,name:'main'})]])),worktreesByBranch:Object.fromEntries(ids.map(id=>['branch-'+id,[aWorktree({id:'main-'+id,projectId:id,branchId:'branch-'+id,isPrimary:true})]]))});
+for(const id of ids)useCockpit.getState().selectProject(id,'develop');useCockpit.getState().selectProject('alpha','develop');
+document.documentElement.dataset.theme='light';
+createRoot(document.getElementById('root')!).render(<AppShell/>);

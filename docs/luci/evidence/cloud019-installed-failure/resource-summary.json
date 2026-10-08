@@ -1,0 +1,28 @@
+{
+  "samples": 238,
+  "durationSeconds": 240.1387751850125,
+  "driverExitObserved": true,
+  "peakObserved": {
+    "summedRSS_test-driver": 198656000,
+    "summedRSS_allOwnedProcesses": 1162375168,
+    "summedRSS_other-owned-descendant": 15880192,
+    "summedRSS_control-plane": 200286208,
+    "summedRSS_browser": 817192960,
+    "singleContainerCgroupUsageBytes": 49127424
+  },
+  "observedCounterDeltas": {
+    "observedProcessCPUSeconds": 125.0600000000005,
+    "observedProcessIO_read_bytes": 12734464.0,
+    "observedProcessIO_write_bytes": 4431872.0,
+    "observedProcessIO_rchar": 580482812.0,
+    "observedProcessIO_wchar": 30687941.0
+  },
+  "limitations": [
+    "Sum of process RSS double-counts shared pages; it is not unique physical memory.",
+    "Container cgroup memory is separate and must not be added to container process RSS.",
+    "Docker daemon/shared kernel/VM overhead is unassigned; host memory includes unrelated work.",
+    "Processes starting and exiting between 1 Hz samples may be missed; delta counters cover observed intervals only.",
+    "Post-driver-exit settlement is not an application idle baseline.",
+    "No UI input latency, other-app responsiveness or model reasoning quality is measured."
+  ]
+}

@@ -42,6 +42,12 @@ func (a *API) requireTaskHandoffBeforePurge(ctx context.Context, row registry.Se
 			}
 			return nil // Positively identified serial runs keep ordinary Forget.
 		}
+		if op.WorktreeID == row.WorktreeID && op.StartFailure.Valid() && op.StartFailure == publicSessionStartFailure(row) {
+			// The canonical run retains the no-start diagnostic instead of a
+			// fabricated worker report. Delete still independently proves/retires
+			// execution before removing this ownership record.
+			return nil
+		}
 		if op.WorktreeID != row.WorktreeID || op.Handoff == nil {
 			return errTaskHandoffBeforePurge
 		}

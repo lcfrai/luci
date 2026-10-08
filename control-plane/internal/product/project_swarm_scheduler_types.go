@@ -33,7 +33,7 @@ type SwarmDispatchRequest struct {
 }
 type SwarmDispatchResult struct {
 	SessionID  string `json:"sessionId,omitempty"`
-	State      string `json:"state"` // running, waiting, blocked, unknown
+	State      string `json:"state"` // running, waiting, blocked, failed, unknown
 	ReasonCode string `json:"reasonCode,omitempty"`
 	Message    string `json:"message,omitempty"`
 }
@@ -82,6 +82,7 @@ type SwarmQueueCounts struct {
 	Blocked   int `json:"blocked"`
 	Unknown   int `json:"unknown"`
 	Completed int `json:"completed"`
+	Failed    int `json:"failed"`
 	Cancelled int `json:"cancelled"`
 }
 type ProjectSwarmQueue struct {

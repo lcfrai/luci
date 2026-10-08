@@ -1,0 +1,27 @@
+{
+  "sourceRevision": "3b8054e69340bce37afe3aec17189a33c2fb2991",
+  "status": "preserved-failed-installed-attempt",
+  "files": {
+    "summary.json": {
+      "sha256": "8e215bef67d59416908b1738c1fa539d9ddffed587e2893d6346ae476eafa05e",
+      "bytes": 11781
+    },
+    "resource-summary.json": {
+      "sha256": "b20a934f9f0a4a79c7ef211ac030e6cd70aea47a8cc5b68359a29714bd1235a5",
+      "bytes": 1233
+    },
+    "manifest.json": {
+      "sha256": "6c6ef0bbba6c99e4f58601f5611da505f83f2afe229b13257b7d2d3151f0e08e",
+      "bytes": 394
+    },
+    "failed-stage.png": {
+      "sha256": "4e3afece6ed163098fc24db364843e1f4ef2e1c4b4224b37289775d25a847c2c",
+      "bytes": 263354
+    }
+  },
+  "limits": [
+    "Exact late-admission cause was discarded by that product revision and remains unknown.",
+    "One actual native worker used a scripted provider; second worker never reached Backend.Create.",
+    "No dependency integration, actual Git conflict, join or sustained pass."
+  ]
+}

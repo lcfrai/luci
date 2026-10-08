@@ -61,7 +61,8 @@ func (a *API) admitQueuedSwarm(ctx context.Context, req product.SwarmAdmissionRe
 	}
 	authority, err := a.authorizeExecution(ctx, req.Actor, run.Input.Route.Harness, run.Input.Route.Connection.ID != "")
 	if err != nil {
-		return blocked("access_changed", err.Error())
+		a.sessionLog().Debug("queued admission authority refused", "projectId", req.ProjectID, "err", err)
+		return blocked("access_changed", management.ErrExecutionAuthority.Error())
 	}
 	if err := harness.ValidateTask(harness.ID(run.Input.Route.Harness), harness.PermissionMode(run.Input.Route.PermissionMode)); err != nil {
 		return blocked("task_permission_requires_interactive", err.Error())
@@ -124,8 +125,7 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 		return refuse("dispatch_unconfirmed", err)
 	}
 	if existing != nil {
-		result.State, result.SessionID = "running", existing.ID
-		return result, nil
+		return existingQueuedDispatch(*existing), nil
 	}
 	policy, err := a.deps.Product.SwarmSchedulerPolicy()
 	if err != nil {
@@ -236,8 +236,7 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 	}
 	defer admission.Release()
 	if admission.Existing != nil {
-		result.State, result.SessionID = "running", admission.Existing.ID
-		return result, nil
+		return existingQueuedDispatch(*admission.Existing), nil
 	}
 	claimed = true
 	result.SessionID = admission.SessionID
@@ -282,31 +281,34 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 	}
 	finalAuth := func(ctx context.Context) error {
 		enabled, err := a.deps.Product.SwarmSchedulerDispatchEnabled()
-		if err != nil || !enabled {
-			return errors.New("New queued dispatch is paused.")
+		if err != nil {
+			return admissionFailure("dispatch_policy_unavailable", err)
+		}
+		if !enabled {
+			return admissionFailure("dispatch_paused", errors.New("New queued dispatch is paused."))
 		}
 		current, err := a.authorizeExecution(ctx, req.Actor, route.Harness, connection.ID != "")
 		if err != nil {
-			return err
+			return admissionFailure("execution_authority_changed", err)
 		}
 		resources := a.sessionResources(ctx)
 		if req.Actor.UserID != "" {
 			resources = clampSessionResources(resources, current.Policy)
 		}
 		if resources != capacity.Resources {
-			return errors.New("The worker resource policy changed before allocation.")
+			return admissionFailure("resource_policy_changed", errors.New("The worker resource policy changed before allocation."))
 		}
 		policy, err := a.deps.Product.SwarmSchedulerPolicy()
 		if err != nil {
-			return err
+			return admissionFailure("resource_policy_unavailable", err)
 		}
 		provider, limit := providerCapacity(route, policy)
 		decision, err := a.execution.reserve(ctx, req.QueueID, req.ProjectID, provider, limit, req.Actor, current, policy)
 		if err != nil {
-			return err
+			return admissionContextFailure(ctx, err)
 		}
 		if decision.State != "admitted" {
-			return errors.New(decision.Message)
+			return admissionDecisionFailure(decision)
 		}
 		return nil
 	}
@@ -316,7 +318,12 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 		return a.execution.markBackendSettled(ctx, req.QueueID, candidate.ID, sandboxID)
 	}, HasReviewedContext: true, ExecutionLeaseID: req.QueueID})
 	if err != nil {
-		result.State, result.ReasonCode, result.Message = "unknown", "dispatch_unconfirmed", "The task start could not be confirmed. Its capacity and exact child identity are retained for recovery."
+		var failure *sessionAllocationError
+		if errors.As(err, &failure) && failure.StartFailure.Valid() {
+			result.State, result.ReasonCode, result.Message = "failed", failure.StartFailure.ReasonCode, failure.StartFailure.Message
+		} else {
+			result.State, result.ReasonCode, result.Message = "unknown", "dispatch_unconfirmed", "The task start could not be confirmed. Its capacity and exact child identity are retained for recovery."
+		}
 		return result, nil
 	}
 	result.State, result.SessionID = "running", stored.ID
@@ -333,4 +340,14 @@ func (a *API) queuedResourceView() any {
 		Execution    any                       `json:"execution"`
 		Reservations *executionReservationView `json:"reservations"`
 	}{snapshot.Host, map[string]any{"observedAt": snapshot.Execution.ObservedAt, "status": snapshot.Execution.Status, "scope": snapshot.Execution.Scope, "totalMemoryBytes": snapshot.Execution.TotalMemoryBytes, "cpuMillis": snapshot.Execution.CPUMillis, "hostStorage": snapshot.Execution.HostStorage, "unavailable": snapshot.Execution.Unavailable}, a.execution.snapshot.Load()}
+}
+
+func existingQueuedDispatch(row registry.Session) product.SwarmDispatchResult {
+	result := product.SwarmDispatchResult{State: "running", SessionID: row.ID}
+	if failure := publicSessionStartFailure(row); failure.Valid() {
+		result.State, result.ReasonCode, result.Message = "failed", failure.ReasonCode, failure.Message
+	} else if row.Status == registry.StatusExited {
+		result.State, result.ReasonCode, result.Message = "unknown", "existing_child_terminal", "The existing child has recorded an exit. Observe its exact operation and retained output; no replacement was launched."
+	}
+	return result
 }

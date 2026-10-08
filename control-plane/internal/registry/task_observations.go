@@ -52,7 +52,7 @@ func sameTaskObservationGeneration(before, after Session) bool {
 	return before.ProjectID == after.ProjectID && before.WorktreeID == after.WorktreeID &&
 		before.ProjectRunID == after.ProjectRunID && before.ProjectRunOperationID == after.ProjectRunOperationID &&
 		before.SandboxID == after.SandboxID && before.SandboxRef == after.SandboxRef &&
-		before.Status == after.Status && before.ExitReason == after.ExitReason &&
+		before.Status == after.Status && before.ExitReason == after.ExitReason && before.StartFailure == after.StartFailure &&
 		before.Harness == after.Harness && before.Model == after.Model && before.Effort == after.Effort &&
 		before.PermissionMode == after.PermissionMode && before.AuthMode == after.AuthMode &&
 		before.AgentConnectionID == after.AgentConnectionID && before.AgentConnectionKind == after.AgentConnectionKind &&

@@ -1,0 +1,44 @@
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync,mkdirSync,mkdtempSync,rmSync} from 'node:fs';
+import {execFileSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
+import {join,dirname,resolve} from 'node:path';
+import {homedir} from 'node:os';
+import {fileURLToPath,pathToFileURL} from 'node:url';
+const here=dirname(fileURLToPath(import.meta.url)),repo=resolve(here,'../../..');
+const out=resolve(process.argv[2]||join(repo,'artifacts/quality-swarm/task-review-ui'));
+const {createServer}=await import(pathToFileURL(join(repo,'desktop/node_modules/vite/dist/node/index.js')).href);
+const {chromium}=await import(pathToFileURL(join(repo,'desktop/node_modules/playwright/index.mjs')).href);
+assert.equal(process.platform,'linux','This witness uses Linux Chromium; it is not a native Windows test.');
+assert.notEqual(process.getuid(),0,'Run Chromium as an ordinary user with its sandbox enabled.');
+mkdirSync(out,{recursive:true});
+try {readFileSync(join(out,'result.json'));throw Error('Output already contains a receipt; choose a fresh directory to preserve it.');}catch(error){if(error.code!=='ENOENT')throw error;}
+
+const paths=[...new Set(execFileSync('git',['ls-files','--cached','--others','--exclude-standard','desktop','scripts/acceptance/develop-overview-ui'],{cwd:repo,encoding:'utf8'}).trim().split('\n'))].filter(p=>!p.startsWith('desktop/src-tauri/')).sort();
+const sha=value=>createHash('sha256').update(value).digest('hex'), fingerprint=()=>Object.fromEntries(paths.map(p=>[p,sha(readFileSync(join(repo,p)))]));
+const receipt={passed:false,startedAt:new Date().toISOString(),scope:'Actual AppShell/Develop/ProjectRun/Swarm/Queue/Understanding source at1440/390 with controlled APIs; no installed/backend/model acceptance.',limitations:['No installed-package, native Windows, real backend, Docker, agent or model evidence.','Recorded answer/checkpoint responses here are fixture callbacks, not actual persistent mutations.','Automated axe and keyboard/geometry checks do not establish full accessibility certification.'],sourceBefore:fingerprint(),checks:[],errors:[]};
+receipt.helperSHA256=sha(readFileSync(fileURLToPath(import.meta.url)));receipt.limitations.push('Focus is awaited after Radix deferred restoration; this Linux button-close check does not resolve the original Windows LOCAL-008 immediate Escape timing report.');
+let browser,server,page;const profileRoot=process.env.LUCI_BROWSER_STATE_ROOT||join(homedir(),'.cache','luci-ui-acceptance');mkdirSync(profileRoot,{recursive:true});const profile=mkdtempSync(join(profileRoot,'task-review-'));
+async function checkGeometry(label){
+ await page.addScriptTag({path:join(repo,'desktop/node_modules/axe-core/axe.min.js')});const violations=await page.evaluate(async()=> (await axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}})).violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)})));assert.deepEqual(violations,[]);
+ const geometry=await page.evaluate(()=>({documentWidth:document.documentElement.clientWidth,documentScrollWidth:document.documentElement.scrollWidth,dialogs:[...document.querySelectorAll('[role=dialog]')].map(el=>({width:el.clientWidth,scrollWidth:el.scrollWidth,left:el.getBoundingClientRect().left,right:el.getBoundingClientRect().right}))}));assert(geometry.documentScrollWidth<=geometry.documentWidth+1);for(const d of geometry.dialogs){assert(d.scrollWidth<=d.width+1);assert(d.left>=-1&&d.right<=geometry.documentWidth+1);}
+ receipt.checks.push({label,geometry,axeViolations:violations});
+}
+async function keyboardTrap(dialog){await dialog.getByRole('button').last().focus();await page.keyboard.press('Tab');assert(await dialog.evaluate(el=>el.contains(document.activeElement)));await page.keyboard.press('Shift+Tab');assert(await dialog.evaluate(el=>el.contains(document.activeElement)));}
+try{
+ server=await createServer({configFile:join(repo,'desktop/vite.config.ts'),root:join(repo,'desktop'),server:{host:'127.0.0.1',port:0,strictPort:false,watch:null,fs:{allow:[repo]}},plugins:[{name:'controlled-handoff-fixture',enforce:'pre',resolveId(id,importer){if(id.endsWith('/AuthProvider'))return '\0handoff-auth';if(id.endsWith('/TeamWorkspaceProvider'))return '\0handoff-team';if(id.endsWith('/useProjectAccess'))return '\0handoff-access';if(id.endsWith('/SetupProvider'))return '\0setup';if(importer?.endsWith('/ProjectWork.tsx')&&(id==='./ProjectPlan'||id==='./ProjectChecks'))return '\0planning-'+id;},load(id){if(id==='\0setup')return 'export const useSetup=()=>({workspace:{mode:"local"},status:{access:{user:{username:"fixture"}},config:{projectsDir:"/fixture"}}});';if(id.startsWith('\0planning-'))return 'export const ProjectPlan=()=>null;export const ProjectChecks=()=>null;';if(id==='\0handoff-auth')return 'export const useAuth=()=>({profile:{user:{id:"fixture",username:"fixture",displayName:"Controlled operator",role:"member"},permissions:{}}});';if(id==='\0handoff-team')return 'export const useTeamWorkspace=()=>null; export const useTeamProjectPermissions=()=>({loading:false,error:"",permissions:{read:true,edit:true,execute:true}});';if(id==='\0handoff-scope')return 'export const useProjectDraftScope=id=>"controlled-account:"+id;';if(id==='\0handoff-access')return 'export const useProjectAccess=()=>({canRead:true,canEdit:true,canExecute:true,loading:false,error:"",message:""});';if(id==='\0handoff-queue')return 'export const SwarmRunQueue=()=>null;';},configureServer(vite){vite.middlewares.use('/handoff-fixture',async(req,res)=>{res.setHeader('Content-Type','text/html');res.end(await vite.transformIndexHtml('/handoff-fixture','<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Controlled task result review fixture</title><style>body{overflow:auto!important;height:auto!important}</style></head><body><div id="root"></div><script type="module" src="/@fs'+join(here,'fixture.tsx')+'"></script></body></html>'));});}}]});await server.listen();const base='http://127.0.0.1:'+server.httpServer.address().port;
+ browser=await chromium.launch({headless:true,executablePath:process.env.LUCI_CHROMIUM_EXECUTABLE||'/usr/bin/chromium',env:{PATH:process.env.PATH,TMPDIR:profile,XDG_CONFIG_HOME:join(profile,'config'),XDG_CACHE_HOME:join(profile,'cache')},args:['--no-proxy-server']});receipt.browserVersion=browser.version();
+ const context=await browser.newContext({serviceWorkers:'block'});await context.route('**/*',route=>{if(new URL(route.request().url()).origin!==base){receipt.errors.push('External request blocked: '+new URL(route.request().url()).origin);return route.abort();}return route.continue();});
+ page=await context.newPage();page.setDefaultTimeout(15000);page.on('pageerror',error=>receipt.errors.push(error.message));
+ for(const width of [1440,390]){
+  await page.setViewportSize({width,height:width===390?844:1080});await page.goto(base+'/handoff-fixture');
+  await page.getByRole('heading',{name:'alpha implementation',exact:true}).waitFor();
+  if(width===390)await page.getByRole('button',{name:'Show project overview',exact:true}).click();
+  await checkGeometry('full-shell-'+width);
+  const card=page.locator('.project-swarm-tasks > li').first();
+  receipt.checks.push({label:'initial-task-position-'+width,geometry:await card.evaluate(el=>({top:el.getBoundingClientRect().top,height:el.getBoundingClientRect().height})),overviewOpen:await page.getByRole('button',{name:'Hide project overview',exact:true}).isVisible()});
+  await page.screenshot({path:join(out,'full-develop-'+width+'.png')});
+ }
+ receipt.passed=true;
+}catch(error){receipt.error=String(error.stack||error);if(page)await page.screenshot({path:join(out,'failed-stage.png')}).catch(()=>{});throw error;}
+finally{if(browser)await browser.close();if(server)await server.close();rmSync(profile,{recursive:true,force:true});receipt.sourceAfter=fingerprint();receipt.sourceUnchanged=JSON.stringify(receipt.sourceBefore)===JSON.stringify(receipt.sourceAfter);receipt.passed=receipt.passed&&receipt.sourceUnchanged&&receipt.errors.length===0;receipt.finishedAt=new Date().toISOString();receipt.cleanup=['owned Chromium closed','owned Vite server closed','private profile removed'];writeFileSync(join(out,'result.json'),JSON.stringify(receipt,null,2)+'\n');console.log(JSON.stringify({passed:receipt.passed,error:receipt.error,checks:receipt.checks.length,sourceUnchanged:receipt.sourceUnchanged}));if(!receipt.passed)process.exitCode=1;}

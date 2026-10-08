@@ -18,5 +18,5 @@ export const swarmQueueItem = (patch: Partial<SwarmQueueItem> = {}): SwarmQueueI
 });
 export const swarmQueueFixture = (items: SwarmQueueItem[] = []): ProjectSwarmQueue => ({
   revision: 70, observedAt: '2026-10-08T00:00:00Z', dispatchPaused: false, hasMore: false, items,
-  counts: {queued: items.filter(i => i.state === 'queued').length, paused: 0, reserved: 0, running: 0, blocked: 0, unknown: 0, completed: 0, cancelled: 0},
+  counts: {queued: items.filter(i => i.state === 'queued').length, paused: 0, reserved: 0, running: 0, blocked: 0, unknown: 0, completed: 0, failed: items.filter(i => i.state === 'failed').length, cancelled: 0},
 });

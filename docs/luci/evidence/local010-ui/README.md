@@ -1,0 +1,22 @@
+# LOCAL-010 / CLOUD-019 frontend evidence
+
+Source UI checks passed for the compact Develop journey and distinct blocked-start / failed-queue states. These are controlled Linux Chromium and component/API tests. They do not establish installed-package, Windows, real backend, Docker, live-provider or production acceptance.
+
+The task list now precedes the detailed background queue. Recurring status guidance uses existing disclosures; material permission, uncertainty, recovery and context warnings remain visible. An early **Review tasks** action focuses the exact task needing review. Integrated tasks retain their original worker observation in task history. Queue consent stays mounted independently of collapsed controls. Positively recorded failures before worker creation show **Start blocked** and preserve explicit recovery without inventing a report or replaying the start. Actual worker failures still permit retained-output review.
+
+The controlled full-AppShell witness passed **20 checks** at 1440×1080 and 390×844, with Project understanding open. It exercised all four fixture projects, ready work, reported questions, exact report and integration-review reads, unknown and blocked-start states, keyboard disclosures/focus, required integration consent, axe and horizontal overflow. It recorded **zero starts and zero writes**. Chromium, Vite and their private profile closed. ProjectPlan and ProjectChecks leaves below the run are omitted; the shell, run, task, queue, dialogs and Project understanding are actual components.
+
+| Geometry | Before | After |
+| --- | ---: | ---: |
+| Desktop first task, raw top | 1,048px | 452px |
+| Phone first task, raw top | 1,555px | 748px |
+| Early Review tasks action | — | desktop 133px / phone 353px |
+| Phone focused next-task heading after Review tasks | — | 281px |
+
+The phone's open Project understanding pane covers lower content. The initial first-task coordinate is a document measurement, **not an initial visible task-card claim**. The early review action is visible; activating it scrolls the task pane and focuses the exact next task. See [initial phone](full-develop-390.png) and [focused task](review-task-focused-390.png), alongside the [desktop](full-develop-1440.png), [phone review](integration-review-390.png), [task report](task-result-390.png) and [blocked start](blocked-start-390.png). [Geometry receipt](geometry.json) retains the precise values and baseline identities.
+
+Component/API verification is **263 latest per-file passing outcomes across 12 files and overlapping bounded batches**, not a fresh full-suite result. The first batch had 251/252 passing and a test-only TypeScript error; both assertion issues were corrected. A later 84/84 batch plus TypeScript passed. The real browser then exposed loss of focus after the asynchronous integration review; an explicit body-focus regression failed before the scoped opener fix, followed by 83/83 affected task/recovery checks plus TypeScript passing. The final batch fingerprints **433 frontend inputs**, unchanged during verification. The caller now retains the exact opener across its read and restores it only within the same project/run/revision/task/operation and authority epoch. The shared modal implementation was unchanged.
+
+[Source-check commands/counts/lineage](source-checks.json), [final frontend hashes](frontend-source.json), [browser receipt](browser.json), [baseline browser receipt](baseline-browser.json) and [browser failure lineage](browser-lineage.json) preserve the scope and original failures. The initial filename typo omitted the intended checkpoint suite; the actual checkpoint suite ran in both subsequent batches. The first jsdom blur emulation passed without reproducing the native behavior and is not represented as a failing regression. The browser also caught and corrected a CSS colour inheritance issue; a later selector-only failure matched a hidden historical message and was narrowed to the visible task card.
+
+The desktop baseline exactly matched `3b8054e69340bce37afe3aec17189a33c2fb2991`; final hashes include subsequent working changes. The parent HEAD is not presented as the revision containing those changes. The [retrievable helper, fixture, baseline originals and setup commands](../../../../scripts/acceptance/develop-overview-ui/README.md) allow an independent source reproduction. Automated axe checks are not full accessibility certification. Successful awaited Linux focus checks do **not** resolve the separate LOCAL-008 Windows immediate-Escape timing report.

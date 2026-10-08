@@ -1,0 +1,240 @@
+{
+  "version": 1,
+  "issue": "CLOUD-013",
+  "status": "failed-second-worker-before-allocation",
+  "productSource": "3b8054e69340bce37afe3aec17189a33c2fb2991",
+  "helperSource": "3b8054e69340bce37afe3aec17189a33c2fb2991",
+  "sourceCleanDuringAttempt": true,
+  "packageArchiveSHA256": "f1c6233dbe74a485e87ad56f7ea0524e8435831aa7fcbb7b57eba83ce5f3ea5b",
+  "verifiedPackageMembers": 1230,
+  "binarySHA256": "efd41adce78c6cad8247e97fefabb06a54f025b0f54fe819e948bc1749223c15",
+  "webIndexSHA256": "8a06b84e32ad7b8ff961a9955b7041e99b6906d7f1b17779fd94a1c26255608c",
+  "imageId": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+  "startedAt": "2026-10-08T16:07:45.167Z",
+  "finishedAt": "2026-10-08T16:11:23.664Z",
+  "driverElapsedMs": 218130,
+  "fixedWorkerMaximum": 4,
+  "actualWorkerCreates": 1,
+  "actualWorkerStarts": 1,
+  "nativeTaskResults": 1,
+  "nativeNaturalExits": 1,
+  "successfulIntegrations": 0,
+  "manualInterrupt": false,
+  "automaticRetry": false,
+  "observedBeforeStartDependencyRefusal": {
+    "label": "before-starts",
+    "status": 409,
+    "requestedRevision": 2,
+    "publicRevisionBefore": 2,
+    "privateRevisionBefore": 2,
+    "privateRevisionAfter": 2,
+    "before": {
+      "effects": {
+        "create": 0,
+        "start": 0,
+        "destroy": 0
+      },
+      "primaryCommit": "3b38cd5c56f81c1fc1554cec6eafe027d0b618d6",
+      "joinOperationIds": []
+    },
+    "after": {
+      "effects": {
+        "create": 0,
+        "start": 0,
+        "destroy": 0
+      },
+      "primaryCommit": "3b38cd5c56f81c1fc1554cec6eafe027d0b618d6",
+      "joinOperationIds": []
+    },
+    "response": {
+      "message": "Integrate this task's dependencies before starting it.",
+      "error": "project_run_conflict"
+    },
+    "truncatedFields": [],
+    "at": "2026-10-08T16:07:52.271Z",
+    "classification": "unclassified-response"
+  },
+  "failure": {
+    "stage": "native-command-b1",
+    "driverMessage": "Exact authorized DAG child b1 did not complete within its bounded prerequisite window",
+    "condition": "B1 became terminal before the expected running child was observed. The original 150-second prerequisite bound ended the attempt.",
+    "failedChild": "s-6333251b",
+    "recordedExitReason": "execution access or capacity changed before sandbox allocation",
+    "sandboxRef": "",
+    "specificGuardReason": null,
+    "specificGuardReasonUnavailable": "The public/private terminal record retains a generic message. The queued dispatcher converts the final allocation error to dispatch_unconfirmed without retaining the underlying decision. This receipt does not infer which access/capacity check refused allocation.",
+    "differentFromAttempt1": "Attempt1 reached two natural exits then failed on an unrecorded409 reason. This attempt never reached that post-exit probe."
+  },
+  "observedPositiveScope": [
+    "Initial exact dependency refusal with before/after no-allocation and unchanged-primary snapshots",
+    "One real native CLI command with frozen V2 context and task output oracle",
+    "First task natural code-zero process exit, captured report and confirmed backend absence"
+  ],
+  "unexercised": [
+    "Second native worker",
+    "Dependency-specific refusal after both process exits",
+    "Stale integration review refusal after target movement",
+    "Actual add/add conflict and truthful conflict notice",
+    "Retained conflict retirement and explicitly authorized replacement",
+    "Dependent join admission after both current reviewed integrations",
+    "Final reviewed join integration and independent combined-result check"
+  ],
+  "naturalCompletions": [
+    {
+      "task": "a",
+      "sessionID": "s-e0ca2fc4",
+      "sessionStatus": "exited",
+      "recordedExitReason": "process exited",
+      "cleanNativeExitFrame": true,
+      "exitFrameObservedAt": "2026-10-08T16:08:31.883Z",
+      "stoppedAndAbsentObservedAt": "2026-10-08T16:08:47.354Z",
+      "queueCompletedObservedAt": "2026-10-08T16:08:50.535Z",
+      "leaseObservation": {
+        "scope": "Exact task session and sandbox in the fixture-owned private execution ledger",
+        "firstPresentAt": "2026-10-08T16:08:26.919Z",
+        "lastPresentAt": "2026-10-08T16:08:50.463Z",
+        "firstAbsentAt": "2026-10-08T16:08:50.535Z",
+        "samples": 145,
+        "unavailableSamples": 0
+      },
+      "queueState": "completed",
+      "codingDispatches": 1,
+      "finalResponseRequests": 1,
+      "finalResponseAborts": 0,
+      "finalResponseRetries": 0,
+      "integratedBeforeExit": false
+    }
+  ],
+  "terminalSessions": [
+    {
+      "id": "s-e0ca2fc4",
+      "status": "exited",
+      "exitReason": "process exited",
+      "sandboxRef": "936c4ccbf387cdd6bff016c2938b84327e2778b51bddd399ec1b254bc0f08242",
+      "createdAt": "2026-10-08T16:07:52.670816994Z",
+      "updatedAt": "2026-10-08T16:08:50.483616912Z"
+    },
+    {
+      "id": "s-6333251b",
+      "status": "exited",
+      "exitReason": "execution access or capacity changed before sandbox allocation",
+      "sandboxRef": "",
+      "createdAt": "2026-10-08T16:08:56.895303416Z",
+      "updatedAt": "2026-10-08T16:08:56.923350832Z"
+    }
+  ],
+  "queueAtFailure": [
+    {
+      "id": "queue-c6e821f166ebd5cfaae556a5",
+      "taskId": "task-a",
+      "state": "completed",
+      "reasonCode": "review_required",
+      "reason": "The agent stopped. Review its retained changes and verify the result; process exit does not integrate dependencies.",
+      "childId": "s-e0ca2fc4",
+      "operationId": "op-593510c2c0fb31c73a7fbbee",
+      "updatedAt": "2026-10-08T16:08:50.499117474Z"
+    },
+    {
+      "id": "queue-0100df7766d088204f91c570",
+      "taskId": "task-b",
+      "state": "completed",
+      "reasonCode": "review_required",
+      "reason": "The agent stopped. Review its retained changes and verify the result; process exit does not integrate dependencies.",
+      "childId": "s-6333251b",
+      "operationId": "op-6768935ae9170ef9b38eef92",
+      "updatedAt": "2026-10-08T16:08:57.825061267Z"
+    },
+    {
+      "id": "queue-b6e3a31c68bbf521542aef67",
+      "taskId": "task-join",
+      "state": "queued",
+      "reasonCode": "dependencies_or_scope",
+      "reason": "Integrate this task's dependencies before starting it.",
+      "childId": null,
+      "operationId": null,
+      "updatedAt": "2026-10-08T16:08:50.518816593Z"
+    }
+  ],
+  "queueInterpretation": "Observed queue completed/review_required is not evidence B1 executed or succeeded; its task operation was failed and no second Create occurred.",
+  "contextManifestDigests": {
+    "a": "f81fdf9b5e79f4224074794fb55645a566525122b9ee45c9451be0550ba37025"
+  },
+  "workerSourceCommits": {
+    "a": "1cd23944deed05e15b3f6694e6f67996924bf063"
+  },
+  "observer": {
+    "samples": 238,
+    "durationSeconds": 240.1387751850125,
+    "driverExitObserved": true,
+    "peakObserved": {
+      "summedRSS_test-driver": 198656000,
+      "summedRSS_allOwnedProcesses": 1162375168,
+      "summedRSS_other-owned-descendant": 15880192,
+      "summedRSS_control-plane": 200286208,
+      "summedRSS_browser": 817192960,
+      "singleContainerCgroupUsageBytes": 49127424
+    },
+    "observedCounterDeltas": {
+      "observedProcessCPUSeconds": 125.0600000000005,
+      "observedProcessIO_read_bytes": 12734464.0,
+      "observedProcessIO_write_bytes": 4431872.0,
+      "observedProcessIO_rchar": 580482812.0,
+      "observedProcessIO_wchar": 30687941.0
+    },
+    "limitations": [
+      "Sum of process RSS double-counts shared pages; it is not unique physical memory.",
+      "Container cgroup memory is separate and must not be added to container process RSS.",
+      "Docker daemon/shared kernel/VM overhead is unassigned; host memory includes unrelated work.",
+      "Processes starting and exiting between 1 Hz samples may be missed; delta counters cover observed intervals only.",
+      "Post-driver-exit settlement is not an application idle baseline.",
+      "No UI input latency, other-app responsiveness or model reasoning quality is measured."
+    ]
+  },
+  "closure": {
+    "observedAt": "2026-10-08T16:12:33.007858+00:00",
+    "status": "failed-attempt-closed-and-verified",
+    "containers": 0,
+    "volumes": 0,
+    "ownedServiceOrBrowserProcesses": 0,
+    "controllersStopped": true,
+    "dockerRequestsDrained": true,
+    "cleanupErrors": [],
+    "protectedHelpersUnchanged": true,
+    "packageArchiveUnchanged": true,
+    "binaryAndWebIndexUnchanged": true,
+    "imageUnchanged": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98"
+  },
+  "rawEvidenceSHA256": {
+    "result.json": "c2e469e875dc20009e1a816bfa12a85e364d5943eef47153e098e464cb654b1c",
+    "observer-summary.json": "80680721139275dde3928fd9cc954758c8d0ada65706d31156fa3e95ce6f9839",
+    "closure-provenance.json": "a363c0e3809951068f9d93f90504b88f2e9492eaf7a92e2a544f4d8ce9d01378",
+    "early-failure-observation.json": "78de39377099ba5ab86753a7f7197f627183b743936b997980073eef38e3ea87",
+    "source-before.json": "2d43581f34462c5308580e6f8ca4367252ebb4becfadffd49b6adc5096ecb38a",
+    "source-after.json": "2d43581f34462c5308580e6f8ca4367252ebb4becfadffd49b6adc5096ecb38a"
+  },
+  "executedHelperSources": {
+    "scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+    "scripts/acceptance/four-project-queue/sample-linux-owned.py": "f9bdd159bb27d19b38df602146319ff9a9b2c828c89038057ed5b58524f4c0ad",
+    "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs": "a1a88540e28775530808a34c0e0011192eb0692bd3fc71d36428ab46059eaefa",
+    "scripts/acceptance/launch-recovery/worker-create-guard.mjs": "0036995ceaeb9d16073f21ddcb126a6e328df23a838e1458362b59416a236312",
+    "scripts/acceptance/task-context-delivery.mjs": "9c16efd099c2cbf475a206d487c7abe76ee2699ee19c2061f6d2be8dd063ad68",
+    "scripts/acceptance/task-context-delivery.test.mjs": "1a1620ebe1a60ad628008f02c0b6ccbb6f8eeba10052eb52672377d01de673cd",
+    "scripts/acceptance/task-dependencies/README.md": "6ab4a614ac8e5ae7c590b79233fb89d1a5cf4ae8c5100b51c3e4b5a585243e35",
+    "scripts/acceptance/task-dependencies/context-contract.mjs": "07cf795341efc55f6e6e08929e18c02cfec85cb32663f49be69260e6df8faee2",
+    "scripts/acceptance/task-dependencies/context-contract.test.mjs": "762dcea2b5c9d6e86fb55fbb4bcdc4b2d625f166b325c2d76585e4c5e57bbd18",
+    "scripts/acceptance/task-dependencies/dag-fixture.mjs": "5290f1cf6bc5e3dd0d31120606984e65979851a03e68e701c51a998e7138a0a2",
+    "scripts/acceptance/task-dependencies/dag.mjs": "6f5ee46b1978017804ca5aea7715e8fb8be9c405a3d91b7deede756dc089c355",
+    "scripts/acceptance/task-dependencies/dependency-probe.mjs": "eddf18208bbc1bf1ea52926406fb5fefced5d94b94bead7d7e68b5a3ee7d0ef2",
+    "scripts/acceptance/task-dependencies/dependency-probe.test.mjs": "f96ac3bf82b7b8e19d653b1c490f1f0f2cda345ab7aa507d9f87d0f870d59fbd",
+    "scripts/acceptance/task-dependencies/helper.test.mjs": "520739aa2a67ca683517a14a439493ff58b77a6e8a216300544e6c2e00621561",
+    "scripts/acceptance/task-dependencies/run-with-observer.py": "80da81c9d46841df6ffa505c7e9d6641849408748ba1b1bc2661cd73f043068f",
+    "scripts/acceptance/task-dependencies/run_with_observer_test.py": "16d056f5c3b5cb4febdb0765c4a458b3afc9276b0c22f46902391145f6a71d1e"
+  },
+  "limitations": [
+    "Failed Linux scripted-provider acceptance attempt, not a passed DAG milestone.",
+    "No real-model quality, Windows runtime, concurrent throughput or comparative performance claim.",
+    "Tasks without dependency edges deliberately overlap write scopes and are not eligible for simultaneous writes.",
+    "No automatic retry, manual success-path Stop, image pull or cloud allocation.",
+    "Raw private fixture retained locally; this sanitized receipt excludes its path and credentials."
+  ]
+}

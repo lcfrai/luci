@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "scope": "Exact historical source-component browser witness and decoded embedded fixture; this publication does not execute or revalidate that witness.",
+  "sourceArtifact": "artifacts/quality-swarm/visual-polish/copy-browser.mjs",
+  "historicalReceipt": "docs/luci/evidence/task-review-polish/browser.json",
+  "files": [
+    {
+      "path": "original/copy-browser.mjs",
+      "bytes": 20120,
+      "sha256": "550fa1e3c9e376479f90e2f277285ad65de3ad10129feb675597617b4c484b93"
+    },
+    {
+      "path": "original/fixture.tsx",
+      "bytes": 8108,
+      "sha256": "72e784c08a67117472b7fea6803c279c040c8471ee9f1e06454d8e99ab71e97a"
+    }
+  ],
+  "fixtureExtraction": "JSON-decode the original const fixtureSource string literal without evaluating JavaScript; preserve decoded UTF-8 bytes exactly.",
+  "originalAbsoluteCheckout": "/workspace/luci",
+  "limitations": [
+    "Original source is unchanged, including its hardcoded checkout and historical cleanup/fixture behavior.",
+    "Source components use controlled API callbacks and mocked permissions/queue; no installed backend, persistence, Docker, agent, model or Windows/native evidence.",
+    "Any portable adaptation is separate and must identify its changed bytes; publication is not a new browser pass."
+  ]
+}

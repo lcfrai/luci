@@ -437,7 +437,7 @@ func (s *Server) observeProjectSwarm(ctx context.Context, path string, run Proje
 			return run, err
 		}
 		status, message := observedSwarmOperation(run, op, children)
-		run, err = s.projectRuns.ObserveOperation(run.ProjectID, path, run.ID, run.Revision, op.ID, op.ChildID, status, message)
+		run, err = s.projectRuns.ObserveOperation(run.ProjectID, path, run.ID, run.Revision, op.ID, op.ChildID, status, message, observedSwarmStartFailure(run, op, children))
 		if err != nil {
 			return run, err
 		}
@@ -445,7 +445,7 @@ func (s *Server) observeProjectSwarm(ctx context.Context, path string, run Proje
 	for _, task := range run.Swarm.Tasks {
 		// Only private, exact stopped output is collected; failures leave the
 		// report visibly unrecorded and never alter process/capacity evidence.
-		if op := swarmOperation(&run, task.OperationID); op != nil && op.Handoff == nil && projectRunOperationTerminal(op.Status) && op.Allocation == "ready" && s.taskHandoffCollector != nil {
+		if op := swarmOperation(&run, task.OperationID); op != nil && op.Handoff == nil && op.StartFailure.IsZero() && projectRunOperationTerminal(op.Status) && op.Allocation == "ready" && s.taskHandoffCollector != nil {
 			if captured, captureErr := s.captureTaskHandoff(ctx, path, run, op.ID, false, false); captureErr == nil {
 				run = captured
 			}

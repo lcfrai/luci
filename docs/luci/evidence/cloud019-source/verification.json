@@ -1,0 +1,235 @@
+{
+  "issue": "CLOUD-019",
+  "scope": "Controlled Go API/product/registry source verification; no Docker, installed app, native Windows, or model reasoning claim",
+  "baseCommit": "3b8054e69340bce37afe3aec17189a33c2fb2991",
+  "sourceBinding": "Working tree modified relative to base; listed SHA-256 input manifests identify tested bytes.",
+  "originalInstalledAttempt": "3b8054e6 dependency attempt 2 was refused during final BeforeAllocate. No Backend.Create occurred for B1; its specific original cause was discarded and remains unknown.",
+  "runs": [
+    {
+      "name": "diagnostic",
+      "passed": true,
+      "testOutcomes": {
+        "pass": 40
+      },
+      "packageTestOutcomes": {
+        "github.com/lcfrai/luci/control-plane/internal/api": {
+          "pass": 11
+        },
+        "github.com/lcfrai/luci/control-plane/internal/product": {
+          "pass": 4
+        },
+        "github.com/lcfrai/luci/control-plane/internal/registry": {
+          "pass": 25
+        }
+      },
+      "packageResults": [
+        {
+          "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+          "Action": "pass",
+          "Elapsed": 7.036
+        },
+        {
+          "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+          "Action": "pass",
+          "Elapsed": 7.132
+        },
+        {
+          "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+          "Action": "pass",
+          "Elapsed": 1.149
+        }
+      ],
+      "skips": [],
+      "inputCount": 681,
+      "inputsUnchanged": true,
+      "privateRawLogSHA256": "589e5088af72dc6da049d032604c9d89e7c6292ec63353fe4aa8d9cf8d8ca14d",
+      "privateRawLogArtifact": "artifacts/cloud019/diagnostic/test-events-0.jsonl"
+    },
+    {
+      "name": "affected-full",
+      "passed": false,
+      "testOutcomes": {
+        "pass": 1747,
+        "skip": 8,
+        "fail": 1
+      },
+      "packageTestOutcomes": {
+        "github.com/lcfrai/luci/control-plane/internal/api": {
+          "pass": 818,
+          "skip": 6,
+          "fail": 1
+        },
+        "github.com/lcfrai/luci/control-plane/internal/product": {
+          "pass": 848,
+          "skip": 2
+        },
+        "github.com/lcfrai/luci/control-plane/internal/registry": {
+          "pass": 81
+        }
+      },
+      "packageResults": [
+        {
+          "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+          "Action": "fail",
+          "Elapsed": 186.692
+        },
+        {
+          "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+          "Action": "pass",
+          "Elapsed": 564.895
+        },
+        {
+          "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+          "Action": "pass",
+          "Elapsed": 2.433
+        }
+      ],
+      "skips": [
+        {
+          "package": "github.com/lcfrai/luci/control-plane/internal/api",
+          "test": "TestExecutionLifecycleLockChildProcess",
+          "reason": "execution_lifecycle_lock_test.go:24: helper process for the actual cross-process lifecycle lock test"
+        },
+        {
+          "package": "github.com/lcfrai/luci/control-plane/internal/api",
+          "test": "TestProjectSwarmControlledBenchmark",
+          "reason": "project_swarm_benchmark_test.go:383: Set LUCI_SWARM_BENCHMARK=1 for the controlled local workload comparison"
+        },
+        {
+          "package": "github.com/lcfrai/luci/control-plane/internal/api",
+          "test": "TestProjectSwarmFourProjectControlledCapacity",
+          "reason": "project_swarm_capacity_test.go:397: Set LUCI_SWARM_MULTI_PROJECT=1 for the controlled four-project process acceptance"
+        },
+        {
+          "package": "github.com/lcfrai/luci/control-plane/internal/api",
+          "test": "TestWindowsNativeStorePreservesLegacyHomesAndPrefersMigratedCompactHomes",
+          "reason": "sessions_native_test.go:151: Windows Docker physical path compatibility"
+        },
+        {
+          "package": "github.com/lcfrai/luci/control-plane/internal/api",
+          "test": "TestAWorktreeAdminJunctionFailsTheCreateAndMountsNothing",
+          "reason": "sessions_x3_admin_pin_test.go:68: a junction is a Windows reparse point"
+        },
+        {
+          "package": "github.com/lcfrai/luci/control-plane/internal/api",
+          "test": "TestAWorktreeWhoseGitIsAReparsePointFailsTheCreate/a_junction",
+          "reason": "sessions_x3_admin_pin_test.go:91: a junction is a Windows reparse point"
+        },
+        {
+          "package": "github.com/lcfrai/luci/control-plane/internal/product",
+          "test": "TestDataIngressActualEnvoyClientBoundary",
+          "reason": "coolify_service_test.go:22: set LUCI_DATA_INGRESS_DOCKER_EVAL=1 for the pinned Envoy evaluation"
+        },
+        {
+          "package": "github.com/lcfrai/luci/control-plane/internal/product",
+          "test": "TestSwarmFixtureRefusalProcess",
+          "reason": "fixture_ownership_regression_test.go:18: subprocess fixture"
+        }
+      ],
+      "inputCount": 681,
+      "inputsUnchanged": true,
+      "privateRawLogSHA256": "a46e2eaa1973b0725c61a00a76df0cf1d6305ffefe2b6ebe46b84a556fe6374c",
+      "privateRawLogArtifact": "artifacts/cloud019/affected-full/test-events-0.jsonl"
+    },
+    {
+      "name": "final-focused",
+      "passed": true,
+      "testOutcomes": {
+        "pass": 102
+      },
+      "packageTestOutcomes": {
+        "github.com/lcfrai/luci/control-plane/internal/api": {
+          "pass": 39
+        },
+        "github.com/lcfrai/luci/control-plane/internal/product": {
+          "pass": 26
+        },
+        "github.com/lcfrai/luci/control-plane/internal/registry": {
+          "pass": 37
+        }
+      },
+      "packageResults": [
+        {
+          "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+          "Action": "pass",
+          "Elapsed": 39.647
+        },
+        {
+          "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+          "Action": "pass",
+          "Elapsed": 38.217
+        },
+        {
+          "Package": "github.com/lcfrai/luci/control-plane/internal/registry",
+          "Action": "pass",
+          "Elapsed": 2.251
+        }
+      ],
+      "skips": [],
+      "inputCount": 682,
+      "inputsUnchanged": true,
+      "privateRawLogSHA256": "9862a93a2f43dc688dafef4813e082f824ebf6b03f0e8b8c5d164c0757a09066",
+      "privateRawLogArtifact": "artifacts/cloud019/final-focused/test-events-0.jsonl"
+    }
+  ],
+  "failureLineage": {
+    "test": "TestQueuedDispatchRechecksFreshAuthorityAfterDurableClaim",
+    "previousExpectation": "unknown after a positively recorded pre-backend authority refusal",
+    "correctedExpectation": "failed with exact execution_authority_changed diagnostic; zero Backend.Create and no replay remain required",
+    "additionalFinalCorrections": [
+      "Repeated typed dispatch returns the same saved failed-start diagnostic rather than calling an exited row running.",
+      "Initial queue authorization uses fixed public text, retaining arbitrary cause only internally.",
+      "Held-capacity wording clears only after the existing Release callback succeeds."
+    ]
+  },
+  "verifiedBoundaries": [
+    "Actual queued HTTP consent is initially admitted, then final authority denial, stale host observation or memory pressure refuses before Backend.Create.",
+    "Exact child, captured context, checkout, stage/code/message, failed queue/task and scoped Home counts survive reopening.",
+    "Backend uncertainty retains exact lease/capacity independently of start diagnostic.",
+    "Restored access/capacity or restart cannot replay the failed queue item.",
+    "Manual HTTP refusal is observed without POST reconcile or a queue item, with no fabricated report/check/integration.",
+    "Ordinary interactive same-ID restart clears the old diagnostic in the new generation.",
+    "Backend Create/ack errors remain unknown and preserve launch claims despite current absence and restart.",
+    "Normal observed exit awaits review; abnormal failed attempts are not counted completed.",
+    "Private cause/path sentinels are absent from public session/run/list/queue diagnostic projections."
+  ],
+  "limits": [
+    "Controlled cases do not recover the lost reason of the original installed B1 failure.",
+    "A matching corrected installed Docker/provider DAG has not run in this proof.",
+    "Eight full-run skips retain native Windows, opt-in runtime/benchmark and subprocess-entry limits.",
+    "The failed full report remains failed; the final passing run is targeted, not a relabelled full suite."
+  ],
+  "publication": [
+    {
+      "file": "diagnostic-report.json",
+      "sourceArtifact": "artifacts/cloud019/diagnostic/report.json",
+      "sha256": "3564078bffbc7e6e92ffa5eedf1465c0c8e0ddd2bc3f775716c8336eb926d200"
+    },
+    {
+      "file": "diagnostic-inputs.json",
+      "sourceArtifact": "artifacts/cloud019/diagnostic/source-before.json",
+      "sha256": "83958d015604ec34bd105d07cf8fee7617585badaea0bd6ccfd1ba7798fb8400"
+    },
+    {
+      "file": "affected-full-report.json",
+      "sourceArtifact": "artifacts/cloud019/affected-full/report.json",
+      "sha256": "ccc7bdbb25e7403522dc7bfb39541db5f31e37d104d2b97bfd96772fd5e2b17b"
+    },
+    {
+      "file": "affected-full-inputs.json",
+      "sourceArtifact": "artifacts/cloud019/affected-full/source-before.json",
+      "sha256": "5e47e4396ed0611583cfc18868f2f3e20a1fea241b2f9acf23ab888472349205"
+    },
+    {
+      "file": "final-focused-report.json",
+      "sourceArtifact": "artifacts/cloud019/final-focused/report.json",
+      "sha256": "1b8513a318fa9ef6b7462e1752d59534e817375f7fea188e3e8214a30433931c"
+    },
+    {
+      "file": "final-focused-inputs.json",
+      "sourceArtifact": "artifacts/cloud019/final-focused/source-before.json",
+      "sha256": "74e147e382719956a2704ccb3d4d6d062af141778234a759afd1050740c9470b"
+    }
+  ],
+  "finalInputHashesVerifiedAtPublication": true
+}

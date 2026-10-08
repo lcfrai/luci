@@ -1,0 +1,432 @@
+{
+  "scope": "Source-only LOCAL010 compact Develop UI plus CLOUD019 frontend diagnostics/contracts. No installed/native/backend/model acceptance.",
+  "batches": [
+    {
+      "name": "focused",
+      "startedAt": "2026-10-08T16:34:46.815139+00:00",
+      "finishedAt": "2026-10-08T16:36:03.814451+00:00",
+      "commands": [
+        [
+          "npm",
+          "test",
+          "--",
+          "--maxWorkers=2",
+          "--reporter=json",
+          "--outputFile=<checkout>/artifacts/quality-swarm/local010/focused/vitest.json",
+          "src/api/projectRuns.test.ts",
+          "src/api/projectOverview.test.ts",
+          "src/api/swarmQueue.test.ts",
+          "src/components/projects/ProjectOverviewBoard.test.tsx",
+          "src/components/journey/ProjectRuns.test.tsx",
+          "src/components/journey/ProjectSwarm.test.tsx",
+          "src/components/journey/ProjectSwarmRefresh.test.tsx",
+          "src/components/journey/ProjectSwarmQueue.test.tsx",
+          "src/components/journey/SwarmRunQueue.test.tsx",
+          "src/components/journey/SwarmLaunchRecovery.test.tsx",
+          "src/components/journey/SwarmCheckpointDialog.test.tsx",
+          "src/components/journey/SwarmTaskHandoff.test.tsx"
+        ],
+        [
+          "npm",
+          "run",
+          "typecheck"
+        ]
+      ],
+      "cwd": "desktop",
+      "sourceUnchanged": true,
+      "sourceInputCount": 433,
+      "testsExit": 1,
+      "typecheckExit": 2,
+      "counts": {
+        "numTotalTests": 252,
+        "numPassedTests": 251,
+        "numFailedTests": 1,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "numTotalTestSuites": 11
+      },
+      "files": [
+        {
+          "file": "src/api/projectOverview.test.ts",
+          "counts": {
+            "passed": 23,
+            "failed": 0,
+            "pending": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "file": "src/api/projectRuns.test.ts",
+          "counts": {
+            "passed": 13,
+            "failed": 0,
+            "pending": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "file": "src/api/swarmQueue.test.ts",
+          "counts": {
+            "passed": 10,
+            "failed": 0,
+            "pending": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "file": "src/components/journey/ProjectRuns.test.tsx",
+          "counts": {
+            "passed": 62,
+            "failed": 0,
+            "pending": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "file": "src/components/journey/ProjectSwarm.test.tsx",
+          "counts": {
+            "passed": 35,
+            "failed": 0,
+            "pending": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "file": "src/components/journey/ProjectSwarmQueue.test.tsx",
+          "counts": {
+            "passed": 4,
+            "failed": 0,
+            "pending": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "file": "src/components/journey/ProjectSwarmRefresh.test.tsx",
+          "counts": {
+            "passed": 19,
+            "failed": 0,
+            "pending": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "file": "src/components/journey/SwarmLaunchRecovery.test.tsx",
+          "counts": {
+            "passed": 14,
+            "failed": 0,
+            "pending": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "file": "src/components/journey/SwarmRunQueue.test.tsx",
+          "counts": {
+            "passed": 11,
+            "failed": 1,
+            "pending": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "file": "src/components/journey/SwarmTaskHandoff.test.tsx",
+          "counts": {
+            "passed": 28,
+            "failed": 0,
+            "pending": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "file": "src/components/projects/ProjectOverviewBoard.test.tsx",
+          "counts": {
+            "passed": 32,
+            "failed": 0,
+            "pending": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        }
+      ],
+      "rawVitestSHA256": "94aa9da8a24257b071476531ba9f43a4ff8bfb6f54e5284e436ee416ddf84c4e",
+      "rawReceiptSHA256": "a0091a2976b47384aabbeaaa95b4ce2eaabb566f3cd15eabddf2a15c9a66d819"
+    },
+    {
+      "name": "corrected",
+      "startedAt": "2026-10-08T16:36:43.330015+00:00",
+      "finishedAt": "2026-10-08T16:37:24.778934+00:00",
+      "commands": [
+        [
+          "npm",
+          "test",
+          "--",
+          "--maxWorkers=2",
+          "--reporter=json",
+          "--outputFile=<checkout>/artifacts/quality-swarm/local010/corrected/vitest.json",
+          "src/components/journey/ProjectRuns.test.tsx",
+          "src/components/journey/SwarmRunQueue.test.tsx",
+          "src/components/journey/SwarmCheckpoint.test.tsx"
+        ],
+        [
+          "npm",
+          "run",
+          "typecheck"
+        ]
+      ],
+      "cwd": "desktop",
+      "sourceUnchanged": true,
+      "sourceInputCount": 433,
+      "testsExit": 0,
+      "typecheckExit": 0,
+      "counts": {
+        "numTotalTests": 84,
+        "numPassedTests": 84,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "numTotalTestSuites": 3
+      },
+      "files": [
+        {
+          "file": "src/components/journey/ProjectRuns.test.tsx",
+          "counts": {
+            "passed": 62,
+            "failed": 0,
+            "pending": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "file": "src/components/journey/SwarmCheckpoint.test.tsx",
+          "counts": {
+            "passed": 10,
+            "failed": 0,
+            "pending": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "file": "src/components/journey/SwarmRunQueue.test.tsx",
+          "counts": {
+            "passed": 12,
+            "failed": 0,
+            "pending": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        }
+      ],
+      "rawVitestSHA256": "ad1d102b01a8bf03165a2c647ca833d57cb44e5f59e885f45121f95981f21c4b",
+      "rawReceiptSHA256": "75aa724416192a0b8f13ab3b8fb89577c033177af33c17b53117b17cd77422f8"
+    },
+    {
+      "name": "focus-verified",
+      "startedAt": "2026-10-08T16:42:26.835367+00:00",
+      "finishedAt": "2026-10-08T16:43:10.755611+00:00",
+      "commands": [
+        [
+          "npm",
+          "test",
+          "--",
+          "--maxWorkers=2",
+          "--reporter=json",
+          "--outputFile=<checkout>/artifacts/quality-swarm/local010/focus-verified/vitest.json",
+          "src/components/journey/ProjectSwarm.test.tsx",
+          "src/components/journey/ProjectSwarmRefresh.test.tsx",
+          "src/components/journey/ProjectSwarmQueue.test.tsx",
+          "src/components/journey/SwarmLaunchRecovery.test.tsx",
+          "src/components/journey/SwarmCheckpoint.test.tsx"
+        ],
+        [
+          "npm",
+          "run",
+          "typecheck"
+        ]
+      ],
+      "cwd": "desktop",
+      "sourceUnchanged": true,
+      "sourceInputCount": 433,
+      "testsExit": 0,
+      "typecheckExit": 0,
+      "counts": {
+        "numTotalTests": 83,
+        "numPassedTests": 83,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "numTotalTestSuites": 5
+      },
+      "files": [
+        {
+          "file": "src/components/journey/ProjectSwarm.test.tsx",
+          "counts": {
+            "passed": 36,
+            "failed": 0,
+            "pending": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "file": "src/components/journey/ProjectSwarmQueue.test.tsx",
+          "counts": {
+            "passed": 4,
+            "failed": 0,
+            "pending": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "file": "src/components/journey/ProjectSwarmRefresh.test.tsx",
+          "counts": {
+            "passed": 19,
+            "failed": 0,
+            "pending": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "file": "src/components/journey/SwarmCheckpoint.test.tsx",
+          "counts": {
+            "passed": 10,
+            "failed": 0,
+            "pending": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "file": "src/components/journey/SwarmLaunchRecovery.test.tsx",
+          "counts": {
+            "passed": 14,
+            "failed": 0,
+            "pending": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        }
+      ],
+      "rawVitestSHA256": "45ad9600a89154a3e22afff24620af46710b24f9e5cc06e77d1a8d0096cea6a9",
+      "rawReceiptSHA256": "918bb86c18ffc81777ce012057d9fb315b9a463cc39a5c6f603001e756770356"
+    }
+  ],
+  "latestPerFile": {
+    "src/api/projectOverview.test.ts": {
+      "passed": 23,
+      "failed": 0,
+      "pending": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "src/api/projectRuns.test.ts": {
+      "passed": 13,
+      "failed": 0,
+      "pending": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "src/api/swarmQueue.test.ts": {
+      "passed": 10,
+      "failed": 0,
+      "pending": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "src/components/journey/ProjectRuns.test.tsx": {
+      "passed": 62,
+      "failed": 0,
+      "pending": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "src/components/journey/ProjectSwarm.test.tsx": {
+      "passed": 36,
+      "failed": 0,
+      "pending": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "src/components/journey/ProjectSwarmQueue.test.tsx": {
+      "passed": 4,
+      "failed": 0,
+      "pending": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "src/components/journey/ProjectSwarmRefresh.test.tsx": {
+      "passed": 19,
+      "failed": 0,
+      "pending": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "src/components/journey/SwarmLaunchRecovery.test.tsx": {
+      "passed": 14,
+      "failed": 0,
+      "pending": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "src/components/journey/SwarmRunQueue.test.tsx": {
+      "passed": 12,
+      "failed": 0,
+      "pending": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "src/components/journey/SwarmTaskHandoff.test.tsx": {
+      "passed": 28,
+      "failed": 0,
+      "pending": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "src/components/projects/ProjectOverviewBoard.test.tsx": {
+      "passed": 32,
+      "failed": 0,
+      "pending": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "src/components/journey/SwarmCheckpoint.test.tsx": {
+      "passed": 10,
+      "failed": 0,
+      "pending": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  "latestPerFilePassed": 263,
+  "latestPerFileCount": 12,
+  "aggregationLimit": "263 latest per-file passing outcomes across overlapping bounded batches, not a single final full frontend run. Earlier passing files were carried only where their source did not change.",
+  "failureLineage": [
+    {
+      "receipt": "focused",
+      "cause": "One test assumed jsdom hides descendants of closed native details; changed to open-state/dialog placement assertions. Real visibility/keyboard checked in Chromium. TypeScript also rejected exact:true in a Testing Library role option; removed this test-only option.",
+      "initialCommandLimit": "The initial command named nonexistent SwarmCheckpointDialog.test.tsx; actual SwarmCheckpoint.test.tsx is covered by both later batches."
+    },
+    {
+      "receipt": "focus-before",
+      "cause": "Initial disabled-button blur emulation passed in jsdom and did not reproduce native focus loss. Not treated as a product regression proof.",
+      "rawVitestSHA256": "1639442f75ffc5f27be02ea44e8e5f179edc041ef6703ff8c4c4d9ce41281a08"
+    },
+    {
+      "receipt": "focus-native-emulation",
+      "cause": "Explicit body-focus precondition reproduced loss of the async integration-review opener; failed on original source. Exact scoped opener capture fixes this path; global modal implementation unchanged.",
+      "rawVitestSHA256": "2404481afaa8e052c6396c8b608385cfd91f57b66ea4746c66ef2b5ca34faf83"
+    }
+  ]
+}

@@ -18,6 +18,7 @@ it('disables a manual start already in the durable queue', async () => {
   vi.spyOn(swarmQueueApi, 'get').mockResolvedValue(swarmQueueFixture([swarmQueueItem()]));
   const reserve = vi.spyOn(projectSwarmApi, 'reserve');
   render(<ProjectSwarm run={run} canEdit canExecute busy={false} onBusy={vi.fn()} onUpdate={vi.fn()} onOpenSession={vi.fn()} />);
+  await userEvent.click(screen.getByText(/^Queue status and controls/));
   await screen.findByRole('button', {name: 'Pause queued task'});
   expect(screen.getAllByRole('button', {name: 'Start task'})[0]).toHaveProperty('disabled', true);
   expect(screen.getByRole('button', {name: 'Start ready tasks (1)'})).toHaveProperty('disabled', false);
@@ -28,6 +29,7 @@ it('refreshes a background dispatch after an intervening UI operation and retrie
   vi.spyOn(swarmQueueApi, 'get').mockResolvedValue(swarmQueueFixture([swarmQueueItem({state: 'running', operationId: 'op-a', childId: 'child-a'})]));
   const updated = vi.fn(), get = vi.spyOn(projectRunsApi, 'get').mockRejectedValueOnce(new Error('temporary offline')).mockResolvedValue({...run,revision:2});
   const view = render(<ProjectSwarm run={run} canEdit canExecute busy onBusy={vi.fn()} onUpdate={updated} onOpenSession={vi.fn()} />);
+  await userEvent.click(screen.getByText(/^Queue status and controls/));
   await screen.findByText('running');
   expect(get).not.toHaveBeenCalled();
   view.rerender(<ProjectSwarm run={run} canEdit canExecute busy={false} onBusy={vi.fn()} onUpdate={updated} onOpenSession={vi.fn()} />);

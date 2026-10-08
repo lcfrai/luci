@@ -326,6 +326,7 @@ func TestTaskObservationWatermarkResetsOnlyForChangedTaskGeneration(t *testing.T
 		"immutable-ref":         func(s *Session) { s.SandboxRef += "new" },
 		"status":                func(s *Session) { s.Status = StatusRunning },
 		"exit-reason":           func(s *Session) { s.ExitReason += "new" },
+		"start-failure":         func(s *Session) { s.StartFailure = NewSessionStartFailure("admission", "dispatch_paused") },
 		"harness":               func(s *Session) { s.Harness += "new" },
 		"model":                 func(s *Session) { s.Model += "new" },
 		"effort":                func(s *Session) { s.Effort += "new" },

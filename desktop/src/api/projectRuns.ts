@@ -1,6 +1,6 @@
 import { productApi, type CheckCommand } from './product';
 import type { CreateSessionRequest } from './client';
-import type { ImplementationContext, ImplementationContextRequest, PermissionMode } from '../store/types';
+import type { ImplementationContext, ImplementationContextRequest, PermissionMode, StartFailure } from '../store/types';
 import type { SwarmCheckpointProvenance } from './swarmCheckpoint';
 import type { TaskHandoffReference } from './swarmHandoff';
 
@@ -26,6 +26,7 @@ export interface RunOperation {
   checkpoint?: SwarmCheckpointProvenance;
   /** Bounded reference to a retained report; reported claims are not verification. */
   handoff?: TaskHandoffReference;
+  startFailure?: StartFailure;
   dependencyContext?: {digest: string; count: number};
 }
 export const runOperationNeedsRecovery = (operation?: RunOperation) => !!operation?.absenceRetirement && !operation.absenceRetirement.finalizedAt || !!operation?.recovery && operation.recovery.state !== 'finalized';
@@ -78,6 +79,14 @@ const path = (project: string, run?: string) => `/v1/product/projects/${encodeUR
 function owned(project: string, value: ProjectRun, id?: string): ProjectRun {
   if (!value || value.projectId !== project || value.input?.implementation?.projectId !== project || (id && value.id !== id)) {
     throw new Error('The run response belongs to another project. Refresh this project before continuing.');
+  }
+  for (const operation of value.operations ?? []) {
+    const failure = operation.startFailure;
+    if (failure !== undefined && (!failure || !['provider-reservation', 'run-revalidation', 'admission', 'lifecycle-lock', 'launch-journal'].includes(failure.stage) ||
+      typeof failure.reasonCode !== 'string' || !failure.reasonCode.trim() || failure.reasonCode.length > 200 ||
+      typeof failure.message !== 'string' || !failure.message.trim() || failure.message.length > 4000)) {
+      throw new Error('The task start diagnostic could not be verified. Refresh this project before continuing.');
+    }
   }
   return value;
 }

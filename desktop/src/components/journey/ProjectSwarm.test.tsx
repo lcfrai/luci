@@ -414,3 +414,23 @@ it('discards checked integration consent across execution revocation and restora
   expect(within(screen.getByRole('dialog')).getByRole('checkbox')).toHaveProperty('checked',false);
   expect(integrate).not.toHaveBeenCalled();
 });
+
+it('restores the exact review opener after asynchronous loading temporarily loses native focus', async () => {
+  const initial=base(), operation=op(initial,'a','review-required'), saved=attach(initial,operation);
+  let finish!: (value:SwarmReview)=>void;
+  vi.spyOn(projectSwarmApi,'review').mockReturnValue(new Promise(resolve=>{finish=resolve;}));
+  const integrate=vi.spyOn(projectSwarmApi,'integrate');
+  render(<Harness initial={saved}/>);
+  const opener=screen.getByRole('button',{name:'Review task changes'});
+  await userEvent.click(opener);
+  expect(opener).toHaveProperty('disabled',true);
+  // Chromium drops focus when the asynchronous read disables its trigger.
+  document.body.tabIndex=-1; document.body.focus();
+  expect(document.activeElement).toBe(document.body);
+  document.body.removeAttribute('tabindex');
+  await act(async()=>finish({taskId:'a',operationId:operation.id,sourceCommit:'b'.repeat(40),targetCommit:'a'.repeat(40),reviewDigest:'d'.repeat(64),paths:[],patch:'',canIntegrate:true,reason:'Review retained changes'}));
+  const dialog=screen.getByRole('dialog',{name:'Review task changes'});
+  await userEvent.click(within(dialog).getByRole('button',{name:'Keep reviewing'}));
+  await waitFor(()=>expect(document.activeElement).toBe(opener));
+  expect(integrate).not.toHaveBeenCalled();
+});

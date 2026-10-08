@@ -7,6 +7,7 @@ import { swarmHarnessFixture, swarmQueueFixture, swarmQueueItem, swarmRunFixture
 import { resetCockpit, useCockpit } from '../../store/store';
 import { SwarmRunQueue } from './SwarmRunQueue';
 const initial = swarmRunFixture();
+async function openQueueControls() { await userEvent.click(screen.getByText(/^Queue status and controls/)); }
 function Harness({run = initial, edit = true, execute = true, changed = vi.fn()} = {}) {
   const [busy, setBusy] = useState('');
   return <SwarmRunQueue run={run} canEdit={edit} canExecute={execute} busy={!!busy} onBusy={setBusy} onQueueChange={changed} />;
@@ -42,6 +43,7 @@ it.each(['ask', 'plan'] as const)('blocks queueing and resume for saved %s while
   vi.mocked(swarmQueueApi.get).mockResolvedValue(swarmQueueFixture([paused]));
   const enqueue = vi.spyOn(swarmQueueApi, 'enqueueMany'), control = vi.spyOn(swarmQueueApi, 'control').mockResolvedValue(swarmQueueFixture([{...paused, state: 'cancelled', revision: 3}]));
   render(<Harness run={run} />);
+  await openQueueControls();
   await screen.findByRole('button', {name: 'Resume queued task'});
   expect(screen.getByRole('button', {name: 'Resume queued task'})).toHaveProperty('disabled', true);
   expect(screen.getByRole('button', {name: 'Queue reviewed tasks (2)'})).toHaveProperty('disabled', true);
@@ -75,6 +77,7 @@ it('refreshes after a lost receipt without duplicating already accepted tasks', 
   await screen.findByText(/queue result is unconfirmed/);
   expect(screen.getByRole('button', {name: 'Queue reviewed tasks (3)'})).toHaveProperty('disabled', true);
   vi.mocked(swarmQueueApi.get).mockResolvedValue(swarmQueueFixture(initial.swarm!.tasks.map(task => swarmQueueItem({id: task.id, taskId: task.id}))));
+  await openQueueControls();
   await userEvent.click(screen.getByRole('button', {name: 'Refresh queue'}));
   await waitFor(() => expect(screen.getByRole('button', {name: 'Queue reviewed tasks'})).toHaveProperty('disabled', true));
   expect(enqueue).toHaveBeenCalledTimes(1);
@@ -99,6 +102,7 @@ it('keeps waiting-task control separate from active-session stops and hides othe
   vi.mocked(swarmQueueApi.get).mockResolvedValue(swarmQueueFixture([queued, swarmQueueItem({id:'b',taskId:'b',taskTitle:'Build b',state:'running'}), swarmQueueItem({id:'c',taskId:'c',taskTitle:'Another run',runId:'other'})]));
   const control = vi.spyOn(swarmQueueApi, 'control').mockResolvedValue(swarmQueueFixture([{...queued,state:'paused',revision:3}]));
   render(<Harness />);
+  await openQueueControls();
   await screen.findByText('Build a');
   expect(screen.queryByText('Another run')).toBeNull();
   expect(screen.getAllByRole('button',{name:'Cancel queued task'})).toHaveLength(1);
@@ -144,4 +148,36 @@ it('waits for durable retirement finalization before offering the task for a new
   view.rerender(<Harness run={{...run,revision:run.revision+1,operations:[{...operation,absenceRetirement:{...operation.absenceRetirement,finalizedAt:initial.updatedAt}}]}} />);
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   expect(screen.getByRole('button',{name:'Queue reviewed tasks (3)'})).toHaveProperty('disabled', false);
+});
+
+
+it('keeps queue observation mounted while controls are collapsed and consent independently visible', async () => {
+  const control = vi.spyOn(swarmQueueApi, 'control'), enqueue = vi.spyOn(swarmQueueApi, 'enqueueMany');
+  render(<Harness />);
+  await waitFor(() => expect(screen.getByRole('button', {name: 'Queue reviewed tasks (3)'})).toHaveProperty('disabled', false));
+  expect(swarmQueueApi.get).toHaveBeenCalledOnce();
+  const disclosure = screen.getByText(/^Queue status and controls/);
+  expect(disclosure.closest('details')).toHaveProperty('open', false);
+  await userEvent.click(disclosure);
+  expect(disclosure.closest('details')).toHaveProperty('open', true);
+  expect(screen.getByRole('button', {name: 'Refresh queue'})).toBeTruthy();
+  await userEvent.click(disclosure);
+  await userEvent.click(screen.getByRole('button', {name: 'Queue reviewed tasks (3)'}));
+  expect(screen.getByRole('dialog', {name: 'Queue reviewed work'}).closest('details')).toBeNull();
+  expect(disclosure.closest('details')).toHaveProperty('open', false);
+  await userEvent.click(screen.getByRole('button', {name: 'Keep reviewing'}));
+  expect(control).not.toHaveBeenCalled(); expect(enqueue).not.toHaveBeenCalled();
+  expect(swarmQueueApi.get).toHaveBeenCalledOnce();
+});
+
+it('shows failed queue work separately and offers no queue replay or pending-item controls', async () => {
+  const failed = swarmQueueItem({state:'failed', reasonCode:'provider_reservation_refused', reason:'The provider reservation was refused.'});
+  vi.mocked(swarmQueueApi.get).mockResolvedValue(swarmQueueFixture([failed]));
+  const control = vi.spyOn(swarmQueueApi, 'control'), enqueue = vi.spyOn(swarmQueueApi, 'enqueueMany');
+  render(<Harness />); await screen.findByText(/Queued work needs attention/);
+  await openQueueControls();
+  expect(screen.getByText('The provider reservation was refused.')).toBeTruthy();
+  for (const name of ['Pause queued task','Resume queued task','Cancel queued task']) expect(screen.queryByRole('button',{name})).toBeNull();
+  expect(screen.queryByRole('combobox')).toBeNull();
+  expect(control).not.toHaveBeenCalled(); expect(enqueue).not.toHaveBeenCalled();
 });

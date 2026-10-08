@@ -1,3 +1,4 @@
+import { projectSwarmApi } from '../../api/projectSwarm';
 import { StrictMode } from 'react';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -55,11 +56,14 @@ it('prioritizes unintegrated task review over whole-build verification after a n
   useCockpit.getState().setHarnesses([swarmHarnessFixture()]);
   vi.mocked(projectRunsApi.list).mockResolvedValue([run]);
   vi.spyOn(swarmQueueApi, 'get').mockResolvedValue(swarmQueueFixture());
-  const create = vi.spyOn(api, 'createSession');
+  const create = vi.spyOn(api, 'createSession'), review = vi.spyOn(projectSwarmApi, 'review');
   render(<ProjectRuns {...props()} />);
   await screen.findByText('Awaiting task review', {exact: true});
   expect(screen.getByText(/Review the exited task’s output and integrate accepted changes before verifying/)).not.toBeNull();
   expect(screen.getByRole('button', {name: 'Review task changes'})).toBeTruthy();
+  await userEvent.click(screen.getByRole('button', {name: 'Review tasks'}));
+  expect(document.activeElement).toBe(screen.getByRole('heading', {name:'Build a'}));
+  expect(screen.queryByRole('dialog')).toBeNull(); expect(review).not.toHaveBeenCalled();
   expect(screen.queryByRole('button', {name: 'Review and accept outcome'})).toBeNull();
   expect(create).not.toHaveBeenCalled();
 });

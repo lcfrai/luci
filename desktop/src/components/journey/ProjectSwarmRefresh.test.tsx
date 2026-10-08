@@ -104,3 +104,27 @@ it('does not carry a previous run refresh warning into another selected run',asy
   view.rerender(<ProjectSwarm {...p} run={{...initial,id:'another-run',projectId:'another-project'}}/>);
   expect(screen.queryByText(/Automatic status refresh is unavailable/)).toBeNull();
 });
+
+
+it('does not wait for a report from a positively recorded pre-launch failure and preserves explicit retirement',async()=>{
+  const initial=active();initial.operations[0].status='failed';initial.operations[0].startFailure={stage:'admission',reasonCode:'capacity_unavailable',message:'Admission refused the start before worker creation.'};
+  const get=vi.spyOn(projectRunsApi,'get'),reserve=vi.spyOn(projectSwarmApi,'reserve'),create=vi.spyOn(api,'createSession');
+  render(<Harness initial={initial}/>);await tick(60_000);
+  expect(screen.getByText('Start blocked')).toBeTruthy();expect(screen.getByText(/Admission refused/)).toBeTruthy();
+  expect(screen.queryByRole('button',{name:'Review task changes'})).toBeNull();expect(screen.queryByRole('button',{name:'Task result and questions'})).toBeNull();
+  const task=screen.getByRole('heading',{name:'Build a'}).closest('li')!;
+  fireEvent.click(within(task).getByText('More task actions'));
+  expect(within(task).getByRole('button',{name:'Inspect workspace output'})).toBeTruthy();
+  expect(within(task).getByRole('button',{name:'Retain changes and retry'})).toBeTruthy();
+  expect(within(task).queryByRole('button',{name:'Retry in a new workspace'})).toBeNull();
+  expect(get).not.toHaveBeenCalled();expect(reserve).not.toHaveBeenCalled();expect(create).not.toHaveBeenCalled();
+});
+
+it('keeps a launched worker failure reviewable and waits for its canonical output report',async()=>{
+  const initial=active();initial.operations[0].status='failed';
+  const result=finished(initial,'missing');result.operations[0].status='failed';
+  const get=vi.spyOn(projectRunsApi,'get').mockResolvedValue(result);
+  render(<Harness initial={initial}/>);
+  expect(screen.getByRole('button',{name:'Review task changes'})).toBeTruthy();expect(screen.getByRole('button',{name:'Task result and questions'})).toBeTruthy();
+  await tick();await tick(30_000);expect(get).toHaveBeenCalledOnce();
+});

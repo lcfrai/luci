@@ -14,6 +14,25 @@ open: a polished local app, later connected to cloud, for building context and
 turning coordinated agent work into reviewed, verified software. Cloud billing,
 public DNS and hosted infrastructure do not block this local milestone.
 
+## Pending correction retest scopes
+
+- **CLOUD-019:** verify a refused start retains an exact safe reason across restart,
+  appears failed/Start blocked rather than completed, preserves dependent waiting,
+  cannot silently replay, and holds capacity until existing cleanup proof succeeds.
+  Actual backend-acknowledgment ambiguity must remain unknown/recoverable. Linux
+  [source proof](evidence/cloud019-source/README.md) is not native installed proof.
+- **LOCAL-010:** verify early task/review scanning, all four project scopes, actual
+  review/report controls and focus restoration. Compare the published
+  [1440/390 source witness](evidence/local010-ui/README.md); preserve the phone
+  understanding pane behavior and separate LOCAL-008 timing observation.
+- **LOCAL-011:** exact historical browser helper and fixture are now retrievable
+  [with commands and hashes](../../scripts/acceptance/task-review-polish/README.md).
+  The portable adapter is Linux-specific; publication is not a Windows run.
+
+These correction sources still require an exact matching published package and
+installed dependency/conflict/whole-build verification plus sustained resource
+acceptance. They do not complete the integrated handoff.
+
 ## Carry forward verified native scopes
 
 These are relayed local reports; the cloud thread has not independently read the
@@ -81,6 +100,8 @@ browser checks pass; [the scoped receipt](evidence/task-review-polish/README.md)
 preserves exact evidence. Backend/sandbox are unchanged. This is not installed
 or native verification of the later copy, and it does not explain LOCAL-008 or
 erase earlier full-run failures.
+
+The subsequent `3b8054e6` dependency attempt 2 failed before B's sandbox allocation, after one successful native task. CLOUD-019 tracks lost precise admission diagnostics and completed/review-required wording for that failed start. Its exact underlying capacity/access condition remains unknown. LOCAL-010 tracks task scan-density improvements across four projects; its before/after app-shell, phone and keyboard checks are separate from backend correctness. Both corrections and matching installed/native verification remain pending; neither failure may be converted into a sustained pass.
 
 ## Prerequisites and preserve the existing machine
 

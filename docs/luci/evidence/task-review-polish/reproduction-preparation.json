@@ -1,0 +1,11 @@
+{
+  "at": "2026-10-08T16:32:39.344748+00:00",
+  "scope": "Preparation and syntax only; no Vite, browser, backend or Docker execution",
+  "adapterSHA256": "194a85441a3befe76b6d74149db4e7dfa155dd8cc0cbb64971fea03be44e7bb1",
+  "originalDriverSHA256": "550fa1e3c9e376479f90e2f277285ad65de3ad10129feb675597617b4c484b93",
+  "originalFixtureSHA256": "72e784c08a67117472b7fea6803c279c040c8471ee9f1e06454d8e99ab71e97a",
+  "derivedDriverSHA256": "997231c1a11fc011555fae322ef7f95c68ae3b8fd1d13bc80c06fc224b956c2a",
+  "commandExitCode": 0,
+  "nodeSyntaxExitCode": 0,
+  "historicalReceiptUnchanged": true
+}

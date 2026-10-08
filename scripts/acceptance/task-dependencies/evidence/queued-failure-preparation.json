@@ -1,0 +1,67 @@
+{
+  "verifiedAt": "2026-10-08T16:35:18.438138+00:00",
+  "status": "passed",
+  "scope": "Controlled Node tests of exact authorized child selection and bounded fail-fast diagnostic retention. No Docker, browser, Go compiler, installed process or retry.",
+  "testOutcomes": {
+    "passed": 28,
+    "failed": 0,
+    "skipped": 0
+  },
+  "commands": [
+    {
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=1",
+        "scripts/acceptance/task-context-delivery.test.mjs",
+        "scripts/acceptance/task-dependencies/helper.test.mjs",
+        "scripts/acceptance/task-dependencies/context-contract.test.mjs",
+        "scripts/acceptance/task-dependencies/dependency-probe.test.mjs",
+        "scripts/acceptance/task-dependencies/queued-failure.test.mjs"
+      ],
+      "exitCode": 0,
+      "log": "command-1.log"
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "scripts/acceptance/task-dependencies/dag.mjs"
+      ],
+      "exitCode": 0,
+      "log": "command-2.log"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check",
+        "--",
+        "scripts/acceptance/task-dependencies"
+      ],
+      "exitCode": 0,
+      "log": "command-3.log"
+    }
+  ],
+  "sourcesUnchanged": true,
+  "sourceCount": 14,
+  "sources": {
+    "scripts/acceptance/task-context-delivery.mjs": "9c16efd099c2cbf475a206d487c7abe76ee2699ee19c2061f6d2be8dd063ad68",
+    "scripts/acceptance/task-context-delivery.test.mjs": "1a1620ebe1a60ad628008f02c0b6ccbb6f8eeba10052eb52672377d01de673cd",
+    "scripts/acceptance/task-dependencies/README.md": "12fa134ceacd474645aefc745de171295c5087f6a7c1100d22e59360de8eca04",
+    "scripts/acceptance/task-dependencies/context-contract.mjs": "07cf795341efc55f6e6e08929e18c02cfec85cb32663f49be69260e6df8faee2",
+    "scripts/acceptance/task-dependencies/context-contract.test.mjs": "762dcea2b5c9d6e86fb55fbb4bcdc4b2d625f166b325c2d76585e4c5e57bbd18",
+    "scripts/acceptance/task-dependencies/dag-fixture.mjs": "5290f1cf6bc5e3dd0d31120606984e65979851a03e68e701c51a998e7138a0a2",
+    "scripts/acceptance/task-dependencies/dag.mjs": "5834fa7d683783ac93bc6ebd311cb405b341816457da4809354d435b1c3d0396",
+    "scripts/acceptance/task-dependencies/dependency-probe.mjs": "eddf18208bbc1bf1ea52926406fb5fefced5d94b94bead7d7e68b5a3ee7d0ef2",
+    "scripts/acceptance/task-dependencies/dependency-probe.test.mjs": "f96ac3bf82b7b8e19d653b1c490f1f0f2cda345ab7aa507d9f87d0f870d59fbd",
+    "scripts/acceptance/task-dependencies/helper.test.mjs": "520739aa2a67ca683517a14a439493ff58b77a6e8a216300544e6c2e00621561",
+    "scripts/acceptance/task-dependencies/queued-failure.mjs": "a141cd521c2d98ff0c475837eb42a861572a3e1c3533966262975de13de524d7",
+    "scripts/acceptance/task-dependencies/queued-failure.test.mjs": "316760ffa2a4df480692065c8da52cb68ce5ef524cdb1132f6bc12c3718f792a",
+    "scripts/acceptance/task-dependencies/run-with-observer.py": "80da81c9d46841df6ffa505c7e9d6641849408748ba1b1bc2661cd73f043068f",
+    "scripts/acceptance/task-dependencies/run_with_observer_test.py": "16d056f5c3b5cb4febdb0765c4a458b3afc9276b0c22f46902391145f6a71d1e"
+  },
+  "contract": "Queue failed; exact current operation failed and session exited; optional matching startFailure stage/reasonCode/message, otherwise worker_failed. Unknown outcomes do not qualify.",
+  "priorFailureScope": "3b8054e6 attempt2 retains only generic pre-allocation refusal. These changes do not identify its missing historical cause.",
+  "publicationNote": "Evidence JSON files are added after this verification and are not claimed as observed test inputs."
+}

@@ -1137,3 +1137,28 @@ owner, stopped state writers and a current private backup before unlinking the
 verified bound host's files. Its scoped receipt never claims removal of external
 resources, backup archives or provider records. See
 [managed data lifecycle](MANAGED-DATA-LIFECYCLE.md) for the review/command contract.
+
+## Task starts refused before allocation
+
+A session and its exact project-run operation may include optional
+`startFailure: {stage, reasonCode, message}` after a positively recorded refusal
+before `Backend.Create`. The public diagnostic uses fixed allowlisted text;
+underlying authorization, filesystem and backend errors stay in private logs.
+It records what failed, not permission to retry or proof that a resource lease
+can be released. A later explicit ordinary-session restart clears the earlier
+diagnostic for the new allocation generation.
+
+The project swarm queue includes terminal state `failed` and `counts.failed`.
+Failed starts do not count as completed/review-required work and cannot use
+pending-item resume or priority actions to replay a launch. The exact child,
+context and retained checkout remain inspectable. An actual failed worker may
+have reviewable output; a refused start has no invented worker report. A failed
+entry can still hold an execution reservation until the existing exact lifecycle
+release proof succeeds. Its safe reason code remains separate from that hold.
+
+Project overview `execution.failed` is the recorded queue count when available,
+or null when unknown. Older responses omitting it are treated as unknown by the
+client. Failed work can direct attention to its exact retained run. Backend
+Create/Start acknowledgement failures remain unknown/recoverable because an
+error response does not prove that no worker was created. Neither opening Home
+nor observing these diagnostics allocates, retries or integrates work.

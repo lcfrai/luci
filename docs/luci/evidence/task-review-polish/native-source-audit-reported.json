@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "reportedBy": "local tester thread 01a1199f-7500-7843-b02b-081081e536fa",
+  "revision": "3b8054e69340bce37afe3aec17189a33c2fb2991",
+  "scope": "Reported independent source/public-evidence audit; cloud agent has not read local private audit files.",
+  "continuation": {
+    "originalManifestMembersMatched": 11,
+    "publicationEntriesMatched": 12,
+    "productAndHelper": "c4400f11736e923617a93e8e86803f15d7187bef",
+    "providerMode": "scripted",
+    "serialNativeExits": 2,
+    "reviewedIntegrations": 1,
+    "dependentStarts": 0,
+    "externalModelCalls": 0,
+    "limits": [
+      "Local tester hashed public receipts, not cloud package/runtime bytes.",
+      "Second private-lease disappearance was not observed.",
+      "Windows execution remains pending."
+    ]
+  },
+  "frontend": {
+    "passed": 2610,
+    "files": 153,
+    "fullSourceInputsMatched": 416,
+    "broaderInputsMatched": 433,
+    "browserApplicationInputsMatched": 436,
+    "focused63OverlapFullRun": true
+  },
+  "open": [
+    "LOCAL-008 Windows focus timing",
+    "LOCAL-010 scan-density improvement",
+    "LOCAL-011 original browser helper/fixture reproducibility"
+  ],
+  "localHostAvailableGiB": "approximately 1.1\u20131.3",
+  "newLocalRuntimeTests": false
+}
