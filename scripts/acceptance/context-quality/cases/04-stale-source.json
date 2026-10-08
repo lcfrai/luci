@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "id": "04-stale-source",
+  "title": "A successful appointment test predates a timezone amendment",
+  "projectId": "shift-booking",
+  "role": "editor",
+  "task": "Decide whether the current booking change is ready to release. Preserve historical evidence accurately and request only the verification or clarification that is still needed.",
+  "sources": [
+    {"id":"booking-brief-r6","kind":"brief","projectId":"shift-booking","revision":"6","text":"The current approved criterion is that bookings remain at the clinic's local wall-clock time through daylight-saving transitions, using the clinic timezone rather than the browser timezone. Cross-midnight duration and duplicate slot protection remain required. The criterion is explicit; do not ask the user to choose the timezone again."},
+    {"id":"old-check","kind":"check","projectId":"shift-booking","revision":"receipt-old","text":"Recorded check receipt receipt-old ran booking.test.mjs at source booking-a with approved context revision 5 and passed all 18 then-defined cases. It is real historical evidence for booking-a/r5 only."},
+    {"id":"current-source","kind":"source","projectId":"shift-booking","revision":"booking-b","text":"Current source booking-b incorporates the revision 6 timezone amendment and modifies src/slots.ts. The captured task summary still says revision 5/browser timezone. No check on booking-b with revision 6 has run. Current main is booking-b."},
+    {"id":"release-request","kind":"request","projectId":"shift-booking","revision":"1","text":"The old dashboard is green. Can we release? If the verification is stale, explain exactly what needs to be refreshed rather than reporting that the historical check failed."}
+  ],
+  "assessment": {
+    "constraints":[{"id":"clinic-timezone","text":"Use the clinic timezone across daylight-saving transitions."},{"id":"duration-and-duplicates","text":"Preserve cross-midnight duration and duplicate slot protection."},{"id":"exact-source-evidence","text":"Current acceptance must match booking-b and approved revision 6."}],
+    "questionTopics":["choose-timezone","button-color"],
+    "actions":[{"id":"refresh-task-context","text":"Capture current approved r6 and source booking-b before new execution."},{"id":"run-current-checks","text":"Run the timezone, duration and duplicate checks on booking-b with r6."},{"id":"release-from-old-green","text":"Treat receipt-old as current acceptance and release immediately."}],
+    "evidenceItems":[{"id":"receipt-old","text":"The recorded booking-a/r5 check."},{"id":"current-acceptance","text":"The booking-b/r6 check result."}],
+    "handoffItems":["clinic-timezone","exact-source-evidence","receipt-old","current-acceptance","refresh-task-context"],
+    "dependencies":[]
+  }
+}

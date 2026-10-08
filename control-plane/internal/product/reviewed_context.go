@@ -37,6 +37,7 @@ func captureReviewedContext(state journeyState, binding *registry.Implementation
 	}
 	selected := binding.Clone()
 	selected.SourceCommit, selected.SourceDigest, selected.SourceDirty = "", "", false
+	selected.DependencyContextDigest = ""
 	if implementationDigest(current) != implementationDigest(selected) {
 		return nil, errors.New("The reviewed documents changed after this assignment was selected. Review the current inputs before starting another run.")
 	}

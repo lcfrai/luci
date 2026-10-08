@@ -2,6 +2,7 @@ import { productApi, type Brief, type ImplementationPlan } from "./product";
 import type { ProjectSpecification } from "./definition";
 import type { DesignPlan } from "./designPlan";
 import type { ProjectRun } from "./projectRuns";
+import { validRunAttention, type ProjectRunAttention } from "./runAttention";
 
 export interface OrchestratorRunSummary {
   id: string; state: string; valid: boolean; reason: string;
@@ -24,6 +25,7 @@ export interface OrchestratorContext {
   sourceCommit: string; sourceDirty: boolean; sourceKnown: boolean;
   currentRun?: OrchestratorRunSummary;
   activeRuns?: OrchestratorRunSummary[];
+  needsAttention?: ProjectRunAttention[];
   checksSummary: string; releasesSummary: string;
 }
 export interface OrchestratorProposal {
@@ -85,7 +87,8 @@ function verifiedView(value: OrchestratorView, projectId: string): OrchestratorV
       value.turns.some(turn => turn.projectId !== projectId || turn.context?.projectId !== projectId) ||
       new Set(value.turns.map(turn => turn.id)).size !== value.turns.length ||
       !validActiveRuns(value.context) ||
-      (value.nextAction?.runId !== undefined && ![value.context.currentRun?.id, ...(value.context.activeRuns ?? []).map(run => run.id)].includes(value.nextAction.runId)) ||
+      (value.context.needsAttention !== undefined && !validRunAttention(value.context.needsAttention, 200)) ||
+      (value.nextAction?.runId !== undefined && ![value.context.currentRun?.id, ...(value.context.activeRuns ?? []).map(run => run.id), ...(value.context.needsAttention ?? []).map(run => run.id)].includes(value.nextAction.runId)) ||
       !["discover", "design", "develop", "deploy"].includes(value.nextAction?.lens)) {
     throw new Error("Luci's conversation could not be verified for this project. Refresh before continuing.");
   }

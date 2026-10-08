@@ -12,7 +12,8 @@ import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import { mixedTaskCommand } from './task-command.mjs';
 import { projectWorkload } from './workloads.mjs';
-import { installBrowserTiming, timingSnapshot, interactionRunner, summarizeInteractions } from './interaction-metrics.mjs';
+import {contextFileNames, verifyTaskContext} from './task-context.mjs';
+import { installBrowserTiming, timingSnapshot, interactionRunner, summarizeInteractions, createTimingLedger } from './interaction-metrics.mjs';
 
 const here=dirname(fileURLToPath(import.meta.url)),repo=resolve(process.env.LUCI_ACCEPTANCE_REPO??resolve(here,'../../..')),args=process.argv.slice(2);
 const {chromium}=await import(join(repo,'desktop/node_modules/playwright/index.mjs'));
@@ -20,7 +21,8 @@ const {validateWorkerCreate}=await import(join(repo,'scripts/acceptance/launch-r
 const {startFencedDockerProxy}=await import(join(repo,'scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs'));
 const {createNativeTerminalProbe}=await import(join(repo,'scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs'));
 const option = (name, fallback) => { const i = args.indexOf(name); if (i < 0) return fallback; assert(args[i + 1] && !args[i + 1].startsWith('--'), 'Missing value for ' + name); return args[i + 1]; };
-if(args.includes('--help')){console.log('PREPARED ONLY: installed scripted five-worker/four-project mixed build/test acceptance. Required --binary --web --provenance --expected-source --image --expected-image-id --image-provenance --report FRESH_JSON --fixture-root SHORT_PATH. Root exclusive Docker window and verified clean package required; no model quality or Windows claim.');process.exit(0);}
+if(args.includes('--help')){console.log('PREPARED ONLY: installed scripted five-worker/four-project mixed build/test acceptance. Required --binary --web --task-context-version1or2 --provenance --expected-source --image --expected-image-id --image-provenance --report FRESH_JSON --fixture-root SHORT_PATH. Root exclusive Docker window and verified clean package required; no model quality or Windows claim.');process.exit(0);}
+const taskContextVersion=Number(option('--task-context-version','1')); assert(taskContextVersion===1||taskContextVersion===2,'Explicit trusted context version must be1or2');
 const binary = resolve(option('--binary', 'artifacts/luci')), web = resolve(option('--web', 'desktop/dist'));
 const image = option('--image'), releaseImage = image;
 const expectedImage = option('--expected-image-id'); assert.match(expectedImage ?? '', /^sha256:[a-f0-9]{64}$/);
@@ -78,7 +80,7 @@ if (existsSync(evidence)) assert.equal(readdirSync(evidence).length, 0, 'Use a f
 mkdirSync(evidence, { recursive: true, mode: 0o700 });
 writeFileSync(join(evidence, 'package-provenance.json'), provenanceBytes, { mode: 0o600, flag: 'wx' });
 writeFileSync(join(evidence,'image-provenance.json'),readFileSync(resolve(imageEvidencePath)),{mode:0o600,flag:'wx'});
-const driverNames=['sustained.mjs','task-command.mjs','workloads.mjs','interaction-metrics.mjs','run-with-observer.py'];
+const driverNames=['sustained.mjs','task-command.mjs','workloads.mjs','interaction-metrics.mjs','latency-diagnostics.mjs','task-context.mjs','run-with-observer.py'];
 const reusedHelpers=['four-project-queue/native-terminal-diagnostics.mjs','four-project-queue/sample-linux-owned.py','launch-recovery/fenced-docker-proxy.mjs','launch-recovery/worker-create-guard.mjs'];
 mkdirSync(join(evidence, 'accepted-harness'), { mode: 0o700 });
 for (const name of driverNames) writeFileSync(join(evidence, 'accepted-harness', name), readFileSync(new URL(name, import.meta.url)), { mode: 0o600, flag: 'wx' });
@@ -89,10 +91,10 @@ for (const folder of ['home', 'projects', 'state', 'docker']) mkdirSync(join(fix
 const key = 'fixture-only-' + randomUUID(), lifecycle = randomUUID() + randomUUID(), password = randomUUID() + randomUUID();
 const sensitive = [key, lifecycle, password], scrub = value => sensitive.reduce((text, secret) => text.replaceAll(secret, '[redacted]'), String(value));
 const receipt = {
-  passed: false, mode:'sustained-installed-scripted-mixed', startedAt: new Date().toISOString(), sourceCommit: provenance.sourceCommit, sourceDirty: provenance.sourceDirty,
+  passed: false, taskContextVersion, mode:'sustained-installed-scripted-mixed', startedAt: new Date().toISOString(), sourceCommit: provenance.sourceCommit, sourceDirty: provenance.sourceDirty,
   harnessCheckout: { commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim(), dirty: !!execFileSync('git', ['status', '--porcelain'], { cwd: repo, encoding: 'utf8' }).trim() },
   packageIntegrity, initialRootFreeBytes: initialRootFree,
-  resourceScope: 'At most five real workers across four projects, one at a time; four initial150s fuzz phases and one short reviewed amendment. Zero existing containers and six GiB root admission before every Create, no recovery fences allowed; hard one GiB running reserve. No image pulls, release or cloud allocation.',
+  resourceScope: 'At most five real workers across four projects, one at a time; four initial150s fuzz phases and one short reviewed amendment. Worker handoff reports are intentionally not fabricated by this scripted workload; missing reports remain explicit and do not prove no questions. Zero existing containers and six GiB root admission before every Create, no recovery fences allowed; hard one GiB running reserve. No image pulls, release or cloud allocation.',
   binarySHA256: sha(readFileSync(binary)), webIndexSHA256: sha(readFileSync(join(web, 'index.html'))), driverSHA256: sha(readFileSync(fileURLToPath(import.meta.url))),
   helperSHA256: Object.fromEntries(driverNames.filter(name=>name!=='sustained.mjs').map(name => [name, sha(readFileSync(new URL(name, import.meta.url)))])),
   reusedHelperSHA256:Object.fromEntries(reusedHelpers.map(name=>['scripts/acceptance/'+name,sha(readFileSync(join(repo,'scripts/acceptance',name)))])),
@@ -103,9 +105,9 @@ const receipt = {
 };
 
 const check = (name, details = {}) => { receipt.checks.push({ name, passed: true, ...details }); console.log('PASS ' + name); };
-const names = ['.luci/brief.json', '.luci/design-handoff.json', '.luci/design-handoff.md', '.luci/design.json', '.luci/plan.json', '.luci/specification.json', '.luci/specification.md', 'LUCI.md'];
+const names=contextFileNames(taskContextVersion);
 // The private brief is generated from saved state; only seven members are checkout exports.
-const canonicalNames = names.filter(name => name !== '.luci/brief.json');
+const canonicalNames = names.filter(name => name !== '.luci/brief.json' && name !== '.luci/task-handoffs.json');
 const authorityRoot = '/home/dev/.luci-reviewed-context';
 const sockets = new Set(), socketSessions = new Map(), ownedSessions = new Set(), bundles = new Map(), nativeHomes = new Map();
 const terminalProbes = [];
@@ -114,7 +116,7 @@ const controllerIdentities=[];let measuredPhase='setup',interactions,interaction
 let stage = 'startup', fixtureError, reserveTimer, deadlineTimer, closing = false, signalFailure;
 let providerCalls = 0, auxiliaryCalls = 0; const observations=new Map(), taskData=new Map(), calls=new Map(); let browser, page, run;
 let providerBase; const initialBundles=new Map(), projectStates=[], titles=new Map();
-receipt.phases=[];receipt.interactions=[];const started = Date.now(), deadline = started + 30 * 60_000;
+receipt.phases=[];receipt.interactions=[];const timingLedger=createTimingLedger(receipt);const started = Date.now(), deadline = started + 30 * 60_000;
 const remaining = () => { if (Date.now() >= deadline) throw Error('Thirty minute acceptance deadline expired'); return deadline - Date.now(); };
 const remainingBudget = (ms = 120_000) => Math.max(1, Math.min(ms, remaining()));
 const redactError = error => scrub(error?.stack ?? error).replaceAll(fixture, '[private-fixture]').slice(0, 8000);
@@ -306,6 +308,8 @@ async function queuedChild(owner,ordinal){
  const worktrees=(await api('GET',workspace+'/v1/projects/'+owner.owner.id+'/worktrees')).worktrees,checkout=worktrees.find(w=>w.id===operation.worktreeId);assert(checkout);
  const state={task:owner.task,owner:owner.owner,workload:owner.workload,operation,session,checkout:checkout.path,count:0,requestedLimits:{memoryMiB:queued.memoryMiB,cpuMillis:queued.cpuMillis}};taskData.set(owner.task,state);
  const actual=live(session.id),bundle=bundleSnapshot(session.id);initialBundles.set(session.id,bundle);state.container=actual;
+ verifyTaskContext({version:taskContextVersion,session:row(session.id),operation,run:owner.run,files:Object.fromEntries([...names,'manifest.json'].map(name=>[name,readFileSync(join(bundles.get(session.id),name))]))});
+ if(taskContextVersion===2){const mount=JSON.parse(docker('inspect',actual.id))[0].Mounts.filter(value=>value.Destination==='/home/dev/.luci-task-output');assert.equal(mount.length,1);assert.equal(mount[0].RW,true);assert.equal(realpathSync(mount[0].Source),join(fixture,'state/conversations/local/.task-output',session.id));}
  for(const name of canonicalNames.filter(name=>name!=='LUCI.md'))assert.equal(bundle[name].sha256,owner.canonicalBefore[name],'Captured canonical export differs from its own project: '+name);
  const capturedRoot=bundles.get(session.id),capturedLuci=readFileSync(join(capturedRoot,'LUCI.md'));
  assert(capturedLuci.subarray(0,owner.canonicalLuci.length).equals(owner.canonicalLuci),'Task brief must retain exact own-project LUCI prefix');
@@ -333,7 +337,7 @@ function workerContainers(){return docker('ps','-aq','--no-trunc','--filter','la
 function identifyCreate(bytes,meta){
  const input=JSON.parse(bytes),sessionID=input.Labels?.['luci.session-id'];assert.match(sessionID??'',/^s-[a-f0-9]{8}$/);assert.equal(meta.name,'luci-'+sessionID);assert.equal(input.Labels?.['luci.managed'],'true');assert.equal(input.Labels?.['luci.launch-fence'],undefined);
  const owners=projectStates.filter(owner=>privateRun(owner).operations.some(op=>op.childId===sessionID));assert.equal(owners.length,1);const owner=owners[0],op=privateRun(owner).operations.find(value=>value.childId===sessionID);assert.equal(op.taskId,owner.task,'Only the five specified tasks can allocate');ownedSessions.add(sessionID);
- validateWorkerCreate(input,{fixture,projectID:owner.owner.id,runID:owner.run.id,operationID:op.id,session:row(sessionID),images:[image,imageInfo.Id],instance:instanceID(),uid:process.getuid(),gid:process.getgid()});return 'worker';
+ validateWorkerCreate(input,{fixture,projectID:owner.owner.id,runID:owner.run.id,operationID:op.id,session:row(sessionID),images:[image,imageInfo.Id],instance:instanceID(),uid:process.getuid(),gid:process.getgid(),taskContextVersion});return 'worker';
 }
 function admission({kind,ordinal,body,...meta}){
  try{assert.equal(kind,'worker');assert(ordinal>=1&&ordinal<=5);identifyCreate(body,meta);const free=rootFree();assert(free>=6*1024**3,'Six GiB pre-create guard remains mandatory');assert.equal(workerContainers().length,0,'No overlapping full worker permitted');(receipt.resourceObservations??=[]).push({at:new Date().toISOString(),stage,ordinal,rootFreeBytes:free});}catch(error){stopOnFailure(error);throw error;}
@@ -342,7 +346,7 @@ function health(){remaining();if(fixtureError)throw fixtureError;if(service&&ser
 async function timed(promise,ms,label){let timer;try{return await Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error(label+' deadline exceeded')),ms);})]);}finally{clearTimeout(timer);}}
 function phaseStart(name){measuredPhase=name;const row={name,startedAt:new Date().toISOString(),monotonicStartMs:performance.now()};receipt.phases.push(row);return row;}
 function phaseEnd(row){row.finishedAt=new Date().toISOString();row.elapsedMs=performance.now()-row.monotonicStartMs;delete row.monotonicStartMs;}
-async function passiveTiming(reason){if(!page)return;const value=await timed(timingSnapshot(page),15000,'Passive browser timing snapshot');if(value){assert(!value.overflow,'Browser observation overflow invalidates event metrics');(receipt.browserEventWindows??=[]).push({reason,at:new Date().toISOString(),...value});}}
+async function passiveTiming(reason){if(!page)return;const value=await timed(timingSnapshot(page),15000,'Passive browser timing snapshot');if(value)timingLedger.append(value,reason);}
 async function quietPhase(name){const record=phaseStart(name);assert.equal(workerContainers().length,0);const before=effects();for(let elapsed=0;elapsed<60;elapsed++){health();await delay(1000);}assert.equal(workerContainers().length,0);assert.deepEqual(effects(),before);phaseEnd(record);assert(record.elapsedMs>=60000);}
 async function prepare(owner){await openProject(owner);await page.getByRole('button',{name:'Prepare agent team',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Prepare agent team',exact:true});await dialog.getByRole('combobox').selectOption('1');assert.equal(await dialog.getByRole('combobox').inputValue(),'1');owner.run=(await action(owner.route+'/runs/'+owner.run.id+'/swarm',()=>dialog.getByRole('button',{name:'Prepare team',exact:true}).click(),201)).run;}
 async function queueOwner(owner){await openProject(owner);await page.getByRole('button',{name:/^Queue reviewed tasks/}).click();const result=await action(owner.route+'/runs/'+owner.run.id+'/swarm/queue',()=>page.getByRole('dialog',{name:'Queue reviewed work',exact:true}).getByRole('button',{name:'Authorize queued tasks',exact:true}).click(),201);assert.equal(result.items.length,owner.task==='build-a'?2:1);owner.queued=result.items;}
@@ -417,7 +421,7 @@ try {
  await context.route('**/*',async route=>{const request=route.request(),url=new URL(request.url());if(url.origin!==base){stopOnFailure(Error('Browser external request refused'));await route.abort('blockedbyclient');return;}if(!['GET','HEAD','OPTIONS'].includes(request.method()))receipt.browserMutations.push({stage,method:request.method(),path:url.pathname});await route.continue();});
  page=await context.newPage();page.setDefaultTimeout(15000);page.on('pageerror',error=>{receipt.browserErrors.push(scrub(error));stopOnFailure(Error('Browser script error'));});
  for(const owner of projectStates){stage='prepare-and-queue-'+owner.task;await prepare(owner);await queueOwner(owner);}
- assert.equal(effects().create,0);await functionalDrafts();interactions=interactionRunner({page,owners:projectStates,receipt,assertHealthy:health,phase:()=>measuredPhase});await interactions.warm();
+ assert.equal(effects().create,0);await functionalDrafts();interactions=interactionRunner({page,owners:projectStates,receipt,assertHealthy:health,phase:()=>measuredPhase,observe:passiveTiming});await interactions.warm();
  stage='idle-baseline';await quietPhase('quiet-app-open-idle');const idle=phaseStart('idle-interactive-calibration');await interactions.calibrate(100);phaseEnd(idle);await passiveTiming('end-idle-calibration');
  stage='sustained-work';const loaded=phaseStart('loaded');await setPaused(false);
  let worker=await queuedChild(projectStates[0],1);await attach(worker.session.id);await queueControls(projectStates[0]);await openProject();await interactions.warm();
@@ -440,7 +444,7 @@ try {
  await openProject(amended);await page.screenshot({path:join(evidence,'amended-project-desktop.png'),fullPage:true});await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'All projects',exact:true}).click();await page.getByRole('heading',{name:'Across your projects',exact:true}).waitFor();for(const owner of projectStates)await page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true}).waitFor();assert(await timed(page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),15000,'Phone document geometry'),'Phone overview must not horizontally overflow');await page.screenshot({path:join(evidence,'four-project-phone.png'),fullPage:true});
  assert.equal(proxy.observations.counts.create,5);assert.equal(proxy.observations.counts.start,5);assert.equal(proxy.observations.dropped,0);assert.equal(proxy.observations.failures.length,0);assert.equal(observations.size,5);assert.equal(receipt.browserErrors.length,0);assert.equal(receipt.naturalCompletions.length,5);assert.equal(receipt.preIntegrationProgress.length,3);assert.equal(workerContainers().length,0);assert.equal(docker('info','--format','{{.ID}}'),engineID);
  check('Five actual native task commands across four projects finish naturally, with600seconds real fuzz work and browser-reviewed amendment');receipt.functionalPassed=true;assert(receipt.latencyTargetsMet,'Measured UI latency exceeded the declared candidate targets; retain actual timings without relabeling functional success as full acceptance');receipt.passed=true;
-}catch(error){receipt.failedStage=stage;receipt.failure=redactError(error);process.exitCode=1;console.error(receipt.failure);if(page){try{await passiveTiming('failure');await page.screenshot({path:join(evidence,'failed-stage.png'),fullPage:true});}catch{}}}
+}catch(error){receipt.failedStage=stage;receipt.failure=redactError(error);process.exitCode=1;console.error(receipt.failure);if(page){try{await passiveTiming('failure');}catch{}try{await page.screenshot({path:join(evidence,'failed-stage.png'),fullPage:true});}catch{}}}
 finally {
  closing=true;clearTimeout(deadlineTimer);clearInterval(reserveTimer);for(const socket of sockets)socket.close();receipt.actualTaskResults=Object.fromEntries(observations);receipt.taskEvents=Object.fromEntries(taskEvents);receipt.interactionSummary=summarizeInteractions(receipt.interactions);
  receipt.taskChildren=[...taskData.values()].map(value=>({task:value.task,projectID:value.owner.id,operationID:value.operation.id,sessionID:value.session.id,container:value.container,bundle:initialBundles.get(value.session.id)}));receipt.terminalObservations=terminalProbes.map(({id,attachedStage,probe})=>({sessionID:id,attachedStage,...probe.snapshot()}));

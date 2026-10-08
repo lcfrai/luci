@@ -4,7 +4,6 @@ package hub
 
 import (
 	"bytes"
-	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -24,18 +23,6 @@ func newTestHub() *Hub {
 	}
 }
 
-// throttleToRoom spins until ch has room for at least one more send. It gives
-// a reader that is momentarily slow to be scheduled a chance to catch up, so
-// a writer that only ever runs slightly ahead of a draining reader can't
-// trigger subscriberBuffer's explicit overflow-disconnect path by accident —
-// these tests want to pin the atomicity and overflow behaviours on purpose,
-// not stumble into overflow through their own scheduling luck.
-func throttleToRoom(ch <-chan []byte) {
-	for len(ch) >= subscriberBuffer-1 {
-		runtime.Gosched()
-	}
-}
-
 // TestSubscribeRacingThePumpNeverDuplicatesOrDropsAChunk pins the invariant
 // Subscribe's doc comment promises: a chunk lands in exactly one place
 // relative to a concurrent Subscribe — either in the replay or live, never
@@ -45,26 +32,12 @@ func TestSubscribeRacingThePumpNeverDuplicatesOrDropsAChunk(t *testing.T) {
 	const n = 2000
 	last := []byte(strconv.Itoa(n-1) + "\n")
 
-	// Handed the subscriber's channel once it exists, so the writer can keep
-	// itself from outrunning it (see throttleToRoom) without a data race on
-	// a plain shared variable.
-	subHandoff := make(chan (<-chan []byte), 1)
-
 	writerDone := make(chan struct{})
 	go func() {
 		defer close(writerDone)
-		var out <-chan []byte
 		for i := 0; i < n; i++ {
 			h.publish([]byte(strconv.Itoa(i) + "\n"))
-			if out == nil {
-				select {
-				case out = <-subHandoff:
-				default:
-				}
-			}
-			if out != nil {
-				throttleToRoom(out)
-			}
+
 		}
 	}()
 
@@ -73,7 +46,6 @@ func TestSubscribeRacingThePumpNeverDuplicatesOrDropsAChunk(t *testing.T) {
 	time.Sleep(time.Millisecond)
 	replay, out, cancel := h.Subscribe()
 	defer cancel()
-	subHandoff <- out
 
 	var acc bytes.Buffer
 	acc.Write(replay)
@@ -108,83 +80,75 @@ func TestSubscribeRacingThePumpNeverDuplicatesOrDropsAChunk(t *testing.T) {
 // subscriber keep moving regardless.
 func TestSlowSubscriberDoesNotStallTheHub(t *testing.T) {
 	h := newTestHub()
-
-	// A subscriber that never drains.
 	_, stuckOut, overflow, stuckCancel := h.SubscribeWithOverflow()
 	defer stuckCancel()
-
-	// A subscriber that drains concurrently — it must still get everything.
-	_, out, cancel := h.Subscribe()
+	_, out, fastOverflow, cancel := h.SubscribeWithOverflow()
 	defer cancel()
 
-	const total = subscriberBuffer + 50
-
-	recvDone := make(chan struct{})
-	var received []byte
+	// Exceed the byte budget while a second subscriber acknowledges each
+	// complete page. Scheduling cannot accidentally turn that reader into the
+	// deliberately stuck subscriber, and the publisher must never wait for it.
+	const total = subscriberByteBudget/subscriberPageBytes + 50
+	payload := bytes.Repeat([]byte("x"), subscriberPageBytes)
+	expected := bytes.Repeat(payload, total)
+	progress := make(chan struct{}, 1)
+	recvDone := make(chan []byte, 1)
 	go func() {
-		defer close(recvDone)
-		count := 0
-		for count < total {
-			select {
-			case b, ok := <-out:
-				if !ok {
-					return
-				}
-				received = append(received, b...)
-				count++
-			case <-time.After(5 * time.Second):
-				return
+		var received []byte
+		for b := range out {
+			before := len(received) / subscriberPageBytes
+			received = append(received, b...)
+			if len(received)/subscriberPageBytes > before {
+				progress <- struct{}{}
 			}
 		}
+		recvDone <- received
 	}()
 
 	publishDone := make(chan struct{})
 	go func() {
 		defer close(publishDone)
 		for i := 0; i < total; i++ {
-			h.publish([]byte(strconv.Itoa(i) + "\n"))
-			throttleToRoom(out)
+			h.publish(payload)
+			<-progress
 		}
 	}()
-
 	select {
 	case <-publishDone:
 	case <-time.After(5 * time.Second):
-		t.Fatal("publish blocked — a stuck subscriber stalled the hub")
-	}
-	<-recvDone
-
-	if got := len(stuckOut); got != subscriberBuffer {
-		t.Fatalf("stuck subscriber channel holds %d chunks, want exactly %d (full, not blocked past it)", got, subscriberBuffer)
+		t.Fatal("publish or the healthy subscriber stalled behind a stuck subscriber")
 	}
 	select {
 	case <-overflow:
 	default:
-		t.Fatal("slow subscriber was not explicitly told output was lost")
+		t.Fatal("the subscriber exceeding its byte budget was not told output was lost")
+	}
+	select {
+	case <-fastOverflow:
+		t.Fatal("the draining subscriber overflowed")
+	default:
 	}
 	for range stuckOut {
 	}
-	// A closed stream never resumes with bytes after the gap.
-	h.publish([]byte("after overflow\n"))
+	h.publish(nil)
 	if _, open := <-stuckOut; open {
 		t.Fatal("overflowed stream resumed")
 	}
-	stuckCancel() // cancellation after overflow is idempotent
+	stuckCancel()
 
-	got := strings.Fields(string(received))
-	if len(got) != total {
-		t.Fatalf("draining subscriber received %d/%d chunks", len(got), total)
-	}
-	for i, s := range got {
-		if s != strconv.Itoa(i) {
-			t.Fatalf("chunk at position %d = %q, want %q", i, s, strconv.Itoa(i))
-		}
-	}
-
-	// The hub is still live after the overflow.
+	// Overflow retires only its view; the hub remains available for reconnect.
 	replay, _, cancel3 := h.Subscribe()
-	defer cancel3()
-	if len(replay) == 0 {
-		t.Fatal("hub appears dead after overflow: fresh Subscribe got an empty replay")
+	cancel3()
+	if !bytes.Equal(replay, expected[len(expected)-ring.DefaultCapacity:]) {
+		t.Fatal("fresh replay did not retain the exact recent bytes after overflow")
+	}
+	h.finish("exit status 0")
+	select {
+	case received := <-recvDone:
+		if !bytes.Equal(received, expected) {
+			t.Fatalf("healthy subscriber received %d bytes, expected exact %d-byte stream", len(received), len(expected))
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("healthy subscriber did not drain and close after exit")
 	}
 }

@@ -1,0 +1,40 @@
+{
+  "passed": false,
+  "startedAt": "2026-10-08T13:44:35.004Z",
+  "finishedAt": "2026-10-08T13:44:39.392Z",
+  "scope": "One actual-source checkpoint-success keyboard focus diagnostic in Linux Chromium, with controlled reservation callback. No native/backend claim.",
+  "limitations": [
+    "No installed-package, native Windows, real backend, Docker, agent or model evidence.",
+    "Recorded answer/checkpoint responses here are fixture callbacks, not actual persistent mutations.",
+    "Automated axe and keyboard/geometry checks do not establish full accessibility certification."
+  ],
+  "browserVersion": "151.0.7922.173",
+  "sourceUnchanged": true,
+  "cleanup": [
+    "owned Chromium closed",
+    "owned Vite server closed",
+    "private profile removed"
+  ],
+  "sourceReportSHA256": "2fe6a97fcb8cd9aaf29ce9c407fabafc815fa4e0c8366ac3fc4b8bb551dcf88a",
+  "inputs": {
+    "file": "keyboard-focus-before-inputs.json",
+    "sha256": "014ac35a596a179283b23e5a5cc39488280b5ec4b4fc37198fd75a48b6ab5f0b",
+    "count": 432
+  },
+  "sourceDirty": true,
+  "sourceAttribution": "Controlled source component fixture; accompanying hash map identifies tested bytes. No native/installed/backend claim.",
+  "checks": [
+    {
+      "label": "checkpoint-success-focus",
+      "starts": 0,
+      "successorFocused": false,
+      "focus": {
+        "tag": "BODY",
+        "text": "[whole fixture body omitted]"
+      }
+    }
+  ],
+  "checkpointCount": 1,
+  "browserErrorCount": 0,
+  "failure": "Checkpoint completion left focus on BODY after its opener disappeared; the exact successor action was not focused."
+}

@@ -254,6 +254,50 @@ it("keeps a blocked run's actionable reason and verification warning visible whe
   expect(within(build).getByText(/does not prove the current application is ready/)).not.toBeNull();
 });
 
+it("keeps older recorded review obligations visible beside a newer prepared build without claiming activity", async () => {
+  const snapshot = context(), inspect = vi.fn();
+  snapshot.currentRun = { id: "newer-ready", state: "ready", valid: false, reason: "Prepared", activity: "none" };
+  snapshot.activeRuns = [];
+  snapshot.needsAttention = [
+    { id: "older-unintegrated", state: "awaiting-checks", kind: "task-review", contextStatus: "current" },
+    { id: "older-verification", state: "awaiting-checks", kind: "verification", contextStatus: "changed" },
+    { id: "older-release", state: "awaiting-release", kind: "release-review", contextStatus: "unavailable" },
+    { id: "older-blocked", state: "blocked", kind: "blocked", contextStatus: "current" },
+  ];
+  render(<ProjectUnderstanding view={view({ context: snapshot })} onAsk={vi.fn()} onReply={vi.fn()} onNavigate={vi.fn()} onInspect={inspect} canEdit={false} />);
+  const review = screen.getByRole("region", { name: "Recorded review work" });
+  expect(within(review).getByText(/4 builds need review/)).toBeTruthy();
+  expect(screen.queryByRole("region", { name: "Active and unconfirmed work" })).toBeNull();
+  expect(screen.getByText("Build prepared")).toBeTruthy();
+  expect(within(review).getAllByRole("button", { name: /^Inspect / })).toHaveLength(3);
+  await userEvent.click(within(review).getByRole("button", { name: "Inspect older-unintegrated: Task changes to review" }));
+  expect(inspect).toHaveBeenCalledExactlyOnceWith("older-unintegrated");
+  await userEvent.click(within(review).getByRole("button", { name: "Show more review work (1 remaining)" }));
+  await userEvent.click(within(review).getByRole("button", { name: "Inspect older-blocked: Blocked work to inspect" }));
+  expect(inspect).toHaveBeenLastCalledWith("older-blocked");
+});
+
+it("requires task review before advertising a current build as ready for independent checks", () => {
+  const snapshot = context();
+  snapshot.currentRun = { id: "needs-integration", state: "awaiting-checks", valid: false, reason: "Recorded task exit", activity: "none" };
+  snapshot.needsAttention = [{ id: "needs-integration", state: "awaiting-checks", kind: "task-review", contextStatus: "current" }];
+  render(<ProjectUnderstanding view={view({ context: snapshot })} onAsk={vi.fn()} onReply={vi.fn()} onNavigate={vi.fn()} />);
+  expect(screen.getByText("Task changes await review")).toBeTruthy();
+  expect(screen.queryByText("Ready for independent checks")).toBeNull();
+  expect(screen.getByText(/Inspect retained task changes before integration and independent checks/)).toBeTruthy();
+});
+
+it("keeps cancelled dispatch distinct from retained task changes awaiting review", () => {
+  const snapshot = context();
+  snapshot.currentRun = { id: "cancelled-parent", state: "cancelled", valid: false, reason: "Future dispatch cancelled", activity: "none", dispatchCancelled: true };
+  snapshot.needsAttention = [{ id: "cancelled-parent", state: "cancelled", kind: "task-review", contextStatus: "current" }];
+  render(<ProjectUnderstanding view={view({ context: snapshot })} onAsk={vi.fn()} onReply={vi.fn()} onNavigate={vi.fn()} />);
+  const build = screen.getByRole("region", { name: "In this build" });
+  expect(within(build).getByText("Task changes await review")).toBeTruthy();
+  expect(within(build).getByText("Further dispatch is cancelled. Retained task changes still need review.")).toBeTruthy();
+  expect(screen.queryByRole("region", { name: "Active and unconfirmed work" })).toBeNull();
+});
+
 it("never repeats the acceptance invitation from an accepted run's historical valid observation", () => {
   const snapshot = context();
   const staleInvitation = "Checks and the freshly observed release match. Review the application and accept the selected outcome.";

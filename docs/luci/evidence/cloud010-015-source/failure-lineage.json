@@ -1,0 +1,133 @@
+[
+  {
+    "id": "initial-handoff-route-404",
+    "classification": "product test registration gap",
+    "initialReport": "initial-focused-report.json",
+    "failure": "Two focused product handoff HTTP tests used fixtures without the handoff routes; actual API handoff path passed.",
+    "correction": "Registered routes in the fixture and added actual shared HTTP contract/read audit coverage.",
+    "subsequentEvidence": [
+      "checkpoint-corrected-report.json",
+      "full-go-report.json"
+    ],
+    "status": "corrected scoped tests passed; original failed run retained"
+  },
+  {
+    "id": "orchestrator-test-pointer",
+    "classification": "test compile defect",
+    "initialReport": "checkpoint-lock-failure-report.json",
+    "failure": "orchestrator_handoffs_test.go assigned a struct where *registry.ImplementationContext was required; product test package failed to build.",
+    "correction": "Pass the address of the fixture context.",
+    "subsequentEvidence": [
+      "checkpoint-corrected-report.json",
+      "full-go-report.json"
+    ],
+    "status": "corrected"
+  },
+  {
+    "id": "checkpoint-source-lock",
+    "classification": "production route wiring defect",
+    "initialReport": "checkpoint-lock-failure-report.json",
+    "failure": "The generic shared source admission wrapped checkpoint POST, making the handler refuse its own exclusive source lock with409 before lifecycle/fence verification.",
+    "correction": "Only exact checkpoint POST joins the existing self-guarded reserve/integrate routes. GET keeps reader protection. Guarded registrar and actual HTTP tests verify real held locks still refuse without allocation.",
+    "subsequentEvidence": [
+      "checkpoint-corrected-report.json",
+      "full-go-report.json"
+    ],
+    "checkpointCorrectedOutcomes": {
+      "productPass": 40,
+      "apiPass": 8,
+      "fail": 0
+    },
+    "status": "corrected source checks passed; installed acceptance separate"
+  },
+  {
+    "id": "orchestrator-reused-json-view",
+    "classification": "test observation defect",
+    "initialReport": "checkpoint-corrected-report.json",
+    "failure": "Decoding a second response into a nonzero Go view retained the previous optional needsAttention slice when the server omitted it.",
+    "correction": "Reset the fixture destination before decoding the second HTTP response; browser JSON.parse already creates a new object.",
+    "subsequentEvidence": [
+      "full-go-report.json",
+      "affected-api-product-report.json"
+    ],
+    "status": "corrected source checks passed"
+  },
+  {
+    "id": "compact-answer-meaning",
+    "classification": "production derived-context gap found after baseline",
+    "failure": "A terse saved answer lacked its original question and impact in the compact orchestrator view.",
+    "correction": "Carry attributed question/impact with the answer and test real HTTP with a terse answer.",
+    "subsequentEvidence": [
+      "affected-api-product-report.json"
+    ],
+    "status": "126 affected outcomes passed; no installed/model-quality claim"
+  },
+  {
+    "id": "frontend-seam-anchor",
+    "classification": "test contract matcher stale",
+    "initialReport": "full-frontend-report.json",
+    "failure": "SX.6 exact buildCommands anchor did not recognize its optional platform parameter.",
+    "correction": "Update the strict matcher for the actual signature.",
+    "subsequentEvidence": [
+      "affected-frontend-report.json"
+    ],
+    "status": "affected test passed"
+  },
+  {
+    "id": "frontend-v2-contract-mirror",
+    "classification": "documented type contract stale",
+    "initialReport": "full-frontend-report.json",
+    "failure": "SX.2 byte-identical contract mirror lacked V2 dependencyContextDigest.",
+    "correction": "Synchronize the contract with the existing type and retain exact mirror assertion.",
+    "subsequentEvidence": [
+      "affected-frontend-report.json"
+    ],
+    "status": "affected test and typecheck passed"
+  },
+  {
+    "id": "frontend-refused-recovery-observation",
+    "classification": "test synchronization correction; original failure cause not conclusively established",
+    "initialReport": "full-frontend-report.json",
+    "failure": "The expected refusal alert was missing. Original test lacked an enabled-consent/exact-request barrier.",
+    "diagnostic": "One unchanged-source isolated run passed1 case with12 filtered; this does not establish a flake or root cause.",
+    "correction": "Use user-event, prove consent enabled and exact request occurred, then resolve the deferred refusal and check retained actionability. No production recovery change in this correction.",
+    "subsequentEvidence": [
+      "affected-frontend-report.json"
+    ],
+    "status": "affected regression passed; original failed baseline preserved"
+  },
+  {
+    "id": "checkpoint-focus",
+    "classification": "production browser focus gap after baseline",
+    "failure": "Controlled390px source browser observed BODY focus after successful checkpoint preparation.",
+    "correction": "Return focus to the exact task action and expose the earlier-attempt question cue.",
+    "subsequentEvidence": [
+      "affected-frontend-report.json",
+      "controlled-browser-report.json",
+      "keyboard-focus-before-report.json",
+      "keyboard-focus-after-report.json"
+    ],
+    "status": "Original controlled source keyboard diagnostic failed with BODY focus; the same diagnostic after correction passes with Continue reserved task focused and zero starts. Final22-checkpoint controlled Chromium pass remains distinct from backend/native execution."
+  },
+  {
+    "id": "handoff-purge-preservation",
+    "classification": "production output-lifetime gap found after baseline",
+    "failure": "Ordinary transcript cleanup must not remove retained structured task output before its canonical receipt is durably captured.",
+    "correction": "Exact retained-output receipt guard and actual HTTP purge-preservation coverage.",
+    "subsequentEvidence": [
+      "affected-api-product-report.json"
+    ],
+    "status": "affected126 outcomes passed; installed acceptance separate"
+  },
+  {
+    "id": "CLOUD-016",
+    "classification": "actual runtime correctness investigation",
+    "initialReport": "full-go-report.json",
+    "failure": "TestLargeStdinFrameIsAccepted closed early with StatusTryAgainLater: terminal output consumer too slow; reconnect for recent output only. The intended large stdin round-trip did not complete.",
+    "status": "32 affected race outcomes pass;88 inputs unchanged. Real local PTY/WebSocket and bounded subscriber tests, not a new full-suite run, Docker image or installed/native result.",
+    "correction": "Replace fragment-count subscriber disconnect with bounded-byte coalescing; preserve explicit overflow and websocket timeout behavior.",
+    "subsequentEvidence": [
+      "terminal-corrected-report.json"
+    ]
+  }
+]

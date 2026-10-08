@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "issue": "CLOUD-014",
+  "status": "controlled-preparation-passed",
+  "scope": "Fifteen controlled Python tests including six oracle-derived parser specimens. No model answers or product runtime.",
+  "startedAt": "2026-10-08T13:02:06.989423+00:00",
+  "finishedAt": "2026-10-08T13:02:07.306050+00:00",
+  "harnessElapsedSeconds": 0.31577317099436186,
+  "exitCode": 0,
+  "command": [
+    "python3",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "scripts/acceptance/context-quality",
+    "-p",
+    "test_evaluate.py",
+    "-v"
+  ],
+  "sourceBefore": {
+    "scripts/acceptance/context-quality/HUMAN-REVIEW.md": "6f1b385a275345a8786e12d8ad04ad1eb63cd5d51e88bdec645935de763c1540",
+    "scripts/acceptance/context-quality/PROTOCOL.md": "31a2bb2c37924805fc6dbe755113f1efdfdd01b0fcfd48d46a1bfb4fdad6b3fb",
+    "scripts/acceptance/context-quality/README.md": "cb0197365055135af2058f48def7b59e12bbdb3385e7525f2cc282516cd8cfac",
+    "scripts/acceptance/context-quality/RUN-FORMAT.md": "5839cf201c709b2b3cb00705689cb1f0817a85fed53b683a8d97d0ec268760c4",
+    "scripts/acceptance/context-quality/cases/01-ambiguity.json": "f876cd5f33e94a5f2ec95e7fb429d87efabd71fe92f64aa674d0ca38850c29c2",
+    "scripts/acceptance/context-quality/cases/02-isolation.json": "cbca6b914823e078744dd3bb4d53fb3ba1c1db041fed51919584cef259d2d9e0",
+    "scripts/acceptance/context-quality/cases/03-amendment.json": "262738731af2697fdd0cfed6f04930b1bf23e75cd083d879390e8ecf74750885",
+    "scripts/acceptance/context-quality/cases/04-stale-source.json": "05fc2d14818a54b923ebce4e1a67dcd111bf730866273015f391bc4fed60e1ad",
+    "scripts/acceptance/context-quality/cases/05-dependency-handoff.json": "064d827d9112698b108bcb90b2e59e55ca53961032ccce45b539a1ab0fea36bb",
+    "scripts/acceptance/context-quality/cases/06-restart.json": "dd9b2fec3d1272d5e5178456766ef05b0df2fbee35bddb140a7261144be67b19",
+    "scripts/acceptance/context-quality/evaluate.py": "49a25dc4052b091e176f18fd48cd4709fdbdfa7e99125efc699ca649eb19706c",
+    "scripts/acceptance/context-quality/evaluator-only/isolation-seeds.json": "4870e49fb2d32654e81d91db8ab532a31c96e528f9fb48a917a43fbb0791b815",
+    "scripts/acceptance/context-quality/evaluator-only/oracles.json": "1a5924e5e7abb3335741c579fe06f3104d721e5f5276a8f95b22bd227945686e",
+    "scripts/acceptance/context-quality/test_evaluate.py": "fae6658f06818fe888ff18135903848c0260f6a2986d44dabaad9184dd406719"
+  },
+  "sourceAfter": {
+    "scripts/acceptance/context-quality/HUMAN-REVIEW.md": "6f1b385a275345a8786e12d8ad04ad1eb63cd5d51e88bdec645935de763c1540",
+    "scripts/acceptance/context-quality/PROTOCOL.md": "31a2bb2c37924805fc6dbe755113f1efdfdd01b0fcfd48d46a1bfb4fdad6b3fb",
+    "scripts/acceptance/context-quality/README.md": "cb0197365055135af2058f48def7b59e12bbdb3385e7525f2cc282516cd8cfac",
+    "scripts/acceptance/context-quality/RUN-FORMAT.md": "5839cf201c709b2b3cb00705689cb1f0817a85fed53b683a8d97d0ec268760c4",
+    "scripts/acceptance/context-quality/cases/01-ambiguity.json": "f876cd5f33e94a5f2ec95e7fb429d87efabd71fe92f64aa674d0ca38850c29c2",
+    "scripts/acceptance/context-quality/cases/02-isolation.json": "cbca6b914823e078744dd3bb4d53fb3ba1c1db041fed51919584cef259d2d9e0",
+    "scripts/acceptance/context-quality/cases/03-amendment.json": "262738731af2697fdd0cfed6f04930b1bf23e75cd083d879390e8ecf74750885",
+    "scripts/acceptance/context-quality/cases/04-stale-source.json": "05fc2d14818a54b923ebce4e1a67dcd111bf730866273015f391bc4fed60e1ad",
+    "scripts/acceptance/context-quality/cases/05-dependency-handoff.json": "064d827d9112698b108bcb90b2e59e55ca53961032ccce45b539a1ab0fea36bb",
+    "scripts/acceptance/context-quality/cases/06-restart.json": "dd9b2fec3d1272d5e5178456766ef05b0df2fbee35bddb140a7261144be67b19",
+    "scripts/acceptance/context-quality/evaluate.py": "49a25dc4052b091e176f18fd48cd4709fdbdfa7e99125efc699ca649eb19706c",
+    "scripts/acceptance/context-quality/evaluator-only/isolation-seeds.json": "4870e49fb2d32654e81d91db8ab532a31c96e528f9fb48a917a43fbb0791b815",
+    "scripts/acceptance/context-quality/evaluator-only/oracles.json": "1a5924e5e7abb3335741c579fe06f3104d721e5f5276a8f95b22bd227945686e",
+    "scripts/acceptance/context-quality/test_evaluate.py": "fae6658f06818fe888ff18135903848c0260f6a2986d44dabaad9184dd406719"
+  },
+  "sourcesUnchanged": true,
+  "testLogSHA256": "e4896f53376059ffe590365c511aac55f5e0f28416c4adba1df1ea8fe67ad0d8",
+  "actualModelCalls": 0,
+  "actualProductRuns": 0,
+  "actualCompetitorRuns": 0,
+  "humanSemanticGrades": 0,
+  "liveScores": null,
+  "limitations": [
+    "Provenance checks establish supplied artifact consistency, not external authenticity.",
+    "Structured ID/disposition scoring does not establish semantic quality.",
+    "Actual Luci native context/request capture and model/competitor trials remain unrun.",
+    "No native Windows, performance or complete-product acceptance claim."
+  ],
+  "previousControlledReceipts": [
+    {
+      "file": "preparation-verification.json",
+      "sha256": "18de81322a3d78452378aac3665075dea9436738fd3e84f83302fb3386972a42",
+      "scope": "Earlier13-case pass"
+    },
+    {
+      "file": "preparation-final-verification.json",
+      "sha256": "ecd0054c7a43a11c848268e6ec6446f4bc733bf460ccf66a5e0f2d94821f10a4",
+      "scope": "Earlier15-case pass before final task-delivery guard/documentation update"
+    }
+  ]
+}

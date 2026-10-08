@@ -191,14 +191,32 @@ it("does not offer fresh-install recovery for a previously initialized stack or 
 });
 
 it("leaves a refused recovery actionable and does not report a successful installation", async () => {
+  const user = userEvent.setup();
+  let refuse!: (reason: Error) => void;
+  const response = new Promise<DataStatus>((_resolve, reject) => { refuse = reject; });
   vi.mocked(dataApi.status).mockResolvedValue({ ...initial, status: "stopped", initializationState: "unknown", canRecoverInstall: true });
-  vi.mocked(dataApi.action).mockRejectedValue(new Error("Luci could not verify a failed first bootstrap. The original stack was retained."));
+  vi.mocked(dataApi.action).mockImplementation(() => response);
   render(<DataWorkspace projectId="owned" dockerReady />);
-  await screen.findByRole("button", { name: "Recover initial installation" });
-  fireEvent.click(screen.getByLabelText("Start a fresh installation and retain the incomplete stack's volumes."));
-  fireEvent.click(screen.getByLabelText("I have capacity for these services on the selected Docker host."));
-  fireEvent.click(screen.getByRole("button", { name: "Recover initial installation" }));
+  const recovery = await screen.findByRole("button", { name: "Recover initial installation" }) as HTMLButtonElement;
+  const fresh = screen.getByLabelText("Start a fresh installation and retain the incomplete stack's volumes.") as HTMLInputElement;
+  const capacity = screen.getByLabelText("I have capacity for these services on the selected Docker host.") as HTMLInputElement;
+  expect(recovery.disabled).toBe(true);
+  await user.click(fresh);
+  expect(fresh.checked).toBe(true);
+  await user.click(capacity);
+  expect(capacity.checked).toBe(true);
+  await waitFor(() => expect(recovery.disabled).toBe(false));
+  await user.click(recovery);
+  await waitFor(() => expect(dataApi.action).toHaveBeenCalledExactlyOnceWith("owned", "recover-install", { acknowledgeResources: true, confirmFreshInstall: true }));
+  expect((screen.getByRole("button", { name: "Checking recovery…" }) as HTMLButtonElement).disabled).toBe(true);
+  await act(async () => {
+    refuse(new Error("Luci could not verify a failed first bootstrap. The original stack was retained."));
+    await response.catch(() => undefined);
+  });
   expect((await screen.findByRole("alert")).textContent).toContain("original stack was retained");
+  expect((screen.getByRole("button", { name: "Recover initial installation" }) as HTMLButtonElement).disabled).toBe(false);
+  expect(screen.getByRole("button", { name: "Stop data services" }).hasAttribute("disabled")).toBe(true);
+  expect(dataApi.action).toHaveBeenCalledTimes(1);
   expect(screen.queryByText(/installation completed/i)).toBeNull();
 });
 

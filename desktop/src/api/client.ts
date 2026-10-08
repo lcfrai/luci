@@ -155,7 +155,7 @@ export interface SessionReviewedContext {
   sessionId: SessionId;
   projectId: ProjectId;
   worktreeId: WorktreeId;
-  version: 1;
+  version: 1 | 2;
   digest: string;
   implementationContext: ImplementationContext;
   document: { kind: ReviewedContextDocument; sha256: string; bytes: number; value: unknown };

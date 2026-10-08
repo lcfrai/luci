@@ -249,6 +249,11 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 		}
 	}
 	mounts := sessionMounts(path, admin, conversationStore, backend.Mount{}, a.deps.CABundle, gitFiles)
+	outputMount, outputErr := a.prepareTaskHandoffOutput(admission.SessionID)
+	if outputErr != nil {
+		return refuse("task_output_unavailable", outputErr)
+	}
+	mounts = append(mounts, outputMount)
 	if descriptor.NativeState() {
 		store, err := a.prepareNativeState(op.WorktreeID, route.Harness, conversation, sessionResumeSource{}, false)
 		if err != nil {

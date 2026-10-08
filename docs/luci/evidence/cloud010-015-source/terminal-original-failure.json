@@ -1,0 +1,41 @@
+{
+  "originalFullGoLogSHA256": "e7557c594f79e077ebb72b5248c655b843cc290bd396f493be6f3df26093fab2",
+  "events": [
+    {
+      "Time": "2026-10-08T13:43:12.264756509Z",
+      "Action": "run",
+      "Package": "github.com/lcfrai/luci/sandboxd/internal/server",
+      "Test": "TestLargeStdinFrameIsAccepted"
+    },
+    {
+      "Time": "2026-10-08T13:43:12.264760765Z",
+      "Action": "output",
+      "Package": "github.com/lcfrai/luci/sandboxd/internal/server",
+      "Test": "TestLargeStdinFrameIsAccepted",
+      "Output": "=== RUN   TestLargeStdinFrameIsAccepted\n"
+    },
+    {
+      "Time": "2026-10-08T13:43:12.282942179Z",
+      "Action": "output",
+      "Package": "github.com/lcfrai/luci/sandboxd/internal/server",
+      "Test": "TestLargeStdinFrameIsAccepted",
+      "Output": "    server_test.go:204: Read: failed to get reader: received close frame: status = StatusTryAgainLater and reason = \"terminal output consumer too slow; reconnect for recent output only\" (got \"$ \")\n"
+    },
+    {
+      "Time": "2026-10-08T13:43:12.283273959Z",
+      "Action": "output",
+      "Package": "github.com/lcfrai/luci/sandboxd/internal/server",
+      "Test": "TestLargeStdinFrameIsAccepted",
+      "Output": "--- FAIL: TestLargeStdinFrameIsAccepted (0.02s)\n"
+    },
+    {
+      "Time": "2026-10-08T13:43:12.283285466Z",
+      "Action": "fail",
+      "Package": "github.com/lcfrai/luci/sandboxd/internal/server",
+      "Test": "TestLargeStdinFrameIsAccepted",
+      "Elapsed": 0.02
+    }
+  ],
+  "sourceReceiptSHA256": "9a8c21dc4d7532014bd6f60ed5f7246663fdb6279fa8c1ceaab4a21778a35104",
+  "scope": "Original full-suite failure, preserved unchanged in outcome; no private fixture content."
+}

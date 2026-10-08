@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "kind": "controlled-recorder-and-v2-contract-only",
+  "runtimeAcceptance": false,
+  "files": {
+    "scripts/acceptance/sustained-four-project/sustained.mjs": "eaa22e7a811d533ddea95f59a85390bca1a3d41b425a556919ce01f0d88d0525",
+    "scripts/acceptance/sustained-four-project/interaction-metrics.mjs": "4f01c38d500ad52c2d5e60da3c45a9842a9efcfd75177dcd2bf17fb69a5b2d45",
+    "scripts/acceptance/sustained-four-project/event-drain.test.mjs": "71004a86a08ba7da48e31b53f02c45a7a08bf5816113efa2a2f3cb584b6832a3",
+    "scripts/acceptance/sustained-four-project/task-context.mjs": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2",
+    "scripts/acceptance/sustained-four-project/task-context.test.mjs": "cebae265599e0ba61ec7563e4f377b6a298ec19142b30a432597e43fd68f30fb",
+    "scripts/acceptance/sustained-four-project/README.md": "89394951a0339f03d836df915bdd8d4a9355ea333db5a7c60b63015d07f9b622",
+    "scripts/acceptance/sustained-four-project/helper.test.mjs": "97c80e81827056aaa2c4ac346296e6cce1d0f375fe6ba65ad6ce5b355dd7b9ab",
+    "scripts/acceptance/sustained-four-project/workload.test.mjs": "0842134ed73e9cfae8a7ad8b2f306f45db9f9dda689a0920c2e5e129e7d6df0c",
+    "scripts/acceptance/launch-recovery/worker-create-guard.mjs": "0036995ceaeb9d16073f21ddcb126a6e328df23a838e1458362b59416a236312",
+    "scripts/acceptance/launch-recovery/worker-create-guard.test.mjs": "8f2cb20c6c01eb84d82b1aa9eeac1e49aa7bb9e9f402396469cd7b50c2926e39"
+  },
+  "checks": {
+    "passed": 88,
+    "failed": 0,
+    "durationMs": 1082.270221,
+    "browserTestExcluded": true,
+    "scope": "Pure Node parser/manifest/binding/guard and generated worker syntax fixtures. No browser, Docker, Go compiler, app or provider."
+  },
+  "command": "node --test --test-skip-pattern=\"actual browser collector\" scripts/acceptance/sustained-four-project/{event-drain,task-context,helper,workload}.test.mjs scripts/acceptance/launch-recovery/worker-create-guard.test.mjs",
+  "logSHA256": "fbd83b8d696801015152a389b23357e0fab77040346807e876d698d5897ce2e1",
+  "priorControlledInvocation": {
+    "passed": 88,
+    "failed": 1,
+    "reason": "Negative name selection did not exclude the browser case; it refused at missing fixture repo before browser import/allocation. Corrected invocation explicitly excludes that case.",
+    "logSHA256": "ba8d4f7020876a235e9b91ed06d6ac22275b34cf29dfb1f40a0c1d59873e6d6a"
+  },
+  "reviews": [
+    {
+      "agent": "navigation_review",
+      "scope": "Recorder incremental drain",
+      "finding": "no blocker"
+    },
+    {
+      "agent": "swarm_runtime",
+      "scope": "Trusted V1/V2 sustained context contract and changed callsites only",
+      "finding": "no blocker"
+    }
+  ],
+  "limitations": [
+    "No sustained execution or performance pass.",
+    "Original919 attempt2 p95 switch636.307604ms/input132.396006ms fail300/100ms targets and remain preserved.",
+    "The earlier actual Chromium recorder-mechanics test used mocked observer delivery; it was not repeated in this browser-free batch.",
+    "Future latency diagnostic additions require their own source/check receipt.",
+    "V2 workload deliberately does not fabricate a successful worker handoff report."
+  ]
+}

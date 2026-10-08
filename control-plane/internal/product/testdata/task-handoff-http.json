@@ -1,0 +1,183 @@
+{
+  "captured": {
+    "operation": {
+      "childId": "s-12345678",
+      "id": "op-fixture",
+      "requestDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "taskId": "task-a",
+      "worktreeId": "worktree-fixture"
+    },
+    "response": {
+      "handoff": {
+        "answers": [
+          {
+            "answer": "Keep 30 days; the reviewed assignment still applies.",
+            "answeredAt": "2026-01-01T00:00:00Z",
+            "attribution": "project-editor",
+            "questionId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "integration": null,
+        "operationId": "op-fixture",
+        "projectId": "project-fixture",
+        "questionIds": [
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ],
+        "receipt": {
+          "capturedAt": "2026-01-01T00:00:00Z",
+          "childId": "s-12345678",
+          "contextDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "implementationDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "operationId": "op-fixture",
+          "projectId": "project-fixture",
+          "reported": {
+            "changedFiles": [
+              "alpha.txt"
+            ],
+            "decisions": [
+              {
+                "decision": "Use one component",
+                "rationale": "Avoid duplicate state"
+              }
+            ],
+            "limitations": [
+              "Worker claims require review"
+            ],
+            "questions": [
+              {
+                "blocking": true,
+                "impact": "Data lifecycle",
+                "question": "Which retention period?"
+              }
+            ],
+            "reportedChecks": [
+              {
+                "command": "worker-check",
+                "detail": "Worker could not establish a result",
+                "outcome": "unknown"
+              }
+            ],
+            "summary": "Worker reports the requested component",
+            "version": 1
+          },
+          "requestDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "runId": "run-fixture",
+          "sourceCommit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "sourceDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "sourceDirty": false,
+          "status": "captured",
+          "taskId": "task-a",
+          "version": 1,
+          "worktreeId": "worktree-fixture"
+        },
+        "recordedChecks": [
+          {
+            "approvals": {
+              "briefDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "designApprovalId": "approval-design-fixture",
+              "designDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "designRevision": 2,
+              "sketchDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "specificationApprovalId": "approval-specification-fixture",
+              "specificationDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "specificationRevision": 2
+            },
+            "checkId": "check-wire-contract",
+            "commands": [
+              {
+                "args": null,
+                "executable": "fixture-check",
+                "exitCode": 0,
+                "label": "Controlled recorded command",
+                "status": "passed"
+              }
+            ],
+            "commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "execution": "host",
+            "joinedAt": "2026-01-01T00:00:00Z",
+            "originalAvailable": true,
+            "projectId": "project-fixture",
+            "requirements": [
+              {
+                "acceptance": "Given saved work, reopening returns its exact contents.",
+                "id": "AC-save",
+                "title": "Restore saved work"
+              }
+            ],
+            "sourceDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "runId": "run-fixture",
+        "status": "captured",
+        "taskId": "task-a"
+      }
+    }
+  },
+  "missing": {
+    "operation": {
+      "childId": "s-12345678",
+      "id": "op-fixture",
+      "requestDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "taskId": "task-a",
+      "worktreeId": "worktree-fixture"
+    },
+    "response": {
+      "handoff": {
+        "answers": [],
+        "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "integration": null,
+        "operationId": "op-fixture",
+        "projectId": "project-fixture",
+        "questionIds": [],
+        "receipt": {
+          "capturedAt": "2026-01-01T00:00:00Z",
+          "childId": "s-12345678",
+          "contextDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "implementationDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "operationId": "op-fixture",
+          "projectId": "project-fixture",
+          "reasonCode": "task_report_missing",
+          "reported": null,
+          "requestDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "runId": "run-fixture",
+          "sourceCommit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "sourceDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "sourceDirty": false,
+          "status": "missing",
+          "taskId": "task-a",
+          "version": 1,
+          "worktreeId": "worktree-fixture"
+        },
+        "recordedChecks": [],
+        "runId": "run-fixture",
+        "status": "missing",
+        "taskId": "task-a"
+      }
+    }
+  },
+  "notRecorded": {
+    "operation": {
+      "childId": "s-12345678",
+      "id": "op-fixture",
+      "requestDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "taskId": "task-a",
+      "worktreeId": "worktree-fixture"
+    },
+    "response": {
+      "handoff": {
+        "answers": [],
+        "integration": null,
+        "operationId": "op-fixture",
+        "projectId": "project-fixture",
+        "questionIds": [],
+        "receipt": null,
+        "recordedChecks": [],
+        "runId": "run-fixture",
+        "status": "not-recorded",
+        "taskId": "task-a"
+      }
+    }
+  }
+}

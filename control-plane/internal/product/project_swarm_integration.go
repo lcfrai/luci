@@ -13,15 +13,16 @@ import (
 
 type ProjectSwarmReview struct {
 	targetDigest string
-	TaskID       string   `json:"taskId"`
-	OperationID  string   `json:"operationId"`
-	SourceCommit string   `json:"sourceCommit"`
-	TargetCommit string   `json:"targetCommit"`
-	ReviewDigest string   `json:"reviewDigest"`
-	Paths        []string `json:"paths"`
-	Patch        string   `json:"patch"`
-	CanIntegrate bool     `json:"canIntegrate"`
-	Reason       string   `json:"reason"`
+	TaskID       string                `json:"taskId"`
+	OperationID  string                `json:"operationId"`
+	SourceCommit string                `json:"sourceCommit"`
+	TargetCommit string                `json:"targetCommit"`
+	ReviewDigest string                `json:"reviewDigest"`
+	Paths        []string              `json:"paths"`
+	Patch        string                `json:"patch"`
+	CanIntegrate bool                  `json:"canIntegrate"`
+	Reason       string                `json:"reason"`
+	Handoff      *TaskHandoffReference `json:"handoff,omitempty"`
 }
 
 func (s *Server) swarmReview(ctx context.Context, p project.Project, run ProjectRun, taskID string) (ProjectSwarmReview, error) {
@@ -35,6 +36,7 @@ func (s *Server) swarmReview(ctx context.Context, p project.Project, run Project
 		return review, errors.New("Start this task's isolated attempt before reviewing its changes.")
 	}
 	review.OperationID = op.ID
+	review.Handoff = op.Handoff
 	if op.Allocation != "ready" {
 		return review, errors.New("The task checkout allocation has an unknown outcome. Inspect it without replaying allocation.")
 	}
@@ -113,7 +115,19 @@ func (s *Server) swarmReview(ctx context.Context, p project.Project, run Project
 		return review, errors.New("The patch exceeds the complete review limit. Split the task before integrating; no truncated patch is accepted.")
 	}
 	review.Patch = patch
-	review.ReviewDigest = implementationDigest(struct{ Source, Target, Base, Task, Operation, Patch string }{source.Digest, target.Digest, op.BaseCommit, task.ID, op.ID, patch})
+	handoffDigest := ""
+	if op.Handoff != nil {
+		view, err := s.projectRuns.taskHandoffView(run, *op)
+		if err != nil {
+			return review, err
+		}
+		if view.Receipt.SourceCommit != source.Head || view.Receipt.SourceDirty {
+			review.Reason = "The retained report was captured against different source. Refresh the task handoff, then review these changes again."
+			return review, nil
+		}
+		handoffDigest = op.Handoff.Digest
+	}
+	review.ReviewDigest = implementationDigest(struct{ Source, Target, Base, Task, Operation, Patch, Handoff string }{source.Digest, target.Digest, op.BaseCommit, task.ID, op.ID, patch, handoffDigest})
 	switch {
 	case target.Head != swarmExpectedHead(run):
 		review.Reason = "The main source moved outside this swarm's reviewed integrations. Prepare a new run for the changed source."
@@ -203,6 +217,14 @@ func (s *Server) integrateProjectSwarmTask(w http.ResponseWriter, r *http.Reques
 		projectRunProblem(w, ErrProjectRunConflict)
 		return
 	}
+	task := swarmTask(&run, r.PathValue("taskId"))
+	if task != nil && s.taskHandoffCollector != nil && swarmOperation(&run, task.OperationID) != nil && swarmOperation(&run, task.OperationID).DependencyContext != nil {
+		run, err = s.captureTaskHandoff(r.Context(), p.Path, run, task.OperationID, false, true)
+		if err != nil {
+			projectRunProblem(w, err)
+			return
+		}
+	}
 	review, err := s.swarmReview(r.Context(), p, run, r.PathValue("taskId"))
 	if err != nil {
 		projectRunProblem(w, err)
@@ -234,6 +256,9 @@ func (s *Server) integrateProjectSwarmTask(w http.ResponseWriter, r *http.Reques
 	}
 	run, err = s.projectRuns.mutateSwarm(p.ID, p.Path, run.ID, run.Revision, func(run *ProjectRun) error {
 		swarmTask(run, taskID).Integration = &ProjectSwarmIntegration{State: "integrating", SourceCommit: review.SourceCommit, TargetCommit: review.TargetCommit, ReviewDigest: review.ReviewDigest}
+		if op.Handoff != nil {
+			swarmTask(run, taskID).Integration.HandoffDigest = op.Handoff.Digest
+		}
 		return nil
 	})
 	if err != nil {

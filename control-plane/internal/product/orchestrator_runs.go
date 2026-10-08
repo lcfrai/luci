@@ -79,9 +79,17 @@ func orchestratorActivityPriority(activity string) int {
 // ProjectRunStore.List is newest-created first. Preserve that useful latest
 // plan separately from every still-unfinished immutable execution scope.
 func orchestratorRunProjection(runs []ProjectRun, state journeyState) (*OrchestratorRunSummary, []OrchestratorRunSummary) {
+	return orchestratorRunProjectionWithHandoffs(runs, state, 0)
+}
+
+func orchestratorRunProjectionWithHandoffs(runs []ProjectRun, state journeyState, handoffBytes int) (*OrchestratorRunSummary, []OrchestratorRunSummary) {
 	var latest *OrchestratorRunSummary
 	active := []OrchestratorRunSummary{}
-	remaining := orchestratorRunScopeLimit
+	remaining := orchestratorRunScopeLimit - handoffBytes
+	// Attention identities share the existing run-detail budget. They must not
+	// push a legal, dense history over the assistant snapshot limit.
+	attention, _ := json.MarshalIndent(projectRunAttentionProjection(runs, state), "", "  ")
+	remaining -= len(attention)
 	// Prioritize the exact scope of unfinished children over a newer plan. The
 	// remaining summaries keep every identity and explicit scope counts, never
 	// silently substitute the mutable current plan for omitted immutable text.

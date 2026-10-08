@@ -72,6 +72,46 @@ it("accepts the authoritative active-run next action and rejects a target absent
   request.mockResolvedValue(view({ context: snapshot, nextAction: { ...nextAction, runId: "unrelated-run" } }));
   await expect(orchestratorApi.get("p-1")).rejects.toThrow("could not be verified");
 });
+
+it("accepts an older review obligation as the exact next action without inventing activity", async () => {
+  const snapshot = context();
+  snapshot.currentRun = { id: "latest-ready", state: "ready", valid: false, reason: "Prepared", activity: "none" };
+  snapshot.activeRuns = [];
+  snapshot.needsAttention = [{ id: "older-review", state: "awaiting-checks", kind: "task-review", contextStatus: "changed" }];
+  const nextAction = { id: "inspect-run", label: "Review earlier task changes", reason: "Recorded obligation", lens: "develop" as const, runId: "older-review" };
+  const request = vi.spyOn(productApi, "request").mockResolvedValue(view({ context: snapshot, nextAction }));
+  const result = await orchestratorApi.get("p-1");
+  expect(result.nextAction.runId).toBe("older-review");
+  expect(result.context.activeRuns).toEqual([]);
+  expect(result.context.needsAttention).toEqual(snapshot.needsAttention);
+  expect(request).toHaveBeenCalledExactlyOnceWith("/v1/product/projects/p-1/orchestrator");
+  request.mockResolvedValue(view({ context: snapshot, nextAction: { ...nextAction, runId: "outside-project-projection" } }));
+  await expect(orchestratorApi.get("p-1")).rejects.toThrow("could not be verified");
+});
+it("retains unintegrated task output after future dispatch is cancelled", async () => {
+  const snapshot = context();
+  snapshot.needsAttention = [{ id: "cancelled-parent", state: "cancelled", kind: "task-review", contextStatus: "current" }];
+  vi.spyOn(productApi, "request").mockResolvedValue(view({ context: snapshot }));
+  expect((await orchestratorApi.get("p-1")).context.needsAttention).toEqual(snapshot.needsAttention);
+});
+it.each(["complete", "cancelled"])("retains unanswered agent questions from a %s build as exact review navigation", async state => {
+  const snapshot = context();
+  snapshot.needsAttention = [{ id: "retained-question-run", state, kind: "task-question", contextStatus: "changed" }];
+  vi.spyOn(productApi, "request").mockResolvedValue(view({ context: snapshot, nextAction: { id: "inspect-run", label: "Review reported task questions", reason: "Retained reported uncertainty", lens: "develop", runId: "retained-question-run" } }));
+  const result = await orchestratorApi.get("p-1");
+  expect(result.nextAction.runId).toBe("retained-question-run");
+  expect(result.context.needsAttention).toEqual(snapshot.needsAttention);
+});
+const reviewObligation = { id: "earlier", state: "awaiting-checks", kind: "verification", contextStatus: "current" };
+it.each([
+  null, [null], [reviewObligation, reviewObligation], [{ ...reviewObligation, id: "" }],
+  [{ ...reviewObligation, state: "complete" }], [{ ...reviewObligation, state: "cancelled" }],
+  [{ ...reviewObligation, kind: "running" }], [{ ...reviewObligation, contextStatus: "verified" }],
+  Array.from({ length: 201 }, (_, index) => ({ ...reviewObligation, id: String(index) })),
+])("rejects invalid review projections without treating their identities as navigation authority", async needsAttention => {
+  vi.spyOn(productApi, "request").mockResolvedValue(view({ context: { ...context(), needsAttention } as never }));
+  await expect(orchestratorApi.get("p-1")).rejects.toThrow("could not be verified");
+});
 it.each([
   null, [pendingBuild(), pendingBuild()], [{ ...pendingBuild(), activity: "none" }],
   [{ ...pendingBuild(), dispatchCancelled: undefined }], [{ ...pendingBuild(), operations: [] }],

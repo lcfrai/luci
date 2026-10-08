@@ -69,6 +69,7 @@ func (s *Server) overviewStamps(p project.Project) [6]overviewFileStamp {
 }
 func copyProjectOverview(value ProjectOverview) ProjectOverview {
 	value.Questions.Items = append([]ProjectOverviewQuestion{}, value.Questions.Items...)
+	value.Attention.Items = append([]ProjectRunAttention{}, value.Attention.Items...)
 	value.Limitations = append([]string{}, value.Limitations...)
 	return value
 }

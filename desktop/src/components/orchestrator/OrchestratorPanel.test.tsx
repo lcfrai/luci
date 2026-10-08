@@ -789,6 +789,47 @@ it("clears private conversation on logout and reads without inviting execution f
   expect(orchestratorApi.send).not.toHaveBeenCalled();
 });
 
+it.each([401, 403])("clears current and earlier private reads on confirmed HTTP %i while preserving the unsent draft", async status => {
+  const snapshot = context();
+  snapshot.needsAttention = [{ id: "private-review-build", state: "awaiting-checks", kind: "task-review", contextStatus: "current" }];
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ context: snapshot, turns: [turn({ message: "Current private discussion" })], hasEarlier: true, beforeSequence: 5 }));
+  render(<OrchestratorPanel projectId="p-1" />); await ready();
+  await userEvent.type(screen.getByLabelText("Message Luci"), "My unsent amendment");
+  const draft = readComposerRecovery(decisionScope()).draft;
+  vi.mocked(orchestratorApi.get).mockResolvedValueOnce(view({ turns: [turn({ id: "earlier-private", sequence: 1, message: "Older private discussion" })], hasEarlier: false }));
+  await userEvent.click(screen.getByRole("button", { name: "Show earlier conversation" }));
+  await screen.findByText("Older private discussion");
+  vi.mocked(orchestratorApi.get).mockRejectedValueOnce(new ApiError("internal", "Project read access revoked", status));
+  await userEvent.click(screen.getByRole("button", { name: "Refresh project understanding" }));
+  await screen.findByText("Project read access revoked");
+  expect(screen.queryByText("private-review-build")).toBeNull();
+  expect(screen.queryByText("Current private discussion")).toBeNull();
+  expect(screen.queryByText("Older private discussion")).toBeNull();
+  expect((screen.getByLabelText("Message Luci") as HTMLTextAreaElement).value).toBe("My unsent amendment");
+  expect(readComposerRecovery(decisionScope()).draft).toEqual(draft);
+  expect(screen.getByRole("button", { name: "Send to Luci" })).toHaveProperty("disabled", true);
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
+it("labels review context as stale and disables its derived actions until a failed refresh succeeds", async () => {
+  const snapshot = context();
+  snapshot.needsAttention = [{ id: "recorded-review", state: "awaiting-checks", kind: "verification", contextStatus: "current" }];
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ context: snapshot }));
+  render(<OrchestratorPanel projectId="p-1" />); await ready();
+  let fail!: (cause: Error) => void;
+  vi.mocked(orchestratorApi.get).mockReturnValueOnce(new Promise((_resolve, reject) => { fail = reject; }));
+  await userEvent.click(screen.getByRole("button", { name: "Refresh project understanding" }));
+  expect(screen.getByRole("button", { name: "Review design" })).toHaveProperty("disabled", true);
+  expect(screen.getByRole("region", { name: "Last recorded review work" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Inspect recorded-review: Verification to complete" })).toBeNull();
+  await act(async () => fail(new Error("Read interrupted")));
+  await screen.findByText("Read interrupted");
+  expect(screen.getByRole("button", { name: "Review design" })).toHaveProperty("disabled", true);
+  await userEvent.click(screen.getByRole("button", { name: "Refresh project understanding" }));
+  await screen.findByRole("region", { name: "Recorded review work" });
+  expect(screen.getByRole("button", { name: "Review design" })).toHaveProperty("disabled", false);
+});
+
 it("does not replace newer current turns or context with a late historical page", async () => {
   const current = view({ revision: 8, turns: [turn({ sequence: 21, id: "latest", message: "Current decision" })], hasEarlier: true, beforeSequence: 21 });
   vi.mocked(orchestratorApi.get).mockResolvedValue(current);

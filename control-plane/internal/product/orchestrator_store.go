@@ -221,7 +221,10 @@ func (s *Server) orchestratorSnapshotLocked(ctx context.Context, p project.Proje
 		if err != nil {
 			return value, ErrOrchestratorInvalid
 		}
-		value.CurrentRun, value.ActiveRuns = orchestratorRunProjection(runs, state)
+		value.TaskHandoffs = s.projectRuns.orchestratorHandoffs(runs)
+		handoff, _ := json.MarshalIndent(value.TaskHandoffs, "", "  ")
+		value.CurrentRun, value.ActiveRuns = orchestratorRunProjectionWithHandoffs(runs, state, len(handoff))
+		value.NeedsAttention = projectRunAttentionProjection(runs, state)
 	}
 	return value, nil
 }

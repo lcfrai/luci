@@ -30,6 +30,9 @@ func (s *Server) requireNoSwarmPendingLaunch(ctx context.Context, run ProjectRun
 	// BeginProjectRunSession changes reserved to dispatching under this same
 	// dispatch exclusion before any execution claim or backend request. An
 	// untouched reservation therefore has no launch to query or retire.
+	if unstartedSwarmCheckpoint(run, *op) {
+		return nil
+	}
 	if op.Status == "reserved" && op.LaunchRecovery == nil {
 		return nil
 	}

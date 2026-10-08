@@ -46,6 +46,101 @@ it('opens the exact overview run in its project scope instead of a previous insp
   expect(useCockpit.getState().projectRunInspection).toEqual({ scope: 'account-one:p1', projectId: 'p1', runId: 'run-latest', refresh: true });
   expect(swarmQueueApi.control).not.toHaveBeenCalled();
 });
+
+function withReviewWork(): ProjectOverview {
+  const result = overview('p1');
+  result.execution = { ...result.execution, running: 0, queued: 0 };
+  result.latestRun = { status: 'recorded', id: 'newest-prepared', state: 'ready', contextStatus: 'current' };
+  result.attention = { status: 'recorded', count: 4, omitted: 1, items: [
+    { id: 'earlier-task-review', state: 'awaiting-checks', kind: 'task-review', contextStatus: 'current' },
+    { id: 'earlier-verification', state: 'awaiting-checks', kind: 'verification', contextStatus: 'changed' },
+    { id: 'earlier-release', state: 'awaiting-release', kind: 'release-review', contextStatus: 'unavailable' },
+  ] };
+  return result;
+}
+it('shows older review work beside zero queue activity and opens its exact run without a mutation', async () => {
+  vi.mocked(projectOverviewApi.get).mockResolvedValue(withReviewWork());
+  const user = userEvent.setup(); render(<ProjectOverviewBoard projects={[projects[0]]} />);
+  const attention = await screen.findByRole('region', { name: 'Recorded review work' });
+  expect(within(attention).getByText(/4 builds need review/)).toBeTruthy();
+  expect(within(attention).getAllByRole('button', { name: /^Inspect / })).toHaveLength(1);
+  expect(within(attention).queryByText('earlier-verification')).toBeNull();
+  await user.click(within(attention).getByRole('button', { name: 'Show more review work (2 remaining)' }));
+  expect(within(attention).getAllByRole('button', { name: /^Inspect / })).toHaveLength(3);
+  expect(within(attention).getByText('Matches current context')).toBeTruthy();
+  expect(within(attention).getByText('Context has changed')).toBeTruthy();
+  expect(within(attention).getByText('Context comparison unavailable')).toBeTruthy();
+  expect(within(attention).getByText('1 more build needs review beyond this summary.')).toBeTruthy();
+  expect(within(screen.getByLabelText('Recorded swarm queue activity')).getAllByText('0')).toHaveLength(3);
+  await user.click(within(attention).getByRole('button', { name: 'Inspect earlier-verification: Verification to complete' }));
+  expect(useCockpit.getState().projectRunInspection).toEqual({ scope: 'account-one:p1', projectId: 'p1', runId: 'earlier-verification', refresh: true });
+  await user.click(within(attention).getByRole('button', { name: 'See all saved builds' }));
+  expect(useCockpit.getState().projectRunInspection).toBeNull();
+  expect(useCockpit.getState().selection.projectId).toBe('p1');
+  expect(useCockpit.getState().lens).toBe('develop');
+  expect(swarmQueueApi.control).not.toHaveBeenCalled();
+});
+it('keeps an older review target behind the normal unsaved-draft guard', async () => {
+  vi.mocked(projectOverviewApi.get).mockResolvedValue(withReviewWork());
+  useCockpit.getState().selectProject('p2', 'design');
+  useCockpit.getState().setUnsavedProjectDraft('design', { projectId: 'p2', label: 'Design', lens: 'design' });
+  const user = userEvent.setup(); render(<ProjectOverviewBoard projects={[projects[0]]} />);
+  await user.click(await screen.findByRole('button', { name: 'Inspect earlier-task-review: Task changes to review' }));
+  expect(useCockpit.getState().selection.projectId).toBe('p2');
+  expect(useCockpit.getState().pendingNavigation).toEqual({ kind: 'project', projectId: 'p1', lens: 'develop' });
+  expect(useCockpit.getState().projectRunInspection?.runId).toBe('earlier-task-review');
+  act(() => useCockpit.getState().cancelNavigation());
+  expect(useCockpit.getState().projectRunInspection).toBeNull();
+});
+it('exposes unresolved reported questions on an accepted build and opens that exact older run', async () => {
+  const result = withReviewWork(); result.attention = { status: 'recorded', count: 1, omitted: 0, items: [{ id: 'accepted-with-questions', state: 'complete', kind: 'task-question', contextStatus: 'changed' }] };
+  vi.mocked(projectOverviewApi.get).mockResolvedValue(result);
+  render(<ProjectOverviewBoard projects={[projects[0]]} />);
+  await screen.findByText('Accepted build; reported questions still need review.');
+  expect(screen.getByText(/does not authorize or block execution/)).not.toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Inspect accepted-with-questions: Review reported task questions' }));
+  expect(useCockpit.getState().projectRunInspection?.runId).toBe('accepted-with-questions');
+  expect(swarmQueueApi.control).not.toHaveBeenCalled();
+});
+it('avoids duplicating the visible exact-run review action while preserving a different next destination', async () => {
+  const result = withReviewWork();result.nextAction={id:'inspect-run',label:'Review older task changes',lens:'develop',runId:'earlier-task-review'};
+  vi.mocked(projectOverviewApi.get).mockResolvedValue(result);
+  render(<ProjectOverviewBoard projects={[projects[0]]}/>);
+  await screen.findByRole('button',{name:'Inspect earlier-task-review: Task changes to review'});
+  expect(screen.queryByRole('button',{name:'Review older task changes'})).toBeNull();
+  expect(screen.getByRole('heading',{name:'4 builds need review'})).not.toBeNull();
+  vi.mocked(projectOverviewApi.get).mockResolvedValue({...result,nextAction:{...result.nextAction,runId:'earlier-release',label:'Review the older release'}});
+  await userEvent.click(screen.getByRole('button',{name:'Refresh overview'}));
+  await userEvent.click(await screen.findByRole('button',{name:'Review the older release'}));
+  expect(useCockpit.getState().projectRunInspection?.runId).toBe('earlier-release');
+});
+it('labels retained review work as historical during source preparation and clears it on permission failure', async () => {
+  vi.mocked(projectOverviewApi.get).mockResolvedValue(withReviewWork());
+  const user = userEvent.setup(); render(<ProjectOverviewBoard projects={[projects[0]]} />);
+  await screen.findByRole('region', { name: 'Recorded review work' });
+  vi.mocked(projectOverviewApi.get).mockRejectedValueOnce(new ApiError('branch_busy' as ProblemCode, 'Source preparation', 409));
+  await user.click(screen.getByRole('button', { name: 'Refresh overview' }));
+  const retained = await screen.findByRole('region', { name: 'Last recorded review work' });
+  expect(within(retained).getByText('Last recorded: Matches current context')).toBeTruthy();
+  expect(within(retained).queryByRole('button', { name: /^Inspect / })).toBeNull();
+  vi.mocked(projectOverviewApi.get).mockRejectedValueOnce(new ApiError('permission_denied' as ProblemCode, 'Access revoked', 403));
+  await user.click(screen.getByRole('button', { name: 'Refresh overview' }));
+  await screen.findByText('Summary unavailable. Access revoked');
+  expect(screen.queryByText('earlier-task-review')).toBeNull();
+  expect(screen.queryByRole('region', { name: /recorded review work/i })).toBeNull();
+});
+it('clears review identities immediately when the account changes and rejects a late old-scope summary', async () => {
+  let resolve!: (value: ProjectOverview) => void;
+  vi.mocked(projectOverviewApi.get).mockResolvedValueOnce(withReviewWork()).mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+  const user = userEvent.setup(), rendered = render(<ProjectOverviewBoard projects={[projects[0]]} />);
+  await screen.findByText('earlier-task-review');
+  await user.click(screen.getByRole('button', { name: 'Refresh overview' }));
+  environment.scope = 'other-account';
+  rendered.rerender(<ProjectOverviewBoard projects={[projects[0]]} />);
+  expect(screen.queryByText('earlier-task-review')).toBeNull();
+  await act(async () => resolve(withReviewWork()));
+  expect(screen.queryByText('earlier-task-review')).toBeNull();
+});
 it('keeps exact-run navigation behind the draft guard and discards it on cancellation', async () => {
   const value = overview('p1'); value.nextAction = { id: 'inspect-run', label: 'Inspect blocked run', lens: 'develop', runId: 'run-latest' };
   vi.mocked(projectOverviewApi.get).mockResolvedValue(value);

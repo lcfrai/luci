@@ -1,0 +1,39 @@
+{
+  "passed": true,
+  "startedAt": "2026-10-08T13:55:53.733Z",
+  "finishedAt": "2026-10-08T13:55:57.863Z",
+  "scope": "One actual-source checkpoint-success keyboard focus diagnostic in Linux Chromium, with controlled reservation callback. No native/backend claim.",
+  "limitations": [
+    "No installed-package, native Windows, real backend, Docker, agent or model evidence.",
+    "Recorded answer/checkpoint responses here are fixture callbacks, not actual persistent mutations.",
+    "Automated axe and keyboard/geometry checks do not establish full accessibility certification."
+  ],
+  "browserVersion": "151.0.7922.173",
+  "sourceUnchanged": true,
+  "cleanup": [
+    "owned Chromium closed",
+    "owned Vite server closed",
+    "private profile removed"
+  ],
+  "sourceReportSHA256": "61aa4724b8d88c57b0fe9ebde6f97f3fcc2f89655112d06b7127ed765007dc15",
+  "inputs": {
+    "file": "keyboard-focus-after-inputs.json",
+    "sha256": "51f0e98e54f101c78ae9444b827e5bf092fd026dde8cc8f54076136b86de153d",
+    "count": 432
+  },
+  "sourceDirty": true,
+  "sourceAttribution": "Controlled source component fixture; accompanying hash map identifies tested bytes. No native/installed/backend claim.",
+  "checks": [
+    {
+      "label": "checkpoint-success-focus",
+      "starts": 0,
+      "successorFocused": true,
+      "focus": {
+        "tag": "BUTTON",
+        "text": "Continue reserved task"
+      }
+    }
+  ],
+  "checkpointCount": 1,
+  "browserErrorCount": 0
+}

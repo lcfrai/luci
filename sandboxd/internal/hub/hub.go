@@ -12,16 +12,6 @@ import (
 	"github.com/lcfrai/luci/sandboxd/internal/ring"
 )
 
-// Each PTY chunk is at most 32 KiB, so a subscriber retains at most 1 MiB.
-// A full queue disconnects that view explicitly; it never stalls the agent or
-// joins later output onto a terminal transcript with a silent gap.
-const subscriberBuffer = 32
-
-type subscriber struct {
-	out      chan []byte
-	overflow chan struct{}
-}
-
 // Config describes the process the hub runs.
 type Config struct {
 	Command    string
@@ -71,9 +61,7 @@ func (h *Hub) pump() {
 	for {
 		n, err := h.sess.Read(buf)
 		if n > 0 {
-			chunk := make([]byte, n)
-			copy(chunk, buf[:n])
-			h.publish(chunk)
+			h.publish(buf[:n])
 		}
 		if err != nil {
 			h.finish(h.reapExitReason())
@@ -91,12 +79,8 @@ func (h *Hub) publish(chunk []byte) {
 	defer h.mu.Unlock()
 	h.buf.Write(chunk)
 	for id, sub := range h.subs {
-		select {
-		case sub.out <- chunk:
-		default:
+		if !sub.enqueue(chunk) {
 			delete(h.subs, id)
-			close(sub.overflow)
-			close(sub.out)
 		}
 	}
 }
@@ -124,15 +108,9 @@ func (h *Hub) finish(reason string) {
 		// already gone. Holding mu across the close is safe because close
 		// never blocks and nothing waits on done under mu.
 		//
-		// The subscriber channels are detached from the map under the lock
-		// but closed after it. Detaching under the lock is what keeps that
-		// safe: a concurrent publish only ever ranges over the new empty
-		// map, so it cannot send on a channel about to close, and cancel's
-		// h.subs[id] lookup misses, so it cannot close one twice. Closing
-		// them here, after close(h.done), also orders the two for a reader:
-		// close(ch) synchronizes-before the receive that observes it closed,
-		// so by transitivity that reader's non-blocking Done check sees done
-		// closed.
+		// Remove subscriptions while publishing is excluded. Their relays drain
+		// accepted bytes, then close out only after done is already closed.
+		// A later cancel still stops that relay even though it left the map.
 		h.mu.Lock()
 		h.exitReason = reason
 		h.closed = true
@@ -142,7 +120,7 @@ func (h *Hub) finish(reason string) {
 		h.mu.Unlock()
 
 		for _, sub := range subs {
-			close(sub.out)
+			sub.finish()
 		}
 	})
 }
@@ -164,27 +142,25 @@ func (h *Hub) Subscribe() (replay []byte, out <-chan []byte, cancel func()) {
 func (h *Hub) SubscribeWithOverflow() (replay []byte, out <-chan []byte, overflow <-chan struct{}, cancel func()) {
 	h.mu.Lock()
 	snapshot := h.buf.Snapshot()
-	ch := make(chan []byte, subscriberBuffer)
-	full := make(chan struct{})
 	if h.closed {
 		h.mu.Unlock()
+		ch := make(chan []byte)
 		close(ch)
-		return snapshot, ch, full, func() {}
+		return snapshot, ch, make(chan struct{}), func() {}
 	}
+	sub := newSubscriber()
 	id := h.nextID
 	h.nextID++
-	h.subs[id] = &subscriber{out: ch, overflow: full}
+	h.subs[id] = sub
 	h.mu.Unlock()
 
 	var once sync.Once
-	return snapshot, ch, full, func() {
+	return snapshot, sub.out, sub.overflow, func() {
 		once.Do(func() {
 			h.mu.Lock()
 			defer h.mu.Unlock()
-			if c, ok := h.subs[id]; ok {
-				delete(h.subs, id)
-				close(c.out)
-			}
+			delete(h.subs, id)
+			sub.cancel()
 		})
 	}
 }

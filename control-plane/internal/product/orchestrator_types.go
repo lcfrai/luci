@@ -45,6 +45,10 @@ type OrchestratorRunSummary struct {
 	Reason                string                      `json:"reason"`
 }
 type OrchestratorContext struct {
+	// Optional to preserve earlier immutable snapshot digests.
+	TaskHandoffs *OrchestratorTaskHandoffs `json:"taskHandoffs,omitempty"`
+	// Recorded review obligations are distinct from unfinished execution.
+	NeedsAttention  []ProjectRunAttention    `json:"needsAttention,omitempty"`
 	ProjectID       string                   `json:"projectId"`
 	Digest          string                   `json:"digest"`
 	Brief           Brief                    `json:"brief"`

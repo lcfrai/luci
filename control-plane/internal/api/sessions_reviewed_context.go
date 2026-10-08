@@ -59,6 +59,22 @@ var reviewedFiles = []string{
 	".luci/specification.md", "LUCI.md",
 }
 
+func reviewedFilesForBinding(binding *registry.ImplementationContext) ([]string, int, error) {
+	files := append([]string{}, reviewedFiles...)
+	if binding == nil {
+		return nil, 0, errors.New("missing reviewed binding")
+	}
+	if binding.DependencyContextDigest == "" {
+		return files, 1, nil
+	}
+	if !reviewedDigest.MatchString(binding.DependencyContextDigest) {
+		return nil, 0, errors.New("invalid dependency context digest")
+	}
+	files = append(files, ".luci/task-handoffs.json")
+	sort.Strings(files)
+	return files, 2, nil
+}
+
 // No session ID appears in the content identity: a resumed session receives an
 // independent byte-identical copy, whose deletion cannot affect its source.
 // Source* remains on ImplementationContext in the registry: fresh code may be
@@ -96,16 +112,20 @@ func (a *API) reviewedContextPath(sessionID string) (string, error) {
 }
 
 func reviewedManifest(capture *product.ReviewedContextCapture) ([]byte, *registry.ReviewedContext, error) {
-	if capture == nil || capture.Binding == nil || len(capture.Files) != len(reviewedFiles) {
+	if capture == nil || capture.Binding == nil {
 		return nil, nil, errors.New("incomplete reviewed context")
 	}
-	manifest := reviewedContextManifest{Version: 1, Binding: reviewedContextBinding(capture.Binding), Files: []reviewedContextManifestFile{}}
+	expected, version, err := reviewedFilesForBinding(capture.Binding)
+	if err != nil || len(capture.Files) != len(expected) {
+		return nil, nil, errors.New("incomplete reviewed context")
+	}
+	manifest := reviewedContextManifest{Version: version, Binding: reviewedContextBinding(capture.Binding), Files: []reviewedContextManifestFile{}}
 	files := append([]product.ReviewedContextFile{}, capture.Files...)
 	sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
 	total := 0
 	for i, file := range files {
 		total += len(file.Data)
-		if file.Path != reviewedFiles[i] || total > product.ReviewedContextBytesLimit {
+		if file.Path != expected[i] || total > product.ReviewedContextBytesLimit {
 			return nil, nil, errors.New("invalid or oversized reviewed context")
 		}
 		manifest.Files = append(manifest.Files, reviewedContextManifestFile{Path: file.Path, Bytes: len(file.Data), Digest: reviewedHash(file.Data)})
@@ -115,7 +135,7 @@ func reviewedManifest(capture *product.ReviewedContextCapture) ([]byte, *registr
 		return nil, nil, errors.New("invalid reviewed context manifest")
 	}
 	data = append(data, '\n')
-	return data, &registry.ReviewedContext{Version: 1, Digest: reviewedHash(data)}, nil
+	return data, &registry.ReviewedContext{Version: version, Digest: reviewedHash(data)}, nil
 }
 
 // The exclusive per-session directory is not visible in any sandbox until all
@@ -208,7 +228,8 @@ func reviewedReadFile(root *os.Root, dir, name string, limit int64) ([]byte, err
 }
 
 func (a *API) readReviewedContext(sessionID string, binding *registry.ImplementationContext, descriptor *registry.ReviewedContext) (*product.ReviewedContextCapture, error) {
-	if binding == nil || descriptor == nil || descriptor.Version != 1 || !reviewedDigest.MatchString(descriptor.Digest) {
+	expected, version, bindingErr := reviewedFilesForBinding(binding)
+	if bindingErr != nil || descriptor == nil || descriptor.Version != version || !reviewedDigest.MatchString(descriptor.Digest) {
 		return nil, errors.New("This reviewed session has no verified frozen context. Start a new reviewed run from the current plan; its history and stop controls remain available.")
 	}
 	dir, err := a.reviewedContextPath(sessionID)
@@ -233,7 +254,7 @@ func (a *API) readReviewedContext(sessionID string, binding *registry.Implementa
 	var manifest reviewedContextManifest
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&manifest) != nil || manifest.Version != 1 || !reflect.DeepEqual(manifest.Binding, reviewedContextBinding(binding)) || len(manifest.Files) != len(reviewedFiles) {
+	if decoder.Decode(&manifest) != nil || manifest.Version != version || !reflect.DeepEqual(manifest.Binding, reviewedContextBinding(binding)) || len(manifest.Files) != len(expected) {
 		return nil, errors.New("reviewed context does not match this session's selected inputs")
 	}
 	var trailing any
@@ -244,7 +265,7 @@ func (a *API) readReviewedContext(sessionID string, binding *registry.Implementa
 	capture := &product.ReviewedContextCapture{Binding: binding.Clone(), Files: []product.ReviewedContextFile{}}
 	total := 0
 	for i, file := range manifest.Files {
-		if file.Path != reviewedFiles[i] || file.Bytes < 0 || file.Bytes > product.ReviewedContextBytesLimit-total || !reviewedDigest.MatchString(file.Digest) {
+		if file.Path != expected[i] || file.Bytes < 0 || file.Bytes > product.ReviewedContextBytesLimit-total || !reviewedDigest.MatchString(file.Digest) {
 			return nil, errors.New("invalid reviewed context file inventory")
 		}
 		total += file.Bytes
@@ -296,7 +317,7 @@ func (a *API) removeReviewedContext(sessionID string) error {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	names := append(append([]string{}, reviewedFiles...), "manifest.json")
+	names := append(append([]string{}, reviewedFiles...), ".luci/task-handoffs.json", "manifest.json")
 	for _, name := range names {
 		info, err := root.Lstat(name)
 		if errors.Is(err, os.ErrNotExist) {

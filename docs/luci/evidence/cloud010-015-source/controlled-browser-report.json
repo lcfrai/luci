@@ -1,0 +1,306 @@
+{
+  "passed": true,
+  "startedAt": "2026-10-08T13:54:11.544Z",
+  "finishedAt": "2026-10-08T13:54:33.459Z",
+  "scope": "Actual source compact Home and ProjectSwarm checkpoint/handoff components in Linux Chromium, with explicitly controlled API responses.",
+  "limitations": [
+    "No installed-package, native Windows, real backend, Docker, agent or model evidence.",
+    "Recorded answer/checkpoint responses here are fixture callbacks, not actual persistent mutations.",
+    "Automated axe and keyboard/geometry checks do not establish full accessibility certification."
+  ],
+  "browserVersion": "151.0.7922.173",
+  "sourceUnchanged": true,
+  "cleanup": [
+    "owned Chromium closed",
+    "owned Vite server closed",
+    "private profile removed"
+  ],
+  "sourceReportSHA256": "1b02d2d0f015300d8272b56d8da47f564e72cc2f6a3b623ec1e2f736e57b681c",
+  "inputs": {
+    "file": "controlled-browser-inputs.json",
+    "sha256": "d5982e24c55197f859f0647c1074e4b0f53d957c9089ae179452601d01c4163e",
+    "count": 435
+  },
+  "sourceDirty": true,
+  "sourceAttribution": "Controlled source component fixture; accompanying hash map identifies tested bytes. No native/installed/backend claim.",
+  "checks": [
+    {
+      "label": "compact-home-1440",
+      "geometry": {
+        "documentWidth": 1440,
+        "documentScrollWidth": 1440,
+        "dialogs": []
+      },
+      "axeViolations": []
+    },
+    {
+      "label": "home-card-1440",
+      "card": {
+        "height": 511.25,
+        "top": 186.578125
+      }
+    },
+    {
+      "label": "task-actions-1440",
+      "geometry": {
+        "documentWidth": 1440,
+        "documentScrollWidth": 1440,
+        "dialogs": []
+      },
+      "axeViolations": []
+    },
+    {
+      "label": "task-action-density-1440",
+      "card": {
+        "height": 272,
+        "visibleButtons": [
+          {
+            "label": "Review task changes",
+            "width": 165.828125,
+            "height": 36
+          },
+          {
+            "label": "Task result and questions",
+            "width": 194.140625,
+            "height": 36
+          }
+        ]
+      }
+    },
+    {
+      "label": "handoff-1440",
+      "geometry": {
+        "documentWidth": 1440,
+        "documentScrollWidth": 1440,
+        "dialogs": [
+          {
+            "width": 538,
+            "scrollWidth": 538,
+            "left": 450,
+            "right": 990
+          }
+        ]
+      },
+      "axeViolations": []
+    },
+    {
+      "label": "handoff-answer-1440",
+      "geometry": {
+        "documentWidth": 1440,
+        "documentScrollWidth": 1440,
+        "dialogs": [
+          {
+            "width": 538,
+            "scrollWidth": 538,
+            "left": 450,
+            "right": 990
+          }
+        ]
+      },
+      "axeViolations": []
+    },
+    {
+      "label": "checkpoint-1440",
+      "geometry": {
+        "documentWidth": 1440,
+        "documentScrollWidth": 1440,
+        "dialogs": [
+          {
+            "width": 538,
+            "scrollWidth": 538,
+            "left": 450,
+            "right": 990
+          }
+        ]
+      },
+      "axeViolations": []
+    },
+    {
+      "label": "controlled-mutations-1440",
+      "starts": 0,
+      "keyboardFocusTrap": true,
+      "handoffCloseRestoresFocus": true,
+      "checkpointSuccessFocusesSuccessor": true,
+      "controlledCallbackKinds": [
+        "answer",
+        "checkpoint"
+      ]
+    },
+    {
+      "label": "captured-v2-context-1440",
+      "geometry": {
+        "documentWidth": 1440,
+        "documentScrollWidth": 1440,
+        "dialogs": [
+          {
+            "width": 538,
+            "scrollWidth": 538,
+            "left": 450,
+            "right": 990
+          }
+        ]
+      },
+      "axeViolations": []
+    },
+    {
+      "label": "compact-home-390",
+      "geometry": {
+        "documentWidth": 390,
+        "documentScrollWidth": 390,
+        "dialogs": []
+      },
+      "axeViolations": []
+    },
+    {
+      "label": "home-card-390",
+      "card": {
+        "height": 569.03125,
+        "top": 222.578125
+      }
+    },
+    {
+      "label": "task-actions-390",
+      "geometry": {
+        "documentWidth": 390,
+        "documentScrollWidth": 390,
+        "dialogs": []
+      },
+      "axeViolations": []
+    },
+    {
+      "label": "task-action-density-390",
+      "card": {
+        "height": 434,
+        "visibleButtons": [
+          {
+            "label": "Review task changes",
+            "width": 165.828125,
+            "height": 44
+          },
+          {
+            "label": "Task result and questions",
+            "width": 194.140625,
+            "height": 44
+          }
+        ]
+      }
+    },
+    {
+      "label": "handoff-390",
+      "geometry": {
+        "documentWidth": 390,
+        "documentScrollWidth": 390,
+        "dialogs": [
+          {
+            "width": 356,
+            "scrollWidth": 356,
+            "left": 16,
+            "right": 374
+          }
+        ]
+      },
+      "axeViolations": []
+    },
+    {
+      "label": "handoff-answer-390",
+      "geometry": {
+        "documentWidth": 390,
+        "documentScrollWidth": 390,
+        "dialogs": [
+          {
+            "width": 356,
+            "scrollWidth": 356,
+            "left": 16,
+            "right": 374
+          }
+        ]
+      },
+      "axeViolations": []
+    },
+    {
+      "label": "checkpoint-390",
+      "geometry": {
+        "documentWidth": 390,
+        "documentScrollWidth": 390,
+        "dialogs": [
+          {
+            "width": 356,
+            "scrollWidth": 356,
+            "left": 16,
+            "right": 374
+          }
+        ]
+      },
+      "axeViolations": []
+    },
+    {
+      "label": "controlled-mutations-390",
+      "starts": 0,
+      "keyboardFocusTrap": true,
+      "handoffCloseRestoresFocus": true,
+      "checkpointSuccessFocusesSuccessor": true,
+      "controlledCallbackKinds": [
+        "answer",
+        "checkpoint"
+      ]
+    },
+    {
+      "label": "captured-v2-context-390",
+      "geometry": {
+        "documentWidth": 390,
+        "documentScrollWidth": 390,
+        "dialogs": [
+          {
+            "width": 356,
+            "scrollWidth": 356,
+            "left": 16,
+            "right": 374
+          }
+        ]
+      },
+      "axeViolations": []
+    },
+    {
+      "label": "earlier-questions-disclosure-390",
+      "geometry": {
+        "documentWidth": 390,
+        "documentScrollWidth": 390,
+        "dialogs": []
+      },
+      "axeViolations": []
+    },
+    {
+      "label": "earlier-questions-report-390",
+      "geometry": {
+        "documentWidth": 390,
+        "documentScrollWidth": 390,
+        "dialogs": [
+          {
+            "width": 356,
+            "scrollWidth": 356,
+            "left": 16,
+            "right": 374
+          }
+        ]
+      },
+      "axeViolations": []
+    },
+    {
+      "label": "lost-checkpoint-response-focus-390",
+      "starts": 0,
+      "successorFocused": true,
+      "reservationCallbacks": 1
+    },
+    {
+      "label": "lost-checkpoint-response-390",
+      "geometry": {
+        "documentWidth": 390,
+        "documentScrollWidth": 390,
+        "dialogs": []
+      },
+      "axeViolations": []
+    }
+  ],
+  "checkpointCount": 22,
+  "browserErrorCount": 0
+}

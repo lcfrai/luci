@@ -1237,6 +1237,7 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	buildHarness := harness.Build
+	taskWorker := false
 	if req.ProjectRunID != "" {
 		ownedRun, ownedOperation, ownerErr := a.deps.Product.ProjectSwarmWorktreeOwner(ctx, projectID, req.WorktreeID)
 		if ownerErr != nil {
@@ -1249,6 +1250,7 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			buildHarness = harness.BuildTask
+			taskWorker = true
 		}
 	}
 	command, argv, err := buildHarness(harness.Request{
@@ -1428,6 +1430,14 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var reviewedDescriptor *registry.ReviewedContext
+	if taskWorker {
+		mount, outputErr := a.prepareTaskHandoffOutput(sessionID)
+		if outputErr != nil {
+			a.internal(w, r, "prepare isolated task handoff output", outputErr)
+			return
+		}
+		sandboxMounts = append(sandboxMounts, mount)
+	}
 	if reviewedCapture != nil {
 		var mount backend.Mount
 		reviewedDescriptor, mount, err = a.prepareReviewedContext(sessionID, reviewedCapture)
@@ -2410,6 +2420,12 @@ func (a *API) handleSessionDelete(w http.ResponseWriter, r *http.Request) {
 		defer a.codexAccountMu.Unlock()
 	}
 	purge := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("purge")), "true")
+	if purge {
+		if err := a.requireTaskHandoffBeforePurge(ctx, sess); err != nil {
+			httpx.WriteProblem(w, http.StatusConflict, "task_handoff_required", err.Error(), nil)
+			return
+		}
+	}
 
 	// A session a previous verb already took terminal has no sandbox left to
 	// destroy, and re-issuing the Destroy is what let a daemon outage trap the

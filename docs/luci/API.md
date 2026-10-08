@@ -484,6 +484,61 @@ authorized scope, not verification. Once all tasks are integrated, the existing
 run check/release/acceptance routes govern the combined source; generic run
 coding reservations cannot bypass task ownership.
 
+### Reviewed continuation from retained task changes
+
+`GET /v1/product/projects/{id}/runs/{runId}/swarm/operations/{operationId}/checkpoint`
+returns `{review:{projectId,runId,operationId,childId,taskId,expectedRevision,sourceCommit,targetCommit,reviewDigest,canContinue,reason,files,totalBytes}}`.
+Each complete file entry is `{path,status,before,after,beforeMode,afterMode}`;
+`status` is `added`, `modified` or `deleted`, and modes are `100644`, `100755`
+or empty for an absent side. A refused review has `canContinue:false`, an
+explanation and no partial file list/digest. GET and HEAD only inspect source;
+they do not publish a checkpoint, acquire the child lifecycle lock or allocate
+resources.
+
+`POST` to that same path accepts
+`{expectedRevision,idempotencyKey,reviewDigest,childId}`. It requires current
+project Edit and Execute permissions. The server acquires source/dispatch and
+exact original-child lifecycle exclusion, positively proves the original launch
+stopped or its retirement finalized, and rechecks authority, context, revision
+and the complete source review before reserving anything. An absent session or
+lease is not sufficient proof. The response is `201 {run,operation}` for the
+new reservation; same-key recovery of that exact checkpoint returns `200` even
+after the current task/revision advances. Reusing a key with different reviewed
+inputs fails. Neither response starts a coding process.
+
+The new operation's `checkpoint` records `sourceOperationId`, `sourceChildId`,
+`sourceCommit`, `sourceBaseCommit`, `targetCommit`, `seedCommit?`, `reviewDigest`,
+`contextDigest` and `createdAt`. Its `baseCommit` remains the current primary
+integration base. Its separate seed commit contains the reviewed retained files
+and becomes the new frozen implementation source. The original attempt/files,
+primary checkout and dependency completion state remain unchanged. Later
+integration therefore still reviews the adopted changes as part of the task's
+result. A checkpoint is not task acceptance or passing-check evidence.
+
+Continuation initially covers the current task's latest confirmed attempt and
+complete Git-visible UTF-8 text, including committed and uncommitted output.
+Ignored files are not copied. Limits are 128 changed files, 128 KiB per file
+and 512 KiB combined before/after content. Binary, protected, out-of-scope,
+linked, ambiguous and unsupported source-conversion changes refuse the whole
+review. Non-overlapping reviewed primary integrations may be retained only
+when every affected path still has exactly its original base blob and mode;
+overlap or unrelated source drift never triggers an automatic rebase or
+force-apply.
+
+A durable reservation precedes the independent checkout and seed publication.
+An interrupted copy may return an operation with `allocation:"unknown"`; it is
+not ready to dispatch, and a missing seed never grants execution. Same-key
+readback retains that outcome without replaying allocation. An explicitly
+abandoned checkpoint with valid private provenance, no implementation binding
+and an allocation that never became ready can receive the private never-started
+retirement marker. This also covers a seed saved before readiness: dispatch
+requires both ready allocation and a binding. Delayed seed/readiness publishers
+cannot overwrite cancelled/abandoned state. Missing registry/lease records alone
+never authorize this path. Users can then reserve a distinct fresh attempt;
+the original output remains retained. Ordinary "retry from current project"
+continues to start from primary and does not copy the retained output. Reviewed
+session Resume/Fork/Restart prohibitions remain unchanged.
+
 ### Plans and check history
 
 GET `/v1/product/projects/{id}/plan` returns `{projectId,revision,briefRevision,tasks:[{id,title,status,requirementIds?}],updatedAt,specificationRevision?,specificationDigest?}`. Task status is `todo`, `doing` or `done`. POST accepts `{expectedRevision,tasks,expectedSpecificationRevision?}` and returns200 with the saved plan. When any task has requirement links, the expected specification revision must match this project's current saved approved specification. Links use its stable requirement IDs; at most100 unique IDs per task and200 tasks are allowed. Unknown/foreign IDs or duplicates return400; stale or missing expected revisions return409; an unapproved/outdated specification returns422. The server records the approval revision/digest. Unlinked legacy plans remain supported, and existing links remain readable after the definition changes so they can be explicitly removed. Saving publishes `.luci/plan.json` alongside canonical state and `.luci/design.json` for agent context. Task Done remains user-reported progress, independent of test evidence.

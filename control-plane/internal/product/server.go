@@ -62,6 +62,10 @@ type Options struct {
 }
 
 type Server struct {
+	projectSwarmCheckpointAuthorize func(context.Context, ProjectSwarmRecoveryRequest) error
+	projectSwarmCheckpointGuard     func(context.Context, ProjectSwarmRecoveryRequest) (func(), error)
+	taskHandoffAuthorize            func(context.Context, ProjectSwarmRecoveryRequest) error
+	taskHandoffCollector            func(context.Context, TaskHandoffCaptureRequest) (TaskHandoffCapture, error)
 	projectSwarmPendingLaunch       func(context.Context, string, string, string, string) (bool, error)
 	projectSwarmFenceAuthorize      func(context.Context, ProjectSwarmFenceRecoveryRequest) error
 	projectSwarmFenceAvailability   func(context.Context, ProjectSwarmFenceRecoveryRequest) (ProjectSwarmRecoveryAvailability, error)
@@ -218,6 +222,7 @@ func New(opts Options) (*Server, error) {
 	if err := s.initSwarmPolicyDirectory(); err != nil {
 		return nil, fmt.Errorf("open shared execution policy: %w", err)
 	}
+	s.migrateOverviewRunHeads()
 	return s, nil
 }
 
@@ -248,6 +253,7 @@ func (s *Server) Register(mux Registrar) {
 	s.registerBackups(mux)
 	s.registerProjectWork(mux)
 	s.registerProjectRuns(mux)
+	s.registerTaskHandoffs(mux)
 	s.registerSwarmScheduler(mux)
 	s.registerProjectOverview(mux)
 	s.registerApplicationConfiguration(mux)

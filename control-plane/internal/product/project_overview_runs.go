@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"time"
 
 	"github.com/lcfrai/luci/control-plane/internal/hostpath"
@@ -15,6 +16,17 @@ import (
 )
 
 const overviewRunHeadLimit = 8 << 10
+
+// Version 3 also indexes unanswered handoffs from completed/older attempts.
+const overviewRunHeadVersion = 3
+const overviewRunAttentionLimit = 3
+
+type ProjectOverviewAttention struct {
+	Status  string                `json:"status"`
+	Count   *int                  `json:"count"`
+	Items   []ProjectRunAttention `json:"items"`
+	Omitted *int                  `json:"omitted"`
+}
 
 type ProjectOverviewRun struct {
 	Status        string `json:"status"`
@@ -28,14 +40,15 @@ type ProjectOverviewRun struct {
 	taskReviewRequired bool
 }
 type overviewRunHead struct {
-	Version           int    `json:"version"`
-	AccountScope      string `json:"accountScope"`
-	ProjectScope      string `json:"projectScope"`
-	ProjectID         string `json:"projectId"`
-	RunID             string `json:"runId"`
-	CreatedAt         string `json:"createdAt"`
-	DirectoryIdentity string `json:"directoryIdentity"`
-	DirectoryModified string `json:"directoryModified"`
+	Version           int      `json:"version"`
+	AccountScope      string   `json:"accountScope"`
+	ProjectScope      string   `json:"projectScope"`
+	ProjectID         string   `json:"projectId"`
+	RunID             string   `json:"runId"`
+	CreatedAt         string   `json:"createdAt"`
+	DirectoryIdentity string   `json:"directoryIdentity"`
+	DirectoryModified string   `json:"directoryModified"`
+	AttentionIDs      []string `json:"attentionIds,omitempty"`
 }
 
 func (s *ProjectRunStore) overviewRunHeadPath(id string, create bool) (string, error) {
@@ -78,8 +91,18 @@ func (s *ProjectRunStore) readOverviewRunHead(projectID, scope string) (overview
 	var head overviewRunHead
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&head) != nil || decoder.Decode(new(any)) != io.EOF || head.Version != 1 || head.AccountScope != s.accountScope || head.ProjectScope != scope || head.ProjectID != projectID || !validRunID(head.RunID) {
+	if decoder.Decode(&head) != nil || decoder.Decode(new(any)) != io.EOF || (head.Version < 1 || head.Version > overviewRunHeadVersion) || head.AccountScope != s.accountScope || head.ProjectScope != scope || head.ProjectID != projectID || !validRunID(head.RunID) {
 		return overviewRunHead{}, ErrProjectRunInvalid
+	}
+	if len(head.AttentionIDs) > projectRunHistoryLimit || head.Version == 1 && len(head.AttentionIDs) != 0 {
+		return overviewRunHead{}, ErrProjectRunInvalid
+	}
+	seen := map[string]bool{}
+	for _, id := range head.AttentionIDs {
+		if !validRunID(id) || seen[id] {
+			return overviewRunHead{}, ErrProjectRunInvalid
+		}
+		seen[id] = true
 	}
 	if _, err = time.Parse(time.RFC3339Nano, head.CreatedAt); err != nil {
 		return overviewRunHead{}, ErrProjectRunInvalid
@@ -112,6 +135,10 @@ func (s *ProjectRunStore) writeOverviewRunHead(head overviewRunHead) error {
 		return err
 	}
 	head.DirectoryModified = info.ModTime().UTC().Format(time.RFC3339Nano)
+	data, err := json.MarshalIndent(head, "", "  ")
+	if err != nil || len(data)+1 > overviewRunHeadLimit {
+		return ErrProjectRunLimit
+	}
 	path, err := s.overviewRunHeadPath(head.ProjectID, true)
 	if err != nil {
 		return err
@@ -128,6 +155,16 @@ func (s *ProjectRunStore) writeOverviewRunHead(head overviewRunHead) error {
 // Creation already has the validated history for idempotency/capacity. Reuse it
 // to establish a trustworthy latest pointer, without another history scan.
 func (s *ProjectRunStore) overviewHeadAfterCreate(created storedProjectRun, previous []storedProjectRun) {
+	rows := append(append([]storedProjectRun{}, previous...), created)
+	s.overviewHeadFromHistory(rows)
+}
+
+func (s *ProjectRunStore) overviewHeadFromHistory(rows []storedProjectRun) {
+	if len(rows) == 0 {
+		return
+	}
+	sort.SliceStable(rows, func(i, j int) bool { return rows[i].Run.CreatedAt > rows[j].Run.CreatedAt })
+	created, previous := rows[0], rows[1:]
 	latest := created
 	latestAt, _ := time.Parse(time.RFC3339Nano, latest.Run.CreatedAt)
 	for _, row := range previous {
@@ -136,30 +173,54 @@ func (s *ProjectRunStore) overviewHeadAfterCreate(created storedProjectRun, prev
 			latest, latestAt = row, at
 		}
 	}
-	_ = s.writeOverviewRunHead(overviewRunHead{Version: 1, AccountScope: s.accountScope, ProjectScope: latest.ProjectScope, ProjectID: latest.Run.ProjectID, RunID: latest.Run.ID, CreatedAt: latest.Run.CreatedAt})
+	head := overviewRunHead{Version: overviewRunHeadVersion, AccountScope: s.accountScope, ProjectScope: latest.ProjectScope, ProjectID: latest.Run.ProjectID, RunID: latest.Run.ID, CreatedAt: latest.Run.CreatedAt}
+	for _, row := range rows {
+		if projectRunAttentionKind(row.Run) != "" {
+			head.AttentionIDs = append(head.AttentionIDs, row.Run.ID)
+		}
+	}
+	_ = s.writeOverviewRunHead(head)
 }
-func (s *Server) readOverviewLatestRun(p project.Project, state journeyState) (ProjectOverviewRun, error) {
+
+func updateOverviewRunAttention(head *overviewRunHead, run ProjectRun) {
+	wanted := projectRunAttentionKind(run) != ""
+	for i, id := range head.AttentionIDs {
+		if id == run.ID {
+			if !wanted {
+				head.AttentionIDs = append(head.AttentionIDs[:i], head.AttentionIDs[i+1:]...)
+			}
+			return
+		}
+	}
+	if wanted {
+		head.AttentionIDs = append([]string{run.ID}, head.AttentionIDs...)
+	}
+}
+
+func (s *Server) readOverviewRuns(p project.Project, state journeyState) (ProjectOverviewRun, ProjectOverviewAttention, error) {
+	attention := ProjectOverviewAttention{Status: "unavailable", Items: []ProjectRunAttention{}}
 	store := s.projectRuns
 	store.mu.Lock()
 	defer store.mu.Unlock()
 	scope, err := store.projectScope(p.ID, p.Path)
 	if err != nil {
-		return ProjectOverviewRun{Status: "unavailable"}, err
+		return ProjectOverviewRun{Status: "unavailable"}, attention, err
 	}
 	if _, err = store.directory(p.ID, false); errors.Is(err, os.ErrNotExist) {
-		return ProjectOverviewRun{Status: "none"}, nil
+		attention.Status, attention.Count, attention.Omitted = "recorded", overviewInt(0), overviewInt(0)
+		return ProjectOverviewRun{Status: "none"}, attention, nil
 	} else if err != nil {
-		return ProjectOverviewRun{Status: "unavailable"}, err
+		return ProjectOverviewRun{Status: "unavailable"}, attention, err
 	}
 	head, err := store.readOverviewRunHead(p.ID, scope)
 	if err != nil {
-		return ProjectOverviewRun{Status: "unavailable"}, err
+		return ProjectOverviewRun{Status: "unavailable"}, attention, err
 	}
-	// Exactly one canonical run, at most1MiB. No checks/release files, source
-	// commands, child observations, or historical run list are read here.
+	// One latest run plus at most three indexed attention runs, each <=1MiB.
+	// No historical scan, check/release files, source commands or observations.
 	row, err := store.read(p.ID, scope, head.RunID)
 	if err != nil || row.Run.CreatedAt != head.CreatedAt {
-		return ProjectOverviewRun{Status: "unavailable"}, ErrProjectRunInvalid
+		return ProjectOverviewRun{Status: "unavailable"}, attention, ErrProjectRunInvalid
 	}
 	freshness := projectRunContextFreshness(row.Run, state, nil)
 	reviewRequired := false
@@ -175,7 +236,30 @@ func (s *Server) readOverviewLatestRun(p project.Project, state journeyState) (P
 			}
 		}
 	}
-	return ProjectOverviewRun{Status: "recorded", ID: row.Run.ID, State: row.Run.State, UpdatedAt: overviewTimestamp(row.Run.UpdatedAt), ContextStatus: freshness.Status, ContextReason: freshness.Reason, taskReviewRequired: reviewRequired}, nil
+	latest := ProjectOverviewRun{Status: "recorded", ID: row.Run.ID, State: row.Run.State, UpdatedAt: overviewTimestamp(row.Run.UpdatedAt), ContextStatus: freshness.Status, ContextReason: freshness.Reason, taskReviewRequired: reviewRequired}
+	if head.Version != overviewRunHeadVersion {
+		return latest, attention, ErrProjectRunInvalid
+	}
+	for _, id := range head.AttentionIDs {
+		if len(attention.Items) == overviewRunAttentionLimit {
+			break
+		}
+		selected := row
+		if id != row.Run.ID {
+			selected, err = store.read(p.ID, scope, id)
+			if err != nil {
+				return latest, ProjectOverviewAttention{Status: "unavailable", Items: []ProjectRunAttention{}}, err
+			}
+		}
+		if kind := projectRunAttentionKind(selected.Run); kind != "" {
+			comparison := projectRunContextFreshness(selected.Run, state, nil)
+			attention.Items = append(attention.Items, ProjectRunAttention{ID: id, State: selected.Run.State, Kind: kind, ContextStatus: comparison.Status})
+		} else {
+			return latest, ProjectOverviewAttention{Status: "unavailable", Items: []ProjectRunAttention{}}, ErrProjectRunInvalid
+		}
+	}
+	attention.Status, attention.Count, attention.Omitted = "recorded", overviewInt(len(head.AttentionIDs)), overviewInt(len(head.AttentionIDs)-len(attention.Items))
+	return latest, attention, nil
 }
 func applyOverviewRunProgress(view *ProjectOverview, run ProjectOverviewRun) {
 	view.LatestRun = run

@@ -1,0 +1,91 @@
+{
+  "scope": "Full configured frontend suite, TypeScript and production web build under source freeze. Concurrent bounded Go diagnostics; not performance, native, installed or model acceptance.",
+  "startedAt": "2026-10-08T13:27:10Z",
+  "finishedAt": "2026-10-08T13:33:37Z",
+  "sourceCommit": "23e25c21788fa47607a6dca98479d4d3b51351f0",
+  "sourceCommitAfter": "23e25c21788fa47607a6dca98479d4d3b51351f0",
+  "sourceUnchanged": true,
+  "sourceCount": 433,
+  "testsExit": 1,
+  "typecheckExit": 0,
+  "buildExit": 0,
+  "allCommandProcessesClosed": true,
+  "counts": {
+    "numTotalTestSuites": 260,
+    "numPassedTestSuites": 257,
+    "numFailedTestSuites": 3,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 2578,
+    "numPassedTests": 2575,
+    "numFailedTests": 3,
+    "numPendingTests": 0,
+    "numTodoTests": 0
+  },
+  "files": 152,
+  "passed": false,
+  "testFiles": [],
+  "sourceReportSHA256": "53da2c9cab4029ae28bb99a3c0c278b7d2c2436897999376a60716c66a471fba",
+  "workingDirectory": "desktop",
+  "sourceDirty": true,
+  "commands": [
+    {
+      "command": [
+        "npm",
+        "test",
+        "--",
+        "--maxWorkers=2",
+        "--reporter=json",
+        "--outputFile=<private-json-report>"
+      ],
+      "exitCode": 1
+    },
+    {
+      "command": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "exitCode": 0
+    },
+    {
+      "command": [
+        "npm",
+        "run",
+        "build"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "inputs": {
+    "file": "full-frontend-inputs.json",
+    "sha256": "8ef3e2745b08b949cd975a4a8d8653501a2c41c132c4e8c7ab672240bb9b0651",
+    "originalManifestSHA256": "8ef3e2745b08b949cd975a4a8d8653501a2c41c132c4e8c7ab672240bb9b0651",
+    "inputCount": 433,
+    "externalPathRedactions": 0,
+    "externalPathMeaning": null
+  },
+  "beforeAfterManifestsEqual": true,
+  "outcomesFile": "full-frontend-outcomes.json",
+  "outcomesSHA256": "c5e9cc4f20950ce21c86aff22e979734159c3671507af5bbb612bafef311f4c0",
+  "rawVitestSHA256": "82f5809bfd165acac87113471cbfa57f531602eeecf039e4ee93707f92859897",
+  "failures": [
+    {
+      "file": "desktop/src/seams.test.ts",
+      "name": "the named seams — docs/SEAMS.md still has every seam's anchor where the document says it is",
+      "status": "failed",
+      "durationMs": 24.83412000000044
+    },
+    {
+      "file": "desktop/src/seams.test.ts",
+      "name": "the named seams — docs/SEAMS.md SX.2: types.ts is byte-identical to contract §2, line endings aside",
+      "status": "failed",
+      "durationMs": 10.256792999999561
+    },
+    {
+      "file": "desktop/src/components/platform/DataWorkspace.test.tsx",
+      "name": "leaves a refused recovery actionable and does not report a successful installation",
+      "status": "failed",
+      "durationMs": 2060.2214460000005
+    }
+  ]
+}

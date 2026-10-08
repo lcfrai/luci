@@ -420,6 +420,8 @@ func New(d Deps) (*API, error) {
 		d.Product.SetProjectSwarmRecovery(a.proveSwarmMissingChild, a.finalizeSwarmMissingChild)
 		d.Product.SetProjectSwarmFenceRecovery(a.projectSwarmFenceRecoveryAvailability, a.authorizeSwarmFenceRecovery, a.acquireSwarmFenceRecovery, a.proveSwarmFencedLaunch, a.finalizeSwarmFencedLaunch)
 		d.Product.SetProjectSwarmPendingLaunch(a.projectSwarmPendingLaunch)
+		d.Product.SetProjectSwarmCheckpointGuard(a.authorizeTaskCheckpoint, a.acquireStoppedTaskOutput)
+		d.Product.SetTaskHandoffCollector(a.authorizeTaskOutput, a.collectTaskHandoff)
 		d.Product.SetRuntimeResourceSnapshot(d.ResourceSnapshot)
 		d.Product.SetProjectRunSelectionResolver(a.ResolveProjectRunSelection)
 		d.Product.SetProjectRunSessionObserver(a.ObserveProjectRunSessions)

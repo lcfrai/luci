@@ -1,3 +1,4 @@
+import {openTaskActions} from '../../test/swarmActions';
 import { useState } from 'react';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -208,6 +209,7 @@ it('requires an explicit recovery choice, retains output and does not launch the
   const abandon = vi.spyOn(projectSwarmApi, 'abandon').mockResolvedValue(attach(saved, {...operation, status: 'cancelled', allocation: 'abandoned'}));
   const create = vi.spyOn(api, 'createSession');
   render(<Harness initial={saved} />);
+  await openTaskActions();
   expect(screen.queryByRole('button', {name: 'Open task session'})).toBeNull();
   expect(screen.getByRole('button', {name: 'Inspect workspace output'})).not.toBeNull();
   await userEvent.click(screen.getByRole('button', {name: 'Retain changes and retry'}));
@@ -226,6 +228,7 @@ it.each(['unknown', 'dispatching', 'cancelled'])('uses exact missing-child recov
   const abandon = vi.spyOn(projectSwarmApi, 'abandon').mockResolvedValue(attach(saved, {...operation, status: 'cancelled', ...(operation.absenceRetirement ? {absenceRetirement: {...operation.absenceRetirement, finalizedAt: initial.updatedAt}} : {})}));
   const create = vi.spyOn(api, 'createSession');
   render(<Harness initial={saved} canExecute={false} />);
+  await openTaskActions();
   if (status === 'cancelled') {
     expect(screen.getByText('Recovery pending · finish recovery to release capacity')).not.toBeNull();
     expect(screen.queryByRole('button', {name: 'Retry in a new workspace'})).toBeNull();
@@ -247,6 +250,7 @@ it('keeps an uncertain attempt available for inspection when absence cannot be p
   vi.spyOn(projectRunsApi, 'get').mockResolvedValue(saved);
   const create = vi.spyOn(api, 'createSession');
   render(<Harness initial={saved} canExecute={false} />);
+  await openTaskActions();
   await userEvent.click(screen.getByRole('button', {name: 'Retain changes and retry'}));
   await userEvent.click(screen.getByRole('button', {name: 'Retain output and allow retry'}));
   await screen.findAllByText('The backend inventory is stale. Capacity remains reserved.');
@@ -261,6 +265,7 @@ it('discards recovery consent when a newer run replaces the inspected attempt', 
   const props = {canEdit: true, canExecute: true, busy: false, onBusy: vi.fn(), onUpdate: vi.fn(), onOpenSession: vi.fn()};
   const abandon = vi.spyOn(projectSwarmApi, 'abandon');
   const view = render(<ProjectSwarm {...props} run={saved} />);
+  await openTaskActions();
   await userEvent.click(screen.getByRole('button', {name: 'Retain changes and retry'}));
   expect(screen.getByRole('dialog', {name: 'Retain changes and retry'})).not.toBeNull();
   view.rerender(<ProjectSwarm {...props} run={{...saved, revision: saved.revision + 1}} />);
@@ -275,6 +280,7 @@ it('reads back partial retirement once and requires a new explicit finalization 
   const get = vi.spyOn(projectRunsApi, 'get').mockResolvedValue(pending);
   const create = vi.spyOn(api, 'createSession');
   render(<Harness initial={saved} />);
+  await openTaskActions();
   await userEvent.click(screen.getByRole('button', {name:'Retain changes and retry'}));
   await userEvent.click(screen.getByRole('button', {name:'Retain output and allow retry'}));
   await screen.findByText('Finalization interrupted');
@@ -292,6 +298,7 @@ it('explains unconfirmed recovery when readback also fails and never replays it'
   const abandon = vi.spyOn(projectSwarmApi, 'abandon').mockRejectedValue(new Error('Connection interrupted'));
   const get = vi.spyOn(projectRunsApi, 'get').mockRejectedValue(new Error('Offline'));
   render(<Harness initial={saved} />);
+  await openTaskActions();
   await userEvent.click(screen.getByRole('button', {name:'Retain changes and retry'}));
   await userEvent.click(screen.getByRole('button', {name:'Retain output and allow retry'}));
   await screen.findAllByText(/recovery result could not be refreshed. Check team status/);

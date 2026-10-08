@@ -126,6 +126,26 @@ Luci should carry these facts through task handoffs and the project overview,
 using its existing independent check evidence instead of a second competing
 status ledger.
 
+## Implementation follow-through — 8 October 2026
+
+The later local candidate implements these mechanisms in Luci's existing
+project/run/task records; it does not install an upstream orchestration runtime.
+The [worklist](QUALITY-WORKLIST.md) binds changing verification status and the
+[Windows matrix](LOCAL-WINDOWS-ACCEPTANCE.md) defines the remaining native checks.
+
+| Selected mechanism | Implemented Luci behavior | Remaining evidence |
+| --- | --- | --- |
+| GSD task graph and scoped context | Explicit dependencies and write scope, isolated task execution, V2 frozen direct-dependency packets and separately attributed prior-attempt context. Complete reviewed originals remain available. | Installed join/continuation runs at the matching candidate, live-model output and context-quality comparison. |
+| GSD Core unfinished verification | Older review, verification, release-review and blocked runs stay in bounded Home/orchestrator attention after a newer run is created. Attention is separate from active capacity. | Matching installed older-run workflow and native review. |
+| Nimbalyst bounded reports and questions | Immutable task reports preserve decisions, limitations and questions. Attributed human answers retain the original question/impact; worker check claims stay separate from recorded checks. Forget preserves ownership/context until an explicit report status is captured. Earlier-attempt questions remain discoverable. | Real dependent-worker use and blinded semantic evaluation; fixture success does not establish usefulness. |
+| Explicit recovery and visual review | Complete supported text changes can seed a distinct reserved continuation only after review. Starting and integrating remain separate actions. Conflicts show their returned unresolved state. | Installed lost-reply/restart/seed preservation and actual Git conflict, then Windows workflow tests. |
+
+The [context-quality corpus and protocol](../../scripts/acceptance/context-quality/README.md)
+provide six ambiguity/isolation/amendment/stale-source/check-claim/restart cases,
+separate evaluator truth and explicit unscored human-review fields. Controlled
+scorer checks pass; neither upstream tools nor live Luci model trials have been
+run under that protocol. There is no measured market-leadership claim.
+
 ## Approaches not adopted
 
 - A second writable `.planning` or `.gsd` specification would split Luci's

@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "status": "failed-passive-event-buffer-before-workers",
+  "sourceCommit": "919cffe014d1104d9e65fa19351683d182355f36",
+  "packageSourceDirty": false,
+  "harnessCheckout": {
+    "commit": "07399a25ef7e651e562a49e9dfec5684e6f22c96",
+    "dirty": true
+  },
+  "driverSHA256": "e4e9cea507161739a242cb3f8b617f95d1ea882ac5705d071ecec411655f7a80",
+  "helperSHA256": {
+    "task-command.mjs": "414015af6ea915ccd3c838c3a316b7f08e079b70cc5de299a7991bb0b5f9f6fe",
+    "workloads.mjs": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306",
+    "interaction-metrics.mjs": "d7eaa9befabbf8d3400eac7952fb5fa995c7cb770cab975a437d655c9c9e4796",
+    "run-with-observer.py": "a966ff9fc1a85a459b05d558d98406e7732d344ad14c05c3d076ad092ac38480"
+  },
+  "rawReport": "artifacts/quality-swarm/sustained-mixed-919cffe0-attempt2/result.json",
+  "rawReportSHA256": "7fa54cbc01e80f9be352d8cac5f399aadf290d90057eca5c0a432f13964c8da1",
+  "startedAt": "2026-10-08T12:45:40.835Z",
+  "finishedAt": "2026-10-08T12:48:48.409Z",
+  "elapsedMs": 187324,
+  "failedStage": "idle-baseline",
+  "failure": "Passive Chromium Event Timing exceeded its10,000-event undrained buffer after the complete unloaded calibration. No worker was allocated. The exact overflow window was not retained by this helper version; primary action times were retained.",
+  "phases": [
+    {
+      "name": "quiet-app-open-idle",
+      "startedAt": "2026-10-08T12:46:09.389Z",
+      "finishedAt": "2026-10-08T12:47:09.681Z",
+      "elapsedMs": 60292.139350000005
+    },
+    {
+      "name": "idle-interactive-calibration",
+      "startedAt": "2026-10-08T12:47:09.682Z",
+      "finishedAt": "2026-10-08T12:48:45.121Z",
+      "elapsedMs": 95438.99086300001
+    }
+  ],
+  "interactionSummary": {
+    "idle-interactive-calibration:project-switch": {
+      "count": 100,
+      "successful": 100,
+      "failed": 0,
+      "p50Ms": 307.0581260000181,
+      "p95Ms": 636.3076040000014,
+      "p99Ms": 950.6579139999812,
+      "maxMs": 1182.1327329999913,
+      "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+      "timeouts": []
+    },
+    "idle-interactive-calibration:input": {
+      "count": 200,
+      "successful": 200,
+      "failed": 0,
+      "p50Ms": 64.14034099999117,
+      "p95Ms": 132.3960059999954,
+      "p99Ms": 233.42843800000264,
+      "maxMs": 321.1012599999958,
+      "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+      "timeouts": []
+    },
+    "idle-interactive-calibration:draft-reset": {
+      "count": 100,
+      "successful": 100,
+      "failed": 0,
+      "p50Ms": 360.36439000000246,
+      "p95Ms": 665.4350029999914,
+      "p99Ms": 959.4105279999785,
+      "maxMs": 1018.4125660000136,
+      "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+      "timeouts": []
+    }
+  },
+  "latencyTargets": {
+    "projectSwitchP95Ms": 300,
+    "inputP95Ms": 100,
+    "p99Ms": 1000
+  },
+  "baselineTargetsMet": false,
+  "latencyTargetFailures": [
+    "Unloaded switch p95 exceeded300ms",
+    "Unloaded input p95 exceeded100ms"
+  ],
+  "dockerCounts": {
+    "total": 574,
+    "create": 0,
+    "worker": 0,
+    "fence": 0,
+    "start": 0
+  },
+  "controllersStopped": true,
+  "dockerRequestsDrained": true,
+  "runtimeCleanup": {
+    "containers": 0,
+    "volumes": 0,
+    "ownedServiceProcesses": 0,
+    "ownedBrowserProcesses": 0,
+    "protectedImagePackageAndHelpersUnchanged": true,
+    "rootFreeBytes": 6603034624
+  },
+  "privateFixtureRetained": {
+    "retained": true,
+    "reason": "Failed or partial acceptance; private fixture state and diagnostics retained outside Git. Do not reuse as a normal workspace."
+  },
+  "wrapperExitCode": 1,
+  "observer": {
+    "directory": "artifacts/quality-swarm/sustained-mixed-919cffe0-attempt2-observer",
+    "samples": 208,
+    "durationSeconds": 207.3736058580107,
+    "containerIdentitiesObserved": 0,
+    "metadataSHA256": "f3454419d7c89cc68e4b580fb6997be1c8cc8398ae8af8e11d9e4ad80c8182e6",
+    "samplesSHA256": "f66c0817337afbcf1c2ab4571ac71b775b532ac9e45a036812fadfc445bd88fb",
+    "summarySHA256": "18bcd72b384b9917caeeedc5f7597d3ff33cb095a7d97bb291f22c31ddb6dec1",
+    "selfCostSHA256": "1b965ff1efae657a1ef29b3532df363ca55d8797ebb5299b957f7ab42f6a5215",
+    "selfCost": {
+      "status": "completed",
+      "exitCode": 0,
+      "scope": "Observer interpreter RUSAGE_SELF, including interpreter imports and launcher; excludes spawned Docker CLI/helpers and all Docker daemon work.",
+      "wallSeconds": 207.43826197399176,
+      "userCPUSeconds": 23.445355,
+      "systemCPUSeconds": 18.345258,
+      "cpuSecondsPerWallSecond": 0.2014604856515797,
+      "maxRSSBytes": 18993152,
+      "units": "Linux ru_maxrss KiB converted to bytes; block counts are I/O operations, not bytes. Lifetime wall uses CLOCK_BOOTTIME minus /proc creation ticks, with tick-resolution uncertainty."
+    }
+  },
+  "limitations": [
+    "No actual task, cold build, fuzz, amendment or active restart ran.",
+    "UI times include automation, transport and two animation-frame opportunities; not physical input latency.",
+    "This failed baseline remains evidence even if a later helper/run passes; thresholds remain unchanged.",
+    "A future incremental-drain correction is measurement instrumentation, not a product-performance fix."
+  ]
+}

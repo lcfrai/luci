@@ -283,3 +283,42 @@ func TestNewAllowsNoTokenWhenExplicitlyUnauthenticated(t *testing.T) {
 	}
 	readUntil(t, c, ctx, []byte("insecure-ok"), 10*time.Second)
 }
+
+// A finite burst must reach a healthy websocket completely and before Exit,
+// regardless of how the PTY fragments it. The stdin regression above remains
+// unchanged; this adds an exact full-output and lifecycle witness.
+func TestFiniteOutputBurstIsCompleteBeforeExit(t *testing.T) {
+	srv := newServer(t, server.Config{
+		Command: "/bin/sh", Args: []string{"-c", "stty -echo; printf READY; read line; printf '%0102400d' 0; printf '\\nEND\\n'; exit 0"}, AttachToken: testToken,
+	})
+	c, ctx := dial(t, srv, testToken)
+	readUntil(t, c, ctx, []byte("READY"), 10*time.Second)
+	if err := c.Write(ctx, websocket.MessageBinary, wire.Encode(wire.Stdin, []byte("\n"))); err != nil {
+		t.Fatalf("release finite output: %v", err)
+	}
+	var got []byte
+	for {
+		_, frame, err := c.Read(ctx)
+		if err != nil {
+			t.Fatalf("read complete finite output: %v (got %d bytes)", err, len(got))
+		}
+		kind, payload, err := wire.Decode(frame)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if kind == wire.Exit {
+			if string(payload) != "exit status 0" {
+				t.Fatalf("unexpected process result %q", payload)
+			}
+			break
+		}
+		if kind != wire.Stdout {
+			t.Fatalf("unexpected frame kind %v", kind)
+		}
+		got = append(got, payload...)
+	}
+	want := append(bytes.Repeat([]byte("0"), 100*1024), []byte("\r\nEND\r\n")...)
+	if !bytes.Equal(got, want) {
+		t.Fatalf("finite output truncated or reordered: received %d/%d bytes", len(got), len(want))
+	}
+}

@@ -1,0 +1,21 @@
+@import "../../styles/tokens.css";
+.swarm-task-handoff { min-width: 0; display: grid; gap: 14px; font-size: 13px; line-height: 1.6; }
+.swarm-task-handoff > p, .swarm-task-handoff section > p { margin: 0; }
+.swarm-task-handoff h3 { font-size: 15px; margin: 0 0 8px; }
+.swarm-task-handoff h4 { font-size: 13px; margin: 12px 0 6px; }
+.swarm-task-handoff section { min-width: 0; }
+.swarm-task-handoff > section + section { border-top: 1px solid var(--line); padding-top: 14px; }
+.swarm-task-handoff .handoff-muted { color: var(--ink-3); font-size: 12px; }
+.swarm-task-handoff .handoff-warning { color: var(--need); }
+.swarm-task-handoff .handoff-text { white-space: pre-wrap; }
+.swarm-task-handoff p, .swarm-task-handoff code, .swarm-task-handoff h4, .swarm-task-handoff dd { overflow-wrap: anywhere; }
+.swarm-task-handoff ul, .swarm-task-handoff ol { padding-inline-start: 20px; }
+.swarm-task-handoff li { margin-block: 8px; }
+.swarm-task-handoff pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 180px; overflow: auto; padding: 10px; background: var(--inset); border-radius: var(--r-ctl); font-size: 12px; }
+.swarm-task-handoff summary { cursor: pointer; padding-block: 10px; color: var(--ink-2); }
+.swarm-task-handoff dl { margin: 0; }
+.swarm-task-handoff dl > div { margin-block: 8px; }
+.swarm-task-handoff dt { color: var(--ink-3); font-size: 12px; }
+.swarm-task-handoff dd { margin: 0; }
+.swarm-task-handoff .handoff-answer, .swarm-task-handoff .handoff-draft { padding: 14px; border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--surface); }
+@media (max-width: 760px) { .swarm-task-handoff summary { min-height: 44px; } }

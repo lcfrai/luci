@@ -24,6 +24,8 @@ func (s *Server) registerProjectSwarm(mux Registrar) {
 		mux.HandleFunc("POST "+base+"/"+action, s.controlProjectSwarm)
 	}
 	mux.HandleFunc("POST "+base+"/tasks/{taskId}/reserve", s.reserveProjectSwarmTask)
+	mux.HandleFunc("GET "+base+"/operations/{operationId}/checkpoint", s.reviewProjectSwarmCheckpoint)
+	mux.HandleFunc("POST "+base+"/operations/{operationId}/checkpoint", s.reserveProjectSwarmCheckpoint)
 	mux.HandleFunc("GET "+base+"/tasks/{taskId}/review", s.reviewProjectSwarmTask)
 	mux.HandleFunc("POST "+base+"/tasks/{taskId}/integrate", s.integrateProjectSwarmTask)
 	mux.HandleFunc("POST "+base+"/tasks/{taskId}/abandon", s.abandonProjectSwarmTask)
@@ -243,7 +245,7 @@ func (s *Server) reserveSwarmTask(ctx context.Context, p project.Project, runID,
 		return ProjectRun{}, ProjectRunOperation{}, err
 	}
 	if found {
-		if op.TaskID != taskID {
+		if op.TaskID != taskID || op.Checkpoint != nil {
 			return ProjectRun{}, ProjectRunOperation{}, ErrProjectRunKeyConflict
 		}
 		return run, op, nil
@@ -375,10 +377,17 @@ func (s *Server) swarmTaskCapture(ctx context.Context, run ProjectRun, op Projec
 		return nil, err
 	}
 	binding.SourceDigest, binding.SourceCommit, binding.SourceDirty, err = s.checkSource(ctx, path)
-	if err != nil || binding.SourceDirty || binding.SourceCommit != op.BaseCommit {
+	if err != nil || binding.SourceDirty || binding.SourceCommit != swarmStartingCommit(op) {
 		return nil, errors.New("The isolated starting source no longer matches its reserved base.")
 	}
-	return captureReviewedContext(state, binding)
+	if op.DependencyContext != nil {
+		binding.DependencyContextDigest = op.DependencyContext.Digest
+	}
+	capture, err := captureReviewedContext(state, binding)
+	if err != nil {
+		return nil, err
+	}
+	return s.appendTaskDependencies(run, op, capture)
 }
 
 // Called only by a reserved run operation. Ordinary reviewed sessions retain
@@ -447,6 +456,13 @@ func (s *Server) observeProjectSwarm(ctx context.Context, path string, run Proje
 		}
 	}
 	for _, task := range run.Swarm.Tasks {
+		// Only private, exact stopped output is collected; failures leave the
+		// report visibly unrecorded and never alter process/capacity evidence.
+		if op := swarmOperation(&run, task.OperationID); op != nil && op.Handoff == nil && projectRunOperationTerminal(op.Status) && op.Allocation == "ready" && s.taskHandoffCollector != nil {
+			if captured, captureErr := s.captureTaskHandoff(ctx, path, run, op.ID, false, false); captureErr == nil {
+				run = captured
+			}
+		}
 		if task.Integration == nil || task.Integration.State == "integrated" || task.Integration.Commit == "" {
 			continue
 		}
@@ -695,7 +711,7 @@ func (s *Server) abandonProjectSwarmTask(w http.ResponseWriter, r *http.Request)
 		// same dispatch exclusion. Preserve this no-launch fact durably before
 		// cancellation erases the original status; missing ledger files alone
 		// must never stand in for it on a later retry.
-		if op.Status == "reserved" && op.LaunchRecovery == nil && op.LaunchRecoveryProof == nil && op.AbsenceRetirement == nil && op.Integration == nil && task.Integration == nil {
+		if (op.Status == "reserved" || unstartedSwarmCheckpoint(*run, *op)) && op.LaunchRecovery == nil && op.LaunchRecoveryProof == nil && op.AbsenceRetirement == nil && op.Integration == nil && task.Integration == nil {
 			op.UnclaimedRetirement = true
 		}
 		if task.Integration != nil {

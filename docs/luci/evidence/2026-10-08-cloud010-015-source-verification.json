@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "scope": "CLOUD-010–015 source verification and preserved failure lineage, with CLOUD-016 affected terminal correction. Not a full passing release or installed/native/live-model acceptance.",
+  "baseCommit": "23e25c21788fa47607a6dca98479d4d3b51351f0",
+  "sourceDirty": true,
+  "sourceIdentity": "Each report is bound to its accompanying immutable input-hash map; base HEAD alone does not identify these uncommitted snapshots. The earlier initial-focused run has its own07399a25 ancestry. No future committed revision is certified.",
+  "initialFullGo": {
+    "pass": 3023,
+    "skip": 29,
+    "fail": 1,
+    "sourceInputs": 2003,
+    "inputsUnchanged": true,
+    "durationSeconds": 1048.566969386011,
+    "report": "full-go-report.json"
+  },
+  "initialFullFrontend": {
+    "pass": 2575,
+    "fail": 3,
+    "skip": 0,
+    "actualFiles": 152,
+    "sourceInputs": 433,
+    "inputsUnchanged": true,
+    "typecheck": "passed",
+    "build": "passed",
+    "report": "full-frontend-report.json"
+  },
+  "affectedBackend": {
+    "pass": 126,
+    "fail": 0,
+    "skip": 0,
+    "packages": 2,
+    "sourceInputs": 669,
+    "inputsUnchanged": true,
+    "report": "affected-api-product-report.json"
+  },
+  "affectedFrontend": {
+    "pass": 169,
+    "fail": 0,
+    "skip": 0,
+    "actualFiles": 9,
+    "requestedFilePaths": 10,
+    "sourceInputs": 436,
+    "inputsUnchanged": true,
+    "typecheck": "passed",
+    "build": "passed",
+    "report": "affected-frontend-report.json"
+  },
+  "lineage": "failure-lineage.json",
+  "inputDeltaComparison": "affected-input-deltas.json",
+  "terminalCLOUD016": {
+    "pass": 32,
+    "fail": 0,
+    "skip": 0,
+    "sourceInputs": 88,
+    "inputsUnchanged": true,
+    "packages": 2,
+    "report": "terminal-corrected-report.json",
+    "newSandboxImageRequired": true,
+    "scope": "Actual local PTY/WebSocket and controlled subscriber bounds under race detector; not Docker/installed/native acceptance."
+  },
+  "finalSourceBrowser": {
+    "passed": true,
+    "checkpoints": 22,
+    "viewports": [
+      1440,
+      390
+    ],
+    "axeViolations": 0,
+    "horizontalOverflowChecks": "passed",
+    "browser": "Chromium151.0.7922.173",
+    "sourceInputsUnchanged": true,
+    "report": "controlled-browser-report.json",
+    "scope": "Actual source components with controlled API callbacks; no real backend, installed, native, Docker or model execution."
+  },
+  "limitations": [
+    "Do not add overlapping full/focused outcomes into a unique-test total. Go totals include named subtest outcomes.",
+    "Full Go run remains failed; selected later reruns are not a new full-suite pass.",
+    "Full frontend run remains failed;169 affected tests do not mean all2578 were rerun.",
+    "32 Go packages passed,1 failed and2 had package-level skip events;29 named test skips remain in published outcomes.",
+    "Some native-only, explicit live-Docker/provider/benchmark/soak and helper entry tests are skipped in ordinary Linux suite. Their skipped outcomes do not establish acceptance.",
+    "WholeGo hash guard covered2003 repository inputs. Later focused manifests cover their stated narrower scopes, not unchanged entire checkout.",
+    "Frontend and bounded Go diagnostics overlapped; no timing/resource performance or speed claim.",
+    "Controlled API/HTTP/Git tests exercise actual application boundaries but controlled backend states do not prove native Docker/model behavior.",
+    "Matching installed checkpoint/DAG/conflict/sustained workflows, Windows whole-machine workload/recovery and live-provider quality remain separate open gates.",
+    "Public evidence is allowlisted: commands with output destination placeholders, relative source filenames/hashes and test outcomes. Raw logs/DOM/auth/private fixtures are not published.",
+    "CLOUD-016 changes sandbox runtime production source; build a matching new image before installed acceptance. No image or Docker workload was built/run by these source checks."
+  ],
+  "evidenceDirectory": "cloud010-015-source",
+  "keyboardFocusCorrection": {
+    "before": "keyboard-focus-before-report.json",
+    "after": "keyboard-focus-after-report.json",
+    "beforeObserved": "BODY",
+    "afterObserved": "BUTTON Continue reserved task",
+    "workerStarts": 0
+  }
+}

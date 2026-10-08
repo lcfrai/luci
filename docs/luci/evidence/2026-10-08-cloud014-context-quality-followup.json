@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "issue": "CLOUD-014",
+  "status": "controlled-followup-passed",
+  "scope": "Seventeen controlled evaluator checks after observed-concurrency and scorer/rule hash corrections; no model or product execution.",
+  "startedAt": "2026-10-08T13:09:37.353291+00:00",
+  "finishedAt": "2026-10-08T13:09:37.776619+00:00",
+  "harnessElapsedSeconds": 0.4233021099935286,
+  "exitCode": 0,
+  "command": [
+    "python3",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "scripts/acceptance/context-quality",
+    "-p",
+    "test_evaluate.py",
+    "-v"
+  ],
+  "sourceBefore": {
+    "scripts/acceptance/context-quality/HUMAN-REVIEW.md": "6f1b385a275345a8786e12d8ad04ad1eb63cd5d51e88bdec645935de763c1540",
+    "scripts/acceptance/context-quality/PROTOCOL.md": "31a2bb2c37924805fc6dbe755113f1efdfdd01b0fcfd48d46a1bfb4fdad6b3fb",
+    "scripts/acceptance/context-quality/README.md": "4e8a18cc7a751daee6bf42215e0506c97aec73469fd287008860a1a952dd3579",
+    "scripts/acceptance/context-quality/RUN-FORMAT.md": "5839cf201c709b2b3cb00705689cb1f0817a85fed53b683a8d97d0ec268760c4",
+    "scripts/acceptance/context-quality/cases/01-ambiguity.json": "f876cd5f33e94a5f2ec95e7fb429d87efabd71fe92f64aa674d0ca38850c29c2",
+    "scripts/acceptance/context-quality/cases/02-isolation.json": "cbca6b914823e078744dd3bb4d53fb3ba1c1db041fed51919584cef259d2d9e0",
+    "scripts/acceptance/context-quality/cases/03-amendment.json": "262738731af2697fdd0cfed6f04930b1bf23e75cd083d879390e8ecf74750885",
+    "scripts/acceptance/context-quality/cases/04-stale-source.json": "05fc2d14818a54b923ebce4e1a67dcd111bf730866273015f391bc4fed60e1ad",
+    "scripts/acceptance/context-quality/cases/05-dependency-handoff.json": "064d827d9112698b108bcb90b2e59e55ca53961032ccce45b539a1ab0fea36bb",
+    "scripts/acceptance/context-quality/cases/06-restart.json": "dd9b2fec3d1272d5e5178456766ef05b0df2fbee35bddb140a7261144be67b19",
+    "scripts/acceptance/context-quality/evaluate.py": "02eee3b1d5c2351fbbcb83c076ab6adfe1736fe4bfddd347c70d02c94afd1856",
+    "scripts/acceptance/context-quality/evaluator-only/isolation-seeds.json": "4870e49fb2d32654e81d91db8ab532a31c96e528f9fb48a917a43fbb0791b815",
+    "scripts/acceptance/context-quality/evaluator-only/oracles.json": "1a5924e5e7abb3335741c579fe06f3104d721e5f5276a8f95b22bd227945686e",
+    "scripts/acceptance/context-quality/test_evaluate.py": "1887b2a1371ff6308646381f0471dd3e731041fb344248ee19030b472e9ce9ea"
+  },
+  "sourceAfter": {
+    "scripts/acceptance/context-quality/HUMAN-REVIEW.md": "6f1b385a275345a8786e12d8ad04ad1eb63cd5d51e88bdec645935de763c1540",
+    "scripts/acceptance/context-quality/PROTOCOL.md": "31a2bb2c37924805fc6dbe755113f1efdfdd01b0fcfd48d46a1bfb4fdad6b3fb",
+    "scripts/acceptance/context-quality/README.md": "4e8a18cc7a751daee6bf42215e0506c97aec73469fd287008860a1a952dd3579",
+    "scripts/acceptance/context-quality/RUN-FORMAT.md": "5839cf201c709b2b3cb00705689cb1f0817a85fed53b683a8d97d0ec268760c4",
+    "scripts/acceptance/context-quality/cases/01-ambiguity.json": "f876cd5f33e94a5f2ec95e7fb429d87efabd71fe92f64aa674d0ca38850c29c2",
+    "scripts/acceptance/context-quality/cases/02-isolation.json": "cbca6b914823e078744dd3bb4d53fb3ba1c1db041fed51919584cef259d2d9e0",
+    "scripts/acceptance/context-quality/cases/03-amendment.json": "262738731af2697fdd0cfed6f04930b1bf23e75cd083d879390e8ecf74750885",
+    "scripts/acceptance/context-quality/cases/04-stale-source.json": "05fc2d14818a54b923ebce4e1a67dcd111bf730866273015f391bc4fed60e1ad",
+    "scripts/acceptance/context-quality/cases/05-dependency-handoff.json": "064d827d9112698b108bcb90b2e59e55ca53961032ccce45b539a1ab0fea36bb",
+    "scripts/acceptance/context-quality/cases/06-restart.json": "dd9b2fec3d1272d5e5178456766ef05b0df2fbee35bddb140a7261144be67b19",
+    "scripts/acceptance/context-quality/evaluate.py": "02eee3b1d5c2351fbbcb83c076ab6adfe1736fe4bfddd347c70d02c94afd1856",
+    "scripts/acceptance/context-quality/evaluator-only/isolation-seeds.json": "4870e49fb2d32654e81d91db8ab532a31c96e528f9fb48a917a43fbb0791b815",
+    "scripts/acceptance/context-quality/evaluator-only/oracles.json": "1a5924e5e7abb3335741c579fe06f3104d721e5f5276a8f95b22bd227945686e",
+    "scripts/acceptance/context-quality/test_evaluate.py": "1887b2a1371ff6308646381f0471dd3e731041fb344248ee19030b472e9ce9ea"
+  },
+  "sourcesUnchanged": true,
+  "testLogSHA256": "90076b1932c02dcd6474894cdc36c3acf245cb62d7aa4324e159dcf062193c52",
+  "previousReceiptSHA256": "ac1d009bb53aa4d185e95fff106263069424402cc3c673d2c95c39789e54505c",
+  "corrections": [
+    "Observe request interval overlap using half-open intervals and refuse a peak exceeding the declared case concurrency limit.",
+    "Bind every scored result to exact evaluator, oracle, case and isolation-rule source hashes."
+  ],
+  "actualModelCalls": 0,
+  "actualProductRuns": 0,
+  "actualCompetitorRuns": 0,
+  "humanSemanticGrades": 0,
+  "liveScores": null,
+  "limitations": [
+    "Overlap is validated within one case capture; global batch overlap needs all case intervals.",
+    "Supplied provenance consistency does not prove external authenticity.",
+    "Semantic quality remains unscored until independent human review."
+  ]
+}

@@ -1,3 +1,4 @@
+import {openTaskActions} from '../../test/swarmActions';
 import { useState } from 'react';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -30,6 +31,7 @@ it('requires separate stopping consent for the exact attempt, retains output and
   const abandon = vi.spyOn(projectSwarmApi, 'abandon').mockResolvedValue(recovered(run, 'finalized'));
   const create = vi.spyOn(api, 'createSession');
   render(<Harness initial={run} canExecute={false} />);
+  await openTaskActions();
   expect(read).not.toHaveBeenCalled();
   await userEvent.click(screen.getByRole('button', {name: stopLabel}));
   const dialog = screen.getByRole('dialog', {name: stopLabel});
@@ -61,6 +63,7 @@ it.each([
   vi.spyOn(projectSwarmApi, 'recovery').mockResolvedValue({...available(run), availability: {supported: false, reasonCode, message}});
   const abandon = vi.spyOn(projectSwarmApi, 'abandon');
   render(<Harness initial={run} />);
+  await openTaskActions();
   await userEvent.click(screen.getByRole('button', {name: stopLabel}));
   const dialog = screen.getByRole('dialog', {name: stopLabel});
   await within(dialog).findByText(message);
@@ -75,6 +78,7 @@ it.each(['pending', 'fenced'] as const)('keeps %s recovery capacity held and req
   vi.spyOn(projectSwarmApi, 'recovery').mockResolvedValue(available(run));
   const abandon = vi.spyOn(projectSwarmApi, 'abandon');
   render(<Harness initial={run} />);
+  await openTaskActions();
   expect(screen.getByText('New starts enabled · 1 of 2 agent slots occupied')).not.toBeNull();
   expect(screen.queryByRole('button', {name: 'Retry in a new workspace'})).toBeNull();
   expect(screen.queryByRole('button', {name: 'Open task session'})).toBeNull();
@@ -93,6 +97,7 @@ it('reads back a lost recovery response once without replay and shows its retain
   const get = vi.spyOn(projectRunsApi, 'get').mockResolvedValue(pending);
   const create = vi.spyOn(api, 'createSession');
   render(<Harness initial={run} />);
+  await openTaskActions();
   await userEvent.click(screen.getByRole('button', {name: stopLabel}));
   const dialog = screen.getByRole('dialog', {name: stopLabel});
   await userEvent.click(await within(dialog).findByRole('checkbox'));
@@ -109,6 +114,7 @@ it('clears support and consent on a failed capability refresh without automatica
   vi.spyOn(projectSwarmApi, 'recovery').mockResolvedValueOnce(available(run)).mockRejectedValueOnce(new Error('Current control permission was denied.'));
   const abandon = vi.spyOn(projectSwarmApi, 'abandon');
   render(<Harness initial={run} />);
+  await openTaskActions();
   await userEvent.click(screen.getByRole('button', {name: stopLabel}));
   const dialog = screen.getByRole('dialog', {name: stopLabel});
   await userEvent.click(await within(dialog).findByRole('checkbox'));
@@ -124,6 +130,7 @@ it('cannot revive late availability or consent after edit authority is revoked a
   const read = vi.spyOn(projectSwarmApi, 'recovery').mockReturnValueOnce(new Promise(done => {resolve = done;})).mockResolvedValue(available(run));
   const abandon = vi.spyOn(projectSwarmApi, 'abandon');
   const view = render(<Harness initial={run} />);
+  await openTaskActions();
   await userEvent.click(screen.getByRole('button', {name: stopLabel}));
   view.rerender(<Harness initial={run} canEdit={false} />);
   view.rerender(<Harness initial={run} canEdit />);
@@ -141,6 +148,7 @@ it('ignores a delayed mutation result after the user leaves the project or loses
   vi.spyOn(projectSwarmApi, 'abandon').mockReturnValue(new Promise(done => {resolve = done;}));
   const updated = vi.fn();
   const view = render(<Harness initial={run} updated={updated} />);
+  await openTaskActions();
   await userEvent.click(screen.getByRole('button', {name: stopLabel}));
   const dialog = screen.getByRole('dialog', {name: stopLabel});
   await userEvent.click(await within(dialog).findByRole('checkbox'));
@@ -156,6 +164,7 @@ it('drops the review when the run revision or project changes before confirmatio
   const abandon = vi.spyOn(projectSwarmApi, 'abandon');
   const props = {canEdit: true, canExecute: true, busy: false, onBusy: vi.fn(), onUpdate: vi.fn(), onOpenSession: vi.fn()};
   const view = render(<ProjectSwarm {...props} run={run} />);
+  await openTaskActions();
   await userEvent.click(screen.getByRole('button', {name: stopLabel}));
   await userEvent.click(await within(screen.getByRole('dialog')).findByRole('checkbox'));
   view.rerender(<ProjectSwarm {...props} run={{...run, revision: run.revision + 1}} />);
@@ -164,11 +173,12 @@ it('drops the review when the run revision or project changes before confirmatio
   expect(screen.queryByRole('dialog')).toBeNull(); expect(abandon).not.toHaveBeenCalled();
 });
 
-it.each(['integrating', 'unknown', 'integrated'] as const)('keeps a retained %s integration out of launch recovery', state => {
+it.each(['integrating', 'unknown', 'integrated'] as const)('keeps a retained %s integration out of launch recovery', async state => {
   const run = retained();
   run.swarm!.tasks[0].integration = {state, sourceCommit: 'a'.repeat(40), targetCommit: 'b'.repeat(40), reviewDigest: 'review'};
   const read = vi.spyOn(projectSwarmApi, 'recovery');
   render(<Harness initial={run} />);
+  await openTaskActions();
   expect(screen.queryByRole('button', {name: stopLabel})).toBeNull();
   expect(screen.getByRole('button', {name: 'Inspect workspace output'})).not.toBeNull();
   expect(read).not.toHaveBeenCalled();

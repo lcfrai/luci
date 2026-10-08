@@ -13,6 +13,7 @@ import { Button } from '../fluid/components/button';
 import { Badge } from '../ui/badge';
 import { NavigationIcon } from '../common/NavigationIcon';
 import { WorkflowDialog } from '../common/WorkflowDialog';
+import { RecordedRunAttention } from '../common/RecordedRunAttention';
 import { HostCapacity } from './HostCapacity';
 import './project-overview.css';
 
@@ -151,9 +152,8 @@ function ProjectCard({ project, summary, refresh, picked, pending, onSelect, onF
   const scope = useProjectDraftScope(project.id);
   const value = summary?.value;
   const counts = value?.execution;
-  function openNext() {
+  function openDestination(lens?: Lens, runId?: string) {
     if (!value || summary?.sourceBusy) return;
-    const lens = (['discover', 'design', 'develop', 'files', 'merge', 'deploy'].includes(value.nextAction.lens) ? value.nextAction.lens : undefined) as Lens | undefined;
     useCockpit.getState().selectProject(project.id, lens);
     const state = useCockpit.getState(), destination = state.pendingNavigation;
     const accepted = destination ? destination.kind === 'project' && destination.projectId === project.id && destination.lens === lens
@@ -161,9 +161,13 @@ function ProjectCard({ project, summary, refresh, picked, pending, onSelect, onF
     // Retain an exact run request through the normal unsaved-draft guard. Its
     // cancel action clears this transient intent; it never authorizes execution.
     if (!accepted || !state.projects.some(item => item.id === project.id && item.path === project.path)) return;
-    const runId = value.nextAction.runId;
     useCockpit.setState({ projectRunInspection: scope && lens === 'develop' && typeof runId === 'string' && runId
       ? { scope, projectId: project.id, runId, refresh: true } : null });
+  }
+  function openNext() {
+    if (!value) return;
+    const lens = (['discover', 'design', 'develop', 'files', 'merge', 'deploy'].includes(value.nextAction.lens) ? value.nextAction.lens : undefined) as Lens | undefined;
+    openDestination(lens, value.nextAction.runId);
   }
   return <li className="overview-card"><header><h3><button className="overview-project-open" onClick={() => useCockpit.getState().selectProject(project.id)} aria-label={`Open project ${project.name}`}>{project.name}<NavigationIcon name="chevron-right" /></button></h3>{value && <Badge variant="outline">{summary?.sourceBusy && 'Last recorded: '}{value.phase.label}</Badge>}</header>
     {!summary ? <p role="status">Loading project context…</p> : summary.error ? <p className="overview-warning" role="status">Summary unavailable. {summary.error}</p> : value && <>
@@ -173,8 +177,11 @@ function ProjectCard({ project, summary, refresh, picked, pending, onSelect, onF
       {counts?.status === 'unavailable' && <p className="overview-warning">Queue activity unavailable; no zero counts inferred.</p>}
       {!!counts?.paused && <p className="overview-meta">{counts.paused} paused</p>}{!!counts?.reserved && <p className="overview-meta">{counts.reserved} reserved for dispatch</p>}{!!counts?.unknown && <p className="overview-warning">{counts.unknown} {counts.unknown === 1 ? 'outcome needs' : 'outcomes need'} reconciliation in the project.</p>}
       {counts?.dispatchPaused && <p className="overview-warning">Workspace dispatch is paused.</p>}
+      {value.attention?.status === 'recorded'
+        ? <RecordedRunAttention {...value.attention} compact initialLimit={1} count={value.attention.count ?? 0} omitted={value.attention.omitted ?? 0} stale={summary.sourceBusy} onInspect={runId => openDestination('develop', runId)} onOpenHistory={() => openDestination('develop')} />
+        : <p className="overview-meta">Review history is unavailable. Open the project to inspect its saved builds.</p>}
     </>}
-    <footer>{value && !summary?.sourceBusy && <Button variant="secondary" onClick={openNext}>{value.nextAction.label}</Button>}<Button variant="ghost" onClick={() => useCockpit.getState().selectProject(project.id)}>Open project</Button><Button variant="ghost" disabled={pending} aria-expanded={showQueue} onClick={() => { if (showQueue) onForget(project.id); setShowQueue(value => !value); }}>{showQueue ? 'Hide queue' : 'Manage queue'}</Button></footer>
+    <footer>{value && !summary?.sourceBusy && !(value.nextAction.id === 'inspect-run' && value.nextAction.lens === 'develop' && value.attention?.status === 'recorded' && value.attention.items[0]?.id === value.nextAction.runId) && <Button variant="secondary" onClick={openNext}>{value.nextAction.label}</Button>}<Button variant="ghost" onClick={() => useCockpit.getState().selectProject(project.id)}>Open project</Button><Button variant="ghost" disabled={pending} aria-expanded={showQueue} onClick={() => { if (showQueue) onForget(project.id); setShowQueue(value => !value); }}>{showQueue ? 'Hide queue' : 'Manage queue'}</Button></footer>
     {value && <>
 
       {value.questions.items.length > 0 && <details className="overview-questions"><summary>{value.questions.count === null ? 'Known questions to resolve' : `${value.questions.count} ${value.questions.count === 1 ? 'question' : 'questions'} to resolve`}</summary><ul>{value.questions.items.map(question => <li key={`${question.source}:${question.id}`}>{question.text}{question.truncated && '…'}</li>)}</ul>{!!value.questions.omitted && <p>{value.questions.omitted} more in the project.</p>}</details>}

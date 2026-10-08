@@ -53,6 +53,9 @@ type ProjectRunInput struct {
 }
 
 type ProjectRunOperation struct {
+	Handoff             *TaskHandoffReference           `json:"handoff,omitempty"`
+	DependencyContext   *TaskDependencyReference        `json:"dependencyContext,omitempty"`
+	Checkpoint          *ProjectSwarmCheckpoint         `json:"checkpoint,omitempty"`
 	UnclaimedRetirement bool                            `json:"unclaimedRetirement,omitempty"`
 	LaunchRecovery      *ProjectSwarmRecoveryIntent     `json:"launchRecovery,omitempty"`
 	LaunchRecoveryProof *ProjectSwarmRecoveryProof      `json:"launchRecoveryProof,omitempty"`
@@ -162,6 +165,7 @@ type storedProjectRun struct {
 // admissions for that account. Callers must reuse this instance, not construct
 // one per HTTP request. The store never invokes an executor or repairs on read.
 type ProjectRunStore struct {
+	handoffMu    sync.Mutex
 	mu           sync.Mutex
 	stateDir     string
 	accountScope string
@@ -282,9 +286,13 @@ func (s *ProjectRunStore) read(projectID, scope, id string) (storedProjectRun, e
 
 func (s *ProjectRunStore) save(row storedProjectRun) error {
 	// Capture the compact head against the pre-write directory generation.
-	// An unavailable legacy index stays unavailable until creation can reuse
-	// its already-validated history; a GET never repairs it.
+	// Legacy/stale heads are rebuilt only on explicit writes from a complete,
+	// validated history. A GET never scans or repairs historical run payloads.
 	overviewHead, overviewHeadErr := s.readOverviewRunHead(row.Run.ProjectID, row.ProjectScope)
+	var overviewHistory []storedProjectRun
+	if overviewHeadErr != nil || overviewHead.Version != overviewRunHeadVersion {
+		overviewHistory, _ = s.list(row.Run.ProjectID, row.ProjectScope)
+	}
 	if err := validateStoredProjectRun(row); err != nil {
 		return err
 	}
@@ -316,8 +324,21 @@ func (s *ProjectRunStore) save(row storedProjectRun) error {
 	if err := syncProjectRunDirectory(dir); err != nil {
 		return err
 	}
-	if overviewHeadErr == nil {
+	if overviewHeadErr == nil && overviewHead.Version == overviewRunHeadVersion {
+		updateOverviewRunAttention(&overviewHead, row.Run)
 		_ = s.writeOverviewRunHead(overviewHead)
+	} else if overviewHistory != nil {
+		found := false
+		for i := range overviewHistory {
+			if overviewHistory[i].Run.ID == row.Run.ID {
+				overviewHistory[i], found = row, true
+				break
+			}
+		}
+		if !found {
+			overviewHistory = append(overviewHistory, row)
+		}
+		s.overviewHeadFromHistory(overviewHistory)
 	}
 	return nil
 }

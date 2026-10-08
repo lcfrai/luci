@@ -1,0 +1,100 @@
+{
+  "scope": "Affected frontend verification after preserved full-suite failures: strict seam/doc mirrors, explicit refused-recovery request barrier, task-scoped checkpoint focus and visible earlier-attempt question cue. No native/installed/backend/model claim.",
+  "startedAt": "2026-10-08T13:48:01Z",
+  "finishedAt": "2026-10-08T13:49:33Z",
+  "sourceCommit": "23e25c21788fa47607a6dca98479d4d3b51351f0",
+  "sourceCommitAfter": "23e25c21788fa47607a6dca98479d4d3b51351f0",
+  "sourceUnchanged": true,
+  "sourceCount": 436,
+  "testsExit": 0,
+  "typecheckExit": 0,
+  "buildExit": 0,
+  "allCommandProcessesClosed": true,
+  "counts": {
+    "numTotalTestSuites": 11,
+    "numPassedTestSuites": 11,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 169,
+    "numPassedTests": 169,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0
+  },
+  "files": 9,
+  "passed": true,
+  "testFiles": [
+    "src/seams.test.ts",
+    "src/components/platform/DataWorkspace.test.tsx",
+    "src/components/journey/ProjectSwarm.test.tsx",
+    "src/components/journey/SwarmLaunchRecovery.test.tsx",
+    "src/components/journey/ProjectSwarmQueue.test.tsx",
+    "src/components/journey/SwarmCheckpoint.test.tsx",
+    "src/components/journey/SwarmTaskHandoff.test.tsx",
+    "src/components/develop/ReviewedContextInspector.test.tsx",
+    "src/components/projects/ProjectOverviewBoard.test.tsx",
+    "src/components/journey/ProjectUnderstanding.test.tsx"
+  ],
+  "sourceReportSHA256": "563cf845fd4b329b8aa0a3070952de9b7a35c5121db82865434110bd649f9d5d",
+  "workingDirectory": "desktop",
+  "sourceDirty": true,
+  "commands": [
+    {
+      "command": [
+        "npm",
+        "test",
+        "--",
+        "--maxWorkers=2",
+        "--reporter=json",
+        "--outputFile=<private-json-report>",
+        "src/seams.test.ts",
+        "src/components/platform/DataWorkspace.test.tsx",
+        "src/components/journey/ProjectSwarm.test.tsx",
+        "src/components/journey/SwarmLaunchRecovery.test.tsx",
+        "src/components/journey/ProjectSwarmQueue.test.tsx",
+        "src/components/journey/SwarmCheckpoint.test.tsx",
+        "src/components/journey/SwarmTaskHandoff.test.tsx",
+        "src/components/develop/ReviewedContextInspector.test.tsx",
+        "src/components/projects/ProjectOverviewBoard.test.tsx",
+        "src/components/journey/ProjectUnderstanding.test.tsx"
+      ],
+      "startedAt": "2026-10-08T13:48:01Z",
+      "finishedAt": "2026-10-08T13:48:31Z",
+      "exitCode": 0
+    },
+    {
+      "command": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "startedAt": "2026-10-08T13:48:31Z",
+      "finishedAt": "2026-10-08T13:48:57Z",
+      "exitCode": 0
+    },
+    {
+      "command": [
+        "npm",
+        "run",
+        "build"
+      ],
+      "startedAt": "2026-10-08T13:48:57Z",
+      "finishedAt": "2026-10-08T13:49:32Z",
+      "exitCode": 0
+    }
+  ],
+  "inputs": {
+    "file": "affected-frontend-inputs.json",
+    "sha256": "88dd8e513cb04f7fc429c3c61412ad6a5c4992f892848360708f89227f7df91f",
+    "originalManifestSHA256": "88dd8e513cb04f7fc429c3c61412ad6a5c4992f892848360708f89227f7df91f",
+    "inputCount": 436,
+    "externalPathRedactions": 0,
+    "externalPathMeaning": null
+  },
+  "beforeAfterManifestsEqual": true,
+  "outcomesFile": "affected-frontend-outcomes.json",
+  "outcomesSHA256": "01cefe269821453672943824f2685c6ac7f85868b4c41c4385e022e170170760",
+  "rawVitestSHA256": "22c1ab9ee1e04ce9aa747ddc8e13fc887f8651e35897781e1901cb6312b502b1",
+  "failures": [],
+  "requestedFileListCaveat": "10 file paths requested; one nonexistent journey/ProjectUnderstanding.test.tsx selected no test. Actual execution was169 tests across9files. The unchanged actual orchestrator/ProjectUnderstanding.test.tsx had32pass0fail in the full baseline; no new rerun claimed."
+}

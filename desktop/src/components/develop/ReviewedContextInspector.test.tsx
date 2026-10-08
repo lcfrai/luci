@@ -126,3 +126,37 @@ it("returns keyboard focus to its trigger after close without changing an unrela
   await waitFor(() => expect(document.activeElement).toBe(trigger));
   expect((screen.getByLabelText("Unsaved task") as HTMLInputElement).value).toBe("Keep my changes");
 });
+
+function versionTwoSession(): Session {
+  return {...session, implementationContext: {...context, dependencyContextDigest: 'd'.repeat(64)}, reviewedContextDelivery: {...session.reviewedContextDelivery!, version: 2}} as Session;
+}
+it('recognizes version 2 captured inputs and reads the exact dependency-bound original document', async () => {
+  const selected=versionTwoSession();
+  state.get.mockImplementation(async(_id,kind)=>({...response(kind,{purpose:'Version 2 original definition'},selected),version:2}));
+  render(<ReviewedContextNote session={selected} canInspect/>);
+  expect(screen.getByRole('note',{name:'Agent context'}).textContent).toContain('Reviewed inputs were captured at start');
+  const dialog=await open();await within(dialog).findByText('Version 2 original definition');
+  expect(state.get).toHaveBeenCalledExactlyOnceWith(selected.id,'definition');
+});
+it.each(['wrong-version','missing-dependency','wrong-dependency'])('refuses version 2 %s rather than showing unbound context', async change => {
+  const selected=versionTwoSession();
+  const value={...response('definition',{purpose:'Unbound private document'},selected),version:change==='wrong-version'?1:2};
+  if(change==='missing-dependency')value.implementationContext=context;
+  if(change==='wrong-dependency')value.implementationContext={...selected.implementationContext!,dependencyContextDigest:'e'.repeat(64)} as ImplementationContext;
+  state.get.mockResolvedValue(value);render(<ReviewedContextNote session={selected} canInspect/>);
+  const dialog=await open();await within(dialog).findByRole('alert');expect(within(dialog).queryByText('Unbound private document')).toBeNull();
+});
+it.each([undefined,'','invalid'])('does not offer version 2 inspection without a valid saved dependency digest: %j', dependencyContextDigest => {
+  const selected=versionTwoSession();selected.implementationContext={...context,dependencyContextDigest} as ImplementationContext;
+  render(<ReviewedContextNote session={selected} canInspect/>);expect(screen.queryByRole('button',{name:'View reviewed context'})).toBeNull();expect(state.get).not.toHaveBeenCalled();
+});
+it('rejects a dependency-bearing response for a version 1 session',async()=>{
+  state.get.mockResolvedValue({...response('definition',{purpose:'Wrong version content'}),implementationContext:{...context,dependencyContextDigest:'d'.repeat(64)}});
+  render(<ReviewedContextNote session={session} canInspect/>);const dialog=await open();await within(dialog).findByRole('alert');expect(screen.queryByText('Wrong version content')).toBeNull();
+});
+it('closes a version 2 inspection when the saved dependency binding changes',async()=>{
+  const selected=versionTwoSession();state.get.mockImplementation(async(_id,kind)=>({...response(kind,undefined,selected),version:2}));
+  const view=render(<ReviewedContextNote session={selected} canInspect/>);await open();await screen.findByText('Original definition');
+  view.rerender(<ReviewedContextNote session={{...selected,implementationContext:{...selected.implementationContext!,dependencyContextDigest:'e'.repeat(64)} as ImplementationContext}} canInspect/>);
+  expect(screen.queryByRole('dialog')).toBeNull();
+});

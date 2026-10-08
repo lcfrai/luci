@@ -1,0 +1,81 @@
+{
+  "startedAt": "2026-10-08T12:53:48.059800+00:00",
+  "endedAt": "2026-10-08T12:56:24.789984+00:00",
+  "elapsedSeconds": 156.81119894000585,
+  "command": [
+    "go",
+    "-C",
+    "control-plane",
+    "test",
+    "-race",
+    "-p",
+    "1",
+    "./internal/product",
+    "./internal/api",
+    "-run",
+    "^(TestCloud010|TestProjectOverview|TestOrchestrator|TestTaskHandoff|TestSwarmCheckpoint|TestProductRegisteredReads|TestTaskOutputGuard|TestProjectSwarmCapturedTaskContracts)",
+    "-count=1",
+    "-json"
+  ],
+  "exitCode": 1,
+  "headBefore": "07399a25ef7e651e562a49e9dfec5684e6f22c96",
+  "headAfter": "07399a25ef7e651e562a49e9dfec5684e6f22c96",
+  "inputCount": 746,
+  "inputsUnchanged": true,
+  "counts": {
+    "pass": 139,
+    "fail": 2
+  },
+  "failures": [
+    {
+      "Time": "2026-10-08T12:55:57.423849492Z",
+      "Action": "fail",
+      "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+      "Test": "TestTaskHandoffRecordedClaimsQuestionsAndFrozenDependency",
+      "Elapsed": 1.6
+    },
+    {
+      "Time": "2026-10-08T12:55:58.794202874Z",
+      "Action": "fail",
+      "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+      "Test": "TestTaskHandoffReadAudit",
+      "Elapsed": 1.36
+    },
+    {
+      "Time": "2026-10-08T12:55:58.808611429Z",
+      "Action": "fail",
+      "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+      "Elapsed": 88.854
+    }
+  ],
+  "packages": [
+    {
+      "Time": "2026-10-08T12:55:58.808611429Z",
+      "Action": "fail",
+      "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+      "Elapsed": 88.854
+    },
+    {
+      "Time": "2026-10-08T12:56:24.754085172Z",
+      "Action": "pass",
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Elapsed": 13.802
+    }
+  ],
+  "scope": "Controlled product/API mechanics; no native Windows, Docker or model execution claim.",
+  "sourceReportSHA256": "970fb30af6867511d4219fa3a8560310ba4af52606f1f8585bf5742dbac90f32",
+  "sourceAttribution": "Working tree snapshot, including uncommitted changes; HEAD is an ancestry marker, not the tested file contents.",
+  "GOMAXPROCS": 2,
+  "inputs": {
+    "file": "initial-focused-inputs.json",
+    "sha256": "1908dde10634783c9426df6716d0e29af57dba0d0e07b96ed49a3cd7a50c7146",
+    "originalManifestSHA256": "fa3396c713b7afef835f976519946a5f2831b836fef001ac07a2c065c28a1edb",
+    "inputCount": 746,
+    "externalPathRedactions": 1,
+    "externalPathMeaning": "@verification-environment/go.work denotes the existing external activation workspace file; its original absolute host path is omitted."
+  },
+  "beforeAfterManifestsEqual": true,
+  "outcomeSanitization": "Absolute workspace/temp test-label prefixes and URL userinfo replaced with explicit placeholders; no assertion output is published.",
+  "outcomesFile": "initial-focused-outcomes.json",
+  "outcomesSHA256": "a474caaffe7d1209d7f2558631e71572ff9d35798b8bec7a4560ece8a07168bf"
+}

@@ -177,6 +177,7 @@ func (s *Server) ValidateImplementationContext(projectID, worktreeID, worktreePa
 	previous.SourceCommit = ""
 	previous.SourceDigest = ""
 	previous.SourceDirty = false
+	previous.DependencyContextDigest = ""
 	if implementationDigest(current) != implementationDigest(previous) {
 		return errors.New("The task's saved requirements, design or plan changed. Review the current inputs and start a new run.")
 	}

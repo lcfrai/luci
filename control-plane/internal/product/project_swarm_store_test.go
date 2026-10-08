@@ -75,6 +75,9 @@ func allocateStoredSwarmTask(t *testing.T, s *ProjectRunStore, path string, run 
 	binding.TaskIDs = []string{op.TaskID}
 	binding.TaskTitles = []string{swarmTask(&run, op.TaskID).Title}
 	binding.SourceCommit = op.BaseCommit
+	if op.DependencyContext != nil {
+		binding.DependencyContextDigest = op.DependencyContext.Digest
+	}
 	route := run.Input.Route
 	candidate := registry.Session{ProjectID: run.ProjectID, WorktreeID: op.WorktreeID, ImplementationContext: binding, Harness: route.Harness, Model: route.Model, PermissionMode: route.PermissionMode, AgentConnectionID: route.Connection.ID, AgentConnectionRevision: route.Connection.Revision, AgentConnectionKind: route.Connection.Kind, AuthMode: route.Connection.AuthMode}
 	updated, err := s.CompleteSwarmAllocation(run.ProjectID, path, run.ID, run.Revision, op.ID, binding, candidate, nil)

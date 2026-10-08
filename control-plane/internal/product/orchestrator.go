@@ -126,6 +126,19 @@ func orchestratorNext(context OrchestratorContext, questions []OrchestratorQuest
 			return runAction(run.ID, "inspect-run", "Review prepared work", "This coding work is prepared but has not started. Review its agreed scope and approvals, then continue or cancel it.", "develop")
 		}
 	}
+	for _, run := range context.NeedsAttention {
+		if run.Kind == "task-question" {
+			return projectRunAttentionAction(run)
+		}
+		// The current run retains its existing stage/context guidance below.
+		// Older work must not disappear merely because a newer plan exists.
+		if context.CurrentRun == nil || run.ID != context.CurrentRun.ID {
+			return projectRunAttentionAction(run)
+		}
+		if run.Kind == "task-review" && run.ContextStatus == "current" {
+			return runAction(run.ID, "inspect-run", "Review task changes", "Retained agent changes need explicit integration review or retirement. Process exit or cancellation of future dispatch does not resolve that review.", "develop")
+		}
+	}
 	if context.Specification.Revision == 0 {
 		return action("define", "Shape your idea", "Clarify the people, outcome and measurable requirements.", "discover")
 	}

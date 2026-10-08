@@ -1,0 +1,46 @@
+{
+  "startedAt": "2026-10-08T13:48:27.822020+00:00",
+  "finishedAt": "2026-10-08T13:50:12.991839+00:00",
+  "durationSeconds": 105.16981325199595,
+  "command": [
+    "go",
+    "test",
+    "-race",
+    "-p",
+    "1",
+    "-count=1",
+    "-timeout=5m",
+    "-json",
+    "./control-plane/internal/api",
+    "./control-plane/internal/product",
+    "-run",
+    "Test(TaskHandoffPurge|Delete|Purg|Forget|ReviewedContext|Cloud011Orchestrator|Cloud010|Orchestrator|ProjectOverview)"
+  ],
+  "GOMAXPROCS": 2,
+  "exitCode": 0,
+  "testOutcomes": {
+    "pass": 126
+  },
+  "packageOutcomes": {
+    "pass": 2
+  },
+  "sourceInputs": 669,
+  "changedInputs": [],
+  "headAtStart": "23e25c21788fa47607a6dca98479d4d3b51351f0",
+  "passed": true,
+  "failures": [],
+  "sourceReportSHA256": "d14c4ee2610821bc961e1599106ce277d654fc6d058b75bc1f770ccf2be4047e",
+  "sourceAttribution": "Working tree snapshot, including uncommitted changes; HEAD is an ancestry marker, not the tested file contents.",
+  "inputs": {
+    "file": "affected-api-product-inputs.json",
+    "sha256": "dca7f005592d4cd3fa0aff42421ccde31cd1a0098e656b9a1c051bc9da124054",
+    "originalManifestSHA256": "dca7f005592d4cd3fa0aff42421ccde31cd1a0098e656b9a1c051bc9da124054",
+    "inputCount": 669,
+    "externalPathRedactions": 0,
+    "externalPathMeaning": null
+  },
+  "beforeAfterManifestsEqual": true,
+  "outcomeSanitization": "Absolute workspace/temp test-label prefixes and URL userinfo replaced with explicit placeholders; no assertion output is published.",
+  "outcomesFile": "affected-api-product-outcomes.json",
+  "outcomesSHA256": "ee061ed7f8ad0ce525171d699be5f2845bdc30e8182f5b7a112799687719feec"
+}

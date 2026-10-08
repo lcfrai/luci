@@ -20,3 +20,9 @@
 .swarm-run-queue-items { display: grid; gap: 12px; padding-inline-start: 20px; }
 .swarm-run-queue-items li { min-width: 0; overflow-wrap: anywhere; }
 .swarm-run-queue-items label { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+.project-swarm-more-actions { margin-block-start: 8px; }
+.project-swarm-more-actions > summary { min-block-size: 44px; padding: 10px 12px; border-radius: var(--r-card); color: var(--ink-2); cursor: pointer; width: fit-content; max-inline-size: 100%; }
+.project-swarm-more-actions > summary:hover { color: var(--ink-1); background: var(--inset); }
+.project-swarm-more-actions > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.project-swarm-more-actions[open] > .journey-actions { padding: 0 8px 8px; margin-block-start: 0; }

@@ -1,4 +1,5 @@
 import { productApi } from './product';
+import { validRunAttention, type ProjectRunAttention } from './runAttention';
 
 export interface ProjectOverview {
   projectId: string; observedAt: string; status: 'ready' | 'partial' | 'unavailable';
@@ -9,9 +10,17 @@ export interface ProjectOverview {
   execution: { scope: 'swarm-queue'; status: 'recorded' | 'unavailable'; observedAt: string; queued: number | null; paused: number | null; reserved: number | null; running: number | null; blocked: number | null; unknown: number | null; dispatchPaused: boolean | null };
   nextAction: { id: string; label: string; lens: string; runId?: string; reason?: string };
   latestRun?: { status: 'recorded' | 'none' | 'unavailable'; id?: string; state?: string; updatedAt?: string; contextStatus?: 'current' | 'changed' | 'unavailable'; contextReason?: string };
+  attention?: { status: 'recorded' | 'unavailable'; count: number | null; items: ProjectRunAttention[]; omitted: number | null };
   limitations: string[];
 }
 const count = (value: unknown) => value === null || (Number.isSafeInteger(value) && (value as number) >= 0);
+function validAttention(value: ProjectOverview['attention']): boolean {
+  if (value === undefined) return true; // Older services have no observation, not zero obligations.
+  if (!value || !validRunAttention(value.items, 3)) return false;
+  if (value.status === 'unavailable') return value.count === null && value.omitted === null && value.items.length === 0;
+  return value.status === 'recorded' && count(value.count) && value.count !== null && count(value.omitted) && value.omitted !== null &&
+    value.count <= 200 && value.count === value.items.length + value.omitted;
+}
 export const projectOverviewApi = {
   async get(projectId: string, signal?: AbortSignal): Promise<ProjectOverview> {
     const value = await productApi.request<ProjectOverview>(`/v1/product/projects/${encodeURIComponent(projectId)}/overview`, undefined, 'GET', 30_000, signal);
@@ -23,6 +32,7 @@ export const projectOverviewApi = {
       value.questions.items.some(item => typeof item.text !== 'string' || typeof item.id !== 'string') ||
       !value.execution || value.execution.scope !== 'swarm-queue' || !['recorded', 'unavailable'].includes(value.execution.status) ||
       ['queued', 'paused', 'reserved', 'running', 'blocked', 'unknown'].some(key => !count(value.execution[key as 'queued'])) ||
+      !validAttention(value.attention) ||
       !Array.isArray(value.limitations) || value.limitations.some(item => typeof item !== 'string')) {
       throw new Error('This project summary could not be read. Refresh it before continuing.');
     }

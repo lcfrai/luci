@@ -595,15 +595,15 @@ is preserved, and 1,911 tracked hashes are unchanged. See the
 The local thread reports the documented native build passed at exact
 `675ed402385b4082afda539b63fb0ff03565f58e`, with 1,921 tracked hashes unchanged.
 Warm and cold-reopen batches each passed five fixed-coordinate project label
-clicks with collapsed rows and the four distinct saved definitions preserved.
+clicks with collapsed rows and the four distinct saved purposes preserved.
 Explicit disclosure preserves the selected project; single-tab-stop tree
 navigation, Right/Left, Enter/Space without expansion, Windows Ctrl+K and
 unsaved-edit Keep editing behavior pass. Returning-owner sign-in and isolated
 state selection pass after normal close; a different free API port is expected.
 The first exact-window close stopped the owned app, sidecar and WebViews, and
 normal-state native-handle/content/identity comparisons match except for
-observer-sensitive access times. The second close/cleanup and receipt audit are
-still pending in this relayed report. Original misselection cause remains
+observer-sensitive access times. At this preliminary report the second close/cleanup and receipt audit were
+pending; the completed follow-up below supersedes that preliminary status. Original misselection cause remains
 unconfirmed. No worker, provider, throughput, crash or full resource acceptance
 is implied, and raw local receipts have not been inspected by the cloud thread.
 
@@ -620,3 +620,8 @@ unchanged. See the [relayed final receipt](evidence/2026-10-08-native-navigation
 Original misselection and historical metadata causes remain unconfirmed. This
 closes the corrected navigation scope, not the remaining recovery, workload,
 resource or live-provider release gates.
+
+The fixed-coordinate WebDriver sequences include intervening DOM reads. They
+verify selection/disclosure behavior, not human-speed stress or input latency.
+The four saved purposes are the measured context fields; they do not establish
+four complete application definitions or any built outputs.

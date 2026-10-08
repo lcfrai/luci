@@ -25,12 +25,13 @@ type ProjectSwarmTask struct {
 	Integration *ProjectSwarmIntegration `json:"integration,omitempty"`
 }
 type ProjectSwarmIntegration struct {
-	State        string `json:"state"`
-	Commit       string `json:"commit,omitempty"`
-	SourceCommit string `json:"sourceCommit"`
-	TargetCommit string `json:"targetCommit"`
-	ReviewDigest string `json:"reviewDigest"`
-	IntegratedAt string `json:"integratedAt,omitempty"`
+	HandoffDigest string `json:"handoffDigest,omitempty"`
+	State         string `json:"state"`
+	Commit        string `json:"commit,omitempty"`
+	SourceCommit  string `json:"sourceCommit"`
+	TargetCommit  string `json:"targetCommit"`
+	ReviewDigest  string `json:"reviewDigest"`
+	IntegratedAt  string `json:"integratedAt,omitempty"`
 }
 
 func swarmTask(run *ProjectRun, id string) *ProjectSwarmTask {
@@ -54,7 +55,7 @@ func swarmOperation(run *ProjectRun, id string) *ProjectRunOperation {
 func validateProjectSwarm(run ProjectRun) error {
 	if run.Swarm == nil {
 		for _, op := range run.Operations {
-			if op.UnclaimedRetirement || op.TaskID != "" || op.WorktreeID != "" || op.Implementation != nil || op.Allocation != "" || op.AbsenceRetirement != nil || op.LaunchRecovery != nil || op.LaunchRecoveryProof != nil || op.Recovery != nil || op.Status == "review-required" {
+			if op.Handoff != nil || op.DependencyContext != nil || op.Checkpoint != nil || op.UnclaimedRetirement || op.TaskID != "" || op.WorktreeID != "" || op.Implementation != nil || op.Allocation != "" || op.AbsenceRetirement != nil || op.LaunchRecovery != nil || op.LaunchRecoveryProof != nil || op.Recovery != nil || op.Status == "review-required" {
 				return ErrProjectRunInvalid
 			}
 		}
@@ -110,6 +111,12 @@ func validateProjectSwarm(run ProjectRun) error {
 		}
 	}
 	for _, op := range run.Operations {
+		if !validTaskHandoffReference(op) {
+			return ErrProjectRunInvalid
+		}
+		if !validSwarmCheckpoint(run, op) {
+			return ErrProjectRunInvalid
+		}
 		if op.UnclaimedRetirement && (op.Status != "cancelled" || op.LaunchRecovery != nil || op.LaunchRecoveryProof != nil || op.AbsenceRetirement != nil || op.Integration != nil) {
 			return ErrProjectRunInvalid
 		}
@@ -123,6 +130,12 @@ func validateProjectSwarm(run ProjectRun) error {
 			return ErrProjectRunInvalid
 		}
 		if op.Allocation == "ready" && (op.Implementation == nil || op.Implementation.WorktreeID != op.WorktreeID || len(op.Implementation.TaskIDs) != 1 || op.Implementation.TaskIDs[0] != op.TaskID) {
+			return ErrProjectRunInvalid
+		}
+		if op.Allocation == "ready" && op.DependencyContext != nil && op.Implementation.DependencyContextDigest != op.DependencyContext.Digest {
+			return ErrProjectRunInvalid
+		}
+		if receipt := taskHandoffIntegration(run, op); receipt != nil && receipt.HandoffDigest != "" && (op.Handoff == nil || receipt.HandoffDigest != op.Handoff.Digest) {
 			return ErrProjectRunInvalid
 		}
 	}
@@ -184,6 +197,10 @@ func swarmTaskReady(run ProjectRun, task ProjectSwarmTask) error {
 // Reservation is durable before worktree allocation. Neither a read nor a
 // duplicate POST is permission to replay an interrupted allocation.
 func (s *ProjectRunStore) ReserveSwarmTask(projectID, path, id string, revision int, key, taskID, base string, worktree func(string) string) (ProjectRun, ProjectRunOperation, bool, error) {
+	return s.reserveSwarmTask(projectID, path, id, revision, key, taskID, base, worktree, nil)
+}
+
+func (s *ProjectRunStore) reserveSwarmTask(projectID, path, id string, revision int, key, taskID, base string, worktree func(string) string, checkpoint *ProjectSwarmCheckpoint) (ProjectRun, ProjectRunOperation, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if !validRunKey(key) || !deliverySHA.MatchString(base) {
@@ -199,7 +216,7 @@ func (s *ProjectRunStore) ReserveSwarmTask(projectID, path, id string, revision 
 	}
 	if prior, ok := row.OperationKeys[reviewDigest(key)]; ok {
 		op := swarmOperation(&row.Run, prior)
-		if op == nil || op.TaskID != taskID {
+		if op == nil || op.TaskID != taskID || !sameSwarmCheckpointSelection(op.Checkpoint, checkpoint) {
 			return ProjectRun{}, ProjectRunOperation{}, false, ErrProjectRunKeyConflict
 		}
 		return row.Run, *op, false, nil
@@ -218,7 +235,15 @@ func (s *ProjectRunStore) ReserveSwarmTask(projectID, path, id string, revision 
 		}
 		now := time.Now().UTC().Format(time.RFC3339Nano)
 		op = ProjectRunOperation{ID: newID("op-"), Kind: "session", ChildID: ids.New("s"), Attempt: len(row.Run.Operations) + 1, Status: "reserved", Allocation: "allocating", TaskID: taskID, BaseCommit: base, CreatedAt: now, UpdatedAt: now}
+		if checkpoint != nil {
+			saved := *checkpoint
+			op.Checkpoint = &saved
+		}
 		op.WorktreeID = worktree(op.ID)
+		op.DependencyContext, err = s.freezeTaskDependencies(row.Run, op)
+		if err != nil {
+			return false, err
+		}
 		op.RequestDigest = implementationDigest(op)
 		row.Run.Operations = append(row.Run.Operations, op)
 		row.OperationKeys[reviewDigest(key)] = op.ID

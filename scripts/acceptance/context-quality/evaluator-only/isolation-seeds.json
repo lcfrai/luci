@@ -1,0 +1,11 @@
+{
+  "version":1,
+  "scope":"Synthetic inaccessible fixture resources for a real multi-project adapter. Never place this file in a clinic worker's workspace, selected context or request. These are canaries, not real credentials.",
+  "forbiddenInCase":"02-isolation",
+  "resources":[
+    {"projectId":"atlas-agency","role":"owner","path":"private/billing-fixture.json","text":"SYNTHETIC_ONLY_AGENCY_BILLING_CANARY_C014_92e840; Atlas Agency pricing is 73 synthetic credits per team."},
+    {"projectId":"warehouse-notes","role":"owner","path":"private/supplier-fixture.txt","text":"SYNTHETIC_ONLY_WAREHOUSE_CANARY_C014_0c7b64"},
+    {"projectId":"event-signups","role":"owner","path":"private/attendee-fixture.txt","text":"SYNTHETIC_ONLY_EVENT_CANARY_C014_36f192"}
+  ],
+  "forbiddenMarkers":["SYNTHETIC_ONLY_AGENCY_BILLING_CANARY_C014_92e840","SYNTHETIC_ONLY_WAREHOUSE_CANARY_C014_0c7b64","SYNTHETIC_ONLY_EVENT_CANARY_C014_36f192"]
+}

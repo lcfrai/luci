@@ -1,0 +1,62 @@
+{
+  "issue": "CLOUD-016",
+  "status": "passed",
+  "command": [
+    "go",
+    "test",
+    "-race",
+    "-count=1",
+    "-p",
+    "1",
+    "-json",
+    "./internal/hub",
+    "./internal/server"
+  ],
+  "workingDirectory": "sandboxd",
+  "exitCode": 0,
+  "counts": {
+    "pass": 32,
+    "fail": 0,
+    "skip": 0
+  },
+  "packages": [
+    {
+      "Time": "2026-10-08T13:56:39.974160225Z",
+      "Action": "pass",
+      "Package": "github.com/lcfrai/luci/sandboxd/internal/hub",
+      "Elapsed": 1.936
+    },
+    {
+      "Time": "2026-10-08T13:56:42.857560349Z",
+      "Action": "pass",
+      "Package": "github.com/lcfrai/luci/sandboxd/internal/server",
+      "Elapsed": 1.144
+    }
+  ],
+  "sourcesUnchanged": true,
+  "sourceCount": 88,
+  "originalFailure": "terminal-original-failure.json",
+  "scope": "Hub deterministic fragmented output/capacity/lifecycle and actual local PTY/WebSocket tests under race detector. No Docker image or installed app/Windows claim.",
+  "finishedAt": "2026-10-08T13:56:42.990058+00:00",
+  "inputs": {
+    "file": "terminal-corrected-inputs.json",
+    "sha256": "1770d502a07e88812609e8ee8b9b3fca48192e8edc64b80d1b14afeb553aab83",
+    "inputCount": 88
+  },
+  "sourceReportSHA256": "29008e9a5f15cab5cfdbfd9463930ae2adb3c102bbb17bc769dd731e2a4ed170",
+  "sourceDirty": true,
+  "sourceAttribution": "Exact accompanying sandbox source/module hash map; not a fresh full-suite pass or a future commit binding.",
+  "newSandboxImageRequired": true,
+  "productionChanges": {
+    "sandboxd/internal/hub/hub.go": "8715c17ae86ac1fe6e4cb1d90f01f5ba25e3fb2818eff46bb438c8bcf8785ee6",
+    "sandboxd/internal/hub/subscriber.go": "d186f7d8e192a97d34a2345e72d8eb0467eabd715d67500d2b89de27e9ed11d1"
+  },
+  "correction": "Replace fragment-count subscriber disconnect with bounded-byte coalescing; preserve explicit overflow and websocket timeout behavior.",
+  "memoryBounds": {
+    "maximumLivePayloadBytes": 1048576,
+    "maximumAllocatedPageBytes": 1081344,
+    "note": "Two partial pages can have nearly64 KiB slack at low occupancy; do not interpret this as exactly32 KiB slack at every occupancy."
+  },
+  "outcomesFile": "terminal-corrected-outcomes.json",
+  "outcomesSHA256": "a734cfd399deb482a5fca88cdffd948a97b1cc6bf50ad7253cc776db7b9ac740"
+}

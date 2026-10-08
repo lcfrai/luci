@@ -11,7 +11,8 @@ export function workerBinds(input) {
   return {Type:'bind',Source:parts[0],Target:parts[1],ReadOnly:parts[2]==='ro'};
  });
 }
-export function validateWorkerCreate(input,{fixture,projectID,runID,operationID,session,images,instance,uid,gid}) {
+export function validateWorkerCreate(input,{fixture,projectID,runID,operationID,session,images,instance,uid,gid,taskContextVersion=1}) {
+ assert(taskContextVersion===1||taskContextVersion===2,'Unsupported trusted task context version');
  const host=input.HostConfig;assert(host);assert(images.includes(input.Image));assert.equal(input.Labels?.['luci.managed'],'true');assert.equal(input.Labels?.['luci.instance'],instance);assert.equal(input.Labels?.['luci.session-id'],session.id);assert.equal(input.Labels?.['luci.sandbox-id'],session.id);assert.equal(session.projectId,projectID);assert.equal(session.harness,'codex');
  for(const value of [projectID,runID,operationID,session.id,session.worktreeId,session.conversationId])assert.match(value??'',/^[a-zA-Z0-9_-]{1,200}$/);
  assert.equal(input.User,'0:0');assert.equal(input.WorkingDir,'/home/dev/work');assert.equal(input.Tty??false,false);assert.equal(input.OpenStdin??false,false);assert.equal(input.Entrypoint?.length??0,0);assert.equal(input.Cmd?.length??0,0);assert.equal(Object.keys(input.Volumes??{}).length,0);
@@ -32,7 +33,8 @@ export function validateWorkerCreate(input,{fixture,projectID,runID,operationID,
   ['/home/dev/.luci-agent',{path:join(root,'state','conversations','native','local',session.worktreeId,'codex',session.conversationId),readOnly:false,required:true}],
   ['/home/dev/.claude/projects',{path:join(root,'state','conversations','local',session.worktreeId),readOnly:false,required:false}],
  ]);
- const binds=workerBinds(input),seen=new Set();assert(binds.length>=4&&binds.length<=5);
+ if(taskContextVersion===2)expected.set('/home/dev/.luci-task-output',{path:join(root,'state','conversations','local','.task-output',session.id),readOnly:false,required:true});
+ const binds=workerBinds(input),seen=new Set(),required=taskContextVersion===2?5:4;assert(binds.length>=required&&binds.length<=required+1);
  for(const bind of binds){
   assert(!seen.has(bind.Target));seen.add(bind.Target);const allowed=expected.get(bind.Target);assert(allowed,'Unexpected fixture mount destination');assert.equal(bind.ReadOnly,allowed.readOnly);assert(isAbsolute(bind.Source));assert.equal(bind.Source,allowed.path);assert.equal(realpathSync(bind.Source),allowed.path);assert(lstatSync(bind.Source).isDirectory());
   // Every ancestor through the unique fixture root must be an ordinary directory;

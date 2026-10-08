@@ -1,6 +1,8 @@
 import { productApi, type CheckCommand } from './product';
 import type { CreateSessionRequest } from './client';
 import type { ImplementationContext, ImplementationContextRequest, PermissionMode } from '../store/types';
+import type { SwarmCheckpointProvenance } from './swarmCheckpoint';
+import type { TaskHandoffReference } from './swarmHandoff';
 
 export type ProjectRunState = 'ready' | 'coding' | 'awaiting-checks' | 'awaiting-release' | 'blocked' | 'cancelled' | 'complete';
 export interface RunApprovals {
@@ -20,6 +22,11 @@ export interface RunOperation {
   /** Recorded recovery facts, never a live worker observation or new-start authority. */
   recovery?: {state: 'pending' | 'fenced' | 'finalized'; requestedAt: string; provedAt?: string; finalizedAt?: string};
   integration?: SwarmTask['integration'];
+  /** Reviewed seed for a distinct attempt; never task integration or verification. */
+  checkpoint?: SwarmCheckpointProvenance;
+  /** Bounded reference to a retained report; reported claims are not verification. */
+  handoff?: TaskHandoffReference;
+  dependencyContext?: {digest: string; count: number};
 }
 export const runOperationNeedsRecovery = (operation?: RunOperation) => !!operation?.absenceRetirement && !operation.absenceRetirement.finalizedAt || !!operation?.recovery && operation.recovery.state !== 'finalized';
 export const runOperationNeedsReview = (operation?: RunOperation) => !!operation && ['review-required', 'succeeded'].includes(operation.status);

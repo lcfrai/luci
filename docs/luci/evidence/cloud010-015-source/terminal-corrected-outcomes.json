@@ -1,0 +1,238 @@
+[
+  {
+    "Time": "2026-10-08T13:56:38.056691192Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/hub",
+    "Test": "TestSubscribeRacingThePumpNeverDuplicatesOrDropsAChunk",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Time": "2026-10-08T13:56:38.269353723Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/hub",
+    "Test": "TestSlowSubscriberDoesNotStallTheHub",
+    "Action": "pass",
+    "Elapsed": 0.21
+  },
+  {
+    "Time": "2026-10-08T13:56:38.420027638Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/hub",
+    "Test": "TestFragmentedPasteDoesNotOverflowBeforeItsByteBudget",
+    "Action": "pass",
+    "Elapsed": 0.15
+  },
+  {
+    "Time": "2026-10-08T13:56:38.899583884Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/hub",
+    "Test": "TestSubscriberBudgetIncludesBlockedOfferAndBoundsAllocation",
+    "Action": "pass",
+    "Elapsed": 0.48
+  },
+  {
+    "Time": "2026-10-08T13:56:38.899610915Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/hub",
+    "Test": "TestCancelAfterFinishInterruptsUndrainedSubscriber",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:56:38.929689421Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/hub",
+    "Test": "TestSubscriberCancelFinishAndPublishRaceClosesOnce",
+    "Action": "pass",
+    "Elapsed": 0.03
+  },
+  {
+    "Time": "2026-10-08T13:56:38.931344046Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/hub",
+    "Test": "TestBlockedOneByteOfferAndTailStayBoundedAndCancelReleasesBoth",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:56:38.932924624Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/hub",
+    "Test": "TestHubStreamsOutputToASubscriber",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:56:38.933867596Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/hub",
+    "Test": "TestReAttachReplaysEarlierOutput",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:56:38.935587268Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/hub",
+    "Test": "TestTwoSubscribersBothReceiveLiveOutput",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:56:38.938342692Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/hub",
+    "Test": "TestResizeReachesTheProcess",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:56:38.940011888Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/hub",
+    "Test": "TestDoneClosesAndExitReasonIsSetWhenTheProcessExits",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:56:38.941632572Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/hub",
+    "Test": "TestSubscriberChannelClosesWhenTheProcessExits",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:56:38.942194189Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/hub",
+    "Test": "TestCancelIsIdempotent",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:56:38.943613629Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/hub",
+    "Test": "TestSubscribeAfterProcessExitReturnsReplayAndAClosedChannel",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:56:39.974160225Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/hub",
+    "Action": "pass",
+    "Elapsed": 1.936
+  },
+  {
+    "Time": "2026-10-08T13:56:41.730982685Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/server",
+    "Test": "TestFanOutReportsOverflowWithoutExitOrPartialReplay",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:56:41.73215287Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/server",
+    "Test": "TestFanOutSendsNoExitFrameOnDetach",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:56:41.733997861Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/server",
+    "Test": "TestFanOutSendsExitFrameWhenTheProcessExits",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:56:41.736519843Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/server",
+    "Test": "TestFanOutSendsExitFrameToAClientThatAttachedAfterTheExit",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:56:41.744793937Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/server",
+    "Test": "TestHealthzNeedsNoToken",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Time": "2026-10-08T13:56:41.751969715Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/server",
+    "Test": "TestAttachWithoutTokenIsRejected",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Time": "2026-10-08T13:56:41.756936873Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/server",
+    "Test": "TestAttachWithWrongTokenIsRejected",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:56:41.762496661Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/server",
+    "Test": "TestAttachWithBareTokenAndNoBearerSchemeIsRejected",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Time": "2026-10-08T13:56:41.769703921Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/server",
+    "Test": "TestStreamsStdoutAndAcceptsStdin",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Time": "2026-10-08T13:56:41.77480002Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/server",
+    "Test": "TestAppliesResize",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:56:41.781346814Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/server",
+    "Test": "TestReAttachReplaysScrollbackAndKeepsTheProcess",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Time": "2026-10-08T13:56:41.815434905Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/server",
+    "Test": "TestLargeStdinFrameIsAccepted",
+    "Action": "pass",
+    "Elapsed": 0.03
+  },
+  {
+    "Time": "2026-10-08T13:56:41.823296237Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/server",
+    "Test": "TestExitFrameIsSentWhenTheProcessEnds",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Time": "2026-10-08T13:56:41.82351077Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/server",
+    "Test": "TestNewFailsWithoutAttachTokenOrOptOut",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:56:41.825681333Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/server",
+    "Test": "TestDoneClosesWhenTheProcessExitsAndCarriesItsReason",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:56:41.828806244Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/server",
+    "Test": "TestNewAllowsNoTokenWhenExplicitlyUnauthenticated",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:56:41.837836638Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/server",
+    "Test": "TestFiniteOutputBurstIsCompleteBeforeExit",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Time": "2026-10-08T13:56:42.857560349Z",
+    "Package": "github.com/lcfrai/luci/sandboxd/internal/server",
+    "Action": "pass",
+    "Elapsed": 1.144
+  }
+]

@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "kind": "additive-latency-instrumentation-controlled-preparation",
+  "installedRuntimeRun": false,
+  "files": {
+    "scripts/acceptance/sustained-four-project/sustained.mjs": "ffaa37c64b5cfe0e1c139a92a4cadf3fdf1db00e3d5a42125092e8ea50d15c93",
+    "scripts/acceptance/sustained-four-project/interaction-metrics.mjs": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502",
+    "scripts/acceptance/sustained-four-project/latency-diagnostics.mjs": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96",
+    "scripts/acceptance/sustained-four-project/latency-diagnostics.test.mjs": "9bef06f598fb78cccdccdf48b4e8f7e3283bfc91ad6b54a229bbc050d2dea311",
+    "scripts/acceptance/sustained-four-project/LATENCY-DIAGNOSTICS.md": "42217fb7159d627cb39f26da7639822b27221bba006a82921a1d5543ca8e6292",
+    "scripts/acceptance/sustained-four-project/README.md": "0c7fc81b620138e19815903106370379fc59137c875fa3f5a1e9b9be35d8f541",
+    "scripts/acceptance/sustained-four-project/event-drain.test.mjs": "71004a86a08ba7da48e31b53f02c45a7a08bf5816113efa2a2f3cb584b6832a3",
+    "scripts/acceptance/sustained-four-project/task-context.mjs": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2",
+    "scripts/acceptance/sustained-four-project/task-context.test.mjs": "cebae265599e0ba61ec7563e4f377b6a298ec19142b30a432597e43fd68f30fb"
+  },
+  "checks": {
+    "passed": 105,
+    "failed": 0,
+    "browserTestExcluded": true,
+    "scope": "VM/fake-page timing stages, pure guard/manifest/parser tests and generated worker syntax. No browser/service/Docker/Go/model execution.",
+    "durationMs": 574.071398
+  },
+  "logSHA256": "57f3c4ab281a24e03a3f246eb2e57089c8bcfcc0e470ce9713b9274ef1c211db",
+  "independentDiagnosticVerificationSHA256": "f1b9ac2e291e7d74a0ab71c6e0bd67a8622e03ff3b31fe7a6ad9d216517d20d0",
+  "review": {
+    "agent": "gsd_research",
+    "scope": "Primary boundaries and RPC sequence, privacy, explicit bounds/drop failure, clock domains and missing resource coverage",
+    "result": "no-blocker-read-only"
+  },
+  "originalAcceptanceTargets": {
+    "projectSwitchP95Ms": 300,
+    "inputP95Ms": 100,
+    "p99Ms": 1000
+  },
+  "retainedPriorFailure": "2026-10-08-919cffe0-sustained-attempt2.json",
+  "limitations": [
+    "Additional instrumentation costs remain inside primary timing; original acceptance targets unchanged.",
+    "No physical paint or React commit/persistence proof.",
+    "Browser latest-event references can be from earlier actions in the same document; causal mapping is not assumed.",
+    "ResourceTiming may omit aborted/inflight entries; missing HTTP status is null.",
+    "Callback self-time is partial accounting, not total measurement overhead.",
+    "No installed sustained acceptance or product performance pass is established."
+  ],
+  "command": "node --test --test-skip-pattern=\"actual browser collector\" scripts/acceptance/sustained-four-project/{event-drain,task-context,helper,workload,latency-diagnostics}.test.mjs scripts/acceptance/launch-recovery/worker-create-guard.test.mjs"
+}

@@ -1,579 +1,421 @@
 # Local Windows handoff and acceptance
 
-**Focused native corrections are available; full local handoff remains open.**
-The native tester reports clean packaging and actual isolated release-app
-startup/reopen/shutdown at `2dcf245daca98d93e9cf7a40399b8fc78f4608a2`.
-Owner creation, four distinct saved definitions, returning sign-in and two owned
-shutdowns passed their scope. LOCAL-004 remains open because one ordinary-state
-directory had an unexplained first-cycle historical timestamp difference;
-second-cycle metadata matched. LOCAL-007 is an unconfirmed rapid-click selection
-observation. See the [relayed lifecycle receipt](evidence/2026-10-08-native-lifecycle-2dcf245d-reported.md).
+**Integrated candidate pending; the local milestone is still open.** The native
+Windows corrections below passed at their named revisions. They do not establish
+that newer code, an installer, four-project sustained execution or a live model
+meets the release standard. The implementation thread must supply the exact
+published commit and matching package before the next integrated batch; do not
+substitute a moving branch tip or invent a future revision.
 
-The later published source correction
-`919cffe014d1104d9e65fa19351683d182355f36` on `codex/luci-production-runs` is
-available for focused LOCAL-005 cached-refresh/navigation retest. CLOUD-009
-installed delayed-request/lost-ack recovery, native workload/resource acceptance
-and live-provider quality remain open. The first installed recovery attempt was
-rejected by its acceptance helper before request forwarding; it is not product
-recovery evidence. Use exact revisions and matching packages; neither a moving
-branch nor the earlier native package verifies the later corrections.
+The originating local testing thread, `01a1199f-7500-7843-b02b-081081e536fa`, owns
+execution on Dylan's machine. The cloud thread supplies source, helpers, fixes
+and evidence; it does not start processes on that machine. Keep the wider goal
+open: a polished local app, later connected to cloud, for building context and
+turning coordinated agent work into reviewed, verified software. Cloud billing,
+public DNS and hosted infrastructure do not block this local milestone.
 
-Native acceptance is performed by the originating local testing thread
-`01a1199f-7500-7843-b02b-081081e536fa` on host `local`, using an isolated checkout
-and preserving the owner's existing changes. The cloud implementation thread
-provides exact revisions for focused corrections and will send the final handoff
-when its remaining gates are met, or post
-**LOCAL TEST HANDOFF READY** if thread messaging is unavailable. No cloud agent
-should start processes on the owner's machine as part of this handoff.
+## Carry forward verified native scopes
 
-Follow [LOCAL-TEST-LOOP.md](LOCAL-TEST-LOOP.md) for the continuous findings/fix
-handoff protocol and current machine preparation observations. Use the spacious
-E: or F: volume for an isolated checkout and caches; separately verify Docker's
-data-volume capacity. Keep existing C: projects and installed application state.
+These are relayed local reports; the cloud thread has not independently read the
+raw Windows artifacts. Preserve their original revision and scope even when the
+same unchanged code is included in a newer candidate.
 
-Acceptance includes actual shadcn/ui styled interactive controls and scoped
-cross-project actions: delegate, prioritize, inspect, pause/resume/cancel/retry
-where supported, review changes and verified outputs. Multi-select/bulk actions
-must state their scope and show partial failures without silently retrying work.
+| Revision and evidence | Verified scope | Not established |
+| --- | --- | --- |
+| [`919cffe014d1104d9e65fa19351683d182355f36`](evidence/2026-10-08-native-919cffe0-reported.json) | Native release build; LOCAL-004 exact isolated state, ordinary-state hashes/file IDs/creation and last-write metadata preserved using refreshed metadata and read-only native handles; LOCAL-005 six real UI/HTTP refresh scenarios, navigation during held responses, no late reopening, exact confirmation/readiness actions. All 1,911 tracked hashes unchanged; owned processes/listeners zero, 107 original containers and four running workloads preserved. | Runtime installation, worker/model execution, sustained responsiveness or exact process-start tracing. The focused recovery batch passed 39 top-level cases and 58 subtests, including real Windows lock release after process death, but controlled backend fixtures are not installed controller-crash acceptance. One timed-out invocation remains in the history. |
+| [`675ed402385b4082afda539b63fb0ff03565f58e`](evidence/2026-10-08-native-navigation-675ed402-reported.json) | Native build; LOCAL-007 warm/cold reopen, stable project-label selection with four distinct saved purposes, explicit disclosure, roving keyboard navigation, Windows Ctrl+K, and Keep editing. Four ordinary closes stopped owned app/sidecar/WebViews; final cleanup zero, normal state preserved, 1,921 tracked hashes unchanged and original Docker workloads preserved. | Human-speed click stress, latency, four complete app definitions, worker execution or crash recovery. Fixed-coordinate WebDriver actions included DOM reads. |
+| [Earlier native packaging and lifecycle](evidence/2026-10-08-native-package-2dcf245d-reported.json), `2dcf245d` | Clean native build, matching sidecar/resources and unsigned NSIS; 616 native licence components, none missing. Module/junction corrections and initial isolated lifecycle were separately verified. | The installer was not executed. The historical 527.7 μs directory timestamp discrepancy remains unexplained; the later corrected-state passes do not rewrite that original result. |
 
-## Sustained four-project acceptance is required
+The `675ed402` report preserves an evidence-helper filename collision and its
+focused repeat with unique receipt names. It closes the corrected navigation
+scope, not the broader release. Recheck affected behavior when its code changes;
+do not label a carry-forward result as a fresh run at the next commit.
 
-The owner's machine reports **31.2 GiB physical RAM**. Measure its idle baseline
-with normal work applications open before choosing a Luci budget; leave room for
-those applications. Four projects advancing does not mean four costly agents
-must run at once. Global queueing, fair progress and useful intervention are part
-of local acceptance, alongside the single-project workflow below.
+Actual installed Linux delayed-Create and delayed-Start/lost-ack recovery passed
+at clean `919cffe0`, including real controller deaths, late Docker denials,
+explicit recovery, a successor task and reviewed integration. See the
+[installed recovery receipt](evidence/2026-10-08-cloud009-installed-recovery.md).
+Native Windows crash scenarios remain separate. Earlier installed four-project
+runs used scripted provider responses and one concurrent worker; they establish
+neither model quality nor sustained Windows capacity.
 
-Run four distinct projects with separate goals, decisions, graphs and output
-witnesses. Mix implementation, build/tests and review; switch among them, change
-a priority, cancel/fail one worker, and restart Luci during queued work. Verify
-that each project progresses, only its context is delivered, no attempt is
-duplicated, outputs remain available, and changed source requires renewed review.
-Track all owned service/agent/test/dev-server/browser processes and containers,
-host available RAM, peak/idle usage, growth, CPU/disk pressure and UI latency.
-Compare useful checked results and waiting time per project, not process counts.
-Record the baseline, chosen budgets and workload duration with raw measurements.
-Native Windows and live-provider results must be observed on this machine; Linux
-fixtures and cross-compilation cannot close those gates.
+## Prerequisites and preserve the existing machine
 
-The immediate milestone is a dependable local application for taking an idea
-through coordinated agents to a reviewed, working result. Windows is the owner's
-test machine. Cloud accounts, managed-team billing, public DNS and hosted
-infrastructure are later gates; none is required for this local milestone.
-A running UI, mocked provider, cross-compiled executable or package build does
-not pass the real Windows, model or swarm workflow gates below.
+Use Windows x64, PowerShell 7 (the source launcher also supports Windows
+PowerShell 5.1), Git, Go **1.26.3**, Node **24.19.0**, a current Edge/Chrome and
+Docker Desktop with its **WSL 2 Linux engine** running. Native packaging also
+needs Python **3.11+**, Rust with `x86_64-pc-windows-msvc`, Visual Studio C++ build
+tools/Windows SDK and Edge WebView2; see the
+[Tauri prerequisites](https://v2.tauri.app/start/prerequisites/).
 
-Use the exact revision in the handoff on branch `codex/luci-production-runs`
-([PR #6](https://github.com/lcfrai/luci/pull/6)). Record its full commit before
-testing. This document travels with the revision; it does not label the moving
-branch or an older downloadable installer as a verified release.
+The tester's existing Rust/cargo 1.99, VS Build Tools 2019/VC 14.29, Windows
+SDK 10.0.19041, WebView2 and Python setup has built the documented native package.
+Preserve that working toolchain; an old SDK registry-discovery concern did not
+justify reinstalling or changing global registration. Use task-local E: caches
+and `TEMP`/`TMP`, restore prior process environment values, and do not print them.
+Do not reset/clean the user's checkout or delete state to remedy a failure.
 
-## Prerequisites
+**Storage relocation is already reported verified.** Docker Desktop 4.48.0
+(207573), engine 28.5.1 and the same engine identity remained healthy after the
+supported move to E:. Desktop UI, active VHD and `CustomWslDistroDir` agreed;
+the old C: VHD was absent and the verified cold backup remained. The tester
+preserved 107 containers, 196 image rows/178 distinct image IDs, 155 volumes and
+four running workloads. Do not move the disk again, unregister WSL, prune images
+or stop those workloads as part of this procedure.
 
-Use Windows x64 with a currently supported Docker Desktop configuration and
-Linux containers. The normal browser source route needs Git, Go **1.26.3**, Node
-**24.19.0**, a current Edge or Chrome browser, and Docker Desktop with its engine
-running. Use PowerShell 7 for the commands below. The source launcher itself also
-supports Windows PowerShell 5.1. Native Tauri packaging additionally needs Python
-**3.11+**, stable Rust with the `x86_64-pc-windows-msvc` target, Visual Studio C++
-build tools/Windows SDK and Microsoft Edge WebView2. Follow the official
-[Tauri Windows prerequisites](https://v2.tauri.app/start/prerequisites/).
+Post-move C: 74.20 GiB, E: 903.27 GiB and guest 886 GiB were dated observations, not
+current capacity. Later source-app available host RAM was about 2.91 GiB; an
+earlier build-only sample reached 2.578 GiB. Neither is sufficient evidence for a
+new worker budget. Measure fresh physical availability, commitment, guest disk
+and physical backing-volume space before heavy work. Keep ordinary browser/editor
+work open; a successful relocation or package build does not certify headroom.
 
-The local tester has reported the native prerequisites present: Rust/cargo
-1.99 with the MSVC target, VS Build Tools 2019 16.11.53/VC 14.29.30133, Windows
-SDK 10.0.19041.0, WebView2 154.0.4258.62 and Python 3.13.5/3.11.15. The documented
-native release build subsequently passed at exact `2dcf245d`, including full
-Tauri compilation, matching sidecar/resources and unsigned NSIS generation,
-with all 1,808 tracked hashes and HEAD unchanged. The [packaging receipt](evidence/2026-10-08-native-package-2dcf245d-reported.json)
-records 616 native licence components with none missing. The installer was not
-executed. Preserve this working toolchain; the earlier SDK registry-discovery
-concern did not establish a need to reinstall or change global registration.
+Retain a private before/after Docker inventory using list-only output, for example
+`docker.exe ps -a --no-trunc --format '{{.ID}} {{.Image}} {{.State}}'`, plus image
+and volume IDs. Compare the same pre-existing identities and running workloads
+afterward. Restrict test cleanup to positively identified resources created by
+the acceptance run. Do not use global cleanup or full inspect/environment dumps.
 
-Docker is required for isolated agent execution, checks and container previews.
-Defining and designing a project remain available before Docker is ready. The
-first agent-runtime installation downloads base images and the pinned CLI tools;
-it is not an offline installation. Allow memory and disk for the actual number
-of concurrent agents and the application being built. Full local Supabase is
-optional for an application that does not use it; the stack requires another
-4 GiB RAM and 2 CPUs beyond other reserved workloads, plus 40 GiB free disk
-**after** image installation. For combined data/app/agent acceptance, plan for at
-least 8 GiB RAM and 4 CPUs and verify the actual remaining headroom. Do not confuse
-Docker Desktop's Linux VM capacity with the Windows drive's free space.
+No hosted Luci account, Luci subscription or cloud account is required. Use your
+own provider connection; model API/subscription charges remain separate.
 
-**LOCAL-ENV-001 relocation is reported verified.** Docker Desktop 4.48.0
-(207573), Linux engine 28.5.1 and the same engine identity remained healthy after
-the supported move to E:. Desktop UI, the active VHD and `CustomWslDistroDir`
-agreed; the old C: VHD was absent and the hash-verified cold backup was retained.
-The local tester reverified 107 container IDs/states, 196 image rows (178 distinct
-IDs), 155 volume IDs and the four original running containers. The later native
-app batch also left those four user Docker containers unchanged.
+## Retrieve the exact candidate and start safely
 
-Reported post-move space was approximately C: 74.20 GiB, E: 903.27 GiB and
-Linux guest 886 GiB. These are dated observations, not current admission capacity.
-The more recent source-app report had only about 2.91 GiB host available RAM;
-separate native build-only samples reached a minimum of 2.578 GiB. No agent or
-sustained-workload capacity follows from the successful relocation or app smoke.
-Recheck physical/guest space and host available memory before any runtime pull,
-build or worker allocation. Do not reduce resource guards merely to run a test.
-
-Read-only checks include `Get-Volume -DriveLetter C,E,F`, Docker Desktop's actual
-configured location, and Luci's [read-only storage probe](WINDOWS-DOCKER-STORAGE.md).
-The product separately uses fresh guest capacity and the conservative minimum
-across eligible mounted writable local volumes; even an unrelated low drive can
-limit new work. A VHD's file length or guest `df` does not establish physical
-backing-volume headroom. Preserve all existing data and the verified backup;
-there is no remaining instruction here to move the live VHD, unregister WSL or
-change global Docker settings. The local tester owns machine preparation; this
-cloud task does not initiate changes on that machine.
-
-No hosted Luci account, Luci licence subscription, AWS/Azure account or cloud
-credit is required. Choose your own model connection in the app. Provider API
-usage or a model subscription may have its own costs. Existing host CLI login
-files are not automatically imported into Luci.
-
-## Get and run the source
-
-The local tester already uses `E:\Luci-local-acceptance`. Prepare a new checkout
-there for the next pinned batch; preserve earlier checkouts and evidence,
-including the contaminated `9898cf5d` diagnostic checkout. The exact revision
-below is for focused LOCAL-005 and CLOUD-009 source retests, not a declaration
-of full local acceptance. Use the later exact revision if the final handoff
-supplies one, and preserve prior native packages with their original evidence:
+Use [LOCAL-TEST-LOOP.md](LOCAL-TEST-LOOP.md) for the current fix/handoff message.
+The source branch is `codex/luci-production-runs`
+([PR #6](https://github.com/lcfrai/luci/pull/6)); the next batch still needs its
+published full commit. Use a fresh E: checkout and keep older evidence:
 
 ```powershell
-$candidate = '919cffe014d1104d9e65fa19351683d182355f36' # Published focused correction.
-if ($candidate -notmatch '^[0-9a-f]{40}$') { throw 'Select an exact published correction or handoff commit.' }
-$checkout = Join-Path 'E:\Luci-local-acceptance\checkouts' $candidate.Substring(0, 8)
-if (Test-Path -LiteralPath $checkout) { throw 'Choose a new checkout; preserve prior evidence.' }
-git clone --branch codex/luci-production-runs https://github.com/lcfrai/luci.git $checkout
+$candidate = '<published-full-40-character-integrated-commit>'
+if ($candidate -notmatch '^[0-9a-f]{40}$') { throw 'Select the exact published handoff commit.' }
+$checkout = Join-Path 'E:\Luci-local-acceptance\checkouts' $candidate
+if (Test-Path -LiteralPath $checkout) { throw 'Preserve this checkout; select a fresh location.' }
+git clone --no-checkout https://github.com/lcfrai/luci.git $checkout
 if ($LASTEXITCODE -ne 0) { throw 'Clone failed' }
+git -C $checkout fetch origin codex/luci-production-runs
+if ($LASTEXITCODE -ne 0) { throw 'Fetch failed' }
+git -C $checkout checkout --detach $candidate
+if ($LASTEXITCODE -ne 0) { throw 'Pinned revision unavailable' }
 Set-Location $checkout
-git switch --detach $candidate
-if ($LASTEXITCODE -ne 0) { throw 'The handoff revision could not be selected.' }
-if ((git rev-parse HEAD).Trim() -ne $candidate) { throw 'Revision mismatch' }
-if (@(git status --porcelain).Count -ne 0) { throw 'Use a clean candidate checkout.' }
+if ((git rev-parse HEAD).Trim() -cne $candidate) { throw 'Revision mismatch' }
+if (@(git status --porcelain).Count) { throw 'Use a clean candidate checkout.' }
 go version
 node --version
 npm.cmd --version
-docker version
-docker info --format '{{.OSType}}'
+docker.exe version
+docker.exe info --format '{{.OSType}}'
 ```
 
-The final Docker command must report `linux`. Keep the full commit and a tracked
-file-hash snapshot with each batch, then compare them afterward. Use the local
-thread's task-scoped E: tool activation, caches and TEMP; do not change system
-Node or existing application configuration.
+The engine must report `linux`. Record full HEAD, tracked-file hashes and clean
+status before/after each batch. A matching release must include its source commit,
+archive hash, `SHA256SUMS`, `release-manifest.json` and dirty-source flag. Preserve
+the complete package/resources; do not copy only a same-named executable.
 
-The clone includes [sanitized evidence](evidence/2819ce9e/README.md), the
-[installed workflow helpers](../../scripts/acceptance/four-project-queue/README.md),
-the Windows resource sampler and its C# companion, and the safe launcher. The
-Linux Docker workflow driver is not a Windows driver. Follow the native sampler
-procedure and interactive sequence below on Windows; ignored cloud `artifacts/`
-directories and private fixture state are not required downloads.
+The clone carries these instructions, sanitized [native919](evidence/2026-10-08-native-919cffe0-reported.json)
+and [native675](evidence/2026-10-08-native-navigation-675ed402-reported.json)
+receipts, the [resource helper/procedure](../../scripts/acceptance/four-project-queue/RESOURCE-MEASUREMENT.md),
+[recovery helpers](../../scripts/acceptance/launch-recovery/README.md),
+[dependency-join preparation](../../scripts/acceptance/task-dependencies/README.md),
+[checkpoint preparation](../../scripts/acceptance/task-continuation/README.md)
+and [context-quality protocol](../../scripts/acceptance/context-quality/README.md).
+Ignored cloud `artifacts/` and private fixture state are not required downloads.
+**The Linux installed drivers require an exclusive test daemon. Do not run or
+adapt their empty-daemon/cleanup routines against this shared Docker Desktop.**
+Use the manual Windows matrix below. A helper's presence or pure tests do not
+establish that its installed workflow passed.
 
-For an isolated acceptance workspace, use the roomy E: or F: drive confirmed in
-the local testing thread (substitute the actual chosen drive below):
+For the actual source app, choose unused loopback ports. The launcher rechecks
+them and refuses a conflict without attaching to or stopping another service:
 
 ```powershell
-.\scripts\start-local-acceptance.ps1 -AcceptanceRoot 'E:\Luci-local-acceptance\runs'
+function Get-FreeLoopbackPort {
+    $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+    try { $listener.Start(); return $listener.LocalEndpoint.Port }
+    finally { $listener.Stop() }
+}
+$apiPort = Get-FreeLoopbackPort
+$webPort = Get-FreeLoopbackPort
+while ($webPort -eq $apiPort) { $webPort = Get-FreeLoopbackPort }
+.\scripts\start-local-acceptance.ps1 -AcceptanceRoot 'E:\Luci-local-acceptance\runs' `
+    -Port $apiPort -FrontendPort $webPort
 ```
 
-Open the browser address printed by the launcher and leave its PowerShell window
-open. This route runs the actual source application in a browser; it is separate
-from the native WebView installer gate. The launcher builds the API, waits for
-readiness, installs locked frontend dependencies if absent and starts the client.
-The acceptance launcher creates a new private GUID-named folder containing its
-state, projects, build/log outputs and a native Windows baseline. It requires
-40 GiB free on that selected volume and uses API port 18730 and frontend port
-14200 by default. Occupied ports fail without stopping an existing service;
-choose explicit `-Port` and `-FrontendPort` alternatives if needed. It temporarily
-clears inherited Luci service settings and restores them when the run ends.
-`-PrepareOnly` records a baseline without starting the app; each invocation
-creates a new run. The local tester reported the isolated launcher and source
-browser working at `2819ce9e`; this does not verify the new storage probe,
-an installed WebView package, or a later candidate.
+This creates a private fresh GUID run outside the checkout, with `state`,
+`projects`, logs and `artifacts\windows-baseline.json`. It checks at least 40 GiB
+on the selected volume, then builds/starts the API and locked frontend. It uses
+process-local `LUCI_STATE_DIR`, `LUCI_PROJECTS_DIR` and
+`LUCI_ADDR=127.0.0.1:<chosen API port>`, clearing inherited service/worker settings
+and restoring them afterward. The free-port check is not a reservation; if a
+race occupies a port, select another pair. `-PrepareOnly` records a baseline
+without launch; a later invocation creates another fresh run.
 
-On first setup, create the installation's local owner. If the browser asks for
-the first-run setup code, open the following private file on your own machine
-and enter the code into the app. Do not paste it into an issue or a chat:
+Open the printed address; leave the launcher window open. Create the local
+owner. If asked, read `<printed-run-folder>\state\control-plane\bootstrap-token`
+privately and enter it into the app; never share the token. Set the actual Git
+author identity in Settings and select **On this computer**. Ctrl+C requests
+shutdown of this owned service and preserves its state/projects.
 
-```powershell
-notepad.exe '<printed-run-folder>\state\control-plane\bootstrap-token'
-```
-
-The file is consumed by successful first-owner creation. Set a real Git author
-name/email in Settings and choose **On this computer**. Complete the host
-storage review below before choosing **Install runtime**. Keep dispatch paused
-while configuring storage if any work was previously authorized. Use the app's
-runtime preparation action so its storage preflight applies; do not use the
-direct `dev.ps1 -InstallRuntime` build as an admission workaround. If installation fails, retain the failure,
-resolve the reported Docker/network/disk issue and retry; a saved readiness
-record alone does not establish a working engine.
-
-Use Ctrl+C in the source launcher to stop it. Its API receives an owned shutdown
-request, with forced cleanup limited to that process if necessary. State and
-projects remain on disk. To resume the **same** workspace after stopping it,
-open a fresh PowerShell window in the checkout and load that run's manifest:
+To reopen the same source workspace, use a fresh acceptance-only PowerShell
+process and its retained manifest, not a new launcher invocation:
 
 ```powershell
 $run = Get-Content '<printed-run-folder>\artifacts\windows-baseline.json' -Raw | ConvertFrom-Json
-# This is a fresh acceptance-only PowerShell process. Do not alter user/system settings.
 Get-ChildItem Env:LUCI_* | ForEach-Object { Remove-Item -LiteralPath ('Env:' + $_.Name) }
 $env:LUCI_STATE_DIR = $run.stateDir
 $env:LUCI_PROJECTS_DIR = $run.projectsDir
 $env:LUCI_ADDR = $run.apiAddress
-.\scripts\dev.ps1 -Port ([int]($run.apiAddress.Split(':')[-1])) -FrontendPort $run.frontendPort -DevDirectory (Join-Path $run.artifactsDir 'dev')
+.\scripts\dev.ps1 -Port ([int]($run.apiAddress.Split(':')[-1])) `
+    -FrontendPort $run.frontendPort -DevDirectory (Join-Path $run.artifactsDir 'dev')
 ```
 
-Do not delete private state as a remedy for an application failure.
+## Storage, credentials and execution consent
 
-### Windows capacity requirements
+Before **Install runtime**, the host Super Admin reviews the actual existing
+VHD path in **Docker storage capacity**, confirms active and pending locations
+are on mounted local drives, then explicitly confirms the reviewed location.
+This operator confirmation does not claim automatic engine-to-VHD discovery or
+move/edit Docker data. Team members/admins cannot read the private path or confirm
+host storage. Use [WINDOWS-DOCKER-STORAGE.md](WINDOWS-DOCKER-STORAGE.md) for the
+read-only probe, its `LUCI_WINDOWS_STORAGE_PROBE_VHD` and
+`LUCI_WINDOWS_STORAGE_PROBE_REPORT` variables, native ACL and fresh pin checks.
 
-The upcoming candidate adds **Docker storage capacity** in the host Super
-Admin's Settings. A team member or team administrator cannot confirm host
-storage. Enter the existing active VHD's full path only after checking Docker
-Desktop's active and any pending disk locations. Acknowledge that they are on
-mounted local drives, choose **Review storage location**, inspect the summary,
-then **Confirm Docker storage location**. Luci does not move the VHD, change
-Docker settings, or discover the active backing path from a guessed JSON key.
-This is an explicit operator confirmation, not an automatic proof that a
-particular VHD backs the engine.
+Host physical free space and **Free inside Docker's Linux disk** are separate.
+The physical observation is the minimum across all eligible mounted writable
+local volumes, not only E:. Another low local volume can block new work; do not
+hide/unmount it or weaken guards to pass. Runtime preparation requires fresh 40 GiB
+on both sides (32 GiB working allowance plus 8 GiB reserve), an estimate rather
+than a measured peak guarantee. Workers separately account for pending demand
+and storage driver. Full local Supabase is optional and needs further memory,
+CPU and post-install disk headroom; it is not implied by agent readiness.
 
-The confirmation is revisioned in private host state. A fresh shared gateway
-observation must match the selected engine/version, operator/file identity and
-settings before new heavy work is admitted. Managed workspace workers read
-that observation from the host scope; they do not each launch WSL or enumerate
-Windows volumes. **Refresh Docker storage status** reads cached status and does
-not launch a native probe. Background observation and explicit confirmation
-perform the read-only native checks. Planning remains usable while storage is
-unknown; existing workers are not killed because a new measurement fails.
+The gateway produces a shared observation; workspace processes read its fresh
+engine/confirmation-bound cache instead of each launching WSL probes. Missing,
+stale or mismatched observations block new heavy work while preserving planning
+and existing workers. Cached **Refresh Docker storage status** is distinct from
+explicit **Check readiness**. Native919 verified the HTTP distinction, not exact
+probe-start counts. WMI/CIM/ETW tracing was denied at that session's authority;
+one-second samples cannot establish that brief `wsl.exe` processes did not start.
+Record exact producer invocation counts with permitted tracing/instrumentation,
+cache age/revision and multiple workspace process identities before claiming
+native deduplication or its resource cost.
 
-The two displayed quantities are deliberately separate: **Free inside Docker's
-Linux disk** and **Lowest free space across mounted local drives**. The latter
-is a conservative minimum across all eligible mounted writable local volumes,
-not free space on just the VHD's drive. Low C: space can therefore still block
-runtime preparation after a supported move to E:. Do not hide/unmount an
-unrelated drive or reduce a guard to pass acceptance. Runtime preparation
-currently requires a fresh 40 GiB estimate on both sides (32 GiB build allowance
-plus 8 GiB reserve); this is not a measured build-size guarantee. Worker starts
-also account for pending allocations and the current image/storage driver.
-Confirmation alone, stale samples, an engine mismatch or unreadable shared
-state never establish capacity.
+The current guest observation requires Docker Desktop WSL 2, its running
+`docker-desktop` distribution and matching public engine identity. Hyper-V-only,
+remote or unobservable layouts remain unsupported/unknown, with no unlimited
+fallback. Do not create probe containers or alter global Docker settings merely
+to get a measurement. Native confirmed file/ACL/cache scopes remain separate
+from this candidate's actual readiness/admission behavior.
 
-Before a workload, run the dedicated opt-in
-[read-only native probe](WINDOWS-DOCKER-STORAGE.md#read-only-native-probe-acceptance)
-from the final pinned checkout's `control-plane` directory. Its required names
-are `LUCI_WINDOWS_STORAGE_PROBE_VHD` (the actual existing file selected by the
-operator) and `LUCI_WINDOWS_STORAGE_PROBE_REPORT` (a fresh private report path).
-The command is
-`go test -count=1 -run '^TestWindowsLocalStorageReadOnlyProbe$' -v ./internal/resourcebudget`.
-Follow the linked `try/finally` procedure to clear only those task-specific
-variables afterward. It reads file attributes, settings fingerprint and mounted
-volume capacities; it neither contacts Docker nor saves a host confirmation.
-A skipped probe is unverified. This does not replace testing the actual Settings
-confirmation, shared gateway cache, role denial and admission behavior.
+Configure credentials through Settings, never by copying host login files into
+fixtures. [PROVIDERS.md](PROVIDERS.md) lists supported harnesses and exact limits:
 
-The automatic daemon-storage probe currently requires Docker Desktop's **WSL 2
-Linux engine** and its running `docker-desktop` distribution. It invokes the
-Windows system `wsl.exe`, reads the public engine ID in the matching `dockerd`
-mount namespace, and measures that filesystem. It does not create a probe
-container, pull an image or infer VM disk space from Windows drive space.
-Use `wsl.exe --status`, `wsl.exe --list --verbose` and
-`docker.exe info --format '{{.OSType}} {{.OperatingSystem}}'` to record the setup.
-Hyper-V-only, remote Docker, an inaccessible WSL distribution, or an engine
-without the matching public `engine-id` file leaves execution storage unknown
-and new heavy work waiting. Select Docker Desktop's WSL 2 engine and retry its
-readiness check; no unlimited-capacity fallback is applied. Native compatibility
-of this probe remains an acceptance gate.
+- **Codex subscription:** official device sign-in, then save the completed
+  sign-in. Current credentials permit one active session; do not call it a
+  parallel-provider test or silently switch billing.
+- **API connection:** explicitly select supported endpoint, harness and model,
+  with provider concurrency and spending known. Prove a real small task first.
+- **Local model:** configure an explicit compatible endpoint/model through
+  OpenCode; the server must already run and be reachable from Docker. Container
+  loopback is not Windows loopback. Include the model's real memory demand.
 
-The installation's account session cap and the global scheduler's capacity
-policy both apply. Fresh account policy currently permits one session per user;
-choose an explicit higher cap for simultaneous-agent acceptance and record it.
-The Codex subscription connection still permits one active session. Use an
-explicitly configured API/local-model connection with sufficient concurrency to
-test truly parallel agents. Physical available RAM, Windows commitment, Docker
-allocation, worker hard limits and observed usage are separate measurements;
-Docker's allocation is never presented as observed free VM RAM.
+A saved badge/sign-in/health response is not task completion. Autonomous tasks
+require the reviewed **Bypass** mode for the pinned single-turn CLI; Ask/Plan are
+interactive alternatives and must not be silently upgraded. Verify Ask refuses
+before allocation and an authorized task exits naturally. Record actual provider,
+model, permissions and costs without secrets. An unattended queue waiting for
+per-command native approval is not yet supported.
 
-## Connect a real model
+## Build and run the matching native app
 
-In Settings, choose one connection and record its name, harness, model and
-billing mode without recording its secret:
-
-- **Codex subscription:** choose **Open Codex account sign-in**, complete the
-  official device flow in the Docker terminal, then choose **Save Codex sign-in**
-  after that session exits. Run a small implementation task to establish actual
-  entitlement and model execution. Current retained subscription credentials
-  admit one active session at a time; do not use that mode to claim parallel
-  swarm acceptance or silently switch to API billing.
-- **API access:** save your supported OpenAI/Anthropic or explicit compatible
-  endpoint credentials through Settings, select the matching harness/model and
-  complete a small real task. This is the appropriate parallel acceptance route
-  where the provider permits concurrent requests.
-- **Local model:** configure an explicit OpenAI-compatible endpoint and model
-  through OpenCode. The server/model must already be running and reachable from
-  Docker; container loopback is not Windows loopback. Luci translates configured
-  host-loopback endpoints for its containers. Verify actual connectivity and
-  sufficient model capacity before measuring parallel work.
-
-See [PROVIDERS.md](PROVIDERS.md) for precise harness support and restart/sign-in
-limits. A configured badge, completed account sign-in or successful health probe
-is not evidence of a model completing a task. Verify disconnect/reconnect errors
-remain actionable and never silently change model, provider or billing account.
-
-### Select the task approval model deliberately
-
-Autonomous coordinated tasks use a native single-turn command that exits when
-the turn ends. The pinned CLI modes support this with explicitly reviewed
-**Bypass** permission, meaning commands run without per-command approval inside
-the isolated Docker workspace. Ask and Plan remain available through interactive
-agents; they must not be silently upgraded to run unattended. The task screen
-explains the saved choice before preparation. Change it through plan review and
-a new build, not by rewriting an already consented task.
-
-Test both paths: an Ask task is refused before any reservation or container is
-created, and an explicitly authorized autonomous task ends naturally, releases
-capacity and lets a different queued project progress without pressing Stop.
-Review retained changes and run checks before integration; an ended process
-alone does not establish a correct result. Record actual behavior for the chosen
-live provider, including command refusal, incomplete output and failed checks.
-An unattended queue that can pause for individual native approval requests is
-not yet supported; see [PROVIDERS.md](PROVIDERS.md).
-
-## Source checks and optional packages
-
-From the checkout root, these commands run engineering checks. Failures remain
-failures; none can be replaced by a visual launch check:
+Source checks can be run sequentially with `GOMAXPROCS=2` and `-p 1` in the
+acceptance shell, retaining exact output/failures and restoring prior variables:
 
 ```powershell
-./scripts/test-dev-windows.ps1
+.\scripts\test-dev-windows.ps1
 if ($LASTEXITCODE -ne 0) { throw 'Launcher checks failed' }
-go test ./sandboxd/...
-if ($LASTEXITCODE -ne 0) { throw 'Sandbox tests failed' }
-go test ./control-plane/...
-if ($LASTEXITCODE -ne 0) { throw 'Control-plane tests failed' }
+go test -p 1 ./sandboxd/...
+if ($LASTEXITCODE -ne 0) { throw 'Sandbox checks failed' }
+go test -p 1 ./control-plane/...
+if ($LASTEXITCODE -ne 0) { throw 'Control-plane checks failed' }
 Push-Location desktop
 try {
     npm.cmd ci
-    if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed' }
+    if ($LASTEXITCODE -ne 0) { throw 'Locked install failed' }
     npm.cmd run typecheck
-    if ($LASTEXITCODE -ne 0) { throw 'Type checking failed' }
+    if ($LASTEXITCODE -ne 0) { throw 'Typecheck failed' }
     npm.cmd test
-    if ($LASTEXITCODE -ne 0) { throw 'Frontend tests failed' }
+    if ($LASTEXITCODE -ne 0) { throw 'Frontend checks failed' }
     npm.cmd run build
     if ($LASTEXITCODE -ne 0) { throw 'Frontend build failed' }
 } finally { Pop-Location }
+.\scripts\build-release.ps1 -Version 0.5.0 -Native
+if ($LASTEXITCODE -ne 0) { throw 'Native build failed; retain its output.' }
 ```
 
-To build a portable Windows application, run
-`./scripts/build-release.ps1 -Version 0.5.0` from PowerShell 7 after installing
-desktop dependencies and Python. The script also builds the matching bundled
-Linux runtime; building that archive provisions no cloud resource. The portable
-package is `artifacts/releases/0.5.0/luci-windows-amd64.zip`. Extract the whole ZIP
-into a fresh folder and run its `Start-Luci.cmd`; do not copy just `luci.exe`.
-Check its hash against `SHA256SUMS` and record `release-manifest.json`, which
-must identify the tested commit and whether source changes were present.
-Portable runtime use does not need host Go, Node or Python.
+For focused native controlled continuation checks, the exact affected prefix is
+`go test -C control-plane -p 1 -count=1 -json ./internal/product ./internal/api -run '^TestSwarmCheckpoint'`.
+It includes `TestSwarmCheckpointActualHTTPSettledLaunchPreparesThenExplicitlyStartsDistinctWorker`,
+`TestSwarmCheckpointActualHTTPFinalizedFenceRequiresCurrentExactMarker`,
+`TestSwarmCheckpointActualHTTPRechecksUnsettledAndRevokedAuthorityBeforeCopy` and
+`TestSwarmCheckpointGuardedRoutesRefuseBusySourceBeforeNewWorkspace`. These use
+real HTTP/Git/private state with controlled backend state. Keep skips, timeout
+and failures distinct from passes; no native Docker/model claim follows. Follow
+the separate recovery matrix for exact Windows lock/named-pipe checks.
 
-### Isolated native WebView acceptance — LOCAL-004 / LOCAL-006 corrections
+The native build command has passed at the historical revisions above. It builds
+the matching native app/sidecar/resources and bundled Linux runtime; it provisions
+no cloud resource. Native NSIS generation is not installer execution. Build
+without `-Native` for `artifacts/releases/0.5.0/luci-windows-amd64.zip`, a portable
+browser/server distribution with `Start-Luci.cmd`; that is separate from native
+WebView acceptance. See [RELEASE.md](RELEASE.md) for manifests and signing.
 
-The local tester has now reported actual release startup, first-owner setup,
-controlled reopen with four persisted definitions and two exact owned shutdowns
-at `2dcf245d`. Carry those results forward for unchanged behavior. Full ordinary
-state metadata preservation remains open for the first-cycle historical
-527.7-microsecond directory timestamp difference; the second cycle matched.
-Reproduce only affected checks on a newer candidate, retaining the unresolved
-comparison and the original normal-state baseline.
+For personal-machine native smoke, use the verified built/extracted app with all
+matching resources, **not the installer**. Never launch older native packages
+`8f78804f`, `656a1ae1` or the incomplete `c46405fc` correction with an assumed safe
+state override. Preserve normal roots `%APPDATA%\ai.lcfr.luci` and
+`%LOCALAPPDATA%\Luci\state`: privately record absence or content hashes, file IDs,
+creation/last-write times, length and attributes before/after. Refresh metadata
+and use read-only native handles for discrepancies; access times are
+observer-sensitive and must be recorded separately.
 
-With the native prerequisites installed, use
-`./scripts/build-release.ps1 -Version 0.5.0 -Native` at the exact fixed revision
-supplied by the LOCAL FIX READY TO RETEST handoff. **`8f78804f` ignores explicit state; the first correction `656a1ae1` still
-accepts an ordinary file as a state directory on Windows. Use the subsequent
-LOCAL-004 parent-directory and LOCAL-006 all-marker validation correction handoff.
-The later `c46405fc` parent check alone still has the LOCAL-006 early-return gap.** Do not launch those native packages
-against an assumed isolated state override. Preserve the full native executable,
-matching sidecar and bundled resources together; record the package/source hashes
-before running. The unsigned NSIS installer is under
-`desktop/src-tauri/target/release/bundle/nsis/`, but installing, upgrading or
-uninstalling it remains a separate disposable-VM test below. Use the matching
-built/extracted native application for the personal-machine smoke test.
-
-Choose a fresh, non-linked directory on the acceptance volume for each native
-run. Before launch, privately record the existence, file hashes, relative paths,
-lengths, attributes and last-write metadata of both normal state roots:
-`%APPDATA%\ai.lcfr.luci` and `%LOCALAPPDATA%\Luci\state`. Record absent roots as
-absent; do not create or copy their state into the fixture. Preserve this baseline
-and compare it after shutdown. Keep any private account/configuration contents
-out of the shared report.
-
-Use a dedicated PowerShell process and process-local environment values only.
-Set the executable below to the verified native application with its matching
-resources; this is not the portable server executable of the same filename:
+In a dedicated PowerShell process, use a fresh absolute, non-linked E: run folder:
 
 ```powershell
-$nativeExe = 'E:\Luci-local-acceptance\native-candidate\luci.exe'
-if (-not (Test-Path -LiteralPath $nativeExe -PathType Leaf)) { throw 'Select the verified native executable.' }
+$nativeExe = '<verified-native-app-with-matching-resources>\luci.exe'
+if (-not (Test-Path -LiteralPath $nativeExe -PathType Leaf)) { throw 'Select the verified native app.' }
 $nativeRun = Join-Path 'E:\Luci-local-acceptance\native-runs' ([guid]::NewGuid().ToString('N'))
-if (Test-Path -LiteralPath $nativeRun) { throw 'Use a fresh owned native run folder.' }
 New-Item -ItemType Directory -Path $nativeRun -ErrorAction Stop | Out-Null
-$savedNativeEnv = @{}
-Get-ChildItem Env: | Where-Object { $_.Name -like 'LUCI_*' -or $_.Name -eq 'WEBVIEW2_USER_DATA_FOLDER' } |
-    ForEach-Object { $savedNativeEnv[$_.Name] = $_.Value }
-try {
-    Get-ChildItem Env:LUCI_* | ForEach-Object { Remove-Item -LiteralPath ('Env:' + $_.Name) }
-    $env:LUCI_STATE_DIR = Join-Path $nativeRun 'state'
-    $env:LUCI_PROJECTS_DIR = Join-Path $nativeRun 'projects'
-    $env:WEBVIEW2_USER_DATA_FOLDER = Join-Path $nativeRun 'webview-profile'
-    # LUCI_API stays absent: this tests the native launcher's own sidecar.
-    $nativeProcess = Start-Process -FilePath $nativeExe -PassThru
-    Write-Host "Native process $($nativeProcess.Id); private acceptance folder: $nativeRun"
-    $nativeProcess.WaitForExit()
-} finally {
-    Get-ChildItem Env:LUCI_* | ForEach-Object { Remove-Item -LiteralPath ('Env:' + $_.Name) }
-    Remove-Item Env:WEBVIEW2_USER_DATA_FOLDER -ErrorAction SilentlyContinue
-    foreach ($name in $savedNativeEnv.Keys) {
-        [Environment]::SetEnvironmentVariable($name, $savedNativeEnv[$name], 'Process')
-    }
-}
+Get-ChildItem Env:LUCI_* | ForEach-Object { Remove-Item -LiteralPath ('Env:' + $_.Name) }
+$env:LUCI_STATE_DIR = Join-Path $nativeRun 'state'
+$env:LUCI_PROJECTS_DIR = Join-Path $nativeRun 'projects'
+$env:WEBVIEW2_USER_DATA_FOLDER = Join-Path $nativeRun 'webview-profile'
+# LUCI_API remains absent: the native launcher owns this sidecar.
+$app = Start-Process -FilePath $nativeExe -PassThru
+$app.WaitForExit()
+# Close this dedicated shell when finished; do not change user/system environment.
 ```
 
-With the fix, an explicit `LUCI_STATE_DIR` selects that absolute directory
-without consulting either normal state root. Invalid, linked or relative paths
-must fail visibly without a fallback. `LUCI_PROJECTS_DIR` is inherited by the
-owned sidecar. The native launcher supplies its bundled runtime and cloud bundle;
-an inherited `LUCI_RUNTIME_DIR` does not replace those resources. The fresh
-`WEBVIEW2_USER_DATA_FOLDER` isolates browser cookies/cache from the usual WebView
-profile without changing Windows-wide settings. Keep it when reopening the same
-fixture, and use a new folder for a new acceptance run.
+Use the local test bridge's `runtime_info` before owner setup. `stateDir` must
+exactly match the selected absolute state, `startupError` must be empty, and
+`apiUrl` is authoritative. Native own-sidecar mode chooses a free IPv4 loopback
+port; inherited `LUCI_ADDR` does not select it. Record the exact app/sidecar/
+WebView identities and normal exit. Reopen with the same three paths and same
+native app to check persistence, returning sign-in and only-owned shutdown.
+Invalid/relative/file/junction state targets must fail visibly without fallback.
+Retain failed fixtures; do not delete private state to get a clean-looking result.
 
-Before first-owner setup, inspect the native `runtime_info` command through the
-local test bridge and record its `apiUrl`, `stateDir` and `startupError` result.
-`stateDir` must exactly identify this run's absolute `state` directory and
-`startupError` must be empty. Stop and retain diagnostics on any mismatch; do not
-continue setup in an existing workspace. Native own-sidecar startup chooses a
-free IPv4 loopback port even if `LUCI_ADDR` was inherited: use the actual `apiUrl`
-from `runtime_info`, not the source launcher's port or a guessed address. Record
-the owned sidecar's process identity and actual bundled runtime location too.
+Deliberately setting `LUCI_API` to a known owned service tests **external mode**:
+no new owned sidecar, local bootstrap read or external-service shutdown. Record
+that separately from own-sidecar lifecycle. Source-browser and native WebView
+outcomes are also separate.
 
-Verify a fresh first-owner/bootstrap flow, saved project persistence and normal
-close. Reopen the **same** native executable with the same three isolated paths
-and repeat sign-in and the WebView workflow, keyboard/zoom and recovery checks.
-Closing the app must stop its own sidecar without stopping unrelated processes;
-retain proof of the exact process identity and exit, not just a closed window.
-Compare both normal-root baselines after each run: file content and the recorded
-metadata must remain unchanged, and absent roots must remain absent. Retain the
-new fixture state/profile and evidence rather than deleting them on failure.
+**Do not run `scripts/test-installed-windows.ps1` on this ordinary machine or
+forge runner environment variables.** It intentionally performs installation/
+upgrade/uninstallation only in a disposable Windows runner. That gate needs a
+separate disposable VM and retained backups, not a guard bypass.
 
-An external-service check is separate: deliberately set `LUCI_API` to an already
-owned test service while retaining a fresh WebView profile. That mode must not
-start or claim ownership of a sidecar, read local bootstrap tokens, select native
-state or stop the external service when the window closes. Record this as
-external mode, not as own-sidecar lifecycle evidence. Follow
-[RELEASE.md](RELEASE.md) for supported state migration and package provenance.
+## Integrated manual acceptance matrix
 
-Do **not** run `scripts/test-installed-windows.ps1` on your personal machine or
-set fake GitHub runner variables to bypass its guard. It performs install and
-uninstall acceptance in a disposable Windows GitHub runner and intentionally
-refuses ordinary machines. A clean-host install/upgrade/uninstall check belongs
-in a disposable Windows VM, with the original candidate and state backed up.
+Use one fresh disposable project for destructive/conflict scenarios. Record
+project/run/task/operation/session IDs, source and context revisions, actual
+HTTP/results, preserved old bytes and exact cleanup. Source tests and prepared
+helpers do not replace these matching-candidate workflows.
 
-## Prioritized local acceptance
-
-Record each gate as passed, failed or unverified with the revision, environment,
-actual actions and result. An unavailable control is a failed or blocked gate,
-not permission to substitute terminal work and call the application complete.
-
-| Priority / gate | Reproducible acceptance and required evidence |
+| Gate | Native app sequence and decisive result |
 | --- | --- |
-| P0: Startup and configuration | Fresh source or matching package starts; owner creation and returning sign-in work; missing/stopped Docker has an actionable remedy; runtime installation succeeds; real selected provider completes a task. Repeat launch with an occupied port and a stopped engine; retain the truthful failures and recovery. |
-| P0: Physical storage and host authority | In host Super Admin Settings, review and confirm the actual active/pending local layout. Record fresh, separate host-minimum and engine-guest values. Missing, stale, changed or unreadable observations block new preparation/worker starts; members cannot view the private path or confirm it. Refresh/status polling must not launch native probes or Docker work. Restart with the same private state and verify workers consume the gateway observation. Relocation and reported owner/member/restart confirmation passed separately; current freshness, exact producer counts and sufficient RAM/space for workload still need measurement. |
-| P0: Four-project operator flow | Follow the mixed-workload sequence in [SWARM-CAPACITY-ACCEPTANCE.md](SWARM-CAPACITY-ACCEPTANCE.md): choose projects, create/delegate scoped work, distinguish queued/running/blocked/review states, prioritize, pause/resume/cancel/retry where supported, and review exact changes. Bulk selection must show scope, cleared/stale selections and per-item failure. No project must disappear, inherit another project's context, starve or silently duplicate work. |
-| P0: Shared understanding | Describe a small facilities-maintenance app: staff report and comment on jobs; managers assign and change status; saved records survive restart; phone and desktop are usable. Review the proposed requirements, data/role rules, screens and acceptance checks. Resolve meaningful ambiguity and approve the agreed scope before execution. Show what is captured for the run and what remains a proposed amendment. |
-| P0: Real parallel execution | Decompose at least two independent tasks and one task depending on both, with explicit acceptance criteria and integration boundaries. Start with a provider that permits concurrency. Prove independent tasks overlap in distinct worktrees/containers; the dependent task must wait for accepted prerequisites. Agents must write the actual application. Record task/run/session IDs, branches, source revisions and timestamps. Manual copy-in of a prebuilt app does not pass. |
-| P0: Review and integration | Inspect each agent's diff and check results, deliberately create one conflicting edit, and review the resolution. Only approved changes enter the target branch. Stale source, dirty work, failed checks and unresolved dependencies cannot be labelled integrated or verified. Inspect the final combined diff and run the application's real checks. |
-| P0: Intervention and recovery | Pause while independent work runs and verify the stated scheduling/process behavior. Steer an amendment deliberately; captured inputs for existing runs remain immutable. Cancel one agent, inspect its retained work and retry/resume through the app. Restart Luci during a run; recover truthful task/process state, context and next actions without duplicate agents or lost work. Do not treat a displayed stopped-session fixture as a live recovery check. |
-| P0: Natural completion and cleanup retry | A completed native task exits without Stop/DELETE and preserves its output awaiting review. Record exit observation, verified container absence, next-project reservation/create/start and integration times. CLOUD-008 must release capacity after proven cleanup in the same sweep, not after another fixed reaper interval. A failed removal retains the reservation and retries; unknown/running/replaced containers and missing/corrupt lease proof cannot be deleted or marked clean. Controlled failure injection belongs in the tracked scoped tests, never by manipulating an unrelated local container. |
-| P0: Working local result | Run the built application through Luci, exercise staff/manager permissions and the agreed journeys, restart the app and confirm durable records. Make an amendment, build and review it, then recheck the existing data and previous behavior. A green process exit, screenshot or preview health response alone does not pass functional acceptance. |
-| P1: Context and handoffs | Inspect each task's assigned context, captured requirements/design/plan and prior accepted outcomes. Compare an active run against a later reviewed amendment. Resume a stopped session and verify its captured context remains correct. A replacement agent must understand completed work, unresolved questions, verification evidence and the next task without relying on an unbounded chat transcript. |
-| P1: Efficiency and quality | Run the same approved workload from the same starting commit with concurrency one, then with a bounded parallel configuration. Record preparation, active, waiting, verification and total wall time; peak active agents; available memory/CPU data; actual reported tokens/cost or explicitly unavailable usage; retries, conflicts and failed checks. Report speedup only for equally accepted outcomes. Parallel activity is not itself evidence of a faster or better result. |
-| P1: Operator polish | During real activity, identify the current phase, task owner, dependency/blocker, running work, next decision and exact built scope without reading logs. Exercise keyboard navigation, phone-width view, 400% zoom, unsent-text preservation and long failure messages. Pause/cancel/retry/review must have clear consequences and trustworthy feedback. |
-| P1: Native Windows lifecycle | Use the exact LOCAL-004 fixed native candidate with fresh explicit state/projects and a process-local WebView profile. Verify `runtime_info`, first-owner setup, reopen, unchanged normal-state roots and owned-sidecar shutdown; verify external mode has no service ownership. Perform installer/upgrade/uninstall acceptance only in a disposable VM with retained project/private-state hashes. The actual 2dc packaging and startup/reopen/shutdown smoke passed their reported scopes; first-cycle normal-state metadata preservation, external mode and disposable-VM installer lifecycle remain open. A Linux build or cross-compilation does not pass those gates. |
+| Startup, owner and LOCAL-004/005/007 carry-forward | Confirm exact runtime/state; fresh owner and returning sign-in; four distinct saved purposes; labels select without expansion, disclosure/keyboard preserve focus, Ctrl+K and Keep editing work. Repeat affected cached-refresh navigation while a real response is held: one cached GET, no full check/install, no late reopening. Explicit readiness remains separate. Preserve normal state and original Docker workload identities. |
+| CLOUD-010 older work stays actionable | Let run A finish with output awaiting review, then create newer run B. Home/orchestrator must retain A's exact project/run/task review or question link; opening it must not substitute B or count A as running capacity. Complete the decision and refresh/reopen; attention should reflect recorded state without losing the history. |
+| CLOUD-011 reports, answers and V2 context | A stopped task writes its bounded structured handoff with decisions, limitations, claimed checks and a blocking question. Inspect attributed report and source/context receipt, answer through the app, then reserve a dependent task only after prerequisites are reviewed and integrated. Inspect its actual read-only V2 captured context and full direct-dependency packet. The old report/answer is frozen; later edits affect future reservations. Worker claims never appear as recorded passing checks or permissions. Missing/unsafe/unavailable reports remain explicit; a GET must not execute/capture/mutate work. |
+| CLOUD-012 retained checkpoint | Produce committed, dirty and untracked ordinary text within the task scope, then stop/observe the exact launch (finish uncertain-launch recovery first if required). Open More task actions → Continue from retained changes; review complete before/after text and explicitly consent. A new ready reserved operation/child/workspace and seed appear; old workspace and primary remain unchanged, task/dependencies remain incomplete. Restart before start; same-key lost-response readback recovers the original reservation without recopying. Only a separate Continue reserved task starts the successor. Its context contains the exact prior report/answer and seed. Review final combined changes before integration. |
+| Checkpoint refusal/interruption | Change retained source or an overlapping primary file after review; stale revision/digest must refuse before allocation. Revoked Edit/Execute, unsafe/binary/oversized/protected output and unresolved launch must refuse. An incomplete preparation remains unknown and is not automatically retried; explicit retention/cancellation of a proven never-started preparation cannot revive a delayed publisher. Generic Resume/Fork/Restart of the old reviewed session remains prohibited; do not use it as a continuation workaround. |
+| CLOUD-013 dependency join and real Git conflict | Use one project with two prerequisites and a dependent join; record actual allowed concurrency. Before integration, joining must refuse. A deliberately stale review refuses without changing primary/index. Separately create a real overlapping Git merge conflict in this disposable project and retain both attempts and exact source state; this is not the same as stale-review refusal. Resolve through the supported review path. Only accepted integrations release the join, whose actual context names both exact prerequisites. Verify combined output independently. Serial execution can prove dependency ordering, not concurrent speed. |
+| CLOUD-015 truthful integration outcome | Check the returned integration state, not HTTP 200 alone. A retained Git conflict/unknown integration must show unresolved work and preserved output, with no success/dependency-release notice. A confirmed integrated result may show success. A lost response must prompt observation of the exact attempt, not an automatic merge/retry or invented success. |
+| CLOUD-016 terminal output budget | Paste a finite 100 KiB command into an owned interactive session and keep reading its output: fragmentation alone must not disconnect it. An actually stalled consumer exceeding the byte budget must still disconnect explicitly while other readers and the child continue. Do not infer bounded memory from only the healthy-reader case. |
+| Recovery and no duplicate launch | Follow [LOCAL-RECOVERY-ACCEPTANCE.md](LOCAL-RECOVERY-ACCEPTANCE.md) and [the recovery contract](INTERRUPTED-LAUNCH-RECOVERY.md). Untouched reserve→retain/cancel→reopen→new reserve uses distinct identity. An uncertain started attempt cannot be replaced until exact protocol-supported recovery finishes. Actual Windows request death/lost ACK/durable finalization needs an isolated controlled fixture; do not kill unrelated user services or inject faults into the shared daemon. Legacy/unsupported/saturated history must say why and preserve output. |
+| Useful result and amendment | Build a small app with explicit roles, persistence and phone/desktop journeys; run real functional checks, restart and verify saved data. Amend the idea, review changed context and affected scope, build/integrate it and rerun prior behavior. A natural CLI exit, reported check, screenshot or healthy preview is not functional acceptance. |
 
-Retain a small sanitized report with failed attempts, source/package hashes,
-actual provider/model, hardware and limits, task timings, resulting commit,
-commands with exit status, application behavior and recovery observations.
-Keep credentials, private conversation/state files and raw provider request logs
-out of reports. Record unsupported or unverified behavior explicitly.
+Checkpoint review currently supports complete Git-visible UTF-8 text only:
+128 changed files, 128 KiB per changed file and 512 KiB total before/after text.
+Ignored files are not copied; binaries, protected paths, links, ambiguous paths,
+unsafe conversion rules and unsupported source drift refuse visibly. Disjoint
+reviewed primary changes require exact affected-path base identity. The old
+retained source never becomes integrated merely because it was adopted. Keep
+unsupported cases visible instead of force-applying or silently omitting output.
 
-## Current evidence and remaining limits
+## Sustained four-project capacity and provider quality
 
-The latest [reported native2dc lifecycle](evidence/2026-10-08-native-lifecycle-2dcf245d-reported.md)
-supplements its [clean native package](evidence/2026-10-08-native-package-2dcf245d-reported.json):
-actual release UI, isolated own-sidecar startup, manually authored four-project
-context, controlled reopen and two owned shutdowns. Source HEAD/all 1,808 tracked
-hashes and both checkouts remained clean; no owned process, port or container
-remained. This report is relayed, with native raw artifacts retained locally.
-LOCAL-004 metadata diagnosis and LOCAL-007 reproduction remain open; no worker,
-model, sustained responsiveness, installer or later 919 correction is verified by
-that batch. The following 2819 evidence is historical and remains valid only for
-its named scope.
+The reported workstation has **31.2 GiB physical RAM**. Take at least 60 seconds
+of actual idle Luci with the normal browser/editor workload, then a **30-minute
+native four-project workload** and a settle interval. Follow
+[SWARM-CAPACITY-ACCEPTANCE.md](SWARM-CAPACITY-ACCEPTANCE.md) and the
+[Windows sampler commands](../../scripts/acceptance/four-project-queue/RESOURCE-MEASUREMENT.md#native-windows-sampler-short-native-check-reported).
+The sampler's nine controlled checks and 8.017-second native PowerShell/descendant
+capture verify only their reported OS/ACL scope, not Luci performance or Docker
+named-pipe sampling under sustained load.
 
-At exact `2819ce9eacf62b2d73a1522b2db25301a7b393d4`:
+Choose explicit host/global/per-project/account/provider limits from fresh
+measurements. The default reserve derives from actual total RAM (25% with a 2 GiB
+floor); record it rather than treating all 31.2 GiB as available. Four advancing
+projects may share a smaller worker pool; report actual overlap and wait reasons.
+Do not lower worker quality/resources silently or weaken storage/memory admission
+because another application is using the machine. Record non-agent checks,
+previews/data/dev servers as well as worker reservations and measured use.
 
-- [Installed Linux mechanics](evidence/2026-10-08-2819ce9e-installed-swarm.md)
-  passed four actual Docker/native tasks across four projects, one worker at a
-  time, with natural exit 0, live-child recovery after service restart, immutable
-  task context, cancellation before allocation and reviewed integration.
-  Scripted provider replies are not live-model quality evidence. The 428.478 s
-  workflow retained 57.521–65.457 s completion-poll-to-next-create delays; this is
-  the CLOUD-008 baseline, not a verified speed improvement.
-- [Native correction checks](evidence/2026-10-08-2819ce9e-native-fixes-reported.json)
-  were reported passing by the local tester: nine selected tests, unchanged
-  HEAD and all 1,694 tracked-file hashes. LOCAL-001/002/003 are verified for
-  their original reproductions; the earlier failed/mutated checkout is retained.
-- [Native source-browser smoke](evidence/2026-10-08-2819ce9e-native-browser-reported.json)
-  was reported passing nine checks: isolated launch/owner setup, four saved
-  project contexts, scoped drafts, switching and service/browser restart.
-  Home had zero axe violations and no 800 px horizontal overflow. No Docker
-  work or live model ran, and these reports were not independently rerun by cloud.
-- [Package/source receipts](evidence/2819ce9e/README.md) bind 996 installed
-  members, 347 licence entries and the clean source export. The
-  [resource observations](evidence/2026-10-08-2819ce9e-installed-swarm-resources.md)
-  retain 445 samples over 450.37 s, with a 1.28 GiB peak complete observed
-  driver-family RSS sum. This is a shared Linux host, not Windows capacity,
-  an idle baseline, a 30-minute soak or input-latency evidence.
+Use distinct goals/decisions/task graphs and output witnesses, mix build/test/
+review work, change priorities, pause/resume/cancel where supported, fail one
+worker, amend context and restart the owned app with queued work. Each project
+must progress without starvation, cross-project context leakage or duplicate
+work. Keep previews and retained output usable and review exact changes.
 
-The next handoff must add its own exact source/package identity and changed-scope
-checks for storage confirmation/shared gateway observation and CLOUD-008
-same-sweep cleanup/retry. Do not transfer the old installed pass to those changes.
+Capture owned app/WebView/API/worker/test processes by PID **and creation
+identity**; do not attribute every browser or `vmmemWSL` process to Luci. Keep
+process working sets, Windows available physical RAM/commit, Docker cgroup usage,
+limits and VM/shared-daemon overhead separate; sums double-count shared pages.
+Measure CPU/I/O/disk pressure, actual sample gaps and per-project wait/active/check/
+cleanup times. Measure UI input and project-switch latency plus ordinary editor/
+browser responsiveness; counters or frame rates alone do not prove either.
+Native exact short-lived process-start tracing remains unknown until permitted
+instrumentation records it. Preserve missing measurements as unavailable.
 
-The Windows source launcher has ten executable control-flow checks covering
-startup exit, delayed readiness, bounded timeout, occupied port, unexpected
-service, dependency/build/runtime/frontend failure and owned forced cleanup.
-They execute the real launcher under PowerShell 7.5.5 on Linux with controlled
-external commands and a real loopback socket; they do not prove Windows process,
-Docker Desktop or native WebView behavior. Its result is retained at
-`artifacts/windows-source-launcher/results.json` in the development workspace.
+Run an equivalent accepted workload serially and with bounded parallelism before
+claiming speedup. Report retries, conflicts, failed checks and actual provider
+usage/cost, or unavailable usage. Scripted providers prove mechanics only. Use
+[the context-quality protocol](../../scripts/acceptance/context-quality/PROTOCOL.md)
+for real ambiguity, isolation, amendments, stale source, handoffs and restart;
+blind oracle checking/human review must judge actual delivered software, not the
+agent's own success statement. Do not publish credentials or private transcripts.
 
-Read-only CI inspection found run
-[37543084295](https://github.com/lcfrai/luci/actions/runs/37543084295), commit
-`1411294aead059907bb0f3898f6ecb2cf3c8e55f`, failed before any job steps executed;
-the Windows job was skipped. Earlier installed Windows acceptance also has an
-unresolved failure, described in [FULL-PRODUCT.md](FULL-PRODUCT.md). The focused
-native results above do not close installed Windows acceptance or a completed
-real-model swarm journey. The exact
-new implementation's source/runtime receipts belong in the accompanying handoff;
-historical package results are not automatically results for this revision.
+## Evidence to return and open gates
 
-Finish all available local source/runtime verification before handoff. Dylan's
-Windows and provider tests close only the gates they actually exercise. Keep the
-local milestone open until its required gates pass. After that local feedback
-and supplied access, use Luci's own reviewed agent workflows on Luci's source to
-implement and verify cloud connectivity/execution. Public cloud operation,
-managed billing and public distribution retain their separate release gates.
+Return the exact commit/package/image lineage, clean source/hash comparison,
+selected provider/mode and limits, per-gate observed result, timings/resource
+coverage, screenshots and sanitized HTTP/effect evidence, retained failure paths,
+and exact owned cleanup plus preserved user workloads. Keep state, tokens,
+credentials, raw private fixture paths and authentication logs local. Link the
+clone's receipts and helpers; do not require inaccessible cloud artifacts.
 
+The integrated source race run finished with 3,023 passing outcomes, 29 explicit
+skips and one sandbox terminal failure; its 2,003 input hashes, HEAD and working
+tree were unchanged. All control-plane packages passed. The terminal defect is
+CLOUD-016: finite input can trigger a fragment-count output cap before its byte
+budget is consumed. Its correction passes 32 affected hub/server race outcomes and remains separate
+from the original failed full run. Full frontend checks recorded 2,575 passes and three
+failures; TypeScript and the production build passed. Contract-mirror and recovery-test synchronization corrections pass within 169
+affected frontend tests; TypeScript/build pass again. Final controlled browser
+verification passes 22 desktop/phone checkpoints plus the original keyboard-only
+checkpoint-focus reproduction. The backend follow-ups pass 126 affected
+API/product race outcomes. See the [source receipt](evidence/2026-10-08-cloud010-015-source-verification.md).
+Current C010/C011/C012/C013/C015 changes do not inherit older installed passes. Checkpoint controlled race checks have
+passed 40 product and 8 real-HTTP API outcomes, but backend states were controlled:
+no native Windows or installed two-worker claim follows. The earlier combined
+run's separate C011 test-decoding assertion failure remains recorded; the full
+control-plane run passed after the test fixture correction. Prepared continuation/dependency helpers and unfinished sustained
+attempts remain open until matching installed runs complete.
 
-For interrupted-launch recovery and cached storage-refresh corrections, use the
-[scoped recovery/storage matrix](LOCAL-RECOVERY-ACCEPTANCE.md) at the published
-exact revision. The [operator contract](INTERRUPTED-LAUNCH-RECOVERY.md) explains
-retained output, explicit continuation and finite recovery-history limits.
+Remaining gates include matching-candidate installed dependency/continuation/
+conflict workflows, native Windows recovery and sustained whole-machine
+responsiveness, permitted exact probe tracing, live-provider usefulness and
+clean-host installer behavior. Historical Linux and native receipts remain valid
+for their named scopes. These limitations do not wait on cloud billing or public
+deployment, and they do not turn the local milestone into a completed product.

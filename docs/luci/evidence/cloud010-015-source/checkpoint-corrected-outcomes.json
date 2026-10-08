@@ -1,0 +1,1154 @@
+[
+  {
+    "Time": "2026-10-08T13:19:43.826870276Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestCloud011OrchestratorRetainsExactHandoffAfterIntegration",
+    "Action": "fail",
+    "Elapsed": 3.79
+  },
+  {
+    "Time": "2026-10-08T13:19:45.291222556Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestCloud011OrchestratorHandoffBoundsUnknownAndLegacy",
+    "Action": "pass",
+    "Elapsed": 1.46
+  },
+  {
+    "Time": "2026-10-08T13:19:45.332221349Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorResolutionDurablyFencesLateRequestAfterRestart",
+    "Action": "pass",
+    "Elapsed": 0.04
+  },
+  {
+    "Time": "2026-10-08T13:19:45.384115834Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorResolutionExactIdentityAndForeignActor/message",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:19:45.386127045Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorResolutionExactIdentityAndForeignActor/revision",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:19:45.387435286Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorResolutionExactIdentityAndForeignActor/context",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:19:45.388702626Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorResolutionExactIdentityAndForeignActor/reply",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:19:45.3921562Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorResolutionExactIdentityAndForeignActor/route",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:19:45.402265927Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorResolutionExactIdentityAndForeignActor",
+    "Action": "pass",
+    "Elapsed": 0.07
+  },
+  {
+    "Time": "2026-10-08T13:19:45.920232337Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorResolutionSearchesArchiveAndRetainsFencesAcrossRotation",
+    "Action": "pass",
+    "Elapsed": 0.51
+  },
+  {
+    "Time": "2026-10-08T13:19:45.964574329Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorResolutionCorruptionAndCapacityStayUnknown/ledger",
+    "Action": "pass",
+    "Elapsed": 0.04
+  },
+  {
+    "Time": "2026-10-08T13:19:46.004305427Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorResolutionCorruptionAndCapacityStayUnknown/archive",
+    "Action": "pass",
+    "Elapsed": 0.04
+  },
+  {
+    "Time": "2026-10-08T13:19:46.042984164Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorResolutionCorruptionAndCapacityStayUnknown/staging",
+    "Action": "pass",
+    "Elapsed": 0.04
+  },
+  {
+    "Time": "2026-10-08T13:19:46.207218489Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorResolutionCorruptionAndCapacityStayUnknown/capacity",
+    "Action": "pass",
+    "Elapsed": 0.16
+  },
+  {
+    "Time": "2026-10-08T13:19:46.207241394Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorResolutionCorruptionAndCapacityStayUnknown",
+    "Action": "pass",
+    "Elapsed": 0.29
+  },
+  {
+    "Time": "2026-10-08T13:19:50.045788294Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorRotationRecoversCapacityWithVerifiedPrivateExport",
+    "Action": "pass",
+    "Elapsed": 3.84
+  },
+  {
+    "Time": "2026-10-08T13:19:51.625880617Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorRotationAccountsForInterruptedArchiveAndStaleDownload",
+    "Action": "pass",
+    "Elapsed": 1.58
+  },
+  {
+    "Time": "2026-10-08T13:19:53.443795388Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorKeepsOlderCodingScopeUntilExplicitTerminalReconciliation",
+    "Action": "pass",
+    "Elapsed": 1.82
+  },
+  {
+    "Time": "2026-10-08T13:19:54.38620639Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorRunProjectionKeepsAllUnfinishedIdentitiesAndBoundedDetail",
+    "Action": "pass",
+    "Elapsed": 0.94
+  },
+  {
+    "Time": "2026-10-08T13:19:54.389279051Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorRunActivityOrderAndExactNextAction",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Time": "2026-10-08T13:19:55.361802188Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorPlanAmendmentRetiresCheckAndReleaseGuidance/awaiting-checks",
+    "Action": "pass",
+    "Elapsed": 0.97
+  },
+  {
+    "Time": "2026-10-08T13:19:56.482803789Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorPlanAmendmentRetiresCheckAndReleaseGuidance/awaiting-release",
+    "Action": "pass",
+    "Elapsed": 1.12
+  },
+  {
+    "Time": "2026-10-08T13:19:56.483026235Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorPlanAmendmentRetiresCheckAndReleaseGuidance",
+    "Action": "pass",
+    "Elapsed": 2.09
+  },
+  {
+    "Time": "2026-10-08T13:19:57.244531531Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorFreshnessPreservesHistoryAndNextActionPrecedence/ready",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Time": "2026-10-08T13:19:57.249381766Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorFreshnessPreservesHistoryAndNextActionPrecedence/coding",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Time": "2026-10-08T13:19:57.262921297Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorFreshnessPreservesHistoryAndNextActionPrecedence/awaiting-checks",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Time": "2026-10-08T13:19:57.282963591Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorFreshnessPreservesHistoryAndNextActionPrecedence/awaiting-release",
+    "Action": "pass",
+    "Elapsed": 0.02
+  },
+  {
+    "Time": "2026-10-08T13:19:57.295279076Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorFreshnessPreservesHistoryAndNextActionPrecedence/blocked",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Time": "2026-10-08T13:19:57.307847812Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorFreshnessPreservesHistoryAndNextActionPrecedence/complete",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Time": "2026-10-08T13:19:57.315800847Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorFreshnessPreservesHistoryAndNextActionPrecedence/cancelled",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Time": "2026-10-08T13:19:57.318824683Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorFreshnessPreservesHistoryAndNextActionPrecedence",
+    "Action": "pass",
+    "Elapsed": 0.84
+  },
+  {
+    "Time": "2026-10-08T13:19:57.479208795Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorDurableTurnIdentityScopeAndReadOnlyRecovery",
+    "Action": "pass",
+    "Elapsed": 0.16
+  },
+  {
+    "Time": "2026-10-08T13:19:57.69270982Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorFollowupQuestionReplacesResolvedParent",
+    "Action": "pass",
+    "Elapsed": 0.21
+  },
+  {
+    "Time": "2026-10-08T13:19:58.55861158Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorAppliesAllAmendmentTargetsWithCASAndPrivateReview",
+    "Action": "pass",
+    "Elapsed": 0.86
+  },
+  {
+    "Time": "2026-10-08T13:19:58.9863665Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorApplyRecoversCanonicalSaveWithoutReapplyingAfterExportFailure",
+    "Action": "pass",
+    "Elapsed": 0.43
+  },
+  {
+    "Time": "2026-10-08T13:19:59.124506568Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestOrchestratorAmendmentRejectsConcurrentHumanContextChange",
+    "Action": "pass",
+    "Elapsed": 0.14
+  },
+  {
+    "Time": "2026-10-08T13:20:00.039502268Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestProjectOverviewLatestRunStagesUseRecordedEvidenceAndCurrentContext",
+    "Action": "pass",
+    "Elapsed": 0.91
+  },
+  {
+    "Time": "2026-10-08T13:20:01.292263764Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestProjectOverviewLatestRunPointerIgnoresOlderActivityAndSurvivesRestart",
+    "Action": "pass",
+    "Elapsed": 1.25
+  },
+  {
+    "Time": "2026-10-08T13:20:02.137158381Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestProjectOverviewRunIndexUnavailableNeverRepairsOrScansLegacyHistory",
+    "Action": "pass",
+    "Elapsed": 0.85
+  },
+  {
+    "Time": "2026-10-08T13:20:03.265141058Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestProjectOverviewRunReadDoesNotInspectHistoricalPayloads",
+    "Action": "pass",
+    "Elapsed": 1.13
+  },
+  {
+    "Time": "2026-10-08T13:20:04.986005301Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestProjectOverviewUnintegratedAgentOutputRemainsAtTaskReview/review-required",
+    "Action": "pass",
+    "Elapsed": 1.72
+  },
+  {
+    "Time": "2026-10-08T13:20:06.886116417Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestProjectOverviewUnintegratedAgentOutputRemainsAtTaskReview/succeeded",
+    "Action": "pass",
+    "Elapsed": 1.9
+  },
+  {
+    "Time": "2026-10-08T13:20:06.886611364Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestProjectOverviewUnintegratedAgentOutputRemainsAtTaskReview",
+    "Action": "pass",
+    "Elapsed": 3.62
+  },
+  {
+    "Time": "2026-10-08T13:20:07.00752977Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestProjectOverviewFourProjectsKeepContextAndQuestionsSeparate",
+    "Action": "pass",
+    "Elapsed": 0.12
+  },
+  {
+    "Time": "2026-10-08T13:20:07.153233454Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestProjectOverviewInvalidatesAmendmentsAndPrivateApprovals",
+    "Action": "pass",
+    "Elapsed": 0.14
+  },
+  {
+    "Time": "2026-10-08T13:20:07.185406758Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestProjectOverviewCorruptContextAndQueueRemainUnknown",
+    "Action": "pass",
+    "Elapsed": 0.03
+  },
+  {
+    "Time": "2026-10-08T13:20:07.452481881Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestProjectOverviewPrivateQuestionsSurviveRestartAndRejectCopiedProjection",
+    "Action": "pass",
+    "Elapsed": 0.27
+  },
+  {
+    "Time": "2026-10-08T13:20:07.514226475Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestProjectOverviewLegacyLargeDialogueIsPartialWithoutMigrationWrites",
+    "Action": "pass",
+    "Elapsed": 0.06
+  },
+  {
+    "Time": "2026-10-08T13:20:07.534529698Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestProjectOverviewRequiresProjectReadBeforePrivateCache",
+    "Action": "pass",
+    "Elapsed": 0.02
+  },
+  {
+    "Time": "2026-10-08T13:20:08.696835025Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestProjectOverviewCacheAndTextAreBounded",
+    "Action": "pass",
+    "Elapsed": 1.16
+  },
+  {
+    "Time": "2026-10-08T13:20:09.73920064Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestProjectOverviewLargeCurrentDialogueUsesBoundedIdentityCheckedProjection",
+    "Action": "pass",
+    "Elapsed": 1.04
+  },
+  {
+    "Time": "2026-10-08T13:20:10.094894021Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestProjectOverviewQuestionAndResponseBounds",
+    "Action": "pass",
+    "Elapsed": 0.36
+  },
+  {
+    "Time": "2026-10-08T13:20:10.173936112Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestProjectOverviewQueueCountsStayProjectScopedAndRefreshOutsideContextCache",
+    "Action": "pass",
+    "Elapsed": 0.08
+  },
+  {
+    "Time": "2026-10-08T13:20:10.205398125Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestProjectOverviewRefusesSpecialPrivateFilesWithoutOpeningThem",
+    "Action": "pass",
+    "Elapsed": 0.03
+  },
+  {
+    "Time": "2026-10-08T13:20:13.242539568Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestCloud010OlderTaskReviewSurvivesNewRunWithoutActiveCapacity",
+    "Action": "pass",
+    "Elapsed": 3.04
+  },
+  {
+    "Time": "2026-10-08T13:20:14.015259242Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestCloud010LegacyAttentionMigrationAndWriteRebuildAreNotGETSideEffects",
+    "Action": "pass",
+    "Elapsed": 0.77
+  },
+  {
+    "Time": "2026-10-08T13:20:14.766932952Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestCloud010CorruptIndexedAttentionAndRevokedReadRevealNoPrivateDetails",
+    "Action": "pass",
+    "Elapsed": 0.75
+  },
+  {
+    "Time": "2026-10-08T13:20:15.561398967Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestCloud010AttentionIndexAndSummaryBounds",
+    "Action": "pass",
+    "Elapsed": 0.79
+  },
+  {
+    "Time": "2026-10-08T13:20:15.56144737Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestCloud010ParentCancellationDoesNotRetireTaskReview",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:20:19.487324754Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointContinuesExactRetainedBytesInNewAttemptWithoutAcceptingTask",
+    "Action": "pass",
+    "Elapsed": 3.93
+  },
+  {
+    "Time": "2026-10-08T13:20:21.581149761Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointReviewRefusesUnsafeOrIncompleteOutput/binary",
+    "Action": "pass",
+    "Elapsed": 2.09
+  },
+  {
+    "Time": "2026-10-08T13:20:23.515857333Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointReviewRefusesUnsafeOrIncompleteOutput/large",
+    "Action": "pass",
+    "Elapsed": 1.94
+  },
+  {
+    "Time": "2026-10-08T13:20:25.337006077Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointReviewRefusesUnsafeOrIncompleteOutput/out-of-scope",
+    "Action": "pass",
+    "Elapsed": 1.82
+  },
+  {
+    "Time": "2026-10-08T13:20:27.069307557Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointReviewRefusesUnsafeOrIncompleteOutput/protected",
+    "Action": "pass",
+    "Elapsed": 1.73
+  },
+  {
+    "Time": "2026-10-08T13:20:28.522078597Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointReviewRefusesUnsafeOrIncompleteOutput/symlink",
+    "Action": "pass",
+    "Elapsed": 1.45
+  },
+  {
+    "Time": "2026-10-08T13:20:30.380020913Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointReviewRefusesUnsafeOrIncompleteOutput/hardlink",
+    "Action": "pass",
+    "Elapsed": 1.86
+  },
+  {
+    "Time": "2026-10-08T13:20:33.04476119Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointReviewRefusesUnsafeOrIncompleteOutput/assume-unchanged",
+    "Action": "pass",
+    "Elapsed": 2.66
+  },
+  {
+    "Time": "2026-10-08T13:20:33.04512591Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointReviewRefusesUnsafeOrIncompleteOutput",
+    "Action": "pass",
+    "Elapsed": 13.56
+  },
+  {
+    "Time": "2026-10-08T13:20:36.077150183Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointFreshReviewAuthorityAndLifecycleBeforeAllocation/retained-edit",
+    "Action": "pass",
+    "Elapsed": 3.03
+  },
+  {
+    "Time": "2026-10-08T13:20:38.708257666Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointFreshReviewAuthorityAndLifecycleBeforeAllocation/dirty-primary",
+    "Action": "pass",
+    "Elapsed": 2.63
+  },
+  {
+    "Time": "2026-10-08T13:20:41.430418751Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointFreshReviewAuthorityAndLifecycleBeforeAllocation/revision",
+    "Action": "pass",
+    "Elapsed": 2.72
+  },
+  {
+    "Time": "2026-10-08T13:20:44.242130476Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointFreshReviewAuthorityAndLifecycleBeforeAllocation/revoked",
+    "Action": "pass",
+    "Elapsed": 2.81
+  },
+  {
+    "Time": "2026-10-08T13:20:47.756847694Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointFreshReviewAuthorityAndLifecycleBeforeAllocation/unsettled",
+    "Action": "pass",
+    "Elapsed": 3.51
+  },
+  {
+    "Time": "2026-10-08T13:20:51.110648147Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointFreshReviewAuthorityAndLifecycleBeforeAllocation/pending-lease",
+    "Action": "pass",
+    "Elapsed": 3.35
+  },
+  {
+    "Time": "2026-10-08T13:20:51.111009821Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointFreshReviewAuthorityAndLifecycleBeforeAllocation",
+    "Action": "pass",
+    "Elapsed": 18.07
+  },
+  {
+    "Time": "2026-10-08T13:20:55.952095688Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointPrimaryDriftRequiresExactAffectedBaseIdentity/disjoint-reviewed-integration",
+    "Action": "pass",
+    "Elapsed": 4.84
+  },
+  {
+    "Time": "2026-10-08T13:20:58.365978423Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointPrimaryDriftRequiresExactAffectedBaseIdentity/overlapping-reviewed-integration",
+    "Action": "pass",
+    "Elapsed": 2.41
+  },
+  {
+    "Time": "2026-10-08T13:20:58.366036851Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointPrimaryDriftRequiresExactAffectedBaseIdentity",
+    "Action": "pass",
+    "Elapsed": 7.25
+  },
+  {
+    "Time": "2026-10-08T13:21:01.922394761Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointCapabilityReadAudit",
+    "Action": "pass",
+    "Elapsed": 3.56
+  },
+  {
+    "Time": "2026-10-08T13:21:06.091023096Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointIncludesCommittedAndDirtyOutputAndPreservesTrailingBytes",
+    "Action": "pass",
+    "Elapsed": 4.17
+  },
+  {
+    "Time": "2026-10-08T13:21:11.984974984Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointDeletionIsReviewedAndAppliedWithoutAcceptingTask",
+    "Action": "pass",
+    "Elapsed": 5.89
+  },
+  {
+    "Time": "2026-10-08T13:21:18.68529518Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointInterruptedAllocationRetainsIntentAndNeverReplaysCopy",
+    "Action": "pass",
+    "Elapsed": 6.7
+  },
+  {
+    "Time": "2026-10-08T13:21:26.377364409Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointUnstartedRetirementFencesDelayedAllocationPublishers/before-seed",
+    "Action": "pass",
+    "Elapsed": 7.69
+  },
+  {
+    "Time": "2026-10-08T13:21:32.993249799Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointUnstartedRetirementFencesDelayedAllocationPublishers/after-seed-before-ready",
+    "Action": "pass",
+    "Elapsed": 6.61
+  },
+  {
+    "Time": "2026-10-08T13:21:32.993374427Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointUnstartedRetirementFencesDelayedAllocationPublishers",
+    "Action": "pass",
+    "Elapsed": 14.31
+  },
+  {
+    "Time": "2026-10-08T13:21:36.298923878Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointUnstartedProofRejectsClaimedOrForeignState/foreign_context",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:21:36.299559946Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointUnstartedProofRejectsClaimedOrForeignState/false_seed",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:21:36.299970895Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointUnstartedProofRejectsClaimedOrForeignState/ready_allocation",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:21:36.300315535Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointUnstartedProofRejectsClaimedOrForeignState/recovery_intent",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:21:36.300607114Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointUnstartedProofRejectsClaimedOrForeignState/recovery_proof",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:21:36.30093625Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointUnstartedProofRejectsClaimedOrForeignState/retirement_proof",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:21:36.301341872Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointUnstartedProofRejectsClaimedOrForeignState/foreign_source_child",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:21:36.301472659Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointUnstartedProofRejectsClaimedOrForeignState/self_source",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:21:36.301504327Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointUnstartedProofRejectsClaimedOrForeignState/legacy_no_checkpoint",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:21:36.301744318Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointUnstartedProofRejectsClaimedOrForeignState/claimed_status",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:21:36.302083159Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointUnstartedProofRejectsClaimedOrForeignState/saved_implementation",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:21:36.302374012Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointUnstartedProofRejectsClaimedOrForeignState/integration",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:21:36.310551297Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointUnstartedProofRejectsClaimedOrForeignState",
+    "Action": "pass",
+    "Elapsed": 3.32
+  },
+  {
+    "Time": "2026-10-08T13:21:43.404871523Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestSwarmCheckpointGuardedRoutesRefuseBusySourceBeforeNewWorkspace",
+    "Action": "pass",
+    "Elapsed": 7.09
+  },
+  {
+    "Time": "2026-10-08T13:21:43.756011621Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestProductRegisteredReadsCannotMutateProjectsOrStartResources",
+    "Action": "pass",
+    "Elapsed": 0.35
+  },
+  {
+    "Time": "2026-10-08T13:21:45.765365461Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffHTTPSharedContract",
+    "Action": "pass",
+    "Elapsed": 2.01
+  },
+  {
+    "Time": "2026-10-08T13:21:45.765695248Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffReportStrictClaimSchema/valid",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:21:45.766292619Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffReportStrictClaimSchema/unknown_authority",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:21:45.766653182Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffReportStrictClaimSchema/trailing",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:21:45.767163411Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffReportStrictClaimSchema/traversal",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:21:45.767562793Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffReportStrictClaimSchema/invalid_utf8",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:21:45.768043417Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffReportStrictClaimSchema/duplicate_nested",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:21:45.768485093Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffReportStrictClaimSchema/absent_questions",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:21:45.768974381Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffReportStrictClaimSchema/null_questions",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:21:45.769264878Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffReportStrictClaimSchema/duplicate_field",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:21:45.769581405Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffReportStrictClaimSchema/too_large",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:21:45.770087228Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffReportStrictClaimSchema/unknown_check",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:21:45.77359234Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffReportStrictClaimSchema",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Time": "2026-10-08T13:21:49.629482748Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffRecordedClaimsQuestionsAndFrozenDependency",
+    "Action": "pass",
+    "Elapsed": 3.86
+  },
+  {
+    "Time": "2026-10-08T13:21:49.644648072Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffObjectRefusesSymlinkAndForeignDigest",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Time": "2026-10-08T13:21:51.41653327Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffReadAudit",
+    "Action": "pass",
+    "Elapsed": 1.77
+  },
+  {
+    "Time": "2026-10-08T13:21:51.416656696Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffMissingReportDoesNotHideIndependentChecks",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:21:51.878867391Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Test": "TestTaskHandoffCompactIndexPreservesUnknownsAndVisibleOmission",
+    "Action": "pass",
+    "Elapsed": 0.46
+  },
+  {
+    "Time": "2026-10-08T13:21:51.902795113Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+    "Action": "fail",
+    "Elapsed": 131.92
+  },
+  {
+    "Time": "2026-10-08T13:22:07.840832093Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestOrchestratorQuestionBlocksReservedAndDirectReviewedChildren/answer-resumes-current-reviewed-selection",
+    "Action": "pass",
+    "Elapsed": 2.01
+  },
+  {
+    "Time": "2026-10-08T13:22:08.517455972Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestOrchestratorQuestionBlocksReservedAndDirectReviewedChildren/answer-cannot-restore-stale-approvals",
+    "Action": "pass",
+    "Elapsed": 0.68
+  },
+  {
+    "Time": "2026-10-08T13:22:08.51813404Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestOrchestratorQuestionBlocksReservedAndDirectReviewedChildren",
+    "Action": "pass",
+    "Elapsed": 2.69
+  },
+  {
+    "Time": "2026-10-08T13:22:10.372978926Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestOrchestratorQuestionPreservesManualTerminalAndReviewedSessionCleanup",
+    "Action": "pass",
+    "Elapsed": 1.85
+  },
+  {
+    "Time": "2026-10-08T13:22:10.815973965Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestOrchestratorQuestionBlocksDirectReviewedRestartAndResumeWithoutDestroyingSource",
+    "Action": "pass",
+    "Elapsed": 0.45
+  },
+  {
+    "Time": "2026-10-08T13:22:10.886861694Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestOrchestratorResolutionFencesDelayedOriginalWithoutProviderAccess",
+    "Action": "pass",
+    "Elapsed": 0.07
+  },
+  {
+    "Time": "2026-10-08T13:22:11.03930948Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestOrchestratorResolutionMissingOrCorruptJobRemainsUnknownWithoutRepair",
+    "Action": "pass",
+    "Elapsed": 0.15
+  },
+  {
+    "Time": "2026-10-08T13:22:11.164491168Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestOrchestratorResolutionWaitsForAtomicAdmissionBeforeReadingJob",
+    "Action": "pass",
+    "Elapsed": 0.12
+  },
+  {
+    "Time": "2026-10-08T13:22:11.30884983Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestOrchestratorResolutionConcurrentOriginalAllocatesAtMostOnce",
+    "Action": "pass",
+    "Elapsed": 0.14
+  },
+  {
+    "Time": "2026-10-08T13:22:11.452979488Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestOrchestratorResolutionViewerOwnReceiptAndForeignActorRefusal",
+    "Action": "pass",
+    "Elapsed": 0.14
+  },
+  {
+    "Time": "2026-10-08T13:22:11.755398001Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestOrchestratorUsesSelectedProviderRetainsAnswersAndDoesNotApplyProposals/codex",
+    "Action": "pass",
+    "Elapsed": 0.3
+  },
+  {
+    "Time": "2026-10-08T13:22:13.413398479Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestOrchestratorUsesSelectedProviderRetainsAnswersAndDoesNotApplyProposals/claude-code",
+    "Action": "pass",
+    "Elapsed": 1.65
+  },
+  {
+    "Time": "2026-10-08T13:22:13.931857798Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestOrchestratorUsesSelectedProviderRetainsAnswersAndDoesNotApplyProposals/opencode",
+    "Action": "pass",
+    "Elapsed": 0.52
+  },
+  {
+    "Time": "2026-10-08T13:22:13.932020804Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestOrchestratorUsesSelectedProviderRetainsAnswersAndDoesNotApplyProposals",
+    "Action": "pass",
+    "Elapsed": 2.48
+  },
+  {
+    "Time": "2026-10-08T13:22:14.077520269Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestOrchestratorMissingSelectedConnectionRecordsFailureWithoutFallback",
+    "Action": "pass",
+    "Elapsed": 0.14
+  },
+  {
+    "Time": "2026-10-08T13:22:14.204529003Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestOrchestratorRecoveryFailsOrphanReservationWithoutNewInference",
+    "Action": "pass",
+    "Elapsed": 0.13
+  },
+  {
+    "Time": "2026-10-08T13:22:14.473960545Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestOrchestratorFreshInstallPersistsFailuresAndStartsSelectedProvider",
+    "Action": "pass",
+    "Elapsed": 0.27
+  },
+  {
+    "Time": "2026-10-08T13:22:14.595092591Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestOrchestratorAdmissionFailureReleasesProviderBeforePublishingTurn",
+    "Action": "pass",
+    "Elapsed": 0.12
+  },
+  {
+    "Time": "2026-10-08T13:22:14.647496437Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestOrchestratorStructuredOutputRejectsForgedOrIncompleteProvenance/trailing_output",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:22:14.647715728Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestOrchestratorStructuredOutputRejectsForgedOrIncompleteProvenance/missing_structured_fields",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:22:14.647732373Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestOrchestratorStructuredOutputRejectsForgedOrIncompleteProvenance/unknown_execution_field",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:22:14.648309483Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestOrchestratorStructuredOutputRejectsForgedOrIncompleteProvenance/oversized_provider_output",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:22:14.648784949Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestOrchestratorStructuredOutputRejectsForgedOrIncompleteProvenance/foreign-project",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:22:14.649937577Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestOrchestratorStructuredOutputRejectsForgedOrIncompleteProvenance/forged-approval",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:22:14.650312522Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestOrchestratorStructuredOutputRejectsForgedOrIncompleteProvenance/wrong-revision",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:22:14.651871922Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestOrchestratorStructuredOutputRejectsForgedOrIncompleteProvenance",
+    "Action": "pass",
+    "Elapsed": 0.06
+  },
+  {
+    "Time": "2026-10-08T13:22:14.782087215Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestOrchestratorTerminalJobReconcilesConversationWithoutInference",
+    "Action": "pass",
+    "Elapsed": 0.13
+  },
+  {
+    "Time": "2026-10-08T13:22:14.923610257Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestOrchestratorCancellationWhileWaitingForProviderNeverAllocates",
+    "Action": "pass",
+    "Elapsed": 0.14
+  },
+  {
+    "Time": "2026-10-08T13:22:20.35427479Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestProjectSwarmCapturedTaskContractsSurviveCanonicalAmendment",
+    "Action": "pass",
+    "Elapsed": 5.42
+  },
+  {
+    "Time": "2026-10-08T13:22:26.08975211Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestSwarmCheckpointActualHTTPSettledLaunchPreparesThenExplicitlyStartsDistinctWorker",
+    "Action": "pass",
+    "Elapsed": 5.73
+  },
+  {
+    "Time": "2026-10-08T13:22:29.016255874Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestSwarmCheckpointActualHTTPFinalizedFenceRequiresCurrentExactMarker/valid-finalized-fence",
+    "Action": "pass",
+    "Elapsed": 2.93
+  },
+  {
+    "Time": "2026-10-08T13:22:30.819516834Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestSwarmCheckpointActualHTTPFinalizedFenceRequiresCurrentExactMarker/fence-no-longer-verifies",
+    "Action": "pass",
+    "Elapsed": 1.8
+  },
+  {
+    "Time": "2026-10-08T13:22:30.819709815Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestSwarmCheckpointActualHTTPFinalizedFenceRequiresCurrentExactMarker",
+    "Action": "pass",
+    "Elapsed": 4.73
+  },
+  {
+    "Time": "2026-10-08T13:22:32.585294028Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestSwarmCheckpointActualHTTPRechecksUnsettledAndRevokedAuthorityBeforeCopy/pending-backend",
+    "Action": "pass",
+    "Elapsed": 1.76
+  },
+  {
+    "Time": "2026-10-08T13:22:34.919012497Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestSwarmCheckpointActualHTTPRechecksUnsettledAndRevokedAuthorityBeforeCopy/editor-revoked",
+    "Action": "pass",
+    "Elapsed": 2.33
+  },
+  {
+    "Time": "2026-10-08T13:22:37.054960481Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestSwarmCheckpointActualHTTPRechecksUnsettledAndRevokedAuthorityBeforeCopy/execution-revoked",
+    "Action": "pass",
+    "Elapsed": 2.13
+  },
+  {
+    "Time": "2026-10-08T13:22:37.055073352Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestSwarmCheckpointActualHTTPRechecksUnsettledAndRevokedAuthorityBeforeCopy",
+    "Action": "pass",
+    "Elapsed": 6.23
+  },
+  {
+    "Time": "2026-10-08T13:22:44.190883587Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskHandoffActualAPIDependencyContextKeepsClaimsAndEvidenceSeparate",
+    "Action": "pass",
+    "Elapsed": 7.13
+  },
+  {
+    "Time": "2026-10-08T13:22:45.281302025Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskOutputGuardRefusesLiveAndUnsettledAndRevokedAuthority",
+    "Action": "pass",
+    "Elapsed": 1.09
+  },
+  {
+    "Time": "2026-10-08T13:22:47.901152537Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskHandoffOutputCollectorRequiresBoundSafeFile/symlink",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Time": "2026-10-08T13:22:47.907138799Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskHandoffOutputCollectorRequiresBoundSafeFile/hardlink",
+    "Action": "pass",
+    "Elapsed": 0.01
+  },
+  {
+    "Time": "2026-10-08T13:22:47.917580659Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Test": "TestTaskHandoffOutputCollectorRequiresBoundSafeFile",
+    "Action": "pass",
+    "Elapsed": 2.64
+  },
+  {
+    "Time": "2026-10-08T13:22:48.950173439Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+    "Action": "pass",
+    "Elapsed": 43.18
+  },
+  {
+    "Time": "2026-10-08T13:22:58.439524713Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/management",
+    "Test": "TestTeamHandoffUsesCurrentProjectEditWithoutExecutionGrant",
+    "Action": "pass",
+    "Elapsed": 4.01
+  },
+  {
+    "Time": "2026-10-08T13:22:58.442723815Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/management",
+    "Test": "TestTeamSwarmRoutesRequireExactCapabilities",
+    "Action": "pass",
+    "Elapsed": 0
+  },
+  {
+    "Time": "2026-10-08T13:22:59.80065862Z",
+    "Package": "github.com/lcfrai/luci/control-plane/internal/management",
+    "Action": "pass",
+    "Elapsed": 5.419
+  }
+]

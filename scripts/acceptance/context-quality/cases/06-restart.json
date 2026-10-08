@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "id": "06-restart",
+  "title": "A restarted app has an unknown worker and an older pending review",
+  "projectId": "field-reports",
+  "role": "editor",
+  "task": "Restore the operator's useful next actions after restart. Preserve old unresolved work even though a newer run is ready. Avoid duplicate launch or interpreting a missing heartbeat as proof that execution cannot resume.",
+  "sources": [
+    {"id":"field-brief-r5","kind":"brief","projectId":"field-reports","revision":"5","text":"Field Reports stores offline inspections with retry-safe upload. Offline drafts and attached photos must survive restart. Uploads need a verified deduplication check before release. Creating a new run does not settle pending reviews or release capacity for an older unknown attempt."},
+    {"id":"durable-ledger","kind":"state","projectId":"field-reports","revision":"ledger-19","text":"Before the controller died, run-old reserved task upload-sync as operation op-sync-19 with exact child child-sync-19 and context digest context-19. The backend allocation outcome is UNKNOWN. Its durable lease is still retained. No authoritative absence or finalized recovery proof exists. The machine restarted; a missing heartbeat is the only new observation. Never silently replace this attempt."},
+    {"id":"retained-review","kind":"handoff","projectId":"field-reports","revision":"review-photo-7","text":"Earlier photo-preview operation op-photo-7 exited normally and has committed changes retained in its isolated checkout. Human integration review is still pending. Its question 'Can inspectors delete uploaded photos?' remains unanswered. No acceptance checks are recorded for the combined application."},
+    {"id":"new-run","kind":"state","projectId":"field-reports","revision":"run-new","text":"A separate newer run is ready for an unrelated help-page task. Read-only inspection of source and planning can continue. New coding work still requires fresh current authority and global resource admission; the old unknown lease cannot be ignored just because this run is newer."}
+  ],
+  "assessment": {
+    "constraints":[{"id":"preserve-offline-data","text":"Drafts and photos must survive restart."},{"id":"no-duplicate-sync","text":"Do not duplicate unresolved op-sync-19/child-sync-19/context-19."},{"id":"retain-old-review","text":"op-photo-7 review and its question remain unresolved."},{"id":"capacity-honesty","text":"Unknown old work retains capacity until authoritative settlement."}],
+    "questionTopics":["photo-deletion-policy","recovery-consent","button-color"],
+    "actions":[{"id":"inspect-exact-old-attempt","text":"Inspect exact op-sync-19/child-sync-19/context-19 without allocating."},{"id":"review-retained-photos","text":"Open the retained op-photo-7 diff and unresolved question."},{"id":"duplicate-upload-worker","text":"Start another upload-sync worker because the old heartbeat disappeared."},{"id":"clear-unknown-lease","text":"Release the old lease without authoritative recovery or absence proof."},{"id":"independent-planning","text":"Continue read-only help-page planning while retaining old obligations."}],
+    "evidenceItems":[{"id":"sync-settlement","text":"Whether the old unknown upload attempt has settled safely."},{"id":"photo-integration","text":"Whether op-photo-7 is integrated."},{"id":"combined-acceptance","text":"Combined application acceptance."}],
+    "handoffItems":["op-sync-19","child-sync-19","context-19","op-photo-7","photo-deletion-policy","capacity-honesty","combined-acceptance"],
+    "dependencies":["op-sync-19","op-photo-7"]
+  }
+}

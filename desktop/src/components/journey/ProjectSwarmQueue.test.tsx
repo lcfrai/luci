@@ -1,3 +1,4 @@
+import {openTaskActions} from '../../test/swarmActions';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -44,6 +45,7 @@ it('offers retirement after a cancelled queue leaves an unstarted reserved works
   vi.spyOn(projectRunsApi, 'get').mockResolvedValue(reserved);
   const abandon = vi.spyOn(projectSwarmApi, 'abandon').mockResolvedValue({...reserved,revision:2,operations:[{...op,status:'cancelled',allocation:'abandoned'}]});
   render(<ProjectSwarm run={reserved} canEdit canExecute busy={false} onBusy={vi.fn()} onUpdate={vi.fn()} onOpenSession={vi.fn()} />);
+  await openTaskActions();
   await screen.findByText(/This reservation belongs to the background queue/);
   expect(screen.getByRole('button',{name:'Continue reserved task'})).toHaveProperty('disabled',true);
   await userEvent.click(screen.getByRole('button',{name:'Retain changes and retry'}));

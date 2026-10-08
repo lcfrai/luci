@@ -31,8 +31,13 @@ func TestProjectSwarmCapturedTaskContractsSurviveCanonicalAmendment(t *testing.T
 			t.Fatal("session lost its singleton reviewed task selection", saved, err)
 		}
 		capture, err := f.env.api.readReviewedContext(saved.ID, saved.ImplementationContext, saved.ReviewedContext)
-		if err != nil || len(capture.Files) != 8 {
+		if err != nil || len(capture.Files) != 9 || saved.ReviewedContext.Version != 2 || saved.ImplementationContext.DependencyContextDigest == "" {
 			t.Fatal("session did not retain the complete verified capture", err)
+		}
+		var inspection reviewedContextInspection
+		response := f.env.do(t, "GET", "/v1/sessions/"+saved.ID+"/reviewed-context?document=plan", "")
+		if response.Code != 200 || json.Unmarshal(response.Body.Bytes(), &inspection) != nil || inspection.Version != 2 || inspection.Digest != saved.ReviewedContext.Digest || inspection.ImplementationContext.DependencyContextDigest != saved.ImplementationContext.DependencyContextDigest {
+			t.Fatal("V2 captured document is not inspectable through its actual HTTP contract", response.Code, response.Body.String())
 		}
 		root := ""
 		for _, mount := range f.env.be.spec(t, i).Mounts {

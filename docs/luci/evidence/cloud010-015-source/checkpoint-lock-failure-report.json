@@ -1,0 +1,110 @@
+{
+  "startedAt": "2026-10-08T13:14:45.994441+00:00",
+  "endedAt": "2026-10-08T13:15:49.754651+00:00",
+  "elapsedSeconds": 63.83191833598539,
+  "command": [
+    "go",
+    "-C",
+    "control-plane",
+    "test",
+    "-race",
+    "-p",
+    "1",
+    "./internal/product",
+    "./internal/api",
+    "./internal/management",
+    "-run",
+    "^(TestCloud010|TestCloud011Orchestrator|TestTeamHandoff|TestTeamSwarmRoutes|TestProjectOverview|TestOrchestrator|TestTaskHandoff|TestSwarmCheckpoint|TestProductRegisteredReads|TestTaskOutputGuard|TestProjectSwarmCapturedTaskContracts)",
+    "-count=1",
+    "-json"
+  ],
+  "exitCode": 1,
+  "headBefore": "23e25c21788fa47607a6dca98479d4d3b51351f0",
+  "headAfter": "23e25c21788fa47607a6dca98479d4d3b51351f0",
+  "inputCount": 752,
+  "inputsUnchanged": true,
+  "counts": {
+    "pass": 40,
+    "fail": 4
+  },
+  "failures": [
+    {
+      "Time": "2026-10-08T13:14:56.927040749Z",
+      "Action": "fail",
+      "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+      "Elapsed": 0.001,
+      "FailedBuild": "github.com/lcfrai/luci/control-plane/internal/product [github.com/lcfrai/luci/control-plane/internal/product.test]"
+    },
+    {
+      "Time": "2026-10-08T13:15:20.286195766Z",
+      "Action": "fail",
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestSwarmCheckpointActualHTTPSettledLaunchPreparesThenExplicitlyStartsDistinctWorker",
+      "Elapsed": 1.63
+    },
+    {
+      "Time": "2026-10-08T13:15:22.166331651Z",
+      "Action": "fail",
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestSwarmCheckpointActualHTTPFinalizedFenceRequiresCurrentExactMarker/valid-finalized-fence",
+      "Elapsed": 1.88
+    },
+    {
+      "Time": "2026-10-08T13:15:23.948836842Z",
+      "Action": "fail",
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestSwarmCheckpointActualHTTPFinalizedFenceRequiresCurrentExactMarker/fence-no-longer-verifies",
+      "Elapsed": 1.78
+    },
+    {
+      "Time": "2026-10-08T13:15:23.949372489Z",
+      "Action": "fail",
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestSwarmCheckpointActualHTTPFinalizedFenceRequiresCurrentExactMarker",
+      "Elapsed": 3.66
+    },
+    {
+      "Time": "2026-10-08T13:15:37.30237812Z",
+      "Action": "fail",
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Elapsed": 26.618
+    }
+  ],
+  "packages": [
+    {
+      "Time": "2026-10-08T13:14:56.927040749Z",
+      "Action": "fail",
+      "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+      "Elapsed": 0.001,
+      "FailedBuild": "github.com/lcfrai/luci/control-plane/internal/product [github.com/lcfrai/luci/control-plane/internal/product.test]"
+    },
+    {
+      "Time": "2026-10-08T13:15:37.30237812Z",
+      "Action": "fail",
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Elapsed": 26.618
+    },
+    {
+      "Time": "2026-10-08T13:15:49.723120292Z",
+      "Action": "pass",
+      "Package": "github.com/lcfrai/luci/control-plane/internal/management",
+      "Elapsed": 3.637
+    }
+  ],
+  "scope": "Controlled product/API mechanics; no native Windows, Docker or model execution claim.",
+  "sourceReportSHA256": "ff348bab3e564ea8ec3f5a157f0052ec3d69d3090ec80b2bc32b8c26f52ff036",
+  "sourceAttribution": "Working tree snapshot, including uncommitted changes; HEAD is an ancestry marker, not the tested file contents.",
+  "GOMAXPROCS": 2,
+  "inputs": {
+    "file": "checkpoint-lock-failure-inputs.json",
+    "sha256": "b5b176f59e8878d5e3455e594f6947cce2914059d894f9e3fbac5d6ff7450026",
+    "originalManifestSHA256": "0b7881e645c7dbd8fe9ebb198676723ba18aeb33a4910e23a97baf28a02cca83",
+    "inputCount": 752,
+    "externalPathRedactions": 1,
+    "externalPathMeaning": "@verification-environment/go.work denotes the existing external activation workspace file; its original absolute host path is omitted."
+  },
+  "beforeAfterManifestsEqual": true,
+  "outcomeSanitization": "Absolute workspace/temp test-label prefixes and URL userinfo replaced with explicit placeholders; no assertion output is published.",
+  "outcomesFile": "checkpoint-lock-failure-outcomes.json",
+  "outcomesSHA256": "ebc0058f09bfb6d7fda8ebeec40a5dd576c1b575cf865d6bfde6f2773a3fa8c0"
+}

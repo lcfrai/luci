@@ -286,7 +286,7 @@ const SEAMS: Seam[] = [
     name: "the command palette is one registry",
     anchors: [
       { file: "desktop/src/components/palette/commands.ts", present: /^export interface Command \{$/m },
-      { file: "desktop/src/components/palette/commands.ts", present: /^export function buildCommands\(state: CockpitState\): Command\[\] \{$/m },
+      { file: "desktop/src/components/palette/commands.ts", present: /^export function buildCommands\(state: CockpitState, platform: KeyboardPlatform = clientKeyboardPlatform\(\)\): Command\[\] \{$/m },
     ],
   },
   {

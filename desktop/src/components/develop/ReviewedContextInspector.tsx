@@ -17,8 +17,12 @@ const documents: { kind: ReviewedContextDocument; label: string }[] = [
 const digestPattern = /^[a-f0-9]{64}$/;
 
 function matchesSession(value: SessionReviewedContext, session: Session, document: ReviewedContextDocument): boolean {
+  const dependency = session.implementationContext?.dependencyContextDigest;
+  const returnedDependency = value?.implementationContext?.dependencyContextDigest;
   return !!value && value.sessionId === session.id && value.projectId === session.projectId && value.worktreeId === session.worktreeId &&
-    value.version === 1 && value.digest === session.reviewedContextDelivery?.digest && digestPattern.test(value.digest) &&
+    (value.version === 1 || value.version === 2) && value.version === session.reviewedContextDelivery?.version &&
+    (value.version === 1 ? !dependency && !returnedDependency : digestPattern.test(dependency ?? '') && returnedDependency === dependency) &&
+    value.digest === session.reviewedContextDelivery?.digest && digestPattern.test(value.digest) &&
     value.document?.kind === document && digestPattern.test(value.document.sha256) && Number.isSafeInteger(value.document.bytes) && value.document.bytes >= 0 &&
     !!value.document.value && typeof value.document.value === "object" && !Array.isArray(value.document.value);
 }
@@ -31,7 +35,7 @@ export function ReviewedContextInspector({ session, scope, onClose }: { session:
   const canRequest = canRead && !access.loading && !access.error;
   const [document, setDocument] = useState<ReviewedContextDocument>("definition");
   const [retry, setRetry] = useState(0);
-  const requestKey = JSON.stringify([scope, session.projectId, session.worktreeId, session.id, session.reviewedContextDelivery?.digest, document, retry]);
+  const requestKey = JSON.stringify([scope, session.projectId, session.worktreeId, session.id, session.reviewedContextDelivery?.version, session.reviewedContextDelivery?.digest, session.implementationContext?.dependencyContextDigest, document, retry]);
   const [result, setResult] = useState<{ key: string; value?: SessionReviewedContext; error?: string } | null>(null);
   const latest = useRef({ requestKey, canRead }); latest.current = { requestKey, canRead };
   const attempt = useRef({ key: "", generation: 0 });

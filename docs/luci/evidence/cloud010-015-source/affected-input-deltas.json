@@ -1,0 +1,28 @@
+{
+  "affected-api-product": {
+    "changedComparedWithFullGoSnapshot": [
+      "control-plane/internal/api/sessions.go",
+      "control-plane/internal/product/orchestrator_handoffs.go",
+      "control-plane/internal/product/orchestrator_handoffs_test.go"
+    ],
+    "addedToCoveredInputs": [
+      "control-plane/internal/api/task_handoff_purge.go",
+      "control-plane/internal/api/task_handoff_purge_test.go"
+    ],
+    "comparisonScope": "Only files covered by this affected manifest; not proof all other files stayed unchanged after the full run."
+  },
+  "affected-frontend": {
+    "changedComparedWithFullGoSnapshot": [
+      "desktop/src/components/journey/ProjectSwarm.tsx",
+      "desktop/src/components/journey/SwarmCheckpoint.test.tsx",
+      "desktop/src/components/journey/SwarmCheckpointDialog.tsx",
+      "desktop/src/components/journey/SwarmTaskHandoff.test.tsx",
+      "desktop/src/components/platform/DataWorkspace.test.tsx",
+      "desktop/src/seams.test.ts",
+      "docs/SEAMS.md",
+      "docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md"
+    ],
+    "addedToCoveredInputs": [],
+    "comparisonScope": "Only files covered by this affected manifest; not proof all other files stayed unchanged after the full run."
+  }
+}

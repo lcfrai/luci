@@ -9,7 +9,7 @@ import "./reviewed-context.css";
 export function ReviewedContextNote({ session, canInspect, readPending = false, className = "journey-muted" }: { session: Session; canInspect: boolean; readPending?: boolean; className?: string }) {
   const scope = useProjectDraftScope(session.projectId);
   if (!session.implementationContext) return null;
-  const identity = JSON.stringify([scope, session.projectId, session.worktreeId, session.id, session.reviewedContextDelivery]);
+  const identity = JSON.stringify([scope, session.projectId, session.worktreeId, session.id, session.reviewedContextDelivery, session.implementationContext.dependencyContextDigest]);
   return <ScopedContextNote key={identity} session={session} scope={scope} canInspect={canInspect} readPending={readPending} className={className} />;
 }
 
@@ -17,7 +17,9 @@ function ScopedContextNote({ session, scope, canInspect, readPending, className 
   const [open, setOpen] = useState(false);
   useEffect(() => { if (!canInspect) setOpen(false); }, [canInspect]);
   const delivery = session.reviewedContextDelivery;
-  const captured = delivery?.status === "captured" && delivery.version === 1 && /^[a-f0-9]{64}$/.test(delivery.digest ?? "");
+  const dependencyDigest = session.implementationContext?.dependencyContextDigest;
+  const captured = delivery?.status === "captured" && /^[a-f0-9]{64}$/.test(delivery.digest ?? "") &&
+    (delivery.version === 1 ? !dependencyDigest : delivery.version === 2 && /^[a-f0-9]{64}$/.test(dependencyDigest ?? ""));
   return <div className={`reviewed-context-note ${className}`}><p role="note" aria-label="Agent context">
     {captured
       ? "Reviewed inputs were captured at start. Later amendments are separate."

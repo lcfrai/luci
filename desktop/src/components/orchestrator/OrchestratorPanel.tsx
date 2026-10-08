@@ -26,6 +26,7 @@ export interface OrchestratorOpenDetail {
 const compactOverviewQuery = "(max-width: 1100px)";
 const stageLabels = { discover: "Define", design: "Design", develop: "Develop", deploy: "Deploy" };
 const pendingStatus = (status: string) => ["reserved", "queued", "running", "unknown"].includes(status);
+const readAccessDenied = (cause: unknown) => cause instanceof ApiError && (cause.status === 401 || cause.status === 403);
 const statuses: Record<OrchestratorTurn["status"], string> = {
   reserved: "Request reserved · outcome not yet confirmed", queued: "Waiting for the agent", running: "Luci is working",
   succeeded: "Response ready", failed: "Request failed", cancelled: "Request cancelled", unknown: "Outcome not confirmed",
@@ -62,6 +63,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
   const [decisionFocus, setDecisionFocus] = useState<{ ticket: number; turnId?: string } | null>(null);
   const [loading, setLoading] = useState(false), [busy, setBusy] = useState("");
   const [contextRefreshQueued, setContextRefreshQueued] = useState(false);
+  const [contextStale, setContextStale] = useState(false);
   const [uncertain, setUncertain] = useState(false), [pendingJob, setPendingJob] = useState<OrchestratorJob | null>(null);
   const [missingJobId, setMissingJobId] = useState("");
   const [review, setReview] = useState<{ turn: OrchestratorTurn; revision: number; digest: string } | null>(null);
@@ -110,21 +112,33 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
 
   const remember = useCallback((value: OrchestratorView) => {
     if (!alive.current || !permission.current.canRead || value.projectId !== projectId || value.revision < (latest.current?.revision ?? -1)) return;
-    latest.current = value; setView(value);
+    latest.current = value; setView(value); setContextStale(false);
   }, [projectId]);
+  const forgetPrivateRead = useCallback(() => {
+    // A confirmed read refusal supersedes cached permissions and every pending read.
+    // Keep the user's unsent local draft and durable paid-request identity intact.
+    generation.current++; viewRead.current++; decisionRequest.current++;
+    latest.current = null; working.current = false;
+    setView(null); setEarlier([]); setPage(null); setReview(null); setSuggestedReply(null);
+    setPendingJob(null); setMissingJobId(""); setDecisionFocus(null); setDecisionNotice("");
+    setBusy(""); setLoading(false); setContextStale(true);
+    cancelEditRequest.current?.(); cancelEditRequest.current = null;
+  }, []);
   const refresh = useCallback(async (explicit = false) => {
     if (!permission.current.canRead || working.current) return;
     const ticket = ++generation.current;
     const read = ++viewRead.current;
-    if (explicit || !latest.current) setLoading(true);
+    // Routine observation keeps the last recorded view stable. Explicit refreshes
+    // and known context changes disable derived actions until the new read lands.
+    if (explicit || !latest.current) { setContextStale(true); setLoading(true); }
     try {
       const value = await orchestratorApi.get(projectId);
       if (!alive.current || ticket !== generation.current || read !== viewRead.current) return;
       remember(value); setError("");
       if (explicit) setUncertain(false); // A retained request remains blocked independently until its exact receipt is resolved.
-    } catch (cause) { if (alive.current && ticket === generation.current && read === viewRead.current) setError(errorText(cause)); }
+    } catch (cause) { if (alive.current && ticket === generation.current && read === viewRead.current) { setError(errorText(cause)); setContextStale(true); if (readAccessDenied(cause)) forgetPrivateRead(); } }
     finally { if (alive.current && ticket === generation.current) setLoading(false); }
-  }, [projectId, remember]);
+  }, [projectId, remember, forgetPrivateRead]);
 
   useEffect(() => {
     alive.current = true;
@@ -137,9 +151,10 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
     if (!canRead || !canAssist || pendingRequest || recoveredDraft || storageConflict) setSuggestedReply(null);
   }, [canRead, canAssist, pendingRequest, recoveredDraft, storageConflict]);
   useEffect(() => {
-    if (!canRead) { generation.current++; working.current = false; latest.current = null; setBusy(""); setLoading(false); setView(null); setEarlier([]); setPendingJob(null); setMissingJobId(""); setReview(null); return; }
+    if (!canRead) { forgetPrivateRead(); return; }
+    setContextStale(true);
     void refresh();
-  }, [canRead, sourceRevision, lens, refresh]);
+  }, [canRead, sourceRevision, lens, refresh, forgetPrivateRead]);
   useEffect(() => {
     const changed = (event: Event) => {
       const detail = (event as CustomEvent<ProjectContextIdentity>).detail;
@@ -240,6 +255,8 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
         }).catch(cause => {
           if (!alive.current || !permission.current.canRead || ticket !== decisionRequest.current) return;
           if (contextChanged()) return;
+          if (readAccessDenied(cause)) { setError(errorText(cause)); forgetPrivateRead(); return; }
+          setContextStale(true);
           setDecisionNotice(`Project decisions could not be refreshed: ${errorText(cause)} Your message has not been changed.`);
           setDecisionFocus({ ticket });
         });
@@ -253,7 +270,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
     };
     window.addEventListener(ORCHESTRATOR_OPEN, receive);
     return () => window.removeEventListener(ORCHESTRATOR_OPEN, receive);
-  }, [projectId, scope, remember]);
+  }, [projectId, scope, remember, forgetPrivateRead]);
   useEffect(() => () => { decisionRequest.current++; }, [lens]);
   useEffect(() => {
     if (busy) { decisionRequest.current++; setDecisionFocus(null); }
@@ -301,6 +318,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
       } catch (cause) {
         if (!stopped && alive.current && ticket === generation.current) {
           setError(errorText(cause));
+          if (readAccessDenied(cause)) { forgetPrivateRead(); return; }
           if (activeJobId && activeTurn?.status === "reserved" && cause instanceof ApiError && cause.status === 404) setMissingJobId(activeJobId);
         }
       }
@@ -308,7 +326,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
     };
     const timer = setInterval(() => void tick(), activeJobId ? 2500 : 10000);
     return () => { stopped = true; clearInterval(timer); };
-  }, [canRead, activeJobId, activeTurn?.status, projectId, refresh]);
+  }, [canRead, activeJobId, activeTurn?.status, projectId, refresh, forgetPrivateRead]);
   useEffect(() => {
     if (!refreshEditor || drafts) return;
     setRefreshEditor(false);
@@ -337,7 +355,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
     } finally { if (ticket === generation.current) { working.current = false; if (alive.current) { setBusy(""); setLoading(false); } } }
   }
   async function send() {
-    if (!permission.current.canAssist || !view || !message.trim() || contextDrafts || routeIssue || busy || loading || contextRefreshQueued || working.current || activeTurn || activeJobId || uncertain || pendingRequest || recoveredDraft || storageConflict || localRecovery.error) return;
+    if (!permission.current.canAssist || !view || !message.trim() || contextDrafts || routeIssue || busy || loading || contextStale || contextRefreshQueued || working.current || activeTurn || activeJobId || uncertain || pendingRequest || recoveredDraft || storageConflict || localRecovery.error) return;
     const input: OrchestratorRequest = { expectedRevision: view.revision, expectedContextDigest: view.context.digest, message: message.trim(),
       ...(replyTo ? { replyToTurnId: replyTo } : {}), harness: agent.harness, ...(model.trim() ? { model: model.trim() } : {}), agentConnectionId: agent.agentConnectionId, idempotencyKey: crypto.randomUUID() };
     try {
@@ -410,13 +428,13 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
       if (!alive.current || ticket !== generation.current || !permission.current.canRead) return;
       setEarlier(current => [...new Map([...value.turns, ...current].map(turn => [turn.id, turn])).values()]);
       setPage({ before: value.beforeSequence, hasEarlier: value.hasEarlier });
-    } catch (cause) { if (alive.current) setError(errorText(cause)); }
+    } catch (cause) { if (alive.current && ticket === generation.current) { setError(errorText(cause)); if (readAccessDenied(cause)) forgetPrivateRead(); } }
     finally { working.current = false; if (alive.current) setBusy(""); }
   }
   async function apply() {
     const current = latest.current;
     const unsaved = Object.values(useCockpit.getState().unsavedProjectDrafts).some(draft => draft.projectId === projectId);
-    if (!canEdit || !review || !current || unsaved || working.current || review.revision !== current.revision || review.digest !== current.context.digest) return;
+    if (!canEdit || !review || !current || contextStale || unsaved || working.current || review.revision !== current.revision || review.digest !== current.context.digest) return;
     working.current = true; const ticket = ++generation.current; setBusy("apply"); setError("");
     try {
       const value = await orchestratorApi.apply(projectId, review.turn.id, { expectedRevision: review.revision, expectedContextDigest: review.digest });
@@ -518,13 +536,13 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
     choiceFocus.current = { choice: selected, message: selected.answer, replyTo: selected.turnId, composer: true };
   };
   const inspect = (runId: string) => {
-    if (!permission.current.canRead) return;
+    if (!permission.current.canRead || contextStale) return;
     useCockpit.setState({ projectRunInspection: { scope, projectId, runId, refresh: true } });
     setLens("develop");
   };
   const turns = [...new Map([...earlier, ...(view?.turns ?? [])].map(turn => [turn.id, turn])).values()].sort((a, b) => a.sequence - b.sequence);
   const replyQuestion = view?.blockingQuestions.find(question => question.turnId === replyTo)?.question || turns.find(turn => turn.id === replyTo)?.answer?.question;
-  const reviewBlock = draftWarning || setupChangeWarning || (!canEdit ? "Editing access is required to apply an amendment." : review && view && review.revision !== view.revision ? "The conversation changed during review. Close this review, refresh and review the amendment again." : "");
+  const reviewBlock = draftWarning || setupChangeWarning || (contextStale ? "Refresh project understanding before applying an amendment." : !canEdit ? "Editing access is required to apply an amendment." : review && view && review.revision !== view.revision ? "The conversation changed during review. Close this review, refresh and review the amendment again." : "");
 
   return <aside className={`orchestrator${open ? " orchestrator-open" : ""}`} aria-label="Project understanding">
     <header className="orchestrator-header"><div><h2>Project understanding</h2>{open ? <p>What we are building and what happens next.</p> : <p className="orchestrator-collapsed-stage">{canRead && view ? `${stageLabels[view.nextAction.lens]} · Saved context` : "Saved project context"}</p>}</div><Button variant="secondary" size="compact" aria-expanded={open} aria-controls={contentId} onClick={() => setOpenChoice(!open)}>{open ? "Hide project overview" : "Show project overview"}</Button></header>
@@ -537,7 +555,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
         {notice && <p role="status">{notice}</p>}
         {decisionNotice && <p ref={decisionNoticeNode} role="status" tabIndex={-1}>{decisionNotice}</p>}
         {(loading || contextRefreshQueued) && view && <p role="status">Updating saved project understanding…</p>}
-        {view && <ProjectUnderstanding view={view} onAsk={ask} onReply={reply} onNavigate={setLens} onInspect={inspect} onEdit={edit} canEdit={canEdit} />}
+        {view && <ProjectUnderstanding view={view} stale={contextStale || contextRefreshQueued} onAsk={ask} onReply={reply} onNavigate={setLens} onInspect={inspect} onEdit={edit} canEdit={canEdit} />}
         <details className="orchestrator-discussion" open={conversationOpen} onToggle={event => setConversationOpen(event.currentTarget.open)}><summary>Discuss or request a change</summary>
         <div hidden={!conversationOpen}>
         {view && <>
@@ -590,7 +608,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
           {refreshEditor && drafts && <p role="status">The amendment is saved. {contextDrafts ? "Your newer unsaved edits remain in the editor; save or discard them to refresh its context." : checkSetupRetained ? "Your verification setup remains in the editor. Change phase and choose Keep drafts and continue, or discard the setup, to refresh saved context." : "Your verification setup remains in the editor but is not retained. Copy the command text you need, then discard the setup to refresh saved context."}</p>}
           {canAssist && replyTo && <div className="orchestrator-actions"><span>{replyQuestion ? `Replying to: ${replyQuestion}` : "Replying to a project decision"}</span><Button type="button" variant="ghost" size="compact" disabled={!!pendingRequest || !canAssist} onClick={() => editComposer(message, "")}>Clear reply</Button></div>}
           <label className="luci-field">Message Luci<textarea ref={composer} rows={3} value={canAssist ? message : ""} maxLength={16000} disabled={!canAssist || busy === "send" || !!pendingRequest || !!recoveredDraft || storageConflict} onChange={event => editComposer(event.target.value, replyTo)} placeholder="What should we build, clarify or change?" /></label>
-          <div className="orchestrator-actions"><Button type="submit" disabled={!canAssist || !view || !message.trim() || !!contextDrafts || !!routeIssue || !!busy || loading || contextRefreshQueued || !!activeTurn || !!activeJobId || uncertain || !!pendingRequest || !!recoveredDraft || storageConflict || !!localRecovery.error}>{busy === "send" ? "Sending…" : "Send to Luci"}</Button>{activeJobId && !completedUnrecorded && !missingReservedJob && <Button type="button" variant="secondary" disabled={!canExecute || !!busy} onClick={() => void cancel()}>Cancel Luci request</Button>}</div>
+          <div className="orchestrator-actions"><Button type="submit" disabled={!canAssist || !view || !message.trim() || !!contextDrafts || !!routeIssue || !!busy || loading || contextStale || contextRefreshQueued || !!activeTurn || !!activeJobId || uncertain || !!pendingRequest || !!recoveredDraft || storageConflict || !!localRecovery.error}>{busy === "send" ? "Sending…" : "Send to Luci"}</Button>{activeJobId && !completedUnrecorded && !missingReservedJob && <Button type="button" variant="secondary" disabled={!canExecute || !!busy} onClick={() => void cancel()}>Cancel Luci request</Button>}</div>
           <p className="orchestrator-muted">Messages can propose changes. You review amendments and start coding, checks or deployment explicitly.</p>
         </form>
         </div>
