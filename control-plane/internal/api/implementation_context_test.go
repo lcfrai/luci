@@ -88,8 +88,25 @@ func TestReviewedTaskSessionBindsRealSavedInputsAndRefusesStaleRestart(t *testin
 	if bound == nil || bound.ProjectID != p.ID || bound.WorktreeID != wt.ID || bound.PlanRevision != selection.PlanRevision || bound.SpecificationRevision != selection.SpecificationRevision || bound.DesignPlanRevision != selection.DesignPlanRevision || len(bound.SourceDigest) != 64 || len(bound.SourceCommit) != 40 || !reflect.DeepEqual(bound.RequirementIDs, []string{"AC-save"}) || !reflect.DeepEqual(bound.TaskTitles, []string{"Implement durable notes"}) || !reflect.DeepEqual(bound, saved.ImplementationContext) {
 		t.Fatal("reviewed inputs lost", bound)
 	}
-	if !strings.Contains(saved.OpeningPrompt, ".luci/design-handoff.json") || !strings.Contains(saved.OpeningPrompt, ".luci/design-handoff.md") || !strings.Contains(saved.OpeningPrompt, bound.DesignPlanDigest) || !strings.Contains(saved.OpeningPrompt, "Keep the interaction concise.") {
-		t.Fatal("agent did not receive reviewed handoff and extra direction")
+	if !strings.Contains(saved.OpeningPrompt, ".luci/design-handoff.json") || !strings.Contains(saved.OpeningPrompt, "INSIDE that read-only directory") || !strings.Contains(saved.OpeningPrompt, bound.DesignPlanDigest) || !strings.Contains(saved.OpeningPrompt, "Keep the interaction concise.") {
+		t.Fatal("agent did not receive the captured reviewed handoff and extra direction")
+	}
+	// The task-first prompt avoids requiring duplicate JSON/Markdown reads;
+	// both complete handoff formats must still be delivered in the frozen bundle.
+	capture, err := env.api.readReviewedContext(saved.ID, saved.ImplementationContext, saved.ReviewedContext)
+	if err != nil {
+		t.Fatal("delivered reviewed context cannot be verified", err)
+	}
+	formats := map[string]bool{".luci/design-handoff.json": false, ".luci/design-handoff.md": false}
+	for _, file := range capture.Files {
+		if _, required := formats[file.Path]; required {
+			formats[file.Path] = strings.Contains(string(file.Data), "Saved notes") && strings.Contains(string(file.Data), "AC-save")
+		}
+	}
+	for format, complete := range formats {
+		if !complete {
+			t.Fatalf("delivered %s lost the reviewed screen or requirement link", format)
+		}
 	}
 	copy := toJSON(saved, "/v1")
 	copy.ImplementationContext.TaskTitles[0] = "mutated client snapshot"

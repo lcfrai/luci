@@ -52,6 +52,7 @@ func (s *Server) SetProjectRunSelectionResolver(resolve func(context.Context, Pr
 }
 
 func (s *Server) registerProjectRuns(mux Registrar) {
+	s.registerProjectSwarm(mux)
 	const base = "/v1/product/projects/{id}/runs"
 	mux.HandleFunc("GET "+base, s.listProjectRuns)
 	mux.HandleFunc("POST "+base, s.createProjectRun)
@@ -133,6 +134,9 @@ func (s *Server) projectRunOriginalChecks(projectID string) map[string]bool {
 func projectRunViewWithOriginals(run ProjectRun, originals map[string]bool, freshness ProjectRunContextFreshness, blocker *ProjectRunCodingBlocker) ProjectRunView {
 	actions := []string{"reconcile"}
 	currentInputs := freshness.Status == "current" && blocker == nil
+	if run.Swarm != nil && !swarmAllIntegrated(run) {
+		return ProjectRunView{ProjectRun: run, AllowedActions: []string{}, ContextFreshness: freshness, CodingBlocker: blocker}
+	}
 	if run.State != "complete" && run.State != "cancelled" {
 		actions = append(actions, "cancel")
 		pending := false
@@ -140,12 +144,15 @@ func projectRunViewWithOriginals(run ProjectRun, originals map[string]bool, fres
 			if op.Status == "reserved" || op.Status == "dispatching" || op.Status == "running" || op.Status == "unknown" {
 				pending = true
 			}
-			if op.Status == "reserved" && currentInputs {
+			if op.Status == "reserved" && currentInputs && run.Swarm == nil {
 				actions = append(actions, "continue-coding")
 			}
 		}
 		if !pending && currentInputs {
-			actions = append(actions, "start-coding", "join-check")
+			if run.Swarm == nil {
+				actions = append(actions, "start-coding")
+			}
+			actions = append(actions, "join-check")
 		}
 		if !pending && currentInputs && len(run.Checks) > 0 {
 			actions = append(actions, "join-release")
@@ -447,6 +454,10 @@ func (s *Server) mutateProjectRun(w http.ResponseWriter, r *http.Request) {
 	}
 	if run.Revision != req.ExpectedRevision {
 		projectRunProblem(w, ErrProjectRunConflict)
+		return
+	}
+	if run.Swarm != nil && !swarmAllIntegrated(run) && action != "cancel" {
+		projectRunProblem(w, errors.New("Observe and integrate every swarm task before joining combined verification evidence."))
 		return
 	}
 	if action == "cancel" {

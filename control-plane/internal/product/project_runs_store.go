@@ -53,15 +53,21 @@ type ProjectRunInput struct {
 }
 
 type ProjectRunOperation struct {
-	ID            string `json:"id"`
-	Kind          string `json:"kind"`
-	ChildID       string `json:"childId"`
-	Attempt       int    `json:"attempt"`
-	Status        string `json:"status"`
-	RequestDigest string `json:"requestDigest"`
-	CreatedAt     string `json:"createdAt"`
-	UpdatedAt     string `json:"updatedAt"`
-	Message       string `json:"message,omitempty"`
+	Integration    *ProjectSwarmIntegration        `json:"integration,omitempty"`
+	TaskID         string                          `json:"taskId,omitempty"`
+	WorktreeID     string                          `json:"worktreeId,omitempty"`
+	BaseCommit     string                          `json:"baseCommit,omitempty"`
+	Implementation *registry.ImplementationContext `json:"implementation,omitempty"`
+	Allocation     string                          `json:"allocation,omitempty"`
+	ID             string                          `json:"id"`
+	Kind           string                          `json:"kind"`
+	ChildID        string                          `json:"childId"`
+	Attempt        int                             `json:"attempt"`
+	Status         string                          `json:"status"`
+	RequestDigest  string                          `json:"requestDigest"`
+	CreatedAt      string                          `json:"createdAt"`
+	UpdatedAt      string                          `json:"updatedAt"`
+	Message        string                          `json:"message,omitempty"`
 }
 
 type ProjectRunCommandEvidence struct {
@@ -118,6 +124,7 @@ type ProjectRunAcceptance struct {
 }
 
 type ProjectRun struct {
+	Swarm       *ProjectSwarm               `json:"swarm,omitempty"`
 	ID          string                      `json:"id"`
 	ProjectID   string                      `json:"projectId"`
 	WorktreeID  string                      `json:"worktreeId"`
@@ -560,6 +567,9 @@ func validateRunInput(projectID string, in ProjectRunInput) error {
 
 func validateStoredProjectRun(row storedProjectRun) error {
 	r := row.Run
+	if err := validateProjectSwarm(r); err != nil {
+		return err
+	}
 	if row.Version != 1 || !hexDigest(row.AccountScope) || !hexDigest(row.ProjectScope) || !hexDigest(row.CreateKeyDigest) || !hexDigest(row.CreateRequestDigest) || !validRunID(r.ID) || r.Revision < 1 || r.WorktreeID != r.Input.Implementation.WorktreeID || validateRunInput(r.ProjectID, r.Input) != nil || len(r.Operations) > projectRunOperationLimit || len(r.Checks) > 100 || len(r.Releases) > 100 || row.OperationKeys == nil || len(row.OperationKeys) != len(r.Operations) {
 		return ErrProjectRunInvalid
 	}
@@ -718,7 +728,7 @@ func (s *ProjectRunStore) ReserveOperation(projectID, projectPath, id string, ex
 		if row.Run.State == "cancelled" {
 			return false, ErrProjectRunCancelled
 		}
-		if row.Run.State == "complete" {
+		if row.Run.State == "complete" || row.Run.Swarm != nil {
 			return false, ErrProjectRunConflict
 		}
 		if len(row.Run.Operations) >= projectRunOperationLimit {
@@ -763,6 +773,9 @@ func (s *ProjectRunStore) ClaimOperation(projectID, projectPath, id string, expe
 				continue
 			}
 			op = *current
+			if row.Run.Swarm != nil && (row.Run.Swarm.State != "ready" || current.TaskID == "" || current.Allocation != "ready") {
+				return false, ErrProjectRunConflict
+			}
 			if current.Status != "reserved" {
 				return false, nil
 			}

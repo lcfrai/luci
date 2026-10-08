@@ -401,10 +401,29 @@ func New(d Deps) (*API, error) {
 		d.Log = slog.Default()
 	}
 
+	if d.Product != nil {
+		owned := &swarmWorktrees{base: d.Projects, resolver: d.Worktrees, owned: d.Product.ProjectSwarmWorktrees, private: d.Product.IsProjectSwarmPath}
+		d.Projects, d.Worktrees = owned, owned
+	}
 	a := &API{deps: d}
 	if d.Product != nil {
 		d.Product.SetProjectRunSelectionResolver(a.ResolveProjectRunSelection)
 		d.Product.SetProjectRunSessionObserver(a.ObserveProjectRunSessions)
+		d.Product.SetProjectSwarmWorktreeObserver(func(ctx context.Context, projectID, worktreeID string) (bool, error) {
+			if err := ctx.Err(); err != nil {
+				return false, err
+			}
+			rows, err := d.Store.List()
+			if err != nil {
+				return false, err
+			}
+			for _, row := range rows {
+				if row.ProjectID == projectID && row.WorktreeID == worktreeID && row.Status != registry.StatusExited {
+					return true, nil
+				}
+			}
+			return false, nil
+		})
 	}
 
 	// guarded holds every route the origin middleware protects.

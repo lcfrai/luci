@@ -112,7 +112,7 @@ func (s *Server) guardProjectSourceRoutes(mux Registrar) Registrar {
 }
 
 func (g *branchSourceRegistrar) HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request)) {
-	if !strings.Contains(pattern, "/v1/product/projects/{id}/") || strings.Contains(pattern, "/git/branches") || strings.HasSuffix(pattern, "/git/switch") || strings.Contains(pattern, "/git/branch-operations/") || strings.Contains(pattern, "/releases/{releaseId}/") || strings.HasSuffix(pattern, "/configuration") || strings.Contains(pattern, "/checks/{runId}") {
+	if pattern == "POST /v1/product/projects/{id}/runs/{runId}/swarm/tasks/{taskId}/integrate" || pattern == "POST /v1/product/projects/{id}/runs/{runId}/swarm/tasks/{taskId}/reserve" || !strings.Contains(pattern, "/v1/product/projects/{id}/") || strings.Contains(pattern, "/git/branches") || strings.HasSuffix(pattern, "/git/switch") || strings.Contains(pattern, "/git/branch-operations/") || strings.Contains(pattern, "/releases/{releaseId}/") || strings.HasSuffix(pattern, "/configuration") || strings.Contains(pattern, "/checks/{runId}") {
 		g.base.HandleFunc(pattern, handler)
 		return
 	}

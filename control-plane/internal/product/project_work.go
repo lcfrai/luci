@@ -23,6 +23,9 @@ type ProjectTask struct {
 	Title          string   `json:"title"`
 	Status         string   `json:"status"`
 	RequirementIDs []string `json:"requirementIds,omitempty"`
+	DependsOn      []string `json:"dependsOn,omitempty"`
+	WritePaths     []string `json:"writePaths,omitempty"`
+	Acceptance     string   `json:"acceptance,omitempty"`
 }
 
 func (s *Server) registerProjectWork(mux Registrar) {
@@ -59,7 +62,10 @@ func validatePlan(p ProjectPlan) error {
 		}
 		ids[task.ID] = true
 	}
-	return nil
+	if err := validateProjectTaskGraph(p.Tasks); err != nil {
+		return err
+	}
+	return validateProjectPlanBytes(p)
 }
 func (s *Server) getProjectPlan(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.requestProject(w, r)
@@ -73,7 +79,7 @@ func (s *Server) getProjectPlan(w http.ResponseWriter, r *http.Request) {
 		problem(w, 500, "history_unavailable", err.Error())
 		return
 	}
-	writeJSON(w, 200, currentPlan(state, p.ID))
+	writeJSON(w, 200, projectPlanResponse(currentPlan(state, p.ID)))
 }
 func (s *Server) saveProjectPlan(w http.ResponseWriter, r *http.Request) {
 	var req struct {
@@ -128,12 +134,16 @@ func (s *Server) saveProjectPlan(w http.ResponseWriter, r *http.Request) {
 	plan.BriefRevision = state.Brief.Revision
 	plan.Tasks = snapshotProjectTasks(req.Tasks)
 	plan.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
+	if err := validateProjectPlanBytes(plan); err != nil {
+		problem(w, 400, "invalid_plan", err.Error())
+		return
+	}
 	state.Plan = &plan
 	if err = s.writeAttributedJourney(r.Context(), p.Path, state, contextMutation{"plan", "save"}); err != nil {
 		problem(w, 500, "save_failed", err.Error())
 		return
 	}
-	writeJSON(w, 200, plan)
+	writeJSON(w, 200, projectPlanResponse(plan))
 }
 
 func writeJourneyContext(dir string, state journeyState) error {

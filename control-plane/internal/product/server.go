@@ -60,6 +60,7 @@ type Options struct {
 }
 
 type Server struct {
+	projectSwarmWorktreeObserver    func(context.Context, string, string) (bool, error)
 	projectRuns                     *ProjectRunStore
 	projectRunDispatchMu            sync.Mutex
 	projectRunSelectionResolver     func(context.Context, ProjectRunSelectionRequest) (ProjectRunSelection, error)

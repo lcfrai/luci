@@ -14,6 +14,7 @@ import { useSetup } from '../setup/SetupProvider';
 import { Button } from '../fluid/components/button';
 import { WorkflowDialog } from '../common/WorkflowDialog';
 import { SessionPicker } from '../topbar/SessionPicker';
+import { ProjectSwarm } from './ProjectSwarm';
 import { ORCHESTRATOR_OPEN, type OrchestratorOpenDetail } from '../orchestrator/OrchestratorPanel';
 import './project-runs.css';
 
@@ -133,7 +134,7 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
   const region = useRef<HTMLElement>(null);
   const inspecting = useRef<typeof inspection>(null);
   const setLens = useCockpit(state => state.setLens);
-  const allowed = (action: string) => canEdit && (!['start-coding', 'continue-coding'].includes(action) || canExecute) && (!['start-coding', 'continue-coding', 'join-check', 'join-release', 'accept'].includes(action) || !codingBlocked(run)) && !!run?.allowedActions?.includes(action) && !(dispatchUncertain && (action === 'start-coding' || action === 'continue-coding'));
+  const allowed = (action: string) => canEdit && (!(run?.swarm && ['start-coding', 'continue-coding'].includes(action))) && (!['start-coding', 'continue-coding'].includes(action) || canExecute) && (!['start-coding', 'continue-coding', 'join-check', 'join-release', 'accept'].includes(action) || !codingBlocked(run)) && !!run?.allowedActions?.includes(action) && !(dispatchUncertain && (action === 'start-coding' || action === 'continue-coding'));
   const remember = (value: ProjectRun) => {
     if (!alive.current) return;
     if (value.projectId !== projectId || value.input.implementation.projectId !== projectId) throw new Error('The run belongs to another project. Refresh this project.');
@@ -255,9 +256,9 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
     if (reserved.length !== 1) throw new Error('The reserved operation is ambiguous. Use Check run status before continuing.');
     await dispatch(run, reserved[0]);
   }
-  async function openSession() {
+  async function openSession(operation?: RunOperation) {
     if (!canRead) return;
-    const child = run?.observation?.childId || run?.operations[run.operations.length - 1]?.childId;
+    const child = operation?.childId || run?.observation?.childId || run?.operations[run.operations.length - 1]?.childId;
     if (!child || !run) return;
     const before = useCockpit.getState();
     if (before.pendingNavigation) return;
@@ -266,7 +267,8 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
     if (!alive.current || !mayRead.current) return;
     const currentNavigation = useCockpit.getState();
     if (currentNavigation.selection !== before.selection || currentNavigation.lens !== before.lens || currentNavigation.pendingNavigation) return;
-    if (session.id !== child || session.worktreeId !== run.worktreeId || session.projectId !== projectId || session.projectRunId !== run.id || !run.operations.some(item => item.id === session.projectRunOperationId && item.childId === session.id)) throw new Error('This coding session does not belong to the selected run.');
+    const bound = run.operations.find(item => item.id === session.projectRunOperationId && item.childId === session.id);
+    if (session.id !== child || session.worktreeId !== (bound?.worktreeId || run.worktreeId) || session.projectId !== projectId || session.projectRunId !== run.id || !bound || operation && bound.id !== operation.id) throw new Error('This coding session does not belong to the selected run.');
     const state = useCockpit.getState();
     state.upsertSession(session); state.selectBranch(projectId, session.branchId);
     const current = useCockpit.getState();
@@ -372,7 +374,7 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
           {primary && <Button disabled={!!busy || loading || (['verify', 'deploy', 'review-decisions'].includes(primary) && !navigationScope)} onClick={() => action(primary)}>{busy || actionLabel[primary]}</Button>}
           {run.codingBlocker && primary !== 'review-decisions' && <Button variant="secondary" disabled={!!busy || loading || !navigationScope} onClick={() => action('review-decisions')}>{actionLabel['review-decisions']}</Button>}
           {contextNeedsReview(run) && primary !== 'review-plan' && <Button variant="secondary" disabled={!!busy || loading} onClick={onReviewPlan}>Review current plan</Button>}
-          {!!run.operations.length && <Button variant="secondary" disabled={!canRead || !!busy} onClick={() => void operate('Opening coding session', openSession, false)}>Open coding session</Button>}
+          {!!run.operations.length && !run.swarm && <Button variant="secondary" disabled={!canRead || !!busy} onClick={() => void operate('Opening coding session', () => openSession(), false)}>Open coding session</Button>}
           {allowed('reconcile') && primary !== 'reconcile' && <Button variant="secondary" disabled={!!busy || loading} onClick={() => action('reconcile')}>Check run status</Button>}
           {run.state === 'awaiting-checks' && allowed('start-coding') && <Button variant="secondary" disabled={!!busy || loading} onClick={() => action('start-coding')}>Start another coding attempt</Button>}
           {allowed('join-release') && primary !== 'join-release' && <Button variant="tertiary" disabled={!!busy || loading} onClick={() => action('join-release')}>Select release evidence</Button>}
@@ -383,6 +385,10 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
         {allowed('continue-coding') && <p className="journey-muted">A coding operation was reserved before dispatch. Continue uses that same child identity; it does not reserve another attempt. Use Check run status first if its result is uncertain.</p>}
         {run.state === 'cancelled' && <p className="journey-muted">Future dispatch is cancelled. Running children retain their separate stop controls.</p>}
       </div>
+      <ProjectSwarm key={run.id} run={run} canEdit={canEdit} canExecute={canExecute} busy={!!busy || loading}
+        onBusy={label => { working.current = !!label; setBusy(label); }}
+        onUpdate={value => { request.current++; setLoading(false); remember(value); notifyProjectContextChanged(navigationScope, projectId); }}
+        onOpenSession={openSession} />
       <PlanComparison key={`${run.id}:${run.revision}`} projectId={projectId} run={run} />
       <details className="project-run-receipts"><summary>Reviewed inputs and evidence</summary>
         {codingBlocked(run) && <>

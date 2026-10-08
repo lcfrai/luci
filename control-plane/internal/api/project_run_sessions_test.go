@@ -403,6 +403,12 @@ func TestProjectRunReplayMatchesImmutableSelectionWithoutReadingCurrentSource(t 
 	if !projectRunSessionRequestMatches(req, sess) {
 		t.Fatal("same reserved selection did not reuse existing child")
 	}
+	previous := sess.Clone()
+	previous.ReviewedContext = &registry.ReviewedContext{Version: 1, Digest: "retained-captured-manifest"}
+	previous.OpeningPrompt = product.PreviousCapturedImplementationOpeningPrompt(bound)
+	if !projectRunSessionRequestMatches(req, previous) {
+		t.Fatal("pre-task-first captured receipt could not be recovered without allocating a new child")
+	}
 	legacy := sess.Clone()
 	legacy.OpeningPrompt = product.LegacyImplementationOpeningPrompt(bound)
 	if !projectRunSessionRequestMatches(req, legacy) {

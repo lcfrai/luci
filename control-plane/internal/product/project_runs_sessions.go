@@ -61,14 +61,18 @@ func sameRunReviewedInputs(a, b *registry.ImplementationContext) bool {
 
 func projectRunSessionBindingMatches(run ProjectRun, op ProjectRunOperation, candidate registry.Session) bool {
 	route := run.Input.Route
-	return candidate.ProjectID == run.ProjectID && candidate.WorktreeID == run.WorktreeID &&
+	worktreeID, implementation := run.WorktreeID, &run.Input.Implementation
+	if op.TaskID != "" {
+		worktreeID, implementation = op.WorktreeID, op.Implementation
+	}
+	return candidate.ProjectID == run.ProjectID && candidate.WorktreeID == worktreeID &&
 		candidate.ProjectRunID == run.ID && candidate.ProjectRunOperationID == op.ID &&
 		candidate.Harness == route.Harness && candidate.Model == route.Model &&
 		candidate.Effort == route.Effort && candidate.PermissionMode == route.PermissionMode &&
 		candidate.AgentConnectionID == route.Connection.ID && candidate.AgentConnectionRevision == route.Connection.Revision &&
 		candidate.AgentConnectionKind == route.Connection.Kind && candidate.AgentConnectionProtocol == route.Connection.Protocol &&
 		candidate.AuthMode == route.Connection.AuthMode && !candidate.AuthOnly &&
-		sameRunReviewedInputs(candidate.ImplementationContext, &run.Input.Implementation) &&
+		sameRunReviewedInputs(candidate.ImplementationContext, implementation) &&
 		ProjectRunSessionRequestDigest(candidate) == op.RequestDigest
 }
 
@@ -176,13 +180,23 @@ func (s *Server) BeginProjectRunSession(projectID, runID, operationID string, ca
 		if current.State == "complete" {
 			return ErrProjectRunConflict
 		}
+		sourcePath := p.Path
+		if op.TaskID != "" {
+			if current.Swarm == nil || current.Swarm.State != "ready" || op.Allocation != "ready" {
+				return ErrProjectRunConflict
+			}
+			sourcePath, err = s.swarmPath(projectID, runID, operationID)
+			if err != nil {
+				return err
+			}
+		}
 		if project.WorktreeID(p.Path) != run.WorktreeID {
 			return errors.New("The reviewed run requires its original main checkout.")
 		}
 		if err := s.validateProjectRunApprovals(projectID, run.Input.Approvals); err != nil {
 			return err
 		}
-		if err := s.ValidateImplementationContext(projectID, run.WorktreeID, p.Path, candidate.ImplementationContext); err != nil {
+		if err := s.ValidateImplementationContext(projectID, candidate.WorktreeID, sourcePath, candidate.ImplementationContext); err != nil {
 			return err
 		}
 		selected := run.Input.Route.Connection.ID
@@ -202,7 +216,7 @@ func (s *Server) BeginProjectRunSession(projectID, runID, operationID string, ca
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
-		digest, commit, dirty, err := s.checkSource(ctx, p.Path)
+		digest, commit, dirty, err := s.checkSource(ctx, sourcePath)
 		if err != nil || candidate.ImplementationContext.SourceDigest != digest || candidate.ImplementationContext.SourceCommit != commit || candidate.ImplementationContext.SourceDirty != dirty {
 			return errors.New("The source changed after this coding attempt was reserved. Use Check run status before reserving a new attempt.")
 		}

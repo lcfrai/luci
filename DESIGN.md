@@ -18,11 +18,17 @@ Helper text uses the readable ink floor; reserve faint ink for non-text structur
 Keep body copy at a readable size. Screens do not need decorative grain, gradients,
 glass effects or extra marketing labels. Elevation is reserved for overlays.
 
-The owner's Fluid Functionalism direction supersedes the earlier system-font-only
-choice. Prefer the official MIT-licensed Fluid controls and their shared shape,
-size and motion behaviour before implementing new controls. Vendor a pinned,
-reviewed subset with its licence and provenance; compile its utilities without
-replacing the existing reset. Map it to Luci's appearance tokens and density.
+The owner's **8 October 2026 shadcn/ui requirement supersedes the earlier
+Fluid Functionalism component preference**. Use reviewed, pinned MIT-licensed
+shadcn/ui components and consistent accessible interaction patterns for the
+interactive local product, including cross-project actions and attention queues.
+The currently shipped Fluid subset is an existing implementation to migrate,
+not evidence that the shadcn requirement is already satisfied. Preserve working
+behavior, keyboard/focus handling, loading/error states and upstream grants as
+shared controls migrate. Keep one coherent token/density system; do not append
+an unrelated theme or replace working actions with static demonstrations.
+Compile utilities without replacing the existing reset and map the chosen
+shadcn components to Luci's appearance tokens and density.
 Inter's OFL-licensed variable font is bundled locally so the app works offline.
 Terminal text remains monospace. Navigation retains the shared Luci SVG icons.
 

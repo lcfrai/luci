@@ -1,0 +1,37 @@
+@import "../../styles/tokens.css";
+.plan-task-graph {
+  min-inline-size: 0;
+  margin-block: 16px 24px;
+  padding: 16px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-card);
+  background: var(--field);
+}
+.plan-task-graph h3 { margin: 0; font-size: 14px; }
+.plan-task-graph p, .plan-task-graph li { line-height: 1.6; overflow-wrap: anywhere; }
+.plan-task-waves { list-style: none; margin: 16px 0; padding: 0; display: grid; gap: 10px; }
+.plan-task-waves > li { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 12px; padding: 10px 0; border-block-end: 1px solid var(--line-soft); }
+.plan-task-waves ul { margin: 0; padding-inline-start: 18px; }
+.plan-task-advice { padding-block: 10px; }
+.plan-task-advice summary, .task-scope > summary { cursor: pointer; line-height: 1.6; overflow-wrap: anywhere; }
+.plan-task-advice ul { padding-inline-start: 20px; }
+.plan-task-advice li { margin-block: 8px; }
+.plan-task-caution li > span { display: block; }
+.plan-task-preparation { margin-block-start: 12px; padding-block-start: 14px; border-block-start: 1px solid var(--line-soft); }
+.task-scope { grid-column: 1 / -1; min-inline-size: 0; padding: 10px 12px; border: 1px solid var(--line-soft); border-radius: var(--r-card); }
+.task-scope-fields { display: grid; gap: 16px; margin-block-start: 14px; }
+.task-scope-fields .luci-field { min-inline-size: 0; }
+.task-scope-fields textarea { inline-size: 100%; min-inline-size: 0; resize: vertical; }
+.task-scope-fields .journey-muted { margin: 6px 0 0; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.task-dependencies { margin: 0; padding: 0; min-inline-size: 0; border: 0; }
+.task-dependencies legend { margin-block-end: 8px; font-weight: 500; }
+.task-dependencies label { display: flex; align-items: flex-start; gap: 8px; padding-block: 7px; line-height: 1.5; overflow-wrap: anywhere; }
+.task-dependencies input { flex-shrink: 0; margin-block-start: 4px; accent-color: var(--accent); }
+@media (max-width: 480px) {
+  .plan-task-graph { padding: 12px; }
+  .plan-task-graph .journey-header { flex-wrap: wrap; gap: 8px; }
+  .plan-task-waves > li { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .project-plan .project-tasks > li { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .project-tasks > li > .luci-field { grid-column: 1 / -1; }
+  .project-tasks > li > .luci-field, .project-tasks > li > button { min-inline-size: 0; }
+}

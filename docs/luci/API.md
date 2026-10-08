@@ -424,9 +424,67 @@ no repair, implicit retry, paid inference, publication or cloud creation. Existi
 command trust, public-publication policy and cost acknowledgements still apply
 at the corresponding explicit operation.
 
+### Isolated agent teams
+
+An optional `run.swarm` contains its `state` (`ready`, `paused` or `cancelled`),
+`maxParallel` (1–4) and selected task contracts. Each task retains its ID, title,
+dependencies, intended write paths, acceptance, latest operation ID and optional
+integration receipt. It belongs to the existing reviewed run and model route.
+The source must be committed and clean when the team is prepared. Every selected
+dependency must be included in that run's task selection.
+
+The following suffixes follow `/v1/product/projects/{id}/runs/{runId}/swarm`:
+
+| Method and suffix | Request | Effect |
+| --- | --- | --- |
+| `POST` base path | `{expectedRevision,maxParallel}` | `201 {run}` prepares the task team without allocating a checkout or agent. |
+| `POST /pause`, `/resume`, `/cancel` | `{expectedRevision}` | `{run}` changes future-dispatch state. Existing processes retain separate stop controls. |
+| `POST /reconcile` | `{expectedRevision}` | `{run}` observes existing children and recoverable integration receipts; no launch or Git mutation is replayed. |
+| `POST /tasks/{taskId}/reserve` | `{expectedRevision,idempotencyKey}` | `201 {run,operation}` reserves one task and creates its isolated checkout. Same-key recovery returns `200`; reservation does not start inference. |
+| `GET /tasks/{taskId}/review` | — | `{review}` identifies the complete bounded committed diff, exact task/target commits, `reviewDigest`, paths and `canIntegrate`/reason. |
+| `POST /tasks/{taskId}/integrate` | `{expectedRevision,reviewDigest}` | `{run}` records and attempts integration only while the complete displayed review still matches. |
+| `POST /tasks/{taskId}/abandon` | `{expectedRevision}` | `{run}` retires an eligible stopped or unallocated attempt while retaining its files; active or uncertain child execution cannot be silently replaced. |
+
+Task operations add `taskId`, `worktreeId`, `baseCommit`, `allocation` and a
+singleton `implementation` binding to the existing session reservation. Dispatch
+uses the normal `POST /v1/sessions` with both run identities, the task worktree
+and its exact implementation selection. Each task owns independent Git metadata
+and copied objects; the worker receives neither writable main Git metadata nor
+shared object alternates. Private ledger ownership, not a copied folder or
+repository-authored claim, supplies its original project identity.
+
+Dependencies require confirmed integration receipts, not task-board Done or CLI
+exit. Pending reservations count toward capacity; overlapping or unspecified
+write scopes cannot run together. An uncertain allocation, start or integration
+remains retained and requires explicit recovery. Integration cannot accept a
+truncated patch, stale source/target review, uncommitted changes or an active
+task process. Retiring an interrupted attempt does not undo an integration that
+may already have been published.
+
+New task captures append a selected-task contract to their private `LUCI.md`,
+including exact linked acceptance and recorded prerequisite status. Full frozen
+documents and the existing eight-file manifest remain intact. Whole binding
+identity is checked against the same source context before delivery; later
+canonical amendments never rewrite an existing bundle. These records describe
+authorized scope, not verification. Once all tasks are integrated, the existing
+run check/release/acceptance routes govern the combined source; generic run
+coding reservations cannot bypass task ownership.
+
 ### Plans and check history
 
 GET `/v1/product/projects/{id}/plan` returns `{projectId,revision,briefRevision,tasks:[{id,title,status,requirementIds?}],updatedAt,specificationRevision?,specificationDigest?}`. Task status is `todo`, `doing` or `done`. POST accepts `{expectedRevision,tasks,expectedSpecificationRevision?}` and returns200 with the saved plan. When any task has requirement links, the expected specification revision must match this project's current saved approved specification. Links use its stable requirement IDs; at most100 unique IDs per task and200 tasks are allowed. Unknown/foreign IDs or duplicates return400; stale or missing expected revisions return409; an unapproved/outdated specification returns422. The server records the approval revision/digest. Unlinked legacy plans remain supported, and existing links remain readable after the definition changes so they can be explicitly removed. Saving publishes `.luci/plan.json` alongside canonical state and `.luci/design.json` for agent context. Task Done remains user-reported progress, independent of test evidence.
+
+Tasks additionally accept optional `dependsOn:string[]`, `writePaths:string[]`
+and `acceptance:string`. Dependencies use stable task IDs; unknown, repeated,
+self-referential and cyclic links are refused. Write paths are bounded,
+repository-relative paths, with directory scope including descendants. GET and
+save responses include derived `graph` advice: dependency `waves`,
+`readyTaskIds`, `blocked`, bounded path `conflicts` with `conflictsOmitted`,
+`unscopedTaskIds` and `recordedDoneTaskIds`. Advice is not persisted in canonical
+context or treated as dispatch/verification authority. The complete indented
+plan export, including escaped JSON and metadata, must fit 5 MiB; oversize
+content is refused explicitly without silently dropping task detail. Older
+supported task shapes remain within that bound.
 
 GET `.../checks` returns `{runs,suggested,coverage}`. POST accepts `{commands:[{label,executable,args}],execution:"docker"|"host",acknowledgeHostExecution:true,requirementIds?,expectedSpecificationRevision?,expectedDesignPlanRevision?}` and returns202 with a reserved run. Docker is the default; host mode additionally requires Super Admin and the enabled host-command policy. Nonempty requirement IDs require both current saved approvals and their exact expected revisions. Unknown/foreign/duplicate IDs return400 `invalid_requirement_link`; stale or missing expected revisions return409 `revision_conflict`; current approval prerequisites return422 `specification_approval_required` or `design_approval_required`. A refused binding allocates no check. Empty links retain generic check behavior. Commands are bounded typed argv, not interpolated shell text. Runs have a ten-minute limit, at most eight commands, bounded output and twenty retained rows. GET `.../checks/{runId}` reads an owned run; POST `.../checks/{runId}/cancel {}` requests cancellation.
 

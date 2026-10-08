@@ -1,0 +1,13 @@
+@import "../../styles/tokens.css";
+.project-swarm { margin-block: 16px; padding: 16px; border: 1px solid var(--line-soft); border-radius: 12px; background: var(--surface); }
+.project-swarm-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; }
+.project-swarm-heading h3, .project-swarm-heading h4 { margin: 0; overflow-wrap: anywhere; }
+.project-swarm-heading span { font-size: 12px; color: var(--ink-2); }
+.project-swarm-tasks { display: grid; gap: 12px; padding: 0; margin-block: 16px 0; list-style: none; }
+.project-swarm-tasks > li { padding: 12px; border: 1px solid var(--line-soft); border-radius: 8px; min-inline-size: 0; }
+.project-swarm-tasks .journey-actions { margin-block-start: 12px; }
+.project-swarm code { overflow-wrap: anywhere; }
+.project-swarm-commits code { overflow-wrap: anywhere; }
+.project-swarm-patch { padding: 12px; border: 1px solid var(--line-soft); border-radius: 8px; max-block-size: 40vh; overflow: auto; font-size: 12px; line-height: 1.6; background: var(--surface); color: var(--ink-1); }
+.project-swarm-patch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 760px) { .project-swarm { padding: 12px; } .project-swarm-tasks > li { padding: 10px; } }

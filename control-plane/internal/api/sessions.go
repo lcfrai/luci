@@ -1105,6 +1105,9 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	projectID, branchID := a.sessionLocate(ctx, req.WorktreeID)
+	if !a.validateSwarmWorktreeSession(w, r, projectID, req) {
+		return
+	}
 	if a.reuseProjectRunSession(w, r, req, projectID) {
 		return
 	}

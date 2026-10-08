@@ -1,10 +1,76 @@
 # Continuing product-quality work
 
-The active objective remains [GOAL.md](GOAL.md), judged against
+The continuing objective remains [GOAL.md](GOAL.md), judged against
 [PRODUCT-QUALITY.md](PRODUCT-QUALITY.md). This is an implementation worklist,
-not a replacement completion standard. The platform now supplies the full
-objective as an active continuation goal; the available completion control must
-not close it for an individual corrective batch.
+not a replacement completion standard. The owner resumed the full objective on
+8 October with explicit agent-swarm requirements. Last confirmed persistent
+platform status is **blocked**; this session exposes no goal read/edit/activation
+control. An active working thread does not establish platform reactivation or
+completion. Independent implementation continues; no individual batch closes
+the full objective.
+
+The owner has authorized an ongoing Windows test/correction loop in
+[LOCAL-TEST-LOOP.md](LOCAL-TEST-LOOP.md). The local thread tests pinned isolated
+revisions and reports stable issue IDs; the implementation thread acknowledges,
+fixes and sends exact revisions for retest while other testing continues.
+
+## Swarm coordination and context integration — 8 October 2026
+
+The interface must be a real interactive application using polished shadcn/ui
+styling and consistent accessible controls. Add scoped cross-project and bulk
+actions where useful, with explicit effects and partial failures. The originating
+local thread `01a1199f-7500-7843-b02b-081081e536fa` owns first Windows acceptance;
+notify it only after an integrated retrievable candidate and concrete four-project
+handoff are ready. See [GOAL.md](GOAL.md) for the authorized notification contract.
+
+The newest local requirement is sustained progress across **four or more
+projects** while the owner can comfortably use their **31.2 GiB RAM Windows
+computer**. Add a cross-project overview, persistent isolated context, global
+resource-aware fair scheduling with priorities and provider limits, bounded idle
+and long-running memory use, and a repeatable four-project mixed-workload test.
+Measure all owned workers/containers/dev servers/tests/browser processes plus
+host pressure; UI-only memory does not establish responsiveness. Explicit local
+budgets must come from measurements. Preserve the same model for later cloud
+offload. This requirement is part of local acceptance, not a deferred cloud gate.
+
+**Immediate delivery: local first, with Windows handoff.** Complete local-relevant
+work without waiting for merchant setup, hosted infrastructure or public DNS.
+Native Windows and live-provider outcomes remain explicit local acceptance
+gates; prepare exact reproducible steps when this environment cannot execute
+them. The later cloud phase must use Luci itself on its source, with the owner's
+supplied access and app-visible progress/integration review.
+
+Research GSD-Core, related GSD solutions and Nimbalyst against the current
+architecture, using primary sources and explicit licensing. Implement the
+strongest applicable improvements in the existing coherent project journey.
+Acceptance must exercise planning/dependencies, parallel delegation, durable
+context, isolated work and integration, intervention/review, and interruption
+recovery. Record measured time, resource efficiency and verified result quality,
+distinguishing controlled-agent evidence from live-model quality. Research and
+a roadmap alone do not complete this work or the full product goal.
+
+### Verified foundation checkpoint
+
+The first integrated swarm foundation now supports reviewed dependency plans,
+task-specific immutable context, independent task repositories, bounded change
+and retained-output inspection, explicit integration, and interrupted-attempt
+reconciliation. Controlled child processes verify concurrent execution and
+restart binding; they do not establish live-model quality. The safe Windows
+development launcher has controlled-process checks and Windows compilation;
+native execution remains for the local tester.
+
+The frozen-source full checks passed: **2,288 frontend tests across 135 files**,
+TypeScript, and **2,387 Go test/subtest outcomes with 23 explicit skips**. Source
+hash snapshots match all 502 Go and 366 frontend inputs. Detailed results and
+preserved initial failures are in
+`artifacts/quality-swarm/full-baseline/verification.json`. The controlled tiny-job
+benchmark showed concurrency but no speedup; see the comparison document.
+
+This checkpoint is not the local acceptance candidate. Remaining implementation
+includes global fair resource admission and durable queues, the cross-project
+overview and scoped action controls, the shadcn/ui migration, and bounded
+terminal/session memory. Those changes require sustained four-project evidence
+before the integrated Windows handoff.
 
 ## Current findings and required outcomes
 

@@ -85,6 +85,47 @@ work retains navigation, branch-change and amendment-application protection.
 When there are no coding panes, planning and verification use one continuous
 scroll area instead of reserving space for an empty terminal.
 
+## Coordinating reviewed tasks
+
+The implementation plan can record dependencies, intended write paths and
+task-specific acceptance. Its dependency waves and readiness view are planning
+advice. A task marked Done does not prove that its changes were integrated or
+that a check passed. Unspecified write scope is shown explicitly; the team
+scheduler does not treat it as independent work.
+
+An **Agent team** belongs to one reviewed project run. Preparation records the
+selected tasks and a limit of one to four active slots; it starts no model.
+Explicit starts reserve task/session identities before creating independent
+Git checkouts. Workers receive separate writable source and read-only captured
+context. Each newly captured `LUCI.md` retains the original project brief and
+adds only that worker's assigned task contracts, prerequisite planning status
+and exact linked acceptance text. The complete frozen plan, definition and
+design remain available. Later canonical amendments do not rewrite these bytes,
+and stale unstarted reservations cannot silently adopt amended context.
+
+Dependencies release only after a reviewed integration receipt. Review presents
+the complete bounded committed diff and checks both task and target snapshots
+again before integration. Overlapping or unspecified write scopes are scheduled
+separately. A stopped agent, committed diff and integrated change are distinct
+from a verified application. Once all task changes are integrated, the existing
+whole-build check, release and acceptance flow remains required.
+
+**Check team status** observes owned sessions and recoverable receipts without
+replaying a launch or merge. **Pause new starts** and cancellation do not stop
+existing processes; session stop controls remain separate. An interrupted
+allocation or integration retains its files and uncertainty. Explicitly retiring
+an eligible stopped attempt preserves output and permits a fresh reservation;
+it does not delete work or undo delivered changes. Run-owned sessions retain
+their existing restriction on generic resume/fork/restart: recovery uses the
+named existing child or a new recorded task attempt, never an untracked copy.
+The concurrency limit controls active work, not provider charges.
+
+The mechanisms were compared with GSD Core, GSD and Nimbalyst in
+[AGENT-HARNESS-COMPARISON.md](AGENT-HARNESS-COMPARISON.md). They are original Luci
+implementations. Captured-context and controlled-process checks establish the
+tested coordination contracts; real model delivery quality, comparative speed
+and native Windows acceptance require their own evidence.
+
 ## Provider-backed assistance
 
 `POST /v1/product/projects/{id}/assist/orchestrator` accepts the expected

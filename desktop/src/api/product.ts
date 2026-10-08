@@ -205,6 +205,19 @@ export interface ImplementationTask {
   title: string;
   status: "todo" | "doing" | "done";
   requirementIds?: string[];
+  dependsOn?: string[];
+  writePaths?: string[];
+  acceptance?: string;
+}
+/** Planning advice derived from saved tasks; human-recorded Done is not a verified result. */
+export interface ImplementationTaskGraph {
+  waves: string[][];
+  readyTaskIds: string[];
+  blocked: { taskId: string; dependsOn: string[] }[];
+  conflicts: { taskIds: [string, string]; paths: string[] }[];
+  conflictsOmitted: number;
+  unscopedTaskIds: string[];
+  recordedDoneTaskIds: string[];
 }
 export interface ImplementationPlan {
   projectId: string;
@@ -213,6 +226,7 @@ export interface ImplementationPlan {
   specificationRevision?: number;
   specificationDigest?: string;
   tasks: ImplementationTask[];
+  graph?: ImplementationTaskGraph;
   updatedAt: string;
 }
 export interface CheckCommand {

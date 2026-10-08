@@ -28,6 +28,9 @@ func journeyContextExports(state journeyState) ([]journeyContextExport, error) {
 		if err != nil {
 			return err
 		}
+		if path == ".luci/plan.json" && len(data)+1 > projectPlanExportBytesLimit {
+			return errProjectPlanTooLarge
+		}
 		exports = append(exports, journeyContextExport{path, append(data, '\n')})
 		return nil
 	}

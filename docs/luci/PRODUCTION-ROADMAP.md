@@ -5,6 +5,47 @@ MIT-licensed self-hosted Luci plus optional paid lcfr.ai-managed team workspaces
 [GOAL.md](GOAL.md) remains the full completion contract. Stages describe work and
 exit criteria; they are not claims of completed features or release readiness.
 
+## Updated delivery order — 8 October 2026
+
+The owner has made **local first** the immediate milestone. The full ambition
+remains a leading local application with optional cloud execution/connectivity;
+the next handoff is a concrete revision the owner can pull and test on Windows.
+The broader commercial/cloud stages below are retained, but do not delay local
+implementation or require cloud credentials before local delivery.
+
+1. Connect reviewed plans to dependency-aware parallel agent work, durable
+   task-specific context, isolated workspaces and reviewed integration. Make
+   progress, ambiguity, steering, pause/cancel/resume and recovery clear in the
+   existing project journey. Evaluate GSD-Core, related GSD and Nimbalyst against
+   these outcomes, with explicit sources and licensing.
+2. Verify meaningful local success, failure, interruption/restart, stale-context,
+   isolation and integration paths. Measure elapsed time, parallel activity,
+   resource use and independently checked outcomes. Controlled fixtures are
+   labelled and do not establish live model execution quality.
+3. Deliver a committed, pullable revision and concise Windows prerequisites,
+   setup/run/test commands, evidence and prioritized local acceptance checklist.
+   Complete everything available here; native Windows and actual provider
+   acceptance require exact follow-through on the owner's machine/access and
+   cannot be marked passed from cross-compilation or mocks.
+4. Following that local testing and supplied access, use Luci's own agents on
+   Luci's source to build and verify cloud execution/connectivity. Preserve the
+   same immutable context, isolation, progress and integration review boundaries;
+   do not introduce an alternate unreviewed cloud workflow. Cloud provisioning,
+   merchant activation and public release remain separately gated.
+
+The local milestone stays open until its required outcomes are demonstrated.
+Its acceptance now includes four or more concurrent projects with an
+understandable overview, isolated durable context, fair global resource budgets,
+user priorities, provider concurrency limits and measured whole-host
+responsiveness. The owner's 31.2 GiB Windows machine must retain room for other
+applications. A sustained implementation/build/review/switching/recovery workload
+must measure all owned processes and containers, idle/peak memory and growth,
+CPU/disk pressure, verified throughput, fairness and interaction latency. Four
+projects advancing does not require four simultaneous expensive workers.
+The persistent platform goal was last confirmed blocked and has no exposed
+reactivation API in this session; this documented working objective must not be
+misreported as a verified platform status change.
+
 ## Product outcome and delivery model
 
 A person or team can define a solution together, maintain useful versioned

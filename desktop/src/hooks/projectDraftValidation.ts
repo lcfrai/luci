@@ -15,8 +15,9 @@ export const designPlanDraftValid = (value: unknown): value is DesignPlan => dra
   implementationNotes: "", prototypeReleaseId: "", prototypeCommit: "", status: "", digest: "", updatedAt: "",
 });
 export interface PlanDraft { tasks: ImplementationTask[]; title: string }
+const optionalTextList = (value: unknown): boolean => value === undefined || (Array.isArray(value) && value.every(item => typeof item === "string"));
 export const planDraftValid = (value: unknown): value is PlanDraft => draftMatches(value, { title: "", tasks: [{ id: "", title: "", status: "" }] }) &&
-  (value as PlanDraft).tasks.every(task => ["todo", "doing", "done"].includes(task.status) && (!task.requirementIds || task.requirementIds.every(id => typeof id === "string")));
+  (value as PlanDraft).tasks.every(task => ["todo", "doing", "done"].includes(task.status) && optionalTextList(task.requirementIds) && optionalTextList(task.dependsOn) && optionalTextList(task.writePaths) && (task.acceptance === undefined || typeof task.acceptance === "string"));
 export const sketchDraftValid = (value: unknown): value is DesignScene => draftMatches(value, { elements: [], appState: {}, files: {} });
 
 /** Browser authoring intent only. Execution consent and runtime settings are never recovered. */

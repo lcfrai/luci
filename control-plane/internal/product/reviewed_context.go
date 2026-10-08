@@ -25,6 +25,25 @@ type ReviewedContextCapture struct {
 const ReviewedContextBytesLimit = 32 << 20
 
 func captureReviewedContext(state journeyState, binding *registry.ImplementationContext) (*ReviewedContextCapture, error) {
+	if binding == nil {
+		return nil, errors.New("The reviewed context has no selected assignment.")
+	}
+	// Binding and documents must come from one reviewed snapshot. A caller that
+	// reread state after reserving work cannot attach a newer definition/design
+	// to an older task identity, even when that task's title did not change.
+	current, err := implementationSnapshot(state, *ImplementationContextSelection(binding), binding.WorktreeID)
+	if err != nil {
+		return nil, err
+	}
+	selected := binding.Clone()
+	selected.SourceCommit, selected.SourceDigest, selected.SourceDirty = "", "", false
+	if implementationDigest(current) != implementationDigest(selected) {
+		return nil, errors.New("The reviewed documents changed after this assignment was selected. Review the current inputs before starting another run.")
+	}
+	taskBrief, err := renderReviewedTaskBrief(state, binding)
+	if err != nil {
+		return nil, err
+	}
 	exports, err := journeyContextExports(state)
 	if err != nil {
 		return nil, err
@@ -33,10 +52,15 @@ func captureReviewedContext(state journeyState, binding *registry.Implementation
 	hasBrief := false
 	for _, item := range exports {
 		hasBrief = hasBrief || item.Path == "LUCI.md"
+		if item.Path == "LUCI.md" {
+			// The working checkout's export remains the ordinary project brief.
+			// Only this new immutable session capture gets its selected contract.
+			item.Data = append(append([]byte{}, item.Data...), taskBrief...)
+		}
 		files = append(files, ReviewedContextFile{Path: item.Path, Data: item.Data})
 	}
 	if !hasBrief {
-		files = append(files, ReviewedContextFile{Path: "LUCI.md", Data: renderBrief(state.Brief)})
+		files = append(files, ReviewedContextFile{Path: "LUCI.md", Data: append(renderBrief(state.Brief), taskBrief...)})
 	}
 	brief, err := json.MarshalIndent(state.Brief, "", "  ")
 	if err != nil {

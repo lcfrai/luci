@@ -15,6 +15,7 @@ const fieldNames: Record<string, string> = {
   briefRevision: "Brief revision", specificationRevision: "Definition revision", specificationDigest: "Definition fingerprint",
   sketchRevision: "Sketch revision", digest: "Content fingerprint", updatedAt: "Last updated", "$order": "Order",
   commands: "Check commands", executable: "Executable", args: "Arguments", buildId: "Selected build",
+  dependsOn: "Waits for tasks", writePaths: "Intended files and folders",
 };
 const metadata = new Set(["projectId", "version", "revision", "briefRevision", "specificationRevision", "specificationDigest", "sketchRevision", "status", "digest", "updatedAt"]);
 const documentOrder = ["startingPoint", "purpose", "audience", "constraints", "outOfScope", "requirements", "journeys", "roles", "entities", "integrations", "glossary", "decisions", "questions", "screens", "tokens", "assets", "implementationNotes", "prototypeReleaseId", "prototypeCommit", "tasks", "title"];
@@ -23,6 +24,7 @@ type RecordValue = Record<string, unknown>;
 const isRecord = (value: unknown): value is RecordValue => !!value && typeof value === "object" && !Array.isArray(value);
 
 export function draftFieldName(part: string, path: string[] = []): string {
+  if (part === "acceptance" && path[0] === "tasks") return "How to verify this task";
   if (part === "args" && path.length === 1) return "Arguments being edited · JSON text";
   if (part === "executable" && path.length === 1) return "Executable being added";
   if (part === "purpose") return path.length === 1 ? "The idea" : "Purpose";
@@ -112,7 +114,8 @@ export function DraftDocumentReview({ value, path = [], documents = [], absent =
       if (field === "$order") return <ol className="draft-review-list" aria-label="Record order">{current.map((id, index) => <li key={index}>{typeof id === "string" ? idLabel(id, currentPath.slice(0, -1)) : read(id, currentPath)}</li>)}</ol>;
       return <ol className={current.every(isRecord) ? "draft-review-records" : "draft-review-list"} aria-label={draftFieldName(field, currentPath)}>{current.map((item, index) => <li key={index}>
         {isRecord(item) ? card(item, [...currentPath, typeof item.id === "string" ? `id:${item.id}` : String(index)], index)
-          : field === "requirementIds" && typeof item === "string" ? idLabel(item, ["requirements"]) : read(item, currentPath)}
+          : field === "requirementIds" && typeof item === "string" ? idLabel(item, ["requirements"])
+            : field === "dependsOn" && typeof item === "string" ? idLabel(item, ["tasks"]) : read(item, currentPath)}
       </li>)}</ol>;
     }
     if (isRecord(current)) {

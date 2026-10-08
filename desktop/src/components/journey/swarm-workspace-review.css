@@ -1,0 +1,10 @@
+@import "../../styles/tokens.css";
+.swarm-workspace-review { display: grid; gap: 16px; min-inline-size: 0; overflow-wrap: anywhere; }
+.swarm-workspace-review h3 { margin: 0 0 8px; font-size: 14px; }
+.swarm-workspace-review p { margin: 8px 0; line-height: 1.6; }
+.swarm-workspace-review > button { justify-self: start; }
+.swarm-workspace-review section, .swarm-workspace-review label { min-inline-size: 0; }
+.swarm-workspace-review select { inline-size: 100%; min-inline-size: 0; }
+.swarm-workspace-review pre { margin: 12px 0 0; padding: 12px; max-block-size: 360px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--inset); border: 1px solid var(--line-soft); border-radius: var(--r-ctl); font-size: 12px; line-height: 1.6; }
+.swarm-workspace-review pre:focus-visible, .swarm-workspace-review summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.swarm-workspace-review summary { cursor: pointer; line-height: 1.6; }

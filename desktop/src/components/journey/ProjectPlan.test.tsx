@@ -7,6 +7,7 @@ import type { ImplementationContext } from "../../store/types";
 import { aBranch, aHarness, aProject, aSession, aWorktree } from "../../test/fixtures";
 import { implementationPrompt, ProjectPlan } from "./ProjectPlan";
 import { DraftNavigationDialog } from "../common/DraftNavigationDialog";
+import { planDraftValid } from "../../hooks/projectDraftValidation";
 
 const { createSession, reviewedContext, draftIdentity } = vi.hoisted(() => ({ createSession: vi.fn(), reviewedContext: vi.fn(), draftIdentity: { value: "plan-permission-test" } }));
 vi.mock("../../api", () => ({ api: { createSession, getSessionReviewedContext: reviewedContext } }));
@@ -60,6 +61,133 @@ it("keeps an unbound prompt honest about live checkout context without claiming 
   expect(prompt).toContain("Work on this task: Build editor");
   expect(prompt).toContain("This task links: R-EDIT.");
   expect(prompt).not.toContain("captured");
+});
+
+async function openScope(taskNumber: number) {
+  await userEvent.click(await screen.findByText(new RegExp(`^Scope and dependencies for task ${taskNumber} ·`)));
+  return await screen.findByRole("group", { name: `Task ${taskNumber} waits for` });
+}
+
+it("saves task-specific acceptance, concrete file scope and dependencies without changing progress or dispatching", async () => {
+  const save = vi.spyOn(productApi, "savePlan").mockImplementation(async (_id, _revision, tasks) => ({ ...plan, tasks, revision: 4 }));
+  render(<ProjectPlan projectId="p-1" brief={brief} />);
+  const dependencies = await openScope(1);
+  fireEvent.change(screen.getByRole("textbox", { name: "How to verify task 1" }), { target: { value: "Write an entry, reload, and recover it after an offline save." } });
+  fireEvent.change(screen.getByRole("textbox", { name: "Intended files and folders for task 1" }), { target: { value: "src/editor\ntests/editor.test.ts\n" } });
+  await userEvent.click(within(dependencies).getByRole("checkbox", { name: "Set up project · Task 3" }));
+  expect((screen.getByRole("button", { name: "Start implementation session" }) as HTMLButtonElement).disabled).toBe(true);
+  await userEvent.click(screen.getByRole("button", { name: "Save implementation plan" }));
+  await screen.findByText("Plan saved as revision 4.");
+  const task = save.mock.calls[0][2][0];
+  expect(task).toEqual({ ...plan.tasks[0], acceptance: "Write an entry, reload, and recover it after an offline save.", writePaths: ["src/editor", "tests/editor.test.ts"], dependsOn: ["t-3"] });
+  expect(save.mock.calls[0][2].slice(1)).toEqual(plan.tasks.slice(1));
+  expect(browserDrafts()).toEqual({}); expect(createSession).not.toHaveBeenCalled();
+  const prompt = implementationPrompt(brief, { ...plan, tasks: [task, ...plan.tasks.slice(1)] }, task);
+  expect(prompt).toContain("Task acceptance: Write an entry, reload");
+  expect(prompt).toContain("Set up project (t-3)");
+  expect(prompt).toContain("src/editor, tests/editor.test.ts");
+  expect(prompt).toContain("Stop and explain if the task needs changes beyond this scope.");
+});
+
+it("keeps new coordination fields through browser recovery and a read-only downgrade without silent edits", async () => {
+  const save = vi.spyOn(productApi, "savePlan");
+  let mounted = render(<ProjectPlan projectId="p-1" brief={brief} />);
+  const dependencies = await openScope(1);
+  fireEvent.change(screen.getByLabelText("How to verify task 1"), { target: { value: "Keep my unfinished acceptance\n" } });
+  fireEvent.change(screen.getByLabelText("Intended files and folders for task 1"), { target: { value: "src/editor\n" } });
+  await userEvent.click(within(dependencies).getByRole("checkbox", { name: "Set up project · Task 3" }));
+  const retained = browserDrafts();
+  mounted.unmount();
+  mounted = render(<ProjectPlan projectId="p-1" brief={brief} />);
+  await screen.findByRole("region", { name: "Implementation plan draft recovery" });
+  await openScope(1);
+  expect((screen.getByLabelText("How to verify task 1") as HTMLTextAreaElement).value).toBe("");
+  await userEvent.click(screen.getByRole("button", { name: "Restore draft" }));
+  const acceptance = screen.getByLabelText("How to verify task 1") as HTMLTextAreaElement;
+  const paths = screen.getByLabelText("Intended files and folders for task 1") as HTMLTextAreaElement;
+  expect(acceptance.value).toBe("Keep my unfinished acceptance\n"); expect(paths.value).toBe("src/editor\n");
+  expect((within(screen.getByRole("group", { name: "Task 1 waits for" })).getByRole("checkbox", { name: "Set up project · Task 3" }) as HTMLInputElement).checked).toBe(true);
+  teamAccess.permissions.edit = false;
+  mounted.rerender(<ProjectPlan projectId="p-1" brief={brief} />);
+  expect(acceptance.disabled).toBe(true); expect(paths.disabled).toBe(true);
+  fireEvent.change(acceptance, { target: { value: "Unauthorized overwrite" } });
+  expect(acceptance.value).toBe("Keep my unfinished acceptance\n");
+  expect(JSON.parse(Object.values(browserDrafts())[0]!).value).toEqual(JSON.parse(Object.values(retained)[0]!).value);
+  expect(save).not.toHaveBeenCalled(); expect(createSession).not.toHaveBeenCalled();
+});
+
+it("merges a collaborator's file scope with draft dependencies and explicitly resolves overlapping acceptance", async () => {
+  const original: ImplementationPlan = { ...plan, tasks: plan.tasks.map((task, index) => index === 0 ? { ...task, acceptance: "Initial acceptance", writePaths: ["src/editor"] } : task) };
+  vi.mocked(productApi.plan).mockResolvedValue(original);
+  const save = vi.spyOn(productApi, "savePlan").mockRejectedValueOnce(new Error("The saved plan changed. Reload it before saving."));
+  render(<ProjectPlan projectId="p-1" brief={brief} />);
+  const dependencies = await openScope(1);
+  fireEvent.change(screen.getByLabelText("How to verify task 1"), { target: { value: "Offline recovery preserves the last saved entry" } });
+  await userEvent.click(within(dependencies).getByRole("checkbox", { name: "Set up project · Task 3" }));
+  await userEvent.click(screen.getByRole("button", { name: "Save implementation plan" }));
+  await screen.findByText("The saved plan changed. Reload it before saving.");
+  const current = { ...original, revision: 5, tasks: original.tasks.map((task, index) => index === 0 ? { ...task, acceptance: "A teammate's acceptance", writePaths: ["src/editor", "tests/recovery.test.ts"] } : task) };
+  vi.mocked(productApi.plan).mockResolvedValue(current);
+  save.mockImplementation(async (_id, _revision, tasks) => ({ ...current, tasks, revision: 6 }));
+  await userEvent.click(screen.getByRole("button", { name: "Reload saved plan" }));
+  await userEvent.click(await screen.findByRole("radio", { name: "Use my draft for Tasks · Build editor · How to verify this task" }));
+  await userEvent.click(screen.getByText("Review combined draft"));
+  const combined = await screen.findByText("Waits for tasks");
+  expect(within(screen.getByRole("list", { name: "Waits for tasks" })).getByText("Set up project")).not.toBeNull();
+  expect(within(combined.closest(".draft-document-review")!).getByText("tests/recovery.test.ts")).not.toBeNull();
+  await userEvent.click(screen.getByRole("checkbox", { name: /I reviewed the saved version and these recovery choices/ }));
+  await userEvent.click(screen.getByRole("button", { name: "Restore draft" }));
+  expect((screen.getByLabelText("How to verify task 1") as HTMLTextAreaElement).value).toBe("Offline recovery preserves the last saved entry");
+  expect((screen.getByLabelText("Intended files and folders for task 1") as HTMLTextAreaElement).value).toBe("src/editor\ntests/recovery.test.ts");
+  await userEvent.click(screen.getByRole("button", { name: "Save implementation plan" }));
+  await screen.findByText("Plan saved as revision 6.");
+  expect(save.mock.calls[1][1]).toBe(5);
+  expect(save.mock.calls[1][2][0]).toEqual({ ...current.tasks[0], acceptance: "Offline recovery preserves the last saved entry", dependsOn: ["t-3"] });
+});
+
+it("requires deliberate removal of a missing dependency and prevents a dependency loop before saving", async () => {
+  vi.mocked(productApi.plan).mockResolvedValue({ ...plan, tasks: plan.tasks.map((task, index) => index === 0 ? { ...task, dependsOn: ["t-3"] } : task) });
+  const save = vi.spyOn(productApi, "savePlan");
+  render(<ProjectPlan projectId="p-1" brief={brief} />);
+  await userEvent.click(await screen.findByRole("button", { name: "Remove task 3" }));
+  await screen.findByText(/A task still depends on a removed task/);
+  expect((screen.getByRole("button", { name: "Save implementation plan" }) as HTMLButtonElement).disabled).toBe(true);
+  const first = await openScope(1);
+  await userEvent.click(within(first).getByRole("checkbox", { name: /t-3 · Unavailable task/ }));
+  expect(screen.queryByText(/A task still depends on a removed task/)).toBeNull();
+  await userEvent.click(within(first).getByRole("checkbox", { name: "Save entries · Task 2" }));
+  const second = await openScope(2);
+  await userEvent.click(within(second).getByRole("checkbox", { name: "Build editor · Task 1" }));
+  await screen.findByText(/These dependencies form a loop/);
+  expect((screen.getByRole("button", { name: "Save implementation plan" }) as HTMLButtonElement).disabled).toBe(true);
+  await userEvent.click(within(second).getByRole("checkbox", { name: "Build editor · Task 1" }));
+  expect(screen.queryByText(/These dependencies form a loop/)).toBeNull();
+  expect((screen.getByRole("button", { name: "Save implementation plan" }) as HTMLButtonElement).disabled).toBe(false);
+  expect(save).not.toHaveBeenCalled(); expect(createSession).not.toHaveBeenCalled();
+});
+
+it("shows saved dependencies and shared scope without presenting human progress as runtime or verification", async () => {
+  const graphed: ImplementationPlan = { ...plan, graph: { waves: [["t-3"], ["t-1", "t-2"]], readyTaskIds: ["t-1"], blocked: [], conflicts: [{ taskIds: ["t-1", "t-2"], paths: ["src/editor", "src/editor/store.ts"] }], conflictsOmitted: 2, unscopedTaskIds: [], recordedDoneTaskIds: ["t-3"] } };
+  vi.mocked(productApi.plan).mockResolvedValue(graphed);
+  render(<ProjectPlan projectId="p-1" brief={brief} />);
+  const graph = await screen.findByRole("region", { name: "Saved task coordination" });
+  expect(within(graph).getByRole("list", { name: "Dependency waves" }).children).toHaveLength(2);
+  expect(within(graph).getByText("3 potential file overlaps")).not.toBeNull();
+  expect(within(graph).getByText("src/editor/store.ts")).not.toBeNull();
+  await userEvent.click(within(graph).getByText(/Recorded progress ·/));
+  expect(within(graph).getByText(/It does not mean an agent ran, changes were integrated, or checks passed/)).not.toBeNull();
+  fireEvent.change(screen.getByLabelText("Task 1"), { target: { value: "Unsaved replacement title" } });
+  expect(within(graph).getByText(/This is the saved plan/)).not.toBeNull();
+  expect(within(graph).queryByText("Unsaved replacement title")).toBeNull();
+  expect(createSession).not.toHaveBeenCalled();
+});
+
+it("accepts legacy and extended browser drafts and safely rejects malformed optional scope fields", () => {
+  expect(planDraftValid({ tasks: plan.tasks, title: "" })).toBe(true);
+  expect(planDraftValid({ tasks: [{ ...plan.tasks[0], acceptance: "Expected result", dependsOn: ["t-3"], writePaths: ["src/editor", ""] }], title: "" })).toBe(true);
+  for (const invalid of [{ dependsOn: "t-3" }, { writePaths: [1] }, { acceptance: {} }, { requirementIds: {} }]) {
+    expect(planDraftValid({ tasks: [{ ...plan.tasks[0], ...invalid }], title: "" })).toBe(false);
+  }
 });
 
 it("requires current definition and design approvals and provides their review paths", async () => {

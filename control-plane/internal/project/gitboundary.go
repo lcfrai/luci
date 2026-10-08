@@ -1,6 +1,7 @@
 package project
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -136,7 +137,9 @@ func boundedGitDirectory(root, dir string) (string, string, error) {
 		if err != nil {
 			return "", "", err
 		}
-		if gitIncludeSection.Match(raw) {
+		// Git accepts a UTF-8 BOM before the first section. Normalize only
+		// that marker so it cannot hide an include from this pre-Git guard.
+		if gitIncludeSection.Match(bytes.TrimPrefix(raw, []byte{0xef, 0xbb, 0xbf})) {
 			return "", "", errors.New("project: repository Git configuration cannot include host files")
 		}
 	}

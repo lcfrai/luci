@@ -1,0 +1,170 @@
+import { useState } from 'react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, expect, it, vi } from 'vitest';
+import { api } from '../../api';
+import { projectRunsApi, type ProjectRun, type RunOperation, type SwarmTask } from '../../api/projectRuns';
+import { projectSwarmApi, type SwarmReview } from '../../api/projectSwarm';
+import { aSession } from '../../test/fixtures';
+import { resetCockpit } from '../../store/store';
+import { ProjectSwarm } from './ProjectSwarm';
+
+const task = (id: string, patch: Partial<SwarmTask> = {}): SwarmTask => ({id, title: `Build ${id}`, dependsOn: [], writePaths: [`src/${id}.ts`], acceptance: `Verify ${id} behavior`, ...patch});
+const base = (): ProjectRun => ({
+  id: 'run-1', projectId: 'p-1', worktreeId: 'main', revision: 1, state: 'ready', reason: 'Reviewed inputs saved', createdAt: '2026-10-08T00:00:00Z', updatedAt: '2026-10-08T00:00:00Z',
+  input: {implementation: {projectId: 'p-1', worktreeId: 'main', briefRevision: 1, planRevision: 1, specificationRevision: 1, designPlanRevision: 1, taskIds: ['a', 'b', 'c'], taskTitles: ['Build a', 'Build b', 'Build c'], requirementIds: ['r1'], briefDigest: 'brief', planDigest: 'plan', specificationDigest: 'spec', designPlanDigest: 'design', sourceCommit: 'a'.repeat(40), sourceDigest: 'source', sourceDirty: false}, approvals: {specificationApprovalId: 'as', specificationRevision: 1, specificationDigest: 'spec', designApprovalId: 'ad', designRevision: 1, designDigest: 'design', briefDigest: 'brief', sketchDigest: ''}, outcome: 'preview', requirements: [{id: 'r1', title: 'App', acceptance: 'Works'}], route: {harness: 'codex', model: 'recorded-model', permissionMode: 'ask', connection: {id: 'saved', kind: 'compatible-api', revision: 3}}},
+  operations: [], checks: [], releases: [], allowedActions: [], contextFreshness: {status: 'current', reason: 'Current'},
+  swarm: {state: 'ready', maxParallel: 2, tasks: [task('a'), task('b'), task('c', {dependsOn: ['a', 'b']})]},
+});
+const op = (run: ProjectRun, id: string, status = 'reserved'): RunOperation => ({id: `op-${id}`, kind: 'session', taskId: id, childId: `session-${id}`, worktreeId: `isolated-${id}`, attempt: 1, status, allocation: 'ready', baseCommit: 'a'.repeat(40), implementation: {...run.input.implementation, worktreeId: `isolated-${id}`, taskIds: [id], taskTitles: [`Build ${id}`]}, requestDigest: 'request', createdAt: run.createdAt, updatedAt: run.updatedAt});
+const attach = (run: ProjectRun, operation: RunOperation): ProjectRun => ({...run, revision: run.revision + 1, operations: [...run.operations.filter(item => item.id !== operation.id), operation], swarm: {...run.swarm!, tasks: run.swarm!.tasks.map(item => item.id === operation.taskId ? {...item, operationId: operation.id} : item)}});
+function Harness({initial = base(), canEdit = true, canExecute = true, updated = vi.fn()} : {initial?: ProjectRun; canEdit?: boolean; canExecute?: boolean; updated?: (run: ProjectRun) => void}) {
+  const [run, setRun] = useState(initial), [busy, setBusy] = useState('');
+  return <ProjectSwarm run={run} canEdit={canEdit} canExecute={canExecute} busy={!!busy} onBusy={setBusy} onUpdate={value => {setRun(value); updated(value);}} onOpenSession={vi.fn()} />;
+}
+beforeEach(() => {vi.restoreAllMocks(); resetCockpit();});
+
+it('starts independent tasks with separate captured contexts and keeps dependent work waiting', async () => {
+  let saved = base();
+  const reserve = vi.spyOn(projectSwarmApi, 'reserve').mockImplementation(async (_project, _run, id, revision) => {
+    expect(revision).toBe(saved.revision);
+    const operation = op(saved, id); saved = attach(saved, operation); return {run: saved, operation};
+  });
+  const create = vi.spyOn(api, 'createSession').mockImplementation(async request => {
+    const operation = saved.operations.find(item => item.id === request.projectRunOperationId)!;
+    saved = attach(saved, {...operation, status: 'running'});
+    return aSession({id: operation.childId, worktreeId: operation.worktreeId!, projectId: 'p-1', projectRunId: 'run-1', projectRunOperationId: operation.id});
+  });
+  vi.spyOn(projectRunsApi, 'get').mockImplementation(async () => saved);
+  render(<Harness />);
+  expect(screen.getByText('Waiting for reviewed integration: Build a; Build b.')).not.toBeNull();
+  await userEvent.click(screen.getByRole('button', {name: 'Start ready tasks (2)'}));
+  await waitFor(() => expect(create).toHaveBeenCalledTimes(2));
+  expect(reserve.mock.calls.map(call => call[2])).toEqual(['a', 'b']);
+  expect(create.mock.calls.map(([request]) => [request.worktreeId, request.implementationContext?.taskIds, request.model, request.agentConnectionId])).toEqual([
+    ['isolated-a', ['a'], 'recorded-model', 'saved'], ['isolated-b', ['b'], 'recorded-model', 'saved'],
+  ]);
+  expect(screen.getByText('New starts enabled · 2 of 2 agent slots occupied')).not.toBeNull();
+  expect(screen.getByText('Waiting for reviewed integration: Build a; Build b.')).not.toBeNull();
+});
+
+it('does not silently retry a lost start response and keeps the reserved child visible', async () => {
+  const initial = base(), operation = op(initial, 'a'), saved = attach(initial, operation);
+  const reserve = vi.spyOn(projectSwarmApi, 'reserve').mockResolvedValue({run: saved, operation});
+  const create = vi.spyOn(api, 'createSession').mockRejectedValue(new Error('Connection interrupted'));
+  render(<Harness initial={initial} />);
+  await userEvent.click(screen.getAllByRole('button', {name: 'Start task'})[0]);
+  await screen.findByRole('alert');
+  expect(screen.getByText(/start result is unconfirmed/)).not.toBeNull();
+  expect(screen.getByRole('button', {name: 'Continue reserved task'})).toHaveProperty('disabled', true);
+  expect(reserve).toHaveBeenCalledTimes(1); expect(create).toHaveBeenCalledTimes(1);
+});
+
+it('fences a delayed reservation after execution authority changes, even if later restored', async () => {
+  const initial = base(), operation = op(initial, 'a'), saved = attach(initial, operation);
+  let finish!: (value: {run: ProjectRun; operation: RunOperation}) => void;
+  vi.spyOn(projectSwarmApi, 'reserve').mockReturnValue(new Promise(resolve => {finish = resolve;}));
+  const create = vi.spyOn(api, 'createSession'), updated = vi.fn();
+  const view = render(<Harness initial={initial} updated={updated} />);
+  await userEvent.click(screen.getAllByRole('button', {name: 'Start task'})[0]);
+  view.rerender(<Harness initial={initial} updated={updated} canExecute={false} />);
+  view.rerender(<Harness initial={initial} updated={updated} canExecute />);
+  await act(async () => finish({run: saved, operation}));
+  expect(create).not.toHaveBeenCalled(); expect(updated).not.toHaveBeenCalled();
+});
+
+it('fences a delayed reservation after leaving the team view', async () => {
+  const initial = base(), operation = op(initial, 'a');
+  let finish!: (value: {run: ProjectRun; operation: RunOperation}) => void;
+  vi.spyOn(projectSwarmApi, 'reserve').mockReturnValue(new Promise(resolve => {finish = resolve;}));
+  const create = vi.spyOn(api, 'createSession');
+  const view = render(<Harness initial={initial} />);
+  await userEvent.click(screen.getAllByRole('button', {name: 'Start task'})[0]); view.unmount();
+  await act(async () => finish({run: attach(initial, operation), operation}));
+  expect(create).not.toHaveBeenCalled();
+});
+
+it('pause stops future starts without claiming existing agents stopped, and resume never launches them', async () => {
+  const initial = base();
+  const control = vi.spyOn(projectSwarmApi, 'control').mockImplementation(async (_p, _r, action) => ({...initial, revision: action === 'pause' ? 2 : 3, swarm: {...initial.swarm!, state: action === 'pause' ? 'paused' : 'ready'}}));
+  const create = vi.spyOn(api, 'createSession');
+  render(<Harness initial={initial} />);
+  await userEvent.click(screen.getByRole('button', {name: 'Pause new starts'}));
+  expect(await screen.findByText('Future task starts stopped. Existing sessions keep their own stop controls.')).not.toBeNull();
+  expect(screen.getByRole('button', {name: 'Start ready tasks'})).toHaveProperty('disabled', true);
+  await userEvent.click(screen.getByRole('button', {name: 'Resume new starts'}));
+  expect(await screen.findByText('New starts enabled. Choose the ready tasks to continue.')).not.toBeNull();
+  expect(control.mock.calls.map(call => call[2])).toEqual(['pause', 'resume']); expect(create).not.toHaveBeenCalled();
+});
+
+it('requires explicit exact-change review before integrating, and integration alone does not claim verification', async () => {
+  const initial = base(), operation = op(initial, 'a', 'succeeded'), saved = attach(initial, operation);
+  const review: SwarmReview = {taskId: 'a', operationId: operation.id, sourceCommit: 'b'.repeat(40), targetCommit: 'a'.repeat(40), reviewDigest: 'exact-digest', paths: ['src/a.ts'], patch: '+export const a = 1;', canIntegrate: true, reason: 'Ready for integration'};
+  vi.spyOn(projectSwarmApi, 'review').mockResolvedValue(review);
+  const integrate = vi.spyOn(projectSwarmApi, 'integrate').mockResolvedValue({...saved, revision: 3, swarm: {...saved.swarm!, tasks: saved.swarm!.tasks.map(item => item.id === 'a' ? {...item, integration: {state: 'integrated' as const, reviewDigest: review.reviewDigest, commit: 'c'.repeat(40), sourceCommit: review.sourceCommit, targetCommit: review.targetCommit, integratedAt: saved.updatedAt}} : item)}});
+  render(<Harness initial={saved} />);
+  await userEvent.click(screen.getByRole('button', {name: 'Review task changes'}));
+  const dialog = await screen.findByRole('dialog', {name: 'Review task changes'});
+  expect(within(dialog).getByRole('button', {name: 'Integrate reviewed changes'})).toHaveProperty('disabled', true);
+  expect(within(dialog).getByLabelText('Reviewed task diff').textContent).toContain('export const a = 1');
+  await userEvent.click(within(dialog).getByRole('checkbox'));
+  await userEvent.click(within(dialog).getByRole('button', {name: 'Integrate reviewed changes'}));
+  await waitFor(() => expect(integrate).toHaveBeenCalledWith('p-1', 'run-1', 'a', saved.revision, 'exact-digest'));
+  expect(await screen.findByText('Reviewed changes integrated. Dependent tasks can now start; the combined build still needs verification.')).not.toBeNull();
+  expect(screen.getByText('Waiting for reviewed integration: Build b.')).not.toBeNull();
+});
+
+it('serializes unspecified or overlapping file scopes and blocks readers from execution', async () => {
+  const initial = base(), operation = op(initial, 'a', 'running');
+  let saved = attach(initial, operation);
+  saved = {...saved, swarm: {...saved.swarm!, tasks: saved.swarm!.tasks.map(item => item.id === 'b' ? {...item, writePaths: ['SRC/A.ts']} : item)}};
+  render(<Harness initial={saved} canEdit={false} canExecute={false} />);
+  expect(screen.getByText('Wait for Build a: intended files overlap or have not been specified.')).not.toBeNull();
+  expect(screen.getByRole('button', {name: 'Start ready tasks'})).toHaveProperty('disabled', true);
+  screen.getAllByRole('button', {name: 'Start task'}).forEach(button => expect(button).toHaveProperty('disabled', true));
+  expect(screen.getByRole('button', {name: 'Pause new starts'})).toHaveProperty('disabled', true);
+  expect(screen.getByRole('button', {name: 'Open task session'})).toHaveProperty('disabled', false);
+});
+
+it.each(['integrating', 'unknown'] as const)('retains %s integration uncertainty instead of releasing dependencies or claiming success', async state => {
+  const initial = base();
+  initial.swarm!.tasks[0].integration = {state, reviewDigest: 'retained', sourceCommit: 'b'.repeat(40), targetCommit: 'a'.repeat(40)};
+  render(<Harness initial={initial} />);
+  expect(screen.getByText('0 of 3 integrated')).not.toBeNull();
+  expect(screen.getByText('Integration outcome unconfirmed')).not.toBeNull();
+  expect(screen.getByText('Waiting for reviewed integration: Build a; Build b.')).not.toBeNull();
+  expect(screen.queryByText('Integrated', {exact: true})).toBeNull();
+});
+
+it('offers the saved subscription route only one slot and prepares without starting an agent', async () => {
+  const initial = base(); delete initial.swarm;
+  initial.input.route.connection = {...initial.input.route.connection, kind: 'codex-subscription', authMode: 'chatgpt'};
+  const prepare = vi.spyOn(projectSwarmApi, 'prepare').mockResolvedValue({...initial, swarm: {...base().swarm!, maxParallel: 1}, revision: 2});
+  const create = vi.spyOn(api, 'createSession');
+  render(<Harness initial={initial} />);
+  await userEvent.click(screen.getByRole('button', {name: 'Prepare agent team'}));
+  const dialog = await screen.findByRole('dialog', {name: 'Prepare agent team'});
+  expect(within(dialog).getByRole('combobox')).toHaveProperty('value', '1');
+  expect(within(dialog).getByRole('combobox')).toHaveProperty('disabled', true);
+  expect(within(dialog).getByText(/supports one active agent/)).not.toBeNull();
+  await userEvent.click(within(dialog).getByRole('button', {name: 'Prepare team'}));
+  await waitFor(() => expect(prepare).toHaveBeenCalledWith('p-1', 'run-1', 1, 1));
+  expect(create).not.toHaveBeenCalled();
+});
+
+it('requires an explicit recovery choice, retains output and does not launch the retry', async () => {
+  const initial = base(), operation = {...op(initial, 'a', 'failed'), allocation: 'unknown' as const};
+  const saved = attach(initial, operation);
+  const abandon = vi.spyOn(projectSwarmApi, 'abandon').mockResolvedValue(attach(saved, {...operation, status: 'cancelled', allocation: 'abandoned'}));
+  const create = vi.spyOn(api, 'createSession');
+  render(<Harness initial={saved} />);
+  expect(screen.queryByRole('button', {name: 'Open task session'})).toBeNull();
+  expect(screen.getByRole('button', {name: 'Inspect workspace output'})).not.toBeNull();
+  await userEvent.click(screen.getByRole('button', {name: 'Retain changes and retry'}));
+  expect(abandon).not.toHaveBeenCalled();
+  const dialog = await screen.findByRole('dialog', {name: 'Retain changes and retry'});
+  await userEvent.click(within(dialog).getByRole('button', {name: 'Retain output and allow retry'}));
+  await waitFor(() => expect(abandon).toHaveBeenCalledWith('p-1', 'run-1', 'a', saved.revision));
+  expect(await screen.findByText('Previous changes retained. Start the task explicitly when ready to retry.')).not.toBeNull();
+  expect(create).not.toHaveBeenCalled();
+});

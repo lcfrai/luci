@@ -23,6 +23,8 @@ import { Button } from "../fluid/components/button";
 import { notifyRequirementEvidenceChanged, watchRequirementEvidence } from "./RequirementsEvidence";
 import { notifyProjectContextChanged } from "../../api/projectContextEvents";
 import type { ProjectRunDraft } from "./ProjectRuns";
+import { PlanTaskGraph, taskDependencyIssue } from "./PlanTaskGraph";
+import { TaskScope } from "./TaskScope";
 
 export function implementationPrompt(
   brief: Brief,
@@ -39,6 +41,10 @@ export function implementationPrompt(
     task
       ? `Work on this task: ${task.title}`
       : "Start with unfinished tasks and complete the plan in a sensible order.",
+    task?.acceptance?.trim() ? `Task acceptance: ${task.acceptance}` : "",
+    task?.dependsOn?.length ? `This task depends on: ${task.dependsOn.map(id => `${plan.tasks.find(item => item.id === id)?.title ?? id} (${id})`).join("; ")}. Inspect the prerequisite results before making changes; a recorded Done status alone is not verification.` : "",
+    task?.writePaths?.length ? `Intended files and folders for this task: ${task.writePaths.join(", ")}. Stop and explain if the task needs changes beyond this scope.` : "",
+    "Use the selected tasks' saved acceptance, dependencies and intended file scopes. Where these are missing or ambiguous, explain what needs clarification before expanding the work. Parallel work needs isolated execution and reviewed integration; task order alone is not proof that concurrent changes are safe.",
     plan.specificationRevision
       ? `Task requirement links refer to specification revision ${plan.specificationRevision}. ${context ? "Read the captured specification for the exact criteria." : "Read .luci/specification.json for the exact criteria."}${task?.requirementIds?.length ? ` This task links: ${task.requirementIds.join(", ")}.` : ""}`
       : "This plan has no approved requirement binding yet. Do not infer verified coverage from task progress.",
@@ -191,6 +197,7 @@ function ProjectPlanEditor({ projectId, brief, onPrepareRun, scope }: Props & { 
   const approvedRequirements = coverage?.specification.status === "approved";
   const linked = tasks.some(task => task.requirementIds?.length);
   const unavailableLinks = !!coverage && tasks.some(task => task.requirementIds?.some(id => !requirements.some(row => row.requirementId === id)));
+  const dependencyIssue = useMemo(() => taskDependencyIssue(tasks), [tasks]);
   const needsRebind = !!plan && (plan.briefRevision !== brief.revision || (!!approvedRequirements && plan.specificationRevision !== coverage!.specification.revision));
   const handoffIssue = !canEdit ? "Editing access is required to prepare or start implementation." : savedRead !== "ready" ? "Read the current saved plan before preparing or starting implementation." : draft.pending ? "Restore or discard the browser draft before handing the plan to an agent." : dirty ? "Save changes before handing the plan to an agent."
     : !plan?.revision ? "Save the implementation plan before starting."
@@ -284,6 +291,8 @@ function ProjectPlanEditor({ projectId, brief, onPrepareRun, scope }: Props & { 
           {!!plan.specificationRevision && coverage && plan.specificationRevision !== coverage.specification.revision && <p className="journey-warning">Task links were saved against requirements revision {plan.specificationRevision}; the current revision is {coverage.specification.revision}. Review the requirement text and save the links again.</p>}
           {requirementsError && <p className="journey-error" role="alert">{requirementsError}</p>}
           <Button type="button" variant="tertiary" disabled={refreshingRequirements} onClick={() => void loadRequirements()}>{refreshingRequirements ? "Refreshing requirements…" : "Refresh approved requirements"}</Button>
+          <PlanTaskGraph plan={plan} dirty={dirty} />
+          {dependencyIssue && <p className="journey-warning" role="alert">{dependencyIssue}</p>}
           <ul className="project-tasks">
             {tasks.map((task, index) => (
               <li key={task.id}>
@@ -342,6 +351,7 @@ function ProjectPlanEditor({ projectId, brief, onPrepareRun, scope }: Props & { 
                 >
                   Remove
                 </Button>
+                <TaskScope task={task} index={index} tasks={tasks} disabled={!canEdit || locked || !!draft.pending} onChange={next => edit(tasks.map(item => item.id === task.id ? next : item))} />
                 <details className="task-requirements">
                   <summary>Requirements for task {index + 1} · {task.requirementIds?.length ?? 0} linked</summary>
                   {!approvedRequirements && <p className="journey-muted">Approve the current requirements in Define before adding links. Existing links can be removed.</p>}
@@ -407,19 +417,21 @@ function ProjectPlanEditor({ projectId, brief, onPrepareRun, scope }: Props & { 
             {onPrepareRun && <Button type="button" disabled={!canEdit || locked || !!draft.pending || !!handoffIssue || !worktreeId || !plan.tasks.some(task => task.status !== "done")} onClick={() => handoff(undefined, true)}>Prepare project run</Button>}
             <Button type="button" variant="primary" loading={busy}
               disabled={
-                !canEdit || locked || !!draft.pending || (!changed && !needsRebind) || tasks.some((task) => !task.title.trim()) || (linked && (!approvedRequirements || unavailableLinks))
+                !canEdit || locked || !!draft.pending || !!dependencyIssue || (!changed && !needsRebind) || tasks.some((task) => !task.title.trim()) || (linked && (!approvedRequirements || unavailableLinks))
               }
               onClick={() => {
-                if (!currentAccess.current.canEdit || !reading.current.ready || saving.current !== null || draft.pending) return;
+                if (!currentAccess.current.canEdit || !reading.current.ready || saving.current !== null || draft.pending || dependencyIssue) return;
                 const context = generation.current;
                 if (saving.current === context) return;
                 saving.current = context;
                 setBusy(true);
                 setError("");
                 setNotice("");
+                // Preserve line edits in recovery, but do not send blank lines as paths.
+                const savedTasks = tasks.map(task => task.writePaths ? { ...task, writePaths: task.writePaths.map(path => path.trim()).filter(Boolean) } : task);
                 void (approvedRequirements
-                  ? productApi.savePlan(projectId, plan.revision, tasks, coverage!.specification.revision)
-                  : productApi.savePlan(projectId, plan.revision, tasks))
+                  ? productApi.savePlan(projectId, plan.revision, savedTasks, coverage!.specification.revision)
+                  : productApi.savePlan(projectId, plan.revision, savedTasks))
                   .then((value) => {
                     if (alive.current && context === generation.current) {
                       if (!title.trim()) draft.clear();

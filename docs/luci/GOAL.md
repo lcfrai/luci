@@ -1,5 +1,143 @@
 # Finish the full Luci product
 
+## Interactive application and local testing handoff — 8 October 2026
+
+The owner explicitly requires a working interactive application with polished
+**shadcn/ui styling and consistent accessible controls**. A static mockup or a
+knowingly incomplete demonstration is not the local product. Cross-project
+workflows must make it easy to select a project, create/delegate work, understand
+running/queued/blocked state, prioritize, pause/resume/cancel/retry where supported,
+inspect changes and checked results, and complete actions without losing scope.
+Use multi-select/bulk actions and a global action/attention queue where they save
+work. Explain exact scope, effects and partial failures.
+
+First Windows acceptance is assigned to the originating local testing thread,
+`01a1199f-7500-7843-b02b-081081e536fa` on host `local`; it is no longer assumed that
+the owner must personally run that first pass. Once the code is integrated,
+retrievable and available checks have passed or have precise limitations, send
+that thread the exact branch/revision, retrieval/start commands, prerequisites,
+configuration names (no secret values), evidence, unverified cases and a concrete
+four-project functional/resource sequence. Use a supported messaging tool if
+available; otherwise post **LOCAL TEST HANDOFF READY** in this cloud thread.
+Do not label the handoff ready early or launch processes on the owner's machine.
+The local tester will use an isolated checkout, preserve existing work and return
+Windows/provider/interaction/resource findings for correction.
+
+## Four or more projects without overwhelming the computer — 8 October 2026
+
+The owner regularly works on four or more projects concurrently. Local release
+acceptance therefore requires **cross-project progress and whole-computer
+responsiveness**, not merely multiple agents inside one project. The owner's
+Windows machine reports **31.2 GiB physical RAM**. That is a reference capacity,
+not permission for Luci to consume it all; normal work applications must retain
+comfortable headroom.
+
+Provide one understandable overview of useful progress, running versus queued
+work, blockers, decisions, next actions and resource use. Switching projects
+must restore their goals and work without repeated explanation. Keep each
+project's decisions, constraints, task graph, source revisions and evidence
+separate through handoff, compaction, switching and service restart. Each worker
+receives only its relevant task context, with complete authoritative project
+artifacts available deliberately and stale-source checks preserved.
+
+Schedule globally across projects using resource budgets, per-project limits,
+fair progress, user priorities and actual provider concurrency constraints. Four
+projects can advance without four expensive workers running at once. Queue and
+back off before memory pressure harms the host; preserve owned output and
+checkpoint/resume where supported without duplicate work or starvation. Account
+for agent processes, containers, dev servers, test runners and browsers, not
+only the Luci UI. Keep idle footprint and memory growth bounded through lazy
+views, incremental work, bounded caches/logs and owned-resource cleanup.
+
+Run a repeatable sustained four-project mixed workload covering implementation,
+builds/tests, research/review, switching, failures/cancellation and restart.
+Measure total owned-process memory, idle/peak RAM and growth, CPU/disk pressure,
+interaction responsiveness, useful throughput, fairness and verified outputs.
+Derive and explain budgets from observed host baselines and actual hardware;
+do not invent performance or market-leadership claims. Complete available Linux
+checks and provide the corresponding precise Windows procedure, with native
+and provider-dependent gaps explicit. Later cloud offload must use this same
+project/context/scheduling contract.
+
+## Immediate milestone: complete the local app — 8 October 2026
+
+Owner's explicit `/goal` objective:
+
+> Deliver Luci as an exceptional local-first app for building software with
+> coordinated agent swarms, aiming for the strongest context handling and most
+> effective building experience available. Complete and verify the local
+> product: durable project and task context, dependency-aware parallel delegation,
+> isolated execution and reviewed integration, interruption and failure recovery,
+> clear progress and user control, and real end-to-end build workflows. Evaluate
+> GSD-Core, relevant GSD solutions and Nimbalyst and incorporate the strongest
+> applicable improvements. Demonstrate quality, speed and resource efficiency
+> with realistic tests and benchmarks. Finish all work and checks available in
+> this environment, then provide the exact revision or source artifact to pull,
+> reproducible Windows setup and test instructions, evidence, and precise
+> remaining machine/access-dependent checks for Dylan's local acceptance.
+> Cloud-only prerequisites must not block this local milestone. Preserve existing
+> authorizations and constraints. After Dylan tests locally and supplies access,
+> use Luci itself to build and verify its cloud capabilities; prepare that next
+> phase without treating cloud deployment as a prerequisite to local handoff.
+> Research, a roadmap or isolated fixes do not constitute completion.
+
+The owner has explicitly changed delivery sequencing to **local first**. Finish
+Luci as an exceptional local application for building real software with
+coordinated agent swarms, dependable context, fast execution and a polished
+operator experience. The cloud development environment is not the product's
+deployment target. Cloud-only merchant, hosted infrastructure and public-domain
+prerequisites do not block independent work or the local handoff.
+
+Local acceptance requires reproducible setup and startup on the owner's Windows
+machine; provider and credential configuration; real plan-to-build-to-verified
+result workflows; dependency-aware parallel agents with isolated workspaces and
+reviewed integration; durable project memory and task-specific context;
+checkpoint/restart and failed-agent recovery; and understandable progress,
+steering, pause, cancel and resume controls. Measure quality, elapsed time and
+resource use. Controlled agents and cross-compilation are useful scoped evidence,
+not live-model or native Windows acceptance.
+
+Complete all local implementation and validation possible here, commit it and
+provide an exact pullable revision, Windows prerequisites and commands, test
+evidence, known limitations and a prioritized acceptance checklist. Identify
+precisely which checks require the owner's machine or provider access. Do not
+declare the local milestone passed while a required local gate is unverified.
+
+After the owner's local testing and supplied access, use Luci's own agents and
+reviewed workflows on Luci's source to implement and verify cloud execution and
+connectivity. Prepare the architecture and backlog now; cloud provisioning comes
+after the local handoff. The longer-term local-plus-cloud and optional managed
+service objective remains open. Completing local delivery is a milestone, not
+completion of the entire cloud-capable product.
+
+## Agent-swarm harness objective — 8 October 2026
+
+The owner's renewed objective is: **Build the best possible polished, dependable
+harness and application for coordinating swarms of agents to deliver real work
+quickly and effectively, from an idea and shared context through verified results,
+deployment and operation.** This extends the full-product contract below; it does
+not replace it with a research report, roadmap or individual integration.
+
+Demonstrate sound task decomposition and dependencies, effective parallel
+delegation, durable shared context, reliable handoffs and recovery, isolated
+execution, safe integration of agent changes, and clear progress, intervention
+and review controls. Compare applicable GSD-Core, other GSD and Nimbalyst
+mechanisms with Luci's implementation. Adopt useful ideas with appropriate
+licensing and measure completion time, concurrency, resource use and result
+quality on representative end-to-end workflows. “Absolute best” is an ambition
+to assess through explicit comparisons and measured outcomes, not a claim
+established by a passing suite or unsupported superlative.
+
+Persistent-goal status is separate from this document and the running thread.
+The last confirmed platform status was **blocked**. On 8 October the owner
+explicitly resumed pursuit of this objective, but this session exposes no
+persistent-goal read, edit or activation API. Therefore platform reactivation
+cannot be verified or performed here; it requires a supported app/user control.
+Independent research, implementation and verification continue under this
+documented objective. Preserve the unresolved live-model, full-stack capacity,
+commercial, public-deployment and native-distribution gates. This goal remains
+**unfinished**, and no earlier checkpoint establishes production readiness.
+
 The owner's direction on 5 October 2026 expands the earlier four-phase Docker
 benchmark. That benchmark remains mandatory evidence within this full product
 goal; it is not the definition of completion. This goal supersedes earlier

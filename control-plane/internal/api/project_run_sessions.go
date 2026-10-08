@@ -85,7 +85,7 @@ func projectRunSessionRequestMatches(req sessionCreateRequest, existing registry
 	if req.ImplementationContext == nil || existing.ImplementationContext == nil || !sameImplementationSelection(req.ImplementationContext, product.ImplementationContextSelection(existing.ImplementationContext)) {
 		return false
 	}
-	prompts := []string{product.ImplementationOpeningPrompt(existing.ImplementationContext)}
+	prompts := []string{product.ImplementationOpeningPrompt(existing.ImplementationContext), product.PreviousCapturedImplementationOpeningPrompt(existing.ImplementationContext)}
 	if existing.ReviewedContext == nil {
 		prompts = append(prompts, product.LegacyImplementationOpeningPrompt(existing.ImplementationContext))
 	}

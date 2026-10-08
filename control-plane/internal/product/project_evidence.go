@@ -66,6 +66,8 @@ func snapshotProjectTasks(tasks []ProjectTask) []ProjectTask {
 	copy := append([]ProjectTask{}, tasks...)
 	for i := range copy {
 		copy[i].RequirementIDs = append([]string(nil), copy[i].RequirementIDs...)
+		copy[i].DependsOn = append([]string(nil), copy[i].DependsOn...)
+		copy[i].WritePaths = append([]string(nil), copy[i].WritePaths...)
 	}
 	return copy
 }

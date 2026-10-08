@@ -74,7 +74,11 @@ func (a *API) bindSessionImplementation(w http.ResponseWriter, r *http.Request, 
 	var bound *registry.ImplementationContext
 	var err error
 	if capture == nil {
-		capture, err = a.deps.Product.CaptureImplementationContext(r.Context(), *selection, req.WorktreeID, path)
+		if req.ProjectRunID != "" {
+			capture, err = a.deps.Product.CaptureProjectRunTaskContext(r.Context(), projectID, req.ProjectRunID, req.ProjectRunOperationID, req.WorktreeID, path, *selection)
+		} else {
+			capture, err = a.deps.Product.CaptureImplementationContext(r.Context(), *selection, req.WorktreeID, path)
+		}
 		if err == nil {
 			bound = capture.Binding
 		}

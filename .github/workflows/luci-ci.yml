@@ -349,6 +349,7 @@ jobs:
           cache-dependency-path: desktop/package-lock.json
       - name: Verify native acceptance failure reporting
         run: |
+          ./scripts/test-dev-windows.ps1
           node --test scripts/test-native-eval-report.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Native failure-reporting regression tests failed' }
       - name: Prepare stable Rust MSVC toolchain
@@ -397,6 +398,7 @@ jobs:
             artifacts/native-installed-eval/*-failure-text.txt
             artifacts/native-installed-eval/driver-*.log
             artifacts/package-eval/windows/*.json
+            artifacts/windows-source-launcher/results.json
           if-no-files-found: warn
           retention-days: 14
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

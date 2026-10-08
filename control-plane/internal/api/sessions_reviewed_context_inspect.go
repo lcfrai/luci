@@ -10,14 +10,14 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
 
-// A supported plan has at most 200 tasks with 2,000-byte titles (at most 2.4MB
-// after JSON escaping) and 100 80-character ASCII links each (at most 1.66MB),
-// plus less than 50KB of IDs/fields. Specification and design are each bounded
-// to 500KB compact JSON. Brief text is bounded to 500KB before escaping, or is
-// derived from that bounded specification. The binding fits the 1MiB manifest
-// limit. One compact document plus binding therefore stays below 5.3MB. This
-// defensive 7MiB envelope leaves headroom under the existing 8MiB team proxy
-// limit; no supported document is truncated or encoded as a doubled JSON string.
+// Plans, including task dependencies, intended paths and acceptance, are bounded
+// before persistence/import to 5 MiB of actual indented JSON including escaping.
+// The former maximum task shape still fits that bound. Specification and design
+// are each bounded to 500KB compact JSON. Brief text is bounded to 500KB before
+// escaping, or derived from that bounded specification. The binding fits the
+// 1MiB manifest limit. A compact document plus binding therefore fits this 7MiB
+// envelope with room for response fields, under the existing 8MiB team proxy
+// limit. No supported document is truncated or doubled as an encoded JSON string.
 const reviewedInspectionLimit = 7 << 20
 
 type reviewedContextInspection struct {
