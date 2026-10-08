@@ -1,0 +1,78 @@
+{
+  "passed": true,
+  "startedAt": "2026-10-08T08:45:03.121Z",
+  "scope": "Actual source DockerStorageConfirmation and shared controls/CSS in Chromium with explicitly controlled identity and storage DTO callbacks. No native Windows, live API, Docker, physical storage or agent execution evidence.",
+  "checks": [
+    {
+      "width": 1440,
+      "axeViolations": []
+    },
+    {
+      "width": 1440,
+      "reviewFocusAndTabOrder": true,
+      "noWriteBeforeConfirmation": true,
+      "oneExplicitPostThenReadOnlyPolling": true,
+      "fixtureCalls": [
+        {
+          "method": "GET"
+        },
+        {
+          "method": "POST",
+          "expectedRevision": 3,
+          "vhdPath": "D:\\Local application data\\Docker Desktop\\wsl\\disk\\docker_data.vhdx",
+          "confirmActiveAndPendingLocal": true
+        },
+        {
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "axeViolations": []
+    },
+    {
+      "width": 390,
+      "reviewFocusAndTabOrder": true,
+      "noWriteBeforeConfirmation": true,
+      "oneExplicitPostThenReadOnlyPolling": true,
+      "fixtureCalls": [
+        {
+          "method": "GET"
+        },
+        {
+          "method": "POST",
+          "expectedRevision": 3,
+          "vhdPath": "D:\\Local application data\\Docker Desktop\\wsl\\disk\\docker_data.vhdx",
+          "confirmActiveAndPendingLocal": true
+        },
+        {
+          "method": "GET"
+        }
+      ]
+    }
+  ],
+  "geometry": [
+    {
+      "width": 802,
+      "scroll": 802,
+      "left": 319,
+      "right": 1121,
+      "viewport": 1440
+    },
+    {
+      "width": 342,
+      "scroll": 342,
+      "left": 24,
+      "right": 366,
+      "viewport": 390
+    }
+  ],
+  "errors": [],
+  "source": {
+    "desktop/src/api/executionStorage.ts": "b5aac2176c869854e716c35f916dcff8976e935013e4ffd6e3dbd021ae97902d",
+    "desktop/src/components/setup/DockerStorageConfirmation.tsx": "f378794989814acd576246c6fc955d6ec3d8aaf748fe8788802e9ca9235fd9be",
+    "desktop/src/components/setup/setup.css": "37861110ef4b5049a158aa8b6a73eb3db4faa64d902d6434b41bcbec629a85fb"
+  },
+  "finishedAt": "2026-10-08T08:45:15.962Z"
+}

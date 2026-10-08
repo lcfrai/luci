@@ -1,0 +1,39 @@
+{
+  "passed": true,
+  "startedAt": "2026-10-08T08:52:39.213217+00:00",
+  "sourceCommit": "2819ce9eacf62b2d73a1522b2db25301a7b393d4",
+  "sourceDirty": true,
+  "resourceContext": "Single-worker focused frontend tests and TypeScript may overlap root-owned installed2819 runtime/browser witness. This process creates no containers and does not build a release package.",
+  "steps": [
+    {
+      "label": "tests",
+      "command": [
+        "npm",
+        "test",
+        "--",
+        "--maxWorkers=1",
+        "src/api/executionStorage.test.ts",
+        "src/components/setup/DockerStorageConfirmation.test.tsx",
+        "src/components/setup/RuntimePreparation.test.tsx",
+        "src/components/setup/LocalTools.test.tsx",
+        "src/components/setup/SetupPanel.test.tsx",
+        "src/components/setup/SetupProvider.test.tsx"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 20.294
+    },
+    {
+      "label": "typecheck",
+      "command": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 24.794
+    }
+  ],
+  "sourceUnchanged": true,
+  "changedSource": [],
+  "finishedAt": "2026-10-08T08:53:24.348520+00:00"
+}

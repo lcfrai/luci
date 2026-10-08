@@ -1,0 +1,46 @@
+[
+  {
+    "source": "artifacts/quality-swarm/storage-cleanup-final/go/report.json",
+    "sourceSHA256": "5a29fb3fc27cf5b85a81a86f95a65a850881458fbf067781ca07163ecf4ce9bc",
+    "curated": "docs/luci/evidence/storage-cleanup/full-go-report.json",
+    "curatedSHA256": "5a29fb3fc27cf5b85a81a86f95a65a850881458fbf067781ca07163ecf4ce9bc"
+  },
+  {
+    "source": "artifacts/quality-swarm/storage-cleanup-final/go/source-before.json",
+    "sourceSHA256": "f62af00af4584b25dd2fff119880c95ce9e9c8e30398dee81b811b4737029afb",
+    "curated": "docs/luci/evidence/storage-cleanup/full-go-source-before.json",
+    "curatedSHA256": "f62af00af4584b25dd2fff119880c95ce9e9c8e30398dee81b811b4737029afb"
+  },
+  {
+    "source": "artifacts/quality-swarm/storage-cleanup-final/go/source-after.json",
+    "sourceSHA256": "f62af00af4584b25dd2fff119880c95ce9e9c8e30398dee81b811b4737029afb",
+    "curated": "docs/luci/evidence/storage-cleanup/full-go-source-after.json",
+    "curatedSHA256": "f62af00af4584b25dd2fff119880c95ce9e9c8e30398dee81b811b4737029afb"
+  },
+  {
+    "source": "artifacts/cloud008-final-api-cmd-verification.json",
+    "sourceSHA256": "5ee465178b9afefc01e5f0e7ae7585f59e92e6b8e5e4b7fcb8c58c9f6a20e9bb",
+    "curated": "docs/luci/evidence/storage-cleanup/cleanup-race-report.json",
+    "curatedSHA256": "5ee465178b9afefc01e5f0e7ae7585f59e92e6b8e5e4b7fcb8c58c9f6a20e9bb"
+  },
+  {
+    "source": "artifacts/cloud005/guest-consumer-verification.json",
+    "sourceSHA256": "7c3607c6ddc5eb49062f77701469eebe374a049455ca16cea4836bae06cd9bd8",
+    "curated": "docs/luci/evidence/storage-cleanup/guest-preparation-report.json",
+    "curatedSHA256": "7c3607c6ddc5eb49062f77701469eebe374a049455ca16cea4836bae06cd9bd8"
+  },
+  {
+    "source": "artifacts/quality-swarm/storage-cleanup-final/go/test-events.jsonl",
+    "sourceSHA256": "a61c2c0c0a366b1a5406064f1fe81d72461b0d1182b1f607e310f45018a9d884",
+    "curated": "docs/luci/evidence/storage-cleanup/full-go-outcomes.json",
+    "curatedSHA256": "b4cd4bf2c7f17812b4f1cae740b2c4aa4f715bb1b19ba1838a5358b7c9eb5aa3",
+    "transform": "Completed outcomes only; private raw output omitted."
+  },
+  {
+    "source": "artifacts/cloud005/windows-api-build-verification.json",
+    "sourceSHA256": "80a2228ac2b771b7747a4695448c58d76ff5c05a6677f2bf156a8da516ea4671",
+    "curated": "docs/luci/evidence/storage-cleanup/windows-api-compile.json",
+    "curatedSHA256": "64aada35be2bc512e85f27e4c3a9236bef551618e4a9be6230bcf21f62ab28b8",
+    "transform": "Summary plus exact cross-check with the retained full-Go source manifest; no repeated full file metadata."
+  }
+]

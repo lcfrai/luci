@@ -1,0 +1,66 @@
+{
+  "scope": "Reported native Windows source-browser smoke; original reports remain with local tester and were not independently read by cloud.",
+  "sourceCommit": "2819ce9eacf62b2d73a1522b2db25301a7b393d4",
+  "reportedByThread": "01a1199f-7500-7843-b02b-081081e536fa",
+  "platform": "Windows",
+  "browser": "Isolated headless Edge",
+  "runtime": {
+    "node": "24.19",
+    "go": "1.26.3",
+    "npmCiPackages": 407
+  },
+  "scopedChecksPassed": 9,
+  "capabilities": [
+    "Documented isolated acceptance launcher",
+    "Local owner creation and consumed bootstrap token",
+    "Four UI-created projects with distinct revision-1 purposes",
+    "Project switching and search",
+    "Unsaved-edit prompt",
+    "Project-scoped browser draft restore and discard",
+    "Service and browser restart retaining owner and all four definitions"
+  ],
+  "accessibility": {
+    "screen": "Home",
+    "rules": "WCAG2A/AA and 2.1AA",
+    "violations": 0,
+    "passingRules": 31,
+    "incompleteRules": 0
+  },
+  "responsive": {
+    "widthPixels": 800,
+    "horizontalOverflow": false
+  },
+  "errors": {
+    "observedConsoleErrors": 0,
+    "observedPageErrors": 0,
+    "observedAPIErrors": 0,
+    "driverFailures": "Initial selectors expected interview/home while the app correctly restored Specification/selection; corrected and retained as driver failures."
+  },
+  "sourceIntegrity": {
+    "trackedFileHashesCompared": 1694,
+    "trackedFileHashesChanged": 0,
+    "headUnchanged": true,
+    "workingTreeUnchanged": true
+  },
+  "cleanup": {
+    "ownedAPIViteBrowserProcessesStopped": true,
+    "portsFree": true,
+    "instanceLabelledDockerOrPlatformContainers": 0
+  },
+  "localEvidenceDirectory": "E:/Luci-local-acceptance/evidence/2819ce9e/source-browser-smoke-20261008T0851Z",
+  "localArtifacts": [
+    "browser-report.json",
+    "cleanup-and-provenance.json",
+    "home-accessibility.json",
+    "screenshots/"
+  ],
+  "artifactHashesAvailableToCloud": false,
+  "setupRoute": "Continue to projects selected before local setup route, avoiding automatic runtime installation in that revision. No downloads or worker requests.",
+  "limitations": [
+    "Manually authored fixture context, not generated model results",
+    "Source browser, not installed Tauri",
+    "No four-project agent scheduling acceptance",
+    "No live-provider or sustained resource evidence",
+    "Docker live-data relocation still awaits Windows unlock; cold backup verified"
+  ]
+}

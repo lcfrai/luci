@@ -1,0 +1,47 @@
+{
+  "passed": true,
+  "startedAt": "2026-10-08T08:54:05.616Z",
+  "scope": "Actual source DockerStorageConfirmation and shared controls/CSS in Chromium with explicitly controlled identity and storage DTO callbacks. No native Windows, live API, Docker, physical storage or agent execution evidence.",
+  "checks": [
+    {
+      "width": 390,
+      "axeViolations": []
+    },
+    {
+      "width": 390,
+      "reviewFocusAndTabOrder": true,
+      "noWriteBeforeConfirmation": true,
+      "oneExplicitPostThenReadOnlyPolling": true,
+      "fixtureCalls": [
+        {
+          "method": "GET"
+        },
+        {
+          "method": "POST",
+          "expectedRevision": 3,
+          "vhdPath": "D:\\Local application data\\Docker Desktop\\wsl\\disk\\docker_data.vhdx",
+          "confirmActiveAndPendingLocal": true
+        },
+        {
+          "method": "GET"
+        }
+      ]
+    }
+  ],
+  "geometry": [
+    {
+      "width": 342,
+      "scroll": 342,
+      "left": 24,
+      "right": 366,
+      "viewport": 390
+    }
+  ],
+  "errors": [],
+  "source": {
+    "desktop/src/api/executionStorage.ts": "b5aac2176c869854e716c35f916dcff8976e935013e4ffd6e3dbd021ae97902d",
+    "desktop/src/components/setup/DockerStorageConfirmation.tsx": "6ae306533e7ec1a3e345ddbfd3c76d1c2ddb5b5ee68fb78368384d98b278979c",
+    "desktop/src/components/setup/setup.css": "37861110ef4b5049a158aa8b6a73eb3db4faa64d902d6434b41bcbec629a85fb"
+  },
+  "finishedAt": "2026-10-08T08:54:12.818Z"
+}

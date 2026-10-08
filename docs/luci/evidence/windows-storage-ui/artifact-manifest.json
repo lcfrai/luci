@@ -1,0 +1,180 @@
+{
+  "sanitization": "Only the absolute checkout prefix /workspace/luci is replaced with <repo> in text evidence. Test names, outcomes, timestamps, values and source hashes are unchanged. Original and curated SHA-256 are both retained. Windows paths are synthetic fixture values.",
+  "files": [
+    {
+      "sourceArtifact": "artifacts/quality-swarm/windows-storage-ui/full-frontend/result.json",
+      "file": "full-frontend/result.json",
+      "originalSHA256": "58b67f1c19ba2ff6a7317a20e61cfb73520c95379025660c69a677563d03bb47",
+      "curatedSHA256": "a7080644397d03ee1822333a970b7365147a82ce5b4e8965a94c7f83e7b06c53",
+      "checkoutPrefixReplaced": true
+    },
+    {
+      "sourceArtifact": "artifacts/quality-swarm/windows-storage-ui/full-frontend/vitest-raw.json",
+      "file": "full-frontend/vitest-raw.json",
+      "originalSHA256": "2be6afc15232807b8be7a072d95fa37bff34f4e87b57cbe2ffd38b722fbb6ebe",
+      "curatedSHA256": "e78575301e50317d7ebc2e9f870c78e291597d5255e8c2d0c41be9541d860afa",
+      "checkoutPrefixReplaced": true
+    },
+    {
+      "sourceArtifact": "artifacts/quality-swarm/windows-storage-ui/full-frontend/source-before.json",
+      "file": "full-frontend/source-before.json",
+      "originalSHA256": "2292c4db6aca481b9ade0f8dc26c74e706d5af6ddcdb9742fb66b958b1c189d8",
+      "curatedSHA256": "2292c4db6aca481b9ade0f8dc26c74e706d5af6ddcdb9742fb66b958b1c189d8",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "sourceArtifact": "artifacts/quality-swarm/windows-storage-ui/full-frontend/source-after.json",
+      "file": "full-frontend/source-after.json",
+      "originalSHA256": "2292c4db6aca481b9ade0f8dc26c74e706d5af6ddcdb9742fb66b958b1c189d8",
+      "curatedSHA256": "2292c4db6aca481b9ade0f8dc26c74e706d5af6ddcdb9742fb66b958b1c189d8",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "sourceArtifact": "artifacts/quality-swarm/windows-storage-ui/full-frontend/tests.log",
+      "file": "full-frontend/tests.log",
+      "originalSHA256": "37a2d84619acf4090a0b83e9a418e87398b447bfc64293c2373f4e7f36d70d06",
+      "curatedSHA256": "02668a239389acd99ae23b383a0b85ec808ff596fbd06dfd70c87a44bfed02ae",
+      "checkoutPrefixReplaced": true
+    },
+    {
+      "sourceArtifact": "artifacts/quality-swarm/windows-storage-ui/final/restored-coverage-followup.json",
+      "file": "final/restored-coverage-followup.json",
+      "originalSHA256": "49241af6e74c7a15f195d022c4a4bee0f84eaf80837dcc717d7b9f8a46c3b895",
+      "curatedSHA256": "49241af6e74c7a15f195d022c4a4bee0f84eaf80837dcc717d7b9f8a46c3b895",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "sourceArtifact": "artifacts/quality-swarm/windows-storage-ui/final/source-final.json",
+      "file": "final/source-final.json",
+      "originalSHA256": "67b7855637d9582df4916eed085cd5df22d042a9da1ba76e71cb888b9421b984",
+      "curatedSHA256": "67b7855637d9582df4916eed085cd5df22d042a9da1ba76e71cb888b9421b984",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "sourceArtifact": "artifacts/quality-swarm/windows-storage-ui/final/result.json",
+      "file": "final/result.json",
+      "originalSHA256": "ed22469a782d2b190d3c1b07294a1f8f99a9f3ebc49ec25566fac4f2943c95b2",
+      "curatedSHA256": "ed22469a782d2b190d3c1b07294a1f8f99a9f3ebc49ec25566fac4f2943c95b2",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "sourceArtifact": "artifacts/quality-swarm/windows-storage-ui/final/typecheck-restored.log",
+      "file": "final/typecheck-restored.log",
+      "originalSHA256": "6d51e3ec9a9d283eee096e5e9403c5d963c9468e9756fd61f3e9e0d3df1bde71",
+      "curatedSHA256": "6d51e3ec9a9d283eee096e5e9403c5d963c9468e9756fd61f3e9e0d3df1bde71",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "sourceArtifact": "artifacts/quality-swarm/windows-storage-ui/final/local-tools-restored.log",
+      "file": "final/local-tools-restored.log",
+      "originalSHA256": "5e3ddedffde859058407cb1f57b4b1307e1f002fd26a830835587d06c39104cc",
+      "curatedSHA256": "3c94aa43dafa1626b26ce18be2230373e7e7676e5ac83b3099b3f2b2def2cd55",
+      "checkoutPrefixReplaced": true
+    },
+    {
+      "sourceArtifact": "artifacts/quality-swarm/windows-storage-ui/focused-initial.log",
+      "file": "history/focused-initial.log",
+      "originalSHA256": "f48836639a1fb2f281dc76111e1074237123b9e8196636221e2baab477ea8218",
+      "curatedSHA256": "a0f30719fdc2f881577d58d41e70a6eb11bb82622849660d16c8f8ae8ff25801",
+      "checkoutPrefixReplaced": true
+    },
+    {
+      "sourceArtifact": "artifacts/quality-swarm/windows-storage-ui/focused-corrected.log",
+      "file": "history/focused-corrected.log",
+      "originalSHA256": "23667ef812644bcd0269e5e4773feec0143f20d9cc899d518e9478c063f00745",
+      "curatedSHA256": "1336879c90238868387a73de6b85b34932f2d1c1b011cc44855d842c13632c92",
+      "checkoutPrefixReplaced": true
+    },
+    {
+      "sourceArtifact": "artifacts/quality-swarm/windows-storage-ui/browser/result.json",
+      "file": "history/browser-scaffold-initial.json",
+      "originalSHA256": "6ae8b4123a7857dc1920658103d862d35ba2ee65603149d695295c75cfd13e18",
+      "curatedSHA256": "9098fd816fd8758b293f6bbbe3b2b9d85644e983d0e90e3b250b7afbb09499c8",
+      "checkoutPrefixReplaced": true
+    },
+    {
+      "sourceArtifact": "artifacts/quality-swarm/windows-storage-ui/browser/result-corrected.json",
+      "file": "history/browser-scaffold-corrected.json",
+      "originalSHA256": "dab93ad7d6fc3b14ab09398ff4a17950cb752396f5f0c192c25888b59f7812d4",
+      "curatedSHA256": "dab93ad7d6fc3b14ab09398ff4a17950cb752396f5f0c192c25888b59f7812d4",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "sourceArtifact": "artifacts/quality-swarm/windows-storage-ui/browser-final/result-corrected.json",
+      "file": "history/browser-final-phone.json",
+      "originalSHA256": "f4c857116704fe7ad76f0fb8ae761df60c9a78c24dc2de573a1c45a098214183",
+      "curatedSHA256": "f4c857116704fe7ad76f0fb8ae761df60c9a78c24dc2de573a1c45a098214183",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "sourceArtifact": "artifacts/quality-swarm/windows-storage-ui/portable-browser/result.json",
+      "file": "history/portable-browser-initial.json",
+      "originalSHA256": "7740ecc1480e1c8be4ea3c02e8f9d7e60ef619a81d10b629e684b28336da40e0",
+      "curatedSHA256": "7740ecc1480e1c8be4ea3c02e8f9d7e60ef619a81d10b629e684b28336da40e0",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "sourceArtifact": "artifacts/quality-swarm/windows-storage-ui/portable-browser-path-correction/result.json",
+      "file": "browser/result.json",
+      "originalSHA256": "5272c3802d6ad5ba410739d53e149f0fa56b6518f5643af7fef886b7ad28483e",
+      "curatedSHA256": "5272c3802d6ad5ba410739d53e149f0fa56b6518f5643af7fef886b7ad28483e",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "sourceArtifact": "artifacts/quality-swarm/windows-storage-ui/portable-browser-path-correction/source-browser.mjs",
+      "file": "browser/source-browser.mjs",
+      "originalSHA256": "07ab0a61c20709fac3ad9657f6415704b111347a0d5d3a9f3041d1c26482110f",
+      "curatedSHA256": "07ab0a61c20709fac3ad9657f6415704b111347a0d5d3a9f3041d1c26482110f",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "sourceArtifact": "artifacts/quality-swarm/windows-storage-ui/portable-browser-path-correction/fixture.tsx",
+      "file": "browser/fixture.tsx",
+      "originalSHA256": "61f4d165b3a23656555fa1173ac6b28c5dbd8696f9b19dea87b1f1fb1a39992a",
+      "curatedSHA256": "61f4d165b3a23656555fa1173ac6b28c5dbd8696f9b19dea87b1f1fb1a39992a",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "sourceArtifact": "artifacts/quality-swarm/windows-storage-ui/portable-browser-path-correction/storage-confirmed-1440.png",
+      "file": "browser/storage-confirmed-1440.png",
+      "originalSHA256": "345d64d8c8b7c4da4b7c0463485ce3f6c2752b4abcdf1deff506a89e1dcd9ef1",
+      "curatedSHA256": "345d64d8c8b7c4da4b7c0463485ce3f6c2752b4abcdf1deff506a89e1dcd9ef1",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "sourceArtifact": "artifacts/quality-swarm/windows-storage-ui/portable-browser-path-correction/storage-confirmed-390.png",
+      "file": "browser/storage-confirmed-390.png",
+      "originalSHA256": "dde5a82badbc472f563eaaccba1273720bbd3119594f17d6a93c3df82205e335",
+      "curatedSHA256": "dde5a82badbc472f563eaaccba1273720bbd3119594f17d6a93c3df82205e335",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "sourceArtifact": "artifacts/quality-swarm/windows-storage-ui/portable-browser-path-correction/storage-initial-1440.png",
+      "file": "browser/storage-initial-1440.png",
+      "originalSHA256": "b38d068f6204bb69f2fce36603012e675656fea908bbe05ca8ec7fe22bc70e39",
+      "curatedSHA256": "b38d068f6204bb69f2fce36603012e675656fea908bbe05ca8ec7fe22bc70e39",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "sourceArtifact": "artifacts/quality-swarm/windows-storage-ui/portable-browser-path-correction/storage-initial-390.png",
+      "file": "browser/storage-initial-390.png",
+      "originalSHA256": "35c96a4d13dd1195ba0886cadea2216c7e05f27b73075d018a7731a23cf1a9fe",
+      "curatedSHA256": "35c96a4d13dd1195ba0886cadea2216c7e05f27b73075d018a7731a23cf1a9fe",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "sourceArtifact": "artifacts/quality-swarm/windows-storage-ui/portable-browser-path-correction/storage-review-1440.png",
+      "file": "browser/storage-review-1440.png",
+      "originalSHA256": "3f41a4ebe90f7e71323dd46cc9fa05ecf5151511e1e5e8d5fcaa3fcaa075cd83",
+      "curatedSHA256": "3f41a4ebe90f7e71323dd46cc9fa05ecf5151511e1e5e8d5fcaa3fcaa075cd83",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "sourceArtifact": "artifacts/quality-swarm/windows-storage-ui/portable-browser-path-correction/storage-review-390.png",
+      "file": "browser/storage-review-390.png",
+      "originalSHA256": "fb79f9babbb678dbadde5081a1fea26526f4c0f9a99480b89a63bbf609c52091",
+      "curatedSHA256": "fb79f9babbb678dbadde5081a1fea26526f4c0f9a99480b89a63bbf609c52091",
+      "checkoutPrefixReplaced": false
+    }
+  ]
+}

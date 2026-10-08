@@ -278,7 +278,7 @@ func (g *Gateway) startRuntime(rt *userRuntime) {
 	if g.billing != nil {
 		billingConfigID = g.billing.configID
 	}
-	cmd.Env = append(cmd.Env, "LUCI_EXECUTION_AUTHORITY_FILE="+filepath.Join(g.dir, "identity.json"), "LUCI_EXECUTION_MANAGED_TEAM="+g.managedTeamID, "LUCI_EXECUTION_BILLING_CONFIG="+billingConfigID, "LUCI_EXECUTION_STATE_DIR="+filepath.Join(g.dir, "execution"))
+	cmd.Env = append(cmd.Env, "LUCI_EXECUTION_AUTHORITY_FILE="+filepath.Join(g.dir, "identity.json"), "LUCI_EXECUTION_MANAGED_TEAM="+g.managedTeamID, "LUCI_EXECUTION_BILLING_CONFIG="+billingConfigID, "LUCI_EXECUTION_STATE_DIR="+g.opts.ExecutionStateDir)
 
 	cmd.Stdout, cmd.Stderr = io.Discard, io.Discard
 	kill, err := startOwnedProcess(cmd)

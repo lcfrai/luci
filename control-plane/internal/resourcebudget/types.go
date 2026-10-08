@@ -88,6 +88,9 @@ type ExecutionSnapshot struct {
 	ImageVirtualSizeBytes *uint64   `json:"imageVirtualSizeBytes"`
 	ImageSizeBasis        string    `json:"imageSizeBasis"`
 	DaemonDisk            *Disk     `json:"daemonDisk"`
+	// Windows Desktop guest free space does not establish physical room for
+	// its dynamic VHD. This separate bound never claims engine/VHD binding.
+	HostStorage *HostStorageBound `json:"hostStorage,omitempty"`
 	// Daemon allocation is not observed free memory in the Docker VM.
 	TotalMemoryBytes  *uint64          `json:"totalMemoryBytes"`
 	CPUMillis         *int64           `json:"cpuMillis"`

@@ -51,12 +51,12 @@ function boundedText(bytes, truncated) {
 }
 export function createNativeTerminalProbe() {
   let retained = Buffer.alloc(0), dropped = false;
-  const metadata = { frames: 0, stdoutFrames: 0, stdoutBytes: 0, otherFrames: 0, exitFrames: 0, closed: false, socketError: false, trustEnterSent: false, firstOutputAt: null, lastOutputAt: null, exit: { classification: 'not-observed' } };
+  const metadata = { frames: 0, stdoutFrames: 0, stdoutBytes: 0, otherFrames: 0, exitFrames: 0, closed: false, socketError: false, trustEnterSent: false, firstOutputAt: null, lastOutputAt: null, exitObservedAt: null, exit: { classification: 'not-observed' } };
   const seen = classifyNativeTerminal('');
   return {
     frame(bytes) {
       metadata.frames++;
-      if (bytes[0] === 3) { metadata.exitFrames++; metadata.exit = fixedExitReason(bytes.subarray(1).toString('utf8')); return; }
+      if (bytes[0] === 3) { metadata.exitFrames++; metadata.exitObservedAt ??= new Date().toISOString(); metadata.exit = fixedExitReason(bytes.subarray(1).toString('utf8')); return; }
       if (bytes[0] !== 0) { metadata.otherFrames++; return; }
       metadata.stdoutFrames++; metadata.stdoutBytes += bytes.length - 1;
       metadata.firstOutputAt ??= new Date().toISOString(); metadata.lastOutputAt = new Date().toISOString();

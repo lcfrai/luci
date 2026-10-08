@@ -1,0 +1,64 @@
+{
+  "scope": "Current source frontend verification and controlled storage settings browser witness; not installed package or native Windows acceptance.",
+  "sourceCommit": "2819ce9eacf62b2d73a1522b2db25301a7b393d4",
+  "sourceDirty": true,
+  "fullFrontend": {
+    "passed": true,
+    "tests": {
+      "numTotalTestSuites": 252,
+      "numPassedTestSuites": 252,
+      "numFailedTestSuites": 0,
+      "numPendingTestSuites": 0,
+      "numRuntimeErrorTestSuites": null,
+      "numTotalTests": 2394,
+      "numPassedTests": 2394,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "success": true
+    },
+    "files": 145,
+    "skippedOrTodo": [],
+    "sourceUnchanged": true,
+    "command": "npm test -- --maxWorkers=2 --reporter=default --reporter=json --outputFile=<fresh-directory>/vitest-raw.json",
+    "elapsedSeconds": 274.35,
+    "startedAt": "2026-10-08T09:01:44.359836+00:00",
+    "finishedAt": "2026-10-08T09:06:18.790455+00:00",
+    "receipt": "windows-storage-ui/full-frontend/result.json",
+    "rawJSON": "windows-storage-ui/full-frontend/vitest-raw.json"
+  },
+  "typecheck": {
+    "passed": true,
+    "reusedWithExactSourceManifest": true,
+    "receipt": "windows-storage-ui/final/restored-coverage-followup.json",
+    "log": "windows-storage-ui/final/typecheck-restored.log"
+  },
+  "browser": {
+    "passed": true,
+    "sourceUnchanged": true,
+    "viewports": [
+      [
+        1440,
+        1080
+      ],
+      [
+        390,
+        844
+      ]
+    ],
+    "axeViolations": 0,
+    "scope": "Actual source DockerStorageConfirmation and shared controls/CSS in Linux Chromium with explicitly controlled identity and storage DTO callbacks.",
+    "receipt": "windows-storage-ui/browser/result.json",
+    "helper": "../../../scripts/acceptance/windows-storage-ui/source-browser.mjs"
+  },
+  "history": "windows-storage-ui/history/ preserves initial fixture failures and earlier corrected witnesses; final/restored-coverage-followup.json records restoration of pre-existing LocalTools coverage before the full baseline.",
+  "nativeWindowsAcceptance": false,
+  "installedPackageAcceptance": false,
+  "limitations": [
+    "Linux Chromium renders actual source with controlled identity, storage observations and callbacks; no real management HTTP request or Windows probe is made by this helper.",
+    "No Docker, worker, model, cloud or runtime admission is exercised by this frontend batch.",
+    "Frontend JSON aggregates describe-suites separately from test files: 252 passed suites represent 145 passed files.",
+    "TypeScript ran on the exact same frontend/shared-contract source manifest before the full suite; it was not repeated without a source change.",
+    "No production build was run in this batch; root owns matching package verification."
+  ]
+}

@@ -167,6 +167,11 @@ type Config struct {
 	// which touch only records this registry holds.
 	Instance string
 
+	// ConfirmStoppedTaskCleanup proves that this exact task's backend Create
+	// returned and its durable launch receipt settled. Nil disables expedited
+	// cleanup. The callback is immutable after New and must fail closed.
+	ConfirmStoppedTaskCleanup func(context.Context, registry.Session) error
+
 	Now func() time.Time
 	Log *slog.Logger
 }
@@ -174,15 +179,16 @@ type Config struct {
 // Reaper sweeps. Sweep is exported so tests drive it directly with a fake clock
 // and never sleep.
 type Reaper struct {
-	store       registry.Store
-	be          backend.Backend
-	idleAfter   time.Duration
-	idleTimeout time.Duration
-	interval    time.Duration
-	createGrace time.Duration
-	instance    string
-	now         func() time.Time
-	log         *slog.Logger
+	store                     registry.Store
+	be                        backend.Backend
+	idleAfter                 time.Duration
+	idleTimeout               time.Duration
+	interval                  time.Duration
+	createGrace               time.Duration
+	instance                  string
+	confirmStoppedTaskCleanup func(context.Context, registry.Session) error
+	now                       func() time.Time
+	log                       *slog.Logger
 
 	mu       sync.RWMutex
 	ready    bool
@@ -197,16 +203,17 @@ type Reaper struct {
 
 func New(cfg Config) *Reaper {
 	r := &Reaper{
-		store:       cfg.Store,
-		be:          cfg.Backend,
-		idleAfter:   cfg.IdleAfter,
-		idleTimeout: cfg.IdleTimeout,
-		interval:    cfg.Interval,
-		createGrace: cfg.CreateGrace,
-		instance:    cfg.Instance,
-		now:         cfg.Now,
-		log:         cfg.Log,
-		foreign:     make(map[string]bool),
+		store:                     cfg.Store,
+		be:                        cfg.Backend,
+		idleAfter:                 cfg.IdleAfter,
+		idleTimeout:               cfg.IdleTimeout,
+		interval:                  cfg.Interval,
+		createGrace:               cfg.CreateGrace,
+		instance:                  cfg.Instance,
+		confirmStoppedTaskCleanup: cfg.ConfirmStoppedTaskCleanup,
+		now:                       cfg.Now,
+		log:                       cfg.Log,
+		foreign:                   make(map[string]bool),
 	}
 	if r.now == nil {
 		r.now = time.Now
@@ -451,7 +458,7 @@ func (r *Reaper) Sweep(ctx context.Context) error {
 			continue
 		}
 		if _, alive := bySandbox[s.SandboxID]; !alive {
-			r.markExited(s.ID, reasonDisappeared)
+			r.markObservedExited(s, reasonDisappeared)
 		}
 	}
 
@@ -465,7 +472,17 @@ func (r *Reaper) Sweep(ctx context.Context) error {
 			continue
 		}
 		if sb.State == backend.StateStopped || sb.State == backend.StateGone {
-			r.markExited(s.ID, reasonProcessExit)
+			if r.strictTaskCleanup(s) {
+				removed, applicable := r.collectStoppedTask(ctx, s, sb)
+				if removed {
+					gone[sb.ID] = true
+				}
+				if !applicable {
+					r.markObservedExited(s, reasonProcessExit)
+				}
+			} else {
+				r.markObservedExited(s, reasonProcessExit)
+			}
 		}
 	}
 
@@ -496,20 +513,17 @@ func (r *Reaper) Sweep(ctx context.Context) error {
 	// session ends in a stopped container, and without this rule every one of
 	// them stays on disk for ever.
 	//
-	// NO CREATE GRACE, and that is deliberate rather than an omission. The two
-	// paths that mint a container both write `starting` to the record BEFORE
-	// they call backend.Create — create at sessions.go's step 4, restart in the
-	// write above its own Create — so a record cannot be `exited` while a
-	// create for it is in flight. Rule 4's grace is for the opposite direction,
-	// a backend that reports a container this control plane has not recorded
-	// (see rule 4 below); this rule keys on the RECORD, which is the thing that
-	// is already terminal, so there is nothing for a grace to wait for.
+	// Legacy cleanup keeps its existing policy. For task runs, an exited row
+	// alone cannot prove Create returned: a timeout may have recorded exited
+	// while the daemon was still processing a request. Strict task cleanup
+	// requires a positive settled receipt and an exact stopped backend instead
+	// of inferring launch settlement from the registry status or elapsed grace.
 	//
 	// It rewrites NOTHING. The record is the provenance — it is what says which
 	// container this was — and it is terminal already; markExited would refuse
-	// it anyway. One sweep of lag is built in and is not a defect: rule 3 above
-	// wrote `exited` after this sweep's snapshot was taken, so the session it
-	// just ended is collected by the next sweep, thirty seconds later.
+	// it anyway. Legacy sessions retain one sweep of lag. Proven settled tasks
+	// can be collected by rule 3 in the same sweep; retries below preserve the
+	// same immutable identity and non-force cleanup requirements.
 	for _, s := range sessions {
 		if s.Status != registry.StatusExited || s.SandboxID == "" || gone[s.SandboxID] {
 			continue
@@ -529,6 +543,15 @@ func (r *Reaper) Sweep(ctx context.Context) error {
 		}
 		if !r.owns(ctx, sb, tracked) {
 			continue
+		}
+		if r.strictTaskCleanup(s) {
+			removed, applicable := r.collectStoppedTask(ctx, s, sb)
+			if removed {
+				gone[sb.ID] = true
+			}
+			if applicable {
+				continue
+			}
 		}
 		if err := r.be.Destroy(ctx, sb.ID); err != nil {
 			r.log.Warn("could not destroy a sandbox whose session has already exited; retrying next sweep",

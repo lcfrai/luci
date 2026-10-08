@@ -352,6 +352,18 @@ func (s *Server) installRuntime(w http.ResponseWriter, r *http.Request) {
 		problem(w, 409, "runtime_source_missing", err.Error())
 		return
 	}
+	s.mu.RLock()
+	active := s.runtimeJob
+	s.mu.RUnlock()
+	if active.Status == "installing" {
+		// Losing a fresh observation must never cancel an existing build.
+		writeJSON(w, 202, active)
+		return
+	}
+	if err = s.runtimeStoragePreflight(); err != nil {
+		problem(w, 409, "runtime_"+runtimeStorageErrorCode(err), err.Error())
+		return
+	}
 	s.mu.Lock()
 	if s.runtimeJob.Status == "installing" {
 		job := s.runtimeJob
@@ -376,7 +388,10 @@ func (s *Server) buildRuntime(dir string, job RuntimeJob) {
 	ctx, cancel := context.WithTimeout(context.Background(), runtimeBuildTimeout)
 	defer cancel()
 	ctx = context.WithValue(ctx, runtimeBuildBudgetKey{}, runtimeBuildBudget{})
-	_, err := s.runner(ctx, "docker", []string{"build", "--file", "images/sandbox/Dockerfile", "--tag", job.Image, "."}, dir)
+	err := s.runtimeStoragePreflight()
+	if err == nil {
+		_, err = s.runner(ctx, "docker", []string{"build", "--file", "images/sandbox/Dockerfile", "--tag", job.Image, "."}, dir)
+	}
 	if err == nil {
 		var imageID string
 		imageID, err = s.runner(ctx, "docker", []string{"image", "inspect", job.Image, "--format", "{{.Id}}"}, dir)

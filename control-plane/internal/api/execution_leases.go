@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -201,7 +202,11 @@ func decodeExecutionLedger(data []byte) (executionLeaseLedger, error) {
 	return ledger, nil
 }
 
-func (g *executionAdmission) reconcileOwned(ledger *executionLeaseLedger) error {
+func (g *executionAdmission) reconcileOwned(ctx context.Context, ledger *executionLeaseLedger) error {
+	// One shared bound prevents a backlog of unavailable task backends from
+	// multiplying network deadlines while admission holds the host ledger.
+	observeCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
 	kept := ledger.Leases[:0]
 	for _, lease := range ledger.Leases {
 		if lease.Scope == g.scope && lease.SessionID != "" {
@@ -210,6 +215,22 @@ func (g *executionAdmission) reconcileOwned(ledger *executionLeaseLedger) error 
 				return err
 			}
 			if err == nil && row.Status == registry.StatusExited && row.ID == lease.SessionID && row.ProjectID == lease.ProjectID && row.SandboxID == lease.SandboxID && executionLaunchSettled(lease) {
+				requiresAbsence, ownershipErr := g.api.executionRequiresBackendAbsence(row)
+				if ownershipErr != nil || requiresAbsence {
+					// Resource inventory covers active workloads, not stopped Docker
+					// objects. Manual tasks have no scheduler Release callback, so
+					// their next admission must also confirm exact removal here.
+					if ownershipErr == nil {
+						absent, err := g.api.exactBackendTerminal(observeCtx, row.SandboxID, true)
+						if err == nil && absent {
+							continue
+						}
+					}
+					// Unknown, timed-out and stopped-but-present allocations keep
+					// both capacity and the durable proof for cleanup retries.
+					kept = append(kept, lease)
+					continue
+				}
 				// Only a fresh backend observation after our last transition can prove
 				// an exited record has released its actual allocation.
 				if g.api.deps.ResourceSnapshot != nil {
@@ -265,7 +286,7 @@ func (g *executionAdmission) reserveWorker(ctx context.Context, id, projectID, p
 		return decision, nil
 	}
 	err := g.mutate(ctx, func(ledger *executionLeaseLedger) error {
-		if err := g.reconcileOwned(ledger); err != nil {
+		if err := g.reconcileOwned(ctx, ledger); err != nil {
 			return err
 		}
 		if replacement != nil {
@@ -454,6 +475,15 @@ func (g *executionAdmission) reserveWorker(ctx context.Context, id, projectID, p
 			waiting("execution_disk_estimate_unavailable", "Pending execution storage demand exceeds supported capacity accounting.")
 			return nil
 		}
+		if storageErr := resourcebudget.ValidateHostStorage(snap.Execution.HostStorage, runtime.GOOS == "windows" || snap.Host.Platform == "windows", diskDemand, now, 5*time.Second); storageErr != nil {
+			code := "unavailable"
+			var detail *resourcebudget.LocalStorageError
+			if errors.As(storageErr, &detail) {
+				code = detail.Code
+			}
+			waiting("host_storage_"+code, storageErr.Error())
+			return nil
+		}
 		if *snap.Execution.DaemonDisk.AvailableBytes < diskDemand {
 			waiting("execution_disk_pressure", "Execution storage cannot preserve the working reserve for the pending sandbox copies.")
 			return nil
@@ -532,7 +562,13 @@ func (g *executionAdmission) release(ctx context.Context, id string) error {
 						kept = append(kept, lease)
 						continue
 					}
-					stopped, err := g.api.exactBackendStopped(ctx, row.SandboxID)
+					requiresAbsence, err := g.api.executionRequiresBackendAbsence(row)
+					if err != nil {
+						held = true
+						kept = append(kept, lease)
+						continue
+					}
+					stopped, err := g.api.exactBackendTerminal(ctx, row.SandboxID, requiresAbsence)
 					if err != nil || !stopped {
 						held = true
 						kept = append(kept, lease)

@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "scope": "Post-2819 scanner/project Git test-helper isolation; no production behavior change.",
+  "commitBinding": null,
+  "originalResult": {
+    "artifact": "artifacts/git-fixture-helper-isolation/result.json",
+    "sha256": "c13cd51d1940c4e9470ede2988774e15271c5e8e4a01159e5d532fa48eb884e4"
+  },
+  "originalTestEvents": {
+    "artifact": "artifacts/git-fixture-helper-isolation/tests.jsonl",
+    "sha256": "5aca6b766e79f01cc060531864f371df6f45967eb2fa3e45adf6887321471aec"
+  },
+  "originalSourceBefore": {
+    "artifact": "artifacts/git-fixture-helper-isolation/source-before.json",
+    "sha256": "ec1b6967bc83aa7d1ff4aa295cd56bf7ddfa21fa779590eb3d3d57bb06deceb3"
+  },
+  "originalSourceAfter": {
+    "artifact": "artifacts/git-fixture-helper-isolation/source-after.json",
+    "sha256": "ec1b6967bc83aa7d1ff4aa295cd56bf7ddfa21fa779590eb3d3d57bb06deceb3"
+  },
+  "verification": {
+    "startedAt": "2026-10-08T08:39:22.757618+00:00",
+    "finishedAt": "2026-10-08T08:39:58.635189+00:00",
+    "wallSeconds": 35.878,
+    "command": [
+      "go",
+      "-C",
+      "control-plane",
+      "test",
+      "-p",
+      "1",
+      "./internal/gitfixture",
+      "./internal/project",
+      "./cmd/api",
+      "-run",
+      "Test(DirectoryOwnership|EnvironmentStopsDiscovery|GitFixtureHelpers|ScannerGitFixture|ExecRunner|ScannerAgainstARealRepository|BranchesAgainstARealRepository|ManagedGit|ManagedScanner|PathRefusesACommondir|ServeRefusesAWorktreeSwapped)",
+      "-count=1",
+      "-json"
+    ],
+    "GOMAXPROCS": 2,
+    "exitCode": 0,
+    "selectedInputCount": 9,
+    "selectedInputsUnchanged": true,
+    "sourceBefore": "artifacts/git-fixture-helper-isolation/source-before.json",
+    "sourceAfter": "artifacts/git-fixture-helper-isolation/source-after.json",
+    "log": "artifacts/git-fixture-helper-isolation/tests.jsonl",
+    "resourceOverlap": "Shared-host mechanics check; overlapped immutable installed2819 workflow with GSD agreement. Not an isolated performance measurement."
+  },
+  "testOutcomes": {
+    "pass": 30,
+    "skip": 1
+  },
+  "skippedTests": [
+    {
+      "test": "TestServeRefusesAWorktreeSwappedInsideAConversationStore",
+      "reason": "Windows junction fixture is unavailable on this Linux host."
+    }
+  ],
+  "packages": [
+    {
+      "name": "github.com/lcfrai/luci/control-plane/internal/gitfixture",
+      "action": "pass",
+      "elapsedSeconds": 0.031
+    },
+    {
+      "name": "github.com/lcfrai/luci/control-plane/internal/project",
+      "action": "pass",
+      "elapsedSeconds": 10.837
+    },
+    {
+      "name": "github.com/lcfrai/luci/control-plane/cmd/api",
+      "action": "pass",
+      "elapsedSeconds": 0.089
+    }
+  ],
+  "selectedSourceSHA256": {
+    "control-plane/internal/gitfixture/fixture.go": "c0c57af279a8503dd5a1fb42a7b3c488786968d86e8c917f30b1bc3c0f6ec129",
+    "control-plane/internal/gitfixture/fixture_test.go": "76a0eaba79987b2ebd4755a0f595aa0bcb35d4766e3b035b3263c6b43f1d79fe",
+    "control-plane/internal/project/gitfixture_regression_test.go": "bccc77dcdb0f513210048de06bca98a34fb7a35aeaf76f22fd5f23d15333dcb9",
+    "control-plane/internal/project/gitrunner_test.go": "9286f459419c1a646dc611b990618452aa315b942d4f44f0230864ec6f6ac51c",
+    "control-plane/internal/project/project_x3_registry_test.go": "4bad0941a84be4edebb68ac8b1348cb6dc2a81bdf2173d450ae464506a9540f1",
+    "control-plane/internal/project/branchhead_test.go": "31df101275b256acac5c9eae8eebe14e89d00bea6b35d10912d6ca8e0c921de9",
+    "control-plane/cmd/api/scanner_fixture_regression_test.go": "740c3351a890383a04f40a6cf66bb482f4b726a755c8451f32bcbec19905d9a0",
+    "control-plane/cmd/api/scanner_serve_test.go": "26f33d1b5a6b33273f728dd9c7d1f3a4733adddc62d90f7fd22d2a2e83e957e7",
+    "control-plane/internal/project/gitboundary.go": "87d15a7c6797954c70af94d9ae089e752e700f45a191f0ba117c78ef6d4c5314"
+  },
+  "assertions": [
+    "Temporary root authority is minted by testing.T.TempDir, with ancestor-test ownership and cleanup.",
+    "Empty, relative, unregistered, missing-for-execution, file and linked-directory targets are rejected before helper writes/exec.",
+    "Inherited Git repository, common directory, index, object directory and injected config redirection do not change disposable foreign repository files or metadata.",
+    "Owned root and child without metadata cannot discover a disposable parent repository.",
+    "Existing real linked-worktree, managed Git boundary and native branch tests still pass."
+  ],
+  "limitations": [
+    "Selected source hash inventory only; no complete compilation manifest or future commit binding.",
+    "Windows junction/native execution requires the Windows acceptance run.",
+    "No Docker, model or installed-product acceptance result is implied.",
+    "Shared-host overlap was explicitly coordinated; elapsed times are test execution observations, not an isolated performance benchmark.",
+    "The immutable2819 installed package predates these test-support edits."
+  ]
+}

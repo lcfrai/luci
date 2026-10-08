@@ -1,0 +1,83 @@
+{
+  "status": "passed-controlled-race-and-windows-compilation",
+  "recordedAt": "2026-10-08T09:14:49.720744+00:00",
+  "nativeWindowsStorageExecutionVerified": false,
+  "scope": "Operator-confirmed Windows physical storage lower bound, private confirmation loader, gateway-only shared observation publication and reader validation; mocked native facts in Linux tests. No Docker or VHD changes.",
+  "race": {
+    "command": "GOMAXPROCS=2 go test -race -p 1 ./internal/resourcebudget ./internal/backend/dockerbe -run 'TestLocalStorage|TestLocalDesktop|TestHostStorage|TestPrepareStorage|TestSharedWindowsStorage|TestResourceObserver' -count=1 -json",
+    "passedOutcomes": 19,
+    "failedOutcomes": 0,
+    "tests": [
+      "TestLocalStorageSharedCacheBindsWholeConfirmationAndMetricTime",
+      "TestLocalStorageSharedCachePrivateAtomicPublication",
+      "TestLocalStorageStatusOmitsUnobservedTimes",
+      "TestLocalStorageRejectsNonLocalAndAmbiguousPaths",
+      "TestLocalStorageCompleteInventoryIncludesUnrelatedLowVolume",
+      "TestLocalStoragePinsExpireIndependently",
+      "TestLocalStorageAdmissionDoesNotConfuseMissingAndZero",
+      "TestLocalStorageRecordRejectsUnsafePublication/hardlink",
+      "TestLocalStorageRecordRejectsUnsafePublication/parent-symlink",
+      "TestLocalStorageRecordRejectsUnsafePublication",
+      "TestLocalDesktopEndpointRejectsRemotePipes",
+      "TestHostStorageBoundPreservesGuestAndExpiresPins",
+      "TestHostStorageCacheExpiresWithoutProbeOrLosingConfirmation",
+      "TestHostStorageMissingPartialAndLinuxScopes",
+      "TestPrepareStorageConfirmationIsReadOnlyAndDetectsEngineChange",
+      "TestSharedWindowsStorageTwoWorkersReadWithoutProbes",
+      "TestResourceObserverCountsAllWorkloadsAndSeparatesScope",
+      "TestResourceObserverUnknownLimitsAndStaleStatsRemainUnknown",
+      "TestResourceObserverRejectsTruncatedInventory"
+    ],
+    "packages": [
+      {
+        "Package": "github.com/lcfrai/luci/control-plane/internal/resourcebudget",
+        "Elapsed": 1.065
+      },
+      {
+        "Package": "github.com/lcfrai/luci/control-plane/internal/backend/dockerbe",
+        "Elapsed": 1.101
+      }
+    ],
+    "logSHA256": "0a01d205b7b5d2adad33eee619e45ef2a94c48292c66ae81f3e5c4c454f0788f"
+  },
+  "windowsCompilation": {
+    "target": "windows/amd64",
+    "CGO_ENABLED": "0",
+    "executed": false,
+    "outputs": {
+      "resourcebudget-windows.test.exe": "878e8a07551f0828a9799d084c1ae71ea9dae2bc01017671ebf7d801639911e4",
+      "dockerbe-windows.test.exe": "09f4089a11e5154b78e21805a3521749fda3c9faf407edcd7a3348eca527464e"
+    }
+  },
+  "sourceSHA256": {
+    "control-plane/internal/backend/dockerbe/docker.go": "7f3781acdd9d0dd6175384303af23848200e44255ab11bf1c49da65de23c4b21",
+    "control-plane/internal/backend/dockerbe/resource_disk_windows.go": "a7a2bf102579b2c9ab435fcc7416c28ecf84a644f2929b8b00159a80eeb35fce",
+    "control-plane/internal/backend/dockerbe/resource_observer.go": "bc3bfa1463e70ca54143ed5819ab47e4cbaf7c2a481deab14ff42888af4e71c5",
+    "control-plane/internal/backend/dockerbe/resource_storage.go": "509088c407fc943a3e70236e15f442855269a1fadee74d5b7ae46f5020852e22",
+    "control-plane/internal/backend/dockerbe/resource_storage_shared.go": "ceda6c6e4edb5e3e35615be238be01dd706c3c3f9e105ce7b0457923a4043a38",
+    "control-plane/internal/backend/dockerbe/resource_storage_test.go": "41a7bf33f7fa1334f46a03d054f57d93761dde1940f51b737321e61cb408b093",
+    "control-plane/internal/backend/dockerbe/resource_storage_test_unix_test.go": "af967294c77edb3a2f88003fa818cdb819f14b397451f0c4b428c6141ffa2c0d",
+    "control-plane/internal/backend/dockerbe/resource_storage_test_windows_test.go": "e36c4bbb8d7b17c5ef0361626508e2bc89d8c012b33145776670d3fa9e73c33b",
+    "control-plane/internal/resourcebudget/local_storage.go": "94d8d267569778a6a9fa28e0bf918310628538fb14f29762c7b3bb00087d0ae3",
+    "control-plane/internal/resourcebudget/local_storage_cache.go": "d79e5680694873f9402b06d08e469f343d5e5c509bef3785892dbef439a35c8c",
+    "control-plane/internal/resourcebudget/local_storage_cache_test.go": "adbed48edc9246d49fb8c71a45286a706d047358f885a02c3fa98c33157d4bb6",
+    "control-plane/internal/resourcebudget/local_storage_link_other.go": "deb2c9e9d0a4809718542137e15ccc74ec7f574a519604ad7363b7213df9c673",
+    "control-plane/internal/resourcebudget/local_storage_link_unix.go": "773c14136565797e1d742818947ef78a44e96abc1e38f0a90626e5fd63a694cc",
+    "control-plane/internal/resourcebudget/local_storage_other.go": "61e67e69d9d0f3f06f1699696b3865461d4463c8181e5e11f0dc31a9d6c993f9",
+    "control-plane/internal/resourcebudget/local_storage_probe_windows_test.go": "8129acee7613fcc59f55a058beb38f91e7c9a2e28425b4db1bbe5211211a8e7a",
+    "control-plane/internal/resourcebudget/local_storage_protect_other.go": "e17a5ca815508d9bf3ea0edcbbdb0acb2bcee59d152c70cd82ee7aa18342a6e1",
+    "control-plane/internal/resourcebudget/local_storage_protect_windows.go": "1aa6926698981d8499f96409931047d33d434c21121043d37aadefb49f9ba9ff",
+    "control-plane/internal/resourcebudget/local_storage_test.go": "03162e5666ada07b2bd4489ba91d547a177e41fc22563b1bb374736998253890",
+    "control-plane/internal/resourcebudget/local_storage_test_unix_test.go": "b2c5116616036e1084919bde2e3d9e4308d224452539877bf9b697a5a5e90638",
+    "control-plane/internal/resourcebudget/local_storage_test_windows_test.go": "30badcb2694d142feffab6349279050863937be1b8e61937fdb9f54b0b8c0f81",
+    "control-plane/internal/resourcebudget/local_storage_windows.go": "70bd6bca7cb9c4855b3314296530d7e8ac59ba8cd84c1046335c91d1e1f2c81a",
+    "control-plane/internal/resourcebudget/types.go": "a1f6f1bccdcaac6eeaaee6f7a7c5ec943fb1dcee02648bc9da6b565500c03a81"
+  },
+  "sourceHashTiming": "Hashes captured after verification; all owned input mtimes precede the first focused-race event. These files were frozen through Windows compilation.",
+  "remainingNativeChecks": [
+    "Actual read-only native VHD/volume/settings observation",
+    "Native cache publication/ACL/replacement and reader behavior",
+    "Host Super Admin UI confirmation, invalidation and admission",
+    "Native storage sampling latency and CPU cost with multiple active workspaces"
+  ]
+}

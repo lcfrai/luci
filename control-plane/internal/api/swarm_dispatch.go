@@ -327,5 +327,5 @@ func (a *API) queuedResourceView() any {
 		Host         any                       `json:"host"`
 		Execution    any                       `json:"execution"`
 		Reservations *executionReservationView `json:"reservations"`
-	}{snapshot.Host, map[string]any{"observedAt": snapshot.Execution.ObservedAt, "status": snapshot.Execution.Status, "scope": snapshot.Execution.Scope, "totalMemoryBytes": snapshot.Execution.TotalMemoryBytes, "cpuMillis": snapshot.Execution.CPUMillis, "unavailable": snapshot.Execution.Unavailable}, a.execution.snapshot.Load()}
+	}{snapshot.Host, map[string]any{"observedAt": snapshot.Execution.ObservedAt, "status": snapshot.Execution.Status, "scope": snapshot.Execution.Scope, "totalMemoryBytes": snapshot.Execution.TotalMemoryBytes, "cpuMillis": snapshot.Execution.CPUMillis, "hostStorage": snapshot.Execution.HostStorage, "unavailable": snapshot.Execution.Unavailable}, a.execution.snapshot.Load()}
 }

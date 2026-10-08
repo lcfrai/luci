@@ -52,6 +52,8 @@ The summarizer only reads existing files and writes `analysis.json`; it does not
 
 ## Interpretation
 
+The [2819ce9e installed resource receipt](../../../docs/luci/evidence/2026-10-08-2819ce9e-installed-swarm-resources.md) records a completed controlled four-project workflow with natural worker completion and one concurrent worker. It preserves the full measured interval, gaps and shared-host compiler overlap. The earlier e81 receipt remains a failed partial attempt.
+
 - Process RSS is separated into test driver, browser, control-plane and other observed descendants. Summed RSS double-counts shared pages; it is not unique physical memory. Peaks for different roles happen at different times and must not be added.
 - Process CPU and I/O counter deltas cover only observed intervals. Permission failures remain missing. Short-lived children can contribute work that is never observed.
 - Docker cgroup usage, working-set estimate, hard limits and CPU are separate. Do not add cgroup memory to container process RSS or infer daemon/kernel/VM overhead from it. Zero active containers at one sample is not evidence that none ran between samples.

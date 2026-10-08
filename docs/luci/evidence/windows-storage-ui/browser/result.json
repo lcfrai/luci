@@ -1,0 +1,117 @@
+{
+  "passed": true,
+  "startedAt": "2026-10-08T09:10:35.511Z",
+  "scope": "Actual source DockerStorageConfirmation and shared controls/CSS in Linux Chromium with explicitly controlled identity and storage DTO callbacks.",
+  "limitations": [
+    "No installed-package, native Windows, real management API, physical storage, Docker, agent, model or cloud execution evidence.",
+    "The fixture confirms rendering and interaction. Native storage validation and HTTP handler authorization are separate checks.",
+    "Automated axe checks supplement keyboard and geometry assertions; they are not an accessibility certification."
+  ],
+  "sourceCommit": "2819ce9eacf62b2d73a1522b2db25301a7b393d4",
+  "sourceDirty": true,
+  "sourceBefore": {
+    "desktop/src/api/executionStorage.ts": "b5aac2176c869854e716c35f916dcff8976e935013e4ffd6e3dbd021ae97902d",
+    "desktop/src/components/setup/DockerStorageConfirmation.tsx": "6ae306533e7ec1a3e345ddbfd3c76d1c2ddb5b5ee68fb78368384d98b278979c",
+    "desktop/src/components/setup/setup.css": "37861110ef4b5049a158aa8b6a73eb3db4faa64d902d6434b41bcbec629a85fb",
+    "desktop/src/components/ui/button.tsx": "fa975deeed946ff9b2fe9c4ef1e09e04d0287a0fa83dd12b577cb8a7d79b5a5a",
+    "desktop/src/components/ui/input.tsx": "c4c73a8130a1444bdac4daae8dc9d908cfcb74d2cd3e62b68110997850454f1a",
+    "desktop/src/styles/app.css": "0b672e16997fbb7e2efec0cd1011fb08cbdcb3987169cedd7e86512e9c7329c0",
+    "desktop/src/styles/tokens.css": "c1ec546c246e1f881ab4c23e1825c1cdfda31998b24702c62320d154ac9c2bc9",
+    "desktop/src/styles/fluid.css": "55956914ad1cd375127f501a68c3bd1a68c79abbf648f185ff7487a5ec92ea54",
+    "desktop/src/styles/shadcn.css": "e7f7f84a4f9837bed1b5474951afb3a8436d62c803f38f65e099447f9a388a69",
+    "desktop/vite.config.ts": "be4e7f5167e717324648803be82e755033db2a559c4fbada29ce8aeeacb67914",
+    "desktop/package.json": "2298a2e941314ff0f5dc82813a0b0edca0c66bccb7c766a80e46631fc8aa07b5",
+    "desktop/package-lock.json": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a"
+  },
+  "helperSHA256": "07ab0a61c20709fac3ad9657f6415704b111347a0d5d3a9f3041d1c26482110f",
+  "fixtureSHA256": "61f4d165b3a23656555fa1173ac6b28c5dbd8696f9b19dea87b1f1fb1a39992a",
+  "checks": [
+    {
+      "width": 1440,
+      "axeViolations": []
+    },
+    {
+      "width": 1440,
+      "reviewFocusAndTabOrder": true,
+      "noWriteBeforeConfirmation": true,
+      "oneExplicitFixturePostThenReadOnlyPolling": true,
+      "fixtureCalls": [
+        {
+          "method": "GET"
+        },
+        {
+          "method": "POST",
+          "expectedRevision": 3,
+          "vhdPath": "D:\\Local application data\\Docker Desktop\\wsl\\disk\\docker_data.vhdx",
+          "confirmActiveAndPendingLocal": true
+        },
+        {
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "axeViolations": []
+    },
+    {
+      "width": 390,
+      "reviewFocusAndTabOrder": true,
+      "noWriteBeforeConfirmation": true,
+      "oneExplicitFixturePostThenReadOnlyPolling": true,
+      "fixtureCalls": [
+        {
+          "method": "GET"
+        },
+        {
+          "method": "POST",
+          "expectedRevision": 3,
+          "vhdPath": "D:\\Local application data\\Docker Desktop\\wsl\\disk\\docker_data.vhdx",
+          "confirmActiveAndPendingLocal": true
+        },
+        {
+          "method": "GET"
+        }
+      ]
+    }
+  ],
+  "geometry": [
+    {
+      "width": 1440,
+      "clientWidth": 802,
+      "scrollWidth": 802,
+      "left": 319,
+      "right": 1121,
+      "viewport": 1440
+    },
+    {
+      "width": 390,
+      "clientWidth": 342,
+      "scrollWidth": 342,
+      "left": 24,
+      "right": 366,
+      "viewport": 390
+    }
+  ],
+  "errors": [],
+  "cleanup": [
+    "Owned browser and Vite server closed; private browser files removed."
+  ],
+  "browserVersion": "151.0.7922.173",
+  "sourceAfter": {
+    "desktop/src/api/executionStorage.ts": "b5aac2176c869854e716c35f916dcff8976e935013e4ffd6e3dbd021ae97902d",
+    "desktop/src/components/setup/DockerStorageConfirmation.tsx": "6ae306533e7ec1a3e345ddbfd3c76d1c2ddb5b5ee68fb78368384d98b278979c",
+    "desktop/src/components/setup/setup.css": "37861110ef4b5049a158aa8b6a73eb3db4faa64d902d6434b41bcbec629a85fb",
+    "desktop/src/components/ui/button.tsx": "fa975deeed946ff9b2fe9c4ef1e09e04d0287a0fa83dd12b577cb8a7d79b5a5a",
+    "desktop/src/components/ui/input.tsx": "c4c73a8130a1444bdac4daae8dc9d908cfcb74d2cd3e62b68110997850454f1a",
+    "desktop/src/styles/app.css": "0b672e16997fbb7e2efec0cd1011fb08cbdcb3987169cedd7e86512e9c7329c0",
+    "desktop/src/styles/tokens.css": "c1ec546c246e1f881ab4c23e1825c1cdfda31998b24702c62320d154ac9c2bc9",
+    "desktop/src/styles/fluid.css": "55956914ad1cd375127f501a68c3bd1a68c79abbf648f185ff7487a5ec92ea54",
+    "desktop/src/styles/shadcn.css": "e7f7f84a4f9837bed1b5474951afb3a8436d62c803f38f65e099447f9a388a69",
+    "desktop/vite.config.ts": "be4e7f5167e717324648803be82e755033db2a559c4fbada29ce8aeeacb67914",
+    "desktop/package.json": "2298a2e941314ff0f5dc82813a0b0edca0c66bccb7c766a80e46631fc8aa07b5",
+    "desktop/package-lock.json": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a"
+  },
+  "sourceUnchanged": true,
+  "finishedAt": "2026-10-08T09:10:48.572Z"
+}

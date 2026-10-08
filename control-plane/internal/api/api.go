@@ -418,6 +418,7 @@ func New(d Deps) (*API, error) {
 	a.execution = newExecutionAdmission(a)
 	if d.Product != nil {
 		d.Product.SetProjectSwarmRecovery(a.proveSwarmMissingChild, a.finalizeSwarmMissingChild)
+		d.Product.SetRuntimeResourceSnapshot(d.ResourceSnapshot)
 		d.Product.SetProjectRunSelectionResolver(a.ResolveProjectRunSelection)
 		d.Product.SetProjectRunSessionObserver(a.ObserveProjectRunSessions)
 		d.Product.SetSwarmSchedulerRuntime(product.SwarmSchedulerRuntime{CaptureActor: a.captureQueuedActor, Admit: a.admitQueuedSwarm, Dispatch: a.dispatchQueuedSwarm, Release: a.execution.release, Resources: a.queuedResourceView})

@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "sourceCommit": "2819ce9eacf62b2d73a1522b2db25301a7b393d4",
+  "curatedAt": "2026-10-08T08:43:44.223302+00:00",
+  "originalPackageIntegrity": {
+    "artifact": "artifacts/quality-swarm/native-correction-2819ce9e/package/package-integrity.json",
+    "sha256": "982bceb1df301455c5fd1b5b7689f3f7966e8d74565e41e54701b77f2a3ac7c6"
+  },
+  "originalPackageProvenance": {
+    "artifact": "artifacts/quality-swarm/native-correction-2819ce9e/package/package-provenance.json",
+    "sha256": "499bffbd5658a6fda2543b4ed431e74ceaa251c4bba7bae4a81d21aa52b3e3aa"
+  },
+  "originalSourceExport": {
+    "artifact": "artifacts/quality-swarm/native-correction-2819ce9e/source-export.log",
+    "sha256": "4070099633b2b9607e3d6b1679bec8c7f1e9759b42f0e031283f34081298cfe7"
+  },
+  "packageIntegrity": {
+    "at": "2026-10-08T08:28:57.566169+00:00",
+    "sourceCommit": "2819ce9eacf62b2d73a1522b2db25301a7b393d4",
+    "sourceDirty": false,
+    "verifiedExtractedFiles": 996,
+    "licenseComponents": 347,
+    "missingLicenses": 0,
+    "subjects": [
+      {
+        "name": "linux-amd64/luci-cloud-linux-amd64.tar.gz",
+        "sha256": "578c1051122c1206956d08883281c6d78b7d44417a8bd0f4216e8f62a91eec47",
+        "bytes": 34450497
+      },
+      {
+        "name": "linux-amd64/luci-linux-amd64.tar.gz",
+        "sha256": "4f1346f62df9e6d3bd52ac368fd1a5bce8a837254c9e4a9bb07a3996196440f2",
+        "bytes": 68708741
+      },
+      {
+        "name": "linux-amd64/release-manifest.json",
+        "sha256": "0f9c0da6bf329a2dde7d6d5241bee8061e1630262e92506dc7d0279f74ed0e86",
+        "bytes": 696
+      }
+    ],
+    "allMembersMatched": true
+  },
+  "packageProvenance": {
+    "sourceCommit": "2819ce9eacf62b2d73a1522b2db25301a7b393d4",
+    "sourceDirty": false,
+    "archiveSHA256": "4f1346f62df9e6d3bd52ac368fd1a5bce8a837254c9e4a9bb07a3996196440f2",
+    "binarySHA256": "393346ec4b120fe1b1adba7a755b556244271e472799d965da7df5e89c975213",
+    "webIndexSHA256": "09e453e90c411c637742f623f1bea31946c6836b044504eaca2c4ac3318093ce",
+    "subjects": [
+      {
+        "name": "linux-amd64/luci-cloud-linux-amd64.tar.gz",
+        "sha256": "578c1051122c1206956d08883281c6d78b7d44417a8bd0f4216e8f62a91eec47",
+        "bytes": 34450497
+      },
+      {
+        "name": "linux-amd64/luci-linux-amd64.tar.gz",
+        "sha256": "4f1346f62df9e6d3bd52ac368fd1a5bce8a837254c9e4a9bb07a3996196440f2",
+        "bytes": 68708741
+      },
+      {
+        "name": "linux-amd64/release-manifest.json",
+        "sha256": "0f9c0da6bf329a2dde7d6d5241bee8061e1630262e92506dc7d0279f74ed0e86",
+        "bytes": 696
+      }
+    ]
+  },
+  "independentArchiveRecheck": {
+    "packageArchiveSHA256": "4f1346f62df9e6d3bd52ac368fd1a5bce8a837254c9e4a9bb07a3996196440f2",
+    "sourceArchiveSHA256": "179e11de73383b74fd4550ead9a4528bc9027de400292b15eb5ec39108502e42",
+    "sourceArchiveBytes": 5050172
+  },
+  "sourceExport": {
+    "sourceCommit": "2819ce9eacf62b2d73a1522b2db25301a7b393d4",
+    "version": "0.5.0",
+    "files": 1514,
+    "bytes": 14519292,
+    "licenseReferences": 59,
+    "planOnly": false,
+    "archiveSha256": "179e11de73383b74fd4550ead9a4528bc9027de400292b15eb5ec39108502e42"
+  },
+  "correctionSourceBindings": {
+    "method": "Independent SHA-256 comparison with committed Git blobs; raw manifests already retained in ../native-lifecycle-correction. No tests rerun.",
+    "scopes": {
+      "fullProductRecordedInputSuperset": {
+        "filesCompared": 578,
+        "allSelectedBytesMatchCommit": true,
+        "mismatches": []
+      },
+      "localApiCompiledInputSuperset": {
+        "filesCompared": 336,
+        "allSelectedBytesMatchCommit": true,
+        "mismatches": []
+      },
+      "cloud006SelectedCatalogueFiles": {
+        "filesCompared": 2,
+        "allSelectedBytesMatchCommit": true,
+        "mismatches": []
+      },
+      "cloud007SelectedFiles": {
+        "filesCompared": 5,
+        "allSelectedBytesMatchCommit": true,
+        "mismatches": []
+      }
+    },
+    "sourceReceiptReferences": [
+      {
+        "receipt": "../native-lifecycle-correction/cloud006.json",
+        "sha256": "a045b5517218b312f8f3a20ffc955e3ea5a7a49f837e400c0edebf15c9eae352"
+      },
+      {
+        "receipt": "../native-lifecycle-correction/cloud007.json",
+        "sha256": "90239d296a48444b9e1146a31efdb805da37727ecc9c8c9688ae185d5d143b76"
+      },
+      {
+        "receipt": "../native-lifecycle-correction/local001-local003-api.json",
+        "sha256": "393c1871048a8d1e8a876263e71db8de527e11be979e2a1268b63fe96f327016"
+      },
+      {
+        "receipt": "../native-lifecycle-correction/local001-local002-product.json",
+        "sha256": "014c1404a24801f61f17d869511e6714d79a2bbacf7579a1e9695440011d4059"
+      }
+    ],
+    "scopeLimit": "Byte equality does not broaden test scope. CLOUD-006 full API ran before subsequent changes; only its catalogue files are bound here. Full product and affected API are separate results."
+  },
+  "limitations": [
+    "This receipt establishes Linux package/source export integrity and selected source bindings, not independent installed workflow acceptance.",
+    "Actual installed runtime/observer evidence is maintained separately by its test owner.",
+    "Post-2819 Git-helper isolation and Windows backing-volume changes are not part of this immutable package.",
+    "Native Windows, real-model quality and broader local product release gates remain governed by their separate acceptance records.",
+    "Private extraction paths and raw runtime data are omitted."
+  ]
+}

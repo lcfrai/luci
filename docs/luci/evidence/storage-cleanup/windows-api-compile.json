@@ -1,0 +1,23 @@
+{
+  "status": "passed-compilation",
+  "startedAt": "2026-10-08T09:52:00.528532+00:00",
+  "endedAt": "2026-10-08T09:54:46.107158+00:00",
+  "elapsedSeconds": 165.579,
+  "command": "GOMAXPROCS=2 GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -p 1 -o ../artifacts/cloud005/luci-api-windows.exe ./cmd/api",
+  "workingDirectory": "control-plane",
+  "target": "windows/amd64",
+  "nativeExecuted": false,
+  "scope": "Complete Windows API binary compilation, including management private-file code and startup storage/callback wiring. No native runtime or Docker verification.",
+  "exitCode": 0,
+  "sourceUnchanged": true,
+  "changedPaths": [],
+  "headUnchanged": true,
+  "statusUnchanged": true,
+  "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "binarySHA256": "4bdf85bae5494a8a6a5addd29a374fcd6819138790cc3f947cdfa4fc7c573575",
+  "binaryBytes": 87543296,
+  "sourceFiles": 1786,
+  "sourceBase": "2819ce9eacf62b2d73a1522b2db25301a7b393d4",
+  "sourceManifest": "full-go-source-before.json",
+  "binding": "All Windows compilation input files matched the full-Go source manifest; docs/evidence are summarized separately."
+}

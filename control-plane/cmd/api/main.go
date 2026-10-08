@@ -93,6 +93,11 @@ func run(getenv func(string) string, errOut io.Writer) int {
 }
 
 func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
+	executionStateDir, err := executionStateDirectory(cfg, os.Getenv("LUCI_EXECUTION_STATE_DIR"))
+	if err != nil {
+		return err
+	}
+	cfg.ExecutionStateDir = executionStateDir
 	lease, err := acquireManagedStateLease(cfg)
 	if err != nil {
 		return fmt.Errorf("acquire managed host state: %w", err)
@@ -139,7 +144,10 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	// endpoint.
 	recoverSessions(ctx, store, be, log)
 
-	rp := reaper.New(reaperConfigFor(cfg, instanceID, store, be, log))
+	cleanupProof := &stoppedTaskCleanupGate{}
+	reaperConfig := reaperConfigFor(cfg, instanceID, store, be, log)
+	reaperConfig.ConfirmStoppedTaskCleanup = cleanupProof.confirm
+	rp := reaper.New(reaperConfig)
 	// The reaper gets its own context rather than ctx, so that a SIGINT drains
 	// the HTTP server while the reaper is still sweeping a live backend; ctx is
 	// already cancelled by the time Shutdown is called, and a reaper on ctx
@@ -177,14 +185,6 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		if exe, err := os.Executable(); err == nil {
 			cloudBundle = filepath.Join(filepath.Dir(exe), "cloud", "luci-cloud-linux-amd64.tar.gz")
 		}
-	}
-	executionStateDir := os.Getenv("LUCI_EXECUTION_STATE_DIR")
-	if executionStateDir == "" {
-		root := cfg.StateDir
-		if root == "" {
-			root = filepath.Dir(filepath.Dir(cfg.SessionsPath))
-		}
-		executionStateDir = filepath.Join(root, "control-plane", "execution")
 	}
 	var platformService *platform.Service
 	resolveDataPlatform := func() *platform.Service { return platformService }
@@ -343,6 +343,8 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("build the HTTP surface: %w", err)
 	}
+	cleanupProof.publish(handler.ConfirmStoppedTaskCleanup)
+	defer cleanupProof.publish(nil)
 
 	ln, err := net.Listen("tcp", cfg.Addr)
 	if err != nil {
@@ -377,7 +379,8 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		if root == "" {
 			root = filepath.Dir(filepath.Dir(cfg.SessionsPath))
 		}
-		control, err = management.New(management.Options{StripeBilling: management.StripeBillingConfig{APIKey: cfg.StripeAPIKey, WebhookSecret: cfg.StripeWebhookSecret, AccountID: cfg.StripeAccountID, PriceID: cfg.StripePriceID, TermsURL: cfg.BillingTermsURL, PrivacyURL: cfg.BillingPrivacyURL}, StateDir: root, InstanceName: cfg.InstanceName, ManagedTeamID: cfg.ManagedTeamID, PublicAppOrigin: cfg.PublicAppOrigin, Backing: cfg.Backing, Version: product.Version, InitialHandler: engine, BaseEnvironment: os.Environ(), LocalAccessToken: cfg.LocalAccessToken, PortableOwnerAccess: cfg.PortableOwnerAccess, PortablePackageID: cfg.PortablePackageID})
+		storage, _ := be.(management.ExecutionStorageConfigurer)
+		control, err = management.New(management.Options{ExecutionStateDir: executionStateDir, ExecutionStorage: storage, StripeBilling: management.StripeBillingConfig{APIKey: cfg.StripeAPIKey, WebhookSecret: cfg.StripeWebhookSecret, AccountID: cfg.StripeAccountID, PriceID: cfg.StripePriceID, TermsURL: cfg.BillingTermsURL, PrivacyURL: cfg.BillingPrivacyURL}, StateDir: root, InstanceName: cfg.InstanceName, ManagedTeamID: cfg.ManagedTeamID, PublicAppOrigin: cfg.PublicAppOrigin, Backing: cfg.Backing, Version: product.Version, InitialHandler: engine, BaseEnvironment: os.Environ(), LocalAccessToken: cfg.LocalAccessToken, PortableOwnerAccess: cfg.PortableOwnerAccess, PortablePackageID: cfg.PortablePackageID})
 		if err != nil {
 			_ = ln.Close()
 			return fmt.Errorf("initialise control-plane management: %w", err)
@@ -552,11 +555,13 @@ func newBackend(cfg Config, instanceID string, log *slog.Logger) (backend.Backen
 		// 127.0.0.1 and refuses anything else, and there is no safe non-loopback
 		// value to expose as an environment variable.
 		return dockerbe.New(dockerbe.Config{
-			Host:          cfg.DockerHost,
-			ResourceImage: cfg.SandboxImage,
-			ReadyTimeout:  cfg.ReadyTimeout,
-			Log:           log,
-			Instance:      instanceID,
+			Host:                            cfg.DockerHost,
+			ResourceImage:                   cfg.SandboxImage,
+			ResourceStorageConfirmationPath: executionStorageConfirmationPath(cfg.ExecutionStateDir),
+			ResourceStorageReadOnly:         cfg.Worker,
+			ReadyTimeout:                    cfg.ReadyTimeout,
+			Log:                             log,
+			Instance:                        instanceID,
 		})
 	case string(backend.KindKata):
 		client, err := kubeClient(cfg.Kubeconfig)

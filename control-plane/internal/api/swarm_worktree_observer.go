@@ -42,9 +42,13 @@ func (a *API) observeSwarmWorktree(ctx context.Context, projectID, worktreeID st
 	return false, nil
 }
 
-// Capacity release and Git integration use the same exact backend observation.
-// Unknown/transport failures must not be laundered through a joined NotFound.
+// Git review accepts an exactly observed stopped backend. Task capacity release
+// additionally requires absence so a failed removal can retain its retry proof.
 func (a *API) exactBackendStopped(ctx context.Context, sandboxID string) (bool, error) {
+	return a.exactBackendTerminal(ctx, sandboxID, false)
+}
+
+func (a *API) exactBackendTerminal(ctx context.Context, sandboxID string, requireAbsent bool) (bool, error) {
 	if err := ctx.Err(); err != nil {
 		return false, err
 	}
@@ -56,7 +60,7 @@ func (a *API) exactBackendStopped(ctx context.Context, sandboxID string) (bool, 
 		return false, ctx.Err()
 	}
 	if err != nil {
-		if errors.Is(err, backend.ErrNotFound) && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, backend.ErrUnavailable) {
+		if unambiguousBackendNotFound(err) {
 			return true, nil
 		}
 		return false, fmt.Errorf("The task backend could not be confirmed stopped: %w", err)
@@ -65,11 +69,31 @@ func (a *API) exactBackendStopped(ctx context.Context, sandboxID string) (bool, 
 		return false, errors.New("The stopped task backend returned a different identity.")
 	}
 	switch sb.State {
-	case backend.StateGone, backend.StateStopped:
+	case backend.StateGone:
 		return true, nil
+	case backend.StateStopped:
+		return !requireAbsent, nil
 	case backend.StateStarting, backend.StateRunning:
 		return false, nil
 	default:
 		return false, errors.New("The task backend state is unknown; inspect it before releasing its resources.")
 	}
+}
+
+// Only a single wrapped NotFound is an absence witness. A joined error can
+// carry an unrelated transport failure even when errors.Is also finds NotFound.
+func unambiguousBackendNotFound(err error) bool {
+	for depth := 0; err != nil && depth < 64; depth++ {
+		if _, joined := err.(interface{ Unwrap() []error }); joined {
+			return false
+		}
+		if err == backend.ErrNotFound {
+			return true
+		}
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, backend.ErrUnavailable) {
+			return false
+		}
+		err = errors.Unwrap(err)
+	}
+	return false
 }

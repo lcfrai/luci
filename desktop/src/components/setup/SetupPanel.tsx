@@ -26,6 +26,8 @@ import { ProjectRestore } from "../journey/ProjectBackup";
 import { useAuth } from "../auth/AuthProvider";
 import { AppearancePanel } from "./AppearancePanel";
 import { RuntimePreparation } from "./RuntimePreparation";
+import { DockerStorageConfirmation } from "./DockerStorageConfirmation";
+import { createExecutionStorageClient, storagePreparationBlock } from "../../api/executionStorage";
 import { AgentConnections } from "./AgentConnections";
 import { DependencySetup } from "./DependencySetup";
 import { createDependencyClient } from "../../api/dependencies";
@@ -171,6 +173,7 @@ export function SetupPanel({
     (status?.configured === false || portal) &&
     !cloudWorkspace;
   const dependencies = useMemo(() => createDependencyClient(client), [client]);
+  const executionStorage = useMemo(() => createExecutionStorageClient(client), [client]);
   const [toolsRevision, setToolsRevision] = useState(0);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -622,7 +625,16 @@ export function SetupPanel({
                       ))}
                     </div>
                   )}
+                  <DockerStorageConfirmation
+                    client={executionStorage}
+                    enabled={status?.platform === "windows" && !cloudWorkspace}
+                    onChanged={() => {
+                      setToolsRevision(value => value + 1);
+                      if (!runtimeActive) void run("Checking storage readiness", async () => receive(await client.check()));
+                    }}
+                  />
                   <LocalTools
+                    runtimeBlockedReason={storagePreparationBlock(status)}
                     client={client}
                     identityOnly={portal}
                     cloud={cloudWorkspace}

@@ -3,8 +3,6 @@ package project_test
 import (
 	"context"
 	"errors"
-	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -166,16 +164,11 @@ func TestBranchesStillListsBranchesWhenHeadIsUnborn(t *testing.T) {
 // alongside a branch that does have commits.
 func TestBranchesAgainstARealRepositoryWhoseHeadIsUnborn(t *testing.T) {
 	requireGit(t)
-	root := t.TempDir()
+	root := longTemp(t)
 	dir := filepath.Join(root, "luci")
 	makeGitRepo(t, dir)
 
-	cmd := exec.Command("git", "checkout", "--orphan", "blank")
-	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("git checkout --orphan blank: %v\n%s", err, out)
-	}
+	gitIn(t, dir, "checkout", "--orphan", "blank")
 
 	got, err := branchesOf(t, root, dir, project.NewExecRunner())
 	if err != nil {

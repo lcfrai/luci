@@ -822,6 +822,7 @@ it("hands automatic preparation to the backend before leaving the portal and per
   const acceptance = new Promise<Response>(resolve => { acceptInstall = resolve; });
   const current: SetupStatus = { ...status, configured: true, checks: [
     { id: "docker", label: "Docker", status: "ready", message: "Docker running", action: "" },
+    { id: "docker-backing-storage", label: "Docker backing storage", status: "ready", message: "Confirmed host and guest capacity is sufficient for preparation.", action: "" },
     { id: "sandbox-image", label: "Agent runtime", status: "missing", message: "Image not built", action: "" },
   ] };
   const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url, init) => {

@@ -191,3 +191,24 @@ it("saves a personal agent key only on explicit submission and clears it after s
     ),
   ).toEqual({ apiKey: "" });
 });
+
+
+it('keeps manual runtime preparation blocked until the actual readiness state permits it', async () => {
+  const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url, init) => new Response(JSON.stringify(
+    String(url).endsWith('/git/identity') ? { name: 'Builder', email: 'builder@example.invalid' }
+      : String(url).endsWith('/runtime/install') ? init?.method === 'POST' ? { status: 'installing', message: 'Real job accepted.' } : { status: 'idle' }
+        : { providers: [] }
+  )));
+  const client = createProductClient('http://localhost', fetcher);
+  const view = render(<LocalTools client={client} runtimeBlockedReason="Confirm Docker storage in Settings." />);
+  await userEvent.click(screen.getByText('Git identity, agent connection and runtime'));
+  await screen.findByDisplayValue('Builder');
+  const install = await screen.findByRole('button', { name: 'Install agent runtime' });
+  expect((install as HTMLButtonElement).disabled).toBe(true);
+  await userEvent.click(install);
+  expect(fetcher.mock.calls.filter(([url, init]) => String(url).endsWith('/runtime/install') && init?.method === 'POST')).toHaveLength(0);
+  view.rerender(<LocalTools client={client} runtimeBlockedReason="" />);
+  await userEvent.click(install);
+  await screen.findByText('installing · Real job accepted.');
+  expect(fetcher.mock.calls.filter(([url, init]) => String(url).endsWith('/runtime/install') && init?.method === 'POST')).toHaveLength(1);
+});

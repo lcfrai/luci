@@ -22,6 +22,7 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/management"
 	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
 	"github.com/lcfrai/luci/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/resourcebudget"
 )
 
 const Version = "0.5.0"
@@ -100,6 +101,7 @@ type Server struct {
 	importActive                    map[string]bool
 	projectChecks                   map[string]*projectCheckJob
 	runtimeJob                      RuntimeJob
+	runtimeResourceSnapshot         func() resourcebudget.Snapshot
 	authJobs                        map[string]*ProviderLoginJob
 	runtimeDir                      string
 	mu                              sync.RWMutex
@@ -436,16 +438,17 @@ func defaultChecks() []Check {
 }
 func (s *Server) status() Status {
 	s.mu.RLock()
-	defer s.mu.RUnlock()
 	workspace := s.workspace
 	if workspace.Mode == "cloud" {
 		t := s.tunnels[workspace.ConnectionID]
 		workspace.Ready = workspace.Ready && t != nil && t.Status == "connected"
 	}
-	return Status{Workspace: workspace, Product: "Luci", Version: Version, Platform: runtime.GOOS, Configured: s.configured, Config: s.config, Checks: append([]Check{}, s.checks...), CloudProviders: []Provider{
+	status := Status{Workspace: workspace, Product: "Luci", Version: Version, Platform: runtime.GOOS, Configured: s.configured, Config: s.config, Checks: append([]Check{}, s.checks...), CloudProviders: []Provider{
 		{ID: "aws", Name: "AWS", Strategy: "Lightsail", Description: "One Linux machine with bundle pricing"},
 		{ID: "azure", Name: "Azure", Strategy: "Virtual machine", Description: "One Linux machine, persistent storage and HTTPS"},
 	}}
+	s.mu.RUnlock()
+	return s.withRuntimeStorageReadiness(status)
 }
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, s.workspaceStatus(r.Context(), "GET"))

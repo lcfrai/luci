@@ -28,6 +28,39 @@ passing one scope does not establish another or complete the local product.
   native process/memory/disk metrics and private output ACL checks reported by
   the local tester; no Docker or Luci workload performance claim.
 
+- [Reported 2819ce9e native corrections](2026-10-08-2819ce9e-native-fixes-reported.json):
+  nine Windows tests passed, original three local findings verified at their
+  reproduction scope, and all tracked source bytes plus HEAD preserved.
+
+- [Reported native four-project source-browser smoke](2026-10-08-2819ce9e-native-browser-reported.json):
+  startup, distinct saved purposes, switching, scoped draft recovery, restart
+  persistence and accessibility; no agents, model output or resource workload.
+
+- [2819ce9e package and source](2819ce9e/README.md): clean portable package,
+  extracted-file checks, licences and source archive identities.
+- [Installed four-project execution](2026-10-08-2819ce9e-installed-swarm.md):
+  four native Docker/Codex tasks, natural exits, automatic capacity handoffs,
+  retained worker across controller restart, and explicit browser integration;
+  provider output is scripted.
+- [Installed owned-resource observations](2026-10-08-2819ce9e-installed-swarm-resources.md):
+  445 samples with exact process/container scope, gaps and host-overlap limits.
+- [Windows storage frontend](2026-10-08-windows-storage-ui.md): 2,394 passing
+  tests, exact-source TypeScript, desktop/phone component interaction and axe
+  evidence, plus portable fixture helpers. Native storage remains unverified.
+- [Controlled Windows storage backend](2026-10-08-windows-storage-controlled.json):
+  identity-bound confirmation, shared private observations and Windows
+  cross-compilation, with precise source hashes and native limits.
+- [Shared storage across isolated processes](2026-10-08-windows-storage-multiprocess.json):
+  18 actual controlled reader processes, 360 reads and zero worker probe
+  attempts, with expiry and identity invalidation. Native Windows probe counts
+  remain a separate gate.
+- [Additional Git fixture isolation](git-fixture-helper-isolation.json):
+  temporary-directory ownership and unchanged parent-repository regressions.
+
+- [Combined storage/cleanup source verification](storage-cleanup/README.md):
+  2,835 Go race outcomes, complete Windows API compilation, unchanged source
+  and exact skip/limitation records. CLOUD-009 remains open.
+
 The private raw logs, credentials, profiles and fixture workspaces stay outside
 Git. Original-artifact hashes record lineage; they are not signed attestations.
 Use fresh isolated profiles and retain failed attempts when reproducing checks.

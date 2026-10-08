@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -155,6 +156,9 @@ func TestSetupReadinessRunsIndependentProbesConcurrentlyAndPublishesTogether(t *
 	}
 	value := readReadinessResponse(t, response)
 	wantOrder := []string{"git", "docker", "sandbox-image", "aws", "azure"}
+	if runtime.GOOS == "windows" {
+		wantOrder = append(wantOrder, "docker-backing-storage")
+	}
 	for i, check := range value.Checks {
 		if i >= len(wantOrder) || check.ID != wantOrder[i] || check.Status != "ready" {
 			t.Fatalf("readiness lost deterministic ordering or completed proof at index %d", i)
@@ -241,11 +245,21 @@ func TestSetupReadinessProbeTimeoutPublishesMissingOnLiveRequest(t *testing.T) {
 	}
 	value := readReadinessResponse(t, response)
 	for _, check := range value.Checks {
+		if check.ID == "docker-backing-storage" {
+			if check.Status != "ready" {
+				t.Fatal("independent cached storage measurement was lost", check)
+			}
+			continue
+		}
 		if check.Status != "missing" || check.Action == "" {
 			t.Fatalf("a timed out individual probe advertised readiness: %s", check.ID)
 		}
 	}
-	if len(value.Checks) != 5 || !reflect.DeepEqual(value.Checks, s.status().Checks) {
+	wantChecks := 5
+	if runtime.GOOS == "windows" {
+		wantChecks++
+	}
+	if len(value.Checks) != wantChecks || !reflect.DeepEqual(value.Checks, s.status().Checks) {
 		t.Fatal("live readiness request did not publish all settled timeout outcomes")
 	}
 }
@@ -264,6 +278,12 @@ func TestSetupReadinessRejectsEmptyAndFailedProbeOutput(t *testing.T) {
 	response := httptest.NewRecorder()
 	s.handleCheck(response, httptest.NewRequest(http.MethodPost, "/v1/setup/check", nil))
 	for _, check := range readReadinessResponse(t, response).Checks {
+		if check.ID == "docker-backing-storage" {
+			if check.Status != "ready" {
+				t.Fatal("independent cached storage measurement was lost", check)
+			}
+			continue
+		}
 		if check.Status != "missing" || check.Action == "" || strings.TrimSpace(check.Message) == "" {
 			t.Fatalf("readiness accepted empty or failed proof: %s", check.ID)
 		}

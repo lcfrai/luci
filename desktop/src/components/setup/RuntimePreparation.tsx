@@ -1,3 +1,4 @@
+import { storagePreparationBlock } from "../../api/executionStorage";
 import { Button } from "../fluid/components/button";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -73,6 +74,7 @@ export function RuntimePreparation({
           automatic &&
           manageBacking &&
           docker &&
+          !storagePreparationBlock(next) &&
           !image &&
           runtime.status === "idle" &&
           !automaticStarted.current.has(client)
@@ -164,6 +166,7 @@ export function RuntimePreparation({
   const imageReady =
     status?.checks.find((check) => check.id === "sandbox-image")?.status ===
     "ready";
+  const storageBlocked = storagePreparationBlock(status);
   return (
     <section
       className="runtime-preparation"
@@ -186,7 +189,7 @@ export function RuntimePreparation({
       <ul className="preparation-list">
         {status?.checks
           .filter((check) =>
-            ["git", "docker", "sandbox-image"].includes(check.id),
+            ["git", "docker", "sandbox-image", "docker-backing-storage"].includes(check.id),
           )
           .map((check) => (
             <li key={check.id}>
@@ -203,6 +206,7 @@ export function RuntimePreparation({
             </li>
           ))}
       </ul>
+      {storageBlocked && <p className="preparation-action">{storageBlocked} Existing workers keep running; you can keep planning while new runtime preparation waits.</p>}
       {job?.status === "installing" && (
         <p role="status">
           Installing runtime… {job.message} You can keep planning while this
@@ -241,8 +245,9 @@ export function RuntimePreparation({
           job?.status !== "installing" && (
             <Button type="button"
               variant="secondary"
-              disabled={checking}
+              disabled={checking || !!storageBlocked}
               onClick={() => {
+                if (storageBlocked) return;
                 const currentGeneration = generation.current;
                 const signal = readiness.current?.signal;
                 setChecking(true);

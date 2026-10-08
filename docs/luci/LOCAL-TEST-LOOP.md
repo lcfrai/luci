@@ -115,7 +115,7 @@ and Linux engine 28.5.1 now run. Pre-move inventory is recorded: 107 containers,
 196 images and 155 volumes; four existing containers auto-started. Relocation
 has not occurred because the Windows desktop is locked. The local tester has
 requested an unlock for the supported Dashboard move. C: was last reported at
-3.85 GiB free. The DataFolder setting, virtual disk size and Get-DiskImage
+3.49 GiB free. The DataFolder setting, virtual disk size and Get-DiskImage
 Attached flag do not prove this layout's active backing path. No prune, reset, unregister or deletion was authorized by this update.
 Before that authorization, no heavy pulls/builds were started and existing
 Docker data, settings and global WSL resources were preserved. A large free-space
@@ -161,3 +161,75 @@ The local receipt is `diagnostic/allocator-logger-v2.jsonl` under the same
 revision evidence directory. The overlay redirects fixture logs only; it is not
 a production-source acceptance result. The held-Create 100 ms fixture budget is
 now separately tracked as **LOCAL-003**, P1 validation, owner cloud, fixing.
+
+### Correction handoff at 2819ce9e
+
+The cloud thread pushed `2819ce9eacf62b2d73a1522b2db25301a7b393d4` and sent
+**LOCAL FIX READY TO RETEST** for LOCAL-001/002/003. The local tester acknowledged
+and is preparing a fresh isolated checkout for the four original failures and
+both new path/isolation regressions, with actual HEAD and working-tree snapshots
+before and after. Preserve the contaminated earlier checkout and diagnostics.
+This correction handoff is separate from the complete local acceptance handoff.
+
+The reported Docker server platform label is exactly
+`Docker Desktop 4.48.0 (207573)`. Backing storage still resides on C:, last reported
+at 3.63 GiB free; the supported move awaits Windows unlock. The verified cold
+backup remains on E:. No heavy local Docker workloads have been started.
+
+### Native correction verification
+
+The local tester reports **LOCAL-001/002/003 verified for their original native
+reproductions** at exact `2819ce9e`: all nine selected top-level tests passed
+between 08:36:39Z and 08:37:37Z using Go 1.26.3, normal E: task TEMP,
+GOMAXPROCS=4 and package parallelism 2. No overlay or short-path workaround was
+used. HEAD remained unchanged; all 1,694 tracked-file hashes match, and the
+working tree stayed clean. CLOUD-006's public HTTP catalog projection also
+passed; installed dispatch/UI remains a separate gate.
+
+The [reported receipt](evidence/2026-10-08-2819ce9e-native-fixes-reported.json)
+identifies the retained local reports and attribution limits. Original failed
+and mutated `9898cf5d` evidence is preserved. These results do not close the
+installed Windows, four-project, live-provider or workstation resource gates.
+
+### Native source-browser progress at the same pinned revision
+
+The local thread continued independent testing at `2819ce9e` and reports nine
+passing source-browser checks, including four distinct project contexts, scoped
+drafts and service/browser restart persistence. Home accessibility had zero axe
+violations, and the compact 800 px layout did not overflow. All tracked hashes,
+HEAD and working-tree state stayed unchanged. Owned processes were stopped and
+ports freed; no Docker allocation occurred. See the
+[reported receipt](evidence/2026-10-08-2819ce9e-native-browser-reported.json).
+The tester selected Continue to projects before the older local setup auto-install
+route. Native worker scheduling, installed distribution, model quality and
+sustained workstation resource evidence remain open.
+
+### Latest packaging and provider preparation
+
+The local tester reports Rust/cargo stable 1.99 with the Windows MSVC target,
+VS Build Tools 2019 16.11.53/VC 14.29.30133, Windows SDK 10.0.19041.0,
+WebView2 154.0.4258.62 and Python 3.13.5 (also 3.11.15). The task-local E:
+activation includes Cargo and supported Node. Native64 SDK registry discovery
+points to an incomplete directory while WOW6432Node points to the actual SDK;
+this is an unproven packaging discovery concern, not a diagnosed defect or
+reason to reinstall. Resolve supported discovery only if packaging fails.
+
+The tester process has no provider-key or local-endpoint variables. Installed
+Codex/Claude tools do not establish Luci provider access; no credentials were
+inspected or imported. Real provider connection and model-quality acceptance
+remain open. Docker data is still on C: (last reported 3.49 GiB free), with the
+verified cold backup on E: and supported relocation awaiting Windows unlock.
+No heavy local container workload has been started.
+
+### Next focused correction handoff
+
+CLOUD-005 and CLOUD-008 are source-verified together: 2,835 Go race outcomes,
+27 explicit skips, unchanged repository bytes and complete Windows API
+cross-compilation. Exact retrieval identity is supplied with the pushed handoff.
+Carry forward earlier native results and run affected storage/cleanup cases on
+a new pinned checkout; do not change source underneath a running batch.
+
+CLOUD-009 is a separate required recovery correction discovered by source
+review: interrupted backend Create/Start without durable settlement can retain
+capacity indefinitely. It remains fixing and prevents full local completion.
+Focused correction handoff is distinct from LOCAL TEST HANDOFF READY.

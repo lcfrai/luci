@@ -769,3 +769,20 @@ label.setup-check {
   color: var(--accent-hi);
   font-size: 14px;
 }
+
+.docker-storage-capacity {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-block: 20px;
+}
+.docker-storage-capacity div { min-inline-size: 0; }
+.docker-storage-capacity dt { color: var(--ink-2); font-size: 13px; }
+.docker-storage-capacity dd { margin: 6px 0 0; font-size: 22px; }
+.docker-storage-path { overflow-wrap: anywhere; word-break: break-word; }
+.docker-storage form { margin-block: 20px; }
+.docker-storage .luci-check { margin-block: 16px; }
+.docker-storage > button { margin: 8px 8px 0 0; }
+@media (max-width: 560px) {
+  .docker-storage-capacity { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+}

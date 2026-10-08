@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/lcfrai/luci/control-plane/internal/gitfixture"
 	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
@@ -96,14 +97,11 @@ func TestPathRefusesACommondirSteeredWorktreeOfAProjectWithARealLinkedWorktree(t
 // makeGitRepo does.
 func gitIn(t *testing.T, dir string, args ...string) string {
 	t.Helper()
-	cfg := t.TempDir()
+	env := gitfixture.Environment(t, dir, false)
 	args = append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(),
-		"GIT_CONFIG_GLOBAL="+filepath.Join(cfg, "gitconfig"),
-		"GIT_CONFIG_SYSTEM="+filepath.Join(cfg, "gitconfig-system"),
-	)
+	cmd.Env = env
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), err, out)
@@ -115,9 +113,5 @@ func gitIn(t *testing.T, dir string, args ...string) string {
 // TestScannerAgainstARealRepositoryAndARealLinkedWorktree for why).
 func longTemp(t *testing.T) string {
 	t.Helper()
-	d, err := filepath.EvalSymlinks(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
-	return d
+	return gitfixture.TempDir(t)
 }

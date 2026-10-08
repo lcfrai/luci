@@ -20,6 +20,7 @@ func cloudTestServer(t *testing.T, runner Runner) (*Server, *http.ServeMux) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	s.SetRuntimeResourceSnapshot(setupStorageFixtureSnapshot)
 	mux := http.NewServeMux()
 	s.Register(mux)
 	t.Cleanup(s.Close)

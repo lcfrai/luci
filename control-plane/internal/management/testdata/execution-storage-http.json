@@ -1,0 +1,43 @@
+{
+  "notRequired": {
+    "platform": "linux",
+    "scope": "not-required",
+    "required": false,
+    "state": "not-required",
+    "revision": 0,
+    "reasonCode": "not_required",
+    "message": "This host does not require Windows backing-storage confirmation.",
+    "basis": "operator-confirmed-local-layout; minimum-free-space-across-all-mounted-writable-local-volumes"
+  },
+  "pendingObservation": {
+    "platform": "windows",
+    "scope": "local-docker-desktop",
+    "required": true,
+    "state": "pending-observation",
+    "revision": 1,
+    "reasonCode": "pending_observation",
+    "message": "Confirmation saved. Waiting for a fresh background storage observation before new heavy work.",
+    "basis": "operator-confirmed-local-layout; minimum-free-space-across-all-mounted-writable-local-volumes",
+    "confirmedAt": "2026-10-08T00:00:00Z",
+    "vhdPath": "C:\\Docker\\data.vhdx",
+    "desktopVersion": "Docker Desktop controlled fixture"
+  },
+  "confirmed": {
+    "platform": "windows",
+    "scope": "local-docker-desktop",
+    "required": true,
+    "state": "confirmed",
+    "revision": 1,
+    "reasonCode": "",
+    "message": "Local layout is operator-confirmed. Physical headroom is the lowest available space across every mounted writable local volume, including unrelated drives; guest capacity is measured separately.",
+    "basis": "operator-confirmed-local-layout; minimum-free-space-across-all-mounted-writable-local-volumes",
+    "observedAt": "2026-10-08T00:00:00Z",
+    "confirmedAt": "2026-10-08T00:00:00Z",
+    "vhdPath": "C:\\Docker\\data.vhdx",
+    "desktopVersion": "Docker Desktop controlled fixture",
+    "mountedVolumeCount": 2,
+    "limitingVolume": "C:",
+    "hostAvailableBytes": 0,
+    "guestAvailableBytes": 1073741824
+  }
+}

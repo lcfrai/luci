@@ -27,7 +27,7 @@ func (b *capacityOutput) Write(p []byte) (int, error) {
 
 func probeDaemonDisk(ctx context.Context, api APIClient, info system.Info) (resourcebudget.Disk, error) {
 	endpoint, ok := api.(interface{ DaemonHost() string })
-	if !ok || !strings.HasPrefix(endpoint.DaemonHost(), "npipe://") || info.OSType != "linux" || !strings.Contains(strings.ToLower(info.OperatingSystem), "docker desktop") || !validDaemonDiskTarget(info.DockerRootDir, info.ID) {
+	if !ok || !localDesktopEndpoint(endpoint.DaemonHost()) || info.OSType != "linux" || !strings.Contains(strings.ToLower(info.OperatingSystem), "docker desktop") || !validDaemonDiskTarget(info.DockerRootDir, info.ID) {
 		return resourcebudget.Disk{}, errors.New("capacity probe requires local Docker Desktop Linux execution")
 	}
 	systemDirectory, e := windows.GetSystemDirectory()

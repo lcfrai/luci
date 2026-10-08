@@ -211,19 +211,41 @@ function holdFinalResponse(state,res){
   state.finalWaiters.add(complete);res.once('close',closed);
  });
 }
+// Read-only, allowlisted measurement from this fixture's own durable ledger.
+// Timestamps bound publication between samples; they are not an exact release
+// instant. Missing/changed schema or an unreadable file stays unavailable.
+function observeTaskLease(worker){
+ const observation=worker.leaseObservation??={scope:'Exact task session and sandbox in the fixture-owned private execution ledger',firstPresentAt:null,lastPresentAt:null,firstAbsentAt:null,samples:0,unavailableSamples:0};
+ if(observation.firstAbsentAt)return observation;
+ const at=new Date().toISOString();observation.samples++;
+ try{
+  const path=join(fixture,'state/control-plane/execution/leases.json'),info=lstatSync(path);
+  assert(info.isFile()&&!info.isSymbolicLink()&&info.nlink===1&&info.size<=2*1024**2);
+  const bytes=readFileSync(path);assert(bytes.length<=2*1024**2);
+  const ledger=JSON.parse(bytes);assert.equal(ledger.version,1);assert(Array.isArray(ledger.leases)&&ledger.leases.length<=4096);
+  const rows=ledger.leases.filter(value=>value.sessionId===worker.session.id);
+  assert(rows.length<=1);if(rows.length){assert.equal(rows[0].sandboxId,worker.session.id);assert.equal(rows[0].projectId,worker.session.projectId);}
+  if(rows.length){observation.firstPresentAt??=at;observation.lastPresentAt=at;}
+  else observation.firstAbsentAt??=at;
+ }catch{observation.unavailableSamples++;}
+ return observation;
+}
 async function completeNaturally(worker,owner){
  assert(observations.has(worker.task));assert.equal(worker.codingDispatches,1);
+ observeTaskLease(worker);
  worker.finalReleased=true;for(const finish of [...(worker.finalWaiters??[])])finish(true);
- const stopped=await until('Native one-shot task exits without a stop request',async()=>{const value=await api('GET',workspace+'/v1/sessions/'+worker.session.id);return value.status==='exited'&&containerIDs(worker.session.id).length===0?value:null;},90_000);
+ const stopped=await until('Native one-shot task exits without a stop request',async()=>{const value=await api('GET',workspace+'/v1/sessions/'+worker.session.id);observeTaskLease(worker);return value.status==='exited'&&containerIDs(worker.session.id).length===0?value:null;},90_000);
+ const stoppedAndAbsentObservedAt=new Date().toISOString();
  const probe=[...terminalProbes].reverse().find(value=>value.id===worker.session.id)?.probe;
  assert(probe,'Authenticated terminal observation must exist');
  await until('Clean native exit frame',()=>probe.snapshot().exitFrames>0,10_000);
- assert.equal(probe.snapshot().exit.classification,'none','Native CLI must exit cleanly, not be killed or fail');assert.equal(probe.snapshot().trustEnterSent,false,'One-shot execution must not depend on fixture keystrokes');
+ assert.deepEqual(probe.snapshot().exit,{classification:'exit-status',code:0},'Native CLI must report explicit exit status 0, not be killed or fail');assert.equal(probe.snapshot().trustEnterSent,false,'One-shot execution must not depend on fixture keystrokes');
  const completed=await until('Queue records natural task completion',async()=>{const value=await api('GET',owner.route+'/swarm-queue');return value.items.find(item=>item.childId===worker.session.id&&item.state==='completed');},30_000);
+ const queueCompletedObservedAt=new Date().toISOString();observeTaskLease(worker);
  const current=(await api('GET',owner.route+'/runs/'+owner.run.id)).run;
  const task=current.swarm.tasks.find(value=>value.id===owner.task);assert.notEqual(task.integration?.state,'integrated');
  assert(!receipt.apiActions.some(value=>value.method==='DELETE'&&value.path===workspace+'/v1/sessions/'+worker.session.id),'Success workflow must not issue a worker stop');
- (receipt.naturalCompletions??=[]).push({task:worker.task,sessionID:worker.session.id,sessionStatus:stopped.status,recordedExitReason:stopped.exitReason,cleanNativeExitFrame:true,queueState:completed.state,codingDispatches:worker.codingDispatches,finalResponseRequests:worker.finalResponseRequests,finalResponseAborts:worker.finalResponseAborts??0,finalResponseRetries:(worker.finalResponseRequests??1)-1,integratedBeforeExit:false});
+ (receipt.naturalCompletions??=[]).push({task:worker.task,sessionID:worker.session.id,sessionStatus:stopped.status,recordedExitReason:stopped.exitReason,cleanNativeExitFrame:true,exitFrameObservedAt:probe.snapshot().exitObservedAt,stoppedAndAbsentObservedAt,queueCompletedObservedAt,leaseObservation:worker.leaseObservation,queueState:completed.state,codingDispatches:worker.codingDispatches,finalResponseRequests:worker.finalResponseRequests,finalResponseAborts:worker.finalResponseAborts??0,finalResponseRetries:(worker.finalResponseRequests??1)-1,integratedBeforeExit:false});
  return completed;
 }
 
@@ -359,7 +381,7 @@ async function integrate(task){stage='ui-review-integrate-'+task;const reviewRes
 
 try {
   deadlineTimer=setTimeout(()=>stopOnFailure(new Error('Twenty minute acceptance deadline expired')),20*60_000);
-  reserveTimer=setInterval(()=>{try{const free=rootFree();(receipt.diskSamples??=[]).push({stage,at:new Date().toISOString(),rootFreeBytes:free});if(free<1024**3)stopOnFailure(new Error('Hard one GiB remaining reserve breached'));if(proxy&&(proxy.observations.counts.create>4||proxy.observations.counts.start>4))stopOnFailure(new Error('Four allocation request limit exceeded'));}catch(error){stopOnFailure(error);}},1000);
+  reserveTimer=setInterval(()=>{try{const free=rootFree();(receipt.diskSamples??=[]).push({stage,at:new Date().toISOString(),rootFreeBytes:free});if(free<1024**3)stopOnFailure(new Error('Hard one GiB remaining reserve breached'));if(proxy&&(proxy.observations.counts.create>4||proxy.observations.counts.start>4))stopOnFailure(new Error('Four allocation request limit exceeded'));for(const worker of taskData.values())if(worker.finalReleased&&worker.session)observeTaskLease(worker);}catch(error){stopOnFailure(error);}},1000);
   for(const name of ['SIGTERM','SIGINT'])process.on(name,()=>{signalFailure=name;stopOnFailure(new Error('Acceptance interrupted by '+name));});
   startProvider();await new Promise((done,reject)=>provider.once('error',reject).listen(0,bridge,done));
   providerBase='http://host.docker.internal:'+provider.address().port+'/v1';

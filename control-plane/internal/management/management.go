@@ -73,6 +73,8 @@ func withActor(ctx context.Context, u User, p Policy) context.Context {
 }
 
 type Options struct {
+	ExecutionStateDir                                    string
+	ExecutionStorage                                     ExecutionStorageConfigurer
 	StripeBilling                                        StripeBillingConfig
 	stripeProvider                                       stripeBillingProvider
 	StateDir, InstanceName, Backing, Executable, Version string
@@ -159,6 +161,12 @@ func New(opts Options) (*Gateway, error) {
 	}
 	if !filepath.IsAbs(opts.StateDir) {
 		return nil, errors.New("management state directory must be absolute")
+	}
+	if opts.ExecutionStateDir == "" {
+		opts.ExecutionStateDir = filepath.Join(opts.StateDir, "control-plane", "execution")
+	}
+	if !filepath.IsAbs(opts.ExecutionStateDir) || filepath.Clean(opts.ExecutionStateDir) != opts.ExecutionStateDir {
+		return nil, errors.New("shared execution state directory must be an absolute canonical path")
 	}
 	if opts.InitialHandler == nil {
 		return nil, errors.New("initial owner handler is required")
@@ -360,6 +368,8 @@ func (g *Gateway) Handler() http.Handler {
 	mux.HandleFunc("PATCH /v1/admin/users/{id}", g.updateUser)
 	mux.HandleFunc("GET /v1/admin/policy", g.getPolicy)
 	mux.HandleFunc("PATCH /v1/admin/policy", g.patchPolicy)
+	mux.HandleFunc("GET /v1/admin/execution-storage", g.getExecutionStorage)
+	mux.HandleFunc("POST /v1/admin/execution-storage", g.confirmExecutionStorage)
 	mux.HandleFunc("GET /v1/admin/audit", g.audit)
 	mux.HandleFunc("GET /v1/admin/users/{id}/runtime", g.runtimeStatus)
 	mux.HandleFunc("POST /v1/admin/users/{id}/runtime/stop", g.stopRuntime)

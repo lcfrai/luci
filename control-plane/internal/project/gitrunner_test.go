@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lcfrai/luci/control-plane/internal/gitfixture"
 	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
@@ -26,16 +27,10 @@ func requireGit(t *testing.T) {
 func makeGitRepo(t *testing.T, dir string) {
 	t.Helper()
 	requireGit(t)
+	env := gitfixture.Environment(t, dir, true)
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
-	cfg := t.TempDir()
-	env := append(os.Environ(),
-		"GIT_CONFIG_GLOBAL="+filepath.Join(cfg, "gitconfig"),
-		"GIT_CONFIG_SYSTEM="+filepath.Join(cfg, "gitconfig-system"),
-		"GIT_AUTHOR_NAME=test", "GIT_AUTHOR_EMAIL=test@example.com",
-		"GIT_COMMITTER_NAME=test", "GIT_COMMITTER_EMAIL=test@example.com",
-	)
 	run := func(args ...string) {
 		t.Helper()
 		args = append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)
@@ -57,7 +52,7 @@ func makeGitRepo(t *testing.T, dir string) {
 
 func TestExecRunnerReturnsGitsOutput(t *testing.T) {
 	requireGit(t)
-	dir := filepath.Join(t.TempDir(), "luci")
+	dir := filepath.Join(longTemp(t), "luci")
 	makeGitRepo(t, dir)
 
 	out, err := project.NewExecRunner().Run(context.Background(), dir, "rev-parse", "--abbrev-ref", "HEAD")
@@ -87,7 +82,7 @@ func TestExecRunnerErrorCarriesGitsOwnMessage(t *testing.T) {
 
 func TestExecRunnerHonoursACancelledContext(t *testing.T) {
 	requireGit(t)
-	dir := filepath.Join(t.TempDir(), "luci")
+	dir := filepath.Join(longTemp(t), "luci")
 	makeGitRepo(t, dir)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -114,24 +109,17 @@ func TestScannerAgainstARealRepositoryAndARealLinkedWorktree(t *testing.T) {
 	// symlink, so without this the string this test builds and the string git
 	// reports are two spellings of one directory and every path comparison
 	// below fails.
-	root, err := filepath.EvalSymlinks(t.TempDir())
-	if err != nil {
-		t.Fatalf("EvalSymlinks(root): %v", err)
-	}
+	root := longTemp(t)
 	repo := filepath.Join(root, "luci")
 	makeGitRepo(t, repo)
 
 	// A real linked worktree, created OUTSIDE root so it is not also
 	// enumerated as a project. The env neutralisation repeats makeGitRepo's on
 	// purpose, so this test reads standalone.
-	linked := filepath.Join(t.TempDir(), "evidence-upload")
-	cfg := t.TempDir()
+	linked := filepath.Join(longTemp(t), "evidence-upload")
 	add := exec.Command("git", "worktree", "add", linked, "evidence-upload")
 	add.Dir = repo
-	add.Env = append(os.Environ(),
-		"GIT_CONFIG_GLOBAL="+filepath.Join(cfg, "gitconfig"),
-		"GIT_CONFIG_SYSTEM="+filepath.Join(cfg, "gitconfig-system"),
-	)
+	add.Env = gitfixture.Environment(t, repo, false)
 	if out, err := add.CombinedOutput(); err != nil {
 		t.Fatalf("git worktree add: %v\n%s", err, out)
 	}
@@ -139,7 +127,7 @@ func TestScannerAgainstARealRepositoryAndARealLinkedWorktree(t *testing.T) {
 	// The same normalisation for the worktree, and it has to come after the
 	// directory exists: EvalSymlinks fails on a path that is not there yet.
 	// This is the value the Path assertion at the bottom compares against.
-	linked, err = filepath.EvalSymlinks(linked)
+	linked, err := filepath.EvalSymlinks(linked)
 	if err != nil {
 		t.Fatalf("EvalSymlinks(linked): %v", err)
 	}
@@ -217,10 +205,7 @@ func TestScannerAgainstARealRepositoryAndARealLinkedWorktree(t *testing.T) {
 // Without this test that defect ships green.
 func TestExecRunnerDoesNotLetAGitWarningOnStderrBecomeABranch(t *testing.T) {
 	requireGit(t)
-	root, err := filepath.EvalSymlinks(t.TempDir())
-	if err != nil {
-		t.Fatalf("EvalSymlinks(root): %v", err)
-	}
+	root := longTemp(t)
 	repo := filepath.Join(root, "luci")
 	makeGitRepo(t, repo)
 
@@ -237,6 +222,7 @@ func TestExecRunnerDoesNotLetAGitWarningOnStderrBecomeABranch(t *testing.T) {
 	// failing for a reason that is not the product's fault.
 	probe := exec.Command("git", "for-each-ref", "--format=%(refname:short)", "refs/heads")
 	probe.Dir = repo
+	probe.Env = gitfixture.Environment(t, repo, false)
 	var pout, perr bytes.Buffer
 	probe.Stdout, probe.Stderr = &pout, &perr
 	if err := probe.Run(); err != nil {

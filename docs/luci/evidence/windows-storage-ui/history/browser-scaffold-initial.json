@@ -1,0 +1,17 @@
+{
+  "passed": false,
+  "startedAt": "2026-10-08T08:44:36.672Z",
+  "scope": "Actual source DockerStorageConfirmation and shared controls/CSS in Chromium with explicitly controlled identity and storage DTO callbacks. No native Windows, live API, Docker, physical storage or agent execution evidence.",
+  "checks": [],
+  "geometry": [],
+  "errors": [
+    "@vitejs/plugin-react can't detect preamble. Something is wrong."
+  ],
+  "source": {
+    "desktop/src/api/executionStorage.ts": "b5aac2176c869854e716c35f916dcff8976e935013e4ffd6e3dbd021ae97902d",
+    "desktop/src/components/setup/DockerStorageConfirmation.tsx": "f378794989814acd576246c6fc955d6ec3d8aaf748fe8788802e9ca9235fd9be",
+    "desktop/src/components/setup/setup.css": "37861110ef4b5049a158aa8b6a73eb3db4faa64d902d6434b41bcbec629a85fb"
+  },
+  "error": "locator.waitFor: Timeout 12000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('12.0 GiB', { exact: true }) to be visible\u001b[22m\n\n    at <repo>/artifacts/quality-swarm/windows-storage-ui/browser/driver.mjs:20:49",
+  "finishedAt": "2026-10-08T08:44:51.735Z"
+}

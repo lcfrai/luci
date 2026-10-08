@@ -370,3 +370,24 @@ it("applies the final actual image check before the completed-job poll tears dow
     vi.useRealTimers();
   }
 });
+
+it('keeps planning available while Windows storage blocks automatic and manual new runtime preparation', async () => {
+  const storage = { id: 'docker-backing-storage', label: 'Docker backing storage', status: 'missing', message: 'Confirm the current storage layout in Settings.', action: 'Review Docker storage.' };
+  const blocked = { ...ready, platform: 'windows', checks: [...ready.checks, storage] } as SetupStatus;
+  const client = { check: vi.fn().mockResolvedValue(blocked), runtime: vi.fn().mockResolvedValue({ status: 'idle' }), installRuntime: vi.fn().mockResolvedValue({ status: 'installing', message: 'Preparing after storage passed.' }) } as unknown as ProductClient;
+  const view = render(<RuntimePreparation client={client} manageBacking automatic onStatus={vi.fn()} />);
+  await screen.findByText('Docker backing storage');
+  expect(client.installRuntime).not.toHaveBeenCalled();
+  expect((screen.getByRole('button', { name: 'Prepare agent runtime' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.getByText(/you can keep planning while new runtime preparation waits/)).toBeTruthy();
+  vi.mocked(client.check).mockResolvedValue({ ...blocked, checks: blocked.checks.map(item => item.id === storage.id ? { ...item, status: 'ready', message: 'Fresh confirmed capacity observed.' } : item) });
+  view.rerender(<RuntimePreparation client={client} manageBacking automatic refreshToken={1} onStatus={vi.fn()} />);
+  await screen.findByText(/Installing runtime… Preparing after storage passed/);
+  expect(client.installRuntime).toHaveBeenCalledOnce();
+});
+it('does not treat a missing Windows storage readiness check as authorization to install', async () => {
+  const client = { check: vi.fn().mockResolvedValue({ ...ready, platform: 'windows' }), runtime: vi.fn().mockResolvedValue({ status: 'idle' }), installRuntime: vi.fn() } as unknown as ProductClient;
+  render(<RuntimePreparation client={client} manageBacking automatic onStatus={vi.fn()} />);
+  await screen.findByText(/Check Docker storage readiness before preparing/);
+  expect(client.installRuntime).not.toHaveBeenCalled();
+});

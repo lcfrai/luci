@@ -1,0 +1,32 @@
+{
+  "issue": "CLOUD-005",
+  "scope": "Separate Windows host backing bound and Docker guest capacity for runtime preparation and setup readiness",
+  "recordedAt": "2026-10-08T09:03:21.171961+00:00",
+  "result": "pass",
+  "command": "GOMAXPROCS=2 go test -p 1 -race -json ./internal/product -run 'Test(Runtime|SetupReadiness)' -count=1",
+  "elapsedSeconds": 9.507,
+  "passedTestsIncludingSubtests": 35,
+  "skippedTests": [],
+  "log": "artifacts/cloud005/guest-consumer-race.jsonl",
+  "logSha256": "a8e0261cd970908a7441bd9fbce03e5350e9bd23393a485afcc28f1a68d23699",
+  "sourceBinding": {
+    "before": "artifacts/cloud005/guest-consumer-sources-before.json",
+    "after": "artifacts/cloud005/guest-consumer-sources-after.json",
+    "files": 606,
+    "changed": []
+  },
+  "supersedes": "artifacts/cloud005/consumer-verification.json preparation coverage; the earlier API worker-admission/HTTP projection results remain separate evidence",
+  "contract": [
+    "Windows host bound and Docker guest filesystem are checked independently against40GiB before publishing a new runtime job and again immediately before Docker build.",
+    "Guest evidence requires current engine identity, fresh execution observation, fresh measured available bytes; nil/stale/zero/under-budget observations refuse.",
+    "An absent sandbox image does not block storage measurement or the explicitly authorized cold build.",
+    "An installed image removes the cold-build demand from readiness but still requires fresh confirmed host and guest observations.",
+    "New work is blocked under uncertain storage; existing builds and worker leases are retained.",
+    "Non-required Linux setup behavior stays unchanged; cloud backing setup owns its own prerequisites."
+  ],
+  "limitations": [
+    "40GiB is an explicit conservative prerequisite (32GiB build working allowance plus8GiB reserve), not a measured peak or lifetime quota.",
+    "No Docker build/allocation or native Windows VHD probe was performed in this test.",
+    "Native Windows runtime acceptance and the subsequent shared-observation-cache change require their own verification."
+  ]
+}

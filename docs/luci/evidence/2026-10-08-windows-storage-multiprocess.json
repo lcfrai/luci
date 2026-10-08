@@ -1,0 +1,176 @@
+{
+  "status": "passed-controlled-multiprocess-race-and-windows-compilation",
+  "recordedAt": "2026-10-08T09:36:28.435622+00:00",
+  "baseRevision": "2819ce9eacf62b2d73a1522b2db25301a7b393d4",
+  "uncommittedSource": true,
+  "scope": "Controlled same-daemon-identity fixture; actual isolated reader subprocesses and private shared files. Producer memory reset uses a new backend object, not an OS gateway restart. Probe hooks count every attempted boundary invocation; no Docker, WSL or native volume probes.",
+  "nativeWindowsStorageExecutionVerified": false,
+  "actualGatewayProcessRestartVerified": false,
+  "dockerDaemonContacted": false,
+  "race": {
+    "command": "GOMAXPROCS=2 go test -race -p 1 ./internal/resourcebudget ./internal/backend/dockerbe -run 'TestLocalStorage|TestLocalDesktop|TestHostStorage|TestPrepareStorage|TestSharedWindowsStorage|TestResourceObserver' -count=1 -json",
+    "passedOutcomes": 20,
+    "failedOutcomes": 0,
+    "skippedOutcomes": 2,
+    "passedTests": [
+      "TestLocalStorageSharedCacheBindsWholeConfirmationAndMetricTime",
+      "TestLocalStorageSharedCachePrivateAtomicPublication",
+      "TestLocalStorageStatusOmitsUnobservedTimes",
+      "TestLocalStorageRejectsNonLocalAndAmbiguousPaths",
+      "TestLocalStorageCompleteInventoryIncludesUnrelatedLowVolume",
+      "TestLocalStoragePinsExpireIndependently",
+      "TestLocalStorageAdmissionDoesNotConfuseMissingAndZero",
+      "TestLocalStorageRecordRejectsUnsafePublication/hardlink",
+      "TestLocalStorageRecordRejectsUnsafePublication/parent-symlink",
+      "TestLocalStorageRecordRejectsUnsafePublication",
+      "TestSharedWindowsStorageIsolatedProcesses",
+      "TestLocalDesktopEndpointRejectsRemotePipes",
+      "TestHostStorageBoundPreservesGuestAndExpiresPins",
+      "TestHostStorageCacheExpiresWithoutProbeOrLosingConfirmation",
+      "TestHostStorageMissingPartialAndLinuxScopes",
+      "TestPrepareStorageConfirmationIsReadOnlyAndDetectsEngineChange",
+      "TestSharedWindowsStorageTwoWorkersReadWithoutProbes",
+      "TestResourceObserverCountsAllWorkloadsAndSeparatesScope",
+      "TestResourceObserverUnknownLimitsAndStaleStatsRemainUnknown",
+      "TestResourceObserverRejectsTruncatedInventory"
+    ],
+    "skippedTests": [
+      "TestResourceObserverLiveDaemonReadOnly",
+      "TestSharedWindowsStorageReaderProcess"
+    ],
+    "skipExplanation": "Live Docker test is opt-in; direct subprocess helper entry skips in the parent but executes successfully in all18 child processes.",
+    "packages": [
+      {
+        "package": "github.com/lcfrai/luci/control-plane/internal/resourcebudget",
+        "elapsedSeconds": 1.044
+      },
+      {
+        "package": "github.com/lcfrai/luci/control-plane/internal/backend/dockerbe",
+        "elapsedSeconds": 1.635
+      }
+    ],
+    "logSHA256": "7f72e1787dd306adbca7261d5574595107d265ad9be99d95574f16cefa7ea5a4"
+  },
+  "separateProcesses": {
+    "Scope": "Controlled same-daemon-identity fixture; actual isolated reader subprocesses and private shared files. Producer memory reset uses a new backend object, not an OS gateway restart. Probe hooks count every attempted boundary invocation; no Docker, WSL or native volume probes.",
+    "ProducerGuestAttempts": 3,
+    "ProducerHostAttempts": 3,
+    "ProducerNativeHookAttempts": 3,
+    "Phases": [
+      {
+        "Phase": "fresh-shared-observation",
+        "Workers": 3,
+        "Reads": 60,
+        "ConfirmedReads": 60,
+        "GuestProbeAttempts": 0,
+        "HostProbeAttempts": 0
+      },
+      {
+        "Phase": "restarted-workers-with-expired-file",
+        "Workers": 3,
+        "Reads": 60,
+        "ConfirmedReads": 0,
+        "GuestProbeAttempts": 0,
+        "HostProbeAttempts": 0
+      },
+      {
+        "Phase": "fresh-after-producer-recovery",
+        "Workers": 3,
+        "Reads": 60,
+        "ConfirmedReads": 60,
+        "GuestProbeAttempts": 0,
+        "HostProbeAttempts": 0
+      },
+      {
+        "Phase": "foreign-engine",
+        "Workers": 3,
+        "Reads": 60,
+        "ConfirmedReads": 0,
+        "GuestProbeAttempts": 0,
+        "HostProbeAttempts": 0
+      },
+      {
+        "Phase": "changed-confirmation-revision",
+        "Workers": 3,
+        "Reads": 60,
+        "ConfirmedReads": 0,
+        "GuestProbeAttempts": 0,
+        "HostProbeAttempts": 0
+      },
+      {
+        "Phase": "changed-pins-same-revision",
+        "Workers": 3,
+        "Reads": 60,
+        "ConfirmedReads": 0,
+        "GuestProbeAttempts": 0,
+        "HostProbeAttempts": 0
+      }
+    ]
+  },
+  "windowsCompilation": {
+    "target": "windows/amd64",
+    "CGO_ENABLED": "0",
+    "executed": false,
+    "package": "./internal/backend/dockerbe",
+    "outputSHA256": "2cf688804f88fc5f2dd8c71ea367871fcc437e8489f28744b38ffe47c806c3d8"
+  },
+  "sourceHashTiming": "All resourcebudget/dockerbe Go files and module inputs captured before focused race execution and rechecked unchanged after Windows compilation.",
+  "sourceSHA256": {
+    "control-plane/go.mod": "46639d620d215ff94c6e6d2ea2bf52c74abdf501811248e8905aad3846ae0341",
+    "control-plane/go.sum": "fad248c401dce6545f51ad4beba435f67999c8605be35232f5261b69c7b50344",
+    "control-plane/internal/backend/dockerbe/api.go": "d8d21a84860ee13a96e5a58dcc920fd48362868a20751bfcf9973545c62440c6",
+    "control-plane/internal/backend/dockerbe/creation_admission_test.go": "b6849b2ac020f16e2627cab1c7418ecd194f35d8f6e6befd402b60b3e8c2320d",
+    "control-plane/internal/backend/dockerbe/docker.go": "7f3781acdd9d0dd6175384303af23848200e44255ab11bf1c49da65de23c4b21",
+    "control-plane/internal/backend/dockerbe/docker_instance_test.go": "112d97f235cce5fbfff328d2cac4cc2867b6922dd0c738441af46051d1891695",
+    "control-plane/internal/backend/dockerbe/docker_test.go": "6905ac65948344b5cabad829e233367942ce7243126a9d463929b9236be16e10",
+    "control-plane/internal/backend/dockerbe/identity.go": "8e91f8ece0d6c23df23ba6a852c54b58a84fc8b53eae56e2e73aca8e35f0d9f0",
+    "control-plane/internal/backend/dockerbe/identity_darwin.go": "f9313bb0ce2b0e047054d81c2611c0fded04784f98a9743c2789befdc8608693",
+    "control-plane/internal/backend/dockerbe/identity_darwin_test.go": "b383353a233285729421d3de2d7a50bbd298c485a84aab6f30a5903d77e2aa27",
+    "control-plane/internal/backend/dockerbe/identity_linux.go": "175a1317abe2bc212d22a6385ae7e7863e77b4cb50acabcccf5f3f400ba5a044",
+    "control-plane/internal/backend/dockerbe/identity_linux_test.go": "3f8e4a9ae03aa166e186153ced0df9e82b619e1db38c69d30056046538f476b7",
+    "control-plane/internal/backend/dockerbe/identity_other.go": "189e482e5bb4b1410d98f7cc69ece60fbffe6936a2c284ac65ceb7b6e208a943",
+    "control-plane/internal/backend/dockerbe/identity_test.go": "7f91a35c2b1fd847b87caeb797172f84c8809dc04b0fb36b1cb2ba4244ca55a8",
+    "control-plane/internal/backend/dockerbe/resource_disk.go": "cf83a7c8cbac90ba1999ee1493d7cea4288440f68317d2c65b75618f5d46dfdc",
+    "control-plane/internal/backend/dockerbe/resource_disk_linux.go": "f4837084ca8b9cb5fb182b215aa54e7954046cac11e3a820ad2a2d9777ade6f8",
+    "control-plane/internal/backend/dockerbe/resource_disk_other.go": "55a4bea45e585c113c5de5773901b4666c6d266a9b596cb32f1f8c0b858b7693",
+    "control-plane/internal/backend/dockerbe/resource_disk_test.go": "9d7e523a029765129c241c0b8b454e8e66aee1e9bea9ab25ba3b39bbf16cd0aa",
+    "control-plane/internal/backend/dockerbe/resource_disk_windows.go": "a7a2bf102579b2c9ab435fcc7416c28ecf84a644f2929b8b00159a80eeb35fce",
+    "control-plane/internal/backend/dockerbe/resource_observer.go": "bc3bfa1463e70ca54143ed5819ab47e4cbaf7c2a481deab14ff42888af4e71c5",
+    "control-plane/internal/backend/dockerbe/resource_observer_test.go": "05175c0f1dc597b224dde60dec93bb5085777fbf38deefa3081ea58075159616",
+    "control-plane/internal/backend/dockerbe/resource_storage.go": "509088c407fc943a3e70236e15f442855269a1fadee74d5b7ae46f5020852e22",
+    "control-plane/internal/backend/dockerbe/resource_storage_process_test.go": "72e057e9020212983cf229375eb5ee1f4b2014f3be319d8ce2490a36757c59a5",
+    "control-plane/internal/backend/dockerbe/resource_storage_shared.go": "c692d5c819ade5955f63c4257bddc2be492cf429b53724a413c196dca9ec29d0",
+    "control-plane/internal/backend/dockerbe/resource_storage_test.go": "41a7bf33f7fa1334f46a03d054f57d93761dde1940f51b737321e61cb408b093",
+    "control-plane/internal/backend/dockerbe/resource_storage_test_unix_test.go": "af967294c77edb3a2f88003fa818cdb819f14b397451f0c4b428c6141ffa2c0d",
+    "control-plane/internal/backend/dockerbe/resource_storage_test_windows_test.go": "e36c4bbb8d7b17c5ef0361626508e2bc89d8c012b33145776670d3fa9e73c33b",
+    "control-plane/internal/backend/dockerbe/stopped_cleanup.go": "a2f6e721c8b9de2ea38c5884089c66fb04091fde1d2845d74afd7af40fc6d49d",
+    "control-plane/internal/backend/dockerbe/stopped_cleanup_test.go": "55f4a22dc9ae31fc9a5eede45be9d47ec6eccb09e6bc722be5888512248fb23f",
+    "control-plane/internal/resourcebudget/cgroup_linux.go": "1843acdc15db9f9876545a1393bf6c21b93bc01873a64d8651be3adb26b5a4d1",
+    "control-plane/internal/resourcebudget/local_storage.go": "94d8d267569778a6a9fa28e0bf918310628538fb14f29762c7b3bb00087d0ae3",
+    "control-plane/internal/resourcebudget/local_storage_cache.go": "d79e5680694873f9402b06d08e469f343d5e5c509bef3785892dbef439a35c8c",
+    "control-plane/internal/resourcebudget/local_storage_cache_test.go": "adbed48edc9246d49fb8c71a45286a706d047358f885a02c3fa98c33157d4bb6",
+    "control-plane/internal/resourcebudget/local_storage_link_other.go": "deb2c9e9d0a4809718542137e15ccc74ec7f574a519604ad7363b7213df9c673",
+    "control-plane/internal/resourcebudget/local_storage_link_unix.go": "773c14136565797e1d742818947ef78a44e96abc1e38f0a90626e5fd63a694cc",
+    "control-plane/internal/resourcebudget/local_storage_other.go": "61e67e69d9d0f3f06f1699696b3865461d4463c8181e5e11f0dc31a9d6c993f9",
+    "control-plane/internal/resourcebudget/local_storage_probe_windows_test.go": "8129acee7613fcc59f55a058beb38f91e7c9a2e28425b4db1bbe5211211a8e7a",
+    "control-plane/internal/resourcebudget/local_storage_protect_other.go": "e17a5ca815508d9bf3ea0edcbbdb0acb2bcee59d152c70cd82ee7aa18342a6e1",
+    "control-plane/internal/resourcebudget/local_storage_protect_windows.go": "1aa6926698981d8499f96409931047d33d434c21121043d37aadefb49f9ba9ff",
+    "control-plane/internal/resourcebudget/local_storage_test.go": "03162e5666ada07b2bd4489ba91d547a177e41fc22563b1bb374736998253890",
+    "control-plane/internal/resourcebudget/local_storage_test_unix_test.go": "b2c5116616036e1084919bde2e3d9e4308d224452539877bf9b697a5a5e90638",
+    "control-plane/internal/resourcebudget/local_storage_test_windows_test.go": "30badcb2694d142feffab6349279050863937be1b8e61937fdb9f54b0b8c0f81",
+    "control-plane/internal/resourcebudget/local_storage_windows.go": "70bd6bca7cb9c4855b3314296530d7e8ac59ba8cd84c1046335c91d1e1f2c81a",
+    "control-plane/internal/resourcebudget/probe.go": "cd3ce490fac78348cb61aeaee82b305c99efb6d4826973f071c779b2a89d7e5d",
+    "control-plane/internal/resourcebudget/probe_linux.go": "ed0294860d6c721b1fd8f96da8c09a0f4fecb68b991c66c3b8f524cda985c405",
+    "control-plane/internal/resourcebudget/probe_linux_test.go": "9100cfc4ce5b57106ff9df7e3f09c2e8ea83e1501466449bb2fabe3a25918ef7",
+    "control-plane/internal/resourcebudget/probe_other.go": "817646aa8a21056058c63338bc6aac287f50dabf990bf2b1b87ee9168a863cb0",
+    "control-plane/internal/resourcebudget/probe_test.go": "95684160aea2379d99a3b70945cdb677a996f7d790eeaca12dc7ecfdf3fa052f",
+    "control-plane/internal/resourcebudget/probe_windows.go": "b619d5b4c86c222e0919334f155ba51117411c138a07a7fd5842c5246aad6656",
+    "control-plane/internal/resourcebudget/types.go": "a1f6f1bccdcaac6eeaaee6f7a7c5ec943fb1dcee02648bc9da6b565500c03a81"
+  },
+  "remainingNativeChecks": [
+    "Actual native storage-probe APIs, ACLs and cache replacement",
+    "At least three real workspace processes on one daemon: exact probe-start counts with complete trace attribution, freshness and measured CPU/latency",
+    "Actual isolated gateway stop/restart with workers running, stale admission refusal and fresh recovery",
+    "Super Admin confirmation/invalidation and new-heavy-work admission on native Windows"
+  ]
+}

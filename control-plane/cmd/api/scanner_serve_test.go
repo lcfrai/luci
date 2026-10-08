@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lcfrai/luci/control-plane/internal/gitfixture"
 	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
@@ -20,15 +21,11 @@ import (
 // hooks, signing and templates cannot change what the test builds.
 func gitNeutral(t *testing.T, dir string, args ...string) {
 	t.Helper()
-	cfg := t.TempDir()
+	env := gitfixture.Environment(t, dir, false)
+	args = append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(),
-		"GIT_CONFIG_GLOBAL="+filepath.Join(cfg, "gitconfig"),
-		"GIT_CONFIG_SYSTEM="+filepath.Join(cfg, "gitconfig-system"),
-		"GIT_AUTHOR_NAME=test", "GIT_AUTHOR_EMAIL=test@example.com",
-		"GIT_COMMITTER_NAME=test", "GIT_COMMITTER_EMAIL=test@example.com",
-	)
+	cmd.Env = env
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), err, out)
 	}
@@ -38,11 +35,7 @@ func gitNeutral(t *testing.T, dir string, args ...string) {
 // hash of the path, and this host's temporary directory is an 8.3 name.
 func longTempDir(t *testing.T) string {
 	t.Helper()
-	d, err := filepath.EvalSymlinks(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
-	return d
+	return gitfixture.TempDir(t)
 }
 
 var listeningAddr = regexp.MustCompile(`msg="control plane listening" addr=(\S+)`)

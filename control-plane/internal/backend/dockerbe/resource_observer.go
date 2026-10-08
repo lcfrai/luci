@@ -56,7 +56,10 @@ func (b *Backend) ObserveResources(ctx context.Context) resourcebudget.Execution
 		v := int64(info.NCPU) * 1000
 		s.CPUMillis = &v
 	}
-	s.DaemonDisk = b.observeDaemonDisk(ctx, info)
+	s.DaemonDisk, s.HostStorage = b.observeStorage(ctx, info)
+	if s.HostStorage != nil && s.HostStorage.State != "confirmed" {
+		s.Unavailable = append(s.Unavailable, resourcebudget.Issue{Metric: "execution.hostStorage", Reason: s.HostStorage.Message})
+	}
 	if s.DaemonDisk == nil {
 		s.Unavailable = append(s.Unavailable, resourcebudget.Issue{Metric: "execution.daemonDisk", Reason: "Docker storage volume is not observable on the control-plane host"})
 	}

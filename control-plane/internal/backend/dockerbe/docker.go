@@ -17,6 +17,7 @@ import (
 	"github.com/docker/go-connections/nat"
 
 	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/resourcebudget"
 )
 
 const (
@@ -91,6 +92,12 @@ type Config struct {
 	// ResourceImage identifies the configured worker image for conservative
 	// create-time disk reservations. Observation never pulls an image.
 	ResourceImage string
+	// ResourceStorageConfirmationPath is supplied by the trusted launcher,
+	// shared by workers, and never accepted from project/browser inputs.
+	ResourceStorageConfirmationPath string
+	// ResourceStorageReadOnly is true only for supervised workspace workers.
+	// They consume the gateway's private cache instead of spawning WSL probes.
+	ResourceStorageReadOnly bool
 }
 
 // Backend implements backend.Backend over Docker.
@@ -108,13 +115,18 @@ type Backend struct {
 	// daemon, and a line a minute about it forever is how an operator stops
 	// reading the log. The reaper's own error on a failed destroy still repeats
 	// every sweep, which is the line that must.
-	exposedMu     sync.Mutex
-	exposed       map[string]bool
-	creates       sync.Map // sandbox ID -> active Create; never persisted or inherited
-	resourceMu    sync.Mutex
-	resourceImage string
-	resourceCPU   map[string]resourceCPUPoint
-	resourceDisk  *daemonDiskCache
+	exposedMu                       sync.Mutex
+	exposed                         map[string]bool
+	creates                         sync.Map // sandbox ID -> active Create; never persisted or inherited
+	resourceMu                      sync.Mutex
+	resourceImage                   string
+	resourceCPU                     map[string]resourceCPUPoint
+	resourceDisk                    *daemonDiskCache
+	resourceStorageConfirmationPath string
+	resourceStorageReadOnly         bool
+	storageStatusMu                 sync.RWMutex
+	storageStatus                   resourcebudget.LocalStorageStatus
+	storageStatusConfirmationHash   string
 }
 
 // New returns a Docker backend, or fails with backend.ErrUnavailable and a
@@ -168,14 +180,16 @@ func New(cfg Config) (*Backend, error) {
 		return nil, fmt.Errorf("dockerbe: no Docker daemon answered — start Docker Desktop, or set LUCI_DOCKER_HOST: %v: %w", err, backend.ErrUnavailable)
 	}
 	return &Backend{
-		api:           api,
-		bindIP:        bindIP,
-		readyTimeout:  readyTimeout,
-		instance:      cfg.Instance,
-		resourceImage: cfg.ResourceImage,
-		resourceCPU:   make(map[string]resourceCPUPoint),
-		log:           logger,
-		exposed:       make(map[string]bool),
+		api:                             api,
+		bindIP:                          bindIP,
+		readyTimeout:                    readyTimeout,
+		instance:                        cfg.Instance,
+		resourceImage:                   cfg.ResourceImage,
+		resourceStorageConfirmationPath: cfg.ResourceStorageConfirmationPath,
+		resourceStorageReadOnly:         cfg.ResourceStorageReadOnly,
+		resourceCPU:                     make(map[string]resourceCPUPoint),
+		log:                             logger,
+		exposed:                         make(map[string]bool),
 	}, nil
 }
 

@@ -1,0 +1,31 @@
+{
+  "passed": true,
+  "recordedAt": "2026-10-08T08:58:33.127674+00:00",
+  "primaryResult": "result.json",
+  "correction": "Restored all three pre-existing LocalTools tests byte-for-byte and appended the new readiness regression without mocks of existing children. Only this test file changed after the primary check; product source is unchanged.",
+  "sourceChangesSincePrimary": [
+    "desktop/src/components/setup/LocalTools.test.tsx"
+  ],
+  "productSourceUnchanged": true,
+  "primaryUnaffectedPassingTests": 54,
+  "restoredFilePassingTests": 4,
+  "combinedDistinctCurrentSourcePassingTests": 58,
+  "followupCommands": [
+    {
+      "command": "npm test -- --maxWorkers=1 src/components/setup/LocalTools.test.tsx",
+      "cwd": "desktop",
+      "exitCode": 0,
+      "log": "local-tools-restored.log"
+    },
+    {
+      "command": "npm run typecheck",
+      "cwd": "desktop",
+      "exitCode": 0,
+      "log": "typecheck-restored.log"
+    }
+  ],
+  "sourceManifest": "source-final.json",
+  "browserResult": "../browser-final/result-corrected.json",
+  "browserScope": "Actual source DockerStorageConfirmation and shared controls/CSS in Chromium with explicitly controlled identity and storage DTO callbacks. No native Windows, live API, Docker, physical storage or agent execution evidence.",
+  "nativeWindowsAcceptance": false
+}

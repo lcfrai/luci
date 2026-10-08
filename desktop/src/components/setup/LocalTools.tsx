@@ -14,12 +14,14 @@ export function LocalTools({
   manageBacking: workspaceManageBacking,
   onSessionStarted,
   identityOnly = false,
+  runtimeBlockedReason = '',
 }: {
   client: ProductClient;
   cloud?: boolean;
   manageBacking?: boolean;
   onSessionStarted?(): void;
   identityOnly?: boolean;
+  runtimeBlockedReason?: string;
 }) {
   const auth = useAuth();
   const manageBacking =
@@ -181,13 +183,14 @@ export function LocalTools({
                     {runtime.status} · {runtime.message}
                   </p>
                 )}
+                {runtimeBlockedReason && <p className="preparation-action">{runtimeBlockedReason} Review Docker storage above; you can keep planning.</p>}
                 <Button type="button"
                   variant="secondary"
                   disabled={
-                    !loaded || !!busy || runtime?.status === "installing"
+                    !loaded || !!busy || !!runtimeBlockedReason || runtime?.status === "installing"
                   }
                   onClick={() =>
-                    void run("Starting runtime installation", async () =>
+                    !runtimeBlockedReason && void run("Starting runtime installation", async () =>
                       setRuntime(await client.installRuntime()),
                     )
                   }

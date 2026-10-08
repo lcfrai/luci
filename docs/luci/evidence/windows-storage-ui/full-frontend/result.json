@@ -1,0 +1,52 @@
+{
+  "passed": true,
+  "startedAt": "2026-10-08T09:01:44.359836+00:00",
+  "sourceCommit": "2819ce9eacf62b2d73a1522b2db25301a7b393d4",
+  "sourceDirty": true,
+  "sourceScope": "All tracked/unignored desktop files, shared management HTTP storage fixture and canonical TypeScript model contract. Ignored outputs and installed dependencies excluded.",
+  "resourceContext": "Vitest uses at most2 workers; no Docker, package build or duplicate production build. Other root-owned backend checks may overlap.",
+  "typecheck": {
+    "reused": true,
+    "sourceManifestMatches": true,
+    "receipt": "../final/restored-coverage-followup.json",
+    "log": "../final/typecheck-restored.log",
+    "logSHA256": "6d51e3ec9a9d283eee096e5e9403c5d963c9468e9756fd61f3e9e0d3df1bde71"
+  },
+  "steps": [
+    {
+      "name": "full-frontend-tests",
+      "command": [
+        "npm",
+        "test",
+        "--",
+        "--maxWorkers=2",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=<repo>/artifacts/quality-swarm/windows-storage-ui/full-frontend/vitest-raw.json"
+      ],
+      "cwd": "desktop",
+      "exitCode": 0,
+      "elapsedSeconds": 274.35,
+      "log": "tests.log",
+      "rawJSON": "vitest-raw.json"
+    }
+  ],
+  "counts": {
+    "numTotalTestSuites": 252,
+    "numPassedTestSuites": 252,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0,
+    "numRuntimeErrorTestSuites": null,
+    "numTotalTests": 2394,
+    "numPassedTests": 2394,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "files": 145,
+  "skippedOrTodo": [],
+  "sourceUnchanged": true,
+  "changedSource": [],
+  "finishedAt": "2026-10-08T09:06:18.790455+00:00"
+}

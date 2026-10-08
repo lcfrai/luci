@@ -157,6 +157,8 @@ var backendScoped = []struct {
 
 // Config is the whole of this process's configuration, parsed once at startup.
 type Config struct {
+	// ExecutionStateDir is resolved by the trusted host/worker launcher before backend construction.
+	ExecutionStateDir                                                                                     string
 	StripeAPIKey, StripeWebhookSecret, StripeAccountID, StripePriceID, BillingTermsURL, BillingPrivacyURL string
 	BrowserPreviewAddr                                                                                    string
 	BrowserPreviewPort                                                                                    int

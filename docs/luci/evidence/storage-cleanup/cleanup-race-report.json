@@ -1,0 +1,65 @@
+{
+  "startedAt": "2026-10-08T09:36:10.555390+00:00",
+  "finishedAt": "2026-10-08T09:36:51.802948+00:00",
+  "elapsedSeconds": 41.342,
+  "commands": [
+    [
+      "go",
+      "-C",
+      "control-plane",
+      "test",
+      "-race",
+      "-p",
+      "1",
+      "./internal/api",
+      "./cmd/api",
+      "-run",
+      "Test(ConfirmStoppedTaskCleanup|StoppedTaskCleanupRetries|ObservedExitCannotOverwriteActualConcurrentHTTPRestart|ExecutionTaskLease|ExecutionRunCleanupPolicy|ExactBackendAbsence|SwarmCapacityRelease|SwarmExitedRow|ExecutionPendingCreate|ExecutionBackend|RestartAdmission|StoppedTaskCleanupWiring|RecoveringBackendStoppedCleanup|ExecutionStorage)",
+      "-count=1",
+      "-json"
+    ],
+    [
+      "go",
+      "-C",
+      "control-plane",
+      "test",
+      "-race",
+      "-p",
+      "1",
+      "./internal/reaper",
+      "-count=1",
+      "-json"
+    ]
+  ],
+  "environment": {
+    "GOMAXPROCS": "2",
+    "GOTMPDIR": "/workspace/.t",
+    "TMPDIR": "/workspace/.t"
+  },
+  "exitCode": 0,
+  "tests": {
+    "pass": 138,
+    "fail": 0,
+    "skip": 0
+  },
+  "packages": [
+    {
+      "Action": "pass",
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Elapsed": 14.457
+    },
+    {
+      "Action": "pass",
+      "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+      "Elapsed": 1.101
+    },
+    {
+      "Action": "pass",
+      "Package": "github.com/lcfrai/luci/control-plane/internal/reaper",
+      "Elapsed": 1.231
+    }
+  ],
+  "sourceCount": 625,
+  "changedSources": [],
+  "scope": "Linux controlled backend and real HTTP/private-state tests; no Docker runtime or native Windows execution."
+}

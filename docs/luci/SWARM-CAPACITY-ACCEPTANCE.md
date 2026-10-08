@@ -1,5 +1,10 @@
 # Swarm capacity and responsiveness acceptance
 
+**Next integrated Windows revision pending.** Carry forward the exact completed
+scopes below; do not label this document, a branch tip or the new storage and
+CLOUD-008 work as a finished local release. Retrieval and isolated startup are
+in [LOCAL-WINDOWS-ACCEPTANCE.md](LOCAL-WINDOWS-ACCEPTANCE.md).
+
 The local release must remain usable while at least four projects have ongoing
 work. Queued projects count as ongoing work, but a queue must never be reported
 as four concurrently executing agents. Record the actual running count, each
@@ -80,6 +85,43 @@ memory use or establish native workstation capacity. The earlier failed run
 remains a failure. The installed Docker/browser mixed workload is a separate
 gate, and successful process exit still requires result review and checks.
 
+## Completed installed and native scopes
+
+The clean installed Linux package at
+`2819ce9eacf62b2d73a1522b2db25301a7b393d4` passed the
+[four-project Docker/native lifecycle](evidence/2026-10-08-2819ce9e-installed-swarm.md):
+four real tasks exited naturally, one at a time, with four Create/Start pairs,
+zero session DELETE requests and three automatic handoffs before human
+integration. The first live child survived a service restart without replayed
+work; all four captured contexts and result bytes were checked. The provider
+was scripted, and browser automation reviewed expected fixture diffs. This is
+not four simultaneous workers or a model-generated application-quality result.
+
+The [resource receipt](evidence/2026-10-08-2819ce9e-installed-swarm-resources.md)
+contains 445 samples over 450.37 s. Peak simultaneous browser+control-plane RSS
+was 1.10 GiB; the complete observed driver-family RSS sum peaked at 1.28 GiB.
+Each worker's cgroup peak was 44.48–45.36 MiB against a 1 GiB configured limit.
+These are separate measurements, not additive physical-memory totals. No
+pre-work idle Luci baseline or input latency was measured, and compiler work
+overlapped on the shared host. This interval does not complete the native soak.
+
+The old completion-poll-to-next-create intervals were 64.153, 57.521 and
+65.457 s, including the extra 30 s reaper sweep; creation-to-start took
+25.984–34.918 s on the VFS host. CLOUD-008 now targets cleanup during the same
+sweep after stopped-task proof, retaining the lease until container absence and
+retrying removal errors. Its source and matching installed timing checks must
+pass on the final candidate before any improvement is claimed. Measure the
+separate exit/cleanup/admission/create/start timestamps: a faster cleanup cannot
+erase storage-driver copy time, provider latency or review time.
+
+The local tester separately reported nine
+[native source-browser checks](evidence/2026-10-08-2819ce9e-native-browser-reported.json)
+and nine [native correction checks](evidence/2026-10-08-2819ce9e-native-fixes-reported.json)
+passing at `2819ce9e`, with unchanged source. Four saved contexts, drafts and
+restart persistence were exercised without Docker allocation. The short native
+sampler capture validated host/process/E: disk readers and output ACLs, not
+Docker named-pipe statistics, sustained Luci memory or whole-computer usability.
+
 ## Terminal memory and recovery
 
 The desktop retains at most eight terminals with no mounted consumers, each for
@@ -118,7 +160,7 @@ sockets, not whole-process memory or model benchmarks. Evidence is in ignored
 Start a fresh, isolated acceptance workspace from the checkout root:
 
 ```powershell
-.\scripts\start-local-acceptance.ps1 -AcceptanceRoot 'D:\LuciAcceptance'
+.\scripts\start-local-acceptance.ps1 -AcceptanceRoot 'E:\Luci-local-acceptance\runs'
 ```
 
 Choose an existing drive with sufficient space. The launcher requires at least
@@ -126,8 +168,37 @@ Choose an existing drive with sufficient space. The launcher requires at least
 a native baseline, and uses API port 18730 and frontend port 14200 by default.
 `-PrepareOnly` records the baseline without starting Luci; another invocation
 creates another fresh run. It does not reuse the user's existing Luci state.
-The launcher's native Windows behavior and WSL engine/disk compatibility remain
-unverified in this Linux cloud session.
+The local tester reported this launcher working at `2819ce9e`. The upcoming
+candidate's storage confirmation, shared observer and native WSL disk behavior
+still require acceptance; a Linux source test cannot establish them.
+
+Before image preparation or dispatch, follow the host Super Admin storage
+confirmation in [the Windows handoff](LOCAL-WINDOWS-ACCEPTANCE.md#windows-capacity-requirements).
+Record both the engine's Linux free space and the conservative minimum across
+mounted writable Windows volumes. The latter can remain blocked by C: even
+after moving Docker's VHD to E:. Both need a fresh 40 GiB estimate for runtime
+preparation; pending workers and storage-driver demand also affect admission.
+Do not reduce floors or omit an inconvenient drive to make a run pass.
+The gateway performs background native observation; managed workers read its
+private shared result and Settings refresh is cache-only. Unknown or stale
+storage prevents new heavy work without ending an existing worker.
+
+Use the tracked [Windows resource sampler procedure](../../scripts/acceptance/four-project-queue/RESOURCE-MEASUREMENT.md#native-windows-sampler-short-native-check-reported).
+The sampler, C# companion, controlled checks and sanitized reports travel with
+the clone. Pin exact API/browser/desktop roots by PID and creation identity,
+and the selected workspace's Docker instance and verified image. Never select
+every browser or WSL process. Add separately owned dev servers and test runners;
+document processes, containers, VM overhead or short-lived children outside the
+measurement scope. Container/guest/WSL resident memory must not be counted twice.
+Use a dedicated acceptance browser when measuring browser ownership.
+
+Keep at least 60 s of idle Luci, the workload and a 60 s settle phase distinct.
+The sampler accepts at most 3,600 s; a 1,980 s capture allows these phases and
+30 minutes of work when started promptly. Its default 1,800 s example alone
+does not provide both idle and settle intervals around a 30-minute workload.
+When restarting changes a pinned root, retain the completed capture and start
+a new one with the new PID/creation identity; do not silently attribute the new
+process to the old PID. Preserve any measurement gap.
 
 1. Record the Windows build, usable physical RAM, CPU count, Luci build, sandbox
    image digest, Docker/WSL configuration, account/provider limits and normal
@@ -153,6 +224,27 @@ unverified in this Linux cloud session.
    Retain timings, traces, failures and intervention notes. Compare serial and
    parallel task groupings at useful work sizes; do not select only favorable
    trials or substitute throughput for correct results.
+
+Use this action sequence within the workload; keep a small ledger of project,
+task/run IDs, relevant revision, start/finish times and evidence for every step:
+
+| Step | Action and required observation |
+| --- | --- |
+| Prepare four scopes | Give A (interface), B (API), C (data processor) and D (library/review) distinct goals and unique context witnesses. Save decisions and constraints, review each plan and define actual output checks. Start from reproducible source commits. |
+| Queue and explain | Pause dispatch, deliberately approve named work and inspect each project in Home. Running/queued/blocked/review counts and the next action must agree with that project's queue. Start with one worker, then increase only within measured host/account/provider capacity. Queued work is not labelled running. |
+| Prioritize and intervene | Change one project priority, pause/resume selected work and cancel one queued item before allocation. Exercise selection/bulk controls where available, including an item whose state changes before the action. Verify explicit per-item failure, no silent retries or duplicate reservations and fair progress for the other projects. |
+| Amend and switch | While A runs, revise B's agreed scope and keep an unsent C draft. Switch repeatedly among all four projects/stages. The old run keeps its captured context, new work uses the reviewed amendment, and no worker or editor receives another project's witness or draft. |
+| Finish without Stop | Allow a task to exit naturally. Check its exact output and awaiting-review state while the next project advances before integration. Record CLOUD-008 exit, cleanup and next-create timing separately. A failed removal must keep capacity reserved until an explicit retry proves absence; verify injected failure in the scoped fixture, not by deleting a live local worker. |
+| Recover and retry | Restart the app/service with one real worker and other work queued. Verify the same child/container and captured context, no replayed tool work and no lost output. Cause a bounded task/check failure, inspect retained evidence, and retry only through an explicit supported action; record any new task identity. |
+| Review and verify | Inspect each diff and run real application checks, resolve a deliberate conflict, then integrate. Dependent work waits for accepted prerequisites; failed or stale changes stay unintegrated. Verify the built interface/API/data/library behaviors, then repeat one amendment and regression check. |
+| Settle and account | End only owned workload processes normally, retain application state, and measure settled Luci plus other-app responsiveness. Report useful accepted outcomes per project, waiting time/fairness, failures, retries, model usage/cost when available and excluded measurements. |
+
+Record any unavailable interaction as a failed or blocked acceptance step, not
+as permission to replace it with a terminal command and mark the app complete.
+Host storage or provider access may block live workers while UI/context tests
+continue. Native packaging, live-model quality and later cloud operations remain
+separate gates; the local objective is not complete merely because these
+controlled mechanics pass.
 
 Choose the worker pool from measured headroom. An initial target is approximately
 8 GiB of available physical memory on this workstation, with no sustained paging
