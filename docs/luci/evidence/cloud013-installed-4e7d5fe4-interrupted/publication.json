@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "outcome": "failed/interrupted",
+  "productRevision": "4e7d5fe4eaeeaa492cde94f22e51081cdb7a1b5e",
+  "helperRevision": "4e7d5fe4eaeeaa492cde94f22e51081cdb7a1b5e",
+  "helperInputs": 19,
+  "helpersUnchangedAfterRecovery": true,
+  "providerMode": "native Codex CLI in Docker with controlled scripted provider; no external model calls",
+  "phase": "DAG integrated; whole-build Docker check create transport failed before Start",
+  "checkExitCode": 125,
+  "checkEvidenceJoined": false,
+  "finalDriverReceiptPresent": false,
+  "interruptionCause": "unclassified; no original supervisor exit/signal receipt",
+  "samples": 290,
+  "lastObservedElapsedSeconds": 292.9176,
+  "samplerIncludesCheckContainer": false,
+  "performanceAccepted": false,
+  "normalAutomatedCleanupCertified": false,
+  "manualRecovery": "Exact immutable ID removed without force after current Created/never-started identity and quiescent owned controllers were independently verified. Original Create ACK/request drainage remain unproved. No product lease-release claim.",
+  "postOwnedContainers": 0,
+  "postOwnedVolumes": 0,
+  "packageArchiveSha256": "92cc6ac76ecda44b2bbc76b82f75993a6765737321405ff0950da52e113e78c4",
+  "imageID": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+  "members": [
+    {
+      "path": "DAG-conflict-retained.png",
+      "bytes": 225286,
+      "sha256": "a9a59cf90736cc6fbee7fcaf53c6833b5469d64ee87c6e73422f4322bee01e93"
+    },
+    {
+      "path": "DAG-integrated.png",
+      "bytes": 205819,
+      "sha256": "74ea58d61929bb43b7a2fb4fa57bdd29b8b0d34f46e401b45f76c5bd8be14f40"
+    },
+    {
+      "path": "controller-stop.json",
+      "bytes": 438,
+      "sha256": "4e8f32f6b56be1380db944aad6858cf131a8e3907b5ef0a1357feef875649ec8"
+    },
+    {
+      "path": "dependency-probe-before-starts.json",
+      "bytes": 779,
+      "sha256": "3879dc48e6573c0237be9dcf275b6a90ed704a96f5ca4947da5099dc28c628ee"
+    },
+    {
+      "path": "dependency-probe-beta-conflict-retained.json",
+      "bytes": 792,
+      "sha256": "1a47df99825064e0a0d386b8761fdaed8a7acb300819be88243e5ed8e4276251"
+    },
+    {
+      "path": "dependency-probe-both-processes-exited.json",
+      "bytes": 791,
+      "sha256": "96a6f106a9c2004bd2be02c5a34afa0a0bdb172ff103d804b9a2dd6c43bec9da"
+    },
+    {
+      "path": "dependency-probe-conflict-retired-not-replaced.json",
+      "bytes": 799,
+      "sha256": "3b571a23a17b4c1c1b8da99fae2140f9707ed26d90a1ef257960407cd1b2cc83"
+    },
+    {
+      "path": "dependency-probe-fresh-beta-exited-not-integrated.json",
+      "bytes": 802,
+      "sha256": "cbf1c4f5a7d37c6ced20bedce50d08681a21e526f8da8463ba8afc29cf4eba56"
+    },
+    {
+      "path": "dependency-probe-only-alpha-integrated.json",
+      "bytes": 791,
+      "sha256": "fb207fc610d015f530f3f4c22221adb846dffd9880c322bf718bd2b391fa9eeb"
+    },
+    {
+      "path": "helper-source.json",
+      "bytes": 2488,
+      "sha256": "7630f2481913330015a2a2e4647aad72d49cb49d2ea956cd5b55650d8549292e"
+    },
+    {
+      "path": "manual-cleanup.json",
+      "bytes": 935,
+      "sha256": "62e09bf9e1d88674dad6bb31c2c7529ae1bc5bcab99a4c57abedbf10927e683d"
+    },
+    {
+      "path": "recovered-state.json",
+      "bytes": 16449,
+      "sha256": "79602239a032664322e6dad0b4bb31a375d2171b8b26cab5d787bc00689b3e74"
+    }
+  ]
+}

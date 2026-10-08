@@ -1,0 +1,21 @@
+{
+  "at": "2026-10-08T18:59:01Z",
+  "id": "0a5866270cfd70e477c91dda34252095c61b73d5504bea0b134d57950d2a0cd1",
+  "inspectSha256": "fd77586c0dfe959f86d78996de75a0322f9db271f0da7a9981f6da300900356b",
+  "state": "created-never-started",
+  "ownedFixtureBindMatched": true,
+  "privateCheckMatched": true,
+  "controllersExited": true,
+  "proxyListenersAbsent": true,
+  "onlyContainer": true,
+  "acknowledgementAvailable": false,
+  "originalRequestDrainProved": false,
+  "method": "manual exact immutable-ID removal; no force, volume or name operation",
+  "normalAutomatedCleanupCertified": false,
+  "removedExactId": "0a5866270cfd70e477c91dda34252095c61b73d5504bea0b134d57950d2a0cd1",
+  "exitCode": 0,
+  "postContainers": 0,
+  "postVolumes": 0,
+  "finishedAt": "2026-10-08T18:59:03Z",
+  "limits": "Does not reconstruct a missing Create ACK, certify request drainage, release a product lease or convert this interrupted acceptance to pass."
+}

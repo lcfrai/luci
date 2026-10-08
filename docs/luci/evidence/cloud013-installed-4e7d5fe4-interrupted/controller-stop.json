@@ -1,0 +1,10 @@
+{
+  "pid": 1849305,
+  "startTicks": 22991228,
+  "signal": "SIGTERM via pidfd",
+  "state": "zombie; exited and awaiting init reap",
+  "exitCode": 0,
+  "ownedLiveDescendants": [],
+  "verification": "Exact cwd/executable/start ticks validated before signal; first poll incorrectly required /proc disappearance and failed without escalation. Followup proves zombie exit. No force signal or Docker mutation.",
+  "at": "2026-10-08T18:57:57Z"
+}

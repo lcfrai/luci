@@ -6,11 +6,14 @@ cloud implementation task and local thread
 Windows; the cloud thread implements and validates corrections. Neither waits
 unnecessarily for the other to finish a whole suite.
 
-Current measured checkpoint: clean `c4400f11736e923617a93e8e86803f15d7187bef`
-passed the scripted two-worker installed Linux continuation below. C013 dependency
-acceptance failed before integration/conflict; native Windows heavy checks remain
-RAM-held. These scoped results do not constitute LOCAL TEST HANDOFF READY. See
-[the latest checkpoint](#installed-continuation-passed-at-c4400f11--separate-dependency-failure).
+Current successful installed checkpoint remains the scripted two-worker
+continuation at clean `c4400f11736e923617a93e8e86803f15d7187bef`. The later
+`4e7d5fe4` dependency attempt reached reviewed conflict/replacement/join integration,
+then failed its Docker check create transport and lost the final driver receipt.
+Its [failed evidence and independent manual cleanup](evidence/cloud013-installed-4e7d5fe4-interrupted/README.md)
+are retained; cause of the interruption remains unknown. LOCAL-013's separate
+bounded-cleanup correction is in progress. Native heavy checks remain RAM-held.
+These scoped results do not constitute LOCAL TEST HANDOFF READY.
 
 ## Handoff and pinned revisions
 

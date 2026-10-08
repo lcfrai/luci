@@ -1,0 +1,415 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-10-08T18:52:59.837236+00:00",
+  "scope": "Read-only bounded interrupted-attempt recovery diagnosis; only this sanitized evidence file written. No process signals, Docker mutations, retries, browsers, compilers, model calls or fixture execution.",
+  "outcome": "failed/interrupted acceptance; no pass and no final helper receipt",
+  "fixture": "/workspace/.c/.ls-x8caaavu/luci-dag-5Eq3rs",
+  "sources": [
+    {
+      "pathWithinFixture": "state/sessions/project-runs/p-4e7b6cf3/run-228641062d37762db9007806.json",
+      "sha256": "7b9107e9eaf38487ab34c4232f0a8e24ee9d267243f002ca76d5578c841e5cce"
+    },
+    {
+      "pathWithinFixture": "state/sessions/project-checks/p-4e7b6cf3.json",
+      "sha256": "01cade77b3cbf39eefd42206e04ce45c902f4ebccbb1deaf2bfeef8c2ce91603"
+    },
+    {
+      "pathWithinFixture": "state/sessions/sessions.json",
+      "sha256": "2e0ca7d2831f6879d921c70579ef4ea79dc22745a6b89a08a1242fe8ea969eb1"
+    }
+  ],
+  "productRun": {
+    "id": "run-228641062d37762db9007806",
+    "projectId": "p-4e7b6cf3",
+    "revision": 38,
+    "state": "awaiting-checks",
+    "createdAt": "2026-10-08T18:24:04.383143756Z",
+    "updatedAt": "2026-10-08T18:28:42.430443397Z",
+    "checks": [],
+    "operations": [
+      {
+        "id": "op-a6c9e51250e81fbbc466e57b",
+        "taskId": "task-a",
+        "childId": "s-42f0cbe9",
+        "attempt": 1,
+        "status": "review-required",
+        "allocation": "ready",
+        "baseCommit": "516c22a0f66e7982d56cbf1b4f5aebf19c048267",
+        "createdAt": "2026-10-08T18:24:09.09731573Z",
+        "updatedAt": "2026-10-08T18:24:47.250783494Z",
+        "handoff": {
+          "digest": "36f81d6430e0bb5a9e9b49ddc57ff3d8f0ed2cdae8f03413f60c98a35e9dd63a",
+          "status": "captured",
+          "summary": "Controlled DAG a checked and committed",
+          "questions": 0,
+          "unanswered": 0,
+          "capturedAt": "2026-10-08T18:25:05.327275245Z"
+        },
+        "dependencyContext": {
+          "digest": "58f748a2cd83c838cbd3e1ae0f95b45c635467ce0c9b1ef9384c1f0b29e5f077",
+          "count": 0
+        },
+        "integration": null
+      },
+      {
+        "id": "op-7c37111f4459292cc4b8a8e6",
+        "taskId": "task-b",
+        "childId": "s-f81e12ef",
+        "attempt": 2,
+        "status": "cancelled",
+        "allocation": "ready",
+        "baseCommit": "516c22a0f66e7982d56cbf1b4f5aebf19c048267",
+        "createdAt": "2026-10-08T18:25:11.365729857Z",
+        "updatedAt": "2026-10-08T18:25:51.30800484Z",
+        "handoff": {
+          "digest": "065550989f6b25ae79b28de7fa499e8175764d327a02d05ebbaaef5957f8e959",
+          "status": "captured",
+          "summary": "Controlled DAG b1 checked and committed",
+          "questions": 0,
+          "unanswered": 0,
+          "capturedAt": "2026-10-08T18:26:05.297461524Z"
+        },
+        "dependencyContext": {
+          "digest": "2d34cbac201aee2e657bb74d7608f42b4e2dd2e1704b92882d616c4d129a1f5e",
+          "count": 0
+        },
+        "integration": {
+          "handoffDigest": "065550989f6b25ae79b28de7fa499e8175764d327a02d05ebbaaef5957f8e959",
+          "state": "unknown",
+          "sourceCommit": "59008f7112b187a65b4397ec7691f33b4772df8c",
+          "targetCommit": "e44e0b7bb2893a11218351cb9e77501817818f9f",
+          "reviewDigest": "6b0999584f603ca0281abee8cd45a8d0882154ff5f9d92d5174021a9c6037266"
+        }
+      },
+      {
+        "id": "op-587901a10e57a91b62d9ab33",
+        "taskId": "task-b",
+        "childId": "s-4a46af78",
+        "attempt": 3,
+        "status": "review-required",
+        "allocation": "ready",
+        "baseCommit": "e44e0b7bb2893a11218351cb9e77501817818f9f",
+        "createdAt": "2026-10-08T18:26:27.421780477Z",
+        "updatedAt": "2026-10-08T18:27:07.282791594Z",
+        "handoff": {
+          "digest": "e88fdb52df2f05ab50c8fad1823b5de82caafe25cf56044586c63d8454b0e87d",
+          "status": "captured",
+          "summary": "Controlled DAG b2 checked and committed",
+          "questions": 0,
+          "unanswered": 0,
+          "capturedAt": "2026-10-08T18:27:35.369113296Z"
+        },
+        "dependencyContext": {
+          "digest": "2221555550c7fa792fbb11932fc99539af1e7363335f5937e33c5cdd61a12b6e",
+          "count": 0
+        },
+        "integration": null
+      },
+      {
+        "id": "op-74d2388f638269b6120d8d58",
+        "taskId": "task-join",
+        "childId": "s-6c599a33",
+        "attempt": 4,
+        "status": "review-required",
+        "allocation": "ready",
+        "baseCommit": "fc42c7c3f4f4bb22b36940877987422ccb5b565d",
+        "createdAt": "2026-10-08T18:27:45.366800928Z",
+        "updatedAt": "2026-10-08T18:28:31.239987529Z",
+        "handoff": {
+          "digest": "1f6479ddfee428a7f48745ef6ad5d4a30220128a28fdbcb6b8344288e5f318ac",
+          "status": "captured",
+          "summary": "Controlled DAG join checked and committed",
+          "questions": 0,
+          "unanswered": 0,
+          "capturedAt": "2026-10-08T18:28:36.260105341Z"
+        },
+        "dependencyContext": {
+          "digest": "49dfb238eb61fbbaf5adc10bad48e2588444c7575dab7c1779710cfe8f6a4a93",
+          "count": 2
+        },
+        "integration": null
+      }
+    ],
+    "tasks": [
+      {
+        "id": "task-a",
+        "dependsOn": [],
+        "operationId": "op-a6c9e51250e81fbbc466e57b",
+        "integration": {
+          "handoffDigest": "36f81d6430e0bb5a9e9b49ddc57ff3d8f0ed2cdae8f03413f60c98a35e9dd63a",
+          "state": "integrated",
+          "commit": "e44e0b7bb2893a11218351cb9e77501817818f9f",
+          "sourceCommit": "0714d8f55c463433efdffe7838093695e5f5dfdc",
+          "targetCommit": "516c22a0f66e7982d56cbf1b4f5aebf19c048267",
+          "reviewDigest": "0e83431a90170334befd8a1b745fc3ec11e5ee09a4e3cb7d8a243513e7abbbee",
+          "integratedAt": "2026-10-08T18:26:14.480156239Z"
+        }
+      },
+      {
+        "id": "task-b",
+        "dependsOn": [],
+        "operationId": "op-587901a10e57a91b62d9ab33",
+        "integration": {
+          "handoffDigest": "e88fdb52df2f05ab50c8fad1823b5de82caafe25cf56044586c63d8454b0e87d",
+          "state": "integrated",
+          "commit": "fc42c7c3f4f4bb22b36940877987422ccb5b565d",
+          "sourceCommit": "c586bed0be2d02f34a2d8159de21e896062f9401",
+          "targetCommit": "e44e0b7bb2893a11218351cb9e77501817818f9f",
+          "reviewDigest": "6e457bd54c9654d90c79dba81970332ddbf1afd7696575aa2f3d5c579932349a",
+          "integratedAt": "2026-10-08T18:27:43.748395842Z"
+        }
+      },
+      {
+        "id": "task-join",
+        "dependsOn": [
+          "task-a",
+          "task-b"
+        ],
+        "operationId": "op-74d2388f638269b6120d8d58",
+        "integration": {
+          "handoffDigest": "1f6479ddfee428a7f48745ef6ad5d4a30220128a28fdbcb6b8344288e5f318ac",
+          "state": "integrated",
+          "commit": "1bc5f72f93f017475b5ea350bba2e761198c6727",
+          "sourceCommit": "f34134cae78b1979c6ca950e8c1bf424dc863f30",
+          "targetCommit": "fc42c7c3f4f4bb22b36940877987422ccb5b565d",
+          "reviewDigest": "16d41010978b48fb1a7566ad8a9791bbbd553db7f6dc7de47cf86ad02f7f28d7",
+          "integratedAt": "2026-10-08T18:28:42.430441574Z"
+        }
+      }
+    ]
+  },
+  "productCheck": {
+    "id": "check-acd3acac9ab0cfa2f509e7a1",
+    "projectId": "p-4e7b6cf3",
+    "commit": "1bc5f72f93f017475b5ea350bba2e761198c6727",
+    "dirty": false,
+    "execution": "docker",
+    "memoryMiB": 1024,
+    "cpuMillis": 1000,
+    "sourceDigest": "68b62bc65732c17bcbbbf97616ff839e4bc69c9d9b69fca9f6b350643c1b5dd8",
+    "sourceChanged": false,
+    "status": "failed",
+    "createdAt": "2026-10-08T18:28:46.693334105Z",
+    "updatedAt": "2026-10-08T18:28:51.905391326Z",
+    "requirementIds": [
+      "AC-dag"
+    ],
+    "evidenceStatus": "unverified",
+    "staleReasons": [
+      "The commands have not finished."
+    ],
+    "commands": [
+      {
+        "label": "node",
+        "executable": "node",
+        "args": [
+          "verify.mjs",
+          "final"
+        ],
+        "status": "failed",
+        "exitCode": 125,
+        "truncated": false
+      }
+    ],
+    "transportFailure": "Docker CLI recorded exit 125 with EOF on POST to the fixture proxy /v1.51/containers/create?name=luci-check-check-acd3acac9ab0cfa2f509e7a1-0."
+  },
+  "sessions": [
+    {
+      "id": "s-42f0cbe9",
+      "status": "exited",
+      "updatedAt": "2026-10-08T18:25:05.337995124Z",
+      "exitCode": null
+    },
+    {
+      "id": "s-f81e12ef",
+      "status": "exited",
+      "updatedAt": "2026-10-08T18:26:05.337652737Z",
+      "exitCode": null
+    },
+    {
+      "id": "s-4a46af78",
+      "status": "exited",
+      "updatedAt": "2026-10-08T18:27:35.386119256Z",
+      "exitCode": null
+    },
+    {
+      "id": "s-6c599a33",
+      "status": "exited",
+      "updatedAt": "2026-10-08T18:28:36.28477971Z",
+      "exitCode": null
+    }
+  ],
+  "primary": {
+    "head": "1bc5f72f93f017475b5ea350bba2e761198c6727",
+    "workingTreeClean": true,
+    "files": {
+      "result.json": {
+        "sha256": "0e64b1ed313b0cd5711ec0facb08ff7a1cc34a5afc4380d7680900ec7de5937d",
+        "bytes": 32
+      },
+      "alpha.mjs": {
+        "sha256": "91019ccce4644f94b986e130a716c8b5a41cba44782d1061ac80822e27d25a31",
+        "bytes": 25
+      },
+      "beta.mjs": {
+        "sha256": "d5e2ceacb02acd078fd4f622daf8f3c27c1b1a48cbd6161fddfdfb2219ad26ed",
+        "bytes": 24
+      },
+      "shared.txt": {
+        "sha256": "e49c81e2d2f84e259d40e2fb8192f3bcd198b355184845d76d8f58807d0d78ee",
+        "bytes": 11
+      },
+      "receipt-a.json": {
+        "sha256": "890760d5537a140934afd5c589048e485645511475578d18ddfe5209929112bc",
+        "bytes": 1417
+      },
+      "receipt-b2.json": {
+        "sha256": "7e679d64fa6338ed52c226802f92457728cf663510d71f6db3d08f74949b83b3",
+        "bytes": 1418
+      },
+      "receipt-join.json": {
+        "sha256": "13561608ca6827dcb7876cf10170280de40e8320f5aea6b3cccef31d09b11565",
+        "bytes": 1342
+      }
+    },
+    "exactExpectedResult": true
+  },
+  "retainedConflicts": [
+    {
+      "pathWithinFixture": "projects/.luci-swarms/p-4e7b6cf3/run-228641062d37762db9007806/op-7c37111f4459292cc4b8a8e6-integration/shared.txt",
+      "sha256": "407b2d2dbf3727a6c2ea5bf263fe4752aedd1169607fe807c482ebbccde411f2",
+      "matchesFrozenConflictSnapshot": true,
+      "unmerged": [
+        "100644 4a58007052a65fbc2fc3f910f2855f45a4058e74 2\tshared.txt",
+        "100644 65b2df87f7df3aeedef04be96703e55ac19c2cfb 3\tshared.txt"
+      ]
+    }
+  ],
+  "dependencyProbes": [
+    {
+      "file": "result/dependency-probe-before-starts.json",
+      "sha256": "3879dc48e6573c0237be9dcf275b6a90ed704a96f5ca4947da5099dc28c628ee",
+      "label": "before-starts",
+      "status": 409,
+      "requestedRevision": 2,
+      "privateRevisionBefore": 2,
+      "privateRevisionAfter": 2,
+      "beforeEqualsAfter": true,
+      "at": "2026-10-08T18:24:09.008Z",
+      "classification": "unclassified-response",
+      "responseError": "project_run_conflict"
+    },
+    {
+      "file": "result/dependency-probe-beta-conflict-retained.json",
+      "sha256": "1a47df99825064e0a0d386b8761fdaed8a7acb300819be88243e5ed8e4276251",
+      "label": "beta-conflict-retained",
+      "status": 409,
+      "requestedRevision": 19,
+      "privateRevisionBefore": 19,
+      "privateRevisionAfter": 19,
+      "beforeEqualsAfter": true,
+      "at": "2026-10-08T18:26:18.079Z",
+      "classification": "unclassified-response",
+      "responseError": "project_run_conflict"
+    },
+    {
+      "file": "result/dependency-probe-both-processes-exited.json",
+      "sha256": "96a6f106a9c2004bd2be02c5a34afa0a0bdb172ff103d804b9a2dd6c43bec9da",
+      "label": "both-processes-exited",
+      "status": 409,
+      "requestedRevision": 14,
+      "privateRevisionBefore": 14,
+      "privateRevisionAfter": 14,
+      "beforeEqualsAfter": true,
+      "at": "2026-10-08T18:26:09.353Z",
+      "classification": "unclassified-response",
+      "responseError": "project_run_conflict"
+    },
+    {
+      "file": "result/dependency-probe-conflict-retired-not-replaced.json",
+      "sha256": "3b571a23a17b4c1c1b8da99fae2140f9707ed26d90a1ef257960407cd1b2cc83",
+      "label": "conflict-retired-not-replaced",
+      "status": 409,
+      "requestedRevision": 20,
+      "privateRevisionBefore": 20,
+      "privateRevisionAfter": 20,
+      "beforeEqualsAfter": true,
+      "at": "2026-10-08T18:26:20.055Z",
+      "classification": "unclassified-response",
+      "responseError": "project_run_conflict"
+    },
+    {
+      "file": "result/dependency-probe-fresh-beta-exited-not-integrated.json",
+      "sha256": "cbf1c4f5a7d37c6ced20bedce50d08681a21e526f8da8463ba8afc29cf4eba56",
+      "label": "fresh-beta-exited-not-integrated",
+      "status": 409,
+      "requestedRevision": 26,
+      "privateRevisionBefore": 26,
+      "privateRevisionAfter": 26,
+      "beforeEqualsAfter": true,
+      "at": "2026-10-08T18:27:40.481Z",
+      "classification": "unclassified-response",
+      "responseError": "project_run_conflict"
+    },
+    {
+      "file": "result/dependency-probe-only-alpha-integrated.json",
+      "sha256": "fb207fc610d015f530f3f4c22221adb846dffd9880c322bf718bd2b391fa9eeb",
+      "label": "only-alpha-integrated",
+      "status": 409,
+      "requestedRevision": 17,
+      "privateRevisionBefore": 17,
+      "privateRevisionAfter": 17,
+      "beforeEqualsAfter": true,
+      "at": "2026-10-08T18:26:14.571Z",
+      "classification": "unclassified-response",
+      "responseError": "project_run_conflict"
+    }
+  ],
+  "dockerListing": {
+    "id": "0a5866270cfd70e477c91dda34252095c61b73d5504bea0b134d57950d2a0cd1",
+    "name": "luci-check-check-acd3acac9ab0cfa2f509e7a1-0",
+    "status": "Created",
+    "createdAt": "2026-10-08T18:28:47Z",
+    "source": "read-only docker ps --no-trunc; no inspect performed by this agent"
+  },
+  "ackSearch": {
+    "scannedFiles": 341,
+    "scannedBytes": 16390969,
+    "roots": [
+      "/workspace/.c/.ls-x8caaavu/luci-dag-5Eq3rs",
+      "/workspace/luci/artifacts/quality-swarm/dependency-4e7d5fe4-attempt4"
+    ],
+    "excludedDirectories": [
+      ".git",
+      "skills",
+      "node_modules",
+      "recovery"
+    ],
+    "maxFileBytes": 16777216,
+    "oversizeFilesSkipped": 0,
+    "fullContainerIdMatches": [],
+    "checkIdMatches": [
+      "/workspace/.c/.ls-x8caaavu/luci-dag-5Eq3rs/state/sessions/project-checks/p-4e7b6cf3.json"
+    ],
+    "privateProxyDirectoryEntries": [
+      "docker.sock"
+    ],
+    "proxyPersistence": "Frozen proxy retains request observations and knownContainers only in JS memory; no durable ACK journal found or implemented. Receipt writes occur only in final helper finally block; result/result.json absent."
+  },
+  "provablePhases": [
+    "All four task sessions persist as exited; exit codes are not supplied by session status.",
+    "Persisted task state records current alpha, replacement beta, and join integrations with distinct commits; retired first beta retains unknown integration.",
+    "Six persisted join probes returned 409 project_run_conflict with unchanged private revision and unchanged before/after snapshots.",
+    "Primary HEAD matches joined task integration and failed product check commit; expected combined output is retained with clean git status.",
+    "Failed Docker whole-build check is persisted with exit125 and create POST EOF; no check evidence is joined to the run."
+  ],
+  "inferencesOnly": [
+    "DAG-integrated.png and entry to verifyCombinedBuild follow synchronous exact-source check assertions in the frozen helper; this supports control-flow completion of that local fixture check but its in-memory receipt was lost.",
+    "Created Docker container proves a daemon-side creation exists, not receipt of HTTP201/full ID by the helper or Docker CLI."
+  ],
+  "unproven": [
+    "Original full acceptance receipt, overall pass, joined successful product check, final cleanup, original proxy RPC drain, acknowledged exact Docker create ID.",
+    "Cause of driver/proxy/sampler disappearance; elapsed time alone does not establish deadline failure."
+  ],
+  "safeNextStep": "Root may preserve this evidence and stop only the independently proven owned API controller after revalidating PID/startTicks/fixture identity. Leave the Created check container retained unless the existing exact ACK and request-drain proof requirements can be satisfied; name/label/creation time/failed check correlation cannot replace ACK proof. No acceptance retry while unresolved cleanup remains."
+}
