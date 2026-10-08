@@ -19,6 +19,7 @@ import {contextFileNames,verifyTaskContext} from '../sustained-four-project/task
 import {bounds,routes,runWorkerRecoveryScenario} from './worker-recovery-scenario.mjs';
 import {verifyPackage} from './provenance.mjs';
 import {captureSourceBinding} from './source-binding.mjs';
+import {captureProjectContext,verifyCapturedProjectContext} from './project-context.mjs';
 const here=dirname(fileURLToPath(import.meta.url)),sha=bytes=>createHash('sha256').update(bytes).digest('hex');
 export async function main(args=process.argv.slice(2)){
  const valueOptions=new Set(['--repo','--binary','--web','--provenance','--image-provenance','--report','--fixture-root','--observer-instance-pointer','--expected-source','--expected-helper-source','--expected-image-id']);
@@ -48,7 +49,7 @@ export async function main(args=process.argv.slice(2)){
  const encode=value=>{const text=JSON.stringify(value,null,2)+'\n';assert(Buffer.byteLength(text)<=8*1024**2);for(const secret of sensitive)assert(!text.includes(secret));return text;};
  let service,proxy,provider,base,env,token,ownerToken,ownerID,memberToken,memberID,team,teamRoot,workspace,providerBase,workflow,fixtureError,closing=false,stage='startup',reserveTimer;
  let providerCalls=0,auxiliaryCalls=0;const controllerIdentities=[],ownedSessions=new Set(),sockets=new Set(),socketSessions=new Map(),terminalProbes=[],taskData=new Map(),calls=new Map(),observations=new Map(),bundles=new Map(),initialBundles=new Map(),nativeHomes=new Map(),projectStates=[],titles=new Map();
- const authorityRoot='/home/dev/.luci-reviewed-context',names=contextFileNames(2),canonicalNames=contextFileNames(1),deadline=Date.now()+bounds.scenarioMs;
+ const authorityRoot='/home/dev/.luci-reviewed-context',names=contextFileNames(2),deadline=Date.now()+bounds.scenarioMs;
  const remainingBudget=ms=>{health();return Math.max(1,Math.min(ms??120000,deadline-Date.now()));};
  const health=()=>{if(closing)throw Error('Workflow closed');workflow?.assertActive();if(fixtureError)throw fixtureError;if(Date.now()>=deadline)throw Error('Scenario deadline expired');};
  const stopOnFailure=error=>{fixtureError??=error;workflow?.fail(error);};
@@ -238,9 +239,8 @@ async function queuedChild(owner,ordinal){
  const worktrees=(await api('GET',workspace+'/v1/projects/'+owner.owner.id+'/worktrees')).worktrees,checkout=worktrees.find(w=>w.id===operation.worktreeId);assert(checkout);
  const state={task:owner.task,owner:owner.owner,operation,session,checkout:checkout.path,count:0,requestedLimits:{memoryMiB:queued.memoryMiB,cpuMillis:queued.cpuMillis}};taskData.set(owner.task,state);
  const actual=live(session.id),bundle=bundleSnapshot(session.id);initialBundles.set(session.id,bundle);state.container=actual;
- for(const name of canonicalNames.filter(name=>name!=='LUCI.md'))assert.equal(bundle[name].sha256,owner.canonicalBefore[name],'Captured canonical export differs from its own project: '+name);
- const capturedRoot=bundles.get(session.id),capturedLuci=readFileSync(join(capturedRoot,'LUCI.md'));
- assert(capturedLuci.subarray(0,owner.canonicalLuci.length).equals(owner.canonicalLuci),'Task brief must retain exact own-project LUCI prefix');
+ const capturedRoot=bundles.get(session.id);
+ verifyCapturedProjectContext({snapshot:owner.contextSnapshot,read:name=>readFileSync(join(capturedRoot,name))});
  for(const name of ['.luci/brief.json','.luci/specification.json','.luci/design.json','.luci/plan.json'])assert.equal(JSON.parse(readFileSync(join(capturedRoot,name),'utf8')).projectId,owner.owner.id,'Mixed-project context: '+name);
  assert.equal(row(session.id).implementationContext.taskIds.length,1);assert.equal(row(session.id).projectId,owner.owner.id);
  assert.equal(workerContainers().length,1,'Only the successful successor may be active');
@@ -270,8 +270,9 @@ async function seedProjects(connectionID){let project,projectRoute,run;
   const selection={projectId:project.id,briefRevision:spec.briefRevision,specificationRevision:spec.revision,designPlanRevision:design.revision,planRevision:plan.revision,taskIds:tasks.map(item=>item.id)};
   const runInput={worktreeId:worktree.id,harness:'codex',model:'swarm-mechanics-fixture',permissionMode:'bypass',agentConnectionId:connectionID,outcome:'preview',implementationContext:selection};
   run=(await api('POST',projectRoute+'/runs',{...runInput,idempotencyKey:'create-installed-swarm-fixture'},201)).run;assert.equal(run.input.route.permissionMode,'bypass');
-  const canonicalBefore=Object.fromEntries(canonicalNames.map(name=>[name,sha(readFileSync(join(project.path,name)))])),initialHead=execFileSync('git',['rev-parse','HEAD'],{cwd:project.path,encoding:'utf8'}).trim();
-   projectStates.push({owner:project,route:projectRoute,run,task,index,initialHead,canonicalBefore,canonicalLuci:readFileSync(join(project.path,'LUCI.md')),goal:'Prove '+task+' uses its own project context and reviewed integration under a shared worker budget'});
+  const contextSnapshot=captureProjectContext({projectId:project.id,briefRevision:selection.briefRevision,context:await api('GET',projectRoute+'/context'),brief:await api('GET',projectRoute+'/brief'),read:name=>readFileSync(join(project.path,name))});
+  const initialHead=execFileSync('git',['rev-parse','HEAD'],{cwd:project.path,encoding:'utf8'}).trim();
+   projectStates.push({owner:project,route:projectRoute,run,task,index,initialHead,contextSnapshot,goal:'Prove '+task+' uses its own project context and reviewed integration under a shared worker budget'});
   }
 
 }

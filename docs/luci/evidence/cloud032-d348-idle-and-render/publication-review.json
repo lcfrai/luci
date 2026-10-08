@@ -1,0 +1,14 @@
+{
+  "originalResultBytes": 7413714,
+  "exactOriginalResultPreserved": true,
+  "indicatorCounts": {
+    "private-key": 0,
+    "bearer-value": 0,
+    "github-token": 0,
+    "password-value": 0,
+    "authorization-value": 0
+  },
+  "scope": "Indicator counts are secondary checks, not proof of complete secret absence. Original receipt schema contains synthetic fixture identifiers and numerical timing, with no credential-named fields. Private raw trace is excluded by explicit file allowlist and was not opened/copied during publication.",
+  "sourceFilesStillMatchValidatedAfterHashes": true,
+  "newRuntimeOrTestsDuringPublication": false
+}

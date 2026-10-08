@@ -42,7 +42,7 @@ export function assertComputeEnvelope(view,{memoryMiB,cpuMillis}) {
   assert(execution.totalMemoryBytes>=Math.max(2048*1024**2,execution.totalMemoryBytes*.25)+memoryMiB*1024**2);
   assert(Math.min(host.cpu.effectiveMillis,execution.cpuMillis)*.75>=cpuMillis);
 }
-export function assertOriginalInspect(input,{id,name,imageID,guardedCreate,imageEnv=[]}) {
+export function assertOriginalInspect(input,{id,name,imageID,guardedCreate,imageEnv=[],imageExposedPorts={},imageVolumes={}}) {
   const cfg=input.Config,h=input.HostConfig,expected=guardedCreate.HostConfig;
   assert.equal(input.Id,id);assert.equal(input.Name,'/'+name);assert.equal(input.Image,imageID);assert.equal(cfg.Image,imageID);
   assert.deepEqual(cfg.Labels,guardedCreate.Labels);assert.equal(cfg.User,guardedCreate.User);assert.equal(cfg.WorkingDir,'/workspace');
@@ -51,7 +51,10 @@ export function assertOriginalInspect(input,{id,name,imageID,guardedCreate,image
   assert.deepEqual(env(cfg.Env),{...env(imageEnv),...env(guardedCreate.Env)});
   for(const key of ['Tty','OpenStdin','StdinOnce','AttachStdin','NetworkDisabled'])assert.equal(cfg[key]??false,false);
   assert.equal(cfg.AttachStdout,true);assert.equal(cfg.AttachStderr,true);assert.deepEqual(cfg.Healthcheck?.Test,['NONE']);
-  for(const key of ['ExposedPorts','Volumes'])assert.equal(Object.keys(cfg[key]??{}).length,0);
+  assert.deepEqual(cfg.ExposedPorts??{},imageExposedPorts??{});
+  assert.equal(Object.keys(imageVolumes??{}).length,0);
+  assert.equal(Object.keys(cfg.Volumes??{}).length,0);
+  for(const bindings of Object.values(input.NetworkSettings?.Ports??{}))assert.equal(bindings?.length??0,0);
   for(const key of ['AutoRemove','Init','ReadonlyRootfs','Memory','MemorySwap','NanoCpus','PidsLimit','CapDrop','SecurityOpt','Tmpfs'])assert.deepEqual(h[key],expected[key]);
   assert.equal(h.Privileged??false,false);assert.equal(h.PublishAllPorts??false,false);assert.equal(h.RestartPolicy?.Name,'no');assert.equal(h.RestartPolicy?.MaximumRetryCount??0,0);
   for(const key of ['Binds','VolumesFrom','Devices','DeviceRequests','DeviceCgroupRules','Links','GroupAdd','ExtraHosts','Ulimits','Dns','DnsOptions','DnsSearch','CapAdd'])assert.equal(h[key]?.length??0,0);

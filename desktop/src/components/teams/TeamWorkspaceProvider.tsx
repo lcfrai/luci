@@ -1,4 +1,4 @@
-import { createContext, Fragment, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { teamsApi, noPermissions, personalPermissions, type TeamSummary, type TeamPermissions } from '../../api/teams';
 import { productApi, errorText } from '../../api/product';
 import { ApiError } from '../../api/client';
@@ -91,12 +91,14 @@ function ScopedTeamWorkspaceProvider({children,auth,storageKey}: {children:React
     return()=>{window.removeEventListener('focus',onFocus);window.clearInterval(timer);};
   },[ready,refresh]);
   useEffect(()=>{if(ready&&!blocked)setAdmitted(true);},[ready,blocked]);
-  const select=(id:string)=>{
+  const select=useCallback((id:string)=>{
     if(managedTeamId && id!==managedTeamId)return;
     if(id===selectedTeamId())return;
     if(Object.keys(useCockpit.getState().unsavedProjectDrafts).length) setPending(id); else apply(id);
-  };
-  const value={teams,selected:teams.find(row=>row.team.id===selected)??null,teamId:selected,managedTeamId,revision,refresh,select};
+  },[managedTeamId,apply]);
+  // Draft dialog updates do not change workspace context. Access refreshes still
+  // publish their revision so every project revalidates its current permissions.
+  const value=useMemo(()=>({teams,selected:teams.find(row=>row.team.id===selected)??null,teamId:selected,managedTeamId,revision,refresh,select}),[teams,selected,managedTeamId,revision,refresh,select]);
   const retained=Object.values(drafts).every(draft=>draft.retained);
   const localSetup=Object.values(drafts).some(draft=>draft.purpose==='verification-setup');
   return <TeamWorkspaceContext.Provider value={value}>

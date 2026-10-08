@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "preparedAt": "2026-10-08T23:07:53.512554+00:00",
+  "status": "prepared-only-awaiting-exclusive-runtime-window",
+  "command": [
+    "node",
+    "/workspace/.luci-tools/cloud032-idle-d348f012/actual/sustained.mjs",
+    "--task-context-version",
+    "2",
+    "--binary",
+    "/tmp/luci-retained-tools/package-0.5.0-d348f012/luci",
+    "--web",
+    "/tmp/luci-retained-tools/package-0.5.0-d348f012/web",
+    "--provenance",
+    "/workspace/luci/artifacts/quality-swarm/candidate-d348f012/package/package-provenance.json",
+    "--expected-source",
+    "d348f0127a920aab05b54a4192baa8ed3800fe54",
+    "--expected-helper-source",
+    "d348f0127a920aab05b54a4192baa8ed3800fe54",
+    "--image",
+    "luci/sandbox:verified-candidate-20261008t140025z-a4a2e82b",
+    "--expected-image-id",
+    "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+    "--image-provenance",
+    "/workspace/.luci-tools/sandbox-candidate-20261008T140025Z-a4a2e82b/receipt.json",
+    "--fixture-root",
+    "/workspace/.c32",
+    "--report",
+    "/workspace/.luci-tools/cloud032-idle-d348f012/runs/actual-idle-after-1/result.json",
+    "--trace-after",
+    "yes"
+  ],
+  "environment": {
+    "LUCI_ACCEPTANCE_REPO": "/workspace/luci"
+  },
+  "productSource": "d348f0127a920aab05b54a4192baa8ed3800fe54",
+  "helperSource": "d348f0127a920aab05b54a4192baa8ed3800fe54",
+  "originalInteractionSource": "5d306b6dae3cc9d0a4d9cbf95f8142c37958964f",
+  "driverSHA256": "d7fb7586e5b4a2639da9abb6c2e1c6a1296d2161ea7cf2ec393a8f1d3ab1b016",
+  "bindingSHA256": "bfc7dd7ca89ae9277f80b20c1fd5671533286f8053463ffb478d86fcdd9f60e0",
+  "dependencyDifferences": {
+    "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs": {
+      "templateSHA256": "48e97d6d5c915cf80c99f0c79a8fb16261eb219616f878fa1ce103ee2c59303d",
+      "currentSHA256": "7315bcd8ecd230bf33de8eb4d06d900e4fdc380b52ed901875b12bf536672dae",
+      "reason": "Root-authorized current opt-in proxy diagnostics; zero Create/Start forwarding remains mandatory."
+    }
+  },
+  "comparisonBaseline": "docs/luci/evidence/cloud032-switch-latency/actual/result.json.gz",
+  "fixedScope": {
+    "quietSeconds": 60,
+    "primarySwitches": 100,
+    "primaryInputs": 200,
+    "primaryResets": 100,
+    "extraTraceRounds": 8,
+    "switchP95Ms": 300,
+    "inputP95Ms": 100,
+    "p99StrictlyBelowMs": 1000,
+    "linuxSampler": false,
+    "allowedCreates": 0,
+    "allowedStarts": 0,
+    "preparationSeconds": 60,
+    "workflowSeconds": 210,
+    "cleanupSeconds": 120
+  },
+  "privacy": "Actual raw actionability trace remains private; publish only allowlisted derivation. Fresh state/auth/fixtures required; no reuse."
+}

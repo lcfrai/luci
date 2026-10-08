@@ -12,6 +12,7 @@ export const helperPaths=Object.freeze([
  'worker-recovery/worker-recovery-scenario.mjs',
  'worker-recovery/provenance.mjs',
  'worker-recovery/source-binding.mjs',
+ 'worker-recovery/project-context.mjs',
  'launch-recovery/fenced-docker-proxy.mjs',
  'launch-recovery/worker-create-guard.mjs',
  'launch-recovery/acceptance-lifecycle.mjs',

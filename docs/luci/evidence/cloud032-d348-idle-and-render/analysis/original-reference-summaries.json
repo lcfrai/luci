@@ -1,0 +1,81 @@
+{
+  "scope": "Original immutable primary metrics retained. Static and actual are sequential diagnostic arms without the full Linux sampler; original browser collectors unchanged. No subtraction or claim that absent sampler alone explains changed results. Trace follow-up is8 extra rounds, not the primary100.",
+  "arms": {
+    "static": {
+      "resultSHA256": "ed5cd4d8c2dc75a13f085642537e43aa8d326909ca56bac6c798a56fb9e8127b",
+      "groups": {
+        "static-control-primary:project-switch": {
+          "count": 100,
+          "successful": 100,
+          "failed": 0,
+          "p50Ms": 111.31983000000764,
+          "p95Ms": 157.08219200000167,
+          "p99Ms": 225.6929749999981,
+          "maxMs": 288.8557119999896,
+          "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+          "timeouts": []
+        },
+        "static-control-primary:input": {
+          "count": 200,
+          "successful": 200,
+          "failed": 0,
+          "p50Ms": 36.49837000000116,
+          "p95Ms": 52.54212800000096,
+          "p99Ms": 94.4531840000127,
+          "maxMs": 130.46643200000108,
+          "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+          "timeouts": []
+        },
+        "static-control-primary:draft-reset": {
+          "count": 100,
+          "successful": 100,
+          "failed": 0,
+          "p50Ms": 133.91387399999076,
+          "p95Ms": 215.7394959999947,
+          "p99Ms": 288.24054199999955,
+          "maxMs": 333.11128300000564,
+          "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+          "timeouts": []
+        }
+      }
+    },
+    "actual": {
+      "resultSHA256": "ec36b16cd17b6e8096f639a59861753c18ea42e501a380657d07678a1e80cb92",
+      "groups": {
+        "idle-interactive-calibration:project-switch": {
+          "count": 100,
+          "successful": 100,
+          "failed": 0,
+          "p50Ms": 233.46606899998733,
+          "p95Ms": 367.203416999997,
+          "p99Ms": 514.7384899999888,
+          "maxMs": 572.0957459999918,
+          "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+          "timeouts": []
+        },
+        "idle-interactive-calibration:input": {
+          "count": 200,
+          "successful": 200,
+          "failed": 0,
+          "p50Ms": 49.329704999996466,
+          "p95Ms": 83.21902899999986,
+          "p99Ms": 207.77355300000636,
+          "maxMs": 248.43329499999527,
+          "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+          "timeouts": []
+        },
+        "idle-interactive-calibration:draft-reset": {
+          "count": 100,
+          "successful": 100,
+          "failed": 0,
+          "p50Ms": 267.0412769999966,
+          "p95Ms": 415.9317169999995,
+          "p99Ms": 488.09056599999894,
+          "maxMs": 830.0532999999996,
+          "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+          "timeouts": []
+        }
+      }
+    }
+  }
+}

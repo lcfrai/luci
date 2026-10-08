@@ -1,0 +1,522 @@
+TAP version 13
+# Subtest: repeated stop after signalled child exit does not signal again or fail
+not ok 1 - repeated stop after signalled child exit does not signal again or fail
+  ---
+  duration_ms: 13.804808
+  type: 'test'
+  location: '/workspace/luci/scripts/acceptance/check-create-recovery/controller-stop.test.mjs:21:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The expression evaluated to a falsy value:
+    
+      assert(identities.some(x=>x.pid===service.pid))
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    Object.stop (evalmachine.<anonymous>:2:68)
+    TestContext.<anonymous> (file:///workspace/luci/scripts/acceptance/check-create-recovery/controller-stop.test.mjs:22:81)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+# Subtest: does not signal a reused controller PID
+not ok 2 - does not signal a reused controller PID
+  ---
+  duration_ms: 2.594942
+  type: 'test'
+  location: '/workspace/luci/scripts/acceptance/check-create-recovery/controller-stop.test.mjs:24:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The expression evaluated to a falsy value:
+    
+      assert(identities.some(x=>x.pid===service.pid))
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    Object.stop (evalmachine.<anonymous>:2:68)
+    TestContext.<anonymous> (file:///workspace/luci/scripts/acceptance/check-create-recovery/controller-stop.test.mjs:25:73)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+# Subtest: already absent controller is a safe idempotent stop
+not ok 3 - already absent controller is a safe idempotent stop
+  ---
+  duration_ms: 2.163883
+  type: 'test'
+  location: '/workspace/luci/scripts/acceptance/check-create-recovery/controller-stop.test.mjs:27:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The expression evaluated to a falsy value:
+    
+      assert(identities.some(x=>x.pid===service.pid))
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    Object.stop (evalmachine.<anonymous>:2:68)
+    TestContext.<anonymous> (file:///workspace/luci/scripts/acceptance/check-create-recovery/controller-stop.test.mjs:28:44)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: accepts exact unstarted original with daemon defaults and merged image/Create environment
+ok 4 - accepts exact unstarted original with daemon defaults and merged image/Create environment
+  ---
+  duration_ms: 2.731158
+  type: 'test'
+  ...
+# Subtest: accepts equivalent environment ordering while retaining embedded equals signs
+ok 5 - accepts equivalent environment ordering while retaining embedded equals signs
+  ---
+  duration_ms: 0.254153
+  type: 'test'
+  ...
+# Subtest: accepts source-supported daemon modes {"network":"bridge","ipc":"private"}
+ok 6 - accepts source-supported daemon modes {"network":"bridge","ipc":"private"}
+  ---
+  duration_ms: 0.211249
+  type: 'test'
+  ...
+# Subtest: accepts source-supported daemon modes {"network":"","ipc":""}
+ok 7 - accepts source-supported daemon modes {"network":"","ipc":""}
+  ---
+  duration_ms: 0.215636
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different immutable container
+ok 8 - refuses original inspect with different immutable container
+  ---
+  duration_ms: 1.185327
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different logical name
+ok 9 - refuses original inspect with different logical name
+  ---
+  duration_ms: 0.358731
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different image bytes
+ok 10 - refuses original inspect with different image bytes
+  ---
+  duration_ms: 0.258239
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with mutable configured image tag
+ok 11 - refuses original inspect with mutable configured image tag
+  ---
+  duration_ms: 0.180623
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with foreign check identity
+ok 12 - refuses original inspect with foreign check identity
+  ---
+  duration_ms: 0.773787
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with changed source digest
+ok 13 - refuses original inspect with changed source digest
+  ---
+  duration_ms: 0.559664
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different user
+ok 14 - refuses original inspect with different user
+  ---
+  duration_ms: 0.370699
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different working directory
+ok 15 - refuses original inspect with different working directory
+  ---
+  duration_ms: 0.186702
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with shell entrypoint
+ok 16 - refuses original inspect with shell entrypoint
+  ---
+  duration_ms: 0.269166
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different command arguments
+ok 17 - refuses original inspect with different command arguments
+  ---
+  duration_ms: 0.261755
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with enabled healthcheck
+ok 18 - refuses original inspect with enabled healthcheck
+  ---
+  duration_ms: 0.395356
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with interactive input
+ok 19 - refuses original inspect with interactive input
+  ---
+  duration_ms: 0.213071
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with missing captured output
+ok 20 - refuses original inspect with missing captured output
+  ---
+  duration_ms: 0.182355
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with writable root filesystem
+ok 21 - refuses original inspect with writable root filesystem
+  ---
+  duration_ms: 0.350408
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with privileged mode
+ok 22 - refuses original inspect with privileged mode
+  ---
+  duration_ms: 0.257469
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with added capability
+ok 23 - refuses original inspect with added capability
+  ---
+  duration_ms: 0.257889
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with missing capability drop
+ok 24 - refuses original inspect with missing capability drop
+  ---
+  duration_ms: 0.299161
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with missing no-new-privileges
+ok 25 - refuses original inspect with missing no-new-privileges
+  ---
+  duration_ms: 0.293733
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with host network
+ok 26 - refuses original inspect with host network
+  ---
+  duration_ms: 4.714729
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with host IPC
+ok 27 - refuses original inspect with host IPC
+  ---
+  duration_ms: 0.47751
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with host process namespace
+ok 28 - refuses original inspect with host process namespace
+  ---
+  duration_ms: 0.277318
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with extra device
+ok 29 - refuses original inspect with extra device
+  ---
+  duration_ms: 0.200933
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with automatic removal
+ok 30 - refuses original inspect with automatic removal
+  ---
+  duration_ms: 0.192751
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with automatic restart
+ok 31 - refuses original inspect with automatic restart
+  ---
+  duration_ms: 0.289957
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with published port
+ok 32 - refuses original inspect with published port
+  ---
+  duration_ms: 0.315646
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with excess memory
+ok 33 - refuses original inspect with excess memory
+  ---
+  duration_ms: 0.31837
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with unlimited swap
+ok 34 - refuses original inspect with unlimited swap
+  ---
+  duration_ms: 0.218219
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with excess CPU
+ok 35 - refuses original inspect with excess CPU
+  ---
+  duration_ms: 0.208314
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with excess process limit
+ok 36 - refuses original inspect with excess process limit
+  ---
+  duration_ms: 0.165429
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with unbounded temporary filesystem
+ok 37 - refuses original inspect with unbounded temporary filesystem
+  ---
+  duration_ms: 0.319812
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with extra legacy source bind
+ok 38 - refuses original inspect with extra legacy source bind
+  ---
+  duration_ms: 0.227273
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different configured source mount
+ok 39 - refuses original inspect with different configured source mount
+  ---
+  duration_ms: 0.349036
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different observed source mount
+ok 40 - refuses original inspect with different observed source mount
+  ---
+  duration_ms: 0.374054
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different observed mount target
+ok 41 - refuses original inspect with different observed mount target
+  ---
+  duration_ms: 0.236416
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with volume in place of source bind
+ok 42 - refuses original inspect with volume in place of source bind
+  ---
+  duration_ms: 0.195865
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with read-only project mount
+ok 43 - refuses original inspect with read-only project mount
+  ---
+  duration_ms: 0.293032
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with shared mount propagation
+ok 44 - refuses original inspect with shared mount propagation
+  ---
+  duration_ms: 0.41093
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with extra observed source mount
+ok 45 - refuses original inspect with extra observed source mount
+  ---
+  duration_ms: 0.65
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with unexpected environment key
+ok 46 - refuses original inspect with unexpected environment key
+  ---
+  duration_ms: 0.790081
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with unexpected prototype-named environment key
+ok 47 - refuses original inspect with unexpected prototype-named environment key
+  ---
+  duration_ms: 1.314953
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with missing inherited image variable
+ok 48 - refuses original inspect with missing inherited image variable
+  ---
+  duration_ms: 1.265628
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with changed inherited image PATH
+ok 49 - refuses original inspect with changed inherited image PATH
+  ---
+  duration_ms: 0.909531
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with image HOME overriding guarded HOME
+ok 50 - refuses original inspect with image HOME overriding guarded HOME
+  ---
+  duration_ms: 0.556519
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with missing guarded cache variable
+ok 51 - refuses original inspect with missing guarded cache variable
+  ---
+  duration_ms: 0.474335
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with duplicate environment key
+ok 52 - refuses original inspect with duplicate environment key
+  ---
+  duration_ms: 1.336155
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with malformed environment entry
+ok 53 - refuses original inspect with malformed environment entry
+  ---
+  duration_ms: 0.483639
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with running original
+ok 54 - refuses original inspect with running original
+  ---
+  duration_ms: 0.529438
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with hidden nonzero process
+ok 55 - refuses original inspect with hidden nonzero process
+  ---
+  duration_ms: 0.364069
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with restarting original
+ok 56 - refuses original inspect with restarting original
+  ---
+  duration_ms: 2.067527
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different inspected executable
+ok 57 - refuses original inspect with different inspected executable
+  ---
+  duration_ms: 0.316757
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different inspected arguments
+ok 58 - refuses original inspect with different inspected arguments
+  ---
+  duration_ms: 0.215956
+  type: 'test'
+  ...
+# Subtest: accepts exact inherited exposed metadata without publishing a port
+not ok 59 - accepts exact inherited exposed metadata without publishing a port
+  ---
+  duration_ms: 0.387074
+  type: 'test'
+  location: '/workspace/luci/scripts/acceptance/check-create-recovery/inspect-guards.test.mjs:121:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    1 !== 0
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 1
+  operator: 'strictEqual'
+  stack: |-
+    assertOriginalInspect (file:///workspace/luci/scripts/acceptance/check-create-recovery/fixture-guards.mjs:54:54)
+    TestContext.<anonymous> (file:///workspace/luci/scripts/acceptance/check-create-recovery/inspect-guards.test.mjs:125:2)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: refuses unexpected exposed metadata
+ok 60 - refuses unexpected exposed metadata
+  ---
+  duration_ms: 0.344299
+  type: 'test'
+  ...
+# Subtest: refuses missing inherited metadata
+not ok 61 - refuses missing inherited metadata
+  ---
+  duration_ms: 0.200823
+  type: 'test'
+  location: '/workspace/luci/scripts/acceptance/check-create-recovery/inspect-guards.test.mjs:134:4'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected exception.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  operator: 'throws'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/luci/scripts/acceptance/check-create-recovery/inspect-guards.test.mjs:134:65)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: refuses network-observed publication
+not ok 62 - refuses network-observed publication
+  ---
+  duration_ms: 0.174914
+  type: 'test'
+  location: '/workspace/luci/scripts/acceptance/check-create-recovery/inspect-guards.test.mjs:134:4'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected exception.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  operator: 'throws'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/luci/scripts/acceptance/check-create-recovery/inspect-guards.test.mjs:134:65)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: refuses publish all
+ok 63 - refuses publish all
+  ---
+  duration_ms: 0.171599
+  type: 'test'
+  ...
+# Subtest: refuses configured volume
+ok 64 - refuses configured volume
+  ---
+  duration_ms: 0.29834
+  type: 'test'
+  ...
+# Subtest: refuses inherited volume
+not ok 65 - refuses inherited volume
+  ---
+  duration_ms: 0.174393
+  type: 'test'
+  location: '/workspace/luci/scripts/acceptance/check-create-recovery/inspect-guards.test.mjs:134:4'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected exception.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  operator: 'throws'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/luci/scripts/acceptance/check-create-recovery/inspect-guards.test.mjs:134:65)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+1..65
+# tests 65
+# suites 0
+# pass 58
+# fail 7
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 357.460263

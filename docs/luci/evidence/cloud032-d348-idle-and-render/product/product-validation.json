@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "productChange": "Avoid inactive definition element construction and unchanged team-context broadcasts. No data caching or freshness/authority change.",
+  "sourceFiles": {
+    "desktop/src/components/definition/DefinitionWorkspace.tsx": "71c17a92ff737948bfac6e4f476d2857aaf57f6f6b12b50227f8050891e5b484",
+    "desktop/src/components/teams/TeamWorkspaceProvider.tsx": "e6a3a98612aa506e9b78a656891dd36e8d2207a5f806fba7f8a65f1da7bf11bb",
+    "desktop/src/components/teams/TeamWorkspaceProvider.test.tsx": "a62822f66c88afdfa4f157d9ff995bbf15c9a6573899408460572a24ff097a71"
+  },
+  "validation": [
+    {
+      "command": "npm test -- --run src/components/definition/DefinitionWorkspace.test.tsx --reporter=json --outputFile=/workspace/.luci-tools/cloud032-critical-path-d348/definition-tests.json",
+      "cwd": "/workspace/luci/desktop",
+      "exitCode": 0,
+      "passed": 14,
+      "failed": 0,
+      "reportSHA256": "76854d41d1e424aea4038240d637c71385a10b5ad9056bc41085710e08c9f7b4"
+    },
+    {
+      "command": "npm test -- src/components/teams/TeamWorkspaceProvider.test.tsx",
+      "cwd": "/workspace/luci/desktop",
+      "exitCode": 0,
+      "passed": 28,
+      "failed": 0,
+      "logSHA256": "385d0799490572938ea7665a2dfbded2fbda81856ace0f75a675d00a83259047"
+    },
+    {
+      "command": "npm run typecheck",
+      "cwd": "/workspace/luci/desktop",
+      "exitCode": 0,
+      "stderrBytes": 0
+    },
+    {
+      "command": "git diff --check -- desktop/src/components/definition/DefinitionWorkspace.tsx desktop/src/components/teams/TeamWorkspaceProvider.tsx desktop/src/components/teams/TeamWorkspaceProvider.test.tsx",
+      "cwd": "/workspace/luci",
+      "exitCode": 0
+    }
+  ],
+  "limitations": [
+    "Semantic/component validation only. No new installed-app latency measurement or target success.",
+    "Primary400 action flow, 300ms switch and100ms input thresholds unchanged.",
+    "Root owns commit, packaging, and runtime scheduling."
+  ]
+}

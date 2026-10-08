@@ -1,0 +1,9 @@
+{
+  "startedAt": "2026-10-08T23:08:45.108254+00:00",
+  "finishedAt": "2026-10-08T23:11:26.241730+00:00",
+  "elapsedSeconds": 161.133483254991,
+  "exitCode": 0,
+  "error": null,
+  "invocation": "invocation.json",
+  "scope": "Fresh installed idle comparison only; no Linux sampler, workers, model calls or sustained completion inferred."
+}

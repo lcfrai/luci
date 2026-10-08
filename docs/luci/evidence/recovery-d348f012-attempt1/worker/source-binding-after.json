@@ -1,0 +1,20 @@
+{
+  "productCommit": "d348f0127a920aab05b54a4192baa8ed3800fe54",
+  "helperCommit": "d348f0127a920aab05b54a4192baa8ed3800fe54",
+  "imageId": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+  "driverSHA256": "eeaf8aee30b84d09f2a4df358099eee98ea6dd33ba029826e2e469926f92f89c",
+  "samplerSHA256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+  "wrapperSHA256": "c5c8e760f002a350cd34c39d0a8a61d0d82d1de57a5e6b4d2ff89e4b6a8e3473",
+  "observerCostLauncherSHA256": "d90c219b9d6c6ca051d509402aa9680fef51ea1338f1b374a4f36c8d30d2e18d",
+  "packageProvenanceSHA256": "889dfa25933cff6157a237359f166a76eeef4009f775a3ba330976f372671f8e",
+  "imageProvenanceSHA256": "5af726e6670fd6f04c0f67cf3b26b3f6072ed89c1e1e3481c652a631ae6d0a3b",
+  "binarySHA256": "94e59ff60a5ee6a156f55302f0e55000c232a81a90e4d6fa3fd4872947930db3",
+  "webIndexSHA256": "08ec2403d9f3965e5faf407f29dd2e2fbba5b0b4ff53d90af009610b26d814bb",
+  "archiveSHA256": "01512720ca8190b2737fd521b2db39e29329529b211fd830b0ac0a891073d7fd",
+  "imageSourceFiles": 104,
+  "archiveMembers": "Driver independently validates the frozen archive and every installed member before Docker allocation",
+  "observerProductBasis": {
+    "control-plane/internal/resourcebudget/probe_linux.go": "ed0294860d6c721b1fd8f96da8c09a0f4fecb68b991c66c3b8f524cda985c405",
+    "control-plane/internal/resourcebudget/cgroup_linux.go": "1843acdc15db9f9876545a1393bf6c21b93bc01873a64d8651be3adb26b5a4d1"
+  }
+}

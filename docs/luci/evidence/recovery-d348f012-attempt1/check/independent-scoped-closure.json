@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "at": "2026-10-08T23:24:45.911614+00:00",
+  "finishedAt": "2026-10-08T23:24:49.795523+00:00",
+  "scope": "Independent failed-fixture immutable-ID removal, not product recovery or reservation release",
+  "originalReceipt": {
+    "originalPath": "artifacts/quality-swarm/check-recovery-d348f012-helper-6e91c319-attempt1/independent-failed-fixture-cleanup-private.json",
+    "originalBytes": 43892,
+    "originalSHA256": "e465adb542ca4502f145236e322e2cb4d08b1454762795925af8f1aec61fa9ad"
+  },
+  "intentReceipt": {
+    "originalPath": "artifacts/quality-swarm/check-recovery-d348f012-helper-6e91c319-attempt1/manual-cleanup-intent-private.json",
+    "originalBytes": 22862,
+    "originalSHA256": "6cc417601e533c1da1b6f3cf472ff4903fbdbd4816517a3c78fa053417e33b75"
+  },
+  "proxyClosure": {
+    "closedAt": "2026-10-08T23:19:31.329Z",
+    "pendingRequests": 0,
+    "activeHandlers": 0,
+    "pendingBodyBytes": 0,
+    "uncertainMutation": false,
+    "drained": true
+  },
+  "processesBefore": {
+    "active": [],
+    "identifiedZombies": []
+  },
+  "containerBefore": {
+    "Id": "e47e24aceed8ca8e92ddfd978bf37415442cf9d6f94b8854b595933323b0224b",
+    "Name": "/luci-check-checkexec-495337504faffb1606fbcc64",
+    "Image": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+    "State": {
+      "Status": "created",
+      "Running": false,
+      "Paused": false,
+      "Restarting": false,
+      "OOMKilled": false,
+      "Dead": false,
+      "Pid": 0,
+      "ExitCode": 0,
+      "Error": "",
+      "StartedAt": "0001-01-01T00:00:00Z",
+      "FinishedAt": "0001-01-01T00:00:00Z"
+    }
+  },
+  "imageInheritedExposedPorts": {
+    "8080/tcp": {}
+  },
+  "hostPortBindings": null,
+  "removal": {
+    "exactContainerId": "e47e24aceed8ca8e92ddfd978bf37415442cf9d6f94b8854b595933323b0224b",
+    "method": "docker container rm by exact immutable ID, without force",
+    "basis": "Independent parent operator action; not product recovery"
+  },
+  "containersAfter": [],
+  "volumesAfter": [],
+  "processesAfter": {
+    "active": [],
+    "identifiedZombies": []
+  },
+  "privateFixtureFileComparison": {
+    "comparedFiles": 110,
+    "allRecordedBytesUnchanged": true,
+    "perFileMetadataPublished": false
+  },
+  "retainedProductCharge": [
+    {
+      "id": "checkexec-495337504faffb1606fbcc64",
+      "state": "creating",
+      "resources": {
+        "CPUMillis": 1000,
+        "MemoryMiB": 1024
+      }
+    }
+  ],
+  "retainedLedgerSHA256": "f2d1001369dd08a30f6eb5a492b5e57d460896eb4d2616ba489d8c0c71b8e743",
+  "ledgerStillMatchesFailedReport": true,
+  "productRecoveryPassed": false,
+  "heldLeaseManuallyChanged": false,
+  "automaticCleanupCertified": false,
+  "productLeaseReleaseVerified": false,
+  "limitations": [
+    "Observations are scoped to the exact retained fixture and daemon inventory at recorded times.",
+    "The original failed controller cleanup assertion remains in the run report.",
+    "Later independent removal is not product recovery, natural completion, or automatic capacity release.",
+    "No private fixture path, file inventory, source/state contents or credentials are exported."
+  ]
+}

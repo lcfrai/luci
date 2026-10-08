@@ -1,0 +1,11 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "--test-concurrency=1",
+    "scripts/acceptance/check-create-recovery/provenance-binding.test.mjs"
+  ],
+  "exitCode": 0,
+  "at": "2026-10-08T23:31:17.586289+00:00"
+}

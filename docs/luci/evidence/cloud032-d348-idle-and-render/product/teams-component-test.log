@@ -1,0 +1,13 @@
+
+> @lcfr/luci-desktop@0.5.0 test
+> vitest run src/components/teams/TeamWorkspaceProvider.test.tsx
+
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+
+ Test Files  1 passed (1)
+      Tests  28 passed (28)
+   Start at  23:29:53
+   Duration  4.76s (tests 53%, environment 30%, transform 11%, import 4%, setup 3%)
+

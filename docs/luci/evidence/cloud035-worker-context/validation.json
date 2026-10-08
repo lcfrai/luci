@@ -1,0 +1,142 @@
+{
+  "issue": "CLOUD-035",
+  "productCommit": "d348f0127a920aab05b54a4192baa8ed3800fe54",
+  "baseHelperCommit": "6e91c319901ee912dc02b562e3c3e4e449e9ce4e",
+  "runtimeInvoked": false,
+  "browserRuns": 0,
+  "compilerRuns": 0,
+  "modelCalls": 0,
+  "setup": "source /workspace/.luci-tools/activate.sh",
+  "cwd": "/workspace/luci",
+  "checks": [
+    {
+      "command": "timeout 30s node --test --test-concurrency=1 --test-name-pattern='Actual installed seeding' scripts/acceptance/worker-recovery/project-context.test.mjs",
+      "log": "before-regression.log",
+      "exitCode": 1,
+      "tests": 1,
+      "failed": 1,
+      "failure": "ENOENT reading absent checkout .luci/brief.json from original adapter seedProjects"
+    },
+    {
+      "command": "timeout 30s node --test --test-concurrency=1 --test-name-pattern='Actual installed seeding' scripts/acceptance/worker-recovery/project-context.test.mjs",
+      "log": "after-regression.log",
+      "exitCode": 0,
+      "tests": 1,
+      "passed": 1
+    },
+    {
+      "command": "timeout 30s node --test --test-concurrency=1 scripts/acceptance/worker-recovery/project-context.test.mjs scripts/acceptance/worker-recovery/adapter-static.test.mjs scripts/acceptance/worker-recovery/source-binding.test.mjs",
+      "log": "targeted-tests.log",
+      "exitCode": 0,
+      "tests": 11,
+      "passed": 11
+    }
+  ],
+  "sameRegressionBytes": true,
+  "testedFiles": [
+    {
+      "path": "scripts/acceptance/worker-recovery/installed-worker-recovery.mjs",
+      "sha256": "393e7e6716f464ee07fedf87638ea85dd88faf70ba5a2f18bde2b559468bb702",
+      "bytes": 59605
+    },
+    {
+      "path": "scripts/acceptance/worker-recovery/source-binding.mjs",
+      "sha256": "a96d6ae917b1661d313f2cb18a5a549e3dfa4851922e8d766d57f1378c9996de",
+      "bytes": 2364
+    },
+    {
+      "path": "scripts/acceptance/worker-recovery/project-context.mjs",
+      "sha256": "4114fccfdab7c00b8866e484b108c66fe64bbfea8fec9edf0786f6296b4cebee",
+      "bytes": 2458
+    },
+    {
+      "path": "scripts/acceptance/worker-recovery/project-context.test.mjs",
+      "sha256": "5fcd7480d8e902268ded893ef7e8e97c5d58e3dec0601f199b8d48e6febf34d3",
+      "bytes": 6359
+    },
+    {
+      "path": "scripts/acceptance/worker-recovery/adapter-static.test.mjs",
+      "sha256": "b6f153aadd64e9e5cf0f32a709d6a32b38b4323ad4f4d9ca14542d0902ecca32",
+      "bytes": 1913
+    },
+    {
+      "path": "scripts/acceptance/worker-recovery/source-binding.test.mjs",
+      "sha256": "160aec9e6cabda2f0f0b852256183cc6e975ac55b8e6dc5732b9cd5ca0f6261d",
+      "bytes": 3041
+    }
+  ],
+  "productContractSources": [
+    {
+      "path": "control-plane/internal/product/journey_context.go",
+      "sha256": "b7d193563f7a01aa7e2b1b642ef7e9ea856ab88c4fc99f6ea0627c2a67f9c2b2",
+      "matchesSelectedProduct": true
+    },
+    {
+      "path": "control-plane/internal/product/reviewed_context.go",
+      "sha256": "f1346bdc9e9841e655d14cb74379b5fef7759f1abd19932915d97aa53ff3d36c",
+      "matchesSelectedProduct": true
+    },
+    {
+      "path": "control-plane/internal/product/journey.go",
+      "sha256": "ec2c1a8ff529c7011de91e94584f80d47eb70d944f2cb0550a38082aa96889e2",
+      "matchesSelectedProduct": true
+    }
+  ],
+  "limitations": [
+    "Controlled API doubles and real temporary project export files; no installed server or Docker workers.",
+    "LOCAL-016 exact installed worker settlement remains unproven by this correction.",
+    "Original failed installed fixtures were not read or changed; only published attempt1 report was read."
+  ],
+  "unchangedRuntimeSources": [
+    {
+      "path": "scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs",
+      "sha256": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+      "retrievableAtCommit": "6e91c319901ee912dc02b562e3c3e4e449e9ce4e"
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs",
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "retrievableAtCommit": "6e91c319901ee912dc02b562e3c3e4e449e9ce4e"
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/acceptance-startup.mjs",
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "retrievableAtCommit": "6e91c319901ee912dc02b562e3c3e4e449e9ce4e"
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs",
+      "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+      "retrievableAtCommit": "6e91c319901ee912dc02b562e3c3e4e449e9ce4e"
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs",
+      "sha256": "7315bcd8ecd230bf33de8eb4d06d900e4fdc380b52ed901875b12bf536672dae",
+      "retrievableAtCommit": "6e91c319901ee912dc02b562e3c3e4e449e9ce4e"
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/worker-create-guard.mjs",
+      "sha256": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+      "retrievableAtCommit": "6e91c319901ee912dc02b562e3c3e4e449e9ce4e"
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/source-binding.mjs",
+      "sha256": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796",
+      "retrievableAtCommit": "6e91c319901ee912dc02b562e3c3e4e449e9ce4e"
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/task-context.mjs",
+      "sha256": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2",
+      "retrievableAtCommit": "6e91c319901ee912dc02b562e3c3e4e449e9ce4e"
+    },
+    {
+      "path": "scripts/acceptance/worker-recovery/provenance.mjs",
+      "sha256": "9dcdcc45360147fc4e5133a17ff0f3d6d98dfc0da1f10a6c87316dd2c77da924",
+      "retrievableAtCommit": "6e91c319901ee912dc02b562e3c3e4e449e9ce4e"
+    },
+    {
+      "path": "scripts/acceptance/worker-recovery/worker-recovery-scenario.mjs",
+      "sha256": "27910aeec967b98e01f4259d7800c5e9319594083f53acee6177137a074537a7",
+      "retrievableAtCommit": "6e91c319901ee912dc02b562e3c3e4e449e9ce4e"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "operation": "Read-only Git blob and retained-file hashing; no runtime or tests",
+  "attempts": [
+    {
+      "attempt": "worker",
+      "commit": "d348f0127a920aab05b54a4192baa8ed3800fe54",
+      "acceptedFilesVerified": 12,
+      "allCapturedBytesMatchBindingAndGitCommit": true
+    },
+    {
+      "attempt": "check",
+      "commit": "6e91c319901ee912dc02b562e3c3e4e449e9ce4e",
+      "acceptedFilesVerified": 11,
+      "allCapturedBytesMatchBindingAndGitCommit": true
+    }
+  ],
+  "workerBeforeAfterBindingsByteIdentical": true,
+  "checkHistoricalManifestPinsAreNotActualProductIdentity": true,
+  "actualProductCommit": "d348f0127a920aab05b54a4192baa8ed3800fe54"
+}

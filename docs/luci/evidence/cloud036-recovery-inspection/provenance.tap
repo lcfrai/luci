@@ -1,0 +1,371 @@
+TAP version 13
+# fatal: path 'scripts/acceptance/check-create-recovery/installed-recovery.mjs' exists on disk, but not in '0000000000000000000000000000000000000000'
+# Subtest: binding contract names exactly eleven frozen executed helper sources
+ok 1 - binding contract names exactly eleven frozen executed helper sources
+  ---
+  duration_ms: 2.842106
+  type: 'test'
+  ...
+# Subtest: binding accepts exact ordinary local bytes from the explicit committed helper and returns the manifest
+ok 2 - binding accepts exact ordinary local bytes from the explicit committed helper and returns the manifest
+  ---
+  duration_ms: 73.064162
+  type: 'test'
+  ...
+# Subtest: binding permits a complete manifest in a different row order
+ok 3 - binding permits a complete manifest in a different row order
+  ---
+  duration_ms: 51.841233
+  type: 'test'
+  ...
+# Subtest: binding verifies the selected commit rather than silently substituting current HEAD
+ok 4 - binding verifies the selected commit rather than silently substituting current HEAD
+  ---
+  duration_ms: 68.800488
+  type: 'test'
+  ...
+# Subtest: binding rejects missing source row
+ok 5 - binding rejects missing source row
+  ---
+  duration_ms: 12.207113
+  type: 'test'
+  ...
+# Subtest: binding rejects duplicate source replacing a required row
+ok 6 - binding rejects duplicate source replacing a required row
+  ---
+  duration_ms: 10.302546
+  type: 'test'
+  ...
+# Subtest: binding rejects extra duplicate source row
+ok 7 - binding rejects extra duplicate source row
+  ---
+  duration_ms: 6.668746
+  type: 'test'
+  ...
+# Subtest: binding rejects foreign source replacing a required row
+ok 8 - binding rejects foreign source replacing a required row
+  ---
+  duration_ms: 6.918223
+  type: 'test'
+  ...
+# Subtest: binding rejects extra foreign source row
+ok 9 - binding rejects extra foreign source row
+  ---
+  duration_ms: 7.038314
+  type: 'test'
+  ...
+# Subtest: binding rejects relative traversal source path
+ok 10 - binding rejects relative traversal source path
+  ---
+  duration_ms: 6.245198
+  type: 'test'
+  ...
+# Subtest: binding rejects absolute source path
+ok 11 - binding rejects absolute source path
+  ---
+  duration_ms: 6.131086
+  type: 'test'
+  ...
+# Subtest: binding rejects noncanonical equivalent source path
+ok 12 - binding rejects noncanonical equivalent source path
+  ---
+  duration_ms: 5.163187
+  type: 'test'
+  ...
+# Subtest: binding rejects null source row
+ok 13 - binding rejects null source row
+  ---
+  duration_ms: 5.10593
+  type: 'test'
+  ...
+# Subtest: binding rejects string source row
+ok 14 - binding rejects string source row
+  ---
+  duration_ms: 4.711505
+  type: 'test'
+  ...
+# Subtest: binding rejects missing executedFiles
+ok 15 - binding rejects missing executedFiles
+  ---
+  duration_ms: 4.721781
+  type: 'test'
+  ...
+# Subtest: binding rejects object instead of executedFiles array
+ok 16 - binding rejects object instead of executedFiles array
+  ---
+  duration_ms: 5.067412
+  type: 'test'
+  ...
+# Subtest: binding rejects wrong repository path
+ok 17 - binding rejects wrong repository path
+  ---
+  duration_ms: 5.390098
+  type: 'test'
+  ...
+# Subtest: binding rejects missing repository path
+ok 18 - binding rejects missing repository path
+  ---
+  duration_ms: 5.708098
+  type: 'test'
+  ...
+# Subtest: binding rejects incorrect byte count
+ok 19 - binding rejects incorrect byte count
+  ---
+  duration_ms: 4.968603
+  type: 'test'
+  ...
+# Subtest: binding rejects string byte count
+ok 20 - binding rejects string byte count
+  ---
+  duration_ms: 5.051828
+  type: 'test'
+  ...
+# Subtest: binding rejects negative byte count
+ok 21 - binding rejects negative byte count
+  ---
+  duration_ms: 4.607979
+  type: 'test'
+  ...
+# Subtest: binding rejects missing digest
+ok 22 - binding rejects missing digest
+  ---
+  duration_ms: 4.715832
+  type: 'test'
+  ...
+# Subtest: binding rejects malformed digest
+ok 23 - binding rejects malformed digest
+  ---
+  duration_ms: 4.54236
+  type: 'test'
+  ...
+# Subtest: binding rejects uppercase digest
+ok 24 - binding rejects uppercase digest
+  ---
+  duration_ms: 5.356713
+  type: 'test'
+  ...
+# Subtest: binding rejects wrong ordinary digest
+ok 25 - binding rejects wrong ordinary digest
+  ---
+  duration_ms: 4.921451
+  type: 'test'
+  ...
+# Subtest: binding rejects wrong source root
+ok 26 - binding rejects wrong source root
+  ---
+  duration_ms: 4.361778
+  type: 'test'
+  ...
+# Subtest: binding rejects unsupported version
+ok 27 - binding rejects unsupported version
+  ---
+  duration_ms: 5.694127
+  type: 'test'
+  ...
+# Subtest: binding rejects string version
+ok 28 - binding rejects string version
+  ---
+  duration_ms: 3.982796
+  type: 'test'
+  ...
+# Subtest: binding rejects manifest helper different from CLI helper
+ok 29 - binding rejects manifest helper different from CLI helper
+  ---
+  duration_ms: 4.38333
+  type: 'test'
+  ...
+# Subtest: binding rejects wrong product pin
+ok 30 - binding rejects wrong product pin
+  ---
+  duration_ms: 4.495068
+  type: 'test'
+  ...
+# Subtest: binding rejects wrong historical helper pin
+ok 31 - binding rejects wrong historical helper pin
+  ---
+  duration_ms: 3.860992
+  type: 'test'
+  ...
+# Subtest: binding rejects wrong image pin
+ok 32 - binding rejects wrong image pin
+  ---
+  duration_ms: 4.207134
+  type: 'test'
+  ...
+# Subtest: binding rejects extra pin
+ok 33 - binding rejects extra pin
+  ---
+  duration_ms: 4.505414
+  type: 'test'
+  ...
+# Subtest: binding rejects missing pins
+ok 34 - binding rejects missing pins
+  ---
+  duration_ms: 3.828564
+  type: 'test'
+  ...
+# Subtest: binding refuses a nonexact CLI helper commit HEAD
+ok 35 - binding refuses a nonexact CLI helper commit HEAD
+  ---
+  duration_ms: 3.55414
+  type: 'test'
+  ...
+# Subtest: binding refuses a nonexact CLI helper commit aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ok 36 - binding refuses a nonexact CLI helper commit aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  ---
+  duration_ms: 3.320637
+  type: 'test'
+  ...
+# Subtest: binding refuses a nonexact CLI helper commit AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+ok 37 - binding refuses a nonexact CLI helper commit AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+  ---
+  duration_ms: 4.507358
+  type: 'test'
+  ...
+# Subtest: binding refuses a nonexact CLI helper commit aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ok 38 - binding refuses a nonexact CLI helper commit aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  ---
+  duration_ms: 3.296751
+  type: 'test'
+  ...
+# Subtest: binding refuses a nonexact CLI helper commit 
+ok 39 - binding refuses a nonexact CLI helper commit 
+  ---
+  duration_ms: 3.15684
+  type: 'test'
+  ...
+# Subtest: binding refuses a nonexact CLI helper commit undefined
+ok 40 - binding refuses a nonexact CLI helper commit undefined
+  ---
+  duration_ms: 3.896506
+  type: 'test'
+  ...
+# Subtest: binding refuses an unavailable exact helper commit even when the manifest agrees with the CLI
+ok 41 - binding refuses an unavailable exact helper commit even when the manifest agrees with the CLI
+  ---
+  duration_ms: 10.088844
+  type: 'test'
+  ...
+# Subtest: binding rejects tampered local helper bytes at unchanged byte length
+ok 42 - binding rejects tampered local helper bytes at unchanged byte length
+  ---
+  duration_ms: 5.977565
+  type: 'test'
+  ...
+# Subtest: binding rejects local bytes and manifest hashes rewritten together because selected committed bytes differ
+ok 43 - binding rejects local bytes and manifest hashes rewritten together because selected committed bytes differ
+  ---
+  duration_ms: 9.074594
+  type: 'test'
+  ...
+# Subtest: binding rejects a selected newer commit with changed source even when local bytes and manifest retain the old source
+ok 44 - binding rejects a selected newer commit with changed source even when local bytes and manifest retain the old source
+  ---
+  duration_ms: 25.092611
+  type: 'test'
+  ...
+# Subtest: binding rejects a missing executed source file
+ok 45 - binding rejects a missing executed source file
+  ---
+  duration_ms: 4.730163
+  type: 'test'
+  ...
+# Subtest: binding rejects a directory in place of an executed source file
+ok 46 - binding rejects a directory in place of an executed source file
+  ---
+  duration_ms: 10.931184
+  type: 'test'
+  ...
+# Subtest: binding rejects a source symlink even when it resolves to the exact committed bytes
+ok 47 - binding rejects a source symlink even when it resolves to the exact committed bytes
+  ---
+  duration_ms: 5.024597
+  type: 'test'
+  ...
+# Subtest: binding rejects a multiply linked ordinary source file
+ok 48 - binding rejects a multiply linked ordinary source file
+  ---
+  duration_ms: 5.95461
+  type: 'test'
+  ...
+# Subtest: binding rejects a linked parent directory of an executed source
+ok 49 - binding rejects a linked parent directory of an executed source
+  ---
+  duration_ms: 3.629193
+  type: 'test'
+  ...
+# Subtest: binding rejects a foreign acceptance root containing all the same ordinary bytes
+ok 50 - binding rejects a foreign acceptance root containing all the same ordinary bytes
+  ---
+  duration_ms: 4.526015
+  type: 'test'
+  ...
+# Subtest: binding rejects a symlinked acceptance root even if the caller supplies its canonical outside target
+ok 51 - binding rejects a symlinked acceptance root even if the caller supplies its canonical outside target
+  ---
+  duration_ms: 4.194696
+  type: 'test'
+  ...
+# Subtest: binding rejects a symlinked acceptance root when passed by its linked path
+ok 52 - binding rejects a symlinked acceptance root when passed by its linked path
+  ---
+  duration_ms: 3.470523
+  type: 'test'
+  ...
+# Subtest: binding rejects a direct manifest symlink
+ok 53 - binding rejects a direct manifest symlink
+  ---
+  duration_ms: 3.825379
+  type: 'test'
+  ...
+# Subtest: binding rejects an ordinary manifest reached through a symlinked parent directory
+ok 54 - binding rejects an ordinary manifest reached through a symlinked parent directory
+  ---
+  duration_ms: 4.318512
+  type: 'test'
+  ...
+# Subtest: binding rejects a multiply linked ordinary manifest
+ok 55 - binding rejects a multiply linked ordinary manifest
+  ---
+  duration_ms: 5.23154
+  type: 'test'
+  ...
+# Subtest: binding rejects a directory in place of the manifest
+ok 56 - binding rejects a directory in place of the manifest
+  ---
+  duration_ms: 6.41278
+  type: 'test'
+  ...
+# Subtest: binding rejects a missing manifest
+ok 57 - binding rejects a missing manifest
+  ---
+  duration_ms: 8.119124
+  type: 'test'
+  ...
+# Subtest: binding rejects a malformed JSON manifest
+ok 58 - binding rejects a malformed JSON manifest
+  ---
+  duration_ms: 5.847038
+  type: 'test'
+  ...
+# Subtest: binding rejects a null JSON manifest
+ok 59 - binding rejects a null JSON manifest
+  ---
+  duration_ms: 4.789382
+  type: 'test'
+  ...
+# Subtest: binding rejects an oversized ordinary manifest before reading its otherwise valid content
+ok 60 - binding rejects an oversized ordinary manifest before reading its otherwise valid content
+  ---
+  duration_ms: 46.355655
+  type: 'test'
+  ...
+1..60
+# tests 60
+# suites 0
+# pass 60
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 856.882068

@@ -202,7 +202,7 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
       </TabsSubtle>
       {spec.status === "outdated" && <div className="journey-error" role="status">The brief changed after this definition was saved. Reconcile the current purpose and requirements before approving again.</div>}
       {views.map(([key], index) => <TabsSubtlePanel key={key} idPrefix={tabsId} index={index} selectedIndex={selectedIndex}>
-      <div className="definition-layout" style={tab === "repository" ? { gridTemplateColumns: "minmax(0, 1fr)" } : undefined}>
+      {index === selectedIndex && <div className="definition-layout" style={tab === "repository" ? { gridTemplateColumns: "minmax(0, 1fr)" } : undefined}>
         <div className="definition-content">
           <fieldset disabled={!canEdit || locked || !!draft.pending} className="definition-fields">
             {tab === "interview" && <div className="definition-interview">
@@ -272,7 +272,7 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
           {tab === "history" && <section><h2>Saved definition snapshots</h2>{!history.length && <p>No structured revisions yet. Existing brief text is preserved when you save your first definition.</p>}<ol className="definition-history">{history.slice().reverse().map((r) => <li key={r.revision}><strong>Revision {r.revision} · {r.status}</strong><p>{r.purpose}</p><small>Brief {r.briefRevision} · {r.requirements.length} {r.requirements.length === 1 ? "requirement" : "requirements"} · {new Date(r.updatedAt).toLocaleString()}</small><details><summary>Read this snapshot</summary><pre>{JSON.stringify(r, null, 2)}</pre></details></li>)}</ol></section>}
         </div>
 
-      </div>
+      </div>}
       </TabsSubtlePanel>)}
       <footer className="definition-footer"><div className="journey-actions">
         {dirty || spec.status === "outdated" || !spec.revision

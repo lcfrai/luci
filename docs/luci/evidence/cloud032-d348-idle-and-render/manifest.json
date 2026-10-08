@@ -1,0 +1,130 @@
+{
+  "version": 1,
+  "scope": "Exact d348 diagnostic receipt plus safe derivations and separately validated later source changes. No latency improvement claim and no private raw browser trace.",
+  "files": {
+    "README.md": {
+      "bytes": 4287,
+      "sha256": "65dd5fa1fad4f34af01b0f38c872a3b6c573ea2c85c726f6208b152d34ac3e4f"
+    },
+    "actual/bindings.json": {
+      "bytes": 2799,
+      "sha256": "74aefcfd896c303895883016dec024e0b189a710878fd42abde65abe8e1e1a34"
+    },
+    "actual/external-source-binding.json": {
+      "bytes": 6464,
+      "sha256": "bfc7dd7ca89ae9277f80b20c1fd5671533286f8053463ffb478d86fcdd9f60e0"
+    },
+    "actual/image-provenance.json": {
+      "bytes": 33716,
+      "sha256": "5af726e6670fd6f04c0f67cf3b26b3f6072ed89c1e1e3481c652a631ae6d0a3b"
+    },
+    "actual/independent-closure.json": {
+      "bytes": 292,
+      "sha256": "dc28c26905d4831e3d3ebd39d5ad19d80aa10e59d8b9d371c76e47de643b407f"
+    },
+    "actual/invocation.json": {
+      "bytes": 2661,
+      "sha256": "2f515d3b1f621e0530152cf7b239592405d0d10f8f9e3a3f420f20b80c1509b8"
+    },
+    "actual/package-provenance.json": {
+      "bytes": 1040,
+      "sha256": "889dfa25933cff6157a237359f166a76eeef4009f775a3ba330976f372671f8e"
+    },
+    "actual/result.json.gz": {
+      "bytes": 390777,
+      "sha256": "b981c6d4d4bd0f3e136c6d231841564e73953ca000e4527665b39a5e9d3d9a40"
+    },
+    "actual/wrapper-result.json": {
+      "bytes": 338,
+      "sha256": "41383e5c600a97c4181764e553f2052498a579ff9d80d2f4a0f692266f61c8b6"
+    },
+    "analysis/critical-stage-evidence.json": {
+      "bytes": 467113,
+      "sha256": "14842e72f757eab6220a38d0653fa7b3ede722265b28bc2f134f7707d5c0f644"
+    },
+    "analysis/extract.py": {
+      "bytes": 6446,
+      "sha256": "7a67e6a2ec11d3fdfccf64c0d8df9551bf226faf739d66c7339d48754ab4d7ed"
+    },
+    "analysis/original-reference-summaries.json": {
+      "bytes": 3613,
+      "sha256": "bd81ab4adeb0d1e7fbe884f88d528e5ff5e4536996e9bc21a1c68aefcc8b9978"
+    },
+    "analysis/prior-allowlisted-analysis.json": {
+      "bytes": 78095,
+      "sha256": "eb58d941de1432347a218606813b67e4c0317b0bb7fad917d2246c9e8a629617"
+    },
+    "analysis/source-review.md": {
+      "bytes": 15999,
+      "sha256": "157032a38ebf3f75662d018ebf68531d94ea70fc502afbcc3eb8a677fd86dfb2"
+    },
+    "product/after/desktop/src/components/definition/DefinitionWorkspace.tsx": {
+      "bytes": 29919,
+      "sha256": "71c17a92ff737948bfac6e4f476d2857aaf57f6f6b12b50227f8050891e5b484"
+    },
+    "product/after/desktop/src/components/teams/TeamWorkspaceProvider.test.tsx": {
+      "bytes": 31587,
+      "sha256": "a62822f66c88afdfa4f157d9ff995bbf15c9a6573899408460572a24ff097a71"
+    },
+    "product/after/desktop/src/components/teams/TeamWorkspaceProvider.tsx": {
+      "bytes": 11035,
+      "sha256": "e6a3a98612aa506e9b78a656891dd36e8d2207a5f806fba7f8a65f1da7bf11bb"
+    },
+    "product/before/desktop/src/components/definition/DefinitionWorkspace.tsx": {
+      "bytes": 29890,
+      "sha256": "f02b65e2a8909cb68b6252a90d19e53ee8201262115b0ee4d5401acca43e072a"
+    },
+    "product/before/desktop/src/components/teams/TeamWorkspaceProvider.test.tsx": {
+      "bytes": 27482,
+      "sha256": "8605bb210472c4c2b005ea9f305f949a6567ae1e6f650f04865124aeaf5bcf64"
+    },
+    "product/before/desktop/src/components/teams/TeamWorkspaceProvider.tsx": {
+      "bytes": 10757,
+      "sha256": "b262da224336d54fbdd2a7fb5b7f5d9f1a1ce0652214b620c553b6d60e668ed2"
+    },
+    "product/definition-tests.json": {
+      "bytes": 5279,
+      "sha256": "76854d41d1e424aea4038240d637c71385a10b5ad9056bc41085710e08c9f7b4"
+    },
+    "product/definition-tests.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "product/definition-tests.stdout": {
+      "bytes": 306,
+      "sha256": "efdeb8c2cff087acb104d1fc83c24c1c43b90d5c816b8fcf0210b39672e77676"
+    },
+    "product/product-change.patch": {
+      "bytes": 9544,
+      "sha256": "a7670db4d913241d7300f0b4eebd4d8b655fed8e47e2f8fffca09df603888289"
+    },
+    "product/product-validation.json": {
+      "bytes": 1977,
+      "sha256": "e2edc89b528ebaf833a31cd56f0d4ba7c5fa72728e46ef367e30f52d9197c73a"
+    },
+    "product/source-after.json": {
+      "bytes": 648,
+      "sha256": "a7650fe7bd81d546b0cca699087e551c176f7265d4ddbf815d3ee46a5910ed1b"
+    },
+    "product/source-before.json": {
+      "bytes": 585,
+      "sha256": "cf894b61d914e636bda0f706015f6e010a4a2158259d35b61ae9e4ba72428d6c"
+    },
+    "product/teams-component-test.log": {
+      "bytes": 300,
+      "sha256": "385d0799490572938ea7665a2dfbded2fbda81856ace0f75a675d00a83259047"
+    },
+    "product/typecheck.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "product/typecheck.stdout": {
+      "bytes": 54,
+      "sha256": "6d51e3ec9a9d283eee096e5e9403c5d963c9468e9756fd61f3e9e0d3df1bde71"
+    },
+    "publication-review.json": {
+      "bytes": 639,
+      "sha256": "3bf01375361f45bb91bc319adc19a317e0a9756532e590ac8259197c2e473927"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "at": "2026-10-08T23:29:50.968568+00:00",
+  "mode": "read-only artifact validation; no runtime, browser, workload, Docker command, build or tests",
+  "knownRetainedCredentialFilesInspectedInMemory": 1,
+  "knownRetainedCredentialScalarsChecked": 2,
+  "knownRetainedCredentialMatches": 0,
+  "rawFreshFixturePathsPublished": false,
+  "privatePerFileInventoriesPublished": false,
+  "allOriginalInputHashesUnchanged": true,
+  "limitations": [
+    "Only retained credential material available in the fresh private fixture was checked; ephemeral credentials not retained cannot be re-read.",
+    "Credential-pattern and path checks supplement allowlisting and do not assert universal secret detection."
+  ]
+}

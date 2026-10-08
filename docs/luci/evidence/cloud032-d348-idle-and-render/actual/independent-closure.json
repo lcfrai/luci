@@ -1,0 +1,8 @@
+{
+  "at": "2026-10-08T23:13:14.458746+00:00",
+  "sourceCommit": "d348f0127a920aab05b54a4192baa8ed3800fe54",
+  "sourceClean": true,
+  "containers": [],
+  "volumes": [],
+  "scope": "Independent post-idle daemon inventory and source closure; no process-count inference beyond driver receipt."
+}

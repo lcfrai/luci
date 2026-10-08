@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { memo } from 'react';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TeamWorkspaceProvider, useTeamProjectPermissions, useTeamWorkspace } from './TeamWorkspaceProvider';
@@ -284,6 +285,71 @@ it.each([true, false])('restores navigation only when its stored workspace marke
   renderWorkspace();
   await screen.findByTestId('scope');
   expect(useCockpit.getState().selection.projectId).toBe(matching ? 'saved-navigation' : null);
+});
+
+it('does not broadcast draft registry changes while workspace selection still guards the current drafts', async () => {
+  const observed = vi.fn();
+  const ContextProbe = memo(function ContextProbe() {
+    const workspace = useTeamWorkspace()!;
+    observed(workspace);
+    return <><span data-testid="context-scope">{workspace.teamId}</span><button onClick={() => workspace.select(teamB)}>Select Birch</button></>;
+  });
+  remembered();
+  render(<TeamWorkspaceProvider><ContextProbe /></TeamWorkspaceProvider>);
+  expect(await screen.findByTestId('context-scope')).toHaveProperty('textContent', teamA);
+  expect(observed).toHaveBeenCalled();
+  observed.mockClear();
+  const discard = vi.fn();
+  act(() => useCockpit.getState().setUnsavedProjectDraft('definition', { projectId: 'project-a', label: 'Definition', lens: 'discover', retained: false, discard }));
+  expect(observed).not.toHaveBeenCalled();
+  act(() => useCockpit.getState().setUnsavedProjectDraft('definition', { projectId: 'project-a', label: 'Definition', lens: 'discover', retained: true, discard }));
+  expect(observed).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole('button', { name: 'Select Birch' }));
+  await screen.findByRole('dialog', { name: 'Switch workspace?' });
+  expect(screen.getByRole('button', { name: 'Keep drafts and switch' })).toBeTruthy();
+  expect(selectedTeamId()).toBe(teamA);
+  expect(observed).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole('button', { name: 'Stay here' }));
+  act(() => useCockpit.getState().setUnsavedProjectDraft('definition', null));
+  expect(observed).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole('button', { name: 'Select Birch' }));
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(screen.getByTestId('context-scope')).toHaveProperty('textContent', teamB);
+  expect(observed).toHaveBeenCalled();
+  expect(discard).not.toHaveBeenCalled();
+});
+
+it('broadcasts revision-only refreshes and fresh membership permissions after context memoization', async () => {
+  const teams = [summary(), summary(teamB)];
+  vi.mocked(teamsApi.list).mockResolvedValue({ teams });
+  const observed = vi.fn();
+  const ContextProbe = memo(function ContextProbe() {
+    const workspace = useTeamWorkspace()!;
+    observed(workspace);
+    return <><span data-testid="context-revision">{workspace.revision}</span><button disabled={!workspace.selected?.permissions.edit}>Edit team context</button></>;
+  });
+  remembered();
+  render(<TeamWorkspaceProvider><ContextProbe /><Probe /></TeamWorkspaceProvider>);
+  await screen.findByRole('textbox', { name: 'Project draft' });
+  expect(screen.getByTestId('context-revision')).toHaveProperty('textContent', '0');
+  observed.mockClear();
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh access' }));
+  await waitFor(() => expect(screen.getByTestId('context-revision')).toHaveProperty('textContent', '1'));
+  await waitFor(() => expect(permissions().loading).toBe(false));
+  expect(observed).toHaveBeenCalled();
+  expect(teamsApi.projectAccess).toHaveBeenCalledTimes(2);
+  expect(screen.getByRole('button', { name: 'Edit team context' })).toHaveProperty('disabled', false);
+  const readOnly = { ...noPermissions, read: true };
+  vi.mocked(teamsApi.list).mockResolvedValueOnce({ teams: [{ ...summary(), permissions: readOnly }, summary(teamB)] });
+  vi.mocked(teamsApi.projectAccess).mockResolvedValueOnce(access('project-a', readOnly));
+  observed.mockClear();
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh access' }));
+  await waitFor(() => expect(screen.getByTestId('context-revision')).toHaveProperty('textContent', '2'));
+  await waitFor(() => expect(permissions()).toEqual({ permissions: readOnly, loading: false, error: '' }));
+  expect(observed).toHaveBeenCalled();
+  expect(teamsApi.projectAccess).toHaveBeenCalledTimes(3);
+  expect(screen.getByRole('button', { name: 'Edit team context' })).toHaveProperty('disabled', true);
+  expect(screen.getByRole('button', { name: 'Save project' })).toHaveProperty('disabled', true);
 });
 
 it('keeps an unsaved editor mounted while refreshing access and disables every stale write grant', async () => {

@@ -1,0 +1,7 @@
+{
+  "at": "2026-10-08T23:18:04.330327+00:00",
+  "containers": [],
+  "volumes": [],
+  "sourceClean": true,
+  "scope": "Independent post-failure daemon closure; no worker allocation had been reached. Original failed fixture/history unchanged."
+}

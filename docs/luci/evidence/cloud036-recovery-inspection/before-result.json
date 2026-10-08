@@ -1,0 +1,16 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "--test-concurrency=1",
+    "scripts/acceptance/check-create-recovery/inspect-guards.test.mjs",
+    "scripts/acceptance/check-create-recovery/controller-stop.test.mjs"
+  ],
+  "exitCode": 1,
+  "at": "2026-10-08T23:28:58.532497+00:00",
+  "testHashes": {
+    "scripts/acceptance/check-create-recovery/inspect-guards.test.mjs": "46a65b81a359de20af4e4617cc96893d008a81af84ba07cfb3a416a88d9c5b1c",
+    "scripts/acceptance/check-create-recovery/controller-stop.test.mjs": "2e5cffc6d891ca186a419d1862869693983d1e1a38c25b63e05ba7d6db6ca74d"
+  }
+}

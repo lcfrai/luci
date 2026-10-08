@@ -34,6 +34,18 @@ export function stableJSON(path,limit=2*1024**2){
   assert.equal(after.ino,before.ino);assert.equal(after.size,before.size);assert.equal(after.mtimeMs,before.mtimeMs);assert.equal(bytes.length,before.size);
   return JSON.parse(bytes);
 }
+// Exact process identities make repeated scoped cleanup safe after signal exit.
+export async function stopControllerTree({identity,readIdentity,listOwned,signal,wait=delay,now=Date.now,onForce=()=>{},graceMs=20000,forceMs=5000}){
+  const matches=id=>{const current=readIdentity(id.pid);return !!current&&current.start===id.start&&current.status!=='Z';};
+  const send=(id,pid,kind)=>{if(!matches(id))return;try{signal(pid,kind);}catch(error){if(error.code!=='ESRCH'||matches(id))throw error;}};
+  if(identity)send(identity,identity.pid,'SIGTERM');
+  const end=now()+graceMs;while(now()<end&&listOwned().length)await wait(100);
+  const left=listOwned();
+  if(left.length){onForce();for(const id of left)send(id,id.group===id.pid?-id.pid:id.pid,'SIGKILL');}
+  const final=now()+forceMs;while(now()<final&&listOwned().length)await wait(100);
+  assert.equal(listOwned().length,0,'Owned controller cleanup did not settle');
+  assert.equal(left.length,0,'Owned controller required forced shutdown');return true;
+}
 export async function main(args=process.argv.slice(2)){
   const valueOptions=new Set(['--repo','--binary','--web','--provenance','--image-provenance','--report','--fixture-root','--chromium','--observer-instance-pointer','--expected-image-id','--helper-commit','--source-binding','--expected-source']);
   const flagOptions=new Set(['--help','--window-granted','--charged-witness','--require-public-reservations']),seenOptions=new Set();
@@ -75,14 +87,14 @@ export async function main(args=process.argv.slice(2)){
   for(const row of sourceBinding.executedFiles)writeFileSync(join(evidence,'accepted-harness',row.path.replaceAll('/','_')),readFileSync(join(sourceRoot,row.path)),{flag:'wx',mode:0o600});
   const journal=createAcceptanceJournal(join(evidence,'diagnostic-journal.jsonl'));
   journal.record('driver-start',{...journalProcessIdentity(),deadlineMs:bounds.scenarioMs});
-  let closing=false,stage='startup',failure,service,proxy,browser,page,base,env,ownerToken,ownerID,team,teamPrefix,teamRoot,editorToken,editorID,workflow,timer,pendingConsent;
+  let closing=false,stage='startup',failure,service,serviceIdentity,proxy,browser,page,base,env,ownerToken,ownerID,team,teamPrefix,teamRoot,editorToken,editorID,workflow,timer,pendingConsent;
   const password=randomUUID()+randomUUID(),editorPassword=randomUUID()+randomUUID(),lifecycle=randomUUID()+randomUUID();
   const secrets=[password,editorPassword,lifecycle];
   const projects=[],authorizedChecks=new Map(),createIdentities=new Map(),signalHandlers=[];
   const safeError=e=>({...diagnosticError(e),locations:[...String(e?.stack??'').matchAll(/(?:^|[/\\])(installed-recovery\.mjs|recovery-scenario\.mjs|fixture-guards\.mjs|check-create-guard\.mjs|provenance\.mjs):(\d+):(\d+)/g)].slice(0,8).map(([,file,line,column])=>({file,line:Number(line),column:Number(column)}))});
   const encodePublic=value=>{const text=JSON.stringify(value,null,2)+'\n';assert(Buffer.byteLength(text)<=8*1024**2,'Receipt byte limit exceeded');for(const secret of secrets)assert(!text.includes(secret),'Private fixture credential reached receipt');return text;};
   const record=row=>{assert(receipt.phases.length<64);const encoded=encodePublic(row);receipt.phases.push(row);journal.record('driver-stage',{stage:row.phase});writeFileSync(join(evidence,'phase-'+String(receipt.phases.length).padStart(2,'0')+'.json'),encoded,{flag:'wx',mode:0o600});};
-  const health=()=>{if(closing)throw Error('workflow-closing');workflow?.assertActive();if(failure)throw failure;if(service&&service.exitCode!==null)throw Error('owned-controller-exited');};
+  const health=()=>{if(closing)throw Error('workflow-closing');workflow?.assertActive();if(failure)throw failure;if(service&&(service.exitCode!==null||service.signalCode!==null))throw Error('owned-controller-exited');};
   const fail=e=>{failure??=e;workflow?.fail(e);};
   const setStage=s=>{health();stage=s;journal.record('driver-stage',{stage});};
   const stillOwned=id=>{const now=processIdentity(id.pid);return now&&now.start===id.start&&now.status!=='Z';};
@@ -96,11 +108,8 @@ export async function main(args=process.argv.slice(2)){
     return found;
   }
   async function stopControllers(){
-    const identities=ownedProcesses();if(service?.exitCode===null){assert(identities.some(x=>x.pid===service.pid));service.kill('SIGTERM');}
-    const end=Date.now()+20000;while(Date.now()<end&&ownedProcesses().length)await delay(100);
-    const left=ownedProcesses();if(left.length){receipt.cleanup.push('owned-controller-required-force');for(const id of left)if(stillOwned(id))process.kill(id.group===id.pid?-id.pid:id.pid,'SIGKILL');}
-    const final=Date.now()+5000;while(Date.now()<final&&ownedProcesses().length)await delay(100);
-    assert.equal(ownedProcesses().length,0);assert.equal(left.length,0);return true;
+    return stopControllerTree({identity:serviceIdentity,readIdentity:processIdentity,listOwned:ownedProcesses,
+      signal:(pid,signal)=>process.kill(pid,signal),onForce:()=>receipt.cleanup.push('owned-controller-required-force')});
   }
   async function until(label,fn,ms=120000){const end=Date.now()+ms;while(Date.now()<end){health();const value=await fn();if(value)return value;await delay(150);}throw Error(label+'-deadline');}
   async function api(method,path,body,status=200,token=ownerToken,timeoutMs=30000){
@@ -273,7 +282,7 @@ export async function main(args=process.argv.slice(2)){
     },
     async assertRealOriginalCreatedAndNeverStarted(created,lease){
       const inspected=JSON.parse(docker('inspect',created.id))[0],identity=createIdentities.get(lease.id);assert(identity);
-      assertOriginalInspect(inspected,{id:created.id,name:created.name,imageID:pins.image,guardedCreate:identity.guardedCreate,imageEnv:image.Config.Env??[]});
+      assertOriginalInspect(inspected,{id:created.id,name:created.name,imageID:pins.image,guardedCreate:identity.guardedCreate,imageEnv:image.Config.Env??[],imageExposedPorts:image.Config.ExposedPorts??{},imageVolumes:image.Config.Volumes??{}});
       const requests=proxy.observations.requests.filter(r=>r.ref===created.id&&/\/start$/.test(r.path));assert.equal(requests.length,0);
     },
     async openAndDismissReviewInBrowser(p,id,review){
@@ -323,7 +332,7 @@ export async function main(args=process.argv.slice(2)){
       Object.assign(env,{HOME:join(fixture,'home'),DOCKER_CONFIG:join(fixture,'docker'),DOCKER_HOST:'unix://'+join(fixture,'docker-proxy.sock'),LUCI_DOCKER_HOST:'unix://'+join(fixture,'docker-proxy.sock'),
         LUCI_ADDR:'127.0.0.1:'+port,LUCI_STATE_DIR:join(fixture,'state'),LUCI_PROJECTS_DIR:join(fixture,'projects'),LUCI_WEB_DIR:web,LUCI_RUNTIME_DIR:join(dirname(binary),'runtime'),LUCI_SANDBOX_IMAGE:pins.image,LUCI_BACKEND:'docker',
         LUCI_MANAGED_SHUTDOWN_TOKEN:lifecycle,LUCI_LOG_LEVEL:'error',LUCI_BROWSER_PREVIEW_ADDR:'127.0.0.1:'+preview,LUCI_BROWSER_PREVIEW_PORT:String(preview),GIT_CONFIG_GLOBAL:join(fixture,'home/.gitconfig'),GIT_CONFIG_NOSYSTEM:'1'});
-      await scope.acquire('controller',{start:async()=>{health();service=spawn(binary,[],{cwd:fixture,env,detached:true,stdio:['ignore','ignore','ignore']});service.on('error',fail);journal.record('controller-start',journalProcessIdentity(service.pid));
+      await scope.acquire('controller',{start:async()=>{health();service=spawn(binary,[],{cwd:fixture,env,detached:true,stdio:['ignore','ignore','ignore']});service.on('error',fail);serviceIdentity=processIdentity(service.pid);assert(serviceIdentity);journal.record('controller-start',journalProcessIdentity(service.pid));
         await until('controller-ready',async()=>{try{const r=await fetch(base+'/v1/control-plane/status',{signal:AbortSignal.timeout(1500)});if(!r.ok)return false;const value=await r.json();assert.equal(value.product,'Luci');assert.equal(value.version,'0.5.0');return true;}catch{return false;}},45000);return service;},close:stopControllers});
       await setupAuthority();
       const {chromium}=await import(join(repo,'desktop/node_modules/playwright/index.mjs'));

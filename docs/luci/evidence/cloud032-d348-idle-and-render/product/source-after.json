@@ -1,0 +1,8 @@
+{
+  "scope": "Exact final product/test bytes after component tests and typecheck, verified against product-validation source hashes. Other agents did not own these files. No measured installed package yet contains these changes.",
+  "sha256": {
+    "desktop/src/components/definition/DefinitionWorkspace.tsx": "71c17a92ff737948bfac6e4f476d2857aaf57f6f6b12b50227f8050891e5b484",
+    "desktop/src/components/teams/TeamWorkspaceProvider.tsx": "e6a3a98612aa506e9b78a656891dd36e8d2207a5f806fba7f8a65f1da7bf11bb",
+    "desktop/src/components/teams/TeamWorkspaceProvider.test.tsx": "a62822f66c88afdfa4f157d9ff995bbf15c9a6573899408460572a24ff097a71"
+  }
+}

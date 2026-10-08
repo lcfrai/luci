@@ -1,0 +1,132 @@
+diff --git a/desktop/src/components/definition/DefinitionWorkspace.tsx b/desktop/src/components/definition/DefinitionWorkspace.tsx
+index 428b8883..324320ab 100644
+--- a/desktop/src/components/definition/DefinitionWorkspace.tsx
++++ b/desktop/src/components/definition/DefinitionWorkspace.tsx
+@@ -202,7 +202,7 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
+       </TabsSubtle>
+       {spec.status === "outdated" && <div className="journey-error" role="status">The brief changed after this definition was saved. Reconcile the current purpose and requirements before approving again.</div>}
+       {views.map(([key], index) => <TabsSubtlePanel key={key} idPrefix={tabsId} index={index} selectedIndex={selectedIndex}>
+-      <div className="definition-layout" style={tab === "repository" ? { gridTemplateColumns: "minmax(0, 1fr)" } : undefined}>
++      {index === selectedIndex && <div className="definition-layout" style={tab === "repository" ? { gridTemplateColumns: "minmax(0, 1fr)" } : undefined}>
+         <div className="definition-content">
+           <fieldset disabled={!canEdit || locked || !!draft.pending} className="definition-fields">
+             {tab === "interview" && <div className="definition-interview">
+@@ -272,7 +272,7 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
+           {tab === "history" && <section><h2>Saved definition snapshots</h2>{!history.length && <p>No structured revisions yet. Existing brief text is preserved when you save your first definition.</p>}<ol className="definition-history">{history.slice().reverse().map((r) => <li key={r.revision}><strong>Revision {r.revision} · {r.status}</strong><p>{r.purpose}</p><small>Brief {r.briefRevision} · {r.requirements.length} {r.requirements.length === 1 ? "requirement" : "requirements"} · {new Date(r.updatedAt).toLocaleString()}</small><details><summary>Read this snapshot</summary><pre>{JSON.stringify(r, null, 2)}</pre></details></li>)}</ol></section>}
+         </div>
+ 
+-      </div>
++      </div>}
+       </TabsSubtlePanel>)}
+       <footer className="definition-footer"><div className="journey-actions">
+         {dirty || spec.status === "outdated" || !spec.revision
+diff --git a/desktop/src/components/teams/TeamWorkspaceProvider.test.tsx b/desktop/src/components/teams/TeamWorkspaceProvider.test.tsx
+index cae2f5ba..09ed38c5 100644
+--- a/desktop/src/components/teams/TeamWorkspaceProvider.test.tsx
++++ b/desktop/src/components/teams/TeamWorkspaceProvider.test.tsx
+@@ -1,4 +1,5 @@
+ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
++import { memo } from 'react';
+ import { act, render, screen, waitFor } from '@testing-library/react';
+ import userEvent from '@testing-library/user-event';
+ import { TeamWorkspaceProvider, useTeamProjectPermissions, useTeamWorkspace } from './TeamWorkspaceProvider';
+@@ -286,6 +287,71 @@ it.each([true, false])('restores navigation only when its stored workspace marke
+   expect(useCockpit.getState().selection.projectId).toBe(matching ? 'saved-navigation' : null);
+ });
+ 
++it('does not broadcast draft registry changes while workspace selection still guards the current drafts', async () => {
++  const observed = vi.fn();
++  const ContextProbe = memo(function ContextProbe() {
++    const workspace = useTeamWorkspace()!;
++    observed(workspace);
++    return <><span data-testid="context-scope">{workspace.teamId}</span><button onClick={() => workspace.select(teamB)}>Select Birch</button></>;
++  });
++  remembered();
++  render(<TeamWorkspaceProvider><ContextProbe /></TeamWorkspaceProvider>);
++  expect(await screen.findByTestId('context-scope')).toHaveProperty('textContent', teamA);
++  expect(observed).toHaveBeenCalled();
++  observed.mockClear();
++  const discard = vi.fn();
++  act(() => useCockpit.getState().setUnsavedProjectDraft('definition', { projectId: 'project-a', label: 'Definition', lens: 'discover', retained: false, discard }));
++  expect(observed).not.toHaveBeenCalled();
++  act(() => useCockpit.getState().setUnsavedProjectDraft('definition', { projectId: 'project-a', label: 'Definition', lens: 'discover', retained: true, discard }));
++  expect(observed).not.toHaveBeenCalled();
++  await userEvent.click(screen.getByRole('button', { name: 'Select Birch' }));
++  await screen.findByRole('dialog', { name: 'Switch workspace?' });
++  expect(screen.getByRole('button', { name: 'Keep drafts and switch' })).toBeTruthy();
++  expect(selectedTeamId()).toBe(teamA);
++  expect(observed).not.toHaveBeenCalled();
++  await userEvent.click(screen.getByRole('button', { name: 'Stay here' }));
++  act(() => useCockpit.getState().setUnsavedProjectDraft('definition', null));
++  expect(observed).not.toHaveBeenCalled();
++  await userEvent.click(screen.getByRole('button', { name: 'Select Birch' }));
++  expect(screen.queryByRole('dialog')).toBeNull();
++  expect(screen.getByTestId('context-scope')).toHaveProperty('textContent', teamB);
++  expect(observed).toHaveBeenCalled();
++  expect(discard).not.toHaveBeenCalled();
++});
++
++it('broadcasts revision-only refreshes and fresh membership permissions after context memoization', async () => {
++  const teams = [summary(), summary(teamB)];
++  vi.mocked(teamsApi.list).mockResolvedValue({ teams });
++  const observed = vi.fn();
++  const ContextProbe = memo(function ContextProbe() {
++    const workspace = useTeamWorkspace()!;
++    observed(workspace);
++    return <><span data-testid="context-revision">{workspace.revision}</span><button disabled={!workspace.selected?.permissions.edit}>Edit team context</button></>;
++  });
++  remembered();
++  render(<TeamWorkspaceProvider><ContextProbe /><Probe /></TeamWorkspaceProvider>);
++  await screen.findByRole('textbox', { name: 'Project draft' });
++  expect(screen.getByTestId('context-revision')).toHaveProperty('textContent', '0');
++  observed.mockClear();
++  await userEvent.click(screen.getByRole('button', { name: 'Refresh access' }));
++  await waitFor(() => expect(screen.getByTestId('context-revision')).toHaveProperty('textContent', '1'));
++  await waitFor(() => expect(permissions().loading).toBe(false));
++  expect(observed).toHaveBeenCalled();
++  expect(teamsApi.projectAccess).toHaveBeenCalledTimes(2);
++  expect(screen.getByRole('button', { name: 'Edit team context' })).toHaveProperty('disabled', false);
++  const readOnly = { ...noPermissions, read: true };
++  vi.mocked(teamsApi.list).mockResolvedValueOnce({ teams: [{ ...summary(), permissions: readOnly }, summary(teamB)] });
++  vi.mocked(teamsApi.projectAccess).mockResolvedValueOnce(access('project-a', readOnly));
++  observed.mockClear();
++  await userEvent.click(screen.getByRole('button', { name: 'Refresh access' }));
++  await waitFor(() => expect(screen.getByTestId('context-revision')).toHaveProperty('textContent', '2'));
++  await waitFor(() => expect(permissions()).toEqual({ permissions: readOnly, loading: false, error: '' }));
++  expect(observed).toHaveBeenCalled();
++  expect(teamsApi.projectAccess).toHaveBeenCalledTimes(3);
++  expect(screen.getByRole('button', { name: 'Edit team context' })).toHaveProperty('disabled', true);
++  expect(screen.getByRole('button', { name: 'Save project' })).toHaveProperty('disabled', true);
++});
++
+ it('keeps an unsaved editor mounted while refreshing access and disables every stale write grant', async () => {
+   remembered(); renderWorkspace();
+   const draft = await screen.findByRole('textbox', { name: 'Project draft' });
+diff --git a/desktop/src/components/teams/TeamWorkspaceProvider.tsx b/desktop/src/components/teams/TeamWorkspaceProvider.tsx
+index 5cf627ec..29aec4f2 100644
+--- a/desktop/src/components/teams/TeamWorkspaceProvider.tsx
++++ b/desktop/src/components/teams/TeamWorkspaceProvider.tsx
+@@ -1,4 +1,4 @@
+-import { createContext, Fragment, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
++import { createContext, Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+ import { teamsApi, noPermissions, personalPermissions, type TeamSummary, type TeamPermissions } from '../../api/teams';
+ import { productApi, errorText } from '../../api/product';
+ import { ApiError } from '../../api/client';
+@@ -91,12 +91,14 @@ function ScopedTeamWorkspaceProvider({children,auth,storageKey}: {children:React
+     return()=>{window.removeEventListener('focus',onFocus);window.clearInterval(timer);};
+   },[ready,refresh]);
+   useEffect(()=>{if(ready&&!blocked)setAdmitted(true);},[ready,blocked]);
+-  const select=(id:string)=>{
++  const select=useCallback((id:string)=>{
+     if(managedTeamId && id!==managedTeamId)return;
+     if(id===selectedTeamId())return;
+     if(Object.keys(useCockpit.getState().unsavedProjectDrafts).length) setPending(id); else apply(id);
+-  };
+-  const value={teams,selected:teams.find(row=>row.team.id===selected)??null,teamId:selected,managedTeamId,revision,refresh,select};
++  },[managedTeamId,apply]);
++  // Draft dialog updates do not change workspace context. Access refreshes still
++  // publish their revision so every project revalidates its current permissions.
++  const value=useMemo(()=>({teams,selected:teams.find(row=>row.team.id===selected)??null,teamId:selected,managedTeamId,revision,refresh,select}),[teams,selected,managedTeamId,revision,refresh,select]);
+   const retained=Object.values(drafts).every(draft=>draft.retained);
+   const localSetup=Object.values(drafts).some(draft=>draft.purpose==='verification-setup');
+   return <TeamWorkspaceContext.Provider value={value}>

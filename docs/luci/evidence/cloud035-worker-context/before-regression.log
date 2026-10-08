@@ -1,0 +1,28 @@
+✖ Actual installed seeding reads public checkout exports without inventing brief.json (14.4256ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 464.814689
+
+✖ failing tests:
+
+test at scripts/acceptance/worker-recovery/project-context.test.mjs:25:1
+✖ Actual installed seeding reads public checkout exports without inventing brief.json (14.4256ms)
+  Error: ENOENT: no such file or directory, open '/workspace/.t/luci-recovery-context-Vm9tRp/a/.luci/brief.json'
+      at Object.openSync (node:fs:622:18)
+      at readFileSync (node:fs:488:35)
+      at evalmachine.<anonymous>:18:79
+      at Array.map (<anonymous>)
+      at seedProjects (evalmachine.<anonymous>:18:59)
+      at async TestContext.<anonymous> (file:///workspace/luci/scripts/acceptance/worker-recovery/project-context.test.mjs:48:2)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/workspace/.t/luci-recovery-context-Vm9tRp/a/.luci/brief.json'
+  }

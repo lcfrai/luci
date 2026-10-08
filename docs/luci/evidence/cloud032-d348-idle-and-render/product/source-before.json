@@ -1,0 +1,9 @@
+{
+  "baseCommit": "6e91c319901ee912dc02b562e3c3e4e449e9ce4e",
+  "scope": "Committed product bytes before this authorized batch; not a fabricated test-start snapshot.",
+  "sha256": {
+    "desktop/src/components/definition/DefinitionWorkspace.tsx": "f02b65e2a8909cb68b6252a90d19e53ee8201262115b0ee4d5401acca43e072a",
+    "desktop/src/components/teams/TeamWorkspaceProvider.tsx": "b262da224336d54fbdd2a7fb5b7f5d9f1a1ce0652214b620c553b6d60e668ed2",
+    "desktop/src/components/teams/TeamWorkspaceProvider.test.tsx": "8605bb210472c4c2b005ea9f305f949a6567ae1e6f650f04865124aeaf5bcf64"
+  }
+}

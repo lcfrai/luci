@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "passed": false,
+  "status": "cleanup-incomplete",
+  "stage": "consent-check-2",
+  "at": "2026-10-08T23:19:30.486Z",
+  "failure": {
+    "errorName": "AssertionError",
+    "errorCode": "ERR_ASSERTION",
+    "locations": [
+      {
+        "file": "fixture-guards.mjs",
+        "line": 54,
+        "column": 54
+      },
+      {
+        "file": "installed-recovery.mjs",
+        "line": 276,
+        "column": 7
+      },
+      {
+        "file": "recovery-scenario.mjs",
+        "line": 149,
+        "column": 13
+      },
+      {
+        "file": "installed-recovery.mjs",
+        "line": 335,
+        "column": 16
+      },
+      {
+        "file": "installed-recovery.mjs",
+        "line": 315,
+        "column": 5
+      },
+      {
+        "file": "installed-recovery.mjs",
+        "line": 359,
+        "column": 79
+      }
+    ]
+  },
+  "originalReceiptComplete": false
+}

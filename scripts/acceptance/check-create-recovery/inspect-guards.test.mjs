@@ -116,3 +116,19 @@ for (const [name, mutate] of Object.entries({
   const f = fixture(); mutate(f);
   assert.throws(() => assertOriginalInspect(f.input, f.options));
 });
+
+// Docker merges exposed-port metadata from the independently pinned image.
+test('accepts exact inherited exposed metadata without publishing a port',()=>{
+ const f=fixture();f.options.imageExposedPorts={'8080/tcp':{}};
+ f.input.Config.ExposedPorts={'8080/tcp':{}};
+ f.input.NetworkSettings={Ports:{'8080/tcp':null}};
+ assertOriginalInspect(f.input,f.options);
+});
+for(const [name,mutate] of Object.entries({
+ 'unexpected exposed metadata':f=>{f.input.Config.ExposedPorts={'9999/tcp':{}};},
+ 'missing inherited metadata':f=>{f.options.imageExposedPorts={'8080/tcp':{}};},
+ 'network-observed publication':f=>{f.input.NetworkSettings={Ports:{'8080/tcp':[{HostIp:'127.0.0.1',HostPort:'8080'}]}};},
+ 'publish all':f=>{f.input.HostConfig.PublishAllPorts=true;},
+ 'configured volume':f=>{f.input.Config.Volumes={'/data':{}};},
+ 'inherited volume':f=>{f.options.imageVolumes={'/data':{}};},
+}))test('refuses '+name,()=>{const f=fixture();mutate(f);assert.throws(()=>assertOriginalInspect(f.input,f.options));});

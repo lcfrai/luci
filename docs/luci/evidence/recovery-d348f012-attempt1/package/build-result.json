@@ -1,0 +1,19 @@
+{
+  "sourceCommit": "d348f0127a920aab05b54a4192baa8ed3800fe54",
+  "startedAt": "2026-10-08T23:03:16.360650+00:00",
+  "finishedAt": "2026-10-08T23:07:00.392427+00:00",
+  "elapsedSeconds": 224.0318486239994,
+  "command": [
+    "bash",
+    "scripts/build-release.sh",
+    "0.5.0",
+    "linux-amd64"
+  ],
+  "environment": {
+    "GOMAXPROCS": "2",
+    "GOFLAGS": "-p=1"
+  },
+  "exitCode": 0,
+  "cleanBefore": true,
+  "cleanAfter": true
+}

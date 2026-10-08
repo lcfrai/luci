@@ -1,0 +1,1768 @@
+TAP version 13
+# Subtest: command digest retains the pinned Go contract and HTML escaping golden
+ok 1 - command digest retains the pinned Go contract and HTML escaping golden
+  ---
+  duration_ms: 3.488709
+  type: 'test'
+  ...
+# Subtest: admits the exact check and leaves its input and full ledger unchanged
+ok 2 - admits the exact check and leaves its input and full ledger unchanged
+  ---
+  duration_ms: 8.767454
+  type: 'test'
+  ...
+# Subtest: both separately consented projects remain in the full ledger and consume capacity once each
+ok 3 - both separately consented projects remain in the full ledger and consume capacity once each
+  ---
+  duration_ms: 5.193364
+  type: 'test'
+  ...
+# Subtest: refuses wrong Docker memory
+ok 4 - refuses wrong Docker memory
+  ---
+  duration_ms: 2.663896
+  type: 'test'
+  ...
+# Subtest: refuses wrong Docker CPU
+ok 5 - refuses wrong Docker CPU
+  ---
+  duration_ms: 3.124511
+  type: 'test'
+  ...
+# Subtest: refuses unlimited swap
+ok 6 - refuses unlimited swap
+  ---
+  duration_ms: 2.125525
+  type: 'test'
+  ...
+# Subtest: refuses wrong receipt memory
+ok 7 - refuses wrong receipt memory
+  ---
+  duration_ms: 1.261011
+  type: 'test'
+  ...
+# Subtest: refuses wrong ledger resources
+ok 8 - refuses wrong ledger resources
+  ---
+  duration_ms: 2.034237
+  type: 'test'
+  ...
+# Subtest: refuses wrong allocation owner
+ok 9 - refuses wrong allocation owner
+  ---
+  duration_ms: 2.013636
+  type: 'test'
+  ...
+# Subtest: refuses wrong owner project
+ok 10 - refuses wrong owner project
+  ---
+  duration_ms: 1.990521
+  type: 'test'
+  ...
+# Subtest: refuses wrong outer scope
+ok 11 - refuses wrong outer scope
+  ---
+  duration_ms: 1.589036
+  type: 'test'
+  ...
+# Subtest: refuses wrong identity scope
+ok 12 - refuses wrong identity scope
+  ---
+  duration_ms: 1.582626
+  type: 'test'
+  ...
+# Subtest: refuses wrong engine
+ok 13 - refuses wrong engine
+  ---
+  duration_ms: 2.349603
+  type: 'test'
+  ...
+# Subtest: refuses wrong instance
+ok 14 - refuses wrong instance
+  ---
+  duration_ms: 1.496607
+  type: 'test'
+  ...
+# Subtest: refuses wrong check identity
+ok 15 - refuses wrong check identity
+  ---
+  duration_ms: 1.440051
+  type: 'test'
+  ...
+# Subtest: refuses wrong allocation identity
+ok 16 - refuses wrong allocation identity
+  ---
+  duration_ms: 2.083121
+  type: 'test'
+  ...
+# Subtest: refuses wrong command index
+ok 17 - refuses wrong command index
+  ---
+  duration_ms: 2.402473
+  type: 'test'
+  ...
+# Subtest: refuses wrong command digest
+ok 18 - refuses wrong command digest
+  ---
+  duration_ms: 1.149573
+  type: 'test'
+  ...
+# Subtest: refuses wrong label identity
+ok 19 - refuses wrong label identity
+  ---
+  duration_ms: 0.92205
+  type: 'test'
+  ...
+# Subtest: refuses missing product consent
+ok 20 - refuses missing product consent
+  ---
+  duration_ms: 0.74965
+  type: 'test'
+  ...
+# Subtest: refuses receipt without held resources
+ok 21 - refuses receipt without held resources
+  ---
+  duration_ms: 0.901289
+  type: 'test'
+  ...
+# Subtest: refuses duplicate selected allocation
+ok 22 - refuses duplicate selected allocation
+  ---
+  duration_ms: 0.513434
+  type: 'test'
+  ...
+# Subtest: refuses extra worker claim
+ok 23 - refuses extra worker claim
+  ---
+  duration_ms: 0.711593
+  type: 'test'
+  ...
+# Subtest: refuses third active check
+ok 24 - refuses third active check
+  ---
+  duration_ms: 8.984606
+  type: 'test'
+  ...
+# Subtest: refuses unacknowledged disk demand removed
+ok 25 - refuses unacknowledged disk demand removed
+  ---
+  duration_ms: 1.10082
+  type: 'test'
+  ...
+# Subtest: refuses unverified storage driver
+ok 26 - refuses unverified storage driver
+  ---
+  duration_ms: 0.870813
+  type: 'test'
+  ...
+# Subtest: refuses created lease reused for Create
+ok 27 - refuses created lease reused for Create
+  ---
+  duration_ms: 0.801508
+  type: 'test'
+  ...
+# Subtest: refuses future ledger timestamp
+ok 28 - refuses future ledger timestamp
+  ---
+  duration_ms: 1.106839
+  type: 'test'
+  ...
+# Subtest: refuses extra command
+ok 29 - refuses extra command
+  ---
+  duration_ms: 1.020248
+  type: 'test'
+  ...
+# Subtest: refuses extra environment
+ok 30 - refuses extra environment
+  ---
+  duration_ms: 0.852765
+  type: 'test'
+  ...
+# Subtest: refuses extra writable mount
+ok 31 - refuses extra writable mount
+  ---
+  duration_ms: 1.148031
+  type: 'test'
+  ...
+# Subtest: refuses host network
+ok 32 - refuses host network
+  ---
+  duration_ms: 0.96208
+  type: 'test'
+  ...
+# Subtest: refuses privileged container
+ok 33 - refuses privileged container
+  ---
+  duration_ms: 1.087289
+  type: 'test'
+  ...
+# Subtest: refuses wrong source commit
+ok 34 - refuses wrong source commit
+  ---
+  duration_ms: 2.448432
+  type: 'test'
+  ...
+# Subtest: same-target symlink source is refused after its digest is rebound
+ok 35 - same-target symlink source is refused after its digest is rebound
+  ---
+  duration_ms: 0.930873
+  type: 'test'
+  ...
+# Subtest: full ledger refuses a witness with foreign actor
+ok 36 - full ledger refuses a witness with foreign actor
+  ---
+  duration_ms: 1.323485
+  type: 'test'
+  ...
+# Subtest: full ledger refuses a witness with actor project mismatch
+ok 37 - full ledger refuses a witness with actor project mismatch
+  ---
+  duration_ms: 1.259729
+  type: 'test'
+  ...
+# Subtest: full ledger refuses a witness with identity scope mismatch
+ok 38 - full ledger refuses a witness with identity scope mismatch
+  ---
+  duration_ms: 0.856792
+  type: 'test'
+  ...
+# Subtest: full ledger refuses a witness with allocation ID mismatch
+ok 39 - full ledger refuses a witness with allocation ID mismatch
+  ---
+  duration_ms: 0.567606
+  type: 'test'
+  ...
+# Subtest: full ledger refuses a witness with unsupported protocol
+ok 40 - full ledger refuses a witness with unsupported protocol
+  ---
+  duration_ms: 0.560335
+  type: 'test'
+  ...
+# Subtest: full ledger refuses a witness with unexpected command index
+ok 41 - full ledger refuses a witness with unexpected command index
+  ---
+  duration_ms: 0.944404
+  type: 'test'
+  ...
+# Subtest: full ledger refuses a witness with wrong resources
+ok 42 - full ledger refuses a witness with wrong resources
+  ---
+  duration_ms: 0.79556
+  type: 'test'
+  ...
+# Subtest: full ledger refuses a witness with missing pending image-copy demand
+ok 43 - full ledger refuses a witness with missing pending image-copy demand
+  ---
+  duration_ms: 1.150674
+  type: 'test'
+  ...
+# Subtest: full ledger refuses a witness with zero pending image-copy demand
+ok 44 - full ledger refuses a witness with zero pending image-copy demand
+  ---
+  duration_ms: 0.69671
+  type: 'test'
+  ...
+# Subtest: full ledger refuses a witness with negative pending image-copy demand
+ok 45 - full ledger refuses a witness with negative pending image-copy demand
+  ---
+  duration_ms: 0.99465
+  type: 'test'
+  ...
+# Subtest: full ledger refuses a witness with unconsented identity
+ok 46 - full ledger refuses a witness with unconsented identity
+  ---
+  duration_ms: 0.626124
+  type: 'test'
+  ...
+# Subtest: capacity guard refuses stale host sample
+ok 47 - capacity guard refuses stale host sample
+  ---
+  duration_ms: 1.139728
+  type: 'test'
+  ...
+# Subtest: capacity guard refuses stale execution sample
+ok 48 - capacity guard refuses stale execution sample
+  ---
+  duration_ms: 1.128922
+  type: 'test'
+  ...
+# Subtest: capacity guard refuses future reservation sample
+ok 49 - capacity guard refuses future reservation sample
+  ---
+  duration_ms: 0.854388
+  type: 'test'
+  ...
+# Subtest: capacity guard refuses missing witness count
+ok 50 - capacity guard refuses missing witness count
+  ---
+  duration_ms: 1.280691
+  type: 'test'
+  ...
+# Subtest: capacity guard refuses missing witness memory
+ok 51 - capacity guard refuses missing witness memory
+  ---
+  duration_ms: 1.068922
+  type: 'test'
+  ...
+# Subtest: capacity guard refuses missing witness CPU
+ok 52 - capacity guard refuses missing witness CPU
+  ---
+  duration_ms: 0.706905
+  type: 'test'
+  ...
+# Subtest: capacity guard refuses one byte below shared host headroom
+ok 53 - capacity guard refuses one byte below shared host headroom
+  ---
+  duration_ms: 2.055309
+  type: 'test'
+  ...
+# Subtest: capacity guard refuses insufficient shared CPU
+ok 54 - capacity guard refuses insufficient shared CPU
+  ---
+  duration_ms: 0.765294
+  type: 'test'
+  ...
+# Subtest: capacity guard refuses one byte below both pending image copies plus disk reserve
+ok 55 - capacity guard refuses one byte below both pending image copies plus disk reserve
+  ---
+  duration_ms: 0.660275
+  type: 'test'
+  ...
+# Subtest: capacity guard refuses unenforced memory limits
+ok 56 - capacity guard refuses unenforced memory limits
+  ---
+  duration_ms: 0.746485
+  type: 'test'
+  ...
+# Subtest: capacity guard refuses unenforced swap limits
+ok 57 - capacity guard refuses unenforced swap limits
+  ---
+  duration_ms: 2.118975
+  type: 'test'
+  ...
+# Subtest: capacity guard refuses unexpected worker charge
+ok 58 - capacity guard refuses unexpected worker charge
+  ---
+  duration_ms: 1.254852
+  type: 'test'
+  ...
+# Subtest: unchanged reservation snapshot retains its old last-mutation timestamp with fresh host observations
+ok 59 - unchanged reservation snapshot retains its old last-mutation timestamp with fresh host observations
+  ---
+  duration_ms: 0.754928
+  type: 'test'
+  ...
+# Subtest: current-public visibility accepts exact fresh charged and released totals without mutation
+ok 60 - current-public visibility accepts exact fresh charged and released totals without mutation
+  ---
+  duration_ms: 0.488226
+  type: 'test'
+  ...
+# Subtest: current-public visibility refuses absent
+ok 61 - current-public visibility refuses absent
+  ---
+  duration_ms: 0.262455
+  type: 'test'
+  ...
+# Subtest: current-public visibility refuses unavailable
+ok 62 - current-public visibility refuses unavailable
+  ---
+  duration_ms: 0.185699
+  type: 'test'
+  ...
+# Subtest: current-public visibility refuses legacy
+ok 63 - current-public visibility refuses legacy
+  ---
+  duration_ms: 0.207954
+  type: 'test'
+  ...
+# Subtest: current-public visibility refuses false-zero
+ok 64 - current-public visibility refuses false-zero
+  ---
+  duration_ms: 0.151358
+  type: 'test'
+  ...
+# Subtest: current-public visibility refuses stale
+ok 65 - current-public visibility refuses stale
+  ---
+  duration_ms: 0.140532
+  type: 'test'
+  ...
+# Subtest: current-public visibility refuses future
+ok 66 - current-public visibility refuses future
+  ---
+  duration_ms: 0.164067
+  type: 'test'
+  ...
+# Subtest: current-public visibility refuses invalid-time
+ok 67 - current-public visibility refuses invalid-time
+  ---
+  duration_ms: 0.232421
+  type: 'test'
+  ...
+# Subtest: current-public visibility refuses missing-cpu
+ok 68 - current-public visibility refuses missing-cpu
+  ---
+  duration_ms: 0.182846
+  type: 'test'
+  ...
+# Subtest: current-public visibility refuses negative-memory
+ok 69 - current-public visibility refuses negative-memory
+  ---
+  duration_ms: 0.232661
+  type: 'test'
+  ...
+# Subtest: current-public visibility refuses fractional-count
+ok 70 - current-public visibility refuses fractional-count
+  ---
+  duration_ms: 0.183016
+  type: 'test'
+  ...
+# Subtest: current-public visibility refuses string-count
+ok 71 - current-public visibility refuses string-count
+  ---
+  duration_ms: 0.224449
+  type: 'test'
+  ...
+# Subtest: installed CLI accepts explicit public visibility flag and preserves baseline help without runtime
+ok 72 - installed CLI accepts explicit public visibility flag and preserves baseline help without runtime
+  ---
+  duration_ms: 43.619311
+  type: 'test'
+  ...
+# Subtest: outer cleanup timeout cannot be repaired by a later successful scoped drain
+ok 73 - outer cleanup timeout cannot be repaired by a later successful scoped drain
+  ---
+  duration_ms: 20.761342
+  type: 'test'
+  ...
+# Subtest: concurrent and repeated failed close calls preserve one immutable rejection
+ok 74 - concurrent and repeated failed close calls preserve one immutable rejection
+  ---
+  duration_ms: 1.606292
+  type: 'test'
+  ...
+# Subtest: late close rejection preserves timeout evidence and completed independent cleanup
+ok 75 - late close rejection preserves timeout evidence and completed independent cleanup
+  ---
+  duration_ms: 11.487911
+  type: 'test'
+  ...
+# Subtest: failed parent close cannot certify acquired child resources
+ok 76 - failed parent close cannot certify acquired child resources
+  ---
+  duration_ms: 1.600854
+  type: 'test'
+  ...
+# Subtest: the first workflow failure remains authoritative at late mutation boundaries
+ok 77 - the first workflow failure remains authoritative at late mutation boundaries
+  ---
+  duration_ms: 1.83083
+  type: 'test'
+  ...
+# Subtest: repeated stop after signalled child exit does not signal again or fail
+ok 78 - repeated stop after signalled child exit does not signal again or fail
+  ---
+  duration_ms: 5.365399
+  type: 'test'
+  ...
+# Subtest: does not signal a reused controller PID
+ok 79 - does not signal a reused controller PID
+  ---
+  duration_ms: 1.781486
+  type: 'test'
+  ...
+# Subtest: already absent controller is a safe idempotent stop
+ok 80 - already absent controller is a safe idempotent stop
+  ---
+  duration_ms: 3.22985
+  type: 'test'
+  ...
+# Subtest: forced owned descendant cleanup remains a failed acceptance even after absence
+ok 81 - forced owned descendant cleanup remains a failed acceptance even after absence
+  ---
+  duration_ms: 2.044572
+  type: 'test'
+  ...
+# Subtest: unsettled owned descendant is never reported closed
+ok 82 - unsettled owned descendant is never reported closed
+  ---
+  duration_ms: 0.379523
+  type: 'test'
+  ...
+# Subtest: unknown process observation propagates without signaling
+ok 83 - unknown process observation propagates without signaling
+  ---
+  duration_ms: 0.541406
+  type: 'test'
+  ...
+# Subtest: exit between identity read and signal requires confirmed identity absence
+ok 84 - exit between identity read and signal requires confirmed identity absence
+  ---
+  duration_ms: 0.314274
+  type: 'test'
+  ...
+# Subtest: permission failure cannot turn into cleanup success
+ok 85 - permission failure cannot turn into cleanup success
+  ---
+  duration_ms: 0.417379
+  type: 'test'
+  ...
+# Subtest: accepts exact unstarted original with daemon defaults and merged image/Create environment
+ok 86 - accepts exact unstarted original with daemon defaults and merged image/Create environment
+  ---
+  duration_ms: 3.185643
+  type: 'test'
+  ...
+# Subtest: accepts equivalent environment ordering while retaining embedded equals signs
+ok 87 - accepts equivalent environment ordering while retaining embedded equals signs
+  ---
+  duration_ms: 0.495106
+  type: 'test'
+  ...
+# Subtest: accepts source-supported daemon modes {"network":"bridge","ipc":"private"}
+ok 88 - accepts source-supported daemon modes {"network":"bridge","ipc":"private"}
+  ---
+  duration_ms: 0.29829
+  type: 'test'
+  ...
+# Subtest: accepts source-supported daemon modes {"network":"","ipc":""}
+ok 89 - accepts source-supported daemon modes {"network":"","ipc":""}
+  ---
+  duration_ms: 0.240222
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different immutable container
+ok 90 - refuses original inspect with different immutable container
+  ---
+  duration_ms: 1.224587
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different logical name
+ok 91 - refuses original inspect with different logical name
+  ---
+  duration_ms: 0.365582
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different image bytes
+ok 92 - refuses original inspect with different image bytes
+  ---
+  duration_ms: 0.238649
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with mutable configured image tag
+ok 93 - refuses original inspect with mutable configured image tag
+  ---
+  duration_ms: 0.194633
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with foreign check identity
+ok 94 - refuses original inspect with foreign check identity
+  ---
+  duration_ms: 0.699254
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with changed source digest
+ok 95 - refuses original inspect with changed source digest
+  ---
+  duration_ms: 0.516789
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different user
+ok 96 - refuses original inspect with different user
+  ---
+  duration_ms: 0.481917
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different working directory
+ok 97 - refuses original inspect with different working directory
+  ---
+  duration_ms: 0.269567
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with shell entrypoint
+ok 98 - refuses original inspect with shell entrypoint
+  ---
+  duration_ms: 0.32484
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different command arguments
+ok 99 - refuses original inspect with different command arguments
+  ---
+  duration_ms: 0.369798
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with enabled healthcheck
+ok 100 - refuses original inspect with enabled healthcheck
+  ---
+  duration_ms: 0.28551
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with interactive input
+ok 101 - refuses original inspect with interactive input
+  ---
+  duration_ms: 0.268445
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with missing captured output
+ok 102 - refuses original inspect with missing captured output
+  ---
+  duration_ms: 0.201383
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with writable root filesystem
+ok 103 - refuses original inspect with writable root filesystem
+  ---
+  duration_ms: 0.200582
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with privileged mode
+ok 104 - refuses original inspect with privileged mode
+  ---
+  duration_ms: 0.209226
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with added capability
+ok 105 - refuses original inspect with added capability
+  ---
+  duration_ms: 0.460124
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with missing capability drop
+ok 106 - refuses original inspect with missing capability drop
+  ---
+  duration_ms: 0.284819
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with missing no-new-privileges
+ok 107 - refuses original inspect with missing no-new-privileges
+  ---
+  duration_ms: 0.398712
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with host network
+ok 108 - refuses original inspect with host network
+  ---
+  duration_ms: 4.56342
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with host IPC
+ok 109 - refuses original inspect with host IPC
+  ---
+  duration_ms: 0.57029
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with host process namespace
+ok 110 - refuses original inspect with host process namespace
+  ---
+  duration_ms: 0.35808
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with extra device
+ok 111 - refuses original inspect with extra device
+  ---
+  duration_ms: 0.241064
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with automatic removal
+ok 112 - refuses original inspect with automatic removal
+  ---
+  duration_ms: 0.197628
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with automatic restart
+ok 113 - refuses original inspect with automatic restart
+  ---
+  duration_ms: 0.284328
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with published port
+ok 114 - refuses original inspect with published port
+  ---
+  duration_ms: 0.289747
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with excess memory
+ok 115 - refuses original inspect with excess memory
+  ---
+  duration_ms: 0.276396
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with unlimited swap
+ok 116 - refuses original inspect with unlimited swap
+  ---
+  duration_ms: 0.271349
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with excess CPU
+ok 117 - refuses original inspect with excess CPU
+  ---
+  duration_ms: 0.314244
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with excess process limit
+ok 118 - refuses original inspect with excess process limit
+  ---
+  duration_ms: 0.261474
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with unbounded temporary filesystem
+ok 119 - refuses original inspect with unbounded temporary filesystem
+  ---
+  duration_ms: 0.314524
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with extra legacy source bind
+ok 120 - refuses original inspect with extra legacy source bind
+  ---
+  duration_ms: 0.35111
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different configured source mount
+ok 121 - refuses original inspect with different configured source mount
+  ---
+  duration_ms: 0.3316
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different observed source mount
+ok 122 - refuses original inspect with different observed source mount
+  ---
+  duration_ms: 0.284108
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different observed mount target
+ok 123 - refuses original inspect with different observed mount target
+  ---
+  duration_ms: 0.269587
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with volume in place of source bind
+ok 124 - refuses original inspect with volume in place of source bind
+  ---
+  duration_ms: 0.307594
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with read-only project mount
+ok 125 - refuses original inspect with read-only project mount
+  ---
+  duration_ms: 0.253472
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with shared mount propagation
+ok 126 - refuses original inspect with shared mount propagation
+  ---
+  duration_ms: 0.293923
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with extra observed source mount
+ok 127 - refuses original inspect with extra observed source mount
+  ---
+  duration_ms: 0.330718
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with unexpected environment key
+ok 128 - refuses original inspect with unexpected environment key
+  ---
+  duration_ms: 0.426744
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with unexpected prototype-named environment key
+ok 129 - refuses original inspect with unexpected prototype-named environment key
+  ---
+  duration_ms: 0.292721
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with missing inherited image variable
+ok 130 - refuses original inspect with missing inherited image variable
+  ---
+  duration_ms: 0.297579
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with changed inherited image PATH
+ok 131 - refuses original inspect with changed inherited image PATH
+  ---
+  duration_ms: 0.255105
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with image HOME overriding guarded HOME
+ok 132 - refuses original inspect with image HOME overriding guarded HOME
+  ---
+  duration_ms: 0.230828
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with missing guarded cache variable
+ok 133 - refuses original inspect with missing guarded cache variable
+  ---
+  duration_ms: 0.275606
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with duplicate environment key
+ok 134 - refuses original inspect with duplicate environment key
+  ---
+  duration_ms: 0.77591
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with malformed environment entry
+ok 135 - refuses original inspect with malformed environment entry
+  ---
+  duration_ms: 0.339331
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with running original
+ok 136 - refuses original inspect with running original
+  ---
+  duration_ms: 0.222375
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with hidden nonzero process
+ok 137 - refuses original inspect with hidden nonzero process
+  ---
+  duration_ms: 0.835059
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with restarting original
+ok 138 - refuses original inspect with restarting original
+  ---
+  duration_ms: 0.312211
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different inspected executable
+ok 139 - refuses original inspect with different inspected executable
+  ---
+  duration_ms: 0.286262
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different inspected arguments
+ok 140 - refuses original inspect with different inspected arguments
+  ---
+  duration_ms: 0.336858
+  type: 'test'
+  ...
+# Subtest: accepts exact inherited exposed metadata without publishing a port
+ok 141 - accepts exact inherited exposed metadata without publishing a port
+  ---
+  duration_ms: 0.264659
+  type: 'test'
+  ...
+# Subtest: refuses unexpected exposed metadata
+ok 142 - refuses unexpected exposed metadata
+  ---
+  duration_ms: 0.356307
+  type: 'test'
+  ...
+# Subtest: refuses missing inherited metadata
+ok 143 - refuses missing inherited metadata
+  ---
+  duration_ms: 0.293583
+  type: 'test'
+  ...
+# Subtest: refuses network-observed publication
+ok 144 - refuses network-observed publication
+  ---
+  duration_ms: 0.261554
+  type: 'test'
+  ...
+# Subtest: refuses publish all
+ok 145 - refuses publish all
+  ---
+  duration_ms: 0.185179
+  type: 'test'
+  ...
+# Subtest: refuses configured volume
+ok 146 - refuses configured volume
+  ---
+  duration_ms: 0.210758
+  type: 'test'
+  ...
+# Subtest: refuses inherited volume
+ok 147 - refuses inherited volume
+  ---
+  duration_ms: 0.177517
+  type: 'test'
+  ...
+# Subtest: exactLease binds one real-shaped active allocation and the exact resource charge
+ok 148 - exactLease binds one real-shaped active allocation and the exact resource charge
+  ---
+  duration_ms: 3.388979
+  type: 'test'
+  ...
+# Subtest: exactLease rejects missing allocation
+ok 149 - exactLease rejects missing allocation
+  ---
+  duration_ms: 1.106729
+  type: 'test'
+  ...
+# Subtest: exactLease rejects duplicate allocation
+ok 150 - exactLease rejects duplicate allocation
+  ---
+  duration_ms: 0.43774
+  type: 'test'
+  ...
+# Subtest: exactLease rejects finished allocation
+ok 151 - exactLease rejects finished allocation
+  ---
+  duration_ms: 0.532954
+  type: 'test'
+  ...
+# Subtest: exactLease rejects wrong memory charge
+ok 152 - exactLease rejects wrong memory charge
+  ---
+  duration_ms: 0.933497
+  type: 'test'
+  ...
+# Subtest: exactLease rejects wrong CPU charge
+ok 153 - exactLease rejects wrong CPU charge
+  ---
+  duration_ms: 0.466513
+  type: 'test'
+  ...
+# Subtest: exactLease rejects wrong outer scope
+ok 154 - exactLease rejects wrong outer scope
+  ---
+  duration_ms: 0.596489
+  type: 'test'
+  ...
+# Subtest: exactLease rejects wrong allocation identity
+ok 155 - exactLease rejects wrong allocation identity
+  ---
+  duration_ms: 0.273843
+  type: 'test'
+  ...
+# Subtest: exactLease rejects wrong project identity
+ok 156 - exactLease rejects wrong project identity
+  ---
+  duration_ms: 0.356257
+  type: 'test'
+  ...
+# Subtest: exactLease rejects wrong command index
+ok 157 - exactLease rejects wrong command index
+  ---
+  duration_ms: 0.412993
+  type: 'test'
+  ...
+# Subtest: exactLease rejects multiple commands
+ok 158 - exactLease rejects multiple commands
+  ---
+  duration_ms: 0.407184
+  type: 'test'
+  ...
+# Subtest: assertUnknown rejects invented output
+ok 159 - assertUnknown rejects invented output
+  ---
+  duration_ms: 0.256527
+  type: 'test'
+  ...
+# Subtest: assertUnknown rejects product Create acknowledgement
+ok 160 - assertUnknown rejects product Create acknowledgement
+  ---
+  duration_ms: 0.205951
+  type: 'test'
+  ...
+# Subtest: assertUnknown rejects released capacity
+ok 161 - assertUnknown rejects released capacity
+  ---
+  duration_ms: 0.317769
+  type: 'test'
+  ...
+# Subtest: assertUnknown rejects confirmed cleanup
+ok 162 - assertUnknown rejects confirmed cleanup
+  ---
+  duration_ms: 0.416668
+  type: 'test'
+  ...
+# Subtest: assertUnknown rejects invented never-started command success
+ok 163 - assertUnknown rejects invented never-started command success
+  ---
+  duration_ms: 0.428857
+  type: 'test'
+  ...
+# Subtest: assertUnknown rejects invented never-started exit code
+ok 164 - assertUnknown rejects invented never-started exit code
+  ---
+  duration_ms: 0.994459
+  type: 'test'
+  ...
+# Subtest: assertReview accepts an exact current command review
+ok 165 - assertReview accepts an exact current command review
+  ---
+  duration_ms: 0.321635
+  type: 'test'
+  ...
+# Subtest: assertReview rejects stale revision
+ok 166 - assertReview rejects stale revision
+  ---
+  duration_ms: 0.479222
+  type: 'test'
+  ...
+# Subtest: assertReview rejects wrong check
+ok 167 - assertReview rejects wrong check
+  ---
+  duration_ms: 0.329447
+  type: 'test'
+  ...
+# Subtest: assertReview rejects wrong project
+ok 168 - assertReview rejects wrong project
+  ---
+  duration_ms: 0.321776
+  type: 'test'
+  ...
+# Subtest: assertReview rejects wrong command
+ok 169 - assertReview rejects wrong command
+  ---
+  duration_ms: 0.368215
+  type: 'test'
+  ...
+# Subtest: assertReview rejects wrong method
+ok 170 - assertReview rejects wrong method
+  ---
+  duration_ms: 0.310378
+  type: 'test'
+  ...
+# Subtest: assertReview rejects missing digest
+ok 171 - assertReview rejects missing digest
+  ---
+  duration_ms: 0.221224
+  type: 'test'
+  ...
+# Subtest: assertReview rejects malformed digest
+ok 172 - assertReview rejects malformed digest
+  ---
+  duration_ms: 0.469358
+  type: 'test'
+  ...
+# Subtest: assertReview rejects unexpected property
+ok 173 - assertReview rejects unexpected property
+  ---
+  duration_ms: 0.467825
+  type: 'test'
+  ...
+# Subtest: assertRetired proves precisely one charge release while preserving complete unrelated rows
+ok 174 - assertRetired proves precisely one charge release while preserving complete unrelated rows
+  ---
+  duration_ms: 0.615047
+  type: 'test'
+  ...
+# Subtest: assertRetired proves one-to-zero release with unrelated completed history and no charged-witness claim
+ok 175 - assertRetired proves one-to-zero release with unrelated completed history and no charged-witness claim
+  ---
+  duration_ms: 0.353203
+  type: 'test'
+  ...
+# Subtest: assertRetired also permits the exact finished target pending product receipt acknowledgement
+ok 176 - assertRetired also permits the exact finished target pending product receipt acknowledgement
+  ---
+  duration_ms: 0.333183
+  type: 'test'
+  ...
+# Subtest: assertRetired rejects unrelated active charge release
+ok 177 - assertRetired rejects unrelated active charge release
+  ---
+  duration_ms: 0.325831
+  type: 'test'
+  ...
+# Subtest: assertRetired rejects unrelated charge resize
+ok 178 - assertRetired rejects unrelated charge resize
+  ---
+  duration_ms: 0.401977
+  type: 'test'
+  ...
+# Subtest: assertRetired rejects unrelated receipt revision
+ok 179 - assertRetired rejects unrelated receipt revision
+  ---
+  duration_ms: 0.703841
+  type: 'test'
+  ...
+# Subtest: assertRetired rejects historical output rewrite
+ok 180 - assertRetired rejects historical output rewrite
+  ---
+  duration_ms: 0.850252
+  type: 'test'
+  ...
+# Subtest: assertRetired rejects historical receipt deletion
+ok 181 - assertRetired rejects historical receipt deletion
+  ---
+  duration_ms: 0.628047
+  type: 'test'
+  ...
+# Subtest: assertRetired rejects historical finished lease deletion
+ok 182 - assertRetired rejects historical finished lease deletion
+  ---
+  duration_ms: 1.336214
+  type: 'test'
+  ...
+# Subtest: assertRetired rejects agent lease insertion
+ok 183 - assertRetired rejects agent lease insertion
+  ---
+  duration_ms: 0.585784
+  type: 'test'
+  ...
+# Subtest: assertRetired rejects agent fence insertion
+ok 184 - assertRetired rejects agent fence insertion
+  ---
+  duration_ms: 1.118907
+  type: 'test'
+  ...
+# Subtest: assertRetired rejects foreign check fence insertion
+ok 185 - assertRetired rejects foreign check fence insertion
+  ---
+  duration_ms: 2.035879
+  type: 'test'
+  ...
+# Subtest: assertRetired rejects unknown ledger field change
+ok 186 - assertRetired rejects unknown ledger field change
+  ---
+  duration_ms: 0.667086
+  type: 'test'
+  ...
+# Subtest: assertRetired rejects target output invented
+ok 187 - assertRetired rejects target output invented
+  ---
+  duration_ms: 0.336748
+  type: 'test'
+  ...
+# Subtest: assertRetired rejects target arguments changed
+ok 188 - assertRetired rejects target arguments changed
+  ---
+  duration_ms: 0.562679
+  type: 'test'
+  ...
+# Subtest: assertRetired rejects target command falsely passed
+ok 189 - assertRetired rejects target command falsely passed
+  ---
+  duration_ms: 0.28495
+  type: 'test'
+  ...
+# Subtest: assertRetired rejects target command invented exit code
+ok 190 - assertRetired rejects target command invented exit code
+  ---
+  duration_ms: 0.312371
+  type: 'test'
+  ...
+# Subtest: assertRetired rejects target command added
+ok 191 - assertRetired rejects target command added
+  ---
+  duration_ms: 0.257388
+  type: 'test'
+  ...
+# Subtest: assertRetired rejects target project changed
+ok 192 - assertRetired rejects target project changed
+  ---
+  duration_ms: 0.223166
+  type: 'test'
+  ...
+# Subtest: assertRetired rejects marker not retired
+ok 193 - assertRetired rejects marker not retired
+  ---
+  duration_ms: 0.263818
+  type: 'test'
+  ...
+# Subtest: assertRetired rejects marker scope changed
+ok 194 - assertRetired rejects marker scope changed
+  ---
+  duration_ms: 0.31849
+  type: 'test'
+  ...
+# Subtest: assertRetired rejects marker actor changed
+ok 195 - assertRetired rejects marker actor changed
+  ---
+  duration_ms: 0.337609
+  type: 'test'
+  ...
+# Subtest: assertRetired rejects marker identity changed
+ok 196 - assertRetired rejects marker identity changed
+  ---
+  duration_ms: 0.328436
+  type: 'test'
+  ...
+# Subtest: assertRetired rejects proof identity changed
+ok 197 - assertRetired rejects proof identity changed
+  ---
+  duration_ms: 0.489938
+  type: 'test'
+  ...
+# Subtest: assertRetired rejects replayed different intent proof
+ok 198 - assertRetired rejects replayed different intent proof
+  ---
+  duration_ms: 0.626435
+  type: 'test'
+  ...
+# Subtest: assertRetired rejects invalid marker ID
+ok 199 - assertRetired rejects invalid marker ID
+  ---
+  duration_ms: 0.495548
+  type: 'test'
+  ...
+# Subtest: assertRetired rejects invalid configuration digest
+ok 200 - assertRetired rejects invalid configuration digest
+  ---
+  duration_ms: 0.212321
+  type: 'test'
+  ...
+# Subtest: assertRetired rejects missing proof
+ok 201 - assertRetired rejects missing proof
+  ---
+  duration_ms: 1.019567
+  type: 'test'
+  ...
+# Subtest: assertRetired rejects proof acknowledgement before intent
+ok 202 - assertRetired rejects proof acknowledgement before intent
+  ---
+  duration_ms: 5.560093
+  type: 'test'
+  ...
+# Subtest: assertRetired rejects proof observed before acknowledgement
+ok 203 - assertRetired rejects proof observed before acknowledgement
+  ---
+  duration_ms: 1.64482
+  type: 'test'
+  ...
+# Subtest: assertRetired rejects proof in future
+ok 204 - assertRetired rejects proof in future
+  ---
+  duration_ms: 0.64994
+  type: 'test'
+  ...
+# Subtest: assertRetired rejects duplicate finished target allocation
+ok 205 - assertRetired rejects duplicate finished target allocation
+  ---
+  duration_ms: 0.666065
+  type: 'test'
+  ...
+# Subtest: validateFence accepts exact image-free inert create and matching fresh inspect shape
+ok 206 - validateFence accepts exact image-free inert create and matching fresh inspect shape
+  ---
+  duration_ms: 1.556887
+  type: 'test'
+  ...
+# Subtest: validateFence rejects wrong name
+ok 207 - validateFence rejects wrong name
+  ---
+  duration_ms: 0.47066
+  type: 'test'
+  ...
+# Subtest: validateFence rejects wrong binding digest
+ok 208 - validateFence rejects wrong binding digest
+  ---
+  duration_ms: 0.691924
+  type: 'test'
+  ...
+# Subtest: validateFence rejects wrong intent
+ok 209 - validateFence rejects wrong intent
+  ---
+  duration_ms: 0.349176
+  type: 'test'
+  ...
+# Subtest: validateFence rejects foreign instance
+ok 210 - validateFence rejects foreign instance
+  ---
+  duration_ms: 0.368576
+  type: 'test'
+  ...
+# Subtest: validateFence rejects unexpected label
+ok 211 - validateFence rejects unexpected label
+  ---
+  duration_ms: 0.45087
+  type: 'test'
+  ...
+# Subtest: validateFence rejects image
+ok 212 - validateFence rejects image
+  ---
+  duration_ms: 0.502097
+  type: 'test'
+  ...
+# Subtest: validateFence rejects executable command
+ok 213 - validateFence rejects executable command
+  ---
+  duration_ms: 0.279201
+  type: 'test'
+  ...
+# Subtest: validateFence rejects environment
+ok 214 - validateFence rejects environment
+  ---
+  duration_ms: 0.385982
+  type: 'test'
+  ...
+# Subtest: validateFence rejects entrypoint
+ok 215 - validateFence rejects entrypoint
+  ---
+  duration_ms: 0.548738
+  type: 'test'
+  ...
+# Subtest: validateFence rejects network enabled
+ok 216 - validateFence rejects network enabled
+  ---
+  duration_ms: 0.290257
+  type: 'test'
+  ...
+# Subtest: validateFence rejects writable rootfs
+ok 217 - validateFence rejects writable rootfs
+  ---
+  duration_ms: 0.327413
+  type: 'test'
+  ...
+# Subtest: validateFence rejects bind mount
+ok 218 - validateFence rejects bind mount
+  ---
+  duration_ms: 0.307253
+  type: 'test'
+  ...
+# Subtest: validateFence rejects privileged mode
+ok 219 - validateFence rejects privileged mode
+  ---
+  duration_ms: 0.21839
+  type: 'test'
+  ...
+# Subtest: validateFence rejects automatic removal
+ok 220 - validateFence rejects automatic removal
+  ---
+  duration_ms: 0.204028
+  type: 'test'
+  ...
+# Subtest: validateFence rejects restart policy
+ok 221 - validateFence rejects restart policy
+  ---
+  duration_ms: 3.807611
+  type: 'test'
+  ...
+# Subtest: validateFence rejects host IPC
+ok 222 - validateFence rejects host IPC
+  ---
+  duration_ms: 0.337119
+  type: 'test'
+  ...
+# Subtest: validateFence rejects added capability
+ok 223 - validateFence rejects added capability
+  ---
+  duration_ms: 0.262086
+  type: 'test'
+  ...
+# Subtest: validateFence rejects memory changed
+ok 224 - validateFence rejects memory changed
+  ---
+  duration_ms: 0.307994
+  type: 'test'
+  ...
+# Subtest: validateFence rejects CPU changed
+ok 225 - validateFence rejects CPU changed
+  ---
+  duration_ms: 0.326532
+  type: 'test'
+  ...
+# Subtest: validateFence rejects PID limit changed
+ok 226 - validateFence rejects PID limit changed
+  ---
+  duration_ms: 0.328906
+  type: 'test'
+  ...
+# Subtest: validateFence inspect rejects different immutable ID
+ok 227 - validateFence inspect rejects different immutable ID
+  ---
+  duration_ms: 0.341245
+  type: 'test'
+  ...
+# Subtest: validateFence inspect rejects renamed marker
+ok 228 - validateFence inspect rejects renamed marker
+  ---
+  duration_ms: 0.323698
+  type: 'test'
+  ...
+# Subtest: validateFence inspect rejects runnable state
+ok 229 - validateFence inspect rejects runnable state
+  ---
+  duration_ms: 0.292331
+  type: 'test'
+  ...
+# Subtest: validateFence inspect rejects nonzero PID
+ok 230 - validateFence inspect rejects nonzero PID
+  ---
+  duration_ms: 0.249376
+  type: 'test'
+  ...
+# Subtest: validateFence inspect rejects actual image
+ok 231 - validateFence inspect rejects actual image
+  ---
+  duration_ms: 1.053558
+  type: 'test'
+  ...
+# Subtest: validateFence inspect rejects actual mount
+ok 232 - validateFence inspect rejects actual mount
+  ---
+  duration_ms: 0.343338
+  type: 'test'
+  ...
+# Subtest: validateFence inspect rejects different executable path
+ok 233 - validateFence inspect rejects different executable path
+  ---
+  duration_ms: 0.240603
+  type: 'test'
+  ...
+# Subtest: diagnostic-only owner cache cannot replace exact shared team charges null
+ok 234 - diagnostic-only owner cache cannot replace exact shared team charges null
+  ---
+  duration_ms: 1.0615
+  type: 'test'
+  ...
+# Subtest: diagnostic-only owner cache cannot replace exact shared team charges {"count":0,"memoryMiB":0,"cpuMillis":0,"observedAt":"2025-01-01T00:00:00Z"}
+ok 235 - diagnostic-only owner cache cannot replace exact shared team charges {"count":0,"memoryMiB":0,"cpuMillis":0,"observedAt":"2025-01-01T00:00:00Z"}
+  ---
+  duration_ms: 0.19926
+  type: 'test'
+  ...
+# Subtest: diagnostic-only reservations still enforce fresh host capacity and full ledger charges
+ok 236 - diagnostic-only reservations still enforce fresh host capacity and full ledger charges
+  ---
+  duration_ms: 1.15407
+  type: 'test'
+  ...
+# Subtest: assertComputeEnvelope refuses prospective second-check demand when only current host RAM fits
+ok 237 - assertComputeEnvelope refuses prospective second-check demand when only current host RAM fits
+  ---
+  duration_ms: 0.909822
+  type: 'test'
+  ...
+# Subtest: assertComputeEnvelope refuses prospective second-check demand when only current execution RAM fits
+ok 238 - assertComputeEnvelope refuses prospective second-check demand when only current execution RAM fits
+  ---
+  duration_ms: 0.379733
+  type: 'test'
+  ...
+# Subtest: assertComputeEnvelope refuses prospective second-check demand when only current host CPU fits
+ok 239 - assertComputeEnvelope refuses prospective second-check demand when only current host CPU fits
+  ---
+  duration_ms: 0.552383
+  type: 'test'
+  ...
+# Subtest: assertComputeEnvelope refuses prospective second-check demand when only current execution CPU fits
+ok 240 - assertComputeEnvelope refuses prospective second-check demand when only current execution CPU fits
+  ---
+  duration_ms: 0.423048
+  type: 'test'
+  ...
+# Subtest: assertComputeEnvelope admits prospective second check at the exact combined RAM boundary
+ok 241 - assertComputeEnvelope admits prospective second check at the exact combined RAM boundary
+  ---
+  duration_ms: 0.474936
+  type: 'test'
+  ...
+# Subtest: assertComputeEnvelope preserves the minimum 2 GiB headroom on a smaller host
+ok 242 - assertComputeEnvelope preserves the minimum 2 GiB headroom on a smaller host
+  ---
+  duration_ms: 0.433233
+  type: 'test'
+  ...
+# Subtest: assertComputeEnvelope keeps the exact CPU headroom boundary
+ok 243 - assertComputeEnvelope keeps the exact CPU headroom boundary
+  ---
+  duration_ms: 0.272822
+  type: 'test'
+  ...
+# Subtest: assertComputeEnvelope rejects invalid demand {"memoryMiB":-1,"cpuMillis":1000}
+ok 244 - assertComputeEnvelope rejects invalid demand {"memoryMiB":-1,"cpuMillis":1000}
+  ---
+  duration_ms: 0.326873
+  type: 'test'
+  ...
+# Subtest: assertComputeEnvelope rejects invalid demand {"memoryMiB":1024,"cpuMillis":-1}
+ok 245 - assertComputeEnvelope rejects invalid demand {"memoryMiB":1024,"cpuMillis":-1}
+  ---
+  duration_ms: 0.23863
+  type: 'test'
+  ...
+# Subtest: assertComputeEnvelope rejects invalid demand {"memoryMiB":1024.5,"cpuMillis":1000}
+ok 246 - assertComputeEnvelope rejects invalid demand {"memoryMiB":1024.5,"cpuMillis":1000}
+  ---
+  duration_ms: 0.335927
+  type: 'test'
+  ...
+# Subtest: assertComputeEnvelope rejects invalid demand {"memoryMiB":1024,"cpuMillis":null}
+ok 247 - assertComputeEnvelope rejects invalid demand {"memoryMiB":1024,"cpuMillis":null}
+  ---
+  duration_ms: 0.282996
+  type: 'test'
+  ...
+# Subtest: assertCapacity counts both live leases and excludes completed lease history
+ok 248 - assertCapacity counts both live leases and excludes completed lease history
+  ---
+  duration_ms: 0.233852
+  type: 'test'
+  ...
+# Subtest: assertCapacity reflects precisely one charge after retirement
+ok 249 - assertCapacity reflects precisely one charge after retirement
+  ---
+  duration_ms: 0.208634
+  type: 'test'
+  ...
+# Subtest: assertCapacity accepts an old unchanged reservation snapshot from the last ledger mutation
+ok 250 - assertCapacity accepts an old unchanged reservation snapshot from the last ledger mutation
+  ---
+  duration_ms: 0.389417
+  type: 'test'
+  ...
+# Subtest: assertCapacity rejects filtered one-lease reservation totals
+ok 251 - assertCapacity rejects filtered one-lease reservation totals
+  ---
+  duration_ms: 0.278671
+  type: 'test'
+  ...
+# Subtest: assertCapacity rejects host memory sufficient for only one lease
+ok 252 - assertCapacity rejects host memory sufficient for only one lease
+  ---
+  duration_ms: 0.399733
+  type: 'test'
+  ...
+# Subtest: assertCapacity rejects execution memory sufficient for only one lease
+ok 253 - assertCapacity rejects execution memory sufficient for only one lease
+  ---
+  duration_ms: 0.308936
+  type: 'test'
+  ...
+# Subtest: assertCapacity rejects CPU sufficient for only one lease
+ok 254 - assertCapacity rejects CPU sufficient for only one lease
+  ---
+  duration_ms: 0.373774
+  type: 'test'
+  ...
+# Subtest: assertCapacity rejects disk sufficient for only one pending clone
+ok 255 - assertCapacity rejects disk sufficient for only one pending clone
+  ---
+  duration_ms: 0.329217
+  type: 'test'
+  ...
+# Subtest: assertCapacity rejects stale host observation
+ok 256 - assertCapacity rejects stale host observation
+  ---
+  duration_ms: 0.271159
+  type: 'test'
+  ...
+# Subtest: assertCapacity rejects stale execution observation
+ok 257 - assertCapacity rejects stale execution observation
+  ---
+  duration_ms: 0.369848
+  type: 'test'
+  ...
+# Subtest: assertCapacity rejects fresh totals that predate the current allocation
+ok 258 - assertCapacity rejects fresh totals that predate the current allocation
+  ---
+  duration_ms: 0.308195
+  type: 'test'
+  ...
+# Subtest: assertCapacity rejects unavailable host observation
+ok 259 - assertCapacity rejects unavailable host observation
+  ---
+  duration_ms: 0.359192
+  type: 'test'
+  ...
+# Subtest: assertCapacity rejects weakened headroom
+ok 260 - assertCapacity rejects weakened headroom
+  ---
+  duration_ms: 0.953478
+  type: 'test'
+  ...
+# Subtest: assertCapacity rejects missing engine resource control
+ok 261 - assertCapacity rejects missing engine resource control
+  ---
+  duration_ms: 0.216466
+  type: 'test'
+  ...
+# Subtest: assertCapacity rejects unknown storage driver
+ok 262 - assertCapacity rejects unknown storage driver
+  ---
+  duration_ms: 0.38518
+  type: 'test'
+  ...
+# Subtest: assertCapacity rejects missing image size
+ok 263 - assertCapacity rejects missing image size
+  ---
+  duration_ms: 0.314524
+  type: 'test'
+  ...
+# Subtest: assertCapacity rejects unaccounted worker lease
+ok 264 - assertCapacity rejects unaccounted worker lease
+  ---
+  duration_ms: 0.216647
+  type: 'test'
+  ...
+# Subtest: synthetic default flow proves preserved completed history and one-to-zero charge release, then awaits adapter closure
+ok 265 - synthetic default flow proves preserved completed history and one-to-zero charge release, then awaits adapter closure
+  ---
+  duration_ms: 10.806868
+  type: 'test'
+  ...
+# Subtest: synthetic charged-witness flow holds the unrelated request through exact target retirement and releases it once
+ok 266 - synthetic charged-witness flow holds the unrelated request through exact target retirement and releases it once
+  ---
+  duration_ms: 2.960333
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects missing history after Read and dismiss
+ok 267 - synthetic flow rejects missing history after Read and dismiss
+  ---
+  duration_ms: 3.271863
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects changed history output after Read and dismiss
+ok 268 - synthetic flow rejects changed history output after Read and dismiss
+  ---
+  duration_ms: 1.317746
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects changed source after Read and dismiss
+ok 269 - synthetic flow rejects changed source after Read and dismiss
+  ---
+  duration_ms: 1.06175
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects unexpected Docker mutation after Read and dismiss
+ok 270 - synthetic flow rejects unexpected Docker mutation after Read and dismiss
+  ---
+  duration_ms: 1.191747
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects missing history after No current Edit authority
+ok 271 - synthetic flow rejects missing history after No current Edit authority
+  ---
+  duration_ms: 0.92891
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects changed history output after No current Edit authority
+ok 272 - synthetic flow rejects changed history output after No current Edit authority
+  ---
+  duration_ms: 1.450146
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects changed source after No current Edit authority
+ok 273 - synthetic flow rejects changed source after No current Edit authority
+  ---
+  duration_ms: 1.881978
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects unexpected Docker mutation after No current Edit authority
+ok 274 - synthetic flow rejects unexpected Docker mutation after No current Edit authority
+  ---
+  duration_ms: 1.367192
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects missing history after Stale reviewed revision
+ok 275 - synthetic flow rejects missing history after Stale reviewed revision
+  ---
+  duration_ms: 0.944354
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects changed history output after Stale reviewed revision
+ok 276 - synthetic flow rejects changed history output after Stale reviewed revision
+  ---
+  duration_ms: 1.165698
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects changed source after Stale reviewed revision
+ok 277 - synthetic flow rejects changed source after Stale reviewed revision
+  ---
+  duration_ms: 0.674868
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects unexpected Docker mutation after Stale reviewed revision
+ok 278 - synthetic flow rejects unexpected Docker mutation after Stale reviewed revision
+  ---
+  duration_ms: 1.002061
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects a second target Create
+ok 279 - synthetic flow rejects a second target Create
+  ---
+  duration_ms: 1.353561
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects a target Start
+ok 280 - synthetic flow rejects a target Start
+  ---
+  duration_ms: 0.910854
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects history deletion during successful recovery
+ok 281 - synthetic flow rejects history deletion during successful recovery
+  ---
+  duration_ms: 1.010664
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects source modification during successful recovery
+ok 282 - synthetic flow rejects source modification during successful recovery
+  ---
+  duration_ms: 1.805182
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects multiple browser recovery posts
+ok 283 - synthetic flow rejects multiple browser recovery posts
+  ---
+  duration_ms: 0.704252
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects a mismatched reviewed digest
+ok 284 - synthetic flow rejects a mismatched reviewed digest
+  ---
+  duration_ms: 0.654397
+  type: 'test'
+  ...
+# Subtest: synthetic charged-witness flow rejects changing the other active charge during target recovery
+ok 285 - synthetic charged-witness flow rejects changing the other active charge during target recovery
+  ---
+  duration_ms: 0.831764
+  type: 'test'
+  ...
+# Subtest: synthetic charged-witness flow rechecks history after the unrelated request finishes
+ok 286 - synthetic charged-witness flow rechecks history after the unrelated request finishes
+  ---
+  duration_ms: 1.566261
+  type: 'test'
+  ...
+# Subtest: synthetic flow refuses completion if the permanent marker disappears after retirement proof
+ok 287 - synthetic flow refuses completion if the permanent marker disappears after retirement proof
+  ---
+  duration_ms: 5.005918
+  type: 'test'
+  ...
+# Subtest: synthetic flow requires the explicit runtime-window gate before any adapter action
+ok 288 - synthetic flow requires the explicit runtime-window gate before any adapter action
+  ---
+  duration_ms: 0.273162
+  type: 'test'
+  ...
+# Subtest: synthetic flow accepts an explicitly selected exact product source while retaining helper and image pins
+ok 289 - synthetic flow accepts an explicitly selected exact product source while retaining helper and image pins
+  ---
+  duration_ms: 1.640213
+  type: 'test'
+  ...
+# Subtest: synthetic flow refuses unselected product before adapter actions
+ok 290 - synthetic flow refuses unselected product before adapter actions
+  ---
+  duration_ms: 0.40477
+  type: 'test'
+  ...
+# Subtest: synthetic flow refuses mismatched selected product before adapter actions
+ok 291 - synthetic flow refuses mismatched selected product before adapter actions
+  ---
+  duration_ms: 0.166501
+  type: 'test'
+  ...
+# Subtest: synthetic flow refuses changed runtime image before adapter actions
+ok 292 - synthetic flow refuses changed runtime image before adapter actions
+  ---
+  duration_ms: 0.211699
+  type: 'test'
+  ...
+# Subtest: synthetic flow refuses changed helper baseline before adapter actions
+ok 293 - synthetic flow refuses changed helper baseline before adapter actions
+  ---
+  duration_ms: 0.306603
+  type: 'test'
+  ...
+1..293
+# tests 293
+# suites 0
+# pass 293
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1082.43561

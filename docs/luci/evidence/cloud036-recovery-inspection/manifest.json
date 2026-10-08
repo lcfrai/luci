@@ -1,0 +1,92 @@
+{
+  "files": {
+    "provenance-result.json": {
+      "sha256": "a9b46bf497d9f320d82ac2877145e7640f649b57cd9db98fcbfa203381b09d02",
+      "bytes": 240
+    },
+    "after.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "provenance.tap": {
+      "sha256": "4c900436b11a87200cb69ff476ad2973121a673233eaa744fecb0b07b274e6a5",
+      "bytes": 11040
+    },
+    "provenance.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "after-result.json": {
+      "sha256": "47fb6c0e9a0ba6afc13c371282851ef56f5461b6804546f60dd19525902e3626",
+      "bytes": 612
+    },
+    "before-result.json": {
+      "sha256": "a97639d1bc7c0aa070fb07733a316ba9bab9e21028f9b8870ba9ed39e551f5f9",
+      "bytes": 612
+    },
+    "README.md": {
+      "sha256": "27bcd898dcb671d9726b17022cfdfa513b84bb03b41e796aa98a8641ca6884c6",
+      "bytes": 2591
+    },
+    "affected.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "affected.tap": {
+      "sha256": "6402f401cb5c631666f3ae38960c56ecef4f9714bb08366a3ac3c2003bac523b",
+      "bytes": 52202
+    },
+    "before-explicit.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "before-explicit.tap": {
+      "sha256": "e25133651e59fb07f9e886f22625bf73ea2389a02f94313ea23cb4a22dc8d6c0",
+      "bytes": 17256
+    },
+    "after.tap": {
+      "sha256": "eebc5505e3802e1c12e77a5974f3131675855821a43b7ae2c8296c095d179311",
+      "bytes": 11565
+    },
+    "affected-result.json": {
+      "sha256": "63aab5faa3eacca10812888dc8eca78bac08460eaf9609f021a7da89d8e0e6d0",
+      "bytes": 659
+    },
+    "source-binding.json": {
+      "sha256": "5dd1bdf1f81dc88d470da3ce235197608eba98cdd0cda217c1d097c74d3565e9",
+      "bytes": 4915
+    },
+    "before/installed-recovery.mjs": {
+      "sha256": "9f3c933d2dfeb48de0e3598d47d77af7fa8c565a533cef41444722fa1da3af10",
+      "bytes": 42934
+    },
+    "before/fixture-guards.mjs": {
+      "sha256": "63236101987b8d193677a0ebd5ab7bf4690bd478c50e0ce849886018fab19b6c",
+      "bytes": 9584
+    },
+    "after/installed-recovery.mjs": {
+      "sha256": "d9f2276ac2aaf29a1434155d7a31c80576e5514d2e65f2fb97af084e3fd538f7",
+      "bytes": 43755
+    },
+    "after/inspect-guards.test.mjs": {
+      "sha256": "46a65b81a359de20af4e4617cc96893d008a81af84ba07cfb3a416a88d9c5b1c",
+      "bytes": 9592
+    },
+    "after/fixture-guards.mjs": {
+      "sha256": "991267b3d4b37ddfdce94d169a4e8cd4a8a4387179e3c166f141f84ad945e0a8",
+      "bytes": 9809
+    },
+    "after/controller-stop.test.mjs": {
+      "sha256": "09d855ca4c6c2678dfba784415fe42f66baf87e1edd6208b33fb5c93aee97588",
+      "bytes": 3810
+    },
+    "regression/inspect-guards.test.mjs": {
+      "sha256": "46a65b81a359de20af4e4617cc96893d008a81af84ba07cfb3a416a88d9c5b1c",
+      "bytes": 9592
+    },
+    "regression/controller-stop.test.mjs": {
+      "sha256": "2e5cffc6d891ca186a419d1862869693983d1e1a38c25b63e05ba7d6db6ca74d",
+      "bytes": 1949
+    }
+  }
+}

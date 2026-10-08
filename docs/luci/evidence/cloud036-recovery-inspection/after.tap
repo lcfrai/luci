@@ -1,0 +1,400 @@
+TAP version 13
+# Subtest: repeated stop after signalled child exit does not signal again or fail
+ok 1 - repeated stop after signalled child exit does not signal again or fail
+  ---
+  duration_ms: 4.608028
+  type: 'test'
+  ...
+# Subtest: does not signal a reused controller PID
+ok 2 - does not signal a reused controller PID
+  ---
+  duration_ms: 1.430307
+  type: 'test'
+  ...
+# Subtest: already absent controller is a safe idempotent stop
+ok 3 - already absent controller is a safe idempotent stop
+  ---
+  duration_ms: 1.613192
+  type: 'test'
+  ...
+# Subtest: accepts exact unstarted original with daemon defaults and merged image/Create environment
+ok 4 - accepts exact unstarted original with daemon defaults and merged image/Create environment
+  ---
+  duration_ms: 5.94288
+  type: 'test'
+  ...
+# Subtest: accepts equivalent environment ordering while retaining embedded equals signs
+ok 5 - accepts equivalent environment ordering while retaining embedded equals signs
+  ---
+  duration_ms: 0.310838
+  type: 'test'
+  ...
+# Subtest: accepts source-supported daemon modes {"network":"bridge","ipc":"private"}
+ok 6 - accepts source-supported daemon modes {"network":"bridge","ipc":"private"}
+  ---
+  duration_ms: 0.268395
+  type: 'test'
+  ...
+# Subtest: accepts source-supported daemon modes {"network":"","ipc":""}
+ok 7 - accepts source-supported daemon modes {"network":"","ipc":""}
+  ---
+  duration_ms: 0.314455
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different immutable container
+ok 8 - refuses original inspect with different immutable container
+  ---
+  duration_ms: 1.286901
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different logical name
+ok 9 - refuses original inspect with different logical name
+  ---
+  duration_ms: 0.425061
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different image bytes
+ok 10 - refuses original inspect with different image bytes
+  ---
+  duration_ms: 0.244528
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with mutable configured image tag
+ok 11 - refuses original inspect with mutable configured image tag
+  ---
+  duration_ms: 0.18551
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with foreign check identity
+ok 12 - refuses original inspect with foreign check identity
+  ---
+  duration_ms: 0.729329
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with changed source digest
+ok 13 - refuses original inspect with changed source digest
+  ---
+  duration_ms: 0.479372
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different user
+ok 14 - refuses original inspect with different user
+  ---
+  duration_ms: 0.35173
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different working directory
+ok 15 - refuses original inspect with different working directory
+  ---
+  duration_ms: 0.193752
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with shell entrypoint
+ok 16 - refuses original inspect with shell entrypoint
+  ---
+  duration_ms: 0.427314
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different command arguments
+ok 17 - refuses original inspect with different command arguments
+  ---
+  duration_ms: 0.402147
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with enabled healthcheck
+ok 18 - refuses original inspect with enabled healthcheck
+  ---
+  duration_ms: 0.48463
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with interactive input
+ok 19 - refuses original inspect with interactive input
+  ---
+  duration_ms: 0.47089
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with missing captured output
+ok 20 - refuses original inspect with missing captured output
+  ---
+  duration_ms: 0.41796
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with writable root filesystem
+ok 21 - refuses original inspect with writable root filesystem
+  ---
+  duration_ms: 0.355516
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with privileged mode
+ok 22 - refuses original inspect with privileged mode
+  ---
+  duration_ms: 0.380093
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with added capability
+ok 23 - refuses original inspect with added capability
+  ---
+  duration_ms: 0.359001
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with missing capability drop
+ok 24 - refuses original inspect with missing capability drop
+  ---
+  duration_ms: 0.370168
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with missing no-new-privileges
+ok 25 - refuses original inspect with missing no-new-privileges
+  ---
+  duration_ms: 0.481005
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with host network
+ok 26 - refuses original inspect with host network
+  ---
+  duration_ms: 9.344338
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with host IPC
+ok 27 - refuses original inspect with host IPC
+  ---
+  duration_ms: 0.654226
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with host process namespace
+ok 28 - refuses original inspect with host process namespace
+  ---
+  duration_ms: 0.343387
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with extra device
+ok 29 - refuses original inspect with extra device
+  ---
+  duration_ms: 0.2387
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with automatic removal
+ok 30 - refuses original inspect with automatic removal
+  ---
+  duration_ms: 0.214824
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with automatic restart
+ok 31 - refuses original inspect with automatic restart
+  ---
+  duration_ms: 0.206431
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with published port
+ok 32 - refuses original inspect with published port
+  ---
+  duration_ms: 0.309326
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with excess memory
+ok 33 - refuses original inspect with excess memory
+  ---
+  duration_ms: 0.295606
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with unlimited swap
+ok 34 - refuses original inspect with unlimited swap
+  ---
+  duration_ms: 0.216546
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with excess CPU
+ok 35 - refuses original inspect with excess CPU
+  ---
+  duration_ms: 0.352041
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with excess process limit
+ok 36 - refuses original inspect with excess process limit
+  ---
+  duration_ms: 0.21239
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with unbounded temporary filesystem
+ok 37 - refuses original inspect with unbounded temporary filesystem
+  ---
+  duration_ms: 0.346813
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with extra legacy source bind
+ok 38 - refuses original inspect with extra legacy source bind
+  ---
+  duration_ms: 0.422146
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different configured source mount
+ok 39 - refuses original inspect with different configured source mount
+  ---
+  duration_ms: 0.907408
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different observed source mount
+ok 40 - refuses original inspect with different observed source mount
+  ---
+  duration_ms: 0.365701
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different observed mount target
+ok 41 - refuses original inspect with different observed mount target
+  ---
+  duration_ms: 0.271369
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with volume in place of source bind
+ok 42 - refuses original inspect with volume in place of source bind
+  ---
+  duration_ms: 0.306241
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with read-only project mount
+ok 43 - refuses original inspect with read-only project mount
+  ---
+  duration_ms: 0.310879
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with shared mount propagation
+ok 44 - refuses original inspect with shared mount propagation
+  ---
+  duration_ms: 0.266011
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with extra observed source mount
+ok 45 - refuses original inspect with extra observed source mount
+  ---
+  duration_ms: 0.310559
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with unexpected environment key
+ok 46 - refuses original inspect with unexpected environment key
+  ---
+  duration_ms: 0.333783
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with unexpected prototype-named environment key
+ok 47 - refuses original inspect with unexpected prototype-named environment key
+  ---
+  duration_ms: 0.369928
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with missing inherited image variable
+ok 48 - refuses original inspect with missing inherited image variable
+  ---
+  duration_ms: 0.252881
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with changed inherited image PATH
+ok 49 - refuses original inspect with changed inherited image PATH
+  ---
+  duration_ms: 0.225009
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with image HOME overriding guarded HOME
+ok 50 - refuses original inspect with image HOME overriding guarded HOME
+  ---
+  duration_ms: 0.398086
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with missing guarded cache variable
+ok 51 - refuses original inspect with missing guarded cache variable
+  ---
+  duration_ms: 0.293082
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with duplicate environment key
+ok 52 - refuses original inspect with duplicate environment key
+  ---
+  duration_ms: 0.73638
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with malformed environment entry
+ok 53 - refuses original inspect with malformed environment entry
+  ---
+  duration_ms: 0.414124
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with running original
+ok 54 - refuses original inspect with running original
+  ---
+  duration_ms: 0.251249
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with hidden nonzero process
+ok 55 - refuses original inspect with hidden nonzero process
+  ---
+  duration_ms: 0.204198
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with restarting original
+ok 56 - refuses original inspect with restarting original
+  ---
+  duration_ms: 0.255395
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different inspected executable
+ok 57 - refuses original inspect with different inspected executable
+  ---
+  duration_ms: 0.375766
+  type: 'test'
+  ...
+# Subtest: refuses original inspect with different inspected arguments
+ok 58 - refuses original inspect with different inspected arguments
+  ---
+  duration_ms: 0.271609
+  type: 'test'
+  ...
+# Subtest: accepts exact inherited exposed metadata without publishing a port
+ok 59 - accepts exact inherited exposed metadata without publishing a port
+  ---
+  duration_ms: 0.263347
+  type: 'test'
+  ...
+# Subtest: refuses unexpected exposed metadata
+ok 60 - refuses unexpected exposed metadata
+  ---
+  duration_ms: 0.290328
+  type: 'test'
+  ...
+# Subtest: refuses missing inherited metadata
+ok 61 - refuses missing inherited metadata
+  ---
+  duration_ms: 0.178008
+  type: 'test'
+  ...
+# Subtest: refuses network-observed publication
+ok 62 - refuses network-observed publication
+  ---
+  duration_ms: 0.174113
+  type: 'test'
+  ...
+# Subtest: refuses publish all
+ok 63 - refuses publish all
+  ---
+  duration_ms: 0.208635
+  type: 'test'
+  ...
+# Subtest: refuses configured volume
+ok 64 - refuses configured volume
+  ---
+  duration_ms: 0.208684
+  type: 'test'
+  ...
+# Subtest: refuses inherited volume
+ok 65 - refuses inherited volume
+  ---
+  duration_ms: 0.171819
+  type: 'test'
+  ...
+1..65
+# tests 65
+# suites 0
+# pass 65
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 306.321651

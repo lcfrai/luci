@@ -1,0 +1,19 @@
+✔ Import is inert and runtime requires an explicit window before any setup (14.61836ms)
+✔ Installed adapter help exposes explicit product and image pins without runtime (0.522418ms)
+✔ Both actual generated native task commands parse without executing their processes (7.227947ms)
+✔ Actual installed seeding reads public checkout exports without inventing brief.json (13.21929ms)
+✔ Public persisted exports and captured-only brief preserve their full own-project contents (3.628741ms)
+✔ Foreign identity, stale revision and invalid public exports fail before reading any path (6.232401ms)
+✔ Missing real exports and altered captured exports, brief or project prefix are refused (5.295794ms)
+✔ Selected product and separate clean helper commit bind every executed shared file (8.578924ms)
+✔ No helper omission, dirty checkout, product substitution or staged outside script is accepted (2.05612ms)
+✔ A changed committed helper byte is refused even if HEAD and porcelain claim clean (0.780567ms)
+✔ Runtime local import graph is completely covered by source binding (0.771013ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 360.583824

@@ -1,0 +1,17 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "--test-concurrency=1",
+    "scripts/acceptance/check-create-recovery/inspect-guards.test.mjs",
+    "scripts/acceptance/check-create-recovery/controller-stop.test.mjs",
+    "scripts/acceptance/check-create-recovery/cleanup.test.mjs",
+    "scripts/acceptance/check-create-recovery/check-guard.test.mjs",
+    "scripts/acceptance/check-create-recovery/recovery-proofs.test.mjs",
+    "scripts/acceptance/check-create-recovery/scenario-flow.test.mjs",
+    "scripts/acceptance/check-create-recovery/source-binding.test.mjs"
+  ],
+  "exitCode": 0,
+  "at": "2026-10-08T23:29:25.500092+00:00"
+}

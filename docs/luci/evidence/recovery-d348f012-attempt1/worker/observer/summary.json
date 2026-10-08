@@ -1,0 +1,57 @@
+{
+  "finishedAt": "2026-10-08T23:13:36.400262+00:00",
+  "samples": 22,
+  "durationSeconds": 21.17415542298113,
+  "driverExitObserved": true,
+  "peakObserved": {
+    "summedRSS_test-driver": 77422592,
+    "summedRSS_allOwnedProcesses": 92237824,
+    "summedRSS_other-owned-descendant": 17522688,
+    "summedRSS_control-plane": 44470272
+  },
+  "observedCounterDeltas": {
+    "observedProcessCPUSeconds": 2.7700000000000005,
+    "observedProcessIO_read_bytes": 4096.0,
+    "observedProcessIO_write_bytes": 1130496.0,
+    "observedProcessIO_rchar": 635068659.0,
+    "observedProcessIO_wchar": 846863.0
+  },
+  "processIdentities": [
+    {
+      "pid": 2064697,
+      "startTicks": 24726440,
+      "role": "test-driver"
+    },
+    {
+      "pid": 2064810,
+      "startTicks": 24726515,
+      "role": "other-owned-descendant"
+    },
+    {
+      "pid": 2064900,
+      "startTicks": 24726744,
+      "role": "control-plane"
+    }
+  ],
+  "containerIds": [],
+  "containerKinds": {},
+  "containerIssueCounts": {
+    "exact-owned-instance-not-yet-provided": 22
+  },
+  "checkCoverage": {
+    "enabled": true,
+    "identitySamples": 0,
+    "cgroupUsageSamples": 0,
+    "status": "not-observed"
+  },
+  "limitations": [
+    "Sum of process RSS double-counts shared pages; it is not unique physical memory.",
+    "Container cgroup memory is separate and must not be added to container process RSS.",
+    "Docker daemon/shared kernel/VM overhead is unassigned; host memory includes unrelated work.",
+    "Processes starting and exiting between 1 Hz samples may be missed; delta counters cover observed intervals only.",
+    "Post-driver-exit settlement is not an application idle baseline.",
+    "No UI input latency, other-app responsiveness or model reasoning quality is measured."
+  ],
+  "baseline": "post-start; no pre-run idle baseline observed",
+  "instanceIdentitySHA256": null
+}

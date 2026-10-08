@@ -1,0 +1,2167 @@
+{
+  "version": 1,
+  "scope": "Original immutable primary metrics retained. Static and actual are sequential diagnostic arms without the full Linux sampler; original browser collectors unchanged. No subtraction or claim that absent sampler alone explains changed results. Trace follow-up is8 extra rounds, not the primary100.",
+  "arms": {
+    "actual": {
+      "resultSHA256": "be67e4243e0c9358342723b7df363056bb5dad6188bb835536614f19a85091ff",
+      "groups": {
+        "idle-interactive-calibration:project-switch": {
+          "originalSummary": {
+            "count": 100,
+            "successful": 100,
+            "failed": 0,
+            "p50Ms": 228.19098299999314,
+            "p95Ms": 400.4607449999894,
+            "p99Ms": 547.5955450000038,
+            "maxMs": 607.2558600000048,
+            "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+            "timeouts": []
+          },
+          "distributions": {
+            "action": {
+              "count": 100,
+              "p50Ms": 153.0172789999924,
+              "p95Ms": 289.5060899999953,
+              "p99Ms": 382.51326699998754,
+              "maxMs": 496.09440500001074
+            },
+            "verify": {
+              "count": 100,
+              "p50Ms": 48.00528699999268,
+              "p95Ms": 91.77773299999535,
+              "p99Ms": 183.10620700000436,
+              "maxMs": 186.63374599999224
+            },
+            "framesRPC": {
+              "count": 100,
+              "p50Ms": 27.10014800002682,
+              "p95Ms": 39.230681000000914,
+              "p99Ms": 53.016548999992665,
+              "maxMs": 56.439289000001736
+            },
+            "allProjectsClick": {
+              "count": 100,
+              "p50Ms": 70.85599999999977,
+              "p95Ms": 121.82704599999124,
+              "p99Ms": 195.92090699999244,
+              "maxMs": 366.1854630000016
+            },
+            "overviewHeading": {
+              "count": 100,
+              "p50Ms": 9.344404999996186,
+              "p95Ms": 20.852434000000358,
+              "p99Ms": 26.71359600001597,
+              "maxMs": 153.33818299999984
+            },
+            "openProjectClick": {
+              "count": 100,
+              "p50Ms": 70.15187099999457,
+              "p95Ms": 130.26975199999288,
+              "p99Ms": 165.7367610000074,
+              "maxMs": 187.71170400001574
+            },
+            "browserFinalFrames": {
+              "count": 100,
+              "p50Ms": 23.80000001192093,
+              "p95Ms": 32.80000001192093,
+              "p99Ms": 36.69999998807907,
+              "maxMs": 43.599999994039536
+            },
+            "browserLatestDispatchToExpectedDOM": {
+              "count": 100,
+              "p50Ms": 66.40000000596046,
+              "p95Ms": 138.80000001192093,
+              "p99Ms": 195.2999999821186,
+              "maxMs": 226.59999999403954
+            }
+          },
+          "fiveLargest": [
+            {
+              "index": 95,
+              "at": "2026-10-08T23:11:13.971Z",
+              "elapsedMs": 607.2558600000048,
+              "nodeSpansMs": {
+                "action": 496.09440500001074,
+                "verify": 84.03955300000962,
+                "framesRPC": 27.10014800002682,
+                "allProjectsClick": 366.1854630000016,
+                "overviewHeading": 26.71359600001597,
+                "openProjectClick": 103.19105999998283
+              }
+            },
+            {
+              "index": 61,
+              "at": "2026-10-08T23:10:48.748Z",
+              "elapsedMs": 547.5955450000038,
+              "nodeSpansMs": {
+                "action": 382.51326699998754,
+                "verify": 135.8169179999968,
+                "framesRPC": 29.09540299999935,
+                "allProjectsClick": 195.92090699999244,
+                "overviewHeading": 20.852434000000358,
+                "openProjectClick": 165.7367610000074
+              }
+            },
+            {
+              "index": 54,
+              "at": "2026-10-08T23:10:43.235Z",
+              "elapsedMs": 545.6189350000059,
+              "nodeSpansMs": {
+                "action": 309.36980799998855,
+                "verify": 183.10620700000436,
+                "framesRPC": 53.016548999992665,
+                "allProjectsClick": 127.94458499999018,
+                "overviewHeading": 18.347945000001346,
+                "openProjectClick": 163.0011369999993
+              }
+            },
+            {
+              "index": 68,
+              "at": "2026-10-08T23:10:53.544Z",
+              "elapsedMs": 435.1470349999872,
+              "nodeSpansMs": {
+                "action": 192.0547290000104,
+                "verify": 186.63374599999224,
+                "framesRPC": 56.439289000001736,
+                "allProjectsClick": 59.63071800000034,
+                "overviewHeading": 12.089927000008174,
+                "openProjectClick": 120.33070900000166
+              }
+            },
+            {
+              "index": 93,
+              "at": "2026-10-08T23:11:11.518Z",
+              "elapsedMs": 410.02816199997324,
+              "nodeSpansMs": {
+                "action": 334.86991100001615,
+                "verify": 48.35746400000062,
+                "framesRPC": 26.778172999998787,
+                "allProjectsClick": 142.40812300000107,
+                "overviewHeading": 4.747029999998631,
+                "openProjectClick": 187.71170400001574
+              }
+            }
+          ]
+        },
+        "idle-interactive-calibration:input": {
+          "originalSummary": {
+            "count": 200,
+            "successful": 200,
+            "failed": 0,
+            "p50Ms": 50.084262000003946,
+            "p95Ms": 132.94279400000232,
+            "p99Ms": 201.71118799998658,
+            "maxMs": 240.09865900001023,
+            "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+            "timeouts": []
+          },
+          "distributions": {
+            "action": {
+              "count": 200,
+              "p50Ms": 18.78520500000741,
+              "p95Ms": 78.80008200000157,
+              "p99Ms": 117.31305100000463,
+              "maxMs": 202.9718029999931
+            },
+            "verify": {
+              "count": 200,
+              "p50Ms": 3.233256999999867,
+              "p95Ms": 11.962913999988814,
+              "p99Ms": 21.746472999991965,
+              "maxMs": 55.76666399999522
+            },
+            "framesRPC": {
+              "count": 200,
+              "p50Ms": 27.91253400000278,
+              "p95Ms": 37.70136000000639,
+              "p99Ms": 60.072572000004584,
+              "maxMs": 180.3499429999938
+            },
+            "browserFinalFrames": {
+              "count": 200,
+              "p50Ms": 24.900000005960464,
+              "p95Ms": 31.5,
+              "p99Ms": 34.5,
+              "maxMs": 143.69999998807907
+            },
+            "browserLatestDispatchToExpectedDOM": {
+              "count": 200,
+              "p50Ms": 12.0,
+              "p95Ms": 29.400000005960464,
+              "p99Ms": 72.0,
+              "maxMs": 84.09999999403954
+            }
+          },
+          "fiveLargest": [
+            {
+              "index": 173,
+              "at": "2026-10-08T23:11:06.805Z",
+              "elapsedMs": 240.09865900001023,
+              "nodeSpansMs": {
+                "action": 202.9718029999931,
+                "verify": 4.958482999994885,
+                "framesRPC": 32.14906300001894
+              }
+            },
+            {
+              "index": 73,
+              "at": "2026-10-08T23:10:31.942Z",
+              "elapsedMs": 219.27169399999548,
+              "nodeSpansMs": {
+                "action": 188.16667000000598,
+                "verify": 5.222345000001951,
+                "framesRPC": 25.815837999994983
+              }
+            },
+            {
+              "index": 195,
+              "at": "2026-10-08T23:11:16.527Z",
+              "elapsedMs": 201.71118799998658,
+              "nodeSpansMs": {
+                "action": 112.93608600000152,
+                "verify": 55.76666399999522,
+                "framesRPC": 32.49021699998411
+              }
+            },
+            {
+              "index": 143,
+              "at": "2026-10-08T23:10:56.078Z",
+              "elapsedMs": 191.58054399999673,
+              "nodeSpansMs": {
+                "action": 9.315902000002097,
+                "verify": 1.7451529999962077,
+                "framesRPC": 180.3499429999938
+              }
+            },
+            {
+              "index": 114,
+              "at": "2026-10-08T23:10:46.272Z",
+              "elapsedMs": 181.6379389999929,
+              "nodeSpansMs": {
+                "action": 93.75384600000689,
+                "verify": 36.74953600000299,
+                "framesRPC": 51.03817299999355
+              }
+            }
+          ]
+        },
+        "idle-interactive-calibration:draft-reset": {
+          "originalSummary": {
+            "count": 100,
+            "successful": 100,
+            "failed": 0,
+            "p50Ms": 267.0176760000031,
+            "p95Ms": 390.70363799999177,
+            "p99Ms": 600.4696970000077,
+            "maxMs": 677.5266110000084,
+            "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+            "timeouts": []
+          },
+          "distributions": {
+            "action": {
+              "count": 100,
+              "p50Ms": 207.85422100000142,
+              "p95Ms": 326.18786599999294,
+              "p99Ms": 530.8629650000075,
+              "maxMs": 561.5382160000154
+            },
+            "verify": {
+              "count": 100,
+              "p50Ms": 29.836785999999847,
+              "p95Ms": 41.286401999997906,
+              "p99Ms": 66.21672799999942,
+              "maxMs": 71.41621599998325
+            },
+            "framesRPC": {
+              "count": 100,
+              "p50Ms": 28.763307000001078,
+              "p95Ms": 39.1192330000049,
+              "p99Ms": 52.99059899999702,
+              "maxMs": 90.66320499998983
+            },
+            "browserFinalFrames": {
+              "count": 100,
+              "p50Ms": 23.80000001192093,
+              "p95Ms": 30.200000017881393,
+              "p99Ms": 30.900000005960464,
+              "maxMs": 31.099999994039536
+            }
+          },
+          "fiveLargest": [
+            {
+              "index": 94,
+              "at": "2026-10-08T23:11:13.230Z",
+              "elapsedMs": 677.5266110000084,
+              "nodeSpansMs": {
+                "action": 561.5382160000154,
+                "verify": 71.41621599998325,
+                "framesRPC": 44.35200600000098
+              }
+            },
+            {
+              "index": 47,
+              "at": "2026-10-08T23:10:38.494Z",
+              "elapsedMs": 600.4696970000077,
+              "nodeSpansMs": {
+                "action": 530.8629650000075,
+                "verify": 41.62941600001068,
+                "framesRPC": 27.963354000006802
+              }
+            },
+            {
+              "index": 71,
+              "at": "2026-10-08T23:10:56.270Z",
+              "elapsedMs": 473.17800000001444,
+              "nodeSpansMs": {
+                "action": 420.5557550000085,
+                "verify": 30.617683999997098,
+                "framesRPC": 21.776797999977134
+              }
+            },
+            {
+              "index": 93,
+              "at": "2026-10-08T23:11:12.069Z",
+              "elapsedMs": 426.10722100001294,
+              "nodeSpansMs": {
+                "action": 344.7157930000103,
+                "verify": 41.286401999997906,
+                "framesRPC": 39.99414799999795
+              }
+            },
+            {
+              "index": 79,
+              "at": "2026-10-08T23:11:01.878Z",
+              "elapsedMs": 419.95586799999,
+              "nodeSpansMs": {
+                "action": 351.4922470000165,
+                "verify": 43.46831799999927,
+                "framesRPC": 24.97712500000489
+              }
+            }
+          ]
+        },
+        "idle-actionability-trace-followup:project-switch": {
+          "originalSummary": {
+            "count": 8,
+            "successful": 8,
+            "failed": 0,
+            "p50Ms": 250.1982410000055,
+            "p95Ms": 297.44071999998414,
+            "p99Ms": 297.44071999998414,
+            "maxMs": 297.44071999998414,
+            "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+            "timeouts": []
+          },
+          "distributions": {
+            "action": {
+              "count": 8,
+              "p50Ms": 167.55128300000797,
+              "p95Ms": 202.72558800000115,
+              "p99Ms": 202.72558800000115,
+              "maxMs": 202.72558800000115
+            },
+            "verify": {
+              "count": 8,
+              "p50Ms": 48.231750000006286,
+              "p95Ms": 75.81874000001699,
+              "p99Ms": 75.81874000001699,
+              "maxMs": 75.81874000001699
+            },
+            "framesRPC": {
+              "count": 8,
+              "p50Ms": 27.06850300001679,
+              "p95Ms": 34.225104999990435,
+              "p99Ms": 34.225104999990435,
+              "maxMs": 34.225104999990435
+            },
+            "allProjectsClick": {
+              "count": 8,
+              "p50Ms": 86.9792379999999,
+              "p95Ms": 123.16328099998645,
+              "p99Ms": 123.16328099998645,
+              "maxMs": 123.16328099998645
+            },
+            "overviewHeading": {
+              "count": 8,
+              "p50Ms": 12.658082999987528,
+              "p95Ms": 19.384717999986606,
+              "p99Ms": 19.384717999986606,
+              "maxMs": 19.384717999986606
+            },
+            "openProjectClick": {
+              "count": 8,
+              "p50Ms": 64.97480200001155,
+              "p95Ms": 86.66686200001277,
+              "p99Ms": 86.66686200001277,
+              "maxMs": 86.66686200001277
+            },
+            "browserFinalFrames": {
+              "count": 8,
+              "p50Ms": 24.400000005960464,
+              "p95Ms": 28.69999998807907,
+              "p99Ms": 28.69999998807907,
+              "maxMs": 28.69999998807907
+            },
+            "browserLatestDispatchToExpectedDOM": {
+              "count": 8,
+              "p50Ms": 63.80000001192093,
+              "p95Ms": 96.0,
+              "p99Ms": 96.0,
+              "maxMs": 96.0
+            }
+          },
+          "fiveLargest": [
+            {
+              "index": 2,
+              "at": "2026-10-08T23:11:20.348Z",
+              "elapsedMs": 297.44071999998414,
+              "nodeSpansMs": {
+                "action": 202.72558800000115,
+                "verify": 64.39064800000051,
+                "framesRPC": 30.304323999996996,
+                "allProjectsClick": 97.7086770000169,
+                "overviewHeading": 18.347003999981098,
+                "openProjectClick": 86.66686200001277
+              }
+            },
+            {
+              "index": 0,
+              "at": "2026-10-08T23:11:18.668Z",
+              "elapsedMs": 276.3441290000046,
+              "nodeSpansMs": {
+                "action": 182.3148859999783,
+                "verify": 70.4698919999937,
+                "framesRPC": 23.543816999997944,
+                "allProjectsClick": 86.9792379999999,
+                "overviewHeading": 14.6976399999985,
+                "openProjectClick": 80.63486299998476
+              }
+            },
+            {
+              "index": 1,
+              "at": "2026-10-08T23:11:19.592Z",
+              "elapsedMs": 271.4446839999873,
+              "nodeSpansMs": {
+                "action": 192.64970000000903,
+                "verify": 47.16313200001605,
+                "framesRPC": 31.613294000009773,
+                "allProjectsClick": 91.19517800002359,
+                "overviewHeading": 19.384717999986606,
+                "openProjectClick": 82.06700000001001
+              }
+            },
+            {
+              "index": 5,
+              "at": "2026-10-08T23:11:22.522Z",
+              "elapsedMs": 259.53544200002216,
+              "nodeSpansMs": {
+                "action": 149.47199799999362,
+                "verify": 75.81874000001699,
+                "framesRPC": 34.225104999990435,
+                "allProjectsClick": 76.65097499999683,
+                "overviewHeading": 8.760888999997405,
+                "openProjectClick": 64.05722899999819
+              }
+            },
+            {
+              "index": 7,
+              "at": "2026-10-08T23:11:23.827Z",
+              "elapsedMs": 250.1982410000055,
+              "nodeSpansMs": {
+                "action": 188.5683109999809,
+                "verify": 35.43207499998971,
+                "framesRPC": 26.179808000015328,
+                "allProjectsClick": 123.16328099998645,
+                "overviewHeading": 13.44136399999843,
+                "openProjectClick": 51.9608410000219
+              }
+            }
+          ]
+        },
+        "idle-actionability-trace-followup:input": {
+          "originalSummary": {
+            "count": 16,
+            "successful": 16,
+            "failed": 0,
+            "p50Ms": 51.127719999989495,
+            "p95Ms": 139.60316800000146,
+            "p99Ms": 139.60316800000146,
+            "maxMs": 139.60316800000146,
+            "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+            "timeouts": []
+          },
+          "distributions": {
+            "action": {
+              "count": 16,
+              "p50Ms": 19.602562999993097,
+              "p95Ms": 67.83482700001332,
+              "p99Ms": 67.83482700001332,
+              "maxMs": 67.83482700001332
+            },
+            "verify": {
+              "count": 16,
+              "p50Ms": 4.559317000006558,
+              "p95Ms": 48.03659599999082,
+              "p99Ms": 48.03659599999082,
+              "maxMs": 48.03659599999082
+            },
+            "framesRPC": {
+              "count": 16,
+              "p50Ms": 29.07302300000447,
+              "p95Ms": 34.302389999997104,
+              "p99Ms": 34.302389999997104,
+              "maxMs": 34.302389999997104
+            },
+            "browserFinalFrames": {
+              "count": 16,
+              "p50Ms": 25.400000005960464,
+              "p95Ms": 31.5,
+              "p99Ms": 31.5,
+              "maxMs": 31.5
+            },
+            "browserLatestDispatchToExpectedDOM": {
+              "count": 16,
+              "p50Ms": 14.0,
+              "p95Ms": 46.599999994039536,
+              "p99Ms": 46.599999994039536,
+              "maxMs": 46.599999994039536
+            }
+          },
+          "fiveLargest": [
+            {
+              "index": 1,
+              "at": "2026-10-08T23:11:19.088Z",
+              "elapsedMs": 139.60316800000146,
+              "nodeSpansMs": {
+                "action": 67.83482700001332,
+                "verify": 48.03659599999082,
+                "framesRPC": 23.6563019999885
+              }
+            },
+            {
+              "index": 0,
+              "at": "2026-10-08T23:11:18.969Z",
+              "elapsedMs": 118.53479000000516,
+              "nodeSpansMs": {
+                "action": 61.48295700000017,
+                "verify": 22.818677000002936,
+                "framesRPC": 34.20859799999744
+              }
+            },
+            {
+              "index": 10,
+              "at": "2026-10-08T23:11:22.819Z",
+              "elapsedMs": 76.59432699999888,
+              "nodeSpansMs": {
+                "action": 35.47563000000082,
+                "verify": 7.61034899999504,
+                "framesRPC": 33.485902999993414
+              }
+            },
+            {
+              "index": 2,
+              "at": "2026-10-08T23:11:19.892Z",
+              "elapsedMs": 70.07179099999485,
+              "nodeSpansMs": {
+                "action": 33.72250500001246,
+                "verify": 6.051162000017939,
+                "framesRPC": 30.281669000018155
+              }
+            },
+            {
+              "index": 11,
+              "at": "2026-10-08T23:11:22.895Z",
+              "elapsedMs": 65.6527589999896,
+              "nodeSpansMs": {
+                "action": 26.993049999990035,
+                "verify": 4.341423000005307,
+                "framesRPC": 34.302389999997104
+              }
+            }
+          ]
+        },
+        "idle-actionability-trace-followup:draft-reset": {
+          "originalSummary": {
+            "count": 8,
+            "successful": 8,
+            "failed": 0,
+            "p50Ms": 266.6595110000053,
+            "p95Ms": 398.9874650000129,
+            "p99Ms": 398.9874650000129,
+            "maxMs": 398.9874650000129,
+            "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+            "timeouts": []
+          },
+          "distributions": {
+            "action": {
+              "count": 8,
+              "p50Ms": 215.02630399999907,
+              "p95Ms": 278.2325589999964,
+              "p99Ms": 278.2325589999964,
+              "maxMs": 278.2325589999964
+            },
+            "verify": {
+              "count": 8,
+              "p50Ms": 28.84998599998653,
+              "p95Ms": 109.3650159999961,
+              "p99Ms": 109.3650159999961,
+              "maxMs": 109.3650159999961
+            },
+            "framesRPC": {
+              "count": 8,
+              "p50Ms": 27.382122000009986,
+              "p95Ms": 36.50251799999387,
+              "p99Ms": 36.50251799999387,
+              "maxMs": 36.50251799999387
+            },
+            "browserFinalFrames": {
+              "count": 8,
+              "p50Ms": 22.900000005960464,
+              "p95Ms": 29.69999998807907,
+              "p99Ms": 29.69999998807907,
+              "maxMs": 29.69999998807907
+            }
+          },
+          "fiveLargest": [
+            {
+              "index": 4,
+              "at": "2026-10-08T23:11:22.094Z",
+              "elapsedMs": 398.9874650000129,
+              "nodeSpansMs": {
+                "action": 261.83697900001425,
+                "verify": 109.3650159999961,
+                "framesRPC": 27.77052900000126
+              }
+            },
+            {
+              "index": 0,
+              "at": "2026-10-08T23:11:19.228Z",
+              "elapsedMs": 333.81559600000037,
+              "nodeSpansMs": {
+                "action": 278.2325589999964,
+                "verify": 19.064285000000382,
+                "framesRPC": 36.50251799999387
+              }
+            },
+            {
+              "index": 1,
+              "at": "2026-10-08T23:11:20.012Z",
+              "elapsedMs": 301.56009400001494,
+              "nodeSpansMs": {
+                "action": 241.3544379999803,
+                "verify": 32.81049400000484,
+                "framesRPC": 27.382122000009986
+              }
+            },
+            {
+              "index": 2,
+              "at": "2026-10-08T23:11:20.795Z",
+              "elapsedMs": 282.2210990000167,
+              "nodeSpansMs": {
+                "action": 221.11784900000202,
+                "verify": 28.550594000000274,
+                "framesRPC": 32.53942499999539
+              }
+            },
+            {
+              "index": 5,
+              "at": "2026-10-08T23:11:22.961Z",
+              "elapsedMs": 266.6595110000053,
+              "nodeSpansMs": {
+                "action": 215.02630399999907,
+                "verify": 28.84998599998653,
+                "framesRPC": 22.766956000006758
+              }
+            }
+          ]
+        }
+      },
+      "trace": {
+        "privateRaw": true,
+        "rawSHA256": "dd8bfeafa4c3ba43762c3aaa7cd3c6c297aeff5da838093cc83f3d6b5d3d10ed",
+        "archiveMemberBytes": {
+          "trace.trace": 636351,
+          "trace.network": 0,
+          "trace.stacks": 31965
+        },
+        "credentialIndicatorScan": {
+          "authorization-field": 0,
+          "bearer-scheme": 0,
+          "password-field": 0,
+          "bootstrap-token-field": 0,
+          "api-key-field": 0,
+          "access-refresh-token-field": 0
+        },
+        "scanLimitation": "Indicator scan only; absence does not establish absence of credentials. Actual raw archive is private. Output contains only categorical operation names, numeric durations/boxes and counts.",
+        "eventTypes": {
+          "context-options": 1,
+          "event": 1,
+          "before": 284,
+          "log": 608,
+          "input": 64,
+          "after": 284
+        },
+        "clickKinds": {
+          "all-projects": {
+            "clicks": 8,
+            "attempts": 8,
+            "retryCounts": {},
+            "total": {
+              "count": 8,
+              "p50Ms": 85.75199999997858,
+              "p95Ms": 116.1469999999972,
+              "p99Ms": 116.1469999999972,
+              "maxMs": 116.1469999999972
+            },
+            "segmentDistributions": {
+              "locatorResolution": {
+                "count": 8,
+                "p50Ms": 11.438000000023749,
+                "p95Ms": 38.24399999997695,
+                "p99Ms": 38.24399999997695,
+                "maxMs": 38.24399999997695
+              },
+              "stableWait": {
+                "count": 8,
+                "p50Ms": 25.630000000004657,
+                "p95Ms": 36.20000000001164,
+                "p99Ms": 36.20000000001164,
+                "maxMs": 36.20000000001164
+              },
+              "scroll": {
+                "count": 8,
+                "p50Ms": 0.7840000000142027,
+                "p95Ms": 1.3770000000076834,
+                "p99Ms": 1.3770000000076834,
+                "maxMs": 1.3770000000076834
+              },
+              "performClick": {
+                "count": 8,
+                "p50Ms": 28.168999999994412,
+                "p95Ms": 34.38200000001234,
+                "p99Ms": 34.38200000001234,
+                "maxMs": 34.38200000001234
+              },
+              "navigationWait": {
+                "count": 8,
+                "p50Ms": 4.244999999995343,
+                "p95Ms": 6.230999999999767,
+                "p99Ms": 6.230999999999767,
+                "maxMs": 6.230999999999767
+              },
+              "beforeStableWait": {
+                "count": 8,
+                "p50Ms": 13.309000000008382,
+                "p95Ms": 57.487999999983,
+                "p99Ms": 57.487999999983,
+                "maxMs": 57.487999999983
+              },
+              "afterNavigationWait": {
+                "count": 8,
+                "p50Ms": 0.08699999999953434,
+                "p95Ms": 0.19800000000395812,
+                "p99Ms": 0.19800000000395812,
+                "maxMs": 0.19800000000395812
+              }
+            },
+            "observations": [
+              {
+                "totalMs": 85.75199999997858,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 11.24199999999837,
+                  "stableWait": 30.68499999999767,
+                  "scroll": 1.3770000000076834,
+                  "performClick": 30.565999999991618,
+                  "navigationWait": 5.355000000010477,
+                  "beforeStableWait": 13.486999999993714,
+                  "afterNavigationWait": 0.1489999999757856
+                },
+                "box": {
+                  "x": 16,
+                  "y": 16,
+                  "width": 47.796875,
+                  "height": 36
+                }
+              },
+              {
+                "totalMs": 89.55299999998533,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 13.978000000002794,
+                  "stableWait": 36.20000000001164,
+                  "scroll": 0.7840000000142027,
+                  "performClick": 26.801000000006752,
+                  "navigationWait": 4.244999999995343,
+                  "beforeStableWait": 16.144999999989523,
+                  "afterNavigationWait": 0.18899999998393469
+                },
+                "box": {
+                  "x": 16,
+                  "y": 16,
+                  "width": 47.796875,
+                  "height": 36
+                }
+              },
+              {
+                "totalMs": 96.08500000002095,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 12.120999999984633,
+                  "stableWait": 34.0679999999993,
+                  "scroll": 0.8310000000055879,
+                  "performClick": 34.38200000001234,
+                  "navigationWait": 6.230999999999767,
+                  "beforeStableWait": 13.309000000008382,
+                  "afterNavigationWait": 0.1190000000060536
+                },
+                "box": {
+                  "x": 16,
+                  "y": 16,
+                  "width": 47.796875,
+                  "height": 36
+                }
+              },
+              {
+                "totalMs": 92.27700000000186,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 16.872000000003027,
+                  "stableWait": 34.50200000000768,
+                  "scroll": 1.294000000023516,
+                  "performClick": 23.35899999999674,
+                  "navigationWait": 4.425999999977648,
+                  "beforeStableWait": 25.162000000011176,
+                  "afterNavigationWait": 0.19800000000395812
+                },
+                "box": {
+                  "x": 16,
+                  "y": 16,
+                  "width": 47.796875,
+                  "height": 36
+                }
+              },
+              {
+                "totalMs": 61.53500000000349,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 7.396000000007916,
+                  "stableWait": 19.738000000012107,
+                  "scroll": 0.4539999999979045,
+                  "performClick": 28.54199999998673,
+                  "navigationWait": 2.157999999995809,
+                  "beforeStableWait": 8.37599999998929,
+                  "afterNavigationWait": 0.07700000001932494
+                },
+                "box": {
+                  "x": 16,
+                  "y": 16,
+                  "width": 47.796875,
+                  "height": 36
+                }
+              },
+              {
+                "totalMs": 75.50599999999395,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 10.290000000008149,
+                  "stableWait": 25.630000000004657,
+                  "scroll": 0.8850000000093132,
+                  "performClick": 29.598999999987427,
+                  "navigationWait": 3.0610000000160653,
+                  "beforeStableWait": 11.604999999981374,
+                  "afterNavigationWait": 0.07399999999324791
+                },
+                "box": {
+                  "x": 16,
+                  "y": 16,
+                  "width": 47.796875,
+                  "height": 36
+                }
+              },
+              {
+                "totalMs": 58.771000000007916,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 11.438000000023749,
+                  "stableWait": 20.08400000000256,
+                  "scroll": 0.3690000000060536,
+                  "performClick": 22.1820000000007,
+                  "navigationWait": 0.5080000000016298,
+                  "beforeStableWait": 13.013000000006286,
+                  "afterNavigationWait": 0.07899999999790452
+                },
+                "box": {
+                  "x": 16,
+                  "y": 16,
+                  "width": 47.796875,
+                  "height": 36
+                }
+              },
+              {
+                "totalMs": 116.1469999999972,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 38.24399999997695,
+                  "stableWait": 22.19900000002235,
+                  "scroll": 0.46899999998277053,
+                  "performClick": 28.168999999994412,
+                  "navigationWait": 4.887000000016997,
+                  "beforeStableWait": 57.487999999983,
+                  "afterNavigationWait": 0.08699999999953434
+                },
+                "box": {
+                  "x": 16,
+                  "y": 16,
+                  "width": 47.796875,
+                  "height": 36
+                }
+              }
+            ]
+          },
+          "open-project": {
+            "clicks": 8,
+            "attempts": 8,
+            "retryCounts": {},
+            "total": {
+              "count": 8,
+              "p50Ms": 64.17499999998836,
+              "p95Ms": 85.14100000000326,
+              "p99Ms": 85.14100000000326,
+              "maxMs": 85.14100000000326
+            },
+            "segmentDistributions": {
+              "locatorResolution": {
+                "count": 8,
+                "p50Ms": 14.74100000000908,
+                "p95Ms": 16.161999999982072,
+                "p99Ms": 16.161999999982072,
+                "maxMs": 16.161999999982072
+              },
+              "stableWait": {
+                "count": 8,
+                "p50Ms": 19.65700000000652,
+                "p95Ms": 28.051000000006752,
+                "p99Ms": 28.051000000006752,
+                "maxMs": 28.051000000006752
+              },
+              "scroll": {
+                "count": 8,
+                "p50Ms": 0.8030000000144355,
+                "p95Ms": 2.12400000001071,
+                "p99Ms": 2.12400000001071,
+                "maxMs": 2.12400000001071
+              },
+              "performClick": {
+                "count": 8,
+                "p50Ms": 20.597000000008848,
+                "p95Ms": 32.75700000001234,
+                "p99Ms": 32.75700000001234,
+                "maxMs": 32.75700000001234
+              },
+              "navigationWait": {
+                "count": 8,
+                "p50Ms": 1.5289999999804422,
+                "p95Ms": 9.922999999980675,
+                "p99Ms": 9.922999999980675,
+                "maxMs": 9.922999999980675
+              },
+              "beforeStableWait": {
+                "count": 8,
+                "p50Ms": 15.99800000002142,
+                "p95Ms": 18.894999999989523,
+                "p99Ms": 18.894999999989523,
+                "maxMs": 18.894999999989523
+              },
+              "afterNavigationWait": {
+                "count": 8,
+                "p50Ms": 0.09699999997974373,
+                "p95Ms": 0.41200000001117587,
+                "p99Ms": 0.41200000001117587,
+                "maxMs": 0.41200000001117587
+              }
+            },
+            "observations": [
+              {
+                "totalMs": 78.26000000000931,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 16.161999999982072,
+                  "stableWait": 19.63100000002305,
+                  "scroll": 2.12400000001071,
+                  "performClick": 32.75700000001234,
+                  "navigationWait": 1.1240000000107102,
+                  "beforeStableWait": 18.894999999989523,
+                  "afterNavigationWait": 0.1279999999969732
+                },
+                "box": {
+                  "x": 310,
+                  "y": 573.390625,
+                  "width": 173.6875,
+                  "height": 27
+                }
+              },
+              {
+                "totalMs": 80.32499999998254,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 15.562000000005355,
+                  "stableWait": 24.720000000001164,
+                  "scroll": 0.7449999999953434,
+                  "performClick": 31.855999999999767,
+                  "navigationWait": 2.404999999998836,
+                  "beforeStableWait": 17.345999999990454,
+                  "afterNavigationWait": 0.09699999997974373
+                },
+                "box": {
+                  "x": 867,
+                  "y": 573.390625,
+                  "width": 174.578125,
+                  "height": 27
+                }
+              },
+              {
+                "totalMs": 85.14100000000326,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 14.74100000000908,
+                  "stableWait": 28.051000000006752,
+                  "scroll": 1.1490000000048894,
+                  "performClick": 24.03200000000652,
+                  "navigationWait": 9.922999999980675,
+                  "beforeStableWait": 17.60099999999511,
+                  "afterNavigationWait": 0.41200000001117587
+                },
+                "box": {
+                  "x": 310,
+                  "y": 937.453125,
+                  "width": 173.828125,
+                  "height": 27
+                }
+              },
+              {
+                "totalMs": 64.72399999998743,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 11.080000000016298,
+                  "stableWait": 25.5679999999993,
+                  "scroll": 0.5139999999955762,
+                  "performClick": 18.378999999986263,
+                  "navigationWait": 2.9879999999830034,
+                  "beforeStableWait": 14.482999999978347,
+                  "afterNavigationWait": 0.08100000000558794
+                },
+                "box": {
+                  "x": 867,
+                  "y": 937.453125,
+                  "width": 174.578125,
+                  "height": 27
+                }
+              },
+              {
+                "totalMs": 64.17499999998836,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 15.193999999988591,
+                  "stableWait": 19.65700000000652,
+                  "scroll": 1.6169999999983702,
+                  "performClick": 20.597000000008848,
+                  "navigationWait": 1.5289999999804422,
+                  "beforeStableWait": 17.815999999991618,
+                  "afterNavigationWait": 0.06799999999930151
+                },
+                "box": {
+                  "x": 310,
+                  "y": 573.390625,
+                  "width": 173.6875,
+                  "height": 27
+                }
+              },
+              {
+                "totalMs": 63.43100000001141,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 15.153000000020256,
+                  "stableWait": 19.187999999994645,
+                  "scroll": 0.8030000000144355,
+                  "performClick": 23.976000000024214,
+                  "navigationWait": 1.5480000000097789,
+                  "beforeStableWait": 15.99800000002142,
+                  "afterNavigationWait": 0.09200000000419095
+                },
+                "box": {
+                  "x": 867,
+                  "y": 573.390625,
+                  "width": 174.578125,
+                  "height": 27
+                }
+              },
+              {
+                "totalMs": 49.85700000001816,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 6.896000000007916,
+                  "stableWait": 18.69000000000233,
+                  "scroll": 1.4579999999841675,
+                  "performClick": 17.961999999999534,
+                  "navigationWait": 0.978000000002794,
+                  "beforeStableWait": 8.00700000001234,
+                  "afterNavigationWait": 0.10899999999674037
+                },
+                "box": {
+                  "x": 310,
+                  "y": 937.453125,
+                  "width": 173.828125,
+                  "height": 27
+                }
+              },
+              {
+                "totalMs": 51.17600000000675,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 6.394999999989523,
+                  "stableWait": 20.58499999999185,
+                  "scroll": 0.5380000000004657,
+                  "performClick": 18.043999999994412,
+                  "navigationWait": 1.5270000000018626,
+                  "beforeStableWait": 8.322000000014668,
+                  "afterNavigationWait": 0.11999999999534339
+                },
+                "box": {
+                  "x": 867,
+                  "y": 937.453125,
+                  "width": 174.578125,
+                  "height": 27
+                }
+              }
+            ]
+          },
+          "design": {
+            "clicks": 8,
+            "attempts": 8,
+            "retryCounts": {},
+            "total": {
+              "count": 8,
+              "p50Ms": 59.4320000000007,
+              "p95Ms": 97.50599999999395,
+              "p99Ms": 97.50599999999395,
+              "maxMs": 97.50599999999395
+            },
+            "segmentDistributions": {
+              "locatorResolution": {
+                "count": 8,
+                "p50Ms": 9.532999999995809,
+                "p95Ms": 21.95100000000093,
+                "p99Ms": 21.95100000000093,
+                "maxMs": 21.95100000000093
+              },
+              "stableWait": {
+                "count": 8,
+                "p50Ms": 22.804999999993015,
+                "p95Ms": 39.9769999999844,
+                "p99Ms": 39.9769999999844,
+                "maxMs": 39.9769999999844
+              },
+              "scroll": {
+                "count": 8,
+                "p50Ms": 0.5370000000111759,
+                "p95Ms": 1.0359999999927823,
+                "p99Ms": 1.0359999999927823,
+                "maxMs": 1.0359999999927823
+              },
+              "performClick": {
+                "count": 8,
+                "p50Ms": 23.070000000006985,
+                "p95Ms": 39.37599999998929,
+                "p99Ms": 39.37599999998929,
+                "maxMs": 39.37599999998929
+              },
+              "navigationWait": {
+                "count": 8,
+                "p50Ms": 0.8619999999937136,
+                "p95Ms": 3.456000000005588,
+                "p99Ms": 3.456000000005588,
+                "maxMs": 3.456000000005588
+              },
+              "beforeStableWait": {
+                "count": 8,
+                "p50Ms": 10.46899999998277,
+                "p95Ms": 24.3179999999993,
+                "p99Ms": 24.3179999999993,
+                "maxMs": 24.3179999999993
+              },
+              "afterNavigationWait": {
+                "count": 8,
+                "p50Ms": 0.1300000000046566,
+                "p95Ms": 0.5299999999988358,
+                "p99Ms": 0.5299999999988358,
+                "maxMs": 0.5299999999988358
+              }
+            },
+            "observations": [
+              {
+                "totalMs": 95.18799999999464,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 16.0,
+                  "stableWait": 32.044000000023516,
+                  "scroll": 1.0359999999927823,
+                  "performClick": 39.37599999998929,
+                  "navigationWait": 0.8619999999937136,
+                  "beforeStableWait": 17.880999999993946,
+                  "afterNavigationWait": 0.1849999999976717
+                },
+                "box": {
+                  "x": 240,
+                  "y": 131,
+                  "width": 152,
+                  "height": 42
+                }
+              },
+              {
+                "totalMs": 97.50599999999395,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 21.95100000000093,
+                  "stableWait": 39.9769999999844,
+                  "scroll": 0.7029999999795109,
+                  "performClick": 27.448000000003958,
+                  "navigationWait": 1.5729999999748543,
+                  "beforeStableWait": 24.3179999999993,
+                  "afterNavigationWait": 0.12300000002142042
+                },
+                "box": {
+                  "x": 240,
+                  "y": 131,
+                  "width": 152,
+                  "height": 42
+                }
+              },
+              {
+                "totalMs": 59.4320000000007,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 9.532999999995809,
+                  "stableWait": 20.561000000016065,
+                  "scroll": 0.4970000000030268,
+                  "performClick": 23.070000000006985,
+                  "navigationWait": 1.051000000006752,
+                  "beforeStableWait": 10.46899999998277,
+                  "afterNavigationWait": 0.10500000001047738
+                },
+                "box": {
+                  "x": 240,
+                  "y": 131,
+                  "width": 152,
+                  "height": 42
+                }
+              },
+              {
+                "totalMs": 57.005999999993946,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 11.808000000019092,
+                  "stableWait": 19.93499999999767,
+                  "scroll": 0.5370000000111759,
+                  "performClick": 20.79700000002049,
+                  "navigationWait": 0.5580000000190921,
+                  "beforeStableWait": 12.730000000010477,
+                  "afterNavigationWait": 0.10399999999208376
+                },
+                "box": {
+                  "x": 240,
+                  "y": 131,
+                  "width": 152,
+                  "height": 42
+                }
+              },
+              {
+                "totalMs": 62.15700000000652,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 8.012999999977183,
+                  "stableWait": 22.804999999993015,
+                  "scroll": 0.7289999999920838,
+                  "performClick": 24.78200000000652,
+                  "navigationWait": 0.4239999999990687,
+                  "beforeStableWait": 9.053000000014435,
+                  "afterNavigationWait": 0.23699999999371357
+                },
+                "box": {
+                  "x": 240,
+                  "y": 131,
+                  "width": 152,
+                  "height": 42
+                }
+              },
+              {
+                "totalMs": 77.33999999999651,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 19.812999999994645,
+                  "stableWait": 25.30999999999767,
+                  "scroll": 0.7309999999997672,
+                  "performClick": 23.686000000016065,
+                  "navigationWait": 1.6980000000039581,
+                  "beforeStableWait": 23.137999999977183,
+                  "afterNavigationWait": 0.1300000000046566
+                },
+                "box": {
+                  "x": 240,
+                  "y": 131,
+                  "width": 152,
+                  "height": 42
+                }
+              },
+              {
+                "totalMs": 51.27599999998347,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 7.974000000016531,
+                  "stableWait": 23.06500000000233,
+                  "scroll": 0.46400000000721775,
+                  "performClick": 12.989000000001397,
+                  "navigationWait": 3.456000000005588,
+                  "beforeStableWait": 9.081999999994878,
+                  "afterNavigationWait": 0.1979999999748543
+                },
+                "box": {
+                  "x": 240,
+                  "y": 131,
+                  "width": 152,
+                  "height": 42
+                }
+              },
+              {
+                "totalMs": 53.49599999998463,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 7.99199999999837,
+                  "stableWait": 21.75800000000163,
+                  "scroll": 0.5270000000018626,
+                  "performClick": 19.545000000012806,
+                  "navigationWait": 0.17199999999138527,
+                  "beforeStableWait": 9.019000000000233,
+                  "afterNavigationWait": 0.5299999999988358
+                },
+                "box": {
+                  "x": 240,
+                  "y": 131,
+                  "width": 152,
+                  "height": 42
+                }
+              }
+            ]
+          },
+          "discard": {
+            "clicks": 8,
+            "attempts": 8,
+            "retryCounts": {},
+            "total": {
+              "count": 8,
+              "p50Ms": 74.83999999999651,
+              "p95Ms": 101.06500000000233,
+              "p99Ms": 101.06500000000233,
+              "maxMs": 101.06500000000233
+            },
+            "segmentDistributions": {
+              "locatorResolution": {
+                "count": 8,
+                "p50Ms": 4.896999999997206,
+                "p95Ms": 7.028000000020256,
+                "p99Ms": 7.028000000020256,
+                "maxMs": 7.028000000020256
+              },
+              "stableWait": {
+                "count": 8,
+                "p50Ms": 32.52700000000186,
+                "p95Ms": 37.24499999999534,
+                "p99Ms": 37.24499999999534,
+                "maxMs": 37.24499999999534
+              },
+              "scroll": {
+                "count": 8,
+                "p50Ms": 0.6180000000167638,
+                "p95Ms": 1.2950000000128057,
+                "p99Ms": 1.2950000000128057,
+                "maxMs": 1.2950000000128057
+              },
+              "performClick": {
+                "count": 8,
+                "p50Ms": 30.727000000013504,
+                "p95Ms": 45.50400000001537,
+                "p99Ms": 45.50400000001537,
+                "maxMs": 45.50400000001537
+              },
+              "navigationWait": {
+                "count": 8,
+                "p50Ms": 2.25800000000163,
+                "p95Ms": 7.146000000007916,
+                "p99Ms": 7.146000000007916,
+                "maxMs": 7.146000000007916
+              },
+              "beforeStableWait": {
+                "count": 8,
+                "p50Ms": 5.8140000000130385,
+                "p95Ms": 8.86500000001979,
+                "p99Ms": 8.86500000001979,
+                "maxMs": 8.86500000001979
+              },
+              "afterNavigationWait": {
+                "count": 8,
+                "p50Ms": 0.14499999998952262,
+                "p95Ms": 0.21599999998579733,
+                "p99Ms": 0.21599999998579733,
+                "maxMs": 0.21599999998579733
+              }
+            },
+            "observations": [
+              {
+                "totalMs": 101.06500000000233,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 6.619000000006054,
+                  "stableWait": 37.24499999999534,
+                  "scroll": 1.2950000000128057,
+                  "performClick": 45.50400000001537,
+                  "navigationWait": 3.7010000000009313,
+                  "beforeStableWait": 8.86500000001979,
+                  "afterNavigationWait": 0.21599999998579733
+                },
+                "box": {
+                  "x": 565.359375,
+                  "y": 572.203125,
+                  "width": 200.78125,
+                  "height": 36
+                }
+              },
+              {
+                "totalMs": 74.45100000000093,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 3.864000000001397,
+                  "stableWait": 28.755000000004657,
+                  "scroll": 0.8479999999981374,
+                  "performClick": 30.727000000013504,
+                  "navigationWait": 2.3839999999909196,
+                  "beforeStableWait": 5.6859999999869615,
+                  "afterNavigationWait": 0.10599999999976717
+                },
+                "box": {
+                  "x": 565.359375,
+                  "y": 572.203125,
+                  "width": 200.78125,
+                  "height": 36
+                }
+              },
+              {
+                "totalMs": 81.36100000000442,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 5.691999999980908,
+                  "stableWait": 33.28500000000349,
+                  "scroll": 0.5619999999762513,
+                  "performClick": 35.639999999984866,
+                  "navigationWait": 1.246000000013737,
+                  "beforeStableWait": 7.092999999993481,
+                  "afterNavigationWait": 0.15700000000651926
+                },
+                "box": {
+                  "x": 565.359375,
+                  "y": 572.203125,
+                  "width": 200.78125,
+                  "height": 36
+                }
+              },
+              {
+                "totalMs": 82.01500000001397,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 4.913000000000466,
+                  "stableWait": 35.44200000001001,
+                  "scroll": 1.2729999999864958,
+                  "performClick": 35.994000000006054,
+                  "navigationWait": 0.5160000000032596,
+                  "beforeStableWait": 6.179000000003725,
+                  "afterNavigationWait": 0.08100000000558794
+                },
+                "box": {
+                  "x": 565.359375,
+                  "y": 572.203125,
+                  "width": 200.78125,
+                  "height": 36
+                }
+              },
+              {
+                "totalMs": 74.83999999999651,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 4.896999999997206,
+                  "stableWait": 32.612999999983,
+                  "scroll": 0.7930000000051223,
+                  "performClick": 31.069000000017695,
+                  "navigationWait": 2.25800000000163,
+                  "beforeStableWait": 5.8140000000130385,
+                  "afterNavigationWait": 0.16999999998370185
+                },
+                "box": {
+                  "x": 565.359375,
+                  "y": 572.203125,
+                  "width": 200.78125,
+                  "height": 36
+                }
+              },
+              {
+                "totalMs": 75.67800000001444,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 7.028000000020256,
+                  "stableWait": 32.52700000000186,
+                  "scroll": 0.6180000000167638,
+                  "performClick": 24.636999999987893,
+                  "navigationWait": 7.146000000007916,
+                  "beforeStableWait": 8.322000000014668,
+                  "afterNavigationWait": 0.16800000000512227
+                },
+                "box": {
+                  "x": 565.359375,
+                  "y": 572.203125,
+                  "width": 200.78125,
+                  "height": 36
+                }
+              },
+              {
+                "totalMs": 60.445999999996275,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 4.50099999998929,
+                  "stableWait": 24.436000000016065,
+                  "scroll": 0.4820000000181608,
+                  "performClick": 26.070999999996275,
+                  "navigationWait": 1.5170000000216532,
+                  "beforeStableWait": 5.451999999990221,
+                  "afterNavigationWait": 0.14499999998952262
+                },
+                "box": {
+                  "x": 565.359375,
+                  "y": 572.203125,
+                  "width": 200.78125,
+                  "height": 36
+                }
+              },
+              {
+                "totalMs": 63.46700000000419,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 3.466000000014901,
+                  "stableWait": 22.070999999996275,
+                  "scroll": 0.35099999999511056,
+                  "performClick": 27.336000000010245,
+                  "navigationWait": 6.309999999997672,
+                  "beforeStableWait": 4.735000000015134,
+                  "afterNavigationWait": 0.13200000001234002
+                },
+                "box": {
+                  "x": 565.359375,
+                  "y": 572.203125,
+                  "width": 200.78125,
+                  "height": 36
+                }
+              }
+            ]
+          },
+          "define": {
+            "clicks": 8,
+            "attempts": 8,
+            "retryCounts": {},
+            "total": {
+              "count": 8,
+              "p50Ms": 65.51000000000931,
+              "p95Ms": 120.5679999999993,
+              "p99Ms": 120.5679999999993,
+              "maxMs": 120.5679999999993
+            },
+            "segmentDistributions": {
+              "locatorResolution": {
+                "count": 8,
+                "p50Ms": 11.823000000003958,
+                "p95Ms": 19.410999999992782,
+                "p99Ms": 19.410999999992782,
+                "maxMs": 19.410999999992782
+              },
+              "stableWait": {
+                "count": 8,
+                "p50Ms": 23.259000000020023,
+                "p95Ms": 37.16899999999441,
+                "p99Ms": 37.16899999999441,
+                "maxMs": 37.16899999999441
+              },
+              "scroll": {
+                "count": 8,
+                "p50Ms": 1.3509999999951106,
+                "p95Ms": 4.538000000000466,
+                "p99Ms": 4.538000000000466,
+                "maxMs": 4.538000000000466
+              },
+              "performClick": {
+                "count": 8,
+                "p50Ms": 17.722000000008848,
+                "p95Ms": 45.94899999999325,
+                "p99Ms": 45.94899999999325,
+                "maxMs": 45.94899999999325
+              },
+              "navigationWait": {
+                "count": 8,
+                "p50Ms": 1.9540000000270084,
+                "p95Ms": 3.231999999989057,
+                "p99Ms": 3.231999999989057,
+                "maxMs": 3.231999999989057
+              },
+              "beforeStableWait": {
+                "count": 8,
+                "p50Ms": 16.00800000000163,
+                "p95Ms": 30.42899999997462,
+                "p99Ms": 30.42899999997462,
+                "maxMs": 30.42899999997462
+              },
+              "afterNavigationWait": {
+                "count": 8,
+                "p50Ms": 0.09599999999045394,
+                "p95Ms": 0.4820000000181608,
+                "p99Ms": 0.4820000000181608,
+                "maxMs": 0.4820000000181608
+              }
+            },
+            "observations": [
+              {
+                "totalMs": 77.80400000000373,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 19.410999999992782,
+                  "stableWait": 21.14100000000326,
+                  "scroll": 0.9130000000004657,
+                  "performClick": 20.864999999990687,
+                  "navigationWait": 3.231999999989057,
+                  "beforeStableWait": 28.29199999998673,
+                  "afterNavigationWait": 0.4820000000181608
+                },
+                "box": {
+                  "x": 240,
+                  "y": 85,
+                  "width": 152,
+                  "height": 42
+                }
+              },
+              {
+                "totalMs": 65.51000000000931,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 14.410999999992782,
+                  "stableWait": 22.852000000013504,
+                  "scroll": 1.3509999999951106,
+                  "performClick": 18.37300000002142,
+                  "navigationWait": 1.0760000000009313,
+                  "beforeStableWait": 17.739000000001397,
+                  "afterNavigationWait": 0.11299999998300336
+                },
+                "box": {
+                  "x": 240,
+                  "y": 85,
+                  "width": 152,
+                  "height": 42
+                }
+              },
+              {
+                "totalMs": 77.66799999997602,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 18.404999999998836,
+                  "stableWait": 25.168000000005122,
+                  "scroll": 0.4970000000030268,
+                  "performClick": 17.722000000008848,
+                  "navigationWait": 1.1600000000034925,
+                  "beforeStableWait": 30.42899999997462,
+                  "afterNavigationWait": 0.0779999999795109
+                },
+                "box": {
+                  "x": 240,
+                  "y": 85,
+                  "width": 152,
+                  "height": 42
+                }
+              },
+              {
+                "totalMs": 69.55299999998533,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 11.255999999993946,
+                  "stableWait": 27.704999999987194,
+                  "scroll": 2.5499999999883585,
+                  "performClick": 17.85899999999674,
+                  "navigationWait": 2.070000000006985,
+                  "beforeStableWait": 16.00800000000163,
+                  "afterNavigationWait": 0.09599999999045394
+                },
+                "box": {
+                  "x": 240,
+                  "y": 85,
+                  "width": 152,
+                  "height": 42
+                }
+              },
+              {
+                "totalMs": 120.5679999999993,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 11.823000000003958,
+                  "stableWait": 37.16899999999441,
+                  "scroll": 4.538000000000466,
+                  "performClick": 45.94899999999325,
+                  "navigationWait": 2.5430000000051223,
+                  "beforeStableWait": 14.135000000009313,
+                  "afterNavigationWait": 0.22099999999045394
+                },
+                "box": {
+                  "x": 240,
+                  "y": 85,
+                  "width": 152,
+                  "height": 42
+                }
+              },
+              {
+                "totalMs": 59.39199999999255,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 18.187000000005355,
+                  "stableWait": 23.259000000020023,
+                  "scroll": 0.7049999999871943,
+                  "performClick": 11.536000000021886,
+                  "navigationWait": 1.554999999993015,
+                  "beforeStableWait": 19.470999999990454,
+                  "afterNavigationWait": 0.05599999998230487
+                },
+                "box": {
+                  "x": 240,
+                  "y": 85,
+                  "width": 152,
+                  "height": 42
+                }
+              },
+              {
+                "totalMs": 62.046000000002095,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 11.35700000001816,
+                  "stableWait": 25.316999999980908,
+                  "scroll": 1.3779999999969732,
+                  "performClick": 17.406999999977415,
+                  "navigationWait": 1.9540000000270084,
+                  "beforeStableWait": 13.910000000003492,
+                  "afterNavigationWait": 0.059999999997671694
+                },
+                "box": {
+                  "x": 240,
+                  "y": 85,
+                  "width": 152,
+                  "height": 42
+                }
+              },
+              {
+                "totalMs": 53.28100000001723,
+                "attempts": 1,
+                "retries": {},
+                "segmentsMs": {
+                  "locatorResolution": 5.972999999998137,
+                  "stableWait": 19.980999999999767,
+                  "scroll": 2.558999999979278,
+                  "performClick": 15.375,
+                  "navigationWait": 3.11799999998766,
+                  "beforeStableWait": 10.176999999996042,
+                  "afterNavigationWait": 0.10200000001350418
+                },
+                "box": {
+                  "x": 240,
+                  "y": 85,
+                  "width": 152,
+                  "height": 42
+                }
+              }
+            ]
+          }
+        },
+        "protocolMethodDistributions": {
+          "Frame.click": {
+            "count": 40,
+            "p50Ms": 74.45100000000093,
+            "p95Ms": 101.06500000000233,
+            "p99Ms": 120.5679999999993,
+            "maxMs": 120.5679999999993
+          },
+          "Route.continue": {
+            "count": 115,
+            "p50Ms": 2.0310000000172295,
+            "p95Ms": 6.335000000020955,
+            "p99Ms": 8.433000000019092,
+            "maxMs": 9.464999999996508
+          },
+          "Frame.waitForSelector": {
+            "count": 24,
+            "p50Ms": 16.514999999984866,
+            "p95Ms": 35.8640000000014,
+            "p99Ms": 36.77400000000489,
+            "maxMs": 36.77400000000489
+          },
+          "Frame.inputValue": {
+            "count": 16,
+            "p50Ms": 6.027000000001863,
+            "p95Ms": 105.40599999998813,
+            "p99Ms": 105.40599999998813,
+            "maxMs": 105.40599999998813
+          },
+          "Frame.evaluateExpression": {
+            "count": 41,
+            "p50Ms": 25.793999999994412,
+            "p95Ms": 32.578999999997905,
+            "p99Ms": 34.57200000001467,
+            "maxMs": 34.57200000001467
+          },
+          "Frame.focus": {
+            "count": 8,
+            "p50Ms": 9.701999999990221,
+            "p95Ms": 14.059000000008382,
+            "p99Ms": 14.059000000008382,
+            "maxMs": 14.059000000008382
+          },
+          "Frame.press": {
+            "count": 24,
+            "p50Ms": 18.121000000013737,
+            "p95Ms": 59.461000000010245,
+            "p99Ms": 62.228000000002794,
+            "maxMs": 62.228000000002794
+          },
+          "Frame.waitForFunction": {
+            "count": 16,
+            "p50Ms": 3.687000000005355,
+            "p95Ms": 45.04300000000512,
+            "p99Ms": 45.04300000000512,
+            "maxMs": 45.04300000000512
+          }
+        }
+      },
+      "resourceClassDurations": {
+        "swarm-scheduler": {
+          "count": 128,
+          "p50Ms": 19.099999994039536,
+          "p95Ms": 39.5,
+          "p99Ms": 87.2000000178814,
+          "maxMs": 107.40000000596046
+        },
+        "project-overview": {
+          "count": 512,
+          "p50Ms": 23.599999994039536,
+          "p95Ms": 46.099999994039536,
+          "p99Ms": 97.2000000178814,
+          "maxMs": 111
+        },
+        "project-specification": {
+          "count": 361,
+          "p50Ms": 17.299999982118607,
+          "p95Ms": 35.69999998807907,
+          "p99Ms": 55.80000001192093,
+          "maxMs": 72.09999999403954
+        },
+        "project-orchestrator": {
+          "count": 366,
+          "p50Ms": 33,
+          "p95Ms": 59.70000001788139,
+          "p99Ms": 90.59999999403954,
+          "maxMs": 104.30000001192093
+        },
+        "project-runs": {
+          "count": 19,
+          "p50Ms": 19.400000005960464,
+          "p95Ms": 76.40000000596046,
+          "p99Ms": 76.40000000596046,
+          "maxMs": 76.40000000596046
+        },
+        "project-swarm-queue": {
+          "count": 18,
+          "p50Ms": 11.300000011920929,
+          "p95Ms": 111,
+          "p99Ms": 111,
+          "maxMs": 111
+        }
+      },
+      "largestPrimaryNetworkWindows": {
+        "scope": "Known completed resources starting between the two latest pointer events and expected DOM, same browser clock only. Sequence follows unchanged two-click action, without explicit causal IDs or aborted/inflight coverage.",
+        "windows": [
+          {
+            "index": 95,
+            "elapsedMs": 607.2558600000048,
+            "browserAllPointerToOpenPointerMs": 233.7999999821186,
+            "browserOpenPointerToExpectedDOMMs": 98.80000001192093,
+            "resources": [
+              {
+                "routeClass": "swarm-scheduler",
+                "durationMs": 87.2000000178814,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -182.5
+              },
+              {
+                "routeClass": "project-overview",
+                "durationMs": 88.80000001192093,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -177.40000000596046
+              },
+              {
+                "routeClass": "project-overview",
+                "durationMs": 107.19999998807907,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -160.80000001192093
+              },
+              {
+                "routeClass": "project-overview",
+                "durationMs": 97.2000000178814,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -170.09999999403954
+              },
+              {
+                "routeClass": "project-overview",
+                "durationMs": 111,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -157.7000000178814
+              },
+              {
+                "routeClass": "project-specification",
+                "durationMs": 25.5,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -61.30000001192093
+              },
+              {
+                "routeClass": "project-orchestrator",
+                "durationMs": 46,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -39.30000001192093
+              }
+            ]
+          },
+          {
+            "index": 61,
+            "elapsedMs": 547.5955450000038,
+            "browserAllPointerToOpenPointerMs": 198.5,
+            "browserOpenPointerToExpectedDOMMs": 195.2999999821186,
+            "resources": [
+              {
+                "routeClass": "swarm-scheduler",
+                "durationMs": 64.2999999821186,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -304.5
+              },
+              {
+                "routeClass": "project-overview",
+                "durationMs": 71.80000001192093,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -295.2999999821186
+              },
+              {
+                "routeClass": "project-overview",
+                "durationMs": 70.30000001192093,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -295.7999999821186
+              },
+              {
+                "routeClass": "project-overview",
+                "durationMs": 69.59999999403954,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -296.09999999403954
+              },
+              {
+                "routeClass": "project-overview",
+                "durationMs": 65,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -299.69999998807907
+              },
+              {
+                "routeClass": "project-specification",
+                "durationMs": 42.900000005960464,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -131.09999999403954
+              },
+              {
+                "routeClass": "project-orchestrator",
+                "durationMs": 68.5,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -103.40000000596046
+              }
+            ]
+          },
+          {
+            "index": 54,
+            "elapsedMs": 545.6189350000059,
+            "browserAllPointerToOpenPointerMs": 163.0,
+            "browserOpenPointerToExpectedDOMMs": 226.59999999403954,
+            "resources": [
+              {
+                "routeClass": "swarm-scheduler",
+                "durationMs": 44.29999998211861,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -332.2000000178814
+              },
+              {
+                "routeClass": "project-overview",
+                "durationMs": 46.099999994039536,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -329.30000001192093
+              },
+              {
+                "routeClass": "project-overview",
+                "durationMs": 45.900000005960464,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -328.80000001192093
+              },
+              {
+                "routeClass": "project-overview",
+                "durationMs": 44.70000001788139,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -329.0
+              },
+              {
+                "routeClass": "project-overview",
+                "durationMs": 42.900000005960464,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -329.80000001192093
+              },
+              {
+                "routeClass": "project-specification",
+                "durationMs": 49.5,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -150.0
+              },
+              {
+                "routeClass": "project-orchestrator",
+                "durationMs": 74,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -123.09999999403954
+              }
+            ]
+          },
+          {
+            "index": 68,
+            "elapsedMs": 435.1470349999872,
+            "browserAllPointerToOpenPointerMs": 93.80000001192093,
+            "browserOpenPointerToExpectedDOMMs": 185.0,
+            "resources": [
+              {
+                "routeClass": "swarm-scheduler",
+                "durationMs": 15.699999988079071,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -258.80000001192093
+              },
+              {
+                "routeClass": "project-overview",
+                "durationMs": 24.80000001192093,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -248.90000000596046
+              },
+              {
+                "routeClass": "project-overview",
+                "durationMs": 24.19999998807907,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -249.2000000178814
+              },
+              {
+                "routeClass": "project-overview",
+                "durationMs": 26.400000005960464,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -246.5
+              },
+              {
+                "routeClass": "project-overview",
+                "durationMs": 27.599999994039536,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -244.90000000596046
+              },
+              {
+                "routeClass": "project-specification",
+                "durationMs": 35.69999998807907,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -125.40000000596046
+              },
+              {
+                "routeClass": "project-orchestrator",
+                "durationMs": 47.099999994039536,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -110.5
+              }
+            ]
+          },
+          {
+            "index": 93,
+            "elapsedMs": 410.02816199997324,
+            "browserAllPointerToOpenPointerMs": 56.599999994039536,
+            "browserOpenPointerToExpectedDOMMs": 69.40000000596046,
+            "resources": [
+              {
+                "routeClass": "project-specification",
+                "durationMs": 16.80000001192093,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -44.19999998807907
+              },
+              {
+                "routeClass": "project-orchestrator",
+                "durationMs": 48.19999998807907,
+                "status": 200,
+                "completedRelativeToExpectedDOMMs": -11.400000005960464
+              }
+            ]
+          }
+        ]
+      },
+      "browserCollectorPartialCost": {
+        "documents": 9,
+        "callbacks": 3182,
+        "callbackMs": 197.39999949932098,
+        "scope": "Final cumulative per-document callback body self-time. Not total collector/transport/observer overhead."
+      }
+    }
+  }
+}
