@@ -106,9 +106,10 @@ func (s *Server) getProjectOverview(w http.ResponseWriter, r *http.Request) {
 		view.Execution = ProjectOverviewExecution{Scope: "swarm-queue", Status: "recorded", ObservedAt: overviewTimestamp(queue.ObservedAt), Queued: &c.Queued, Paused: &c.Paused, Reserved: &c.Reserved, Running: &c.Running, Blocked: &c.Blocked, Unknown: &c.Unknown, DispatchPaused: &queue.DispatchPaused}
 		// These are recorded ledger states. Opening the queue performs no implicit
 		// reconciliation; the operator chooses any retry or change of execution.
-		if c.Unknown+c.Blocked > 0 {
+		runContextNeedsReview := view.LatestRun.Status == "recorded" && view.LatestRun.ContextStatus != "current"
+		if !runContextNeedsReview && c.Unknown+c.Blocked > 0 {
 			view.NextAction = OrchestratorAction{ID: "inspect-queue", Label: "Review work needing attention", Lens: "develop", Reason: "Queued work has a recorded blocker or an unconfirmed outcome."}
-		} else if c.Running+c.Reserved+c.Queued+c.Paused > 0 && len(view.Questions.Items) == 0 {
+		} else if !runContextNeedsReview && !view.LatestRun.taskReviewRequired && c.Running+c.Reserved+c.Queued+c.Paused > 0 && len(view.Questions.Items) == 0 {
 			view.NextAction = OrchestratorAction{ID: "inspect-queue", Label: "Follow queued work", Lens: "develop", Reason: "Open the project's queue to inspect recorded progress or change its priority."}
 		}
 	}

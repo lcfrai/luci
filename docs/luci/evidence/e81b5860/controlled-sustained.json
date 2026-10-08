@@ -1,0 +1,161 @@
+{
+  "version": 1,
+  "scope": "One real API/product service/private FileStore, four reviewed projects, real controlled child processes, actual captured contexts; deterministic admission telemetry is separate from measured host snapshots.",
+  "boundCommit": "e81b586077f8af97e5e59472e34eafd161f16b8a",
+  "sourceBinding": "source-binding.json",
+  "originalSummary": {
+    "artifact": "artifacts/quality-swarm/four-project/corrected-final-600s-20261008t0622/measurement-summary.json",
+    "sha256": "958ce4beb801f8c7e7ad8f4aea0853195bf63fe63490bdc38c044f028942f76f"
+  },
+  "originalResult": {
+    "artifact": "artifacts/quality-swarm/four-project/corrected-final-600s-20261008t0622/result.json",
+    "sha256": "2c12110efe955a5c8a4955bf53928f8a5af02403671a8eab61f7f595256e42fe"
+  },
+  "originalCompilationProvenance": {
+    "artifact": "artifacts/quality-swarm/four-project/corrected-final-600s-20261008t0622/binary-provenance.json",
+    "sha256": "1bbe4fd74c7fa595327d0817e7a85cfbe34b20b5d1d4254ca6d876772223800b"
+  },
+  "originalCommitBinding": {
+    "artifact": "artifacts/quality-swarm/four-project/corrected-final-600s-20261008t0622/source-commit-binding.json",
+    "sha256": "e8a7eee9ad305bc286bb89614ac40d6da85e2bed3efb155549bcc6795bac275e"
+  },
+  "passed": true,
+  "historicalCompilation": {
+    "startedAt": "2026-10-08T06:22:36.938799+00:00",
+    "compiledAt": "2026-10-08T06:22:38.875583+00:00",
+    "sourceCommit": "0f70e0677ef0f3b8d9d5a47334d5b2a2015c798c",
+    "sourceDirty": true,
+    "sourceCount": 670,
+    "goVersion": "go version go1.26.3 linux/amd64",
+    "sourceUnchangedDuringBuild": true,
+    "changedSourcePaths": [],
+    "binarySha256": "8b728fd85c104d4121beab2d8e9382c363acdf1f616e2045e0dd8e4daa8d9c9a",
+    "binaryBytes": 39245650
+  },
+  "policy": {
+    "maxActive": 3,
+    "maxPerProject": 1,
+    "headroomPercent": 25,
+    "minHeadroomMiB": 2048,
+    "diskReserveMiB": 512
+  },
+  "syntheticAdmissionFixture": {
+    "executionTotalBytes": 17179869184,
+    "hostAndExecutionCPUMillis": 8000,
+    "hostAvailableBytes": 32212254720,
+    "hostTotalBytes": 34359738368,
+    "imageVirtualSizeBytes": 1048576,
+    "projectAndDaemonDiskAvailableBytes": 107374182400,
+    "scope": "Synthetic admission observations only; actual measured host/process observations are in samples. 25% engine memory and CPU headroom leaves room for three requested 4 GiB/2 CPU workers."
+  },
+  "measurements": {
+    "requestedWorkloadSeconds": 600,
+    "testElapsedSeconds": 628.11,
+    "sampleCount": 602,
+    "liveProcessSampleCounts": {
+      "0": 2,
+      "3": 600
+    },
+    "distinctWorkers": 7,
+    "expectedSuccesses": 6,
+    "expectedFailedProcesses": 1,
+    "unexpectedFailures": 0,
+    "assertions": {
+      "restartRetained": true,
+      "amendmentKeptRunningContext": true,
+      "fairFirstWave": true,
+      "cancelledWithoutAllocation": true
+    },
+    "hostPhysicalAvailableBytes": {
+      "min": 17882312704,
+      "max": 21740879872
+    },
+    "hostEffectiveAvailableBytes": {
+      "min": 6971375616,
+      "max": 11749986304
+    },
+    "processResidentBytes": {
+      "control-plane": {
+        "min": 30498816,
+        "max": 35696640
+      },
+      "controlled-worker": {
+        "min": 39661568,
+        "max": 41304064
+      }
+    },
+    "workerCPUTimeMilliseconds": {
+      "user": 109626.605,
+      "system": 45249.474
+    },
+    "workerOutputBytes": 24353330,
+    "workerContextBytes": {
+      "min": 8452,
+      "max": 8467
+    },
+    "workerWorkspaceBytes": {
+      "min": 14863,
+      "max": 80239
+    },
+    "hostCPUUtilizationPercent": {
+      "min": 1.8329938900203666,
+      "max": 91.83266932270917,
+      "mean": 54.19598356753627,
+      "availableSamples": 599,
+      "unavailableSamples": 3
+    },
+    "sampledOwnedProcessRSSSumPeak": {
+      "residentBytes": 158851072,
+      "sampleAt": "2026-10-08T06:32:27.171171464Z",
+      "processCount": 4,
+      "scope": "Sum of control-plane test process and its controlled workers in one actual snapshot, not a sum of separate process maxima; shared pages may be counted in multiple RSS values. Excludes browser, Docker and any model."
+    }
+  },
+  "workloadIterations": [
+    {
+      "projectIndex": 1,
+      "task": "api",
+      "iterations": 29559
+    },
+    {
+      "projectIndex": 2,
+      "task": "api",
+      "iterations": 29637
+    },
+    {
+      "projectIndex": 3,
+      "task": "api",
+      "iterations": 29622
+    },
+    {
+      "projectIndex": 4,
+      "task": "api",
+      "iterations": 6
+    },
+    {
+      "projectIndex": 1,
+      "task": "ui",
+      "iterations": 5
+    },
+    {
+      "projectIndex": 2,
+      "task": "ui",
+      "iterations": 5
+    },
+    {
+      "projectIndex": 3,
+      "task": "ui",
+      "iterations": 5
+    }
+  ],
+  "limitations": [
+    "No models, Docker enforcement, Windows desktop, deployment, or application result quality claims.",
+    "Restart reopens API/product services and private ledgers in the test process; it is not an OS-process crash or a host reboot.",
+    "Requested worker limits are scheduling fixture inputs; actual touched memory is 16 MiB per process.",
+    "Controlled outputs require human integration and checks; successful process exit is not verified work.",
+    "Host measurements describe this execution host, not a 31.2 GiB Windows workstation.",
+    "This shared Linux host also ran full compilation, package creation, and Docker image export. Host memory observations are not attributable exclusively to Luci.",
+    "Earlier failed sustained evidence and the negative small-task parallel speed comparison remain preserved.",
+    "CPU utilization is the host-scope sampler measurement; three samples lack the required prior observation. Worker CPU time is separately measured from each process exit."
+  ]
+}

@@ -674,10 +674,14 @@ func validRunState(state string) bool {
 
 func validOperationStatus(status string) bool {
 	switch status {
-	case "reserved", "dispatching", "running", "unknown", "succeeded", "failed", "cancelled":
+	case "reserved", "dispatching", "running", "unknown", "succeeded", "review-required", "failed", "cancelled":
 		return true
 	}
 	return false
+}
+
+func projectRunOperationTerminal(status string) bool {
+	return status == "succeeded" || status == "review-required" || status == "failed" || status == "cancelled"
 }
 
 func (s *ProjectRunStore) mutate(projectID, projectPath, id string, expectedRevision int, change func(*storedProjectRun) (bool, error)) (ProjectRun, error) {
@@ -818,7 +822,7 @@ func (s *ProjectRunStore) ObserveOperation(projectID, projectPath, id string, ex
 			if op.ChildID != childID {
 				return false, ErrProjectRunInvalid
 			}
-			if (op.Status == "succeeded" || op.Status == "failed" || op.Status == "cancelled") && op.Status != status {
+			if projectRunOperationTerminal(op.Status) && op.Status != status {
 				return false, ErrProjectRunConflict
 			}
 			if op.Status == status && op.Message == message {
@@ -831,7 +835,7 @@ func (s *ProjectRunStore) ObserveOperation(projectID, projectPath, id string, ex
 				switch status {
 				case "running":
 					row.Run.State = "coding"
-				case "succeeded", "cancelled":
+				case "succeeded", "review-required", "cancelled":
 					row.Run.State = "awaiting-checks"
 				case "failed", "unknown":
 					row.Run.State = "blocked"

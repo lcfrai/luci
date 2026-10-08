@@ -12,6 +12,8 @@ import { ProjectRuns } from './ProjectRuns';
 import { OrchestratorPanel } from '../orchestrator/OrchestratorPanel';
 import { orchestratorApi } from '../../api/orchestrator';
 import { context as orchestratorContext, view as orchestratorView } from '../orchestrator/fixtures';
+import { swarmHarnessFixture, swarmQueueFixture, swarmRunFixture } from '../../test/swarmFixtures';
+import { swarmQueueApi } from '../../api/swarmQueue';
 
 const scope = vi.hoisted(() => ({ actor: 'owner', connection: '' }));
 vi.mock('../auth/AuthProvider', () => ({ useAuth: () => ({ profile: { user: { id: scope.actor } } }) }));
@@ -44,6 +46,33 @@ it('only reads on mount and refresh, and retains ended or unknown coding as unve
   expect(reconcile).not.toHaveBeenCalled(); expect(create).not.toHaveBeenCalled();
   expect(screen.queryByRole('button', { name: 'Review and accept outcome' })).toBeNull();
   expect(screen.getByText(/A CLI exit or task marked Done does not complete/)).not.toBeNull();
+});
+
+it('prioritizes unintegrated task review over whole-build verification after a normal worker exit', async () => {
+  const run = swarmRunFixture(); run.state = 'awaiting-checks';
+  run.operations = [{...operation, id: 'task-op', taskId: 'a', status: 'review-required', allocation: 'ready'}];
+  run.swarm!.tasks[0].operationId = 'task-op';
+  useCockpit.getState().setHarnesses([swarmHarnessFixture()]);
+  vi.mocked(projectRunsApi.list).mockResolvedValue([run]);
+  vi.spyOn(swarmQueueApi, 'get').mockResolvedValue(swarmQueueFixture());
+  const create = vi.spyOn(api, 'createSession');
+  render(<ProjectRuns {...props()} />);
+  await screen.findByText('Awaiting task review', {exact: true});
+  expect(screen.getByText(/Review the exited task’s output and integrate accepted changes before verifying/)).not.toBeNull();
+  expect(screen.getByRole('button', {name: 'Review task changes'})).toBeTruthy();
+  expect(screen.queryByRole('button', {name: 'Review and accept outcome'})).toBeNull();
+  expect(create).not.toHaveBeenCalled();
+});
+
+it('routes unsupported autonomous permissions back to explicit plan review while retaining interactive coding', async () => {
+  useCockpit.getState().setHarnesses([aHarness({id: 'claude-code', name: 'Claude Code', supportsOpeningPrompt: true, autonomousTask: true, taskPermissionModes: ['bypass']})]);
+  const initial = props(), create = vi.spyOn(api, 'createSession');
+  render(<ProjectRuns {...initial} />);
+  const review = await screen.findByRole('button', {name: 'Review plan and create a new build'});
+  expect(screen.getByRole('button', {name: 'Prepare agent team'})).toHaveProperty('disabled', true);
+  expect(screen.getByRole('button', {name: 'Start coding'})).toHaveProperty('disabled', false);
+  await userEvent.click(review);
+  expect(initial.onReviewPlan).toHaveBeenCalledOnce(); expect(create).not.toHaveBeenCalled();
 });
 
 it('refreshes a prepared run to changed context and opens its current plan without dispatch or rewriting history', async () => {

@@ -71,6 +71,23 @@ optional for an application that does not use it; the stack requires another
 least 8 GiB RAM and 4 CPUs and verify the actual remaining headroom. Do not confuse
 Docker Desktop's Linux VM capacity with the Windows drive's free space.
 
+The first local preflight found Docker Desktop stopped and its existing VHD on
+C:, with only 4.22 GiB free on that drive, despite ample E:/F: capacity. This is
+tracked as `LOCAL-ENV-001` in [LOCAL-TEST-LOOP.md](LOCAL-TEST-LOOP.md). Before any
+image pull, runtime build or agent workload, confirm Docker Desktop's actual
+disk-image location and record free space on that physical backing volume as
+well as in the Linux engine. Recheck these observations rather than treating the
+earlier numbers as current capacity. A VHD's file length and the VM's `df` output
+are not substitutes for host-volume free space.
+
+Read-only native checks include `Get-Volume -DriveLetter C,E,F` and inspecting
+the configured image location in Docker Desktop's settings. Keep the existing
+image and application data intact. If relocation is selected, use Docker
+Desktop's supported disk-image-location workflow with an explicit local plan;
+do not manually move/delete its live VHD or unregister WSL distributions.
+The local tester owns this preparation. This cloud task does not initiate changes
+on the owner's machine or infer that launching the engine resolves disk pressure.
+
 No hosted Luci account, Luci licence subscription, AWS/Azure account or cloud
 credit is required. Choose your own model connection in the app. Provider API
 usage or a model subscription may have its own costs. Existing host CLI login
@@ -197,6 +214,25 @@ See [PROVIDERS.md](PROVIDERS.md) for precise harness support and restart/sign-in
 limits. A configured badge, completed account sign-in or successful health probe
 is not evidence of a model completing a task. Verify disconnect/reconnect errors
 remain actionable and never silently change model, provider or billing account.
+
+### Select the task approval model deliberately
+
+Autonomous coordinated tasks use a native single-turn command that exits when
+the turn ends. The pinned CLI modes support this with explicitly reviewed
+**Bypass** permission, meaning commands run without per-command approval inside
+the isolated Docker workspace. Ask and Plan remain available through interactive
+agents; they must not be silently upgraded to run unattended. The task screen
+explains the saved choice before preparation. Change it through plan review and
+a new build, not by rewriting an already consented task.
+
+Test both paths: an Ask task is refused before any reservation or container is
+created, and an explicitly authorized autonomous task ends naturally, releases
+capacity and lets a different queued project progress without pressing Stop.
+Review retained changes and run checks before integration; an ended process
+alone does not establish a correct result. Record actual behavior for the chosen
+live provider, including command refusal, incomplete output and failed checks.
+An unattended queue that can pause for individual native approval requests is
+not yet supported; see [PROVIDERS.md](PROVIDERS.md).
 
 ## Source checks and optional packages
 

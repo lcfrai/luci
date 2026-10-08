@@ -1,0 +1,47 @@
+{
+  "passed": true,
+  "platform": "Unix",
+  "powershell": "7.5.5",
+  "scope": "Actual PowerShell selection/serialization functions with controlled OS/Docker fixtures, plus compiled native HTTP parser; no native Windows probes, Docker connection or workload.",
+  "nativeWindowsVerified": false,
+  "helperSHA256": "c7bef039657b96b35e37e1741b79d3001d82b74ed8e941b71523fb7a55a32254",
+  "nativeProbeSHA256": "ba6eb88c5f54c5222f7030d222c20a1f77ae6cef9af6cf1337b83f03b9941c54",
+  "checks": [
+    {
+      "name": "Reject ambiguous process roots and unsafe Docker/path scope",
+      "passed": true
+    },
+    {
+      "name": "Exact identity tree excludes foreign and historical-parent children",
+      "passed": true
+    },
+    {
+      "name": "Known children survive parent exit; reused child does not inherit CPU deltas",
+      "passed": true
+    },
+    {
+      "name": "Missing process memory and I/O remain null; deltas require same identity",
+      "passed": true
+    },
+    {
+      "name": "Root mismatch fails before creating output or reading Docker",
+      "passed": true
+    },
+    {
+      "name": "Host CPU uses deltas; unavailable disk and memory are not invented",
+      "passed": true
+    },
+    {
+      "name": "Docker reads only exact owned image and exports selected metrics",
+      "passed": true
+    },
+    {
+      "name": "Missing Docker scope makes no call; budget exhaustion is explicit",
+      "passed": true
+    },
+    {
+      "name": "Native HTTP parser handles bounded JSON and rejects error/truncation",
+      "passed": true
+    }
+  ]
+}

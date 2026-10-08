@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "scope": "Allowlisted source export bound to clean Git; its archive bytes are checked, but a fresh build of the exported tree was not rerun.",
+  "originalChecks": {
+    "artifact": "artifacts/source-export/e81b5860/EXPORT-CHECKS.json",
+    "sha256": "21b20094d2101e2e1a6b174ff4d8e17ec9506f91dd97d2dcf0679266e3e8558c"
+  },
+  "originalInventory": {
+    "artifact": "artifacts/source-export/e81b5860/SOURCE-INVENTORY.json",
+    "sha256": "7698f96eaabc3ee6e858bbb72abc7e2c1b6d30c98328c3db1f23ac4fd5aab3c8"
+  },
+  "originalAllowlist": {
+    "artifact": "artifacts/source-export/e81b5860/EXPORT-ALLOWLIST.json",
+    "sha256": "bffa895df07ee94b957f0f78adb4d1708488e3f3e8a03620a3ca54fd85f09604"
+  },
+  "archive": {
+    "name": "e81b5860.zip",
+    "sha256": "6ed627f873cdf29140c909b4f2903f53d9263914facf0c58bd03ae3e78382c1d",
+    "bytes": 4575499
+  },
+  "checks": {
+    "sourceCommit": "e81b586077f8af97e5e59472e34eafd161f16b8a",
+    "version": "0.5.0",
+    "sourceDirty": false,
+    "originalSourceFileCount": 1429,
+    "originalSourceBytes": 13201709,
+    "includedBlobsVerifiedAgainstGit": true,
+    "includedModes": [
+      "100644",
+      "100755"
+    ],
+    "gitHistoryIncluded": false,
+    "symlinksSubmodulesSpecialFiles": 0,
+    "omittedHistoricalAuditTests": [
+      "desktop/src/seams.test.ts"
+    ],
+    "fullCleanRebuildRerun": false,
+    "publicPublicationAuthorizedOrPerformed": false,
+    "ownershipOrLegalClearanceClaimed": false,
+    "retainedLicenseReferencesVerified": 59,
+    "retainedSupabaseAssetsVerified": 106,
+    "retainedFluidProvenanceVerified": {
+      "present": true,
+      "revision": "97183f8018e619722edffd2f9fccefbea0effe8d",
+      "adaptedSourceFilesVerified": 12,
+      "licenseNormalizedSha256": "3dc44f653f431ac7920c70f6f064a55a8852e6b7544499bb8506dfbfd351d2e1"
+    },
+    "retainedShadcnProvenanceVerified": {
+      "present": true,
+      "revision": "97ddbf4274ed09d02aa7fd34375f2cf1e48cbbf0",
+      "adaptedSourceFilesVerified": 5,
+      "originalSourceFilesVerified": 5,
+      "licenseSha256": "1564074e13439397221ffd522e2e504d56561994a23d371aa5e3ad43e4f5423f"
+    },
+    "unresolvedCredentialSignatureFindings": 0,
+    "localDependencyReferences": [],
+    "requiredBuildInputsVerified": [
+      ".github/workflows/luci-ci.yml",
+      "LICENSE",
+      "NOTICE",
+      "control-plane/go.mod",
+      "control-plane/go.sum",
+      "control-plane/internal/platform/supabase_assets/NOTICE.txt",
+      "control-plane/internal/platform/supabase_assets/manifest.json",
+      "control-plane/internal/product/server.go",
+      "desktop/package-lock.json",
+      "desktop/package.json",
+      "desktop/scripts/prepare-design-assets.mjs",
+      "desktop/src-tauri/Cargo.lock",
+      "desktop/src-tauri/Cargo.toml",
+      "desktop/src-tauri/tauri.conf.json",
+      "distribution/docker/.dockerignore",
+      "distribution/docker/Dockerfile",
+      "distribution/docker/README.md",
+      "distribution/docker/Start-Luci.cmd",
+      "distribution/docker/Start-Luci.ps1",
+      "distribution/docker/compose.yaml",
+      "distribution/docker/engine-entrypoint.sh",
+      "distribution/docker/entrypoint.sh",
+      "distribution/docker/healthcheck.sh",
+      "distribution/docker/start-luci.sh",
+      "distribution/docker/workspace-init.sh",
+      "go.work",
+      "images/sandbox/Dockerfile",
+      "images/sandbox/entrypoint.sh",
+      "sandboxd/go.mod",
+      "sandboxd/go.sum",
+      "sandboxd/vendor/modules.txt",
+      "scripts/build-release.ps1",
+      "scripts/build-release.sh",
+      "scripts/collect-licenses.py",
+      "scripts/package.py",
+      "scripts/prepare-docker-release.py",
+      "scripts/retained_ui.py",
+      "third-party/licenses/manifest.json"
+    ]
+  }
+}

@@ -144,7 +144,11 @@ func TestSwarmMissingChildRecoveryRefusesAmbiguousProofs(t *testing.T) {
 					t.Fatal(e)
 				}
 			case "backend already attempted":
+				sessionsSeed(t, f.store, registry.Session{ID: op.ChildID, ProjectID: f.owner.ID, SandboxID: op.ChildID, Status: registry.StatusStarting})
 				if e := a.execution.markBackendStarting(context.Background(), leaseID, op.ChildID, op.ChildID); e != nil {
+					t.Fatal(e)
+				}
+				if e := f.store.Delete(op.ChildID); e != nil {
 					t.Fatal(e)
 				}
 			case "registry child exists":
@@ -265,7 +269,11 @@ func TestExecutionBackendStartMarkerCannotBeDowngraded(t *testing.T) {
 	f, leaseID, _ := missingChildFixture(t)
 	op := f.ops[0]
 	g := f.env.api.execution
+	sessionsSeed(t, f.store, registry.Session{ID: op.ChildID, ProjectID: f.owner.ID, SandboxID: op.ChildID, Status: registry.StatusStarting})
 	if e := g.markBackendStarting(context.Background(), leaseID, op.ChildID, op.ChildID); e != nil {
+		t.Fatal(e)
+	}
+	if e := f.store.Delete(op.ChildID); e != nil {
 		t.Fatal(e)
 	}
 	if e := g.bindSandbox(context.Background(), leaseID, op.ChildID, op.ChildID); e == nil {
@@ -348,7 +356,7 @@ func TestSwarmMissingChildRecoveryWaitsForActualAllocatorThenRefusesLiveChild(t 
 		t.Fatal("recovery replayed or destroyed original allocation")
 	}
 	if e := a.execution.mutate(context.Background(), func(l *executionLeaseLedger) error {
-		if len(l.Leases) != 1 || l.Leases[0].SessionID != op.ChildID || l.Leases[0].State != "backend-dispatching" || len(l.Retirements) != 0 {
+		if len(l.Leases) != 1 || l.Leases[0].SessionID != op.ChildID || l.Leases[0].State != "backend-settled" || len(l.Retirements) != 0 {
 			t.Fatal("active child capacity was released", l)
 		}
 		return nil

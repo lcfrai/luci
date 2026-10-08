@@ -16,6 +16,9 @@ import (
 func swarmHTTPFixture(t *testing.T, taskOverrides ...ProjectTask) (*Server, *http.ServeMux, project.Project, ProjectRun, string, *ProjectRunSelection) {
 	t.Helper()
 	s, mux, p, req, selected, _ := projectRunHTTPFixture(t)
+	// Autonomous workers use only an explicitly saved supported permission;
+	// the ordinary interactive run fixture intentionally remains Ask.
+	req.PermissionMode, selected.PermissionMode = "bypass", "bypass"
 	s.branchSessions = func(context.Context, string, string) (bool, error) { return false, nil }
 	base := "/v1/product/projects/" + p.ID
 	var plan ProjectPlan
@@ -314,6 +317,7 @@ func TestProjectSwarmHTTPReconcileRecoversPublishedIntegrationWithoutMergingAgai
 
 func TestProjectSwarmHTTPSubscriptionPreparationRequiresSingleSlot(t *testing.T) {
 	s, mux, p, req, selected, _ := projectRunHTTPFixture(t)
+	req.PermissionMode, selected.PermissionMode = "bypass", "bypass"
 	selected.Connection.Kind = "codex-subscription"
 	selected.Connection.AuthMode = "chatgpt"
 	selected.AgentConnectionKind = "codex-subscription"

@@ -120,7 +120,9 @@ func (f *swarmSessionFixture) prepareProject(t *testing.T, name string, tasksToR
 			t.Fatal(err)
 		}
 	}
-	body, _ = json.Marshal(map[string]any{"idempotencyKey": "create-swarm-session-fixture", "worktreeId": project.WorktreeID(f.owner.Path), "harness": "codex", "permissionMode": "ask", "agentConnectionId": f.connectionID, "outcome": "preview", "implementationContext": selection})
+	// This controlled task fixture deliberately opts into unattended execution;
+	// production must never convert an existing Ask route to Bypass.
+	body, _ = json.Marshal(map[string]any{"idempotencyKey": "create-swarm-session-fixture", "worktreeId": project.WorktreeID(f.owner.Path), "harness": "codex", "permissionMode": "bypass", "agentConnectionId": f.connectionID, "outcome": "preview", "implementationContext": selection})
 	started := time.Now()
 	f.readRun(t, f.env.do(t, "POST", f.base(), string(body)), 201)
 	f.timings = append(f.timings, swarmFixtureTiming{Stage: "create-run", Elapsed: time.Since(started)})

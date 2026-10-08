@@ -1236,7 +1236,22 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	command, argv, err := harness.Build(harness.Request{
+	buildHarness := harness.Build
+	if req.ProjectRunID != "" {
+		ownedRun, ownedOperation, ownerErr := a.deps.Product.ProjectSwarmWorktreeOwner(ctx, projectID, req.WorktreeID)
+		if ownerErr != nil {
+			httpx.WriteProblem(w, 409, httpx.CodeConflict, ownerErr.Error(), nil)
+			return
+		}
+		if ownedRun != "" {
+			if ownedRun != req.ProjectRunID || ownedOperation != req.ProjectRunOperationID {
+				httpx.WriteProblem(w, 409, httpx.CodeConflict, "This task checkout belongs to another reviewed operation.", nil)
+				return
+			}
+			buildHarness = harness.BuildTask
+		}
+	}
+	command, argv, err := buildHarness(harness.Request{
 		DockerBoundary:  a.deps.Backend.Kind() == backend.KindDocker,
 		ProjectBrief:    true,
 		ReviewedContext: implementationContext != nil,
@@ -1425,9 +1440,13 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 
 	var revalidateExecution func(context.Context) error
 	var markExecutionStart func(context.Context) error
+	var markExecutionSettled func(context.Context, string) error
 	if executionLeaseID != "" {
 		markExecutionStart = func(ctx context.Context) error {
 			return a.execution.markBackendStarting(ctx, executionLeaseID, sessionID, sessionID)
+		}
+		markExecutionSettled = func(ctx context.Context, sandboxID string) error {
+			return a.execution.markBackendSettled(ctx, executionLeaseID, sessionID, sandboxID)
 		}
 		revalidateExecution = func(ctx context.Context) error {
 			current, err := a.authorizeExecution(ctx, executionActor, string(harnessID), agentConnection.ID != "")
@@ -1494,7 +1513,7 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 			CarriedConversationID: carriedConversation,
 		},
 		Spec:    backend.Spec{ID: sessionID, SessionID: sessionID, Image: a.sessionImage(), Command: command, Args: argv, Env: sandboxEnv, AttachToken: token, Resources: allocatedResources, WorkDir: sessionWorkDir, Mounts: sandboxMounts},
-		Account: account, Revalidate: runAdmission.Revalidate, BeforeAllocate: revalidateExecution, BeforeBackendStart: markExecutionStart, Staging: staging, HasReviewedContext: reviewedDescriptor != nil,
+		Account: account, Revalidate: runAdmission.Revalidate, BeforeAllocate: revalidateExecution, BeforeBackendStart: markExecutionStart, AfterBackendCreate: markExecutionSettled, Staging: staging, HasReviewedContext: reviewedDescriptor != nil,
 	})
 	if err != nil {
 		a.writeSessionAllocationProblem(w, r, err)
@@ -1755,6 +1774,8 @@ func (a *API) watchSessionReady(sessionID, sandboxID, endpoint string) {
 func (a *API) writeHarnessProblem(w http.ResponseWriter, r *http.Request, id harness.ID, desc harness.Descriptor, err error) {
 	details := map[string]string{"harness": string(id)}
 	switch {
+	case errors.Is(err, harness.ErrTaskPermission):
+		httpx.WriteProblem(w, http.StatusConflict, "task_permission_requires_interactive", harness.TaskPermissionNotice, nil)
 	case errors.Is(err, harness.ErrUnknownHarness):
 		httpx.WriteProblem(w, http.StatusBadRequest, httpx.CodeUnknownHarness, "No harness with that id.", details)
 	case errors.Is(err, harness.ErrUnavailable):
@@ -1979,7 +2000,7 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if !sessionRestarts.acquire(id) {
 		httpx.WriteProblem(w, http.StatusConflict, httpx.CodeConflict,
-			"A restart is already in flight for that session.", map[string]string{"id": id})
+			"This session is already starting or restarting. Wait for its current operation before retrying.", map[string]string{"id": id})
 		return
 	}
 	defer sessionRestarts.release(id)
@@ -2327,6 +2348,23 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// A successful Create acknowledges both backend creation and startup. Record
+	// that boundary independently of the HTTP caller before publishing its result.
+	var settledErr error
+	if sb.ID != sandboxID {
+		settledErr = errors.New("backend acknowledgment does not match the exact restarted sandbox")
+	} else {
+		settledCtx, endSettled := context.WithTimeout(context.Background(), 5*time.Second)
+		settledErr = restartAdmission.complete(settledCtx, sandboxID)
+		endSettled()
+	}
+	if settledErr != nil {
+		a.destroyAfterFailedCreate(sandboxID, id)
+		a.markSessionExited(id, "execution launch acknowledgment could not be recorded")
+		a.internal(w, r, "record the restarted sandbox launch", settledErr)
+		return
+	}
+
 	// Second write, and it carries only what the create told us: the id and the
 	// token are already on the record. Mirrors create's own second write,
 	// precondition included — this path is the more exposed of the two, because
@@ -2361,13 +2399,11 @@ func (a *API) handleSessionDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := sess.ID
-	if nativeHarness(sess.Harness) || sess.ImplementationContext != nil {
-		if !sessionRestarts.acquire(id) {
-			httpx.WriteProblem(w, 409, httpx.CodeConflict, "The provider session is being restarted or copied; wait before stopping or forgetting it.", nil)
-			return
-		}
-		defer sessionRestarts.release(id)
+	if !sessionRestarts.acquire(id) {
+		httpx.WriteProblem(w, 409, httpx.CodeConflict, "The session is starting, restarting or being copied; wait before stopping or forgetting it.", nil)
+		return
 	}
+	defer sessionRestarts.release(id)
 	ctx := r.Context()
 	if sess.Harness == "codex" {
 		a.codexAccountMu.Lock()

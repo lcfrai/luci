@@ -3,11 +3,13 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
 	"github.com/lcfrai/luci/control-plane/internal/management"
 	"github.com/lcfrai/luci/control-plane/internal/project"
 	"github.com/lcfrai/luci/control-plane/internal/registry"
 	"github.com/lcfrai/luci/control-plane/internal/resourcebudget"
 	"net/http"
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -109,8 +111,8 @@ func TestRestartAdmissionKeepsNewSandboxLeaseUntilConfirmedExit(t *testing.T) {
 		for _, lease := range ledger.Leases {
 			if lease.SessionID == prior.ID {
 				found = true
-				if lease.State != "backend-dispatching" {
-					t.Fatalf("replacement omitted durable dispatch boundary: %s", lease.State)
+				if lease.State != "backend-settled" {
+					t.Fatalf("successful replacement omitted durable backend acknowledgment: %s", lease.State)
 				}
 				if lease.sandboxID() != after.SandboxID {
 					t.Fatal("replacement lease still identifies old sandbox")
@@ -121,5 +123,60 @@ func TestRestartAdmissionKeepsNewSandboxLeaseUntilConfirmedExit(t *testing.T) {
 	})
 	if e != nil || !found {
 		t.Fatalf("live replacement lost capacity reservation: %v", e)
+	}
+}
+
+func TestRestartAdmissionRetainsLaunchClaimWhenCompletionJournalFails(t *testing.T) {
+	f, prior := restartAdmissionFixture(t)
+	ledgerPath := f.env.api.execution.path
+	retainedPath := ledgerPath + ".retained"
+	f.env.be.onCreate = func(spec backend.Spec) {
+		// Fail only the completion publication after the dispatch claim has
+		// already reached disk. The original claim remains intact separately.
+		if err := os.Rename(ledgerPath, retainedPath); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Mkdir(ledgerPath, 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	response := f.env.do(t, http.MethodPost, "/v1/sessions/"+prior.ID+"/restart", "")
+	if response.Code != http.StatusInternalServerError {
+		t.Fatalf("unpublished backend acknowledgment reported success: %d %s", response.Code, response.Body.String())
+	}
+	if f.env.be.destroyCount() != 2 || len(f.env.be.specs) != 2 || f.env.be.destroys[1] != f.env.be.specs[1].ID {
+		t.Fatal("journal failure did not clean up the exact acknowledged replacement")
+	}
+	after, err := f.store.Get(prior.ID)
+	if err != nil || after.SandboxID == prior.SandboxID || after.Status != registry.StatusExited {
+		t.Fatalf("unpublished replacement lost its exact identity or cleanup status: %+v %v", after, err)
+	}
+	if err := os.Remove(ledgerPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(retainedPath, ledgerPath); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	err = f.env.api.execution.mutate(context.Background(), func(ledger *executionLeaseLedger) error {
+		for _, lease := range ledger.Leases {
+			if lease.SessionID == prior.ID {
+				found = true
+				if lease.State != "backend-dispatching" || lease.SandboxID != after.SandboxID {
+					t.Fatalf("uncertain completion discarded or settled its exact launch claim: %+v", lease)
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil || !found {
+		t.Fatalf("pending restart capacity was not retained: %v", err)
+	}
+	// A fresh request cannot replace an unacknowledged prior allocator merely
+	// because the registry says exited or the sampled container list is empty.
+	f.env.be.onCreate = nil
+	retried := f.env.do(t, http.MethodPost, "/v1/sessions/"+prior.ID+"/restart", "")
+	if retried.Code != http.StatusConflict || f.env.be.destroyCount() != 2 || len(f.env.be.specs) != 2 {
+		t.Fatalf("uncertain launch was bypassed by another restart: status=%d destroys=%d creates=%d", retried.Code, f.env.be.destroyCount(), len(f.env.be.specs))
 	}
 }

@@ -3,14 +3,15 @@ import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { swarmQueueApi, type ProjectSwarmQueue } from '../../api/swarmQueue';
-import { swarmQueueFixture, swarmQueueItem, swarmRunFixture } from '../../test/swarmFixtures';
+import { swarmHarnessFixture, swarmQueueFixture, swarmQueueItem, swarmRunFixture } from '../../test/swarmFixtures';
+import { resetCockpit, useCockpit } from '../../store/store';
 import { SwarmRunQueue } from './SwarmRunQueue';
 const initial = swarmRunFixture();
 function Harness({run = initial, edit = true, execute = true, changed = vi.fn()} = {}) {
   const [busy, setBusy] = useState('');
   return <SwarmRunQueue run={run} canEdit={edit} canExecute={execute} busy={!!busy} onBusy={setBusy} onQueueChange={changed} />;
 }
-beforeEach(() => { vi.spyOn(swarmQueueApi, 'get').mockResolvedValue(swarmQueueFixture()); });
+beforeEach(() => { resetCockpit(); useCockpit.getState().setHarnesses([swarmHarnessFixture()]); vi.spyOn(swarmQueueApi, 'get').mockResolvedValue(swarmQueueFixture()); });
 afterEach(() => { vi.restoreAllMocks(); });
 
 it('only reads on mount and requires explicit consent for independent and dependent tasks together', async () => {
@@ -24,6 +25,8 @@ it('only reads on mount and requires explicit consent for independent and depend
   const dialog = screen.getByRole('dialog');
   expect(within(dialog).getByText(/Dependent tasks wait for reviewed integration/)).not.toBeNull();
   expect(within(dialog).getByText(/recorded-model/)).not.toBeNull();
+  expect(within(dialog).getByText(/Saved permission: Bypass/)).not.toBeNull();
+  expect(within(dialog).getByText(/queue completion does not accept or integrate changes/)).not.toBeNull();
   expect(within(dialog).getByText('Build c')).not.toBeNull();
   await userEvent.selectOptions(within(dialog).getByRole('combobox'), 'high');
   await userEvent.click(within(dialog).getByRole('button', {name: 'Authorize queued tasks'}));
@@ -31,6 +34,36 @@ it('only reads on mount and requires explicit consent for independent and depend
   expect(enqueue).toHaveBeenCalledTimes(1);
   expect(enqueue.mock.calls[0]).toEqual(['p-1','run-1',['a','b','c'],1,expect.any(String),'high']);
   expect(screen.getByRole('button', {name: 'Queue reviewed tasks'})).toHaveProperty('disabled', true);
+});
+
+it.each(['ask', 'plan'] as const)('blocks queueing and resume for saved %s while retaining cancellation controls', async permissionMode => {
+  const run = {...initial, input: {...initial.input, route: {...initial.input.route, permissionMode}}};
+  const paused = swarmQueueItem({state: 'paused'});
+  vi.mocked(swarmQueueApi.get).mockResolvedValue(swarmQueueFixture([paused]));
+  const enqueue = vi.spyOn(swarmQueueApi, 'enqueueMany'), control = vi.spyOn(swarmQueueApi, 'control').mockResolvedValue(swarmQueueFixture([{...paused, state: 'cancelled', revision: 3}]));
+  render(<Harness run={run} />);
+  await screen.findByRole('button', {name: 'Resume queued task'});
+  expect(screen.getByRole('button', {name: 'Resume queued task'})).toHaveProperty('disabled', true);
+  expect(screen.getByRole('button', {name: 'Queue reviewed tasks (2)'})).toHaveProperty('disabled', true);
+  expect(screen.getByRole('button', {name: 'Cancel queued task'})).toHaveProperty('disabled', false);
+  await userEvent.click(screen.getByRole('button', {name: 'Cancel queued task'}));
+  await waitFor(() => expect(control).toHaveBeenCalledWith('p-1', paused, 'cancel', undefined));
+  expect(enqueue).not.toHaveBeenCalled(); expect(run.input.route.permissionMode).toBe(permissionMode);
+});
+
+it('discards queue consent when current task capability or saved route changes', async () => {
+  const enqueue = vi.spyOn(swarmQueueApi, 'enqueueMany');
+  const view = render(<Harness />);
+  await waitFor(() => expect(screen.getByRole('button', {name: 'Queue reviewed tasks (3)'})).toHaveProperty('disabled', false));
+  await userEvent.click(screen.getByRole('button', {name: 'Queue reviewed tasks (3)'}));
+  act(() => useCockpit.getState().setHarnesses([{...swarmHarnessFixture(), autonomousTask: false}]));
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(screen.getByRole('button', {name: 'Queue reviewed tasks (3)'})).toHaveProperty('disabled', true);
+  act(() => useCockpit.getState().setHarnesses([swarmHarnessFixture()]));
+  expect(screen.queryByRole('dialog')).toBeNull();
+  await userEvent.click(screen.getByRole('button', {name: 'Queue reviewed tasks (3)'}));
+  view.rerender(<Harness run={{...initial, input: {...initial.input, route: {...initial.input.route, permissionMode: 'ask'}}}} />);
+  expect(screen.queryByRole('dialog')).toBeNull(); expect(enqueue).not.toHaveBeenCalled();
 });
 
 it('refreshes after a lost receipt without duplicating already accepted tasks', async () => {

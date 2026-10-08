@@ -8,8 +8,10 @@ export interface RunApprovals {
   designApprovalId: string; designRevision: number; designDigest: string; briefDigest: string; sketchDigest: string;
 }
 export interface RunRequirement { id: string; title: string; acceptance: string }
+/** An observed normal task exit needs review; it is not a correctness receipt. */
+export type RunOperationStatus = 'reserved' | 'dispatching' | 'running' | 'unknown' | 'review-required' | 'succeeded' | 'failed' | 'cancelled' | (string & {});
 export interface RunOperation {
-  id: string; kind: string; childId: string; attempt: number; status: string;
+  id: string; kind: string; childId: string; attempt: number; status: RunOperationStatus;
   requestDigest: string; createdAt: string; updatedAt: string; message?: string;
   taskId?: string; worktreeId?: string; baseCommit?: string; implementation?: ImplementationContext;
   allocation?: 'allocating' | 'ready' | 'unknown' | 'abandoned';
@@ -18,6 +20,8 @@ export interface RunOperation {
   integration?: SwarmTask['integration'];
 }
 export const runOperationNeedsRecovery = (operation?: RunOperation) => !!operation?.absenceRetirement && !operation.absenceRetirement.finalizedAt;
+export const runOperationNeedsReview = (operation?: RunOperation) => !!operation && ['review-required', 'succeeded'].includes(operation.status);
+export const runHasTaskReview = (run?: ProjectRun) => !!run?.swarm?.tasks.some(task => task.integration?.state !== 'integrated' && runOperationNeedsReview(run.operations.find(operation => operation.id === task.operationId)));
 export interface SwarmTask {
   id: string; title: string; dependsOn: string[]; writePaths: string[]; acceptance: string;
   operationId?: string;

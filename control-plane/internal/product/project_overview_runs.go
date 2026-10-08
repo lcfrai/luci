@@ -23,6 +23,9 @@ type ProjectOverviewRun struct {
 	UpdatedAt     string `json:"updatedAt,omitempty"`
 	ContextStatus string `json:"contextStatus,omitempty"`
 	ContextReason string `json:"contextReason,omitempty"`
+	// Derived from the one retained run already read below. This controls the
+	// overview wording; it is not verification or integration authority.
+	taskReviewRequired bool
 }
 type overviewRunHead struct {
 	Version           int    `json:"version"`
@@ -159,7 +162,20 @@ func (s *Server) readOverviewLatestRun(p project.Project, state journeyState) (P
 		return ProjectOverviewRun{Status: "unavailable"}, ErrProjectRunInvalid
 	}
 	freshness := projectRunContextFreshness(row.Run, state, nil)
-	return ProjectOverviewRun{Status: "recorded", ID: row.Run.ID, State: row.Run.State, UpdatedAt: overviewTimestamp(row.Run.UpdatedAt), ContextStatus: freshness.Status, ContextReason: freshness.Reason}, nil
+	reviewRequired := false
+	if row.Run.Swarm != nil {
+		for _, task := range row.Run.Swarm.Tasks {
+			if task.Integration != nil && task.Integration.State == "integrated" {
+				continue
+			}
+			op := swarmOperation(&row.Run, task.OperationID)
+			if op != nil && (op.Status == "review-required" || op.Status == "succeeded") {
+				reviewRequired = true
+				break
+			}
+		}
+	}
+	return ProjectOverviewRun{Status: "recorded", ID: row.Run.ID, State: row.Run.State, UpdatedAt: overviewTimestamp(row.Run.UpdatedAt), ContextStatus: freshness.Status, ContextReason: freshness.Reason, taskReviewRequired: reviewRequired}, nil
 }
 func applyOverviewRunProgress(view *ProjectOverview, run ProjectOverviewRun) {
 	view.LatestRun = run
@@ -175,8 +191,14 @@ func applyOverviewRunProgress(view *ProjectOverview, run ProjectOverviewRun) {
 	case "coding":
 		action.Label = "Follow implementation"
 	case "awaiting-checks":
-		view.Phase = ProjectOverviewPhase{ID: "verify", Label: "Verify"}
-		action.Label = "Review verification"
+		if run.taskReviewRequired {
+			view.Phase = ProjectOverviewPhase{ID: "develop", Label: "Develop"}
+			action.Label = "Review task changes"
+			action.Reason = "An agent has stopped and its retained changes need integration review before whole-build verification. Process exit does not establish correctness."
+		} else {
+			view.Phase = ProjectOverviewPhase{ID: "verify", Label: "Verify"}
+			action.Label = "Review verification"
+		}
 	case "awaiting-release":
 		view.Phase = ProjectOverviewPhase{ID: "deploy", Label: "Deploy"}
 		action.Label = "Review the release"

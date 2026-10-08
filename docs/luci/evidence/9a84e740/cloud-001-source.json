@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "issue": "CLOUD-001",
+  "commit": "9a84e740ad85e4a03540f2dfb082f98cb60604c5",
+  "scope": "Focused source regressions for private queue controls during source allocation and current team permissions. Not full installed runtime or Windows acceptance.",
+  "sourceBinding": {
+    "verifiedAt": "2026-10-08T07:14:44.313892+00:00",
+    "method": "Compared the three explicitly recorded tested file hashes with git show at the correction commit.",
+    "comparedFiles": 3,
+    "mismatches": [],
+    "sourceSha256": {
+      "control-plane/internal/product/project_branches.go": "c16260cf4e0f954bde559d18b42b4ff375cd32ff42203943e16f8115ad78811d",
+      "control-plane/internal/product/project_swarm_source_admission_test.go": "350ccb3e3c9bb6f47dd7d5c15f80005f4a7a14f9568db1537bdef869c98cdb07",
+      "control-plane/internal/management/team_swarm_queue_control_test.go": "3fd7c8c0440abbeea509af840ce5a2b3b3648ab90fe453236ba5838d5a2337d4"
+    },
+    "limitation": "The original reports pin these three files only; this does not establish a complete transitive compilation-input manifest or a fresh full-suite run at the commit."
+  },
+  "product": {
+    "original": {
+      "artifact": "artifacts/cloud-001-source-queue-verification.json",
+      "sha256": "16cc4a50d93d5c964971185fd974d9f2e53cc513db07d8ac88be4a670a04d69b"
+    },
+    "recordedAt": "2026-10-08T06:57:30.369711+00:00",
+    "problem": "Private queue reads and controls were blocked by source admission during normal isolated worker allocation.",
+    "change": "Exactly GET project swarm-queue (including HEAD) and four private queue controls bypass source admission; source-dependent routes retain admission.",
+    "assertions": [
+      "Full production registrar with actual exclusive source mutex held",
+      "GET and HEAD retain correct private queue progress without changing receipts or source",
+      "Priority/pause/resume/cancel succeed with exact per-item CAS; stale revisions leave private state unchanged",
+      "No agent execution or worktree allocation from private queue reads/controls",
+      "Batch/single enqueue, files, brief, run detail, overview, task review and reconcile remain branch_busy under source mutation"
+    ],
+    "limitations": [
+      "Installed corrected candidate acceptance follows packaging; prior e81 installed failure remains preserved.",
+      "Managed fresh-permission checks are recorded separately.",
+      "Source-derived overview remains unavailable during exclusive source operations; no broader guard relaxation."
+    ],
+    "checks": [
+      {
+        "command": "go -C control-plane test ./internal/product -run '^TestSwarmQueueRemainsAvailableWhileSourceAdmissionIsExclusive$' -count=1",
+        "result": "pass",
+        "elapsedSeconds": 0.736
+      },
+      {
+        "command": "go -C control-plane test -race ./internal/product -run 'TestSwarm|TestPrimaryBranch|TestProductRegisteredReads|TestProjectSwarmRegisteredReads' -count=1",
+        "result": "pass",
+        "elapsedSeconds": 40.233
+      }
+    ]
+  },
+  "management": {
+    "original": {
+      "artifact": "artifacts/cloud001-management-permission-verification.json",
+      "sha256": "e833fbe6aed0b98d16d79df8205039692701b089e30f3694083bbd3a6b231e88"
+    },
+    "checkedAt": "2026-10-08T06:57:37.429950+00:00",
+    "scope": "CLOUD-001 production management Gateway permission regression; controlled worker observes admitted requests; product held-source-lock behavior verified separately by runtime agent",
+    "result": "PASS",
+    "seconds": 2.949,
+    "checks": [
+      "authorized Edit+Execute actor reaches all four queue controls",
+      "real admin API revokes project Edit while team grants remain; same token retains GET/HEAD but no controls",
+      "Edit without Execute permits pause/cancel/priority but denies resume",
+      "foreign project queue reads and controls denied",
+      "real project grant deletion immediately denies GET/HEAD",
+      "denied requests never reach worker"
+    ],
+    "command": "go -C control-plane test -race ./internal/management -run ^TestTeamSwarmQueueControlsReauthorizeAfterProjectEditRevocation$ -count=1",
+    "historicalSourceStatus": "only new management regression file; source frozen; no commits; no active builds"
+  },
+  "limitations": [
+    "These source checks ran before the correction commit; the three recorded file hashes were subsequently matched to that commit.",
+    "The e81 foundation remains attributed only to e81; its installed failures are retained.",
+    "This receipt does not cover the other frontend correction in the same commit.",
+    "No new checks were run while curating this receipt."
+  ]
+}

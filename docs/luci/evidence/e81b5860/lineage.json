@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "purpose": "Hashes identify original ignored artifacts used to curate these allowlisted receipts. Original artifacts can include private fixture information and are intentionally not committed. Hashes establish exact lineage when originals are available; they are not signed attestations.",
+  "originalArtifacts": [
+    {
+      "artifact": "artifacts/quality-swarm/integrated-final/frontend/source-before.json",
+      "sha256": "2ae0162ec25688cec8284a99bc04e481529434449a0cf52999a150e4d4928018"
+    },
+    {
+      "artifact": "artifacts/quality-swarm/integrated-final/go-services/source-before.json",
+      "sha256": "bb5da760f29bb2767fb9f3e8c1973ce2f8d4a0efbea5b8d0b517d3dd35789b31"
+    },
+    {
+      "artifact": "artifacts/quality-swarm/four-project/corrected-final-600s-20261008t0622/source-before.json",
+      "sha256": "7471484f61d8b1028236203f0bc1a5a109bfb0d7fd11df47fd2561f75ae6563b"
+    },
+    {
+      "artifact": "artifacts/quality-swarm/integrated-final/frontend/report.json",
+      "sha256": "d102412cb77f617d09817b79db702994c35a244c585bd987b39a21d86e3bfda9"
+    },
+    {
+      "artifact": "artifacts/quality-swarm/integrated-final/frontend/vitest.json",
+      "sha256": "315b03b197cd9255315f4ca81ffbb76c72c67b9a03738342b48e8c5ded77918b"
+    },
+    {
+      "artifact": "artifacts/quality-swarm/integrated-final/go-services/report.json",
+      "sha256": "6890bd4292b854fe8e81be94a01750e7f07bc78ddd70c68548b0bb2d226c568f"
+    },
+    {
+      "artifact": "artifacts/quality-swarm/four-project/corrected-final-600s-20261008t0622/measurement-summary.json",
+      "sha256": "958ce4beb801f8c7e7ad8f4aea0853195bf63fe63490bdc38c044f028942f76f"
+    },
+    {
+      "artifact": "artifacts/quality-swarm/four-project/corrected-final-600s-20261008t0622/result.json",
+      "sha256": "2c12110efe955a5c8a4955bf53928f8a5af02403671a8eab61f7f595256e42fe"
+    },
+    {
+      "artifact": "artifacts/quality-swarm/four-project/corrected-final-600s-20261008t0622/binary-provenance.json",
+      "sha256": "1bbe4fd74c7fa595327d0817e7a85cfbe34b20b5d1d4254ca6d876772223800b"
+    },
+    {
+      "artifact": "artifacts/quality-swarm/four-project/corrected-final-600s-20261008t0622/source-commit-binding.json",
+      "sha256": "e8a7eee9ad305bc286bb89614ac40d6da85e2bed3efb155549bcc6795bac275e"
+    },
+    {
+      "artifact": "artifacts/quality-swarm/integrated-final/package/package-integrity.json",
+      "sha256": "aab860379a148ae2d21b378e1f5331ddecf9e02bc359d2eb8d65ae9c691b480a"
+    },
+    {
+      "artifact": "artifacts/quality-swarm/integrated-final/package/package-provenance.json",
+      "sha256": "2b335d86a4c22263d971571174d3ed30cbc808858f5d3ca2177c650fe06b91f4"
+    },
+    {
+      "artifact": "artifacts/source-export/e81b5860/EXPORT-CHECKS.json",
+      "sha256": "21b20094d2101e2e1a6b174ff4d8e17ec9506f91dd97d2dcf0679266e3e8558c"
+    },
+    {
+      "artifact": "artifacts/source-export/e81b5860/SOURCE-INVENTORY.json",
+      "sha256": "7698f96eaabc3ee6e858bbb72abc7e2c1b6d30c98328c3db1f23ac4fd5aab3c8"
+    },
+    {
+      "artifact": "artifacts/source-export/e81b5860/EXPORT-ALLOWLIST.json",
+      "sha256": "bffa895df07ee94b957f0f78adb4d1708488e3f3e8a03620a3ca54fd85f09604"
+    },
+    {
+      "artifact": "artifacts/package-eval/e81b5860-local/results.json",
+      "sha256": "d7c4a6a2ec016f8cf04a2f7b755ad49026b680347d81679dbe34b0af824f7dca"
+    },
+    {
+      "artifact": "artifacts/package-eval/e81b5860-local/launcher-results.json",
+      "sha256": "49bbbb7b43deff0c04bc4c21664efc5c2482ea3c48ecb1bb01f6316c3a6a8710"
+    },
+    {
+      "artifact": "artifacts/quality-swarm/installed-four-project-e81b5860/result.json",
+      "sha256": "2610e7681a51e917db12cbf53de16864102f88907552417bd1a55db146a905aa"
+    },
+    {
+      "artifact": "artifacts/quality-swarm/installed-four-project-e81b5860-queue-poll/result.json",
+      "sha256": "9e6f1edea6f0a5d59403f4dbb0ef6ae9f9479b012b711f7c7d25a0d1d80618f4"
+    },
+    {
+      "artifact": "artifacts/quality-swarm/installed-four-project-e81b5860-ready-entry/result.json",
+      "sha256": "1d2b0fdbae2949c2fb92160e841a2b60e72300db672526263c07371e4d6c522d"
+    },
+    {
+      "artifact": "artifacts/quality-swarm/installed-four-project-e81b5860-ready-selector/result.json",
+      "sha256": "f3c0f35b95c79c6a2870164be26efd5e2d8b443c9befed06bd71c9d47dc1ce8e"
+    },
+    {
+      "artifact": "artifacts/quality-swarm/installed-four-project-e81b5860-short-root/result.json",
+      "sha256": "1665b2544e7d970794bb260f15271b74694e9bcf711b97cf2a1fd46314b6820e"
+    },
+    {
+      "artifact": "artifacts/quality-swarm/four-project/failed-sustained-summary.json",
+      "sha256": "8f32340c51386e3a12025bfecb1630b428abd42510bcae85544fd3ebf63da079"
+    },
+    {
+      "artifact": "artifacts/quality-swarm/benchmark/summary.json",
+      "sha256": "ffdfb9fa36be3b0de465633eede9534ab570c0db717f39d70c40a3d5b3d5008e"
+    }
+  ]
+}

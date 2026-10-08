@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lcfrai/luci/control-plane/internal/harness"
 	"github.com/lcfrai/luci/control-plane/internal/hostpath"
 	"github.com/lcfrai/luci/control-plane/internal/project"
 	"github.com/lcfrai/luci/control-plane/internal/registry"
@@ -70,6 +71,10 @@ func (s *Server) initializeProjectSwarm(w http.ResponseWriter, r *http.Request) 
 	}
 	run, err := s.projectRuns.Get(p.ID, p.Path, r.PathValue("runId"))
 	if err != nil {
+		projectRunProblem(w, err)
+		return
+	}
+	if err = validateSwarmTaskRoute(run); err != nil {
 		projectRunProblem(w, err)
 		return
 	}
@@ -156,6 +161,12 @@ func (s *Server) controlProjectSwarm(w http.ResponseWriter, r *http.Request) {
 		projectRunProblem(w, err)
 		return
 	}
+	if action == "resume" {
+		if err = validateSwarmTaskRoute(run); err != nil {
+			projectRunProblem(w, err)
+			return
+		}
+	}
 	if action == "reconcile" {
 		run, err = s.observeProjectSwarm(r.Context(), p.Path, run)
 	} else {
@@ -234,6 +245,9 @@ func (s *Server) reserveSwarmTask(ctx context.Context, p project.Project, runID,
 	}
 	run, err = s.projectRuns.Get(p.ID, p.Path, runID)
 	if err != nil {
+		return ProjectRun{}, ProjectRunOperation{}, err
+	}
+	if err = validateSwarmTaskRoute(run); err != nil {
 		return ProjectRun{}, ProjectRunOperation{}, err
 	}
 	selected, err := s.resolveProjectRunSelection(ctx, run)
@@ -380,7 +394,7 @@ func (s *Server) observeProjectSwarm(ctx context.Context, path string, run Proje
 		return run, errors.New("The session observer is unavailable.")
 	}
 	for _, op := range run.Operations {
-		if op.Allocation != "ready" || op.Status == "reserved" || op.Status == "succeeded" || op.Status == "failed" || op.Status == "cancelled" {
+		if op.Allocation != "ready" || op.Status == "reserved" || projectRunOperationTerminal(op.Status) {
 			continue
 		}
 		children, err := s.projectRunSessionObserver(ctx, run.ProjectID, run.ID, op.ID)
@@ -392,10 +406,10 @@ func (s *Server) observeProjectSwarm(ctx context.Context, path string, run Proje
 			child := children[0]
 			status, message = "running", "The existing agent is running in its isolated checkout."
 			if child.Status == registry.StatusExited {
-				status, message = "succeeded", "The agent exited. Review committed changes and check the result before integration; exit does not establish correctness."
-				if child.ExitReason == "project-run-outcome-unknown" {
-					status = "unknown"
-				} else if child.ExitReason != "exited" && child.ExitReason != "" {
+				status, message = "review-required", "The agent process ended. Its exit code and task correctness are not established by this observation. Review retained changes and verification evidence before integration."
+				if child.ExitReason == "project-run-outcome-unknown" || child.ExitReason == "sandbox disappeared" {
+					status, message = "unknown", "The agent runtime disappeared or its launch outcome is unconfirmed. Inspect the retained session; no replacement was launched and no task result was inferred."
+				} else if child.ExitReason != "process exited" && child.ExitReason != "exited" && child.ExitReason != "" {
 					status = "failed"
 					message = "The agent stopped without a confirmed successful result. Retain and inspect its checkout before retrying."
 				}
@@ -433,6 +447,10 @@ func (s *Server) observeProjectSwarm(ctx context.Context, path string, run Proje
 		}
 	}
 	return run, nil
+}
+
+func validateSwarmTaskRoute(run ProjectRun) error {
+	return harness.ValidateTask(harness.ID(run.Input.Route.Harness), harness.PermissionMode(run.Input.Route.PermissionMode))
 }
 
 // Each task owns complete Git metadata and copied objects: no shared writable

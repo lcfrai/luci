@@ -147,28 +147,12 @@ func (g *executionAdmission) mutate(ctx context.Context, fn func(*executionLease
 	ledger := executionLeaseLedger{Version: 1, Leases: []executionLease{}}
 	data, err := codexRead(root, g.path, 2<<20)
 	if err == nil {
-		decoder := json.NewDecoder(bytes.NewReader(data))
-		decoder.DisallowUnknownFields()
-		if decoder.Decode(&ledger) != nil || decoder.Decode(new(any)) != io.EOF || ledger.Version != 1 || len(ledger.Leases) > 4096 || len(ledger.Retirements) > 4096 {
-			return errors.New("execution capacity state cannot be verified")
+		ledger, err = decodeExecutionLedger(data)
+		if err != nil {
+			return err
 		}
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
-	}
-	seen := map[string]bool{}
-	for _, lease := range ledger.Leases {
-		key := lease.Scope + ":" + lease.ID
-		if !validExecutionLease(lease) || seen[key] {
-			return errors.New("execution capacity ownership cannot be verified")
-		}
-		seen[key] = true
-	}
-	for _, retired := range ledger.Retirements {
-		key := retired.Scope + ":" + retired.LeaseID
-		if !validExecutionRetirement(retired) || seen[key] {
-			return errors.New("execution retirement ownership cannot be verified")
-		}
-		seen[key] = true
 	}
 	if err := fn(&ledger); err != nil {
 		return err
@@ -192,6 +176,31 @@ func (g *executionAdmission) mutate(ctx context.Context, fn func(*executionLease
 	return nil
 }
 
+func decodeExecutionLedger(data []byte) (executionLeaseLedger, error) {
+	var ledger executionLeaseLedger
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&ledger) != nil || decoder.Decode(new(any)) != io.EOF || ledger.Version != 1 || len(ledger.Leases) > 4096 || len(ledger.Retirements) > 4096 {
+		return ledger, errors.New("execution capacity state cannot be verified")
+	}
+	seen := map[string]bool{}
+	for _, lease := range ledger.Leases {
+		key := lease.Scope + ":" + lease.ID
+		if !validExecutionLease(lease) || seen[key] {
+			return ledger, errors.New("execution capacity ownership cannot be verified")
+		}
+		seen[key] = true
+	}
+	for _, retired := range ledger.Retirements {
+		key := retired.Scope + ":" + retired.LeaseID
+		if !validExecutionRetirement(retired) || seen[key] {
+			return ledger, errors.New("execution retirement ownership cannot be verified")
+		}
+		seen[key] = true
+	}
+	return ledger, nil
+}
+
 func (g *executionAdmission) reconcileOwned(ledger *executionLeaseLedger) error {
 	kept := ledger.Leases[:0]
 	for _, lease := range ledger.Leases {
@@ -200,14 +209,14 @@ func (g *executionAdmission) reconcileOwned(ledger *executionLeaseLedger) error 
 			if err != nil && !errors.Is(err, registry.ErrNotFound) {
 				return err
 			}
-			if err == nil && row.Status == registry.StatusExited {
+			if err == nil && row.Status == registry.StatusExited && row.ID == lease.SessionID && row.ProjectID == lease.ProjectID && row.SandboxID == lease.SandboxID && executionLaunchSettled(lease) {
 				// Only a fresh backend observation after our last transition can prove
 				// an exited record has released its actual allocation.
 				if g.api.deps.ResourceSnapshot != nil {
 					snap := g.api.deps.ResourceSnapshot()
 					present := false
 					for _, container := range snap.Execution.Containers {
-						if container.Owned && (container.SandboxID == lease.sandboxID() || container.SandboxID == row.SandboxID) {
+						if container.SandboxID == lease.sandboxID() || container.SandboxID == row.SandboxID {
 							present = true
 						}
 					}
@@ -258,6 +267,14 @@ func (g *executionAdmission) reserveWorker(ctx context.Context, id, projectID, p
 	err := g.mutate(ctx, func(ledger *executionLeaseLedger) error {
 		if err := g.reconcileOwned(ledger); err != nil {
 			return err
+		}
+		if replacement != nil {
+			for _, lease := range ledger.Leases {
+				if lease.Scope == g.scope && lease.ID != id && lease.SessionID == replacement.ID && (lease.State != "backend-settled" || lease.LaunchGuard != 1) {
+					decision.Code, decision.Message = "execution_launch_unconfirmed", "The previous worker's create/start outcome is unconfirmed. Its reservation is retained; restarting could create a second worker."
+					return nil
+				}
+			}
 		}
 		existing := false
 		for _, retired := range ledger.Retirements {
@@ -473,7 +490,7 @@ func (g *executionAdmission) bindSandbox(ctx context.Context, id, sessionID, san
 		for i := range ledger.Leases {
 			lease := &ledger.Leases[i]
 			if lease.Scope == g.scope && lease.ID == id {
-				if lease.State == "backend-dispatching" {
+				if lease.State == "backend-dispatching" || lease.State == "backend-settled" {
 					return errors.New("backend launch phase cannot be reset to an unstarted reservation")
 				}
 				if lease.SessionID != "" && lease.SessionID != sessionID {
@@ -496,14 +513,19 @@ func (g *executionAdmission) release(ctx context.Context, id string) error {
 		for _, lease := range ledger.Leases {
 			if lease.Scope == g.scope && lease.ID == id {
 				if lease.SessionID != "" {
-					row, err := g.api.deps.Store.Get(lease.SessionID)
-					if err != nil || row.Status != registry.StatusExited {
+					if !executionLaunchSettled(lease) {
 						held = true
 						kept = append(kept, lease)
 						continue
 					}
-					sb, err := g.api.deps.Backend.Get(ctx, row.SandboxID)
-					if err != nil && !errors.Is(err, backend.ErrNotFound) || err == nil && sb.State != backend.StateGone && sb.State != backend.StateStopped {
+					row, err := g.api.deps.Store.Get(lease.SessionID)
+					if err != nil || row.Status != registry.StatusExited || row.ID != lease.SessionID || row.ProjectID != lease.ProjectID || row.SandboxID == "" || row.SandboxID != lease.SandboxID {
+						held = true
+						kept = append(kept, lease)
+						continue
+					}
+					stopped, err := g.api.exactBackendStopped(ctx, row.SandboxID)
+					if err != nil || !stopped {
 						held = true
 						kept = append(kept, lease)
 						continue
@@ -568,7 +590,7 @@ func validExecutionLease(lease executionLease) bool {
 	switch lease.State {
 	case "reserved":
 		return lease.SessionID == "" && lease.SandboxID == ""
-	case "allocating", "replacing", "backend-dispatching":
+	case "allocating", "replacing", "backend-dispatching", "backend-settled":
 		return lease.SessionID != "" && lease.SandboxID != ""
 	default:
 		return false
@@ -612,6 +634,10 @@ func (g *executionAdmission) markBackendStarting(ctx context.Context, id, sessio
 				if v.LaunchGuard != 1 || v.State != "allocating" || v.SessionID != sessionID || v.sandboxID() != sandboxID {
 					return errors.New("execution launch guard no longer matches the reserved child")
 				}
+				row, err := g.api.deps.Store.Get(sessionID)
+				if err != nil || row.ID != sessionID || row.ProjectID != v.ProjectID || row.SandboxID != sandboxID || row.Status != registry.StatusStarting {
+					return errors.New("the exact reserved child is no longer starting; backend launch refused")
+				}
 				v.State = "backend-dispatching"
 				v.UpdatedAt = time.Now().UTC()
 				return nil
@@ -619,6 +645,31 @@ func (g *executionAdmission) markBackendStarting(ctx context.Context, id, sessio
 		}
 		return errors.New("execution capacity is absent or retired; backend launch refused")
 	})
+}
+
+// A completed backend call means every create/start RPC has returned success.
+// Absence before that acknowledgment cannot rule out a late worker appearing.
+func (g *executionAdmission) markBackendSettled(ctx context.Context, id, sessionID, sandboxID string) error {
+	return g.mutate(ctx, func(l *executionLeaseLedger) error {
+		for i := range l.Leases {
+			v := &l.Leases[i]
+			if v.Scope == g.scope && v.ID == id {
+				if v.LaunchGuard != 1 || v.State != "backend-dispatching" || v.SessionID != sessionID || v.SandboxID != sandboxID || sandboxID == "" {
+					return errors.New("completed execution no longer matches its durable launch claim")
+				}
+				v.State, v.UpdatedAt = "backend-settled", time.Now().UTC()
+				return nil
+			}
+		}
+		return errors.New("completed execution has no retained capacity claim")
+	})
+}
+
+// Before the guarded launch edge, removing a lease prevents markBackendStarting
+// from ever dispatching it. After that edge only a durable successful full
+// backend acknowledgment proves the allocator cannot still create/start a child.
+func executionLaunchSettled(lease executionLease) bool {
+	return lease.LaunchGuard == 1 && (lease.State == "reserved" || lease.State == "allocating" || lease.State == "replacing" || lease.State == "backend-settled")
 }
 
 // The launch edge and tombstone must survive a controller restart and an OS

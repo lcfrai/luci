@@ -1,0 +1,3199 @@
+{
+  "schemaVersion": 1,
+  "status": "partial-failed",
+  "sourceCommit": "e81b586077f8af97e5e59472e34eafd161f16b8a",
+  "nativeWindowsVerified": false,
+  "provider": "controlled-command fixture; no live-model reasoning test",
+  "preparedProjects": 4,
+  "completedTaskOutputs": 2,
+  "automaticWorkerCompletionVerified": false,
+  "workerLifecycle": "After checking each of the first two controlled outputs, the fixture explicitly stopped that worker before reviewed integration and scheduling the next. This does not prove natural task exit or automatic capacity release.",
+  "maximumConfiguredConcurrentWorkers": 1,
+  "failure": "Transport evidence buffer reached its 1000-record bound and dropped 27 observations after the third worker started. The workflow correctly refused to pass.",
+  "completedChecks": [
+    "Browser authorized five named tasks across four reviewed projects.",
+    "Two actual Docker/Codex commands produced task-scoped outputs from captured context; fixture review/integration checks passed.",
+    "A service restart retained the exact live child without replaying the controlled provider.",
+    "Browser cancellation of extra waiting work was observed; the final transport ledger was incomplete, so no complete run-wide absence-of-side-effects claim is made."
+  ],
+  "measurements": {
+    "measurementStartedAt": "2026-10-08T06:51:34.178334+00:00",
+    "measurementFinishedAt": "2026-10-08T06:54:36.635954+00:00",
+    "sampleCount": 173,
+    "driverAliveSamples": 156,
+    "containerActiveSamples": 14,
+    "sampleDurationSeconds": {
+      "samples": 173,
+      "min": 0.08886306500062346,
+      "p50": 0.13983320601982996,
+      "p95": 0.6422423500043806,
+      "max": 4.501000540010864
+    },
+    "sampleIntervalSeconds": {
+      "samples": 172,
+      "min": 0.144177,
+      "p50": 1.0013785,
+      "p95": 1.53299,
+      "max": 5.064584
+    },
+    "maxLiveOwnedProcesses": 12,
+    "summedRSSBytes": {
+      "samples": 173,
+      "min": 0.0,
+      "p50": 1163530240.0,
+      "p95": 1306148864.0,
+      "max": 1321799680.0
+    },
+    "summedBrowserAndControlPlaneRSSBytes": {
+      "samples": 173,
+      "min": 0.0,
+      "p50": 931385344.0,
+      "p95": 1132478464.0,
+      "max": 1152659456.0
+    },
+    "samplesWithMissingProcessIO": 22,
+    "finalLiveOwnedProcessCount": 0,
+    "peakRSSBytesByRole": {
+      "browser": 917839872,
+      "control-plane": 235937792,
+      "other-owned-descendant": 14606336,
+      "test-driver": 260165632
+    },
+    "hostAvailableMemoryBytes": {
+      "samples": 173,
+      "min": 19949785088.0,
+      "p50": 20189491200.0,
+      "p95": 20826959872.0,
+      "max": 20867715072.0
+    },
+    "hostCPUUtilizationPercentAcrossVisibleLogicalCPUs": {
+      "samples": 172,
+      "min": 3.0425963488843815,
+      "p50": 33.49452329007445,
+      "p95": 68.42105263157895,
+      "max": 89.05511811023622
+    },
+    "observedCounterDeltas": {
+      "observedProcessCPUSeconds": 149.90000000000043,
+      "observedProcessIO_read_bytes": 303104.0,
+      "observedProcessIO_write_bytes": 11915264.0,
+      "observedProcessIO_rchar": 633974964.0,
+      "observedProcessIO_wchar": 103966233.0
+    },
+    "issues": {
+      "exact-owned-instance-not-yet-provided": 39
+    }
+  },
+  "workers": {
+    "worker-1": {
+      "firstObservedAt": "2026-10-08T06:52:27.398999+00:00",
+      "lastObservedAt": "2026-10-08T06:52:36.407681+00:00",
+      "observedSamples": 10,
+      "memoryUsageBytes": {
+        "samples": 7,
+        "min": 42311680.0,
+        "p50": 55369728.0,
+        "p95": 57450496.0,
+        "max": 57561088.0
+      },
+      "workingSetBytes": {
+        "samples": 7,
+        "min": 39411712.0,
+        "p50": 52068352.0,
+        "p95": 54136832.0,
+        "max": 54222848.0
+      },
+      "cpuCoreEquivalent": {
+        "samples": 6,
+        "min": 0.002687376881661538,
+        "p50": 0.060351595002334175,
+        "p95": 0.15511248647056639,
+        "max": 0.8349092411989688
+      },
+      "memoryLimitBytes": [
+        1073741824
+      ],
+      "nanoCPULimit": [
+        1000000000
+      ]
+    },
+    "worker-2": {
+      "firstObservedAt": "2026-10-08T06:53:19.221526+00:00",
+      "lastObservedAt": "2026-10-08T06:53:26.222838+00:00",
+      "observedSamples": 8,
+      "memoryUsageBytes": {
+        "samples": 6,
+        "min": 27893760.0,
+        "p50": 47712256.0,
+        "p95": 56418304.0,
+        "max": 56418304.0
+      },
+      "workingSetBytes": {
+        "samples": 6,
+        "min": 26660864.0,
+        "p50": 44615680.0,
+        "p95": 53121024.0,
+        "max": 53121024.0
+      },
+      "cpuCoreEquivalent": {
+        "samples": 5,
+        "min": 0.0,
+        "p50": 0.22815785122570914,
+        "p95": 0.31885281807811283,
+        "max": 0.4656606076868043
+      },
+      "memoryLimitBytes": [
+        1073741824
+      ],
+      "nanoCPULimit": [
+        1000000000
+      ]
+    },
+    "worker-3": {
+      "firstObservedAt": "2026-10-08T06:54:13.106515+00:00",
+      "lastObservedAt": "2026-10-08T06:54:18.182993+00:00",
+      "observedSamples": 4,
+      "memoryUsageBytes": {
+        "samples": 1,
+        "min": 27049984.0,
+        "p50": 27049984.0,
+        "p95": 27049984.0,
+        "max": 27049984.0
+      },
+      "workingSetBytes": {
+        "samples": 1,
+        "min": 26165248.0,
+        "p50": 26165248.0,
+        "p95": 26165248.0,
+        "max": 26165248.0
+      },
+      "cpuCoreEquivalent": null,
+      "memoryLimitBytes": [
+        1073741824
+      ],
+      "nanoCPULimit": [
+        1000000000
+      ]
+    }
+  },
+  "baseline": "post-start; no pre-run idle baseline observed",
+  "sampling": "One-second target; actual sample gaps are reported. Observation starts after driver spawn, and includes a post-driver-exit settle interval.",
+  "limitations": [
+    "Sum of process RSS double-counts shared pages; it is not unique physical memory.",
+    "Container cgroup memory is separate and must not be added to container process RSS.",
+    "Docker daemon/shared kernel/VM overhead is unassigned; host memory includes unrelated work.",
+    "Processes starting and exiting between 1 Hz samples may be missed; delta counters cover observed intervals only.",
+    "Post-driver-exit settlement is not an application idle baseline.",
+    "No UI input latency, other-app responsiveness or model reasoning quality is measured.",
+    "Initial 39 samples lacked the exact worker-instance identifier; Docker ownership was unavailable during those samples.",
+    "Only 14 samples contained running-worker memory, and the third worker had one memory sample.",
+    "Short transient processes and worker peaks may fall between observations.",
+    "Small controlled tasks and manual worker stops do not establish realistic build capacity or automatic completion."
+  ],
+  "privacy": "Published with an explicit field allowlist. Original PID/starttime, sandbox/container/instance IDs, fixture paths, command lines, environment values, credentials and raw failure stack are omitted. Worker aliases preserve ordering only.",
+  "privateEvidenceSHA256": {
+    "metadata.json": "66736490e0a1905960c5aa2fef37333e5140abad956b4fe497e063a815cef876",
+    "samples.jsonl": "f81bd5918582fb018e3bc07c302b98952771f0715188fe2f345304291f29e036",
+    "summary.json": "c2e2475da35c4c9c72d17b8cb5d2583957e05909d2cd5cc6112e05f24de9e72f",
+    "analysis.json": "001a579818b66016c28bddaee259403aeb2d9608d42d1cd9343b7076a9491948",
+    "accepted-sampler.py": "f9bdd159bb27d19b38df602146319ff9a9b2c828c89038057ed5b58524f4c0ad"
+  },
+  "workflowReceiptSHA256": "9e6f1edea6f0a5d59403f4dbb0ef6ae9f9479b012b711f7c7d25a0d1d80618f4",
+  "acceptedSamplerSHA256": "f9bdd159bb27d19b38df602146319ff9a9b2c828c89038057ed5b58524f4c0ad",
+  "sanitizedTimeline": [
+    {
+      "observedAt": "2026-10-08T06:51:34.354075+00:00",
+      "elapsedSeconds": 0.17579591000685468,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 1,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 47980544
+      },
+      "hostAvailableMemoryBytes": 20867715072,
+      "sampleDurationSeconds": 0.11512765000225045,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:51:35.327847+00:00",
+      "elapsedSeconds": 1.1495714290067554,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 1,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 117837824
+      },
+      "hostAvailableMemoryBytes": 20795195392,
+      "sampleDurationSeconds": 0.08886306500062346,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:51:36.340663+00:00",
+      "elapsedSeconds": 2.1623858170059975,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 2,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 180752384,
+        "other-owned-descendant": 14606336
+      },
+      "hostAvailableMemoryBytes": 20718092288,
+      "sampleDurationSeconds": 0.10150061702006496,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:51:37.527054+00:00",
+      "elapsedSeconds": 3.348819513019407,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 2,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 245895168,
+        "control-plane": 43884544
+      },
+      "hostAvailableMemoryBytes": 20648480768,
+      "sampleDurationSeconds": 0.27645931000006385,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:51:38.364188+00:00",
+      "elapsedSeconds": 4.185907336010132,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 3,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 251682816,
+        "control-plane": 156581888
+      },
+      "hostAvailableMemoryBytes": 20528660480,
+      "sampleDurationSeconds": 0.11299722900730558,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:51:39.356495+00:00",
+      "elapsedSeconds": 5.178215792024275,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 3,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 251813888,
+        "control-plane": 161415168
+      },
+      "hostAvailableMemoryBytes": 20522622976,
+      "sampleDurationSeconds": 0.10520433000056073,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:51:40.425705+00:00",
+      "elapsedSeconds": 6.247439324011793,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 3,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 254042112,
+        "control-plane": 162566144
+      },
+      "hostAvailableMemoryBytes": 20525273088,
+      "sampleDurationSeconds": 0.17356510198442265,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:51:41.365941+00:00",
+      "elapsedSeconds": 7.187663661024999,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 7,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 254959616,
+        "control-plane": 163536896,
+        "browser": 197144576
+      },
+      "hostAvailableMemoryBytes": 20494868480,
+      "sampleDurationSeconds": 0.11338457101373933,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:51:42.483724+00:00",
+      "elapsedSeconds": 8.305445244011935,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 256401408,
+        "control-plane": 164847616,
+        "browser": 547434496
+      },
+      "hostAvailableMemoryBytes": 20378009600,
+      "sampleDurationSeconds": 0.23097639900515787,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:51:43.366581+00:00",
+      "elapsedSeconds": 9.18830118200276,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 136806400,
+        "control-plane": 232611840,
+        "browser": 704331776
+      },
+      "hostAvailableMemoryBytes": 20289318912,
+      "sampleDurationSeconds": 0.11371416499605402,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:51:44.383506+00:00",
+      "elapsedSeconds": 10.205224425008055,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 143753216,
+        "control-plane": 233398272,
+        "browser": 764784640
+      },
+      "hostAvailableMemoryBytes": 20197904384,
+      "sampleDurationSeconds": 0.1303753000102006,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:51:45.404779+00:00",
+      "elapsedSeconds": 11.226497148018098,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 149573632,
+        "control-plane": 233906176,
+        "browser": 798040064
+      },
+      "hostAvailableMemoryBytes": 20124798976,
+      "sampleDurationSeconds": 0.15166175001650117,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:51:46.443812+00:00",
+      "elapsedSeconds": 12.265533238009084,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 163729408,
+        "control-plane": 233848832,
+        "browser": 831987712
+      },
+      "hostAvailableMemoryBytes": 20020920320,
+      "sampleDurationSeconds": 0.1906543660152238,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:51:47.396299+00:00",
+      "elapsedSeconds": 13.218020258005708,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 166313984,
+        "control-plane": 234532864,
+        "browser": 815812608
+      },
+      "hostAvailableMemoryBytes": 20015386624,
+      "sampleDurationSeconds": 0.14282946201274171,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:51:48.385480+00:00",
+      "elapsedSeconds": 14.207445467007346,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 166576128,
+        "control-plane": 234360832,
+        "browser": 856227840
+      },
+      "hostAvailableMemoryBytes": 19993333760,
+      "sampleDurationSeconds": 0.12966430198866874,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:51:49.372390+00:00",
+      "elapsedSeconds": 15.19411233701976,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 169422848,
+        "control-plane": 234639360,
+        "browser": 851402752
+      },
+      "hostAvailableMemoryBytes": 20002197504,
+      "sampleDurationSeconds": 0.11620666601811536,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:51:50.383664+00:00",
+      "elapsedSeconds": 16.20538568199845,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 169553920,
+        "control-plane": 234770432,
+        "browser": 887279616
+      },
+      "hostAvailableMemoryBytes": 20015194112,
+      "sampleDurationSeconds": 0.1259993780113291,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:51:51.387706+00:00",
+      "elapsedSeconds": 17.209427014022367,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 169140224,
+        "control-plane": 234819584,
+        "browser": 917839872
+      },
+      "hostAvailableMemoryBytes": 19999350784,
+      "sampleDurationSeconds": 0.12975472799735144,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:51:52.421770+00:00",
+      "elapsedSeconds": 18.243506060010986,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 169926656,
+        "control-plane": 235184128,
+        "browser": 912961536
+      },
+      "hostAvailableMemoryBytes": 20001230848,
+      "sampleDurationSeconds": 0.15861151699209586,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:51:53.381613+00:00",
+      "elapsedSeconds": 19.203333228011616,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 169926656,
+        "control-plane": 233787392,
+        "browser": 912961536
+      },
+      "hostAvailableMemoryBytes": 20011220992,
+      "sampleDurationSeconds": 0.11818454199237749,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:51:54.377782+00:00",
+      "elapsedSeconds": 20.199506475008093,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 170057728,
+        "control-plane": 233943040,
+        "browser": 912961536
+      },
+      "hostAvailableMemoryBytes": 20018413568,
+      "sampleDurationSeconds": 0.11420197901315987,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:51:55.403553+00:00",
+      "elapsedSeconds": 21.225279061007313,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 170582016,
+        "control-plane": 234598400,
+        "browser": 912961536
+      },
+      "hostAvailableMemoryBytes": 20059754496,
+      "sampleDurationSeconds": 0.13983320601982996,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:51:56.386197+00:00",
+      "elapsedSeconds": 22.207920701999683,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 172486656,
+        "control-plane": 234598400,
+        "browser": 911331328
+      },
+      "hostAvailableMemoryBytes": 20058390528,
+      "sampleDurationSeconds": 0.12228097900515422,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:51:57.391452+00:00",
+      "elapsedSeconds": 23.213179170998046,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 172486656,
+        "control-plane": 234598400,
+        "browser": 890400768
+      },
+      "hostAvailableMemoryBytes": 20079894528,
+      "sampleDurationSeconds": 0.1273705489875283,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:51:58.385693+00:00",
+      "elapsedSeconds": 24.20742096801405,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 172486656,
+        "control-plane": 234598400,
+        "browser": 890138624
+      },
+      "hostAvailableMemoryBytes": 20083154944,
+      "sampleDurationSeconds": 0.12156666201190092,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:51:59.396801+00:00",
+      "elapsedSeconds": 25.218521533999592,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 172617728,
+        "control-plane": 234598400,
+        "browser": 890138624
+      },
+      "hostAvailableMemoryBytes": 20112216064,
+      "sampleDurationSeconds": 0.13242965398239903,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:00.369035+00:00",
+      "elapsedSeconds": 26.190757073025452,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 172748800,
+        "control-plane": 234598400,
+        "browser": 890138624
+      },
+      "hostAvailableMemoryBytes": 20114407424,
+      "sampleDurationSeconds": 0.10462079901481047,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:01.394400+00:00",
+      "elapsedSeconds": 27.216122327023186,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 172748800,
+        "control-plane": 234991616,
+        "browser": 890269696
+      },
+      "hostAvailableMemoryBytes": 20097613824,
+      "sampleDurationSeconds": 0.12992165799369104,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:02.401445+00:00",
+      "elapsedSeconds": 28.223174775019288,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 172748800,
+        "control-plane": 235515904,
+        "browser": 890269696
+      },
+      "hostAvailableMemoryBytes": 20106334208,
+      "sampleDurationSeconds": 0.13687734300037846,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:03.385754+00:00",
+      "elapsedSeconds": 29.20748089501285,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 172748800,
+        "control-plane": 235646976,
+        "browser": 890269696
+      },
+      "hostAvailableMemoryBytes": 20110770176,
+      "sampleDurationSeconds": 0.12107067997567356,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:04.399401+00:00",
+      "elapsedSeconds": 30.221167339012027,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 173273088,
+        "control-plane": 235028480,
+        "browser": 890269696
+      },
+      "hostAvailableMemoryBytes": 20119040000,
+      "sampleDurationSeconds": 0.13430681399768218,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:05.392190+00:00",
+      "elapsedSeconds": 31.213976427010493,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 173273088,
+        "control-plane": 235028480,
+        "browser": 890269696
+      },
+      "hostAvailableMemoryBytes": 20110893056,
+      "sampleDurationSeconds": 0.12701196200214326,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:06.379685+00:00",
+      "elapsedSeconds": 32.20140844400157,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 173404160,
+        "control-plane": 235028480,
+        "browser": 890269696
+      },
+      "hostAvailableMemoryBytes": 20109848576,
+      "sampleDurationSeconds": 0.11437575300806202,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:07.375116+00:00",
+      "elapsedSeconds": 33.19683754100697,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 173535232,
+        "control-plane": 235159552,
+        "browser": 897454080
+      },
+      "hostAvailableMemoryBytes": 20088823808,
+      "sampleDurationSeconds": 0.10962831799406558,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:08.397128+00:00",
+      "elapsedSeconds": 34.21885425702203,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 173666304,
+        "control-plane": 235024384,
+        "browser": 897454080
+      },
+      "hostAvailableMemoryBytes": 20091641856,
+      "sampleDurationSeconds": 0.1315881309856195,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:09.384750+00:00",
+      "elapsedSeconds": 35.20647640101379,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 176549888,
+        "control-plane": 235024384,
+        "browser": 897454080
+      },
+      "hostAvailableMemoryBytes": 20081516544,
+      "sampleDurationSeconds": 0.11909264398855157,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:10.397554+00:00",
+      "elapsedSeconds": 36.21928146100254,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 176549888,
+        "control-plane": 235024384,
+        "browser": 897454080
+      },
+      "hostAvailableMemoryBytes": 20082364416,
+      "sampleDurationSeconds": 0.13207956601399928,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:11.441657+00:00",
+      "elapsedSeconds": 37.26338630402461,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 176812032,
+        "control-plane": 235024384,
+        "browser": 897454080
+      },
+      "hostAvailableMemoryBytes": 20074921984,
+      "sampleDurationSeconds": 0.17593643799773417,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:12.441341+00:00",
+      "elapsedSeconds": 38.26306592300534,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 176812032,
+        "control-plane": 235024384,
+        "browser": 893632512
+      },
+      "hostAvailableMemoryBytes": 20055252992,
+      "sampleDurationSeconds": 0.1737760310061276,
+      "containerIssues": [
+        "exact-owned-instance-not-yet-provided"
+      ],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:13.464809+00:00",
+      "elapsedSeconds": 39.28653757300344,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 176812032,
+        "control-plane": 235024384,
+        "browser": 787320832
+      },
+      "hostAvailableMemoryBytes": 20089028608,
+      "sampleDurationSeconds": 0.19617026401101612,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:14.492053+00:00",
+      "elapsedSeconds": 40.31386997102527,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 177336320,
+        "control-plane": 235024384,
+        "browser": 787320832
+      },
+      "hostAvailableMemoryBytes": 20085862400,
+      "sampleDurationSeconds": 0.2224814189830795,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:15.427642+00:00",
+      "elapsedSeconds": 41.249365174997365,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 177336320,
+        "control-plane": 235024384,
+        "browser": 787320832
+      },
+      "hostAvailableMemoryBytes": 20100702208,
+      "sampleDurationSeconds": 0.15629347099456936,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:16.504756+00:00",
+      "elapsedSeconds": 42.32665168802487,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 177336320,
+        "control-plane": 235155456,
+        "browser": 787320832
+      },
+      "hostAvailableMemoryBytes": 20134313984,
+      "sampleDurationSeconds": 0.2345132690097671,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:17.449687+00:00",
+      "elapsedSeconds": 43.271426621009596,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 177336320,
+        "control-plane": 235155456,
+        "browser": 787320832
+      },
+      "hostAvailableMemoryBytes": 20149010432,
+      "sampleDurationSeconds": 0.17728183398139663,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:18.424877+00:00",
+      "elapsedSeconds": 44.24663557700114,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 177336320,
+        "control-plane": 235155456,
+        "browser": 787320832
+      },
+      "hostAvailableMemoryBytes": 20151382016,
+      "sampleDurationSeconds": 0.15161731699481606,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:19.424282+00:00",
+      "elapsedSeconds": 45.24600126701989,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 177336320,
+        "control-plane": 235417600,
+        "browser": 787320832
+      },
+      "hostAvailableMemoryBytes": 20139319296,
+      "sampleDurationSeconds": 0.15032537298975512,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:20.402142+00:00",
+      "elapsedSeconds": 46.223867804015754,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 177336320,
+        "control-plane": 235417600,
+        "browser": 787320832
+      },
+      "hostAvailableMemoryBytes": 20147310592,
+      "sampleDurationSeconds": 0.12807255401276052,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:21.395772+00:00",
+      "elapsedSeconds": 47.21749452801305,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 177336320,
+        "control-plane": 235417600,
+        "browser": 757223424
+      },
+      "hostAvailableMemoryBytes": 20155580416,
+      "sampleDurationSeconds": 0.12156793402391486,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:22.411425+00:00",
+      "elapsedSeconds": 48.23315007099882,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 177336320,
+        "control-plane": 235417600,
+        "browser": 748441600
+      },
+      "hostAvailableMemoryBytes": 20169805824,
+      "sampleDurationSeconds": 0.13727743001072668,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:23.401861+00:00",
+      "elapsedSeconds": 49.22358609701041,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 177336320,
+        "control-plane": 235548672,
+        "browser": 748441600
+      },
+      "hostAvailableMemoryBytes": 20188139520,
+      "sampleDurationSeconds": 0.12600176301202737,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:24.408512+00:00",
+      "elapsedSeconds": 50.23024083900964,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 177336320,
+        "control-plane": 235548672,
+        "browser": 748441600
+      },
+      "hostAvailableMemoryBytes": 20173438976,
+      "sampleDurationSeconds": 0.13256042002467439,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:25.413742+00:00",
+      "elapsedSeconds": 51.23546871502185,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 177336320,
+        "control-plane": 235548672,
+        "browser": 748441600
+      },
+      "hostAvailableMemoryBytes": 20162183168,
+      "sampleDurationSeconds": 0.13760098797501996,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:26.422874+00:00",
+      "elapsedSeconds": 52.2446379570174,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 178515968,
+        "control-plane": 235548672,
+        "browser": 748441600
+      },
+      "hostAvailableMemoryBytes": 20169142272,
+      "sampleDurationSeconds": 0.1466252770042047,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:27.398999+00:00",
+      "elapsedSeconds": 53.220718126016436,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 178778112,
+        "control-plane": 235937792,
+        "browser": 748572672
+      },
+      "hostAvailableMemoryBytes": 20136767488,
+      "sampleDurationSeconds": 0.12270367000019178,
+      "containerIssues": [],
+      "workers": [
+        {
+          "worker": "worker-1",
+          "running": true,
+          "memoryUsageBytes": 42336256,
+          "workingSetBytes": 39436288,
+          "memoryLimitBytes": 1073741824,
+          "nanoCPULimit": 1000000000
+        }
+      ]
+    },
+    {
+      "observedAt": "2026-10-08T06:52:28.411796+00:00",
+      "elapsedSeconds": 54.233516819018405,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 178778112,
+        "control-plane": 233136128,
+        "browser": 748703744
+      },
+      "hostAvailableMemoryBytes": 20135264256,
+      "sampleDurationSeconds": 0.13555986099527217,
+      "containerIssues": [],
+      "workers": [
+        {
+          "worker": "worker-1",
+          "running": true,
+          "memoryUsageBytes": 42311680,
+          "workingSetBytes": 39411712,
+          "cpuCoreEquivalent": 0.002687376881661538,
+          "memoryLimitBytes": 1073741824,
+          "nanoCPULimit": 1000000000
+        }
+      ]
+    },
+    {
+      "observedAt": "2026-10-08T06:52:29.403084+00:00",
+      "elapsedSeconds": 55.22480439400533,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 178778112,
+        "control-plane": 233136128,
+        "browser": 748703744
+      },
+      "hostAvailableMemoryBytes": 20132954112,
+      "sampleDurationSeconds": 0.12306696298765019,
+      "containerIssues": [],
+      "workers": [
+        {
+          "worker": "worker-1",
+          "running": true,
+          "memoryUsageBytes": 42827776,
+          "workingSetBytes": 39927808,
+          "cpuCoreEquivalent": 0.011489042434023659,
+          "memoryLimitBytes": 1073741824,
+          "nanoCPULimit": 1000000000
+        }
+      ]
+    },
+    {
+      "observedAt": "2026-10-08T06:52:30.417213+00:00",
+      "elapsedSeconds": 56.238936483016005,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 178778112,
+        "control-plane": 103415808,
+        "browser": 755138560
+      },
+      "hostAvailableMemoryBytes": 20164202496,
+      "sampleDurationSeconds": 0.13693733100080863,
+      "containerIssues": [],
+      "workers": [
+        {
+          "worker": "worker-1",
+          "running": true,
+          "memoryUsageBytes": 57561088,
+          "workingSetBytes": 54222848,
+          "cpuCoreEquivalent": 0.8349092411989688,
+          "memoryLimitBytes": 1073741824,
+          "nanoCPULimit": 1000000000
+        }
+      ]
+    },
+    {
+      "observedAt": "2026-10-08T06:52:31.375162+00:00",
+      "elapsedSeconds": 57.196881961019244,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 181792768,
+        "control-plane": 103415808,
+        "browser": 785457152
+      },
+      "hostAvailableMemoryBytes": 20159737856,
+      "sampleDurationSeconds": 0.09482872998341918,
+      "containerIssues": [],
+      "workers": [
+        {
+          "worker": "worker-1",
+          "running": true,
+          "memoryUsageBytes": 57450496,
+          "workingSetBytes": 54136832,
+          "cpuCoreEquivalent": 0.1092141475706447,
+          "memoryLimitBytes": 1073741824,
+          "nanoCPULimit": 1000000000
+        }
+      ]
+    },
+    {
+      "observedAt": "2026-10-08T06:52:32.826172+00:00",
+      "elapsedSeconds": 58.64791785902344,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 193720320,
+        "control-plane": 103415808,
+        "browser": 778276864
+      },
+      "hostAvailableMemoryBytes": 20175429632,
+      "sampleDurationSeconds": 0.5460901650076266,
+      "containerIssues": [],
+      "workers": [
+        {
+          "worker": "worker-1",
+          "running": true,
+          "memoryUsageBytes": 55369728,
+          "workingSetBytes": 52068352,
+          "cpuCoreEquivalent": 0.15511248647056639,
+          "memoryLimitBytes": 1073741824,
+          "nanoCPULimit": 1000000000
+        }
+      ]
+    },
+    {
+      "observedAt": "2026-10-08T06:52:33.396601+00:00",
+      "elapsedSeconds": 59.21832247200655,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 10,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 204861440,
+        "browser": 779202560
+      },
+      "hostAvailableMemoryBytes": 20209893376,
+      "sampleDurationSeconds": 0.11561436398187652,
+      "containerIssues": [],
+      "workers": [
+        {
+          "worker": "worker-1",
+          "running": true,
+          "memoryUsageBytes": 55369728,
+          "workingSetBytes": 52068352,
+          "cpuCoreEquivalent": 0.0060789443023766794,
+          "memoryLimitBytes": 1073741824,
+          "nanoCPULimit": 1000000000
+        }
+      ]
+    },
+    {
+      "observedAt": "2026-10-08T06:52:34.455746+00:00",
+      "elapsedSeconds": 60.27747019199887,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 223625216,
+        "browser": 779202560,
+        "control-plane": 156512256
+      },
+      "hostAvailableMemoryBytes": 20155351040,
+      "sampleDurationSeconds": 0.17490569199435413,
+      "containerIssues": [],
+      "workers": [
+        {
+          "worker": "worker-1",
+          "running": false,
+          "memoryLimitBytes": 1073741824,
+          "nanoCPULimit": 1000000000
+        }
+      ]
+    },
+    {
+      "observedAt": "2026-10-08T06:52:36.009027+00:00",
+      "elapsedSeconds": 61.83082520001335,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 223625216,
+        "browser": 776859648,
+        "control-plane": 157036544
+      },
+      "hostAvailableMemoryBytes": 20108251136,
+      "sampleDurationSeconds": 0.7253462030203082,
+      "containerIssues": [],
+      "workers": [
+        {
+          "worker": "worker-1",
+          "running": false,
+          "memoryLimitBytes": 1073741824,
+          "nanoCPULimit": 1000000000
+        }
+      ]
+    },
+    {
+      "observedAt": "2026-10-08T06:52:36.407681+00:00",
+      "elapsedSeconds": 62.2294010190235,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 223625216,
+        "browser": 775847936,
+        "control-plane": 157560832
+      },
+      "hostAvailableMemoryBytes": 20110065664,
+      "sampleDurationSeconds": 0.1234726490220055,
+      "containerIssues": [],
+      "workers": [
+        {
+          "worker": "worker-1",
+          "running": false,
+          "memoryLimitBytes": 1073741824,
+          "nanoCPULimit": 1000000000
+        }
+      ]
+    },
+    {
+      "observedAt": "2026-10-08T06:52:37.391242+00:00",
+      "elapsedSeconds": 63.212963488011155,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 224280576,
+        "browser": 797274112,
+        "control-plane": 160968704
+      },
+      "hostAvailableMemoryBytes": 20098158592,
+      "sampleDurationSeconds": 0.10665823199087754,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:41.422477+00:00",
+      "elapsedSeconds": 67.24432712301495,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 224411648,
+        "browser": 798310400,
+        "control-plane": 165416960
+      },
+      "hostAvailableMemoryBytes": 20116709376,
+      "sampleDurationSeconds": 3.125879024009919,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:41.573614+00:00",
+      "elapsedSeconds": 67.39533755101729,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 224411648,
+        "browser": 798310400,
+        "control-plane": 165679104
+      },
+      "hostAvailableMemoryBytes": 20119830528,
+      "sampleDurationSeconds": 0.1475887389970012,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:42.555152+00:00",
+      "elapsedSeconds": 68.37687306801672,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 224411648,
+        "browser": 797048832,
+        "control-plane": 167182336
+      },
+      "hostAvailableMemoryBytes": 20105494528,
+      "sampleDurationSeconds": 0.1285496240016073,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:45.029636+00:00",
+      "elapsedSeconds": 70.85141221800586,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 224411648,
+        "browser": 793821184,
+        "control-plane": 168288256
+      },
+      "hostAvailableMemoryBytes": 20136230912,
+      "sampleDurationSeconds": 1.5312585840001702,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:45.183046+00:00",
+      "elapsedSeconds": 71.00476565799909,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 224411648,
+        "browser": 793821184,
+        "control-plane": 168726528
+      },
+      "hostAvailableMemoryBytes": 20135555072,
+      "sampleDurationSeconds": 0.15195242801564746,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:46.148567+00:00",
+      "elapsedSeconds": 71.97028733699699,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 224411648,
+        "browser": 793534464,
+        "control-plane": 169246720
+      },
+      "hostAvailableMemoryBytes": 20146786304,
+      "sampleDurationSeconds": 0.11736514198128134,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:47.718815+00:00",
+      "elapsedSeconds": 73.54069842302124,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 224411648,
+        "browser": 781934592,
+        "control-plane": 170033152
+      },
+      "hostAvailableMemoryBytes": 20166631424,
+      "sampleDurationSeconds": 0.6879779540176969,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:48.164031+00:00",
+      "elapsedSeconds": 73.98575271901791,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 224411648,
+        "browser": 768430080,
+        "control-plane": 170688512
+      },
+      "hostAvailableMemoryBytes": 20174966784,
+      "sampleDurationSeconds": 0.13216524900053628,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:49.142618+00:00",
+      "elapsedSeconds": 74.96433696401073,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 224411648,
+        "browser": 768430080,
+        "control-plane": 171474944
+      },
+      "hostAvailableMemoryBytes": 20178997248,
+      "sampleDurationSeconds": 0.11063330300385132,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:50.675608+00:00",
+      "elapsedSeconds": 76.49739368099836,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 224411648,
+        "browser": 768290816,
+        "control-plane": 172707840
+      },
+      "hostAvailableMemoryBytes": 20189491200,
+      "sampleDurationSeconds": 0.6422423500043806,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:51.147054+00:00",
+      "elapsedSeconds": 76.96877714700531,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 224411648,
+        "browser": 768290816,
+        "control-plane": 173363200
+      },
+      "hostAvailableMemoryBytes": 20183498752,
+      "sampleDurationSeconds": 0.11309312100638635,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:52.159141+00:00",
+      "elapsedSeconds": 77.98086424701614,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 224411648,
+        "browser": 768421888,
+        "control-plane": 174280704
+      },
+      "hostAvailableMemoryBytes": 20198481920,
+      "sampleDurationSeconds": 0.12508765500388108,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:53.214549+00:00",
+      "elapsedSeconds": 79.03628297802061,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 224542720,
+        "browser": 766967808,
+        "control-plane": 175198208
+      },
+      "hostAvailableMemoryBytes": 20204597248,
+      "sampleDurationSeconds": 0.17828172200825065,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:54.145588+00:00",
+      "elapsedSeconds": 79.96731446002377,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 224542720,
+        "browser": 766115840,
+        "control-plane": 175853568
+      },
+      "hostAvailableMemoryBytes": 20202770432,
+      "sampleDurationSeconds": 0.10901587599073537,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:55.463498+00:00",
+      "elapsedSeconds": 81.2852532530087,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 224542720,
+        "browser": 766115840,
+        "control-plane": 176902144
+      },
+      "hostAvailableMemoryBytes": 20211355648,
+      "sampleDurationSeconds": 0.4102763719856739,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:56.189056+00:00",
+      "elapsedSeconds": 82.01077824202366,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 224542720,
+        "browser": 766115840,
+        "control-plane": 177426432
+      },
+      "hostAvailableMemoryBytes": 20216926208,
+      "sampleDurationSeconds": 0.13507424300769344,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:57.201243+00:00",
+      "elapsedSeconds": 83.02296613200451,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 224542720,
+        "browser": 766115840,
+        "control-plane": 178212864
+      },
+      "hostAvailableMemoryBytes": 20215152640,
+      "sampleDurationSeconds": 0.14708184800110757,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:58.208037+00:00",
+      "elapsedSeconds": 84.02977757900953,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 224673792,
+        "browser": 765952000,
+        "control-plane": 178999296
+      },
+      "hostAvailableMemoryBytes": 20214390784,
+      "sampleDurationSeconds": 0.15306226699613035,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:52:59.185230+00:00",
+      "elapsedSeconds": 85.00695259601343,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 224673792,
+        "browser": 765952000,
+        "control-plane": 179064832
+      },
+      "hostAvailableMemoryBytes": 20214042624,
+      "sampleDurationSeconds": 0.13007309500244446,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:00.251691+00:00",
+      "elapsedSeconds": 86.07343355900957,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 224673792,
+        "browser": 765952000,
+        "control-plane": 179851264
+      },
+      "hostAvailableMemoryBytes": 20213682176,
+      "sampleDurationSeconds": 0.19559331602067687,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:01.218846+00:00",
+      "elapsedSeconds": 87.04056952000246,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 224804864,
+        "browser": 744124416,
+        "control-plane": 180637696
+      },
+      "hostAvailableMemoryBytes": 20227223552,
+      "sampleDurationSeconds": 0.15631261098315008,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:02.305316+00:00",
+      "elapsedSeconds": 88.12711869701161,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 224186368,
+        "browser": 743972864,
+        "control-plane": 181424128
+      },
+      "hostAvailableMemoryBytes": 20234727424,
+      "sampleDurationSeconds": 0.2388672619999852,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:03.249540+00:00",
+      "elapsedSeconds": 89.0712794540159,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 224186368,
+        "browser": 743972864,
+        "control-plane": 182210560
+      },
+      "hostAvailableMemoryBytes": 20231827456,
+      "sampleDurationSeconds": 0.1810684670053888,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:04.270116+00:00",
+      "elapsedSeconds": 90.09239838001668,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 224186368,
+        "browser": 743972864,
+        "control-plane": 182996992
+      },
+      "hostAvailableMemoryBytes": 20228579328,
+      "sampleDurationSeconds": 0.21022467699367553,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:05.201549+00:00",
+      "elapsedSeconds": 91.02326849399833,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 224186368,
+        "browser": 743972864,
+        "control-plane": 183652352
+      },
+      "hostAvailableMemoryBytes": 20210388992,
+      "sampleDurationSeconds": 0.13239758400595747,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:06.232181+00:00",
+      "elapsedSeconds": 92.05390636101947,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 224186368,
+        "browser": 743538688,
+        "control-plane": 184569856
+      },
+      "hostAvailableMemoryBytes": 20198162432,
+      "sampleDurationSeconds": 0.1629279999760911,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:07.238614+00:00",
+      "elapsedSeconds": 93.06035694200546,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 224186368,
+        "browser": 743538688,
+        "control-plane": 185094144
+      },
+      "hostAvailableMemoryBytes": 20196904960,
+      "sampleDurationSeconds": 0.16815922199748456,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:08.210075+00:00",
+      "elapsedSeconds": 94.03179844401893,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 225497088,
+        "browser": 743800832,
+        "control-plane": 186142720
+      },
+      "hostAvailableMemoryBytes": 20206137344,
+      "sampleDurationSeconds": 0.13709679801831953,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:09.204289+00:00",
+      "elapsedSeconds": 95.0260137260193,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 225497088,
+        "browser": 743931904,
+        "control-plane": 187453440
+      },
+      "hostAvailableMemoryBytes": 20214349824,
+      "sampleDurationSeconds": 0.1308010279899463,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:10.217460+00:00",
+      "elapsedSeconds": 96.0391838090145,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 225628160,
+        "browser": 741236736,
+        "control-plane": 188633088
+      },
+      "hostAvailableMemoryBytes": 20204171264,
+      "sampleDurationSeconds": 0.14356355599011295,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:11.283296+00:00",
+      "elapsedSeconds": 97.10503327701008,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 225628160,
+        "browser": 740495360,
+        "control-plane": 189157376
+      },
+      "hostAvailableMemoryBytes": 20192591872,
+      "sampleDurationSeconds": 0.20715018000919372,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:12.249259+00:00",
+      "elapsedSeconds": 98.07098550401861,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 225628160,
+        "browser": 740495360,
+        "control-plane": 189812736
+      },
+      "hostAvailableMemoryBytes": 20206186496,
+      "sampleDurationSeconds": 0.1730893769999966,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:13.189117+00:00",
+      "elapsedSeconds": 99.0109127900214,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 225628160,
+        "browser": 740495360,
+        "control-plane": 190861312
+      },
+      "hostAvailableMemoryBytes": 20208594944,
+      "sampleDurationSeconds": 0.11284194298787042,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:14.188352+00:00",
+      "elapsedSeconds": 100.01007641601609,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 227069952,
+        "browser": 738795520,
+        "control-plane": 191778816
+      },
+      "hostAvailableMemoryBytes": 20207747072,
+      "sampleDurationSeconds": 0.11173227700055577,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:15.188856+00:00",
+      "elapsedSeconds": 101.01058271501097,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 228773888,
+        "browser": 736198656,
+        "control-plane": 192434176
+      },
+      "hostAvailableMemoryBytes": 20206034944,
+      "sampleDurationSeconds": 0.11213142800261267,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:16.314667+00:00",
+      "elapsedSeconds": 102.13641194000957,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 230084608,
+        "browser": 736198656,
+        "control-plane": 193220608
+      },
+      "hostAvailableMemoryBytes": 20187009024,
+      "sampleDurationSeconds": 0.23711639101384208,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:17.188612+00:00",
+      "elapsedSeconds": 103.01041338502546,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 231526400,
+        "browser": 736198656,
+        "control-plane": 193875968
+      },
+      "hostAvailableMemoryBytes": 20189147136,
+      "sampleDurationSeconds": 0.11021848901873454,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:18.189876+00:00",
+      "elapsedSeconds": 104.011620270001,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 233361408,
+        "browser": 736456704,
+        "control-plane": 194924544
+      },
+      "hostAvailableMemoryBytes": 20185116672,
+      "sampleDurationSeconds": 0.11071685599745251,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:19.221526+00:00",
+      "elapsedSeconds": 105.04324588199961,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 235589632,
+        "browser": 736587776,
+        "control-plane": 196104192
+      },
+      "hostAvailableMemoryBytes": 20166647808,
+      "sampleDurationSeconds": 0.1422391779778991,
+      "containerIssues": [],
+      "workers": [
+        {
+          "worker": "worker-2",
+          "running": true,
+          "memoryUsageBytes": 27893760,
+          "workingSetBytes": 26660864,
+          "memoryLimitBytes": 1073741824,
+          "nanoCPULimit": 1000000000
+        }
+      ]
+    },
+    {
+      "observedAt": "2026-10-08T06:53:20.189225+00:00",
+      "elapsedSeconds": 106.0109483730048,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 237293568,
+        "browser": 736587776,
+        "control-plane": 196759552
+      },
+      "hostAvailableMemoryBytes": 20141989888,
+      "sampleDurationSeconds": 0.1098883289960213,
+      "containerIssues": [],
+      "workers": [
+        {
+          "worker": "worker-2",
+          "running": true,
+          "memoryUsageBytes": 40730624,
+          "workingSetBytes": 37834752,
+          "cpuCoreEquivalent": 0.22815785122570914,
+          "memoryLimitBytes": 1073741824,
+          "nanoCPULimit": 1000000000
+        }
+      ]
+    },
+    {
+      "observedAt": "2026-10-08T06:53:21.191788+00:00",
+      "elapsedSeconds": 107.0135086820228,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 237948928,
+        "browser": 736718848,
+        "control-plane": 197283840
+      },
+      "hostAvailableMemoryBytes": 20141215744,
+      "sampleDurationSeconds": 0.11241907998919487,
+      "containerIssues": [],
+      "workers": [
+        {
+          "worker": "worker-2",
+          "running": true,
+          "memoryUsageBytes": 40730624,
+          "workingSetBytes": 37834752,
+          "cpuCoreEquivalent": 0.0,
+          "memoryLimitBytes": 1073741824,
+          "nanoCPULimit": 1000000000
+        }
+      ]
+    },
+    {
+      "observedAt": "2026-10-08T06:53:22.204713+00:00",
+      "elapsedSeconds": 108.02643323902157,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 240177152,
+        "browser": 736849920,
+        "control-plane": 197545984
+      },
+      "hostAvailableMemoryBytes": 20131987456,
+      "sampleDurationSeconds": 0.12512500601587817,
+      "containerIssues": [],
+      "workers": [
+        {
+          "worker": "worker-2",
+          "running": true,
+          "memoryUsageBytes": 54693888,
+          "workingSetBytes": 51396608,
+          "cpuCoreEquivalent": 0.31885281807811283,
+          "memoryLimitBytes": 1073741824,
+          "nanoCPULimit": 1000000000
+        }
+      ]
+    },
+    {
+      "observedAt": "2026-10-08T06:53:23.224221+00:00",
+      "elapsedSeconds": 109.04594217200065,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 252497920,
+        "browser": 795906048,
+        "control-plane": 199643136
+      },
+      "hostAvailableMemoryBytes": 20043767808,
+      "sampleDurationSeconds": 0.14470602700021118,
+      "containerIssues": [],
+      "workers": [
+        {
+          "worker": "worker-2",
+          "running": true,
+          "memoryUsageBytes": 56418304,
+          "workingSetBytes": 53121024,
+          "cpuCoreEquivalent": 0.4656606076868043,
+          "memoryLimitBytes": 1073741824,
+          "nanoCPULimit": 1000000000
+        }
+      ]
+    },
+    {
+      "observedAt": "2026-10-08T06:53:24.225155+00:00",
+      "elapsedSeconds": 110.0468736019975,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 259194880,
+        "browser": 803299328,
+        "control-plane": 200577024
+      },
+      "hostAvailableMemoryBytes": 19978960896,
+      "sampleDurationSeconds": 0.14534319197991863,
+      "containerIssues": [],
+      "workers": [
+        {
+          "worker": "worker-2",
+          "running": true,
+          "memoryUsageBytes": 56418304,
+          "workingSetBytes": 53121024,
+          "cpuCoreEquivalent": 0.0,
+          "memoryLimitBytes": 1073741824,
+          "nanoCPULimit": 1000000000
+        }
+      ]
+    },
+    {
+      "observedAt": "2026-10-08T06:53:25.340047+00:00",
+      "elapsedSeconds": 111.16179016500246,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 259194880,
+        "browser": 803840000,
+        "control-plane": 201957376
+      },
+      "hostAvailableMemoryBytes": 19986288640,
+      "sampleDurationSeconds": 0.25989313700119965,
+      "containerIssues": [],
+      "workers": [
+        {
+          "worker": "worker-2",
+          "running": false,
+          "memoryLimitBytes": 1073741824,
+          "nanoCPULimit": 1000000000
+        }
+      ]
+    },
+    {
+      "observedAt": "2026-10-08T06:53:26.222838+00:00",
+      "elapsedSeconds": 112.04455848300131,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 259194880,
+        "browser": 803753984,
+        "control-plane": 202481664
+      },
+      "hostAvailableMemoryBytes": 19949785088,
+      "sampleDurationSeconds": 0.14231691099121235,
+      "containerIssues": [],
+      "workers": [
+        {
+          "worker": "worker-2",
+          "running": false,
+          "memoryLimitBytes": 1073741824,
+          "nanoCPULimit": 1000000000
+        }
+      ]
+    },
+    {
+      "observedAt": "2026-10-08T06:53:27.523766+00:00",
+      "elapsedSeconds": 113.34548662300222,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 259981312,
+        "browser": 814989312,
+        "control-plane": 204120064
+      },
+      "hostAvailableMemoryBytes": 19981762560,
+      "sampleDurationSeconds": 0.44317456299904734,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:32.588350+00:00",
+      "elapsedSeconds": 118.41007311901194,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 259981312,
+        "browser": 806289408,
+        "control-plane": 203931648
+      },
+      "hostAvailableMemoryBytes": 20025831424,
+      "sampleDurationSeconds": 4.501000540010864,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:32.755356+00:00",
+      "elapsedSeconds": 118.57707428801223,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 259981312,
+        "browser": 810905600,
+        "control-plane": 203636736
+      },
+      "hostAvailableMemoryBytes": 20035960832,
+      "sampleDurationSeconds": 0.16638542999862693,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:33.715540+00:00",
+      "elapsedSeconds": 119.5372594690125,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 260112384,
+        "browser": 827740160,
+        "control-plane": 204210176
+      },
+      "hostAvailableMemoryBytes": 20029620224,
+      "sampleDurationSeconds": 0.1263547629932873,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:36.495605+00:00",
+      "elapsedSeconds": 122.31739016700885,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 260112384,
+        "browser": 828157952,
+        "control-plane": 104607744
+      },
+      "hostAvailableMemoryBytes": 20079779840,
+      "sampleDurationSeconds": 1.9010186720115598,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:36.639782+00:00",
+      "elapsedSeconds": 122.46149974002037,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 260112384,
+        "browser": 828289024,
+        "control-plane": 104869888
+      },
+      "hostAvailableMemoryBytes": 20096262144,
+      "sampleDurationSeconds": 0.14096120701287873,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:37.621284+00:00",
+      "elapsedSeconds": 123.4430104480125,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 260112384,
+        "browser": 827817984,
+        "control-plane": 104697856
+      },
+      "hostAvailableMemoryBytes": 20109434880,
+      "sampleDurationSeconds": 0.12222317600389943,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:40.860319+00:00",
+      "elapsedSeconds": 126.68205553601729,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258498560,
+        "browser": 811823104,
+        "control-plane": 103956480
+      },
+      "hostAvailableMemoryBytes": 20164128768,
+      "sampleDurationSeconds": 2.3572391660127323,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:41.006021+00:00",
+      "elapsedSeconds": 126.82773889700184,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258498560,
+        "browser": 811823104,
+        "control-plane": 103956480
+      },
+      "hostAvailableMemoryBytes": 20166082560,
+      "sampleDurationSeconds": 0.14385178001248278,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:41.986739+00:00",
+      "elapsedSeconds": 127.80846181302331,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258498560,
+        "browser": 811929600,
+        "control-plane": 103809024
+      },
+      "hostAvailableMemoryBytes": 20166586368,
+      "sampleDurationSeconds": 0.12455630302429199,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:43.060856+00:00",
+      "elapsedSeconds": 128.88257778302068,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258498560,
+        "browser": 806150144,
+        "control-plane": 104333312
+      },
+      "hostAvailableMemoryBytes": 20168376320,
+      "sampleDurationSeconds": 0.19962959102122113,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:44.405136+00:00",
+      "elapsedSeconds": 130.22693368501496,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258498560,
+        "browser": 800927744,
+        "control-plane": 104333312
+      },
+      "hostAvailableMemoryBytes": 20182360064,
+      "sampleDurationSeconds": 0.5297486149938777,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:44.970474+00:00",
+      "elapsedSeconds": 130.79219355800888,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258498560,
+        "browser": 800927744,
+        "control-plane": 104333312
+      },
+      "hostAvailableMemoryBytes": 20189466624,
+      "sampleDurationSeconds": 0.09427110402612016,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:45.991088+00:00",
+      "elapsedSeconds": 131.8128122120106,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258498560,
+        "browser": 800796672,
+        "control-plane": 104333312
+      },
+      "hostAvailableMemoryBytes": 20198789120,
+      "sampleDurationSeconds": 0.11476197800948285,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:47.088055+00:00",
+      "elapsedSeconds": 132.90980059001595,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258498560,
+        "browser": 801058816,
+        "control-plane": 104333312
+      },
+      "hostAvailableMemoryBytes": 20198182912,
+      "sampleDurationSeconds": 0.21106500999303535,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:48.011722+00:00",
+      "elapsedSeconds": 133.83344363901415,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258629632,
+        "browser": 801058816,
+        "control-plane": 104333312
+      },
+      "hostAvailableMemoryBytes": 20208607232,
+      "sampleDurationSeconds": 0.13422018100391142,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:49.313493+00:00",
+      "elapsedSeconds": 135.13522792700678,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258629632,
+        "browser": 801058816,
+        "control-plane": 104333312
+      },
+      "hostAvailableMemoryBytes": 20190875648,
+      "sampleDurationSeconds": 0.41808233500341885,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:50.019239+00:00",
+      "elapsedSeconds": 135.8409589130024,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258629632,
+        "browser": 801046528,
+        "control-plane": 104333312
+      },
+      "hostAvailableMemoryBytes": 20204101632,
+      "sampleDurationSeconds": 0.12351767800282687,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:51.028730+00:00",
+      "elapsedSeconds": 136.85045195400016,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258629632,
+        "browser": 801308672,
+        "control-plane": 104333312
+      },
+      "hostAvailableMemoryBytes": 20198735872,
+      "sampleDurationSeconds": 0.1329834979842417,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:52.050379+00:00",
+      "elapsedSeconds": 137.87211535900133,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258629632,
+        "browser": 801308672,
+        "control-plane": 104595456
+      },
+      "hostAvailableMemoryBytes": 20203524096,
+      "sampleDurationSeconds": 0.1536137509974651,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:53.041436+00:00",
+      "elapsedSeconds": 138.8631628990115,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258629632,
+        "browser": 763150336,
+        "control-plane": 104857600
+      },
+      "hostAvailableMemoryBytes": 20202434560,
+      "sampleDurationSeconds": 0.14413450699066743,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:54.084990+00:00",
+      "elapsedSeconds": 139.9067311140243,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258629632,
+        "browser": 763150336,
+        "control-plane": 104857600
+      },
+      "hostAvailableMemoryBytes": 20211957760,
+      "sampleDurationSeconds": 0.1862325959955342,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:55.039246+00:00",
+      "elapsedSeconds": 140.86097293099738,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258760704,
+        "browser": 763150336,
+        "control-plane": 104988672
+      },
+      "hostAvailableMemoryBytes": 20215558144,
+      "sampleDurationSeconds": 0.14001523301703855,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:56.182495+00:00",
+      "elapsedSeconds": 142.00423378500273,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258891776,
+        "browser": 763150336,
+        "control-plane": 103997440
+      },
+      "hostAvailableMemoryBytes": 20223946752,
+      "sampleDurationSeconds": 0.2686486369930208,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:57.097587+00:00",
+      "elapsedSeconds": 142.91930853101076,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258891776,
+        "browser": 762437632,
+        "control-plane": 103997440
+      },
+      "hostAvailableMemoryBytes": 20229144576,
+      "sampleDurationSeconds": 0.18335794401355088,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:58.080520+00:00",
+      "elapsedSeconds": 143.90224508501706,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258891776,
+        "browser": 762421248,
+        "control-plane": 103997440
+      },
+      "hostAvailableMemoryBytes": 20215578624,
+      "sampleDurationSeconds": 0.1633651110169012,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:53:59.133743+00:00",
+      "elapsedSeconds": 144.95559210001375,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258891776,
+        "browser": 762421248,
+        "control-plane": 103997440
+      },
+      "hostAvailableMemoryBytes": 20213530624,
+      "sampleDurationSeconds": 0.2157064330240246,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:00.065864+00:00",
+      "elapsedSeconds": 145.88758708900423,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258891776,
+        "browser": 762421248,
+        "control-plane": 103997440
+      },
+      "hostAvailableMemoryBytes": 20213899264,
+      "sampleDurationSeconds": 0.1468601850210689,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:01.363246+00:00",
+      "elapsedSeconds": 147.18498570701922,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258891776,
+        "browser": 762286080,
+        "control-plane": 103981056
+      },
+      "hostAvailableMemoryBytes": 20220637184,
+      "sampleDurationSeconds": 0.43388771699392237,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:02.073012+00:00",
+      "elapsedSeconds": 147.89473559701582,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258891776,
+        "browser": 744448000,
+        "control-plane": 103981056
+      },
+      "hostAvailableMemoryBytes": 20232196096,
+      "sampleDurationSeconds": 0.1434812730003614,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:03.076829+00:00",
+      "elapsedSeconds": 148.89855117801926,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258891776,
+        "browser": 744439808,
+        "control-plane": 103981056
+      },
+      "hostAvailableMemoryBytes": 20233723904,
+      "sampleDurationSeconds": 0.14715536698349752,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:04.061802+00:00",
+      "elapsedSeconds": 149.8835251959972,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258891776,
+        "browser": 744304640,
+        "control-plane": 103981056
+      },
+      "hostAvailableMemoryBytes": 20251758592,
+      "sampleDurationSeconds": 0.13194289500825107,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:05.063295+00:00",
+      "elapsedSeconds": 150.88501762601663,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258891776,
+        "browser": 744304640,
+        "control-plane": 104112128
+      },
+      "hostAvailableMemoryBytes": 20258455552,
+      "sampleDurationSeconds": 0.133186019025743,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:06.064882+00:00",
+      "elapsedSeconds": 151.88662868301617,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258891776,
+        "browser": 744435712,
+        "control-plane": 104112128
+      },
+      "hostAvailableMemoryBytes": 20261138432,
+      "sampleDurationSeconds": 0.1346475619939156,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:07.064611+00:00",
+      "elapsedSeconds": 152.8863331770117,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258891776,
+        "browser": 743628800,
+        "control-plane": 104243200
+      },
+      "hostAvailableMemoryBytes": 20258906112,
+      "sampleDurationSeconds": 0.1315548680140637,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:08.042504+00:00",
+      "elapsedSeconds": 153.86422200201196,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258891776,
+        "browser": 743628800,
+        "control-plane": 104243200
+      },
+      "hostAvailableMemoryBytes": 20261052416,
+      "sampleDurationSeconds": 0.1092729700030759,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:09.097722+00:00",
+      "elapsedSeconds": 154.91944600900752,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258891776,
+        "browser": 743628800,
+        "control-plane": 104505344
+      },
+      "hostAvailableMemoryBytes": 20254351360,
+      "sampleDurationSeconds": 0.1644796459877398,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:10.072615+00:00",
+      "elapsedSeconds": 155.89433955500135,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258891776,
+        "browser": 743616512,
+        "control-plane": 104505344
+      },
+      "hostAvailableMemoryBytes": 20250681344,
+      "sampleDurationSeconds": 0.13915363099658862,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:11.051665+00:00",
+      "elapsedSeconds": 156.87338448801893,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258891776,
+        "browser": 743616512,
+        "control-plane": 104505344
+      },
+      "hostAvailableMemoryBytes": 20247826432,
+      "sampleDurationSeconds": 0.11471104799420573,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:12.060867+00:00",
+      "elapsedSeconds": 157.88258991899784,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258891776,
+        "browser": 741879808,
+        "control-plane": 104505344
+      },
+      "hostAvailableMemoryBytes": 20245827584,
+      "sampleDurationSeconds": 0.1235464749915991,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:13.106515+00:00",
+      "elapsedSeconds": 158.92824061901774,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 12,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 258666496,
+        "browser": 742535168,
+        "control-plane": 104628224
+      },
+      "hostAvailableMemoryBytes": 20234289152,
+      "sampleDurationSeconds": 0.1662058780202642,
+      "containerIssues": [],
+      "workers": [
+        {
+          "worker": "worker-3",
+          "running": true,
+          "memoryUsageBytes": 27049984,
+          "workingSetBytes": 26165248,
+          "memoryLimitBytes": 1073741824,
+          "nanoCPULimit": 1000000000
+        }
+      ]
+    },
+    {
+      "observedAt": "2026-10-08T06:54:14.062543+00:00",
+      "elapsedSeconds": 159.88426615000935,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 3,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 259452928,
+        "browser": 0,
+        "control-plane": 104628224
+      },
+      "hostAvailableMemoryBytes": 20451516416,
+      "sampleDurationSeconds": 0.1222052949888166,
+      "containerIssues": [],
+      "workers": [
+        {
+          "worker": "worker-3",
+          "running": false,
+          "memoryLimitBytes": 1073741824,
+          "nanoCPULimit": 1000000000
+        }
+      ]
+    },
+    {
+      "observedAt": "2026-10-08T06:54:15.187773+00:00",
+      "elapsedSeconds": 161.00950059201568,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 3,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 259452928,
+        "browser": 0,
+        "control-plane": 104759296
+      },
+      "hostAvailableMemoryBytes": 20466421760,
+      "sampleDurationSeconds": 0.24706706299912184,
+      "containerIssues": [],
+      "workers": [
+        {
+          "worker": "worker-3",
+          "running": false,
+          "memoryLimitBytes": 1073741824,
+          "nanoCPULimit": 1000000000
+        }
+      ]
+    },
+    {
+      "observedAt": "2026-10-08T06:54:18.182993+00:00",
+      "elapsedSeconds": 164.00512161300867,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 3,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 259452928,
+        "browser": 0,
+        "control-plane": 104759296
+      },
+      "hostAvailableMemoryBytes": 20519161856,
+      "sampleDurationSeconds": 2.454888464009855,
+      "containerIssues": [],
+      "workers": [
+        {
+          "worker": "worker-3",
+          "running": false,
+          "memoryLimitBytes": 1073741824,
+          "nanoCPULimit": 1000000000
+        }
+      ]
+    },
+    {
+      "observedAt": "2026-10-08T06:54:18.655163+00:00",
+      "elapsedSeconds": 164.4769446940045,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 3,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 259452928,
+        "browser": 0,
+        "control-plane": 104890368
+      },
+      "hostAvailableMemoryBytes": 20547084288,
+      "sampleDurationSeconds": 0.21921610701247118,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:19.540797+00:00",
+      "elapsedSeconds": 165.36252069100738,
+      "phase": "post-start-running",
+      "driverAlive": true,
+      "liveOwnedProcessCount": 1,
+      "summedProcessRSSBytesByRole": {
+        "test-driver": 260165632,
+        "browser": 0
+      },
+      "hostAvailableMemoryBytes": 20585107456,
+      "sampleDurationSeconds": 0.1046765319770202,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:20.714697+00:00",
+      "elapsedSeconds": 166.5365387990023,
+      "phase": "post-driver-exit-settle",
+      "driverAlive": false,
+      "liveOwnedProcessCount": 0,
+      "summedProcessRSSBytesByRole": {
+        "browser": 0
+      },
+      "hostAvailableMemoryBytes": 20753399808,
+      "sampleDurationSeconds": 0.2780963910045102,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:22.010933+00:00",
+      "elapsedSeconds": 167.83272098001908,
+      "phase": "post-driver-exit-settle",
+      "driverAlive": false,
+      "liveOwnedProcessCount": 0,
+      "summedProcessRSSBytesByRole": {
+        "browser": 0
+      },
+      "hostAvailableMemoryBytes": 20777013248,
+      "sampleDurationSeconds": 0.5701016699895263,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:22.556091+00:00",
+      "elapsedSeconds": 168.37781222802005,
+      "phase": "post-driver-exit-settle",
+      "driverAlive": false,
+      "liveOwnedProcessCount": 0,
+      "summedProcessRSSBytesByRole": {
+        "browser": 0
+      },
+      "hostAvailableMemoryBytes": 20773183488,
+      "sampleDurationSeconds": 0.11370235198410228,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:23.545713+00:00",
+      "elapsedSeconds": 169.36743728301371,
+      "phase": "post-driver-exit-settle",
+      "driverAlive": false,
+      "liveOwnedProcessCount": 0,
+      "summedProcessRSSBytesByRole": {
+        "browser": 0
+      },
+      "hostAvailableMemoryBytes": 20785876992,
+      "sampleDurationSeconds": 0.10339957498945296,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:24.719652+00:00",
+      "elapsedSeconds": 170.5414412690152,
+      "phase": "post-driver-exit-settle",
+      "driverAlive": false,
+      "liveOwnedProcessCount": 0,
+      "summedProcessRSSBytesByRole": {
+        "browser": 0
+      },
+      "hostAvailableMemoryBytes": 20806021120,
+      "sampleDurationSeconds": 0.2727518420142587,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:25.550578+00:00",
+      "elapsedSeconds": 171.37229982801364,
+      "phase": "post-driver-exit-settle",
+      "driverAlive": false,
+      "liveOwnedProcessCount": 0,
+      "summedProcessRSSBytesByRole": {
+        "browser": 0
+      },
+      "hostAvailableMemoryBytes": 20805767168,
+      "sampleDurationSeconds": 0.10283613001229241,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:26.661245+00:00",
+      "elapsedSeconds": 172.48302630899707,
+      "phase": "post-driver-exit-settle",
+      "driverAlive": false,
+      "liveOwnedProcessCount": 0,
+      "summedProcessRSSBytesByRole": {
+        "browser": 0
+      },
+      "hostAvailableMemoryBytes": 20815216640,
+      "sampleDurationSeconds": 0.21303153899498284,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:27.691433+00:00",
+      "elapsedSeconds": 173.5132230099989,
+      "phase": "post-driver-exit-settle",
+      "driverAlive": false,
+      "liveOwnedProcessCount": 0,
+      "summedProcessRSSBytesByRole": {
+        "browser": 0
+      },
+      "hostAvailableMemoryBytes": 20827471872,
+      "sampleDurationSeconds": 0.23524867900414392,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:28.560421+00:00",
+      "elapsedSeconds": 174.382146613003,
+      "phase": "post-driver-exit-settle",
+      "driverAlive": false,
+      "liveOwnedProcessCount": 0,
+      "summedProcessRSSBytesByRole": {
+        "browser": 0
+      },
+      "hostAvailableMemoryBytes": 20826959872,
+      "sampleDurationSeconds": 0.10329101100796834,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:29.708861+00:00",
+      "elapsedSeconds": 175.5306886830076,
+      "phase": "post-driver-exit-settle",
+      "driverAlive": false,
+      "liveOwnedProcessCount": 0,
+      "summedProcessRSSBytesByRole": {
+        "browser": 0
+      },
+      "hostAvailableMemoryBytes": 20825739264,
+      "sampleDurationSeconds": 0.24949422699864954,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:30.600919+00:00",
+      "elapsedSeconds": 176.42264003801392,
+      "phase": "post-driver-exit-settle",
+      "driverAlive": false,
+      "liveOwnedProcessCount": 0,
+      "summedProcessRSSBytesByRole": {
+        "browser": 0
+      },
+      "hostAvailableMemoryBytes": 20829593600,
+      "sampleDurationSeconds": 0.14072156898328103,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:31.692163+00:00",
+      "elapsedSeconds": 177.51399479300017,
+      "phase": "post-driver-exit-settle",
+      "driverAlive": false,
+      "liveOwnedProcessCount": 0,
+      "summedProcessRSSBytesByRole": {
+        "browser": 0
+      },
+      "hostAvailableMemoryBytes": 20839473152,
+      "sampleDurationSeconds": 0.23327462997986004,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:32.761118+00:00",
+      "elapsedSeconds": 178.58285238401731,
+      "phase": "post-driver-exit-settle",
+      "driverAlive": false,
+      "liveOwnedProcessCount": 0,
+      "summedProcessRSSBytesByRole": {
+        "browser": 0
+      },
+      "hostAvailableMemoryBytes": 20842897408,
+      "sampleDurationSeconds": 0.29820956898038276,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:33.579264+00:00",
+      "elapsedSeconds": 179.4010687560076,
+      "phase": "post-driver-exit-settle",
+      "driverAlive": false,
+      "liveOwnedProcessCount": 0,
+      "summedProcessRSSBytesByRole": {
+        "browser": 0
+      },
+      "hostAvailableMemoryBytes": 20839407616,
+      "sampleDurationSeconds": 0.11628472799202427,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:35.172361+00:00",
+      "elapsedSeconds": 180.99437743402086,
+      "phase": "post-driver-exit-settle",
+      "driverAlive": false,
+      "liveOwnedProcessCount": 0,
+      "summedProcessRSSBytesByRole": {
+        "browser": 0
+      },
+      "hostAvailableMemoryBytes": 20845735936,
+      "sampleDurationSeconds": 0.706841303006513,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:35.633158+00:00",
+      "elapsedSeconds": 181.45511824902496,
+      "phase": "post-driver-exit-settle",
+      "driverAlive": false,
+      "liveOwnedProcessCount": 0,
+      "summedProcessRSSBytesByRole": {
+        "browser": 0
+      },
+      "hostAvailableMemoryBytes": 20845961216,
+      "sampleDurationSeconds": 0.1643907340185251,
+      "containerIssues": [],
+      "workers": []
+    },
+    {
+      "observedAt": "2026-10-08T06:54:36.635384+00:00",
+      "elapsedSeconds": 182.4571044020122,
+      "phase": "post-driver-exit-settle",
+      "driverAlive": false,
+      "liveOwnedProcessCount": 0,
+      "summedProcessRSSBytesByRole": {
+        "browser": 0
+      },
+      "hostAvailableMemoryBytes": 20836048896,
+      "sampleDurationSeconds": 0.16606805298943073,
+      "containerIssues": [],
+      "workers": []
+    }
+  ]
+}

@@ -3,7 +3,7 @@ import { api } from '../../api';
 import { errorText, productApi, type CheckRun, type Release, type ImplementationPlan } from '../../api/product';
 import { platformApi } from '../../api/platform';
 import { notifyProjectContextChanged } from '../../api/projectContextEvents';
-import { projectRunsApi, runSessionRequest, type CreateProjectRun, type ProjectRun, type RunOperation } from '../../api/projectRuns';
+import { projectRunsApi, runHasTaskReview, runSessionRequest, type CreateProjectRun, type ProjectRun, type RunOperation } from '../../api/projectRuns';
 import type { CreateSessionRequest } from '../../api/client';
 import type { ImplementationContextRequest } from '../../store/types';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
@@ -35,7 +35,8 @@ const recordedCodingActivity = (run: ProjectRun) => run.operations.some(item => 
 const runLabel = (run: ProjectRun) => {
   // Acceptance/cancellation are historical outcomes; current review does not
   // undo them or imply that an allocated coding child has stopped.
-  if (run.state === 'complete' || run.state === 'cancelled' || !codingBlocked(run)) return labels[run.state] || run.state;
+  if (run.state === 'complete' || run.state === 'cancelled') return labels[run.state] || run.state;
+  if (!codingBlocked(run)) return runHasTaskReview(run) ? 'Awaiting task review' : labels[run.state] || run.state;
   const activity = recordedCodingActivity(run);
   if (activity) return activity;
   if (run.codingBlocker) return run.codingBlocker.kind === 'question'
@@ -381,11 +382,11 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
           {allowed('join-check') && <Button variant="tertiary" disabled={!!busy || loading} onClick={() => action('join-check')}>Select check evidence</Button>}
         </div>
         <p className="journey-muted">Refresh history reloads saved records. Check run status inspects existing work and records an updated status. It starts no coding session, project test run or deployment.</p>
-        {run.state === 'awaiting-checks' && <p className="journey-muted">{codingBlocked(run) ? `This run retains its previous coding and evidence. Review ${run.codingBlocker ? 'the project decisions' : 'the current plan'} before continuing this run.` : 'Verify this build to review its saved criteria, run checks, and use matching results. If a check fails, inspect its output and start another coding attempt to repair the implementation.'} A CLI exit or task marked Done does not complete this run.</p>}
+        {run.state === 'awaiting-checks' && <p className="journey-muted">{codingBlocked(run) ? `This run retains its previous coding and evidence. Review ${run.codingBlocker ? 'the project decisions' : 'the current plan'} before continuing this run.` : runHasTaskReview(run) ? 'Review the exited task’s output and integrate accepted changes before verifying the combined build. A normal process exit does not establish correctness.' : 'Verify this build to review its saved criteria, run checks, and use matching results. If a check fails, inspect its output and start another coding attempt to repair the implementation.'} A CLI exit or task marked Done does not complete this run.</p>}
         {allowed('continue-coding') && <p className="journey-muted">A coding operation was reserved before dispatch. Continue uses that same child identity; it does not reserve another attempt. Use Check run status first if its result is uncertain.</p>}
         {run.state === 'cancelled' && <p className="journey-muted">Future dispatch is cancelled. Running children retain their separate stop controls.</p>}
       </div>
-      <ProjectSwarm key={run.id} run={run} canEdit={canEdit} canExecute={canExecute} busy={!!busy || loading}
+      <ProjectSwarm key={run.id} run={run} canEdit={canEdit} canExecute={canExecute} busy={!!busy || loading} onReviewPlan={onReviewPlan}
         onBusy={label => { working.current = !!label; setBusy(label); }}
         onUpdate={value => { request.current++; setLoading(false); remember(value); notifyProjectContextChanged(navigationScope, projectId); }}
         onOpenSession={openSession} />

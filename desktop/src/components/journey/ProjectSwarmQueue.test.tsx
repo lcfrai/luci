@@ -1,13 +1,15 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { projectRunsApi } from '../../api/projectRuns';
 import { projectSwarmApi } from '../../api/projectSwarm';
 import { swarmQueueApi } from '../../api/swarmQueue';
-import { swarmQueueFixture, swarmQueueItem, swarmRunFixture } from '../../test/swarmFixtures';
+import { swarmHarnessFixture, swarmQueueFixture, swarmQueueItem, swarmRunFixture } from '../../test/swarmFixtures';
+import { resetCockpit, useCockpit } from '../../store/store';
 import { ProjectSwarm } from './ProjectSwarm';
 
 afterEach(() => vi.restoreAllMocks());
+beforeEach(() => { resetCockpit(); useCockpit.getState().setHarnesses([swarmHarnessFixture()]); });
 const run = swarmRunFixture();
 
 it('disables a manual start already in the durable queue', async () => {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/lcfrai/luci/control-plane/internal/backend"
 	"github.com/lcfrai/luci/control-plane/internal/httpx"
@@ -21,6 +22,7 @@ type preparedSessionAllocation struct {
 	Revalidate         func() error
 	BeforeAllocate     func(context.Context) error
 	BeforeBackendStart func(context.Context) error
+	AfterBackendCreate func(context.Context, string) error
 	Staging            string
 	HasReviewedContext bool
 }
@@ -42,6 +44,10 @@ func (a *API) allocatePreparedSession(ctx context.Context, prepared preparedSess
 	if row.ID == "" || row.ID != spec.ID || row.ID != spec.SessionID || row.Status != registry.StatusStarting || row.SandboxID != row.ID {
 		return failure("invalid", errors.New("The prepared session has no matching durable execution identity."))
 	}
+	if !sessionRestarts.acquire(row.ID) {
+		return failure("changed", errors.New("This session is already starting, stopping or restarting."))
+	}
+	defer sessionRestarts.release(row.ID)
 	if err := a.deps.Store.Create(row); err != nil {
 		if prepared.HasReviewedContext {
 			if cleanup := a.removeReviewedContext(row.ID); cleanup != nil {
@@ -85,6 +91,20 @@ func (a *API) allocatePreparedSession(ctx context.Context, prepared preparedSess
 		a.destroyAfterFailedCreate(row.ID, row.ID)
 		a.markSessionExited(row.ID, "the sandbox could not be created")
 		return failure("backend", err)
+	}
+	if sb.ID != spec.ID {
+		err = errors.New("The backend returned a different allocation identity; the expected child remains unconfirmed.")
+	} else if prepared.AfterBackendCreate != nil {
+		ackCtx, ackCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		err = prepared.AfterBackendCreate(ackCtx, sb.ID)
+		ackCancel()
+	}
+	if err != nil {
+		// This identity was bound before dispatch. Never destroy an arbitrary
+		// backend-returned ID, especially when a mismatched ID caused failure.
+		a.destroyAfterFailedCreate(row.ID, row.ID)
+		a.markSessionExited(row.ID, "execution launch acknowledgment could not be recorded")
+		return failure("record-backend", err)
 	}
 	stored, err := a.deps.Store.Update(row.ID, func(value *registry.Session) error {
 		if value.SandboxID != row.ID || value.Status != registry.StatusStarting {

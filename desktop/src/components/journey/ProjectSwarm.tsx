@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../../api';
 import { errorText } from '../../api/product';
-import { projectRunsApi, runOperationNeedsRecovery, runSessionRequest, type ProjectRun, type RunOperation, type SwarmTask } from '../../api/projectRuns';
+import { projectRunsApi, runOperationNeedsRecovery, runOperationNeedsReview, runSessionRequest, type ProjectRun, type RunOperation, type SwarmTask } from '../../api/projectRuns';
+import { swarmTaskCapability } from '../../api/swarmTaskCapability';
 import { projectSwarmApi, type SwarmReview } from '../../api/projectSwarm';
 import { useCockpit } from '../../store/store';
 import { Button } from '../fluid/components/button';
@@ -31,7 +32,7 @@ function waitingReason(run: ProjectRun, task: SwarmTask) {
   if (overlap) return `Wait for ${overlap.title}: intended files overlap or have not been specified.`;
   return '';
 }
-function taskStatus(run: ProjectRun, task: SwarmTask) {
+function taskStatus(run: ProjectRun, task: SwarmTask, taskAllowed: boolean) {
   if (integrated(task)) return 'Integrated';
   if (task.integration) return 'Integration outcome unconfirmed';
   const operation = operationFor(run, task);
@@ -41,8 +42,9 @@ function taskStatus(run: ProjectRun, task: SwarmTask) {
   if (operation?.status === 'reserved') return 'Reserved · not started';
   if (operation?.status === 'running') return 'Recorded as running';
   if (operation?.status === 'dispatching' || operation?.status === 'unknown') return 'Start outcome unconfirmed';
-  if (operation?.status === 'succeeded') return 'Ready for change review';
+  if (runOperationNeedsReview(operation)) return 'Awaiting review';
   if (operation?.status === 'failed' || operation?.status === 'cancelled') return 'Stopped · inspect before retry';
+  if (!taskAllowed) return 'Needs task permission review';
   return waitingReason(run, task) ? 'Waiting' : 'Ready to start';
 }
 
@@ -50,10 +52,13 @@ interface Props {
   run: ProjectRun; canEdit: boolean; canExecute: boolean; busy: boolean;
   onBusy(label: string): void; onUpdate(run: ProjectRun): void;
   onOpenSession(operation: RunOperation): Promise<void>;
+  onReviewPlan?(): void;
 }
 
 /** One reviewed run owns the task team; rendering and polling never dispatch it. */
-export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, onOpenSession}: Props) {
+export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, onOpenSession, onReviewPlan}: Props) {
+  const harnesses = useCockpit(state => state.harnesses);
+  const capability = swarmTaskCapability(run, harnesses);
   const [dialog, setDialog] = useState<'prepare' | 'cancel' | null>(null);
   const [limit, setLimit] = useState(2), [review, setReview] = useState<SwarmReview | null>(null), [approved, setApproved] = useState(false);
   const [retire, setRetire] = useState<string | null>(null);
@@ -63,13 +68,14 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
   const queueSignature = useRef('');
   const [error, setError] = useState(''), [notice, setNotice] = useState('');
   const live = useRef(true), working = useRef(false), generation = useRef(0);
-  const current = useRef({run, canEdit, canExecute}); current.current = {run, canEdit, canExecute};
-  const authority = useRef(`${canEdit}:${canExecute}`);
-  if (authority.current !== `${canEdit}:${canExecute}`) { authority.current = `${canEdit}:${canExecute}`; generation.current++; }
+  const current = useRef({run, canEdit, canExecute, taskAllowed: capability.allowed}); current.current = {run, canEdit, canExecute, taskAllowed: capability.allowed};
+  const authorityKey = `${canEdit}:${canExecute}:${capability.signature}`;
+  const authority = useRef(authorityKey);
+  if (authority.current !== authorityKey) { authority.current = authorityKey; generation.current++; }
   const keys = useRef(new Map<string, string>()), uncertain = useRef(new Set<string>());
   const [, setUncertainVersion] = useState(0);
   useEffect(() => { live.current = true; return () => { live.current = false; generation.current++; }; }, []);
-  useEffect(() => { setReview(null); setApproved(false); setRetire(null); setDialog(null); }, [run.revision, canEdit, canExecute]);
+  useEffect(() => { setReview(null); setApproved(false); setRetire(null); setDialog(null); }, [run.revision, canEdit, canExecute, capability.signature]);
   const usable = (epoch: number) => live.current && generation.current === epoch;
   const blocked = !!run.codingBlocker || !!run.contextFreshness && run.contextFreshness.status !== 'current' || ['cancelled', 'complete'].includes(run.state);
   const subscription = run.input.route.connection.kind === 'codex-subscription' || run.input.route.connection.authMode === 'chatgpt';
@@ -97,13 +103,14 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
     finally { working.current = false; if (live.current) onBusy(''); }
   }
   async function control(action: 'pause' | 'resume' | 'cancel' | 'reconcile', epoch: number) {
+    if (action === 'resume' && !current.current.taskAllowed) return;
     const value = await projectSwarmApi.control(run.projectId, run.id, action, run.revision);
     if (!remember(value, epoch)) return;
     uncertain.current.clear(); setUncertainVersion(value => value + 1); setDialog(null);
     setNotice(action === 'reconcile' ? 'Existing task sessions inspected. No new agent was started.' : action === 'resume' ? 'New starts enabled. Previously authorized queued tasks can continue when their dependencies and capacity allow.' : 'Future task starts stopped. Existing sessions keep their own stop controls.');
   }
   async function startTask(saved: ProjectRun, task: SwarmTask, epoch: number): Promise<ProjectRun | undefined> {
-    if (!usable(epoch) || !current.current.canEdit || !current.current.canExecute) return;
+    if (!usable(epoch) || !current.current.canEdit || !current.current.canExecute || !current.current.taskAllowed) return;
     let operation = operationFor(saved, task);
     if (!operation || !inFlight(operation)) {
       const keyScope = `${saved.id}:${task.id}:${saved.revision}`;
@@ -113,7 +120,7 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
       if (!remember(reservation.run, epoch)) return;
       saved = reservation.run; operation = reservation.operation;
     }
-    if (!usable(epoch) || !current.current.canExecute || !current.current.canEdit) return;
+    if (!usable(epoch) || !current.current.canExecute || !current.current.canEdit || !current.current.taskAllowed) return;
     if (operation.status !== 'reserved' || operation.allocation !== 'ready') throw new Error('Check team status before starting this reserved task. An uncertain start is never replayed.');
     uncertain.current.add(task.id); setUncertainVersion(value => value + 1);
     const session = await api.createSession(runSessionRequest(saved, operation));
@@ -184,16 +191,21 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
     <div className="project-swarm-heading"><h3>Agent team</h3>{run.swarm && <span>{tasks.filter(integrated).length} of {tasks.length} integrated</span>}</div>
     {error && <p role="alert" className="journey-error">{error}</p>}
     {notice && <p role="status">{notice}</p>}
+    <p>Autonomous tasks run commands without interactive approvals inside isolated Docker workspaces, then exit after their response. Outputs still need review, integration and verification; Luci does not accept them automatically.</p>
+    <p className="journey-muted">Saved agent: {run.input.route.harness} · Permission: {capability.mode}. Keep Ask or Plan in an interactive agent if you want approvals during execution.</p>
+    {!capability.allowed && <p role="status" className="journey-warning">{capability.reason}</p>}
+    {capability.notice && <details><summary>Agent task permissions</summary><p>{capability.notice}</p></details>}
+    {!capability.allowed && <div className="journey-actions">{onReviewPlan && <Button variant="secondary" disabled={busy || !canEdit} onClick={onReviewPlan}>Review plan and create a new build</Button>}<Button variant="tertiary" disabled={busy} onClick={() => void operate('Refreshing task capability', async epoch => { const values = await api.listHarnesses(); if (usable(epoch)) useCockpit.getState().setHarnesses(values); }, 'read')}>Refresh task capability</Button></div>}
     {!run.swarm ? <>
       <p>Split the reviewed tasks between agents. Each gets its own workspace and focused context; dependent work waits for reviewed changes to be integrated.</p>
-      {run.operations.length ? <p className="journey-muted">This build already has coding attempts. Prepare a new reviewed build to use an agent team.</p> : <Button variant="secondary" disabled={!canEdit || !canExecute || busy || blocked} onClick={() => setDialog('prepare')}>Prepare agent team</Button>}
+      {run.operations.length ? <p className="journey-muted">This build already has coding attempts. Prepare a new reviewed build to use an agent team.</p> : <Button variant="secondary" disabled={!canEdit || !canExecute || busy || blocked || !capability.allowed} onClick={() => setDialog('prepare')}>Prepare agent team</Button>}
     </> : <>
-      <p>{run.swarm.state === 'ready' ? 'New starts enabled' : run.swarm.state === 'paused' ? 'New starts paused' : 'Future starts cancelled'} · {active} of {run.swarm.maxParallel} agent slots occupied</p>
+      <p>{run.swarm.state === 'ready' ? capability.allowed ? 'New starts enabled' : 'New starts unavailable for this saved agent configuration' : run.swarm.state === 'paused' ? 'New starts paused' : 'Future starts cancelled'} · {active} of {run.swarm.maxParallel} agent slots occupied</p>
       <p className="journey-muted">Status is recorded, not a live process guarantee. Check team status after an interruption. Pausing future starts leaves existing agents running.</p>
       <div className="journey-actions">
-        <Button disabled={!canEdit || !canExecute || busy || blocked || !batchReady.length} onClick={() => void operate('Starting ready tasks', startReady)}>Start ready tasks{batchReady.length ? ` (${batchReady.length})` : ''}</Button>
+        <Button disabled={!canEdit || !canExecute || busy || blocked || !capability.allowed || !batchReady.length} onClick={() => void operate('Starting ready tasks', startReady)}>Start ready tasks{batchReady.length ? ` (${batchReady.length})` : ''}</Button>
         <Button variant="secondary" disabled={!canEdit || busy} onClick={() => void operate('Checking team status', epoch => control('reconcile', epoch), 'edit')}>Check team status</Button>
-        {run.swarm.state === 'ready' ? <Button variant="tertiary" disabled={!canEdit || busy} onClick={() => void operate('Pausing new starts', epoch => control('pause', epoch), 'edit')}>Pause new starts</Button> : run.swarm.state === 'paused' ? <Button variant="secondary" disabled={!canEdit || !canExecute || busy || blocked} onClick={() => void operate('Enabling new starts', epoch => control('resume', epoch))}>Resume new starts</Button> : null}
+        {run.swarm.state === 'ready' ? <Button variant="tertiary" disabled={!canEdit || busy} onClick={() => void operate('Pausing new starts', epoch => control('pause', epoch), 'edit')}>Pause new starts</Button> : run.swarm.state === 'paused' ? <Button variant="secondary" disabled={!canEdit || !canExecute || busy || blocked || !capability.allowed} onClick={() => void operate('Enabling new starts', epoch => control('resume', epoch))}>Resume new starts</Button> : null}
         {run.swarm.state !== 'cancelled' && <Button variant="tertiary" disabled={!canEdit || busy} onClick={() => setDialog('cancel')}>Cancel remaining tasks</Button>}
       </div>
       <SwarmRunQueue key={`${run.projectId}:${run.id}`} run={run} canEdit={canEdit} canExecute={canExecute} busy={busy} onBusy={onBusy} onQueueChange={queueChanged} />
@@ -204,11 +216,12 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
         const queuedReservation = !!operation && resumable && queuedOperations.includes(operation.id);
         const retryable = operation && !runOperationNeedsRecovery(operation) && ['failed', 'cancelled'].includes(operation.status);
         return <li key={task.id}>
-          <div className="project-swarm-heading"><h4>{task.title}</h4><span>{taskStatus(run, task)}</span></div>
+          <div className="project-swarm-heading"><h4>{task.title}</h4><span>{taskStatus(run, task, capability.allowed)}</span></div>
           {reason && <p>{reason}</p>}
           {queuedTasks.includes(task.id) && !operation && <p>Authorized in the background queue above. Luci will start it when its dependencies and capacity allow.</p>}
           {queuedReservation && <p>This reservation belongs to the background queue. Use its queue controls; if it cannot continue, retain its output and authorize a fresh attempt.</p>}
           {operation?.message && <p className="journey-muted">{operation.message}</p>}
+          {runOperationNeedsReview(operation) && !integrated(task) && <p>The task worker exited. Inspect its retained output and review the changes; its exit does not establish correctness.</p>}
           {uncertainStart && <p role="status">The start result is unconfirmed. Check team status before continuing this task.</p>}
           <details><summary>Task scope and handoff</summary>
             <p>{task.acceptance || 'No task-specific acceptance recorded. The build’s linked requirements still apply.'}</p>
@@ -220,7 +233,7 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
             {run.operations.filter(item => item.taskId === task.id && item.id !== task.operationId).map(item => <p key={item.id}>Retained attempt {item.attempt} · {item.status} · {item.worktreeId}. <Button variant="tertiary" disabled={busy} onClick={() => setWorkspace(item)}>Inspect retained attempt {item.attempt}</Button></p>)}
           </details>
           <div className="journey-actions">
-            {!task.integration && (!operation || resumable || retryable) && <Button variant="secondary" disabled={!canEdit || !canExecute || busy || blocked || !!reason || uncertainStart || queuedTasks.includes(task.id) || queuedReservation} onClick={() => void operate('Starting task', epoch => startTask(run, task, epoch).then(() => undefined))}>{resumable ? 'Continue reserved task' : retryable ? 'Retry in a new workspace' : 'Start task'}</Button>}
+            {!task.integration && (!operation || resumable || retryable) && <Button variant="secondary" disabled={!canEdit || !canExecute || busy || blocked || !capability.allowed || !!reason || uncertainStart || queuedTasks.includes(task.id) || queuedReservation} onClick={() => void operate('Starting task', epoch => startTask(run, task, epoch).then(() => undefined))}>{resumable ? 'Continue reserved task' : retryable ? 'Retry in a new workspace' : 'Start task'}</Button>}
             {operation && !operation.absenceRetirement && operation.allocation === 'ready' && operation.status !== 'reserved' && <Button variant="secondary" disabled={busy} onClick={() => void operate('Opening task session', () => onOpenSession(operation), 'read')}>Open task session</Button>}
             {operation && <Button variant="tertiary" disabled={busy} onClick={() => setWorkspace(operation)}>Inspect workspace output</Button>}
             {operation && !inFlight(operation) && !task.integration && <Button variant="secondary" disabled={busy} onClick={() => void operate('Reading task changes', epoch => readReview(task, epoch), 'read')}>Review task changes</Button>}
@@ -231,12 +244,14 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
       {tasks.length > 0 && tasks.every(integrated) && <p role="status">All task changes are integrated. Verify this build against its reviewed requirements before accepting the result.</p>}
     </>}
     {dialog === 'prepare' && <WorkflowDialog title="Prepare agent team" onClose={() => setDialog(null)} busy={busy} description="Use this build’s saved tasks and model connection. Preparation records the team; it does not start agents.">
+      <p>Saved permission: {capability.mode}. Task commands run without interactive approvals inside isolated Docker workspaces. Each task exits after its response; review and integration remain your choice.</p>
+      {capability.notice && <p>{capability.notice}</p>}
       <label className="luci-field">Maximum parallel agents<select value={selectedLimit} disabled={busy || subscription} onChange={event => setLimit(Number(event.target.value))}>{(subscription ? [1] : [1, 2, 3, 4]).map(value => <option key={value} value={value}>{value}</option>)}</select></label>
       {subscription && <p>This saved Codex subscription connection supports one active agent at a time. To run independent tasks in parallel, prepare a new build with a compatible API or local-model connection.</p>}
       <p>Each active agent uses memory, disk and provider usage. Workspace and provider limits may keep additional tasks queued. This limit controls concurrency, not provider billing.</p>
       <p>Commit the starting project first. Include each selected task’s dependencies in this build. Conflicting or unspecified file scopes are scheduled separately.</p>
       {error && <p role="alert">{error}</p>}
-      <div className="workflow-actions"><Button variant="secondary" disabled={busy} onClick={() => setDialog(null)}>Keep reviewing</Button><Button disabled={busy || !canEdit || !canExecute || blocked} onClick={() => void operate('Preparing agent team', async epoch => { const value = await projectSwarmApi.prepare(run.projectId, run.id, run.revision, selectedLimit); if (remember(value, epoch)) { setDialog(null); setNotice('Agent team prepared. Review the task scopes, then start the ready tasks.'); } })}>Prepare team</Button></div>
+      <div className="workflow-actions"><Button variant="secondary" disabled={busy} onClick={() => setDialog(null)}>Keep reviewing</Button><Button disabled={busy || !canEdit || !canExecute || blocked || !capability.allowed} onClick={() => void operate('Preparing agent team', async epoch => { if (!current.current.taskAllowed) return; const value = await projectSwarmApi.prepare(run.projectId, run.id, run.revision, selectedLimit); if (remember(value, epoch)) { setDialog(null); setNotice('Agent team prepared. Review the task scopes, then start the ready tasks.'); } })}>Prepare team</Button></div>
     </WorkflowDialog>}
     {dialog === 'cancel' && <WorkflowDialog title="Cancel remaining tasks" onClose={() => setDialog(null)} busy={busy} description="Prevent further task starts for this team. Existing agents keep running until you stop them in their sessions. Saved changes and integration history remain available.">
       {error && <p role="alert">{error}</p>}

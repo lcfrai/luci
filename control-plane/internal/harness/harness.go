@@ -73,9 +73,12 @@ type Descriptor struct {
 	Efforts         []Effort         `json:"efforts"`
 	PermissionModes []PermissionMode `json:"permissionModes"`
 
-	SupportsOpeningPrompt bool   `json:"supportsOpeningPrompt"`
-	SupportsCustomModel   bool   `json:"supportsCustomModel"`
-	DockerAskNotice       string `json:"dockerAskNotice,omitempty"`
+	SupportsOpeningPrompt bool             `json:"supportsOpeningPrompt"`
+	SupportsCustomModel   bool             `json:"supportsCustomModel"`
+	DockerAskNotice       string           `json:"dockerAskNotice,omitempty"`
+	AutonomousTask        bool             `json:"autonomousTask"`
+	TaskPermissionModes   []PermissionMode `json:"taskPermissionModes"`
+	TaskPermissionNotice  string           `json:"taskPermissionNotice,omitempty"`
 
 	// SupportsResume is also whether the harness has a conversation for the
 	// control plane to name: resuming is the only thing Request.Conversation
@@ -246,6 +249,12 @@ func clone(d Descriptor) Descriptor {
 	out.Models = append([]Model{}, d.Models...)
 	out.Efforts = append([]Effort{}, d.Efforts...)
 	out.PermissionModes = append([]PermissionMode{}, d.PermissionModes...)
+	out.TaskPermissionModes = []PermissionMode{}
+	if d.Available() && (d.ID == Codex || d.ID == ClaudeCode || d.ID == OpenCode) {
+		out.AutonomousTask = true
+		out.TaskPermissionModes = []PermissionMode{PermissionBypass}
+		out.TaskPermissionNotice = TaskPermissionNotice
+	}
 	return out
 }
 

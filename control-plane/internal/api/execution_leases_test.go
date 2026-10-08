@@ -258,9 +258,20 @@ func TestExecutionAdmissionReplacementRetainsOneExactSessionReservation(t *testi
 	if e := g.bind(context.Background(), "manual-one", "s-one"); e != nil {
 		t.Fatal(e)
 	}
-	prior := registry.Session{ID: "s-one", SandboxID: "s-one", ProjectID: actor.ProjectID, Status: registry.StatusRunning}
+	prior := registry.Session{ID: "s-one", SandboxID: "s-one", ProjectID: actor.ProjectID, Status: registry.StatusStarting}
 	if e := g.api.deps.Store.Create(prior); e != nil {
 		t.Fatal(e)
+	}
+	if e := g.markBackendStarting(context.Background(), "manual-one", prior.ID, prior.SandboxID); e != nil {
+		t.Fatal(e)
+	}
+	if e := g.markBackendSettled(context.Background(), "manual-one", prior.ID, prior.SandboxID); e != nil {
+		t.Fatal(e)
+	}
+	var priorErr error
+	prior, priorErr = g.api.deps.Store.Update(prior.ID, func(row *registry.Session) error { row.Status = registry.StatusRunning; return nil })
+	if priorErr != nil {
+		t.Fatal(priorErr)
 	}
 	g.api.deps.ResourceSnapshot = func() resourcebudget.Snapshot {
 		s := executionFixtureSnapshot()

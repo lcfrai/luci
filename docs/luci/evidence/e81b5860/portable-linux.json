@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "sourceCommit": "e81b586077f8af97e5e59472e34eafd161f16b8a",
+  "sourceBinding": "Launcher binary hash equals the clean package receipt.",
+  "originalPortable": {
+    "artifact": "artifacts/package-eval/e81b5860-local/results.json",
+    "sha256": "d7c4a6a2ec016f8cf04a2f7b755ad49026b680347d81679dbe34b0af824f7dca"
+  },
+  "originalLauncher": {
+    "artifact": "artifacts/package-eval/e81b5860-local/launcher-results.json",
+    "sha256": "49bbbb7b43deff0c04bc4c21664efc5c2482ea3c48ecb1bb01f6316c3a6a8710"
+  },
+  "portable": {
+    "status": "passed",
+    "platform": "linux",
+    "checks": [
+      "Created the first Super Admin and rejected unauthenticated project access",
+      "Started packaged service and served shipped web assets without Go or Node compilation",
+      "Created a real Git project, saved brief/design and generated LUCI.md",
+      "Recovered configured project, brief and drawing after a clean process restart",
+      "Rejected a foreign browser origin at the shipped control API",
+      "Verified shipped launcher ownership, account recovery, reuse and cleanup (7 outcomes)"
+    ],
+    "licenseComponents": 347,
+    "cloudCalls": 0,
+    "modelCalls": 0,
+    "dockerAcceptance": false
+  },
+  "launcher": {
+    "passed": true,
+    "platform": "linux",
+    "architecture": "x64",
+    "nodeVersion": "v24.19.0",
+    "binarySha256": "ed64cff8a7021a580e9980bb3b6c3a0c244f203d7fba4b7e690f099f2ff93173",
+    "launcherSha256": "e73094527f35dce3d10fe9fb72ea321df8e8890aaabb175c0816f292bdf32e53",
+    "harnessSha256": "95530a775855b5fb0709e2bd09b116d3847253d18aad016027f4bf2ab631639f",
+    "startedAt": "2026-10-08T06:36:19.740Z",
+    "checks": [
+      {
+        "name": "Shipped launcher started its own loopback service and exposed only privately proven owner access",
+        "status": "passed"
+      },
+      {
+        "name": "Private launcher proof created a distinct account and recovered the original owner without changing saved work",
+        "status": "passed"
+      },
+      {
+        "name": "Closing a second verified launcher preserved the already running service",
+        "status": "passed"
+      },
+      {
+        "name": "Another state directory failed private proof verification without resetting data or stopping the service",
+        "status": "passed"
+      },
+      {
+        "name": "Normal launcher close removed its proof and listener while retaining project data",
+        "status": "passed"
+      },
+      {
+        "name": "Restart rotated private proof and retained the recovered account and saved project",
+        "status": "passed"
+      },
+      {
+        "name": "Launcher output contained no owner proof, bootstrap token, password or bearer",
+        "status": "passed"
+      }
+    ],
+    "cloudCalls": 0,
+    "modelCalls": 0,
+    "scope": "Actual shipped launcher and service; explicit disposable profile, no browser opening or native GUI.",
+    "startupBudgetMs": 45000,
+    "startupElapsedMs": 1120,
+    "version": "0.5.0",
+    "finishedAt": "2026-10-08T06:36:24.201Z"
+  },
+  "limitations": [
+    "Linux only; no Windows execution, native GUI or browser-polish claim.",
+    "No model calls or Docker acceptance."
+  ]
+}

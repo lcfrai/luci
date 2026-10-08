@@ -51,6 +51,25 @@ identity and distinguish completed controlled, installed and native checks.
 Cloud-originated findings use `CLOUD-` IDs to avoid collision with the local
 tester's `LOCAL-` IDs.
 
+### First native correction result
+
+The local tester subsequently selected exact correction
+`9a84e740ad85e4a03540f2dfb082f98cb60604c5` for a separate test batch and reported
+`TestSwarmQueueRemainsAvailableWhileSourceAdmissionIsExclusive` passing in
+11.09 seconds on Windows amd64 with Go 1.26.3 and real Git. The production HTTP
+registrar test verified queue GET/HEAD and controls under a held source lock,
+stale-revision refusal, continued source-route protection, and no allocation.
+Its local evidence is
+`E:\Luci-local-acceptance\evidence\9a84e740\cloud-001-windows-go.jsonl`.
+This is a reported focused native Go result, not a cloud rerun or an installed
+Docker/browser pass. The same isolated native batch subsequently completed all
+five tests with zero failures or skips: the held-source-lock regression, fresh
+project Edit revocation, shared primary-branch admission, delayed observation
+after pause/cancellation, and independent per-item controls. The source checkout
+remained clean. CLOUD-001 is ready for its installed slow-allocation/UI retest.
+Carry forward those results; rerun a completed focused check only when a later
+revision affects its behavior. Full local acceptance is still pending.
+
 ## Findings and acknowledgement
 
 Use stable IDs such as `LOCAL-001`. Each finding records:
@@ -76,3 +95,26 @@ useful actions across four or more projects, isolated durable context, dependabl
 coordination and recovery, checked output quality, and bounded resource use with
 comfortable whole-computer responsiveness. Native findings remain separate from
 controlled Linux/provider fixtures.
+
+## LOCAL-ENV-001: Docker backing volume prerequisite
+
+The local tester reported this P1 environment prerequisite while testing
+`9a84e740`: Docker context `desktop-linux`, no running Desktop/backend/WSL VM,
+and no engine pipe. The existing data image is
+`C:\Users\DylanMackie\AppData\Local\Docker\wsl\disk\docker_data.vhdx`, with a
+file length of about 70.96 GiB; C: had only 4.22 GiB free. File length is not a
+measurement of allocated physical blocks. E: and F: each had over 1 TiB free.
+Putting source and caches on E: does not relocate Docker's backing storage.
+
+Owner: local environment. State: **fixing**. The owner explicitly authorized
+moving Docker to a spacious drive, and the local tester is using Docker Desktop's
+supported relocation to E:, first preserving a cold VHD and settings backup.
+Copying was reported complete and hash verification underway; successful
+relocation, engine startup, storage path and preserved inventory are not yet
+verified. No prune, reset, unregister or deletion was authorized by this update.
+Before that authorization, no heavy pulls/builds were started and existing
+Docker data, settings and global WSL resources were preserved. A large free-space
+result inside the Linux VM cannot establish room on its Windows backing drive.
+Record both before workload admission. Do not silently move/delete the VHD or
+change existing WSL registrations to make the test pass. The completed five-test
+native Go batch remains valid; cloud implementation and non-Docker checks continue.

@@ -1,0 +1,1098 @@
+{
+  "passed": true,
+  "startedAt": "2026-10-08T07:02:14.204Z",
+  "sourceCommit": "e81b586077f8af97e5e59472e34eafd161f16b8a",
+  "packageIntegrity": {
+    "sourceCommit": "e81b586077f8af97e5e59472e34eafd161f16b8a",
+    "archiveSHA256": "092a914947ef79dd277c259bef69ed12b3a52a0fdae62ccd5991f68a2438786e",
+    "verifiedMembers": 947,
+    "allMembersMatch": true
+  },
+  "harnessSHA256": "d2a23e6bdbe22bd29525e739d665a1e36a1c0eb54f8898d6a6e04b5d1ea96bf8",
+  "verifierSHA256": "e4754d0d9db7424abdd76826c390e55bcddd5b6f55fd5ad716c3cfb5af8befd5",
+  "scope": "Actual installed Linux web app and local backend: four-project queue intervention, current permission checks, partial results and exact-run navigation.",
+  "setupScaffolding": [
+    "API-seeded accounts, team/project grants, four approved project contexts and unstarted runs",
+    "API-created queue entries and globally paused dispatch",
+    "A grant is explicitly revoked through the owner API after browser selection"
+  ],
+  "limitations": [
+    "No agents are executed; this is not live-model, swarm execution, speed, Windows, installer or cloud acceptance.",
+    "Browser Chromium renders the installed package; this is not a native desktop WebView test."
+  ],
+  "checks": [
+    {
+      "name": "Four reviewed fixture projects queued through labelled API scaffolding; editor can edit but cannot execute in any project; dispatch remains globally paused"
+    },
+    {
+      "name": "Real browser pause changes actual queue versions",
+      "projects": 4
+    },
+    {
+      "name": "Real browser priority changes actual queue versions",
+      "projects": 4
+    },
+    {
+      "name": "Real browser cancel changes actual queue versions",
+      "projects": 1
+    },
+    {
+      "name": "Fresh permission revocation yields one actual resume and one visible failure, without replay or mutation of revoked work"
+    },
+    {
+      "name": "Overview navigation reads and opens the exact latest run after a different historical run was selected",
+      "inspectedRunId": "run-52ac9ba713ce8094e220ee44",
+      "previousRunId": "run-469bce68a142c4883ee1fa65"
+    }
+  ],
+  "apiScaffolding": [
+    {
+      "stage": "startup",
+      "method": "POST",
+      "path": "/v1/auth/bootstrap",
+      "status": 201
+    },
+    {
+      "stage": "startup",
+      "method": "POST",
+      "path": "/v1/admin/users",
+      "status": 201
+    },
+    {
+      "stage": "startup",
+      "method": "POST",
+      "path": "/v1/teams",
+      "status": 201
+    },
+    {
+      "stage": "startup",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/members",
+      "status": 200
+    },
+    {
+      "stage": "startup",
+      "method": "GET",
+      "path": "/v1/product/swarm-scheduler",
+      "status": 200
+    },
+    {
+      "stage": "startup",
+      "method": "PUT",
+      "path": "/v1/product/swarm-scheduler",
+      "status": 200
+    },
+    {
+      "stage": "startup",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/setup/git/identity",
+      "status": 200
+    },
+    {
+      "stage": "startup",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/setup/agent-connections",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-a",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects",
+      "status": 201
+    },
+    {
+      "stage": "api-fixture-project-a",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-b07d483f/brief",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-a",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-b07d483f/specification",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-a",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-b07d483f/specification",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-a",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-b07d483f/specification/approve",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-a",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-b07d483f/design-plan",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-a",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-b07d483f/design-plan",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-a",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-b07d483f/design-plan/approve",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-a",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-b07d483f/plan",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-a",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-b07d483f/git",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-a",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-b07d483f/git/commit",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-a",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/projects/p-b07d483f/branches",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-a",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/projects/p-b07d483f/worktrees?branchId=b-b07d483f-main-0d6e4079",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-a",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-b07d483f/runs",
+      "status": 201
+    },
+    {
+      "stage": "api-fixture-project-a",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-b07d483f/runs/run-6c8b5698881b279367a58230/swarm",
+      "status": 201
+    },
+    {
+      "stage": "api-fixture-project-a",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-b07d483f/runs/run-6c8b5698881b279367a58230/swarm/queue",
+      "status": 201
+    },
+    {
+      "stage": "api-fixture-project-a",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/projects/p-b07d483f/members",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-a",
+      "method": "PUT",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/projects/p-b07d483f/members/user-24VT_xx4xIVjN0RLudRmga",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-b",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects",
+      "status": 201
+    },
+    {
+      "stage": "api-fixture-project-b",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-6fc6e351/brief",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-b",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-6fc6e351/specification",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-b",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-6fc6e351/specification",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-b",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-6fc6e351/specification/approve",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-b",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-6fc6e351/design-plan",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-b",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-6fc6e351/design-plan",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-b",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-6fc6e351/design-plan/approve",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-b",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-6fc6e351/plan",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-b",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-6fc6e351/git",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-b",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-6fc6e351/git/commit",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-b",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/projects/p-6fc6e351/branches",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-b",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/projects/p-6fc6e351/worktrees?branchId=b-6fc6e351-main-0d6e4079",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-b",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-6fc6e351/runs",
+      "status": 201
+    },
+    {
+      "stage": "api-fixture-project-b",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-6fc6e351/runs/run-85fada334ab33fb3d93a3da2/swarm",
+      "status": 201
+    },
+    {
+      "stage": "api-fixture-project-b",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-6fc6e351/runs/run-85fada334ab33fb3d93a3da2/swarm/queue",
+      "status": 201
+    },
+    {
+      "stage": "api-fixture-project-b",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/projects/p-6fc6e351/members",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-b",
+      "method": "PUT",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/projects/p-6fc6e351/members/user-24VT_xx4xIVjN0RLudRmga",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-c",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects",
+      "status": 201
+    },
+    {
+      "stage": "api-fixture-project-c",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-78739332/brief",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-c",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-78739332/specification",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-c",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-78739332/specification",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-c",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-78739332/specification/approve",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-c",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-78739332/design-plan",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-c",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-78739332/design-plan",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-c",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-78739332/design-plan/approve",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-c",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-78739332/plan",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-c",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-78739332/git",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-c",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-78739332/git/commit",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-c",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/projects/p-78739332/branches",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-c",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/projects/p-78739332/worktrees?branchId=b-78739332-main-0d6e4079",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-c",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-78739332/runs",
+      "status": 201
+    },
+    {
+      "stage": "api-fixture-project-c",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-78739332/runs/run-1de58e8e309809a92e9e33ca/swarm",
+      "status": 201
+    },
+    {
+      "stage": "api-fixture-project-c",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-78739332/runs/run-1de58e8e309809a92e9e33ca/swarm/queue",
+      "status": 201
+    },
+    {
+      "stage": "api-fixture-project-c",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/projects/p-78739332/members",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-c",
+      "method": "PUT",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/projects/p-78739332/members/user-24VT_xx4xIVjN0RLudRmga",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-d",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects",
+      "status": 201
+    },
+    {
+      "stage": "api-fixture-project-d",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-a1080fd5/brief",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-d",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-a1080fd5/specification",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-d",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-a1080fd5/specification",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-d",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-a1080fd5/specification/approve",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-d",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-a1080fd5/design-plan",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-d",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-a1080fd5/design-plan",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-d",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-a1080fd5/design-plan/approve",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-d",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-a1080fd5/plan",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-d",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-a1080fd5/git",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-d",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-a1080fd5/git/commit",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-d",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/projects/p-a1080fd5/branches",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-d",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/projects/p-a1080fd5/worktrees?branchId=b-a1080fd5-main-0d6e4079",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-d",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-a1080fd5/runs",
+      "status": 201
+    },
+    {
+      "stage": "api-fixture-project-d",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-a1080fd5/runs/run-469bce68a142c4883ee1fa65/cancel",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-d",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-a1080fd5/runs",
+      "status": 201
+    },
+    {
+      "stage": "api-fixture-project-d",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-a1080fd5/runs/run-52ac9ba713ce8094e220ee44/swarm",
+      "status": 201
+    },
+    {
+      "stage": "api-fixture-project-d",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-a1080fd5/runs/run-52ac9ba713ce8094e220ee44/swarm/queue",
+      "status": 201
+    },
+    {
+      "stage": "api-fixture-project-d",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/projects/p-a1080fd5/members",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-d",
+      "method": "PUT",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/projects/p-a1080fd5/members/user-24VT_xx4xIVjN0RLudRmga",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-d",
+      "method": "POST",
+      "path": "/v1/auth/login",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-d",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/projects/p-b07d483f/members",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-d",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/projects/p-6fc6e351/members",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-d",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/projects/p-78739332/members",
+      "status": 200
+    },
+    {
+      "stage": "api-fixture-project-d",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/projects/p-a1080fd5/members",
+      "status": 200
+    },
+    {
+      "stage": "browser-bulk-pause",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-b07d483f/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "browser-bulk-pause",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-6fc6e351/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "browser-bulk-pause",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-78739332/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "browser-bulk-pause",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-a1080fd5/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "browser-bulk-pause",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-b07d483f/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "browser-bulk-pause",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-78739332/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "browser-bulk-pause",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-6fc6e351/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "browser-bulk-pause",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-a1080fd5/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "browser-bulk-priority",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-b07d483f/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "browser-bulk-priority",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-a1080fd5/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "browser-bulk-priority",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-6fc6e351/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "browser-bulk-priority",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-78739332/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "browser-bulk-priority",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-b07d483f/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "browser-bulk-priority",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-6fc6e351/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "browser-bulk-priority",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-a1080fd5/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "browser-bulk-priority",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-78739332/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "browser-bulk-cancel",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-b07d483f/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "browser-bulk-cancel",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-6fc6e351/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "browser-bulk-cancel",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-78739332/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "browser-bulk-cancel",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-a1080fd5/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "browser-bulk-cancel",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-a1080fd5/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "browser-bulk-cancel",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-78739332/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "browser-bulk-cancel",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-6fc6e351/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "browser-bulk-cancel",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-b07d483f/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "api-grant-before-resume",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/projects/p-b07d483f/members",
+      "status": 200
+    },
+    {
+      "stage": "api-grant-before-resume",
+      "method": "PUT",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/projects/p-b07d483f/members/user-24VT_xx4xIVjN0RLudRmga",
+      "status": 200
+    },
+    {
+      "stage": "api-grant-before-resume",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/projects/p-6fc6e351/members",
+      "status": 200
+    },
+    {
+      "stage": "api-grant-before-resume",
+      "method": "PUT",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/projects/p-6fc6e351/members/user-24VT_xx4xIVjN0RLudRmga",
+      "status": 200
+    },
+    {
+      "stage": "api-grant-before-resume",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-6fc6e351/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "api-grant-before-resume",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-a1080fd5/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "api-grant-before-resume",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-b07d483f/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "api-grant-before-resume",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-78739332/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "api-revoke-after-browser-selection",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/projects/p-6fc6e351/members",
+      "status": 200
+    },
+    {
+      "stage": "api-revoke-after-browser-selection",
+      "method": "PUT",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/projects/p-6fc6e351/members/user-24VT_xx4xIVjN0RLudRmga",
+      "status": 200
+    },
+    {
+      "stage": "browser-partial-resume",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-78739332/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "browser-partial-resume",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-6fc6e351/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "browser-partial-resume",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-a1080fd5/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "browser-partial-resume",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-b07d483f/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "browser-exact-run",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-a1080fd5/overview",
+      "status": 200
+    },
+    {
+      "stage": "final-evidence",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-b07d483f/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "final-evidence",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-6fc6e351/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "final-evidence",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-a1080fd5/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "final-evidence",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-78739332/swarm-queue",
+      "status": 200
+    },
+    {
+      "stage": "final-evidence",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-b07d483f/runs/run-6c8b5698881b279367a58230",
+      "status": 200
+    },
+    {
+      "stage": "final-evidence",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-6fc6e351/runs/run-85fada334ab33fb3d93a3da2",
+      "status": 200
+    },
+    {
+      "stage": "final-evidence",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-78739332/runs/run-1de58e8e309809a92e9e33ca",
+      "status": 200
+    },
+    {
+      "stage": "final-evidence",
+      "method": "GET",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-a1080fd5/runs/run-52ac9ba713ce8094e220ee44",
+      "status": 200
+    },
+    {
+      "stage": "final-evidence",
+      "method": "GET",
+      "path": "/v1/product/swarm-scheduler",
+      "status": 200
+    }
+  ],
+  "browserMutations": [
+    {
+      "stage": "api-fixture-project-d",
+      "method": "POST",
+      "path": "/v1/auth/login"
+    },
+    {
+      "stage": "browser-bulk-pause",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-b07d483f/swarm-queue/queue-d136468c643be95c051a31c0/pause"
+    },
+    {
+      "stage": "browser-bulk-pause",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-6fc6e351/swarm-queue/queue-6012bf654d1a66e9a7abf09f/pause"
+    },
+    {
+      "stage": "browser-bulk-pause",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-78739332/swarm-queue/queue-07c46637ec0ae74db05f822f/pause"
+    },
+    {
+      "stage": "browser-bulk-pause",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-a1080fd5/swarm-queue/queue-eca774313b8d772b12a572a0/pause"
+    },
+    {
+      "stage": "browser-bulk-priority",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-b07d483f/swarm-queue/queue-d136468c643be95c051a31c0/priority"
+    },
+    {
+      "stage": "browser-bulk-priority",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-6fc6e351/swarm-queue/queue-6012bf654d1a66e9a7abf09f/priority"
+    },
+    {
+      "stage": "browser-bulk-priority",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-78739332/swarm-queue/queue-07c46637ec0ae74db05f822f/priority"
+    },
+    {
+      "stage": "browser-bulk-priority",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-a1080fd5/swarm-queue/queue-eca774313b8d772b12a572a0/priority"
+    },
+    {
+      "stage": "browser-bulk-cancel",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-a1080fd5/swarm-queue/queue-eca774313b8d772b12a572a0/cancel"
+    },
+    {
+      "stage": "browser-partial-resume",
+      "method": "POST",
+      "path": "/v1/teams/team-gk1nV6Sq9VbCsr3evYhxCr/workspace/v1/product/projects/p-b07d483f/swarm-queue/queue-d136468c643be95c051a31c0/resume"
+    }
+  ],
+  "queueTransitions": [
+    {
+      "action": "pause",
+      "projectId": "p-b07d483f",
+      "itemId": "queue-d136468c643be95c051a31c0",
+      "beforeRevision": 1,
+      "afterRevision": 2,
+      "state": "paused",
+      "priority": "normal"
+    },
+    {
+      "action": "pause",
+      "projectId": "p-6fc6e351",
+      "itemId": "queue-6012bf654d1a66e9a7abf09f",
+      "beforeRevision": 1,
+      "afterRevision": 2,
+      "state": "paused",
+      "priority": "normal"
+    },
+    {
+      "action": "pause",
+      "projectId": "p-78739332",
+      "itemId": "queue-07c46637ec0ae74db05f822f",
+      "beforeRevision": 1,
+      "afterRevision": 2,
+      "state": "paused",
+      "priority": "normal"
+    },
+    {
+      "action": "pause",
+      "projectId": "p-a1080fd5",
+      "itemId": "queue-eca774313b8d772b12a572a0",
+      "beforeRevision": 1,
+      "afterRevision": 2,
+      "state": "paused",
+      "priority": "normal"
+    },
+    {
+      "action": "priority",
+      "projectId": "p-b07d483f",
+      "itemId": "queue-d136468c643be95c051a31c0",
+      "beforeRevision": 2,
+      "afterRevision": 3,
+      "state": "paused",
+      "priority": "high"
+    },
+    {
+      "action": "priority",
+      "projectId": "p-6fc6e351",
+      "itemId": "queue-6012bf654d1a66e9a7abf09f",
+      "beforeRevision": 2,
+      "afterRevision": 3,
+      "state": "paused",
+      "priority": "high"
+    },
+    {
+      "action": "priority",
+      "projectId": "p-78739332",
+      "itemId": "queue-07c46637ec0ae74db05f822f",
+      "beforeRevision": 2,
+      "afterRevision": 3,
+      "state": "paused",
+      "priority": "high"
+    },
+    {
+      "action": "priority",
+      "projectId": "p-a1080fd5",
+      "itemId": "queue-eca774313b8d772b12a572a0",
+      "beforeRevision": 2,
+      "afterRevision": 3,
+      "state": "paused",
+      "priority": "high"
+    },
+    {
+      "action": "cancel",
+      "projectId": "p-a1080fd5",
+      "itemId": "queue-eca774313b8d772b12a572a0",
+      "beforeRevision": 3,
+      "afterRevision": 4,
+      "state": "cancelled",
+      "priority": "high"
+    }
+  ],
+  "browserErrors": [],
+  "cleanup": [
+    "No private service, worker or browser processes remain"
+  ],
+  "browserVersion": "151.0.7922.173",
+  "finalQueues": [
+    {
+      "projectId": "p-b07d483f",
+      "items": [
+        {
+          "revision": 4,
+          "id": "queue-d136468c643be95c051a31c0",
+          "projectId": "p-b07d483f",
+          "runId": "run-6c8b5698881b279367a58230",
+          "taskId": "work-a",
+          "taskTitle": "Fixture work A",
+          "priority": "high",
+          "state": "queued",
+          "queuedAt": "2026-10-08T07:02:15.548787202Z",
+          "updatedAt": "2026-10-08T07:02:23.30534476Z",
+          "reasonCode": "ready",
+          "reason": "Queued execution is enabled."
+        }
+      ],
+      "dispatchPaused": true
+    },
+    {
+      "projectId": "p-6fc6e351",
+      "items": [
+        {
+          "revision": 3,
+          "id": "queue-6012bf654d1a66e9a7abf09f",
+          "projectId": "p-6fc6e351",
+          "runId": "run-85fada334ab33fb3d93a3da2",
+          "taskId": "work-b",
+          "taskTitle": "Fixture work B",
+          "priority": "high",
+          "state": "paused",
+          "queuedAt": "2026-10-08T07:02:16.122685597Z",
+          "updatedAt": "2026-10-08T07:02:21.548967006Z",
+          "reasonCode": "operator_paused",
+          "reason": "Queued execution is paused. No running process was stopped."
+        }
+      ],
+      "dispatchPaused": true
+    },
+    {
+      "projectId": "p-78739332",
+      "items": [
+        {
+          "revision": 3,
+          "id": "queue-07c46637ec0ae74db05f822f",
+          "projectId": "p-78739332",
+          "runId": "run-1de58e8e309809a92e9e33ca",
+          "taskId": "work-c",
+          "taskTitle": "Fixture work C",
+          "priority": "high",
+          "state": "paused",
+          "queuedAt": "2026-10-08T07:02:16.64098225Z",
+          "updatedAt": "2026-10-08T07:02:21.583055256Z",
+          "reasonCode": "operator_paused",
+          "reason": "Queued execution is paused. No running process was stopped."
+        }
+      ],
+      "dispatchPaused": true
+    },
+    {
+      "projectId": "p-a1080fd5",
+      "items": [
+        {
+          "revision": 4,
+          "id": "queue-eca774313b8d772b12a572a0",
+          "projectId": "p-a1080fd5",
+          "runId": "run-52ac9ba713ce8094e220ee44",
+          "taskId": "work-d",
+          "taskTitle": "Fixture work D",
+          "priority": "high",
+          "state": "cancelled",
+          "queuedAt": "2026-10-08T07:02:17.289784502Z",
+          "updatedAt": "2026-10-08T07:02:22.183008572Z",
+          "reasonCode": "operator_cancelled",
+          "reason": "Future execution was cancelled. Retained attempts and results remain available."
+        }
+      ],
+      "dispatchPaused": true
+    }
+  ],
+  "noExecution": {
+    "absentDockerEndpoint": true,
+    "providerTrapRequests": 0,
+    "childIds": 0,
+    "reservedOperations": 0,
+    "dispatchPaused": true
+  },
+  "stage": "final-evidence",
+  "providerTrapRequests": 0,
+  "fixtureRemoved": true,
+  "finishedAt": "2026-10-08T07:02:25.097Z"
+}

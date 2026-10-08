@@ -15,13 +15,14 @@ type sessionRestartAdmission struct {
 	resources  backend.Resources
 	revalidate func(context.Context) error
 	bind       func(context.Context, string) error
+	complete   func(context.Context, string) error
 	release    func()
 }
 
 // Reserve the replacement while the original sandbox remains intact. A failed
 // admission must not turn a running session into a stopped one.
 func (a *API) prepareSessionRestart(ctx context.Context, prior registry.Session, connection product.AgentConnectionReceipt) (sessionRestartAdmission, error) {
-	result := sessionRestartAdmission{resources: a.sessionResources(ctx), revalidate: func(context.Context) error { return nil }, bind: func(context.Context, string) error { return nil }, release: func() {}}
+	result := sessionRestartAdmission{resources: a.sessionResources(ctx), revalidate: func(context.Context) error { return nil }, bind: func(context.Context, string) error { return nil }, complete: func(context.Context, string) error { return nil }, release: func() {}}
 	if a.deps.ResourceSnapshot == nil {
 		if a.deps.ManagedExecution || a.deps.AuthorizeExecution != nil {
 			return result, errors.New("Current execution capacity is unavailable. The original session has not been stopped.")
@@ -84,6 +85,9 @@ func (a *API) prepareSessionRestart(ctx context.Context, prior registry.Session,
 			return err
 		}
 		return a.execution.markBackendStarting(ctx, leaseID, prior.ID, sandboxID)
+	}
+	result.complete = func(ctx context.Context, sandboxID string) error {
+		return a.execution.markBackendSettled(ctx, leaseID, prior.ID, sandboxID)
 	}
 	result.release = func() {
 		cleanup, cancel := context.WithTimeout(context.Background(), 5*time.Second)

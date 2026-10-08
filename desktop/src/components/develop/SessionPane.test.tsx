@@ -282,10 +282,11 @@ describe("SessionPane", () => {
 
   // Both are 409 CodeConflict and both must arrive as the server wrote them. Collapsing them
   // would tell a user whose worktree has vanished that a restart is already running.
-  it("renders each of the two restart 409s as the server's own sentence", async () => {
+  it("preserves restart refusals and the reviewed-task recovery path as the server's own sentence", async () => {
     for (const sentence of [
       "A restart is already in flight for that session.",
       "The worktree this session was created in no longer resolves.",
+      "Reserve a new coding operation in the project run before retrying. The original attempt remains in the run history.",
     ]) {
       resetCockpit();
       attachState.current = { phase: "detached", attempts: 0, ladderStartedAt: 0, reason: "" };

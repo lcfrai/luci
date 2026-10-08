@@ -202,6 +202,10 @@ func (s *Server) enqueueProjectSwarmTask(w http.ResponseWriter, r *http.Request)
 		projectRunProblem(w, ErrProjectRunConflict)
 		return
 	}
+	if err = validateSwarmTaskRoute(run); err != nil {
+		projectRunProblem(w, err)
+		return
+	}
 	for _, id := range req.TaskIDs {
 		task := swarmTask(&run, id)
 		if task == nil || task.Integration != nil || task.OperationID != "" && (swarmOperation(&run, task.OperationID) == nil || swarmOperation(&run, task.OperationID).Status != "cancelled") {
@@ -314,9 +318,19 @@ func (s *Server) controlProjectSwarmQueue(w http.ResponseWriter, r *http.Request
 				if item.State != "paused" {
 					err = ErrProjectRunConflict
 				} else {
-					item.State = "queued"
-					item.ReasonCode = "ready"
-					item.Reason = "Queued execution is enabled."
+					// This route uses private receipts only, so it remains usable
+					// while source admission is held. Never upgrade legacy task
+					// permission settings when resuming its saved authorization.
+					var run ProjectRun
+					run, err = s.projectRuns.Get(p.ID, p.Path, item.RunID)
+					if err == nil {
+						err = validateSwarmTaskRoute(run)
+					}
+					if err == nil {
+						item.State = "queued"
+						item.ReasonCode = "ready"
+						item.Reason = "Queued execution is enabled."
+					}
 				}
 			case "cancel":
 				item.State = "cancelled"

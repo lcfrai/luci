@@ -467,7 +467,7 @@ func (s *Server) reconcileQueuedSwarm(ctx context.Context, item swarmQueueRecord
 			return nil
 		})
 	}
-	if s.projectRunSessionObserver != nil && op.Status != "succeeded" && op.Status != "failed" && op.Status != "cancelled" {
+	if s.projectRunSessionObserver != nil && !projectRunOperationTerminal(op.Status) {
 		s.projectRunDispatchMu.Lock()
 		run, err = s.observeProjectSwarm(ctx, p.Path, run)
 		s.projectRunDispatchMu.Unlock()
@@ -486,7 +486,7 @@ func (s *Server) reconcileQueuedSwarm(ctx context.Context, item swarmQueueRecord
 	switch op.Status {
 	case "running":
 		state, code, reason = "running", "running", "The exact reserved agent is running in its isolated checkout."
-	case "succeeded", "failed":
+	case "succeeded", "review-required", "failed":
 		state, code, reason = "completed", "review_required", "The agent stopped. Review its retained changes and verify the result; process exit does not integrate dependencies."
 	case "cancelled":
 		state, code, reason = "cancelled", "attempt_retired", "The attempt was retired. Retained work remains available."

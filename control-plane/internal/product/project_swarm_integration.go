@@ -119,7 +119,7 @@ func (s *Server) swarmReview(ctx context.Context, p project.Project, run Project
 		review.Reason = "The main source moved outside this swarm's reviewed integrations. Prepare a new run for the changed source."
 	case task.Integration != nil:
 		review.Reason = "This task already has an integration attempt. Inspect its receipt before taking another action."
-	case op.Status != "succeeded" && op.Status != "failed":
+	case op.Status != "succeeded" && op.Status != "review-required" && op.Status != "failed":
 		review.Reason = "Check agent status and stop its process before integrating committed changes."
 	case source.Head == op.BaseCommit || len(review.Paths) == 0:
 		review.Reason = "The agent has no committed task changes to integrate."

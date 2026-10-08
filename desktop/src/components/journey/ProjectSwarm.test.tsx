@@ -5,9 +5,9 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { api } from '../../api';
 import { projectRunsApi, type ProjectRun, type RunOperation } from '../../api/projectRuns';
 import { projectSwarmApi, type SwarmReview } from '../../api/projectSwarm';
-import { swarmRunFixture } from '../../test/swarmFixtures';
+import { swarmHarnessFixture, swarmRunFixture } from '../../test/swarmFixtures';
 import { aSession } from '../../test/fixtures';
-import { resetCockpit } from '../../store/store';
+import { resetCockpit, useCockpit } from '../../store/store';
 import { ProjectSwarm } from './ProjectSwarm';
 vi.mock('./SwarmRunQueue', () => ({ SwarmRunQueue: () => null }));
 
@@ -18,7 +18,59 @@ function Harness({initial = base(), canEdit = true, canExecute = true, updated =
   const [run, setRun] = useState(initial), [busy, setBusy] = useState('');
   return <ProjectSwarm run={run} canEdit={canEdit} canExecute={canExecute} busy={!!busy} onBusy={setBusy} onUpdate={value => {setRun(value); updated(value);}} onOpenSession={vi.fn()} />;
 }
-beforeEach(() => {vi.restoreAllMocks(); resetCockpit();});
+beforeEach(() => {vi.restoreAllMocks(); resetCockpit(); useCockpit.getState().setHarnesses([swarmHarnessFixture()]);});
+
+it.each(['ask', 'plan'] as const)('keeps saved %s unchanged and requires a separately reviewed build before preparing autonomous tasks', async permissionMode => {
+  const initial = base(); initial.swarm = undefined; initial.input.route.permissionMode = permissionMode;
+  const prepare = vi.spyOn(projectSwarmApi, 'prepare'), reserve = vi.spyOn(projectSwarmApi, 'reserve'), create = vi.spyOn(api, 'createSession'), reviewPlan = vi.fn();
+  render(<ProjectSwarm run={initial} canEdit canExecute busy={false} onBusy={vi.fn()} onUpdate={vi.fn()} onOpenSession={vi.fn()} onReviewPlan={reviewPlan} />);
+  expect(screen.getByRole('button', {name: 'Prepare agent team'})).toHaveProperty('disabled', true);
+  expect(screen.getByText(/requires an explicitly saved Bypass permission mode/)).not.toBeNull();
+  expect(screen.getByText(/Keep Ask or Plan in an interactive agent/)).not.toBeNull();
+  await userEvent.click(screen.getByRole('button', {name: 'Prepare agent team'}));
+  await userEvent.click(screen.getByRole('button', {name: 'Review plan and create a new build'}));
+  expect(reviewPlan).toHaveBeenCalledOnce(); expect(initial.input.route.permissionMode).toBe(permissionMode);
+  expect(prepare).not.toHaveBeenCalled(); expect(reserve).not.toHaveBeenCalled(); expect(create).not.toHaveBeenCalled();
+});
+
+it('waits for advertised task capability and refreshes it without preparing or dispatching', async () => {
+  const initial = base(); initial.swarm = undefined; useCockpit.getState().setHarnesses([]);
+  const list = vi.spyOn(api, 'listHarnesses').mockResolvedValue([swarmHarnessFixture()]), prepare = vi.spyOn(projectSwarmApi, 'prepare'), create = vi.spyOn(api, 'createSession');
+  render(<Harness initial={initial} />);
+  expect(screen.getByRole('button', {name: 'Prepare agent team'})).toHaveProperty('disabled', true);
+  await userEvent.click(screen.getByRole('button', {name: 'Refresh task capability'}));
+  await waitFor(() => expect(screen.getByRole('button', {name: 'Prepare agent team'})).toHaveProperty('disabled', false));
+  expect(list).toHaveBeenCalledOnce(); expect(prepare).not.toHaveBeenCalled(); expect(create).not.toHaveBeenCalled();
+});
+
+it('discards preparation consent when task capabilities or the saved model route change', async () => {
+  const initial = base(); initial.swarm = undefined;
+  const props = {canEdit: true, canExecute: true, busy: false, onBusy: vi.fn(), onUpdate: vi.fn(), onOpenSession: vi.fn()};
+  const prepare = vi.spyOn(projectSwarmApi, 'prepare');
+  const view = render(<ProjectSwarm {...props} run={initial} />);
+  await userEvent.click(screen.getByRole('button', {name: 'Prepare agent team'}));
+  expect(within(screen.getByRole('dialog')).getByText(/Task commands run without interactive approvals inside isolated Docker/)).not.toBeNull();
+  act(() => useCockpit.getState().setHarnesses([{...swarmHarnessFixture(), taskPermissionModes: []}]));
+  expect(screen.queryByRole('dialog')).toBeNull();
+  act(() => useCockpit.getState().setHarnesses([swarmHarnessFixture()]));
+  expect(screen.queryByRole('dialog')).toBeNull();
+  await userEvent.click(screen.getByRole('button', {name: 'Prepare agent team'}));
+  view.rerender(<ProjectSwarm {...props} run={{...initial, input: {...initial.input, route: {...initial.input.route, model: 'another-reviewed-model'}}}} />);
+  expect(screen.queryByRole('dialog')).toBeNull(); expect(prepare).not.toHaveBeenCalled();
+});
+
+it('does not launch a delayed reservation after a task capability is revoked and restored', async () => {
+  const initial = base(), operation = op(initial, 'a'), saved = attach(initial, operation);
+  let finish!: (value: {run: ProjectRun; operation: RunOperation}) => void;
+  vi.spyOn(projectSwarmApi, 'reserve').mockReturnValue(new Promise(resolve => { finish = resolve; }));
+  const create = vi.spyOn(api, 'createSession'), updated = vi.fn();
+  render(<Harness initial={initial} updated={updated} />);
+  await userEvent.click(screen.getAllByRole('button', {name: 'Start task'})[0]);
+  act(() => useCockpit.getState().setHarnesses([{...swarmHarnessFixture(), autonomousTask: false}]));
+  act(() => useCockpit.getState().setHarnesses([swarmHarnessFixture()]));
+  await act(async () => finish({run: saved, operation}));
+  expect(create).not.toHaveBeenCalled(); expect(updated).not.toHaveBeenCalled();
+});
 
 it('starts independent tasks with separate captured contexts and keeps dependent work waiting', async () => {
   let saved = base();
@@ -93,12 +145,14 @@ it('pause stops future starts without claiming existing agents stopped, and resu
   expect(control.mock.calls.map(call => call[2])).toEqual(['pause', 'resume']); expect(create).not.toHaveBeenCalled();
 });
 
-it('requires explicit exact-change review before integrating, and integration alone does not claim verification', async () => {
-  const initial = base(), operation = op(initial, 'a', 'succeeded'), saved = attach(initial, operation);
+it.each(['review-required', 'succeeded'])('requires exact-change review for %s before integrating, and integration alone does not claim verification', async status => {
+  const initial = base(), operation = op(initial, 'a', status), saved = attach(initial, operation);
   const review: SwarmReview = {taskId: 'a', operationId: operation.id, sourceCommit: 'b'.repeat(40), targetCommit: 'a'.repeat(40), reviewDigest: 'exact-digest', paths: ['src/a.ts'], patch: '+export const a = 1;', canIntegrate: true, reason: 'Ready for integration'};
   vi.spyOn(projectSwarmApi, 'review').mockResolvedValue(review);
   const integrate = vi.spyOn(projectSwarmApi, 'integrate').mockResolvedValue({...saved, revision: 3, swarm: {...saved.swarm!, tasks: saved.swarm!.tasks.map(item => item.id === 'a' ? {...item, integration: {state: 'integrated' as const, reviewDigest: review.reviewDigest, commit: 'c'.repeat(40), sourceCommit: review.sourceCommit, targetCommit: review.targetCommit, integratedAt: saved.updatedAt}} : item)}});
   render(<Harness initial={saved} />);
+  expect(screen.getByText('Awaiting review')).not.toBeNull();
+  expect(screen.getByText(/its exit does not establish correctness/)).not.toBeNull();
   await userEvent.click(screen.getByRole('button', {name: 'Review task changes'}));
   const dialog = await screen.findByRole('dialog', {name: 'Review task changes'});
   expect(within(dialog).getByRole('button', {name: 'Integrate reviewed changes'})).toHaveProperty('disabled', true);

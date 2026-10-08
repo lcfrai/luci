@@ -152,3 +152,69 @@ func TestProjectOverviewRunReadDoesNotInspectHistoricalPayloads(t *testing.T) {
 		t.Fatalf("overview read unrelated run payloads: %+v", got.LatestRun)
 	}
 }
+
+func TestProjectOverviewUnintegratedAgentOutputRemainsAtTaskReview(t *testing.T) {
+	for _, status := range []string{"review-required", "succeeded"} {
+		t.Run(status, func(t *testing.T) {
+			s, mux, run, base, _, _, _ := schedulerFixture(t)
+			p, err := s.resolveProject(run.ProjectID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			items := enqueueSchedulerFixture(t, mux, run, base, []string{"task-c"})
+			s.registerProjectOverview(s.guardProjectSourceRoutes(mux))
+			run = swarmReserveHTTP(t, mux, base, run, "task-a", "overview-awaiting-review")
+			op := run.Operations[0]
+			run, err = s.projectRuns.ObserveOperation(p.ID, p.Path, run.ID, run.Revision, op.ID, op.ChildID, status, "Retained worker output requires review.")
+			if err != nil {
+				t.Fatal(err)
+			}
+			s.runner = func(context.Context, string, []string, string) (string, error) {
+				t.Fatal("overview inspected Git, a child, or a provider")
+				return "", nil
+			}
+			before, sourceBefore := auditTree(t, s.stateDir), auditTree(t, p.Path)
+			view := overviewGet(t, mux, p.ID)
+			if view.LatestRun.State != "awaiting-checks" || view.Phase.ID != "develop" || view.NextAction.Label != "Review task changes" || view.NextAction.RunID != run.ID || !strings.Contains(view.NextAction.Reason, "integration review") {
+				t.Fatalf("unintegrated agent output jumped to verification: %+v", view)
+			}
+			if !reflect.DeepEqual(before, auditTree(t, s.stateDir)) || !reflect.DeepEqual(sourceBefore, auditTree(t, p.Path)) {
+				t.Fatal("overview repaired receipts or changed project source")
+			}
+			// A stale reviewed scope takes priority over the task-review label.
+			state, err := s.readApprovedJourney(p.Path, p.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			originalTitle := state.Plan.Tasks[0].Title
+			state.Plan.Tasks[0].Title = "A collaborative amendment after worker exit"
+			if err = writeJourney(p.Path, state); err != nil {
+				t.Fatal(err)
+			}
+			changed := overviewGet(t, mux, p.ID)
+			if changed.LatestRun.ContextStatus != "changed" || changed.NextAction.ID != "review-plan" || changed.NextAction.RunID != run.ID {
+				t.Fatalf("task review concealed changed context: %+v", changed)
+			}
+			state.Plan.Tasks[0].Title = originalTitle
+			if err = writeJourney(p.Path, state); err != nil {
+				t.Fatal(err)
+			}
+			// Synthetic private integration receipts test projection only. They
+			// do not assert this test performed actual integration or checks.
+			run, err = s.projectRuns.mutateSwarm(p.ID, p.Path, run.ID, run.Revision, func(current *ProjectRun) error {
+				for i := range current.Swarm.Tasks {
+					current.Swarm.Tasks[i].Integration = &ProjectSwarmIntegration{State: "integrated", SourceCommit: strings.Repeat("1", 40), TargetCommit: strings.Repeat("2", 40), Commit: strings.Repeat("3", 40), ReviewDigest: strings.Repeat("a", 64), IntegratedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+				}
+				return nil
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			journeyRequest(t, mux, "POST", "/v1/product/projects/"+p.ID+"/swarm-queue/"+items[0].ID+"/cancel", map[string]int{"expectedRevision": items[0].Revision}, 200)
+			integrated := overviewGet(t, mux, p.ID)
+			if integrated.LatestRun.State != "awaiting-checks" || integrated.Phase.ID != "verify" || integrated.NextAction.Label != "Review verification" || integrated.NextAction.RunID != run.ID {
+				t.Fatalf("integrated output did not advance to verification: %+v", integrated)
+			}
+		})
+	}
+}

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { errorText } from '../../api/product';
 import { runOperationNeedsRecovery, type ProjectRun } from '../../api/projectRuns';
 import { swarmQueueApi, type ProjectSwarmQueue, type SwarmQueueItem, type QueuePriority } from '../../api/swarmQueue';
+import { swarmTaskCapability } from '../../api/swarmTaskCapability';
+import { useCockpit } from '../../store/store';
 import { Button } from '../fluid/components/button';
 import { WorkflowDialog } from '../common/WorkflowDialog';
 
@@ -14,13 +16,15 @@ interface Props {
 /** Queue consent names saved task inputs. A read, tab switch or retrying a read never enqueues work. */
 export function SwarmRunQueue(props: Props) {
   const { run, canEdit, canExecute, busy } = props;
+  const harnesses = useCockpit(state => state.harnesses);
+  const capability = swarmTaskCapability(run, harnesses);
   const [queue, setQueue] = useState<ProjectSwarmQueue | null>(null), [error, setError] = useState('');
   const [notice, setNotice] = useState(''), [confirm, setConfirm] = useState(false);
   const [priority, setPriority] = useState<QueuePriority>('normal');
   const [unconfirmed, setUnconfirmed] = useState(false);
   const current = useRef(props); current.current = props;
   const epoch = useRef(0), live = useRef(true), working = useRef(false), reading = useRef(false);
-  const identity = `${run.projectId}:${run.id}:${canEdit}:${canExecute}`;
+  const identity = `${run.projectId}:${run.id}:${canEdit}:${canExecute}:${capability.signature}`;
   const previousIdentity = useRef(identity);
   if (identity !== previousIdentity.current) { previousIdentity.current = identity; epoch.current++; }
   const keys = useRef(new Map<string, string>());
@@ -48,7 +52,7 @@ export function SwarmRunQueue(props: Props) {
     document.addEventListener('visibilitychange', tick);
     return () => { live.current = false; epoch.current++; controller.abort(); window.clearInterval(timer); document.removeEventListener('visibilitychange', tick); };
   }, [run.projectId, run.id]);
-  useEffect(() => { setConfirm(false); }, [run.revision, canEdit, canExecute]);
+  useEffect(() => { setConfirm(false); }, [run.revision, canEdit, canExecute, capability.signature]);
   const items = queue?.items.filter(item => item.runId === run.id) ?? [];
   const pending = items.filter(unfinished);
   const candidates = run.swarm?.tasks.filter(task => !task.integration &&
@@ -56,7 +60,7 @@ export function SwarmRunQueue(props: Props) {
     !pending.some(item => item.taskId === task.id)) ?? [];
   const sourceBlocked = !!run.codingBlocker || !!run.contextFreshness && run.contextFreshness.status !== 'current' || run.swarm?.state !== 'ready' || ['cancelled', 'complete'].includes(run.state);
   async function operate(label: string, action: (generation: number) => Promise<void>, execute = false) {
-    if (working.current || busy || !canEdit || execute && !canExecute) return;
+    if (working.current || busy || !canEdit || execute && (!canExecute || !capability.allowed)) return;
     working.current = true; readAttempt.current++; props.onBusy(label); setError(''); setNotice('');
     const generation = epoch.current;
     try { await action(generation); }
@@ -89,17 +93,18 @@ export function SwarmRunQueue(props: Props) {
   return <section className="swarm-run-queue" aria-label="Background task queue">
     <div className="project-swarm-heading"><h4>Keep work moving across projects</h4><Button variant="tertiary" disabled={busy} onClick={() => void refresh()}>Refresh queue</Button></div>
     <p>Queue reviewed tasks once. Luci waits for dependencies, shares capacity across projects, and keeps each task’s context separate. Review each result before integrating it.</p>
+    {!capability.allowed && <p className="journey-warning">{capability.reason}</p>}
     {error && <p role="status" className="journey-warning">Queue update unavailable: {error}</p>}
     {notice && <p role="status">{notice}</p>}
     {queue?.dispatchPaused && <p role="status">Background starts are paused for this workspace. Manage this in the projects overview.</p>}
-    <Button disabled={!queue || !canEdit || !canExecute || busy || unconfirmed || sourceBlocked || !candidates.length} onClick={() => { setConfirm(true); setNotice(''); }}>Queue reviewed tasks{candidates.length ? ` (${candidates.length})` : ''}</Button>
+    <Button disabled={!queue || !canEdit || !canExecute || busy || unconfirmed || sourceBlocked || !capability.allowed || !candidates.length} onClick={() => { setConfirm(true); setNotice(''); }}>Queue reviewed tasks{candidates.length ? ` (${candidates.length})` : ''}</Button>
     {pending.length > 0 && <ul className="swarm-run-queue-items">{pending.map(item => <li key={item.id}>
       <div><strong>{item.taskTitle}</strong> <span>{item.state}</span></div>
       {item.reason && <p>{item.reason}</p>}
       <div className="journey-actions">
         <label>Priority for {item.taskTitle}<select value={item.priority} disabled={!canEdit || busy || !['queued', 'paused', 'blocked'].includes(item.state)} onChange={event => void operate('Changing queue priority', generation => control(item, 'priority', generation, event.target.value as QueuePriority))}><option value="high">High</option><option value="normal">Normal</option><option value="low">Low</option></select></label>
         {item.state === 'queued' && <Button variant="secondary" disabled={!canEdit || busy} onClick={() => void operate('Pausing queued task', generation => control(item, 'pause', generation))}>Pause queued task</Button>}
-        {item.state === 'paused' && <Button variant="secondary" disabled={!canEdit || !canExecute || busy || sourceBlocked} onClick={() => void operate('Resuming queued task', generation => control(item, 'resume', generation), true)}>Resume queued task</Button>}
+        {item.state === 'paused' && <Button variant="secondary" disabled={!canEdit || !canExecute || busy || sourceBlocked || !capability.allowed} onClick={() => void operate('Resuming queued task', generation => control(item, 'resume', generation), true)}>Resume queued task</Button>}
         {['queued', 'paused', 'blocked'].includes(item.state) && <Button variant="tertiary" disabled={!canEdit || busy} onClick={() => void operate('Cancelling queued task', generation => control(item, 'cancel', generation))}>Cancel queued task</Button>}
       </div>
       {item.state === 'blocked' && <p>Resolve the reason above, cancel this queue entry, then review the build and queue a new attempt.</p>}
@@ -108,11 +113,13 @@ export function SwarmRunQueue(props: Props) {
     {queue?.hasMore && <p>Only part of the project queue is shown. Refresh as earlier entries complete to inspect remaining work.</p>}
     {confirm && <WorkflowDialog title="Queue reviewed work" description="Authorize these exact saved tasks to start automatically as capacity becomes available. Dependent tasks wait for reviewed integration. Your configured model connection may incur usage charges." busy={busy} onClose={() => setConfirm(false)}>
       <p>{run.input.route.harness} · {run.input.route.model || 'Configured model'} · up to {run.swarm?.maxParallel} agents in this build, within workspace and provider limits.</p>
+      <p>Saved permission: {capability.mode}. Tasks run commands without interactive approvals inside isolated Docker workspaces and exit after their response. Their output still needs review; queue completion does not accept or integrate changes.</p>
+      {capability.notice && <p>{capability.notice}</p>}
       <ul>{candidates.map(task => <li key={task.id}>{task.title}</li>)}</ul>
       <label className="luci-field">Initial task priority<select value={priority} disabled={busy} onChange={event => setPriority(event.target.value as QueuePriority)}><option value="high">High</option><option value="normal">Normal</option><option value="low">Low</option></select></label>
       <p>Priorities affect ordering; other ready projects continue to receive capacity. Pause or cancel queued work from any project overview. Existing agents have separate stop controls.</p>
       {error && <p role="alert">{error}</p>}
-      <div className="workflow-actions"><Button variant="secondary" disabled={busy} onClick={() => setConfirm(false)}>Keep reviewing</Button><Button disabled={busy || !canEdit || !canExecute || sourceBlocked || !candidates.length} onClick={() => void operate('Queuing reviewed tasks', enqueue, true)}>Authorize queued tasks</Button></div>
+      <div className="workflow-actions"><Button variant="secondary" disabled={busy} onClick={() => setConfirm(false)}>Keep reviewing</Button><Button disabled={busy || !canEdit || !canExecute || sourceBlocked || !capability.allowed || !candidates.length} onClick={() => void operate('Queuing reviewed tasks', enqueue, true)}>Authorize queued tasks</Button></div>
     </WorkflowDialog>}
   </section>;
 }

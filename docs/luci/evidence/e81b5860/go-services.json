@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "scope": "Linux complete control-plane and sandboxd Go suites; skipped cases remain skipped. Not a Windows execution result or installed multi-agent acceptance.",
+  "boundCommit": "e81b586077f8af97e5e59472e34eafd161f16b8a",
+  "sourceBinding": "source-binding.json",
+  "original": {
+    "artifact": "artifacts/quality-swarm/integrated-final/go-services/report.json",
+    "sha256": "6890bd4292b854fe8e81be94a01750e7f07bc78ddd70c68548b0bb2d226c568f"
+  },
+  "at": "2026-10-08T06:27:10.742315+00:00",
+  "command": [
+    "go",
+    "test",
+    "-p",
+    "2",
+    "-json",
+    "./control-plane/...",
+    "./sandboxd/..."
+  ],
+  "exitCode": 0,
+  "durationSeconds": 456.74499434800236,
+  "testOutcomes": {
+    "pass": 2600,
+    "skip": 25
+  },
+  "packageOutcomes": {
+    "pass": 32,
+    "skip": 2
+  },
+  "sourceInputs": 583,
+  "changedInputs": [],
+  "passed": true
+}

@@ -63,6 +63,9 @@ func (a *API) admitQueuedSwarm(ctx context.Context, req product.SwarmAdmissionRe
 	if err != nil {
 		return blocked("access_changed", err.Error())
 	}
+	if err := harness.ValidateTask(harness.ID(run.Input.Route.Harness), harness.PermissionMode(run.Input.Route.PermissionMode)); err != nil {
+		return blocked("task_permission_requires_interactive", err.Error())
+	}
 	provider, limit := providerCapacity(run.Input.Route, req.Policy)
 	decision, err := a.execution.reserve(ctx, req.QueueID, req.ProjectID, provider, limit, req.Actor, authority, req.Policy)
 	if err != nil {
@@ -190,7 +193,7 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 		conversation = ids.UUID()
 	}
 	prompt := product.ImplementationOpeningPrompt(capture.Binding)
-	command, argv, err := harness.Build(harness.Request{DockerBoundary: a.deps.Backend.Kind() == backend.KindDocker, ProjectBrief: true, ReviewedContext: true, Harness: harness.ID(route.Harness), Model: model, Effort: harness.Effort(route.Effort), Permission: harness.PermissionMode(route.PermissionMode), OpeningPrompt: prompt, Conversation: conversation})
+	command, argv, err := harness.BuildTask(harness.Request{DockerBoundary: a.deps.Backend.Kind() == backend.KindDocker, ProjectBrief: true, ReviewedContext: true, Harness: harness.ID(route.Harness), Model: model, Effort: harness.Effort(route.Effort), Permission: harness.PermissionMode(route.PermissionMode), OpeningPrompt: prompt, Conversation: conversation})
 	if err != nil {
 		return refuse("harness_unavailable", err)
 	}
@@ -304,6 +307,8 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 	}
 	stored, err := a.allocatePreparedSession(ctx, preparedSessionAllocation{Record: candidate, Spec: backend.Spec{ID: candidate.ID, SessionID: candidate.ID, Image: a.sessionImage(), Command: command, Args: argv, Env: sandboxEnv, AttachToken: candidate.AttachToken, Resources: capacity.Resources, WorkDir: sessionWorkDir, Mounts: mounts}, Account: account, Revalidate: admission.Revalidate, BeforeAllocate: finalAuth, BeforeBackendStart: func(ctx context.Context) error {
 		return a.execution.markBackendStarting(ctx, req.QueueID, candidate.ID, candidate.ID)
+	}, AfterBackendCreate: func(ctx context.Context, sandboxID string) error {
+		return a.execution.markBackendSettled(ctx, req.QueueID, candidate.ID, sandboxID)
 	}, HasReviewedContext: true})
 	if err != nil {
 		result.State, result.ReasonCode, result.Message = "unknown", "dispatch_unconfirmed", "The task start could not be confirmed. Its capacity and exact child identity are retained for recovery."

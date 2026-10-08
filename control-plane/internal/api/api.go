@@ -421,21 +421,7 @@ func New(d Deps) (*API, error) {
 		d.Product.SetProjectRunSelectionResolver(a.ResolveProjectRunSelection)
 		d.Product.SetProjectRunSessionObserver(a.ObserveProjectRunSessions)
 		d.Product.SetSwarmSchedulerRuntime(product.SwarmSchedulerRuntime{CaptureActor: a.captureQueuedActor, Admit: a.admitQueuedSwarm, Dispatch: a.dispatchQueuedSwarm, Release: a.execution.release, Resources: a.queuedResourceView})
-		d.Product.SetProjectSwarmWorktreeObserver(func(ctx context.Context, projectID, worktreeID string) (bool, error) {
-			if err := ctx.Err(); err != nil {
-				return false, err
-			}
-			rows, err := d.Store.List()
-			if err != nil {
-				return false, err
-			}
-			for _, row := range rows {
-				if row.ProjectID == projectID && row.WorktreeID == worktreeID && row.Status != registry.StatusExited {
-					return true, nil
-				}
-			}
-			return false, nil
-		})
+		d.Product.SetProjectSwarmWorktreeObserver(a.observeSwarmWorktree)
 	}
 
 	// guarded holds every route the origin middleware protects.

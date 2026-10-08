@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "scope": "Clean Linux amd64 portable/cloud archive integrity and retained licence inventory; neither cloud deployment nor legal clearance.",
+  "originalIntegrity": {
+    "artifact": "artifacts/quality-swarm/integrated-final/package/package-integrity.json",
+    "sha256": "aab860379a148ae2d21b378e1f5331ddecf9e02bc359d2eb8d65ae9c691b480a"
+  },
+  "originalProvenance": {
+    "artifact": "artifacts/quality-swarm/integrated-final/package/package-provenance.json",
+    "sha256": "2b335d86a4c22263d971571174d3ed30cbc808858f5d3ca2177c650fe06b91f4"
+  },
+  "at": "2026-10-08T06:35:26.459762+00:00",
+  "sourceCommit": "e81b586077f8af97e5e59472e34eafd161f16b8a",
+  "sourceDirty": false,
+  "verifiedExtractedFiles": 947,
+  "licenseComponents": 347,
+  "missingLicenses": 0,
+  "subjects": [
+    {
+      "name": "linux-amd64/luci-cloud-linux-amd64.tar.gz",
+      "sha256": "70649c2d74a1db060528d7817112611bbd9d0ccc0b98ba69bf998025b405719b",
+      "bytes": 34121614
+    },
+    {
+      "name": "linux-amd64/luci-linux-amd64.tar.gz",
+      "sha256": "092a914947ef79dd277c259bef69ed12b3a52a0fdae62ccd5991f68a2438786e",
+      "bytes": 68057918
+    },
+    {
+      "name": "linux-amd64/release-manifest.json",
+      "sha256": "9e26af7da5e588063f707d201d44bcf93f34f0e2b8b236086f3c4a174c5e6d68",
+      "bytes": 696
+    }
+  ],
+  "allMembersMatched": true,
+  "binarySHA256": "ed64cff8a7021a580e9980bb3b6c3a0c244f203d7fba4b7e690f099f2ff93173",
+  "webIndexSHA256": "f3d77b3ff7dd2bfea23222777d94ad9258a3b2ddbba9e48a91c9bee8543defa0",
+  "archiveSHA256": "092a914947ef79dd277c259bef69ed12b3a52a0fdae62ccd5991f68a2438786e"
+}

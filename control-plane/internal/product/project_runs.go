@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lcfrai/luci/control-plane/internal/harness"
 	"github.com/lcfrai/luci/control-plane/internal/project"
 	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
@@ -68,7 +69,9 @@ func projectRunProblem(w http.ResponseWriter, err error) {
 	message := err.Error()
 	var pathError *os.PathError
 	var linkError *os.LinkError
-	if errors.Is(err, ErrProjectRunNotFound) {
+	if errors.Is(err, harness.ErrTaskPermission) {
+		code = "task_permission_requires_interactive"
+	} else if errors.Is(err, ErrProjectRunNotFound) {
 		status, code = http.StatusNotFound, "project_run_not_found"
 	} else if errors.Is(err, ErrProjectRunInvalid) || errors.As(err, &pathError) || errors.As(err, &linkError) {
 		status, code = http.StatusInternalServerError, "project_run_unavailable"
@@ -530,7 +533,7 @@ func (s *Server) reconcileProjectRun(ctx context.Context, p project.Project, run
 			observation.State, observation.Reason = "ready", "A coding session is reserved but has not been dispatched. Continue that reserved operation or cancel this run."
 			continue
 		}
-		if op.Status == "succeeded" || op.Status == "failed" || op.Status == "cancelled" {
+		if projectRunOperationTerminal(op.Status) {
 			continue
 		}
 		status, message := "unknown", "The coding child's outcome is unknown. Inspect its retained session; this operation will not be replayed."

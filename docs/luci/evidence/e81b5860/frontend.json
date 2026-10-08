@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "scope": "Linux full desktop test suite, TypeScript typecheck and production web build; not real-browser or native desktop acceptance.",
+  "boundCommit": "e81b586077f8af97e5e59472e34eafd161f16b8a",
+  "sourceBinding": "source-binding.json",
+  "original": {
+    "artifact": "artifacts/quality-swarm/integrated-final/frontend/report.json",
+    "sha256": "d102412cb77f617d09817b79db702994c35a244c585bd987b39a21d86e3bfda9"
+  },
+  "at": "2026-10-08T06:28:26.525859+00:00",
+  "passed": true,
+  "results": [
+    {
+      "name": "tests",
+      "command": [
+        "npm",
+        "run",
+        "test",
+        "--",
+        "--reporter=json",
+        "--outputFile=vitest.json"
+      ],
+      "exitCode": 0,
+      "durationSeconds": 227.85037734400248
+    },
+    {
+      "name": "typecheck",
+      "command": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "exitCode": 0,
+      "durationSeconds": 42.17485450999811
+    },
+    {
+      "name": "build",
+      "command": [
+        "npm",
+        "run",
+        "build"
+      ],
+      "exitCode": 0,
+      "durationSeconds": 40.422865972010186
+    }
+  ],
+  "testOutcomes": {
+    "numPassedTests": 2361,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTotalTests": 2361
+  },
+  "testFiles": 143,
+  "sourceInputs": 394,
+  "changedInputs": [],
+  "rawVitestReport": {
+    "artifact": "artifacts/quality-swarm/integrated-final/frontend/vitest.json",
+    "sha256": "315b03b197cd9255315f4ca81ffbb76c72c67b9a03738342b48e8c5ded77918b"
+  }
+}

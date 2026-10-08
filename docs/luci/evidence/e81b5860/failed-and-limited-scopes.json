@@ -1,0 +1,176 @@
+{
+  "version": 1,
+  "scope": "Failure and historical limitation receipts retained alongside positive evidence. No full installed four-project pass exists for this evidence set.",
+  "earlierSustained": {
+    "original": {
+      "artifact": "artifacts/quality-swarm/four-project/failed-sustained-summary.json",
+      "sha256": "8f32340c51386e3a12025bfecb1630b428abd42510bcae85544fd3ebf63da079"
+    },
+    "passed": false,
+    "reason": "A registry child was exited at recovery. A short reproduction subsequently recorded actual child startup deadline failures from the inherited 50 ms readiness / 100 ms create budget. The original sustained run lacked per-child startup diagnostics, so its exact per-child causes were not retained. It does not establish sustained three-worker capacity.",
+    "sampleCount": 601,
+    "sampledLiveCounts": {
+      "0": 1,
+      "1": 1,
+      "2": 599
+    },
+    "recordedDurationSeconds": 600,
+    "noPassingSustainedClaim": true,
+    "sourceBinding": "Earlier pre-commit source; not attributed to the e81 passing sustained witness."
+  },
+  "historicalTinyWorkloadComparison": {
+    "original": {
+      "artifact": "artifacts/quality-swarm/benchmark/summary.json",
+      "sha256": "ffdfb9fa36be3b0de465633eede9534ab570c0db717f39d70c40a3d5b3d5008e"
+    },
+    "scope": "Controlled local harness comparison; not model, Docker or integrated-app throughput",
+    "resultEquivalent": true,
+    "sourceSnapshotTakenAfterMeasurement": "2026-10-08T04:24:48.867527+00:00",
+    "gitBase": "a91d2c5e7372a1ddb908cbae31f3394474be2535",
+    "workingTreeDirty": true,
+    "modes": {
+      "sequential": {
+        "trials": 3,
+        "dispatchAndResultsMedianMs": 520.618835,
+        "dispatchAndResultsMinMs": 449.200263,
+        "dispatchAndResultsMaxMs": 981.881305,
+        "perTaskDispatchMedianMs": 156.16219,
+        "computeOverlapMedianMs": 0,
+        "perWorkerPeakRssMinBytes": 21262336,
+        "perWorkerPeakRssMaxBytes": 21868544,
+        "workspaceBytesRange": [
+          14810,
+          14814
+        ],
+        "capturedBytesRange": [
+          8451,
+          8467
+        ],
+        "controllerStageMedianMs": {
+          "create-run": 27.280343,
+          "initialize-swarm": 37.049826,
+          "reserve": 187.7567655
+        }
+      },
+      "parallel": {
+        "trials": 3,
+        "dispatchAndResultsMedianMs": 825.512518,
+        "dispatchAndResultsMinMs": 427.073128,
+        "dispatchAndResultsMaxMs": 905.56181,
+        "perTaskDispatchMedianMs": 187.1071195,
+        "computeOverlapMedianMs": 96.643896,
+        "perWorkerPeakRssMinBytes": 21159936,
+        "perWorkerPeakRssMaxBytes": 21716992,
+        "workspaceBytesRange": [
+          14807,
+          14823
+        ],
+        "capturedBytesRange": [
+          8451,
+          8467
+        ],
+        "controllerStageMedianMs": {
+          "create-run": 30.051505,
+          "initialize-swarm": 39.284428,
+          "reserve": 175.677087
+        }
+      }
+    },
+    "notes": [
+      "Six tiny-workload trials on a shared development host; no timing threshold or speedup asserted.",
+      "All twelve child processes exited successfully before subtest cleanup. Process IDs and events are retained in the raw report.",
+      "Source file hashes describe the post-measurement working tree; the transient compiled test binary was not retained."
+    ],
+    "conclusion": "Parallel median was slower than sequential in these six tiny controlled trials. No speedup or market-leadership claim.",
+    "boundToE81": false
+  },
+  "installedAttempts": [
+    {
+      "original": {
+        "artifact": "artifacts/quality-swarm/installed-four-project-e81b5860/result.json",
+        "sha256": "2610e7681a51e917db12cbf53de16864102f88907552417bd1a55db146a905aa"
+      },
+      "passed": false,
+      "failedStage": "startup",
+      "actualTaskCount": 0,
+      "transportCounts": null,
+      "transportObservationsDropped": null,
+      "cleanupErrorCount": 1,
+      "explanation": "Harness private Unix socket path exceeded the Linux limit before service execution. Early cleanup receipt also failed."
+    },
+    {
+      "original": {
+        "artifact": "artifacts/quality-swarm/installed-four-project-e81b5860-queue-poll/result.json",
+        "sha256": "9e6f1edea6f0a5d59403f4dbb0ef6ae9f9479b012b711f7c7d25a0d1d80618f4"
+      },
+      "passed": false,
+      "failedStage": "resume-single-slot-3",
+      "actualTaskCount": 2,
+      "transportCounts": {
+        "create": 3,
+        "start": 3,
+        "total": 1063
+      },
+      "transportObservationsDropped": 63,
+      "cleanupErrorCount": 0,
+      "explanation": "Bounded transport observation log overflowed after two task results and three starts. Dropped observations invalidate zero-side-effect and completion claims."
+    },
+    {
+      "original": {
+        "artifact": "artifacts/quality-swarm/installed-four-project-e81b5860-ready-entry/result.json",
+        "sha256": "1d2b0fdbae2949c2fb92160e841a2b60e72300db672526263c07371e4d6c522d"
+      },
+      "passed": false,
+      "failedStage": "browser-prepare-build-a",
+      "actualTaskCount": 0,
+      "transportCounts": {
+        "create": 0,
+        "start": 0,
+        "total": 170
+      },
+      "transportObservationsDropped": 0,
+      "cleanupErrorCount": 0,
+      "explanation": "Harness exact accessible-name selector did not locate the prepare-team select."
+    },
+    {
+      "original": {
+        "artifact": "artifacts/quality-swarm/installed-four-project-e81b5860-ready-selector/result.json",
+        "sha256": "f3c0f35b95c79c6a2870164be26efd5e2d8b443c9befed06bd71c9d47dc1ce8e"
+      },
+      "passed": false,
+      "failedStage": "resume-single-slot-1",
+      "actualTaskCount": 0,
+      "transportCounts": {
+        "create": 0,
+        "start": 0,
+        "total": 102
+      },
+      "transportObservationsDropped": 0,
+      "cleanupErrorCount": 0,
+      "explanation": "Queue polling returned409 while project source admission was busy; full workflow did not complete."
+    },
+    {
+      "original": {
+        "artifact": "artifacts/quality-swarm/installed-four-project-e81b5860-short-root/result.json",
+        "sha256": "1665b2544e7d970794bb260f15271b74694e9bcf711b97cf2a1fd46314b6820e"
+      },
+      "passed": false,
+      "failedStage": "startup",
+      "actualTaskCount": 0,
+      "transportCounts": {
+        "create": 0,
+        "start": 0,
+        "total": 765
+      },
+      "transportObservationsDropped": 0,
+      "cleanupErrorCount": 0,
+      "explanation": "Harness inspected entry state before hydration and skipped required sign-in."
+    }
+  ],
+  "openGates": [
+    "Complete installed four-project runtime workflow after corrections.",
+    "Native Windows interactive and whole-owned-process resource acceptance.",
+    "Live-provider reasoning and realistic application-output quality.",
+    "Sustained full-stack RAM/CPU/disk and UI responsiveness; controlled-process RSS alone is insufficient."
+  ]
+}

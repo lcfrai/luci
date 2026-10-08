@@ -516,6 +516,10 @@ export interface Harness {
   supportsResume: boolean;
   supportsCustomModel?: boolean;
   dockerAskNotice?: string;
+  /** Separate one-shot swarm capability; interactive permission choices stay unchanged. */
+  autonomousTask?: boolean;
+  taskPermissionModes?: PermissionMode[];
+  taskPermissionNotice?: string;
   /** Why it is unavailable, or what it is. Rendered verbatim in the picker. */
   note: string;
 }

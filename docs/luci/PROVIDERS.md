@@ -16,6 +16,32 @@ Container `localhost` refers to the container. For explicitly configured loopbac
 
 ## Durable sessions
 
+### Autonomous task workers and interactive agents
+
+Coordinated task workers run one native task turn and then exit, so a completed
+turn does not retain a scarce worker slot while another project waits. A native
+exit is **awaiting review**, not proof that the implementation or its checks
+passed. Changes remain isolated until explicit integration, and dependent tasks
+still wait for that integration.
+
+The pinned noninteractive CLI modes cannot honor interactive command-approval
+prompts. Autonomous tasks therefore require the run's explicitly saved
+**Bypass** permission: commands can run without per-command prompts inside the
+isolated Docker workspace. The task capability returned by `/v1/harnesses`
+declares the supported modes. Luci must not silently convert Ask or Plan into
+Bypass, add an automatic approver, or claim an approval request was accepted.
+Unsupported task preparation/dispatch is refused before allocation with
+`task_permission_requires_interactive` and a path to review the plan and create
+a new build with a deliberate choice. Existing saved consent is not rewritten.
+
+Interactive agents retain Ask and Plan and their native terminal approval flow.
+Choose that path when individual command approval is needed. Native approval
+requests have not yet been bridged into an unattended cross-project task queue;
+that is a known capability limit, not a promise of equivalent permission modes.
+CLI compatibility checks and deterministic provider fixtures do not establish
+live-provider task quality. A task worker is not restarted as an unrelated
+terminal: inspect its retained attempt and use the reviewed task recovery path.
+
 Every Codex/OpenCode session receives its own writable home mounted at `/home/dev/.luci-agent`. The host directory is outside project Git and outside Claude's transcript mount. Native histories are copied only from stopped sessions, then continued with the upstream fork option. The source database is never edited by Luci. Copies reject links, special files, and hard links, and are bounded to 4,096 files/256 MiB. Large or malformed histories return an explicit error.
 
 Restart means clean context and copies only the native credential file into a fresh home. Earlier histories remain resumable until Forget. Forget deletes only the recorded private homes; a previously forked session remains independent. OpenCode and Codex use their own session IDs internally. Luci's UUID names its private home and is never substituted as a native conversation ID.

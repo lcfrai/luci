@@ -54,7 +54,7 @@ func swarmOperation(run *ProjectRun, id string) *ProjectRunOperation {
 func validateProjectSwarm(run ProjectRun) error {
 	if run.Swarm == nil {
 		for _, op := range run.Operations {
-			if op.TaskID != "" || op.WorktreeID != "" || op.Implementation != nil || op.Allocation != "" || op.AbsenceRetirement != nil {
+			if op.TaskID != "" || op.WorktreeID != "" || op.Implementation != nil || op.Allocation != "" || op.AbsenceRetirement != nil || op.Status == "review-required" {
 				return ErrProjectRunInvalid
 			}
 		}
