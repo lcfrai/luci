@@ -1,0 +1,50 @@
+{
+  "scope": "Actual applied frontend CLOUD023/stylesheet-token/Edit-only-cancel/contract-mirror focused correction; no Docker/backend execution",
+  "startedAt": "2026-10-08T19:24:25.382944+00:00",
+  "cwd": "/workspace/luci/desktop",
+  "commands": [
+    {
+      "name": "vitest",
+      "command": [
+        "npm",
+        "test",
+        "--",
+        "--maxWorkers=1",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=/workspace/.luci-tools/cloud020-ui/correction-diagnostic-2/vitest.json",
+        "src/components/journey/CheckRecoveryDialog.test.tsx",
+        "src/components/journey/requirements.test.tsx"
+      ],
+      "startedAt": "2026-10-08T19:24:25.382977+00:00",
+      "finishedAt": "2026-10-08T19:24:35.997713+00:00",
+      "exitCode": 0
+    },
+    {
+      "name": "typecheck",
+      "command": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "startedAt": "2026-10-08T19:24:35.999248+00:00",
+      "finishedAt": "2026-10-08T19:24:56.753714+00:00",
+      "exitCode": 0
+    }
+  ],
+  "finishedAt": "2026-10-08T19:24:56.756312+00:00",
+  "sourceInputs": 1173,
+  "sourceUnchanged": true,
+  "tests": {
+    "numTotalTestSuites": 2,
+    "numPassedTestSuites": 2,
+    "numFailedTestSuites": 0,
+    "numTotalTests": 24,
+    "numPassedTests": 24,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "passed": true
+}

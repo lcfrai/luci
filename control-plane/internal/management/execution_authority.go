@@ -65,21 +65,26 @@ func (g *Gateway) AuthorizeExecution(ctx context.Context, ref ExecutionActorRef,
 }
 
 func (g *Gateway) authorizeExecutionLocked(ref ExecutionActorRef, harness string, needsSecrets bool) (ExecutionAuthority, error) {
+	out, err := g.authorizeWorkLocked(ref, needsSecrets)
+	if err != nil {
+		return ExecutionAuthority{}, err
+	}
+	for _, candidate := range out.Policy.AllowedHarnesses {
+		if candidate == harness {
+			return out, nil
+		}
+	}
+	return ExecutionAuthority{}, ErrExecutionAuthority
+}
+
+// Shared execution authority is independent of a model harness. Project checks
+// need current execution grants and service policy, but do not use an AI route.
+func (g *Gateway) authorizeWorkLocked(ref ExecutionActorRef, needsSecrets bool) (ExecutionAuthority, error) {
 	if g.closed || ref.Local || ref.UserID == "" || !teamProjectIDPattern.MatchString(ref.ProjectID) || validatePolicy(g.state.Policy) != nil {
 		return ExecutionAuthority{}, ErrExecutionAuthority
 	}
 	user, ok := g.state.Users[ref.UserID]
 	if !ok || user.User.Disabled || user.User.ID != ref.UserID || (user.User.Role != "member" && user.User.Role != "admin" && user.User.Role != "super-admin") {
-		return ExecutionAuthority{}, ErrExecutionAuthority
-	}
-	allowed := false
-	for _, candidate := range g.state.Policy.AllowedHarnesses {
-		if candidate == harness {
-			allowed = true
-			break
-		}
-	}
-	if !allowed {
 		return ExecutionAuthority{}, ErrExecutionAuthority
 	}
 	policy := g.state.Policy

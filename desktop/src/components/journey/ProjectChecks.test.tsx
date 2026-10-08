@@ -1,16 +1,19 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { api } from '../../api';
+import { ApiError, type ProblemCode } from '../../api/client';
 import { aBranch, aProject, aSession, aWorktree } from '../../test/fixtures';
 import { productApi, type CheckRun, type RequirementCoverage } from '../../api/product';
 import { projectRunsApi, type ProjectRun } from '../../api/projectRuns';
 import { resetCockpit, useCockpit } from '../../store/store';
 import { ProjectChecks } from './ProjectChecks';
+import { notifyRequirementEvidenceChanged } from './RequirementsEvidence';
 import { ProjectWork } from './ProjectWork';
 import * as authentication from '../auth/AuthProvider';
 import { checkSetupDraftValid } from '../../hooks/projectDraftValidation';
 import { definitionApi } from '../../api/definition';
+import { checkRecoveryFixture, checkRunFixture } from "../../test/checkFixtures";
 import { designPlanApi } from '../../api/designPlan';
 
 const identity = vi.hoisted(() => ({ scope: 'owner-workspace' }));
@@ -245,8 +248,8 @@ it('recovers custom commands, exact unfinished arguments and same-context covera
   vi.spyOn(authentication, 'useAuth').mockReturnValue({ profile: { user: { id: 'owner' }, permissions: { runHostCommands: true }, policy: { allowHostCommands: true } } } as never);
   const view = render(<ProjectChecks projectId="p-1" />);
   await editCheckSetup();
-  await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Check execution' }), 'host');
-  await userEvent.click(screen.getByRole('checkbox', { name: /I trust these commands to run directly/ }));
+  expect(screen.queryByRole('combobox', { name: 'Check execution' })).toBeNull();
+  await userEvent.click(screen.getByRole('checkbox', { name: /I trust this project's code/ }));
   const stored = storedCheckSetup();
   expect(stored.value).toEqual({ commands: [...commands, { label: 'node', executable: 'node', args: ['scripts/check-notes.mjs'] }], executable: '  npm  ', args: unfinishedArguments, requirementIds: ['R-KEEP'], buildId: '' });
   expect(checkSetupDraftValid({ ...stored.value, trusted: true })).toBe(false);
@@ -263,7 +266,7 @@ it('recovers custom commands, exact unfinished arguments and same-context covera
   expect(screen.getByRole('button', { name: 'Remove node' })).not.toBeNull();
   await userEvent.click(screen.getByText(/Link checks to approved requirements/));
   expect((screen.getByRole('checkbox', { name: 'Check R-KEEP · Keep notes' }) as HTMLInputElement).checked).toBe(true);
-  expect((screen.getByRole('combobox', { name: 'Check execution' }) as HTMLSelectElement).value).toBe('docker');
+  expect(screen.queryByRole('combobox', { name: 'Check execution' })).toBeNull();
   expect((screen.getByRole('checkbox', { name: /I trust this project's code/ }) as HTMLInputElement).checked).toBe(false);
   expect((screen.getByRole('button', { name: 'Run selected requirement checks' }) as HTMLButtonElement).disabled).toBe(true);
   expect(productApi.runChecks).not.toHaveBeenCalled();
@@ -434,4 +437,138 @@ it('reports oversized unfinished text as unretained without truncating it or pro
   expect(Object.keys(localStorage).filter(key => key.includes('verification-setup'))).toEqual([]);
   expect(Object.values(useCockpit.getState().unsavedProjectDrafts).find(draft => draft.label === 'Verification setup')?.retained).toBe(false);
   expect(productApi.runChecks).not.toHaveBeenCalled();
+});
+
+
+it('retains cancellation with Edit when Execute is revoked and keeps new checks unavailable',async()=>{
+  const run=checkRunFixture({status:'running',stage:'observe'});vi.mocked(productApi.checks).mockResolvedValue({runs:[run],suggested:commands,coverage});
+  const cancel=vi.spyOn(productApi,'cancelChecks').mockResolvedValue({...run,revision:5,status:'cancelled',resourcesHeld:false});
+  access.canExecute=false;render(<ProjectChecks projectId="p-1"/>);
+  const stop=await screen.findByRole('button',{name:'Cancel checks'});expect(stop).toHaveProperty('disabled',false);
+  await userEvent.click(stop);await waitFor(()=>expect(cancel).toHaveBeenCalledExactlyOnceWith('p-1',run.id));expect(productApi.runChecks).not.toHaveBeenCalled();
+});
+it('retains earlier output for admission-blocked work without turning it into passing build evidence',async()=>{
+  const run=checkRunFixture({status:'blocked',stage:'admission',reasonCode:'capacity_unavailable',resourcesHeld:false,message:'Available memory is below the configured reserve.'});
+  vi.mocked(productApi.checks).mockResolvedValue({runs:[run],suggested:commands,coverage});queue();render(<ProjectChecks projectId="p-1"/>);
+  await screen.findByText('Checks blocked');expect(screen.getByText('Retained test output')).toBeTruthy();expect(screen.getByText(/No blocked command will retry automatically/)).toBeTruthy();expect(screen.queryByRole('button',{name:'Use these results for this build'})).toBeNull();expect(productApi.runChecks).not.toHaveBeenCalled();
+});
+it('requires a history refresh and fresh trust after an unconfirmed check start receipt',async()=>{
+  vi.mocked(productApi.runChecks).mockRejectedValueOnce(new Error('Connection interrupted'));
+  render(<ProjectChecks projectId="p-1"/>);await screen.findByRole('button',{name:'Remove Acceptance tests'});
+  await userEvent.click(screen.getByRole('checkbox',{name:/I trust this project's code/}));
+  await userEvent.click(screen.getByRole('button',{name:'Run project checks'}));
+  await screen.findByText(/check start result is unconfirmed/);expect(screen.getByRole('button',{name:'Run project checks'})).toHaveProperty('disabled',true);
+  await userEvent.click(screen.getByRole('button',{name:'Refresh check history'}));await waitFor(()=>expect(screen.queryByRole('button',{name:'Refresh check history'})).toBeNull());
+  expect(screen.getByRole('checkbox',{name:/I trust this project's code/})).toHaveProperty('checked',false);expect(productApi.runChecks).toHaveBeenCalledOnce();
+});
+
+
+it('continues bounded visible observations beyond four rounds and stops naturally when checks settle',async()=>{
+  vi.useFakeTimers();
+  try {
+    vi.spyOn(document,'visibilityState','get').mockReturnValue('visible');
+    const pending=['a','b','c','d','e','f'].map(id=>checkRunFixture({id:'check-'+id,status:'running',stage:'observe'}));
+    vi.mocked(productApi.checks).mockResolvedValue({runs:pending,suggested:commands,coverage});
+    const get=vi.spyOn(productApi,'checkRun').mockImplementation(async(_project,id)=>pending.find(run=>run.id===id)!);
+    render(<ProjectChecks projectId="p-1"/>);await act(async()=>{});
+    await act(async()=>vi.advanceTimersByTimeAsync(5000));expect(get).toHaveBeenCalledTimes(4);
+    await act(async()=>vi.advanceTimersByTimeAsync(5000));expect(get).toHaveBeenCalledTimes(8);
+    expect(new Set(get.mock.calls.map(call=>call[1])).size).toBe(6);
+    await act(async()=>vi.advanceTimersByTimeAsync(20_000));expect(get).toHaveBeenCalledTimes(24);
+    const settled=pending.map(run=>({...run,revision:5,status:'passed',resourcesHeld:false,stage:'finished',commands:run.commands.map(command=>({...command,cleanupConfirmed:true}))}));
+    get.mockImplementation(async(_project,id)=>settled.find(run=>run.id===id)!);vi.mocked(productApi.checks).mockResolvedValue({runs:settled,suggested:commands,coverage});
+    await act(async()=>vi.advanceTimersByTimeAsync(5000));const stopped=get.mock.calls.length;
+    await act(async()=>vi.advanceTimersByTimeAsync(30_000));expect(get).toHaveBeenCalledTimes(stopped);
+    expect(screen.getAllByText('Commands passed')).toHaveLength(6);expect(productApi.runChecks).not.toHaveBeenCalled();
+  } finally {cleanup();vi.useRealTimers();}
+});
+it('does not overlap a delayed observation and aborts it when the view is hidden',async()=>{
+  vi.useFakeTimers();
+  try {
+    const visibility=vi.spyOn(document,'visibilityState','get').mockReturnValue('visible'),run=checkRunFixture({status:'running',stage:'observe'});
+    vi.mocked(productApi.checks).mockResolvedValue({runs:[run],suggested:commands,coverage});
+    let finish!:(run:CheckRun)=>void;const get=vi.spyOn(productApi,'checkRun').mockReturnValue(new Promise(resolve=>{finish=resolve;}));
+    render(<ProjectChecks projectId="p-1"/>);await act(async()=>{});await act(async()=>vi.advanceTimersByTimeAsync(30_000));expect(get).toHaveBeenCalledOnce();
+    visibility.mockReturnValue('hidden');fireEvent(document,new Event('visibilitychange'));expect(get.mock.calls[0][2]!.aborted).toBe(true);
+    await act(async()=>finish({...run,revision:5,status:'passed',resourcesHeld:false}));expect(screen.queryByText('Commands passed')).toBeNull();
+    await act(async()=>vi.advanceTimersByTimeAsync(30_000));expect(get).toHaveBeenCalledOnce();
+  } finally {cleanup();vi.useRealTimers();}
+});
+
+it.each([
+  ['check',401], ['check',403], ['availability',401], ['availability',403],
+] as const)('clears current private check history on %s GET %s, gates controls, and retains unsent setup for an explicit fresh read',async (endpoint,status)=>{
+  const run=checkRunFixture({message:'Alpha retained private history'});
+  vi.mocked(productApi.checks).mockResolvedValue({runs:[run],suggested:commands,coverage});
+  const denial=new ApiError('permission_denied' as ProblemCode,'Reading access changed.',status);
+  const read=vi.spyOn(productApi,'checkRun').mockResolvedValue(run);
+  if(endpoint==='check') read.mockRejectedValue(denial);
+  else vi.spyOn(productApi,'checkRecovery').mockRejectedValue(denial);
+  const recover=vi.spyOn(productApi,'recoverCheck');
+  render(<ProjectChecks projectId="p-1"/>);await screen.findByText('Alpha retained private history');
+  await userEvent.type(screen.getByRole('textbox',{name:'Executable'}),'unfinished-command');
+  await userEvent.click(screen.getByRole('button',{name:'Review check recovery'}));
+  const refresh=await screen.findByRole('button',{name:'Refresh check access'});
+  await waitFor(()=>expect(document.activeElement).toBe(refresh));
+  expect(screen.queryByText('Alpha retained private history')).toBeNull();expect(screen.queryByText('Retained test output')).toBeNull();
+  expect(screen.queryByRole('dialog')).toBeNull();expect(screen.queryByRole('button',{name:'Run project checks'})).toBeNull();
+  expect(screen.queryByText('Keep notes')).toBeNull();expect(productApi.checks).toHaveBeenCalledOnce();
+  expect(productApi.runChecks).not.toHaveBeenCalled();expect(recover).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole('button',{name:'Refresh check access'}));
+  await screen.findByText('Alpha retained private history');
+  expect(screen.getByRole('textbox',{name:'Executable'})).toHaveProperty('value','unfinished-command');
+  expect(productApi.checks).toHaveBeenCalledTimes(2);expect(productApi.runChecks).not.toHaveBeenCalled();
+});
+it('fences an inflight history read on confirmed denial and requires a successful explicit access refresh',async()=>{
+  const run=checkRunFixture({message:'Private history before denial'});
+  const history={runs:[run],suggested:commands,coverage};
+  vi.mocked(productApi.checks).mockResolvedValue(history);
+  let finishHistory!:(value:typeof history)=>void;
+  vi.spyOn(productApi,'checkRun').mockRejectedValue(new ApiError('permission_denied' as ProblemCode,'Reading access changed.',403));
+  render(<ProjectChecks projectId="p-1"/>);await screen.findByText(run.message);
+  vi.mocked(productApi.checks).mockReturnValueOnce(new Promise(resolve=>{finishHistory=resolve;}));
+  act(()=>notifyRequirementEvidenceChanged('p-1'));
+  await waitFor(()=>expect(productApi.checks).toHaveBeenCalledTimes(2));
+  const historySignal=vi.mocked(productApi.checks).mock.calls[1][1];
+  await userEvent.click(screen.getByRole('button',{name:'Review check recovery'}));
+  await screen.findByRole('button',{name:'Refresh check access'});
+  expect(historySignal?.aborted).toBe(true);
+  await act(async()=>finishHistory(history));
+  act(()=>notifyRequirementEvidenceChanged('p-1'));
+  expect(productApi.checks).toHaveBeenCalledTimes(2);expect(screen.queryByText(run.message)).toBeNull();
+  vi.mocked(productApi.checks).mockRejectedValueOnce(new Error('Connection interrupted'));
+  await userEvent.click(screen.getByRole('button',{name:'Refresh check access'}));
+  await waitFor(()=>expect(screen.getByRole('button',{name:'Refresh check access'})).toHaveProperty('disabled',false));
+  expect(screen.queryByText(run.message)).toBeNull();expect(screen.queryByRole('button',{name:'Run project checks'})).toBeNull();
+  await userEvent.click(screen.getByRole('button',{name:'Refresh check access'}));
+  await screen.findByText(run.message);
+  expect(productApi.checks).toHaveBeenCalledTimes(4);expect(productApi.runChecks).not.toHaveBeenCalled();
+});
+it('handles a fresh recovery read denial after Edit changes while a history refresh is already pending',async()=>{
+  const run=checkRunFixture({message:'Private history during authority refresh'});
+  vi.mocked(productApi.checks).mockResolvedValue({runs:[run],suggested:commands,coverage});
+  const read=vi.spyOn(productApi,'checkRun').mockResolvedValue(run);
+  vi.spyOn(productApi,'checkRecovery').mockResolvedValue(checkRecoveryFixture());
+  const view=render(<ProjectChecks projectId="p-1"/>);
+  await userEvent.click(await screen.findByRole('button',{name:'Review check recovery'}));
+  await screen.findByRole('checkbox',{name:/I authorize recovery/});
+  vi.mocked(productApi.checks).mockReturnValue(new Promise(()=>{}));
+  act(()=>notifyRequirementEvidenceChanged('p-1'));
+  await waitFor(()=>expect(productApi.checks).toHaveBeenCalledTimes(2));
+  read.mockRejectedValueOnce(new ApiError('permission_denied' as ProblemCode,'Fresh reading access denied.',403));
+  access.canEdit=false;view.rerender(<ProjectChecks projectId="p-1"/>);
+  await screen.findByRole('button',{name:'Refresh check access'});
+  expect(read).toHaveBeenCalledTimes(2);expect(screen.queryByRole('dialog')).toBeNull();
+  expect(screen.queryByText(run.message)).toBeNull();expect(screen.queryByText('Retained test output')).toBeNull();
+  expect(productApi.runChecks).not.toHaveBeenCalled();
+});
+it('ignores an old project recovery read denial after switching to another project',async()=>{
+  const alpha=checkRunFixture({message:'Alpha retained history'}),beta=checkRunFixture({id:'check-beta',projectId:'p-2',message:'Beta retained history'});
+  vi.mocked(productApi.checks).mockImplementation(async id=>({runs:[id==='p-1'?alpha:beta],suggested:commands,coverage:{...coverage,projectId:id}}));
+  let refuse!:(error:Error)=>void;const read=vi.spyOn(productApi,'checkRun').mockReturnValue(new Promise((_resolve,reject)=>{refuse=reject;}));
+  const view=render(<ProjectChecks projectId="p-1"/>);await userEvent.click(await screen.findByRole('button',{name:'Review check recovery'}));
+  await waitFor(()=>expect(read).toHaveBeenCalledOnce());view.rerender(<ProjectChecks projectId="p-2"/>);
+  await screen.findByText('Beta retained history');await act(async()=>refuse(new ApiError('permission_denied' as ProblemCode,'Old project access changed.',403)));
+  expect(screen.getByText('Beta retained history')).toBeTruthy();expect(screen.queryByRole('button',{name:'Refresh check access'})).toBeNull();
+  expect(screen.queryByText('Alpha retained history')).toBeNull();expect(productApi.runChecks).not.toHaveBeenCalled();
 });

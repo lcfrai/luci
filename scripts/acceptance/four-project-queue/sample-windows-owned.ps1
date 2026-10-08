@@ -12,7 +12,8 @@ param(
     [Parameter(Mandatory = $true)][string]$OutputDirectory,
     [ValidateRange(1, 3600)][int]$DurationSeconds = 1800,
     [ValidateRange(1, 60)][int]$IntervalSeconds = 1,
-    [ValidateRange(100, 2000)][int]$DockerBudgetMilliseconds = 600
+    [ValidateRange(100, 2000)][int]$DockerBudgetMilliseconds = 600,
+    [switch]$IncludeChecks
 )
 
 function Get-LuciField($Value, [string]$Name) {
@@ -23,13 +24,22 @@ function Get-LuciField($Value, [string]$Name) {
     return $null
 }
 
+function Test-LuciFieldPresent($Value, [string]$Name) {
+    if ($null -eq $Value) { return $false }
+    if ($Value -is [System.Collections.IDictionary]) { return @($Value.Keys) -ccontains $Name }
+    return @($Value.PSObject.Properties.Name) -ccontains $Name
+}
+
 function Assert-LuciLocalPath([string]$Path) {
     if ($Path -notmatch '^[A-Za-z]:[\\/]' -or $Path.Contains([char]0)) { throw 'Use an absolute path on a local Windows drive.' }
     return [IO.Path]::GetFullPath($Path)
 }
 
-function ConvertTo-LuciResourceScope($Value) {
+function ConvertTo-LuciResourceScope($Value, [switch]$IncludeChecks) {
     if ((Get-LuciField $Value 'version') -ne 1) { throw 'Resource manifest version must be 1.' }
+    $manifestChecks = Get-LuciField $Value 'includeChecks'
+    if ((Test-LuciFieldPresent $Value 'includeChecks') -and $manifestChecks -isnot [bool]) { throw 'Optional includeChecks must be a JSON boolean.' }
+    $includeSDKChecks = $IncludeChecks.IsPresent -or ($manifestChecks -eq $true)
     $roots = @(Get-LuciField $Value 'roots')
     $disks = @(Get-LuciField $Value 'disks')
     if ($roots.Count -lt 1 -or $roots.Count -gt 8 -or $disks.Count -lt 1 -or $disks.Count -gt 4) { throw 'Specify 1-8 exact process roots and 1-4 local disk paths.' }
@@ -55,9 +65,9 @@ function ConvertTo-LuciResourceScope($Value) {
     if ($null -ne $docker) {
         $instance = [string](Get-LuciField $docker 'instance'); $image = [string](Get-LuciField $docker 'imageId'); $pipe = [string](Get-LuciField $docker 'pipeName')
         if ($instance -notmatch '^[A-Za-z0-9_-]{1,128}$' -or $image -notmatch '^sha256:[0-9a-f]{64}$' -or $pipe -notmatch '^[A-Za-z0-9_.-]{1,80}$') { throw 'Docker observation needs one exact instance, image digest and local pipe name.' }
-        $normalizedDocker = [pscustomobject]@{instance = $instance; imageId = $image; pipeName = $pipe}
+        $normalizedDocker = [pscustomobject]@{instance = $instance; imageId = $image; pipeName = $pipe; includeChecks = $includeSDKChecks}
     }
-    return [pscustomobject]@{roots = $normalizedRoots; disks = $normalizedDisks; docker = $normalizedDocker}
+    return [pscustomobject]@{roots = $normalizedRoots; disks = $normalizedDisks; docker = $normalizedDocker; includeChecks = $includeSDKChecks}
 }
 
 function Read-LuciProcessNative([int]$ProcessNumber) { return [LuciWindowsResourceNative]::ReadProcess([uint32]$ProcessNumber) }
@@ -133,9 +143,50 @@ function Get-LuciHostSample($Scope, [hashtable]$Previous) {
     return [ordered]@{physicalTotalBytes = $native.PhysicalTotalBytes; physicalAvailableBytes = $native.PhysicalAvailableBytes; commitLimitBytes = $native.CommitLimitBytes; commitAvailableBytes = $native.CommitAvailableBytes; logicalProcessors = $native.LogicalProcessors; cpuUtilizationPercent = $cpu; cpuScope = 'GetSystemTimes processor group; not all groups on hosts above 64 logical CPUs'; disks = $disks; hardPagingRate = $null; hardPagingStatus = 'not collected; process faults are not a hard-paging rate'}
 }
 
+function Test-LuciCheckCandidate($Labels) {
+    if ($null -eq $Labels) { return $false }
+    $names = $(if ($Labels -is [System.Collections.IDictionary]) { @($Labels.Keys) } else { @($Labels.PSObject.Properties.Name) })
+    foreach ($name in $names) {
+        if ($name -like 'luci.check*') { return $true }
+    }
+    return $false
+}
+
+function Get-LuciCheckIdentityIssue($Candidate, $Scope, [string]$EngineID) {
+    $labels = Get-LuciField $Candidate 'Labels'
+    foreach ($name in @('luci.check', 'luci.check-protocol', 'luci.instance', 'luci.check-engine', 'luci.check-allocation', 'luci.check-id', 'luci.check-command-index', 'luci.check-scope', 'luci.check-project', 'luci.check-command-digest', 'luci.check-source-digest', 'luci.check-image')) {
+        $value = Get-LuciField $labels $name
+        if (-not (Test-LuciFieldPresent $labels $name) -or $value -isnot [string] -or $value.Length -eq 0) { return 'check-required-label-unavailable' }
+    }
+    foreach ($name in @('luci.managed', 'luci.sandbox-id', 'luci.session-id')) {
+        if (Test-LuciFieldPresent $labels $name) { return 'check-worker-label-collision' }
+    }
+    if ((Get-LuciField $labels 'luci.check') -cne 'true' -or (Get-LuciField $labels 'luci.check-protocol') -cne '1') { return 'check-protocol-invalid' }
+    if ([string]::IsNullOrWhiteSpace($EngineID) -or $EngineID.Length -gt 256 -or $EngineID.Trim() -cne $EngineID -or $EngineID.IndexOfAny([char[]]@([char]0, [char]10, [char]13)) -ge 0 -or (Get-LuciField $labels 'luci.check-engine') -cne $EngineID) { return 'check-engine-identity-unavailable-or-mismatch' }
+    if ((Get-LuciField $labels 'luci.instance') -cne $Scope.instance -or (Get-LuciField $Candidate 'ImageID') -cne $Scope.imageId -or (Get-LuciField $labels 'luci.check-image') -cne $Scope.imageId) { return 'check-instance-or-image-mismatch' }
+    if ((Get-LuciField $labels 'luci.check-allocation') -cnotmatch '^checkexec-[0-9a-f]{24}$' -or (Get-LuciField $labels 'luci.check-id') -cnotmatch '^check-[0-9a-f]{24}$' -or (Get-LuciField $labels 'luci.check-command-index') -cnotmatch '^[0-7]$' -or (Get-LuciField $labels 'luci.check-project') -cnotmatch '^[a-z0-9_-]{1,200}$') { return 'check-allocation-identity-invalid' }
+    foreach ($name in @('luci.check-scope', 'luci.check-command-digest', 'luci.check-source-digest')) {
+        if ((Get-LuciField $labels $name) -cnotmatch '^[0-9a-f]{64}$') { return 'check-digest-invalid' }
+    }
+    $names = @(Get-LuciField $Candidate 'Names')
+    if ($names.Count -ne 1 -or $names[0] -cne ('/luci-check-' + (Get-LuciField $labels 'luci.check-allocation'))) { return 'check-container-name-mismatch' }
+    return ''
+}
+
+function Test-LuciUnsignedCounter($Value) {
+    if ($Value -isnot [byte] -and $Value -isnot [sbyte] -and $Value -isnot [int16] -and $Value -isnot [uint16] -and $Value -isnot [int32] -and $Value -isnot [uint32] -and $Value -isnot [int64] -and $Value -isnot [uint64] -and $Value -isnot [decimal] -and $Value -isnot [double] -and $Value -isnot [single]) { return $false }
+    if (($Value -is [double] -or $Value -is [single]) -and ([double]::IsNaN($Value) -or [double]::IsInfinity($Value) -or [Math]::Truncate([double]$Value) -ne [double]$Value)) { return $false }
+    try {
+        $number = [decimal]$Value
+        return $number -ge 0 -and $number -le [decimal][UInt64]::MaxValue -and [decimal]::Truncate($number) -eq $number
+    } catch { return $false }
+}
+
 function Get-LuciDockerSample($Scope, [int]$BudgetMilliseconds, [hashtable]$Previous) {
     $result = [ordered]@{scope = 'separate-docker-daemon'; status = 'unavailable'; enginePlatform = $null; totalMemoryBytes = $null; cpuCount = $null; inventoryComplete = $false; containers = @(); issues = @()}
     if ($null -eq $Scope) { $result.issues = @('exact-docker-scope-not-configured'); return $result }
+    $includeSDKChecks = (Get-LuciField $Scope 'includeChecks') -eq $true
+    if ($includeSDKChecks) { $result.includeChecks = $true; $result.checkCandidates = 0; $result.checkIdentityRows = 0 }
     $watch = [Diagnostics.Stopwatch]::StartNew()
     $request = {
         param([string]$Path)
@@ -147,28 +198,55 @@ function Get-LuciDockerSample($Scope, [int]$BudgetMilliseconds, [hashtable]$Prev
         $info = & $request '/info'; $result.enginePlatform = Get-LuciField $info 'OSType'; $result.totalMemoryBytes = Get-LuciField $info 'MemTotal'; $result.cpuCount = Get-LuciField $info 'NCPU'
         if ($result.enginePlatform -ne 'linux') { $result.issues = @('linux-container-engine-required'); return $result }
         $inventory = @(& $request '/containers/json?all=1')
-        $candidates = @($inventory | Where-Object { (Get-LuciField (Get-LuciField $_ 'Labels') 'luci.instance') -ceq $Scope.instance -and (Get-LuciField (Get-LuciField $_ 'Labels') 'luci.managed') -ceq 'true' })
+        $candidates = @($inventory | Where-Object { (Get-LuciField (Get-LuciField $_ 'Labels') 'luci.instance') -ceq $Scope.instance -and ((Get-LuciField (Get-LuciField $_ 'Labels') 'luci.managed') -ceq 'true' -or ($includeSDKChecks -and (Test-LuciCheckCandidate (Get-LuciField $_ 'Labels')))) })
         if ($candidates.Count -gt 8) { $result.issues = @('owned-container-count-exceeds-eight'); return $result }
         $result.inventoryComplete = $true
+        $seen = @{}
         foreach ($candidate in $candidates) {
+            $labels = Get-LuciField $candidate 'Labels'
+            $isCheck = $includeSDKChecks -and (Test-LuciCheckCandidate $labels)
+            if ($isCheck) {
+                $result.checkCandidates++
+                $issue = Get-LuciCheckIdentityIssue $candidate $Scope ([string](Get-LuciField $info 'ID'))
+                if ($issue) { $result.issues += $issue; $result.inventoryComplete = $false; continue }
+            }
             $id = [string](Get-LuciField $candidate 'Id')
             if ($id -cnotmatch '^[0-9a-f]{64}$') { throw 'Invalid container identity.' }
+            if ($includeSDKChecks -and $seen.ContainsKey($id)) { $result.issues += 'container-identity-duplicated'; $result.inventoryComplete = $false; continue }
+            $seen[$id] = $true
             # List supplies immutable image/labels. Do not request full inspect,
             # which includes container environment and mounts. Guest PIDs and
             # configured CPU limits remain unavailable through this narrow API.
             if ((Get-LuciField $candidate 'ImageID') -cne $Scope.imageId) { $result.issues += 'container-identity-changed-or-image-mismatch'; continue }
             $row = [ordered]@{id = $id; guestPID = $null; running = ((Get-LuciField $candidate 'State') -ceq 'running'); memoryCgroupLimitBytes = $null; configuredCPULimit = $null; observedAt = $null; memoryUsageBytes = $null; workingSetBytes = $null; cpuCoreEquivalent = $null; blockReadBytes = $null; blockWriteBytes = $null; unavailable = @('guest-pid-and-configured-cpu-limit-not-read') }
+            if ($includeSDKChecks) {
+                $row.kind = $(if ($isCheck) { 'check' } else { 'worker' })
+                $row.memoryLimitBytes = $null; $row.memorySwapLimitBytes = $null
+                $row.configuredMemoryLimitsStatus = 'unavailable-no-inspect-endpoint'
+                $row.guestIdentityStatus = 'unavailable-no-inspect-endpoint'
+                $row.guestPIDStartTicks = $null; $row.cgroupIdentitySHA256 = $null
+                $row.unavailable += @('configured-memory-and-memory-swap-limits-not-read', 'guest-pid-start-and-cgroup-identity-not-read')
+                if ($isCheck) { $row.checkId = Get-LuciField $labels 'luci.check-id'; $row.allocationId = Get-LuciField $labels 'luci.check-allocation'; $row.commandIndex = [int](Get-LuciField $labels 'luci.check-command-index'); $row.protocol = 1; $result.checkIdentityRows++ }
+            }
             if ($row.running) {
                 $stats = & $request ('/containers/' + $id + '/stats?stream=false&one-shot=true')
                 $stamp = [DateTimeOffset]::MinValue
                 if (-not [DateTimeOffset]::TryParse([string](Get-LuciField $stats 'read'), [ref]$stamp) -or ([DateTimeOffset]::UtcNow - $stamp).TotalSeconds -gt 5 -or ($stamp - [DateTimeOffset]::UtcNow).TotalSeconds -gt 1) { $result.issues += 'container-statistics-not-fresh' }
                 else {
                     $statsID = Get-LuciField $stats 'id'
+                    if ($isCheck -and $statsID -cne $id) { $result.issues += 'check-statistics-identity-mismatch'; $result.inventoryComplete = $false; continue }
                     if ($null -ne $statsID -and $statsID -cne $id) { throw 'Statistics identity mismatch.' }
                     $row.observedAt = $stamp.ToString('o'); $memory = Get-LuciField $stats 'memory_stats'; $row.memoryCgroupLimitBytes = Get-LuciField $memory 'limit'; $row.memoryUsageBytes = Get-LuciField $memory 'usage'; $memoryStats = Get-LuciField $memory 'stats'
-                    $inactive = Get-LuciField $memoryStats 'inactive_file'; if ($null -eq $inactive) { $inactive = Get-LuciField $memoryStats 'total_inactive_file' }
-                    if ($null -ne $inactive -and $null -ne $row.memoryUsageBytes -and $inactive -le $row.memoryUsageBytes) { $row.workingSetBytes = $row.memoryUsageBytes - $inactive }
                     $cpu = Get-LuciField (Get-LuciField (Get-LuciField $stats 'cpu_stats') 'cpu_usage') 'total_usage'
+                    if ($isCheck) {
+                        $measurementUnavailable = $false
+                        if (-not (Test-LuciUnsignedCounter $row.memoryUsageBytes)) { $row.memoryUsageBytes = $null; $measurementUnavailable = $true }
+                        if (-not (Test-LuciUnsignedCounter $cpu)) { $cpu = $null; $measurementUnavailable = $true }
+                        if ($measurementUnavailable) { $result.issues += 'check-statistics-measurement-unavailable' }
+                    }
+                    $inactive = Get-LuciField $memoryStats 'inactive_file'; if ($null -eq $inactive) { $inactive = Get-LuciField $memoryStats 'total_inactive_file' }
+                    if ($isCheck -and $null -ne $inactive -and -not (Test-LuciUnsignedCounter $inactive)) { $inactive = $null; $result.issues += 'check-statistics-measurement-unavailable' }
+                    if ($null -ne $inactive -and $null -ne $row.memoryUsageBytes -and $inactive -le $row.memoryUsageBytes) { $row.workingSetBytes = $row.memoryUsageBytes - $inactive }
                     if ($null -ne $cpu) {
                         if ($Previous.ContainsKey($id)) { $old = $Previous[$id]; $span = ($stamp - $old.stamp).TotalSeconds; if ($span -gt 0 -and $cpu -ge $old.cpu) { $row.cpuCoreEquivalent = ([double]$cpu - [double]$old.cpu) / 1000000000 / $span } }
                         $Previous[$id] = @{cpu = $cpu; stamp = $stamp}
@@ -213,6 +291,11 @@ function Invoke-LuciWindowsSampler($Scope, [string]$Directory, [int]$Seconds, [i
     Set-Acl -LiteralPath $directory -AclObject $acl
     $limitations = @('Process working-set sums double-count shared pages; role peaks are not additive.', 'Docker cgroup usage is separate from host/VM/process memory; do not sum VM and guest measurements.', 'Only exact supplied roots and observed descendants are attributed; unrelated browser/editor/WSL/daemon/kernel use stays unassigned.', 'Transient processes and peaks can be missed. Missing values are not zero. Actual sample intervals are recorded.', 'No command lines, environment values, full Docker inspections, credentials or volume paths are written.', 'This records resource observations, not UI latency, model quality, realistic-build success or whole-computer responsiveness.', 'Native Windows execution was unverified when this helper was published; a new run supplies its own evidence.')
     $metadata = [ordered]@{version = 1; startedAt = [DateTime]::UtcNow.ToString('o'); platform = 'windows'; roots = $Scope.roots; requestedSeconds = $Seconds; requestedIntervalSeconds = $Interval; dockerObservationBudgetMilliseconds = $DockerBudget; diskRoles = @($Scope.disks | ForEach-Object { $_.role }); dockerConfigured = ($null -ne $Scope.docker); helperSHA256 = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant(); nativeProbeSHA256 = (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot 'windows-resource-native.cs') -Algorithm SHA256).Hash.ToLowerInvariant(); baseline = 'Operator must identify idle/load/settle phases; elapsed time alone does not identify them.'; limitations = $limitations}
+    if ((Get-LuciField $Scope 'includeChecks') -eq $true) {
+        $metadata.includeChecks = $true
+        $limitations += 'Opted-in SDK checks use exact list labels, current engine identity and immutable-ID statistics. Guest PID/start/cgroup identity and configured memory/swap caps are unavailable through the allowed named-pipe API; this is not Linux-equivalent identity evidence.'
+        $metadata.limitations = $limitations
+    }
     Write-LuciNewJSON (Join-Path $directory 'metadata.json') $metadata
     $stream = [IO.File]::Open((Join-Path $directory 'samples.jsonl'), [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::Read)
     $writer = New-Object IO.StreamWriter($stream, (New-Object Text.UTF8Encoding($false)))
@@ -255,6 +338,6 @@ if ($PSCmdlet.ParameterSetName -eq 'Manifest') {
     if ($DockerInstance -or $DockerImageId) { $docker = @{instance = $DockerInstance; imageId = $DockerImageId; pipeName = $DockerPipeName} }
     $inputScope = @{version = 1; roots = $roots; disks = $disks; docker = $docker}
 }
-$scope = ConvertTo-LuciResourceScope $inputScope
+$scope = ConvertTo-LuciResourceScope $inputScope -IncludeChecks:$IncludeChecks
 if (-not ('LuciWindowsResourceNative' -as [type])) { Add-Type -Path (Join-Path $PSScriptRoot 'windows-resource-native.cs') }
 Invoke-LuciWindowsSampler $scope $OutputDirectory $DurationSeconds $IntervalSeconds $DockerBudgetMilliseconds

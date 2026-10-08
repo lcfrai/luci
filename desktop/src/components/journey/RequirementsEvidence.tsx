@@ -17,7 +17,7 @@ export function evidenceLabel(status?: RequirementEvidenceStatus) {
   return status === "linked-test-evidence" ? "Current linked test evidence" : status === "stale" ? "Stale evidence" : "Unverified";
 }
 export function commandStatus(status: string) {
-  return status === "passed" ? "Commands passed" : status === "failed" ? "Commands failed" : ["cancelled", "canceled"].includes(status) ? "Commands canceled" : status === "running" ? "Commands running" : status === "queued" ? "Commands queued" : status;
+  return status === "passed" ? "Commands passed" : status === "failed" ? "Commands failed" : ["cancelled", "canceled"].includes(status) ? "Commands canceled" : status === "running" ? "Commands running" : status === "queued" ? "Commands queued" : status === "blocked" ? "Checks blocked" : status === "unknown" ? "Check outcome unconfirmed" : status;
 }
 export function RequirementsEvidence({ coverage, runs, refreshing, onRefresh }: {
   coverage: RequirementCoverage | null;

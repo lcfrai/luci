@@ -1,0 +1,63 @@
+{
+  "exitCode": 1,
+  "startedAt": "2026-10-08T18:20:18.089617+00:00",
+  "endedAt": "2026-10-08T18:22:00.106679+00:00",
+  "wallSeconds": 102.017,
+  "counts": {
+    "pass": 219,
+    "fail": 4,
+    "skip": 0
+  },
+  "packages": [
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/backend/dockerbe",
+      "action": "fail",
+      "elapsed": 5.555
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/management",
+      "action": "pass",
+      "elapsed": 1.621
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "action": "pass",
+      "elapsed": 17.767
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/product",
+      "action": "pass",
+      "elapsed": 11.869
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/cmd/api",
+      "action": "pass",
+      "elapsed": 1.109
+    }
+  ],
+  "failures": [
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/backend/dockerbe",
+      "test": "TestCheckSDKWirePinsImageLimitsAndImmutableLifecycle"
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/backend/dockerbe",
+      "test": "TestCheckAmbiguousCreateAndStartNeverRetryOrCleanImplicitly"
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/backend/dockerbe",
+      "test": "TestCheckLogsPreserveStreamsAndBoundHugeDeclaredFrames"
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/backend/dockerbe",
+      "test": "TestCheckLogsCancellationClosesOwnedReader"
+    }
+  ],
+  "skips": [],
+  "inputCount": 820,
+  "inputsUnchanged": true,
+  "headBefore": "4e7d5fe4eaeeaa492cde94f22e51081cdb7a1b5e",
+  "headAfter": "4e7d5fe4eaeeaa492cde94f22e51081cdb7a1b5e",
+  "overlaySha256": "03e982fcc691b36221f8747720a3d55b08ac3fcb4f23722a222306ed3e5c9a7a",
+  "goldenEmitted": true
+}

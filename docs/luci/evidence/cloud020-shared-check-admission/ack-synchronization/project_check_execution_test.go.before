@@ -1,0 +1,525 @@
+package api
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"path/filepath"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/management"
+	"github.com/lcfrai/luci/control-plane/internal/product"
+	"github.com/lcfrai/luci/control-plane/internal/resourcebudget"
+)
+
+// Controlled adapter acknowledgments exercise real HTTP/product/private-ledger
+// mechanics. They are not a Docker, process execution or passing-code witness.
+type httpCheckExecutor struct {
+	backend.Backend
+	mu                                       sync.Mutex
+	prepares, creates, starts, logs, removes int
+	identities                               map[string]backend.CheckIdentity
+	states                                   map[string]string
+	prepareHook                              func(context.Context, backend.CheckSpec) error
+	createGate                               <-chan struct{}
+	removeHook                               func(backend.CheckIdentity, string) error
+	removeErr                                error
+	createErr                                error
+	exitCode                                 int
+	output                                   string
+}
+
+const httpCheckEngine = "controlled-http-check-engine"
+const httpCheckInstance = "11111111-1111-4111-8111-111111111111"
+
+func (b *httpCheckExecutor) PrepareCheck(ctx context.Context, spec backend.CheckSpec) (backend.PreparedCheck, error) {
+	b.mu.Lock()
+	b.prepares++
+	hook := b.prepareHook
+	b.mu.Unlock()
+	if hook != nil {
+		if err := hook(ctx, spec); err != nil {
+			return backend.PreparedCheck{}, err
+		}
+	}
+	spec.Identity.EngineID, spec.Identity.InstanceID = httpCheckEngine, httpCheckInstance
+	return backend.PreparedCheck{Spec: spec, ImageID: fixtureFenceHash("check-image"), ImageVirtualSizeBytes: 1 << 30, StorageDriver: "overlay2"}, nil
+}
+func (b *httpCheckExecutor) CreateCheck(ctx context.Context, p backend.PreparedCheck) (string, error) {
+	b.mu.Lock()
+	b.creates++
+	gate, fail := b.createGate, b.createErr
+	b.mu.Unlock()
+	if gate != nil {
+		select {
+		case <-gate:
+		case <-ctx.Done():
+			return "", ctx.Err()
+		}
+	}
+	if fail != nil {
+		return "", fail
+	}
+	ref := fixtureFenceHash("exact-check-" + p.Spec.Identity.AllocationID)
+	b.mu.Lock()
+	b.identities[ref] = p.Spec.Identity
+	b.states[ref] = "created"
+	b.mu.Unlock()
+	return ref, nil
+}
+func (b *httpCheckExecutor) StartCheck(ctx context.Context, id backend.CheckIdentity, ref string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.identities[ref] != id || b.states[ref] != "created" {
+		return errors.New("wrong exact check start")
+	}
+	b.starts++
+	b.states[ref] = "exited"
+	return nil
+}
+func (b *httpCheckExecutor) InspectCheck(ctx context.Context, id backend.CheckIdentity, ref string) (backend.CheckObservation, error) {
+	if err := ctx.Err(); err != nil {
+		return backend.CheckObservation{}, err
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.identities[ref] != id {
+		return backend.CheckObservation{}, errors.New("wrong exact check inspection")
+	}
+	out := backend.CheckObservation{Ref: ref, State: b.states[ref]}
+	if out.State == "exited" {
+		code := b.exitCode
+		out.ExitCode = &code
+	}
+	return out, nil
+}
+func (b *httpCheckExecutor) CheckLogs(ctx context.Context, id backend.CheckIdentity, ref string, limit int) (backend.CheckOutput, error) {
+	if err := ctx.Err(); err != nil {
+		return backend.CheckOutput{}, err
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.identities[ref] != id || limit != 256<<10 {
+		return backend.CheckOutput{}, errors.New("wrong exact check output request")
+	}
+	b.logs++
+	return backend.CheckOutput{Text: b.output}, nil
+}
+func (b *httpCheckExecutor) RemoveCheck(ctx context.Context, id backend.CheckIdentity, ref string, force bool) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	b.mu.Lock()
+	if b.identities[ref] != id {
+		b.mu.Unlock()
+		return errors.New("wrong exact check removal")
+	}
+	b.removes++
+	hook, fail := b.removeHook, b.removeErr
+	b.mu.Unlock()
+	if hook != nil {
+		if err := hook(id, ref); err != nil {
+			return err
+		}
+	}
+	if fail != nil {
+		return fail
+	}
+	b.mu.Lock()
+	b.states[ref] = "absent"
+	b.mu.Unlock()
+	return nil
+}
+func (b *httpCheckExecutor) FenceCheckLaunch(context.Context, backend.CheckFenceRequest) (backend.CheckFenceProof, error) {
+	return backend.CheckFenceProof{}, errors.New("unexpected name fence in acknowledged check tests")
+}
+func (b *httpCheckExecutor) VerifyCheckLaunchFence(context.Context, backend.CheckFenceRequest, backend.CheckFenceProof) error {
+	return errors.New("unexpected fence verification")
+}
+func (b *httpCheckExecutor) counts() (int, int, int, int, int) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.prepares, b.creates, b.starts, b.logs, b.removes
+}
+func newHTTPCheckExecutor(be backend.Backend) *httpCheckExecutor {
+	return &httpCheckExecutor{Backend: be, identities: map[string]backend.CheckIdentity{}, states: map[string]string{}, output: "controlled check output\n"}
+}
+func httpCheckSnapshot(availableGiB uint64) resourcebudget.Snapshot {
+	s := executionFixtureSnapshot()
+	s.Execution.EngineID = httpCheckEngine
+	s.Host.Memory.EffectiveAvailableBytes = executionPointer(availableGiB << 30)
+	return s
+}
+func checkHTTPAuthority(user string) management.ExecutionAuthority {
+	return management.ExecutionAuthority{Actor: management.User{ID: user, Role: "admin"}, Policy: management.Policy{CheckMemoryMiB: 1024, CheckCPUMillis: 1000, MaxConcurrentChecksPerUser: 2}}
+}
+func wireHTTPCheckFixture(t *testing.T, f *swarmSessionFixture, be *httpCheckExecutor, shared, user string, availableGiB uint64) {
+	t.Helper()
+	a := f.env.api
+	a.deps.Backend = be
+	a.deps.Resources = backend.Resources{MemoryMiB: 1024, CPUMillis: 1000}
+	a.deps.ExecutionStateDir = shared
+	a.execution = newExecutionAdmission(a)
+	a.deps.ResourceSnapshot = func() resourcebudget.Snapshot { return httpCheckSnapshot(availableGiB) }
+	a.deps.AuthorizeChecks = func(_ context.Context, ref management.ExecutionActorRef) (management.ExecutionAuthority, error) {
+		if ref.UserID != user || ref.TeamID != "" || ref.Local || ref.ProjectID != f.owner.ID {
+			return management.ExecutionAuthority{}, management.ErrExecutionAuthority
+		}
+		return checkHTTPAuthority(user), nil
+	}
+	// This is an actual policy mutation, not an injected capacity-ledger row.
+	var settings struct {
+		Revision int `json:"revision"`
+	}
+	w := f.env.do(t, "GET", "/v1/product/swarm-scheduler", "")
+	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &settings) != nil {
+		t.Fatal("scheduler policy read", w.Code, w.Body.String())
+	}
+	body, _ := json.Marshal(map[string]any{"expectedRevision": settings.Revision, "policy": executionFixturePolicy(), "dispatchPaused": true})
+	if w = f.env.do(t, "PUT", "/v1/product/swarm-scheduler", string(body)); w.Code != 200 {
+		t.Fatal("policy write", w.Code, w.Body.String())
+	}
+}
+func checkHTTPDo(f *swarmSessionFixture, user, method, path, body string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(method, sessionsTarget(path), strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	if user != "" {
+		req = req.WithContext(management.WithExecutionAuthority(req.Context(), checkHTTPAuthority(user)))
+	}
+	w := httptest.NewRecorder()
+	f.env.api.guarded.ServeHTTP(w, req)
+	return w
+}
+func checkHTTPBody() string {
+	return `{"execution":"docker","acknowledgeHostExecution":true,"commands":[{"label":"Controlled mechanics","executable":"go","args":["test","./..."]}]}`
+}
+func checkHTTPStart(t *testing.T, f *swarmSessionFixture, user string) product.ProjectCheckRun {
+	t.Helper()
+	w := checkHTTPDo(f, user, "POST", "/v1/product/projects/"+f.owner.ID+"/checks", checkHTTPBody())
+	var row product.ProjectCheckRun
+	if w.Code != 202 || json.Unmarshal(w.Body.Bytes(), &row) != nil || row.ID == "" || row.Status != "queued" {
+		t.Fatal("check consent", w.Code, w.Body.String())
+	}
+	return row
+}
+func checkHTTPRead(t *testing.T, f *swarmSessionFixture, user, id string) product.ProjectCheckRun {
+	t.Helper()
+	w := checkHTTPDo(f, user, "GET", "/v1/product/projects/"+f.owner.ID+"/checks/"+id, "")
+	var row product.ProjectCheckRun
+	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &row) != nil {
+		t.Fatal("check read", w.Code, w.Body.String())
+	}
+	return row
+}
+func checkHTTPWait(t *testing.T, f *swarmSessionFixture, user, id string, predicate func(product.ProjectCheckRun) bool) product.ProjectCheckRun {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		row := checkHTTPRead(t, f, user, id)
+		if predicate(row) {
+			return row
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("bounded check workflow did not reach expected state")
+	return product.ProjectCheckRun{}
+}
+func checkHTTPIdle(t *testing.T, f *swarmSessionFixture, row product.ProjectCheckRun) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		_, _, _, err := f.env.api.deps.Product.ProjectCheckObservation(row.ProjectID, row.ID, row.Commands[0].AllocationID)
+		if err == nil {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("completed check still has a controller")
+}
+
+func TestProjectCheckHTTPAccountsSharePendingCapacityBeforeCreate(t *testing.T) {
+	left, right := newSwarmSessionFixtureTasks(t), newSwarmSessionFixtureTasks(t)
+	shared := filepath.Join(t.TempDir(), "shared-capacity")
+	be := newHTTPCheckExecutor(left.env.be)
+	var arrivals atomic.Int32
+	prepared := make(chan struct{})
+	release := make(chan struct{})
+	var once sync.Once
+	defer once.Do(func() { close(release) })
+	be.prepareHook = func(ctx context.Context, _ backend.CheckSpec) error {
+		if arrivals.Add(1) == 2 {
+			close(prepared)
+		}
+		select {
+		case <-prepared:
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	be.createGate = release
+	wireHTTPCheckFixture(t, left, be, shared, "user-check-left", 5)
+	wireHTTPCheckFixture(t, right, be, shared, "user-check-right", 5)
+	if left.env.api.execution.scope == right.env.api.execution.scope {
+		t.Fatal("independent controllers unexpectedly share workspace scope")
+	}
+	l, r := checkHTTPStart(t, left, "user-check-left"), checkHTTPStart(t, right, "user-check-right")
+	var loser product.ProjectCheckRun
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		l = checkHTTPRead(t, left, "user-check-left", l.ID)
+		r = checkHTTPRead(t, right, "user-check-right", r.ID)
+		if l.Status == "blocked" {
+			loser = l
+			break
+		}
+		if r.Status == "blocked" {
+			loser = r
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if loser.ID == "" || loser.ReasonCode != "memory_pressure" || loser.ResourcesHeld == nil || *loser.ResourcesHeld {
+		t.Fatal("second account bypassed shared pending memory", loser.Status, loser.ReasonCode)
+	}
+	_, creates, starts, _, _ := be.counts()
+	if creates != 1 || starts != 0 {
+		t.Fatal("shared pending demand admitted more than one Create", creates, starts)
+	}
+	ledger, err := left.env.api.execution.readFenceLedger()
+	if err != nil || len(ledger.Checks) != 1 || len(ledger.Leases) != 0 || ledger.Checks[0].State != "creating" || ledger.Checks[0].Resources.MemoryMiB != 1024 {
+		t.Fatal("pending check is not a distinct charged reservation", err)
+	}
+	heldUser := ledger.Checks[0].Actor.UserID
+	if heldUser != "user-check-left" && heldUser != "user-check-right" {
+		t.Fatal("durable claim lost request identity")
+	}
+	once.Do(func() { close(release) })
+	winnerFixture, winnerUser, winnerID := left, "user-check-left", l.ID
+	if loser.ID == l.ID {
+		winnerFixture, winnerUser, winnerID = right, "user-check-right", r.ID
+	}
+	done := checkHTTPWait(t, winnerFixture, winnerUser, winnerID, func(row product.ProjectCheckRun) bool {
+		return row.Status == "passed" && row.ResourcesHeld != nil && !*row.ResourcesHeld
+	})
+	checkHTTPIdle(t, winnerFixture, done)
+	if len(done.Commands) != 1 || done.Commands[0].ExitCode == nil || *done.Commands[0].ExitCode != 0 || done.Commands[0].Output != be.output || !done.Commands[0].CleanupConfirmed {
+		t.Fatal("actual controlled exit/output/cleanup not retained")
+	}
+	ledger, err = left.env.api.execution.readFenceLedger()
+	if err != nil || len(ledger.Checks) != 0 {
+		t.Fatal("confirmed check completion retained capacity", err)
+	}
+	_, creates, starts, _, removes := be.counts()
+	if creates != 1 || starts != 1 || removes != 1 {
+		t.Fatal("blocked account or observation replayed a command", creates, starts, removes)
+	}
+}
+
+func TestProjectCheckHTTPRechecksRevokedAuthorityBeforeCreate(t *testing.T) {
+	f := newSwarmSessionFixtureTasks(t)
+	be := newHTTPCheckExecutor(f.env.be)
+	wireHTTPCheckFixture(t, f, be, filepath.Join(t.TempDir(), "capacity"), "user-check", 12)
+	var revoked atomic.Bool
+	f.env.api.deps.AuthorizeChecks = func(_ context.Context, ref management.ExecutionActorRef) (management.ExecutionAuthority, error) {
+		if revoked.Load() {
+			return management.ExecutionAuthority{}, errors.New("private authority storage detail must not be returned")
+		}
+		if ref.UserID != "user-check" {
+			return management.ExecutionAuthority{}, management.ErrExecutionAuthority
+		}
+		return checkHTTPAuthority("user-check"), nil
+	}
+	be.prepareHook = func(context.Context, backend.CheckSpec) error { revoked.Store(true); return nil }
+	started := checkHTTPStart(t, f, "user-check")
+	row := checkHTTPWait(t, f, "user-check", started.ID, func(row product.ProjectCheckRun) bool { return row.Status == "blocked" })
+	checkHTTPIdle(t, f, row)
+	if row.ReasonCode != "check_execution_forbidden" || row.ResourcesHeld == nil || *row.ResourcesHeld || row.Commands[0].ExitCode != nil || row.Commands[0].Output != "" || strings.Contains(row.Message, "private authority") {
+		t.Fatal("revocation was not recorded safely before allocation", row.Status, row.ReasonCode)
+	}
+	_, creates, starts, logs, removes := be.counts()
+	if creates+starts+logs+removes != 0 {
+		t.Fatal("revocation reached backend effects", creates, starts, logs, removes)
+	}
+	ledger, err := f.env.api.execution.readFenceLedger()
+	if err != nil || len(ledger.Checks) != 0 {
+		t.Fatal("unstarted atomic retirement failed", err)
+	}
+}
+
+func TestProjectCheckHTTPCleanupFailureKeepsOutputAcrossReopenWithoutReplay(t *testing.T) {
+	f := newSwarmSessionFixtureTasks(t)
+	be := newHTTPCheckExecutor(f.env.be)
+	be.exitCode = 17
+	be.output = "controlled failing-command output\n"
+	be.removeErr = backend.ErrUnavailable
+	wireHTTPCheckFixture(t, f, be, filepath.Join(t.TempDir(), "capacity"), "user-check", 12)
+	var publishedBeforeRemoval atomic.Int32
+	var resultStore atomic.Pointer[product.Server]
+	resultStore.Store(f.env.api.deps.Product)
+	be.removeHook = func(id backend.CheckIdentity, _ string) error {
+		row, err := resultStore.Load().GetProjectCheckRun(id.ProjectID, id.CheckID)
+		if err != nil || len(row.Commands) != 1 || row.Commands[0].Status != "failed" || row.Commands[0].ExitCode == nil || *row.Commands[0].ExitCode != 17 || row.Commands[0].Output != be.output || row.ResourcesHeld == nil || !*row.ResourcesHeld {
+			return errors.New("durable exact output missing before removal")
+		}
+		publishedBeforeRemoval.Add(1)
+		return nil
+	}
+	started := checkHTTPStart(t, f, "user-check")
+	row := checkHTTPWait(t, f, "user-check", started.ID, func(row product.ProjectCheckRun) bool {
+		return row.Status == "unknown" && row.ReasonCode == "check_cleanup_unconfirmed"
+	})
+	checkHTTPIdle(t, f, row)
+	if publishedBeforeRemoval.Load() < 1 || row.ResourcesHeld == nil || !*row.ResourcesHeld || row.Commands[0].CleanupConfirmed {
+		t.Fatal("failed cleanup lost actual result or reservation")
+	}
+	before, err := f.env.api.execution.readFenceLedger()
+	if err != nil || len(before.Checks) != 1 || before.Checks[0].State != "cleaning" || before.Checks[0].Ref == "" {
+		t.Fatal("acknowledged retained cleanup has no exact private ref", err)
+	}
+	f.reopen(t)
+	resultStore.Store(f.env.api.deps.Product)
+	if err := f.env.api.ObserveChecksOnce(context.Background()); err != nil {
+		t.Fatal("bounded reopened observation", err)
+	}
+	after, err := f.env.api.execution.readFenceLedger()
+	if err != nil || len(after.Checks) != 1 || after.Checks[0].Identity != before.Checks[0].Identity || after.Checks[0].Ref != before.Checks[0].Ref {
+		t.Fatal("restart discarded or rebound held check", err)
+	}
+	row = checkHTTPRead(t, f, "user-check", row.ID)
+	if row.Commands[0].Output != be.output || row.Commands[0].ExitCode == nil || *row.Commands[0].ExitCode != 17 || row.ResourcesHeld == nil || !*row.ResourcesHeld {
+		t.Fatal("reopen lost retained exit/output")
+	}
+	be.mu.Lock()
+	be.removeErr = nil
+	be.mu.Unlock()
+	if err := f.env.api.ObserveChecksOnce(context.Background()); err != nil {
+		t.Fatal("exact cleanup retry", err)
+	}
+	row = checkHTTPRead(t, f, "user-check", row.ID)
+	if row.Status != "failed" || row.ResourcesHeld == nil || *row.ResourcesHeld || !row.Commands[0].CleanupConfirmed || row.Commands[0].Output != be.output {
+		t.Fatal("confirmed cleanup did not preserve failure evidence", row.Status, row.ReasonCode)
+	}
+	after, err = f.env.api.execution.readFenceLedger()
+	if err != nil || len(after.Checks) != 0 {
+		t.Fatal("exact cleanup did not release check capacity", err)
+	}
+	_, creates, starts, _, _ := be.counts()
+	if creates != 1 || starts != 1 {
+		t.Fatal("restart or cleanup replayed command", creates, starts)
+	}
+}
+
+func TestProjectCheckHTTPRejectsHostAndBrowserAuthorityInputs(t *testing.T) {
+	f := newSwarmSessionFixtureTasks(t)
+	be := newHTTPCheckExecutor(f.env.be)
+	wireHTTPCheckFixture(t, f, be, filepath.Join(t.TempDir(), "capacity"), "user-check", 12)
+	for _, tc := range []struct{ name, body, code string }{
+		{"host", strings.Replace(checkHTTPBody(), `"docker"`, `"host"`, 1), "host_check_resource_limits_unsupported"},
+		{"actor", strings.TrimSuffix(checkHTTPBody(), "}") + `,"actor":{"local":true}}`, "invalid_request"},
+		{"source", strings.TrimSuffix(checkHTTPBody(), "}") + `,"sourceDirectory":"/untrusted"}`, "invalid_request"},
+		{"memory", strings.TrimSuffix(checkHTTPBody(), "}") + `,"memoryMiB":32768}`, "invalid_request"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			w := checkHTTPDo(f, "user-check", "POST", "/v1/product/projects/"+f.owner.ID+"/checks", tc.body)
+			if w.Code != http.StatusBadRequest {
+				t.Fatal("unsafe execution input accepted", w.Code, w.Body.String())
+			}
+			if tc.name == "host" && !strings.Contains(w.Body.String(), tc.code) {
+				t.Fatal("host refusal is not actionable", w.Body.String())
+			}
+		})
+	}
+	prepares, creates, starts, logs, removes := be.counts()
+	if prepares+creates+starts+logs+removes != 0 {
+		t.Fatal("rejected browser input reached runtime", prepares, creates, starts, logs, removes)
+	}
+	w := checkHTTPDo(f, "user-check", "GET", "/v1/product/projects/"+f.owner.ID+"/checks", "")
+	var result struct {
+		Runs []product.ProjectCheckRun `json:"runs"`
+	}
+	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &result) != nil || len(result.Runs) != 0 {
+		t.Fatal("rejected request minted a check receipt", fmt.Sprint(w.Code))
+	}
+}
+
+func TestProjectCheckHTTPPendingCheckBlocksIndependentWorkerAdmission(t *testing.T) {
+	f := newSwarmSessionFixtureTasks(t)
+	worker := f.anotherProject(t, "check-competition-worker", "api")
+	be := newHTTPCheckExecutor(f.env.be)
+	gate := make(chan struct{})
+	var once sync.Once
+	defer once.Do(func() { close(gate) })
+	be.createGate = gate
+	wireHTTPCheckFixture(t, f, be, filepath.Join(t.TempDir(), "capacity"), "user-check", 5)
+	started := checkHTTPStart(t, f, "user-check")
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		_, n, _, _, _ := be.counts()
+		if n == 1 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	_, n, starts, _, _ := be.counts()
+	if n != 1 || starts != 0 {
+		t.Fatal("check did not reach held Create")
+	}
+	before, err := f.env.api.execution.readFenceLedger()
+	if err != nil || len(before.Checks) != 1 || before.Checks[0].State != "creating" {
+		t.Fatal("pending check has no shared capacity", err)
+	}
+	body, _ := json.Marshal(worker.requests[0])
+	w := f.env.do(t, "POST", "/v1/sessions", string(body))
+	if w.Code != 409 || !strings.Contains(w.Body.String(), "memory_pressure") {
+		t.Fatal("worker bypassed pending check resources", w.Code, w.Body.String())
+	}
+	if controlledAllocationCount(f.env.be) != 0 {
+		t.Fatal("capacity-refused worker reached Backend.Create")
+	}
+	after, err := f.env.api.execution.readFenceLedger()
+	if err != nil || len(after.Checks) != 1 || len(after.Leases) != 0 || after.Checks[0] != before.Checks[0] {
+		t.Fatal("worker refusal changed held check capacity", err)
+	}
+	once.Do(func() { close(gate) })
+	checkHTTPWait(t, f, "user-check", started.ID, func(row product.ProjectCheckRun) bool {
+		return row.Status == "passed" && row.ResourcesHeld != nil && !*row.ResourcesHeld
+	})
+}
+
+func TestProjectCheckHTTPExistingWorkerBlocksCheckWithoutProviderLease(t *testing.T) {
+	var checkProject *swarmSessionFixture
+	var be *httpCheckExecutor
+	f, worker, initial := settledTaskFixture(t, func(f *swarmSessionFixture) {
+		checkProject = f.anotherProject(t, "worker-competition-check")
+		be = newHTTPCheckExecutor(f.env.be)
+		wireHTTPCheckFixture(t, checkProject, be, filepath.Join(t.TempDir(), "capacity"), "user-check", 5)
+	})
+	started := checkHTTPStart(t, checkProject, "user-check")
+	row := checkHTTPWait(t, checkProject, "user-check", started.ID, func(row product.ProjectCheckRun) bool { return row.Status == "blocked" })
+	if row.ReasonCode != "memory_pressure" || row.ResourcesHeld == nil || *row.ResourcesHeld || row.Commands[0].ExitCode != nil {
+		t.Fatal("check bypassed acknowledged worker resources", row.ReasonCode)
+	}
+	_, creates, starts, logs, removes := be.counts()
+	if creates+starts+logs+removes != 0 {
+		t.Fatal("check competition reached backend effects")
+	}
+	after, err := f.env.api.execution.readFenceLedger()
+	if err != nil || len(after.Checks) != 0 || len(after.Leases) != 1 || after.Leases[0] != initial.Leases[0] || after.Leases[0].SessionID != worker.ID {
+		t.Fatal("refused check changed worker or minted model-provider capacity", err)
+	}
+	if controlledAllocationCount(f.env.be) != 1 {
+		t.Fatal("check created a synthetic agent session")
+	}
+}

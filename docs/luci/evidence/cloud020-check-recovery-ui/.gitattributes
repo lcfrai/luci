@@ -1,0 +1,3 @@
+# Verbatim failed-test output includes whitespace from its original diff.
+# Preserve receipt hashes; this exception applies only to captured logs.
+*.log -whitespace

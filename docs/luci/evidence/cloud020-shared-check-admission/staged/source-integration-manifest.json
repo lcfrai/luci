@@ -1,0 +1,493 @@
+{
+  "status": "frozen-external-source-matches-root-applied-checkout",
+  "sourceBaseHead": "4e7d5fe4eaeeaa492cde94f22e51081cdb7a1b5e",
+  "applyBaseHead": "f9f80e88119414b4556569ef04afb255eacd12ff",
+  "preparedAt": "2026-10-08T19:10:09.324749+00:00",
+  "fileCount": 47,
+  "sourceFiles": [
+    {
+      "path": "control-plane/cmd/api/main.go",
+      "originalBaseSha256": "11cfc7c13edc97d90b6d0bb01cb7d7a1cb46b6fc8bd40a1cb4975052f9139e0d",
+      "stagedSha256": "af9f2cbaadb21608423dc24f2d4a57239aa9a012a5977ee5a374e09fbe35d28d",
+      "appliedCheckoutSha256": "af9f2cbaadb21608423dc24f2d4a57239aa9a012a5977ee5a374e09fbe35d28d"
+    },
+    {
+      "path": "control-plane/cmd/api/recovering_backend_checks.go",
+      "originalBaseSha256": null,
+      "stagedSha256": "6f69e863651f47243a06a182998dbc044c567cbe1a75b12a539662c981fc8bd8",
+      "appliedCheckoutSha256": "6f69e863651f47243a06a182998dbc044c567cbe1a75b12a539662c981fc8bd8"
+    },
+    {
+      "path": "control-plane/internal/api/api.go",
+      "originalBaseSha256": "1b6db1630b5f5b73bb761861eac46f61e648c540698504fb4d22c22352f8e17c",
+      "stagedSha256": "40ec330e52d1f3151713c6a4e85fd9c753bfc230ecc5571fd49661a656e09bab",
+      "appliedCheckoutSha256": "40ec330e52d1f3151713c6a4e85fd9c753bfc230ecc5571fd49661a656e09bab"
+    },
+    {
+      "path": "control-plane/internal/api/check_execution.go",
+      "originalBaseSha256": null,
+      "stagedSha256": "68560b7308e6b6d9de8f3e08571364ca893b1675829fec83a4a77244f6764886",
+      "appliedCheckoutSha256": "68560b7308e6b6d9de8f3e08571364ca893b1675829fec83a4a77244f6764886"
+    },
+    {
+      "path": "control-plane/internal/api/check_observation.go",
+      "originalBaseSha256": null,
+      "stagedSha256": "f0b4679232b5fbe3bd74fbcf0561dd613a5b4076b3a30e1b9b7d7156659e056d",
+      "appliedCheckoutSha256": "f0b4679232b5fbe3bd74fbcf0561dd613a5b4076b3a30e1b9b7d7156659e056d"
+    },
+    {
+      "path": "control-plane/internal/api/check_recovery.go",
+      "originalBaseSha256": null,
+      "stagedSha256": "faaa1632d802e0b74f1fa6f7d6be03422c4712ff255cec0c7a72367d82069326",
+      "appliedCheckoutSha256": "faaa1632d802e0b74f1fa6f7d6be03422c4712ff255cec0c7a72367d82069326"
+    },
+    {
+      "path": "control-plane/internal/api/execution_capacity.go",
+      "originalBaseSha256": null,
+      "stagedSha256": "f54291b77ea3376e580cf1f9a42478f8b25459ba89f526e66ace76ca6b7db0c2",
+      "appliedCheckoutSha256": "f54291b77ea3376e580cf1f9a42478f8b25459ba89f526e66ace76ca6b7db0c2"
+    },
+    {
+      "path": "control-plane/internal/api/execution_check_leases.go",
+      "originalBaseSha256": null,
+      "stagedSha256": "98241ac61aaafb052b7007ee356d4bfd7dc9808c769ea3d3d469ae942b374758",
+      "appliedCheckoutSha256": "98241ac61aaafb052b7007ee356d4bfd7dc9808c769ea3d3d469ae942b374758"
+    },
+    {
+      "path": "control-plane/internal/api/execution_fence_store.go",
+      "originalBaseSha256": "376ac73ef2d540035a319c4ba92bb21c2025c54baf6bc47375902525d2daeff4",
+      "stagedSha256": "a36c61a87bad1369f94b70427f158ebcfd92e2e9432e29063caf7997cadb1195",
+      "appliedCheckoutSha256": "a36c61a87bad1369f94b70427f158ebcfd92e2e9432e29063caf7997cadb1195"
+    },
+    {
+      "path": "control-plane/internal/api/execution_leases.go",
+      "originalBaseSha256": "06c0ed9853cd816c766d73e17e60d11b98e4c896595753ad84cdbe9e88824b5f",
+      "stagedSha256": "b01237f04c9584c78d39a02f0f26c2424f2786d89587af230d7a7d6f33c40ddd",
+      "appliedCheckoutSha256": "b01237f04c9584c78d39a02f0f26c2424f2786d89587af230d7a7d6f33c40ddd"
+    },
+    {
+      "path": "control-plane/internal/api/execution_resource_limits.go",
+      "originalBaseSha256": null,
+      "stagedSha256": "bc16da6ef9c66d971696bc911bba0604808a958901b3c3957188a47b3c5be342",
+      "appliedCheckoutSha256": "bc16da6ef9c66d971696bc911bba0604808a958901b3c3957188a47b3c5be342"
+    },
+    {
+      "path": "control-plane/internal/api/project_check_execution_test.go",
+      "originalBaseSha256": null,
+      "stagedSha256": "5cbdfaab7cbf429754fa4c6614565c3645bed4b7fd00957e879b9f4537788d8e",
+      "appliedCheckoutSha256": "5cbdfaab7cbf429754fa4c6614565c3645bed4b7fd00957e879b9f4537788d8e"
+    },
+    {
+      "path": "control-plane/internal/api/project_check_recovery_test.go",
+      "originalBaseSha256": null,
+      "stagedSha256": "2ce76b10a51b55a2cc8e9f99ddc3f254c171d3bd284fd45d3944cb481de78966",
+      "appliedCheckoutSha256": "2ce76b10a51b55a2cc8e9f99ddc3f254c171d3bd284fd45d3944cb481de78966"
+    },
+    {
+      "path": "control-plane/internal/api/session_allocation.go",
+      "originalBaseSha256": "c047673db1f8a62a265c49f2c86dd59f7e999b6f2c2e8b96185bf850bd36d788",
+      "stagedSha256": "ae51c9e1b61d7a5827f9045b319cfbcfa83797e9f5bcbb17611db1e9418e35dd",
+      "appliedCheckoutSha256": "ae51c9e1b61d7a5827f9045b319cfbcfa83797e9f5bcbb17611db1e9418e35dd"
+    },
+    {
+      "path": "control-plane/internal/api/session_restart_admission.go",
+      "originalBaseSha256": "cdb2ce0cf803c6b1990805731a5d7dc5c23815364a6d68ea125acacfc738f443",
+      "stagedSha256": "ae3e9ec0bc0274abba781504e3b0c10d5dea735d903365b3885a013c51bc328e",
+      "appliedCheckoutSha256": "ae3e9ec0bc0274abba781504e3b0c10d5dea735d903365b3885a013c51bc328e"
+    },
+    {
+      "path": "control-plane/internal/api/swarm_fenced_recovery.go",
+      "originalBaseSha256": "ab675e120fe96b9138d1a52fab0375d812ae8eb5a7fade2121609440dbe48d3d",
+      "stagedSha256": "5490a3f854549e450318d778d349e816d8bcabbc5c3db85d6b8eebd5d5b1509c",
+      "appliedCheckoutSha256": "5490a3f854549e450318d778d349e816d8bcabbc5c3db85d6b8eebd5d5b1509c"
+    },
+    {
+      "path": "control-plane/internal/api/swarm_release_restart_test.go",
+      "originalBaseSha256": null,
+      "stagedSha256": "f7ed66deb9df7cb3a8eef303a81a1fa59e38dba77afd142a2cf77e4448509df8",
+      "appliedCheckoutSha256": "f7ed66deb9df7cb3a8eef303a81a1fa59e38dba77afd142a2cf77e4448509df8"
+    },
+    {
+      "path": "control-plane/internal/backend/checks.go",
+      "originalBaseSha256": null,
+      "stagedSha256": "090393a01b586f1d2ede865f3e0dbed3c01c013fb975be4f0ecc326f2076602a",
+      "appliedCheckoutSha256": "090393a01b586f1d2ede865f3e0dbed3c01c013fb975be4f0ecc326f2076602a"
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/check_fence.go",
+      "originalBaseSha256": null,
+      "stagedSha256": "d99999be384f8d7f3e16fb701662333e72c8683fa7ba292702dfda5a974a5305",
+      "appliedCheckoutSha256": "d99999be384f8d7f3e16fb701662333e72c8683fa7ba292702dfda5a974a5305"
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/check_resource_limits_test.go",
+      "originalBaseSha256": null,
+      "stagedSha256": "59a7a7774bcfadc2148646cdb631135983d7cf91f89de58aaaaa7c93e8080dac",
+      "appliedCheckoutSha256": "59a7a7774bcfadc2148646cdb631135983d7cf91f89de58aaaaa7c93e8080dac"
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/checks.go",
+      "originalBaseSha256": null,
+      "stagedSha256": "4ed3f7af51fcaf22cce153bd29cfdc3df82f2ba4ac783bcfbc1e02761915ff31",
+      "appliedCheckoutSha256": "4ed3f7af51fcaf22cce153bd29cfdc3df82f2ba4ac783bcfbc1e02761915ff31"
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/checks_test.go",
+      "originalBaseSha256": null,
+      "stagedSha256": "fde6502a7406e09789e38cee1bc6cfda784e6a3d46cc5c2107f1bdced6af949b",
+      "appliedCheckoutSha256": "fde6502a7406e09789e38cee1bc6cfda784e6a3d46cc5c2107f1bdced6af949b"
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/docker.go",
+      "originalBaseSha256": "4136ce8db45a3900796fb55605babc788cc7552c517fad5c4f8adc022eb1b27a",
+      "stagedSha256": "b865a8eea8a313ad818686f372724e2a97874ba8532c0041ad6cc5d3b0d0d46c",
+      "appliedCheckoutSha256": "b865a8eea8a313ad818686f372724e2a97874ba8532c0041ad6cc5d3b0d0d46c"
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/docker_test.go",
+      "originalBaseSha256": "5ae9327b1f2698fe8f5129bc0f0021f9720280c664203ad46fcfd314f8541f20",
+      "stagedSha256": "238c19a10fe4ee416835f809ec4651041db20b2e3045e0aba3048c15c733728a",
+      "appliedCheckoutSha256": "238c19a10fe4ee416835f809ec4651041db20b2e3045e0aba3048c15c733728a"
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/launch_fence.go",
+      "originalBaseSha256": "4fede442dc7af84e0175f400bc9e2ea512b7c1e8e45a3ac682da06dab88a2972",
+      "stagedSha256": "6ad13e1b9164db520e83ecaee63b332251f6d24c2a5bfe1beba7f9d57578d8ac",
+      "appliedCheckoutSha256": "6ad13e1b9164db520e83ecaee63b332251f6d24c2a5bfe1beba7f9d57578d8ac"
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/resource_limits.go",
+      "originalBaseSha256": null,
+      "stagedSha256": "6ea5a56ed828af5eee3a7b69d5e146aad5f76189c57c945705353393cdea07d2",
+      "appliedCheckoutSha256": "6ea5a56ed828af5eee3a7b69d5e146aad5f76189c57c945705353393cdea07d2"
+    },
+    {
+      "path": "control-plane/internal/backend/resource_limits.go",
+      "originalBaseSha256": null,
+      "stagedSha256": "e44a1c4775570ab0431ae83902f1adcc61618a8e4b21e74b0ba96f9809da5153",
+      "appliedCheckoutSha256": "e44a1c4775570ab0431ae83902f1adcc61618a8e4b21e74b0ba96f9809da5153"
+    },
+    {
+      "path": "control-plane/internal/management/check_authority.go",
+      "originalBaseSha256": null,
+      "stagedSha256": "c69c4c67d3d8c0f7bab9da7e8095055356413f15a8a965a6376992fd2ed502da",
+      "appliedCheckoutSha256": "c69c4c67d3d8c0f7bab9da7e8095055356413f15a8a965a6376992fd2ed502da"
+    },
+    {
+      "path": "control-plane/internal/management/check_authority_test.go",
+      "originalBaseSha256": null,
+      "stagedSha256": "2123143d0c68e50305607bc37e86fc64bd1aef3d590481c8b7265eca8057b36d",
+      "appliedCheckoutSha256": "2123143d0c68e50305607bc37e86fc64bd1aef3d590481c8b7265eca8057b36d"
+    },
+    {
+      "path": "control-plane/internal/management/execution_authority.go",
+      "originalBaseSha256": "e64cef98d550830cffd6343fa3ca13127ebbdfdbd4eb31a12f7b9d7896fedd7e",
+      "stagedSha256": "6135a8716f3f45e36e2b713e54487f1a3929071dd8cc0afd27eae848dcf525db",
+      "appliedCheckoutSha256": "6135a8716f3f45e36e2b713e54487f1a3929071dd8cc0afd27eae848dcf525db"
+    },
+    {
+      "path": "control-plane/internal/management/team_authorization.go",
+      "originalBaseSha256": "608de8b140eff4db22355323d6d7f09d677822713d1be4f83097e067e3ea1141",
+      "stagedSha256": "e530232d68e467b5465bb753ce27e6541790448c1283140f7a547a27389f9896",
+      "appliedCheckoutSha256": "e530232d68e467b5465bb753ce27e6541790448c1283140f7a547a27389f9896"
+    },
+    {
+      "path": "control-plane/internal/product/project_branches.go",
+      "originalBaseSha256": "47bdd3485175299e83c4a256ae82f806194ee3470e29b0229c6bbbdf7e2625df",
+      "stagedSha256": "11df47029a0ca84eac0458b0a67fd83db7a4c40bf0d065ced478e94d78bac5d1",
+      "appliedCheckoutSha256": "11df47029a0ca84eac0458b0a67fd83db7a4c40bf0d065ced478e94d78bac5d1"
+    },
+    {
+      "path": "control-plane/internal/product/project_check_contract_test.go",
+      "originalBaseSha256": null,
+      "stagedSha256": "87a7bb583df6db40432f6f1d6455656e31403fd394b8c778b3c76e71077c9973",
+      "appliedCheckoutSha256": "87a7bb583df6db40432f6f1d6455656e31403fd394b8c778b3c76e71077c9973"
+    },
+    {
+      "path": "control-plane/internal/product/project_check_fixture_test.go",
+      "originalBaseSha256": null,
+      "stagedSha256": "5c2ddbafa4d6dccbb2faa9f57d7cae7e2703d44ee3a205107044c832afc5197e",
+      "appliedCheckoutSha256": "5c2ddbafa4d6dccbb2faa9f57d7cae7e2703d44ee3a205107044c832afc5197e"
+    },
+    {
+      "path": "control-plane/internal/product/project_check_recovery.go",
+      "originalBaseSha256": null,
+      "stagedSha256": "428c0da2a5f2fe8ba4977be0aa7ed6503474bb0dae01c4df8f5da469ff8655c4",
+      "appliedCheckoutSha256": "428c0da2a5f2fe8ba4977be0aa7ed6503474bb0dae01c4df8f5da469ff8655c4"
+    },
+    {
+      "path": "control-plane/internal/product/project_check_runtime.go",
+      "originalBaseSha256": null,
+      "stagedSha256": "abc9190bbd641d5a217b1fb5c3e789e9ac30e17bb221eeb1636906fa67941070",
+      "appliedCheckoutSha256": "abc9190bbd641d5a217b1fb5c3e789e9ac30e17bb221eeb1636906fa67941070"
+    },
+    {
+      "path": "control-plane/internal/product/project_check_snapshot_test.go",
+      "originalBaseSha256": "6d0262317138c4bcb40879aa4e5a913ea867bff0b9879cda87118f8464e8ae5e",
+      "stagedSha256": "6ebb62f8047204785aea66a8ad0cce7047ad276fb2f1266b86ec40fe45f45431",
+      "appliedCheckoutSha256": "6ebb62f8047204785aea66a8ad0cce7047ad276fb2f1266b86ec40fe45f45431"
+    },
+    {
+      "path": "control-plane/internal/product/project_checks.go",
+      "originalBaseSha256": "75aff1ac3a4b004c2019b2209716ba72a839f02015e84e64e0fa5310f72f643a",
+      "stagedSha256": "acfe1c60d6706b326c5a76cdc4230ee1ee898434261bc94c9f4b1a66fe3dbdf6",
+      "appliedCheckoutSha256": "acfe1c60d6706b326c5a76cdc4230ee1ee898434261bc94c9f4b1a66fe3dbdf6"
+    },
+    {
+      "path": "control-plane/internal/product/project_evidence.go",
+      "originalBaseSha256": "6006c6e043290c518e4f867037d3e88a3e4d58267c3cd72723e2a1f4eb79d676",
+      "stagedSha256": "00f5d99d4c4fdbab969a235b46e92e711ae7dd15c5bc0ba0cabce6f9e6ddc309",
+      "appliedCheckoutSha256": "00f5d99d4c4fdbab969a235b46e92e711ae7dd15c5bc0ba0cabce6f9e6ddc309"
+    },
+    {
+      "path": "control-plane/internal/product/project_evidence_test.go",
+      "originalBaseSha256": "83864067a25208513773953908e5f512b32f6891b691f333c5bac659279bdf33",
+      "stagedSha256": "8c3269ca182e02724f461c4fd49876685b2d7b945419617a5875bb4951ebd66f",
+      "appliedCheckoutSha256": "8c3269ca182e02724f461c4fd49876685b2d7b945419617a5875bb4951ebd66f"
+    },
+    {
+      "path": "control-plane/internal/product/project_work.go",
+      "originalBaseSha256": "ae1a19a85c56332f67c24ff6e2f32094fab74b3a9350e977a2434c74fa9b82a4",
+      "stagedSha256": "a0f351b066cef4491d32a95155b59a2561acc58742a3c0e5d3a2e8a0c76a60b6",
+      "appliedCheckoutSha256": "a0f351b066cef4491d32a95155b59a2561acc58742a3c0e5d3a2e8a0c76a60b6"
+    },
+    {
+      "path": "control-plane/internal/product/project_work_test.go",
+      "originalBaseSha256": "fe9ba0100f8e5b22fd6f9472b724c8dc04563d3b58d118969f16eb91ce707847",
+      "stagedSha256": "0fa76944aea1f4484b26088195e963149207ddbc08cd715b1fd201607f33bbf6",
+      "appliedCheckoutSha256": "0fa76944aea1f4484b26088195e963149207ddbc08cd715b1fd201607f33bbf6"
+    },
+    {
+      "path": "control-plane/internal/product/projects_test.go",
+      "originalBaseSha256": "4c76608db97180d9acec14c66462c4133584cc4de33aa8a81c8206e282c06697",
+      "stagedSha256": "d2a8d9e2c8c35aca2058e341c7c0be050c0492d4f2a9c54a23b28cecea38902d",
+      "appliedCheckoutSha256": "d2a8d9e2c8c35aca2058e341c7c0be050c0492d4f2a9c54a23b28cecea38902d"
+    },
+    {
+      "path": "control-plane/internal/product/routes_audit_test.go",
+      "originalBaseSha256": "2ee9edbf4e48b1d1eed4e4604a74103f058a9d854d1d1b7e734045362ed6b60f",
+      "stagedSha256": "db1903e588c5ec152916f186f44407661c6dab95173a5a2b1a060295ba5975ac",
+      "appliedCheckoutSha256": "db1903e588c5ec152916f186f44407661c6dab95173a5a2b1a060295ba5975ac"
+    },
+    {
+      "path": "control-plane/internal/product/server.go",
+      "originalBaseSha256": "d70acd80594a43529b0569af7d1b73e7fb40c420e102cab2820dedefd731b160",
+      "stagedSha256": "9ee0931c6bf7c0f516b4598830275bb0f76e1f929f3cddc5db834f3c54946e23",
+      "appliedCheckoutSha256": "9ee0931c6bf7c0f516b4598830275bb0f76e1f929f3cddc5db834f3c54946e23"
+    },
+    {
+      "path": "control-plane/internal/product/testdata/project-check-http.json",
+      "originalBaseSha256": null,
+      "stagedSha256": "1dc6700c476d58fb5b6624525bb04150010e0c5aad30c116b887d3e07a6a9a54",
+      "appliedCheckoutSha256": "1dc6700c476d58fb5b6624525bb04150010e0c5aad30c116b887d3e07a6a9a54"
+    },
+    {
+      "path": "control-plane/internal/registry/start_failure.go",
+      "originalBaseSha256": "61b6bd4971abe7ace63fc2ee5a548310a7673c1706adfb9747ed3a1f7bf76046",
+      "stagedSha256": "29aad7769f4822caaf23491dc1c1c67330e6e779c32c7c27212372a9584c470c",
+      "appliedCheckoutSha256": "29aad7769f4822caaf23491dc1c1c67330e6e779c32c7c27212372a9584c470c"
+    }
+  ],
+  "originalPreparationPath": "go-overlay-preparation.json",
+  "originalPreparationSha256": "1ebbfb02ebd738dcb0c1cf8003ea09e390d47bf690808c3055416b7dd13c6de3",
+  "evidence": [
+    {
+      "path": "diagnostic-2/report.json",
+      "sha256": "4a40d3428f5b90480f55d6ad189e8f5000a124defd0fc0f8e59affb7f47efbc3",
+      "report": {
+        "exitCode": 1,
+        "startedAt": "2026-10-08T18:20:18.089617+00:00",
+        "endedAt": "2026-10-08T18:22:00.106679+00:00",
+        "wallSeconds": 102.017,
+        "counts": {
+          "pass": 219,
+          "fail": 4,
+          "skip": 0
+        },
+        "packages": [
+          {
+            "package": "github.com/lcfrai/luci/control-plane/internal/backend/dockerbe",
+            "action": "fail",
+            "elapsed": 5.555
+          },
+          {
+            "package": "github.com/lcfrai/luci/control-plane/internal/management",
+            "action": "pass",
+            "elapsed": 1.621
+          },
+          {
+            "package": "github.com/lcfrai/luci/control-plane/internal/api",
+            "action": "pass",
+            "elapsed": 17.767
+          },
+          {
+            "package": "github.com/lcfrai/luci/control-plane/internal/product",
+            "action": "pass",
+            "elapsed": 11.869
+          },
+          {
+            "package": "github.com/lcfrai/luci/control-plane/cmd/api",
+            "action": "pass",
+            "elapsed": 1.109
+          }
+        ],
+        "failures": [
+          {
+            "package": "github.com/lcfrai/luci/control-plane/internal/backend/dockerbe",
+            "test": "TestCheckSDKWirePinsImageLimitsAndImmutableLifecycle"
+          },
+          {
+            "package": "github.com/lcfrai/luci/control-plane/internal/backend/dockerbe",
+            "test": "TestCheckAmbiguousCreateAndStartNeverRetryOrCleanImplicitly"
+          },
+          {
+            "package": "github.com/lcfrai/luci/control-plane/internal/backend/dockerbe",
+            "test": "TestCheckLogsPreserveStreamsAndBoundHugeDeclaredFrames"
+          },
+          {
+            "package": "github.com/lcfrai/luci/control-plane/internal/backend/dockerbe",
+            "test": "TestCheckLogsCancellationClosesOwnedReader"
+          }
+        ],
+        "skips": [],
+        "inputCount": 820,
+        "inputsUnchanged": true,
+        "headBefore": "4e7d5fe4eaeeaa492cde94f22e51081cdb7a1b5e",
+        "headAfter": "4e7d5fe4eaeeaa492cde94f22e51081cdb7a1b5e",
+        "overlaySha256": "03e982fcc691b36221f8747720a3d55b08ac3fcb4f23722a222306ed3e5c9a7a",
+        "goldenEmitted": true
+      }
+    },
+    {
+      "path": "diagnostic-3-adapter/report.json",
+      "sha256": "d6919ed8840de47fdbc651b5803a844c27e1ea45925011a791c183b3c4acd669",
+      "report": {
+        "exitCode": 0,
+        "startedAt": "2026-10-08T18:59:23.254394+00:00",
+        "endedAt": "2026-10-08T18:59:32.022299+00:00",
+        "wallSeconds": 8.768,
+        "counts": {
+          "pass": 85,
+          "fail": 0,
+          "skip": 0
+        },
+        "packages": [
+          {
+            "package": "github.com/lcfrai/luci/control-plane/internal/backend/dockerbe",
+            "action": "pass",
+            "elapsed": 3.197
+          }
+        ],
+        "failures": [],
+        "skips": [],
+        "inputCount": 820,
+        "inputsUnchanged": true,
+        "headBefore": "4e7d5fe4eaeeaa492cde94f22e51081cdb7a1b5e",
+        "headAfter": "4e7d5fe4eaeeaa492cde94f22e51081cdb7a1b5e",
+        "overlaySha256": "03e982fcc691b36221f8747720a3d55b08ac3fcb4f23722a222306ed3e5c9a7a",
+        "goldenEmitted": false
+      }
+    },
+    {
+      "path": "retired-reservation-unfixed-complete/report.json",
+      "sha256": "1d475597b4ce84a9c7d4c61fa0fa6245c54035ae7d624cec63455f52f42873b4",
+      "report": {
+        "exitCode": 1,
+        "startedAt": "2026-10-08T19:04:39.425363+00:00",
+        "endedAt": "2026-10-08T19:04:54.631923+00:00",
+        "wallSeconds": 15.207,
+        "counts": {
+          "pass": 0,
+          "fail": 1,
+          "skip": 0
+        },
+        "packages": [
+          {
+            "package": "github.com/lcfrai/luci/control-plane/internal/api",
+            "action": "fail",
+            "elapsed": 0.587
+          }
+        ],
+        "failures": [
+          {
+            "package": "github.com/lcfrai/luci/control-plane/internal/api",
+            "test": "TestProjectCheckHTTPRetiredReservationCannotBeRecreatedByDelayedController"
+          }
+        ],
+        "skips": [],
+        "inputCount": 820,
+        "inputsUnchanged": true,
+        "headBefore": "4e7d5fe4eaeeaa492cde94f22e51081cdb7a1b5e",
+        "headAfter": "4e7d5fe4eaeeaa492cde94f22e51081cdb7a1b5e",
+        "overlaySha256": "03e982fcc691b36221f8747720a3d55b08ac3fcb4f23722a222306ed3e5c9a7a",
+        "goldenEmitted": false
+      }
+    },
+    {
+      "path": "retired-reservation-fixed/report.json",
+      "sha256": "d060cec47bb0abb3cd39716ac94ea07d728231f5cf87a437bef847fb0caa1caf",
+      "report": {
+        "exitCode": 0,
+        "startedAt": "2026-10-08T19:06:04.819009+00:00",
+        "endedAt": "2026-10-08T19:06:27.857383+00:00",
+        "wallSeconds": 23.038,
+        "counts": {
+          "pass": 13,
+          "fail": 0,
+          "skip": 0
+        },
+        "packages": [
+          {
+            "package": "github.com/lcfrai/luci/control-plane/internal/api",
+            "action": "pass",
+            "elapsed": 1.675
+          }
+        ],
+        "failures": [],
+        "skips": [],
+        "inputCount": 820,
+        "inputsUnchanged": true,
+        "headBefore": "4e7d5fe4eaeeaa492cde94f22e51081cdb7a1b5e",
+        "headAfter": "4e7d5fe4eaeeaa492cde94f22e51081cdb7a1b5e",
+        "overlaySha256": "03e982fcc691b36221f8747720a3d55b08ac3fcb4f23722a222306ed3e5c9a7a",
+        "goldenEmitted": false
+      }
+    },
+    {
+      "path": "retired-reservation-check-lifecycle/report.json",
+      "sha256": "7248523ff9920d95af1c99fb4d495d2c04f4d5ef02b83757fa53360961ecdbb9",
+      "report": {
+        "exitCode": 0,
+        "startedAt": "2026-10-08T19:07:40.544116+00:00",
+        "endedAt": "2026-10-08T19:07:53.306636+00:00",
+        "wallSeconds": 12.763,
+        "counts": {
+          "pass": 31,
+          "fail": 0,
+          "skip": 0
+        },
+        "packages": [
+          {
+            "package": "github.com/lcfrai/luci/control-plane/internal/api",
+            "action": "pass",
+            "elapsed": 10.352
+          }
+        ],
+        "failures": [],
+        "skips": [],
+        "inputCount": 820,
+        "inputsUnchanged": true,
+        "headBefore": "f9f80e88119414b4556569ef04afb255eacd12ff",
+        "headAfter": "f9f80e88119414b4556569ef04afb255eacd12ff",
+        "overlaySha256": "03e982fcc691b36221f8747720a3d55b08ac3fcb4f23722a222306ed3e5c9a7a",
+        "goldenEmitted": false
+      }
+    }
+  ],
+  "limits": [
+    "Selected controlled race checks only; no live Docker, browser, native Windows, installed mixed workers/checks or full affected package acceptance.",
+    "Counts overlap across selections; do not sum them.",
+    "Root owns applied-checkout validation; original pre-apply preparation manifest is preserved unchanged.",
+    "Broader duplicate-state-writer protection is tracked separately as CLOUD-022."
+  ]
+}

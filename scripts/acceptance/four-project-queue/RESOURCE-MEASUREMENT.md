@@ -41,6 +41,24 @@ python3 scripts/acceptance/four-project-queue/sample-linux-owned.py \
 
 Descendants are followed by PID **and start ticks**, including already-discovered descendants after reparenting. A reused PID does not inherit ownership. Very short processes and children reparented before discovery can be missed. Docker observations require the exact instance label, `luci.managed=true`, and the verified sandbox image ID; this fixture observer measures those worker containers. It does not claim to inventory previews, different-image application services, the Docker daemon, or arbitrary host processes. The product's broader capacity sampler accounts for other active daemon workloads separately.
 
+For the SDK project-check protocol, opt in with `--include-checks`. The C013 task
+wrapper enables this explicitly; other workflows keep the original worker-only
+selection and output by default. Opted-in candidates require protocol `1`, exact
+instance and verified image, current engine identity, valid check/allocation IDs,
+command index, source/command/scope digests, and matching immutable inspection.
+A running check needs fresh matching-ID statistics between stable PID/start-time
+and cgroup membership observations. Namespace/permission gaps, malformed labels,
+PID reuse, stale statistics and natural exit during a sample remain explicit
+measurement issues; they are never reported as zero usage.
+
+Opted-in rows identify `kind: worker|check`, check/allocation IDs, and the configured
+`memorySwapLimitBytes` from Docker inspection. This is the combined RAM+swap cap;
+`-1` means unlimited and `0` means daemon default. The summary includes separate
+per-kind cgroup peaks and `checkCoverage` (`cgroup-usage-observed`, `identity-only`,
+or `not-observed`). Only observed peaks exist: a brief check may run between the
+unchanged one-second samples. Keep admission and hard-limit evidence separate
+from this sampling limitation. No cgroup/process/VM memory totals are combined.
+
 After both driver and observer have ended:
 
 ```sh
@@ -139,3 +157,23 @@ Nine controlled checks execute the real PowerShell selection/serialization code 
 The [controlled-check receipt](../../../docs/luci/evidence/2026-10-08-windows-owned-observer-controlled.json) records Linux PowerShell validation and helper hashes. A separate [native tester report](../../../docs/luci/evidence/2026-10-08-windows-owned-observer-native-reported.md) records nine controlled checks passing on Windows and an 8.017-second, eight-sample native capture of an owned PowerShell root and exact descendant. Host/process/E: disk metrics and protected current-user output ACL creation were reported successful. The cloud session has not inspected those native artifacts or their hashes. Docker was not part of that capture; Docker named-pipe compatibility, Luci process attribution and sustained workload acceptance remain unverified.
 
 For release acceptance, record at least 60 seconds of idle Luci before agents, the [four-project workload](../../../docs/luci/SWARM-CAPACITY-ACCEPTANCE.md), and a settle interval. Mark those phase times separately. Measure UI input/project-switch latency and ordinary editor/browser responsiveness; resource counters alone do not establish them. Keep Docker/WSL VM resident memory separate from its guest containers, and do not assume every `vmmemWSL` process belongs to Luci when other distributions are active. Preserve failed task/recovery cases and verify actual results and integration.
+
+## Optional SDK-check attribution on Windows
+
+`sample-windows-owned.ps1 -IncludeChecks` (or optional top-level
+`"includeChecks": true` in a version-1 manifest) also selects exact owned protocol-1
+checks. Worker-only default behavior remains unchanged. The bounded native read
+surface is still `/info`, container inventory and immutable-ID statistics. The
+observer verifies current engine ID, exact instance/image/name and all required
+check identity labels, classifies worker/check rows, and makes malformed or stale
+observations explicit. This preparation passed controlled PowerShell fixtures;
+native Windows/Docker named-pipe execution of the new option remains unverified.
+
+Windows retains `memoryCgroupLimitBytes` from statistics, but configured
+`memoryLimitBytes`/`memorySwapLimitBytes` and guest PID/start/cgroup identity remain
+null with explicit unavailable status: the existing native helper deliberately
+has no full-inspection or guest `/proc` endpoint. These unavailable fields cannot
+be substituted with configured defaults or claimed as Linux-equivalent proof.
+Use a fresh native capture with the exact helper and unchanged native-probe hashes
+before claiming measured Windows check usage. The earlier worker-only Windows
+receipts retain their original scope and hashes.

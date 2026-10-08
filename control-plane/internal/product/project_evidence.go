@@ -280,12 +280,16 @@ func evidenceRunView(row ProjectCheckRun, id string, spec ProjectSpecification, 
 		}
 		return row
 	}
+	if row.Revision > 0 && (row.ResourcesHeld == nil || *row.ResourcesHeld) {
+		row.StaleReasons = append(row.StaleReasons, "Exact command cleanup has not been confirmed.")
+		return row
+	}
 	if len(row.Commands) == 0 {
 		row.StaleReasons = append(row.StaleReasons, "This run has no recorded command outcomes.")
 		return row
 	}
 	for _, command := range row.Commands {
-		if command.Status != "passed" || command.ExitCode == nil || *command.ExitCode != 0 {
+		if command.Status != "passed" || command.ExitCode == nil || *command.ExitCode != 0 || row.Revision > 0 && (!command.CleanupConfirmed || command.AllocationID == "") {
 			row.StaleReasons = append(row.StaleReasons, "Not every linked command has a recorded passing exit code.")
 			return row
 		}

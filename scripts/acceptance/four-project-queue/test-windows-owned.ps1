@@ -123,6 +123,133 @@ Check 'Missing Docker scope makes no call; budget exhaustion is explicit' {
     $result = Get-LuciDockerSample @{instance = 'own'; imageId = ('sha256:' + ('a' * 64)); pipeName = 'docker_engine'} 100 @{}
     Assert-True ($script:fixture.dockerCalls -eq 1 -and -not $result.inventoryComplete -and $result.status -eq 'partial') 'Docker deadline kept issuing calls.'
 }
+function New-LuciSDKFixture {
+    $id = 'a' * 64; $workerID = 'b' * 64; $image = 'sha256:' + ('c' * 64)
+    $scope = @{instance = 'exact-own'; imageId = $image; pipeName = 'docker_engine'; includeChecks = $true}
+    $labels = @{'luci.check' = 'true'; 'luci.check-protocol' = '1'; 'luci.instance' = 'exact-own'; 'luci.check-engine' = 'fixture-engine'; 'luci.check-allocation' = ('checkexec-' + ('d' * 24)); 'luci.check-id' = ('check-' + ('e' * 24)); 'luci.check-command-index' = '0'; 'luci.check-scope' = ('1' * 64); 'luci.check-project' = 'p-owned'; 'luci.check-command-digest' = ('2' * 64); 'luci.check-source-digest' = ('3' * 64); 'luci.check-image' = $image}
+    $check = @{Id = $id; ImageID = $image; State = 'running'; Names = @('/luci-check-' + $labels['luci.check-allocation']); Labels = $labels; Command = 'PRIVATE_COMMAND_MARKER'}
+    $worker = @{Id = $workerID; ImageID = $image; State = 'running'; Labels = @{'luci.instance' = 'exact-own'; 'luci.managed' = 'true'}}
+    $stats = @{id = $id; read = [DateTimeOffset]::UtcNow.ToString('o'); memory_stats = @{limit = 1000; usage = 500; stats = @{inactive_file = 100}}; cpu_stats = @{cpu_usage = @{total_usage = 1000000000}}; blkio_stats = @{}; privateField = 'SECRET_MARKER'}
+    $workerStats = @{id = $workerID; read = $stats.read; memory_stats = @{usage = 250}; cpu_stats = @{cpu_usage = @{total_usage = 200000000}}; blkio_stats = @{}}
+    $info = @{ID = 'fixture-engine'; OSType = 'linux'; MemTotal = 8000; NCPU = 4}
+    $script:fixture = @{dockerCalls = 0; responses = @{'/info' = $info; '/containers/json?all=1' = @($worker, $check)}}
+    $script:fixture.responses['/containers/' + $id + '/stats?stream=false&one-shot=true'] = $stats
+    $script:fixture.responses['/containers/' + $workerID + '/stats?stream=false&one-shot=true'] = $workerStats
+    return @{scope = $scope; check = $check; worker = $worker; stats = $stats; labels = $labels; info = $info; id = $id}
+}
+Check 'Version-one manifests and command switch explicitly opt into checks' {
+    $manifest = @{version = 1; roots = @(@{processId = 100; creationFileTimeUtc = '1000'; role = 'control-plane'}); disks = @(@{role = 'projects'; path = 'C:\acceptance'}); docker = @{instance = 'exact-own'; imageId = ('sha256:' + ('c' * 64)); pipeName = 'docker_engine'}}
+    $scope = ConvertTo-LuciResourceScope $manifest
+    Assert-True (-not $scope.includeChecks -and -not $scope.docker.includeChecks) 'Old manifest enabled SDK checks.'
+    $manifest.includeChecks = $true; $scope = ConvertTo-LuciResourceScope $manifest
+    Assert-True ($scope.includeChecks -and $scope.docker.includeChecks) 'Manifest opt-in was lost.'
+    $manifest.includeChecks = $false; $scope = ConvertTo-LuciResourceScope $manifest -IncludeChecks
+    Assert-True $scope.docker.includeChecks 'Command-line opt-in was lost.'
+    foreach ($value in @('true', 1, $null)) {
+        $manifest.includeChecks = $value
+        $failed = $false; try { ConvertTo-LuciResourceScope $manifest | Out-Null } catch { $failed = $true }
+        Assert-True $failed 'Non-boolean includeChecks was accepted.'
+    }
+}
+Check 'Default Docker observation remains worker-only with unchanged row shape' {
+    $data = New-LuciSDKFixture; $data.scope.Remove('includeChecks')
+    $result = Get-LuciDockerSample $data.scope 600 @{}
+    Assert-True ($script:fixture.dockerCalls -eq 3 -and $result.status -eq 'observed' -and $result.containers.Count -eq 1 -and $result.containers[0].id -ceq $data.worker.Id) 'Default observation included SDK checks or lost workers.'
+    Assert-True (-not (Test-LuciFieldPresent $result 'includeChecks') -and -not (Test-LuciFieldPresent $result.containers[0] 'kind') -and -not (Test-LuciFieldPresent $result.containers[0] 'memorySwapLimitBytes')) 'Default output schema changed.'
+}
+Check 'Opted-in exact SDK check and worker attribution preserves missing native facts' {
+    $data = New-LuciSDKFixture; $previous = @{}
+    $result = Get-LuciDockerSample $data.scope 600 $previous
+    $row = @($result.containers | Where-Object { $_.kind -ceq 'check' })[0]
+    Assert-True ($script:fixture.dockerCalls -eq 4 -and $result.status -eq 'observed' -and $result.inventoryComplete -and $result.checkCandidates -eq 1 -and $result.checkIdentityRows -eq 1 -and $result.containers.Count -eq 2) 'Opted-in check did not use the bounded allowlisted reads.'
+    Assert-True ($row.checkId -ceq $data.labels['luci.check-id'] -and $row.allocationId -ceq $data.labels['luci.check-allocation'] -and $row.commandIndex -eq 0 -and $row.protocol -eq 1) 'SDK check attribution is incomplete.'
+    Assert-True ($row.memoryUsageBytes -eq 500 -and $row.workingSetBytes -eq 400 -and $row.memoryCgroupLimitBytes -eq 1000 -and $null -eq $row.cpuCoreEquivalent) 'Check metrics or initial CPU baseline are incorrect.'
+    Assert-True ($null -eq $row.memoryLimitBytes -and $null -eq $row.memorySwapLimitBytes -and $row.configuredMemoryLimitsStatus -ceq 'unavailable-no-inspect-endpoint' -and $null -eq $row.guestPID -and $null -eq $row.guestPIDStartTicks -and $null -eq $row.cgroupIdentitySHA256 -and $row.guestIdentityStatus -ceq 'unavailable-no-inspect-endpoint') 'Unsupported native/container facts were invented.'
+    Assert-True (($result | ConvertTo-Json -Depth 18) -notmatch 'SECRET_MARKER|PRIVATE_COMMAND_MARKER|fixture-engine|luci.check-source-digest') 'Private or unallowlisted check fields escaped serialization.'
+    $data.stats.read = ([DateTimeOffset]::Parse($data.stats.read)).AddMilliseconds(500).ToString('o'); $data.stats.cpu_stats.cpu_usage.total_usage = 2000000000
+    $next = Get-LuciDockerSample $data.scope 600 $previous
+    $nextRow = @($next.containers | Where-Object { $_.kind -ceq 'check' })[0]
+    Assert-True ($nextRow.cpuCoreEquivalent -eq 2) 'Pinned immutable-ID CPU delta was lost.'
+}
+Check 'Foreign SDK checks are excluded and exact-instance image mismatch is explicit' {
+    $data = New-LuciSDKFixture; $data.labels['luci.instance'] = 'foreign'
+    $result = Get-LuciDockerSample $data.scope 600 @{}
+    Assert-True ($script:fixture.dockerCalls -eq 3 -and $result.status -eq 'observed' -and $result.containers.Count -eq 1 -and $result.checkCandidates -eq 0) 'Foreign instance was sampled or attributed.'
+    $data = New-LuciSDKFixture; $data.check.ImageID = 'sha256:' + ('f' * 64)
+    $result = Get-LuciDockerSample $data.scope 600 @{}
+    Assert-True ($script:fixture.dockerCalls -eq 3 -and $result.status -eq 'partial' -and -not $result.inventoryComplete -and $result.containers.Count -eq 1 -and $result.issues -contains 'check-instance-or-image-mismatch') 'Own mismatched-image check became zero usage or was read.'
+}
+Check 'Every required SDK label and current engine identity must validate before stats' {
+    $keys = @('luci.check', 'luci.check-protocol', 'luci.check-engine', 'luci.check-allocation', 'luci.check-id', 'luci.check-command-index', 'luci.check-scope', 'luci.check-project', 'luci.check-command-digest', 'luci.check-source-digest', 'luci.check-image')
+    foreach ($key in $keys) {
+        $data = New-LuciSDKFixture; $data.labels.Remove($key)
+        $result = Get-LuciDockerSample $data.scope 600 @{}
+        Assert-True ($script:fixture.dockerCalls -eq 3 -and $result.status -eq 'partial' -and -not $result.inventoryComplete -and $result.checkCandidates -eq 1 -and $result.checkIdentityRows -eq 0 -and $result.issues -contains 'check-required-label-unavailable') ('Missing SDK label was attributed: ' + $key)
+    }
+    foreach ($case in @('protocol', 'engine', 'missing-engine', 'allocation', 'check-id', 'index', 'project', 'scope', 'command', 'source', 'label-image', 'name', 'worker-collision', 'null-worker-collision', 'null-marker', 'case-label')) {
+        $data = New-LuciSDKFixture
+        switch ($case) {
+            'protocol' { $data.labels['luci.check-protocol'] = '2' }
+            'engine' { $data.info.ID = 'another-engine' }
+            'missing-engine' { $data.info.Remove('ID') }
+            'allocation' { $data.labels['luci.check-allocation'] = 'checkexec-wrong' }
+            'check-id' { $data.labels['luci.check-id'] = 'check-wrong' }
+            'index' { $data.labels['luci.check-command-index'] = '8' }
+            'project' { $data.labels['luci.check-project'] = 'PRIVATE/PROJECT' }
+            'scope' { $data.labels['luci.check-scope'] = 'bad' }
+            'command' { $data.labels['luci.check-command-digest'] = 'bad' }
+            'source' { $data.labels['luci.check-source-digest'] = 'A' * 64 }
+            'label-image' { $data.labels['luci.check-image'] = 'sha256:' + ('f' * 64) }
+            'name' { $data.check.Names = @('/luci-check-another-allocation') }
+            'worker-collision' { $data.labels['luci.managed'] = 'true' }
+            'null-worker-collision' { $data.labels['luci.managed'] = $null }
+            'null-marker' { $data.labels['luci.check'] = $null }
+            'case-label' { $value = $data.labels['luci.check-protocol']; $data.labels.Remove('luci.check-protocol'); $data.labels['LUCI.CHECK-PROTOCOL'] = $value }
+        }
+        $result = Get-LuciDockerSample $data.scope 600 @{}
+        Assert-True ($script:fixture.dockerCalls -eq 3 -and $result.status -eq 'partial' -and -not $result.inventoryComplete -and $result.checkCandidates -eq 1 -and $result.checkIdentityRows -eq 0 -and $result.issues.Count -gt 0) ('Malformed own SDK check was attributed: ' + $case)
+    }
+}
+Check 'Stale or wrong-ID SDK statistics never become check usage' {
+    $data = New-LuciSDKFixture; $data.stats.read = [DateTimeOffset]::UtcNow.AddMinutes(-1).ToString('o')
+    $result = Get-LuciDockerSample $data.scope 600 @{}
+    $row = @($result.containers | Where-Object { $_.kind -ceq 'check' })[0]
+    Assert-True ($result.status -eq 'partial' -and $null -eq $row.observedAt -and $null -eq $row.memoryUsageBytes -and $null -eq $row.memoryCgroupLimitBytes -and $result.issues -contains 'container-statistics-not-fresh') 'Stale check statistics became current or zero usage.'
+    foreach ($id in @($null, ('f' * 64))) {
+        $data = New-LuciSDKFixture; $data.stats.id = $id
+        $result = Get-LuciDockerSample $data.scope 600 @{}
+        Assert-True ($result.status -eq 'partial' -and -not $result.inventoryComplete -and $result.containers.Count -eq 1 -and $result.containers[0].kind -ceq 'worker' -and $result.issues -contains 'check-statistics-identity-mismatch') 'Unidentified SDK statistics became attributed usage.'
+    }
+}
+Check 'Missing or invalid SDK usage and CPU counters remain null and explicitly partial' {
+    foreach ($field in @('usage', 'cpu')) {
+        foreach ($value in @($null, -1, '500', $true, 0.5, [double]1e-40, [double]::NaN, [double]::PositiveInfinity, [double]1e40)) {
+            $data = New-LuciSDKFixture
+            if ($field -eq 'usage') { $data.stats.memory_stats.usage = $value } else { $data.stats.cpu_stats.cpu_usage.total_usage = $value }
+            $previous = @{}; $result = Get-LuciDockerSample $data.scope 600 $previous
+            $row = @($result.containers | Where-Object { $_.kind -ceq 'check' })[0]
+            Assert-True ($result.status -eq 'partial' -and $result.issues -contains 'check-statistics-measurement-unavailable') ('Invalid check ' + $field + ' did not produce explicit missing measurement.')
+            if ($field -eq 'usage') { Assert-True ($null -eq $row.memoryUsageBytes -and $null -eq $row.workingSetBytes) 'Invalid memory usage became an attributed value.' }
+            else { Assert-True ($null -eq $row.cpuCoreEquivalent -and -not $previous.ContainsKey($data.id)) 'Invalid CPU usage became a counter baseline or delta.' }
+        }
+    }
+    $data = New-LuciSDKFixture; $data.stats.memory_stats.usage = 0; $data.stats.memory_stats.stats.inactive_file = 0; $data.stats.cpu_stats.cpu_usage.total_usage = 0
+    $result = Get-LuciDockerSample $data.scope 600 @{}
+    $row = @($result.containers | Where-Object { $_.kind -ceq 'check' })[0]
+    Assert-True ($result.status -eq 'observed' -and $row.memoryUsageBytes -eq 0 -and $row.workingSetBytes -eq 0) 'An actual measured zero was rejected.'
+    $data = New-LuciSDKFixture; $data.stats.memory_stats.stats.inactive_file = -1
+    $result = Get-LuciDockerSample $data.scope 600 @{}
+    $row = @($result.containers | Where-Object { $_.kind -ceq 'check' })[0]
+    Assert-True ($result.status -eq 'partial' -and $null -eq $row.workingSetBytes -and $result.issues -contains 'check-statistics-measurement-unavailable') 'Invalid inactive-file counter invented a working set.'
+}
+Check 'Opted-in checks retain the shared deadline and eight-candidate bound' {
+    $data = New-LuciSDKFixture; $script:fixture.delay = 120
+    $result = Get-LuciDockerSample $data.scope 100 @{}
+    Assert-True ($script:fixture.dockerCalls -eq 1 -and $result.status -eq 'partial' -and -not $result.inventoryComplete) 'Check observation escaped the shared deadline.'
+    $data = New-LuciSDKFixture; $script:fixture.responses['/containers/json?all=1'] = @($data.check) * 9
+    $result = Get-LuciDockerSample $data.scope 600 @{}
+    Assert-True ($script:fixture.dockerCalls -eq 2 -and -not $result.inventoryComplete -and $result.issues -contains 'owned-container-count-exceeds-eight') 'Check observation escaped the candidate bound.'
+}
 Check 'Native HTTP parser handles bounded JSON and rejects error/truncation' {
     $bytes = [Text.Encoding]::UTF8.GetBytes("HTTP/1.1 200 OK`r`nContent-Length: 7`r`n`r`n{`"a`":1}")
     Assert-True (([LuciWindowsResourceNative]::DecodeResponse($bytes) | ConvertFrom-Json).a -eq 1) 'Plain named-pipe HTTP response failed.'

@@ -30,15 +30,22 @@ public DNS and hosted infrastructure do not block this local milestone.
   remain visible. The [Linux controlled source correction](evidence/local012-scheduler-cleanup/README.md)
   passes focused 35/affected 128 race outcomes (overlap); native and actual Docker
   behavior remain unverified. Use the immutable correction revision in the notice,
-  not the older b1 source finding. The existing Linux reopen occurs after B/C/D
-  have started; also verify restart before their fresh admission while A stays
-  charged. That additional controlled scenario is being prepared.
+  not the older b1 source finding. The added Linux controlled regression now reopens before B/C/D first admission, keeps A charged and refuses a fifth slot. Repeat that actual native scenario; this source evidence does not establish Docker behavior.
 
-- **CLOUD-020 (correction pending):** whole-build checks must share admission and
+- **CLOUD-020 (source correction; installed/native pending):** whole-build checks must share admission and
   pending capacity with agents across accounts/projects, not only apply container
   limits after allocation. Verify refusal before memory/disk pressure, fresh
   authority, cancellation, exact cleanup and restart recovery. Existing sampling
   of active check containers does not prove safe concurrent admission.
+  New checks require Docker with enforceable memory, combined memory/swap, CPU quota and PID limits; host execution is refused while historical host results remain readable. No new secret or cloud configuration is needed. Check recovery requires current Edit; creating work also requires Execute. Use the exact source/package supplied in the notice.
+
+- **CLOUD-022 (native retest):** every API startup now holds a process lease for its state directory before opening stores or backend resources. Using only fresh disposable state, hold one app/API open and start a second with the same `LUCI_STATE_DIR` and a different free `LUCI_ADDR`; the second must refuse without changing state. A different private state directory must still start. After ordinary close, reopen succeeds. Run `go test -C control-plane -p 1 -count=1 ./internal/statelease ./cmd/api -run 'Lease|ManagedRootAndOrphanWorker'` with the task-local toolchain, then the documented native own-sidecar lifecycle. Junction, hardlink, ACL, contention and abrupt owned-child exit checks must preserve the original user data. Do not weaken ACLs, elevate or point these tests at installed user state.
+
+- **CLOUD-023 (native phone/keyboard retest):** during an explicitly authorized check-recovery request whose response is held by an isolated fixture, recovery content remains reachable by Tab and scroll keys at 390 px. Dismissal, consent edits and duplicate actions stay blocked while the write is pending. After completion, focus returns to the exact scoped opener. Current source/browser proof does not replace native testing.
+
+- **LOCAL-013 (helper-only):** the Linux dependency witness now records durable failures/stages before bounded cleanup and has an explicit 120-second preparation allowance, 900-second workload and 180-second cleanup budget, followed only by a five-second wrapper interrupt grace and bounded observer settlement. Never run that exclusive-daemon helper on this shared Windows Docker host. Controlled hanging/throwing cleanup results do not explain the original interrupted run.
+
+- **CLOUD-024 (source correction; native pending):** in an isolated controlled multi-command check, delay final acknowledgement so completed receipts remain, then observe the later command before the earlier one. Later passed, failed and pre-admission-blocked outcomes/output must remain unchanged, with no new command execution. A genuinely unstarted later command must remain unexecuted, and pending cleanup must stay charged. The 40-result Linux regression is controlled source evidence, not installed fault-injection acceptance.
 
 - **CLOUD-019:** verify a refused start retains an exact safe reason across restart,
   appears failed/Start blocked rather than completed, preserves dependent waiting,

@@ -1,0 +1,53 @@
+{
+  "scope": "External projected frontend diagnostic, not installed/native proof. Corrected expected shared fixture awaits backend actual-handler equality.",
+  "baselineHead": "4e7d5fe4eaeeaa492cde94f22e51081cdb7a1b5e",
+  "cwd": "/workspace/.luci-tools/cloud020-ui/diagnostic-1/tree/desktop",
+  "startedAt": "2026-10-08T18:15:36.950709+00:00",
+  "commands": [
+    {
+      "name": "vitest",
+      "command": [
+        "npm",
+        "test",
+        "--",
+        "--maxWorkers=1",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=/workspace/.luci-tools/cloud020-ui/diagnostic-1/vitest.json",
+        "src/api/product.test.ts",
+        "src/api/projectCheckContracts.test.ts",
+        "src/components/journey/ProjectChecks.test.tsx",
+        "src/components/journey/CheckRecoveryDialog.test.tsx"
+      ],
+      "startedAt": "2026-10-08T18:15:36.950759+00:00",
+      "finishedAt": "2026-10-08T18:15:54.403422+00:00",
+      "exitCode": 1
+    },
+    {
+      "name": "typecheck",
+      "command": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "startedAt": "2026-10-08T18:15:54.403989+00:00",
+      "finishedAt": "2026-10-08T18:16:20.387087+00:00",
+      "exitCode": 2
+    }
+  ],
+  "finishedAt": "2026-10-08T18:16:20.429678+00:00",
+  "sourceInputs": 427,
+  "sourceUnchanged": true,
+  "tests": {
+    "numTotalTestSuites": 4,
+    "numPassedTestSuites": 3,
+    "numFailedTestSuites": 1,
+    "numTotalTests": 82,
+    "numPassedTests": 80,
+    "numFailedTests": 2,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": false
+  },
+  "passed": false
+}

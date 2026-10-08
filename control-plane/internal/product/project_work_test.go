@@ -3,10 +3,8 @@ package product
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -48,10 +46,6 @@ func TestProjectPlanExportsContextAndKeepsRevision(t *testing.T) {
 }
 
 func TestProjectChecksRunActualProcessAndPersistEvidence(t *testing.T) {
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("Node is required for real command outcome")
-	}
 	s, mux := journeyFixture(t)
 	s.registerProjectWork(mux)
 	p := createJourneyProject(t, mux, "checks")
@@ -59,24 +53,7 @@ func TestProjectChecksRunActualProcessAndPersistEvidence(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(p.Path, "check.js"), []byte(`console.log('verified outcome');process.exit(0)`), 0600); err != nil {
 		t.Fatal(err)
 	}
-	original := s.runner
-	s.runner = func(ctx context.Context, name string, args []string, dir string) (string, error) {
-		if name != "docker" {
-			return original(ctx, name, args, dir)
-		}
-		if len(args) > 0 && args[0] == "rm" {
-			return "", nil
-		}
-		for i, a := range args {
-			if a == "--entrypoint" {
-				if args[i+1] != "node" {
-					return "", errors.New("unexpected check executable")
-				}
-				return RunCommand(ctx, node, args[i+3:], dir)
-			}
-		}
-		return "", errors.New("Docker command did not contain an entrypoint")
-	}
+	useActualEvidenceProcesses(t, s)
 	req := map[string]any{"commands": []CheckCommand{{"Actual process", "node", []string{"check.js"}}}, "acknowledgeHostExecution": true}
 	w := journeyRequest(t, mux, "POST", base, req, 202)
 	var row ProjectCheckRun
@@ -107,24 +84,17 @@ func TestProjectChecksCancelAndRefuseUnmanagedHost(t *testing.T) {
 	p := createJourneyProject(t, mux, "cancel")
 	base := "/v1/product/projects/" + p.ID + "/checks"
 	req := map[string]any{"commands": []CheckCommand{{"Wait", "node", []string{"check.js"}}}, "acknowledgeHostExecution": true, "execution": "host"}
-	journeyRequest(t, mux, "POST", base, req, 403)
+	journeyRequest(t, mux, "POST", base, req, 400)
 	req["execution"] = "docker"
 	req["acknowledgeHostExecution"] = false
 	journeyRequest(t, mux, "POST", base, req, 400)
 	req["acknowledgeHostExecution"] = true
 	started := make(chan struct{})
-	original := s.runner
-	s.runner = func(ctx context.Context, name string, args []string, dir string) (string, error) {
-		if name != "docker" {
-			return original(ctx, name, args, dir)
-		}
-		if args[0] == "rm" {
-			return "", nil
-		}
+	installControlledProjectCheckRuntime(t, s, func(ctx context.Context, _ ProjectCheckCommandRequest) (string, error) {
 		close(started)
 		<-ctx.Done()
 		return "cancelled", ctx.Err()
-	}
+	})
 	w := journeyRequest(t, mux, "POST", base, req, 202)
 	var row ProjectCheckRun
 	json.Unmarshal(w.Body.Bytes(), &row)

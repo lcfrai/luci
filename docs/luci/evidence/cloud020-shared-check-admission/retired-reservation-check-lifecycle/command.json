@@ -1,0 +1,25 @@
+{
+  "command": [
+    "/workspace/.luci-tools/go1.26.3/bin/go",
+    "test",
+    "-overlay=/workspace/.luci-tools/cloud020-staging/go-overlay.json",
+    "-race",
+    "-p",
+    "1",
+    "-count",
+    "1",
+    "-timeout=5m",
+    "-json",
+    "-run",
+    "^TestProjectCheck",
+    "./internal/api"
+  ],
+  "cwd": "/workspace/luci/control-plane",
+  "startedAt": "2026-10-08T19:07:40.544116+00:00",
+  "env": {
+    "GOMAXPROCS": "2",
+    "LUCI_CHECK_HTTP_CAPTURE": "/workspace/.luci-tools/cloud020-staging/retired-reservation-check-lifecycle/project-check-http.json",
+    "LUCI_CHECK_HTTP_EXPECTED": "/workspace/.luci-tools/cloud020-staging/tree/control-plane/internal/product/testdata/project-check-http.json"
+  },
+  "notice": "No Docker opt-in or live backend; first golden emission may fail comparison until retained fixture is populated."
+}

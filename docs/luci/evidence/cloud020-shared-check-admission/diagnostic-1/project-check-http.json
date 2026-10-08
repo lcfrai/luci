@@ -1,0 +1,163 @@
+{
+  "available": {
+    "checkId": "check-wire-contract",
+    "commandIndex": 0,
+    "message": "Stop only this exact check allocation and retain its recorded output. No command will be replayed.",
+    "method": "remove-exact",
+    "projectId": "project-fixture",
+    "reasonCode": "check_stop_review_required",
+    "recoveryDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "revision": 4,
+    "state": "available"
+  },
+  "blocked": {
+    "commands": [
+      {
+        "allocationId": "checkexec-wire-first",
+        "args": null,
+        "cleanupConfirmed": true,
+        "executable": "node",
+        "exitCode": 0,
+        "label": "Earlier command",
+        "output": "earlier controlled output\n",
+        "stage": "cleanup",
+        "status": "passed",
+        "truncated": false
+      },
+      {
+        "allocationId": "checkexec-wire-second",
+        "args": [
+          "test",
+          "./..."
+        ],
+        "cleanupConfirmed": false,
+        "executable": "go",
+        "label": "Next command",
+        "message": "Fresh shared memory capacity does not admit this command.",
+        "output": "",
+        "reasonCode": "memory_headroom",
+        "stage": "admission",
+        "status": "blocked",
+        "truncated": false
+      }
+    ],
+    "commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "cpuMillis": 1000,
+    "createdAt": "2026-01-01T00:00:00Z",
+    "dirty": false,
+    "evidenceStatus": "unverified",
+    "execution": "docker",
+    "id": "check-wire-contract",
+    "memoryMiB": 1024,
+    "message": "Fresh shared memory capacity does not admit this command.",
+    "projectId": "project-fixture",
+    "reasonCode": "memory_headroom",
+    "resourcesHeld": false,
+    "revision": 3,
+    "sourceChanged": false,
+    "sourceDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "stage": "admission",
+    "staleReasons": [
+      "This run has no complete saved requirement and approval binding."
+    ],
+    "status": "blocked",
+    "updatedAt": "2026-01-01T00:00:00Z"
+  },
+  "complete": {
+    "checkId": "check-wire-contract",
+    "commandIndex": null,
+    "message": "This check has no retained allocation requiring recovery.",
+    "method": null,
+    "projectId": "project-fixture",
+    "reasonCode": "check_recovery_not_required",
+    "recoveryDigest": null,
+    "revision": 3,
+    "state": "complete"
+  },
+  "pending": {
+    "checkId": "check-wire-contract",
+    "commandIndex": 0,
+    "message": "The prior reviewed check recovery remains incomplete. Review its current state to finish the same recovery.",
+    "method": "remove-exact",
+    "projectId": "project-fixture",
+    "reasonCode": "check_recovery_pending",
+    "recoveryDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "revision": 4,
+    "state": "pending"
+  },
+  "recovered": {
+    "commands": [
+      {
+        "allocationId": "checkexec-wire-first",
+        "args": null,
+        "cleanupConfirmed": true,
+        "executable": "node",
+        "exitCode": 0,
+        "label": "Earlier command",
+        "message": "The command result is retained, but exact Docker cleanup is unconfirmed. Its capacity remains held.",
+        "output": "earlier controlled output\n",
+        "reasonCode": "check_cleanup_unconfirmed",
+        "stage": "cleanup",
+        "status": "passed",
+        "truncated": false
+      }
+    ],
+    "commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "cpuMillis": 1000,
+    "createdAt": "2026-01-01T00:00:00Z",
+    "dirty": false,
+    "evidenceStatus": "",
+    "execution": "docker",
+    "id": "check-wire-contract",
+    "memoryMiB": 1024,
+    "message": "The exact check cleanup is confirmed; recorded output remains retained.",
+    "projectId": "project-fixture",
+    "resourcesHeld": false,
+    "revision": 5,
+    "sourceChanged": false,
+    "sourceDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "stage": "cleanup",
+    "staleReasons": [],
+    "status": "passed",
+    "updatedAt": "2026-01-01T00:00:00Z"
+  },
+  "unknownCleanup": {
+    "commands": [
+      {
+        "allocationId": "checkexec-wire-first",
+        "args": null,
+        "cleanupConfirmed": false,
+        "executable": "node",
+        "exitCode": 0,
+        "label": "Earlier command",
+        "message": "The command result is retained, but exact Docker cleanup is unconfirmed. Its capacity remains held.",
+        "output": "earlier controlled output\n",
+        "reasonCode": "check_cleanup_unconfirmed",
+        "stage": "cleanup",
+        "status": "passed",
+        "truncated": false
+      }
+    ],
+    "commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "cpuMillis": 1000,
+    "createdAt": "2026-01-01T00:00:00Z",
+    "dirty": false,
+    "evidenceStatus": "unverified",
+    "execution": "docker",
+    "id": "check-wire-contract",
+    "memoryMiB": 1024,
+    "message": "The command result is retained, but exact Docker cleanup is unconfirmed. Its capacity remains held.",
+    "projectId": "project-fixture",
+    "reasonCode": "check_cleanup_unconfirmed",
+    "resourcesHeld": true,
+    "revision": 4,
+    "sourceChanged": false,
+    "sourceDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "stage": "cleanup",
+    "staleReasons": [
+      "This run has no complete saved requirement and approval binding."
+    ],
+    "status": "unknown",
+    "updatedAt": "2026-01-01T00:00:00Z"
+  }
+}

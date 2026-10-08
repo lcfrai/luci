@@ -29,18 +29,11 @@ func TestCheckCancelResponseRetainsItsSnapshotWhileWorkerFinishes(t *testing.T) 
 	p := createJourneyProject(t, mux, "immutable-check")
 	base := "/v1/product/projects/" + p.ID + "/checks"
 	started := make(chan struct{})
-	original := s.runner
-	s.runner = func(ctx context.Context, name string, args []string, dir string) (string, error) {
-		if name != "docker" {
-			return original(ctx, name, args, dir)
-		}
-		if args[0] == "rm" {
-			return "", nil
-		}
+	installControlledProjectCheckRuntime(t, s, func(ctx context.Context, _ ProjectCheckCommandRequest) (string, error) {
 		close(started)
 		<-ctx.Done()
 		return "worker output after the cancellation snapshot", ctx.Err()
-	}
+	})
 	body := journeyRequest(t, mux, http.MethodPost, base, map[string]any{
 		"commands":  []CheckCommand{{"Wait", "node", []string{"check.js"}}},
 		"execution": "docker", "acknowledgeHostExecution": true,
@@ -70,7 +63,7 @@ func TestCheckCancelResponseRetainsItsSnapshotWhileWorkerFinishes(t *testing.T) 
 		t.Fatal("cancel response did not reach encoding")
 	}
 	final := waitProjectCheck(t, s, p.ID, initial.ID)
-	if final.Status != "cancelled" || final.Commands[0].ExitCode == nil || final.Commands[0].Output == "" {
+	if final.Status != "cancelled" || final.Commands[0].ExitCode != nil || final.Commands[0].Output == "" || !final.Commands[0].CleanupConfirmed || final.ResourcesHeld == nil || *final.ResourcesHeld {
 		t.Fatalf("worker did not finish while the response was delayed: %#v", final)
 	}
 	unblock()

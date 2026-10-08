@@ -1,0 +1,27 @@
+{
+  "exitCode": 1,
+  "counts": {
+    "pass": 1,
+    "fail": 4,
+    "skip": 0
+  },
+  "failures": [
+    "TestProjectCheckHTTPFinishedObservationPreservesLaterCommandOutcome/passed",
+    "TestProjectCheckHTTPFinishedObservationPreservesLaterCommandOutcome/failed",
+    "TestProjectCheckHTTPFinishedObservationPreservesLaterCommandOutcome/prepare-blocked",
+    "TestProjectCheckHTTPFinishedObservationPreservesLaterCommandOutcome"
+  ],
+  "packages": [
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "action": "fail",
+      "elapsed": 3.572
+    }
+  ],
+  "wallSeconds": 23.423,
+  "inputsUnchanged": true,
+  "inputCount": 718,
+  "overlayInputCount": 1,
+  "headBefore": "f9f80e88119414b4556569ef04afb255eacd12ff",
+  "headAfter": "f9f80e88119414b4556569ef04afb255eacd12ff"
+}

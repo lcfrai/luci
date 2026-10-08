@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -55,29 +56,21 @@ func evidenceRequest(spec ProjectSpecification, design ProjectDesignPlan, args .
 		"requirementIds": []string{spec.Requirements[0].ID}, "expectedSpecificationRevision": spec.Revision, "expectedDesignPlanRevision": design.Revision}
 }
 
-// Only substitute the Docker transport; execute real Node and every native Git
-// operation, preserving production source hashing and persisted job lifecycle.
+// The product fixture executes real Node through an explicitly controlled runtime.
+// Native Git, source hashing, approval/evidence binding and persisted job lifecycle
+// remain real. This is not a Docker adapter or resource-enforcement witness.
 func useActualEvidenceProcesses(t *testing.T, s *Server) {
 	t.Helper()
 	node, err := exec.LookPath("node")
 	if err != nil {
 		t.Skip("Node is required for the real evidence command outcomes")
 	}
-	original := s.runner
-	s.runner = func(ctx context.Context, name string, args []string, dir string) (string, error) {
-		if name != "docker" {
-			return original(ctx, name, args, dir)
+	installControlledProjectCheckRuntime(t, s, func(ctx context.Context, req ProjectCheckCommandRequest) (string, error) {
+		if req.Command.Executable != "node" {
+			return "", errors.New("unexpected evidence process executable")
 		}
-		if len(args) > 0 && args[0] == "rm" {
-			return "", nil
-		}
-		for i, arg := range args {
-			if arg == "--entrypoint" && i+3 <= len(args) && args[i+1] == "node" {
-				return RunCommand(ctx, node, args[i+3:], dir)
-			}
-		}
-		return "", errors.New("unexpected evidence runtime command")
-	}
+		return RunCommand(ctx, node, req.Command.Args, req.SourceDirectory)
+	})
 }
 
 func finishEvidenceRun(t *testing.T, s *Server, projectID, runID string) ProjectCheckRun {
@@ -131,15 +124,11 @@ func TestProjectRequirementBindingRejectsForeignUnknownDuplicateAndSupersededApp
 	if err != nil || !strings.Contains(string(export), `"requirementIds"`) {
 		t.Fatal("agent context omitted links", err)
 	}
-	dockerCalls := 0
-	original := s.runner
-	s.runner = func(ctx context.Context, name string, args []string, dir string) (string, error) {
-		if name == "docker" {
-			dockerCalls++
-			return "", errors.New("rejected requests must not allocate checks")
-		}
-		return original(ctx, name, args, dir)
-	}
+	var runtimeCalls atomic.Int32
+	installControlledProjectCheckRuntime(t, s, func(context.Context, ProjectCheckCommandRequest) (string, error) {
+		runtimeCalls.Add(1)
+		return "", errors.New("rejected requests must not allocate checks")
+	})
 	for _, invalid := range []struct {
 		ids                          []string
 		specRevision, designRevision any
@@ -165,7 +154,7 @@ func TestProjectRequirementBindingRejectsForeignUnknownDuplicateAndSupersededApp
 	var approved ProjectSpecification
 	decodeEvidenceResponse(t, journeyRequest(t, mux, "GET", base+"/specification", nil, 200).Body.Bytes(), &approved)
 	journeyRequest(t, mux, "POST", base+"/checks", evidenceRequest(approved, design, "-e", "process.exit(0)"), 422)
-	if dockerCalls != 0 {
+	if runtimeCalls.Load() != 0 {
 		t.Fatal("a refused binding allocated a runtime")
 	}
 	s.mu.RLock()

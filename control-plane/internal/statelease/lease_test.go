@@ -1,4 +1,4 @@
-//go:build linux
+//go:build linux || darwin
 
 package statelease
 
@@ -43,7 +43,10 @@ func TestLeaseBlocksSecondWriterAndSurvivesHolderExit(t *testing.T) {
 func TestLeaseRejectsLinksAndBroadPermissions(t *testing.T) {
 	for _, kind := range []string{"linked-root", "linked-parent", "linked-file", "hardlinked-file", "public-root", "public-file"} {
 		t.Run(kind, func(t *testing.T) {
-			parent := t.TempDir()
+			parent, err := filepath.EvalSymlinks(t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
 			dir := filepath.Join(parent, "state")
 			if err := os.Mkdir(dir, 0700); err != nil {
 				t.Fatal(err)
@@ -123,7 +126,11 @@ func TestLeaseRefusesDeletedHostBeforeFreshBootstrap(t *testing.T) {
 
 func privateLeaseFixture(t *testing.T) string {
 	t.Helper()
-	dir := filepath.Join(t.TempDir(), "private-state")
+	parent, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(parent, "private-state")
 	if err := os.Mkdir(dir, 0700); err != nil {
 		t.Fatal(err)
 	}

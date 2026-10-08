@@ -367,6 +367,13 @@ func (s *Server) branchSnapshot(ctx context.Context, root string, p project.Proj
 		}
 	}
 	s.mu.RUnlock()
+	if s.projectCheckRuntime.Busy != nil {
+		busy, err := s.projectCheckRuntime.Busy(ctx, p.ID)
+		if err != nil {
+			return result, err
+		}
+		busySource = busySource || busy
+	}
 	switch {
 	case result.Commit == "":
 		result.Message = "Create the first commit in Git before creating or switching branches."

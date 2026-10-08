@@ -1,0 +1,167 @@
+{
+  "exitCode": 1,
+  "startedAt": "2026-10-08T19:10:04.478506+00:00",
+  "endedAt": "2026-10-08T19:29:52.451995+00:00",
+  "wallSeconds": 1187.9736540149897,
+  "counts": {
+    "pass": 3187,
+    "fail": 1,
+    "skip": 29
+  },
+  "packages": [
+    {
+      "package": "github.com/lcfrai/luci/control-plane/cmd/api",
+      "action": "pass",
+      "elapsed": 2.826
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "action": "fail",
+      "elapsed": 223.464
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/assistance",
+      "action": "pass",
+      "elapsed": 1.6139999999999999
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/backend",
+      "action": "pass",
+      "elapsed": 8.073
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/backend/dockerbe",
+      "action": "pass",
+      "elapsed": 3.957
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/backend/katabe",
+      "action": "pass",
+      "elapsed": 3.743
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/conversationpath",
+      "action": "pass",
+      "elapsed": 1.028
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/diagnostics",
+      "action": "pass",
+      "elapsed": 1.329
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/gitcommand",
+      "action": "skip",
+      "elapsed": 0.001
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/gitfixture",
+      "action": "pass",
+      "elapsed": 1.028
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/harness",
+      "action": "pass",
+      "elapsed": 1.03
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/hostpath",
+      "action": "pass",
+      "elapsed": 1.039
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/httpx",
+      "action": "pass",
+      "elapsed": 1.289
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/ids",
+      "action": "pass",
+      "elapsed": 1.014
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/instance",
+      "action": "pass",
+      "elapsed": 1.044
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/management",
+      "action": "pass",
+      "elapsed": 202.333
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/platform",
+      "action": "pass",
+      "elapsed": 45.525
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/previewgateway",
+      "action": "pass",
+      "elapsed": 1.163
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/product",
+      "action": "pass",
+      "elapsed": 543.104
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/project",
+      "action": "pass",
+      "elapsed": 13.945
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/proxy",
+      "action": "pass",
+      "elapsed": 1.062
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/reaper",
+      "action": "pass",
+      "elapsed": 1.8719999999999999
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/registry",
+      "action": "pass",
+      "elapsed": 2.757
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/registry/registrytest",
+      "action": "skip",
+      "elapsed": 0
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/resourcebudget",
+      "action": "pass",
+      "elapsed": 1.095
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/sandbox",
+      "action": "pass",
+      "elapsed": 1.059
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/statelease",
+      "action": "pass",
+      "elapsed": 1.1400000000000001
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/statepath",
+      "action": "pass",
+      "elapsed": 1.094
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/worktree",
+      "action": "pass",
+      "elapsed": 1.065
+    }
+  ],
+  "failures": [
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "test": "TestProjectCheckHTTPRechecksRevokedAuthorityBeforeCreate"
+    }
+  ],
+  "inputsUnchanged": true,
+  "inputCount": 798,
+  "scope": "actual checkout controlled source tests, no live Docker/model acceptance"
+}

@@ -10,11 +10,9 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -28,12 +26,21 @@ type CheckCommand struct {
 }
 type CheckCommandResult struct {
 	CheckCommand
-	Status    string `json:"status"`
-	ExitCode  *int   `json:"exitCode,omitempty"`
-	Output    string `json:"output"`
-	Truncated bool   `json:"truncated"`
+	AllocationID     string `json:"allocationId,omitempty"`
+	Stage            string `json:"stage,omitempty"`
+	ReasonCode       string `json:"reasonCode,omitempty"`
+	Message          string `json:"message,omitempty"`
+	CleanupConfirmed bool   `json:"cleanupConfirmed"`
+	Status           string `json:"status"`
+	ExitCode         *int   `json:"exitCode,omitempty"`
+	Output           string `json:"output"`
+	Truncated        bool   `json:"truncated"`
 }
 type ProjectCheckRun struct {
+	Revision              int                          `json:"revision,omitempty"`
+	ResourcesHeld         *bool                        `json:"resourcesHeld"`
+	Stage                 string                       `json:"stage,omitempty"`
+	ReasonCode            string                       `json:"reasonCode,omitempty"`
 	ID                    string                       `json:"id"`
 	ProjectID             string                       `json:"projectId"`
 	Commit                string                       `json:"commit"`
@@ -59,6 +66,7 @@ type ProjectCheckRun struct {
 	ApprovalSelection     *ProjectRunApprovalSelection `json:"approvalSelection,omitempty"`
 }
 type projectCheckJob struct {
+	actor  management.ExecutionActorRef
 	run    ProjectCheckRun
 	cancel context.CancelFunc
 }
@@ -115,7 +123,7 @@ func (s *Server) readCheckHistory(id string) ([]ProjectCheckRun, error) {
 		if rows[i].Status == "running" || rows[i].Status == "queued" {
 			if _, alive := s.projectChecks[rows[i].ID]; !alive {
 				rows[i].Status = "unknown"
-				rows[i].Message = "The service restarted before this run finished. Rerun checks to obtain current evidence."
+				rows[i].Message = "The service restarted before this run finished. Its recorded command output is retained; no command will be replayed. Inspect retained execution before approving another run."
 			}
 		}
 	}
@@ -143,7 +151,38 @@ func (s *Server) storeCheckRun(row ProjectCheckRun) error {
 		rows = append([]ProjectCheckRun{row}, rows...)
 	}
 	if len(rows) > 20 {
-		rows = rows[:20]
+		keep := make([]ProjectCheckRun, 0, 20)
+		for _, candidate := range rows {
+			if candidate.Status == "queued" || candidate.Status == "running" || candidate.Status == "unknown" || candidate.ResourcesHeld != nil && *candidate.ResourcesHeld {
+				keep = append(keep, candidate)
+			}
+		}
+		if len(keep) > 20 {
+			return errors.New("Check history contains too many unresolved runs; review their retained execution before starting another check.")
+		}
+		for _, candidate := range rows {
+			if len(keep) >= 20 {
+				break
+			}
+			found := false
+			for _, existing := range keep {
+				if existing.ID == candidate.ID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				keep = append(keep, candidate)
+			}
+		}
+		retained := false
+		for _, candidate := range keep {
+			retained = retained || candidate.ID == row.ID
+		}
+		if !retained {
+			return errors.New("Check history has no safe slot for this result; unresolved execution must remain retained.")
+		}
+		rows = keep
 	}
 	return atomicJSON(s.checkHistoryPath(row.ProjectID), rows)
 }
@@ -154,7 +193,7 @@ func (s *Server) listProjectChecks(w http.ResponseWriter, r *http.Request) {
 	}
 	coverage, rows, err := s.readProjectEvidence(r.Context(), p.ID, p.Path)
 	if err != nil {
-		problem(w, 500, "checks_unavailable", err.Error())
+		problem(w, 500, "checks_unavailable", "The saved check evidence could not be read safely.")
 		return
 	}
 	suggested := []CheckCommand{}
@@ -175,7 +214,7 @@ func (s *Server) getProjectCheck(w http.ResponseWriter, r *http.Request) {
 	}
 	_, rows, err := s.readProjectEvidence(r.Context(), p.ID, p.Path)
 	if err != nil {
-		problem(w, 500, "checks_unavailable", err.Error())
+		problem(w, 500, "checks_unavailable", "The saved check evidence could not be read safely.")
 		return
 	}
 	for _, row := range rows {
@@ -217,7 +256,7 @@ func (s *Server) startProjectChecks(w http.ResponseWriter, r *http.Request) {
 		problem(w, 400, "invalid_execution", "Choose Docker execution.")
 		return
 	}
-	actor, policy, managed := management.ActorFromContext(r.Context())
+	_, policy, managed := management.ActorFromContext(r.Context())
 	memory, cpu := 1024, 1000
 	if managed {
 		memory = policy.CheckMemoryMiB
@@ -235,19 +274,28 @@ func (s *Server) startProjectChecks(w http.ResponseWriter, r *http.Request) {
 	if cpu > s.checkCPUMillis {
 		cpu = s.checkCPUMillis
 	}
-	if req.Execution == "host" && (!managed || actor.Role != "super-admin" || !policy.AllowHostCommands) {
-		problem(w, 403, "host_execution_disabled", "Host commands require a Super Admin and an enabled host-command policy.")
+	if req.Execution == "host" {
+		problem(w, 400, "host_check_resource_limits_unsupported", "Run these checks in Docker to enforce resource limits.")
 		return
 	}
 	p, ok := s.requestProject(w, r)
 	if !ok {
 		return
 	}
+	if s.projectCheckRuntime.CaptureActor == nil || s.projectCheckRuntime.Execute == nil {
+		problem(w, 503, "check_execution_unavailable", "The shared check execution runtime is not ready. No command was started.")
+		return
+	}
+	executionActor, actorErr := s.projectCheckRuntime.CaptureActor(r.Context(), p.ID)
+	if actorErr != nil {
+		problem(w, 403, "check_execution_forbidden", management.ErrExecutionAuthority.Error())
+		return
+	}
 	captureCtx, captureCancel := context.WithTimeout(r.Context(), 20*time.Second)
 	defer captureCancel()
 	digest, commit, dirty, err := s.checkSource(captureCtx, p.Path)
 	if err != nil {
-		problem(w, 422, "source_unavailable", err.Error())
+		problem(w, 422, "source_unavailable", "The project source could not be captured safely. No check command was started.")
 		return
 	}
 	s.mu.Lock()
@@ -284,7 +332,8 @@ func (s *Server) startProjectChecks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-	row := ProjectCheckRun{ID: newID("check-"), ProjectID: p.ID, Commit: commit, Dirty: dirty, Execution: req.Execution, SourceDigest: digest, Status: "queued", Commands: []CheckCommandResult{}, CreatedAt: time.Now().UTC().Format(time.RFC3339Nano), Message: "Commands are queued. Task completion remains independent of check evidence."}
+	held := false
+	row := ProjectCheckRun{Revision: 1, ResourcesHeld: &held, ID: newID("check-"), ProjectID: p.ID, Commit: commit, Dirty: dirty, Execution: req.Execution, SourceDigest: digest, Status: "queued", Commands: []CheckCommandResult{}, CreatedAt: time.Now().UTC().Format(time.RFC3339Nano), Message: "Commands are queued. Task completion remains independent of check evidence."}
 	row.RequirementIDs, row.RequirementSnapshots = binding.RequirementIDs, binding.RequirementSnapshots
 	row.SpecificationRevision, row.SpecificationDigest = binding.SpecificationRevision, binding.SpecificationDigest
 	row.DesignPlanRevision, row.DesignPlanDigest = binding.DesignPlanRevision, binding.DesignPlanDigest
@@ -304,33 +353,46 @@ func (s *Server) startProjectChecks(w http.ResponseWriter, r *http.Request) {
 	row.UpdatedAt = row.CreatedAt
 	for _, c := range req.Commands {
 		c.Args = append([]string{}, c.Args...)
-		row.Commands = append(row.Commands, CheckCommandResult{CheckCommand: c, Status: "queued", Output: ""})
+		row.Commands = append(row.Commands, CheckCommandResult{CheckCommand: c, AllocationID: newID("checkexec-"), Status: "queued", Output: ""})
 	}
 	if s.projectChecks == nil {
 		s.projectChecks = map[string]*projectCheckJob{}
 	}
-	job := &projectCheckJob{run: snapshotProjectCheck(row), cancel: cancel}
+	job := &projectCheckJob{run: snapshotProjectCheck(row), cancel: cancel, actor: executionActor}
 	s.projectChecks[row.ID] = job
 	if err = s.storeCheckRun(row); err != nil {
 		delete(s.projectChecks, row.ID)
 		cancel()
 		s.mu.Unlock()
-		problem(w, 500, "check_reservation_failed", err.Error())
+		problem(w, 500, "check_reservation_failed", "The approved check could not be saved. No check command was started.")
 		return
 	}
 	s.mu.Unlock()
 	writeJSON(w, 202, row)
 	go s.runProjectChecks(ctx, job, p.Path)
 }
-func (s *Server) updateProjectCheck(job *projectCheckJob, fn func(*ProjectCheckRun)) {
+func (s *Server) updateProjectCheck(job *projectCheckJob, fn func(*ProjectCheckRun), final ...bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	fn(&job.run)
+	job.run.Revision++
 	job.run.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	if err := s.storeCheckRun(job.run); err != nil {
-		job.run.Message = "Check evidence could not be saved. Rerun after resolving storage: " + err.Error()
+		job.run.Message = "Check evidence could not be saved. Inspect the retained exact attempt after resolving private storage; no command will be replayed."
 		job.run.Status = "unknown"
+		return err
 	}
+	if len(final) > 0 && final[0] {
+		// Final source comparison and result publication are complete before
+		// a new check may begin. Remaining ledger ACK work cannot execute or
+		// modify project files and may be retried by the background observer.
+		if job.cancel != nil {
+			job.cancel()
+		}
+		job.cancel = nil
+		delete(s.projectChecks, job.run.ID)
+	}
+	return nil
 }
 func (s *Server) runProjectChecks(ctx context.Context, job *projectCheckJob, dir string) {
 	defer func() {
@@ -342,69 +404,50 @@ func (s *Server) runProjectChecks(ctx context.Context, job *projectCheckJob, dir
 		delete(s.projectChecks, job.run.ID)
 		s.mu.Unlock()
 	}()
-	s.updateProjectCheck(job, func(row *ProjectCheckRun) { row.Status = "running"; row.Message = "Running trusted project commands." })
+	if err := s.updateProjectCheck(job, func(row *ProjectCheckRun) {
+		row.Status = "running"
+		row.Stage = "admission"
+		row.Message = "Checking current authority and shared machine capacity."
+	}); err != nil {
+		return
+	}
 	final := "passed"
-	for i, c := range job.run.Commands {
+	for index, command := range job.run.Commands {
 		if ctx.Err() != nil {
 			final = "cancelled"
 			break
 		}
-		s.updateProjectCheck(job, func(row *ProjectCheckRun) { row.Commands[i].Status = "running" })
-		name, args := c.Executable, c.Args
-		container := "luci-check-" + job.run.ID + "-" + strconv.Itoa(i)
-		if job.run.Execution == "docker" {
-			name = "docker"
-			args = []string{"run", "--rm", "--init", "--name", container, "--label", "luci.check=true", "--label", "luci.check-id=" + job.run.ID, "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--cpus", strconv.FormatFloat(float64(job.run.CPUMillis)/1000, 'f', 3, 64), "--memory", strconv.Itoa(job.run.MemoryMiB) + "m", "--pids-limit", "256", "--tmpfs", "/tmp:rw,nosuid,nodev,size=1g", "--env", "HOME=/tmp", "--env", "GOCACHE=/tmp/go-cache", "--env", "GOMODCACHE=/tmp/go-mod", "--env", "npm_config_cache=/tmp/npm-cache", "--mount", "type=bind,src=" + dir + ",dst=/workspace", "--workdir", "/workspace"}
-			uid, gid := os.Getuid(), os.Getgid()
-			if uid < 0 {
-				uid = 1001
-			}
-			if gid < 0 {
-				gid = 1001
-			}
-			args = append(args, "--user", fmt.Sprintf("%d:%d", uid, gid), "--entrypoint", c.Executable, s.sandboxImage)
-			args = append(args, c.Args...)
+		i := index
+		if err := s.updateProjectCheck(job, func(row *ProjectCheckRun) { row.Commands[i].Status = "running"; row.Commands[i].Stage = "admission" }); err != nil {
+			return
 		}
-		output, err := s.runner(ctx, name, args, dir)
-		if job.run.Execution == "docker" {
-			cleanup, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			_, _ = s.runner(cleanup, "docker", []string{"rm", "--force", container}, "")
-			cancel()
+		req := ProjectCheckCommandRequest{ProjectID: job.run.ProjectID, CheckID: job.run.ID, CommandIndex: i, AllocationID: command.AllocationID, SourceDirectory: dir, SourceDigest: job.run.SourceDigest, Command: command.CheckCommand, MemoryMiB: job.run.MemoryMiB, CPUMillis: job.run.CPUMillis, Actor: job.actor}
+		outcome, err := s.projectCheckRuntime.Execute(ctx, req, func(value ProjectCheckCommandOutcome) error { return s.recordProjectCheckCommand(job, i, value) })
+		if errors.Is(err, ErrProjectCheckSuperseded) {
+			return
 		}
-		code := 0
-		status := "passed"
 		if err != nil {
-			status = "failed"
-			code = -1
-			var exit *exec.ExitError
-			if errors.As(err, &exit) {
-				code = exit.ExitCode()
+			final = "unknown"
+			s.updateProjectCheck(job, func(row *ProjectCheckRun) {
+				row.Status = "unknown"
+				row.Stage = "execution"
+				row.ReasonCode = "check_execution_unconfirmed"
+				row.Message = "The check execution or result publication is unconfirmed. Its exact attempt is retained for inspection and recovery."
+			})
+			break
+		}
+		if outcome.Status != "passed" || !outcome.CleanupConfirmed {
+			final = outcome.Status
+			if !outcome.CleanupConfirmed && outcome.Status != "blocked" {
+				final = "unknown"
 			}
-			output += "\n" + err.Error()
-			final = "failed"
-		}
-		if ctx.Err() != nil {
-			status = "cancelled"
-			final = "cancelled"
-		}
-		truncated := len(output) > maxCheckOutput
-		if truncated {
-			output = output[:maxCheckOutput]
-		}
-		s.updateProjectCheck(job, func(row *ProjectCheckRun) {
-			row.Commands[i].Status = status
-			row.Commands[i].ExitCode = &code
-			row.Commands[i].Output = output
-			row.Commands[i].Truncated = truncated
-		})
-		if final != "passed" {
 			break
 		}
 	}
 	sourceCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	after, afterCommit, _, sourceErr := s.checkSource(sourceCtx, dir)
 	cancel()
-	s.updateProjectCheck(job, func(row *ProjectCheckRun) {
+	if err := s.updateProjectCheck(job, func(row *ProjectCheckRun) {
 		row.Status = final
 		row.SourceChanged = sourceErr != nil || after != row.SourceDigest || afterCommit != row.Commit
 		for i := range row.Commands {
@@ -412,21 +455,29 @@ func (s *Server) runProjectChecks(ctx context.Context, job *projectCheckJob, dir
 				row.Commands[i].Status = "skipped"
 			}
 		}
-		row.Message = "Commands finished with recorded exit codes. This does not automatically verify the brief's completion criteria."
-		if row.SourceChanged {
-			row.Message += " Project source changed during this run; rerun against the final source."
-			if final == "passed" {
-				row.Status = "unknown"
-			}
+		if final == "passed" || final == "failed" {
+			row.Message = "Commands finished with recorded exit codes and confirmed cleanup. This does not automatically verify completion criteria."
 		}
-		if ctx.Err() == context.DeadlineExceeded {
-			row.Message = "The ten-minute run limit was reached."
+		if row.SourceChanged && final == "passed" {
+			row.Status = "unknown"
+			row.Message = "Project source changed during this run; rerun against the final source."
 		}
-	})
+	}, true); err != nil {
+		return
+	}
+	if s.projectCheckRuntime.AcknowledgeCompleted != nil {
+		ack, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		_ = s.projectCheckRuntime.AcknowledgeCompleted(ack, job.run.ProjectID, job.run.ID)
+		cancel()
+	}
 }
 func (s *Server) cancelProjectCheck(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.requestProject(w, r)
 	if !ok {
+		return
+	}
+	if s.projectCheckRuntime.AuthorizeControl == nil || s.projectCheckRuntime.AuthorizeControl(r.Context(), p.ID) != nil {
+		problem(w, 403, "check_control_forbidden", "Current project edit permission is required to stop this check.")
 		return
 	}
 	s.mu.Lock()
@@ -447,6 +498,10 @@ func (s *Server) cancelProjectCheck(w http.ResponseWriter, r *http.Request) {
 // Caller holds s.mu. HTTP encoding happens after releasing it, so mutable
 // command results and their nested values must not remain shared with a worker.
 func snapshotProjectCheck(row ProjectCheckRun) ProjectCheckRun {
+	if row.ResourcesHeld != nil {
+		v := *row.ResourcesHeld
+		row.ResourcesHeld = &v
+	}
 	if row.ApprovalSelection != nil {
 		selection := *row.ApprovalSelection
 		row.ApprovalSelection = &selection

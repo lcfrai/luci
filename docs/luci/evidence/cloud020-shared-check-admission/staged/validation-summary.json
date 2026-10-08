@@ -1,0 +1,176 @@
+{
+  "issue": "CLOUD-020",
+  "scope": "External Go overlay only; nothing applied to checkout; no Docker daemon, image, browser or installed-runtime acceptance",
+  "status": "needs adapter corrections; API/product/management/cmd selected regressions passed, full affected packages not yet verified",
+  "reports": [
+    {
+      "name": "diagnostic-1",
+      "report": {
+        "exitCode": 1,
+        "startedAt": "2026-10-08T18:03:31.797922+00:00",
+        "endedAt": "2026-10-08T18:08:19.377851+00:00",
+        "wallSeconds": 287.58,
+        "counts": {
+          "pass": 142,
+          "fail": 3,
+          "skip": 0
+        },
+        "packages": [
+          {
+            "package": "github.com/lcfrai/luci/control-plane/internal/backend/dockerbe",
+            "action": "fail",
+            "elapsed": 0
+          },
+          {
+            "package": "github.com/lcfrai/luci/control-plane/internal/management",
+            "action": "pass",
+            "elapsed": 1.213
+          },
+          {
+            "package": "github.com/lcfrai/luci/control-plane/internal/api",
+            "action": "pass",
+            "elapsed": 11.068
+          },
+          {
+            "package": "github.com/lcfrai/luci/control-plane/internal/product",
+            "action": "fail",
+            "elapsed": 7.443
+          },
+          {
+            "package": "github.com/lcfrai/luci/control-plane/cmd/api",
+            "action": "pass",
+            "elapsed": 1.17
+          }
+        ],
+        "failures": [
+          {
+            "package": "github.com/lcfrai/luci/control-plane/internal/product",
+            "test": "TestProjectCheckHTTPSharedContract"
+          },
+          {
+            "package": "github.com/lcfrai/luci/control-plane/internal/product",
+            "test": "TestProjectChecksRunActualProcessAndPersistEvidence"
+          },
+          {
+            "package": "github.com/lcfrai/luci/control-plane/internal/product",
+            "test": "TestProductRegisteredReadsCannotMutateProjectsOrStartResources"
+          }
+        ],
+        "skips": [],
+        "inputCount": 818,
+        "inputsUnchanged": true,
+        "headBefore": "4e7d5fe4eaeeaa492cde94f22e51081cdb7a1b5e",
+        "headAfter": "4e7d5fe4eaeeaa492cde94f22e51081cdb7a1b5e",
+        "overlaySha256": "560be2f5cc48d8e8a3a2e33a930f2654f3defde54db7577ad630484c47dd89d4",
+        "goldenEmitted": true
+      },
+      "packageTestOutcomes": {
+        "github.com/lcfrai/luci/control-plane/internal/management": {
+          "pass": 41
+        },
+        "github.com/lcfrai/luci/control-plane/internal/api": {
+          "pass": 77
+        },
+        "github.com/lcfrai/luci/control-plane/internal/product": {
+          "pass": 21,
+          "fail": 3
+        },
+        "github.com/lcfrai/luci/control-plane/cmd/api": {
+          "pass": 3
+        }
+      },
+      "reportSha256": "b32bd415cd171fa10b07fe5c796b8e8cdd985742863236a5a43a0c59d218414d"
+    },
+    {
+      "name": "diagnostic-2",
+      "report": {
+        "exitCode": 1,
+        "startedAt": "2026-10-08T18:20:18.089617+00:00",
+        "endedAt": "2026-10-08T18:22:00.106679+00:00",
+        "wallSeconds": 102.017,
+        "counts": {
+          "pass": 219,
+          "fail": 4,
+          "skip": 0
+        },
+        "packages": [
+          {
+            "package": "github.com/lcfrai/luci/control-plane/internal/backend/dockerbe",
+            "action": "fail",
+            "elapsed": 5.555
+          },
+          {
+            "package": "github.com/lcfrai/luci/control-plane/internal/management",
+            "action": "pass",
+            "elapsed": 1.621
+          },
+          {
+            "package": "github.com/lcfrai/luci/control-plane/internal/api",
+            "action": "pass",
+            "elapsed": 17.767
+          },
+          {
+            "package": "github.com/lcfrai/luci/control-plane/internal/product",
+            "action": "pass",
+            "elapsed": 11.869
+          },
+          {
+            "package": "github.com/lcfrai/luci/control-plane/cmd/api",
+            "action": "pass",
+            "elapsed": 1.109
+          }
+        ],
+        "failures": [
+          {
+            "package": "github.com/lcfrai/luci/control-plane/internal/backend/dockerbe",
+            "test": "TestCheckSDKWirePinsImageLimitsAndImmutableLifecycle"
+          },
+          {
+            "package": "github.com/lcfrai/luci/control-plane/internal/backend/dockerbe",
+            "test": "TestCheckAmbiguousCreateAndStartNeverRetryOrCleanImplicitly"
+          },
+          {
+            "package": "github.com/lcfrai/luci/control-plane/internal/backend/dockerbe",
+            "test": "TestCheckLogsPreserveStreamsAndBoundHugeDeclaredFrames"
+          },
+          {
+            "package": "github.com/lcfrai/luci/control-plane/internal/backend/dockerbe",
+            "test": "TestCheckLogsCancellationClosesOwnedReader"
+          }
+        ],
+        "skips": [],
+        "inputCount": 820,
+        "inputsUnchanged": true,
+        "headBefore": "4e7d5fe4eaeeaa492cde94f22e51081cdb7a1b5e",
+        "headAfter": "4e7d5fe4eaeeaa492cde94f22e51081cdb7a1b5e",
+        "overlaySha256": "03e982fcc691b36221f8747720a3d55b08ac3fcb4f23722a222306ed3e5c9a7a",
+        "goldenEmitted": true
+      },
+      "packageTestOutcomes": {
+        "github.com/lcfrai/luci/control-plane/internal/backend/dockerbe": {
+          "pass": 70,
+          "fail": 4
+        },
+        "github.com/lcfrai/luci/control-plane/internal/management": {
+          "pass": 41
+        },
+        "github.com/lcfrai/luci/control-plane/internal/api": {
+          "pass": 81
+        },
+        "github.com/lcfrai/luci/control-plane/internal/product": {
+          "pass": 24
+        },
+        "github.com/lcfrai/luci/control-plane/cmd/api": {
+          "pass": 3
+        }
+      },
+      "reportSha256": "4a40d3428f5b90480f55d6ad189e8f5000a124defd0fc0f8e59affb7f47efbc3"
+    }
+  ],
+  "golden": {
+    "path": "tree/control-plane/internal/product/testdata/project-check-http.json",
+    "sha256": "1dc6700c476d58fb5b6624525bb04150010e0c5aad30c116b887d3e07a6a9a54",
+    "actualEmittedEqualsExpected": true
+  },
+  "local012": "TestSwarmTerminalCleanupRestartBeforeWaitingProjectAdmission passed on overlay; original regression unchanged; separate source publication remains parent-owned"
+}

@@ -1,6 +1,5 @@
-//go:build linux
+//go:build linux || darwin
 
-// Package statelease keeps offline host snapshots separate from live writers.
 package statelease
 
 import (
@@ -13,8 +12,6 @@ import (
 
 	"golang.org/x/sys/unix"
 )
-
-const FileName = ".luci-state.lock"
 
 // Acquire takes an exclusive, process-held advisory lock without following path
 // links. The operator recovery tool uses the same flock protocol. Never unlink
@@ -62,7 +59,7 @@ func Acquire(dir, releaseVersion string) (*os.File, error) {
 	} else if !errors.Is(err, unix.ENOENT) {
 		return nil, err
 	}
-	lockFD, err := unix.Openat(fd, FileName, unix.O_RDWR|unix.O_CREAT|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0600)
+	lockFD, err := unix.Openat(fd, FileName, unix.O_RDWR|unix.O_CREAT|unix.O_CLOEXEC|unix.O_NOFOLLOW|unix.O_NONBLOCK, 0600)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +78,7 @@ func Acquire(dir, releaseVersion string) (*os.File, error) {
 		return nil, errors.New("state lease must be an owned private regular file")
 	}
 	if err := unix.Flock(lockFD, unix.LOCK_EX|unix.LOCK_NB); err != nil {
-		return nil, errors.New("state is in use by another Luci process or offline recovery operation")
+		return nil, fmt.Errorf("%w: %v", ErrInUse, err)
 	}
 	data, _ := json.Marshal(struct {
 		Version        int    `json:"version"`

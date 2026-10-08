@@ -1,0 +1,41 @@
+{
+  "status": "Final applied frontend bytes: affected source/component/type checks and controlled browser witness completed",
+  "base": {
+    "desktop/src/components/journey/CheckRecoveryDialog.test.tsx": "096d3303e1576ec76d99d42a0a77ee1c2d22b598b832a47343d76ec278e74ee3",
+    "desktop/src/components/journey/CheckRecoveryDialog.tsx": "416b1d834c111d92d3020f1de035dd61293a2fd236d434c6d7a890bd106370f3",
+    "desktop/src/components/journey/check-recovery.css": "3dee0a34e4f2b0c4c4e6e57cbbc95862d1168be402f884c71009462f48aee9d3",
+    "desktop/src/components/journey/requirements.test.tsx": "5df810fff12f094ba436dff17e55f2be9575c414ef74fbea995e1c329dc9c26b"
+  },
+  "staged": {
+    "desktop/src/api/product.test.ts": "017d3ece82d991d6c65a2adb0c4766a4bd3f65dbdd1c07fb8d087c529d4deb79",
+    "desktop/src/api/product.ts": "d6d8bda455d20cdf660976f7ca58d38967048780d6fc385ecdd07c7493329240",
+    "desktop/src/api/projectCheckContracts.test.ts": "810f825797c6fd9ba7b6a905dc771a3f30d2659d73d825282c219a550166c505",
+    "desktop/src/api/projectCheckContracts.ts": "a867975812649df56a5d3af2a0726684a90990fe12f8ddf075f88a24e4d85b16",
+    "desktop/src/components/journey/CheckRecoveryDialog.test.tsx": "266d18ce09b185c4fbf8c1691c6b7083d942a3513b93e32223cc8c6bc0883462",
+    "desktop/src/components/journey/CheckRecoveryDialog.tsx": "88d5dea885ba8d019548580e096031cbccf5d06516d2a0937960683ba0d8323e",
+    "desktop/src/components/journey/ProjectChecks.test.tsx": "7ac0b841e7689f0b988bdece4c0cb7c98c2f5656a0a48da40a56389e5f8a338e",
+    "desktop/src/components/journey/ProjectChecks.tsx": "fa7c138ff4fa81bdd523bd8ae939c3186dc3b17758e9472010b9960dc8e8bb48",
+    "desktop/src/components/journey/RequirementsEvidence.tsx": "3c2a92c046a5e94ab255783412b54d951104f73c66c2ddebd421c0ace950d798",
+    "desktop/src/components/journey/check-recovery.css": "fab29691f6a93a1fb0360559f749ed29885d63c1ff0817a02596b6be29c66fa3",
+    "desktop/src/test/checkFixtures.ts": "7531d2736874d2985caf0bbc82df065cc36ce12c4dd6ada325b4571db95d0f42",
+    "desktop/src/components/journey/requirements.test.tsx": "39ea67242092dbf34e04f544017fc6fe7ae38ef7f3e05d7ab63a13a44892792d"
+  },
+  "correctionFiles": {
+    "desktop/src/components/journey/CheckRecoveryDialog.test.tsx": "266d18ce09b185c4fbf8c1691c6b7083d942a3513b93e32223cc8c6bc0883462",
+    "desktop/src/components/journey/CheckRecoveryDialog.tsx": "88d5dea885ba8d019548580e096031cbccf5d06516d2a0937960683ba0d8323e",
+    "desktop/src/components/journey/check-recovery.css": "fab29691f6a93a1fb0360559f749ed29885d63c1ff0817a02596b6be29c66fa3",
+    "desktop/src/components/journey/requirements.test.tsx": "39ea67242092dbf34e04f544017fc6fe7ae38ef7f3e05d7ab63a13a44892792d"
+  },
+  "sharedGoldenSHA256": "1dc6700c476d58fb5b6624525bb04150010e0c5aad30c116b887d3e07a6a9a54",
+  "retainedBaseline": "../browser-attempt-2/result.json",
+  "sourceScope": "CLOUD023 pending recovery focus region and regression; token-layer-first CSS import; meaningful Edit-only cancellation requirements regression",
+  "notAppliedToCheckout": false,
+  "contractMirror": "Root separately synchronized only contract section2 TypeScript fence to unchanged desktop/src/store/types.ts; original mismatch confirmed at4e7d5fe4.",
+  "validation": {
+    "focused1": "../correction-diagnostic-1/result.json",
+    "focused2": "../correction-diagnostic-2/result.json",
+    "scope": "First batch170/173 retained; unchanged ProjectChecks/design-system/seams tests pass. Only corrected recovery-dialog/requirements test files rerun24/24 plus fulltsc pass. No full-frontend rerun claim.",
+    "browser4": "../browser-attempt-4/result.json",
+    "browserScope": "34 controlled AppShell source checkpoints and17 screenshots; no installed/native/backend/Docker proof."
+  }
+}

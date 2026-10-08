@@ -1,0 +1,15 @@
+{
+  "command": [
+    "node",
+    "/workspace/.luci-tools/cloud020-ui/browser-preparation/source-browser.mjs",
+    "/workspace/.luci-tools/cloud020-ui/browser-attempt-1"
+  ],
+  "environment": {
+    "LUCI_CLOUD020_BROWSER_RELEASE": "1",
+    "LUCI_CHECK_UI_REPO": "/workspace/luci",
+    "LUCI_CHROMIUM_EXECUTABLE": "/usr/bin/chromium",
+    "LUCI_BROWSER_STATE_ROOT": "/workspace/.luci-tools/cloud020-ui/browser-state"
+  },
+  "helpersArchived": "helper-source",
+  "scope": "Controlled source API callbacks; no Docker or native execution"
+}

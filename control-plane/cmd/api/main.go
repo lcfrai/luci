@@ -100,7 +100,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	cfg.ExecutionStateDir = executionStateDir
 	lease, err := acquireManagedStateLease(cfg)
 	if err != nil {
-		return fmt.Errorf("acquire managed host state: %w", err)
+		return fmt.Errorf("acquire Luci state: %w", err)
 	}
 	if lease != nil {
 		defer lease.Close()
@@ -284,6 +284,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	go func() { defer close(samplesDone); sampler.Run(sampleCtx) }()
 	defer func() { stopSamples(); <-samplesDone }()
 	var executionAuthority management.ExecutionAuthorizer
+	var checkAuthority management.CheckAuthorizer
 	var executionControlAuthority management.ExecutionControlAuthorizer
 	var executionReady atomic.Bool
 	if cfg.Worker {
@@ -291,6 +292,10 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		executionAuthority, err = management.NewFileExecutionAuthorizer(scope)
 		if err != nil {
 			return fmt.Errorf("initialize current execution authority: %w", err)
+		}
+		checkAuthority, err = management.NewFileCheckAuthorizer(scope)
+		if err != nil {
+			return fmt.Errorf("initialize current check authority: %w", err)
 		}
 		executionControlAuthority, err = management.NewFileExecutionControlAuthorizer(scope)
 		if err != nil {
@@ -304,6 +309,12 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		ResourceSnapshot:       sampler.Latest,
 		ExecutionReady:         executionReady.Load,
 		ManagedExecution:       cfg.Worker,
+		AuthorizeChecks: func(ctx context.Context, ref management.ExecutionActorRef) (management.ExecutionAuthority, error) {
+			if !executionReady.Load() || checkAuthority == nil {
+				return management.ExecutionAuthority{}, management.ErrExecutionAuthority
+			}
+			return checkAuthority(ctx, ref)
+		},
 		AuthorizeExecutionControl: func(ctx context.Context, ref management.ExecutionActorRef) error {
 			if !executionReady.Load() || executionControlAuthority == nil {
 				return management.ErrExecutionAuthority
@@ -387,6 +398,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 			return fmt.Errorf("initialise control-plane management: %w", err)
 		}
 		executionAuthority = control.AuthorizeExecution
+		checkAuthority = control.AuthorizeChecks
 		executionControlAuthority = control.AuthorizeExecutionControl
 		executionReady.Store(true)
 		defer func() {

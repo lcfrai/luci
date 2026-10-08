@@ -77,7 +77,7 @@ func validExecutionFenceRecord(record executionFenceRecord) bool {
 	}
 }
 func validateExecutionFenceRecords(ledger executionLeaseLedger) error {
-	if len(ledger.Fences) > backend.MaxLaunchFences {
+	if len(ledger.Fences)+len(ledger.CheckFences) > backend.MaxLaunchFences {
 		return errors.New("execution fence history exceeds its permanent host limit")
 	}
 	seen, children := map[string]bool{}, map[string]bool{}

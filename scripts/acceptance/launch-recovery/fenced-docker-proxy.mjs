@@ -9,6 +9,8 @@ const CREATE = /^\/v\d+\.\d+\/containers\/create$/;
 const OBJECT = /^\/v\d+\.\d+\/containers\/([a-f0-9]{64})(?:\/(start|stop|json|stats))?$/;
 const INSPECT = /^\/v\d+\.\d+\/containers\/[^/]+\/json$/;
 const CHECK_OBJECT = /^\/v\d+\.\d+\/containers\/([a-f0-9]{64}|luci-check-check-[a-f0-9]{24}-0)(?:\/(start|stop|attach|wait))?$/;
+const SDK_CHECK_OBJECT = /^\/v\d+\.\d+\/containers\/([a-f0-9]{64}|luci-check-checkexec-[a-f0-9]{24})(?:\/(start|stop|attach|wait|json|logs|stats))?$/;
+const SDK_CHECK_LABELS = ['luci.check','luci.check-protocol','luci.instance','luci.check-engine','luci.check-allocation','luci.check-id','luci.check-command-index','luci.check-scope','luci.check-project','luci.check-command-digest','luci.check-source-digest','luci.check-image'];
 const ALLOWED_LABELS = new Set(['luci.managed', 'luci.instance', 'luci.sandbox-id', 'luci.session-id', 'luci.project-id', 'luci.user-id', 'luci.team-id', 'luci.launch-fence', 'luci.fence-intent', 'luci.fence-binding']);
 const now = () => new Date().toISOString();
 const problem = code => Object.assign(new Error(code), { code });
@@ -34,8 +36,11 @@ export async function startFencedDockerProxy({
   maxBufferedResponseBytes = 1024 * 1024, maxResponseBytes = 64 * 1024 * 1024,
   maxConcurrentRequests = 16, maxPendingBodyBytes = 32 * 1024 * 1024,
   upstreamTimeoutMs = 120_000, holdTimeoutMs = 120_000,
-  allowCheckTraffic = false,
+  allowCheckTraffic = false, journal = null, checkTrafficProtocol = 'cli-v1',
 } = {}) {
+  if (!['cli-v1','sdk-ledger-v1'].includes(checkTrafficProtocol) || (checkTrafficProtocol !== 'cli-v1' && !allowCheckTraffic)) throw problem('explicit-check-protocol-required');
+  const sdkChecks = checkTrafficProtocol === 'sdk-ledger-v1';
+  if (journal !== null && typeof journal?.record !== 'function') throw problem('invalid-journal');
   if (!isAbsolute(socketPath ?? '') || !isAbsolute(upstreamSocketPath ?? '') || resolve(socketPath) === resolve(upstreamSocketPath)) throw problem('distinct-absolute-sockets-required');
   if (Buffer.byteLength(socketPath) >= 108 || Buffer.byteLength(join(dirname(socketPath), '.luci-fence-proxy-XXXXXX', 'docker.sock')) >= 108) throw problem('socket-path-too-long');
   if (typeof identifyCreate !== 'function' || typeof beforeCreate !== 'function') throw problem('explicit-create-guards-required');
@@ -60,12 +65,19 @@ export async function startFencedDockerProxy({
   server.on('connection', socket => { downstreamSockets.add(socket); socket.once('close', () => downstreamSockets.delete(socket)); socket.on('error', () => {}); });
   server.on('clientError', (_cause, socket) => socket.destroy());
 
+  let journalFailed = false;
+  function persist(event, row = {}, required = false) {
+    if (!journal) return;
+    try {journal.record(event, row);}
+    catch {journalFailed = true; failure('journal-write-failed', row); if (required) throw problem('journal-write-failed');}
+  }
   function failure(code, row) {
     if (!observations.failures.includes(code)) observations.failures.push(code);
     if (row) row.failure = code;
   }
   function localFailure(res, row, code, status = 503) {
     row.proxyStatus = status; row.completedAt ??= now(); failure(code, row);
+    if (!['GET', 'HEAD'].includes(row.method)) persist('request-failed', {...row, code});
     if (res.destroyed) return;
     if (res.headersSent) { res.destroy(); return; }
     const body = Buffer.from(JSON.stringify({ message: code }));
@@ -73,7 +85,7 @@ export async function startFencedDockerProxy({
   }
   function record(req) {
     const row = { method: req.method ?? 'GET', path: (req.url ?? '/').split('?')[0].replace(/[\x00-\x20\x7f]/g, '_').slice(0, 2048), requestedAt: now() };
-    observations.counts.total++;
+    observations.counts.total++; row.requestSequence = observations.counts.total;
     if (observations.requests.length >= maxObservations) { observations.dropped++; failure('observation-limit'); return row; }
     observations.requests.push(row); return row;
   }
@@ -148,7 +160,7 @@ export async function startFencedDockerProxy({
   }
   function checkObject(row) {
     if (!allowCheckTraffic) return null;
-    const found = CHECK_OBJECT.exec(row.path);
+    const found = (sdkChecks ? SDK_CHECK_OBJECT : CHECK_OBJECT).exec(row.path);
     if (!found) return null;
     let id = found[1], identity = knownContainers.get(id);
     if (!identity && id.startsWith('luci-check-')) {
@@ -166,6 +178,17 @@ export async function startFencedDockerProxy({
     const check = checkObject(row);
     if (!check) throw problem('unknown-check-identity');
     row.ref = check.id; row.kind = 'check'; row.name = check.identity.name; row.labels = check.identity.labels;
+    if (sdkChecks) {
+      if (upgrade || check.supplied !== check.id) throw problem('sdk-check-immutable-id-required');
+      if (row.method === 'GET' && check.action === 'json') queryShape(req, {});
+      else if (row.method === 'GET' && check.action === 'logs') queryShape(req, {stdout:['1'],stderr:['1'],tail:['all']}, {stdout:['1'],stderr:['1'],tail:['all']});
+      else if (row.method === 'POST' && check.action === 'start') {
+        queryShape(req, {});
+        if (++check.identity.startCount > 1 || ++observations.counts.start > maxStarts) throw problem('start-budget-exceeded');
+      } else if (row.method === 'DELETE' && !check.action) queryShape(req, {v:['1'],force:['1']}, {v:['1']});
+      else throw problem('sdk-check-request-shape-refused');
+      return check;
+    }
     if (row.method === 'POST' && check.action === 'attach') {
       if (!upgrade || check.supplied !== check.id || ++check.identity.attachCount > 1) throw problem('check-attach-shape-refused');
       queryShape(req, { logs: ['0','1','false','true'], stream: ['1','true'], stdin: ['0','false'], stdout: ['1','true'], stderr: ['1','true'] }, { stream: ['1','true'], stdout: ['1','true'], stderr: ['1','true'] });
@@ -181,6 +204,11 @@ export async function startFencedDockerProxy({
     return check;
   }
   function mutationShape(req, row) {
+    if (sdkChecks) {
+      if (checkObject(row)) {checkTraffic(req,row);return;}
+      const sdkObject=SDK_CHECK_OBJECT.exec(row.path), knownWorker=sdkObject&&knownContainers.get(sdkObject[1])?.kind==='worker';
+      if (/^\/v\d+\.\d+\/containers\/luci-check-/.test(row.path) || (!knownWorker && /^\/v\d+\.\d+\/containers\/[^/]+\/logs$/.test(row.path))) throw problem('unknown-sdk-check-identity');
+    }
     if (row.method === 'GET' || row.method === 'HEAD') return;
     if (row.method === 'POST' && CREATE.test(row.path)) return;
     if (checkObject(row)) { checkTraffic(req, row); return; }
@@ -191,8 +219,10 @@ export async function startFencedDockerProxy({
     if (found[2] === 'start' && ++observations.counts.start > maxStarts) throw problem('start-budget-exceeded');
   }
   async function forward(req, res, body, row) {
-    const completion = deferred(); pending.add(completion.promise);
     const mutation = !['GET', 'HEAD'].includes(row.method), create = row.method === 'POST' && CREATE.test(row.path);
+    // Intent is not proof of sending or receipt. Durability must precede send.
+    if (mutation) {if (journalFailed) throw problem('journal-write-failed'); persist('mutation-forward-intent', row, true);}
+    const completion = deferred(); pending.add(completion.promise);
     let done = false, upstream;
     const timer = setTimeout(() => fail('upstream-timeout'), upstreamTimeoutMs);
     function finish() { if (done) return; done = true; clearTimeout(timer); pending.delete(completion.promise); completion.resolve(cleanMeta(row)); }
@@ -231,7 +261,10 @@ export async function startFencedDockerProxy({
           if (knownContainers.has(decoded.Id)) { fail('duplicate-create-identity'); return; }
           row.id = decoded.Id; row.createResponseId = decoded.Id;
           knownContainers.set(row.id, { kind: row.kind, name: row.name, labels: row.labels, attachCount: 0, waitCount: 0, startCount: 0 });
+          // Only the fully drained real 201 body establishes this ACK.
+          persist('create-ack', row, true);
         }
+        if (mutation && !(create && reply.statusCode === 201)) persist('mutation-response-drained', row, true);
         // Upstream has finished. A deliberate held response is no longer an
         // uncertain daemon request and uses the separate bounded gate timer.
         clearTimeout(timer);
@@ -244,6 +277,8 @@ export async function startFencedDockerProxy({
           res.writeHead(reply.statusCode, reply.statusMessage, reply.rawHeaders);
           if (Object.keys(reply.trailers).length) res.addTrailers(reply.trailers);
           res.end(returned); row.deliveredAt = now();
+          // This records local end(), not downstream receipt acknowledgement.
+          if (mutation) persist('response-end-issued', row);
         } else { if (!res.destroyed) { if (Object.keys(reply.trailers).length) res.addTrailers(reply.trailers); res.end(); } }
         gate?.drained.resolve(cleanMeta(row)); finish();
       })().catch(() => { failure('response-handler-failed', row); res.destroy(); finish(); }); });
@@ -256,6 +291,7 @@ export async function startFencedDockerProxy({
     res.on('error', () => {}); res.once('close', () => { if (!res.writableFinished) row.clientDisconnectedAt = now(); });
     let gate; const allocation = { bytes: 0 };
     try {
+      if (journalFailed && !['GET', 'HEAD'].includes(row.method)) throw problem('journal-write-failed');
       if (closing || observations.dropped > 0) throw problem(closing ? 'proxy-closing' : 'observation-limit');
       const body = await collect(req, allocation);
       if (closing) throw problem('proxy-closing');
@@ -272,8 +308,15 @@ export async function startFencedDockerProxy({
         row.kind = await bounded(Promise.resolve().then(() => identifyCreate(body, cleanMeta(row))), 'identify-create-timeout');
         if (!['worker', 'fence', ...(allowCheckTraffic ? ['check'] : [])].includes(row.kind)) throw problem('create-shape-rejected');
         if (row.kind === 'check') {
-          if (!/^luci-check-check-[a-f0-9]{24}-0$/.test(row.name) || input?.Labels?.['luci.check'] !== 'true' || row.name !== `luci-check-${input?.Labels?.['luci.check-id']}-0` || [...knownContainers.values()].some(value => value.name === row.name)) throw problem('check-create-identity-refused');
-          row.labels = { 'luci.check': 'true', 'luci.check-id': input.Labels['luci.check-id'] };
+          if (sdkChecks) {
+            const labels=input.Labels??{};
+            if (Object.keys(labels).length!==SDK_CHECK_LABELS.length || SDK_CHECK_LABELS.some(key=>typeof labels[key]!=='string') || labels['luci.check']!=='true' || labels['luci.check-protocol']!=='1' || labels['luci.check-command-index']!=='0' || !/^checkexec-[a-f0-9]{24}$/.test(labels['luci.check-allocation']??'') || !/^check-[a-f0-9]{24}$/.test(labels['luci.check-id']??'') || row.name!==`luci-check-${labels['luci.check-allocation']}` || [...knownContainers.values()].some(value=>value.name===row.name)) throw problem('sdk-check-create-identity-refused');
+            if (!['luci.check-scope','luci.check-command-digest','luci.check-source-digest'].every(key=>/^[a-f0-9]{64}$/.test(labels[key])) || !/^sha256:[a-f0-9]{64}$/.test(labels['luci.check-image']) || !['luci.instance','luci.check-engine','luci.check-project'].every(key=>/^[A-Za-z0-9_.:-]{1,200}$/.test(labels[key]))) throw problem('sdk-check-create-labels-refused');
+            row.labels=Object.fromEntries(SDK_CHECK_LABELS.map(key=>[key,labels[key]]));
+          } else {
+            if (!/^luci-check-check-[a-f0-9]{24}-0$/.test(row.name) || input?.Labels?.['luci.check'] !== 'true' || row.name !== `luci-check-${input?.Labels?.['luci.check-id']}-0` || [...knownContainers.values()].some(value => value.name === row.name)) throw problem('check-create-identity-refused');
+            row.labels = { 'luci.check': 'true', 'luci.check-id': input.Labels['luci.check-id'] };
+          }
         }
         if (++observations.counts[row.kind] > maxCreatesByKind[row.kind]) throw problem('create-kind-budget-exceeded');
       } else {
@@ -304,7 +347,7 @@ export async function startFencedDockerProxy({
   // upgrades remain refused; no command/exec/stdin tunnel is admitted.
   server.on('upgrade', (req, socket, head) => {
     const row = record(req);
-    if (!allowCheckTraffic) { failure('unexpected-upgrade', row); socket.destroy(); return; }
+    if (!allowCheckTraffic || sdkChecks) { failure(sdkChecks ? 'sdk-check-upgrade-forbidden' : 'unexpected-upgrade', row); socket.destroy(); return; }
     const task = checkUpgrade(req, socket, head, row);
     handlers.add(task); void task.finally(() => handlers.delete(task));
   });
@@ -396,6 +439,7 @@ export async function startFencedDockerProxy({
   try {
     await new Promise((resolveListen, reject) => { server.once('error', reject); server.listen(privateSocket, () => { server.off('error', reject); resolveListen(); }); });
     await chmod(privateSocket, 0o600); socketIdentity = await lstat(privateSocket); await link(privateSocket, socketPath);
+    persist('proxy-start', {}, true);
   } catch {
     await new Promise(done => server.close(() => done()));
     await unlinkOwned(socketPath); await unlinkOwned(privateSocket); await rmdir(privateDirectory).catch(() => {});
@@ -405,7 +449,7 @@ export async function startFencedDockerProxy({
 
   function close() {
     if (closePromise) return closePromise;
-    closing = true;
+    closing = true; persist('proxy-close-start');
     closePromise = (async () => {
       const closed = new Promise(done => server.close(() => done()));
       for (const gate of gates.values()) {
@@ -420,6 +464,7 @@ export async function startFencedDockerProxy({
       for (const socket of upstreamSockets) socket.destroy();
       await closed; await unlinkOwned(socketPath); await unlinkOwned(privateSocket); await rmdir(privateDirectory);
       observations.cleanup = { closedAt: now(), pendingRequests: pending.size, activeHandlers: handlers.size, pendingBodyBytes, uncertainMutation, drained: !uncertainMutation };
+      persist('proxy-drained', observations.cleanup, true);
       if (uncertainMutation) throw problem('forwarded-mutation-outcome-uncertain');
       return structuredClone(observations.cleanup);
     })(); return closePromise;

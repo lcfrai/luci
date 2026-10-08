@@ -1,4 +1,4 @@
-//go:build !linux
+//go:build !linux && !darwin && !windows
 
 package statelease
 
@@ -7,8 +7,6 @@ import (
 	"os"
 )
 
-const FileName = ".luci-state.lock"
-
 func Acquire(dir, releaseVersion string) (*os.File, error) {
-	return nil, errors.New("managed host offline recovery leases currently require Linux")
+	return nil, errors.New("state leases require Linux, macOS, or Windows")
 }

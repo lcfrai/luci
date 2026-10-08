@@ -1,0 +1,29 @@
+{
+  "command": [
+    "/workspace/.luci-tools/go1.26.3/bin/go",
+    "test",
+    "-overlay=/workspace/.luci-tools/cloud020-staging/go-overlay.json",
+    "-race",
+    "-p",
+    "1",
+    "-count",
+    "1",
+    "-timeout=5m",
+    "-json",
+    "-run",
+    "Test(SwarmTerminalCleanupRestartBeforeWaitingProjectAdmission|ProjectCheck|Check|ExecutionAuthority|FileExecutionAuthority|ExecutionControl|ExecutionAdmission|ExecutionLease|RestartAdmission|ProductRegisteredReads|ProjectRequirementBinding|Linked|Evidence|ProjectRunCheck|PrivateApprovalAuthority|Create|WorkerCreatedCaps|RecoveringBackend)",
+    "./internal/backend/dockerbe",
+    "./internal/management",
+    "./internal/api",
+    "./internal/product",
+    "./cmd/api"
+  ],
+  "cwd": "/workspace/luci/control-plane",
+  "startedAt": "2026-10-08T18:20:18.089617+00:00",
+  "env": {
+    "GOMAXPROCS": "2",
+    "LUCI_CHECK_HTTP_CAPTURE": "/workspace/.luci-tools/cloud020-staging/diagnostic-2/project-check-http.json",
+    "LUCI_CHECK_HTTP_EXPECTED": "/workspace/.luci-tools/cloud020-staging/tree/control-plane/internal/product/testdata/project-check-http.json"
+  },
+  "notice": "No Docker opt-in or live backend; first golden emission may fail comparison until retained fixture is populated."
+}

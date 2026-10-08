@@ -35,6 +35,8 @@ func (s *Server) registerProjectWork(mux Registrar) {
 	mux.HandleFunc("POST /v1/product/projects/{id}/checks", s.startProjectChecks)
 	mux.HandleFunc("GET /v1/product/projects/{id}/checks/{runId}", s.getProjectCheck)
 	mux.HandleFunc("POST /v1/product/projects/{id}/checks/{runId}/cancel", s.cancelProjectCheck)
+	mux.HandleFunc("GET /v1/product/projects/{id}/checks/{runId}/recovery", s.getProjectCheckRecovery)
+	mux.HandleFunc("POST /v1/product/projects/{id}/checks/{runId}/recovery", s.recoverProjectCheck)
 }
 
 func currentPlan(state journeyState, id string) ProjectPlan {

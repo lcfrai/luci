@@ -1,0 +1,55 @@
+{
+  "scope": "External projected frontend diagnostic; no installed/native/browser/Docker proof",
+  "baselineHead": "4e7d5fe4eaeeaa492cde94f22e51081cdb7a1b5e",
+  "cwd": "/workspace/.luci-tools/cloud020-ui/diagnostic-2/tree/desktop",
+  "fixtureSHA256": "1dc6700c476d58fb5b6624525bb04150010e0c5aad30c116b887d3e07a6a9a54",
+  "startedAt": "2026-10-08T19:00:48.699556+00:00",
+  "commands": [
+    {
+      "name": "vitest",
+      "command": [
+        "npm",
+        "test",
+        "--",
+        "--maxWorkers=1",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=/workspace/.luci-tools/cloud020-ui/diagnostic-2/vitest.json",
+        "src/api/product.test.ts",
+        "src/api/projectCheckContracts.test.ts",
+        "src/components/journey/ProjectChecks.test.tsx",
+        "src/components/journey/CheckRecoveryDialog.test.tsx"
+      ],
+      "startedAt": "2026-10-08T19:00:48.699806+00:00",
+      "finishedAt": "2026-10-08T19:01:11.210667+00:00",
+      "exitCode": 0
+    },
+    {
+      "name": "typecheck",
+      "command": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "startedAt": "2026-10-08T19:01:11.215331+00:00",
+      "finishedAt": "2026-10-08T19:01:39.743971+00:00",
+      "exitCode": 2
+    }
+  ],
+  "finishedAt": "2026-10-08T19:01:39.744829+00:00",
+  "sourceInputs": 435,
+  "sourceUnchanged": true,
+  "checkoutOwnedFilesUnchanged": true,
+  "tests": {
+    "numTotalTestSuites": 4,
+    "numPassedTestSuites": 4,
+    "numFailedTestSuites": 0,
+    "numTotalTests": 90,
+    "numPassedTests": 90,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "passed": false
+}

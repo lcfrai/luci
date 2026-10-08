@@ -1,0 +1,59 @@
+{
+  "exitCode": 1,
+  "startedAt": "2026-10-08T18:03:31.797922+00:00",
+  "endedAt": "2026-10-08T18:08:19.377851+00:00",
+  "wallSeconds": 287.58,
+  "counts": {
+    "pass": 142,
+    "fail": 3,
+    "skip": 0
+  },
+  "packages": [
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/backend/dockerbe",
+      "action": "fail",
+      "elapsed": 0
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/management",
+      "action": "pass",
+      "elapsed": 1.213
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "action": "pass",
+      "elapsed": 11.068
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/product",
+      "action": "fail",
+      "elapsed": 7.443
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/cmd/api",
+      "action": "pass",
+      "elapsed": 1.17
+    }
+  ],
+  "failures": [
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/product",
+      "test": "TestProjectCheckHTTPSharedContract"
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/product",
+      "test": "TestProjectChecksRunActualProcessAndPersistEvidence"
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/product",
+      "test": "TestProductRegisteredReadsCannotMutateProjectsOrStartResources"
+    }
+  ],
+  "skips": [],
+  "inputCount": 818,
+  "inputsUnchanged": true,
+  "headBefore": "4e7d5fe4eaeeaa492cde94f22e51081cdb7a1b5e",
+  "headAfter": "4e7d5fe4eaeeaa492cde94f22e51081cdb7a1b5e",
+  "overlaySha256": "560be2f5cc48d8e8a3a2e33a930f2654f3defde54db7577ad630484c47dd89d4",
+  "goldenEmitted": true
+}

@@ -177,14 +177,27 @@ it("an old project's check completion cannot appear in the new project or clear 
 const teamAccess = vi.hoisted(() => ({ loading: false, error: "", permissions: { read: true, edit: true, execute: true, secrets: true, deploy: true, admin: true } }));
 vi.mock("../teams/TeamWorkspaceProvider", () => ({ useTeamProjectPermissions: () => teamAccess, useTeamWorkspace: () => null }));
 beforeEach(() => { teamAccess.loading = false; teamAccess.error = ""; Object.assign(teamAccess.permissions, { read: true, edit: true, execute: true, secrets: true, deploy: true, admin: true }); });
-it("keeps verification evidence readable while disabling check dispatch and cancellation without execution access", async () => {
+it.each([true,false])("keeps verification evidence readable with Execute revoked and permits cancellation only with Edit=%s", async canEdit => {
+  teamAccess.permissions.edit = canEdit;
   teamAccess.permissions.execute = false;
   vi.mocked(productApi.checks).mockResolvedValue({ runs: [{ ...run, status: "running" }], suggested: commands, coverage });
-  const start = vi.spyOn(productApi, "runChecks"), cancel = vi.spyOn(productApi, "cancelChecks");
+  const start = vi.spyOn(productApi, "runChecks"), cancel = vi.spyOn(productApi, "cancelChecks").mockImplementation(async () => {
+    const stopped = { ...run, status: "cancelled", message: "Checks cancelled by an authorized editor." };
+    vi.mocked(productApi.checks).mockResolvedValue({ runs: [stopped], suggested: commands, coverage });
+    return stopped;
+  });
   render(<ProjectChecks projectId="p-1" />);
   const stop = await screen.findByRole("button", { name: "Cancel checks" });
-  expect((stop as HTMLButtonElement).disabled).toBe(true);
+  expect((stop as HTMLButtonElement).disabled).toBe(!canEdit);
   expect((screen.getByRole("button", { name: "Checks running…" }) as HTMLButtonElement).disabled).toBe(true);
-  await userEvent.click(stop); expect(start).not.toHaveBeenCalled(); expect(cancel).not.toHaveBeenCalled();
-  expect(screen.getByText(/Execution access is required/)).not.toBeNull();
+  const evidence = screen.getByText(/Requirement evidence ·/);
+  await userEvent.click(evidence);
+  expect(within(evidence.closest('details')!).getByText(coverage.rows[0].acceptance)).not.toBeNull();
+  await userEvent.click(stop); expect(start).not.toHaveBeenCalled();
+  if (canEdit) {
+    expect(cancel).toHaveBeenCalledExactlyOnceWith("p-1", run.id);
+    await screen.findByText("Checks cancelled by an authorized editor.");
+    expect((screen.getByRole("button", { name: "Run project checks" }) as HTMLButtonElement).disabled).toBe(true);
+  } else expect(cancel).not.toHaveBeenCalled();
+  expect(screen.getByText(canEdit ? /Execution access is required/ : /Read-only access/)).not.toBeNull();
 });

@@ -14,12 +14,16 @@ import { useUnsavedProjectDraft } from "../../hooks/useUnsavedProjectDraft";
 import { DraftRecovery } from "../common/DraftRecovery";
 import { useCockpit } from "../../store/store";
 import { useProjectAccess } from "../../hooks/useProjectAccess";
-import { useAuth } from "../auth/AuthProvider";
+import { ApiError } from "../../api/client";
+import { CheckRecoveryDialog } from "./CheckRecoveryDialog";
 import { Button } from "../fluid/components/button";
 import { RequirementsEvidence, commandStatus, evidenceLabel, watchRequirementEvidence } from "./RequirementsEvidence";
 
 const active = (run: CheckRun) =>
   run.status === "queued" || run.status === "running";
+const observes = (run: CheckRun) => active(run) || run.status === "unknown" && run.resourcesHeld === true && ["cleanup", "output", "observe"].includes(run.stage ?? "");
+const unsettled = (run: CheckRun) => !active(run) && run.resourcesHeld !== false && (run.revision ?? 0) > 0;
+const newer = (previous: CheckRun, next: CheckRun) => (previous.revision ?? 0) > 0 && (next.revision ?? 0) > 0 ? previous.revision! > next.revision! : previous.updatedAt > next.updatedAt;
 const contextKey = (value: RequirementCoverage) => JSON.stringify([value.specification, value.design, value.source,
   value.rows.map(row => [row.requirementId, row.title, row.acceptance])]);
 const setupBase = (coverage: RequirementCoverage | null, buildId: string) => JSON.stringify([coverage ? contextKey(coverage) : null, buildId]);
@@ -44,7 +48,7 @@ function buildContextProblem(build: ProjectRun, coverage: RequirementCoverage | 
 
 function eligibleForBuild(check: CheckRun, build: ProjectRun, coverage: RequirementCoverage | null) {
   return !buildContextProblem(build, coverage) && check.projectId === build.projectId &&
-    check.status === "passed" && check.evidenceStatus === "linked-test-evidence" && !check.dirty && !check.sourceChanged &&
+    check.status === "passed" && (!(check.revision ?? 0) || check.resourcesHeld === false && check.commands.every(command => command.cleanupConfirmed)) && check.evidenceStatus === "linked-test-evidence" && !check.dirty && !check.sourceChanged &&
     !!check.commit && !!check.sourceDigest && check.commit === coverage?.source.commit && check.sourceDigest === coverage?.source.sourceDigest &&
     check.specificationRevision === build.input.approvals.specificationRevision && check.specificationDigest === build.input.approvals.specificationDigest &&
     check.designPlanRevision === build.input.approvals.designRevision && check.designPlanDigest === build.input.approvals.designDigest &&
@@ -66,7 +70,6 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
   const [joining, setJoining] = useState("");
   const joinWorking = useRef(false);
   const region = useRef<HTMLElement>(null);
-  const [readOnce, setReadOnce] = useState(false);
   const [runs, setRuns] = useState<CheckRun[]>([]);
   const [commands, setCommands] = useState<CheckCommand[]>([]);
   const [suggested, setSuggested] = useState<CheckCommand[]>([]);
@@ -74,11 +77,11 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
   const [recordedSetup, setRecordedSetup] = useState("");
   const setupEdited = useRef(false);
   const [trusted, setTrusted] = useState(false);
-  const [execution, setExecution] = useState<"docker" | "host">("docker");
-  const auth = useAuth();
-  const allowHost =
-    auth?.profile.permissions?.runHostCommands &&
-    auth.profile.policy?.allowHostCommands;
+  const [startUnconfirmed, setStartUnconfirmed] = useState(false);
+  const [recoveryId, setRecoveryId] = useState<string | null>(null);
+  const [readDenied, setReadDenied] = useState(false);
+  const readDeniedNow = useRef(false); readDeniedNow.current = readDenied;
+  const checkRows = useRef(new Map<string, HTMLLIElement>());
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const working = useRef<number | null>(null);
@@ -90,6 +93,9 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
   const [refreshing, setRefreshing] = useState(false);
   const [notice, setNotice] = useState("");
   const generation = useRef(0), readGeneration = useRef(0);
+  const authorityKey = `${canRead}:${canEdit}:${canExecute}`, authority = useRef(authorityKey);
+  if (authority.current !== authorityKey) { authority.current = authorityKey; generation.current++; }
+  const historyRead = useRef<AbortController | null>(null);
   const selectedContext = useRef<string | null>(null);
   const [recoveringSelection, setRecoveringSelection] = useState<{ base: string; ids: string[]; buildId: string } | null>(null);
   const draftValue = useMemo<CheckSetupDraft>(() => ({ commands, executable, args, requirementIds, buildId }), [commands, executable, args, requirementIds, buildId]);
@@ -99,14 +105,14 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
   function editSetup() { setupEdited.current = true; setChanged(true); setTrusted(false); }
   function discardSetup() {
     draft.clear(); setupEdited.current = false; setChanged(false); setCommands(suggested); setExecutable(""); setArgs("[]");
-    setRequirementIds([]); selectedContext.current = null; setRecoveringSelection(null); setTrusted(false); setExecution("docker"); setNotice("");
+    setRequirementIds([]); selectedContext.current = null; setRecoveringSelection(null); setTrusted(false); setNotice("");
   }
   useUnsavedProjectDraft(projectId, changed && JSON.stringify(draftValue) !== recordedSetup, "Verification setup", "develop", navigationScope ? { retained: draft.retained, discard: discardSetup } : undefined, "verification-setup");
   function restoreSetup(value: CheckSetupDraft) {
     const base = draft.pending?.base;
     const target = buildId || value.buildId;
     editSetup(); setCommands(value.commands); setExecutable(value.executable); setArgs(value.args);
-    setRequirementIds([]); selectedContext.current = null; setExecution("docker");
+    setRequirementIds([]); selectedContext.current = null;
     setBuildId(target);
     if (target) setBuildRead(current => current + 1);
     setRecoveringSelection(base ? { base, ids: value.requirementIds, buildId: value.buildId } : null);
@@ -117,40 +123,52 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
   const requiredSelected = !!build?.input.requirements.length && build.input.requirements.every(item => requirementIds.includes(item.id));
   const requirementChoices = build ? build.input.requirements.map(item => ({ requirementId: item.id, title: item.title, acceptance: item.acceptance })) : coverage?.rows ?? [];
   const canLink = coverage?.specification.status === "approved" && coverage.design.status === "approved" && coverage.source.available;
-  async function load(replaceCommands = false) {
-      if (!canRead) return;
+  function invalidateRead(context: number) {
+    if (!alive.current || !mayRead.current || generation.current !== context) return;
+    // A confirmed read refusal invalidates cached private content, without discarding local drafts.
+    generation.current++; readGeneration.current++; readDeniedNow.current = true;
+    historyRead.current?.abort(); setReadDenied(true); setRuns([]); setCoverage(null); setBuild(null);
+    setRecoveryId(null); setTrusted(false); setRefreshing(false); setReadingBuild(false);
+  }
+  async function load(replaceCommands = false, confirmStart = false, confirmAccess = false) {
+    if (!canRead || readDeniedNow.current && !confirmAccess) return;
     const context = generation.current, request = ++readGeneration.current;
+    historyRead.current?.abort(); const controller = new AbortController(); historyRead.current = controller;
     setRefreshing(true);
     try {
-      const value = await productApi.checks(projectId);
+      const value = await productApi.checks(projectId, controller.signal);
       if (!alive.current || !mayRead.current || context !== generation.current || request !== readGeneration.current) return;
       if (value.runs.some(run => run.projectId !== projectId)) throw new Error("Check history belongs to another project. Refresh the current project.");
       if (value.coverage && value.coverage.projectId !== projectId) throw new Error("Requirement evidence belongs to another project. Refresh the current project.");
       setRuns(current => [
         ...value.runs.map(row => {
           const previous = current.find(run => run.id === row.id);
-          return previous && previous.updatedAt > row.updatedAt ? previous : row;
+          return previous && newer(previous, row) ? previous : row;
         }),
         ...current.filter(run => !value.runs.some(row => row.id === run.id)),
       ].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+      if (confirmAccess) { readDeniedNow.current = false; setReadDenied(false); setBuildRead(current => current + 1); }
+      if (confirmStart) setStartUnconfirmed(false);
       setSuggested(value.suggested || []);
       if (replaceCommands && !setupEdited.current && !pendingDraft.current) setCommands(value.suggested || []);
       if (selectedContext.current && (!value.coverage || contextKey(value.coverage) !== selectedContext.current)) {
         setRequirementIds([]); selectedContext.current = null; setTrusted(false);
         setNotice("Requirements, design or source changed. Review and select the criteria again.");
       }
-      setCoverage(value.coverage ?? null); setReadOnce(true);
+      setCoverage(value.coverage ?? null);
     } catch (cause) {
-      if (alive.current && mayRead.current && context === generation.current && request === readGeneration.current) { setCoverage(null); setTrusted(false); setError(errorText(cause)); }
+      if (alive.current && mayRead.current && !controller.signal.aborted && context === generation.current && request === readGeneration.current) { setCoverage(null); setTrusted(false); if (cause instanceof ApiError && [401, 403].includes(cause.status)) invalidateRead(context); setError(errorText(cause)); }
     } finally {
+      if (historyRead.current === controller) historyRead.current = null;
       if (alive.current && context === generation.current && request === readGeneration.current) setRefreshing(false);
     }
   }
-  const updateRun = (run: CheckRun) =>
-    setRuns((current) => [
-      run,
-      ...current.filter((item) => item.id !== run.id),
-    ]);
+  const updateRun = (run: CheckRun) => setRuns(current => {
+    if (readDeniedNow.current || run.projectId !== projectId) return current;
+    const previous = current.find(item => item.id === run.id);
+    if (previous && newer(previous, run)) return current;
+    return [run, ...current.filter(item => item.id !== run.id)].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  });
   useEffect(() => {
     generation.current++;
     alive.current = true;
@@ -159,23 +177,24 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
     return () => {
       alive.current = false;
       generation.current++;
-      unwatch();
+      historyRead.current?.abort(); unwatch();
     };
-  }, [projectId, canRead || readOnce]);
+  }, [projectId, canRead, canEdit, canExecute]);
   useEffect(() => { if (!canExecute) setTrusted(false); }, [canExecute]);
+  useEffect(() => { if (!canRead) { setRuns([]); setCoverage(null); setRecoveryId(null); } }, [canRead]);
   const currentContext = coverage ? contextKey(coverage) : "";
   useEffect(() => { setTrusted(false); }, [currentContext]);
   useEffect(() => {
     if (!verification || !canRead || !navigationScope || verification.scope !== navigationScope || verification.projectId !== projectId) return;
     void load(!setupEdited.current);
-    setBuildId(verification.runId); setRequirementIds([]); setRecoveringSelection(null); setTrusted(false); setExecution("docker"); setNotice(""); setError(""); selectedContext.current = null;
+    setBuildId(verification.runId); setRequirementIds([]); setRecoveringSelection(null); setTrusted(false); setNotice(""); setError(""); selectedContext.current = null;
     setBuildRead(current => current + 1);
     useCockpit.setState(state => state.projectRunVerification === verification ? { projectRunVerification: null } : {});
     requestAnimationFrame(() => { if (alive.current) { region.current?.scrollIntoView?.({ block: 'nearest' }); region.current?.focus(); } });
   }, [verification, canRead, navigationScope, projectId]);
   useEffect(() => {
     setBuild(null);
-    if (!buildId || !canRead) { setReadingBuild(false); return; }
+    if (!buildId || !canRead || readDenied) { setReadingBuild(false); return; }
     let current = true;
     setReadingBuild(true);
     void projectRunsApi.get(projectId, buildId).then(value => {
@@ -187,7 +206,7 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
       setReadingBuild(false);
     });
     return () => { current = false; };
-  }, [buildId, buildRead, canRead, projectId]);
+  }, [buildId, buildRead, canRead, readDenied, projectId]);
   useEffect(() => {
     if (!recoveringSelection || !coverage || refreshing || (buildId && (readingBuild || !build))) return;
     const matching = recoveringSelection.base === setupBase(coverage, buildId) && recoveringSelection.buildId === buildId &&
@@ -201,35 +220,39 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
     .filter(active)
     .map((run) => run.id)
     .join(",");
+  const observedIds = runs.filter(observes).map(run => run.id).sort().join(",");
+  const needsRecovery = runs.some(unsettled);
   useEffect(() => {
-    if (!activeIds || !canRead) return;
-    let cancelled = false;
-    let polling = false;
+    if (!observedIds || !canRead || readDenied || busy || recoveryId) return;
+    let cancelled = false, polling = false, cursor = 0;
+    const context = generation.current, ids = observedIds.split(",");
+    let currentRead: AbortController | null = null;
     const timer = setInterval(() => {
-      if (polling) return;
-      polling = true;
-      void Promise.all(
-        activeIds.split(",").map((id) => productApi.checkRun(projectId, id)),
-      )
-        .then((values) => {
-          if (!cancelled) {
-            values.forEach(updateRun);
-            if (values.some(run => !active(run))) { void load(); notifyProjectContextChanged(navigationScope, projectId); }
+      if (polling || document.visibilityState === 'hidden') return;
+      const selected = Array.from({length: Math.min(4, ids.length)}, (_, index) => ids[(cursor + index) % ids.length]);
+      cursor = (cursor + selected.length) % ids.length; polling = true;
+      const controller = new AbortController(); currentRead = controller;
+      void Promise.all(selected.map(id => productApi.checkRun(projectId, id, controller.signal)))
+        .then(values => {
+          if (cancelled || controller.signal.aborted || !mayRead.current || context !== generation.current) return;
+          values.forEach(updateRun);
+          if (values.some(run => !observes(run))) { void load(); notifyProjectContextChanged(navigationScope, projectId); }
+        }).catch(cause => {
+          if (!cancelled && !controller.signal.aborted && context === generation.current) {
+            if (cause instanceof ApiError && [401, 403].includes(cause.status)) { cancelled = true; invalidateRead(context); }
+            setError(errorText(cause));
           }
-        })
-        .catch((cause) => {
-          if (!cancelled) setError(errorText(cause));
-        }).finally(() => { polling = false; });
-    }, 1500);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [projectId, activeIds, canRead]);
-  async function operate(action: () => Promise<CheckRun>, submittedSetup?: CheckSetupDraft) {
-    if (!canExecute) return;
+          controller.abort();
+        }).finally(() => { polling = false; if (currentRead === controller) currentRead = null; });
+    }, 5000);
+    const visibility = () => { if (document.visibilityState === "hidden") currentRead?.abort(); };
+    document.addEventListener("visibilitychange", visibility);
+    return () => { cancelled = true; clearInterval(timer); currentRead?.abort(); document.removeEventListener("visibilitychange", visibility); };
+  }, [projectId, observedIds, canRead, canEdit, canExecute, readDenied, busy, recoveryId]);
+  async function operate(action: () => Promise<CheckRun>, submittedSetup?: CheckSetupDraft, authority: "execute" | "edit" = "execute") {
+    if (!canRead || readDeniedNow.current || (authority === "edit" ? !canEdit : !canEdit || !canExecute) || submittedSetup && startUnconfirmed) return;
     const context = generation.current;
-    if (working.current === context) return;
+    if (working.current !== null) return;
     working.current = context;
     setBusy(true);
     setError("");
@@ -245,14 +268,16 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
         if (!active(run)) void load();
       }
     } catch (cause) {
-      if (alive.current && context === generation.current) setError(errorText(cause));
+      if (alive.current && context === generation.current) {
+        setError(errorText(cause));
+        if (submittedSetup) { setTrusted(false); setStartUnconfirmed(!(cause instanceof ApiError && cause.status >= 400 && cause.status < 500)); }
+      }
     } finally {
-      if (working.current === context) working.current = null;
-      if (alive.current && context === generation.current) setBusy(false);
+      if (working.current === context) { working.current = null; if (alive.current) setBusy(false); }
     }
   }
   async function useResults(check: CheckRun) {
-    if (!build || !navigationScope || !canEdit || joinWorking.current || !eligibleForBuild(check, build, coverage)) return;
+    if (readDeniedNow.current || !build || !navigationScope || !canEdit || joinWorking.current || !eligibleForBuild(check, build, coverage)) return;
     const selected = build, context = generation.current;
     joinWorking.current = true; setJoining(check.id); setError(""); setNotice("");
     try {
@@ -268,12 +293,12 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
       notifyProjectContextChanged(navigationScope, projectId);
       useCockpit.setState({ projectRunInspection: { scope: navigationScope, projectId, runId: saved.id, refresh: true } });
     } catch (cause) { if (alive.current && context === generation.current && selectedBuild.current === selected.id) setError(errorText(cause)); }
-    finally { joinWorking.current = false; if (alive.current && context === generation.current) setJoining(""); }
+    finally { joinWorking.current = false; if (alive.current) setJoining(""); }
   }
   function inspectBuild() {
     if (navigationScope && buildId) useCockpit.setState({ projectRunInspection: { scope: navigationScope, projectId, runId: buildId, refresh: true } });
   }
-  if (!canRead) return <section className="project-checks"><p role="status">{access.message}</p></section>;
+  if (!canRead || readDenied) return <section className="project-checks" ref={region} tabIndex={-1}><p role="status">{!canRead ? access.message : "Check access could not be confirmed. Refresh access before continuing."}</p>{canRead && <Button variant="secondary" disabled={refreshing} onClick={() => void load(false, false, true)}>{refreshing ? 'Checking access…' : 'Refresh check access'}</Button>}</section>;
   return (
     <section className="project-checks" ref={region} tabIndex={-1} aria-label={scoped ? "Build verification" : "Project checks"}>
       <h2>{scoped ? "Verify this build" : "Verify the implementation"}</h2>
@@ -295,22 +320,9 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
         the project version it tested; passing commands do not prove
         every acceptance criterion.
       </p>
-      {allowHost && !scoped && (
-        <label className="luci-field">
-          Check execution
-          <select
-            disabled={!canExecute || !!draft.pending}
-            value={execution}
-            onChange={(event) => {
-              setExecution(event.target.value as typeof execution);
-              setTrusted(false);
-            }}
-          >
-            <option value="docker">Docker · isolated project checks</option>
-            <option value="host">Host diagnostics · trusted commands</option>
-          </select>
-        </label>
-      )}
+      <p className="journey-muted">New checks run in Docker with shared resource admission. Historical host results remain readable; host execution cannot enforce these limits.</p>
+      {startUnconfirmed && <p role="status" className="journey-warning">The check start result is unconfirmed. Refresh check history before authorizing another run; the interrupted request may already have started these commands. <Button variant="secondary" disabled={refreshing || busy} onClick={() => void load(false, true)}>Refresh check history</Button></p>}
+      {needsRecovery && <p className="journey-warning">An earlier check still holds capacity or has an unconfirmed allocation. Inspect its recovery below before starting more commands.</p>}
       {error && (
         <p className="journey-error" role="alert">
           {error}
@@ -320,7 +332,7 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
       <DraftRecovery draft={draft} label="Verification setup" localSetup base={coverage ? setupBase(coverage, buildId || draft.pending?.value.buildId || "") : null} saved={draftOriginal}
         busy={busy || !!joining || refreshing || readingBuild} readOnly={!canExecute} onRestore={restoreSetup} onDiscard={discardSetup} />
       {changed && !draft.pending && <Button type="button" variant="tertiary" disabled={busy || !!joining} onClick={discardSetup}>Discard verification setup</Button>}
-      <RequirementsEvidence coverage={coverage} runs={runs} refreshing={refreshing} onRefresh={() => void load()} />
+      <RequirementsEvidence coverage={coverage} runs={runs} refreshing={refreshing} onRefresh={() => void load(false, true)} />
       <details className="check-requirements" open={scoped || undefined}>
         <summary>Link checks to approved requirements · {requirementIds.length} selected</summary>
         <p className="journey-muted">{scoped ? "Confirm the coverage of these commands. Nothing is selected automatically." : "Select the criteria these commands actually exercise. Unselected commands are recorded as generic checks."}</p>
@@ -426,21 +438,19 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
           disabled={!canExecute || !!draft.pending || !!recoveringSelection || refreshing || readingBuild}
           onChange={(event) => setTrusted(event.target.checked)}
         />
-        {execution === "host" && allowHost
-          ? "I trust these commands to run directly with my workspace host account's access."
-          : "I trust this project's code and these Docker commands to write project files and use the network."}
+        I trust this project's code and these Docker commands to write project files and use the network.
       </label>
       <Button type="button" variant="primary" loading={busy}
-        disabled={!canExecute || busy || !!joining || !!activeIds || !!draft.pending || !!recoveringSelection || refreshing || readingBuild || !trusted || !commands.length || (!!requirementIds.length && !canLink) || (scoped && (!!buildProblem || !requiredSelected || !build?.allowedActions.includes("join-check")))}
+        disabled={!canEdit || !canExecute || busy || !!joining || !!activeIds || needsRecovery || startUnconfirmed || !!draft.pending || !!recoveringSelection || refreshing || readingBuild || !trusted || !commands.length || (!!requirementIds.length && !canLink) || (scoped && (!!buildProblem || !requiredSelected || !build?.allowedActions.includes("join-check")))}
         onClick={() =>
           void operate(() =>
             requirementIds.length && coverage ? productApi.runChecks(
               projectId,
               commands,
               trusted,
-              allowHost ? execution : "docker",
+              "docker",
               { requirementIds, expectedSpecificationRevision: coverage.specification.revision, expectedDesignPlanRevision: coverage.design.revision },
-            ) : productApi.runChecks(projectId, commands, trusted, allowHost ? execution : "docker"), draftValue,
+            ) : productApi.runChecks(projectId, commands, trusted, "docker"), draftValue,
           )
         }
       >
@@ -456,11 +466,16 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
       )}
       <ul className="check-runs">
         {runs.map((run) => (
-          <li key={run.id}>
+          <li key={run.id} ref={element => { if (element) checkRows.current.set(run.id, element); else checkRows.current.delete(run.id); }}>
             <div className="journey-header">
               <div>
-                <strong>{commandStatus(run.status)}</strong>
+                <strong tabIndex={-1} data-check-heading>{commandStatus(run.status)}</strong>
                 <p>{run.message}</p>
+                {run.resourcesHeld === true && <p className="journey-warning">Capacity remains held until the original check allocation is confirmed stopped and cleaned up.</p>}
+                {(run.revision ?? 0) > 0 && run.resourcesHeld === null && <p className="journey-warning">Capacity ownership is unavailable; no release is assumed.</p>}
+                {run.status === "blocked" && <p className="journey-muted">No blocked command will retry automatically. Earlier command output is retained below. Resolve the reported cause, then separately authorize a new run when capacity is released.</p>}
+                {!(run.revision ?? 0) && run.status === "unknown" && <p className="journey-muted">This older check has no recorded recovery protocol. Keep its output and ask a host operator to inspect the original execution; starting it again does not resolve that uncertainty.</p>}
+                {run.status === "unknown" && <p className="journey-warning">The check outcome is unconfirmed. A passed command below does not establish that this run finished or released its capacity.</p>}
                 <p>{evidenceLabel(run.evidenceStatus)}{run.requirementIds?.length ? ` · ${run.requirementIds.join(", ")}` : " · generic commands without requirement links"}</p>
                 {run.requirementIds?.length ? <small>Requirements revision {run.specificationRevision ?? 0} · design revision {run.designPlanRevision ?? 0}</small> : null}
                 {!!run.staleReasons?.length && <ul>{run.staleReasons.map((reason, index) => <li key={index}>{reason}</li>)}</ul>}
@@ -481,10 +496,10 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
               </div>
               {active(run) && (
                 <Button type="button" variant="secondary"
-                  disabled={!canExecute || busy}
+                  disabled={!canEdit || busy}
                   onClick={() =>
                     void operate(() =>
-                      productApi.cancelChecks(projectId, run.id),
+                      productApi.cancelChecks(projectId, run.id), undefined, "edit",
                     )
                   }
                 >
@@ -492,6 +507,7 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
                 </Button>
               )}
             </div>
+            {(run.revision ?? 0) > 0 && (run.resourcesHeld !== false || run.status === "unknown") && <Button variant="secondary" disabled={busy} onClick={() => setRecoveryId(run.id)}>Review check recovery</Button>}
             {build && <div className="journey-actions">
               {build.checks.some(item => item.checkId === run.id) ? <p role="status">These results are saved with this build.</p> : eligibleForBuild(run, build, coverage) ? <Button variant="primary" loading={joining === run.id} disabled={!canEdit || busy || !!joining || !build.allowedActions.includes("join-check")} onClick={() => void useResults(run)}>Use these results for this build</Button> : run.status === "passed" ? <p className="journey-muted">These results do not match every saved criterion and the current committed version. Run the selected requirement checks for this build.</p> : run.status === "failed" ? <><p className="journey-muted">Review the failed command output, repair the implementation, commit the changes, and verify again.</p><Button variant="secondary" onClick={inspectBuild}>Return to build to repair</Button></> : null}
             </div>}
@@ -504,6 +520,8 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
                     ? ` · exit ${command.exitCode}`
                     : ""}
                 </summary>
+                {command.message && <p>{command.message}</p>}
+                {command.cleanupConfirmed === false && ["passed", "failed", "unknown", "cancelled"].includes(command.status) && <p className="journey-warning">Cleanup has not been confirmed for this command.</p>}
                 <pre className="journey-code">
                   {command.output || "No output recorded."}
                   {command.truncated ? "\n[Output truncated]" : ""}
@@ -513,6 +531,16 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
           </li>
         ))}
       </ul>
+      {recoveryId && runs.find(run => run.id === recoveryId) && <CheckRecoveryDialog
+        key={recoveryId} run={runs.find(run => run.id === recoveryId)!} projectName={useCockpit.getState().projects.find(project => project.id === projectId)?.name || projectId}
+        canRead={canRead} canEdit={canEdit} onUpdate={updateRun} onClose={() => setRecoveryId(null)} onReadDenied={() => invalidateRead(generation.current)}
+        getCloseFocusTarget={openingControl => {
+          if (!alive.current || !mayRead.current) return null;
+          if (readDeniedNow.current) return region.current?.querySelector<HTMLElement>('button') ?? region.current;
+          const row = checkRows.current.get(recoveryId);
+          if (!row?.isConnected) return null;
+          return openingControl?.isConnected && row.contains(openingControl) ? openingControl : row.querySelector<HTMLElement>('[data-check-heading]');
+        }} />}
     </section>
   );
 }

@@ -1,0 +1,15 @@
+{
+  "command": [
+    "node",
+    "/workspace/.luci-tools/cloud020-ui/browser-preparation/source-browser.mjs",
+    "/workspace/.luci-tools/cloud020-ui/browser-attempt-3"
+  ],
+  "environment": {
+    "LUCI_CLOUD020_BROWSER_RELEASE": "1",
+    "LUCI_CHECK_UI_REPO": "/workspace/luci",
+    "LUCI_CHROMIUM_EXECUTABLE": "/usr/bin/chromium",
+    "LUCI_BROWSER_STATE_ROOT": "/tmp/lc20",
+    "LUCI_CLOUD020_MANIFEST": "/workspace/.luci-tools/cloud020-ui/cloud023-correction/staging-manifest.json"
+  },
+  "helpersArchived": "helper-source"
+}

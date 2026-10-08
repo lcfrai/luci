@@ -1,0 +1,26 @@
+{
+  "exitCode": 0,
+  "startedAt": "2026-10-08T19:07:40.544116+00:00",
+  "endedAt": "2026-10-08T19:07:53.306636+00:00",
+  "wallSeconds": 12.763,
+  "counts": {
+    "pass": 31,
+    "fail": 0,
+    "skip": 0
+  },
+  "packages": [
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "action": "pass",
+      "elapsed": 10.352
+    }
+  ],
+  "failures": [],
+  "skips": [],
+  "inputCount": 820,
+  "inputsUnchanged": true,
+  "headBefore": "f9f80e88119414b4556569ef04afb255eacd12ff",
+  "headAfter": "f9f80e88119414b4556569ef04afb255eacd12ff",
+  "overlaySha256": "03e982fcc691b36221f8747720a3d55b08ac3fcb4f23722a222306ed3e5c9a7a",
+  "goldenEmitted": false
+}

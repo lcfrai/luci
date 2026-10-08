@@ -1,0 +1,31 @@
+{
+  "exitCode": 1,
+  "startedAt": "2026-10-08T19:04:39.425363+00:00",
+  "endedAt": "2026-10-08T19:04:54.631923+00:00",
+  "wallSeconds": 15.207,
+  "counts": {
+    "pass": 0,
+    "fail": 1,
+    "skip": 0
+  },
+  "packages": [
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "action": "fail",
+      "elapsed": 0.587
+    }
+  ],
+  "failures": [
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "test": "TestProjectCheckHTTPRetiredReservationCannotBeRecreatedByDelayedController"
+    }
+  ],
+  "skips": [],
+  "inputCount": 820,
+  "inputsUnchanged": true,
+  "headBefore": "4e7d5fe4eaeeaa492cde94f22e51081cdb7a1b5e",
+  "headAfter": "4e7d5fe4eaeeaa492cde94f22e51081cdb7a1b5e",
+  "overlaySha256": "03e982fcc691b36221f8747720a3d55b08ac3fcb4f23722a222306ed3e5c9a7a",
+  "goldenEmitted": false
+}

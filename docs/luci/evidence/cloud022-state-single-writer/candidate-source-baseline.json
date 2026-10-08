@@ -1,0 +1,49 @@
+{
+  "head": "f9f80e88119414b4556569ef04afb255eacd12ff",
+  "files": {
+    "/workspace/luci/control-plane/internal/statelease/lease_process_test.go": {
+      "rootSHA256": null,
+      "stagedSHA256": "065f9c16837292843e75e415a77d58df8a1ed535d0d3f8542676289f85388d15"
+    },
+    "/workspace/luci/control-plane/internal/statelease/lease_windows.go": {
+      "rootSHA256": null,
+      "stagedSHA256": "af97ff73147c5253bda188280d6bcffc8fa71ae2edd17b6854ed25ffe2b876cd"
+    },
+    "/workspace/luci/control-plane/internal/statelease/lease.go": {
+      "rootSHA256": null,
+      "stagedSHA256": "65bd6bd82824261a68653bc4111f88de6842f91f07f1d804c9cf7597c6c7d7e4"
+    },
+    "/workspace/luci/control-plane/internal/statelease/lease_windows_test.go": {
+      "rootSHA256": null,
+      "stagedSHA256": "abab3f86a99fa9dfa0aa16666b187bff8638ae010fc66e549a4ddd961111de50"
+    },
+    "/workspace/luci/control-plane/internal/statelease/lease_test.go": {
+      "rootSHA256": "141541e2955a22a0ea1a60170b1124e482cf3ecde076a9ce91fd3904fb24b7b2",
+      "stagedSHA256": "7f7ce8648066e91e6f3ceaf214339192e616c7b97de282994efd92db7ba35404"
+    },
+    "/workspace/luci/control-plane/internal/statelease/lease_unix.go": {
+      "rootSHA256": null,
+      "stagedSHA256": "53428533e0122a9c063f6b7e8df950a039a08e8a96c6fbca6fe8ac07d5edb76a"
+    },
+    "/workspace/luci/control-plane/internal/statelease/lease_other.go": {
+      "rootSHA256": "fd1daa21b4466b03ac91c17e8ba5bf7a38bd19f8f8f9f7ef7e9bca61c04408b7",
+      "stagedSHA256": "3736a094e89f48b825c54f9efeecee4e1eb3d2e4dbba32dbfb8037527344531f"
+    },
+    "/workspace/luci/control-plane/internal/statelease/lease_special_unix_test.go": {
+      "rootSHA256": null,
+      "stagedSHA256": "014651b6a0af5d4f32af22b859ccc18f9e04f880c7c5ed94378a402cb3351e1d"
+    },
+    "/workspace/luci/control-plane/cmd/api/managed_state_lease.go": {
+      "rootSHA256": "f4f47e56017074f3894f38a4e893ecf28a726771212ff9a7bff639ae400e46e1",
+      "stagedSHA256": "79de797e077a6246260d468f98d99aa36070e1b2c07e066de521c8a1b74c1109"
+    },
+    "/workspace/luci/control-plane/cmd/api/managed_state_lease_test.go": {
+      "rootSHA256": "eb93dc76f2c8ee260bfd6c0269194c23988f0b0a229d41c26a33aa4d31a70df5",
+      "stagedSHA256": "7ef9fa1fcc88400576b40c26e81a3d757fe08d9da93e40b572b2fb878f2d1174"
+    },
+    "/workspace/luci/control-plane/internal/statelease/lease_linux.go": {
+      "rootSHA256": "798de7326b8920b0bdf0cee86cff21702bc65825e4e4dd61897d1ef8ebe99783",
+      "stagedSHA256": null
+    }
+  }
+}

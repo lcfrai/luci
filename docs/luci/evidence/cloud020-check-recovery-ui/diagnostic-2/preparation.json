@@ -1,0 +1,12 @@
+{
+  "status": "prepared; no tests/compiler started",
+  "originalFailuresRetained": "/workspace/.luci-tools/cloud020-ui/diagnostic-1/result.json",
+  "fixes": [
+    "Replace the two obsolete host control selectors in the existing draft test with current Docker-only controls.",
+    "New lost-start regression waits for actual loaded command list and uses generic-check trust; no premature hidden coverage lookup.",
+    "External projection now includes existing desktop/e2e and scripts sources needed by whole-frontend TypeScript."
+  ],
+  "productSourceChangedSinceDiagnostic1": true,
+  "fixtureActualHandlerFinalEquality": "PASS in backend diagnostic2; exact shared fixture1dc6700c476d58fb5b6624525bb04150010e0c5aad30c116b887d3e07a6a9a54",
+  "additionalCorrection": "Confirmed current selected recovery GET401/403 clears parent private history/evidence, aborts prior reads, gates controls, and returns focus to explicit Refresh check access. Local drafts are retained; late foreign-scope denial and Edit-only POST403 do not invalidate another readable view."
+}

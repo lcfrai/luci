@@ -1,0 +1,2 @@
+# Publish controlled test logs referenced by the evidence manifest.
+!*.log

@@ -1,0 +1,23 @@
+
+> @lcfr/luci-desktop@0.5.0 test
+> vitest run --maxWorkers=1 --reporter=default --reporter=json --outputFile=/workspace/.luci-tools/cloud020-ui/correction-diagnostic-2/vitest.json src/components/journey/CheckRecoveryDialog.test.tsx src/components/journey/requirements.test.tsx
+
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+ ✓ src/components/journey/requirements.test.tsx (13 tests) 1969ms
+   ✓ saves a task link against the shown approved revision and retains it with the shared dirty guard after a conflict 418ms
+ ✓ src/components/journey/CheckRecoveryDialog.test.tsx (11 tests) 2381ms
+   ✓ requires exact check consent and makes one recovery request without starting commands 328ms
+   ✓ keeps a null-method pending review read-only 1031ms
+
+ Test Files  2 passed (2)
+      Tests  24 passed (24)
+   Start at  19:24:26
+   Duration  9.48s (tests 48%, environment 25%, transform 19%, import 5%, setup 3%)
+
+Environment  jsdom was created 2 times · 2.30s total, 25% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments
+
+JSON report written to /workspace/.luci-tools/cloud020-ui/correction-diagnostic-2/vitest.json

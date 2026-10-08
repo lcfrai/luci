@@ -1,0 +1,36 @@
+=== RUN   TestLeaseProcessContentionCrashAndReopen
+=== RUN   TestLeaseProcessContentionCrashAndReopen/crash=false
+=== RUN   TestLeaseProcessContentionCrashAndReopen/crash=true
+--- PASS: TestLeaseProcessContentionCrashAndReopen (7.53s)
+    --- PASS: TestLeaseProcessContentionCrashAndReopen/crash=false (4.29s)
+    --- PASS: TestLeaseProcessContentionCrashAndReopen/crash=true (3.24s)
+=== RUN   TestLeaseProcessHelper
+--- PASS: TestLeaseProcessHelper (0.00s)
+=== RUN   TestLeaseRejectsSpecialFileWithoutBlocking
+--- PASS: TestLeaseRejectsSpecialFileWithoutBlocking (0.01s)
+=== RUN   TestLeaseRejectsInvalidRootsBeforeWriting
+--- PASS: TestLeaseRejectsInvalidRootsBeforeWriting (0.00s)
+=== RUN   TestLeaseCompatibleWithOfflineFlock
+--- PASS: TestLeaseCompatibleWithOfflineFlock (0.01s)
+=== RUN   TestLeaseBlocksSecondWriterAndSurvivesHolderExit
+--- PASS: TestLeaseBlocksSecondWriterAndSurvivesHolderExit (0.01s)
+=== RUN   TestLeaseRejectsLinksAndBroadPermissions
+=== RUN   TestLeaseRejectsLinksAndBroadPermissions/linked-root
+=== RUN   TestLeaseRejectsLinksAndBroadPermissions/linked-parent
+=== RUN   TestLeaseRejectsLinksAndBroadPermissions/linked-file
+=== RUN   TestLeaseRejectsLinksAndBroadPermissions/hardlinked-file
+=== RUN   TestLeaseRejectsLinksAndBroadPermissions/public-root
+=== RUN   TestLeaseRejectsLinksAndBroadPermissions/public-file
+--- PASS: TestLeaseRejectsLinksAndBroadPermissions (0.02s)
+    --- PASS: TestLeaseRejectsLinksAndBroadPermissions/linked-root (0.00s)
+    --- PASS: TestLeaseRejectsLinksAndBroadPermissions/linked-parent (0.00s)
+    --- PASS: TestLeaseRejectsLinksAndBroadPermissions/linked-file (0.00s)
+    --- PASS: TestLeaseRejectsLinksAndBroadPermissions/hardlinked-file (0.00s)
+    --- PASS: TestLeaseRejectsLinksAndBroadPermissions/public-root (0.00s)
+    --- PASS: TestLeaseRejectsLinksAndBroadPermissions/public-file (0.00s)
+=== RUN   TestLeaseRefusesInterruptedRestoreBeforeWriting
+--- PASS: TestLeaseRefusesInterruptedRestoreBeforeWriting (0.00s)
+=== RUN   TestLeaseRefusesDeletedHostBeforeFreshBootstrap
+--- PASS: TestLeaseRefusesDeletedHostBeforeFreshBootstrap (0.00s)
+PASS
+ok  	github.com/lcfrai/luci/control-plane/internal/statelease	8.650s

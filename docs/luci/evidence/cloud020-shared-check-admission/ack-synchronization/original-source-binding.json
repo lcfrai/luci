@@ -1,0 +1,8 @@
+{
+  "path": "control-plane/internal/api/project_check_execution_test.go",
+  "sha256": "5cbdfaab7cbf429754fa4c6614565c3645bed4b7fd00957e879b9f4537788d8e",
+  "broadInputHead": "f9f80e88119414b4556569ef04afb255eacd12ff",
+  "broadReport": "/workspace/luci/artifacts/quality-swarm/cloud020-integrated/go/report.json",
+  "broadReportSha256": "728de7bb2996894cf9a01a53bfbba182fc29d3635276e77e792f9d826e1d276f",
+  "notice": "Original whole-package failure remains unchanged; excerpt retained with matching pre-fix test source."
+}

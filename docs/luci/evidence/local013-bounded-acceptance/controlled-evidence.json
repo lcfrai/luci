@@ -1,0 +1,289 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-08T19:48:44.572091+00:00",
+  "status": "controlled-helper-validation-only; prepared changes applied to candidate checkout",
+  "scope": "LOCAL-013 bounded acceptance lifecycle, SDK check proxy bridge, and opt-in owned-check resource attribution. No installed acceptance or native Windows success claim.",
+  "provenance": [
+    {
+      "change": "LOCAL-013 lifecycle and durable journal",
+      "patchSHA256": "c0c6b0c46e52477897ba0654a134b19240cf69d64047f30e15c2f58d6a8167d3",
+      "originalBaseRevision": "4e7d5fe4eaeeaa492cde94f22e51081cdb7a1b5e",
+      "files": [
+        {
+          "path": "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs",
+          "baseSHA256": null,
+          "stagedSHA256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+        },
+        {
+          "path": "scripts/acceptance/launch-recovery/acceptance-lifecycle.test.mjs",
+          "baseSHA256": null,
+          "stagedSHA256": "3307c5091f3c4617883e3137679ccfb59ec7fdcd276a77806aa58d7c7a0797c5"
+        },
+        {
+          "path": "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs",
+          "baseSHA256": null,
+          "stagedSHA256": "190711f5d97f9aa3c39edaa83d5abc6778c85531ef37788ee515e3fd6abf9bf1"
+        },
+        {
+          "path": "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs",
+          "baseSHA256": "bc2ca69c7372d7f79ef5fc67bd9ebae17dd62c554dbe25b6df525e037f45b359",
+          "stagedSHA256": "c0eafb9fe334bb251bdafd51f2bb2bf7e3dfb37dc4a2de9ff703c41ed599e06c"
+        },
+        {
+          "path": "scripts/acceptance/launch-recovery/fenced-docker-proxy.test.mjs",
+          "baseSHA256": "3cbc4a9f5b3e12e7ea276426dca892aeb44e0ced81a9b3e02c554e1dadba5ca5",
+          "stagedSHA256": "531817c5d1a1bf21052aa15677fcf5bfde901e4ff1a28418ac03ab3dad791c44"
+        },
+        {
+          "path": "scripts/acceptance/task-dependencies/dag.mjs",
+          "baseSHA256": "d2d0e2a73be0f3522d9ea96d5454c5d7253bc1c14050241a2f11b7b5d27f83d0",
+          "stagedSHA256": "44300b69029a9ea7abedf8db824350a5165e0c8bbf5d93268961b5c78cd99d45"
+        },
+        {
+          "path": "scripts/acceptance/task-dependencies/run-with-observer.py",
+          "baseSHA256": "80da81c9d46841df6ffa505c7e9d6641849408748ba1b1bc2661cd73f043068f",
+          "stagedSHA256": "701d1a021724a1e954796fe5708319913a6753c8e0345b6bc3eed80ca2a99739"
+        },
+        {
+          "path": "scripts/acceptance/task-dependencies/run_with_observer_test.py",
+          "baseSHA256": "16d056f5c3b5cb4febdb0765c4a458b3afc9276b0c22f46902391145f6a71d1e",
+          "stagedSHA256": "bdd5838784321dc7a8b65ae683f51362a61193b279e300a1329546e0ed7836b9"
+        }
+      ]
+    },
+    {
+      "change": "SDK proxy successor",
+      "patchSHA256": "92d31136779d6f801b13b930a4c3b8d4c138a762b07f7f2fc6e6396ef16b9868",
+      "files": [
+        {
+          "path": "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs",
+          "baseSHA256": "190711f5d97f9aa3c39edaa83d5abc6778c85531ef37788ee515e3fd6abf9bf1",
+          "stagedSHA256": "18abbe451c23559fad9a1b0d3565c9647f5aef50a3898cec2a03b3b7bb342d89"
+        },
+        {
+          "path": "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs",
+          "baseSHA256": "c0eafb9fe334bb251bdafd51f2bb2bf7e3dfb37dc4a2de9ff703c41ed599e06c",
+          "stagedSHA256": "bb7e7ec6be9501eeb155b9c9d4112dffd6b9066fc539cd1cd45eac4ed732531d"
+        },
+        {
+          "path": "scripts/acceptance/launch-recovery/fenced-docker-proxy.test.mjs",
+          "baseSHA256": "531817c5d1a1bf21052aa15677fcf5bfde901e4ff1a28418ac03ab3dad791c44",
+          "stagedSHA256": "55d5e8558d54f76f4f44d15bcc801d245e755958050aa5321b050b8e2c68b21e"
+        }
+      ]
+    },
+    {
+      "change": "Owned-check sampler and C013 integration",
+      "patchSHA256": "c9bb7c23cf9ddb116271140b40b846b61eea7a651f9e7cd83492ede7f8e111a0",
+      "appliedAt": "2026-10-08T19:43:22.127594+00:00",
+      "baseAndResultHashesVerified": true,
+      "files": [
+        {
+          "path": "scripts/acceptance/four-project-queue/RESOURCE-MEASUREMENT.md",
+          "baseSHA256": "55730b4250c2ff5d15d7e62b9ff293ec4520ccc8b592775e8d6663dba2942379",
+          "stagedSHA256": "9228d8605d03c3e984f0de0411c5d642d2e0cc9dbb4cea8b960a305d0979f0a3"
+        },
+        {
+          "path": "scripts/acceptance/four-project-queue/sample-linux-owned.py",
+          "baseSHA256": "f9bdd159bb27d19b38df602146319ff9a9b2c828c89038057ed5b58524f4c0ad",
+          "stagedSHA256": "324d4543b0111619fe45a45f80af06f8fdc5022cfec491b04ca0e8f990f325b7"
+        },
+        {
+          "path": "scripts/acceptance/four-project-queue/sample-windows-owned.ps1",
+          "baseSHA256": "c7bef039657b96b35e37e1741b79d3001d82b74ed8e941b71523fb7a55a32254",
+          "stagedSHA256": "bed5d3cee42ade16bc715882278975f09d9c90fa60864082e140466dd09948e4"
+        },
+        {
+          "path": "scripts/acceptance/four-project-queue/sample_linux_owned_test.py",
+          "baseSHA256": null,
+          "stagedSHA256": "6bae8f8c990a2ba8a5e5b01830c0a34ad18cfdd2777f238e1f5cc701171400e9"
+        },
+        {
+          "path": "scripts/acceptance/four-project-queue/test-windows-owned.ps1",
+          "baseSHA256": "eda5d85389a3e892b86dfe4c62d04463fedcfc4cc7542753b95dc62ca00e5c36",
+          "stagedSHA256": "26caf07d3217f0d069170b440ddf423581e05bd6bf0a129355e797fbbc8ba36b"
+        },
+        {
+          "path": "scripts/acceptance/task-dependencies/README.md",
+          "baseSHA256": "1bc8e2a457dc00a71cc7214a63df254412cff9e7bda7b46805d723ef60f43e8d",
+          "stagedSHA256": "edf1c10260c1f53ded932e4448350e89fde5d5aaf8e918863846dfb311c25116"
+        },
+        {
+          "path": "scripts/acceptance/task-dependencies/dag.mjs",
+          "baseSHA256": "d5ace0dafd8dd14d49423ddaffaee153f1d2802098f63cd75dfdabf074047cfd",
+          "stagedSHA256": "e22fabe57952ad03c763bc188121b3886c64ea0941cf2ebdc795523f360e91f3"
+        },
+        {
+          "path": "scripts/acceptance/task-dependencies/run-with-observer.py",
+          "baseSHA256": "701d1a021724a1e954796fe5708319913a6753c8e0345b6bc3eed80ca2a99739",
+          "stagedSHA256": "5a4d13eefb245a5040e727d689a61aad5e18c2a945f2c6cee10658d6810eebdd"
+        },
+        {
+          "path": "scripts/acceptance/task-dependencies/run_with_observer_test.py",
+          "baseSHA256": "bdd5838784321dc7a8b65ae683f51362a61193b279e300a1329546e0ed7836b9",
+          "stagedSHA256": "550efcdb586a4b203b75a6312989867f33b89b01512874d003344e0cb6a09b40"
+        }
+      ]
+    },
+    {
+      "change": "Exact diagnostic basename follow-up",
+      "patchSHA256": "6e7475bd6bd82313567c8e11ae385ae6f6076699f2f625baa91254bdd7806fad",
+      "files": [
+        {
+          "path": "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs",
+          "baseSHA256": "18abbe451c23559fad9a1b0d3565c9647f5aef50a3898cec2a03b3b7bb342d89",
+          "resultSHA256": "062f24520425480bca2afb62f40ea0d4bed6e6c842cddd3ad9800e5d2c2b20ea"
+        },
+        {
+          "path": "scripts/acceptance/launch-recovery/acceptance-lifecycle.test.mjs",
+          "baseSHA256": "3307c5091f3c4617883e3137679ccfb59ec7fdcd276a77806aa58d7c7a0797c5",
+          "resultSHA256": "c168a87158ebf59b9d4cc027551d0f5867367c2153f810a2acac8fe77a625748"
+        }
+      ],
+      "sourceUnchangedDuringTest": true
+    },
+    {
+      "change": "Evidence link follow-up",
+      "path": "scripts/acceptance/task-dependencies/README.md",
+      "reason": "Align folder/README.md evidence link. Documentation only.",
+      "SHA256": "54a4c3ba7d3e83b93bf7f1507e86f79407f6f414e753c03c5ddf5a832fce4599"
+    }
+  ],
+  "currentSourceSHA256": {
+    "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+    "scripts/acceptance/launch-recovery/acceptance-lifecycle.test.mjs": "c168a87158ebf59b9d4cc027551d0f5867367c2153f810a2acac8fe77a625748",
+    "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs": "062f24520425480bca2afb62f40ea0d4bed6e6c842cddd3ad9800e5d2c2b20ea",
+    "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs": "bb7e7ec6be9501eeb155b9c9d4112dffd6b9066fc539cd1cd45eac4ed732531d",
+    "scripts/acceptance/launch-recovery/fenced-docker-proxy.test.mjs": "55d5e8558d54f76f4f44d15bcc801d245e755958050aa5321b050b8e2c68b21e",
+    "scripts/acceptance/task-dependencies/dag.mjs": "e22fabe57952ad03c763bc188121b3886c64ea0941cf2ebdc795523f360e91f3",
+    "scripts/acceptance/task-dependencies/run-with-observer.py": "5a4d13eefb245a5040e727d689a61aad5e18c2a945f2c6cee10658d6810eebdd",
+    "scripts/acceptance/task-dependencies/run_with_observer_test.py": "550efcdb586a4b203b75a6312989867f33b89b01512874d003344e0cb6a09b40",
+    "scripts/acceptance/four-project-queue/RESOURCE-MEASUREMENT.md": "9228d8605d03c3e984f0de0411c5d642d2e0cc9dbb4cea8b960a305d0979f0a3",
+    "scripts/acceptance/four-project-queue/sample-linux-owned.py": "324d4543b0111619fe45a45f80af06f8fdc5022cfec491b04ca0e8f990f325b7",
+    "scripts/acceptance/four-project-queue/sample-windows-owned.ps1": "bed5d3cee42ade16bc715882278975f09d9c90fa60864082e140466dd09948e4",
+    "scripts/acceptance/four-project-queue/sample_linux_owned_test.py": "6bae8f8c990a2ba8a5e5b01830c0a34ad18cfdd2777f238e1f5cc701171400e9",
+    "scripts/acceptance/four-project-queue/test-windows-owned.ps1": "26caf07d3217f0d069170b440ddf423581e05bd6bf0a129355e797fbbc8ba36b",
+    "scripts/acceptance/task-dependencies/README.md": "54a4c3ba7d3e83b93bf7f1507e86f79407f6f414e753c03c5ddf5a832fce4599",
+    "scripts/acceptance/four-project-queue/windows-resource-native.cs": "ba6eb88c5f54c5222f7030d222c20a1f77ae6cef9af6cf1337b83f03b9941c54"
+  },
+  "controlledValidation": [
+    {
+      "suite": "Combined Node helper integration",
+      "passed": 173,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "sourceFilesUnchanged": 77,
+      "commandRecord": "combined-command.json",
+      "resultRecord": "combined-result.json",
+      "log": "combined-node.tap",
+      "scope": "Actual candidate helper checkout, controlled Node tests and synthetic transports; before exact diagnostic basename follow-up. Includes lifecycle6, proxy26, strict worker/check admission and DAG contract helpers."
+    },
+    {
+      "suite": "Shared lifecycle and privacy follow-up",
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "resultRecord": "diagnostic-followup-result.json",
+      "log": "diagnostic-followup-node.tap",
+      "scope": "Controlled promises and temporary local files. Includes never-resolving browser/transport, missing browser handle, late mutation fence, checkpoint failure, journal bounds and secret/path refusal."
+    },
+    {
+      "suite": "Linux owned sampler",
+      "passed": 20,
+      "failed": 0,
+      "command": [
+        "python3",
+        "scripts/acceptance/four-project-queue/sample_linux_owned_test.py"
+      ],
+      "scope": "Protocol identity; foreign/malformed/default scope; current PID/start/cgroup; stale/changed immutable stats; limits/deduplication; full one-tick private artifact/provenance; no fabricated peaks or RSS addition.",
+      "execution": "External staging, applied bytes verified identical."
+    },
+    {
+      "suite": "C013 observer wrapper",
+      "passed": 4,
+      "failed": 0,
+      "command": [
+        "python3",
+        "scripts/acceptance/task-dependencies/run_with_observer_test.py"
+      ],
+      "scope": "Mocked subprocesses, explicit --include-checks argument, bounded failure/settlement and same-interpreter observer self-cost. External staging applied bytes verified identical."
+    },
+    {
+      "suite": "Windows owned sampler",
+      "passed": 17,
+      "failed": 0,
+      "exitCode": 0,
+      "powerShellVersion": "7.5.5",
+      "command": [
+        "pwsh",
+        "-NoProfile",
+        "-File",
+        "scripts/acceptance/four-project-queue/test-windows-owned.ps1"
+      ],
+      "scope": "Controlled OS/Docker fixtures and compiled unchanged native HTTP decoder on Linux. No native Windows probes or Docker connection. External staging applied bytes verified identical."
+    }
+  ],
+  "testAccounting": "Suites overlap. Do not add repeated suite counts; 173 is the prior combined run, and 7 is the affected follow-up run.",
+  "C013BudgetsSeconds": {
+    "preparationAllowance": 120,
+    "workflow": 900,
+    "cleanupTotal": 180,
+    "wrapperDriverTotal": 1200,
+    "wrapperTERMGrace": 5,
+    "wrapperReap": 5,
+    "observerMaximum": 1215,
+    "observerSettlementWait": 30,
+    "observerTerminate": 5,
+    "observerReap": 5,
+    "cleanupPhases": {
+      "controllers": 30,
+      "proxy": 125,
+      "browser": 12,
+      "provider": 3
+    },
+    "browserClose": 5
+  },
+  "measurement": {
+    "legacyDefault": "worker-only unchanged",
+    "linuxOptIn": "--include-checks",
+    "windowsOptIn": "-IncludeChecks or version-1 manifest includeChecks:true",
+    "C013OptsIn": true,
+    "cadenceSeconds": 1,
+    "noRSSCgroupAddition": true,
+    "linuxCoverageStates": [
+      "cgroup-usage-observed",
+      "identity-only",
+      "not-observed"
+    ],
+    "linuxCaps": "Configured memory and combined RAM+swap caps recorded separately from observed usage.",
+    "windowsUnavailable": "Configured memory/swap caps and guest PID/start/cgroup are null with explicit unavailable status; cgroup memory limit from stats remains available.",
+    "briefCheck": "May complete between samples. No measured peak or zero peak is inferred from missing coverage."
+  },
+  "historicalAttempt4": {
+    "sourceRevision": "4e7d5fe4eaeeaa492cde94f22e51081cdb7a1b5e",
+    "status": "interrupted/failed; no complete driver or observer receipt",
+    "observed": "Four native worker exits and current-task integrations persisted. Legacy final check recorded Create EOF and exit 125.",
+    "cause": "Unclassified. No retained evidence proves timeout, external supervisor reset, uncaught error or MemorySwap normalization as the cause.",
+    "LOCAL013": "The source-confirmed deadline/cleanup defect is a separate finding, not an attribution for this disappearance.",
+    "ownership": "Later manual exact-ID never-started recovery did not establish an original Create ACK or proxy drain. Normal helper ACK/drain guards remain strict."
+  },
+  "notEstablished": [
+    "Installed C013 success with the prepared SDK/proxy/sampler changes.",
+    "Check cgroup usage coverage or resource peaks in an actual workload.",
+    "Native Windows/Docker named-pipe operation of the new sampler option.",
+    "Live-model quality, throughput or Windows acceptance.",
+    "Cause of the historical attempt4 disappearance."
+  ],
+  "privacy": "Public record contains source hashes, controlled test output and bounded method details only; no private fixture state, provider credentials or real process environments.",
+  "publishedArtifactSHA256": {
+    "combined-result.json": "60fa27fe524cce0d9eb6ce73183ae24a6cb6cb858b00d69accc32323ad56f9ac",
+    "diagnostic-followup-node.tap": "985b781cfe547b7f62139cdad2e0bf50690f064a20c6e69358e55be40b4b3b83",
+    "combined-node.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "combined-command.json": "69fb448bc2ab53047786558c552cfbf4873efbc074f39d3d07e4e36d1625c591",
+    "diagnostic-followup-node.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "diagnostic-followup-result.json": "385978639524e45a015232cd07d419d00466c4301b483270252ad5ac940e06fd",
+    "combined-node.tap": "d9753fe04dc2414421f35dfc5a955e2b89b659873d26e800efc1872b80d877a6"
+  }
+}

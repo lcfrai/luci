@@ -10,7 +10,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -45,17 +44,20 @@ type executionLease struct {
 	UpdatedAt       time.Time                    `json:"updatedAt"`
 }
 type executionLeaseLedger struct {
-	Version     int                    `json:"version"`
-	Leases      []executionLease       `json:"leases"`
-	Retirements []executionRetirement  `json:"retirements,omitempty"`
-	Fences      []executionFenceRecord `json:"fences,omitempty"`
+	Version     int                         `json:"version"`
+	Leases      []executionLease            `json:"leases"`
+	Retirements []executionRetirement       `json:"retirements,omitempty"`
+	Fences      []executionFenceRecord      `json:"fences,omitempty"`
+	Checks      []checkExecutionLease       `json:"checks,omitempty"`
+	CheckFences []checkExecutionFenceRecord `json:"checkFences,omitempty"`
 }
 type executionAdmission struct {
-	api         *API
-	mu          sync.Mutex
-	path, scope string
-	snapshot    atomic.Pointer[executionReservationView]
-	fenceGuards sync.Map
+	api           *API
+	mu            sync.Mutex
+	path, scope   string
+	snapshot      atomic.Pointer[executionReservationView]
+	fenceGuards   sync.Map
+	checkObserver checkExecutionObservations
 }
 type executionReservationView struct {
 	ObservedAt time.Time `json:"observedAt"`
@@ -168,6 +170,9 @@ func (g *executionAdmission) mutate(ctx context.Context, fn func(*executionLease
 	if err != nil {
 		return err
 	}
+	if _, err := decodeExecutionLedger(data); err != nil {
+		return err
+	}
 	if len(data) > 2<<20 {
 		return errors.New("execution capacity history exceeds its bounded private storage")
 	}
@@ -179,6 +184,14 @@ func (g *executionAdmission) mutate(ctx context.Context, fn func(*executionLease
 		view.MemoryMiB += lease.Resources.MemoryMiB
 		view.CPUMillis += lease.Resources.CPUMillis
 	}
+	for _, check := range ledger.Checks {
+		if check.State == "finished" {
+			continue
+		}
+		view.Count++
+		view.MemoryMiB += check.Resources.MemoryMiB
+		view.CPUMillis += check.Resources.CPUMillis
+	}
 	g.snapshot.Store(view)
 	return nil
 }
@@ -187,7 +200,7 @@ func decodeExecutionLedger(data []byte) (executionLeaseLedger, error) {
 	var ledger executionLeaseLedger
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&ledger) != nil || decoder.Decode(new(any)) != io.EOF || ledger.Version != 1 || len(ledger.Leases) > 4096 || len(ledger.Retirements) > 4096 {
+	if decoder.Decode(&ledger) != nil || decoder.Decode(new(any)) != io.EOF || ledger.Version != 1 || len(ledger.Leases)+len(ledger.Checks) > 4096 || len(ledger.Retirements) > 4096 {
 		return ledger, errors.New("execution capacity state cannot be verified")
 	}
 	seen := map[string]bool{}
@@ -195,6 +208,13 @@ func decodeExecutionLedger(data []byte) (executionLeaseLedger, error) {
 		key := lease.Scope + ":" + lease.ID
 		if !validExecutionLease(lease) || seen[key] {
 			return ledger, errors.New("execution capacity ownership cannot be verified")
+		}
+		seen[key] = true
+	}
+	for _, check := range ledger.Checks {
+		key := check.Scope + ":" + check.ID
+		if !validCheckExecutionLease(check) || seen[key] {
+			return ledger, errors.New("check capacity ownership cannot be verified")
 		}
 		seen[key] = true
 	}
@@ -206,6 +226,9 @@ func decodeExecutionLedger(data []byte) (executionLeaseLedger, error) {
 		seen[key] = true
 	}
 	if err := validateExecutionFenceRecords(ledger); err != nil {
+		return ledger, err
+	}
+	if err := validateCheckFenceRecords(ledger); err != nil {
 		return ledger, err
 	}
 	return ledger, nil
@@ -322,7 +345,7 @@ func (g *executionAdmission) reserveWorker(ctx context.Context, id, projectID, p
 		}
 		snap := g.api.deps.ResourceSnapshot()
 		now := time.Now()
-		if !snap.Host.Fresh(now, 5*time.Second) || !snap.Execution.Fresh(now, 5*time.Second) || snap.Host.Memory.EffectiveAvailableBytes == nil || snap.Host.Memory.EffectiveTotalBytes == nil || snap.Execution.TotalMemoryBytes == nil || snap.Execution.CPUMillis == nil || *snap.Execution.CPUMillis <= 0 || snap.Host.CPU.EffectiveMillis == nil || *snap.Host.CPU.EffectiveMillis <= 0 || !snap.Execution.InventoryComplete {
+		if !freshExecutionCapacity(snap, now) {
 			return nil
 		}
 		waiting := func(code, message string) { decision.Code, decision.Message = code, message }
@@ -433,71 +456,15 @@ func (g *executionAdmission) reserveWorker(ctx context.Context, id, projectID, p
 			waiting("provider_limit", "This model connection has reached its concurrency limit.")
 			return nil
 		}
-		required := uint64(resources.MemoryMiB) << 20
-		headroom := max(uint64(policy.MinHeadroomMiB)<<20, *snap.Host.Memory.EffectiveTotalBytes*uint64(policy.HeadroomPercent)/100)
-		executionHeadroom := max(uint64(policy.MinHeadroomMiB)<<20, *snap.Execution.TotalMemoryBytes*uint64(policy.HeadroomPercent)/100)
-		if *snap.Host.Memory.EffectiveAvailableBytes < headroom+required+pendingMemory || *snap.Execution.TotalMemoryBytes < allMemory+required+executionHeadroom {
-			waiting("memory_pressure", "Available memory cannot preserve the configured headroom for another worker.")
+		demand := executionCapacityDemand{PendingMemory: pendingMemory, AllMemory: allMemory, CPU: cpu, PendingAllocations: pendingAllocations}
+		if err := addCheckCapacity(snap, ledger.Checks, "", "", &demand); err != nil {
+			return err
+		}
+		if code, message := evaluateExecutionCapacity(snap, policy, resources, demand, now); code != "" {
+			waiting(code, message)
 			return nil
 		}
-		cpuCeiling := *snap.Execution.CPUMillis * int64(100-policy.HeadroomPercent) / 100
-		if snap.Host.CPU.EffectiveMillis != nil {
-			cpuCeiling = min(cpuCeiling, *snap.Host.CPU.EffectiveMillis*int64(100-policy.HeadroomPercent)/100)
-		}
-		if snap.Host.CPU.UtilizationPercent != nil && *snap.Host.CPU.UtilizationPercent > float64(100-policy.HeadroomPercent) {
-			waiting("cpu_pressure", "Current CPU pressure needs to fall before another worker starts.")
-			return nil
-		}
-		if cpu+int64(resources.CPUMillis) > cpuCeiling {
-			waiting("cpu_capacity", "Configured worker CPU limits exceed the available execution capacity.")
-			return nil
-		}
-		if len(snap.Host.Disks) == 0 {
-			waiting("disk_observation_unavailable", "Disk capacity must be measured before another worker starts.")
-			return nil
-		}
-		for _, disk := range snap.Host.Disks {
-			if disk.AvailableBytes == nil || disk.ObservedAt.IsZero() || disk.ObservedAt.After(now) || now.Sub(disk.ObservedAt) > 5*time.Second {
-				waiting("disk_observation_unavailable", "Current host storage capacity is unavailable. Waiting for a fresh observation.")
-				return nil
-			}
-			if *disk.AvailableBytes < uint64(policy.DiskReserveMiB)<<20 {
-				waiting("disk_pressure", "Available disk is below the configured working reserve.")
-				return nil
-			}
-		}
-		if snap.Execution.ImageVirtualSizeBytes == nil || snap.Execution.DaemonDisk == nil || snap.Execution.DaemonDisk.AvailableBytes == nil {
-			waiting("execution_disk_unavailable", "Execution storage capacity and sandbox image demand must be observed before another worker starts.")
-			return nil
-		}
-		if snap.Execution.DaemonDisk.ObservedAt.IsZero() || snap.Execution.DaemonDisk.ObservedAt.After(now) || now.Sub(snap.Execution.DaemonDisk.ObservedAt) > 5*time.Second {
-			waiting("execution_disk_unavailable", "Current execution storage capacity is not available. Waiting for a fresh observation.")
-			return nil
-		}
-		createDisk, estimateErr := estimateExecutionCreateDisk(snap.Execution)
-		if estimateErr != nil {
-			waiting("execution_disk_estimate_unavailable", estimateErr.Error())
-			return nil
-		}
-		diskDemand, bounded := executionPendingDiskDemand(createDisk.Bytes, pendingAllocations, policy.DiskReserveMiB)
-		if !bounded {
-			waiting("execution_disk_estimate_unavailable", "Pending execution storage demand exceeds supported capacity accounting.")
-			return nil
-		}
-		if storageErr := resourcebudget.ValidateHostStorage(snap.Execution.HostStorage, runtime.GOOS == "windows" || snap.Host.Platform == "windows", diskDemand, now, 5*time.Second); storageErr != nil {
-			code := "unavailable"
-			var detail *resourcebudget.LocalStorageError
-			if errors.As(storageErr, &detail) {
-				code = detail.Code
-			}
-			waiting("host_storage_"+code, storageErr.Error())
-			return nil
-		}
-		if *snap.Execution.DaemonDisk.AvailableBytes < diskDemand {
-			waiting("execution_disk_pressure", "Execution storage cannot preserve the working reserve for the pending sandbox copies.")
-			return nil
-		}
-		if len(ledger.Leases) >= 4096 {
+		if len(ledger.Leases)+len(ledger.Checks) >= 4096 {
 			return errors.New("execution capacity history needs reconciliation")
 		}
 		if replacement != nil {

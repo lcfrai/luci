@@ -1,0 +1,8 @@
+{
+  "path": "control-plane/internal/api/project_check_execution_test.go",
+  "beforeSha256": "5cbdfaab7cbf429754fa4c6614565c3645bed4b7fd00957e879b9f4537788d8e",
+  "afterSha256": "d334137904f66267d51644a3f2bc4470470dbab9e2b9d85acbd46823f7051d33",
+  "patchSha256": "911a1b411be9d6f9ceed3f83b6f11d0b5507b05c9d264abf78fd0d6a1792ab69",
+  "scope": "Test helper and two normal-completion call sites only; no product/API runtime behavior changed",
+  "originalFailure": "original-failure.jsonl"
+}

@@ -1,0 +1,15 @@
+{
+  "Replace": {
+    "/workspace/luci/control-plane/internal/statelease/lease_process_test.go": "/workspace/.luci-tools/state-single-writer-staging/control-plane/internal/statelease/lease_process_test.go",
+    "/workspace/luci/control-plane/internal/statelease/lease_windows.go": "/workspace/.luci-tools/state-single-writer-staging/control-plane/internal/statelease/lease_windows.go",
+    "/workspace/luci/control-plane/internal/statelease/lease.go": "/workspace/.luci-tools/state-single-writer-staging/control-plane/internal/statelease/lease.go",
+    "/workspace/luci/control-plane/internal/statelease/lease_windows_test.go": "/workspace/.luci-tools/state-single-writer-staging/control-plane/internal/statelease/lease_windows_test.go",
+    "/workspace/luci/control-plane/internal/statelease/lease_test.go": "/workspace/.luci-tools/state-single-writer-staging/control-plane/internal/statelease/lease_test.go",
+    "/workspace/luci/control-plane/internal/statelease/lease_unix.go": "/workspace/.luci-tools/state-single-writer-staging/control-plane/internal/statelease/lease_unix.go",
+    "/workspace/luci/control-plane/internal/statelease/lease_other.go": "/workspace/.luci-tools/state-single-writer-staging/control-plane/internal/statelease/lease_other.go",
+    "/workspace/luci/control-plane/internal/statelease/lease_special_unix_test.go": "/workspace/.luci-tools/state-single-writer-staging/control-plane/internal/statelease/lease_special_unix_test.go",
+    "/workspace/luci/control-plane/cmd/api/managed_state_lease.go": "/workspace/.luci-tools/state-single-writer-staging/control-plane/cmd/api/managed_state_lease.go",
+    "/workspace/luci/control-plane/cmd/api/managed_state_lease_test.go": "/workspace/.luci-tools/state-single-writer-staging/control-plane/cmd/api/managed_state_lease_test.go",
+    "/workspace/luci/control-plane/internal/statelease/lease_linux.go": ""
+  }
+}

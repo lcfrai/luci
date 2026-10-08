@@ -83,6 +83,9 @@ func (a *API) allocatePreparedSession(ctx context.Context, prepared preparedSess
 			return refuseStart("changed", "admission", err)
 		}
 	}
+	if err := a.validateExecutionResourceLimits(ctx, spec.Resources); err != nil {
+		return refuseStart("changed", "admission", err)
+	}
 	if prepared.ExecutionLeaseID != "" {
 		release, err := a.execution.acquireLaunchLifecycle(ctx, prepared.ExecutionLeaseID, row)
 		if err != nil {

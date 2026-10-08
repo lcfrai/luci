@@ -1,3 +1,4 @@
+import { checkRunResult, checkRecoveryResult, checkCanRecover, type CheckRecoveryReview } from './projectCheckContracts';
 import { workspacePath, teamScopePrefix, teamScopeGeneration } from './teamScope';
 import { ApiError, DEFAULT_BASE_URL, type ProblemCode } from "./client";
 import { authHeaders, expireAuth } from "./authSession";
@@ -235,12 +236,21 @@ export interface CheckCommand {
   args: string[];
 }
 export interface CheckResult extends CheckCommand {
+  allocationId?: string;
+  stage?: string;
+  reasonCode?: string;
+  message?: string;
+  cleanupConfirmed?: boolean;
   status: string;
   exitCode?: number;
   output: string;
   truncated: boolean;
 }
 export interface CheckRun {
+  revision?: number;
+  resourcesHeld?: boolean | null;
+  stage?: string;
+  reasonCode?: string;
   id: string;
   projectId: string;
   commit: string;
@@ -748,30 +758,33 @@ export function createProductClient(
         tasks,
         ...(expectedSpecificationRevision === undefined ? {} : { expectedSpecificationRevision }),
       }),
-    checks: (id: string) =>
-      request<{ runs: CheckRun[]; suggested: CheckCommand[]; coverage?: RequirementCoverage }>(
-        `${project(id)}/checks`,
-      ),
-    runChecks: (
+    checks: async (id: string, signal?: AbortSignal) => {
+      const value = await request<{ runs: CheckRun[]; suggested: CheckCommand[]; coverage?: RequirementCoverage }>(`${project(id)}/checks`, undefined, 'GET', 30_000, signal);
+      if (!value || !Array.isArray(value.runs)) throw new Error('Check history could not be verified. Refresh this project.');
+      return {...value, runs: value.runs.map(run => checkRunResult(id, run))};
+    },
+    runChecks: async (
       id: string,
       commands: CheckCommand[],
       acknowledgeHostExecution: boolean,
       execution: "docker" | "host" = "docker",
       binding?: RequirementCheckBinding,
-    ) =>
-      request<CheckRun>(`${project(id)}/checks`, {
-        commands,
-        acknowledgeHostExecution,
-        execution,
-        ...binding,
-      }),
-    checkRun: (id: string, runId: string) =>
-      request<CheckRun>(`${project(id)}/checks/${encodeURIComponent(runId)}`),
-    cancelChecks: (id: string, runId: string) =>
-      request<CheckRun>(
-        `${project(id)}/checks/${encodeURIComponent(runId)}/cancel`,
-        {},
-      ),
+    ) => checkRunResult(id, await request<CheckRun>(`${project(id)}/checks`, {
+      commands, acknowledgeHostExecution, execution, ...binding,
+    })),
+    checkRun: async (id: string, runId: string, signal?: AbortSignal) =>
+      checkRunResult(id, await request<CheckRun>(`${project(id)}/checks/${encodeURIComponent(runId)}`, undefined, 'GET', 30_000, signal), runId),
+    cancelChecks: async (id: string, runId: string) =>
+      checkRunResult(id, await request<CheckRun>(`${project(id)}/checks/${encodeURIComponent(runId)}/cancel`, {}), runId),
+    checkRecovery: async (id: string, runId: string, signal?: AbortSignal) =>
+      checkRecoveryResult(id, runId, await request(`${project(id)}/checks/${encodeURIComponent(runId)}/recovery`, undefined, 'GET', 30_000, signal)),
+    recoverCheck: async (id: string, runId: string, review: CheckRecoveryReview) => {
+      if (review.projectId !== id || review.checkId !== runId || !checkCanRecover(review)) throw new Error('Refresh this exact check recovery before continuing.');
+      const selected = checkRecoveryResult(id, runId, review);
+      return checkRunResult(id, await request(`${project(id)}/checks/${encodeURIComponent(runId)}/recovery`, {
+        expectedRevision: selected.revision, recoveryDigest: selected.recoveryDigest, acknowledgeStop: true,
+      }), runId);
+    },
     releases: (id: string) =>
       request<{ releases: Release[] }>(`${project(id)}/releases`),
     prototypeReleases: (id: string) =>

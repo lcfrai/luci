@@ -1,0 +1,11 @@
+{
+  "baselineHead": "4e7d5fe4eaeeaa492cde94f22e51081cdb7a1b5e",
+  "projection": "/workspace/.luci-tools/cloud020-ui/diagnostic-1/tree",
+  "baselineOwnedFilesUnchanged": true,
+  "stagedFiles": 11,
+  "fixtureSource": "/workspace/.luci-tools/cloud020-staging/tree/control-plane/internal/product/testdata/project-check-http.json",
+  "fixtureSHA256": "1dc6700c476d58fb5b6624525bb04150010e0c5aad30c116b887d3e07a6a9a54",
+  "fixtureScope": "Corrected expected fixture; diagnostic1 emitted five unchanged cases, recovered metadata correction awaits Go diagnostic2 equality.",
+  "nodeModules": "Existing locked checkout install via symlink; no install performed",
+  "testsStarted": false
+}

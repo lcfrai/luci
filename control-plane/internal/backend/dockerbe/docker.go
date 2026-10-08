@@ -207,6 +207,10 @@ func (b *Backend) Create(ctx context.Context, spec backend.Spec) (backend.Sandbo
 	if err := validateBootstrapEnvironment(spec.Env); err != nil {
 		return backend.Sandbox{}, err
 	}
+	engine, err := b.memoryLimitIdentity(ctx, spec.Resources)
+	if err != nil {
+		return backend.Sandbox{}, err
+	}
 	name := namePrefix + spec.ID
 	if _, active := b.creates.LoadOrStore(spec.ID, struct{}{}); active {
 		return backend.Sandbox{}, fmt.Errorf("dockerbe: container %s is being created: %w", name, backend.ErrAlreadyExists)
@@ -265,9 +269,12 @@ func (b *Backend) Create(ctx context.Context, spec backend.Spec) (backend.Sandbo
 		Binds:      binds,
 		ExtraHosts: []string{"host.docker.internal:host-gateway"},
 		Resources: container.Resources{
-			NanoCPUs:  spec.Resources.NanoCPUs(),
-			Memory:    spec.Resources.MemoryBytes(),
-			PidsLimit: &pidsLimit,
+			NanoCPUs: spec.Resources.NanoCPUs(),
+			Memory:   spec.Resources.MemoryBytes(),
+			// Docker interprets this as RAM plus swap. Equality leaves no
+			// additional swap allowance beyond the admitted memory budget.
+			MemorySwap: spec.Resources.MemoryBytes(),
+			PidsLimit:  &pidsLimit,
 		},
 	}
 	configureHostIdentity(cfg, hostCfg)
@@ -279,6 +286,15 @@ func (b *Backend) Create(ctx context.Context, spec backend.Spec) (backend.Sandbo
 	created, err := b.api.ContainerCreate(ctx, cfg, hostCfg, nil, nil, name)
 	if err != nil {
 		return backend.Sandbox{}, fmt.Errorf("dockerbe: create %s: %v: %w", name, err, backend.ErrUnavailable)
+	}
+	if owned, verifyErr := b.verifyCreatedWorkerLimits(ctx, spec, created.ID, engine); verifyErr != nil {
+		// Never start an allocation whose requested limits were discarded.
+		// Existing cleanup uses this just-acknowledged immutable reference;
+		// failure remains uncertain to the coordinator, not a no-Create claim.
+		if owned {
+			b.cleanup(ctx, created.ID)
+		}
+		return backend.Sandbox{}, verifyErr
 	}
 	if err := b.api.ContainerStart(ctx, created.ID, container.StartOptions{}); err != nil {
 		b.cleanup(ctx, created.ID)

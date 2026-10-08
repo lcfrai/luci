@@ -85,6 +85,7 @@ type Deps struct {
 	ExecutionStateDir         string
 	ResourceSnapshot          func() resourcebudget.Snapshot
 	AuthorizeExecution        management.ExecutionAuthorizer
+	AuthorizeChecks           management.CheckAuthorizer
 	AuthorizeExecutionControl management.ExecutionControlAuthorizer
 	ManagedExecution          bool
 	ExecutionReady            func() bool
@@ -428,6 +429,11 @@ func New(d Deps) (*API, error) {
 		d.Product.SetProjectSwarmCheckpointGuard(a.authorizeTaskCheckpoint, a.acquireStoppedTaskOutput)
 		d.Product.SetTaskHandoffCollector(a.authorizeTaskOutput, a.collectTaskHandoff)
 		d.Product.SetRuntimeResourceSnapshot(d.ResourceSnapshot)
+		checkRuntime := product.ProjectCheckRuntime{AcknowledgeCompleted: a.acknowledgeProjectCheckResults, CaptureActor: a.captureCheckActor, AuthorizeControl: a.authorizeExecutionRetirement, Execute: a.executeProjectCheck, Busy: a.projectCheckBusy, Recovery: a.projectCheckRecovery, Recover: a.recoverProjectCheck}
+		if d.ObserveTaskCompletions {
+			checkRuntime.Observe = a.ObserveChecksOnce
+		}
+		d.Product.SetProjectCheckRuntime(checkRuntime)
 		d.Product.SetProjectRunSelectionResolver(a.ResolveProjectRunSelection)
 		d.Product.SetProjectRunSessionObserver(a.ObserveProjectRunSessions)
 		var observeTasks func(context.Context) error

@@ -38,6 +38,7 @@ func NewSessionStartFailure(stage, code string) SessionStartFailure {
 }
 
 var startAdmissionMessages = map[string]string{
+	"resource_limits_unsupported":         "The configured runtime cannot enforce the requested memory, combined memory/swap, CPU and process limits.",
 	"dispatch_paused":                     "New queued dispatch was paused before allocation.",
 	"dispatch_policy_unavailable":         "The current dispatch policy could not be read.",
 	"execution_authority_changed":         "Current execution access could not be confirmed. Review the project's access and account policy.",

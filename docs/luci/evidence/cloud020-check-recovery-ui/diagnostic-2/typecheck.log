@@ -1,0 +1,9 @@
+
+> @lcfr/luci-desktop@0.5.0 typecheck
+> tsc --noEmit
+
+src/components/journey/CheckRecoveryDialog.test.tsx(67,91): error TS2345: Argument of type '"permission_denied"' is not assignable to parameter of type 'ProblemCode'.
+src/components/journey/ProjectChecks.test.tsx(503,29): error TS2345: Argument of type '"permission_denied"' is not assignable to parameter of type 'ProblemCode'.
+src/components/journey/ProjectChecks.test.tsx(527,66): error TS2345: Argument of type '"permission_denied"' is not assignable to parameter of type 'ProblemCode'.
+src/components/journey/ProjectChecks.test.tsx(558,43): error TS2345: Argument of type '"permission_denied"' is not assignable to parameter of type 'ProblemCode'.
+src/components/journey/ProjectChecks.test.tsx(571,91): error TS2345: Argument of type '"permission_denied"' is not assignable to parameter of type 'ProblemCode'.

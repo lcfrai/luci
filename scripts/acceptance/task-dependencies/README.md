@@ -16,7 +16,8 @@ cloud allocation, artificial final-reply hold, success-path Stop or hidden task
 retry is allowed.
 
 The witness requires a corrected package containing CLOUD-011 task-context V2
-and CLOUD-015 truthful integration notices; do not run it against known-unfixed
+and CLOUD-015 truthful integration notices, plus the current CLOUD-020 shared
+check ledger/hard-limit and CLOUD-021 dependency-refusal corrections. Do not run it against known-unfixed
 919 merely to repeat that defect.
 
 The witness requires:
@@ -56,8 +57,9 @@ test credentials and must not be committed or shared. Docker cleanup acts only o
 exact acknowledged fixture IDs, after owned controllers stop and proxy requests
 drain. Any ambiguous mutation prevents destructive cleanup. Positive runs need no
 container stop/delete by the fixture because normal reaping removes every worker.
-The check's existing `docker run --rm` and subsequent named cleanup remain actual
-product behavior; the proxy does not rewrite them or fabricate their results.
+The check uses the product's protocol-1 Docker SDK path with `AutoRemove=false`.
+Normal product cleanup removes its verified immutable ID after natural exit; the
+proxy forwards that real operation and never fabricates its result.
 
 The bundle validator accepts only the explicit legacy V1 eight-file schema or V2
 nine-file schema (with `.luci/task-handoffs.json`); this new-task witness requires
@@ -83,38 +85,93 @@ A negative dependency probe records its bounded response error/code/message, req
 
 The driver also stops on a terminal `failed` queue entry belonging to the exact explicit queue authorization and previously unseen child. It saves bounded public queue, session and current operation diagnostics before failing, including `startFailure` when available. An older failed B1 cannot be selected after B2 receives its own authorization. Unknown outcomes keep the existing bounded observation behavior; the diagnostic never grants a retry or creates a worker. Attempt 2 on `3b8054e6` completed A but B1 was refused before sandbox allocation; its generic old record cannot establish the particular access/capacity condition. Both earlier failures remain separate.
 
-## Separate check admission and evidence limits
+## Separate SDK check admission and evidence limits
 
-Check traffic is explicitly enabled only for this helper; the shared proxy denies
-it by default. The one check must match the actual persisted project-check row,
-fully integrated clean source, selected criterion, exact native argv, configured
-image, and a single owned writable primary checkout mount. Worker authority,
-context/report mounts, arbitrary commands, extra mounts, ports, capabilities and
-host namespaces are refused. The check is never counted as an additional agent.
-Fresh acceptance-only host/engine capacity and zero-container observations run
-before consent and again before forwarding Create. These guards do not establish
-production-wide check resource admission; that separate gap is tracked as
-CLOUD-020.
+Check traffic remains disabled in the shared proxy unless explicitly enabled.
+This driver selects `checkTrafficProtocol: 'sdk-ledger-v1'` with one check Create
+and Start. Its name is `luci-check-<checkexec-allocation-id>`; all twelve protocol
+labels bind engine, instance, allocation, check, command index, project, scope,
+command/source digests and image. The guard independently matches those labels
+to the persisted project-check row, authenticated actor, fully integrated clean
+source and the exact `creating` lease in the fixture's private
+`state/control-plane/execution/leases.json`. Scope is the canonical conversations
+root digest. Missing capabilities, stale resource observations or ledger/identity
+mismatches fail before Create.
 
-Only an acknowledged immutable check ID may attach, wait or start. The existing
-product's named `docker rm --force` is forwarded unchanged only after an
-independent name inspection returns that exact ID/name/check identity or actual
-404. This is a point-in-time check, not an atomic daemon name fence. It depends on
-the exclusive fixture-owned daemon window and single permitted check Create;
-there is no claim of race-proof production cleanup. On failure, fixture cleanup
-waits for owned controllers to stop and proxy requests to drain, then acts only
-on the acknowledged immutable ID with matching image, command, mounts and limits.
-Uncertain mutations or ownership stop destructive cleanup.
+The SDK request pins the verified image ID and exact `node verify.mjs final`
+argv, 1 GiB memory and combined RAM+swap (no additional swap), one CPU, 256 PIDs,
+read-only root, init, no added capabilities and no-new-privileges. Only the
+fixture-owned primary checkout is writable; worker context/report authority,
+extra mounts, ports and host namespaces are refused. `AutoRemove=false` leaves
+cleanup observable. The check is never counted as a fifth agent. The pre-consent
+capacity guard observes no live reservation; before Create it validates the
+single exact check reservation and counts its own demand once. These acceptance
+cross-checks accompany the product's shared admission path; controlled guard
+checks alone do not establish installed production behavior.
 
-The raw CLI Create guard follows Docker CLI v28.4.0 sources, separately from
-normalized daemon inspection. The fresh private Docker config has no inherited
-attach keys. Mock transport and source review do not establish installed CLI wire
-compatibility; the next actual run must still pass every guard without alteration.
-The frozen Linux sampler attributes managed agent containers, not this separately
-labelled check. Its check-container cgroup peak is therefore **not measured** by
-that sampler. The receipt retains configured check limits, fresh admission
-observations, host/process sampling and actual check evidence without inventing
-check memory/CPU measurements or a responsiveness result.
+Only a real, fully drained Create `201` with its full immutable ID establishes an
+ACK. For that ID, SDK mode permits inspect, non-following stdout/stderr logs,
+one Start and removal with `v=1` (optional `force=1` for the product's cancellation
+path). Named check lifecycle requests, CLI attach/wait and upgrades are refused.
+The legacy CLI protocol remains a separate default for other acceptance helpers;
+its request format is not used here. Successful recorded checks must confirm
+cleanup and release their reservation before results can be joined. Failed
+fixture cleanup still requires stopped owned controllers, conclusively drained
+proxy requests, a real ACK and matching immutable container ownership/config.
+An uncertain mutation never authorizes name-based or ambiguous cleanup.
+
+The wrapper explicitly enables `--include-checks` on the independently frozen
+Linux observer. It selects the separately labelled check only after exact
+instance/image/protocol/engine/allocation validation, and bounds running usage by
+fresh immutable-ID statistics and current PID/start/cgroup identity. Each row
+distinguishes worker/check and retains the configured combined RAM+swap cap.
+The observer summary distinguishes measured usage, identity-only, and unobserved
+checks; missing or stale observations produce explicit issues. A brief Node check
+can finish between one-second samples, so enabling attribution does not establish
+a measured check peak. Admission/hard-limit proof and sampled usage remain
+separate, and cgroup memory is never added to process RSS. This preparation has
+controlled fixtures only; the next actual workflow needs fresh observer evidence.
+
+## Durable deadline and shutdown evidence (LOCAL-013)
+
+The scenario deadline is 900 seconds. It rejects the workflow wait as well as
+requesting owned controller shutdown; API/browser/Create mutation boundaries
+refuse late continuations after failure. Failure screenshots have their own
+three-second bound. Before any blocking cleanup, a durable
+`result.json.incomplete.json` checkpoint records `passed: false`, stage, deadlines,
+owned process identities and unresolved Docker drain. The bounded, mode-0600
+journal records sanitized stage/signal/fatal locations, mutation-forward intent,
+real Create ACKs and cleanup phases. Intent is not ACK; response-end is not proof
+of client receipt. Headers, bodies, credentials and process environments are not
+journaled, and journal failure refuses subsequent mutations.
+
+Cleanup attempts are independent: controllers 30 seconds, proxy 125 seconds,
+browser 12 seconds and provider 3 seconds, inside a 180-second overall cleanup
+budget. Browser close gets five seconds, then the same exact-profile/PID-start
+fallback runs even if Playwright launch never returned a handle. Unsettled
+transport remains explicitly uncertain. The final failure receipt is attempted
+before ending only this driver's lifetime; the cleanup watchdog can leave an
+incomplete failure record when cleanup cannot settle. It does not force removal
+of ambiguous Docker resources. Tests use never-resolving promises and synthetic
+transport; they do not establish an infinite-hang defect in the proxy's existing
+bounded gates.
+
+The wrapper's total driver budget is 1200 seconds (120 seconds preparation
+allowance plus the scenario/cleanup budgets). After that total expires it allows
+only five seconds for SIGTERM, then at most five seconds to reap its own forced
+exit; it does not add another three-minute cleanup window. Observer settlement
+has separate 30-second wait, five-second terminate and five-second reap bounds.
+The wrapper records its own PID/start/group/session, sent signals and child exit
+results in a durable lifecycle journal. These safeguards do not make SIGKILL or
+an external supervisor loss observable inside a killed process.
+
+Attempt 4 on `4e7d5fe4` retained the four worker exits and all current task
+integrations, but the final legacy check recorded Create EOF/exit 125 and no
+complete driver/observer receipt. Its disappearance remains unclassified. The
+source-confirmed LOCAL-013 deadline/cleanup gap and daemon-normalized MemorySwap
+are not established causes of that run. Earlier frozen helpers and failed
+artifacts retain their original scope; the new SDK/observer path requires a fresh
+installed witness. See the [controlled lifecycle and observer evidence](../../../docs/luci/evidence/local013-bounded-acceptance/README.md).
 
 ## Preparation checks
 
@@ -124,7 +181,8 @@ From this directory:
 node --test --test-concurrency=1 ../task-context-delivery.test.mjs helper.test.mjs context-contract.test.mjs dependency-probe.test.mjs queued-failure.test.mjs project-check-guard.test.mjs
 python3 -m unittest run_with_observer_test.py
 node --check dag.mjs
-node --test --test-concurrency=1 ../launch-recovery/worker-create-guard.test.mjs ../launch-recovery/fenced-docker-proxy.test.mjs
+node --test --test-concurrency=1 ../launch-recovery/worker-create-guard.test.mjs ../launch-recovery/fenced-docker-proxy.test.mjs ../launch-recovery/acceptance-lifecycle.test.mjs
+python3 ../four-project-queue/sample_linux_owned_test.py
 ```
 
 These checks start no Docker, Go compiler, Luci or provider. Oracle tests run Node
@@ -143,8 +201,11 @@ LUCI_ACCEPTANCE_REPO=/ABS/LUCI-CHECKOUT python3 run-with-observer.py \
 
 Use an exclusive fixture-owned Linux Docker daemon, never the owner’s personal/shared Docker Desktop environment. Coordinate this window with other acceptance work. The zero-container/volume entry requirement is not an instruction to remove existing resources.
 
-The observer is the frozen independent Linux sampler. Its eighteen-minute window
-includes bounded owned cleanup and separate observer-self-cost reporting; missing
+The observer is the independently frozen Linux sampler. The wrapper has one
+1200-second driver budget: a 120-second preparation allowance plus 900 seconds for
+the scenario and 180 seconds for owned cleanup. Observation permits 15 further
+seconds of settlement.
+Observer-self-cost reporting remains separate; missing
 or partial coverage remains explicit. Preserve every failed attempt and its source
 hashes. Do not run during another performance/Docker/Go-compiler window.
 

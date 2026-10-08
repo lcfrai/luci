@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "command": [
+    "node",
+    "--test",
+    "--test-concurrency=1",
+    "scripts/acceptance/launch-recovery/acceptance-lifecycle.test.mjs"
+  ],
+  "startedAt": "2026-10-08T19:47:35.169590+00:00",
+  "endedAt": "2026-10-08T19:47:35.466712+00:00",
+  "exitCode": 0,
+  "source": {
+    "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs": "062f24520425480bca2afb62f40ea0d4bed6e6c842cddd3ad9800e5d2c2b20ea",
+    "scripts/acceptance/launch-recovery/acceptance-lifecycle.test.mjs": "c168a87158ebf59b9d4cc027551d0f5867367c2153f810a2acac8fe77a625748",
+    "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+  },
+  "sourceUnchanged": true,
+  "patchSHA256": "6e7475bd6bd82313567c8e11ae385ae6f6076699f2f625baa91254bdd7806fad",
+  "files": [
+    {
+      "path": "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs",
+      "baseSHA256": "18abbe451c23559fad9a1b0d3565c9647f5aef50a3898cec2a03b3b7bb342d89",
+      "resultSHA256": "062f24520425480bca2afb62f40ea0d4bed6e6c842cddd3ad9800e5d2c2b20ea"
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/acceptance-lifecycle.test.mjs",
+      "baseSHA256": "3307c5091f3c4617883e3137679ccfb59ec7fdcd276a77806aa58d7c7a0797c5",
+      "resultSHA256": "c168a87158ebf59b9d4cc027551d0f5867367c2153f810a2acac8fe77a625748"
+    }
+  ],
+  "scope": "Exact basename additions only: sustained.mjs and acceptance-lifecycle.mjs. No API/cleanup/ownership changes; controlled promises and local files only."
+}

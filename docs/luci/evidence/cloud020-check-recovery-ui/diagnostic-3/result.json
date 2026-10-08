@@ -1,0 +1,22 @@
+{
+  "scope": "Full frontend TypeScript-only follow-up; diagnostic-2 90 passing tests retained without rerun because only erased fixture casts/type imports changed",
+  "baselineHead": "4e7d5fe4eaeeaa492cde94f22e51081cdb7a1b5e",
+  "startedAt": "2026-10-08T19:02:36.949334+00:00",
+  "command": [
+    "npm",
+    "run",
+    "typecheck"
+  ],
+  "cwd": "/workspace/.luci-tools/cloud020-ui/diagnostic-3/tree/desktop",
+  "changedFiles": [
+    "desktop/src/components/journey/CheckRecoveryDialog.test.tsx",
+    "desktop/src/components/journey/ProjectChecks.test.tsx"
+  ],
+  "onlyErasedTestTypesChanged": true,
+  "finishedAt": "2026-10-08T19:02:59.160548+00:00",
+  "exitCode": 0,
+  "sourceInputs": 435,
+  "sourceUnchanged": true,
+  "checkoutOwnedFilesUnchanged": true,
+  "passed": true
+}

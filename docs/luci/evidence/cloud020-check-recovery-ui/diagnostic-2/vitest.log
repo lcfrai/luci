@@ -1,0 +1,29 @@
+
+> @lcfr/luci-desktop@0.5.0 test
+> vitest run --maxWorkers=1 --reporter=default --reporter=json --outputFile=/workspace/.luci-tools/cloud020-ui/diagnostic-2/vitest.json src/api/product.test.ts src/api/projectCheckContracts.test.ts src/components/journey/ProjectChecks.test.tsx src/components/journey/CheckRecoveryDialog.test.tsx
+
+
+ RUN  v5.0.1 /workspace/.luci-tools/cloud020-ui/diagnostic-2/tree/desktop
+
+ ✓ src/components/journey/ProjectChecks.test.tsx (45 tests) 8274ms
+   ✓ opens the exact reviewed build with visible, initially unchecked criteria and no execution 497ms
+   ✓ runs explicitly selected coverage and attaches eligible results only by a separate action using the fresh exact run revision 448ms
+   ✓ recovers custom commands, exact unfinished arguments and same-context coverage after remount, without host mode, trust or automatic execution 350ms
+   ✓ clears current private check history on check GET 401, gates controls, and retains unsent setup for an explicit fresh read 557ms
+   ✓ clears current private check history on check GET 403, gates controls, and retains unsent setup for an explicit fresh read 448ms
+   ✓ clears current private check history on availability GET 401, gates controls, and retains unsent setup for an explicit fresh read 448ms
+ ✓ src/components/journey/CheckRecoveryDialog.test.tsx (10 tests) 1124ms
+   ✓ requires exact check consent and makes one recovery request without starting commands 456ms
+ ✓ src/api/projectCheckContracts.test.ts (28 tests) 43ms
+ ✓ src/api/product.test.ts (7 tests) 80ms
+
+ Test Files  4 passed (4)
+      Tests  90 passed (90)
+   Start at  19:00:49
+   Duration  21.42s (tests 47%, environment 32%, transform 15%, setup 4%, import 3%)
+
+Environment  jsdom was created 4 times · 6.56s total, 32% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments
+
+JSON report written to /workspace/.luci-tools/cloud020-ui/diagnostic-2/vitest.json

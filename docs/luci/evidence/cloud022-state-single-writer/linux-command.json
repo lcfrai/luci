@@ -1,0 +1,23 @@
+{
+  "cwd": "/workspace/luci/control-plane",
+  "shellInitialization": "source /workspace/.luci-tools/activate.sh",
+  "argv": [
+    "go",
+    "test",
+    "-race",
+    "-p",
+    "1",
+    "-count",
+    "1",
+    "-timeout=2m",
+    "-json",
+    "./internal/statelease",
+    "./cmd/api"
+  ],
+  "environment": {
+    "GOMAXPROCS": "1"
+  },
+  "provenance": "Reported by the coordinating agent after the completed run; option spacing normalized to argv form.",
+  "exitCode": 0,
+  "exitCodeSource": "Coordinating agent observed successful completion; both raw package terminal outcomes independently report pass."
+}

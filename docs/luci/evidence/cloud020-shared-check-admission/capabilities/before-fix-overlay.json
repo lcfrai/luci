@@ -1,0 +1,7 @@
+{
+  "Replace": {
+    "/workspace/luci/control-plane/internal/backend/dockerbe/check_resource_limits_test.go": "/workspace/.luci-tools/check-capability-followup/control-plane/internal/backend/dockerbe/check_resource_limits_test.go",
+    "/workspace/luci/control-plane/internal/backend/dockerbe/docker_test.go": "/workspace/.luci-tools/check-capability-followup/control-plane/internal/backend/dockerbe/docker_test.go",
+    "/workspace/luci/control-plane/internal/backend/dockerbe/checks_test.go": "/workspace/.luci-tools/check-capability-followup/control-plane/internal/backend/dockerbe/checks_test.go"
+  }
+}

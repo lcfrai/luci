@@ -1,0 +1,178 @@
+{
+  "version": 1,
+  "issue": "CLOUD-022",
+  "recordedAt": "2026-10-08T19:41:11.549299+00:00",
+  "behaviorChange": "A second API/desktop instance sharing LUCI_STATE_DIR refuses before identity/stores/backend startup even with a different LUCI_ADDR. Distinct private state roots remain independent; normal/crash exit releases the persistent OS lock without deleting its file.",
+  "linuxIntegratedRun": {
+    "commandReceipt": "linux-command.json",
+    "rawStdout": "linux-actual-source-race.jsonl",
+    "rawStderr": "linux-actual-source-race.stderr",
+    "firstEventAt": "2026-10-08T19:33:50.067214786Z",
+    "lastEventAt": "2026-10-08T19:34:18.301596523Z",
+    "exitCode": 0,
+    "countsIncludingSubtests": {
+      "pass": 219,
+      "fail": 0,
+      "skip": 3
+    },
+    "perPackageCountsIncludingSubtests": {
+      "github.com/lcfrai/luci/control-plane/internal/statelease": {
+        "pass": 17,
+        "fail": 0,
+        "skip": 0
+      },
+      "github.com/lcfrai/luci/control-plane/cmd/api": {
+        "pass": 202,
+        "fail": 0,
+        "skip": 3
+      }
+    },
+    "perPackageTopLevelCounts": {
+      "github.com/lcfrai/luci/control-plane/internal/statelease": {
+        "pass": 9,
+        "fail": 0,
+        "skip": 0
+      },
+      "github.com/lcfrai/luci/control-plane/cmd/api": {
+        "pass": 100,
+        "fail": 0,
+        "skip": 1
+      }
+    },
+    "packages": [
+      {
+        "package": "github.com/lcfrai/luci/control-plane/internal/statelease",
+        "action": "pass",
+        "elapsedSeconds": 8.734,
+        "finishedAt": "2026-10-08T19:33:58.801075158Z"
+      },
+      {
+        "package": "github.com/lcfrai/luci/control-plane/cmd/api",
+        "action": "pass",
+        "elapsedSeconds": 3.466,
+        "finishedAt": "2026-10-08T19:34:18.301596523Z"
+      }
+    ],
+    "skips": [
+      {
+        "package": "github.com/lcfrai/luci/control-plane/cmd/api",
+        "test": "TestServeRefusesAWorktreeSwappedInsideAConversationStore",
+        "output": "=== RUN   TestServeRefusesAWorktreeSwappedInsideAConversationStore\n    scanner_serve_test.go:95: a junction is a Windows reparse point\n--- SKIP: TestServeRefusesAWorktreeSwappedInsideAConversationStore (0.04s)\n"
+      },
+      {
+        "package": "github.com/lcfrai/luci/control-plane/cmd/api",
+        "test": "TestNewScannerRefusesAWorktreeSwappedInsideAConversationStore/the_location_itself",
+        "output": "=== RUN   TestNewScannerRefusesAWorktreeSwappedInsideAConversationStore/the_location_itself\n    scanner_wiring_test.go:130: a junction is a Windows reparse point\n--- SKIP: TestNewScannerRefusesAWorktreeSwappedInsideAConversationStore/the_location_itself (0.01s)\n"
+      },
+      {
+        "package": "github.com/lcfrai/luci/control-plane/cmd/api",
+        "test": "TestNewScannerRefusesAWorktreeSwappedInsideAConversationStore/a_directory_on_the_way",
+        "output": "=== RUN   TestNewScannerRefusesAWorktreeSwappedInsideAConversationStore/a_directory_on_the_way\n    scanner_wiring_test.go:130: a junction is a Windows reparse point\n--- SKIP: TestNewScannerRefusesAWorktreeSwappedInsideAConversationStore/a_directory_on_the_way (0.01s)\n"
+      }
+    ],
+    "unfinishedStartedTests": [],
+    "stderrBytes": 0,
+    "raceDiagnosticObserved": false
+  },
+  "sourceBinding": {
+    "receipt": "source-postrun.json",
+    "appliedCandidateRecord": "source-apply.json",
+    "snapshotTiming": "post-run only",
+    "allCloud022FilesMatchAppliedCandidate": true,
+    "inputCount": 716,
+    "fullPreRunSourceManifestAvailable": false
+  },
+  "crosscompileReceipt": "crosscompile.json",
+  "nativeWindowsExecution": "pending",
+  "nativeMacOSExecution": "pending",
+  "scopeLimits": [
+    "Outcome counts include subtests and helper entry points; they are not independent end-to-end product workflows.",
+    "The 3 Linux skips concern pre-existing Windows junction scanner cases; skipped tests are not counted as passes.",
+    "Windows ACL/junction/LockFileEx behavior and macOS process locking need native execution. Crosscompile success does not establish native acceptance.",
+    "This evidence does not establish installed desktop packaging, real Docker execution, provider/model quality, cloud deployment or release readiness.",
+    "Evidence collection performed no test rerun, production service startup, cloud allocation or production source edits."
+  ],
+  "artifacts": [
+    {
+      "file": "candidate-linux-api-lease.log",
+      "bytes": 1110,
+      "sha256": "aaa0fa1d014e6e534936eefd045bce23db1dee08331dd77dbbbcefb2639e28d3"
+    },
+    {
+      "file": "candidate-linux-statelease-race.log",
+      "bytes": 2182,
+      "sha256": "4fd1689bdea55f6db38344fa0c90335289d91d3f75f71095a0d8140ad4114c2a"
+    },
+    {
+      "file": "candidate-overlay.json",
+      "bytes": 1882,
+      "sha256": "22cf9666b6cf1369e5a156c80bb0ad4e027fd30beb59accaca254dc7634663b0"
+    },
+    {
+      "file": "candidate-source-baseline.json",
+      "bytes": 2495,
+      "sha256": "79b83049bf4cd578be6dc62c02ee21fe8532e0956728abc1fe71b94634a4ebf9"
+    },
+    {
+      "file": "candidate-verification.json",
+      "bytes": 3719,
+      "sha256": "ba9a99305486f243637e1135af7247b6c4f236fe47654a9fad1439e1ec06e9d8"
+    },
+    {
+      "file": "crosscompile.json",
+      "bytes": 2614,
+      "sha256": "e6e83a2c0a217c01bde80aee3df570c48fb523f3fa60f05a5b00fe7d5b2a493a"
+    },
+    {
+      "file": "darwin-statelease-compile.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "linux-actual-source-race.jsonl",
+      "bytes": 234044,
+      "sha256": "0cd01140635be7fb3391454874c3b7011c55df7fe972b760c05772b624cbfdce"
+    },
+    {
+      "file": "linux-actual-source-race.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "linux-command.json",
+      "bytes": 604,
+      "sha256": "0120ab2b718d0b5767426f9ff7af609da172c59f89a199cbfacc7300f96cd5d3"
+    },
+    {
+      "file": "source-apply.json",
+      "bytes": 3995,
+      "sha256": "1f0d6bac03721e318d8e1cc6b55538d2f182f446fce46d979be32945b78a6213"
+    },
+    {
+      "file": "source-postrun.json",
+      "bytes": 96440,
+      "sha256": "30d3337babf56284ef34c4c88dff94c3c3dea6f7eb356b8e164d32d287bd74e8"
+    },
+    {
+      "file": "windows-statelease-compile.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "README.md",
+      "bytes": 3649,
+      "sha256": "521bfc620bd09da9ab4ce670806009f3ec62118341829739ea84ff916f5e8342"
+    },
+    {
+      "file": ".gitignore",
+      "bytes": 66,
+      "sha256": "a081231403c5cf39e2686d0b6281798926646ad2dbe07131c965946320e61383"
+    }
+  ],
+  "candidateLogMapping": {
+    "linux-statelease-race-final.log": "candidate-linux-statelease-race.log",
+    "linux-api-lease.log": "candidate-linux-api-lease.log",
+    "windows-statelease-compile.log": "windows-statelease-compile.log",
+    "darwin-statelease-compile-final.log": "darwin-statelease-compile.log"
+  }
+}

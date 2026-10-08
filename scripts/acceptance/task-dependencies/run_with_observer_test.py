@@ -66,13 +66,16 @@ class OwnedCleanupTests(unittest.TestCase):
                 stack.enter_context(patch.object(wrapper.sys, 'argv', argv))
                 stack.enter_context(patch.dict(wrapper.os.environ, {'LUCI_ACCEPTANCE_REPO': str(repo)}))
                 stack.enter_context(patch.object(wrapper.signal, 'signal'))
-                stack.enter_context(patch.object(wrapper.subprocess, 'Popen', side_effect=children))
+                launches = stack.enter_context(patch.object(wrapper.subprocess, 'Popen', side_effect=children))
                 stack.enter_context(contextlib.redirect_stdout(io.StringIO()))
                 stack.enter_context(contextlib.redirect_stderr(io.StringIO()))
                 # No thread is needed to discover a nonexistent fixture.
                 stack.enter_context(patch.object(wrapper.threading.Thread, 'start',
                                                   side_effect=RuntimeError('thread unavailable') if thread_failure else None))
-                return wrapper.main()
+                result = wrapper.main()
+                if len(launches.call_args_list)>1:self.assertIn('--include-checks',launches.call_args_list[1].args[0])
+                self.journal = [json.loads(line) for line in (Path(temp) / 'report-lifecycle.jsonl').read_text().splitlines()]
+                return result
 
     def test_observer_start_failure_stops_and_reaps_owned_driver(self):
         driver = Child()
@@ -92,6 +95,12 @@ class OwnedCleanupTests(unittest.TestCase):
         observer = Child([timeout(), 0], signal_race=True)
         self.assertEqual(self.run_fault([driver, observer]), 1)
         self.assertIn(('kill',), driver.events)
+        self.assertEqual(driver.events[0][0],'wait')
+        self.assertLessEqual(driver.events[0][1],wrapper.DRIVER_TOTAL_SECONDS)
+        self.assertNotIn(('wait',180),driver.events)
+        self.assertIn('wrapper-wait-timeout',[row['event'] for row in self.journal])
+        self.assertIn('driver-forced-exit-request',[row['event'] for row in self.journal])
+        self.assertEqual(self.journal[0]['totalSeconds'],1200)
         self.assertIn(('wait', 5), driver.events)
         self.assertIn(('signal', signal.SIGTERM), observer.events)
         self.assertIn(('wait', 5), observer.events)
@@ -106,9 +115,9 @@ class OwnProcessCostTests(unittest.TestCase):
                 script = root / 'tiny-observer.py'
                 script.write_text('raise SystemExit(' + str(code) + ')\n')
                 cost = root / 'own.json'
-                result = subprocess.run([sys.executable, '-c', wrapper.SAMPLER_LAUNCHER, str(script), str(cost)],
-                                        capture_output=True, timeout=10, check=False)
-                self.assertEqual(result.returncode, code)
+                with patch.object(sys,'argv',['launcher',str(script),str(cost)]), patch.object(signal,'signal'), self.assertRaises(SystemExit) as raised:
+                    exec(wrapper.SAMPLER_LAUNCHER,{'__name__':'__main__'})
+                self.assertEqual(raised.exception.code,code)
                 observed = json.loads(cost.read_text())
                 self.assertEqual(observed['exitCode'], code)
                 self.assertEqual(observed['status'], 'completed' if code == 0 else 'failed')

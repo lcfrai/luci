@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/system"
 	"github.com/docker/go-connections/nat"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
@@ -60,8 +61,14 @@ type fakeDocker struct {
 	createID  string
 	createErr error
 
-	starts   []string
-	startErr error
+	starts    []string
+	startErr  error
+	startHook func()
+	// This fake models a supported daemon plus the newly created, not-started
+	// object. Existing inspects retain their endpoint/readiness meaning.
+	info           *system.Info
+	infoErr        error
+	createdInspect *container.InspectResponse
 
 	inspects     []inspectResult
 	inspectNames []string
@@ -91,20 +98,32 @@ func (f *fakeDocker) ContainerCreate(_ context.Context, cfg *container.Config, h
 	if f.createErr != nil {
 		return container.CreateResponse{}, f.createErr
 	}
+	created := container.InspectResponse{ContainerJSONBase: &container.ContainerJSONBase{
+		ID: f.createID, Name: "/" + name, HostConfig: host, State: &container.State{Status: "created"}}, Config: cfg}
+	f.createdInspect = &created
 	return container.CreateResponse{ID: f.createID}, nil
 }
 
 func (f *fakeDocker) ContainerStart(_ context.Context, id string, _ container.StartOptions) error {
 	f.mu.Lock()
-	defer f.mu.Unlock()
 	f.starts = append(f.starts, id)
-	return f.startErr
+	err, hook := f.startErr, f.startHook
+	f.mu.Unlock()
+	if hook != nil {
+		hook()
+	}
+	return err
 }
 
 func (f *fakeDocker) ContainerInspect(_ context.Context, name string) (container.InspectResponse, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.inspectNames = append(f.inspectNames, name)
+	if f.createdInspect != nil && name == f.createID && len(f.starts) == 0 {
+		row := *f.createdInspect
+		f.createdInspect = nil
+		return row, nil
+	}
 	if len(f.inspects) == 0 {
 		return container.InspectResponse{}, notFoundErr{name}
 	}
@@ -113,6 +132,21 @@ func (f *fakeDocker) ContainerInspect(_ context.Context, name string) (container
 		f.inspects = f.inspects[1:]
 	}
 	return r.resp, r.err
+}
+
+func (f *fakeDocker) Info(ctx context.Context) (system.Info, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return system.Info{}, err
+	}
+	if f.infoErr != nil {
+		return system.Info{}, f.infoErr
+	}
+	if f.info != nil {
+		return *f.info, nil
+	}
+	return system.Info{ID: "fixture-engine", OSType: "linux", MemoryLimit: true, SwapLimit: true, CPUCfsPeriod: true, CPUCfsQuota: true, PidsLimit: true}, nil
 }
 
 func (f *fakeDocker) ContainerList(_ context.Context, opts container.ListOptions) ([]container.Summary, error) {
@@ -399,7 +433,7 @@ func TestCreateBuildsTheContractedContainerAndReturnsALoopbackEndpoint(t *testin
 	if c.hostConfig.RestartPolicy.Name != container.RestartPolicyDisabled {
 		t.Errorf("RestartPolicy = %q, want %q", c.hostConfig.RestartPolicy.Name, container.RestartPolicyDisabled)
 	}
-	if c.hostConfig.Resources.NanoCPUs != 2_000_000_000 || c.hostConfig.Resources.Memory != 4096<<20 {
+	if c.hostConfig.Resources.NanoCPUs != 2_000_000_000 || c.hostConfig.Resources.Memory != 4096<<20 || c.hostConfig.Resources.MemorySwap != 4096<<20 {
 		t.Errorf("Resources = %d nanocpus / %d bytes", c.hostConfig.Resources.NanoCPUs, c.hostConfig.Resources.Memory)
 	}
 	if c.hostConfig.Resources.PidsLimit == nil || *c.hostConfig.Resources.PidsLimit != 256 {
@@ -542,7 +576,10 @@ func TestCreateRemovesTheContainerAfterTheCallerGivesUp(t *testing.T) {
 	}
 	b := newBackend(t, f)
 	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
+	defer cancel()
+	// Cancel after the actual Start call. An already-cancelled preparation
+	// correctly refuses before Create and cannot exercise detached cleanup.
+	f.startHook = cancel
 
 	_, err := b.Create(ctx, validSpec())
 	if !errors.Is(err, context.Canceled) {

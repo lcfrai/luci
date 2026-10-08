@@ -1,0 +1,16 @@
+=== RUN   TestManagedRootAndOrphanWorkerLeaseBeforeAnyStateWrite
+=== RUN   TestManagedRootAndOrphanWorkerLeaseBeforeAnyStateWrite/initial-bootstrap
+=== RUN   TestManagedRootAndOrphanWorkerLeaseBeforeAnyStateWrite/requested-root
+=== RUN   TestManagedRootAndOrphanWorkerLeaseBeforeAnyStateWrite/bound-root
+=== RUN   TestManagedRootAndOrphanWorkerLeaseBeforeAnyStateWrite/worker
+--- PASS: TestManagedRootAndOrphanWorkerLeaseBeforeAnyStateWrite (0.01s)
+    --- PASS: TestManagedRootAndOrphanWorkerLeaseBeforeAnyStateWrite/initial-bootstrap (0.00s)
+    --- PASS: TestManagedRootAndOrphanWorkerLeaseBeforeAnyStateWrite/requested-root (0.00s)
+    --- PASS: TestManagedRootAndOrphanWorkerLeaseBeforeAnyStateWrite/bound-root (0.00s)
+    --- PASS: TestManagedRootAndOrphanWorkerLeaseBeforeAnyStateWrite/worker (0.00s)
+=== RUN   TestOrdinaryStateLeaseIndependentOfAddressAndBinding
+--- PASS: TestOrdinaryStateLeaseIndependentOfAddressAndBinding (0.03s)
+=== RUN   TestOrdinaryStateLeaseContenderProcess
+--- PASS: TestOrdinaryStateLeaseContenderProcess (0.00s)
+PASS
+ok  	github.com/lcfrai/luci/control-plane/cmd/api	0.056s

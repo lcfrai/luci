@@ -1,0 +1,106 @@
+{
+  "task": "CLOUD-022",
+  "recordedUTC": "2026-10-08T19:22:51.741510+00:00",
+  "rootBaselineHEAD": "f9f80e88119414b4556569ef04afb255eacd12ff",
+  "rootOwnedFilesUnchanged": true,
+  "unexpectedRootChanges": [],
+  "candidateChanges": [
+    {
+      "path": "control-plane/internal/statelease/lease_process_test.go",
+      "action": "add",
+      "candidateSHA256": "065f9c16837292843e75e415a77d58df8a1ed535d0d3f8542676289f85388d15"
+    },
+    {
+      "path": "control-plane/internal/statelease/lease_windows.go",
+      "action": "add",
+      "candidateSHA256": "2a52b6025a04728819f1f9ff5472400d6f31e92aefead610a229f995895e1769"
+    },
+    {
+      "path": "control-plane/internal/statelease/lease.go",
+      "action": "add",
+      "candidateSHA256": "65bd6bd82824261a68653bc4111f88de6842f91f07f1d804c9cf7597c6c7d7e4"
+    },
+    {
+      "path": "control-plane/internal/statelease/lease_windows_test.go",
+      "action": "add",
+      "candidateSHA256": "dbdf0b2931281e10b254131abc8804770ea0ebf137ca61d7cc9390b9855f82ac"
+    },
+    {
+      "path": "control-plane/internal/statelease/lease_test.go",
+      "action": "replace",
+      "candidateSHA256": "7f7ce8648066e91e6f3ceaf214339192e616c7b97de282994efd92db7ba35404"
+    },
+    {
+      "path": "control-plane/internal/statelease/lease_unix.go",
+      "action": "add",
+      "candidateSHA256": "53428533e0122a9c063f6b7e8df950a039a08e8a96c6fbca6fe8ac07d5edb76a"
+    },
+    {
+      "path": "control-plane/internal/statelease/lease_other.go",
+      "action": "replace",
+      "candidateSHA256": "3736a094e89f48b825c54f9efeecee4e1eb3d2e4dbba32dbfb8037527344531f"
+    },
+    {
+      "path": "control-plane/internal/statelease/lease_special_unix_test.go",
+      "action": "add",
+      "candidateSHA256": "185840893063c0bc15970e73ad4c2560b1e2cdb4318b57221413a725e97169cd"
+    },
+    {
+      "path": "control-plane/cmd/api/managed_state_lease.go",
+      "action": "replace",
+      "candidateSHA256": "79de797e077a6246260d468f98d99aa36070e1b2c07e066de521c8a1b74c1109"
+    },
+    {
+      "path": "control-plane/cmd/api/managed_state_lease_test.go",
+      "action": "replace",
+      "candidateSHA256": "7ef9fa1fcc88400576b40c26e81a3d757fe08d9da93e40b572b2fb878f2d1174"
+    },
+    {
+      "path": "control-plane/internal/statelease/lease_linux.go",
+      "action": "delete",
+      "candidateSHA256": null
+    }
+  ],
+  "checks": [
+    {
+      "target": "Linux amd64 statelease",
+      "mode": "race tests including real process contention, graceful/SIGKILL release, separate roots, path negatives and raw-flock offline compatibility",
+      "result": "passed",
+      "log": "linux-statelease-race-final.log"
+    },
+    {
+      "target": "Linux amd64 cmd/api",
+      "mode": "focused serve startup and acquisition tests including real contender process at a different address",
+      "result": "passed",
+      "log": "linux-api-lease.log"
+    },
+    {
+      "target": "Windows amd64 statelease",
+      "mode": "test crosscompile only",
+      "result": "passed",
+      "nativeExecution": "unverified",
+      "log": "windows-statelease-compile.log"
+    },
+    {
+      "target": "macOS arm64 statelease",
+      "mode": "test crosscompile only",
+      "result": "passed",
+      "nativeExecution": "unverified",
+      "log": "darwin-statelease-compile-final.log"
+    }
+  ],
+  "standaloneAppOrDockerStarted": false,
+  "checkoutApplied": false,
+  "artifacts": [
+    {
+      "file": "statelease-windows.test.exe",
+      "bytes": 5423616,
+      "sha256": "703fe14f01394eb23df1556c6392d7bc821c0ac9af10ed8f63a7e1cab4219a13"
+    },
+    {
+      "file": "statelease-darwin-arm64.test",
+      "bytes": 4803954,
+      "sha256": "1e5785fa05b2d03e5cb3eb53af7d919bd08d79b8f78b0c0cdfac0fa2c520d0bb"
+    }
+  ]
+}

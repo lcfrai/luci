@@ -7,6 +7,7 @@ import { mkdtemp, rm, unlink, writeFile, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { startFencedDockerProxy } from './fenced-docker-proxy.mjs';
+import { createAcceptanceJournal } from './durable-acceptance-journal.mjs';
 
 const workerID = 'a'.repeat(64), fenceID = 'b'.repeat(64), secondFenceID = 'c'.repeat(64);
 const createPath = name => `/v1.47/containers/create?name=${name}`;
@@ -363,4 +364,106 @@ test('attach output/time caps are explicit fixture failures and close releases a
     assert(f.proxy.observations.failures.includes(mode === 'bytes' ? 'check-attach-byte-limit' : 'check-attach-timeout'));
     const closed = await f.proxy.close(); assert.equal(closed.activeHandlers, 0); assert.equal(closed.pendingRequests, 0);
   }
+});
+
+test('durable real Create ACK exists before held response delivery',async t=>{
+ const dir=await mkdtemp(join(tmpdir(),'proxy-journal-')),path=join(dir,'journal.jsonl');
+ const journal=createAcceptanceJournal(path);
+ t.after(async()=>{journal.close();await rm(dir,{recursive:true,force:true});});
+ const f=await fixture(t,(_req,res)=>json(res,201,{Id:workerID}),{journal});
+ f.proxy.armGate({id:'hold-journal-ack',phase:'after-response',method:'POST'});
+ const request=f.request('POST',createPath('luci-task-one'),workerBody);
+ await f.proxy.waitForGate('hold-journal-ack');
+ const rows=(await readFile(path,'utf8')).trim().split('\n').map(JSON.parse);
+ assert.equal(rows.filter(row=>row.event==='create-ack').length,1);
+ const ack=rows.find(row=>row.event==='create-ack');assert.equal(ack.status,201);assert.equal(ack.id,workerID);assert(ack.sequence>rows.find(row=>row.event==='mutation-forward-intent').sequence);
+ assert(!rows.some(row=>row.event==='response-end-issued'));
+ assert(!(await readFile(path,'utf8')).includes('this-private-value'));
+ await f.proxy.releaseGate('hold-journal-ack');assert.equal((await request.promise).status,201);
+ await f.proxy.close();
+});
+
+test('durable journal failure refuses forwarding a new mutation',async t=>{
+ const f=await fixture(t,(_req,res)=>json(res,201,{Id:workerID}),{journal:{record(event){if(event==='mutation-forward-intent')throw Error('disk unavailable');}}});
+ const response=await f.request('POST',createPath('luci-task-one'),workerBody).promise;
+ assert.equal(response.status,503);assert.equal(f.received.length,0);assert(f.proxy.observations.failures.includes('journal-write-failed'));
+});
+
+test('an incomplete daemon response cannot create a journal ACK',async t=>{
+ const events=[];
+ const f=await fixture(t,(_req,res)=>{res.writeHead(201,{'content-type':'application/json','content-length':1000});res.write(JSON.stringify({Id:workerID}));res.socket.destroy();},{journal:{record(event,row){events.push({event,...row});}}});
+ await f.request('POST',createPath('luci-task-one'),workerBody).promise;
+ assert(!events.some(row=>row.event==='create-ack'));
+ await assert.rejects(f.proxy.close(),/forwarded-mutation-outcome-uncertain/);
+});
+
+const sdkAllocation='checkexec-'+'e'.repeat(24),sdkName='luci-check-'+sdkAllocation;
+const sdkLabels={
+ 'luci.check':'true','luci.check-protocol':'1','luci.instance':'fixture-instance',
+ 'luci.check-engine':'fixture-engine','luci.check-allocation':sdkAllocation,
+ 'luci.check-id':'check-'+'f'.repeat(24),'luci.check-command-index':'0',
+ 'luci.check-scope':'1'.repeat(64),'luci.check-project':'p-aabbccdd',
+ 'luci.check-command-digest':'2'.repeat(64),'luci.check-source-digest':'3'.repeat(64),
+ 'luci.check-image':'sha256:'+'4'.repeat(64),
+};
+const sdkBody={Labels:sdkLabels};
+const sdkOptions={allowCheckTraffic:true,checkTrafficProtocol:'sdk-ledger-v1',maxCreatesByKind:{worker:2,fence:1,check:1},identifyCreate:()=> 'check'};
+
+test('SDK opt-in retains exact lease labels and uses immutable inspect/logs/start/remove',async t=>{
+ const dir=await mkdtemp(join(tmpdir(),'sdk-journal-')),journalPath=join(dir,'journal.jsonl'),journal=createAcceptanceJournal(journalPath);
+ t.after(async()=>{journal.close();await rm(dir,{recursive:true,force:true});});
+ const f=await fixture(t,(req,res)=>{
+  if(req.url.startsWith('/v1.47/containers/create'))json(res,201,{Id:workerID});
+  else if(req.url.endsWith('/json'))json(res,200,{Id:workerID});
+  else if(req.url.includes('/logs?')){res.writeHead(200);res.end('DAG_CHECK_OK final\n');}
+  else{res.writeHead(204);res.end();}
+ },{...sdkOptions,journal});
+ assert.equal((await f.request('POST',createPath(sdkName),sdkBody).promise).status,201);
+ assert.deepEqual(f.proxy.observations.requests.find(row=>row.createResponseId)?.labels,sdkLabels);
+ assert.equal((await f.request('GET',`/v1.47/containers/${workerID}/json`).promise).status,200);
+ assert.equal((await f.request('POST',`/v1.47/containers/${workerID}/start`).promise).status,204);
+ const logs=await f.request('GET',`/v1.47/containers/${workerID}/logs?stderr=1&stdout=1&tail=all`).promise;
+ assert.equal(logs.status,200);assert.equal(logs.body,'DAG_CHECK_OK final\n');
+ assert.equal((await f.request('DELETE',`/v1.47/containers/${workerID}?v=1`).promise).status,204);
+ assert.equal(f.proxy.observations.counts.start,1);
+ const ack=(await readFile(journalPath,'utf8')).trim().split('\n').map(JSON.parse).find(row=>row.event==='create-ack');assert.deepEqual(ack.labels,sdkLabels);
+ await f.proxy.close();
+});
+
+test('SDK named reads/mutations, attach/wait, streaming logs, and unscoped removal are refused',async t=>{
+ const f=await fixture(t,(_req,res)=>json(res,201,{Id:workerID}),sdkOptions);
+ assert.equal((await f.request('POST',createPath(sdkName),sdkBody).promise).status,201);
+ const requests=[
+  ['GET',`/v1.47/containers/${sdkName}/json`],['DELETE',`/v1.47/containers/${sdkName}?v=1`],
+  ['POST',`/v1.47/containers/${workerID}/attach?stream=1&stdout=1&stderr=1`],['POST',`/v1.47/containers/${workerID}/wait`],
+  ['GET',`/v1.47/containers/${workerID}/json?size=1`],
+  ['GET',`/v1.47/containers/${workerID}/logs?stdout=1&stderr=1&tail=all&follow=1`],
+  ['GET',`/v1.47/containers/${workerID}/logs?stdout=1&stderr=1`],
+  ['GET',`/v1.47/containers/${'9'.repeat(64)}/logs?stdout=1&stderr=1&tail=all`],
+  ['DELETE',`/v1.47/containers/${workerID}`],['DELETE',`/v1.47/containers/${workerID}?v=1&link=1`],
+ ];
+ for(const [method,path] of requests)assert.equal((await f.request(method,path).promise).status,503,method+' '+path);
+ let upgraded=0;f.server.on('upgrade',(_req,socket)=>{upgraded++;socket.destroy();});
+ assert.equal((await upgradeRequest(f.socketPath,`/v1.47/containers/${workerID}/attach?stream=1&stdout=1&stderr=1`).promise).length,0);
+ assert.equal(upgraded,0);assert(f.proxy.observations.failures.includes('sdk-check-upgrade-forbidden'));
+ assert.equal(f.received.length,1);
+});
+
+test('SDK protocol rejects extra/missing labels, wrong allocation/name, and CLI names',async t=>{
+ for(const [name,labels] of [
+  [sdkName,{...sdkLabels,unscoped:'extra'}],
+  [sdkName,Object.fromEntries(Object.entries(sdkLabels).filter(([key])=>key!=='luci.check-source-digest'))],
+  [sdkName,{...sdkLabels,'luci.check-allocation':'checkexec-'+'a'.repeat(24)}],
+  ['luci-check-check-'+'f'.repeat(24)+'-0',sdkLabels],
+ ]){
+  const f=await fixture(t,(_req,res)=>json(res,201,{Id:workerID}),sdkOptions);
+  assert.equal((await f.request('POST',createPath(name),{Labels:labels}).promise).status,503);assert.equal(f.received.length,0);
+ }
+});
+
+test('SDK exact-ID cancellation removal accepts only explicit v=1 and optional force=1',async t=>{
+ const f=await fixture(t,(req,res)=>{if(req.method==='POST')json(res,201,{Id:workerID});else{res.writeHead(204);res.end();}},sdkOptions);
+ assert.equal((await f.request('POST',createPath(sdkName),sdkBody).promise).status,201);
+ assert.equal((await f.request('DELETE',`/v1.47/containers/${workerID}?force=1&v=1`).promise).status,204);
+ const recorded=f.received.at(-1);assert.equal(recorded.path,`/v1.47/containers/${workerID}?force=1&v=1`);
 });

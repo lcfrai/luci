@@ -110,6 +110,7 @@ type Server struct {
 	importNames                     map[string]bool
 	importActive                    map[string]bool
 	projectChecks                   map[string]*projectCheckJob
+	projectCheckRuntime             ProjectCheckRuntime
 	runtimeJob                      RuntimeJob
 	runtimeResourceSnapshot         func() resourcebudget.Snapshot
 	authJobs                        map[string]*ProviderLoginJob

@@ -84,6 +84,7 @@ var productReadOnlyRoutes = map[string]string{
 	"GET /v1/product/projects/{id}/plan":                                                       "Reads canonical task progress; cannot start checks or complete tasks.",
 	"GET /v1/product/projects/{id}/checks":                                                     "Reads saved bounded execution evidence and suggested command names; no commands execute.",
 	"GET /v1/product/projects/{id}/checks/{runId}":                                             "Reads saved execution evidence without starting a process.",
+	"GET /v1/product/projects/{id}/checks/{runId}/recovery":                                    "Reads the exact retained check and private admission receipt without starting, stopping, probing or removing an execution.",
 	"GET /v1/product/projects/{id}/git/delivery":                                               "Inspects current Git branch/commit and saved publication evidence; cannot create or push a repository.",
 }
 
@@ -118,6 +119,10 @@ func auditTree(t *testing.T, root string) map[string]string {
 
 func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T) {
 	s, initial := journeyFixture(t)
+	s.projectCheckRuntime.Recovery = func(_ context.Context, projectID, checkID string) (ProjectCheckRecoveryView, error) {
+		_, err := s.GetProjectCheckRun(projectID, checkID)
+		return ProjectCheckRecoveryView{}, err
+	}
 	p := createJourneyProject(t, initial, "read-only-app")
 	recorded := &productRouteRecorder{ServeMux: http.NewServeMux()}
 	s.Register(recorded)
@@ -241,7 +246,7 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 			if strings.HasPrefix(pattern, "GET /v1/setup/workspace/admin/") {
 				status = 403 // Standalone fixtures have no trusted management actor.
 			}
-			if pattern == "GET /v1/product/projects/{id}/checks/{runId}" || pattern == "GET /v1/product/projects/{id}/runs/{runId}" {
+			if pattern == "GET /v1/product/projects/{id}/checks/{runId}" || pattern == "GET /v1/product/projects/{id}/checks/{runId}/recovery" || pattern == "GET /v1/product/projects/{id}/runs/{runId}" {
 				status = 404
 			}
 			if strings.Contains(pattern, "/swarm/") {

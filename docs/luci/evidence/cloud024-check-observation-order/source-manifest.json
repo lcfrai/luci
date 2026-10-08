@@ -1,0 +1,33 @@
+{
+  "issue": "CLOUD-024",
+  "capturedAt": "2026-10-08T19:48:20.257247+00:00",
+  "baseHead": "f9f80e88119414b4556569ef04afb255eacd12ff",
+  "scope": "Two source files, controlled API/product race fixtures; no Docker/native/installed execution",
+  "files": [
+    {
+      "path": "control-plane/internal/api/check_observation.go",
+      "beforeSha256": "f0b4679232b5fbe3bd74fbcf0561dd613a5b4076b3a30e1b9b7d7156659e056d",
+      "preparedSha256": "8bd2b49310c4906127c24f85a602330fbcf53629d65d3034797faeb0aea21127",
+      "appliedSha256": "8bd2b49310c4906127c24f85a602330fbcf53629d65d3034797faeb0aea21127"
+    },
+    {
+      "path": "control-plane/internal/api/project_check_observation_order_test.go",
+      "beforeSha256": null,
+      "preparedSha256": "923323de020a9ff1aeefca70f4475da14754f098b1327ef6d0589721a06ed764",
+      "appliedSha256": "923323de020a9ff1aeefca70f4475da14754f098b1327ef6d0589721a06ed764"
+    }
+  ],
+  "productRuntimeUnchangedSha256": "abc9190bbd641d5a217b1fb5c3e789e9ac30e17bb221eeb1636906fa67941070",
+  "unfixed": {
+    "report": "unfixed/report.json",
+    "reportSha256": "5c7864f7f891a0861a51f4b17c03ae12c9a34af6d64b49e42e87a651b2b6646a",
+    "testSha256": "2830ac8ce010dd68f9c739d650e4da6cdf73d9775e663bd5a6ac36bc8363e8a7",
+    "productionSha256": "f0b4679232b5fbe3bd74fbcf0561dd613a5b4076b3a30e1b9b7d7156659e056d"
+  },
+  "fixed": {
+    "report": "fixed/report.json",
+    "reportSha256": "3eaff22b672daaf2c845a5172dd873736ec4634fefb574a44f89819f4f0cd481",
+    "testSha256": "923323de020a9ff1aeefca70f4475da14754f098b1327ef6d0589721a06ed764",
+    "productionSha256": "8bd2b49310c4906127c24f85a602330fbcf53629d65d3034797faeb0aea21127"
+  }
+}

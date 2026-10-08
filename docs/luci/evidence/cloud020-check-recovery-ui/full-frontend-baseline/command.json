@@ -1,0 +1,13 @@
+{
+  "command": [
+    "npx",
+    "vitest",
+    "run",
+    "--maxWorkers=1",
+    "--reporter=json",
+    "--outputFile=/workspace/luci/artifacts/quality-swarm/cloud020-integrated/frontend/tests.json"
+  ],
+  "cwd": "/workspace/luci/desktop",
+  "startedAt": "2026-10-08T19:10:05.891219+00:00",
+  "GOMAXPROCS": 2
+}

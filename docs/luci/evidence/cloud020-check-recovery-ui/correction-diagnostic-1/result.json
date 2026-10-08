@@ -1,0 +1,53 @@
+{
+  "scope": "Actual applied frontend CLOUD023/stylesheet-token/Edit-only-cancel/contract-mirror focused correction; no Docker/backend execution",
+  "startedAt": "2026-10-08T19:22:47.197414+00:00",
+  "cwd": "/workspace/luci/desktop",
+  "commands": [
+    {
+      "name": "vitest",
+      "command": [
+        "npm",
+        "test",
+        "--",
+        "--maxWorkers=1",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=/workspace/.luci-tools/cloud020-ui/correction-diagnostic-1/vitest.json",
+        "src/components/journey/CheckRecoveryDialog.test.tsx",
+        "src/components/journey/ProjectChecks.test.tsx",
+        "src/components/journey/requirements.test.tsx",
+        "src/styles/designsystem.test.ts",
+        "src/seams.test.ts"
+      ],
+      "startedAt": "2026-10-08T19:22:47.197564+00:00",
+      "finishedAt": "2026-10-08T19:23:24.764393+00:00",
+      "exitCode": 1
+    },
+    {
+      "name": "typecheck",
+      "command": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "startedAt": "2026-10-08T19:23:24.765965+00:00",
+      "finishedAt": "2026-10-08T19:23:49.892110+00:00",
+      "exitCode": 0
+    }
+  ],
+  "finishedAt": "2026-10-08T19:23:49.893438+00:00",
+  "sourceInputs": 1173,
+  "sourceUnchanged": true,
+  "tests": {
+    "numTotalTestSuites": 9,
+    "numPassedTestSuites": 7,
+    "numFailedTestSuites": 2,
+    "numTotalTests": 173,
+    "numPassedTests": 170,
+    "numFailedTests": 3,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": false
+  },
+  "passed": false
+}

@@ -555,9 +555,36 @@ plan export, including escaped JSON and metadata, must fit 5 MiB; oversize
 content is refused explicitly without silently dropping task detail. Older
 supported task shapes remain within that bound.
 
-GET `.../checks` returns `{runs,suggested,coverage}`. POST accepts `{commands:[{label,executable,args}],execution:"docker"|"host",acknowledgeHostExecution:true,requirementIds?,expectedSpecificationRevision?,expectedDesignPlanRevision?}` and returns202 with a reserved run. Docker is the default; host mode additionally requires Super Admin and the enabled host-command policy. Nonempty requirement IDs require both current saved approvals and their exact expected revisions. Unknown/foreign/duplicate IDs return400 `invalid_requirement_link`; stale or missing expected revisions return409 `revision_conflict`; current approval prerequisites return422 `specification_approval_required` or `design_approval_required`. A refused binding allocates no check. Empty links retain generic check behavior. Commands are bounded typed argv, not interpolated shell text. Runs have a ten-minute limit, at most eight commands, bounded output and twenty retained rows. GET `.../checks/{runId}` reads an owned run; POST `.../checks/{runId}/cancel {}` requests cancellation.
+GET `.../checks` returns `{runs,suggested,coverage}`. POST accepts `{commands:[{label,executable,args}],execution:"docker",requirementIds?,expectedSpecificationRevision?,expectedDesignPlanRevision?}` and returns202 with a saved queued run, not proof of resource admission or execution. New checks require Docker so resource ceilings can be enforced; `execution:"host"` is refused with `host_check_resource_limits_unsupported`, while historical host receipts remain readable. Nonempty requirement IDs require both current saved approvals and their exact expected revisions. Unknown/foreign/duplicate IDs return400 `invalid_requirement_link`; stale or missing expected revisions return409 `revision_conflict`; current approval prerequisites return422 `specification_approval_required` or `design_approval_required`. A refused binding allocates no check. Empty links retain generic check behavior. Commands are bounded typed argv, not interpolated shell text. Runs have a ten-minute limit, at most eight commands, bounded output and twenty retained rows; unresolved rows are never silently evicted to make space. GET `.../checks/{runId}` reads an owned run; POST `.../checks/{runId}/cancel {}` requests a safe stop with current Edit authority, independently of permission to execute new work.
 
 Each run records `{id,projectId,commit,dirty,execution,memoryMiB,cpuMillis,sourceDigest,sourceChanged,status,commands,createdAt,updatedAt,message}`. Linked runs also retain `requirementIds`, server-derived `requirementSnapshots:[{id,title,acceptance}]`, `specificationRevision`, `specificationDigest`, `designPlanRevision` and `designPlanDigest`. Command rows add `{status,exitCode?,output,truncated}`. Policy resources are clamped to operator ceilings. Dirty source is permitted and hashed; an unborn repository has a blank commit. The bounded digest covers Git-visible tracked and non-ignored working files, including visible `.luci` context, while excluding known credentials. Source/commit changes during a successful run yield `unknown`; restarted in-flight runs also become `unknown`.
+
+Current check receipts additionally expose `revision`, `resourcesHeld:boolean|null`,
+`stage` and an allowlisted `reasonCode`; command rows include `allocationId` and
+`cleanupConfirmed`. `blocked` means an explicit prerequisite or admission refusal,
+not a queued automatic retry. `unknown` preserves uncertain execution/output and
+does not authorize replay or capacity release. A successful command alone is not
+a passing check while cleanup remains unconfirmed. Historical receipts without
+these protocol fields remain readable but cannot acquire modern recovery authority.
+
+Checks and agents share cross-process pending memory, CPU and disk admission.
+Checks retain the separate per-user concurrent-check limit and consume no model
+provider slot. Each new command rechecks current Edit/Execute authority and policy,
+pins the configured Docker engine/image, and records its exact creation/start
+phases before issuing those calls. The runtime does not implicitly pull an image,
+retry an uncertain Create/Start, or release a reservation from a timeout/404 alone.
+Completion/recovery observations remain bounded and never start a later command.
+
+GET `.../checks/{runId}/recovery` returns the exact read-only review
+`{projectId,checkId,revision,state,method,commandIndex,recoveryDigest,reasonCode,message}`.
+Nullable method/index/digest fields do not authorize a mutation. POST to the same
+path accepts `{expectedRevision,recoveryDigest,acknowledgeStop:true}` with current
+Edit authority. The server repeats exact revision/identity/lifecycle validation;
+stale review returns409. Acknowledged containers are stopped/removed by immutable
+identity on their original engine. Ambiguous creation requires explicitly reviewed
+permanent name-fence recovery before capacity can be released; the small marker
+is retained to prevent a delayed original launch. Recovery retains recorded output,
+never reruns a command and never establishes passing evidence by itself.
 
 Read responses derive `evidenceStatus:"linked-test-evidence"|"stale"|"unverified"` and human-readable `staleReasons` without rewriting historical command outcomes. Only a fully bound passing run with recorded zero exit codes and matching current approved specification, design, requirement text, source digest and commit is linked test evidence. Later definition/design/source changes make that evidence stale, including changed acceptance text with the same ID or changed content retaining old revision/digest fields. Failed, canceled, unfinished, incomplete and historical unbound runs remain unverified. An unsafe, unavailable or switching source is not treated as current evidence.
 

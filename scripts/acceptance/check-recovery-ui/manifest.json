@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "scope": "Exact successful controlled source-component witness; publication is not a rerun",
+  "historicalReceipt": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-4/result.json",
+  "sourceManifest": "docs/luci/evidence/cloud020-check-recovery-ui/final-source-manifest.json",
+  "files": [
+    {
+      "path": "source-browser.mjs",
+      "bytes": 21690,
+      "sha256": "f3f3cf648159801858cc81704dd4f38bb471d262bb200b312009edd2d4044c78"
+    },
+    {
+      "path": "fixture.tsx",
+      "bytes": 16795,
+      "sha256": "dfff76c5eb378031607881a9942bca90548b3cecb067eb54983466243e11347e"
+    },
+    {
+      "path": "README.md",
+      "bytes": 4325,
+      "sha256": "e103eb5b188473b85ab96ac1ad9b67bf215a21a47c194f5aaa81dba0f11c71e2"
+    }
+  ],
+  "originalExternalDefaultsPreserved": true,
+  "requiredExplicitEnvironment": [
+    "LUCI_CHECK_UI_REPO",
+    "LUCI_CLOUD020_MANIFEST",
+    "LUCI_CLOUD020_BROWSER_RELEASE"
+  ],
+  "limitations": [
+    "Controlled API/provider fixtures, not actual transport/backend/Docker execution.",
+    "Original failed attempts and final34checkpoints/17screenshots are published separately.",
+    "No script edits or browser/test reruns performed by publication."
+  ]
+}

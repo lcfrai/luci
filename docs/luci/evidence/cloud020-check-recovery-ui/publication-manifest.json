@@ -1,0 +1,677 @@
+{
+  "version": 1,
+  "publishedAt": "2026-10-08T19:43:57.649727+00:00",
+  "headAtPublication": "f9f80e88119414b4556569ef04afb255eacd12ff",
+  "scope": "CLOUD020/CLOUD023 source test and controlled browser evidence; publication only, no reruns",
+  "ownedNewDirectories": [
+    "docs/luci/evidence/cloud020-check-recovery-ui",
+    "scripts/acceptance/check-recovery-ui"
+  ],
+  "exactCopiedArtifactsVerified": 103,
+  "finalAppliedFrontendFilesVerified": 12,
+  "finalBrowser": {
+    "checkpoints": 34,
+    "screenshots": 17,
+    "sourceInputs": 439,
+    "helperSHA256": "f3f3cf648159801858cc81704dd4f38bb471d262bb200b312009edd2d4044c78",
+    "fixtureSHA256": "dfff76c5eb378031607881a9942bca90548b3cecb067eb54983466243e11347e"
+  },
+  "files": [
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/README.md",
+      "bytes": 7544,
+      "sha256": "866a1bd1aff88869643f4d968e1e1ae1c8ddb8333f51e1aab25203dac2475d66",
+      "kind": "publication metadata or documentation"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-1/helper-source/fixture.tsx",
+      "bytes": 16795,
+      "sha256": "dfff76c5eb378031607881a9942bca90548b3cecb067eb54983466243e11347e",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-1/helper-source/source-browser.mjs",
+      "bytes": 20453,
+      "sha256": "5fe769f12b632cc06f20e73da97b5ef7cf1fe7e35442b8c1573e865d1640414a",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-1/invocation.json",
+      "bytes": 536,
+      "sha256": "54280be8e37e096dc3742b668d766bbb0ccf4b3a2c55ec2fff158385f5250196",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-1/result.json",
+      "bytes": 113544,
+      "sha256": "4cfb963772b0cc4484e46eb0353ba6e02828116ceb16e8ed9205339bf5fd1436",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-2/exact-recovery-review-1440.png",
+      "bytes": 199959,
+      "sha256": "dcc9986d202caac0a12c72236f5658404432eadb7162d011ad055fd1dc71b158",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-2/exact-recovery-review-390.png",
+      "bytes": 57773,
+      "sha256": "e65d427085decb334c02cda033b5a89c05909050fc70aba29cf5117561e30536",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-2/failed-stage.png",
+      "bytes": 58102,
+      "sha256": "cb690dcd373aff80921573a2bee1f693b6e36a8624ddf9191e701d21114811ee",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-2/helper-source/fixture.tsx",
+      "bytes": 16795,
+      "sha256": "dfff76c5eb378031607881a9942bca90548b3cecb067eb54983466243e11347e",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-2/helper-source/source-browser.mjs",
+      "bytes": 20453,
+      "sha256": "5fe769f12b632cc06f20e73da97b5ef7cf1fe7e35442b8c1573e865d1640414a",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-2/invocation.json",
+      "bytes": 497,
+      "sha256": "6aecda73d00f77b3b39d7e60e9bf99174efce4d92d155f685441daf460b321ba",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-2/lost-response-readback-1440.png",
+      "bytes": 210453,
+      "sha256": "b5b382af5235a4090f07b8ffa038e2c815ba84448890e2c53cc998e900525cc9",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-2/lost-response-readback-390.png",
+      "bytes": 60425,
+      "sha256": "1fee1d35f00cfb0f218ceb9e777c8bf510a90fd14ade9f39a1fbac88ee45d0d9",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-2/pending-recovery-1440.png",
+      "bytes": 216397,
+      "sha256": "ebf10a80d8131039f35b69034a5d57bc07aa2f6b101500545117c03081d0c3b7",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-2/project-switch-no-private-leak-1440.png",
+      "bytes": 207330,
+      "sha256": "6f620f424b695979acae9d5b2f4b8b7b887a73d57f78226f38fff4ed00ef78d6",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-2/read-access-denied-1440.png",
+      "bytes": 184094,
+      "sha256": "eb2f71bdab1ee48509e596968402657ac02e737b390e53b4db10f72f0e7f1164",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-2/recovery-recorded-1440.png",
+      "bytes": 204995,
+      "sha256": "f2ee9eff54931326d1d81f7446903830d8a571de6575ac41b482d3a43604929e",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-2/recovery-recorded-390.png",
+      "bytes": 61378,
+      "sha256": "5293157cd7a67c91108da78cfd18c31471bf8d7bae67665fe7744cdaa044a68e",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-2/result.json",
+      "bytes": 213465,
+      "sha256": "a9607dd34b3bfec8391e18317fbb6d6988a92e1ada5850a633aea9cec423205d",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-2/retained-failure-output-1440.png",
+      "bytes": 188066,
+      "sha256": "cd47f90a42c757ac1a251b033bd33c0f742aad6ee0ed05d9df3c15de6d73c350",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-2/retained-failure-output-390.png",
+      "bytes": 51922,
+      "sha256": "db7fb75dfff136d4f1a78cebb789dabe2a430b940a972d8731268f239ecc167c",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-2/retained-output-1440.png",
+      "bytes": 188064,
+      "sha256": "1b8b990fdda60802aa0265cde6eae9823fbffff4a0339cc05d89a9b256b0a88e",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-2/retained-output-390.png",
+      "bytes": 58147,
+      "sha256": "7b324861249433f2a0ab74709a743c3dba9023955496efbac991d25ad8b764c7",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-3/exact-recovery-review-1440.png",
+      "bytes": 199955,
+      "sha256": "22d26f34939e138b90e7ac287ee0c8f906ffd972f794482772c641d112d50f26",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-3/exact-recovery-review-390.png",
+      "bytes": 57773,
+      "sha256": "e65d427085decb334c02cda033b5a89c05909050fc70aba29cf5117561e30536",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-3/failed-stage.png",
+      "bytes": 53285,
+      "sha256": "5f2d2c0ce8082ae4fa379d3756bdacefca1e4a5d383414e3ae3801e423792b0a",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-3/helper-source/fixture.tsx",
+      "bytes": 16795,
+      "sha256": "dfff76c5eb378031607881a9942bca90548b3cecb067eb54983466243e11347e",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-3/helper-source/source-browser.mjs",
+      "bytes": 21671,
+      "sha256": "8654d0c938f457b1a02629948c2fb09baed334fdc42abda630fd0565ac70b511",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-3/invocation.json",
+      "bytes": 530,
+      "sha256": "80f48152b62ead9f680e8dbac6b41a2eccb9d9553c1da25c788acdde1145d8c2",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-3/lost-response-readback-1440.png",
+      "bytes": 210458,
+      "sha256": "5a3c00c37bd7ede19771a5a15c2409df53bf59d3ce95ddba0bca83d73a553d95",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-3/lost-response-readback-390.png",
+      "bytes": 60425,
+      "sha256": "1fee1d35f00cfb0f218ceb9e777c8bf510a90fd14ade9f39a1fbac88ee45d0d9",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-3/pending-recovery-1440.png",
+      "bytes": 216940,
+      "sha256": "e1112a8b67ffc473d8d3be547420cd5fb0959328e7ea1297eee13770336872b0",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-3/pending-recovery-390.png",
+      "bytes": 59308,
+      "sha256": "b1b661fd6dbf20f66c2c78aba6ac98aea59a3b626a8055703bbf4eb5103539eb",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-3/project-switch-no-private-leak-1440.png",
+      "bytes": 207326,
+      "sha256": "be9aa34ecd2b92f3120a2d4aae8a9c9227be724e9909e871f4a513e0d781201a",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-3/read-access-denied-1440.png",
+      "bytes": 184099,
+      "sha256": "625be8402e4c0befef28bb50c6f1fc7edbe52c15bbf744ad2b830e94da1b6ee9",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-3/read-access-denied-390.png",
+      "bytes": 56162,
+      "sha256": "aa226319b8833a90f79565a54c66d05980ed93d148d680523bace20536099dd8",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-3/recovery-recorded-1440.png",
+      "bytes": 204990,
+      "sha256": "598a4771468e1848253b7d7842a6a05b1b18c257d15a5120b949810b33671716",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-3/recovery-recorded-390.png",
+      "bytes": 61403,
+      "sha256": "a53c851df2192d1879e20c9924a424ca3ca39cd70a1ba50f4071f929ec58b1ee",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-3/result.json",
+      "bytes": 231592,
+      "sha256": "4d1014bb8a8005168d126643670662dd97087b316cc9f45818e8997c1cd1ef68",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-3/retained-failure-output-1440.png",
+      "bytes": 188066,
+      "sha256": "ea4637f9bdb87e82ca61f390436bdadafe48315e9b0b860f5db4d28065187571",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-3/retained-failure-output-390.png",
+      "bytes": 51922,
+      "sha256": "db7fb75dfff136d4f1a78cebb789dabe2a430b940a972d8731268f239ecc167c",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-3/retained-output-1440.png",
+      "bytes": 188066,
+      "sha256": "d1354470bde01916eb847a3510fa35fdb4e1c147b5ba849a29a5bce0ec7add7d",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-3/retained-output-390.png",
+      "bytes": 58147,
+      "sha256": "7b324861249433f2a0ab74709a743c3dba9023955496efbac991d25ad8b764c7",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-4/exact-recovery-review-1440.png",
+      "bytes": 199955,
+      "sha256": "387b527818b0706c6f0f1f108faf878c740fff473d3ba29b11d02daf5c790579",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-4/exact-recovery-review-390.png",
+      "bytes": 57773,
+      "sha256": "e65d427085decb334c02cda033b5a89c05909050fc70aba29cf5117561e30536",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-4/helper-source/fixture.tsx",
+      "bytes": 16795,
+      "sha256": "dfff76c5eb378031607881a9942bca90548b3cecb067eb54983466243e11347e",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-4/helper-source/source-browser.mjs",
+      "bytes": 21690,
+      "sha256": "f3f3cf648159801858cc81704dd4f38bb471d262bb200b312009edd2d4044c78",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-4/invocation.json",
+      "bytes": 530,
+      "sha256": "600cce0378c4198618f87bcbfacf6fc74bdaac65d6e6ca059ba2ba68f176139f",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-4/lost-response-readback-1440.png",
+      "bytes": 210451,
+      "sha256": "627db5413028326237f0789de2dcba7f5f20b195e6134ef0473ce067c8586985",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-4/lost-response-readback-390.png",
+      "bytes": 60425,
+      "sha256": "1fee1d35f00cfb0f218ceb9e777c8bf510a90fd14ade9f39a1fbac88ee45d0d9",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-4/pending-recovery-1440.png",
+      "bytes": 216943,
+      "sha256": "469357ff5b04a243e095bda43b0ac731d0d6ee3d82b36128e6da5d9629126d10",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-4/pending-recovery-390.png",
+      "bytes": 59308,
+      "sha256": "b1b661fd6dbf20f66c2c78aba6ac98aea59a3b626a8055703bbf4eb5103539eb",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-4/project-switch-no-private-leak-1440.png",
+      "bytes": 207326,
+      "sha256": "be9aa34ecd2b92f3120a2d4aae8a9c9227be724e9909e871f4a513e0d781201a",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-4/project-switch-no-private-leak-390.png",
+      "bytes": 53285,
+      "sha256": "5f2d2c0ce8082ae4fa379d3756bdacefca1e4a5d383414e3ae3801e423792b0a",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-4/read-access-denied-1440.png",
+      "bytes": 184099,
+      "sha256": "625be8402e4c0befef28bb50c6f1fc7edbe52c15bbf744ad2b830e94da1b6ee9",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-4/read-access-denied-390.png",
+      "bytes": 56162,
+      "sha256": "aa226319b8833a90f79565a54c66d05980ed93d148d680523bace20536099dd8",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-4/recovery-recorded-1440.png",
+      "bytes": 204994,
+      "sha256": "aeaba00a524cd55dd9f9e0c92c24caac3cbb4037a5f15efe06ec6a3b7dfd0b0d",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-4/recovery-recorded-390.png",
+      "bytes": 61378,
+      "sha256": "5293157cd7a67c91108da78cfd18c31471bf8d7bae67665fe7744cdaa044a68e",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-4/result.json",
+      "bytes": 253538,
+      "sha256": "c6ae7782bf60d9d6f9fe35caba4bbe4ea9dcd74bc9a04b2c53a5be8236411641",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-4/retained-failure-output-1440.png",
+      "bytes": 188065,
+      "sha256": "6a10c12fb6ebb82802855d8d43159dce882683e2980a41226bc364e6ad6da241",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-4/retained-failure-output-390.png",
+      "bytes": 51922,
+      "sha256": "db7fb75dfff136d4f1a78cebb789dabe2a430b940a972d8731268f239ecc167c",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-4/retained-output-1440.png",
+      "bytes": 188069,
+      "sha256": "a89e5592445b9a736597d43c6af51bc825f2734190c9984b954c115580b5f2c6",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-4/retained-output-390.png",
+      "bytes": 58147,
+      "sha256": "7b324861249433f2a0ab74709a743c3dba9023955496efbac991d25ad8b764c7",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/browser-attempt-4/settled-check-history-1440.png",
+      "bytes": 194944,
+      "sha256": "8ac11949e329a755eba9abfd89a30f4d1df5d93d086349c5d8c70406b7530f27",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/correction-diagnostic-1/failed-test-source/desktop/src/components/journey/CheckRecoveryDialog.test.tsx",
+      "bytes": 9066,
+      "sha256": "d14bd1f092c95d368c03f1291c108461c27d2320950690501b757d36d778b8b6",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/correction-diagnostic-1/failed-test-source/desktop/src/components/journey/requirements.test.tsx",
+      "bytes": 18031,
+      "sha256": "9d5bcffdd227941c0076a0d8cc690b42f540abb635e1f9e3ff93e40a44d908a9",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/correction-diagnostic-1/result.json",
+      "bytes": 1547,
+      "sha256": "5d751ea7e620d1c1b6391c92371b1b13e73dc3a40a48ff0b8847b1939a9cc12c",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/correction-diagnostic-1/source-before.json",
+      "bytes": 144348,
+      "sha256": "783bc7ea207454330e94a760a526f6c5e68d8803b8f4a3ea041785cd43003874",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/correction-diagnostic-1/typecheck.log",
+      "bytes": 54,
+      "sha256": "6d51e3ec9a9d283eee096e5e9403c5d963c9468e9756fd61f3e9e0d3df1bde71",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/correction-diagnostic-1/vitest.json",
+      "bytes": 98913,
+      "sha256": "a8f93f2a05ac5a706459b66fa96e87aba6940ab1febc90a3d4174b68b135a5c0",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/correction-diagnostic-1/vitest.log",
+      "bytes": 38275,
+      "sha256": "a5ef252f055165829d9f77db00716ec41ed044b99aa300cf1cc6d63bc694fdd4",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/correction-diagnostic-2/result.json",
+      "bytes": 1414,
+      "sha256": "a71598ce5552fcd9af48d478d1cd29667d49ad65abf3323ff938631454d08129",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/correction-diagnostic-2/source-before.json",
+      "bytes": 144348,
+      "sha256": "3649e478b5bd8bb017dcbf0b5fb978b5bbca94d1d93dcc5091eb1b91adae348d",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/correction-diagnostic-2/typecheck.log",
+      "bytes": 54,
+      "sha256": "6d51e3ec9a9d283eee096e5e9403c5d963c9468e9756fd61f3e9e0d3df1bde71",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/correction-diagnostic-2/vitest.json",
+      "bytes": 8637,
+      "sha256": "65d7e7d3914745b2077dd4aef4901065a6168a18867fec05c61e490793384bd3",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/correction-diagnostic-2/vitest.log",
+      "bytes": 1299,
+      "sha256": "0862db581ad9f7b77ec47aef81c54adbb33011735d2ee6705a0405a6884e84a2",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/correction-staging-manifest.json",
+      "bytes": 3732,
+      "sha256": "3de703b0498d7adda723acc91a4874ae235c70d5fcd44a0c754412113bc16473",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/diagnostic-1/preparation.json",
+      "bytes": 680,
+      "sha256": "e652deea819e1e73303fcb5f537bac6fb13ecacbe807b183d4c647d8a14e5003",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/diagnostic-1/result.json",
+      "bytes": 1599,
+      "sha256": "2d5ac49fac342bac422e7814dc850b9434b39ff884ff64cb4cf221b2d31643a0",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/diagnostic-1/source-after.json",
+      "bytes": 50488,
+      "sha256": "b5ba17b5427c4bf06dbd2468c2cf7a0ecd0a644dd8bf2a665a18eff85f594f77",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/diagnostic-1/source-before.json",
+      "bytes": 50488,
+      "sha256": "b5ba17b5427c4bf06dbd2468c2cf7a0ecd0a644dd8bf2a665a18eff85f594f77",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/diagnostic-1/typecheck.log",
+      "bytes": 268,
+      "sha256": "a8c709095930515b2307df7242dccb9ebacae992b06807311ceb3e1cfac1590b",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/diagnostic-1/vitest.json",
+      "bytes": 71618,
+      "sha256": "709b586544eba4e401dc6f5988baa33cbea0361387602b5547ffd13a06287223",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/diagnostic-1/vitest.log",
+      "bytes": 38779,
+      "sha256": "8588c57854a969def538a38094ac6dd76d157069d2d291bd83944e8a51d85e8b",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/diagnostic-2/preparation.json",
+      "bytes": 1060,
+      "sha256": "6e906db5e911d4c1c684dd34be0c94a9bb456e59a2c37fe8bac89a467fe87b60",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/diagnostic-2/result.json",
+      "bytes": 1663,
+      "sha256": "9aba15af0e3630eaded9a24cacf5df73e6347b02a9e4abdb82844acb0a2e0b2d",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/diagnostic-2/source-before.json",
+      "bytes": 51318,
+      "sha256": "be33f0851869cf74276aa5407e2f02c0f13c834844990da97fe7a96188f475f9",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/diagnostic-2/typecheck.log",
+      "bytes": 869,
+      "sha256": "7c77bea3a451bde320c9fce04a4ecc34acd9fa2c0a6e4a3e29e32b161127f802",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/diagnostic-2/vitest.json",
+      "bytes": 30527,
+      "sha256": "d135bba76012c83e1bfa0f033cc387b5d399a3140addb8d0b19233af1b3f961d",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/diagnostic-2/vitest.log",
+      "bytes": 2108,
+      "sha256": "133b6242b70052c5f36f18650b20cc305b8f8bbbd37aff06dadf5948e708a042",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/diagnostic-3/result.json",
+      "bytes": 776,
+      "sha256": "a95e31c28dc8f85e9894b6488249a0c0d3954502ec4a9bfbccc5a21ba22d0544",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/diagnostic-3/source-before.json",
+      "bytes": 51318,
+      "sha256": "cc48eaf4b9381a5a847a95802f11b50eb658fc736d506772d195800f4d4d46f1",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/diagnostic-3/typecheck.log",
+      "bytes": 54,
+      "sha256": "6d51e3ec9a9d283eee096e5e9403c5d963c9468e9756fd61f3e9e0d3df1bde71",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/final-source-manifest.json",
+      "bytes": 2297,
+      "sha256": "aad05446f9f093d79b8b9bf45880836ff855bc8a19d98e953afe1851d85f8db3",
+      "kind": "publication metadata or documentation"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/full-frontend-baseline/after.json",
+      "bytes": 52311,
+      "sha256": "75f137803810a529f1b0d1054dcdbed54b42fc046a2aa52a09026a3beadd051d",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/full-frontend-baseline/before.json",
+      "bytes": 52311,
+      "sha256": "75f137803810a529f1b0d1054dcdbed54b42fc046a2aa52a09026a3beadd051d",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/full-frontend-baseline/command.json",
+      "bytes": 309,
+      "sha256": "263f672568ad8f9d0230d533e7600480add8083743aea5312f898218b59f55f8",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/full-frontend-baseline/report.json",
+      "bytes": 18974,
+      "sha256": "df92e2fa31e9a83bb170a6f3eb83b13592dfe5d86492bd4b07d4253e5f83e0ed",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/full-frontend-baseline/stderr.log",
+      "bytes": 200,
+      "sha256": "ad9ef12f2f19d2532fbd05b9772e28e31d4b97c1b0de43e902d3b8edc87fcee5",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/full-frontend-baseline/stdout.jsonl",
+      "bytes": 103,
+      "sha256": "eb66b1295e56c916455ec4c09d19ea44fe73fa8ffb1fb5007c5e0c0b1d726dcc",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/full-frontend-baseline/tests.json",
+      "bytes": 1181978,
+      "sha256": "29baa956cdcdb0baaf55304114349fb2c42152e5fd1e2233228539659566a82b",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/original-artifact-locations.json",
+      "bytes": 18136,
+      "sha256": "4b0ea4c7de79a734d8091ecf81d28cf2dbea77465f77a929ee52b91245c11303",
+      "kind": "publication metadata or documentation"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/original-final-verification.json",
+      "bytes": 3963,
+      "sha256": "2e6b20e051c61eda8be6444b65f15bb2b3e7b244ebde4d15a58a564df3ad4060",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/original-staging-manifest.json",
+      "bytes": 3610,
+      "sha256": "a709bd721c70fe6396c1c77e59d8215b83ddb2736f5b89a29f5b793a75ff256e",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "scripts/acceptance/check-recovery-ui/README.md",
+      "bytes": 4325,
+      "sha256": "e103eb5b188473b85ab96ac1ad9b67bf215a21a47c194f5aaa81dba0f11c71e2",
+      "kind": "publication metadata or documentation"
+    },
+    {
+      "path": "scripts/acceptance/check-recovery-ui/fixture.tsx",
+      "bytes": 16795,
+      "sha256": "dfff76c5eb378031607881a9942bca90548b3cecb067eb54983466243e11347e",
+      "kind": "exact copied artifact"
+    },
+    {
+      "path": "scripts/acceptance/check-recovery-ui/manifest.json",
+      "bytes": 1229,
+      "sha256": "a9685b3ecdb15b26fd96fa6a1ed46ec3ab6a5b93bcc0c8ededb9541658babb3a",
+      "kind": "publication metadata or documentation"
+    },
+    {
+      "path": "scripts/acceptance/check-recovery-ui/source-browser.mjs",
+      "bytes": 21690,
+      "sha256": "f3f3cf648159801858cc81704dd4f38bb471d262bb200b312009edd2d4044c78",
+      "kind": "exact copied artifact"
+    }
+  ],
+  "manifestSelfExcluded": true,
+  "totalBytesExcludingThisManifest": 9433461,
+  "limitations": [
+    "Original failed full suite/correction/browser receipts are retained and not relabeled.",
+    "Overlapping test batches and browser checkpoints are not summed as unique tests.",
+    "Only explicit generated fixture browser state is included; profiles/cookies/credentials/real project state are excluded.",
+    "No installed/native/backend/Docker/model/cloud/performance acceptance is established."
+  ]
+}

@@ -1,0 +1,908 @@
+
+> @lcfr/luci-desktop@0.5.0 test
+> vitest run --maxWorkers=1 --reporter=default --reporter=json --outputFile=/workspace/.luci-tools/cloud020-ui/correction-diagnostic-1/vitest.json src/components/journey/CheckRecoveryDialog.test.tsx src/components/journey/ProjectChecks.test.tsx src/components/journey/requirements.test.tsx src/styles/designsystem.test.ts src/seams.test.ts
+
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+ ✓ src/seams.test.ts (24 tests) 2980ms
+   ✓ the named seams — docs/SEAMS.md (24)
+     ✓ keeps every tree-wide tripwire 387ms
+ ❯ src/components/journey/requirements.test.tsx (13 tests | 2 failed) 3028ms
+   ✓ saves a task link against the shown approved revision and retains it with the shared dirty guard after a conflict 517ms
+   ✓ adds approved requirements as explicitly linked tasks without making reported Done a verification result 1003ms
+   ✓ preserves an unavailable saved link until the user removes it and refuses silently saving it against a new specification 352ms
+   ✓ records only the selected criteria with exact approved requirement and design revisions 198ms
+   ✓ refresh clears a selection and trust when approved design changes while retaining the reviewed commands 214ms
+   ✓ generic passing commands and reported Done leave requirement coverage unverified 18ms
+   ✓ keeps a newer failed run visible alongside older passing linked evidence and marks source drift stale 50ms
+   ✓ an unavailable source cannot be selected for linked checks and cancellation remains unverified 77ms
+   ✓ a late previous-project coverage response cannot overwrite the selected project's criteria 44ms
+   ✓ an old project's save cannot replace a new task draft or release the new project's in-flight save 304ms
+   ✓ an old project's check completion cannot appear in the new project or clear its running-action lock 130ms
+   × keeps verification evidence readable with Execute revoked and permits cancellation only with Edit=true 66ms
+   × keeps verification evidence readable with Execute revoked and permits cancellation only with Edit=false 53ms
+ ✓ src/styles/designsystem.test.ts (80 tests) 1373ms
+ ✓ src/components/journey/ProjectChecks.test.tsx (45 tests) 9350ms
+   ✓ opens the exact reviewed build with visible, initially unchecked criteria and no execution 428ms
+   ✓ runs explicitly selected coverage and attaches eligible results only by a separate action using the fresh exact run revision 1405ms
+   ✓ gives the owned coding session room by collapsing checks after focus, retaining mounted draft controls and reopening verification explicitly 301ms
+   ✓ recovers custom commands, exact unfinished arguments and same-context coverage after remount, without host mode, trust or automatic execution 421ms
+   ✓ isolates retained check setup from another-account and recovers it only in the original scope 310ms
+   ✓ keeps recovered text when a saved build is missing, and ignores a delayed build from the previous workspace 322ms
+   ✓ clears current private check history on check GET 401, gates controls, and retains unsent setup for an explicit fresh read 382ms
+   ✓ clears current private check history on check GET 403, gates controls, and retains unsent setup for an explicit fresh read 337ms
+ ❯ src/components/journey/CheckRecoveryDialog.test.tsx (11 tests | 1 failed) 2097ms
+   ✓ requires exact check consent and makes one recovery request without starting commands 1385ms
+   ✓ keeps the remove-exact effect and pending finalization explicit 73ms
+   ✓ keeps the fence-launch effect and pending finalization explicit 63ms
+   ✓ keeps a null-method pending review read-only 42ms
+   ✓ refreshes after a lost recovery receipt but never resends or restores consent 122ms
+   ✓ invalidates consent when the parent records a newer check revision 76ms
+   ✓ discards a late recovery read after reading access is revoked 27ms
+   ✓ allows inspection without Edit but does not expose recovery consent authority 65ms
+   ✓ allows closing a slow read and aborts it without a second read or recovery write 54ms
+   ✓ does not interpret an Edit-only POST refusal as loss of reading access 84ms
+   × keeps pending recovery details keyboard reachable without enabling dismissal or a second mutation 102ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/journey/CheckRecoveryDialog.test.tsx > keeps pending recovery details keyboard reachable without enabling dismissal or a second mutation
+AssertionError: expected <span data-radix-focus-guard …(4)></span> to be <div class="check-recovery" …(3)>…(9)</div> // Object.is equality
+
+- Expected
++ Received
+
+- <div
+-   aria-label="Check recovery details"
+-   class="check-recovery"
+-   role="region"
++ <span
++   aria-hidden="true"
++   data-aria-hidden="true"
++   data-radix-focus-guard=""
++   style="outline: none; opacity: 0; position: fixed; pointer-events: none;"
+    tabindex="0"
+- >
+-   <p>
+-     <strong>
+-       Alpha
+-     </strong>
+-      · check 
+-     <code>
+-       check-a
+-     </code>
+-   </p>
+-   <p
+-     role="status"
+-   >
+-     Recovering this check
+-     …
+-   </p>
+-   <p>
+-     Revision 
+-     4
+-      · source 
+-     <code>
+-       aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+-     </code>
+-   </p>
+-   <p>
+-     Command 
+-     1
+-     : 
+-     <strong>
+-       Unit tests
+-     </strong>
+-     <br />
+-     <code>
+-       npm
+-        
+-       "test"
+-     </code>
+-   </p>
+-   <p
+-     class="journey-muted"
+-     role="status"
+-   >
+-     The exact original allocation can be stopped and removed.
+-   </p>
+-   <p>
+-     Capacity remains held until recovery and cleanup are confirmed.
+-   </p>
+-   <p>
+-     Luci will inspect and, if necessary, stop and remove only the exact recorded container on its original Docker engine.
+-   </p>
+-   <label
+-     class="setup-check"
+-   >
+-     <input
+-       disabled=""
+-       type="checkbox"
+  />
+-     I authorize recovery of this exact check command, including stopping its original allocation
+-     .
+-   </label>
+-   <div
+-     class="workflow-actions"
+-   >
+-     <button
+-       class="luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"
+-       data-size="default"
+-       data-slot="button"
+-       data-variant="secondary"
+-       disabled=""
+-       type="button"
+-     >
+-       <span>
+-         Keep inspecting
+-       </span>
+-     </button>
+-     <button
+-       class="luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"
+-       data-size="default"
+-       data-slot="button"
+-       data-variant="outline"
+-       disabled=""
+-       type="button"
+-     >
+-       <span>
+-         Refresh check recovery
+-       </span>
+-     </button>
+-     <button
+-       class="luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-primary h-9 px-4 py-2"
+-       data-size="default"
+-       data-slot="button"
+-       data-variant="default"
+-       disabled=""
+-       type="button"
+-     >
+-       <span>
+-         Recover this exact check
+-       </span>
+-     </button>
+-   </div>
+- </div>
+
+ ❯ src/components/journey/CheckRecoveryDialog.test.tsx:82:56
+     80|   await userEvent.click(screen.getByRole('button',{name:'Recover this …
+     81|   const details=await screen.findByRole('region',{name:'Check recovery…
+     82|   await userEvent.tab();expect(document.activeElement).toBe(details);
+       |                                                        ^
+     83|   expect(screen.getByRole('button',{name:'Keep inspecting'})).toHavePr…
+     84|   expect(screen.getByRole('button',{name:'Refresh check recovery'})).t…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/components/journey/requirements.test.tsx > keeps verification evidence readable with Execute revoked and permits cancellation only with Edit=true
+TestingLibraryElementError: Found multiple elements with the text: A saved note remains after restarting without a network.
+
+Here are the matching elements:
+
+Ignored nodes: comments, script, style
+[36m<p>[39m
+  [0mA saved note remains after restarting without a network.[0m
+[36m</p>[39m
+
+Ignored nodes: comments, script, style
+[36m<small>[39m
+  [0mA saved note remains after restarting without a network.[0m
+[36m</small>[39m
+
+(If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-label[39m=[32m"Project checks"[39m
+      [33mclass[39m=[32m"project-checks"[39m
+      [33mtabindex[39m=[32m"-1"[39m
+    [36m>[39m
+      [36m<h2>[39m
+        [0mVerify the implementation[0m
+      [36m</h2>[39m
+      [36m<p[39m
+        [33mclass[39m=[32m"journey-muted"[39m
+        [33mrole[39m=[32m"status"[39m
+      [36m>[39m
+        [0mYou can edit shared context. Execution access is required to run agents and checks.[0m
+      [36m</p>[39m
+      [36m<p[39m
+        [33mclass[39m=[32m"journey-muted"[39m
+      [36m>[39m
+        [0mRun these checks in an isolated Docker environment. Each result records the project version it tested; passing commands do not prove every acceptance criterion.[0m
+      [36m</p>[39m
+      [36m<p[39m
+        [33mclass[39m=[32m"journey-muted"[39m
+      [36m>[39m
+        [0mNew checks run in Docker with shared resource admission. Historical host results remain readable; host execution cannot enforce these limits.[0m
+      [36m</p>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"draft-recovery"[39m
+      [36m/>[39m
+      [36m<details[39m
+        [33mclass[39m=[32m"requirements-evidence"[39m
+        [33mopen[39m=[32m""[39m
+      [36m>[39m
+        [36m<summary>[39m
+          [0mRequirement evidence[0m
+          [0m · 0 of 2 with current linked tests[0m
+        [36m</summary>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"journey-muted"[39m
+        [36m>[39m
+          [0mLinked test evidence records the selected commands and their source. Review what those checks cover; passing commands and tasks marked Done do not establish requirement satisfaction.[0m
+        [36m</p>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"secondary"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mRefresh requirement evidence[0m
+          [36m</span>[39m
+        [36m</button>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"requirements-context"[39m
+        [36m>[39m
+          [0mRequirements revision [0m
+          [0m6[0m
+          [0m · [0m
+          [0mapproved[0m
+          [0m; design revision [0m
+          [0m8[0m
+          [0m · [0m
+          [0mapproved[0m
+          [0m. [0m
+          [0mSource aaaaaaaaaaaa · clean working tree.[0m
+        [36m</p>[39m
+        [36m<ul[39m
+          [33mclass[39m=[32m"requirements-evidence-list"[39m
+        [36m>[39m
+          [36m<li>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"requirements-evidence-heading"[39m
+            [36m>[39m
+              [36m<strong>[39m
+                [0mR-OFFLINE[0m
+                [0m · [0m
+                [0mKeep notes offline[0m
+              [36m</strong>[39m
+              [36m<span>[39m
+                [0mUnverified[0m
+              [36m</span>[39m
+            [36m</div>[39m
+            [36m<p>[39m
+              [0mA saved note remains after restarting without a network.[0m
+            [36m</p>[39m
+            [36m<small>[39m
+              [0mLinked tasks: t1. 0 marked Done by you.[0m
+            [36m</small>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"journey-muted"[39m
+            [36m>[39m
+              [0mNo linked check run recorded.[0m
+            [36m</p>[39m
+          [36m</li>[39m
+          [36m<li>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"requirements-evidence-heading"[39m
+            [36m>[39m
+              [36m<strong>[39m
+                [0mR-DELETE[0m
+                [0m · [0m
+                [0mDelete a note[0m
+              [36m</strong>[39m
+              [36m<span>[39m
+                [0mUnverified[0m
+              [36m</span>[39m
+            [36m</div>[39m
+            [36m<p>[39m
+              [0mA deleted note is absent after restarting.[0m
+            [36m</p>[39m
+            [36m<small>[39m
+              [0mNo linked tasks.[0m
+            [36m</small>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"journey-muted"[39m
+            [36m>[39m
+              [0mNo linked check run recorded.[0m
+            [36m</p>[39m
+          [36m</li>[39m
+        [36m</ul>[39m
+      [36m</details>[39m
+      [36m<details[39m
+        [33mclass[39m=[32m"check-requirements"[39m
+      [36m>[39m
+        [36m<summary>[39m
+          [0mLink checks to approved requirements · [0m
+          [0m0[0m
+          [0m selected[0m
+        [36m</summary>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"journey-muted"[39m
+        [36m>[39m
+          [0mSelect the criteria these commands actually exercise. Unselected commands are recorded as generic checks.[0m
+        [36m</p>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"requirement-choice"[39m
+        [36m>[39m
+          [36m<input[39m
+            [33maria-label[39m=[32m"Check R-OFFLINE · Keep notes offline"[39m
+            [33mdisabled[39m=[32m""[39m
+            [33mtype[39m=[32m"checkbox"[39m
+          [36m/>[39m
+          [36m<span>[39m
+            [0mR-OFFLINE[0m
+            [0m · [0m
+            [0mKeep notes offline[0m
+            [36m<small>[39m
+              [0mA saved note remains after restarting without a network.[0m
+            [36m</small>[39m
+          [36m</span>[39m
+        [36m</label>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"requirement-choice"[39m
+        [36m>[39m
+          [36m<input[39m
+            [33maria-label[39m=[32m"Check R-DELETE · Delete a note"[39m
+            [33mdisabled[39m=[32m""[39m
+            [33mtype[39m=[32m"checkbox"[39m
+          [36m/>[39m
+          [36m<span>[39m
+            [0mR-DELETE[0m
+            [0m · [0m
+            [0mDelete a note[0m
+            [36m<small>[39m
+              [0mA deleted note is absent after restarting.[0m
+            [36m</small>[39m
+          [36m</span>[39m
+        [36m</label>[39m
+      [36m</details>[39m
+      [36m<ul[39m
+        [33mclass[39m=[32m"check-commands"[39m
+      [36m>[39m
+        [36m<li>[39m
+          [36m<div>[39m
+            [36m<strong>[39m
+              [0mTests[0m
+            [36m</strong>[39m
+            [36m<code>[39m
+              [0mnpm[0m
+              [0m [0m
+              [0m"test"[0m
+            [36m</code>[39m
+          [36m</div>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"Remove Tests"[39m
+            [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+            [33mdata-size[39m=[32m"default"[39m
+            [33mdata-slot[39m=[32m"button"[39m
+            [33mdata-variant[39m=[32m"outline"[39m
+            [33mdisabled[39m=[32m""[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<span>[39m
+              [0mRemove[0m
+            [36m</span>[39m
+          [36m</button>[39m
+        [36m</li>[39m
+      [36m</ul>[39m
+      [36m<details[39m
+        [33mopen[39m=[32m""[39m
+      [36m>[39m
+        [36m<summary>[39m
+          [0mAdvanced check commands[0m
+        [36m</summary>[39m
+        [36m<form[39m
+          [33mclass[39m=[32m"check-command-form"[39m
+        [36m>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"luci-field"[39m
+          [36m>[39m
+            [0mExecutable[0m
+            [36m<input[39m
+              [33mdisabled[39m=[32m""[39m
+              [33mplaceholder[39m=[32m"npm"[39m
+              [33mrequired[39m=[32m""[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</label>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"luci-field"[39m
+          [36m>[39m
+            [0mArguments · JSON array[0m
+            [36m<input[39m
+              [33mdisabled[39m=[32m""[39m
+              [33mplaceholder[39m=[32m"[\"test\"]"[39m
+              [33mrequired[39m=[32m""[39m
+              [33mvalue[39m=[32m"[]"[39m
+            [36m/>[39m
+          [36m</label>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+            [33mdata-size[39m=[32m"default"[39m
+            [33mdata-slot[39m=[32m"button"[39m
+            [33mdata-variant[39m=[32m"secondary"[39m
+            [33mdisabled[39m=[32m""[39m
+            [33mtype[39m=[32m"submit"[39m
+          [36m>[39m
+            [36m<span>[39m
+              [0mAdd check command[0m
+            [36m</span>[39m
+          [36m</button>[39m
+        [36m</form>[39m
+      [36m</details>[39m
+      [36m<label[39m
+        [33mclass[39m=[32m"setup-check"[39m
+      [36m>[39m
+        [36m<input[39m
+          [33mdisabled[39m=[32m""[39m
+          [33mtype[39m=[32m"checkbox"[39m
+        [36m/>[39m
+        [0mI trust this project's code and these Docker commands to write project files and use the network.[0m
+      [36m</label>[39m
+      [36m<button[39m
+        [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-primary h-9 px-4 py-2"[39m
+        [33mdata-size[39m=[32m"default"[39m
+        [33mdata-slot[39m=[32m"button"[39m
+        [33mdata-variant[39m=[32m"default"[39m
+        [33mdisabled[39m=[32m""[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mChecks running…[0m
+        [36m</span>[39m
+      [36m</button>[39m
+      [36m<ul[39m
+        [33mclass[39m=[32m"check-runs"[39m
+      [36m>[39m
+        [36m<li>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"journey-header"[39m
+          [36m>[39m
+            [36m<div>[39m
+              [36m<strong[39m
+                [33mdata-check-heading[39m=[32m"true"[39m
+                [33mtabindex[39m=[32m"-1"[39m
+              [36m>[39m
+                [0mCommands running[0m
+              [36m</strong>[39m
+              [36m<p>[39m
+                [0mCommands passed[0m
+              [36m</p>[39m
+              [36m<p>[39m
+                [0mUnverified[0m
+                [0m · generic commands without requirement links[0m
+              [36m</p>[39m
+              [36m<small>[39m
+                [0mdocker[0m
+                [0m ·[0m
+                [0m [0m
+                [0maaaaaaaa[0m
+                [0m · clean working tree[0m
+                [0m [0m
+                [0m· [0m
+                [0m10/6/2026, 1:00:00 AM[0m
+              [36m</small>[39m
+            [36m</div>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+              [33mdata-size[39m=[32m"default"[39m
+              [33mdata-slot[39m=[32m"button"[39m
+              [33mdata-variant[39m=[32m"secondary"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<span>[39m
+                [0mCancel checks[0m
+              [36m</span>[39m
+            [36m</button>[39m
+          [36m</div>[39m
+          [36m<details>[39m
+            [36m<summary>[39m
+              [0mTests[0m
+              [0m · [0m
+              [0mpassed[0m
+              [0m · exit 0[0m
+            [36m</summary>[39m
+            [36m<pre[39m
+              [33mclass[39m=[32m"journey-code"[39m
+            [36m>[39m
+              [0mOne test passed[0m
+            [36m</pre>[39m
+          [36m</details>[39m
+        [36m</li>[39m
+      [36m</ul>[39m
+    [36m</section>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ getElementError node_modules/@testing-library/dom/dist/query-helpers.js:20:35
+ ❯ getMultipleElementsFoundError node_modules/@testing-library/dom/dist/query-helpers.js:23:10
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:55:13
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/components/journey/requirements.test.tsx:194:17
+    192|   expect((screen.getByRole("button", { name: "Checks running…" }) as H…
+    193|   await userEvent.click(screen.getByText(/Requirement evidence ·/));
+    194|   expect(screen.getByText(coverage.rows[0].acceptance)).not.toBeNull();
+       |                 ^
+    195|   await userEvent.click(stop); expect(start).not.toHaveBeenCalled();
+    196|   if (canEdit) {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/components/journey/requirements.test.tsx > keeps verification evidence readable with Execute revoked and permits cancellation only with Edit=false
+TestingLibraryElementError: Found multiple elements with the text: A saved note remains after restarting without a network.
+
+Here are the matching elements:
+
+Ignored nodes: comments, script, style
+[36m<p>[39m
+  [0mA saved note remains after restarting without a network.[0m
+[36m</p>[39m
+
+Ignored nodes: comments, script, style
+[36m<small>[39m
+  [0mA saved note remains after restarting without a network.[0m
+[36m</small>[39m
+
+(If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-label[39m=[32m"Project checks"[39m
+      [33mclass[39m=[32m"project-checks"[39m
+      [33mtabindex[39m=[32m"-1"[39m
+    [36m>[39m
+      [36m<h2>[39m
+        [0mVerify the implementation[0m
+      [36m</h2>[39m
+      [36m<p[39m
+        [33mclass[39m=[32m"journey-muted"[39m
+        [33mrole[39m=[32m"status"[39m
+      [36m>[39m
+        [0mRead-only access. Ask a team owner for editing access to change this project's context.[0m
+      [36m</p>[39m
+      [36m<p[39m
+        [33mclass[39m=[32m"journey-muted"[39m
+      [36m>[39m
+        [0mRun these checks in an isolated Docker environment. Each result records the project version it tested; passing commands do not prove every acceptance criterion.[0m
+      [36m</p>[39m
+      [36m<p[39m
+        [33mclass[39m=[32m"journey-muted"[39m
+      [36m>[39m
+        [0mNew checks run in Docker with shared resource admission. Historical host results remain readable; host execution cannot enforce these limits.[0m
+      [36m</p>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"draft-recovery"[39m
+      [36m/>[39m
+      [36m<details[39m
+        [33mclass[39m=[32m"requirements-evidence"[39m
+        [33mopen[39m=[32m""[39m
+      [36m>[39m
+        [36m<summary>[39m
+          [0mRequirement evidence[0m
+          [0m · 0 of 2 with current linked tests[0m
+        [36m</summary>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"journey-muted"[39m
+        [36m>[39m
+          [0mLinked test evidence records the selected commands and their source. Review what those checks cover; passing commands and tasks marked Done do not establish requirement satisfaction.[0m
+        [36m</p>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"secondary"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mRefresh requirement evidence[0m
+          [36m</span>[39m
+        [36m</button>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"requirements-context"[39m
+        [36m>[39m
+          [0mRequirements revision [0m
+          [0m6[0m
+          [0m · [0m
+          [0mapproved[0m
+          [0m; design revision [0m
+          [0m8[0m
+          [0m · [0m
+          [0mapproved[0m
+          [0m. [0m
+          [0mSource aaaaaaaaaaaa · clean working tree.[0m
+        [36m</p>[39m
+        [36m<ul[39m
+          [33mclass[39m=[32m"requirements-evidence-list"[39m
+        [36m>[39m
+          [36m<li>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"requirements-evidence-heading"[39m
+            [36m>[39m
+              [36m<strong>[39m
+                [0mR-OFFLINE[0m
+                [0m · [0m
+                [0mKeep notes offline[0m
+              [36m</strong>[39m
+              [36m<span>[39m
+                [0mUnverified[0m
+              [36m</span>[39m
+            [36m</div>[39m
+            [36m<p>[39m
+              [0mA saved note remains after restarting without a network.[0m
+            [36m</p>[39m
+            [36m<small>[39m
+              [0mLinked tasks: t1. 0 marked Done by you.[0m
+            [36m</small>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"journey-muted"[39m
+            [36m>[39m
+              [0mNo linked check run recorded.[0m
+            [36m</p>[39m
+          [36m</li>[39m
+          [36m<li>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"requirements-evidence-heading"[39m
+            [36m>[39m
+              [36m<strong>[39m
+                [0mR-DELETE[0m
+                [0m · [0m
+                [0mDelete a note[0m
+              [36m</strong>[39m
+              [36m<span>[39m
+                [0mUnverified[0m
+              [36m</span>[39m
+            [36m</div>[39m
+            [36m<p>[39m
+              [0mA deleted note is absent after restarting.[0m
+            [36m</p>[39m
+            [36m<small>[39m
+              [0mNo linked tasks.[0m
+            [36m</small>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"journey-muted"[39m
+            [36m>[39m
+              [0mNo linked check run recorded.[0m
+            [36m</p>[39m
+          [36m</li>[39m
+        [36m</ul>[39m
+      [36m</details>[39m
+      [36m<details[39m
+        [33mclass[39m=[32m"check-requirements"[39m
+      [36m>[39m
+        [36m<summary>[39m
+          [0mLink checks to approved requirements · [0m
+          [0m0[0m
+          [0m selected[0m
+        [36m</summary>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"journey-muted"[39m
+        [36m>[39m
+          [0mSelect the criteria these commands actually exercise. Unselected commands are recorded as generic checks.[0m
+        [36m</p>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"requirement-choice"[39m
+        [36m>[39m
+          [36m<input[39m
+            [33maria-label[39m=[32m"Check R-OFFLINE · Keep notes offline"[39m
+            [33mdisabled[39m=[32m""[39m
+            [33mtype[39m=[32m"checkbox"[39m
+          [36m/>[39m
+          [36m<span>[39m
+            [0mR-OFFLINE[0m
+            [0m · [0m
+            [0mKeep notes offline[0m
+            [36m<small>[39m
+              [0mA saved note remains after restarting without a network.[0m
+            [36m</small>[39m
+          [36m</span>[39m
+        [36m</label>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"requirement-choice"[39m
+        [36m>[39m
+          [36m<input[39m
+            [33maria-label[39m=[32m"Check R-DELETE · Delete a note"[39m
+            [33mdisabled[39m=[32m""[39m
+            [33mtype[39m=[32m"checkbox"[39m
+          [36m/>[39m
+          [36m<span>[39m
+            [0mR-DELETE[0m
+            [0m · [0m
+            [0mDelete a note[0m
+            [36m<small>[39m
+              [0mA deleted note is absent after restarting.[0m
+            [36m</small>[39m
+          [36m</span>[39m
+        [36m</label>[39m
+      [36m</details>[39m
+      [36m<ul[39m
+        [33mclass[39m=[32m"check-commands"[39m
+      [36m>[39m
+        [36m<li>[39m
+          [36m<div>[39m
+            [36m<strong>[39m
+              [0mTests[0m
+            [36m</strong>[39m
+            [36m<code>[39m
+              [0mnpm[0m
+              [0m [0m
+              [0m"test"[0m
+            [36m</code>[39m
+          [36m</div>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"Remove Tests"[39m
+            [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+            [33mdata-size[39m=[32m"default"[39m
+            [33mdata-slot[39m=[32m"button"[39m
+            [33mdata-variant[39m=[32m"outline"[39m
+            [33mdisabled[39m=[32m""[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<span>[39m
+              [0mRemove[0m
+            [36m</span>[39m
+          [36m</button>[39m
+        [36m</li>[39m
+      [36m</ul>[39m
+      [36m<details[39m
+        [33mopen[39m=[32m""[39m
+      [36m>[39m
+        [36m<summary>[39m
+          [0mAdvanced check commands[0m
+        [36m</summary>[39m
+        [36m<form[39m
+          [33mclass[39m=[32m"check-command-form"[39m
+        [36m>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"luci-field"[39m
+          [36m>[39m
+            [0mExecutable[0m
+            [36m<input[39m
+              [33mdisabled[39m=[32m""[39m
+              [33mplaceholder[39m=[32m"npm"[39m
+              [33mrequired[39m=[32m""[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</label>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"luci-field"[39m
+          [36m>[39m
+            [0mArguments · JSON array[0m
+            [36m<input[39m
+              [33mdisabled[39m=[32m""[39m
+              [33mplaceholder[39m=[32m"[\"test\"]"[39m
+              [33mrequired[39m=[32m""[39m
+              [33mvalue[39m=[32m"[]"[39m
+            [36m/>[39m
+          [36m</label>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+            [33mdata-size[39m=[32m"default"[39m
+            [33mdata-slot[39m=[32m"button"[39m
+            [33mdata-variant[39m=[32m"secondary"[39m
+            [33mdisabled[39m=[32m""[39m
+            [33mtype[39m=[32m"submit"[39m
+          [36m>[39m
+            [36m<span>[39m
+              [0mAdd check command[0m
+            [36m</span>[39m
+          [36m</button>[39m
+        [36m</form>[39m
+      [36m</details>[39m
+      [36m<label[39m
+        [33mclass[39m=[32m"setup-check"[39m
+      [36m>[39m
+        [36m<input[39m
+          [33mdisabled[39m=[32m""[39m
+          [33mtype[39m=[32m"checkbox"[39m
+        [36m/>[39m
+        [0mI trust this project's code and these Docker commands to write project files and use the network.[0m
+      [36m</label>[39m
+      [36m<button[39m
+        [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-primary h-9 px-4 py-2"[39m
+        [33mdata-size[39m=[32m"default"[39m
+        [33mdata-slot[39m=[32m"button"[39m
+        [33mdata-variant[39m=[32m"default"[39m
+        [33mdisabled[39m=[32m""[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mChecks running…[0m
+        [36m</span>[39m
+      [36m</button>[39m
+      [36m<ul[39m
+        [33mclass[39m=[32m"check-runs"[39m
+      [36m>[39m
+        [36m<li>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"journey-header"[39m
+          [36m>[39m
+            [36m<div>[39m
+              [36m<strong[39m
+                [33mdata-check-heading[39m=[32m"true"[39m
+                [33mtabindex[39m=[32m"-1"[39m
+              [36m>[39m
+                [0mCommands running[0m
+              [36m</strong>[39m
+              [36m<p>[39m
+                [0mCommands passed[0m
+              [36m</p>[39m
+              [36m<p>[39m
+                [0mUnverified[0m
+                [0m · generic commands without requirement links[0m
+              [36m</p>[39m
+              [36m<small>[39m
+                [0mdocker[0m
+                [0m ·[0m
+                [0m [0m
+                [0maaaaaaaa[0m
+                [0m · clean working tree[0m
+                [0m [0m
+                [0m· [0m
+                [0m10/6/2026, 1:00:00 AM[0m
+              [36m</small>[39m
+            [36m</div>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+              [33mdata-size[39m=[32m"default"[39m
+              [33mdata-slot[39m=[32m"button"[39m
+              [33mdata-variant[39m=[32m"secondary"[39m
+              [33mdisabled[39m=[32m""[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<span>[39m
+                [0mCancel checks[0m
+              [36m</span>[39m
+            [36m</button>[39m
+          [36m</div>[39m
+          [36m<details>[39m
+            [36m<summary>[39m
+              [0mTests[0m
+              [0m · [0m
+              [0mpassed[0m
+              [0m · exit 0[0m
+            [36m</summary>[39m
+            [36m<pre[39m
+              [33mclass[39m=[32m"journey-code"[39m
+            [36m>[39m
+              [0mOne test passed[0m
+            [36m</pre>[39m
+          [36m</details>[39m
+        [36m</li>[39m
+      [36m</ul>[39m
+    [36m</section>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ getElementError node_modules/@testing-library/dom/dist/query-helpers.js:20:35
+ ❯ getMultipleElementsFoundError node_modules/@testing-library/dom/dist/query-helpers.js:23:10
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:55:13
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/components/journey/requirements.test.tsx:194:17
+    192|   expect((screen.getByRole("button", { name: "Checks running…" }) as H…
+    193|   await userEvent.click(screen.getByText(/Requirement evidence ·/));
+    194|   expect(screen.getByText(coverage.rows[0].acceptance)).not.toBeNull();
+       |                 ^
+    195|   await userEvent.click(stop); expect(start).not.toHaveBeenCalled();
+    196|   if (canEdit) {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  2 failed | 3 passed (5)
+      Tests  3 failed | 170 passed (173)
+   Start at  19:22:47
+   Duration  36.79s (tests 52%, environment 19%, transform 19%, import 8%, setup 2%)
+
+    Isolate  5 workers spawned · ~1.55s startup each (spawn + environment, per file)
+             at least ~6.20s faster with isolate: false — reuses workers across files instead of one per file
+
+JSON report written to /workspace/.luci-tools/cloud020-ui/correction-diagnostic-1/vitest.json

@@ -1,0 +1,72 @@
+{
+  "recordedAfterExecution": true,
+  "goVersion": "go version go1.26.3 linux/amd64",
+  "compiles": [
+    {
+      "target": "windows/amd64",
+      "result": "passed",
+      "execution": "test binary crosscompile only; native execution pending",
+      "cwd": "/workspace/luci/control-plane",
+      "environment": {
+        "GOOS": "windows",
+        "GOARCH": "amd64",
+        "CGO_ENABLED": "0",
+        "GOMAXPROCS": "1"
+      },
+      "argv": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "-c",
+        "-overlay=/workspace/.luci-tools/state-single-writer-staging/overlay.json",
+        "-o",
+        "/workspace/.luci-tools/state-single-writer-staging/statelease-windows.test.exe",
+        "./internal/statelease"
+      ],
+      "exitCode": 0,
+      "exitCodeSource": "Observed tool completion in the staging task; log is empty on success.",
+      "rawLog": "windows-statelease-compile.log",
+      "artifact": {
+        "externalPath": "/workspace/.luci-tools/state-single-writer-staging/statelease-windows.test.exe",
+        "bytes": 5423616,
+        "sha256": "703fe14f01394eb23df1556c6392d7bc821c0ac9af10ed8f63a7e1cab4219a13",
+        "tracked": false
+      },
+      "sourceBinding": "All current CLOUD-022 package files match the successfully compiled candidate; see applied-candidate comparison in source-postrun.json."
+    },
+    {
+      "target": "darwin/arm64",
+      "result": "passed",
+      "execution": "test binary crosscompile only; native execution pending",
+      "cwd": "/workspace/luci/control-plane",
+      "environment": {
+        "GOOS": "darwin",
+        "GOARCH": "arm64",
+        "CGO_ENABLED": "0",
+        "GOMAXPROCS": "1"
+      },
+      "argv": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "-c",
+        "-overlay=/workspace/.luci-tools/state-single-writer-staging/overlay.json",
+        "-o",
+        "/workspace/.luci-tools/state-single-writer-staging/statelease-darwin-arm64.test",
+        "./internal/statelease"
+      ],
+      "exitCode": 0,
+      "exitCodeSource": "Observed tool completion in the staging task; log is empty on success.",
+      "rawLog": "darwin-statelease-compile.log",
+      "artifact": {
+        "externalPath": "/workspace/.luci-tools/state-single-writer-staging/statelease-darwin-arm64.test",
+        "bytes": 4803954,
+        "sha256": "1e5785fa05b2d03e5cb3eb53af7d919bd08d79b8f78b0c0cdfac0fa2c520d0bb",
+        "tracked": false
+      },
+      "sourceBinding": "All current CLOUD-022 package files match the successfully compiled candidate; see applied-candidate comparison in source-postrun.json."
+    }
+  ]
+}

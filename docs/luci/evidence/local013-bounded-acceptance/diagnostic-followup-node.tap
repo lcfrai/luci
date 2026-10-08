@@ -1,0 +1,15 @@
+✔ deadline rejects a stuck await and fences a late continuation (17.582211ms)
+✔ durable failure precedes never-resolving browser and transport; independent cleanup completes (36.329299ms)
+✔ checkpoint errors still permit independent owned cleanup attempts (0.795049ms)
+✔ journal caps bytes/events, rejects reuse, and excludes secret-bearing fields (4.245255ms)
+✔ failure locations preserve source line without exception message or private path (1.135963ms)
+✔ shared lifecycle and sustained diagnostics retain only approved basenames (2.554873ms)
+✔ missing browser handle or stuck close still reaches exact-owned fallback (15.566813ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 219.820746

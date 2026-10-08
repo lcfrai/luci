@@ -1,0 +1,2 @@
+# Retained controlled test output; no runtime credentials or private state.
+!*.log

@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "/workspace/luci/control-plane/internal/api/project_check_observation_order_test.go": "/workspace/.luci-tools/check-observation-order/tree/control-plane/internal/api/project_check_observation_order_test.go"
+  }
+}
