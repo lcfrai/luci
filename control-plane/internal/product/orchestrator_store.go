@@ -175,6 +175,9 @@ func (s *Server) saveOrchestrator(saved orchestratorLedger) error {
 	if err = syncProjectRunDirectory(filepath.Dir(path)); err != nil {
 		return ErrOrchestratorInvalid
 	}
+	// Secondary overview index only; missing/stale projections stay explicitly
+	// partial and never change the canonical turn's admission or outcome.
+	_ = s.writeOverviewQuestions(saved, path)
 	return nil
 }
 

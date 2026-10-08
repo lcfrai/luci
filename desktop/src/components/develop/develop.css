@@ -501,3 +501,15 @@
     flex-wrap: wrap;
   }
 }
+
+/* Inactive columns retain position without retaining a terminal or socket. */
+.cols-inactive {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px;
+  gap: 12px;
+  color: var(--ink-2);
+}
+.cols-inactive h3 { color: var(--ink); overflow-wrap: anywhere; }

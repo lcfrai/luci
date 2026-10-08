@@ -12,10 +12,15 @@ import (
 	"github.com/lcfrai/luci/sandboxd/internal/ring"
 )
 
-// subscriberBuffer is how many chunks a slow client may fall behind before the
-// hub starts dropping its chunks. The hub must never block on a client: one
-// stalled WebSocket would freeze the agent's terminal.
-const subscriberBuffer = 256
+// Each PTY chunk is at most 32 KiB, so a subscriber retains at most 1 MiB.
+// A full queue disconnects that view explicitly; it never stalls the agent or
+// joins later output onto a terminal transcript with a silent gap.
+const subscriberBuffer = 32
+
+type subscriber struct {
+	out      chan []byte
+	overflow chan struct{}
+}
 
 // Config describes the process the hub runs.
 type Config struct {
@@ -31,7 +36,7 @@ type Hub struct {
 	buf  *ring.Ring
 
 	mu     sync.Mutex
-	subs   map[int]chan []byte
+	subs   map[int]*subscriber
 	nextID int
 	closed bool
 
@@ -54,7 +59,7 @@ func Start(cfg Config) (*Hub, error) {
 	h := &Hub{
 		sess: sess,
 		buf:  ring.New(capacity),
-		subs: make(map[int]chan []byte),
+		subs: make(map[int]*subscriber),
 		done: make(chan struct{}),
 	}
 	go h.pump()
@@ -85,13 +90,13 @@ func (h *Hub) publish(chunk []byte) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.buf.Write(chunk)
-	for _, ch := range h.subs {
+	for id, sub := range h.subs {
 		select {
-		case ch <- chunk:
+		case sub.out <- chunk:
 		default:
-			// Subscriber is not keeping up. Drop this chunk for that client
-			// rather than stalling the PTY for everyone. The client still has
-			// the ring on its next attach.
+			delete(h.subs, id)
+			close(sub.overflow)
+			close(sub.out)
 		}
 	}
 }
@@ -133,11 +138,11 @@ func (h *Hub) finish(reason string) {
 		h.closed = true
 		close(h.done)
 		subs := h.subs
-		h.subs = map[int]chan []byte{}
+		h.subs = map[int]*subscriber{}
 		h.mu.Unlock()
 
-		for _, ch := range subs {
-			close(ch)
+		for _, sub := range subs {
+			close(sub.out)
 		}
 	})
 }
@@ -149,27 +154,36 @@ func (h *Hub) finish(reason string) {
 // The replay is captured under the same lock that registers the subscriber, so
 // no chunk can slip between the two and be lost or duplicated out of order.
 func (h *Hub) Subscribe() (replay []byte, out <-chan []byte, cancel func()) {
+	replay, out, _, cancel = h.SubscribeWithOverflow()
+	return replay, out, cancel
+}
+
+// SubscribeWithOverflow reports lost output separately from a process exit or
+// normal detach. Once overflow closes, the caller must stop this stream and
+// explicitly reconnect for the bounded recent replay; the process stays alive.
+func (h *Hub) SubscribeWithOverflow() (replay []byte, out <-chan []byte, overflow <-chan struct{}, cancel func()) {
 	h.mu.Lock()
 	snapshot := h.buf.Snapshot()
 	ch := make(chan []byte, subscriberBuffer)
+	full := make(chan struct{})
 	if h.closed {
 		h.mu.Unlock()
 		close(ch)
-		return snapshot, ch, func() {}
+		return snapshot, ch, full, func() {}
 	}
 	id := h.nextID
 	h.nextID++
-	h.subs[id] = ch
+	h.subs[id] = &subscriber{out: ch, overflow: full}
 	h.mu.Unlock()
 
 	var once sync.Once
-	return snapshot, ch, func() {
+	return snapshot, ch, full, func() {
 		once.Do(func() {
 			h.mu.Lock()
 			defer h.mu.Unlock()
 			if c, ok := h.subs[id]; ok {
 				delete(h.subs, id)
-				close(c)
+				close(c.out)
 			}
 		})
 	}

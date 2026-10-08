@@ -6,6 +6,8 @@ Luci's own code is distributed under the MIT licence in LICENSE.
 Luci incorporates open-source components under their respective licences.
 Excalidraw: MIT; Coolify: Apache-2.0; React: MIT; Tauri: MIT or Apache-2.0;
 Zustand: MIT; xterm.js: MIT; Geist: SIL Open Font License 1.1.
+shadcn/ui and the retained Fluid Functionalism adaptations: MIT; original
+grants and pinned source provenance are retained under third-party/.
 The optional Coolify server is separately installed; its licence and notices
 remain in its upstream distribution. See docs/luci/REUSE.md for sources.
 Go runtime dependency licences are retained in sandboxd/vendor.

@@ -38,11 +38,12 @@ type attachSandboxd struct {
 	replay []byte
 	conns  atomic.Int64
 	out    chan []byte
+	close  chan websocket.StatusCode
 }
 
 func attachNewSandboxd(t *testing.T, replay []byte) *attachSandboxd {
 	t.Helper()
-	f := &attachSandboxd{replay: replay, out: make(chan []byte, 8)}
+	f := &attachSandboxd{replay: replay, out: make(chan []byte, 8), close: make(chan websocket.StatusCode, 1)}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
@@ -84,6 +85,9 @@ func attachNewSandboxd(t *testing.T, replay []byte) *attachSandboxd {
 		}()
 		for {
 			select {
+			case code := <-f.close:
+				_ = c.Close(code, "terminal output consumer too slow; reconnect for recent output only")
+				return
 			case <-done:
 				return
 			case <-r.Context().Done():
@@ -637,6 +641,27 @@ func TestAttachRecordsOutputAndBalancesTheCounter(t *testing.T) {
 		s, err := f.store.Get(f.id)
 		return err == nil && s.AttachCount == 0
 	}, "AttachCount never returned to 0")
+}
+
+func TestAttachPreservesSlowConsumerCloseWithoutStoppingWorker(t *testing.T) {
+	f := attachNewFixture(t, nil, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	c := f.dial(ctx, t)
+	defer c.CloseNow()
+	f.sandboxd.close <- websocket.StatusTryAgainLater
+	_, _, err := c.Read(ctx)
+	if websocket.CloseStatus(err) != websocket.StatusTryAgainLater || !strings.Contains(err.Error(), "recent output only") {
+		t.Fatalf("slow-consumer reason did not cross the control-plane relay: %v", err)
+	}
+	attachWaitFor(t, 5*time.Second, func() bool {
+		row, err := f.store.Get(f.id)
+		return err == nil && row.AttachCount == 0
+	}, "overloaded attachment did not release its counter")
+	row, err := f.store.Get(f.id)
+	if err != nil || row.Status != registry.StatusRunning || f.be.destroyCount() != 0 {
+		t.Fatalf("terminal overload changed the worker lifecycle: %+v, %v", row, err)
+	}
 }
 
 // attachWaitFor polls until cond holds. It exists so the two genuinely

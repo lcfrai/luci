@@ -6,6 +6,7 @@
 @import "tailwindcss/utilities.css" layer(utilities) source(none);
 @import "@fontsource-variable/inter/standard.css";
 @source "../components/fluid";
+@source "../components/ui";
 
 @theme inline {
   --color-background: var(--page);

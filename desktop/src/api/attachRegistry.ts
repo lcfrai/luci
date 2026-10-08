@@ -1,6 +1,6 @@
-// Sockets and xterm instances, keyed by session id, ref-counted, at module scope — NOT inside
-// a React effect (contract §1.7). A dropped WebSocket destroys nothing: destruction is an
-// explicit kill, the idle TTL, or the reaper collecting an orphan.
+// Sockets and xterm instances are keyed by session id and ref-counted at module scope.
+// Navigation retains a bounded temporary cache. Releasing a terminal view or
+// disconnecting its socket never stops the worker session.
 
 import { useCallback, useSyncExternalStore } from "react";
 import { Kind, decode, encode, encodeResize } from "../lib/wire";
@@ -18,6 +18,12 @@ export const FLUSH_INTERVAL_MS = 100;
 /** §1.7. How long a zero-ref entry survives, so StrictMode's mount/unmount/mount and a pane
  *  moving between layouts do not drop the PTY. */
 export const GRACE_MS = 5_000;
+/** The grace period must not retain every terminal visited during rapid navigation. */
+export const MAX_IDLE_TERMINALS = 8;
+/** Bound bytes awaiting parsing, including the one outstanding xterm write. */
+export const MAX_OUTPUT_BYTES = 1024 * 1024;
+/** Tiny frames also consume array/object overhead even when their byte total is small. */
+export const MAX_OUTPUT_CHUNKS = 1024;
 /** §4.6. The delay BEFORE attempt n+1, capped at the last value. */
 export const RETRY_DELAYS_MS = [250, 500, 1_000, 2_000] as const;
 /** §4.6. A cold image pull is the outer bound; a shorter budget turns slow into false. */
@@ -106,6 +112,8 @@ interface Entry {
   state: AttachState;
   pending: Uint8Array[];
   pendingBytes: number;
+  writingBytes: number;
+  overloaded: boolean;
   flushTimer: ReturnType<typeof setTimeout> | null;
   graceTimer: ReturnType<typeof setTimeout> | null;
   retryTimer: ReturnType<typeof setTimeout> | null;
@@ -130,6 +138,8 @@ const ENCODER = new TextEncoder();
 const BANNER_ENDED = ENCODER.encode("\r\n\x1b[2m[session ended]\x1b[0m\r\n");
 
 const entries = new Map<SessionId, Entry>();
+// Insertion order is release order; a re-acquired entry leaves this cache immediately.
+const idleEntries = new Map<SessionId, Entry>();
 const listeners = new Map<SessionId, Set<(state: AttachState) => void>>();
 let deps: RegistryDeps = { client: api };
 
@@ -165,6 +175,8 @@ export function acquireAttach(
       state: DETACHED,
       pending: [],
       pendingBytes: 0,
+      writingBytes: 0,
+      overloaded: false,
       flushTimer: null,
       graceTimer: null,
       retryTimer: null,
@@ -191,6 +203,7 @@ export function acquireAttach(
   // and onto the handle; do not "fix" it by making this conditional.
   entry.readOnly = opts.readOnly;
   entry.refs += 1;
+  idleEntries.delete(session.id);
   if (entry.graceTimer !== null) {
     clearTimeout(entry.graceTimer);
     entry.graceTimer = null;
@@ -215,6 +228,13 @@ export function releaseAttach(sessionId: SessionId): void {
   if (entry.refs > 0) return;
   if (entry.graceTimer !== null) clearTimeout(entry.graceTimer);
   entry.graceTimer = setTimeout(() => destroy(entry), GRACE_MS);
+  idleEntries.delete(sessionId);
+  idleEntries.set(sessionId, entry);
+  while (idleEntries.size > MAX_IDLE_TERMINALS) {
+    const oldest = idleEntries.values().next().value;
+    if (!oldest) break;
+    destroy(oldest);
+  }
 }
 
 /** The poller's view of the session. The registry cannot derive `status` or `attachPath` and
@@ -265,7 +285,7 @@ export function setAttachPermission(sessionId: SessionId, permitted: boolean, co
   if (permitted && ws?.readyState === WS_OPEN) return;
   entry.ws = null;
   ws?.close(1000, "project execution access paused");
-  if (entry.session.status !== "exited") publish(entry, {
+  if (entry.session.status !== "exited" && !entry.overloaded) publish(entry, {
     phase: "detached", attempts: 0, ladderStartedAt: 0,
     reason: "Terminal access requires current project execution permission.",
   });
@@ -303,6 +323,14 @@ export function retryAttach(sessionId: SessionId): boolean {
   // would report success having done nothing. The one mid-ladder moment this DOES accept is an
   // armed rung, where `ws` is null.
   if (entry.ws || entry.opening) return false;
+  // Never reset the parser or attach a replay while an earlier parse still owns bytes.
+  if (entry.writingBytes > 0) return false;
+  if (entry.overloaded) {
+    entry.overloaded = false;
+    // A disconnected stream can end inside an escape sequence. Cancel that sequence
+    // and reset the display before replay; never join two incomplete transcripts.
+    writeOut(entry, ENCODER.encode("\x18\x1bc"));
+  }
   // NO `clearRetry` HERE, and this comment is what the deleted line left behind. A mutant adding
   // one back SURVIVES every test, because three separate mechanisms already make a rung armed
   // before this call unobservable by the time it could matter:
@@ -422,14 +450,16 @@ function wireTerm(entry: Entry): void {
   );
 }
 
-/** An exited session has no sandbox to attach to, so the registry does not ask — 409 is the
- *  only answer the attach route can give. The pane is still not blank: the reason is written
- *  into the terminal directly, NOT through the flush buffer, because there is no stream for it
- *  to be ordered against. */
+/** An exited session has no sandbox to attach to. Its reason shares the same
+ * bounded parser queue as output, including an earlier write still completing. */
 function openIfLive(entry: Entry): void {
   if (entry.session.status === "exited") {
     const reason = exitedReason(entry.session);
-    entry.term.write(`\r\n\x1b[2m[${reason}]\x1b[0m\r\n`);
+    writeOut(entry, ENCODER.encode(`\r\n\x1b[2m[${reason}]\x1b[0m\r\n`));
+    if (entry.writingBytes === 0) {
+      if (entry.flushTimer !== null) clearTimeout(entry.flushTimer);
+      flush(entry);
+    }
     publish(entry, { phase: "ended", attempts: 0, ladderStartedAt: 0, reason });
     return;
   }
@@ -437,7 +467,7 @@ function openIfLive(entry: Entry): void {
 }
 
 function connect(entry: Entry): void {
-  if (entry.destroyed || !entry.permitted || !entry.connectPermitted || entry.ws || entry.opening) return;
+  if (entry.destroyed || entry.overloaded || !entry.permitted || !entry.connectPermitted || entry.ws || entry.opening) return;
   // Stamped on `ladderStartedAt === 0`, not on `attempts === 0`: a successful handshake resets
   // attempts to 0, so keying off it would re-stamp mid-ladder and the 60 s budget would never
   // expire. `onopen` clears the stamp, which is what makes a drop after an hour attached start
@@ -517,10 +547,14 @@ function bindSocket(entry: Entry, ws: WebSocket): void {
     else if (kind === Kind.Exit) writeOut(entry, BANNER_ENDED);
   };
 
-  ws.onclose = () => {
+  ws.onclose = (event) => {
     if (entry.ws !== ws) return;
     entry.ws = null;
     if (entry.destroyed) return;
+    if (event.code === 1013) {
+      pauseOverloaded(entry);
+      return;
+    }
     scheduleRetry(entry);
   };
 
@@ -529,27 +563,51 @@ function bindSocket(entry: Entry, ws: WebSocket): void {
   ws.onerror = () => {};
 }
 
-/** §7.2. Payloads accumulate and flush on a 100 ms timer as ONE write, so a build log at
- *  4 000 lines/second costs ten writes a second and not four thousand. The timer is armed only
- *  when something is buffered, so an idle session costs nothing.
- *
- *  There is deliberately no byte cap on the buffer: 100 ms of output is bounded by the
- *  socket's own backpressure, and xterm's scrollback (raised to 10 000 lines in Terminal.tsx)
- *  is the real bound on what is kept. A cap here would silently drop transcript. */
+/** Browser WebSockets do not provide receive backpressure. Bound the application queue
+ * and xterm's asynchronous parser together; stop this view visibly if it cannot keep up. */
 function writeOut(entry: Entry, bytes: Uint8Array): void {
-  if (bytes.length === 0) return;
+  if (entry.destroyed || entry.overloaded || bytes.length === 0) return;
+  if (bytes.length + entry.pendingBytes + entry.writingBytes > MAX_OUTPUT_BYTES || entry.pending.length >= MAX_OUTPUT_CHUNKS) {
+    pauseOverloaded(entry);
+    return;
+  }
   entry.pending.push(bytes);
   entry.pendingBytes += bytes.length;
-  if (entry.flushTimer !== null) return;
+  scheduleFlush(entry);
+}
+
+function scheduleFlush(entry: Entry): void {
+  if (entry.destroyed || entry.overloaded || entry.writingBytes > 0 || entry.pending.length === 0 || entry.flushTimer !== null) return;
   entry.flushTimer = setTimeout(() => flush(entry), FLUSH_INTERVAL_MS);
+}
+
+function pauseOverloaded(entry: Entry): void {
+  entry.overloaded = true;
+  clearRetry(entry);
+  if (entry.flushTimer !== null) clearTimeout(entry.flushTimer);
+  entry.flushTimer = null;
+  entry.pending = [];
+  entry.pendingBytes = 0;
+  entry.connectVersion++;
+  entry.opening = false;
+  entry.ladderStartedAt = 0;
+  const ws = entry.ws;
+  entry.ws = null;
+  // Browsers only permit application close codes 3000–4999 (or normal closure).
+  ws?.close(4008, "terminal output exceeded the display buffer");
+  publish(entry, {
+    phase: "failed", attempts: entry.attempts, ladderStartedAt: 0,
+    reason: "Terminal display paused because output arrived too quickly. The agent continues. Retry attach restores recent output only; earlier output may be missing.",
+  });
 }
 
 function flush(entry: Entry): void {
   entry.flushTimer = null;
-  if (entry.destroyed || entry.pending.length === 0) return;
+  if (entry.destroyed || entry.overloaded || entry.writingBytes > 0 || entry.pending.length === 0) return;
   const chunk = concatChunks(entry.pending, entry.pendingBytes);
   entry.pending = [];
   entry.pendingBytes = 0;
+  entry.writingBytes = chunk.length;
 
   // Measured BEFORE the write, because the write itself moves baseY (§7.2, known defect 5).
   // Scrolled from the write callback rather than inline, because term.write is asynchronous:
@@ -558,7 +616,10 @@ function flush(entry: Entry): void {
   const buffer = entry.term.buffer.active;
   const pinned = buffer.viewportY >= buffer.baseY;
   entry.term.write(chunk, () => {
+    entry.writingBytes = 0;
+    if (entry.destroyed) return;
     if (pinned) entry.term.scrollToBottom();
+    scheduleFlush(entry);
   });
 }
 
@@ -578,7 +639,7 @@ function concatChunks(chunks: Uint8Array[], total: number): Uint8Array {
 
 /** §4.6's ladder. Called once per socket that died, whichever way it died. */
 function scheduleRetry(entry: Entry): void {
-  if (entry.destroyed || !entry.permitted) return;
+  if (entry.destroyed || entry.overloaded || !entry.permitted) return;
   if (!entry.connectPermitted) {
     publish(entry, { phase: "detached", attempts: 0, ladderStartedAt: 0, reason: "Waiting for current project execution permission before reconnecting." });
     return;
@@ -774,11 +835,15 @@ function destroy(entry: Entry): void {
   entry.ws = null;
   entry.opening = false;
   entry.connectVersion += 1;
-  // Closing the socket detaches. It does NOT destroy the session: the record and its
-  // transcript survive, and only a kill, the idle TTL or the reaper remove them.
+  // Closing the socket detaches without stopping the session. Its record remains;
+  // a future attach can replay recent output, but this view's scrollback is discarded.
   if (ws) ws.close(1000, "pane closed");
   entry.term.dispose();
+  entry.pending = [];
+  entry.pendingBytes = 0;
+  entry.writingBytes = 0;
   entry.element.remove();
   entries.delete(entry.id);
+  idleEntries.delete(entry.id);
   notify(entry.id, DETACHED);
 }

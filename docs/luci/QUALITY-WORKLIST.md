@@ -72,6 +72,70 @@ overview and scoped action controls, the shadcn/ui migration, and bounded
 terminal/session memory. Those changes require sustained four-project evidence
 before the integrated Windows handoff.
 
+### Four-project integration pass — source verified, installed acceptance open
+
+The next working-tree batch implements a durable task queue with atomic reviewed
+batch consent, dependency checks, fair project turns, per-item revisions and
+explicit recovery. Manual and queued launches share durable capacity leases;
+current identity and project permissions are resolved again before execution.
+Resource observations separate physical/cgroup host capacity from the Docker
+execution host. Shared host policy and Windows Docker storage observations have
+focused integration and cross-compilation checks. Existing explicit account/provider limits
+remain in force; a four-agent workspace ceiling does not promise four live
+agents.
+
+The overview now has bounded project summaries, attention and scoped bulk queue
+actions. Per-workspace project-stage preferences restore the selected project
+without retaining prompts or credentials in navigation storage. Canonical
+shadcn controls replace the old button/dialog implementation while retaining
+upstream MIT provenance and existing compatibility behavior. Background queue
+controls, consent changes, uncertain responses and retirement recovery have
+focused regressions. The final integrated Go suite passes 2,600 test/subtest
+outcomes with 25 explicit skips; all 32 tested packages pass. All 2,361 frontend
+cases across 143 files, TypeScript and the web build pass. Source inputs are
+unchanged across both runs. Earlier failures remain retained: a source-location
+assertion was corrected to check its contract, and catalogue navigation now
+imports its module before the test measures response fencing. Test timeout
+thresholds were not widened. Export/provenance regressions pass all 23 cases.
+Matching installed acceptance remains open; source results are not a Windows handoff.
+
+Terminal panes mount only the visible/focused subset and keep at most eight
+idle attachments. The actual-source Chromium 50-session switching test reduced
+peak retained connections from 32 to 11, settled to 3 after the grace period,
+and released all after unmount. A separate overload witness verifies explicit
+failure/manual retry with a bounded buffer. These are connection/buffer results,
+not measurements of full application RAM. The corrected real-WebSocket relay
+preserves overload closure before cancelling its peer connection. The retained
+Docker candidate includes these sandbox changes; its exact exported bytes and
+actual installed runtime still require verification before handoff.
+
+Tracked evidence for this pass is under `artifacts/quality-swarm/` (queue UI and
+contract checks, terminal-limits, navigation-regressions and source-export checks)
+and `artifacts/resource-probes-test.log`. The sustained four-project controlled
+process test is exercising actual scheduler/allocation paths. Its first
+ten-minute run failed the restart witness because an expected child had exited;
+all 601 samples and the failure are retained. Diagnostics reproduced a fixture
+startup deadline of 100 ms; the corrected fixture uses the production readiness
+budget. Its synthetic execution capacity now admits the intended three 4 GiB
+requests while retaining 25% headroom. The corrected short run passes with six
+successful results and one deliberate exit-2 failure; the final ten-minute
+workload is in progress. Earlier failures are not passing endurance evidence. Controlled telemetry/provider
+fixtures do not establish native Windows capacity or live-model output quality.
+The broader goal and all unverified local acceptance gates remain open.
+
+An additional recovery correction covers a stop after durable capacity binding
+but before a child is registered. It requires current edit/control authority,
+the exact retained operation, fresh complete registry/backend observations and
+a provable pre-backend launch phase. A durable retirement receipt precedes
+capacity release, and interrupted finalization can be retried explicitly.
+In-flight or ambiguous backend creation remains retained for inspection. This
+change passes affected product/API/management race checks, including a real
+allocator/recovery overlap and restart between retirement and finalization.
+Windows publication uses write-through replacement and cross-compiles. The
+shared pending-recovery state blocks new manual/queued attempts until durable
+finalization. The UI reads back a failed response once, clears stale consent,
+and exposes explicit completion without replaying the mutation.
+
 ## Current findings and required outcomes
 
 | Finding | User consequence | Required correction and evidence | Status |

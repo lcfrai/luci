@@ -26,10 +26,12 @@
   color: var(--ink-2);
 }
 .projects-utilities {
-  margin-block: 28px;
-  padding-block-end: 28px;
+  margin-block: 8px 16px;
+  padding-block-end: 16px;
   border-block-end: 1px solid var(--line-strong);
 }
+.projects-tools { max-inline-size: 1100px; margin: 12px auto; }
+.projects-tools > summary { cursor: pointer; width: fit-content; min-height: 44px; padding-block: 12px; color: var(--ink-2); font-size: 13px; }
 .projects-empty,
 .projects-list,
 .projects-filter,
@@ -142,4 +144,10 @@
     grid-column: 1;
     grid-row: auto;
   }
+  .projects-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; align-items: center; }
+  .projects-heading > div { display: contents; }
+  .projects-heading h1 { grid-column: 1; grid-row: 1; margin: 0; font-size: 27px; }
+  .projects-heading > button { grid-column: 2; grid-row: 1; }
+  .projects-heading p { grid-column: 1 / -1; grid-row: 2; font-size: 13px; }
+  .projects-tools { margin-block: 6px; }
 }

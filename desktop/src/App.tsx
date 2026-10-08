@@ -83,6 +83,7 @@ export interface Catalogue {
  * another loader's state.
  */
 export function startCatalogue(client: CockpitClient, store: Store): Catalogue {
+  const epoch = store.getState().projectCatalogueEpoch;
   let stopped = false;
   const inFlight = new Set<LoadKey>();
   /** Keys whose last attempt threw. `sync` runs on EVERY store write — including this loader's
@@ -117,12 +118,12 @@ export function startCatalogue(client: CockpitClient, store: Store): Catalogue {
     // App's callers never reach `retry` after stop (its cleanup stops this loader and the poller
     // together, synchronously), so defects.test.tsx pins it directly, by calling `retry` on a
     // stopped loader.
-    if (stopped || inFlight.has(key) || failed.has(key)) return;
+    if (stopped || store.getState().projectCatalogueEpoch !== epoch || inFlight.has(key) || failed.has(key)) return;
     inFlight.add(key);
     store.getState().setLoading(key, true);
     try {
       const value = await fetch();
-      if (stopped) return;
+      if (stopped || store.getState().projectCatalogueEpoch !== epoch) return;
       // No longer outstanding, and taken out BEFORE the commit: the commit is a store write,
       // which runs `sync`, which would otherwise put this list's own stale report back.
       const mine = raised.get(key);
@@ -135,7 +136,7 @@ export function startCatalogue(client: CockpitClient, store: Store): Catalogue {
       // which is an object or null.
       if (store.getState().lastError === mine) store.getState().setError(null);
     } catch (error) {
-      if (stopped) return;
+      if (stopped || store.getState().projectCatalogueEpoch !== epoch) return;
       failed.add(key);
       const problem = asError(error);
       raised.delete(key);   // re-inserted, so the newest failure is the one `sync` puts back
@@ -143,7 +144,7 @@ export function startCatalogue(client: CockpitClient, store: Store): Catalogue {
       store.getState().setError(problem);
     } finally {
       inFlight.delete(key);
-      if (!stopped) store.getState().setLoading(key, false);
+      if (!stopped && store.getState().projectCatalogueEpoch === epoch) store.getState().setLoading(key, false);
     }
   };
 
@@ -163,6 +164,7 @@ export function startCatalogue(client: CockpitClient, store: Store): Catalogue {
 
   const sync = (): void => {
     const state = store.getState();
+    if (stopped || state.projectCatalogueEpoch !== epoch) return;
 
     for (const projectId of openProjects(state)) {
       if (state.branchesByProject[projectId] !== undefined) continue;
@@ -214,7 +216,7 @@ export function startCatalogue(client: CockpitClient, store: Store): Catalogue {
 
   return {
     refreshProjects: () => {
-      if (stopped) return;
+      if (stopped || store.getState().projectCatalogueEpoch !== epoch) return;
       arrived.delete("projects");
       failed.delete("projects");
       loadRoots();
@@ -242,6 +244,7 @@ export function startCatalogue(client: CockpitClient, store: Store): Catalogue {
 
 export default function App(): JSX.Element {
   const catalogueRef = useRef<Catalogue | null>(null);
+  const catalogueEpoch = useCockpit(state => state.projectCatalogueEpoch);
   // §4.7 says the poller starts on mount of AppShell; §9 puts it here. Same lifetime: this
   // component renders AppShell and nothing else, so this effect IS AppShell's lifetime.
   useEffect(() => {
@@ -253,7 +256,7 @@ export default function App(): JSX.Element {
       catalogueRef.current = null;
       stopPolling();
     };
-  }, []);
+  }, [catalogueEpoch]);
 
   return <SetupProvider onProjectsChanged={() => catalogueRef.current?.refreshProjects()}><AppShell /></SetupProvider>;
 }

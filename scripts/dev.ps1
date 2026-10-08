@@ -1,10 +1,10 @@
 #requires -Version 5.1
-param([switch]$InstallRuntime, [ValidateRange(1,65535)][int]$Port = 8730)
+param([switch]$InstallRuntime, [ValidateRange(1,65535)][int]$Port = 8730, [ValidateRange(1,65535)][int]$FrontendPort = 1420, [string]$DevDirectory = '')
 $ErrorActionPreference = 'Stop'
 $luciRoot = Split-Path -Parent $PSScriptRoot
 $luciPriorLocation = Get-Location
 $luciPriorEnvironment = @{}
-foreach ($luciKey in @('LUCI_RUNTIME_DIR','LUCI_ADDR','VITE_LUCI_API','LUCI_MANAGED_SHUTDOWN_TOKEN','LUCI_WORKER')) {
+foreach ($luciKey in @('LUCI_RUNTIME_DIR','LUCI_ADDR','VITE_LUCI_API','LUCI_MANAGED_SHUTDOWN_TOKEN','LUCI_WORKER','LUCI_ALLOWED_ORIGINS')) {
     $luciPriorEnvironment[$luciKey] = [Environment]::GetEnvironmentVariable($luciKey, 'Process')
 }
 $luciService = $null
@@ -22,7 +22,7 @@ try {
     try { $luciProbe.Start() }
     catch { throw ('Luci API port ' + $Port + ' is already in use. Stop its launcher, or choose another -Port. No existing process was stopped.') }
     finally { $luciProbe.Stop() }
-    $luciDev = Join-Path $luciRoot 'artifacts/dev'
+    $luciDev = if ($DevDirectory) { [IO.Path]::GetFullPath($DevDirectory) } else { Join-Path $luciRoot 'artifacts/dev' }
     New-Item -ItemType Directory -Force -Path $luciDev | Out-Null
     & go build -o (Join-Path $luciDev 'luci-api.exe') ./control-plane/cmd/api
     if ($LASTEXITCODE -ne 0) { throw 'Go build failed' }
@@ -31,6 +31,7 @@ try {
     $env:VITE_LUCI_API = $luciBase
     $env:LUCI_MANAGED_SHUTDOWN_TOKEN = $luciLifecycle
     $env:LUCI_WORKER = ''
+    if ($FrontendPort -ne 1420) { $env:LUCI_ALLOWED_ORIGINS = "http://localhost:$FrontendPort,http://127.0.0.1:$FrontendPort" }
     if ($InstallRuntime) {
         & docker build --file images/sandbox/Dockerfile --tag luci/sandbox:dev .
         if ($LASTEXITCODE -ne 0) { throw 'Runtime install failed. Start Docker and retry.' }
@@ -54,9 +55,10 @@ try {
     if (-not $luciReady) { throw ('Luci did not become ready. Read ' + (Join-Path $luciDev 'api.err.log')) }
     Set-Location -LiteralPath (Join-Path $luciRoot 'desktop')
     if (-not (Test-Path -LiteralPath node_modules -PathType Container)) { & npm.cmd ci; if ($LASTEXITCODE -ne 0) { throw 'Dependency install failed' } }
-    Write-Host 'Luci: http://localhost:1420 — follow setup in the app. Press Ctrl+C to stop.'
-    & npm.cmd run dev
-    if ($LASTEXITCODE -ne 0) { throw ('Desktop development server failed (exit ' + $LASTEXITCODE + '). Check whether port 1420 is already in use.') }
+    Write-Host "Luci: http://localhost:$FrontendPort — follow setup in the app. Press Ctrl+C to stop."
+    $luciFrontendArgs = @('run', 'dev', '--', '--port', [string]$FrontendPort)
+    & npm.cmd @luciFrontendArgs
+    if ($LASTEXITCODE -ne 0) { throw ('Desktop development server failed (exit ' + $LASTEXITCODE + '). Check whether port ' + $FrontendPort + ' is already in use.') }
 } finally {
     try {
         if ($null -ne $luciService -and -not $luciService.HasExited) {

@@ -53,21 +53,22 @@ type ProjectRunInput struct {
 }
 
 type ProjectRunOperation struct {
-	Integration    *ProjectSwarmIntegration        `json:"integration,omitempty"`
-	TaskID         string                          `json:"taskId,omitempty"`
-	WorktreeID     string                          `json:"worktreeId,omitempty"`
-	BaseCommit     string                          `json:"baseCommit,omitempty"`
-	Implementation *registry.ImplementationContext `json:"implementation,omitempty"`
-	Allocation     string                          `json:"allocation,omitempty"`
-	ID             string                          `json:"id"`
-	Kind           string                          `json:"kind"`
-	ChildID        string                          `json:"childId"`
-	Attempt        int                             `json:"attempt"`
-	Status         string                          `json:"status"`
-	RequestDigest  string                          `json:"requestDigest"`
-	CreatedAt      string                          `json:"createdAt"`
-	UpdatedAt      string                          `json:"updatedAt"`
-	Message        string                          `json:"message,omitempty"`
+	AbsenceRetirement *ProjectSwarmRecoveryProof      `json:"absenceRetirement,omitempty"`
+	Integration       *ProjectSwarmIntegration        `json:"integration,omitempty"`
+	TaskID            string                          `json:"taskId,omitempty"`
+	WorktreeID        string                          `json:"worktreeId,omitempty"`
+	BaseCommit        string                          `json:"baseCommit,omitempty"`
+	Implementation    *registry.ImplementationContext `json:"implementation,omitempty"`
+	Allocation        string                          `json:"allocation,omitempty"`
+	ID                string                          `json:"id"`
+	Kind              string                          `json:"kind"`
+	ChildID           string                          `json:"childId"`
+	Attempt           int                             `json:"attempt"`
+	Status            string                          `json:"status"`
+	RequestDigest     string                          `json:"requestDigest"`
+	CreatedAt         string                          `json:"createdAt"`
+	UpdatedAt         string                          `json:"updatedAt"`
+	Message           string                          `json:"message,omitempty"`
 }
 
 type ProjectRunCommandEvidence struct {
@@ -276,6 +277,10 @@ func (s *ProjectRunStore) read(projectID, scope, id string) (storedProjectRun, e
 }
 
 func (s *ProjectRunStore) save(row storedProjectRun) error {
+	// Capture the compact head against the pre-write directory generation.
+	// An unavailable legacy index stays unavailable until creation can reuse
+	// its already-validated history; a GET never repairs it.
+	overviewHead, overviewHeadErr := s.readOverviewRunHead(row.Run.ProjectID, row.ProjectScope)
 	if err := validateStoredProjectRun(row); err != nil {
 		return err
 	}
@@ -301,15 +306,20 @@ func (s *ProjectRunStore) save(row storedProjectRun) error {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	if err := atomicJSON(path, row); err != nil {
+	if err := durableRunJSON(path, row); err != nil {
 		return err
 	}
-	return syncProjectRunDirectory(dir)
+	if err := syncProjectRunDirectory(dir); err != nil {
+		return err
+	}
+	if overviewHeadErr == nil {
+		_ = s.writeOverviewRunHead(overviewHead)
+	}
+	return nil
 }
 
-// Sync the renamed entry as well as atomicJSON's file contents before granting
-// a dispatch reservation. Windows uses its existing atomic replacement path;
-// directory fsync is not available there.
+// Sync directory entries where supported. Dispatch receipts additionally use
+// publishRunReceipt's write-through Windows replacement boundary.
 func syncProjectRunDirectory(path string) error {
 	if runtime.GOOS == "windows" {
 		return nil
@@ -438,6 +448,7 @@ func (s *ProjectRunStore) Create(projectID, projectPath, key string, input Proje
 	if err := s.save(row); err != nil {
 		return ProjectRun{}, false, err
 	}
+	s.overviewHeadAfterCreate(row, rows)
 	// Return a fresh decode so caller-owned slices cannot alter the snapshot.
 	saved, err := s.read(projectID, scope, row.Run.ID)
 	return saved.Run, err == nil, err

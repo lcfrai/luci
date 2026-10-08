@@ -31,6 +31,8 @@ import (
 type recordingConn struct {
 	mu     sync.Mutex
 	frames [][]byte
+	closed websocket.StatusCode
+	reason string
 }
 
 func (r *recordingConn) Write(_ context.Context, _ websocket.MessageType, p []byte) error {
@@ -42,7 +44,35 @@ func (r *recordingConn) Write(_ context.Context, _ websocket.MessageType, p []by
 	return nil
 }
 
-func (r *recordingConn) Close(websocket.StatusCode, string) error { return nil }
+func (r *recordingConn) Close(code websocket.StatusCode, reason string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.closed, r.reason = code, reason
+	return nil
+}
+
+func TestFanOutReportsOverflowWithoutExitOrPartialReplay(t *testing.T) {
+	h, err := hub.Start(hub.Config{Command: "/bin/sh"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h.Close()
+	out := make(chan []byte, 1)
+	out <- []byte("unrendered prefix")
+	close(out)
+	overflow := make(chan struct{})
+	close(overflow)
+	conn := &recordingConn{}
+	fanOut(context.Background(), conn, h, out, overflow)
+	if len(conn.frames) != 0 || conn.closed != websocket.StatusTryAgainLater || conn.reason != outputOverloadReason {
+		t.Fatalf("overflow must close explicitly without continuing output or claiming exit: %+v", conn)
+	}
+	select {
+	case <-h.Done():
+		t.Fatal("an overloaded view stopped the process")
+	default:
+	}
+}
 
 // exitReasons returns the payload of every Exit frame written, in order, so a
 // test can assert both how many were sent and what they said.
@@ -80,7 +110,7 @@ func TestFanOutSendsNoExitFrameOnDetach(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		fanOut(context.Background(), conn, h, out)
+		fanOut(context.Background(), conn, h, out, nil)
 		close(done)
 	}()
 
@@ -112,7 +142,7 @@ func TestFanOutSendsExitFrameWhenTheProcessExits(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		fanOut(context.Background(), conn, h, out)
+		fanOut(context.Background(), conn, h, out, nil)
 		close(done)
 	}()
 
@@ -147,7 +177,7 @@ func TestFanOutSendsExitFrameToAClientThatAttachedAfterTheExit(t *testing.T) {
 
 	// out is already closed, so fanOut returns on its first iteration; no
 	// goroutine and no timeout are needed to observe it.
-	fanOut(context.Background(), conn, h, out)
+	fanOut(context.Background(), conn, h, out, nil)
 
 	if got, want := conn.exitReasons(t), []string{"exit status 0"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("Exit frames = %q, want %q", got, want)

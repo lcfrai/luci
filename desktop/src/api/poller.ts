@@ -32,6 +32,7 @@ export function startPolling(
   store: typeof useCockpit,
   onGoodTick?: () => void,
 ): () => void {
+  const epoch = store.getState().projectCatalogueEpoch;
   let stopped = false;
   let inFlight = false;
   /** The error object this poller last wrote. setError stores the object it is handed, so
@@ -41,12 +42,12 @@ export function startPolling(
   const tick = async (): Promise<void> => {
     // Paused while hidden: a laptop lid closed for eight hours must not wake to 14 000 queued
     // requests. In-flight guard: a slow tick delays the next one, it never stacks another.
-    if (stopped || inFlight || document.visibilityState === "hidden") return;
+    if (stopped || store.getState().projectCatalogueEpoch !== epoch || inFlight || document.visibilityState === "hidden") return;
     inFlight = true;
     let good = false;
     try {
       const sessions = await client.listSessions();
-      if (stopped) return;
+      if (stopped || store.getState().projectCatalogueEpoch !== epoch) return;
       good = true;
       const state = store.getState();
       const covered = coveredWorktreeIds(Object.keys(state.sessionIdsByWorktree), sessions);
@@ -62,7 +63,7 @@ export function startPolling(
       // is handed each one exactly once, at the failure that built it.
       if (raised !== null && store.getState().lastError === raised) store.getState().setError(null);
     } catch (error) {
-      if (stopped) return;
+      if (stopped || store.getState().projectCatalogueEpoch !== epoch) return;
       raised =
         error instanceof ApiError
           ? { code: error.code, message: error.message }

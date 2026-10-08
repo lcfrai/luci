@@ -18,6 +18,7 @@ import type {
   WorktreeId,
 } from "../types";
 import type { CockpitState } from "../store";
+import { pruneProjectPositions, writeProjectNavigation } from "../../preferences/projectNavigation";
 
 export type LoadKey =
   | "machines"
@@ -113,6 +114,16 @@ export function sameIds(a: readonly SessionId[], b: readonly SessionId[]): boole
   return true;
 }
 
+/** Preserve unchanged catalogue identities so a projects refresh does not rerender every branch. */
+function retainRecord<T>(record: Record<string, T>, keep: (key: string, value: T) => boolean): Record<string, T> {
+  const entries = Object.entries(record), retained = entries.filter(([key, value]) => keep(key, value));
+  return retained.length === entries.length ? record : Object.fromEntries(retained);
+}
+function retainItems<T>(items: T[], keep: (value: T) => boolean): T[] {
+  const retained = items.filter(keep);
+  return retained.length === items.length ? items : retained;
+}
+
 export const createDataSlice: StateCreator<
   CockpitState,
   [["zustand/persist", unknown]],
@@ -127,16 +138,42 @@ export const createDataSlice: StateCreator<
     // Failed or pending requests leave the user's current project in place.
     const missing = state.selection.projectId !== null &&
       !projects.some(project => project.id === state.selection.projectId);
+    const ids = new Set(projects.map(project => project.id));
+    const unchanged = new Set(projects.filter(project => !state.projects.some(old => old.id === project.id && old.path !== project.path)).map(project => project.id));
+    const branchesByProject = retainRecord(state.branchesByProject, id => unchanged.has(id));
+    const branchIds = new Set(Object.values(branchesByProject).flat().map(branch => branch.id));
+    const worktreesByBranch = retainRecord(state.worktreesByBranch, id => branchIds.has(id));
+    const sessions = retainRecord(state.sessions, (_, session) => unchanged.has(session.projectId));
+    const removedBranchIds = new Set(Object.entries(state.branchesByProject).filter(([id]) => !unchanged.has(id)).flatMap(([, branches]) => branches.map(branch => branch.id)));
+    const removedWorktreeIds = new Set(Object.entries(state.worktreesByBranch).filter(([id]) => removedBranchIds.has(id)).flatMap(([, worktrees]) => worktrees.map(worktree => worktree.id)));
+    const removedSessionIds = new Set(Object.values(state.sessions).filter(session => !unchanged.has(session.projectId)).map(session => session.id));
+    const sourceChanged = state.selection.projectId !== null && !unchanged.has(state.selection.projectId);
+    const selection = missing ? { projectId: null, branchId: null, worktreeId: null, sessionId: null } : sourceChanged ? { ...state.selection, branchId: null, worktreeId: null, sessionId: null } : state.selection;
+    const projectPositions = pruneProjectPositions(state.projectPositions, projects);
+    const saved = !state.projectNavigationScope || writeProjectNavigation(state.projectNavigationScope, { projects: projectPositions, selected: selection.projectId });
     return {
-      projects,
-      projectsLoaded: true,
-      ...(missing ? { selection: { projectId: null, branchId: null, worktreeId: null, sessionId: null } } : {}),
+      projects, projectsLoaded: true, selection, projectPositions, projectNavigationError: !saved,
+      ...(sourceChanged && !missing ? { lens: "discover" as const } : {}),
+      branchesByProject, worktreesByBranch, sessions,
+      sessionIdsByWorktree: !removedWorktreeIds.size && !removedSessionIds.size ? state.sessionIdsByWorktree : Object.fromEntries(Object.entries(state.sessionIdsByWorktree).filter(([id]) => !removedWorktreeIds.has(id)).map(([id, list]) => [id, list.filter(sessionId => !removedSessionIds.has(sessionId))])),
+      expandedProjects: retainRecord(state.expandedProjects, id => ids.has(id)),
+      expandedBranches: retainRecord(state.expandedBranches, id => !removedBranchIds.has(id)),
+      expandedWorktrees: retainRecord(state.expandedWorktrees, id => !removedWorktreeIds.has(id)),
+      projectSourceRevisions: retainRecord(state.projectSourceRevisions, id => unchanged.has(id)),
+      pinned: retainItems(state.pinned, id => !removedSessionIds.has(id)),
+      tiles: retainRecord(state.tiles, id => !removedSessionIds.has(id)),
     };
   }),
-  setBranches: (projectId, branches) =>
-    set((s) => ({ branchesByProject: { ...s.branchesByProject, [projectId]: branches } })),
-  setWorktrees: (branchId, worktrees) =>
-    set((s) => ({ worktreesByBranch: { ...s.worktreesByBranch, [branchId]: worktrees } })),
+  setBranches: (projectId, branches) => set(s => {
+    if (s.projectsLoaded && !s.projects.some(project => project.id === projectId)) return s;
+    const removed = new Set((s.branchesByProject[projectId] ?? []).filter(branch => !branches.some(next => next.id === branch.id)).map(branch => branch.id));
+    return { branchesByProject: { ...s.branchesByProject, [projectId]: branches },
+      worktreesByBranch: Object.fromEntries(Object.entries(s.worktreesByBranch).filter(([id]) => !removed.has(id))) };
+  }),
+  setWorktrees: (branchId, worktrees) => set(s => {
+    if (s.projectsLoaded && !Object.values(s.branchesByProject).some(branches => branches.some(branch => branch.id === branchId))) return s;
+    return { worktreesByBranch: { ...s.worktreesByBranch, [branchId]: worktrees } };
+  }),
   setHarnesses: (harnesses) => set({ harnesses }),
 
   replaceSessions: (incoming, worktreeIds) =>

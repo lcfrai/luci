@@ -6,8 +6,8 @@ Use Python 3.11 or newer and Git. Commit the complete reviewed implementation fi
 
 ```powershell
 $sourceRevision = git rev-parse --verify HEAD
-python scripts/export-public-source.py --revision $sourceRevision --version 0.4.0 --output artifacts/public-source-candidate/luci-0.4.0-source --plan
-python scripts/export-public-source.py --revision $sourceRevision --version 0.4.0 --output artifacts/public-source-candidate/luci-0.4.0-source
+python scripts/export-public-source.py --revision $sourceRevision --version 0.5.0 --output artifacts/public-source-candidate/luci-0.5.0-source --plan
+python scripts/export-public-source.py --revision $sourceRevision --version 0.5.0 --output artifacts/public-source-candidate/luci-0.5.0-source
 ```
 
 The same arguments work in a Unix shell after setting `sourceRevision=$(git rev-parse --verify HEAD)`. `--repo` can select another clean checkout. `--plan` performs source/version/licence checks without writing. Exporting from a Git-less candidate is intentionally unsupported; building the application from that candidate is supported.
@@ -15,6 +15,12 @@ The same arguments work in a Unix shell after setting `sourceRevision=$(git rev-
 ## What is retained
 
 The script's explicit allowlist retains active source, tests, release scripts, workflow, dependency lockfiles, the vendored sandbox Go dependencies, root MIT licence and attribution, original third-party grants, and current Luci documentation. It reads original Git blobs and preserves line endings and executable modes. The retained third-party licence manifest's file hashes must match; it never substitutes newly generated licence text. Dependency installation and package licence collection are separate build steps.
+
+The shadcn/ui subset retains its original MIT grant and five exact upstream
+component snapshots alongside the adapted Luci components. Both licence
+collection and source export check the pinned upstream bytes, grant, and adapted
+source hashes. Export includes only the named provenance files, not arbitrary
+adjacent files. Existing Fluid attribution remains for the retained adaptations.
 
 Private Git metadata/history, corporate archives and previous programmes, infrastructure prototypes, local runtime/provider state, environment files, installed dependencies, generated resources and prior artifacts are excluded. New top-level source trees default to excluded and require a deliberate allowlist update. Source comments and current documents can retain truthful historical references; links into excluded archives will not resolve in the candidate.
 

@@ -3,19 +3,15 @@ import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { api } from '../../api';
-import { projectRunsApi, type ProjectRun, type RunOperation, type SwarmTask } from '../../api/projectRuns';
+import { projectRunsApi, type ProjectRun, type RunOperation } from '../../api/projectRuns';
 import { projectSwarmApi, type SwarmReview } from '../../api/projectSwarm';
+import { swarmRunFixture } from '../../test/swarmFixtures';
 import { aSession } from '../../test/fixtures';
 import { resetCockpit } from '../../store/store';
 import { ProjectSwarm } from './ProjectSwarm';
+vi.mock('./SwarmRunQueue', () => ({ SwarmRunQueue: () => null }));
 
-const task = (id: string, patch: Partial<SwarmTask> = {}): SwarmTask => ({id, title: `Build ${id}`, dependsOn: [], writePaths: [`src/${id}.ts`], acceptance: `Verify ${id} behavior`, ...patch});
-const base = (): ProjectRun => ({
-  id: 'run-1', projectId: 'p-1', worktreeId: 'main', revision: 1, state: 'ready', reason: 'Reviewed inputs saved', createdAt: '2026-10-08T00:00:00Z', updatedAt: '2026-10-08T00:00:00Z',
-  input: {implementation: {projectId: 'p-1', worktreeId: 'main', briefRevision: 1, planRevision: 1, specificationRevision: 1, designPlanRevision: 1, taskIds: ['a', 'b', 'c'], taskTitles: ['Build a', 'Build b', 'Build c'], requirementIds: ['r1'], briefDigest: 'brief', planDigest: 'plan', specificationDigest: 'spec', designPlanDigest: 'design', sourceCommit: 'a'.repeat(40), sourceDigest: 'source', sourceDirty: false}, approvals: {specificationApprovalId: 'as', specificationRevision: 1, specificationDigest: 'spec', designApprovalId: 'ad', designRevision: 1, designDigest: 'design', briefDigest: 'brief', sketchDigest: ''}, outcome: 'preview', requirements: [{id: 'r1', title: 'App', acceptance: 'Works'}], route: {harness: 'codex', model: 'recorded-model', permissionMode: 'ask', connection: {id: 'saved', kind: 'compatible-api', revision: 3}}},
-  operations: [], checks: [], releases: [], allowedActions: [], contextFreshness: {status: 'current', reason: 'Current'},
-  swarm: {state: 'ready', maxParallel: 2, tasks: [task('a'), task('b'), task('c', {dependsOn: ['a', 'b']})]},
-});
+const base = swarmRunFixture;
 const op = (run: ProjectRun, id: string, status = 'reserved'): RunOperation => ({id: `op-${id}`, kind: 'session', taskId: id, childId: `session-${id}`, worktreeId: `isolated-${id}`, attempt: 1, status, allocation: 'ready', baseCommit: 'a'.repeat(40), implementation: {...run.input.implementation, worktreeId: `isolated-${id}`, taskIds: [id], taskTitles: [`Build ${id}`]}, requestDigest: 'request', createdAt: run.createdAt, updatedAt: run.updatedAt});
 const attach = (run: ProjectRun, operation: RunOperation): ProjectRun => ({...run, revision: run.revision + 1, operations: [...run.operations.filter(item => item.id !== operation.id), operation], swarm: {...run.swarm!, tasks: run.swarm!.tasks.map(item => item.id === operation.taskId ? {...item, operationId: operation.id} : item)}});
 function Harness({initial = base(), canEdit = true, canExecute = true, updated = vi.fn()} : {initial?: ProjectRun; canEdit?: boolean; canExecute?: boolean; updated?: (run: ProjectRun) => void}) {
@@ -93,7 +89,7 @@ it('pause stops future starts without claiming existing agents stopped, and resu
   expect(await screen.findByText('Future task starts stopped. Existing sessions keep their own stop controls.')).not.toBeNull();
   expect(screen.getByRole('button', {name: 'Start ready tasks'})).toHaveProperty('disabled', true);
   await userEvent.click(screen.getByRole('button', {name: 'Resume new starts'}));
-  expect(await screen.findByText('New starts enabled. Choose the ready tasks to continue.')).not.toBeNull();
+  expect(await screen.findByText('New starts enabled. Previously authorized queued tasks can continue when their dependencies and capacity allow.')).not.toBeNull();
   expect(control.mock.calls.map(call => call[2])).toEqual(['pause', 'resume']); expect(create).not.toHaveBeenCalled();
 });
 
@@ -165,6 +161,102 @@ it('requires an explicit recovery choice, retains output and does not launch the
   const dialog = await screen.findByRole('dialog', {name: 'Retain changes and retry'});
   await userEvent.click(within(dialog).getByRole('button', {name: 'Retain output and allow retry'}));
   await waitFor(() => expect(abandon).toHaveBeenCalledWith('p-1', 'run-1', 'a', saved.revision));
-  expect(await screen.findByText('Previous changes retained. Start the task explicitly when ready to retry.')).not.toBeNull();
+  expect(await screen.findByText('Attempt retired. Output is retained. No new agent was started.')).not.toBeNull();
   expect(create).not.toHaveBeenCalled();
+});
+
+it.each(['unknown', 'dispatching', 'cancelled'])('uses exact missing-child recovery for %s without execution permission or launching work', async status => {
+  const initial = base(), operation = op(initial, 'a', status);
+  if (status === 'cancelled') operation.absenceRetirement = {childId: operation.childId, leaseId: 'lease-a', backend: 'docker', observedAt: initial.updatedAt, inventoryObservedAt: initial.updatedAt};
+  const saved = attach(initial, operation);
+  const abandon = vi.spyOn(projectSwarmApi, 'abandon').mockResolvedValue(attach(saved, {...operation, status: 'cancelled', ...(operation.absenceRetirement ? {absenceRetirement: {...operation.absenceRetirement, finalizedAt: initial.updatedAt}} : {})}));
+  const create = vi.spyOn(api, 'createSession');
+  render(<Harness initial={saved} canExecute={false} />);
+  if (status === 'cancelled') {
+    expect(screen.getByText('Recovery pending · finish recovery to release capacity')).not.toBeNull();
+    expect(screen.queryByRole('button', {name: 'Retry in a new workspace'})).toBeNull();
+    expect(screen.getByText('New starts enabled · 1 of 2 agent slots occupied')).not.toBeNull();
+  }
+  const action = status === 'cancelled' ? 'Finish recovery' : 'Retain changes and retry';
+  await userEvent.click(screen.getByRole('button', {name: action}));
+  const dialog = screen.getByRole('dialog', {name: action});
+  expect(within(dialog).getByText(/prove the child is stopped or was never allocated/)).not.toBeNull();
+  await userEvent.click(within(dialog).getByRole('button', {name: status === 'cancelled' ? 'Finish recovery' : 'Retain output and allow retry'}));
+  await waitFor(() => expect(abandon).toHaveBeenCalledWith('p-1', 'run-1', 'a', saved.revision, {operationId: operation.id, childId: operation.childId, recoverMissingChild: true}));
+  expect(create).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', {name: 'Retry in a new workspace'})).toHaveProperty('disabled', true);
+});
+
+it('keeps an uncertain attempt available for inspection when absence cannot be proved', async () => {
+  const initial = base(), operation = op(initial, 'a', 'unknown'), saved = attach(initial, operation);
+  vi.spyOn(projectSwarmApi, 'abandon').mockRejectedValue(new Error('The backend inventory is stale. Capacity remains reserved.'));
+  vi.spyOn(projectRunsApi, 'get').mockResolvedValue(saved);
+  const create = vi.spyOn(api, 'createSession');
+  render(<Harness initial={saved} canExecute={false} />);
+  await userEvent.click(screen.getByRole('button', {name: 'Retain changes and retry'}));
+  await userEvent.click(screen.getByRole('button', {name: 'Retain output and allow retry'}));
+  await screen.findAllByText('The backend inventory is stale. Capacity remains reserved.');
+  expect(screen.queryByRole('button', {name: 'Retry in a new workspace'})).toBeNull();
+  await userEvent.click(screen.getByRole('button', {name: 'Keep inspecting'}));
+  expect(screen.getByRole('button', {name: 'Inspect workspace output'})).not.toBeNull();
+  expect(create).not.toHaveBeenCalled();
+});
+
+it('discards recovery consent when a newer run replaces the inspected attempt', async () => {
+  const initial = base(), saved = attach(initial, op(initial, 'a', 'unknown'));
+  const props = {canEdit: true, canExecute: true, busy: false, onBusy: vi.fn(), onUpdate: vi.fn(), onOpenSession: vi.fn()};
+  const abandon = vi.spyOn(projectSwarmApi, 'abandon');
+  const view = render(<ProjectSwarm {...props} run={saved} />);
+  await userEvent.click(screen.getByRole('button', {name: 'Retain changes and retry'}));
+  expect(screen.getByRole('dialog', {name: 'Retain changes and retry'})).not.toBeNull();
+  view.rerender(<ProjectSwarm {...props} run={{...saved, revision: saved.revision + 1}} />);
+  await waitFor(() => expect(screen.queryByRole('dialog', {name: 'Retain changes and retry'})).toBeNull());
+  expect(abandon).not.toHaveBeenCalled();
+});
+
+it('reads back partial retirement once and requires a new explicit finalization action', async () => {
+  const initial = base(), operation = op(initial, 'a', 'unknown'), saved = attach(initial, operation);
+  const pending = attach(saved, {...operation,status:'cancelled',absenceRetirement:{childId:operation.childId,leaseId:'lease-a',backend:'docker',observedAt:saved.updatedAt,inventoryObservedAt:saved.updatedAt}});
+  const abandon = vi.spyOn(projectSwarmApi, 'abandon').mockRejectedValue(new Error('Finalization interrupted'));
+  const get = vi.spyOn(projectRunsApi, 'get').mockResolvedValue(pending);
+  const create = vi.spyOn(api, 'createSession');
+  render(<Harness initial={saved} />);
+  await userEvent.click(screen.getByRole('button', {name:'Retain changes and retry'}));
+  await userEvent.click(screen.getByRole('button', {name:'Retain output and allow retry'}));
+  await screen.findByText('Finalization interrupted');
+  expect(get).toHaveBeenCalledTimes(1);
+  expect(abandon).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole('button', {name:'Finish recovery'})).toHaveProperty('disabled',false);
+  expect(screen.queryByRole('button', {name:'Open task session'})).toBeNull();
+  expect(screen.queryByRole('button', {name:'Retry in a new workspace'})).toBeNull();
+  expect(screen.getByRole('button', {name:'Inspect workspace output'})).not.toBeNull();
+  expect(create).not.toHaveBeenCalled();
+});
+
+it('explains unconfirmed recovery when readback also fails and never replays it', async () => {
+  const initial = base(), saved = attach(initial, op(initial, 'a', 'unknown'));
+  const abandon = vi.spyOn(projectSwarmApi, 'abandon').mockRejectedValue(new Error('Connection interrupted'));
+  const get = vi.spyOn(projectRunsApi, 'get').mockRejectedValue(new Error('Offline'));
+  render(<Harness initial={saved} />);
+  await userEvent.click(screen.getByRole('button', {name:'Retain changes and retry'}));
+  await userEvent.click(screen.getByRole('button', {name:'Retain output and allow retry'}));
+  await screen.findAllByText(/recovery result could not be refreshed. Check team status/);
+  expect(abandon).toHaveBeenCalledTimes(1);
+  expect(get).toHaveBeenCalledTimes(1);
+});
+
+it('discards checked integration consent across execution revocation and restoration', async () => {
+  const initial = base(), operation = op(initial, 'a', 'succeeded'), saved = attach(initial, operation);
+  vi.spyOn(projectSwarmApi, 'review').mockResolvedValue({taskId:'a',operationId:operation.id,sourceCommit:'b'.repeat(40),targetCommit:'a'.repeat(40),reviewDigest:'exact',paths:['src/a.ts'],patch:'+a',canIntegrate:true,reason:'Ready'});
+  const integrate = vi.spyOn(projectSwarmApi, 'integrate');
+  const props = {run:saved,canEdit:true,busy:false,onBusy:vi.fn(),onUpdate:vi.fn(),onOpenSession:vi.fn()};
+  const view = render(<ProjectSwarm {...props} canExecute />);
+  await userEvent.click(screen.getByRole('button', {name:'Review task changes'}));
+  await userEvent.click(within(screen.getByRole('dialog')).getByRole('checkbox'));
+  view.rerender(<ProjectSwarm {...props} canExecute={false} />);
+  view.rerender(<ProjectSwarm {...props} canExecute />);
+  expect(screen.queryByRole('dialog')).toBeNull();
+  await userEvent.click(screen.getByRole('button', {name:'Review task changes'}));
+  expect(within(screen.getByRole('dialog')).getByRole('checkbox')).toHaveProperty('checked',false);
+  expect(integrate).not.toHaveBeenCalled();
 });

@@ -69,8 +69,8 @@ func TestTeamSwarmRoutesRequireExactCapabilities(t *testing.T) {
 		method, suffix string
 		edit, execute  bool
 	}{
-		{"POST", "", true, true}, {"POST", "/tasks/api/reserve", true, true}, {"POST", "/tasks/api/integrate", true, true},
-		{"POST", "/pause", true, false}, {"POST", "/resume", true, false}, {"POST", "/cancel", true, false}, {"POST", "/reconcile", true, false}, {"POST", "/tasks/api/abandon", true, false},
+		{"POST", "", true, true}, {"POST", "/queue", true, true}, {"POST", "/tasks/api/queue", true, true}, {"POST", "/tasks/api/reserve", true, true}, {"POST", "/tasks/api/integrate", true, true},
+		{"POST", "/pause", true, false}, {"POST", "/resume", true, true}, {"POST", "/cancel", true, false}, {"POST", "/reconcile", true, false}, {"POST", "/tasks/api/abandon", true, false},
 		{"GET", "/tasks/api/review", false, false}, {"GET", "/operations/op-one/workspace", false, false}, {"GET", "/operations/op-one/workspace/file?path=result.txt", false, false},
 	} {
 		for _, permission := range []TeamPermissions{{Read: true}, {Read: true, Edit: true}, {Read: true, Edit: true, Execute: true}, {}} {
@@ -130,5 +130,41 @@ func TestTeamSwarmWorkspaceReadRetainsProjectGrant(t *testing.T) {
 	}
 	if reads != 2 {
 		t.Fatal("workspace output reached ungranted project")
+	}
+}
+
+func TestTeamQueueAndOverviewRoutesRetainProjectCapabilities(t *testing.T) {
+	for _, tc := range []struct {
+		method, path string
+		need         teamCapability
+	}{
+		{"GET", "/v1/product/projects/p-one/overview", teamRead},
+		{"HEAD", "/v1/product/projects/p-one/overview", teamRead},
+		{"GET", "/v1/product/projects/p-one/swarm-queue", teamRead},
+		{"POST", "/v1/product/projects/p-one/swarm-queue/queue-one/pause", teamEdit},
+		{"POST", "/v1/product/projects/p-one/swarm-queue/queue-one/cancel", teamEdit},
+		{"POST", "/v1/product/projects/p-one/swarm-queue/queue-one/priority", teamEdit},
+		{"POST", "/v1/product/projects/p-one/swarm-queue/queue-one/resume", teamEdit | teamExecute},
+	} {
+		for _, permission := range []TeamPermissions{{Read: true}, {Read: true, Edit: true}, {Read: true, Edit: true, Execute: true}, {}} {
+			req := httptest.NewRequest(tc.method, tc.path, nil)
+			scope, known := ClassifyTeamRoute(req)
+			if !known || scope.ProjectID != "p-one" {
+				t.Fatalf("missing exact project scope: %s %+v", tc.path, scope)
+			}
+			w := httptest.NewRecorder()
+			want := permission.Read && (tc.need&teamEdit == 0 || permission.Edit) && (tc.need&teamExecute == 0 || permission.Execute)
+			if got := authorizeTeamRoute(w, req, permission); got != want {
+				t.Fatalf("%s with %+v: allowed=%v want=%v", tc.path, permission, got, want)
+			}
+		}
+	}
+	full := TeamPermissions{Read: true, Edit: true, Execute: true, Admin: true, Secrets: true, Deploy: true}
+	for _, endpoint := range []string{"GET /v1/product/swarm-scheduler", "PUT /v1/product/swarm-scheduler", "POST /v1/product/projects/p-one/swarm-queue/queue-one/replay", "POST /v1/product/projects/p-one/overview"} {
+		method, path, _ := strings.Cut(endpoint, " ")
+		w := httptest.NewRecorder()
+		if authorizeTeamRoute(w, httptest.NewRequest(method, path, nil), full) || w.Code != 403 {
+			t.Fatal("global or unknown route accepted", endpoint, w.Code)
+		}
 	}
 }

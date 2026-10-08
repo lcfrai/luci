@@ -187,6 +187,12 @@ func (s *Server) controlProjectSwarm(w http.ResponseWriter, r *http.Request) {
 		projectRunProblem(w, err)
 		return
 	}
+	if action == "cancel" {
+		if err = s.cancelQueuedSwarmRun(run.ProjectID, run.ID); err != nil {
+			projectRunProblem(w, err)
+			return
+		}
+	}
 	s.writeProjectRun(w, 200, run)
 }
 func (s *Server) reserveProjectSwarmTask(w http.ResponseWriter, r *http.Request) {
@@ -201,75 +207,75 @@ func (s *Server) reserveProjectSwarmTask(w http.ResponseWriter, r *http.Request)
 	if !journeyDecode(w, r, &req) {
 		return
 	}
-	// Recover immutable reservations before any mutable provider or source read.
-	run, op, found, err := s.projectRuns.FindOperationByKey(p.ID, p.Path, r.PathValue("runId"), req.IdempotencyKey, "session")
+	_, _, existing, _ := s.projectRuns.FindOperationByKey(p.ID, p.Path, r.PathValue("runId"), req.IdempotencyKey, "session")
+	run, op, err := s.reserveSwarmTask(r.Context(), p, r.PathValue("runId"), r.PathValue("taskId"), req.IdempotencyKey, req.ExpectedRevision)
 	if err != nil {
 		projectRunProblem(w, err)
 		return
+	}
+	status := 201
+	if existing {
+		status = 200
+	}
+	journeyJSON(w, status, map[string]any{"run": s.projectRunView(run), "operation": op})
+}
+
+func (s *Server) reserveSwarmTask(ctx context.Context, p project.Project, runID, taskID, key string, revision int) (ProjectRun, ProjectRunOperation, error) {
+	// Recover immutable reservations before any mutable provider or source read.
+	run, op, found, err := s.projectRuns.FindOperationByKey(p.ID, p.Path, runID, key, "session")
+	if err != nil {
+		return ProjectRun{}, ProjectRunOperation{}, err
 	}
 	if found {
-		if op.TaskID != r.PathValue("taskId") {
-			projectRunProblem(w, ErrProjectRunKeyConflict)
-			return
+		if op.TaskID != taskID {
+			return ProjectRun{}, ProjectRunOperation{}, ErrProjectRunKeyConflict
 		}
-		journeyJSON(w, 200, map[string]any{"run": s.projectRunView(run), "operation": op})
-		return
+		return run, op, nil
 	}
-	run, err = s.projectRuns.Get(p.ID, p.Path, r.PathValue("runId"))
+	run, err = s.projectRuns.Get(p.ID, p.Path, runID)
 	if err != nil {
-		projectRunProblem(w, err)
-		return
+		return ProjectRun{}, ProjectRunOperation{}, err
 	}
-	selected, err := s.resolveProjectRunSelection(r.Context(), run)
+	selected, err := s.resolveProjectRunSelection(ctx, run)
 	if err != nil {
-		projectRunProblem(w, err)
-		return
+		return ProjectRun{}, ProjectRunOperation{}, err
 	}
 	guard := s.branchGuard(p.ID)
 	if !guard.TryLock() {
-		projectRunProblem(w, errors.New("Project source is busy. Wait before reserving this task."))
-		return
+		return ProjectRun{}, ProjectRunOperation{}, errors.New("Project source is busy. Wait before reserving this task.")
 	}
 	defer guard.Unlock()
-	snapshot, err := s.swarmSourceSnapshot(r.Context(), p)
+	snapshot, err := s.swarmSourceSnapshot(ctx, p)
 	if err != nil {
-		projectRunProblem(w, err)
-		return
+		return ProjectRun{}, ProjectRunOperation{}, err
 	}
 	if !snapshot.CanSwitch {
-		projectRunProblem(w, errors.New(snapshot.Message))
-		return
+		return ProjectRun{}, ProjectRunOperation{}, errors.New(snapshot.Message)
 	}
-	if err = s.validateSwarmGit(r.Context(), p.Path); err != nil {
-		projectRunProblem(w, err)
-		return
+	if err = s.validateSwarmGit(ctx, p.Path); err != nil {
+		return ProjectRun{}, ProjectRunOperation{}, err
 	}
 	// Every worker starts from a clean current integration checkout. Prior
 	// integrations are ancestors; arbitrary source movement requires a new run.
-	_, head, dirty, err := s.checkSource(r.Context(), p.Path)
+	_, head, dirty, err := s.checkSource(ctx, p.Path)
 	if err != nil || dirty {
-		projectRunProblem(w, errors.New("Commit or preserve the main checkout's pending edits before reserving an isolated task."))
-		return
+		return ProjectRun{}, ProjectRunOperation{}, errors.New("Commit or preserve the main checkout's pending edits before reserving an isolated task.")
 	}
 	if run.Swarm == nil {
-		projectRunProblem(w, ErrProjectRunConflict)
-		return
+		return ProjectRun{}, ProjectRunOperation{}, ErrProjectRunConflict
 	}
 	expected := swarmExpectedHead(run)
 	if head != expected {
-		projectRunProblem(w, errors.New("The main checkout moved outside this swarm's reviewed integrations. Prepare a fresh run for the changed source."))
-		return
+		return ProjectRun{}, ProjectRunOperation{}, errors.New("The main checkout moved outside this swarm's reviewed integrations. Prepare a fresh run for the changed source.")
 	}
 	s.projectRunDispatchMu.Lock()
 	defer s.projectRunDispatchMu.Unlock()
-	run, op, created, err := s.projectRuns.ReserveSwarmTask(p.ID, p.Path, run.ID, req.ExpectedRevision, req.IdempotencyKey, r.PathValue("taskId"), head, func(id string) string { path, _ := s.swarmPath(p.ID, run.ID, id); return project.WorktreeID(path) })
+	run, op, created, err := s.projectRuns.ReserveSwarmTask(p.ID, p.Path, run.ID, revision, key, taskID, head, func(id string) string { path, _ := s.swarmPath(p.ID, run.ID, id); return project.WorktreeID(path) })
 	if err != nil {
-		projectRunProblem(w, err)
-		return
+		return ProjectRun{}, ProjectRunOperation{}, err
 	}
 	if !created {
-		journeyJSON(w, 200, map[string]any{"run": s.projectRunView(run), "operation": op})
-		return
+		return run, op, nil
 	}
 	path, allocationErr := s.swarmPath(p.ID, run.ID, op.ID)
 	if allocationErr == nil {
@@ -285,22 +291,22 @@ func (s *Server) reserveProjectSwarmTask(w http.ResponseWriter, r *http.Request)
 		}
 	}
 	if allocationErr == nil {
-		allocationErr = s.createSwarmCheckout(r.Context(), p.Path, path, head)
+		allocationErr = s.createSwarmCheckout(ctx, p.Path, path, head)
 	}
 	var binding *registry.ImplementationContext
 	if allocationErr == nil {
-		binding, allocationErr = s.swarmTaskBinding(r.Context(), run, op, path)
+		binding, allocationErr = s.swarmTaskBinding(ctx, run, op, path)
 	}
 	selected.WorktreeID = op.WorktreeID
 	candidate := projectRunCandidate(selected, binding)
 	run, err = s.projectRuns.CompleteSwarmAllocation(p.ID, p.Path, run.ID, run.Revision, op.ID, binding, candidate, allocationErr)
 	if err != nil {
-		projectRunProblem(w, err)
-		return
+		return ProjectRun{}, ProjectRunOperation{}, err
 	}
 	op = *swarmOperation(&run, op.ID)
-	journeyJSON(w, 201, map[string]any{"run": s.projectRunView(run), "operation": op})
+	return run, op, nil
 }
+
 func (s *Server) swarmTaskBinding(ctx context.Context, run ProjectRun, op ProjectRunOperation, path string) (*registry.ImplementationContext, error) {
 	capture, err := s.swarmTaskCapture(ctx, run, op, path)
 	if err != nil {
@@ -537,7 +543,10 @@ func (s *Server) abandonProjectSwarmTask(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	var req struct {
-		ExpectedRevision int `json:"expectedRevision"`
+		ExpectedRevision    int    `json:"expectedRevision"`
+		OperationID         string `json:"operationId"`
+		ChildID             string `json:"childId"`
+		RecoverMissingChild bool   `json:"recoverMissingChild"`
 	}
 	if !journeyDecode(w, r, &req) {
 		return
@@ -557,6 +566,27 @@ func (s *Server) abandonProjectSwarmTask(w http.ResponseWriter, r *http.Request)
 	op := swarmOperation(&run, task.OperationID)
 	if op == nil {
 		projectRunProblem(w, ErrProjectRunNotFound)
+		return
+	}
+	if req.ExpectedRevision != run.Revision || req.OperationID != "" && req.OperationID != op.ID || req.ChildID != "" && req.ChildID != op.ChildID {
+		projectRunProblem(w, ErrProjectRunConflict)
+		return
+	}
+	if req.RecoverMissingChild {
+		if req.OperationID == "" || req.ChildID == "" {
+			projectRunProblem(w, errors.New("Select the exact operation and child to recover this missing launch."))
+			return
+		}
+		run, err = s.recoverMissingSwarmChildLocked(r.Context(), p, run, req.OperationID, req.ChildID)
+		if err != nil {
+			projectRunProblem(w, err)
+			return
+		}
+		s.writeProjectRun(w, 200, run)
+		return
+	}
+	if swarmRetirementPending(*op) {
+		projectRunProblem(w, errors.New("Finish the explicit missing-launch recovery before retiring or retrying this task. Its execution reservation is not yet confirmed released."))
 		return
 	}
 	if task.Integration != nil && task.Integration.State == "integrated" {

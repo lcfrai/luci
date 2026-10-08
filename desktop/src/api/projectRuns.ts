@@ -13,8 +13,11 @@ export interface RunOperation {
   requestDigest: string; createdAt: string; updatedAt: string; message?: string;
   taskId?: string; worktreeId?: string; baseCommit?: string; implementation?: ImplementationContext;
   allocation?: 'allocating' | 'ready' | 'unknown' | 'abandoned';
+  /** Durable missing-child proof; recovery finalization may still need retry. */
+  absenceRetirement?: {childId: string; queueId?: string; leaseId: string; backend: string; observedAt: string; inventoryObservedAt: string; finalizedAt?: string};
   integration?: SwarmTask['integration'];
 }
+export const runOperationNeedsRecovery = (operation?: RunOperation) => !!operation?.absenceRetirement && !operation.absenceRetirement.finalizedAt;
 export interface SwarmTask {
   id: string; title: string; dependsOn: string[]; writePaths: string[]; acceptance: string;
   operationId?: string;

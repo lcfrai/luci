@@ -272,6 +272,14 @@ func (g *Gateway) startRuntime(rt *userRuntime) {
 		cmd.Env = isolatedTeamEnvironment(g.opts.BaseEnvironment, root, rt.secret, addressFile, rt.teamID, rt.user)
 	}
 	cmd.Env = append(cmd.Env, "LUCI_CONVERSATIONS_DIR="+conversations)
+	// The worker rereads the controller's atomically persisted authority before
+	// every deferred allocation. Only this trusted launcher supplies its scope.
+	billingConfigID := ""
+	if g.billing != nil {
+		billingConfigID = g.billing.configID
+	}
+	cmd.Env = append(cmd.Env, "LUCI_EXECUTION_AUTHORITY_FILE="+filepath.Join(g.dir, "identity.json"), "LUCI_EXECUTION_MANAGED_TEAM="+g.managedTeamID, "LUCI_EXECUTION_BILLING_CONFIG="+billingConfigID, "LUCI_EXECUTION_STATE_DIR="+filepath.Join(g.dir, "execution"))
+
 	cmd.Stdout, cmd.Stderr = io.Discard, io.Discard
 	kill, err := startOwnedProcess(cmd)
 	if err != nil {

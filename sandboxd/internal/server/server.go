@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/coder/websocket"
 	"github.com/lcfrai/luci/sandboxd/internal/hub"
@@ -23,6 +24,8 @@ import (
 // would close the connection with StatusMessageTooBig. Must match
 // backend.MaxMessageBytes in the control plane.
 const maxMessageBytes = 4 << 20
+const outputWriteTimeout = 5 * time.Second
+const outputOverloadReason = "terminal output consumer too slow; reconnect for recent output only"
 
 // Config describes the process every connection attaches to.
 type Config struct {
@@ -154,24 +157,51 @@ type wsConn interface {
 // the exact decision the exitFrame amendment protects: whether a closed out
 // means the process exited (send an Exit frame) or the client merely
 // detached (send nothing beyond a normal close).
-func fanOut(ctx context.Context, conn wsConn, h *hub.Hub, out <-chan []byte) {
+func fanOut(ctx context.Context, conn wsConn, h *hub.Hub, out <-chan []byte, overflow <-chan struct{}) {
 	for {
+		// Prefer the overflow signal to queued chunks and even a simultaneous exit.
+		// A partial terminal transcript must not be presented as a complete exit.
 		select {
+		case <-overflow:
+			conn.Close(websocket.StatusTryAgainLater, outputOverloadReason)
+			return
+		default:
+		}
+		select {
+		case <-overflow:
+			conn.Close(websocket.StatusTryAgainLater, outputOverloadReason)
+			return
 		case chunk, ok := <-out:
 			if !ok {
+				select {
+				case <-overflow:
+					conn.Close(websocket.StatusTryAgainLater, outputOverloadReason)
+					return
+				default:
+				}
 				if frame, send := exitFrame(h); send {
 					_ = conn.Write(ctx, websocket.MessageBinary, frame)
 				}
 				conn.Close(websocket.StatusNormalClosure, "session ended")
 				return
 			}
-			if err := conn.Write(ctx, websocket.MessageBinary, wire.Encode(wire.Stdout, chunk)); err != nil {
+			if err := writeOutput(ctx, conn, wire.Encode(wire.Stdout, chunk)); err != nil {
 				return
 			}
 		case <-ctx.Done():
 			return
 		}
 	}
+}
+
+func writeOutput(ctx context.Context, conn wsConn, frame []byte) error {
+	writeCtx, cancel := context.WithTimeout(ctx, outputWriteTimeout)
+	defer cancel()
+	err := conn.Write(writeCtx, websocket.MessageBinary, frame)
+	if err != nil && ctx.Err() == nil {
+		conn.Close(websocket.StatusTryAgainLater, outputOverloadReason)
+	}
+	return err
 }
 
 func (s *Server) attach(w http.ResponseWriter, r *http.Request) {
@@ -193,18 +223,18 @@ func (s *Server) attach(w http.ResponseWriter, r *http.Request) {
 	conn.SetReadLimit(maxMessageBytes)
 
 	ctx := r.Context()
-	replay, out, cancel := s.h.Subscribe()
+	replay, out, overflow, cancel := s.h.SubscribeWithOverflow()
 	defer cancel()
 
 	// Replay first, so a returning client sees what it missed before anything
 	// live arrives.
 	if len(replay) > 0 {
-		if err := conn.Write(ctx, websocket.MessageBinary, wire.Encode(wire.Stdout, replay)); err != nil {
+		if err := writeOutput(ctx, conn, wire.Encode(wire.Stdout, replay)); err != nil {
 			return
 		}
 	}
 
-	go fanOut(ctx, conn, s.h, out)
+	go fanOut(ctx, conn, s.h, out, overflow)
 
 	for {
 		_, data, err := conn.Read(ctx)

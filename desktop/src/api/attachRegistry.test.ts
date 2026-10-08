@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   FLUSH_INTERVAL_MS,
   GRACE_MS,
+  MAX_IDLE_TERMINALS,
+  MAX_OUTPUT_BYTES,
+  MAX_OUTPUT_CHUNKS,
   RETRY_BUDGET_MS,
   __resetAttachRegistry,
   acquireAttach,
@@ -62,6 +65,15 @@ class AsyncParseTerm extends FakeTerm {
   }
 }
 
+class HeldParseTerm extends FakeTerm {
+  callbacks: (() => void)[] = [];
+  override write(data: string | Uint8Array, callback?: () => void) {
+    this.written.push(typeof data === "string" ? data : new TextDecoder().decode(data));
+    if (callback) this.callbacks.push(callback);
+  }
+  finishWrite() { this.callbacks.shift()?.(); }
+}
+
 /** The newest socket the stub client handed out. */
 const socket = (): FakeWebSocket => FakeWebSocket.last()!;
 
@@ -98,6 +110,38 @@ afterEach(() => {
 });
 
 describe("attachRegistry — lifecycle", () => {
+  it("bounds recently released terminals without evicting active holders", () => {
+    const active = acquireAttach(live(), { createTerm, readOnly: false });
+    const retained: FakeTerm[] = [];
+    for (let i = 0; i < 32; i++) {
+      const id = `scroll-${i}`;
+      const handle = acquireAttach(live({ id }), { createTerm, readOnly: false });
+      retained.push(handle.term as FakeTerm);
+      releaseAttach(id);
+    }
+    expect(retained.filter(item => !item.disposed)).toHaveLength(MAX_IDLE_TERMINALS);
+    expect(retained.slice(0, 32 - MAX_IDLE_TERMINALS).every(item => item.disposed)).toBe(true);
+    expect((active.term as FakeTerm).disposed).toBe(false);
+    expect(FakeWebSocket.instances.filter(item => !item.closedWith)).toHaveLength(MAX_IDLE_TERMINALS + 1);
+    vi.advanceTimersByTime(GRACE_MS);
+    expect(retained.every(item => item.disposed)).toBe(true);
+    expect((active.term as FakeTerm).disposed).toBe(false);
+  });
+
+  it("takes re-acquired terminals out of the idle eviction order", () => {
+    const original = acquireAttach(live(), { createTerm, readOnly: false });
+    releaseAttach("s-1");
+    expect(acquireAttach(live(), { createTerm, readOnly: false }).term).toBe(original.term);
+    for (let i = 0; i < MAX_IDLE_TERMINALS + 1; i++) {
+      const id = `idle-${i}`;
+      acquireAttach(live({ id }), { createTerm, readOnly: false });
+      releaseAttach(id);
+    }
+    expect((original.term as FakeTerm).disposed).toBe(false);
+    releaseAttach("s-1");
+    vi.advanceTimersByTime(GRACE_MS);
+    expect((original.term as FakeTerm).disposed).toBe(true);
+  });
   it("keeps an open authorized stream through refresh but blocks reconnect until permission is verified", () => {
     acquireAttach(live(), { createTerm, readOnly: false });
     const existing = socket(); existing.acceptOpen();
@@ -422,6 +466,82 @@ describe("attachRegistry — input", () => {
 describe("attachRegistry — 10 Hz batching and the pinned rule (§7.2)", () => {
   const stdout = (s: string) =>
     encode(Kind.Stdout, new TextEncoder().encode(s));
+
+  it("allows only one asynchronous parser write and drains queued bytes in order", () => {
+    const held = new HeldParseTerm();
+    acquireAttach(live(), { createTerm: () => held, readOnly: false });
+    socket().acceptOpen();
+    socket().emitBinary(stdout("first"));
+    vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
+    socket().emitBinary(stdout("second"));
+    socket().emitBinary(stdout("third"));
+    vi.advanceTimersByTime(FLUSH_INTERVAL_MS * 100);
+    expect(held.written).toEqual(["first"]);
+    expect(held.callbacks).toHaveLength(1);
+    held.finishWrite();
+    vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
+    expect(held.written).toEqual(["first", "secondthird"]);
+    expect(held.callbacks).toHaveLength(1);
+  });
+
+  it("counts in-flight parser bytes in the cap, pauses visibly and only retries by request", () => {
+    const held = new HeldParseTerm();
+    acquireAttach(live(), { createTerm: () => held, readOnly: false });
+    const first = socket(); first.acceptOpen();
+    first.emitBinary(encode(Kind.Stdout, new Uint8Array(MAX_OUTPUT_BYTES / 2)));
+    vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
+    first.emitBinary(encode(Kind.Stdout, new Uint8Array(MAX_OUTPUT_BYTES / 2)));
+    expect(getAttachState("s-1").phase).toBe("attached");
+    first.emitBinary(stdout("exceeds the combined cap"));
+    expect(first.closedWith?.code).toBe(4008);
+    expect(getAttachState("s-1")).toMatchObject({ phase: "failed", ladderStartedAt: 0 });
+    expect(getAttachState("s-1").reason).toContain("The agent continues");
+    expect(getAttachState("s-1").reason).toContain("earlier output may be missing");
+    expect(retryAttach("s-1")).toBe(false); // prior parse must finish before reset/replay
+    first.emitBinary(stdout("stale output"));
+    setAttachPermission("s-1", false);
+    setAttachPermission("s-1", true);
+    expect(getAttachState("s-1").phase).toBe("failed"); // keep the explicit Retry attach control
+    vi.advanceTimersByTime(RETRY_BUDGET_MS * 2);
+    expect(FakeWebSocket.instances).toHaveLength(1);
+    held.finishWrite();
+    expect(held.written).toHaveLength(1); // queued unrendered bytes were released
+    expect(retryAttach("s-1")).toBe(true);
+    socket().acceptOpen();
+    socket().emitBinary(stdout("recent replay"));
+    vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
+    expect(held.written[1]).toBe("\x18\x1bcrecent replay");
+    expect(getAttachState("s-1").phase).toBe("attached");
+  });
+
+  it("bounds tiny frame overhead as well as output bytes", () => {
+    acquireAttach(live(), { createTerm, readOnly: false });
+    const current = socket(); current.acceptOpen();
+    for (let i = 0; i < MAX_OUTPUT_CHUNKS; i++) current.emitBinary(stdout("x"));
+    expect(getAttachState("s-1").phase).toBe("attached");
+    current.emitBinary(stdout("x"));
+    expect(getAttachState("s-1").phase).toBe("failed");
+    vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
+    expect(term.written).toEqual([]);
+  });
+
+  it("requires manual retry after a sandbox slow-consumer close and ignores late parse callbacks after teardown", () => {
+    const held = new HeldParseTerm();
+    acquireAttach(live(), { createTerm: () => held, readOnly: false });
+    socket().acceptOpen();
+    socket().emitBinary(stdout("parsing"));
+    vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
+    socket().emitClose(1013, "terminal output consumer too slow");
+    expect(getAttachState("s-1").phase).toBe("failed");
+    vi.advanceTimersByTime(RETRY_BUDGET_MS);
+    expect(FakeWebSocket.instances).toHaveLength(1);
+    releaseAttach("s-1");
+    vi.advanceTimersByTime(GRACE_MS);
+    held.finishWrite();
+    expect(held.scrolledToBottom).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(getAttachState("s-1").phase).toBe("detached");
+  });
 
   it("three payloads inside one window produce exactly one write", () => {
     acquireAttach(live(), { createTerm, readOnly: false });

@@ -40,6 +40,7 @@ type Registrar interface {
 }
 type Runner func(context.Context, string, []string, string) (string, error)
 type Options struct {
+	SwarmSchedulerPolicyDir string
 	NativePrototypeReleases func(context.Context, string) ([]Release, error)
 	ClearBranchReady        func(context.Context, string) error
 	BranchSessions          func(context.Context, string, string) (bool, error)
@@ -60,6 +61,11 @@ type Options struct {
 }
 
 type Server struct {
+	projectSwarmRecoveryProve       func(context.Context, ProjectSwarmRecoveryRequest) (ProjectSwarmRecoveryProof, error)
+	projectSwarmRecoveryFinalize    func(context.Context, ProjectSwarmRecoveryRequest, ProjectSwarmRecoveryProof) error
+	swarmSchedulerPolicyDir         string
+	projectOverview                 projectOverviewCache
+	swarmScheduler                  swarmScheduler
 	projectSwarmWorktreeObserver    func(context.Context, string, string) (bool, error)
 	projectRuns                     *ProjectRunStore
 	projectRunDispatchMu            sync.Mutex
@@ -126,7 +132,7 @@ func New(opts Options) (*Server, error) {
 	if root == "" {
 		root = filepath.Join(opts.StateDir, "projects")
 	}
-	s := &Server{nativePrototypeReleases: opts.NativePrototypeReleases, clearBranchReady: opts.ClearBranchReady, branchSessions: opts.BranchSessions, cloudDataBindings: opts.CloudDataBindings, stateDir: opts.StateDir, runtimeDir: opts.RuntimeDir, cloudBundle: opts.CloudBundle, shutdown: opts.Shutdown, runner: opts.Runner, configure: opts.Configure,
+	s := &Server{swarmSchedulerPolicyDir: opts.SwarmSchedulerPolicyDir, nativePrototypeReleases: opts.NativePrototypeReleases, clearBranchReady: opts.ClearBranchReady, branchSessions: opts.BranchSessions, cloudDataBindings: opts.CloudDataBindings, stateDir: opts.StateDir, runtimeDir: opts.RuntimeDir, cloudBundle: opts.CloudBundle, shutdown: opts.Shutdown, runner: opts.Runner, configure: opts.Configure,
 		sandboxImage: opts.SandboxImage, plans: make(map[string]CloudPlan),
 		managedWorkspace: opts.ManagedWorkspace, configured: opts.ManagedWorkspace,
 		config: Config{ProjectsDir: root, Mode: "local", MonthlyBudgetUSD: 30}}
@@ -201,6 +207,9 @@ func New(opts Options) (*Server, error) {
 	if runErr != nil {
 		return nil, fmt.Errorf("open project run storage: %w", runErr)
 	}
+	if err := s.initSwarmPolicyDirectory(); err != nil {
+		return nil, fmt.Errorf("open shared execution policy: %w", err)
+	}
 	return s, nil
 }
 
@@ -231,6 +240,8 @@ func (s *Server) Register(mux Registrar) {
 	s.registerBackups(mux)
 	s.registerProjectWork(mux)
 	s.registerProjectRuns(mux)
+	s.registerSwarmScheduler(mux)
+	s.registerProjectOverview(mux)
 	s.registerApplicationConfiguration(mux)
 }
 
@@ -266,6 +277,14 @@ func readJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 }
 
 func atomicJSON(path string, value any) error {
+	return publishJSON(path, value, os.Rename)
+}
+
+func durableRunJSON(path string, value any) error {
+	return publishJSON(path, value, publishRunReceipt)
+}
+
+func publishJSON(path string, value any, publish func(string, string) error) error {
 	data, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
 		return err
@@ -294,7 +313,7 @@ func atomicJSON(path string, value any) error {
 	if err = tmp.Close(); err != nil {
 		return err
 	}
-	return os.Rename(name, path)
+	return publish(name, path)
 }
 
 func newID(prefix string) string {

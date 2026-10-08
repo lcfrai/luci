@@ -15,6 +15,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -42,6 +43,7 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/project"
 	"github.com/lcfrai/luci/control-plane/internal/reaper"
 	"github.com/lcfrai/luci/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/resourcebudget"
 	"github.com/lcfrai/luci/control-plane/internal/sandbox"
 )
 
@@ -176,9 +178,17 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 			cloudBundle = filepath.Join(filepath.Dir(exe), "cloud", "luci-cloud-linux-amd64.tar.gz")
 		}
 	}
+	executionStateDir := os.Getenv("LUCI_EXECUTION_STATE_DIR")
+	if executionStateDir == "" {
+		root := cfg.StateDir
+		if root == "" {
+			root = filepath.Dir(filepath.Dir(cfg.SessionsPath))
+		}
+		executionStateDir = filepath.Join(root, "control-plane", "execution")
+	}
 	var platformService *platform.Service
 	resolveDataPlatform := func() *platform.Service { return platformService }
-	productService, err := product.New(product.Options{ClearBranchReady: func(ctx context.Context, worktreeID string) error {
+	productService, err := product.New(product.Options{SwarmSchedulerPolicyDir: executionStateDir, ClearBranchReady: func(ctx context.Context, worktreeID string) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -262,7 +272,50 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		defer recorder.Close()
 		recordFailure = recorder.Record
 	}
+	var observer resourcebudget.ExecutionObserver
+	if value, ok := be.(resourcebudget.ExecutionObserver); ok {
+		observer = value
+	}
+	sampler := resourcebudget.NewSampler(resourcebudget.NewHostProbe(resourcebudget.ProbeOptions{DisksFunc: func() []resourcebudget.DiskPath {
+		return []resourcebudget.DiskPath{{Role: "projects", Path: productService.Config().ProjectsDir}, {Role: "state", Path: filepath.Dir(cfg.SessionsPath)}}
+	}}), observer)
+	sampleCtx, stopSamples := context.WithCancel(context.Background())
+	samplesDone := make(chan struct{})
+	go func() { defer close(samplesDone); sampler.Run(sampleCtx) }()
+	defer func() { stopSamples(); <-samplesDone }()
+	var executionAuthority management.ExecutionAuthorizer
+	var executionControlAuthority management.ExecutionControlAuthorizer
+	var executionReady atomic.Bool
+	if cfg.Worker {
+		scope := management.FileExecutionAuthorityScope{IdentityPath: os.Getenv("LUCI_EXECUTION_AUTHORITY_FILE"), UserID: os.Getenv("LUCI_ACTOR_ID"), TeamID: os.Getenv("LUCI_TEAM_ID"), ManagedTeamID: os.Getenv("LUCI_EXECUTION_MANAGED_TEAM"), BillingConfigID: os.Getenv("LUCI_EXECUTION_BILLING_CONFIG")}
+		executionAuthority, err = management.NewFileExecutionAuthorizer(scope)
+		if err != nil {
+			return fmt.Errorf("initialize current execution authority: %w", err)
+		}
+		executionControlAuthority, err = management.NewFileExecutionControlAuthorizer(scope)
+		if err != nil {
+			return fmt.Errorf("initialize current execution control authority: %w", err)
+		}
+		executionReady.Store(true)
+	}
 	handler, err := api.New(api.Deps{
+		ExecutionStateDir: executionStateDir,
+		ResourceSnapshot:  sampler.Latest,
+		ExecutionReady:    executionReady.Load,
+		ManagedExecution:  cfg.Worker,
+		AuthorizeExecutionControl: func(ctx context.Context, ref management.ExecutionActorRef) error {
+			if !executionReady.Load() || executionControlAuthority == nil {
+				return management.ErrExecutionAuthority
+			}
+			return executionControlAuthority(ctx, ref)
+		},
+		AuthorizeExecution: func(ctx context.Context, ref management.ExecutionActorRef, harness string, needsSecrets bool) (management.ExecutionAuthority, error) {
+			if !executionReady.Load() || executionAuthority == nil {
+				return management.ExecutionAuthority{}, management.ErrExecutionAuthority
+			}
+			return executionAuthority(ctx, ref, harness, needsSecrets)
+		},
+
 		Store:              store,
 		Backend:            be,
 		Worktrees:          projects,
@@ -329,6 +382,9 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 			_ = ln.Close()
 			return fmt.Errorf("initialise control-plane management: %w", err)
 		}
+		executionAuthority = control.AuthorizeExecution
+		executionControlAuthority = control.AuthorizeExecutionControl
+		executionReady.Store(true)
 		defer func() {
 			cleanup, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
@@ -496,10 +552,11 @@ func newBackend(cfg Config, instanceID string, log *slog.Logger) (backend.Backen
 		// 127.0.0.1 and refuses anything else, and there is no safe non-loopback
 		// value to expose as an environment variable.
 		return dockerbe.New(dockerbe.Config{
-			Host:         cfg.DockerHost,
-			ReadyTimeout: cfg.ReadyTimeout,
-			Log:          log,
-			Instance:     instanceID,
+			Host:          cfg.DockerHost,
+			ResourceImage: cfg.SandboxImage,
+			ReadyTimeout:  cfg.ReadyTimeout,
+			Log:           log,
+			Instance:      instanceID,
 		})
 	case string(backend.KindKata):
 		client, err := kubeClient(cfg.Kubeconfig)

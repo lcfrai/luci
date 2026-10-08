@@ -3,7 +3,7 @@ import { useDismissable } from "../../hooks/useDismissable";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../fluid/components/dialog";
 import "./workflow-dialog.css";
 
-/** Fluid's Radix modal supplies focus trapping; the shared overlay stack owns app shortcuts. */
+/** The shadcn/Radix modal supplies focus trapping; the shared overlay stack owns app shortcuts. */
 export function WorkflowDialog({ title, description, busy = false, onClose, getCloseFocusTarget, children }: {
   title: string; description: string; busy?: boolean; onClose(): void; children: ReactNode;
   /** Resolve a guarded destination after the modal focus trap is removed; null skips restoration. */

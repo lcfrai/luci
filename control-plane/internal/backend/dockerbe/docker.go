@@ -87,6 +87,10 @@ type Config struct {
 	// containers that carry it and the legacy ones that carry none, never
 	// another instance's — see List for why.
 	Instance string
+
+	// ResourceImage identifies the configured worker image for conservative
+	// create-time disk reservations. Observation never pulls an image.
+	ResourceImage string
 }
 
 // Backend implements backend.Backend over Docker.
@@ -104,9 +108,13 @@ type Backend struct {
 	// daemon, and a line a minute about it forever is how an operator stops
 	// reading the log. The reaper's own error on a failed destroy still repeats
 	// every sweep, which is the line that must.
-	exposedMu sync.Mutex
-	exposed   map[string]bool
-	creates   sync.Map // sandbox ID -> active Create; never persisted or inherited
+	exposedMu     sync.Mutex
+	exposed       map[string]bool
+	creates       sync.Map // sandbox ID -> active Create; never persisted or inherited
+	resourceMu    sync.Mutex
+	resourceImage string
+	resourceCPU   map[string]resourceCPUPoint
+	resourceDisk  *daemonDiskCache
 }
 
 // New returns a Docker backend, or fails with backend.ErrUnavailable and a
@@ -160,12 +168,14 @@ func New(cfg Config) (*Backend, error) {
 		return nil, fmt.Errorf("dockerbe: no Docker daemon answered — start Docker Desktop, or set LUCI_DOCKER_HOST: %v: %w", err, backend.ErrUnavailable)
 	}
 	return &Backend{
-		api:          api,
-		bindIP:       bindIP,
-		readyTimeout: readyTimeout,
-		instance:     cfg.Instance,
-		log:          logger,
-		exposed:      make(map[string]bool),
+		api:           api,
+		bindIP:        bindIP,
+		readyTimeout:  readyTimeout,
+		instance:      cfg.Instance,
+		resourceImage: cfg.ResourceImage,
+		resourceCPU:   make(map[string]resourceCPUPoint),
+		log:           logger,
+		exposed:       make(map[string]bool),
 	}, nil
 }
 

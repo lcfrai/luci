@@ -28,6 +28,14 @@ it('rejects foreign task/workspace reservations and returns only the operation b
   await expect(projectSwarmApi.control('p-1', 'run-1', 'pause', 1)).rejects.toThrow('does not belong');
 });
 
+it('requests missing-child proof for the exact retained operation without supplying its own evidence', async () => {
+  const request = vi.spyOn(productApi, 'request').mockResolvedValue({run: receipt});
+  await projectSwarmApi.abandon('p-1', 'run-1', 'task-a', 10, {operationId: 'op-a', childId: 'child-a', recoverMissingChild: true});
+  expect(request).toHaveBeenCalledWith('/v1/product/projects/p-1/runs/run-1/swarm/tasks/task-a/abandon', {
+    expectedRevision: 10, operationId: 'op-a', childId: 'child-a', recoverMissingChild: true,
+  });
+});
+
 it('starts one captured task on the recorded route without consulting current defaults or the full run task selection', () => {
   const request = runSessionRequest(receipt, operation);
   expect(request.worktreeId).toBe('isolated-a');

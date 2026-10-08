@@ -925,6 +925,8 @@ describe("markWorktreeReady and §10.2's verb", () => {
 
   it("a late response cannot put readiness back onto a checkout moved to another branch", async () => {
     seed();
+    // A loaded checkout belongs to a current branch in the catalogue.
+    useCockpit.getState().setBranches(IDS.project, [aBranch()]);
     useCockpit.getState().setProjects([aProject()]);
     const source = aWorktree({ ready: false });
     useCockpit.getState().setWorktrees(IDS.branch, [source]);

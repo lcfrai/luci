@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
@@ -19,6 +20,7 @@ import { errorText } from "../../api/product";
 import { useTeamWorkspace } from "../teams/TeamWorkspaceProvider";
 import { TeamSettings } from "../teams/TeamSettings";
 import { useAuth } from "../auth/AuthProvider";
+import { navigationScope } from "../../preferences/projectNavigation";
 import { completeOnboardingVisit, onboardingKey, onboardingVisited } from "../../preferences/onboarding";
 
 type SetupContextValue = {
@@ -82,6 +84,11 @@ export function SetupProvider({
       cancelled = true;
     };
   }, [attempt]);
+  const currentNavigationScope = useCockpit(state => state.projectNavigationScope);
+  const navigationError = useCockpit(state => state.projectNavigationError);
+  const scope = navigationScope(productApi.baseUrl, auth?.profile.user.id ?? "", team?.teamId ?? "",
+    status?.workspace, status?.config.projectsDir ?? "", status?.access?.user.username ?? "");
+  useLayoutEffect(() => { if (scope) useCockpit.getState().bindProjectNavigation(scope); }, [scope]);
   const visitKey = status ? onboardingKey(status, auth?.profile.user.id) : "";
   useEffect(() => {
     if (!visitKey || !projectsLoaded || evaluatedVisit.current === visitKey) return;
@@ -131,7 +138,7 @@ export function SetupProvider({
       }}
     >
       {teamWorkspace && (open || portal) && <TeamSettings status={status} onStatus={setStatus} onClose={() => {setOpen(false);finishVisit();}} onSessionStarted={() => {setOpen(false);finishVisit();}}/>}
-      {statusLoading || (!projectsLoaded && projectsLoading !== false) ? (
+      {statusLoading || (!!scope && scope !== currentNavigationScope) || (!projectsLoaded && projectsLoading !== false) ? (
         <main className="workspace-loading">
           <strong>Luci</strong>
           <h1>Opening your workspace</h1>
@@ -152,7 +159,7 @@ export function SetupProvider({
           onProjectsChanged={onProjectsChanged}
         />
       ) : (
-        children
+        <>{navigationError && <p role="status" className="journey-error">Your last stage could not be saved in this browser. Your saved project work is unaffected.</p>}{children}</>
       )}
       {open && !portal && !teamWorkspace && (
         <SetupPanel
@@ -170,9 +177,10 @@ export function SetupProvider({
           mode={entry}
           onClose={() => setEntry(null)}
           onCreated={(project) => {
+            const state = useCockpit.getState();
+            state.setProjects([...state.projects.filter(item => item.id !== project.id), project]);
+            state.selectProject(project.id, "discover");
             onProjectsChanged();
-            useCockpit.getState().selectProject(project.id);
-            useCockpit.getState().setLens("discover");
             setEntry(null);
           }}
         />

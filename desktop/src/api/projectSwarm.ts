@@ -38,5 +38,5 @@ export const projectSwarmApi = {
     return review;
   },
   integrate: (project: string, run: string, task: string, expectedRevision: number, reviewDigest: string) => change(project, run, `/tasks/${encodeURIComponent(task)}/integrate`, {expectedRevision, reviewDigest}),
-  abandon: (project: string, run: string, task: string, expectedRevision: number) => change(project, run, `/tasks/${encodeURIComponent(task)}/abandon`, {expectedRevision}),
+  abandon: (project: string, run: string, task: string, expectedRevision: number, recovery?: {operationId: string; childId: string; recoverMissingChild: true}) => change(project, run, `/tasks/${encodeURIComponent(task)}/abandon`, {expectedRevision, ...recovery}),
 };

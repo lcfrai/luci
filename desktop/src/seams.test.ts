@@ -390,7 +390,9 @@ const SEAMS: Seam[] = [
     name: "Session.contextRef: carried everywhere, written and read by no surface yet",
     anchors: [
       { file: "control-plane/internal/registry/session.go", present: /^\tContextRef\s+string\s+`json:"contextRef"`$/m },
-      { file: "control-plane/internal/api/sessions.go", present: /^\t\tContextRef:\s+req\.ContextRef,$/m },
+      // The typed allocation extraction nests this record in its request, before
+      // allocatePreparedSession persists it. Field/value ownership is unchanged.
+      { file: "control-plane/internal/api/sessions.go", present: /\bContextRef:\s+req\.ContextRef[,}]/ },
       { file: "desktop/src/store/types.ts", present: /^\s+contextRef: string;$/m },
       { file: "desktop/src/store/defaults.ts", present: /^\s+contextRef\?: string;$/m },
       // Resume and fork both carry it — the case most likely to have been missed.

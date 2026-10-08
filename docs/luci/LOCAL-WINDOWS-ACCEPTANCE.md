@@ -97,30 +97,33 @@ The final Docker command must report `linux`. If the handoff specifies a
 particular full commit, select that commit with `git switch --detach <commit>`
 before continuing. Keep the printed commit with your results.
 
-For an isolated acceptance workspace, set private state and project locations
-outside the source checkout. Keep both folders for restart/recovery checks:
+For an isolated acceptance workspace, use the roomy E: or F: drive confirmed in
+the local testing thread (substitute the actual chosen drive below):
 
 ```powershell
-$luciAcceptanceRoot = Join-Path $env:LOCALAPPDATA 'Luci-local-acceptance'
-$env:LUCI_STATE_DIR = Join-Path $luciAcceptanceRoot 'state'
-$env:LUCI_PROJECTS_DIR = Join-Path $luciAcceptanceRoot 'projects'
-./scripts/dev.ps1
+.\scripts\start-local-acceptance.ps1 -AcceptanceRoot 'F:\LuciAcceptance'
 ```
 
 Open the browser address printed by the launcher and leave its PowerShell window
 open. This route runs the actual source application in a browser; it is separate
 from the native WebView installer gate. The launcher builds the API, waits for
 readiness, installs locked frontend dependencies if absent and starts the client.
-An occupied API port fails before startup; close the prior launcher or use
-`./scripts/dev.ps1 -Port 8740`. The browser development server still requires
-port 1420. The chosen API port is carried into its client automatically.
+The acceptance launcher creates a new private GUID-named folder containing its
+state, projects, build/log outputs and a native Windows baseline. It requires
+40 GiB free on that selected volume and uses API port 18730 and frontend port
+14200 by default. Occupied ports fail without stopping an existing service;
+choose explicit `-Port` and `-FrontendPort` alternatives if needed. It temporarily
+clears inherited Luci service settings and restores them when the run ends.
+`-PrepareOnly` records a baseline without starting the app; each invocation
+creates a new run. The native launcher and Docker Desktop WSL probe still need
+verification on Windows; controlled PowerShell fixtures are not that proof.
 
 On first setup, create the installation's local owner. If the browser asks for
 the first-run setup code, open the following private file on your own machine
 and enter the code into the app. Do not paste it into an issue or a chat:
 
 ```powershell
-notepad.exe (Join-Path $env:LUCI_STATE_DIR 'control-plane\bootstrap-token')
+notepad.exe '<printed-run-folder>\state\control-plane\bootstrap-token'
 ```
 
 The file is consumed by successful first-owner creation. Set a real Git author
@@ -133,9 +136,41 @@ record alone does not establish a working engine.
 
 Use Ctrl+C in the source launcher to stop it. Its API receives an owned shutdown
 request, with forced cleanup limited to that process if necessary. State and
-projects remain on disk. Relaunch with the same two environment settings to
-resume the same acceptance workspace. Do not delete private state as a remedy
-for an application failure.
+projects remain on disk. To resume the **same** workspace after stopping it,
+open a fresh PowerShell window in the checkout and load that run's manifest:
+
+```powershell
+$run = Get-Content '<printed-run-folder>\artifacts\windows-baseline.json' -Raw | ConvertFrom-Json
+$env:LUCI_STATE_DIR = $run.stateDir
+$env:LUCI_PROJECTS_DIR = $run.projectsDir
+.\scripts\dev.ps1 -Port ([int]($run.apiAddress.Split(':')[-1])) -FrontendPort $run.frontendPort -DevDirectory (Join-Path $run.artifactsDir 'dev')
+```
+
+Do not delete private state as a remedy for an application failure.
+
+### Windows capacity requirements
+
+The automatic daemon-storage probe currently requires Docker Desktop's **WSL 2
+Linux engine** and its running `docker-desktop` distribution. It invokes the
+Windows system `wsl.exe`, reads the public engine ID in the matching `dockerd`
+mount namespace, and measures that filesystem. It does not create a probe
+container, pull an image or infer VM disk space from Windows drive space.
+Use `wsl.exe --status`, `wsl.exe --list --verbose` and
+`docker.exe info --format '{{.OSType}} {{.OperatingSystem}}'` to record the setup.
+Hyper-V-only, remote Docker, an inaccessible WSL distribution, or an engine
+without the matching public `engine-id` file leaves execution storage unknown
+and new heavy work waiting. Select Docker Desktop's WSL 2 engine and retry its
+readiness check; no unlimited-capacity fallback is applied. Native compatibility
+of this probe remains an acceptance gate.
+
+The installation's account session cap and the global scheduler's capacity
+policy both apply. Fresh account policy currently permits one session per user;
+choose an explicit higher cap for simultaneous-agent acceptance and record it.
+The Codex subscription connection still permits one active session. Use an
+explicitly configured API/local-model connection with sufficient concurrency to
+test truly parallel agents. Physical available RAM, Windows commitment, Docker
+allocation, worker hard limits and observed usage are separate measurements;
+Docker's allocation is never presented as observed free VM RAM.
 
 ## Connect a real model
 

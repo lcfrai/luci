@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../../api';
 import { errorText } from '../../api/product';
-import { projectRunsApi, runSessionRequest, type ProjectRun, type RunOperation, type SwarmTask } from '../../api/projectRuns';
+import { projectRunsApi, runOperationNeedsRecovery, runSessionRequest, type ProjectRun, type RunOperation, type SwarmTask } from '../../api/projectRuns';
 import { projectSwarmApi, type SwarmReview } from '../../api/projectSwarm';
 import { useCockpit } from '../../store/store';
 import { Button } from '../fluid/components/button';
 import { WorkflowDialog } from '../common/WorkflowDialog';
 import { SwarmWorkspaceReview } from './SwarmWorkspaceReview';
+import { SwarmRunQueue } from './SwarmRunQueue';
+import type { ProjectSwarmQueue } from '../../api/swarmQueue';
 import './project-swarm.css';
 
-const inFlight = (operation?: RunOperation) => !!operation && (['reserved', 'dispatching', 'running', 'unknown'].includes(operation.status) || operation.allocation === 'allocating' || operation.allocation === 'unknown');
+const inFlight = (operation?: RunOperation) => !!operation && (runOperationNeedsRecovery(operation) || ['reserved', 'dispatching', 'running', 'unknown'].includes(operation.status) || operation.allocation === 'allocating' || operation.allocation === 'unknown');
 const integrated = (task: SwarmTask) => task.integration?.state === 'integrated';
 const operationFor = (run: ProjectRun, task: SwarmTask) => run.operations.find(item => item.id === task.operationId);
 const pathOverlaps = (a: string, b: string) => {
@@ -33,6 +35,7 @@ function taskStatus(run: ProjectRun, task: SwarmTask) {
   if (integrated(task)) return 'Integrated';
   if (task.integration) return 'Integration outcome unconfirmed';
   const operation = operationFor(run, task);
+  if (runOperationNeedsRecovery(operation)) return 'Recovery pending · finish recovery to release capacity';
   if (operation?.allocation === 'unknown') return 'Workspace outcome unconfirmed';
   if (operation?.allocation === 'allocating') return 'Preparing workspace';
   if (operation?.status === 'reserved') return 'Reserved · not started';
@@ -55,6 +58,9 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
   const [limit, setLimit] = useState(2), [review, setReview] = useState<SwarmReview | null>(null), [approved, setApproved] = useState(false);
   const [retire, setRetire] = useState<string | null>(null);
   const [workspace, setWorkspace] = useState<RunOperation | null>(null);
+  const [queuedTasks, setQueuedTasks] = useState<string[]>([]);
+  const [queuedOperations, setQueuedOperations] = useState<string[]>([]);
+  const queueSignature = useRef('');
   const [error, setError] = useState(''), [notice, setNotice] = useState('');
   const live = useRef(true), working = useRef(false), generation = useRef(0);
   const current = useRef({run, canEdit, canExecute}); current.current = {run, canEdit, canExecute};
@@ -63,13 +69,15 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
   const keys = useRef(new Map<string, string>()), uncertain = useRef(new Set<string>());
   const [, setUncertainVersion] = useState(0);
   useEffect(() => { live.current = true; return () => { live.current = false; generation.current++; }; }, []);
-  useEffect(() => { setReview(null); setApproved(false); }, [run.revision, canEdit]);
+  useEffect(() => { setReview(null); setApproved(false); setRetire(null); setDialog(null); }, [run.revision, canEdit, canExecute]);
   const usable = (epoch: number) => live.current && generation.current === epoch;
   const blocked = !!run.codingBlocker || !!run.contextFreshness && run.contextFreshness.status !== 'current' || ['cancelled', 'complete'].includes(run.state);
   const subscription = run.input.route.connection.kind === 'codex-subscription' || run.input.route.connection.authMode === 'chatgpt';
   const selectedLimit = subscription ? 1 : limit;
   const tasks = run.swarm?.tasks || [], active = tasks.filter(task => inFlight(operationFor(run, task))).length;
-  const ready = tasks.filter(task => !task.integration && !task.operationId && !waitingReason(run, task));
+  const retiringTask = tasks.find(task => task.id === retire);
+  const finishingRecovery = !!retiringTask && runOperationNeedsRecovery(operationFor(run, retiringTask));
+  const ready = tasks.filter(task => !queuedTasks.includes(task.id) && !task.integration && !task.operationId && !waitingReason(run, task));
   const batchReady: SwarmTask[] = [];
   for (const task of ready) {
     if (batchReady.length >= (run.swarm?.maxParallel || 1) - active) break;
@@ -92,7 +100,7 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
     const value = await projectSwarmApi.control(run.projectId, run.id, action, run.revision);
     if (!remember(value, epoch)) return;
     uncertain.current.clear(); setUncertainVersion(value => value + 1); setDialog(null);
-    setNotice(action === 'reconcile' ? 'Existing task sessions inspected. No new agent was started.' : action === 'resume' ? 'New starts enabled. Choose the ready tasks to continue.' : 'Future task starts stopped. Existing sessions keep their own stop controls.');
+    setNotice(action === 'reconcile' ? 'Existing task sessions inspected. No new agent was started.' : action === 'resume' ? 'New starts enabled. Previously authorized queued tasks can continue when their dependencies and capacity allow.' : 'Future task starts stopped. Existing sessions keep their own stop controls.');
   }
   async function startTask(saved: ProjectRun, task: SwarmTask, epoch: number): Promise<ProjectRun | undefined> {
     if (!usable(epoch) || !current.current.canEdit || !current.current.canExecute) return;
@@ -128,10 +136,49 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
       saved = value;
     }
   }
+  function queueChanged(queue: ProjectSwarmQueue) {
+    const items = queue.items.filter(item => item.runId === run.id);
+    const pending = items.filter(item => !['cancelled', 'completed'].includes(item.state)).map(item => item.taskId);
+    setQueuedTasks(previous => previous.length === pending.length && previous.every((id, i) => id === pending[i]) ? previous : pending);
+    const owned = items.flatMap(item => item.operationId ? [item.operationId] : []);
+    setQueuedOperations(previous => previous.length === owned.length && previous.every((id, i) => id === owned[i]) ? previous : owned);
+    const signature = JSON.stringify(items.map(item => [item.id, item.operationId, item.childId, item.state]));
+    if (signature === queueSignature.current) return;
+    if (busy || working.current || !items.some(item => item.operationId)) return;
+    queueSignature.current = signature;
+    const epoch = generation.current;
+    void projectRunsApi.get(run.projectId, run.id).then(value => {
+      if (usable(epoch) && !working.current && value.revision >= current.current.run.revision) remember(value, epoch);
+      else if (queueSignature.current === signature) queueSignature.current = '';
+    }).catch(() => { if (queueSignature.current === signature) queueSignature.current = ''; });
+  }
   async function readReview(task: SwarmTask, epoch: number) {
     const value = await projectSwarmApi.review(run.projectId, run, task.id);
     if (!usable(epoch) || current.current.run.revision !== run.revision) return;
     setReview(value); setApproved(false);
+  }
+  async function retireAttempt(taskId: string, epoch: number) {
+    const task = tasks.find(item => item.id === taskId), operation = task && operationFor(run, task);
+    if (!operation) throw new Error('This task attempt changed. Refresh and inspect it before continuing.');
+    const recoverMissing = operation.allocation === 'ready' && (['dispatching', 'unknown'].includes(operation.status) || !!operation.absenceRetirement);
+    try {
+      const value = recoverMissing
+        ? await projectSwarmApi.abandon(run.projectId, run.id, taskId, run.revision, {operationId: operation.id, childId: operation.childId, recoverMissingChild: true})
+        : await projectSwarmApi.abandon(run.projectId, run.id, taskId, run.revision);
+      if (remember(value, epoch)) { setRetire(null); setNotice('Attempt retired. Output is retained. No new agent was started.'); }
+    } catch (cause) {
+      // The tombstone may have persisted before finalization or its response
+      // failed. Read it once; never replay a state-changing recovery request.
+      if (usable(epoch)) {
+        try {
+          const value = await projectRunsApi.get(run.projectId, run.id);
+          if (value.revision >= current.current.run.revision) remember(value, epoch);
+        } catch {
+          throw new Error(`${errorText(cause)} The recovery result could not be refreshed. Check team status before continuing.`);
+        }
+      }
+      throw cause;
+    }
   }
   return <section className="project-swarm" aria-label="Agent team">
     <div className="project-swarm-heading"><h3>Agent team</h3>{run.swarm && <span>{tasks.filter(integrated).length} of {tasks.length} integrated</span>}</div>
@@ -149,14 +196,18 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
         {run.swarm.state === 'ready' ? <Button variant="tertiary" disabled={!canEdit || busy} onClick={() => void operate('Pausing new starts', epoch => control('pause', epoch), 'edit')}>Pause new starts</Button> : run.swarm.state === 'paused' ? <Button variant="secondary" disabled={!canEdit || !canExecute || busy || blocked} onClick={() => void operate('Enabling new starts', epoch => control('resume', epoch))}>Resume new starts</Button> : null}
         {run.swarm.state !== 'cancelled' && <Button variant="tertiary" disabled={!canEdit || busy} onClick={() => setDialog('cancel')}>Cancel remaining tasks</Button>}
       </div>
+      <SwarmRunQueue key={`${run.projectId}:${run.id}`} run={run} canEdit={canEdit} canExecute={canExecute} busy={busy} onBusy={onBusy} onQueueChange={queueChanged} />
       <ol className="project-swarm-tasks">{tasks.map(task => {
         const operation = operationFor(run, task), reason = waitingReason(run, task);
         const uncertainStart = uncertain.current.has(task.id);
         const resumable = operation?.status === 'reserved' && operation.allocation === 'ready';
-        const retryable = operation && ['failed', 'cancelled'].includes(operation.status);
+        const queuedReservation = !!operation && resumable && queuedOperations.includes(operation.id);
+        const retryable = operation && !runOperationNeedsRecovery(operation) && ['failed', 'cancelled'].includes(operation.status);
         return <li key={task.id}>
           <div className="project-swarm-heading"><h4>{task.title}</h4><span>{taskStatus(run, task)}</span></div>
           {reason && <p>{reason}</p>}
+          {queuedTasks.includes(task.id) && !operation && <p>Authorized in the background queue above. Luci will start it when its dependencies and capacity allow.</p>}
+          {queuedReservation && <p>This reservation belongs to the background queue. Use its queue controls; if it cannot continue, retain its output and authorize a fresh attempt.</p>}
           {operation?.message && <p className="journey-muted">{operation.message}</p>}
           {uncertainStart && <p role="status">The start result is unconfirmed. Check team status before continuing this task.</p>}
           <details><summary>Task scope and handoff</summary>
@@ -169,11 +220,11 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
             {run.operations.filter(item => item.taskId === task.id && item.id !== task.operationId).map(item => <p key={item.id}>Retained attempt {item.attempt} · {item.status} · {item.worktreeId}. <Button variant="tertiary" disabled={busy} onClick={() => setWorkspace(item)}>Inspect retained attempt {item.attempt}</Button></p>)}
           </details>
           <div className="journey-actions">
-            {!task.integration && (!operation || resumable || retryable) && <Button variant="secondary" disabled={!canEdit || !canExecute || busy || blocked || !!reason || uncertainStart} onClick={() => void operate('Starting task', epoch => startTask(run, task, epoch).then(() => undefined))}>{resumable ? 'Continue reserved task' : retryable ? 'Retry in a new workspace' : 'Start task'}</Button>}
-            {operation && operation.allocation === 'ready' && operation.status !== 'reserved' && <Button variant="secondary" disabled={busy} onClick={() => void operate('Opening task session', () => onOpenSession(operation), 'read')}>Open task session</Button>}
+            {!task.integration && (!operation || resumable || retryable) && <Button variant="secondary" disabled={!canEdit || !canExecute || busy || blocked || !!reason || uncertainStart || queuedTasks.includes(task.id) || queuedReservation} onClick={() => void operate('Starting task', epoch => startTask(run, task, epoch).then(() => undefined))}>{resumable ? 'Continue reserved task' : retryable ? 'Retry in a new workspace' : 'Start task'}</Button>}
+            {operation && !operation.absenceRetirement && operation.allocation === 'ready' && operation.status !== 'reserved' && <Button variant="secondary" disabled={busy} onClick={() => void operate('Opening task session', () => onOpenSession(operation), 'read')}>Open task session</Button>}
             {operation && <Button variant="tertiary" disabled={busy} onClick={() => setWorkspace(operation)}>Inspect workspace output</Button>}
             {operation && !inFlight(operation) && !task.integration && <Button variant="secondary" disabled={busy} onClick={() => void operate('Reading task changes', epoch => readReview(task, epoch), 'read')}>Review task changes</Button>}
-            {operation && !integrated(task) && (task.integration || operation.allocation === 'unknown' || ['failed', 'cancelled'].includes(operation.status)) && <Button variant="tertiary" disabled={busy || !canEdit || !canExecute} onClick={() => setRetire(task.id)}>Retain changes and retry</Button>}
+            {operation && !operation.absenceRetirement?.finalizedAt && !integrated(task) && (task.integration || operation.allocation === 'unknown' || ['reserved', 'dispatching', 'unknown', 'failed', 'cancelled'].includes(operation.status)) && <Button variant="tertiary" disabled={busy || !canEdit} onClick={() => setRetire(task.id)}>{runOperationNeedsRecovery(operation) ? 'Finish recovery' : 'Retain changes and retry'}</Button>}
           </div>
         </li>;
       })}</ol>
@@ -182,7 +233,7 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
     {dialog === 'prepare' && <WorkflowDialog title="Prepare agent team" onClose={() => setDialog(null)} busy={busy} description="Use this build’s saved tasks and model connection. Preparation records the team; it does not start agents.">
       <label className="luci-field">Maximum parallel agents<select value={selectedLimit} disabled={busy || subscription} onChange={event => setLimit(Number(event.target.value))}>{(subscription ? [1] : [1, 2, 3, 4]).map(value => <option key={value} value={value}>{value}</option>)}</select></label>
       {subscription && <p>This saved Codex subscription connection supports one active agent at a time. To run independent tasks in parallel, prepare a new build with a compatible API or local-model connection.</p>}
-      <p>Each active agent uses local memory, disk and provider usage. Start with two; the limit controls concurrency, not provider billing.</p>
+      <p>Each active agent uses memory, disk and provider usage. Workspace and provider limits may keep additional tasks queued. This limit controls concurrency, not provider billing.</p>
       <p>Commit the starting project first. Include each selected task’s dependencies in this build. Conflicting or unspecified file scopes are scheduled separately.</p>
       {error && <p role="alert">{error}</p>}
       <div className="workflow-actions"><Button variant="secondary" disabled={busy} onClick={() => setDialog(null)}>Keep reviewing</Button><Button disabled={busy || !canEdit || !canExecute || blocked} onClick={() => void operate('Preparing agent team', async epoch => { const value = await projectSwarmApi.prepare(run.projectId, run.id, run.revision, selectedLimit); if (remember(value, epoch)) { setDialog(null); setNotice('Agent team prepared. Review the task scopes, then start the ready tasks.'); } })}>Prepare team</Button></div>
@@ -201,10 +252,10 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
       {error && <p role="alert">{error}</p>}
       <div className="workflow-actions"><Button variant="secondary" disabled={busy} onClick={() => setReview(null)}>Keep reviewing</Button><Button disabled={busy || !canEdit || !canExecute || blocked || !review.canIntegrate || !approved} onClick={() => void operate('Integrating reviewed changes', async epoch => { const selected = review; setReview(null); const value = await projectSwarmApi.integrate(run.projectId, run.id, selected.taskId, run.revision, selected.reviewDigest); if (remember(value, epoch)) setNotice('Reviewed changes integrated. Dependent tasks can now start; the combined build still needs verification.'); })}>Integrate reviewed changes</Button></div>
     </WorkflowDialog>}
-    {retire && <WorkflowDialog title="Retain changes and retry" onClose={() => setRetire(null)} busy={busy} description="Keep the previous workspace and its output, and retire this stopped attempt. This does not undo changes already in the main project or start another agent. A new attempt gets a fresh workspace after you explicitly start it. Active or unconfirmed agent processes must be stopped and checked first.">
+    {retire && <WorkflowDialog title={finishingRecovery ? 'Finish recovery' : 'Retain changes and retry'} onClose={() => setRetire(null)} busy={busy} description="Keep this attempt’s workspace and output. Luci will allow retirement only when it can prove the child is stopped or was never allocated. A running process, an in-flight allocation, or an uncertain observation prevents recovery. This does not undo integrated changes or start another agent; a fresh attempt requires execution permission and a separate start.">
       <p>{tasks.find(task => task.id === retire)?.title}</p>
       {error && <p role="alert">{error}</p>}
-      <div className="workflow-actions"><Button variant="secondary" disabled={busy} onClick={() => setRetire(null)}>Keep inspecting</Button><Button disabled={busy || !canEdit || !canExecute} onClick={() => void operate('Retiring stopped attempt', async epoch => { const value = await projectSwarmApi.abandon(run.projectId, run.id, retire, run.revision); if (remember(value, epoch)) { setRetire(null); setNotice('Previous changes retained. Start the task explicitly when ready to retry.'); } })}>Retain output and allow retry</Button></div>
+      <div className="workflow-actions"><Button variant="secondary" disabled={busy} onClick={() => setRetire(null)}>Keep inspecting</Button><Button disabled={busy || !canEdit} onClick={() => void operate('Verifying and retiring attempt', epoch => retireAttempt(retire, epoch), 'edit')}>{finishingRecovery ? 'Finish recovery' : 'Retain output and allow retry'}</Button></div>
     </WorkflowDialog>}
     {workspace && <SwarmWorkspaceReview key={workspace.id} projectId={run.projectId} runId={run.id} operation={workspace} canRead onClose={() => setWorkspace(null)} />}
   </section>;

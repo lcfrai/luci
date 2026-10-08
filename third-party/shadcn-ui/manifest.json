@@ -1,0 +1,49 @@
+{
+  "name": "shadcn/ui",
+  "upstream": "https://github.com/shadcn-ui/ui",
+  "revision": "97ddbf4274ed09d02aa7fd34375f2cf1e48cbbf0",
+  "license": "MIT",
+  "licenseSha256": "1564074e13439397221ffd522e2e504d56561994a23d371aa5e3ad43e4f5423f",
+  "files": [
+    {
+      "upstreamPath": "apps/v4/registry/new-york-v4/ui/button.tsx",
+      "upstreamSha256": "79dd6f75f8136394442202d6b8b922fb269eaad0a5dba579397c9d5b41f893bb",
+      "sourcePath": "third-party/shadcn-ui/upstream/button.tsx",
+      "path": "desktop/src/components/ui/button.tsx",
+      "normalizedSha256": "fa975deeed946ff9b2fe9c4ef1e09e04d0287a0fa83dd12b577cb8a7d79b5a5a"
+    },
+    {
+      "upstreamPath": "apps/v4/registry/new-york-v4/ui/dialog.tsx",
+      "upstreamSha256": "2ade6074e5fad0a4eb171ead44c43d3301a3c83d186d7236fb1fdbea80ee556b",
+      "sourcePath": "third-party/shadcn-ui/upstream/dialog.tsx",
+      "path": "desktop/src/components/ui/dialog.tsx",
+      "normalizedSha256": "bc2fae6bfce04fe17a67a6d2fea8f85fffbfb2b141d076923563a6ebb652cb7e"
+    },
+    {
+      "upstreamPath": "apps/v4/registry/new-york-v4/ui/input.tsx",
+      "upstreamSha256": "0c9457181f6ddc80969bcf854e92c362903a55b6e889fbef3fd85343ecc4af5b",
+      "sourcePath": "third-party/shadcn-ui/upstream/input.tsx",
+      "path": "desktop/src/components/ui/input.tsx",
+      "normalizedSha256": "c4c73a8130a1444bdac4daae8dc9d908cfcb74d2cd3e62b68110997850454f1a"
+    },
+    {
+      "upstreamPath": "apps/v4/registry/new-york-v4/ui/textarea.tsx",
+      "upstreamSha256": "5cafcfeeee29534f449387a16b585f5923d2faab1a0cdc50a874416b175f59ce",
+      "sourcePath": "third-party/shadcn-ui/upstream/textarea.tsx",
+      "path": "desktop/src/components/ui/textarea.tsx",
+      "normalizedSha256": "f155c937792974e215d130c7861034abe43fd8b41d172b4ea014cc69cd774aff"
+    },
+    {
+      "upstreamPath": "apps/v4/registry/new-york-v4/ui/badge.tsx",
+      "upstreamSha256": "13a9380dfff853ee730c14a52df49f22aecd31f40f2998d7c1e7ec458b6e1650",
+      "sourcePath": "third-party/shadcn-ui/upstream/badge.tsx",
+      "path": "desktop/src/components/ui/badge.tsx",
+      "normalizedSha256": "4d008017820f2edf6d2690b43b761a5dddf31201a4b687ecd2a1300bd567fd3a"
+    }
+  ],
+  "adaptations": [
+    "Modular Radix packages already installed in Luci, relative utility imports, locally bundled font, existing Luci semantic tokens and compact density.",
+    "Native button type default, accessible pending state and legacy aliases are Luci compatibility behavior.",
+    "Dialog preserves Luci size/container/position API with Radix focus/lifecycle primitives; animations respect reduced motion."
+  ]
+}

@@ -28,15 +28,17 @@ type swarmFixtureTiming struct {
 }
 
 type swarmSessionFixture struct {
-	timings   []swarmFixtureTiming
-	env       *sessionsEnv
-	options   product.Options
-	storePath string
-	store     *registry.FileStore
-	owner     project.Project
-	run       product.ProjectRun
-	ops       []product.ProjectRunOperation
-	requests  []sessionCreateRequest
+	connectionID string
+	peers        *[]*swarmSessionFixture
+	timings      []swarmFixtureTiming
+	env          *sessionsEnv
+	options      product.Options
+	storePath    string
+	store        *registry.FileStore
+	owner        project.Project
+	run          product.ProjectRun
+	ops          []product.ProjectRunOperation
+	requests     []sessionCreateRequest
 }
 
 func newSwarmSessionFixture(t *testing.T) *swarmSessionFixture {
@@ -47,6 +49,8 @@ func newSwarmSessionFixture(t *testing.T) *swarmSessionFixture {
 func newSwarmSessionFixtureTasks(t *testing.T, tasksToReserve ...string) *swarmSessionFixture {
 	t.Helper()
 	f := &swarmSessionFixture{storePath: filepath.Join(t.TempDir(), "sessions.json")}
+	peers := []*swarmSessionFixture{f}
+	f.peers = &peers
 	var err error
 	f.store, err = registry.NewFileStore(f.storePath)
 	if err != nil {
@@ -72,7 +76,25 @@ func newSwarmSessionFixtureTasks(t *testing.T, tasksToReserve ...string) *swarmS
 		d.ProjectsDir = f.options.ProjectsDir
 	})
 	f.env.mux = f.env.api.guarded
-	w := f.env.do(t, "POST", "/v1/product/projects", `{"name":"swarm-session-app"}`)
+	f.connectionID = sessionSaveConnection(t, f.env, 0, "", "codex", true).ID
+	f.prepareProject(t, "swarm-session-app", tasksToReserve...)
+	return f
+}
+
+// Additional projects share the exact API, product service, private state and
+// registry. Four independent fixtures would not exercise a global scheduler.
+func (f *swarmSessionFixture) anotherProject(t *testing.T, name string, tasksToReserve ...string) *swarmSessionFixture {
+	t.Helper()
+	next := &swarmSessionFixture{env: f.env, options: f.options, storePath: f.storePath, store: f.store, connectionID: f.connectionID, peers: f.peers}
+	*f.peers = append(*f.peers, next)
+	next.prepareProject(t, name, tasksToReserve...)
+	return next
+}
+
+func (f *swarmSessionFixture) prepareProject(t *testing.T, name string, tasksToReserve ...string) {
+	t.Helper()
+	projectBody, _ := json.Marshal(map[string]string{"name": name})
+	w := f.env.do(t, "POST", "/v1/product/projects", string(projectBody))
 	if w.Code != 201 || json.Unmarshal(w.Body.Bytes(), &f.owner) != nil {
 		t.Fatal("project setup", w.Code, w.Body.String())
 	}
@@ -98,8 +120,7 @@ func newSwarmSessionFixtureTasks(t *testing.T, tasksToReserve ...string) *swarmS
 			t.Fatal(err)
 		}
 	}
-	connection := sessionSaveConnection(t, f.env, 0, "", "codex", true)
-	body, _ = json.Marshal(map[string]any{"idempotencyKey": "create-swarm-session-fixture", "worktreeId": project.WorktreeID(f.owner.Path), "harness": "codex", "permissionMode": "ask", "agentConnectionId": connection.ID, "outcome": "preview", "implementationContext": selection})
+	body, _ = json.Marshal(map[string]any{"idempotencyKey": "create-swarm-session-fixture", "worktreeId": project.WorktreeID(f.owner.Path), "harness": "codex", "permissionMode": "ask", "agentConnectionId": f.connectionID, "outcome": "preview", "implementationContext": selection})
 	started := time.Now()
 	f.readRun(t, f.env.do(t, "POST", f.base(), string(body)), 201)
 	f.timings = append(f.timings, swarmFixtureTiming{Stage: "create-run", Elapsed: time.Since(started)})
@@ -114,7 +135,6 @@ func newSwarmSessionFixtureTasks(t *testing.T, tasksToReserve ...string) *swarmS
 	if len(f.env.be.specs) != 0 {
 		t.Fatal("planning or reservation dispatched provider work")
 	}
-	return f
 }
 
 func (f *swarmSessionFixture) reserve(t *testing.T, task string) {
@@ -171,6 +191,9 @@ func (f *swarmSessionFixture) reopen(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.env.api, f.env.mux = reopened, reopened.guarded
+	for _, peer := range *f.peers {
+		peer.store = f.store
+	}
 }
 
 // This subprocess is a deterministic harness witness, not a coding model or

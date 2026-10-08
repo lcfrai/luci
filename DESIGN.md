@@ -22,10 +22,13 @@ The owner's **8 October 2026 shadcn/ui requirement supersedes the earlier
 Fluid Functionalism component preference**. Use reviewed, pinned MIT-licensed
 shadcn/ui components and consistent accessible interaction patterns for the
 interactive local product, including cross-project actions and attention queues.
-The currently shipped Fluid subset is an existing implementation to migrate,
-not evidence that the shadcn requirement is already satisfied. Preserve working
-behavior, keyboard/focus handling, loading/error states and upstream grants as
-shared controls migrate. Keep one coherent token/density system; do not append
+The shared button, dialog, input, textarea and badge implementations now live in
+`desktop/src/components/ui`, with immutable upstream originals and verified MIT
+provenance in `third-party/shadcn-ui`. The old Fluid button/dialog paths are
+compatibility adapters to these controls. Retained Fluid tabs, size context and
+icons remain separately attributed. Preserve working behavior, keyboard/focus
+handling, loading/error states and upstream grants as shared controls migrate.
+Keep one coherent token/density system; do not append
 an unrelated theme or replace working actions with static demonstrations.
 Compile utilities without replacing the existing reset and map the chosen
 shadcn components to Luci's appearance tokens and density.

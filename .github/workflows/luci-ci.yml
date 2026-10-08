@@ -88,6 +88,10 @@ jobs:
           python3 -m unittest discover -s scripts -p 'test_release_*.py'
       - name: Verify Go failure reporting
         run: python3 -m unittest discover -s scripts -p 'test_ci_go_tests.py'
+      - name: Retained UI and source export provenance
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_retained_ui.py'
+          python3 -m unittest discover -s scripts -p 'test_export_public_source.py'
       - name: Verify native acceptance failure reporting
         run: node --test scripts/test-native-eval-report.mjs
       - name: Test Go services

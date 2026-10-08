@@ -29,6 +29,9 @@ func (r *productRouteRecorder) HandleFunc(pattern string, handler func(http.Resp
 // Adding a GET also requires a concrete reason it cannot provision resources,
 // change credentials, start a session or allocate a preview listener.
 var productReadOnlyRoutes = map[string]string{
+	"GET /v1/product/swarm-scheduler":                                                          "Reads private scheduler settings and already-cached resource observations; no host sampling, queue repair, allocation or dispatch.",
+	"GET /v1/product/projects/{id}/swarm-queue":                                                "Reads only this project’s durable queue projection; no host sampling, child observation, ledger repair or dispatch.",
+	"GET /v1/product/projects/{id}/overview":                                                   "Reads bounded compact canonical context, private question projections and recorded queue counts; never migrates, repairs, reconciles, executes or writes on GET/HEAD.",
 	"GET /v1/product/projects/{id}/runs/{runId}/swarm/tasks/{taskId}/review":                   "Reads the private task reservation, stopped-session state and bounded committed Git diff; cannot reserve, integrate, repair or launch a child.",
 	"GET /v1/product/projects/{id}/runs/{runId}/swarm/operations/{operationId}/workspace":      "Reads retained ordinary files through pinned directory handles and bounded optional Git inspection; no allocation, repair, integration or writes, including incomplete attempts.",
 	"GET /v1/product/projects/{id}/runs/{runId}/swarm/operations/{operationId}/workspace/file": "Reads one bounded ordinary retained file after private ownership, path and opened-handle checks; cannot create a missing checkout or repair its receipt.",

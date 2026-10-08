@@ -1111,6 +1111,17 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 	if a.reuseProjectRunSession(w, r, req, projectID) {
 		return
 	}
+	if req.ProjectRunID != "" {
+		queueID, err := a.deps.Product.SwarmQueueIDForOperation(projectID, req.ProjectRunID, req.ProjectRunOperationID)
+		if err != nil {
+			a.internal(w, r, "resolve queued operation ownership", err)
+			return
+		}
+		if queueID != "" {
+			httpx.WriteProblem(w, 409, httpx.CodeConflict, "This task is owned by the durable queue. Use its queue controls; its exact child will start when admitted.", nil)
+			return
+		}
+	}
 
 	harnessID := harness.ID(strings.TrimSpace(req.Harness))
 	if harnessID == "" {
@@ -1241,6 +1252,49 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		a.writeHarnessProblem(w, r, harnessID, desc, err)
 		return
 	}
+	allocatedResources := a.sessionResources(ctx)
+	var executionLeaseID string
+	var executionActor management.ExecutionActorRef
+	if a.deps.ResourceSnapshot != nil {
+		if a.deps.Product == nil {
+			httpx.WriteProblem(w, 503, httpx.CodeConflict, "Execution policy is not available. Try again after the workspace finishes starting.", nil)
+			return
+		}
+		executionActor, err = a.captureQueuedActor(ctx, projectID)
+		if err != nil {
+			httpx.WriteProblem(w, 403, httpx.CodeConflict, err.Error(), nil)
+			return
+		}
+		authority, authErr := a.authorizeExecution(ctx, executionActor, string(harnessID), agentConnection.ID != "")
+		if authErr != nil {
+			httpx.WriteProblem(w, 403, httpx.CodeConflict, authErr.Error(), nil)
+			return
+		}
+		policy, policyErr := a.deps.Product.SwarmSchedulerPolicy()
+		if policyErr != nil {
+			a.internal(w, r, "read execution policy", policyErr)
+			return
+		}
+		provider, limit := providerCapacity(product.ProjectRunRoute{Harness: string(harnessID), Connection: agentConnection}, policy)
+		executionLeaseID = ids.New("manual")
+		decision, reserveErr := a.execution.reserve(ctx, executionLeaseID, projectID, provider, limit, executionActor, authority, policy)
+		if reserveErr != nil {
+			a.internal(w, r, "reserve execution capacity", reserveErr)
+			return
+		}
+		if decision.State != "admitted" {
+			httpx.WriteProblem(w, 409, httpx.CodeConflict, decision.Message, map[string]string{"reasonCode": decision.Code})
+			return
+		}
+		allocatedResources = decision.Resources
+		defer func() {
+			cleanup, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := a.execution.release(cleanup, executionLeaseID); err != nil && !errors.Is(err, ErrExecutionLeaseHeld) {
+				a.sessionLog().Warn("retain execution capacity after unresolved cleanup", "err", err)
+			}
+		}()
+	}
 	if conversation != "" && !desc.NativeState() {
 		if conversationStore, err = a.sessionConversationStore(req.WorktreeID); err != nil {
 			a.internal(w, r, "prepare the conversation store for worktree "+req.WorktreeID, err)
@@ -1300,6 +1354,12 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		}
 		defer runAdmission.Release()
 		sessionID = runAdmission.SessionID
+	}
+	if executionLeaseID != "" {
+		if err := a.execution.bind(ctx, executionLeaseID, sessionID); err != nil {
+			a.internal(w, r, "bind execution capacity", err)
+			return
+		}
 	}
 	token := ids.Token()
 
@@ -1363,137 +1423,83 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		sandboxMounts = append(sandboxMounts, mount)
 	}
 
-	// 4. The record exists before the sandbox does. SandboxID is written here,
-	// before backend.Create, so a crash between the two leaves a record the
-	// reaper can match a container against. Task 13 owns the grace condition
-	// that stops a sweep landing in this window killing a live create.
-	if err := a.deps.Store.Create(registry.Session{
-		ID:                      sessionID,
-		Title:                   title,
-		MachineID:               machineID,
-		ProjectID:               projectID,
-		BranchID:                branchID,
-		WorktreeID:              req.WorktreeID,
-		Harness:                 string(harnessID),
-		Model:                   model,
-		Effort:                  string(effort),
-		PermissionMode:          string(mode),
-		OpeningPrompt:           req.OpeningPrompt,
-		AuthOnly:                req.AuthOnly,
-		AuthMode:                authMode,
-		CodexConnectionID:       codexConnectionID(account),
-		AgentConnectionID:       agentConnection.ID,
-		AgentConnectionRevision: agentConnection.Revision,
-		AgentConnectionKind:     agentConnection.Kind,
-		AgentConnectionProtocol: agentConnection.Protocol,
-		Command:                 command,
-		Args:                    argv,
-		ConversationID:          conversation,
-		Status:                  registry.StatusStarting,
-		Backend:                 string(a.deps.Backend.Kind()),
-		SandboxID:               sessionID,
-		AttachToken:             token,
-		ContextRef:              req.ContextRef,
-		ImplementationContext:   implementationContext,
-		ReviewedContext:         reviewedDescriptor,
-		ProjectRunID:            req.ProjectRunID,
-		ProjectRunOperationID:   req.ProjectRunOperationID,
-
-		CarriedConversationID: carriedConversation,
-	}); err != nil {
-		if reviewedDescriptor != nil {
-			if rerr := a.removeReviewedContext(sessionID); rerr != nil {
-				a.sessionLog().Error("remove reviewed context for an unrecorded session", "sessionId", sessionID, "err", rerr)
+	var revalidateExecution func(context.Context) error
+	var markExecutionStart func(context.Context) error
+	if executionLeaseID != "" {
+		markExecutionStart = func(ctx context.Context) error {
+			return a.execution.markBackendStarting(ctx, executionLeaseID, sessionID, sessionID)
+		}
+		revalidateExecution = func(ctx context.Context) error {
+			current, err := a.authorizeExecution(ctx, executionActor, string(harnessID), agentConnection.ID != "")
+			if err != nil {
+				return err
 			}
-		}
-		// No record names the staged copy, so nothing would ever remove it.
-		if staging != "" {
-			if rerr := os.RemoveAll(staging); rerr != nil {
-				a.sessionLog().Error("remove the staged transcript of a fork that was never recorded",
-					"sessionId", sessionID, "err", rerr)
+			resources := a.sessionResources(ctx)
+			if executionActor.UserID != "" {
+				resources = clampSessionResources(resources, current.Policy)
 			}
+			if resources != allocatedResources {
+				return errors.New("The worker resource policy changed before allocation.")
+			}
+			policy, err := a.deps.Product.SwarmSchedulerPolicy()
+			if err != nil {
+				return err
+			}
+			provider, limit := providerCapacity(product.ProjectRunRoute{Harness: string(harnessID), Connection: agentConnection}, policy)
+			decision, err := a.execution.reserve(ctx, executionLeaseID, projectID, provider, limit, executionActor, current, policy)
+			if err != nil {
+				return err
+			}
+			if decision.State != "admitted" {
+				return errors.New(decision.Message)
+			}
+			return nil
 		}
-		// Task 7's decision 3 fixes these two: an empty id is ErrInvalidID and
-		// answers 400, not 409 and not 500. Neither is reachable while
-		// sessionID comes from ids.New over crypto/rand, and both are mapped
-		// anyway — the first time a defensive branch fires is the worst moment
-		// to find out it answered 500 to a client error.
-		switch {
-		case errors.Is(err, registry.ErrInvalidID):
-			httpx.WriteProblem(w, http.StatusBadRequest, httpx.CodeBadRequest,
-				"The registry rejected the session id.", nil)
-		case errors.Is(err, registry.ErrExists):
-			httpx.WriteProblem(w, http.StatusConflict, httpx.CodeConflict,
-				"A session with that id already exists.", map[string]string{"id": sessionID})
-		default:
-			a.internal(w, r, "record session "+sessionID, err)
-		}
-		return
 	}
+	// The typed allocator is shared with durable queued dispatch. It records
+	// ownership before backend effects and retains uncertain outcomes.
+	stored, err := a.allocatePreparedSession(ctx, preparedSessionAllocation{
+		Record: registry.Session{
+			ID:                      sessionID,
+			Title:                   title,
+			MachineID:               machineID,
+			ProjectID:               projectID,
+			BranchID:                branchID,
+			WorktreeID:              req.WorktreeID,
+			Harness:                 string(harnessID),
+			Model:                   model,
+			Effort:                  string(effort),
+			PermissionMode:          string(mode),
+			OpeningPrompt:           req.OpeningPrompt,
+			AuthOnly:                req.AuthOnly,
+			AuthMode:                authMode,
+			CodexConnectionID:       codexConnectionID(account),
+			AgentConnectionID:       agentConnection.ID,
+			AgentConnectionRevision: agentConnection.Revision,
+			AgentConnectionKind:     agentConnection.Kind,
+			AgentConnectionProtocol: agentConnection.Protocol,
+			Command:                 command,
+			Args:                    argv,
+			ConversationID:          conversation,
+			Status:                  registry.StatusStarting,
+			Backend:                 string(a.deps.Backend.Kind()),
+			SandboxID:               sessionID,
+			AttachToken:             token,
+			ContextRef:              req.ContextRef,
+			ImplementationContext:   implementationContext,
+			ReviewedContext:         reviewedDescriptor,
+			ProjectRunID:            req.ProjectRunID,
+			ProjectRunOperationID:   req.ProjectRunOperationID,
 
-	if err := a.leaseCodexConnection(account, sessionID); err != nil {
-		a.markSessionExited(sessionID, "the saved ChatGPT connection could not be reserved")
-		codexAccountProblem(w, err)
-		return
-	}
-	if runAdmission.Revalidate != nil {
-		if err := runAdmission.Revalidate(); err != nil {
-			a.markSessionExited(sessionID, "the reserved project run changed before sandbox allocation")
-			httpx.WriteProblem(w, http.StatusConflict, httpx.CodeConflict, err.Error(), nil)
-			return
-		}
-	}
-	// 5. The sandbox, on a context of its own: see sessionCreateContext (F1).
-	createCtx, endCreate := a.sessionCreateContext(ctx)
-	defer endCreate()
-	sb, err := a.deps.Backend.Create(createCtx, backend.Spec{
-		ID:          sessionID,
-		SessionID:   sessionID,
-		Image:       a.sessionImage(),
-		Command:     command,
-		Args:        argv,
-		Env:         sandboxEnv,
-		AttachToken: token,
-		Resources:   a.sessionResources(r.Context()),
-		WorkDir:     sessionWorkDir,
-		Mounts:      sandboxMounts,
+			CarriedConversationID: carriedConversation,
+		},
+		Spec:    backend.Spec{ID: sessionID, SessionID: sessionID, Image: a.sessionImage(), Command: command, Args: argv, Env: sandboxEnv, AttachToken: token, Resources: allocatedResources, WorkDir: sessionWorkDir, Mounts: sandboxMounts},
+		Account: account, Revalidate: runAdmission.Revalidate, BeforeAllocate: revalidateExecution, BeforeBackendStart: markExecutionStart, Staging: staging, HasReviewedContext: reviewedDescriptor != nil,
 	})
 	if err != nil {
-		// The reason on the record is written for the user; the raw error goes
-		// to the log, because it can carry a host path.
-		a.sessionLog().Error("create the sandbox", "sessionId", sessionID, "err", err)
-		// Before the record goes terminal, because exited is what makes the
-		// container invisible to every rule but the reaper's 3a.
-		a.destroyAfterFailedCreate(sessionID, sessionID)
-		a.markSessionExited(sessionID, "the sandbox could not be created")
-		a.writeBackendProblem(w, r, "create the sandbox", err)
+		a.writeSessionAllocationProblem(w, r, err)
 		return
 	}
-
-	stored, err := a.deps.Store.Update(sessionID, func(sess *registry.Session) error {
-		// The precondition watchSessionReady's write has had since task 13, on
-		// the write it was missing from: this create's record must still be
-		// starting and must still name the sandbox this create is making.
-		// sessionMovedOnMidCreate says what happens when it is not.
-		if sess.SandboxID != sessionID || sess.Status != registry.StatusStarting {
-			return sessionErrMoved
-		}
-		sess.SandboxID = sb.ID
-		sess.SandboxRef = sb.Ref
-		sess.Endpoint = sb.Endpoint
-		return nil
-	})
-	if err != nil {
-		if a.sessionMovedOnMidCreate(w, r, err, sb.ID, sessionID) {
-			return
-		}
-		a.internal(w, r, "record the sandbox for session "+sessionID, err)
-		return
-	}
-
-	// 7. The readiness watch runs on a background context, not r.Context():
-	// the request's context is cancelled the moment the 201 is written.
-	go a.watchSessionReady(sessionID, sb.ID, sb.Endpoint)
 
 	// 6. Return immediately. The desktop opens the attach socket, which retries
 	// while the status is starting.
@@ -2007,6 +2013,16 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	if agentConnection.AuthMode != "" {
 		authMode = agentConnection.AuthMode
 	}
+	restartAdmission, err := a.prepareSessionRestart(ctx, sess, agentConnection)
+	if err != nil {
+		status := http.StatusConflict
+		if errors.Is(err, management.ErrExecutionAuthority) {
+			status = http.StatusForbidden
+		}
+		httpx.WriteProblem(w, status, httpx.CodeConflict, err.Error(), nil)
+		return
+	}
+	defer restartAdmission.release()
 	if sess.Harness == "codex" && (agentConnection.Kind == "legacy" || agentConnection.Kind == "codex-subscription") {
 		a.codexAccountMu.Lock()
 		defer a.codexAccountMu.Unlock()
@@ -2138,6 +2154,10 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// One of contract §5.2's three permitted destroys.
+	if err := restartAdmission.revalidate(ctx); err != nil {
+		httpx.WriteProblem(w, http.StatusConflict, httpx.CodeConflict, err.Error(), nil)
+		return
+	}
 	if sess.SandboxID != "" {
 		if err := a.deps.Backend.Destroy(ctx, sess.SandboxID); err != nil && !errors.Is(err, backend.ErrNotFound) {
 			a.sessionLog().Error("restart: destroy the old sandbox",
@@ -2276,6 +2296,11 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		codexAccountProblem(w, err)
 		return
 	}
+	if err := restartAdmission.bind(ctx, sandboxID); err != nil {
+		a.markSessionExited(id, "execution access or capacity changed before restart allocation")
+		httpx.WriteProblem(w, http.StatusConflict, httpx.CodeConflict, err.Error(), nil)
+		return
+	}
 	// Its own context, for the same reason create's is: F1's abort cancels a
 	// restart's Docker calls exactly as it cancels a create's.
 	createCtx, endCreate := a.sessionCreateContext(ctx)
@@ -2288,7 +2313,7 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		Args:        args,
 		Env:         sandboxEnv,
 		AttachToken: token,
-		Resources:   a.sessionResources(r.Context()),
+		Resources:   restartAdmission.resources,
 		WorkDir:     sessionWorkDir,
 		Mounts:      sandboxMounts,
 	})
@@ -2404,6 +2429,15 @@ func (a *API) handleSessionDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if a.deps.ResourceSnapshot != nil {
+		if err := a.execution.releaseSession(ctx, id); err != nil {
+			if purge {
+				httpx.WriteProblem(w, 409, httpx.CodeConflict, "The sandbox exit and capacity release are not yet confirmed. Its session record remains available; retry Forget after recovery.", nil)
+				return
+			}
+			a.sessionLog().Warn("retain session capacity after stop", "sessionId", id, "err", err)
+		}
+	}
 	if sess.Harness == "codex" && sess.CodexConnectionID != "" {
 		account, err := a.readCodexConnection()
 		if err != nil {

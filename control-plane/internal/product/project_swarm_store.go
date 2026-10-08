@@ -54,7 +54,7 @@ func swarmOperation(run *ProjectRun, id string) *ProjectRunOperation {
 func validateProjectSwarm(run ProjectRun) error {
 	if run.Swarm == nil {
 		for _, op := range run.Operations {
-			if op.TaskID != "" || op.WorktreeID != "" || op.Implementation != nil || op.Allocation != "" {
+			if op.TaskID != "" || op.WorktreeID != "" || op.Implementation != nil || op.Allocation != "" || op.AbsenceRetirement != nil {
 				return ErrProjectRunInvalid
 			}
 		}
@@ -110,6 +110,9 @@ func validateProjectSwarm(run ProjectRun) error {
 		}
 	}
 	for _, op := range run.Operations {
+		if op.AbsenceRetirement != nil && (op.Status != "cancelled" || op.Allocation != "ready" || !validSwarmRecoveryProof(*op.AbsenceRetirement, op.ChildID)) {
+			return ErrProjectRunInvalid
+		}
 		if !seen[op.TaskID] || !prototypeReleaseID.MatchString(op.WorktreeID) || !deliverySHA.MatchString(op.BaseCommit) || (op.Allocation != "allocating" && op.Allocation != "ready" && op.Allocation != "unknown" && op.Allocation != "abandoned") {
 			return ErrProjectRunInvalid
 		}
@@ -130,7 +133,7 @@ func (s *ProjectRunStore) mutateSwarm(projectID, path, id string, revision int, 
 	})
 }
 func swarmSlotPending(op ProjectRunOperation) bool {
-	return op.Status == "reserved" || op.Status == "dispatching" || op.Status == "running" || op.Status == "unknown" || op.Allocation == "allocating" || op.Allocation == "unknown"
+	return swarmRetirementPending(op) || op.Status == "reserved" || op.Status == "dispatching" || op.Status == "running" || op.Status == "unknown" || op.Allocation == "allocating" || op.Allocation == "unknown"
 }
 func swarmScopesOverlap(a, b []string) bool {
 	return len(a) == 0 || len(b) == 0 || len(projectTaskOverlappingPaths(a, b)) > 0

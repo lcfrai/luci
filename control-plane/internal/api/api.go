@@ -34,9 +34,11 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/assistance"
 	"github.com/lcfrai/luci/control-plane/internal/backend"
 	"github.com/lcfrai/luci/control-plane/internal/httpx"
+	"github.com/lcfrai/luci/control-plane/internal/management"
 	"github.com/lcfrai/luci/control-plane/internal/product"
 	"github.com/lcfrai/luci/control-plane/internal/project"
 	"github.com/lcfrai/luci/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/resourcebudget"
 	"github.com/lcfrai/luci/control-plane/internal/worktree"
 )
 
@@ -76,6 +78,12 @@ type Enumerator interface {
 // because the reaper derives idle on its sweep and this package never computes
 // it.
 type Deps struct {
+	ExecutionStateDir         string
+	ResourceSnapshot          func() resourcebudget.Snapshot
+	AuthorizeExecution        management.ExecutionAuthorizer
+	AuthorizeExecutionControl management.ExecutionControlAuthorizer
+	ManagedExecution          bool
+	ExecutionReady            func() bool
 	// Version is reported by /healthz. Empty means DefaultVersion.
 	Version string
 
@@ -337,6 +345,7 @@ func (rs *routes) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // API is the whole HTTP surface as one handler.
 type API struct {
+	execution               *executionAdmission
 	deps                    Deps
 	handler                 http.Handler
 	codexAccountMu          sync.Mutex // serializes this user's retained account and private snapshots
@@ -406,9 +415,12 @@ func New(d Deps) (*API, error) {
 		d.Projects, d.Worktrees = owned, owned
 	}
 	a := &API{deps: d}
+	a.execution = newExecutionAdmission(a)
 	if d.Product != nil {
+		d.Product.SetProjectSwarmRecovery(a.proveSwarmMissingChild, a.finalizeSwarmMissingChild)
 		d.Product.SetProjectRunSelectionResolver(a.ResolveProjectRunSelection)
 		d.Product.SetProjectRunSessionObserver(a.ObserveProjectRunSessions)
+		d.Product.SetSwarmSchedulerRuntime(product.SwarmSchedulerRuntime{CaptureActor: a.captureQueuedActor, Admit: a.admitQueuedSwarm, Dispatch: a.dispatchQueuedSwarm, Release: a.execution.release, Resources: a.queuedResourceView})
 		d.Product.SetProjectSwarmWorktreeObserver(func(ctx context.Context, projectID, worktreeID string) (bool, error) {
 			if err := ctx.Err(); err != nil {
 				return false, err

@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { ProjectOverviewBoard } from "./ProjectOverviewBoard";
+import { Input } from "../ui/input";
 import { Button } from "../fluid/components/button";
 import { useCockpit } from "../../store/store";
 import { useSetup } from "../setup/SetupProvider";
@@ -35,6 +37,8 @@ export function ProjectsHome() {
           New project
         </Button>
       </header>
+      <details className="projects-tools">
+        <summary>Project tools</summary>
       <div className="projects-utilities">
         <div className="setup-actions">
           <Button type="button"
@@ -56,6 +60,7 @@ export function ProjectsHome() {
           Workspace setup
         </Button>
       </div>
+      </details>
       {!canCreate && <p className="projects-setup-note">Your team administrator can create or import projects and share them with you.</p>}
       {setup?.statusError && (
         <p className="journey-error" role="alert">
@@ -85,7 +90,7 @@ export function ProjectsHome() {
       {projects.length > 0 && (
         <label className="luci-field projects-filter">
           Find a project
-          <input
+          <Input
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -128,24 +133,7 @@ export function ProjectsHome() {
           </Button>
         </div>
       ) : (
-        <ul className="projects-list">
-          {filtered.map((project) => (
-            <li key={project.id}>
-              <button
-                aria-label={`Open project ${project.name}`}
-                title={project.path}
-                onClick={() => {
-                  useCockpit.getState().selectProject(project.id);
-                  useCockpit.getState().setLens("discover");
-                }}
-              >
-                <strong>{project.name}</strong>
-                <span>{setup?.workspace?.mode === "cloud" ? "Connected cloud workspace" : "Current workspace"}</span>
-                <span className="project-open">Open project →</span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <ProjectOverviewBoard projects={filtered} />
       )}
       {projects.length > 0 && filtered.length === 0 && (
         <p>No projects match “{query}”.</p>

@@ -213,12 +213,19 @@ func (a *API) relayAttached(r *http.Request, log *slog.Logger, client *websocket
 
 	// 8. OnClient is deliberately nil. The user typing is not output, and
 	//    idle is defined on output only (§5.4).
-	if err := proxy.RelayHooked(r.Context(), client, upstream, proxy.Hooks{OnUpstream: tracker.observe}); err != nil {
+	relayErr := proxy.RelayHooked(r.Context(), client, upstream, proxy.Hooks{OnUpstream: tracker.observe})
+	if relayErr != nil {
 		// A dropped desktop is the normal case, not an incident.
-		log.Info("attach relay ended", "err", err)
+		log.Info("attach relay ended", "err", relayErr)
 	}
 
-	_ = client.Close(websocket.StatusNormalClosure, "")
+	if websocket.CloseStatus(relayErr) == websocket.StatusTryAgainLater {
+		// Preserve the sandbox's explicit slow-consumer boundary. Turning this
+		// into a normal close makes the desktop silently reconnect over lost output.
+		_ = client.Close(websocket.StatusTryAgainLater, "terminal output consumer too slow; reconnect for recent output only")
+	} else {
+		_ = client.Close(websocket.StatusNormalClosure, "")
+	}
 	_ = upstream.Close(websocket.StatusNormalClosure, "")
 	// AND NOTHING IS DESTROYED. See the handler's doc comment.
 }

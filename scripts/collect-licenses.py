@@ -14,6 +14,7 @@ import re
 import subprocess
 import sys
 import tarfile
+from retained_ui import SHADCN_ROOT, SHADCN_REVISION, read_shadcn, verify_shadcn
 
 
 def json_stream(text):
@@ -141,6 +142,11 @@ def collect(root, output, native):
                 raise RuntimeError("Adapted Fluid source differs from its provenance: " + item["path"])
         add("vendored", "fluid-functionalism", provenance["revision"], fluid,
             "MIT", source_url=provenance["upstream"] + "/tree/" + provenance["revision"])
+
+    shadcn = verify_shadcn(read_shadcn(root))
+    if shadcn["present"]:
+        add("vendored", "shadcn-ui", SHADCN_REVISION, root / SHADCN_ROOT, "MIT",
+            source_url="https://github.com/shadcn-ui/ui/tree/" + SHADCN_REVISION)
 
     lock = json.loads((root / "desktop" / "package-lock.json").read_text(encoding="utf-8"))
     for relative, meta in sorted(lock["packages"].items()):

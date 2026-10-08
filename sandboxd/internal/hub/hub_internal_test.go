@@ -19,7 +19,7 @@ import (
 func newTestHub() *Hub {
 	return &Hub{
 		buf:  ring.New(ring.DefaultCapacity),
-		subs: make(map[int]chan []byte),
+		subs: make(map[int]*subscriber),
 		done: make(chan struct{}),
 	}
 }
@@ -27,7 +27,7 @@ func newTestHub() *Hub {
 // throttleToRoom spins until ch has room for at least one more send. It gives
 // a reader that is momentarily slow to be scheduled a chance to catch up, so
 // a writer that only ever runs slightly ahead of a draining reader can't
-// trigger subscriberBuffer's legitimate overflow-drop path by accident —
+// trigger subscriberBuffer's explicit overflow-disconnect path by accident —
 // these tests want to pin the atomicity and overflow behaviours on purpose,
 // not stumble into overflow through their own scheduling luck.
 func throttleToRoom(ch <-chan []byte) {
@@ -104,13 +104,13 @@ func TestSubscribeRacingThePumpNeverDuplicatesOrDropsAChunk(t *testing.T) {
 
 // TestSlowSubscriberDoesNotStallTheHub pins that publish never blocks on a
 // subscriber who never reads: once that subscriber's buffer is full its
-// chunks are dropped, not queued — the PTY, and every other subscriber, keep
-// moving regardless.
+// subscription closes with an overflow signal — the PTY and every other
+// subscriber keep moving regardless.
 func TestSlowSubscriberDoesNotStallTheHub(t *testing.T) {
 	h := newTestHub()
 
 	// A subscriber that never drains.
-	_, stuckOut, stuckCancel := h.Subscribe()
+	_, stuckOut, overflow, stuckCancel := h.SubscribeWithOverflow()
 	defer stuckCancel()
 
 	// A subscriber that drains concurrently — it must still get everything.
@@ -157,6 +157,19 @@ func TestSlowSubscriberDoesNotStallTheHub(t *testing.T) {
 	if got := len(stuckOut); got != subscriberBuffer {
 		t.Fatalf("stuck subscriber channel holds %d chunks, want exactly %d (full, not blocked past it)", got, subscriberBuffer)
 	}
+	select {
+	case <-overflow:
+	default:
+		t.Fatal("slow subscriber was not explicitly told output was lost")
+	}
+	for range stuckOut {
+	}
+	// A closed stream never resumes with bytes after the gap.
+	h.publish([]byte("after overflow\n"))
+	if _, open := <-stuckOut; open {
+		t.Fatal("overflowed stream resumed")
+	}
+	stuckCancel() // cancellation after overflow is idempotent
 
 	got := strings.Fields(string(received))
 	if len(got) != total {

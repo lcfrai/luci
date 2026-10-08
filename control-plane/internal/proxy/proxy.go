@@ -41,6 +41,12 @@ func RelayHooked(ctx context.Context, client, upstream *websocket.Conn, h Hooks)
 		for {
 			typ, data, err := src.Read(ctx)
 			if err != nil {
+				if websocket.CloseStatus(err) == websocket.StatusTryAgainLater {
+					// Canceling the sibling Read closes its connection immediately.
+					// Forward this overload boundary first, while the destination
+					// can still receive a close frame rather than an unexplained EOF.
+					_ = dst.Close(websocket.StatusTryAgainLater, "terminal output consumer too slow; reconnect for recent output only")
+				}
 				errs <- err
 				return
 			}

@@ -17,6 +17,7 @@ import subprocess
 import sys
 import tomllib
 import zipfile
+from retained_ui import SHADCN_METADATA, verify_shadcn
 
 
 ROOT_FILES = {
@@ -62,7 +63,7 @@ REQUIRED = {
     "desktop/src-tauri/Cargo.lock", "desktop/src-tauri/tauri.conf.json",
     "images/sandbox/Dockerfile", "images/sandbox/entrypoint.sh",
     "scripts/build-release.ps1", "scripts/build-release.sh", "scripts/collect-licenses.py",
-    "scripts/package.py", "desktop/scripts/prepare-design-assets.mjs",
+    "scripts/package.py", "scripts/retained_ui.py", "desktop/scripts/prepare-design-assets.mjs",
     "third-party/licenses/manifest.json", "control-plane/internal/product/server.go",
     ".github/workflows/luci-ci.yml",
     SUPABASE_MANIFEST, SUPABASE_ROOT + "NOTICE.txt",
@@ -131,7 +132,7 @@ def safe_path(name: str) -> bool:
 
 
 def selected(name: str, retained_supabase: set[str] | None = None) -> bool:
-    if name not in ROOT_FILES and name not in FLUID_METADATA and not name.startswith(PREFIXES):
+    if name not in ROOT_FILES and name not in FLUID_METADATA and name not in SHADCN_METADATA and not name.startswith(PREFIXES):
         return False
     if name in OMISSIONS or name.startswith(EXCLUDED_PREFIXES):
         return False
@@ -281,6 +282,10 @@ def verify_source(files: dict[str, bytes], version: str) -> dict:
     assets = supabase_assets(files[SUPABASE_MANIFEST])
     verify_supabase_assets(files, assets)
     fluid = verify_fluid(files)
+    try:
+        shadcn = verify_shadcn(files)
+    except ValueError as exc:
+        raise ExportError(str(exc)) from exc
     if b"MIT License" not in files["LICENSE"] or b"Permission is hereby granted" not in files["LICENSE"]:
         raise ExportError("The selected Luci root licence is not the expected MIT grant")
     package = json.loads(files["desktop/package.json"])
@@ -356,6 +361,7 @@ def verify_source(files: dict[str, bytes], version: str) -> dict:
     return {"versionsVerified": versions, "retainedLicenseReferencesVerified": len(references),
             "retainedSupabaseAssetsVerified": len(assets),
             "retainedFluidProvenanceVerified": fluid,
+            "retainedShadcnProvenanceVerified": shadcn,
             "credentialSignaturePatterns": sorted(SIGNATURES), "credentialSignatureFindings": findings,
             "unresolvedCredentialSignatureFindings": 0, "localDependencyReferences": local_deps,
             "requiredBuildInputsVerified": sorted(REQUIRED)}
@@ -399,6 +405,7 @@ def export(repo: Path, revision: str, version: str, output: Path, plan: bool = F
         return result
     allowlist = {"rootFiles": sorted(ROOT_FILES), "treePrefixes": list(PREFIXES), "omittedFiles": OMISSIONS,
                  "retainedFluidMetadataFiles": sorted(FLUID_METADATA),
+                 "retainedShadcnMetadataFiles": sorted(SHADCN_METADATA),
                  "excludedWithinAllowedPrefixes": list(EXCLUDED_PREFIXES), "forbiddenPathParts": sorted(FORBIDDEN_PARTS),
                  "envFilesExcluded": True, "defaultForAllOtherTrackedPaths": "exclude",
                  "manifestBoundSourceAssets": {"manifest": SUPABASE_MANIFEST, "root": SUPABASE_ROOT,

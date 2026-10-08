@@ -6,7 +6,7 @@
       "upstreamPath": "registry/radix/button.tsx",
       "upstreamSha256": "3a2e17cb47169d130ba1beb0ba47f8eede59cdff03c3dd243419e8e0e8f2aab8",
       "path": "desktop/src/components/fluid/components/button.tsx",
-      "normalizedSha256": "dd96dee365611ee55fc3c128e3fe2e0f2049c0f126ecc9db31a76e46c84229f5"
+      "normalizedSha256": "c90ee25ef6225f949006d6c6ee19316ece048ebfad25d2f17a52e20b74d2bf87"
     },
     {
       "upstreamPath": "registry/radix/tabs-subtle.tsx",
@@ -60,7 +60,7 @@
       "upstreamPath": "registry/radix/dialog.tsx",
       "upstreamSha256": "be463142cb8055a49b2b8681b79e7d24692dc89725d346932a401f5ecc5ee64a",
       "path": "desktop/src/components/fluid/components/dialog.tsx",
-      "normalizedSha256": "0c69981057f4d307facb6520b2560209d1e078cf8497e896813c09760446358c"
+      "normalizedSha256": "e348ac2ec8f473091d5b97ae654a7e028e27f1391fa48f5e4a1e6a1d80449825"
     },
     {
       "upstreamPath": "registry/default/lib/surface-context.tsx",
@@ -86,7 +86,8 @@
     "Only collapsing icon labels measure width and retain a label ResizeObserver; ordinary tabs avoid unused synchronous layout reads",
     "Selected and keyboard-focused tabs reveal within their horizontal strip, preserving focus-ring space on resize without scrolling the enclosing dialog or document",
     "Dialog retains Radix focus trapping, uses Luci close icon and existing surface tokens, and respects reduced motion",
-    "Tabs and hover pills share coalesced content-coordinate geometry; native scrolling stays current and observers follow replacement container nodes without remeasuring unchanged selections"
+    "Tabs and hover pills share coalesced content-coordinate geometry; native scrolling stays current and observers follow replacement container nodes without remeasuring unchanged selections",
+    "Button and dialog import paths are now Luci compatibility adapters to pinned shadcn/ui; retained size/icon contracts and tabs keep Fluid attribution."
   ],
   "glasses": {
     "repositoryId": "6a7f58b6fecc68b2ea92",

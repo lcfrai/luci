@@ -361,3 +361,32 @@ describe("startSessionOnWorktree", () => {
     );
   });
 });
+
+describe("bounded column output", () => {
+  beforeEach(() => { resetCockpit(); });
+  it("keeps 50 sessions navigable while mounting at most six terminals, including keyboard focus", () => {
+    let callback: IntersectionObserverCallback | undefined;
+    const disconnect = vi.fn();
+    vi.stubGlobal("IntersectionObserver", class {
+      constructor(cb: IntersectionObserverCallback) { callback = cb; }
+      observe() {} unobserve() {} disconnect = disconnect;
+    });
+    try {
+      const ids = Array.from({ length: 50 }, (_, i) => `bounded-${i}`);
+      seedBranch({ worktrees: ["w-1"], sessionIdsByWorktree: { "w-1": ids } });
+      const view = render(<ColumnsLayout sessionIds={ids} />);
+      expect(view.container.querySelectorAll("[data-column-for]")).toHaveLength(50);
+      expect(screen.getAllByTestId("terminal")).toHaveLength(2);
+      const panes = Array.from(view.container.querySelectorAll("[data-column-for]"));
+      act(() => callback?.(panes.map((target, i) => ({ target, isIntersecting: i >= 20 && i < 30 })) as IntersectionObserverEntry[], {} as IntersectionObserver));
+      expect(screen.getAllByTestId("terminal")).toHaveLength(6);
+      expect(view.container.querySelector('[data-session="bounded-0"]')).toBeNull();
+      act(() => useCockpit.getState().focusSession("bounded-49"));
+      expect(view.container.querySelector('[data-session="bounded-49"]')).not.toBeNull();
+      expect(screen.getAllByTestId("terminal")).toHaveLength(6);
+      act(() => callback?.(panes.map(target => ({ target, isIntersecting: false })) as IntersectionObserverEntry[], {} as IntersectionObserver));
+      expect(screen.getAllByTestId("terminal")).toHaveLength(1);
+      view.unmount(); expect(disconnect).toHaveBeenCalledOnce();
+    } finally { vi.unstubAllGlobals(); }
+  });
+});

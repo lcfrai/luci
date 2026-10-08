@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 import zipfile
+from retained_ui import SHADCN_ROOT, SHADCN_MANIFEST, SHADCN_METADATA, SHADCN_COMPONENTS
 
 
 sys.dont_write_bytecode = True
@@ -26,6 +27,9 @@ class ExportTests(unittest.TestCase):
         self.run_git("config", "user.name", "Source export fixture")
         self.run_git("config", "user.email", "fixture@example.invalid")
         self.run_git("config", "core.autocrlf", "false")
+        # Fixture modes are deliberately staged with update-index. Subsequent
+        # add calls must preserve those modes on both Windows and Unix hosts.
+        self.run_git("config", "core.filemode", "false")
         for name in exporter.REQUIRED:
             self.write(name, b"fixture\n")
         self.write("LICENSE", b"MIT License\nPermission is hereby granted\n")
@@ -98,6 +102,56 @@ class ExportTests(unittest.TestCase):
                        "normalizedSha256": exporter.sha(source.replace(b"\r\n", b"\n"))}],
         }))
         return name, source, grant
+
+    def add_shadcn(self):
+        source_root = Path(__file__).resolve().parent.parent
+        for name in SHADCN_METADATA | SHADCN_COMPONENTS:
+            self.write(name, (source_root / name).read_bytes())
+
+    def test_shadcn_original_grant_and_sources_survive_export_and_zip(self):
+        self.add_shadcn()
+        # Unreviewed adjacent metadata must not broaden the export boundary.
+        self.write(SHADCN_ROOT + 'unreviewed.txt', b'not part of selected provenance')
+        self.commit()
+        result = self.export()
+        output = Path(result['output'])
+        source_root = Path(__file__).resolve().parent.parent
+        for name in SHADCN_METADATA | SHADCN_COMPONENTS:
+            self.assertEqual((output / name).read_bytes(), (source_root / name).read_bytes())
+        self.assertFalse((output / SHADCN_ROOT / 'unreviewed.txt').exists())
+        checks = json.loads((output / 'EXPORT-CHECKS.json').read_bytes())
+        self.assertEqual(checks['retainedShadcnProvenanceVerified']['originalSourceFilesVerified'], 5)
+        with zipfile.ZipFile(result['archive']) as archive:
+            prefix = archive.namelist()[0].split('/')[0] + '/'
+            self.assertEqual(archive.read(prefix + SHADCN_ROOT + 'LICENSE'), (source_root / SHADCN_ROOT / 'LICENSE').read_bytes())
+
+    def test_shadcn_missing_or_changed_provenance_refuses_before_export_writes(self):
+        self.add_shadcn()
+        for name in [SHADCN_MANIFEST, SHADCN_ROOT + 'LICENSE', SHADCN_ROOT + 'upstream/button.tsx', 'desktop/src/components/ui/button.tsx']:
+            original = (self.repo / name).read_bytes()
+            for mode in ('missing', 'changed'):
+                with self.subTest(name=name, mode=mode):
+                    try:
+                        if mode == 'missing':
+                            (self.repo / name).unlink()
+                        else:
+                            self.write(name, original + b'\nchanged\n')
+                        self.commit()
+                        with self.assertRaisesRegex(exporter.ExportError, 'shadcn'):
+                            self.export()
+                        self.assertFalse((self.root / 'candidate').exists())
+                    finally:
+                        self.write(name, original)
+
+    def test_shadcn_malicious_manifest_cannot_select_another_file(self):
+        self.add_shadcn()
+        manifest = json.loads((self.repo / SHADCN_MANIFEST).read_bytes())
+        manifest['files'][0]['sourcePath'] = '../private-file'
+        self.write(SHADCN_MANIFEST, exporter.json_bytes(manifest))
+        self.commit()
+        with self.assertRaisesRegex(exporter.ExportError, 'shadcn'):
+            self.export()
+        self.assertFalse((self.root / 'candidate').exists())
 
     def test_exact_bytes_modes_selection_and_checksums(self):
         result = self.export()

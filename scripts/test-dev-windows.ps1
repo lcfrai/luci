@@ -9,7 +9,7 @@ New-Item -ItemType Directory -Force -Path (Join-Path $luciFixture 'scripts'),(Jo
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'dev.ps1') -Destination (Join-Path $luciFixture 'scripts/dev.ps1')
 $luciBeforeLocation = Get-Location
 $luciSavedEnvironment = @{}
-$luciKeys = @('LUCI_RUNTIME_DIR','LUCI_ADDR','VITE_LUCI_API','LUCI_MANAGED_SHUTDOWN_TOKEN','LUCI_WORKER','LUCI_STATE_DIR')
+$luciKeys = @('LUCI_RUNTIME_DIR','LUCI_ADDR','VITE_LUCI_API','LUCI_MANAGED_SHUTDOWN_TOKEN','LUCI_WORKER','LUCI_STATE_DIR','LUCI_ALLOWED_ORIGINS')
 foreach ($luciKey in $luciKeys) { $luciSavedEnvironment[$luciKey] = [Environment]::GetEnvironmentVariable($luciKey, 'Process') }
 $luciResults = [Collections.Generic.List[object]]::new()
 if (Get-Variable -Name luciDevTest -Scope Global -ErrorAction SilentlyContinue) { throw 'An earlier launcher test is still active.' }
@@ -33,6 +33,10 @@ function Start-Process {
     if ($env:LUCI_ADDR -ne ('127.0.0.1:' + $global:luciDevTest.port) -or $env:VITE_LUCI_API -ne ('http://127.0.0.1:' + $global:luciDevTest.port)) { throw 'API and frontend addresses differ.' }
     if ($env:LUCI_WORKER -or $env:LUCI_RUNTIME_DIR -ne $luciFixture -or $env:LUCI_STATE_DIR -ne 'preserved-private-state') { throw 'Source launch changed the wrong runtime state.' }
     if ($env:LUCI_MANAGED_SHUTDOWN_TOKEN -notmatch '^[0-9a-f]{64}$') { throw 'Missing owned shutdown capability.' }
+    if ($global:luciDevTest.scenario -eq 'isolated frontend') {
+        if ($env:LUCI_ALLOWED_ORIGINS -ne 'http://localhost:14200,http://127.0.0.1:14200') { throw 'Custom frontend origin was not scoped exactly.' }
+        if ($FilePath -ne (Join-Path $luciFixture 'isolated/luci-api.exe') -or $RedirectStandardOutput -ne (Join-Path $luciFixture 'isolated/api.out.log')) { throw 'Acceptance reused another launch binary or logs.' }
+    }
     $global:luciDevTest.ownedToken = $env:LUCI_MANAGED_SHUTDOWN_TOKEN
     $global:luciDevTest.service = [pscustomobject]@{Id=32003;HasExited=($global:luciDevTest.scenario -eq 'service exit')}
     $global:luciDevTest.service | Add-Member -MemberType ScriptMethod -Name Refresh -Value { }
@@ -60,7 +64,7 @@ function Invoke-RestMethod {
 function Start-Sleep { param($Seconds) $global:luciDevTest.waits++ }
 
 try {
-    foreach ($luciCase in @('delayed readiness','service exit','readiness timeout','different service','dependency failure','frontend failure','build failure','runtime failure','occupied port','forced owned cleanup')) {
+    foreach ($luciCase in @('delayed readiness','service exit','readiness timeout','different service','dependency failure','frontend failure','build failure','runtime failure','occupied port','forced owned cleanup','isolated frontend')) {
         $global:luciDevTest.scenario = $luciCase
         $global:luciDevTest.goCalls=0; $global:luciDevTest.dockerCalls=0; $global:luciDevTest.started=0; $global:luciDevTest.stopped=0; $global:luciDevTest.shutdown=0; $global:luciDevTest.probes=0; $global:luciDevTest.waits=0
         $global:luciDevTest.npmCalls = [Collections.Generic.List[string]]::new()
@@ -78,7 +82,11 @@ try {
         $luciCaller = Join-Path $luciFixture 'caller'
         Set-Location -LiteralPath $luciCaller
         $luciFailure = ''
-        try { & (Join-Path $luciFixture 'scripts/dev.ps1') -Port $global:luciDevTest.port -InstallRuntime:($global:luciDevTest.scenario -eq 'runtime failure') }
+        try {
+            $luciExtra = @{}
+            if ($global:luciDevTest.scenario -eq 'isolated frontend') { $luciExtra.FrontendPort = 14200; $luciExtra.DevDirectory = Join-Path $luciFixture 'isolated' }
+            & (Join-Path $luciFixture 'scripts/dev.ps1') -Port $global:luciDevTest.port -InstallRuntime:($global:luciDevTest.scenario -eq 'runtime failure') @luciExtra
+        }
         catch { $luciFailure = $_.Exception.Message }
         finally { $luciListener.Stop() }
         if ((Get-Location).Path -ne $luciCaller) { throw ($global:luciDevTest.scenario + ': caller location was not restored.') }
@@ -106,6 +114,7 @@ try {
         if ($global:luciDevTest.scenario -eq 'dependency failure' -and ($global:luciDevTest.npmCalls.Count -ne 1 -or $global:luciDevTest.npmCalls[0] -ne 'ci')) { throw 'Frontend started after dependency failure.' }
         if ($global:luciDevTest.started -eq 1 -and $global:luciDevTest.scenario -ne 'service exit' -and $global:luciDevTest.shutdown -ne 1) { throw 'Owned service was not asked to shut down.' }
         if ($global:luciDevTest.scenario -eq 'forced owned cleanup' -and $global:luciDevTest.stopped -ne 1) { throw 'Unresponsive owned service was retained.' }
+        if ($global:luciDevTest.scenario -eq 'isolated frontend' -and $global:luciDevTest.npmCalls[0] -ne 'run dev -- --port 14200') { throw ('Selected frontend port was not passed to Vite: ' + $global:luciDevTest.npmCalls[0]) }
         $luciResults.Add(@{name=$global:luciDevTest.scenario;passed=$true})
     }
     @{passed=$true;platform=[Environment]::OSVersion.Platform.ToString();powershell=$PSVersionTable.PSVersion.ToString();launcherSHA256=(Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $luciFixture 'scripts/dev.ps1')).Hash.ToLowerInvariant();scope='Real launcher with controlled external commands and real socket admission; not native Windows/service/model acceptance.';results=$luciResults.ToArray()} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $luciOutput 'results.json') -Encoding UTF8
