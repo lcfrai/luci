@@ -6,6 +6,12 @@ cloud implementation task and local thread
 Windows; the cloud thread implements and validates corrections. Neither waits
 unnecessarily for the other to finish a whole suite.
 
+Current measured checkpoint: clean `c4400f11736e923617a93e8e86803f15d7187bef`
+passed the scripted two-worker installed Linux continuation below. C013 dependency
+acceptance failed before integration/conflict; native Windows heavy checks remain
+RAM-held. These scoped results do not constitute LOCAL TEST HANDOFF READY. See
+[the latest checkpoint](#installed-continuation-passed-at-c4400f11--separate-dependency-failure).
+
 ## Handoff and pinned revisions
 
 Send the initial **LOCAL TEST HANDOFF READY** only when an integrated candidate
@@ -812,3 +818,57 @@ labelled helper-derived rather than reading a nonexistent private digest field.
 The optional `--expected-helper-source` defaults to product source but can pin a
 distinct exact clean helper checkout; product package/source and image fences
 remain independent. See the [helper receipt](../../scripts/acceptance/task-continuation/evidence/context-delivery-correction.json).
+
+### Installed continuation passed at c4400f11 — separate dependency failure
+
+Exact clean product/helper source `c4400f11736e923617a93e8e86803f15d7187bef`
+passed installed Linux continuation attempt 3. The [published receipt](evidence/cloud012-installed-c4400f11/README.md)
+contains unchanged summary/resources, original manifest and nine screenshots.
+All 1,203 installed files matched; archive SHA256 is
+`db6a842a9252059c5f269a3f794c0f6900b116c880ac6bed85040287482a741f`,
+API binary `08fe8d6e4dddc4bc39be873a92c51c29f3c9c6a422d71af76f74e089acf2ff26`,
+web index `23614113b16654ec7278b735d6545795489b00fb5e4dc6fce5af2dda4a75e79c`,
+and runtime image
+`sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98`.
+
+Two actual native Codex workers used a scripted local provider and exited naturally.
+Both manual starts were automatically observed. Both already-open task cards,
+captured reports and exact Home attention updated without manual refresh,
+reconciliation or collection. Complete committed/dirty/untracked retained text,
+a separately attributed answer, an actually lost reservation response and restart
+preserved one distinct unstarted checkpoint. The successor consumed that exact
+seed/report/answer; one reviewed integration and an independent output check
+passed. The dependent task was not authorized or started, and the run remained
+ready. No live-model usefulness, native Windows or full-product pass follows.
+
+The driver took 158.723 seconds; 173 samples cover 180.319 seconds without a
+pre-run idle baseline or latency measurement. Independent closure recorded zero
+owned containers, volumes and service/browser processes, drained requests and no
+cleanup errors. It does not claim every retained lease had already disappeared.
+Original attempt-1/2 failures remain preserved at their named revisions.
+
+The separate C013 installed attempt at the same source FAILED after two native
+exits and captured reports. Initial dependency-specific HTTP 409 passed; a later reservation returned HTTP 409
+but failed the reason assertion. Its response body/request revision was not retained,
+so the cause is unknown. No integration, real Git conflict or join was reached.
+Owned resources closed at zero. The [failure receipt](../../scripts/acceptance/task-dependencies/evidence/c4400f11-attempt1.json)
+remains separate. The strict diagnostic-helper correction passes 21 controlled cases; no installed retry has run.
+
+The Windows tester reports matching all 675 LOCAL-009 corrected inputs, the one
+production-file change and unchanged regression at `c4400f11`; see the
+[reported source audit](evidence/local009-observation-fairness/native-source-audit-reported.json).
+This is not a native execution result. Roughly 1.5 GiB available host RAM keeps
+heavy native checks held without stopping user applications. The original LOCAL-008
+diagnostic and eight unfinished `29be4018` checkpoint cases stay preserved.
+Four-project fairness/performance, exact native recovery, useful live-provider
+output, clean-host installation and the wider paid/open-source goal remain open.
+
+The subsequent [task-review copy follow-up](evidence/task-review-polish/README.md)
+is UI-only over the `c4400f11` base. Its full frontend run passes 2,610 tests in
+153 files with no failures/skips and 416 selected inputs unchanged; the broader
+433-input focused manifest still matches. TypeScript and ten controlled actual-source
+browser checks pass. Worker claims/recorded checks and historical answered-question
+assessment remain distinct. Backend and sandbox did not change. This is source
+and controlled-browser evidence pending its own published integrated revision;
+it does not replace the original failed full frontend history, the LOCAL-008
+Windows diagnostic or matching installed/native coverage.

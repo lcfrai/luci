@@ -397,7 +397,7 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
           {queuedReservation && <p>This reservation belongs to the background queue. Use its queue controls; if it cannot continue, retain its output and authorize a fresh attempt.</p>}
           {operation?.message && <p className="journey-muted">{operation.message}</p>}
           {operation?.recovery && <p>{launchRecoveryStatus(operation)}</p>}
-          {runOperationNeedsReview(operation) && !integrated(task) && <p>The task worker exited. Inspect its retained output and review the changes; its exit does not establish correctness.</p>}
+          {runOperationNeedsReview(operation) && !integrated(task) && !operation?.message && <p>Review the retained changes before integration, then verify the combined build.</p>}
           {unansweredQuestions(operation) > 0 && <p className="journey-warning">{unansweredQuestions(operation)} agent-reported {unansweredQuestions(operation) === 1 ? 'question needs' : 'questions need'} an answer. Open Task result and questions to review their impact; answering does not start an agent.</p>}
           {earlierQuestions > 0 && <p className="journey-warning">{earlierQuestions} agent-reported {earlierQuestions === 1 ? 'question remains' : 'questions remain'} unanswered in earlier attempts. <Button variant="tertiary" disabled={busy || !projectAccess.canRead} onClick={() => {
             const details = taskRows.current.get(task.id)?.querySelector<HTMLDetailsElement>('[data-task-scope]');

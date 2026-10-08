@@ -39,6 +39,49 @@ Native Windows crash scenarios remain separate. Earlier installed four-project
 runs used scripted provider responses and one concurrent worker; they establish
 neither model quality nor sustained Windows capacity.
 
+## Latest installed Linux scope, separate from native Windows
+
+Clean `c4400f11736e923617a93e8e86803f15d7187bef` passed C012 continuation attempt 3
+with two actual Docker/native Codex workers using a scripted local provider.
+Automatic start status, both open-card/report/Home completions, attributed prior
+report/answer context, complete checkpoint review, lost-reply readback, restart
+with the unstarted seed and one reviewed integration passed. The dependent task
+was not started and the run stayed ready. [Exact receipt and nine screenshots](evidence/cloud012-installed-c4400f11/README.md)
+record all 1,203 matched installed files and these identities:
+
+- Archive SHA256: `db6a842a9252059c5f269a3f794c0f6900b116c880ac6bed85040287482a741f`.
+- API binary SHA256: `08fe8d6e4dddc4bc39be873a92c51c29f3c9c6a422d71af76f74e089acf2ff26`.
+- Web index SHA256: `23614113b16654ec7278b735d6545795489b00fb5e4dc6fce5af2dda4a75e79c`.
+- Runtime image: `sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98`.
+
+Independent closure confirmed zero owned containers/volumes/service/browser
+processes and no cleanup errors. The 173 samples over 180.319 seconds are a
+single scripted workflow observation, without an idle baseline or input-latency
+claim. Native Windows, live-model quality, sustained capacity, older-run/newer-run
+attention and accepted dependency joins remain separate gates.
+
+C013 attempt 1 at the same source failed after two natural exits and captured
+reports: a later reservation returned HTTP 409 but did not match the helper's expected reason. The body
+and request revision were not recorded; cause remains unclassified. No integration,
+real Git conflict or join was reached. Cleanup verified zero owned resources;
+[failed evidence](../../scripts/acceptance/task-dependencies/evidence/c4400f11-attempt1.json)
+is preserved. The strict diagnostic-helper correction passes 21 controlled cases; its installed retry is pending. C012's success does
+not pass another scenario.
+
+The [LOCAL-009 native source audit](evidence/local009-observation-fairness/native-source-audit-reported.json)
+reports all 675 corrected inputs matched at `c4400f11`; it does not execute the
+fairness regression on Windows. Heavy local checks remain held by approximately
+1.5 GiB available host RAM; no user applications were stopped. Recheck fresh
+resource headroom before resuming the native matrix.
+
+A subsequent UI-only review-copy follow-up over `c4400f11` passes 2,610 frontend
+tests in 153 files, no failures/skips, with 416 selected inputs unchanged and the
+broader 433-input manifest still matching. TypeScript and ten controlled Linux
+browser checks pass; [the scoped receipt](evidence/task-review-polish/README.md)
+preserves exact evidence. Backend/sandbox are unchanged. This is not installed
+or native verification of the later copy, and it does not explain LOCAL-008 or
+erase earlier full-run failures.
+
 ## Prerequisites and preserve the existing machine
 
 Use Windows x64, PowerShell 7 (the source launcher also supports Windows
@@ -409,15 +452,14 @@ affected frontend tests; TypeScript/build pass again. Final controlled browser
 verification passes 22 desktop/phone checkpoints plus the original keyboard-only
 checkpoint-focus reproduction. The backend follow-ups pass 126 affected
 API/product race outcomes. See the [source receipt](evidence/2026-10-08-cloud010-015-source-verification.md).
-Current C010/C011/C012/C013/C015 changes do not inherit older installed passes. Checkpoint controlled race checks have
+Only the explicitly recorded C012 Linux continuation scope above now has its matching installed pass; other scenarios do not inherit it. Checkpoint controlled race checks have
 passed 40 product and 8 real-HTTP API outcomes, but backend states were controlled:
-no native Windows or installed two-worker claim follows. The earlier combined
+those controlled checks alone establish neither native Windows nor installed execution; the later C012 two-worker receipt supplies its separate Linux scope. The earlier combined
 run's separate C011 test-decoding assertion failure remains recorded; the full
-control-plane run passed after the test fixture correction. Prepared continuation/dependency helpers and unfinished sustained
-attempts remain open until matching installed runs complete.
+control-plane run passed after the test fixture correction. The dependency helper's first installed attempt failed before integration/conflict; its corrected diagnostic retry and unfinished sustained attempts remain open.
 
-Remaining gates include matching-candidate installed dependency/continuation/
-conflict workflows, native Windows recovery and sustained whole-machine
+Remaining gates include matching-candidate installed dependency/conflict workflows,
+additional continuation/recovery variants, native Windows recovery and sustained whole-machine
 responsiveness, permitted exact probe tracing, live-provider usefulness and
 clean-host installer behavior. Historical Linux and native receipts remain valid
 for their named scopes. These limitations do not wait on cloud billing or public

@@ -11,6 +11,7 @@ import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import {verifyTaskContextDelivery} from '../task-context-delivery.mjs';
+import {recordDependencyProbe,assertDependencyRefusal} from './dependency-probe.mjs';
 import {taskContracts,variants,seedFiles as initialFiles,variantFor,changedPaths,taskCommand,taskHandoff,expectedResult} from './dag-fixture.mjs';
 import {contextFilesV1,contextFileNames,dependencyFile,validateContextManifest} from './context-contract.mjs';
 
@@ -80,7 +81,7 @@ if (existsSync(evidence)) assert.equal(readdirSync(evidence).length, 0, 'Use a f
 mkdirSync(evidence, { recursive: true, mode: 0o700 });
 writeFileSync(join(evidence, 'package-provenance.json'), provenanceBytes, { mode: 0o600, flag: 'wx' });
 writeFileSync(join(evidence,'image-provenance.json'),readFileSync(resolve(imageEvidencePath)),{mode:0o600,flag:'wx'});
-const driverNames=['dag.mjs','dag-fixture.mjs','context-contract.mjs','run-with-observer.py'];
+const driverNames=['dag.mjs','dag-fixture.mjs','context-contract.mjs','dependency-probe.mjs','run-with-observer.py'];
 const reusedHelpers=['task-context-delivery.mjs','four-project-queue/native-terminal-diagnostics.mjs','four-project-queue/sample-linux-owned.py','launch-recovery/fenced-docker-proxy.mjs','launch-recovery/worker-create-guard.mjs'];
 mkdirSync(join(evidence, 'accepted-harness'), { mode: 0o700 });
 for (const name of driverNames) writeFileSync(join(evidence, 'accepted-harness', name), readFileSync(new URL(name, import.meta.url)), { mode: 0o600, flag: 'wx' });
@@ -137,10 +138,11 @@ function ownedProcesses(family='service') {
   }
   return rows;
 }
-async function api(method, path, body, expected = 200, timeout = 30_000) {
+async function api(method, path, body, expected = 200, timeout = 30_000, observeResponse) {
   const response = await fetch(base + path, {method,redirect:'error',signal:AbortSignal.timeout(closing ? timeout : remainingBudget(timeout)),headers:{Origin:base,...(token?{Authorization:'Bearer '+token}:{}),...(body===undefined?{}:{'Content-Type':'application/json'})},body:body===undefined?undefined:JSON.stringify(body)});
   (receipt.apiActions ??= []).push({stage,method,path,status:response.status,at:new Date().toISOString()});
   const raw = await boundedResponse(response,2*1024**2); let value; try { value = raw ? JSON.parse(raw) : {}; } catch { throw Error('Invalid JSON response: '+method+' '+path+' '+response.status); }
+  observeResponse?.(value,response.status);
   assert.equal(response.status, expected, method+' '+path+': '+response.status+' '+scrub(value.message??value.error??''));
   return value;
 }
@@ -371,8 +373,28 @@ async function refreshRun(){owner.run=(await api('GET',owner.route+'/runs/'+owne
 async function reconcile(){await openProject(owner);owner.run=(await action(owner.route+'/runs/'+owner.run.id+'/swarm/reconcile',()=>page.getByRole('button',{name:'Check team status',exact:true}).click())).run;run=owner.run;}
 async function complete(key){stage='native-command-'+key;const worker=await queuedChild(key);await until('Native exact result '+key,()=>observations.has(key),120000);assert.equal(gitAt(worker.checkout,'rev-parse','HEAD'),observations.get(key).commit);assert.deepEqual(bundleSnapshot(worker.session.id),initialBundles.get(worker.session.id));await completeNaturally(worker,owner);return worker;}
 async function assertJoinBlocked(label){
- await refreshRun();const saved=privateRun(owner);assert(!saved.operations.some(op=>op.taskId==='task-join'),'Join was allocated before both current integrations');const queue=await api('GET',owner.route+'/swarm-queue');const item=queue.items.find(v=>v.taskId==='task-join');assert(item&&!item.childId&&!item.operationId);const before=effects(),head=gitAt(owner.owner.path,'rev-parse','HEAD');const response=await api('POST',owner.route+'/runs/'+owner.run.id+'/swarm/tasks/task-join/reserve',{expectedRevision:owner.run.revision,idempotencyKey:'blocked-join-'+label},409);assert(/depend|integrat/i.test(response.message??response.error??''));assert.deepEqual(effects(),before);assert.equal(gitAt(owner.owner.path,'rev-parse','HEAD'),head);assert(!privateRun(owner).operations.some(op=>op.taskId==='task-join'));(receipt.dependencyGates??=[]).push({label,at:new Date().toISOString(),status:409,reason:response.message??response.error,joinUnallocated:true,effects:before});
+ assert.match(label,/^[a-z-]{1,64}$/);
+ await refreshRun();const saved=privateRun(owner);
+ assert(!saved.operations.some(op=>op.taskId==='task-join'),'Join was allocated before both current integrations');
+ const queue=await api('GET',owner.route+'/swarm-queue');const item=queue.items.find(v=>v.taskId==='task-join');
+ assert(item&&!item.childId&&!item.operationId);
+ const snapshot=()=>({effects:effects(),primaryCommit:gitAt(owner.owner.path,'rev-parse','HEAD'),joinOperationIds:privateRun(owner).operations.filter(op=>op.taskId==='task-join').map(op=>op.id)});
+ const before=snapshot(),requestedRevision=owner.run.revision;let probe;
+ await api('POST',owner.route+'/runs/'+owner.run.id+'/swarm/tasks/task-join/reserve',
+  {expectedRevision:requestedRevision,idempotencyKey:'blocked-join-'+label},409,30_000,(response,status)=>{
+   probe=recordDependencyProbe(receipt,{label,status,response:Object.fromEntries(['code','message','error'].filter(k=>typeof response[k]==='string').map(k=>[k,scrub(response[k])])),
+    requestedRevision,publicRevisionBefore:owner.run.revision,privateRevisionBefore:saved.revision,privateRevisionAfter:null,before,after:null});
+   // Keep the reason and revisions even when the following strict assertion fails.
+   // This diagnostic is not a successful dependency gate and does not authorize a retry.
+   writeFileSync(join(evidence,'dependency-probe-'+label+'.json'),JSON.stringify(probe,null,2)+'\n',{mode:0o600,flag:'wx'});
+  });
+ probe.privateRevisionAfter=privateRun(owner).revision;probe.after=snapshot();
+ writeFileSync(join(evidence,'dependency-probe-'+label+'.json'),JSON.stringify(probe,null,2)+'\n',{mode:0o600});
+ assertDependencyRefusal(probe);
+ assert.deepEqual(probe.after,probe.before,'A refused dependency reservation must not allocate or change the primary checkout');
+ (receipt.dependencyGates??=[]).push({label,at:new Date().toISOString(),status:409,reason:probe.response.message,joinUnallocated:true,effects:before.effects});
 }
+
 function retainedB(){
  const b=taskData.get('b1');assert(b);const integration=join(b.checkout+'-integration');assert(isFixturePath(b.checkout)&&isFixturePath(integration));const files=Object.fromEntries(changedPaths('b1').map(name=>{const file=join(b.checkout,name);const st=lstatSync(file);assert(st.isFile()&&!st.isSymbolicLink()&&st.nlink===1&&st.size<64*1024);return [name,sha(readFileSync(file))];}));const conflict=readFileSync(join(integration,'shared.txt'));assert(conflict.length<4096);return {sourceCommit:gitAt(b.checkout,'rev-parse','HEAD'),files,integrationHead:gitAt(integration,'rev-parse','HEAD'),unmerged:gitAt(integration,'ls-files','--unmerged'),conflictSHA256:sha(conflict)};
 }

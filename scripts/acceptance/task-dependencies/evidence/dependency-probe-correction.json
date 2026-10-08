@@ -1,0 +1,65 @@
+{
+  "verifiedAt": "2026-10-08T15:53:03.264654+00:00",
+  "status": "passed",
+  "scope": "Controlled Node oracle and bounded dependency-response diagnostic only. No installed execution, Docker, browser, compiler or POST retries.",
+  "commands": [
+    {
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=1",
+        "scripts/acceptance/task-context-delivery.test.mjs",
+        "scripts/acceptance/task-dependencies/helper.test.mjs",
+        "scripts/acceptance/task-dependencies/context-contract.test.mjs",
+        "scripts/acceptance/task-dependencies/dependency-probe.test.mjs"
+      ],
+      "exitCode": 0,
+      "log": "command-1.log"
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "scripts/acceptance/task-dependencies/dag.mjs"
+      ],
+      "exitCode": 0,
+      "log": "command-2.log"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exitCode": 0,
+      "log": "command-3.log"
+    }
+  ],
+  "sourcesUnchanged": true,
+  "sourceCount": 12,
+  "sources": {
+    "scripts/acceptance/task-context-delivery.mjs": "9c16efd099c2cbf475a206d487c7abe76ee2699ee19c2061f6d2be8dd063ad68",
+    "scripts/acceptance/task-context-delivery.test.mjs": "1a1620ebe1a60ad628008f02c0b6ccbb6f8eeba10052eb52672377d01de673cd",
+    "scripts/acceptance/task-dependencies/README.md": "6ab4a614ac8e5ae7c590b79233fb89d1a5cf4ae8c5100b51c3e4b5a585243e35",
+    "scripts/acceptance/task-dependencies/context-contract.mjs": "07cf795341efc55f6e6e08929e18c02cfec85cb32663f49be69260e6df8faee2",
+    "scripts/acceptance/task-dependencies/context-contract.test.mjs": "762dcea2b5c9d6e86fb55fbb4bcdc4b2d625f166b325c2d76585e4c5e57bbd18",
+    "scripts/acceptance/task-dependencies/dag-fixture.mjs": "5290f1cf6bc5e3dd0d31120606984e65979851a03e68e701c51a998e7138a0a2",
+    "scripts/acceptance/task-dependencies/dag.mjs": "6f5ee46b1978017804ca5aea7715e8fb8be9c405a3d91b7deede756dc089c355",
+    "scripts/acceptance/task-dependencies/dependency-probe.mjs": "eddf18208bbc1bf1ea52926406fb5fefced5d94b94bead7d7e68b5a3ee7d0ef2",
+    "scripts/acceptance/task-dependencies/dependency-probe.test.mjs": "f96ac3bf82b7b8e19d653b1c490f1f0f2cda345ab7aa507d9f87d0f870d59fbd",
+    "scripts/acceptance/task-dependencies/helper.test.mjs": "520739aa2a67ca683517a14a439493ff58b77a6e8a216300544e6c2e00621561",
+    "scripts/acceptance/task-dependencies/run-with-observer.py": "80da81c9d46841df6ffa505c7e9d6641849408748ba1b1bc2661cd73f043068f",
+    "scripts/acceptance/task-dependencies/run_with_observer_test.py": "16d056f5c3b5cb4febdb0765c4a458b3afc9276b0c22f46902391145f6a71d1e"
+  },
+  "priorFailedAttempt": "dependency-c4400f11-attempt1",
+  "priorResponseReason": "Unavailable: old driver did not record response body or requested revision; no retrospective cause claim.",
+  "testOutcomes": {
+    "nodePassed": 21,
+    "nodeFailed": 0,
+    "nodeSkipped": 0,
+    "driverSyntax": "passed",
+    "diffCheck": "passed"
+  },
+  "publicationNote": "This evidence file and the failed-attempt summary were added after the observed code inputs; neither is claimed as a test input.",
+  "publicErrorContract": "journeyError returns error + message; the exact dependency assertion requires error=project_run_conflict and the full dependency-specific message."
+}

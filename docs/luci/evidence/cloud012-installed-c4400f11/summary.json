@@ -1,0 +1,563 @@
+{
+  "version": 1,
+  "issues": [
+    "CLOUD-012",
+    "CLOUD-017",
+    "CLOUD-018"
+  ],
+  "status": "passed-installed-scripted-workflow",
+  "scope": "Actual installed Linux/Docker/native Codex CLI retained-source continuation mechanics with a scripted local provider. This does not establish live-model reasoning/quality, native Windows behavior, concurrent throughput, cloud deployment or completion of the whole product. The dependent task was intentionally not authorized; final run state remains ready.",
+  "productSource": "c4400f11736e923617a93e8e86803f15d7187bef",
+  "helperSource": {
+    "commit": "c4400f11736e923617a93e8e86803f15d7187bef",
+    "dirty": false,
+    "expectedSource": "c4400f11736e923617a93e8e86803f15d7187bef",
+    "productSource": "c4400f11736e923617a93e8e86803f15d7187bef",
+    "separateHelperRevision": false
+  },
+  "package": {
+    "binarySHA256": "08fe8d6e4dddc4bc39be873a92c51c29f3c9c6a422d71af76f74e089acf2ff26",
+    "webIndexSHA256": "23614113b16654ec7278b735d6545795489b00fb5e4dc6fce5af2dda4a75e79c",
+    "archiveSHA256": "db6a842a9252059c5f269a3f794c0f6900b116c880ac6bed85040287482a741f",
+    "verifiedMembers": 1203,
+    "allMembersMatch": true
+  },
+  "imageID": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+  "startedAt": "2026-10-08T15:28:35.134Z",
+  "finishedAt": "2026-10-08T15:31:14.023Z",
+  "driverElapsedMilliseconds": 158723,
+  "wrapperStartedAt": "2026-10-08T15:28:30.899876+00:00",
+  "wrapperFinishedAt": "2026-10-08T15:31:31.616186+00:00",
+  "limits": {
+    "maxCreates": 2,
+    "maxStarts": 2,
+    "workerMemoryBytes": 1073741824,
+    "workerNanoCPUs": 1000000000,
+    "pidsLimit": 256,
+    "preCreateFreeBytes": 6442450944,
+    "runningReserveBytes": 1073741824,
+    "scenarioDeadlineMilliseconds": 900000
+  },
+  "actualCounts": {
+    "workerCreates": 2,
+    "workerStarts": 2,
+    "nativeTaskResults": 2,
+    "naturalExits": 2,
+    "reviewedIntegrations": 1,
+    "dependentTaskStarts": 0,
+    "externalModelCalls": 0,
+    "cloudResourcesCreated": 0
+  },
+  "checks": [
+    {
+      "name": "Exact manual child automatically observed as running",
+      "passed": true
+    },
+    {
+      "name": "Natural exit automatically captured and surfaced on Home",
+      "passed": true
+    },
+    {
+      "name": "Agent report and editor answer remain separately attributed; no integration or new start",
+      "passed": true
+    },
+    {
+      "name": "Unauthenticated and stale-review requests refuse before new allocation",
+      "passed": true
+    },
+    {
+      "name": "Complete reviewed seed is distinct, unstarted, and idempotent after a genuinely lost reply",
+      "passed": true
+    },
+    {
+      "name": "Controller restart preserves the reserved seed without allocation or replay",
+      "passed": true
+    },
+    {
+      "name": "Exact manual child automatically observed as running",
+      "passed": true
+    },
+    {
+      "name": "Natural exit automatically captured and surfaced on Home",
+      "passed": true
+    },
+    {
+      "name": "Successor reads the exact reviewed seed and separately attributed prior report and answer",
+      "passed": true
+    },
+    {
+      "name": "Reviewed integration and independent exact output checks pass without starting the dependent task",
+      "passed": true
+    }
+  ],
+  "automaticStarts": [
+    {
+      "variant": "partial",
+      "sessionID": "s-c697228b",
+      "operationID": "op-103666ff597455748c063731",
+      "beforeStatus": "dispatching",
+      "observedStatus": "running",
+      "beforeRevision": 5,
+      "observedRevision": 6,
+      "automaticBrowserReconcile": true,
+      "manualFallback": false
+    },
+    {
+      "variant": "finish",
+      "sessionID": "s-3865b196",
+      "operationID": "op-a75193f73af9275a9c02ffe8",
+      "beforeStatus": "dispatching",
+      "observedStatus": "running",
+      "beforeRevision": 13,
+      "observedRevision": 14,
+      "automaticBrowserReconcile": true,
+      "manualFallback": false
+    }
+  ],
+  "automaticCompletions": [
+    {
+      "variant": "partial",
+      "startedAt": "2026-10-08T15:29:36.869Z",
+      "backendObservedAt": "2026-10-08T15:29:41.619Z",
+      "homeObservedAt": "2026-10-08T15:29:42.556Z",
+      "samples": 2,
+      "operationID": "op-103666ff597455748c063731",
+      "childID": "s-c697228b",
+      "recordedStatus": "review-required",
+      "handoffDigest": "b7e2b7d8fd31b9a9188df77a8330a98cd8c3fb1a6314947f291e4c664220c061",
+      "sourceCommit": "b731e521c60d744b27561a9c9f5bd4fc6d59b61d",
+      "sourceDirty": true,
+      "contextDigest": "50df2c437378ab10f297f10ad4bf4466341649c3f1dc7010dac73bbf970a271f",
+      "inPlace": {
+        "recordedStatus": "Awaiting review",
+        "reviewEnabled": true,
+        "reportEnabled": true,
+        "questionWarningVisible": true,
+        "operationID": "op-103666ff597455748c063731",
+        "childID": "s-c697228b",
+        "worktreeID": "w-d2046be6",
+        "observedAt": "2026-10-08T15:29:42.139Z"
+      },
+      "attention": {
+        "id": "run-b23d49c7a3d02356e870b154",
+        "state": "awaiting-checks",
+        "kind": "task-question",
+        "contextStatus": "current"
+      },
+      "homeVisible": true,
+      "manualReconcile": false,
+      "manualCollection": false,
+      "recordedChecks": [],
+      "integrated": false
+    },
+    {
+      "variant": "finish",
+      "startedAt": "2026-10-08T15:31:01.346Z",
+      "backendObservedAt": "2026-10-08T15:31:03.651Z",
+      "homeObservedAt": "2026-10-08T15:31:04.100Z",
+      "samples": 2,
+      "operationID": "op-a75193f73af9275a9c02ffe8",
+      "childID": "s-3865b196",
+      "recordedStatus": "review-required",
+      "handoffDigest": "5740b28132993860ad0921fd89d7e3554f15780a0e6607a95129ad482ce70678",
+      "sourceCommit": "e93532987e7bdcd3c51d219d66f483612f8908a9",
+      "sourceDirty": false,
+      "contextDigest": "c50fd30618298ed60783393841d7e3ef40aaab30e81465c9a9a3f60efa18806a",
+      "inPlace": {
+        "recordedStatus": "Awaiting review",
+        "reviewEnabled": true,
+        "reportEnabled": true,
+        "questionWarningVisible": false,
+        "operationID": "op-a75193f73af9275a9c02ffe8",
+        "childID": "s-3865b196",
+        "worktreeID": "w-f5b1a121",
+        "observedAt": "2026-10-08T15:31:03.697Z"
+      },
+      "attention": {
+        "id": "run-b23d49c7a3d02356e870b154",
+        "state": "awaiting-checks",
+        "kind": "task-review",
+        "contextStatus": "current"
+      },
+      "homeVisible": true,
+      "manualReconcile": false,
+      "manualCollection": false,
+      "recordedChecks": [],
+      "integrated": false
+    }
+  ],
+  "naturalCompletions": [
+    {
+      "task": "partial",
+      "sessionID": "s-c697228b",
+      "sessionStatus": "exited",
+      "recordedExitReason": "process exited",
+      "cleanNativeExitFrame": true,
+      "exitFrameObservedAt": "2026-10-08T15:29:20.676Z",
+      "stoppedAndAbsentObservedAt": "2026-10-08T15:29:36.866Z",
+      "queueCompletedObservedAt": null,
+      "leaseObservation": {
+        "scope": "Exact task session and sandbox in the fixture-owned private execution ledger",
+        "firstPresentAt": "2026-10-08T15:29:15.616Z",
+        "lastPresentAt": "2026-10-08T15:30:01.653Z",
+        "firstAbsentAt": "2026-10-08T15:30:02.653Z",
+        "samples": 173,
+        "unavailableSamples": 0
+      },
+      "queueState": "not-queued",
+      "codingDispatches": 1,
+      "finalResponseRequests": 1,
+      "finalResponseAborts": 0,
+      "finalResponseRetries": 0,
+      "integratedBeforeExit": false
+    },
+    {
+      "task": "finish",
+      "sessionID": "s-3865b196",
+      "sessionStatus": "exited",
+      "recordedExitReason": "process exited",
+      "cleanNativeExitFrame": true,
+      "exitFrameObservedAt": "2026-10-08T15:30:41.250Z",
+      "stoppedAndAbsentObservedAt": "2026-10-08T15:31:00.983Z",
+      "queueCompletedObservedAt": null,
+      "leaseObservation": {
+        "scope": "Exact task session and sandbox in the fixture-owned private execution ledger",
+        "firstPresentAt": "2026-10-08T15:30:36.244Z",
+        "lastPresentAt": "2026-10-08T15:31:12.270Z",
+        "firstAbsentAt": null,
+        "samples": 168,
+        "unavailableSamples": 0
+      },
+      "queueState": "not-queued",
+      "codingDispatches": 1,
+      "finalResponseRequests": 1,
+      "finalResponseAborts": 0,
+      "finalResponseRetries": 0,
+      "integratedBeforeExit": false
+    }
+  ],
+  "acceptedIntent": {
+    "tasks": [
+      {
+        "id": "task-work",
+        "title": "Continue the retained implementation",
+        "dependsOn": [],
+        "writePaths": [
+          "committed.mjs",
+          "work.mjs",
+          "note.txt",
+          "result.json"
+        ],
+        "acceptance": "Keep the partial result17 and retained note, resolve the reported final-sum question explicitly, and finish with sum42 in a separately reviewed continuation.",
+        "status": "todo",
+        "requirementIds": [
+          "AC-continuation"
+        ]
+      },
+      {
+        "id": "task-join",
+        "title": "Wait for the reviewed implementation",
+        "dependsOn": [
+          "task-work"
+        ],
+        "writePaths": [
+          "later.txt"
+        ],
+        "acceptance": "Do not start until task-work is explicitly integrated. This acceptance fixture does not authorize this dependent worker.",
+        "status": "todo",
+        "requirementIds": [
+          "AC-continuation"
+        ]
+      }
+    ],
+    "selection": {
+      "projectId": "p-c561e47c",
+      "briefRevision": 2,
+      "specificationRevision": 2,
+      "designPlanRevision": 2,
+      "planRevision": 1,
+      "taskIds": [
+        "task-work",
+        "task-join"
+      ]
+    },
+    "publicRunInputSHA256": "c02874c1c1015d3bffb0e6e241d64181180351c04c8f8ffd9031b3decc91a3ae",
+    "inputHashBasis": "Helper-derived SHA256 of JSON.stringify(public ProjectRun.input), not the private controller inputDigest",
+    "approvals": {
+      "specificationApprovalId": "approval-084d8b204ab40318a120f30f",
+      "specificationRevision": 2,
+      "specificationDigest": "1961e2176bac674e81ed724339e512f7adad6631e527ddb46fec2a858fab72af",
+      "designApprovalId": "approval-dbc537296c9b47ae6e155bad",
+      "designRevision": 2,
+      "designDigest": "9c572ed69b5e81528cba0f5b6032bbe0ed66fe0e0cb9d20fb6a3f7463f09d3aa",
+      "briefDigest": "1d400e2518928c9ee6c3d8df8d32e6e4f6354b4e11d5555fb5fcb6e825355f8d",
+      "sketchDigest": "74c610d1fcb9a7fde6ebe87fdff7999acff38b160eabee48683a0c1f979186e6"
+    },
+    "canonicalHashes": {
+      ".luci/design-handoff.json": "adb6d3fb85b648077ddb9da5191735021e60cfb9eb92df1ea251f0b97c2b21a2",
+      ".luci/design-handoff.md": "cbf5721175089f56bbcddd6e890dd77749a1d7f59029440864333dfade69bec0",
+      ".luci/design.json": "023cce144932ed91ac11ec5a418efcf8bc8fa9460c156ed419b738943132ca69",
+      ".luci/plan.json": "a56d968c22c8dde2e3ab7299eb03fbd6437f44e8e3ee597da7dd2a519f0c055c",
+      ".luci/specification.json": "1c4662ea8ba5ee279cd542d6b369df81e64c8ded5edda51d1b143e5f9cdb9849",
+      ".luci/specification.md": "5444556c407a7e8bc602cbf028ed69414c31de16ef6ca41865bd49fc3a221385",
+      "LUCI.md": "55b384bcca14caaea359e518605c6f1700416909fb518bff19c32fae638412c9"
+    },
+    "initialCommit": "c035dc24c8f2dd2a4d749b8488956a5249313475"
+  },
+  "checkpoint": {
+    "reviewedPaths": [
+      "committed.mjs",
+      "note.txt",
+      "work.mjs"
+    ],
+    "reviewedTextBytes": 139,
+    "reviewDigest": "efa498d4afede6b68afa9c80c7f92e33ed6b88e543bcfd946b7121ba15e6424f",
+    "sourceCommit": "b731e521c60d744b27561a9c9f5bd4fc6d59b61d",
+    "targetCommit": "c035dc24c8f2dd2a4d749b8488956a5249313475",
+    "originalOperation": "op-103666ff597455748c063731",
+    "originalChild": "s-c697228b",
+    "newOperation": "op-a75193f73af9275a9c02ffe8",
+    "newChild": "s-3865b196",
+    "newWorkspace": "w-f5b1a121",
+    "seedCommit": "98483431efa06e04407e137e0b28b0c0cc1470be",
+    "upstreamReservationStatus": 201,
+    "lostReplyBodySHA256": "984b8f31b88d1c46bfa7fede293d2915fa20d14d116cf9fe5baeb7a7c53b001a",
+    "identicalKeyReadbackStatus": 200,
+    "controllerRestartPreservedUnstartedSeed": true,
+    "retainedOriginalUnchanged": true,
+    "previousAttemptReportDigest": "b7e2b7d8fd31b9a9188df77a8330a98cd8c3fb1a6314947f291e4c664220c061",
+    "previousAttemptContextDigest": "50df2c437378ab10f297f10ad4bf4466341649c3f1dc7010dac73bbf970a271f",
+    "reportedChecksRemainSeparate": true,
+    "editorAnswerCount": 1,
+    "dependencyContextClaims": "Successor frozen packet contains the exact prior report/attributed answer separately from empty integrated dependencies."
+  },
+  "final": {
+    "primaryCommit": "465091106e4c684b87aaed5d4ffe4fe2a183d9f1",
+    "sourceHashes": {
+      "committed.mjs": "c7a858c96ccf95ec67dbd10a441d67741505a561c54c66444310bf77d3762299",
+      "work.mjs": "c9fa2b32dc8340cb06bef274cd878b0e887b9759708f2cb9971a4a3bd92ded66",
+      "note.txt": "9e28615c06ede633a28942b959eaa4e9511cc4c75e73bb370891cd81c3acda31",
+      "result.json": "92b56af58311add8b8bb4a9f40ad6d5f630406ca11e72b08946772f6430858cd"
+    },
+    "independentCheck": {
+      "command": "node verify.mjs final",
+      "exitCode": 0,
+      "stdout": "CONTINUATION_CHECK_OK final\n",
+      "elapsedMs": 2661,
+      "sourceCommit": "465091106e4c684b87aaed5d4ffe4fe2a183d9f1",
+      "scope": "Acceptance-harness check, not a product-joined verification receipt"
+    },
+    "runState": "ready",
+    "dependentTask": "Not authorized or started; now eligible only after the accepted integration.",
+    "retainedOriginalUnchanged": true,
+    "independentCheckTimingScope": "The recorded elapsedMs spans the driver interval from before the Node command through following readbacks/validation; it is not an isolated command-performance measurement."
+  },
+  "observer": {
+    "finishedAt": "2026-10-08T15:31:31.467843+00:00",
+    "samples": 173,
+    "durationSeconds": 180.31911173998378,
+    "driverExitObserved": true,
+    "peakObserved": {
+      "summedRSS_test-driver": 215486464,
+      "summedRSS_allOwnedProcesses": 1177174016,
+      "summedRSS_other-owned-descendant": 17199104,
+      "summedRSS_control-plane": 199761920,
+      "summedRSS_browser": 874475520,
+      "singleContainerCgroupUsageBytes": 48541696
+    },
+    "observedCounterDeltas": {
+      "observedProcessCPUSeconds": 146.40000000000023,
+      "observedProcessIO_read_bytes": 6434816.0,
+      "observedProcessIO_write_bytes": 7262208.0,
+      "observedProcessIO_rchar": 581240442.0,
+      "observedProcessIO_wchar": 73155642.0
+    },
+    "processIdentities": [
+      {
+        "pid": 1720449,
+        "startTicks": 21938028,
+        "role": "test-driver"
+      },
+      {
+        "pid": 1720569,
+        "startTicks": 21938266,
+        "role": "other-owned-descendant"
+      },
+      {
+        "pid": 1720648,
+        "startTicks": 21938471,
+        "role": "control-plane"
+      },
+      {
+        "pid": 1720824,
+        "startTicks": 21938624,
+        "role": "browser"
+      },
+      {
+        "pid": 1720841,
+        "startTicks": 21938638,
+        "role": "browser"
+      },
+      {
+        "pid": 1720844,
+        "startTicks": 21938638,
+        "role": "browser"
+      },
+      {
+        "pid": 1720865,
+        "startTicks": 21938651,
+        "role": "browser"
+      },
+      {
+        "pid": 1720887,
+        "startTicks": 21938704,
+        "role": "browser"
+      },
+      {
+        "pid": 1720888,
+        "startTicks": 21938709,
+        "role": "browser"
+      },
+      {
+        "pid": 1720919,
+        "startTicks": 21938733,
+        "role": "browser"
+      },
+      {
+        "pid": 1720928,
+        "startTicks": 21938738,
+        "role": "browser"
+      },
+      {
+        "pid": 1720930,
+        "startTicks": 21938739,
+        "role": "browser"
+      },
+      {
+        "pid": 1723136,
+        "startTicks": 21946740,
+        "role": "control-plane"
+      },
+      {
+        "pid": 1723163,
+        "startTicks": 21946765,
+        "role": "browser"
+      },
+      {
+        "pid": 1723172,
+        "startTicks": 21946768,
+        "role": "browser"
+      }
+    ],
+    "containerIds": [
+      "b9cb631ea6c5a613223f412619f9fac770642c0966f8a018246630b9296981e8",
+      "cfb4d195e57497592373bbd5eae1b3de23e87ac6c4b07e7e72883f0f3e6f99fd"
+    ],
+    "limitations": [
+      "Sum of process RSS double-counts shared pages; it is not unique physical memory.",
+      "Container cgroup memory is separate and must not be added to container process RSS.",
+      "Docker daemon/shared kernel/VM overhead is unassigned; host memory includes unrelated work.",
+      "Processes starting and exiting between 1 Hz samples may be missed; delta counters cover observed intervals only.",
+      "Post-driver-exit settlement is not an application idle baseline.",
+      "No UI input latency, other-app responsiveness or model reasoning quality is measured."
+    ],
+    "baseline": "post-start; no pre-run idle baseline observed",
+    "instanceIdentitySHA256": "8cbfc6749e18b4e401f793a7d63e8a84e6c2977d0b6fceaab69f0d57747940e0"
+  },
+  "observationLimits": [
+    "Resource samples describe this single scripted two-worker workflow and include browser/controller/fixture overhead; no aggregate product performance claim.",
+    "The native task command/output/check witnesses and UI/HTTP gates are independently recorded in the retained result. Exit alone was not treated as integration or correctness.",
+    "Screenshots retain their actual viewport and scroll state; complete checkpoint before/after text was asserted separately in the browser, not assumed from one image."
+  ],
+  "closure": {
+    "observedAt": "2026-10-08T15:32:36.218802+00:00",
+    "status": "closed-and-verified",
+    "containers": 0,
+    "volumes": 0,
+    "ownedServiceOrBrowserProcesses": 0,
+    "controllersStopped": true,
+    "dockerRequestsDrained": true,
+    "cleanupErrors": [],
+    "protectedHelpersUnchanged": true,
+    "helperSourceCount": 24,
+    "productSource": "c4400f11736e923617a93e8e86803f15d7187bef",
+    "helperSource": {
+      "commit": "c4400f11736e923617a93e8e86803f15d7187bef",
+      "dirty": false,
+      "expectedSource": "c4400f11736e923617a93e8e86803f15d7187bef",
+      "productSource": "c4400f11736e923617a93e8e86803f15d7187bef",
+      "separateHelperRevision": false
+    },
+    "packageArchiveUnchanged": true,
+    "binaryAndWebIndexUnchanged": true,
+    "allInstalledMembersMatchedAtStart": {
+      "archiveSHA256": "db6a842a9252059c5f269a3f794c0f6900b116c880ac6bed85040287482a741f",
+      "verifiedMembers": 1203,
+      "allMembersMatch": true
+    },
+    "imageUnchanged": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+    "rootFreeBytes": 6653075456,
+    "resultSHA256": "e44aaecc7ec2d16784c61b860eea8fed3981d89b108cf4001eb7f62efe60f57b",
+    "observerSummarySHA256": "0b5ec600e890eb2aff18f9694e6db853d5c734310c6b4c0f154a7aae95a724a0"
+  },
+  "screenshots": {
+    "attributed-answer.png": {
+      "sha256": "5d5caf7f411d89e0f08b1ecf1241ce1a7bbd2d31ce254d90df329a76816b7878",
+      "bytes": 215831
+    },
+    "automatic-home-finish.png": {
+      "sha256": "4f368710c6b5257ff64cb5a3e61228ee366cd3842b4d10e982251ee8bea58ba5",
+      "bytes": 110718
+    },
+    "automatic-home-partial.png": {
+      "sha256": "0db2af05cb38977fabadabcfc1eeea0ff41f33f47c90d5466958f7b516ecc64c",
+      "bytes": 116851
+    },
+    "automatic-task-card-finish.png": {
+      "sha256": "85a0f03b48ade995a8431dd50d50c78eebb17e1065b157d252afecc04920a1f1",
+      "bytes": 223849
+    },
+    "automatic-task-card-partial.png": {
+      "sha256": "05f7de6bb408e60c0bec431c2d342e05788e1f01717b0c0c19ad0af00798a992",
+      "bytes": 273617
+    },
+    "checkpoint-before-answer.png": {
+      "sha256": "3fa351a191ca241257fdd468f477887fc89792c78f1ef33b57f57fad5380d55c",
+      "bytes": 218690
+    },
+    "checkpoint-complete-review.png": {
+      "sha256": "5f54054fd885e41eaf9057370d1132cd1524ec054ce60b70089d200342f9de78",
+      "bytes": 214955
+    },
+    "continued-task-integrated.png": {
+      "sha256": "2684285d17743e1ab3ebc1ac43d562911d52e7a6033f169c1be76a229603a838",
+      "bytes": 260002
+    },
+    "reserved-seed-after-restart.png": {
+      "sha256": "a88f7961e4d4bb730f34902fe78c58fad53683138e72832826162aa45671ae45",
+      "bytes": 270995
+    }
+  },
+  "retainedArtifacts": {
+    "artifacts/quality-swarm/continuation-c4400f11-attempt3/invocation.json": "7c507c61f8e6340b0468135e96e19f6e5f6021018f27f5dd64dabe15dd58ff3d",
+    "artifacts/quality-swarm/continuation-c4400f11-attempt3/invocation-result.json": "9935b21eb859434eaad4ed2d2172de9eb99bff085a6a8423afc8cf72c412f248",
+    "artifacts/quality-swarm/continuation-c4400f11-attempt3/driver.log": "ffcb343c1765e90ed4ac287da5a19eda03f88a48a6c10b9f6bdc170ccb106795",
+    "artifacts/quality-swarm/continuation-c4400f11-attempt3/source-before.json": "d6c5d6e3486430cc0075a37e12deaa6014c9389bc5a00ff56cbb25d270f7b236",
+    "artifacts/quality-swarm/continuation-c4400f11-attempt3/source-after.json": "d6c5d6e3486430cc0075a37e12deaa6014c9389bc5a00ff56cbb25d270f7b236",
+    "artifacts/quality-swarm/continuation-c4400f11-attempt3/result/result.json": "e44aaecc7ec2d16784c61b860eea8fed3981d89b108cf4001eb7f62efe60f57b",
+    "artifacts/quality-swarm/continuation-c4400f11-attempt3/observer/samples.jsonl": "d78b7d616c1aad523ca2bbbb79349dd6db02b955d4a58ab4344de1d5dd28cbf8",
+    "artifacts/quality-swarm/continuation-c4400f11-attempt3/observer/metadata.json": "3c258ad8235f737dd2b8a19581f543a68c42748acba99b69c049d93bf74d89a6",
+    "artifacts/quality-swarm/continuation-c4400f11-attempt3/observer/summary.json": "0b5ec600e890eb2aff18f9694e6db853d5c734310c6b4c0f154a7aae95a724a0",
+    "artifacts/quality-swarm/continuation-c4400f11-attempt3/observer-observer-self-cost.json": "510182e2bbad20d6ebf37422b9d432d34db596585f6043a6e4342d4d460afc60",
+    "artifacts/quality-swarm/continuation-c4400f11-attempt3/closure-provenance.json": "997cb1a15624af714fb5794b7a87a34930b6bc86136642fdc71bd71a5d73309e"
+  },
+  "publication": {
+    "stagedAfterRuntime": true,
+    "trackedSourceChanged": false,
+    "privateFixturesExcluded": true,
+    "priorFailedAttemptsRetained": [
+      "scripts/acceptance/task-continuation/evidence/29be4018-attempt1.json",
+      "scripts/acceptance/task-continuation/evidence/f829a5e5-attempt2.json"
+    ]
+  }
+}

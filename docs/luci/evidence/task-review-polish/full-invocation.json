@@ -1,0 +1,17 @@
+{
+  "startedAt": "2026-10-08T15:51:17.377374+00:00",
+  "baseCommit": "c4400f11736e923617a93e8e86803f15d7187bef",
+  "sourceDirty": true,
+  "command": [
+    "npm",
+    "test",
+    "--",
+    "--maxWorkers=2",
+    "--reporter=json",
+    "--outputFile=/workspace/luci/artifacts/quality-swarm/frontend-integrated-post-polish/vitest.json"
+  ],
+  "inputs": 416,
+  "finishedAt": "2026-10-08T15:56:03.629404+00:00",
+  "exitCode": 0,
+  "inputsUnchanged": true
+}

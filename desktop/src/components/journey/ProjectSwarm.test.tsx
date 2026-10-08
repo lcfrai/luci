@@ -237,12 +237,16 @@ it('pause stops future starts without claiming existing agents stopped, and resu
 
 it.each(['review-required', 'succeeded'])('requires exact-change review for %s before integrating, and integration alone does not claim verification', async status => {
   const initial = base(), operation = op(initial, 'a', status), saved = attach(initial, operation);
+  if (status === 'review-required') operation.message = 'The agent process ended. Its exit code and task correctness are not established by this observation. Review retained changes and verification evidence before integration.';
   const review: SwarmReview = {taskId: 'a', operationId: operation.id, sourceCommit: 'b'.repeat(40), targetCommit: 'a'.repeat(40), reviewDigest: 'exact-digest', paths: ['src/a.ts'], patch: '+export const a = 1;', canIntegrate: true, reason: 'Ready for integration'};
   vi.spyOn(projectSwarmApi, 'review').mockResolvedValue(review);
   const integrate = vi.spyOn(projectSwarmApi, 'integrate').mockResolvedValue({...saved, revision: 3, swarm: {...saved.swarm!, tasks: saved.swarm!.tasks.map(item => item.id === 'a' ? {...item, integration: {state: 'integrated' as const, reviewDigest: review.reviewDigest, commit: 'c'.repeat(40), sourceCommit: review.sourceCommit, targetCommit: review.targetCommit, integratedAt: saved.updatedAt}} : item)}});
   render(<Harness initial={saved} />);
   expect(screen.getByText('Awaiting review')).not.toBeNull();
-  expect(screen.getByText(/its exit does not establish correctness/)).not.toBeNull();
+  if (operation.message) {
+    expect(screen.getByText(operation.message)).not.toBeNull();
+    expect(screen.queryByText('Review the retained changes before integration, then verify the combined build.')).toBeNull();
+  } else expect(screen.getByText('Review the retained changes before integration, then verify the combined build.')).not.toBeNull();
   await userEvent.click(screen.getByRole('button', {name: 'Review task changes'}));
   const dialog = await screen.findByRole('dialog', {name: 'Review task changes'});
   expect(within(dialog).getByRole('button', {name: 'Integrate reviewed changes'})).toHaveProperty('disabled', true);

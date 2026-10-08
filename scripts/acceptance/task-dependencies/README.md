@@ -70,12 +70,14 @@ The product binary/web remain bound to the clean package supplied by `--expected
 
 The context check requires the actual public `reviewedContextDelivery` receipt, the private `reviewedContext` reference, and the frozen manifest bytes to agree on version/digest. It also binds both session identities and their approved source/context fields to the exact task operation; a missing or legacy delivery does not pass.
 
+A negative dependency probe records its bounded response error/code/message, requested and observed revisions, and source/allocation snapshots before checking the exact dependency refusal. Stale revisions, busy source locks and other HTTP 409 responses fail; the driver never automatically retries the POST. Attempt 1 on `c4400f11` stopped after two natural worker exits because its post-exit refusal wording did not match. That older helper did not retain the response body or requested revision, so its reason remains unavailable; it did not exercise conflict recovery, integration or join.
+
 ## Preparation checks
 
 From this directory:
 
 ```sh
-node --test --test-concurrency=1 ../task-context-delivery.test.mjs helper.test.mjs context-contract.test.mjs
+node --test --test-concurrency=1 ../task-context-delivery.test.mjs helper.test.mjs context-contract.test.mjs dependency-probe.test.mjs
 python3 -m unittest run_with_observer_test.py
 node --check dag.mjs
 node --test --test-concurrency=1 ../launch-recovery/worker-create-guard.test.mjs

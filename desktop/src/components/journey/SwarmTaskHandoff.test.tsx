@@ -43,14 +43,14 @@ it('reads inert worker claims separately from recorded evidence without capture,
   const create=vi.spyOn(api,'createSession'),integrate=vi.spyOn(projectSwarmApi,'integrate');
   render(<Harness/>);await screen.findByText(hostile);
   expect(within(screen.getByRole('region',{name:'Agent-reported checks'})).getByText('Reported passed')).not.toBeNull();
-  expect(within(screen.getByRole('region',{name:'Recorded verification evidence'})).getByText('No matching verification evidence is recorded here.')).not.toBeNull();
+  expect(within(screen.getByRole('region',{name:'Recorded verification evidence'})).getByText('No recorded checks match this task’s captured source.')).not.toBeNull();
   expect(screen.getByRole('dialog').querySelector('img,iframe')).toBeNull();
   expect(screen.getByText(/Agent flagged this as blocking/)).not.toBeNull();
   expect(swarmHandoffApi.collect).not.toHaveBeenCalled();expect(swarmHandoffApi.answer).not.toHaveBeenCalled();expect(create).not.toHaveBeenCalled();expect(integrate).not.toHaveBeenCalled();
 });
 it.each(['not-recorded','missing','invalid','unavailable'] as const)('explains %s without inventing output or questions',async status=>{
   const f=handoffFixture();vi.mocked(swarmHandoffApi.get).mockResolvedValue({...f.handoff,status,receipt:status==='not-recorded'?null:{...f.handoff.receipt!,status,reported:null},answers:[],questionIds:[]});
-  render(<Harness/>);await screen.findByText('No matching verification evidence is recorded here.');
+  render(<Harness/>);await screen.findByText('No recorded checks match this task’s captured source.');
   expect(screen.queryByRole('region',{name:'Agent questions'})).toBeNull();expect(screen.queryByText('Reported passed')).toBeNull();expect(swarmHandoffApi.collect).not.toHaveBeenCalled();
 });
 it('requires explicit capture, updates the run receipt, and never treats capture as a passing check',async()=>{
@@ -59,7 +59,7 @@ it('requires explicit capture, updates the run receipt, and never treats capture
   await screen.findByText(/Task report capture recorded/);
   expect(swarmHandoffApi.collect).toHaveBeenCalledExactlyOnceWith(handoffFixture().run,handoffFixture().operation);
   expect(changed).toHaveBeenCalledWith(expect.objectContaining({revision:2}));
-  expect(screen.getByText('No matching verification evidence is recorded here.')).not.toBeNull();
+  expect(screen.getByText('No recorded checks match this task’s captured source.')).not.toBeNull();
 });
 it('allows an editor without Execute to answer once, preserve the draft, and amend the saved answer',async()=>{
   render(<Harness/>);await draft();
@@ -69,6 +69,8 @@ it('allows an editor without Execute to answer once, preserve the draft, and ame
   expect(screen.getByRole('textbox',{name:'Your answer'})).toHaveProperty('value','Exclude archived projects.');
   await userEvent.click(screen.getByRole('button',{name:'Save answer'}));
   await screen.findByText('Recorded answer');expect(swarmHandoffApi.answer).toHaveBeenCalledTimes(1);
+  expect(screen.getByText('Originally flagged as blocking by the agent.').className).toBe('handoff-muted');
+  expect(screen.queryByText('Agent flagged this as blocking.')).toBeNull();
   const f=handoffFixture();expect(swarmHandoffApi.answer).toHaveBeenLastCalledWith(f.run,f.operation,f.handoff.digest,f.handoff.questionIds[0],'Exclude archived projects.');
   expect(Object.values(useCockpit.getState().unsavedProjectDrafts)).toHaveLength(0);
   await userEvent.click(screen.getByRole('button',{name:'Amend recorded answer'}));

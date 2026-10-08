@@ -1,0 +1,75 @@
+{
+  "status": "passed-source-and-controlled-browser",
+  "baseCommit": "c4400f11736e923617a93e8e86803f15d7187bef",
+  "sourceDirtyAtTest": true,
+  "productChanges": "UI-only review copy and historical question assessment; no backend/runtime edits.",
+  "fullFrontend": {
+    "passed": 2610,
+    "failed": 0,
+    "skipped": 0,
+    "files": 153,
+    "command": [
+      "npm",
+      "test",
+      "--",
+      "--maxWorkers=2",
+      "--reporter=json",
+      "--outputFile=/workspace/luci/artifacts/quality-swarm/frontend-integrated-post-polish/vitest.json"
+    ],
+    "startedAt": "2026-10-08T15:51:17.377374+00:00",
+    "finishedAt": "2026-10-08T15:56:03.629404+00:00",
+    "unchangedInputsDuringFullRun": 416
+  },
+  "broaderSourceBinding": {
+    "inputs": 433,
+    "basis": "The broader focused/browser after-manifest predates the full run and still matches every input after it; original focused before/after evidence is retained.",
+    "allMatch": true
+  },
+  "limitations": [
+    "Controlled browser responses are not installed backend or native Windows execution.",
+    "Linux deferred-focus observations do not close the original LOCAL-008 Windows timing diagnostic.",
+    "This does not establish sustained performance, live-model quality, or local release completion."
+  ],
+  "files": {
+    "full-frontend.json": {
+      "sha256": "ecaca0866bc25222a7b3c7c61f7ba7b5ee483e7889756ec864f8363229a41e03",
+      "bytes": 1153950
+    },
+    "full-invocation.json": {
+      "sha256": "c684571f01e0d6e57be61be1a297df20526a2f7eba2616af9dac3c71f5cef0eb",
+      "bytes": 451
+    },
+    "full-source-inputs.json": {
+      "sha256": "4976560e23d857e01848577d669356617666d6c8b49d25bd057c71f385d2cd4c",
+      "bytes": 49149
+    },
+    "focused.json": {
+      "sha256": "d7655a7d049837d8c159123c55fbaf7952bbad4dcebf2e6f3cda0bb897ee18ed",
+      "bytes": 1254
+    },
+    "source-inputs.json": {
+      "sha256": "3bde4b79a7f0c3c7a99f021c1c36233f84e63f7ea299c64e3669a4e53e5a18c7",
+      "bytes": 50849
+    },
+    "browser.json": {
+      "sha256": "c1a8098add9f3ad0e54576587a10b3c9de9bf34b43a30db3b800deffd1c20853",
+      "bytes": 108554
+    },
+    "task-card-1440.png": {
+      "sha256": "0495f23a858be79017b4062c5ad713c4f0f13926c834dd54942779d9f3ab7c1f",
+      "bytes": 131774
+    },
+    "task-card-390.png": {
+      "sha256": "376351f7f1af5848abe6e071a724e9e58f6cfe5a9cd865330b2eeb8efcb57c93",
+      "bytes": 69337
+    },
+    "answered-question-1440.png": {
+      "sha256": "515486678ff6df870a3a9074056ff5cdd5f4cf1ab9d80dd3bf37f3b10c724fda",
+      "bytes": 183054
+    },
+    "answered-question-390.png": {
+      "sha256": "67649b0c627f4b2d37f48ad774f2efacfb867bbffdee909e4bb915e332b940e3",
+      "bytes": 61702
+    }
+  }
+}

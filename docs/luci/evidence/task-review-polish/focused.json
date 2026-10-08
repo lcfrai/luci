@@ -1,0 +1,46 @@
+{
+  "scope": "UI-only task review copy/hierarchy; controlled component contracts, no installed/Docker/native/model acceptance.",
+  "startedAt": "2026-10-08T15:48:51.725038+00:00",
+  "head": "c4400f11736e923617a93e8e86803f15d7187bef",
+  "commands": [
+    {
+      "command": [
+        "npm",
+        "test",
+        "--",
+        "--maxWorkers=2",
+        "--reporter=json",
+        "--outputFile=/workspace/luci/artifacts/quality-swarm/visual-polish/focused/vitest.json",
+        "src/components/journey/ProjectSwarm.test.tsx",
+        "src/components/journey/SwarmTaskHandoff.test.tsx"
+      ],
+      "start": "2026-10-08T15:48:51.728960+00:00",
+      "end": "2026-10-08T15:49:05.787223+00:00",
+      "exitCode": 0
+    },
+    {
+      "command": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "start": "2026-10-08T15:49:05.787422+00:00",
+      "end": "2026-10-08T15:49:36.140127+00:00",
+      "exitCode": 0
+    }
+  ],
+  "testsExit": 0,
+  "typecheckExit": 0,
+  "finishedAt": "2026-10-08T15:49:36.192018+00:00",
+  "sourceCount": 433,
+  "sourceUnchanged": true,
+  "counts": {
+    "numTotalTests": 63,
+    "numPassedTests": 63,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0
+  },
+  "files": 2,
+  "passed": true
+}
