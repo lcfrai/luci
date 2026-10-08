@@ -1,0 +1,11 @@
+{
+  "control-plane/internal/product/project_runs.go": "37a1a1b266763bac6f44e7157ebdb4e72c3ae52aa0e2522c7133e2c7ac6b58c5",
+  "control-plane/internal/product/project_runs_store.go": "e0b70c1fd0c45509df488500c835dec35ce3ec1280e3ad1c83f0427a4b4cb506",
+  "control-plane/internal/product/project_swarm.go": "d29121884d73ec7214d89a7d48188d11491f4a5af616a8b819636c2817c6fde5",
+  "control-plane/internal/product/project_swarm_http_test.go": "34bf20b2abc0080bd9970cbf849bd6f2c9eef5611c42b357f2b2f693a503e2e6",
+  "control-plane/internal/product/project_swarm_integration.go": "1ebe9725a04c8c76be88d88fbb575d22e44a25984437019e693de3e28e802edb",
+  "control-plane/internal/product/project_swarm_scheduler.go": "c5395d25511e1f86c582e571654d7e6e339e48fd5489d3f30ee45beecf15647a",
+  "control-plane/internal/product/project_swarm_scheduler_http.go": "4d6713b2383f06827901d7b48e451c34f1d7db5b3e087c12b755880c2047d381",
+  "control-plane/internal/product/project_swarm_store.go": "f12990bd48e83bbd9ee6513fe5a00ce47e75d0f77c27ed57a5b3f57b38eddd54",
+  "control-plane/internal/product/project_swarm_lifecycle_test.go": "62e0b3571373646621ca8a0700969d81939a140dd4c3e4d312985d4084d44e8d"
+}

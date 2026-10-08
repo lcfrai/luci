@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "commitBinding": null,
+  "sourceState": "Uncommitted correction inputs recorded by the original check; no future revision assigned.",
+  "originalReceipt": {
+    "artifact": "artifacts/cloud006-full-api-verification.json",
+    "sha256": "2c93b6d2096c57f5261e4308afe726f75f79450355c1dff559ae81b766f40c22"
+  },
+  "originalTestEvents": {
+    "artifact": "artifacts/cloud006-full-api.jsonl",
+    "sha256": "591ae7fa2b659fe9a402448ca19876ebbff03b96b568a0428c54342773c2d916"
+  },
+  "sourceManifest": "cloud006-source-inputs.json",
+  "originalSourceManifest": {
+    "artifact": "artifacts/cloud006-full-api-source.json",
+    "sha256": "cdbe01fceba263bebb152d0bccda487b7c3c87049c93aa72a145467beb778629"
+  },
+  "verification": {
+    "observedAt": "2026-10-08T08:01:21.792785+00:00",
+    "command": [
+      "go",
+      "-C",
+      "control-plane",
+      "test",
+      "-p",
+      "2",
+      "./internal/api",
+      "-count=1",
+      "-json"
+    ],
+    "exitCode": 0,
+    "wallSeconds": 41.207,
+    "sourceFiles": 573,
+    "sourceStable": true,
+    "changes": [],
+    "packages": [
+      {
+        "Time": "2026-10-08T08:01:21.702097279Z",
+        "Action": "pass",
+        "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+        "Elapsed": 39.474
+      }
+    ],
+    "testPasses": 663,
+    "testSkips": 5,
+    "failed": []
+  },
+  "independentlyRecounted": {
+    "testEvents": {
+      "pass": 663,
+      "skip": 5
+    },
+    "skippedTests": [
+      "TestProjectSwarmControlledBenchmark",
+      "TestProjectSwarmFourProjectControlledCapacity",
+      "TestWindowsNativeStorePreservesLegacyHomesAndPrefersMigratedCompactHomes",
+      "TestAWorktreeAdminJunctionFailsTheCreateAndMountsNothing",
+      "TestAWorktreeWhoseGitIsAReparsePointFailsTheCreate/a_junction"
+    ]
+  },
+  "issue": "CLOUD-006",
+  "scope": "Real HTTP /v1/harnesses publishes native-task support, allowed permission modes and notices while preserving interactive metadata.",
+  "keyRegression": "TestHarnessHTTPPublishesTaskAndInteractiveCapabilities",
+  "limitations": [
+    "Full API source suite predates subsequent CLOUD-007 and LOCAL-001/002/003 corrections; do not treat it as a full suite on their combined source.",
+    "Five skipped test events include opt-in workloads and Windows-only cases.",
+    "Installed corrected-catalogue swarm allocation remains a separate acceptance gate."
+  ]
+}

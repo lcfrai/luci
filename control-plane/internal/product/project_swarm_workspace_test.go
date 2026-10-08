@@ -103,7 +103,10 @@ func TestProjectSwarmWorkspaceRetainsCommittedDirtyAndUntrackedOutputWithoutSess
 
 func TestProjectSwarmWorkspaceMissingAndPartialAllocationAreReadOnly(t *testing.T) {
 	s, mux, p, run, base, _ := swarmHTTPFixture(t)
-	run, op, _, err := s.projectRuns.ReserveSwarmTask(p.ID, p.Path, run.ID, run.Revision, "partial-allocation-123456789", "task-a", run.Input.Implementation.SourceCommit, func(id string) string { path, _ := s.swarmPath(p.ID, run.ID, id); return project.WorktreeID(path) })
+	run, op, _, err := s.projectRuns.ReserveSwarmTask(p.ID, p.Path, run.ID, run.Revision, "partial-allocation-123456789", "task-a", run.Input.Implementation.SourceCommit, func(id string) string {
+		path := mustSwarmPathFixture(t, s, p.ID, run.ID, id)
+		return project.WorktreeID(path)
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -109,12 +109,55 @@ Putting source and caches on E: does not relocate Docker's backing storage.
 Owner: local environment. State: **fixing**. The owner explicitly authorized
 moving Docker to a spacious drive, and the local tester is using Docker Desktop's
 supported relocation to E:, first preserving a cold VHD and settings backup.
-Copying was reported complete and hash verification underway; successful
-relocation, engine startup, storage path and preserved inventory are not yet
-verified. No prune, reset, unregister or deletion was authorized by this update.
+The cold VHD copy passed full SHA256 verification. Stale zero-byte Windows
+socket directories were repaired with Docker stopped; Desktop 4.48.0.207573
+and Linux engine 28.5.1 now run. Pre-move inventory is recorded: 107 containers,
+196 images and 155 volumes; four existing containers auto-started. Relocation
+has not occurred because the Windows desktop is locked. The local tester has
+requested an unlock for the supported Dashboard move. C: was last reported at
+3.85 GiB free. The DataFolder setting, virtual disk size and Get-DiskImage
+Attached flag do not prove this layout's active backing path. No prune, reset, unregister or deletion was authorized by this update.
 Before that authorization, no heavy pulls/builds were started and existing
 Docker data, settings and global WSL resources were preserved. A large free-space
 result inside the Linux VM cannot establish room on its Windows backing drive.
 Record both before workload admission. Do not silently move/delete the VHD or
 change existing WSL registrations to make the test pass. The completed five-test
 native Go batch remains valid; cloud implementation and non-Docker checks continue.
+
+## Native lifecycle and sampler batch at 9898cf5d
+
+LOCAL-001 remains **fixing**: 11 of 15 top-level lifecycle tests passed, four
+failed; 27 subtests passed and none were skipped. Unexpected allocation errors
+are still being diagnosed. A separate held-Create fixture uses an unrealistically
+short derived timeout; changes to that scenario do not alter production deadlines.
+
+LOCAL-002 remains **fixing**: an unchecked failed worktree lookup passed an empty
+path to a Git fixture, which committed `alpha.txt` into the isolated test checkout.
+The batch started at `9898cf5d4a5302e431c8e42f5b3612c0a95e7061` but HEAD changed
+at 08:04:12Z to `8f4deb8a4d7300a875b4e18ff44cf5e222fca9b1`. Go source blobs are
+unchanged; later serial/short-TEMP diagnostics used this changed HEAD. Preserve
+that provenance and the contaminated checkout. The original user checkout was
+untouched. A fresh exact checkout is being used for diagnostic logging overlays;
+those overlays are diagnosis, not acceptance of unchanged production code.
+
+Separately, the local tester reports all nine controlled Windows observer checks
+passed, followed by a real 8.017-second capture of a newly owned PowerShell root
+and exact descendant. All eight samples had physical/commit/working-set/disk
+metrics; CPU and I/O deltas followed the initial baseline. Output ACL was restricted
+to the current user and both observed identities exited. Evidence is under
+`E:\Luci-local-acceptance\evidence\9898cf5d\sampler`. This validates native
+sampler APIs and ACL behavior, not Docker named-pipe compatibility or Luci's
+workload memory, responsiveness and throughput acceptance.
+
+### Diagnostic confirmation and separate timeout issue
+
+A fresh exact `9898cf5d` logging-only overlay confirms LOCAL-001's portable-path
+violation: `swarmPath` constructs backslash-separated internal relative paths on
+Windows, while the traversal guard correctly requires forward slashes. The fix
+must preserve that guard. Diagnostic base and final HEAD both stayed at
+`9898cf5d`; overlay SHA256 is
+`82D53E86F94E1613A6FC084864565CADE6880D20959686EB9CB6A8AB0639BD42`.
+The local receipt is `diagnostic/allocator-logger-v2.jsonl` under the same
+revision evidence directory. The overlay redirects fixture logs only; it is not
+a production-source acceptance result. The held-Create 100 ms fixture budget is
+now separately tracked as **LOCAL-003**, P1 validation, owner cloud, fixing.

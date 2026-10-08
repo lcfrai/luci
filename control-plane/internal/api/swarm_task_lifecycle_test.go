@@ -1,10 +1,13 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"log/slog"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/lcfrai/luci/control-plane/internal/backend"
@@ -12,12 +15,42 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/product"
 )
 
+type swarmFixtureLog struct {
+	mu   sync.Mutex
+	data bytes.Buffer
+}
+
+func (b *swarmFixtureLog) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if left := 64*1024 - b.data.Len(); left > 0 {
+		b.data.Write(p[:min(left, len(p))])
+	}
+	return len(p), nil
+}
+
+func logSwarmFixtureFailure(t *testing.T, f *swarmSessionFixture) {
+	t.Helper()
+	logs := &swarmFixtureLog{}
+	f.env.api.deps.Log = slog.New(slog.NewTextHandler(logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	t.Cleanup(func() {
+		if !t.Failed() {
+			return
+		}
+		logs.mu.Lock()
+		output := logs.data.String()
+		logs.mu.Unlock()
+		t.Logf("Controlled swarm fixture diagnostic (first 64 KiB):\n%s", output)
+	})
+}
+
 // This verifies the real API-to-backend allocation contract with a controlled
 // backend. Natural native CLI exit is a separate installed-image acceptance gate.
 func TestSwarmTaskAllocatorUsesNativeOneShotForManualAndQueuedLaunch(t *testing.T) {
 	for _, queued := range []bool{false, true} {
 		t.Run(map[bool]string{false: "manual task start", true: "queued task start"}[queued], func(t *testing.T) {
 			f := newSwarmSessionFixtureTasks(t, "api")
+			logSwarmFixtureFailure(t, f)
 			sessionsStubReady(t, nil)
 			done := sessionsWatchDone(t)
 			if queued {
@@ -63,6 +96,7 @@ func TestSwarmTaskAllocatorUsesNativeOneShotForManualAndQueuedLaunch(t *testing.
 
 func TestSwarmTaskStartRejectsInteractiveModeWithoutBackendAllocation(t *testing.T) {
 	f := newSwarmSessionFixtureTasks(t, "api")
+	logSwarmFixtureFailure(t, f)
 	for _, mode := range []string{"ask", "plan"} {
 		req := f.requests[0]
 		req.PermissionMode = mode

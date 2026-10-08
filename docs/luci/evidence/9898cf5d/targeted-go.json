@@ -1,0 +1,141 @@
+{
+  "version": 1,
+  "comparisonCommit": "9898cf5d4a5302e431c8e42f5b3612c0a95e7061",
+  "sourceBinding": "source-binding.json",
+  "launchFenceRace": {
+    "original": {
+      "artifact": "artifacts/task-worker-launch-fence-verification.json",
+      "sha256": "9a249d0764b1ef9027b0aca57d38ef171423f7993b7295b17ac958fefd227910"
+    },
+    "testEvents": {
+      "artifact": "artifacts/task-worker-launch-fence-race.jsonl",
+      "sha256": "6ebfb40e5387b2d60559bdeb1190c573344113822b95517bce2763594ffdd5b1"
+    },
+    "sourceScope": "launch-fence",
+    "observedAt": "2026-10-08T07:43:16.649040+00:00",
+    "command": [
+      "go",
+      "-C",
+      "control-plane",
+      "test",
+      "-race",
+      "-p",
+      "2",
+      "./internal/api",
+      "./internal/harness",
+      "-run",
+      "TestExecution|TestSwarm|TestQueued|TestProjectSwarm|TestProjectRun|TestRestart|TestTask",
+      "-count=1",
+      "-json"
+    ],
+    "exitCode": 0,
+    "wallSeconds": 55.733,
+    "sourceFiles": 572,
+    "sourceStable": true,
+    "changes": [],
+    "packages": [
+      {
+        "Time": "2026-10-08T07:42:31.414144424Z",
+        "Action": "pass",
+        "Package": "github.com/lcfrai/luci/control-plane/internal/harness",
+        "Elapsed": 1.184
+      },
+      {
+        "Time": "2026-10-08T07:43:16.57035751Z",
+        "Action": "pass",
+        "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+        "Elapsed": 46.341
+      }
+    ],
+    "testPasses": 143,
+    "failed": []
+  },
+  "productOneShot": {
+    "original": {
+      "artifact": "artifacts/swarm-oneshot-product-verification.json",
+      "sha256": "ea949e318698a0d26d503c4ddb48e021f4cdcca86365e1f5073f6e68685b28f9"
+    },
+    "sourceScope": "product-oneshot",
+    "recordedAt": "2026-10-08T07:21:39.184777+00:00",
+    "scope": "Product one-shot worker lifecycle and preserved source/permission/dependency controls",
+    "checks": [
+      {
+        "command": "go -C control-plane test -race ./internal/product -run 'TestProjectSwarm|TestSwarm|TestProjectRun|TestProductRegisteredReads' -count=1",
+        "result": "pass",
+        "elapsedSeconds": 132.22,
+        "log": "artifacts/swarm-oneshot-product-final-race.log"
+      },
+      {
+        "command": "go -C control-plane test -race ./internal/product -run 'TestSwarmTaskPermissions|TestSwarmResume|TestSwarmQueueRemainsAvailable' -count=1",
+        "result": "pass",
+        "elapsedSeconds": 7.298,
+        "log": "artifacts/swarm-oneshot-resume-race.log"
+      }
+    ],
+    "outcomes": [
+      "Actual production reaper plus private FileStore observes normal stopped worker as review-required, with no inferred exit code or verification",
+      "Unknown backend lifecycle retains capacity; confirmed stopped/gone allows another independent task",
+      "Next independent same-project task uses exact reviewed main source; dependent task requires explicit integration",
+      "Retained committed changes remain reviewable, and store reopen never replays completed native worker",
+      "Known abnormal reasons remain failed; disappeared/unconfirmed runtime remains unknown holding capacity",
+      "Prepare/reserve/enqueue and explicit swarm/queue resume reject unsupported saved Ask/Plan before allocation and without permission migration",
+      "Legacy succeeded records remain readable, direct interactive serial fixtures retain Ask"
+    ],
+    "limitations": [
+      "Native CLI argv and API backend proof tests have separate receipts.",
+      "The reaper integration uses controlled backend state; actual installed native-provider workflows remain separate acceptance.",
+      "No native Windows execution, live-model correctness or market-leadership claim."
+    ],
+    "timingLimit": "These focused lifecycle checks preceded the final overview correction; the nine selected hashes match, but there is no complete compilation manifest for this run."
+  },
+  "finalOverview": {
+    "original": {
+      "artifact": "artifacts/swarm-overview-task-review-verification.json",
+      "sha256": "4513eeaae9cf5205dffa6abb904dec7133ebb0122390082bf94c84b07f34d3a5"
+    },
+    "sourceScope": "product-overview",
+    "recordedAt": "2026-10-08T07:33:40.308371+00:00",
+    "scope": "Overview distinguishes unintegrated task output from whole-build verification",
+    "command": "go -C control-plane test -race ./internal/product -run 'TestProjectOverview|TestProductRegisteredReads' -count=1",
+    "result": "pass",
+    "elapsedSeconds": 22.07,
+    "log": "artifacts/swarm-overview-task-review-current-race.log",
+    "assertions": [
+      "Unintegrated review-required and legacy succeeded task output remains Develop / Review task changes",
+      "Queued dependent tasks do not replace the review action with generic queue follow-up",
+      "Changed reviewed context takes priority even with waiting queue entries",
+      "All integrated receipts and standalone interactive awaiting-checks retain Verify",
+      "Raw latestRun state and wire schema remain unchanged",
+      "Projection derives from one existing bounded private run read and performs no Git, child, provider or historical scan",
+      "Read-only route audit remains passing"
+    ]
+  },
+  "fullApiReportedOutcome": {
+    "evidenceClass": "Agent-reported tool transcript; no retained raw log or source manifest for this run.",
+    "reporter": "nimbalyst_research",
+    "reportedDate": "2026-10-08",
+    "command": [
+      "go",
+      "-C",
+      "control-plane",
+      "test",
+      "-p",
+      "2",
+      "./internal/api",
+      "-count=1"
+    ],
+    "temporaryDirectoryConfiguration": "GOTMPDIR and TMPDIR used a task-specific temporary directory; local path omitted.",
+    "exitCode": 0,
+    "reportedPackageElapsedSeconds": 45.16,
+    "reportedOutput": "ok github.com/lcfrai/luci/control-plane/internal/api 45.160s",
+    "boundToCommit": false,
+    "limitations": [
+      "Exact run timestamp and wall duration were not retained.",
+      "The later 143-test race manifest must not be reused as provenance for this earlier full API run."
+    ]
+  },
+  "limitations": [
+    "Focused source tests are not installed Docker, live-provider or native Windows acceptance.",
+    "Selected source hashes alone do not prove all compilation inputs."
+  ]
+}

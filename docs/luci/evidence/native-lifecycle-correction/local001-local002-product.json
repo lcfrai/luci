@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "commitBinding": null,
+  "sourceState": "Uncommitted correction snapshot; no future revision assigned.",
+  "originalReceipt": {
+    "artifact": "artifacts/local001-002/product-verification.json",
+    "sha256": "eedc000530319a183a2081453e8a364ac0aa90e4dd6ae24858a3c713305e03f0"
+  },
+  "sourceManifest": "local001-local002-product-source-inputs.json",
+  "originalSourceBefore": {
+    "artifact": "artifacts/local001-002/full-product-sources-before.json",
+    "sha256": "0d39a34a6991646ea2092de39e4c3e4fbe9341eea14c22283aafb8069f1990fb"
+  },
+  "originalSourceAfter": {
+    "artifact": "artifacts/local001-002/full-product-sources-after.json",
+    "sha256": "0d39a34a6991646ea2092de39e4c3e4fbe9341eea14c22283aafb8069f1990fb"
+  },
+  "beforeEqualsAfterIndependentlyChecked": true,
+  "originalRaceEvents": {
+    "artifact": "artifacts/local001-002/product-race.jsonl",
+    "sha256": "0aacbd01ba4a846581f9f6916d71caac9c18d25f85148988b2e4ae81484ced90"
+  },
+  "originalFullPackageEvents": {
+    "artifact": "artifacts/local001-002/product-full.jsonl",
+    "sha256": "798beeb03df560bb7bda0b88516667dad3c0be7cbe01e9e98f105a955ff8497e"
+  },
+  "verification": {
+    "issues": [
+      "LOCAL-001",
+      "LOCAL-002"
+    ],
+    "recordedAt": "2026-10-08T08:25:36.275841+00:00",
+    "result": "pass",
+    "sourceHashes": {
+      "control-plane/internal/product/fixture_ownership_test.go": "fb1aca6b0a96a2d8c29696015862dbcc3524bb2c6c09473395a900de289b8311",
+      "control-plane/internal/product/fixture_ownership_regression_test.go": "a92a0a6ca348dd0bf2c0ffd9432163cf112c251c855427224673b9229e241dae",
+      "control-plane/internal/product/project_swarm_path_test.go": "35bc7a5f01829944110cab422efd650fe75928d9702dc4ef3aa6a9758f19c159",
+      "control-plane/internal/product/project_swarm.go": "ee652c3b2b4ea9d19328f4ec82bbe80b02326c1742f87a019967dee31178e193",
+      "control-plane/internal/product/project_swarm_integration.go": "de67f68b938b096d03746b44f79a1dd932504c0cdd7e34c03dbdc03a9d6411b9",
+      "control-plane/internal/product/project_swarm_http_test.go": "30273f0aa820483ea9af7dc423033f971054d6f96aa349d8cc681cc966f1065d",
+      "control-plane/internal/product/project_swarm_lifecycle_test.go": "5e8eae4e055affd79f9876c348b9c50962859700ab190969c115cef3b766b8b5",
+      "control-plane/internal/product/project_swarm_workspace_test.go": "0f924b3afaf6b42ee58f899abd8f6a9151a88f843a1dae74fc831d5000166b04",
+      "control-plane/internal/product/projects_test.go": "175f42dcb9eaa8b54f788e13913bac3afc7a940ec4fd0a3f28577ac9bff1e747",
+      "control-plane/internal/product/git_confinement_test.go": "2c7b5531fed3fa794dd9462e0ed721903caf23607078bf5964be67b8181a861d",
+      "control-plane/internal/product/releases_test.go": "4f0313ffca96ec61b365bcc26df172912bd36ad0a087034fed3cb90b024c0af5",
+      "control-plane/internal/product/files_git_review_test.go": "b80b09b4cb30c97367d2e10db7a87717eb2687a282a9f5d2dedc5cacd2764537"
+    },
+    "fullPackageSourceBinding": {
+      "before": "artifacts/local001-002/full-product-sources-before.json",
+      "after": "artifacts/local001-002/full-product-sources-after.json",
+      "files": 578,
+      "changed": []
+    },
+    "checks": [
+      {
+        "command": "go test -race -json ./internal/product -run 'Test(SwarmFixture|SwarmPath|SwarmReaperExit|ProjectSwarmHTTP|ProjectSwarmWorkspace|JourneyGit|NativePreviewFixture|GitCommit)' -count=1",
+        "result": "pass",
+        "elapsedSeconds": 48.803,
+        "passedTestsIncludingSubtests": 67,
+        "skippedTests": [
+          "TestSwarmFixtureRefusalProcess"
+        ],
+        "failedTests": [],
+        "log": "artifacts/local001-002/product-race.jsonl",
+        "sha256": "0aacbd01ba4a846581f9f6916d71caac9c18d25f85148988b2e4ae81484ced90"
+      },
+      {
+        "command": "go test -json ./internal/product -count=1",
+        "result": "pass",
+        "elapsedSeconds": 137.107,
+        "passedTestsIncludingSubtests": 739,
+        "skippedTests": [
+          "TestDataIngressActualEnvoyClientBoundary",
+          "TestSwarmFixtureRefusalProcess"
+        ],
+        "failedTests": [],
+        "log": "artifacts/local001-002/product-full.jsonl",
+        "sha256": "798beeb03df560bb7bda0b88516667dad3c0be7cbe01e9e98f105a955ff8497e"
+      }
+    ],
+    "corrections": [
+      "swarmPath uses portable path.Join before strict traversal validation; existing parent depths and two owned allocations/resolution covered.",
+      "Reservation refuses failed path identity instead of hashing an empty path; integration resolves both paths before any integration receipt or Git mutation.",
+      "Every formerly ignored swarm fixture path error is checked.",
+      "Fixture root authority is minted only by testing.T.TempDir; empty, relative, unregistered, missing-directory and no-metadata commit roots refuse before writes/Git.",
+      "Git fixture commands cannot discover a parent repository above the owned fixture root.",
+      "Unsafe helper subprocess regressions execute only inside a disposable parent repository and verify its entire tree including Git metadata is unchanged."
+    ],
+    "limitations": [
+      "Linux tests validate the corrected path and confinement contracts; native Windows execution of this corrected revision is pending.",
+      "Native exact9898 failure and accidental fixture commit were prior-candidate results; this receipt does not reinterpret that contaminated local HEAD as a clean result.",
+      "LOCAL-003 deadline fixture correction and API regressions have a separate receipt owned by the API agent."
+    ]
+  },
+  "independentlyRecounted": {
+    "race": {
+      "testEvents": {
+        "pass": 67,
+        "skip": 1
+      },
+      "skippedTests": [
+        "TestSwarmFixtureRefusalProcess"
+      ]
+    },
+    "fullPackage": {
+      "testEvents": {
+        "pass": 739,
+        "skip": 2
+      },
+      "skippedTests": [
+        "TestDataIngressActualEnvoyClientBoundary",
+        "TestSwarmFixtureRefusalProcess"
+      ]
+    }
+  },
+  "limitations": [
+    "The full-package manifest establishes stable recorded Go/module inputs for that command, not all transitive toolchain inputs.",
+    "Native Windows retest, installed Docker allocation/recovery and live model quality remain separate gates."
+  ]
+}

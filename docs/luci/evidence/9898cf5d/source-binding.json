@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "commit": "9898cf5d4a5302e431c8e42f5b3612c0a95e7061",
+  "verifiedAt": "2026-10-08T07:59:25.871516+00:00",
+  "method": "Independent SHA-256 comparison of retained input hashes with git show COMMIT:PATH, never the current working tree. Checks preceded the commit; matching bytes do not change their historical scope.",
+  "scopes": {
+    "frontend": {
+      "manifest": "frontend-source-inputs.json",
+      "original": {
+        "artifact": "artifacts/quality-swarm/task-lifecycle-final/frontend-contract-sync/source-before.json",
+        "sha256": "a006b3ecdaa494e91b4b99e16e00a0aae24bbd87338b53e672435f483f0a60ed"
+      },
+      "inputCount": 473,
+      "allListedBytesMatchCommit": true,
+      "matchedInputs": 473,
+      "differences": [],
+      "scopeLimit": "Recorded input selection only; not a complete inventory of transitive toolchain or dependency inputs."
+    },
+    "launch-fence": {
+      "manifest": "launch-fence-source-inputs.json",
+      "original": {
+        "artifact": "artifacts/task-worker-launch-fence-source.json",
+        "sha256": "baf141baa07a7f15a9b182ee9a98c10d9afe4b77a4aefe55539001a1e4cfa050"
+      },
+      "inputCount": 572,
+      "allListedBytesMatchCommit": true,
+      "matchedInputs": 572,
+      "differences": [],
+      "scopeLimit": "Recorded input selection only; not a complete inventory of transitive toolchain or dependency inputs."
+    },
+    "go-baseline": {
+      "manifest": "go-baseline-source-inputs.json",
+      "original": {
+        "artifact": "artifacts/quality-swarm/task-lifecycle-final/go-services/source-before.json",
+        "sha256": "18f79e8a98f0993393f09b11b6b267ab860941a471a66ab70a7fa25789715f2b"
+      },
+      "inputCount": 699,
+      "allListedBytesMatchCommit": false,
+      "matchedInputs": 687,
+      "differences": [
+        {
+          "path": "control-plane/internal/api/execution_leases.go",
+          "testedSHA256": "382d2929f0cd179c7b3320c9940d14d720860e3162e2d7dd7cc81725f426f118",
+          "commitSHA256": "26132490271e01fbe97a094d4bb72b3d6bec1c5cddc41c3e0ca759f7952b5828"
+        },
+        {
+          "path": "control-plane/internal/api/execution_leases_test.go",
+          "testedSHA256": "384714fbf75eea611ec66f2bfbcef6d0e626edab4620698749d8e187a4eebc3a",
+          "commitSHA256": "6acb4d8a550eaf25ca40913f5ac951fb3e078b98d95295048a7deae6ed78610e"
+        },
+        {
+          "path": "control-plane/internal/api/session_allocation.go",
+          "testedSHA256": "a668b9d15d50a874f456d4433499a662318ab528b687682542180d49624515e0",
+          "commitSHA256": "930164bfc5c6c81e328060f1d39cb196146587fac25ca3c3510dbf0da05b7c11"
+        },
+        {
+          "path": "control-plane/internal/api/session_restart_admission.go",
+          "testedSHA256": "0ec0eaa781fb5e259d19bac3d335d0c035cf17969a06fa35fecc9950f48a5b26",
+          "commitSHA256": "cdb2ce0cf803c6b1990805731a5d7dc5c23815364a6d68ea125acacfc738f443"
+        },
+        {
+          "path": "control-plane/internal/api/session_restart_admission_test.go",
+          "testedSHA256": "4b5da29c50faadbad20bedbbc8cfe1934db462781110e0e66c106d299d2f45ee",
+          "commitSHA256": "7047a42a3e2d420a936b5f81cae6b0da4535bd689a8377ca2b6e923d78745e83"
+        },
+        {
+          "path": "control-plane/internal/api/sessions.go",
+          "testedSHA256": "a661f29c73fb0fb6741ba35c40ba51279c6337ef74012a6d51ed17739f07ce6d",
+          "commitSHA256": "9d585b15507270cd53fa68416c4e128e393474411152596cab96dd1b6c07af19"
+        },
+        {
+          "path": "control-plane/internal/api/swarm_dispatch.go",
+          "testedSHA256": "a6a79d7e11a7b6eaa2de4db5ce8283c8bc83e0c79eae55e3e8d58e82f4f6aa74",
+          "commitSHA256": "4f367faabfd54685174130c493eb9604caa474d414fb162c5b1e705524c0dbd4"
+        },
+        {
+          "path": "control-plane/internal/api/swarm_missing_recovery_test.go",
+          "testedSHA256": "716555e257a2e0c443a99e08a8b0aadcb2ddcd5d1d369a02848b5efd847d9f99",
+          "commitSHA256": "036339be7623ec541eab137f84b15e6b5730354b6a4c0a8bc6b64a66fe78ca0b"
+        },
+        {
+          "path": "control-plane/internal/api/swarm_worktree_observer.go",
+          "testedSHA256": "1e0b0c80c7e5b6128359faa983e375db08c9756adc65c5fe1557cccca571ee90",
+          "commitSHA256": "1b4b2f394d896040ebc0cef1a564e716532451ae1a09063daff8d1f74a6fb700"
+        },
+        {
+          "path": "control-plane/internal/product/project_overview.go",
+          "testedSHA256": "a78962f6d2201e45a476df2bb7a80e1501db32d7db43b0d7ce5d54c57dbcd9b8",
+          "commitSHA256": "1ee33b3c197b949453ce8d4f0b49b0bb776f745f1d00767ef175e04384b0bbdd"
+        },
+        {
+          "path": "control-plane/internal/product/project_overview_runs.go",
+          "testedSHA256": "6f966693bca16db9bde8b0c7269bdec3d9b465b1ce3272c68d929f495208ddff",
+          "commitSHA256": "75bcf72bf5207c51ce057c4832f96674a6d76b3c4e18a5406a5d333591d600a8"
+        },
+        {
+          "path": "control-plane/internal/product/project_overview_runs_test.go",
+          "testedSHA256": "d5c7e7715c71da1ccb9a6aba99029f984ee424a14979f9e1d5296741e410b502",
+          "commitSHA256": "5581b1d21da782536acd2d40b7f7eefb2b1a30e6d5aca38c17a417ef35a82115"
+        }
+      ],
+      "scopeLimit": "Historical baseline only; differences prevent binding the complete passing run to this commit.",
+      "finalNonVendoredGoFilesAbsentFromRecordedManifest": [
+        "control-plane/internal/api/execution_launch_fence_test.go",
+        "control-plane/internal/api/execution_launch_observer.go"
+      ]
+    },
+    "product-oneshot": {
+      "manifest": "product-oneshot-source-inputs.json",
+      "original": {
+        "artifact": "artifacts/swarm-oneshot-product-verification.json",
+        "sha256": "ea949e318698a0d26d503c4ddb48e021f4cdcca86365e1f5073f6e68685b28f9"
+      },
+      "inputCount": 9,
+      "matchedInputs": 9,
+      "allListedBytesMatchCommit": true,
+      "differences": [],
+      "scopeLimit": "Only selected files were retained; not a complete compilation-input manifest."
+    },
+    "product-overview": {
+      "manifest": "product-overview-source-inputs.json",
+      "original": {
+        "artifact": "artifacts/swarm-overview-task-review-verification.json",
+        "sha256": "4513eeaae9cf5205dffa6abb904dec7133ebb0122390082bf94c84b07f34d3a5"
+      },
+      "inputCount": 3,
+      "matchedInputs": 3,
+      "allListedBytesMatchCommit": true,
+      "differences": [],
+      "scopeLimit": "Only selected files were retained; not a complete compilation-input manifest."
+    }
+  }
+}

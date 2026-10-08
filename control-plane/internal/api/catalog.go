@@ -121,6 +121,11 @@ type harnessJSON struct {
 	Efforts               []string        `json:"efforts"`
 	PermissionModes       []string        `json:"permissionModes"`
 	SupportsOpeningPrompt bool            `json:"supportsOpeningPrompt"`
+	SupportsCustomModel   bool            `json:"supportsCustomModel"`
+	DockerAskNotice       string          `json:"dockerAskNotice,omitempty"`
+	AutonomousTask        bool            `json:"autonomousTask"`
+	TaskPermissionModes   []string        `json:"taskPermissionModes"`
+	TaskPermissionNotice  string          `json:"taskPermissionNotice,omitempty"`
 	SupportsResume        bool            `json:"supportsResume"`
 	Note                  string          `json:"note"`
 }
@@ -460,6 +465,11 @@ func (a *API) handleHarnesses(w http.ResponseWriter, _ *http.Request) {
 			Efforts:               stringsOf(d.Efforts),
 			PermissionModes:       stringsOf(d.PermissionModes),
 			SupportsOpeningPrompt: d.SupportsOpeningPrompt,
+			SupportsCustomModel:   d.SupportsCustomModel,
+			DockerAskNotice:       d.DockerAskNotice,
+			AutonomousTask:        d.AutonomousTask,
+			TaskPermissionModes:   stringsOf(d.TaskPermissionModes),
+			TaskPermissionNotice:  d.TaskPermissionNotice,
 			SupportsResume:        d.SupportsResume,
 			Note:                  d.Note,
 		})

@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "at": "2026-10-08T08:26:51.302137+00:00",
+  "commitBinding": null,
+  "method": "SHA-256 comparison of recorded hashes against current source bytes at curation; original Go JSON event outcomes independently recounted. No tests/build/Docker operations run during curation.",
+  "sourceComparisons": [
+    {
+      "scope": "finalProductRecordedInputs",
+      "fileCount": 578,
+      "mismatches": []
+    },
+    {
+      "scope": "apiCompiledInputSuperset",
+      "fileCount": 336,
+      "mismatches": []
+    },
+    {
+      "scope": "cloud006SelectedCatalogueInputs",
+      "fileCount": 2,
+      "mismatches": []
+    },
+    {
+      "scope": "cloud007SelectedInputs",
+      "fileCount": 5,
+      "mismatches": []
+    }
+  ],
+  "limitations": [
+    "These byte comparisons do not change when the original checks ran or broaden their test scope.",
+    "A future commit requires a separate Git-blob comparison; no future source revision is asserted here.",
+    "Native reports remain relayed, not independently verified raw native evidence."
+  ]
+}

@@ -1,11 +1,9 @@
 package api
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
-	"log/slog"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -68,13 +66,13 @@ func (b *pendingCreateBackend) Destroy(ctx context.Context, id string) error {
 func TestExecutionPendingCreateRefusesConcurrentStopAndSecondAllocation(t *testing.T) {
 	f := newSwarmSessionFixtureTasks(t)
 	a := f.env.api
-	var logs bytes.Buffer
-	a.deps.Log = slog.New(slog.NewTextHandler(&logs, nil))
-	t.Cleanup(func() {
-		if t.Failed() {
-			t.Log(logs.String())
-		}
-	})
+	// This scenario deliberately holds Backend.Create while two other HTTP
+	// requests perform real Git/policy work. The generic unit fixture's 50 ms
+	// readiness timeout would also impose a 100 ms create deadline, unrelated
+	// to this test's exclusion assertion. Match the scenario's bounded 10 s
+	// channel waits; dedicated create-deadline tests keep their short budgets.
+	a.deps.ReadyTimeout = 5 * time.Second // CreateGraceFor is twice ReadyTimeout.
+	logSwarmFixtureFailure(t, f)
 	a.deps.ResourceSnapshot = executionFixtureSnapshot
 	a.deps.Resources = backend.Resources{MemoryMiB: 1024, CPUMillis: 1000}
 	sessionsStubReady(t, nil)

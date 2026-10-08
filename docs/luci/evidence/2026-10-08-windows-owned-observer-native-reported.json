@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "evidenceKind": "reported-native-observer-validation",
+  "reportedOutcome": "passed-with-limited-scope",
+  "provenance": {
+    "origin": "Native Windows tester report relayed to the cloud development session",
+    "executedByThisCloudSession": false,
+    "rawArtifactsInspectedByThisCloudSession": false,
+    "rawArtifactHashesAvailable": false,
+    "initialCheckoutRevision": "9898cf5d4a5302e431c8e42f5b3612c0a95e7061",
+    "laterCheckoutRevision": "8f4deb8a4d7300a875b4e18ff44cf5e222fca9b1",
+    "checkoutCaveat": "A separate Git test fixture changed the isolated checkout HEAD. The tester reported unchanged Go and sampler source blobs; this receipt does not independently verify those blobs or assign a verified source hash to the native results.",
+    "reportedPrivateArtifacts": {
+      "controlledChecks": "E:\\Luci-local-acceptance\\evidence\\9898cf5d\\sampler\\controlled-20261008T080527047Z.json",
+      "nativeVerification": "E:\\Luci-local-acceptance\\evidence\\9898cf5d\\sampler\\native-20261008T080538537Z\\verification.json"
+    }
+  },
+  "controlledChecks": {
+    "script": "scripts/acceptance/four-project-queue/test-windows-owned.ps1",
+    "reportedPassed": 9,
+    "nativeOperatingSystem": "Windows",
+    "note": "These checks substitute OS/Docker readers; the separate short native capture below exercises the Windows readers."
+  },
+  "nativeCapture": {
+    "script": "scripts/acceptance/four-project-queue/sample-windows-owned.ps1",
+    "requestedDurationSeconds": 8,
+    "reportedDurationSeconds": 8.017,
+    "sampleCount": 8,
+    "processScope": "Newly owned PowerShell root and its exact descendant",
+    "diskScope": "E: local volume",
+    "dockerConfigured": false,
+    "samplesWithPhysicalMemory": 8,
+    "samplesWithCommitMemory": 8,
+    "samplesWithOwnedWorkingSet": 8,
+    "samplesWithDiskCapacity": 8,
+    "cpuAndIODeltas": "Reported available after the initial baseline; exact delta sample counts were not supplied",
+    "outputACL": "Reported protected, current-user-only",
+    "observedRootAndDescendantExited": true
+  },
+  "supportedConclusion": "The tester reports successful native host/process/disk reads, exact descendant observation and private output ACL creation for this short, two-process Windows capture.",
+  "notEstablished": [
+    "Independent cloud-session inspection or reproduction of the native artifacts",
+    "Docker Desktop named-pipe compatibility or container statistics",
+    "Native Luci, WebView or agent-workload memory use",
+    "Four-project execution, sustained load or automatic slot reuse",
+    "UI latency, whole-computer responsiveness or throughput",
+    "Docker guest-to-physical-backing-volume discovery or admission correctness",
+    "Every Windows filesystem, process lifecycle or access-control configuration"
+  ]
+}

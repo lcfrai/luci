@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "commitBinding": null,
+  "sourceState": "Uncommitted correction inputs recorded by the original check; no future revision assigned.",
+  "originalReceipt": {
+    "artifact": "artifacts/local001-local003-api-verification.json",
+    "sha256": "b3ae101d9e1fb88075d7ebc5bc74e92835bcc077e328909adcc42d9fb3130089"
+  },
+  "originalTestEvents": {
+    "artifact": "artifacts/local001-local003-api.jsonl",
+    "sha256": "fae0a3f40fcdfeb2d787dd206188ceacd7ed7f1af6abefac7535d4f3b8fb4b93"
+  },
+  "sourceManifest": "local001-local003-api-source-inputs.json",
+  "originalSourceManifest": {
+    "artifact": "artifacts/local001-local003-api-source.json",
+    "sha256": "218d0fc71d48368b1e66784a42f1b93fc0a661855cd9f25ba6ca8df0c401867f"
+  },
+  "verification": {
+    "observedAt": "2026-10-08T08:20:30.016363+00:00",
+    "command": [
+      "go",
+      "-C",
+      "control-plane",
+      "test",
+      "-race",
+      "-p",
+      "2",
+      "./internal/api",
+      "-run",
+      "TestSwarmTask|TestSwarmCheckout|TestProjectSwarm(TwoReviewed|PrepareSecond)|TestExecutionPendingCreate|TestTheCreateBudget|TestCreateFinishesAfter",
+      "-count=1",
+      "-json"
+    ],
+    "exitCode": 0,
+    "wallSeconds": 32.627,
+    "scope": "LOCAL-001 API route and owned worktree regression; LOCAL-003 held-create fixture budget and unchanged production deadline contract. Linux controlled-backend tests only; native Windows retest pending.",
+    "sourceFiles": 578,
+    "sourceStable": false,
+    "changes": [
+      "control-plane/internal/product/fixture_ownership_regression_test.go"
+    ],
+    "packages": [
+      {
+        "Time": "2026-10-08T08:20:29.916595046Z",
+        "Action": "pass",
+        "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+        "Elapsed": 13.347
+      }
+    ],
+    "testPasses": 15,
+    "testSkips": 0,
+    "failed": [],
+    "apiInputSupersetFiles": 336,
+    "apiInputSupersetStable": true,
+    "sourceChangeQualification": "Only internal/product/fixture_ownership_regression_test.go changed during the run. This API-only go test command does not compile tests from the dependency product package; all module and production Go files plus API test files remained unchanged. No claim that the whole repository source was frozen."
+  },
+  "independentlyRecounted": {
+    "testEvents": {
+      "pass": 15
+    },
+    "skippedTests": []
+  },
+  "issues": [
+    "LOCAL-001",
+    "LOCAL-003"
+  ],
+  "limitations": [
+    "API-only checks do not compile the changed dependency product test file. The receipt explicitly qualifies source stability rather than claiming the whole repository was frozen.",
+    "LOCAL-003 enlarges only the held-Create fixture scenario budget; production timeout contracts remain independently checked.",
+    "Linux controlled-backend evidence; native Windows retest remains pending."
+  ]
+}

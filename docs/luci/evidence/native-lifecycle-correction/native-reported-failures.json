@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "evidenceClass": "Relayed native Windows tester report, preserved in the coordination document; raw native artifacts were not independently inspected in this cloud curation.",
+  "coordinationDocumentSnapshot": {
+    "artifact": "docs/luci/LOCAL-TEST-LOOP.md",
+    "sha256": "e96599bfb4458f59958e146ec0ffbc6d571ba287f4447f3db7cce995ae64c54e"
+  },
+  "reportedDate": "2026-10-08",
+  "issues": [
+    "LOCAL-001",
+    "LOCAL-002",
+    "LOCAL-003"
+  ],
+  "originalSourceCommit": "9898cf5d4a5302e431c8e42f5b3612c0a95e7061",
+  "nativeBatch": {
+    "topLevelPassed": 11,
+    "topLevelFailed": 4,
+    "subtestsPassed": 27,
+    "skipped": 0,
+    "passed": false
+  },
+  "checkoutMutation": {
+    "reportedAt": "2026-10-08T08:04:12Z",
+    "before": "9898cf5d4a5302e431c8e42f5b3612c0a95e7061",
+    "after": "8f4deb8a4d7300a875b4e18ff44cf5e222fca9b1",
+    "addedFile": "control-plane/internal/product/alpha.txt",
+    "reportedGoSourceBlobsUnchanged": true,
+    "scope": "Isolated acceptance checkout. Original user checkout reported untouched.",
+    "laterDiagnostics": "Serial/short-TEMP diagnostics used the changed HEAD; they must not be labelled pristine 9898cf5d runs."
+  },
+  "freshDiagnosticOverlay": {
+    "baseCommit": "9898cf5d4a5302e431c8e42f5b3612c0a95e7061",
+    "reportedFinalHead": "9898cf5d4a5302e431c8e42f5b3612c0a95e7061",
+    "reportedOverlaySHA256": "82d53e86f94e1613a6fc084864565cade6880d20959686eb9cb6a8ab0639bd42",
+    "receiptRelativeName": "diagnostic/allocator-logger-v2.jsonl",
+    "finding": "Windows swarmPath backslashes were passed to a guard requiring portable forward slashes.",
+    "limitation": "Logging overlay diagnostic, not acceptance of unchanged production source; overlay digest is reported, not independently recomputed here."
+  },
+  "separateTimeoutFinding": "Held-Create fixture ReadyTimeout 50 ms derived a 100 ms Create budget while a barrier included real Windows route/Git work.",
+  "remainingGate": "Native Windows rerun on a fresh pinned correction revision, preserving both original failed receipts and the contaminated checkout.",
+  "limitations": [
+    "Native observer/sampler passes are separate evidence and cannot prove these lifecycle checks passed.",
+    "Coordination document hash identifies the source snapshot observed during curation; that maintained document may subsequently change.",
+    "No native private paths, usernames, credentials, raw logs or fixture content are published."
+  ]
+}

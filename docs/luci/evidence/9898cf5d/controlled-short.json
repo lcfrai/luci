@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "originalResult": {
+    "artifact": "artifacts/quality-swarm/task-lifecycle-final/controlled-short.json",
+    "sha256": "881d52b85a1a12d01b9cce413d6966979f5717358a600f127e31b3771ee4cc01"
+  },
+  "originalLog": {
+    "artifact": "artifacts/quality-swarm/task-lifecycle-final/controlled-short.log",
+    "sha256": "7286faba1fcb81ae8079b99de50521e2abc16201d623339724d622c0f4b90c3c"
+  },
+  "passed": true,
+  "scope": "One real API/product service/private FileStore, four reviewed projects, real controlled child processes, actual captured contexts; deterministic admission telemetry is separate from measured host snapshots.",
+  "reportedSourceCommit": "9898cf5d4a5302e431c8e42f5b3612c0a95e7061",
+  "sourceProvenance": "Root reported a clean-revision run. No independent compilation-input manifest was retained for this short run; source byte bindings from other runs must not be transferred to it.",
+  "commandTemplate": "LUCI_SWARM_MULTI_PROJECT=1 LUCI_SWARM_MULTI_PROJECT_SECONDS=15 LUCI_SWARM_MULTI_PROJECT_REPORT=<private-report-path> go -C control-plane test ./internal/api -run ^TestProjectSwarmFourProjectControlledCapacity$ -count=1 -v",
+  "requestedDurationSeconds": 15,
+  "packageElapsedSeconds": 21.269,
+  "projects": 4,
+  "peakLiveWorkers": 3,
+  "workerStarts": 7,
+  "successfulWorkers": 6,
+  "expectedFailedWorkers": 1,
+  "unexpectedFailures": 0,
+  "assertions": {
+    "restartRetained": true,
+    "amendmentKeptRunningContext": true,
+    "fairFirstWave": true,
+    "cancelledWithoutAllocation": true
+  },
+  "policy": {
+    "maxActive": 3,
+    "maxPerProject": 1,
+    "headroomPercent": 25,
+    "minHeadroomMiB": 2048,
+    "diskReserveMiB": 512
+  },
+  "syntheticAdmissionFixture": {
+    "executionTotalBytes": 17179869184,
+    "hostAndExecutionCPUMillis": 8000,
+    "hostAvailableBytes": 32212254720,
+    "hostTotalBytes": 34359738368,
+    "imageVirtualSizeBytes": 1048576,
+    "projectAndDaemonDiskAvailableBytes": 107374182400,
+    "scope": "Synthetic admission observations only; actual measured host/process observations are in samples. 25% engine memory and CPU headroom leaves room for three requested 4 GiB/2 CPU workers."
+  },
+  "limitations": [
+    "No models, Docker enforcement, Windows desktop, deployment, or application result quality claims.",
+    "Restart reopens API/product services and private ledgers in the test process; it is not an OS-process crash or a host reboot.",
+    "Requested worker limits are scheduling fixture inputs; actual touched memory is 16 MiB per process.",
+    "Controlled outputs require human integration and checks; successful process exit is not verified work.",
+    "Host measurements describe this execution host, not a 31.2 GiB Windows workstation.",
+    "This 15-second regression does not repeat or extend the prior 600-second sustained result.",
+    "No process IDs, private fixture paths, project/session identifiers or raw captured context are published."
+  ]
+}

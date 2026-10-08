@@ -53,7 +53,7 @@ func journeyFixture(t *testing.T) (*Server, *http.ServeMux) {
 	t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(t.TempDir(), "no-global-config"))
 	t.Setenv("LUCI_GIT_NAME", "Luci Test Person")
 	t.Setenv("LUCI_GIT_EMAIL", "person@example.com")
-	s, err := New(Options{StateDir: t.TempDir(), ProjectsDir: t.TempDir()})
+	s, err := New(Options{StateDir: t.TempDir(), ProjectsDir: ownedFixtureTempDir(t)})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -9,6 +9,12 @@ passing one scope does not establish another or complete the local product.
   ten-minute scheduler run, package integrity, portable startup/persistence,
   source export and retained failures. Includes source-hash manifests and a
   verifier for historical Git blobs.
+- [9898cf5d task-worker source evidence](9898cf5d/README.md): exact package,
+  frontend and scoped Go provenance, including limitations and the subsequent
+  LOCAL-001/LOCAL-002 native findings. Do not rerun its unsafe fixture helpers.
+- [9898cf5d installed Home controls](2026-10-08-9898cf5d-home-controls.md):
+  actual bulk mutations and permission failures, plus explicitly controlled
+  source-lock response handling; no agent execution.
 - [CLOUD-001 source correction](9a84e740/README.md): queue availability during
   source locking, per-item revision checks and current permission enforcement.
 - [Partial installed resource observations](2026-10-08-e81b5860-partial-owned-resources.md):
@@ -17,6 +23,10 @@ passing one scope does not establish another or complete the local product.
 - [Installed Home controls](../../../scripts/acceptance/four-project-queue/README.md):
   real saved queue mutations, partial permission failure and exact-run navigation
   at e81, with reproducible helpers. This witness does not start agent workers.
+
+- [Reported native Windows observer checks](2026-10-08-windows-owned-observer-native-reported.md):
+  native process/memory/disk metrics and private output ACL checks reported by
+  the local tester; no Docker or Luci workload performance claim.
 
 The private raw logs, credentials, profiles and fixture workspaces stay outside
 Git. Original-artifact hashes record lineage; they are not signed attestations.

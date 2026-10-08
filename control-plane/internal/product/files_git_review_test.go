@@ -302,7 +302,7 @@ func TestReviewedCommitFreezesGitNormalizationAndIgnoresInheritedRedirection(t *
 	os.MkdirAll(filepath.Join(p.Path, ".git", "info"), 0700)
 	os.WriteFile(filepath.Join(p.Path, ".git", "info", "attributes"), []byte("*.md -text\n"), 0600)
 	req := reviewedCommitRequest(t, mux, base+"/git/commit", "Frozen transform inputs")
-	foreign := t.TempDir()
+	foreign := ownedFixtureTempDir(t)
 	confinedFixtureGit(t, foreign, "init", "-b", "main")
 	t.Setenv("GIT_DIR", filepath.Join(foreign, ".git"))
 	t.Setenv("GIT_WORK_TREE", foreign)

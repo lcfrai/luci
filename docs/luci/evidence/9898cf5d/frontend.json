@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "boundCommit": "9898cf5d4a5302e431c8e42f5b3612c0a95e7061",
+  "sourceBinding": "source-binding.json#frontend",
+  "original": {
+    "artifact": "artifacts/quality-swarm/task-lifecycle-final/frontend-contract-sync/result.json",
+    "sha256": "cb7b03fa9f0554f35e64f6d2342dc2c2bb64e9172787fa36913e2607b1d7569d"
+  },
+  "historicalSourceCommit": "9a84e740ad85e4a03540f2dfb082f98cb60604c5",
+  "historicalSourceDirty": true,
+  "passed": true,
+  "startedAt": "2026-10-08T07:29:54.471219+00:00",
+  "finishedAt": "2026-10-08T07:34:15.320694+00:00",
+  "workingDirectory": "desktop",
+  "sourceUnchanged": true,
+  "sourceBefore": {
+    "artifact": "artifacts/quality-swarm/task-lifecycle-final/frontend-contract-sync/source-before.json",
+    "sha256": "a006b3ecdaa494e91b4b99e16e00a0aae24bbd87338b53e672435f483f0a60ed"
+  },
+  "sourceAfter": {
+    "artifact": "artifacts/quality-swarm/task-lifecycle-final/frontend-contract-sync/source-after.json",
+    "sha256": "a006b3ecdaa494e91b4b99e16e00a0aae24bbd87338b53e672435f483f0a60ed"
+  },
+  "beforeEqualsAfter": true,
+  "testFilesPassed": 143,
+  "testsPassed": 2375,
+  "steps": [
+    {
+      "name": "tests",
+      "command": [
+        "npm",
+        "test"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 193.786,
+      "log": "tests.log",
+      "logSHA256": "5aa88f73eaf2464dd2ce4fe3648d22e8d822236b3477d468c13f3080ed1bafdb"
+    },
+    {
+      "name": "typecheck",
+      "command": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 29.733,
+      "log": "typecheck.log",
+      "logSHA256": "6d51e3ec9a9d283eee096e5e9403c5d963c9468e9756fd61f3e9e0d3df1bde71"
+    },
+    {
+      "name": "build",
+      "command": [
+        "npm",
+        "run",
+        "build"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 37.262,
+      "log": "build.log",
+      "logSHA256": "4de6518bba7df23f15db2d5e91af30405c13a0adde9202770edd2dbc83a52e7a"
+    }
+  ],
+  "correction": "Canonical contract synchronized with the three optional task capability fields and their explanatory comment; no test assertion relaxed.",
+  "precedingFailure": {
+    "original": {
+      "artifact": "artifacts/quality-swarm/task-lifecycle-final/frontend/result.json",
+      "sha256": "833504acc631c19a29af9d466f183dac2684262d188856118ba9262a4a615690"
+    },
+    "testLog": {
+      "artifact": "artifacts/quality-swarm/task-lifecycle-final/frontend/tests.log",
+      "sha256": "034937db265e295e69a39f7db3b6689b22854d3e69ca4ef5f4fc8b1c591d7500"
+    },
+    "passed": false,
+    "testsPassed": 2374,
+    "testsFailed": 1,
+    "failingCase": "src/seams.test.ts: SX.2 canonical TypeScript contract must be byte-identical to types.ts, ignoring line endings",
+    "testExitCode": 1,
+    "typecheckExitCode": 0,
+    "buildExitCode": 0
+  },
+  "limitations": [
+    "Source tests, typechecking and production web build; not a native Windows or installed interactive acceptance pass."
+  ]
+}

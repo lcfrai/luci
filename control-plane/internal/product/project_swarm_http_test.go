@@ -40,7 +40,14 @@ func swarmReserveHTTP(t *testing.T, mux *http.ServeMux, base string, run Project
 }
 func swarmCommitFixture(t *testing.T, path, name, contents string) string {
 	t.Helper()
-	if err := os.WriteFile(filepath.Join(path, name), []byte(contents), 0600); err != nil {
+	if err := validateOwnedFixtureWorktree(t, path); err != nil {
+		t.Fatalf("refuse unsafe swarm fixture commit: %v", err)
+	}
+	file, err := guardedProjectPath(path, name, true)
+	if err != nil {
+		t.Fatalf("refuse unsafe swarm fixture file: %v", err)
+	}
+	if err := os.WriteFile(file, []byte(contents), 0600); err != nil {
 		t.Fatal(err)
 	}
 	confinedFixtureGit(t, path, "add", "--", name)
@@ -126,7 +133,7 @@ func TestProjectSwarmHTTPRealGitParallelIntegrationAndDependencyRelease(t *testi
 	if last.BaseCommit != swarmTask(&run, "task-a").Integration.Commit {
 		t.Fatal("dependent task missed integrated dependency")
 	}
-	path, _ := s.swarmPath(p.ID, run.ID, last.ID)
+	path := mustSwarmPathFixture(t, s, p.ID, run.ID, last.ID)
 	if data, err := os.ReadFile(filepath.Join(path, "alpha.txt")); err != nil || string(data) != "alpha\n" {
 		t.Fatal("dependency output not present", err)
 	}
@@ -182,12 +189,12 @@ func TestProjectSwarmHTTPConflictRetainsBothSidesAndAllowsExplicitNewAttempt(t *
 	s.SetProjectRunSessionObserver(func(context.Context, string, string, string) ([]registry.Session, error) { return nil, nil })
 	run = swarmReserveHTTP(t, mux, base, run, "task-a", "conflict-first-123456789")
 	opA := run.Operations[0]
-	pathA, _ := s.swarmPath(p.ID, run.ID, opA.ID)
+	pathA := mustSwarmPathFixture(t, s, p.ID, run.ID, opA.ID)
 	sourceA := swarmCommitFixture(t, pathA, "shared.txt", "first independently reviewed version\n")
 	run = swarmFinishFixture(t, s, p, run, opA.ID)
 	run = swarmReserveHTTP(t, mux, base, run, "task-b", "conflict-second-123456789")
 	opB := run.Operations[1]
-	pathB, _ := s.swarmPath(p.ID, run.ID, opB.ID)
+	pathB := mustSwarmPathFixture(t, s, p.ID, run.ID, opB.ID)
 	sourceB := swarmCommitFixture(t, pathB, "shared.txt", "second independently reviewed version\n")
 	run = swarmFinishFixture(t, s, p, run, opB.ID)
 	reviewA := swarmReviewHTTP(t, mux, base, "task-a")
@@ -204,7 +211,7 @@ func TestProjectSwarmHTTPConflictRetainsBothSidesAndAllowsExplicitNewAttempt(t *
 	if confinedFixtureGit(t, p.Path, "rev-parse", "HEAD") != target || confinedFixtureGit(t, pathA, "rev-parse", "HEAD") != sourceA || confinedFixtureGit(t, pathB, "rev-parse", "HEAD") != sourceB {
 		t.Fatal("conflict changed source or target")
 	}
-	integrationPath, _ := s.swarmPath(p.ID, run.ID, opB.ID+"-integration")
+	integrationPath := mustSwarmPathFixture(t, s, p.ID, run.ID, opB.ID+"-integration")
 	if !strings.Contains(confinedFixtureGit(t, integrationPath, "status", "--porcelain"), "AA shared.txt") {
 		t.Fatal("conflict evidence was discarded")
 	}
@@ -225,7 +232,7 @@ func TestProjectSwarmHTTPReviewRejectsDirtyOutsideScopeAndChangedTarget(t *testi
 	s, mux, p, run, base, _ := swarmHTTPFixture(t)
 	run = swarmReserveHTTP(t, mux, base, run, "task-a", "review-guard-123456789")
 	op := run.Operations[0]
-	path, _ := s.swarmPath(p.ID, run.ID, op.ID)
+	path := mustSwarmPathFixture(t, s, p.ID, run.ID, op.ID)
 	if err := os.WriteFile(filepath.Join(path, "alpha.txt"), []byte("uncommitted"), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -271,7 +278,7 @@ func TestProjectSwarmHTTPUnknownAllocationRetiredWithoutReplay(t *testing.T) {
 		t.Fatal(run.Operations, allocations)
 	}
 	old := run.Operations[0]
-	oldPath, _ := s.swarmPath(p.ID, run.ID, old.ID)
+	oldPath := mustSwarmPathFixture(t, s, p.ID, run.ID, old.ID)
 	journeyRequest(t, mux, "POST", base+"/tasks/task-a/reserve", map[string]any{"expectedRevision": 1, "idempotencyKey": "allocation-unknown-123456"}, 200)
 	if allocations != 1 {
 		t.Fatal("lost response replayed allocation")
@@ -292,7 +299,7 @@ func TestProjectSwarmHTTPReconcileRecoversPublishedIntegrationWithoutMergingAgai
 	s.SetProjectRunSessionObserver(func(context.Context, string, string, string) ([]registry.Session, error) { return nil, nil })
 	run = swarmReserveHTTP(t, mux, base, run, "task-a", "recover-first-123456789")
 	op := run.Operations[0]
-	path, _ := s.swarmPath(p.ID, run.ID, op.ID)
+	path := mustSwarmPathFixture(t, s, p.ID, run.ID, op.ID)
 	swarmCommitFixture(t, path, "alpha.txt", "recoverable\n")
 	run = swarmFinishFixture(t, s, p, run, op.ID)
 	review := swarmReviewHTTP(t, mux, base, "task-a")
@@ -343,7 +350,7 @@ func TestProjectSwarmHTTPProtectedContextChangesNeverEnterReviewPatch(t *testing
 	s, mux, p, run, base, _ := swarmHTTPFixture(t)
 	run = swarmReserveHTTP(t, mux, base, run, "task-a", "protected-scope-123456789")
 	op := run.Operations[0]
-	path, _ := s.swarmPath(p.ID, run.ID, op.ID)
+	path := mustSwarmPathFixture(t, s, p.ID, run.ID, op.ID)
 	swarmCommitFixture(t, path, ".luci/plan.json", "{\"unreviewed\":\"fixture-secret-marker\"}\n")
 	run = swarmFinishFixture(t, s, p, run, op.ID)
 	review := swarmReviewHTTP(t, mux, base, "task-a")
@@ -357,7 +364,7 @@ func TestProjectSwarmHTTPRetiringBrokenCheckoutRestoresCatalogueWithoutDeletingF
 	s.SetProjectRunSessionObserver(func(context.Context, string, string, string) ([]registry.Session, error) { return nil, nil })
 	run = swarmReserveHTTP(t, mux, base, run, "task-a", "broken-clone-123456789")
 	op := run.Operations[0]
-	path, _ := s.swarmPath(p.ID, run.ID, op.ID)
+	path := mustSwarmPathFixture(t, s, p.ID, run.ID, op.ID)
 	retained := path + "-metadata-retained"
 	if err := os.Rename(filepath.Join(path, ".git"), retained); err != nil {
 		t.Fatal(err)

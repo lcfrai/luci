@@ -94,14 +94,13 @@ func TestNativePreviewFixtureCommitsWithoutDeferredMaintenance(t *testing.T) {
 	for key, value := range map[string]string{"maintenance.auto": "true", "maintenance.autoDetach": "true", "gc.auto": "1", "gc.autoDetach": "true"} {
 		confinedFixtureGit(t, p.Path, "config", key, value)
 	}
-	tracePath := filepath.Join(t.TempDir(), "native-fixture-git-trace.jsonl")
-	t.Setenv("GIT_TRACE2_EVENT", filepath.ToSlash(tracePath))
+	tracePath := filepath.Join(ownedFixtureTempDir(t), "native-fixture-git-trace.jsonl")
 	// These bytes intentionally bypass public commit/review rules. Keep using
 	// actual native Git so deployment's later secret/review checks stay real.
 	if err := os.WriteFile(filepath.Join(p.Path, ".env"), []byte("FIXTURE_PRIVATE_VALUE=must-not-enter-release\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	commitPreviewFixture(t, p.Path)
+	commitPreviewFixture(t, p.Path, tracePath)
 	assertNoGitMaintenance(t, tracePath)
 	head, err := s.journeyGit(context.Background(), p.Path, "rev-parse", "HEAD")
 	if err != nil || !deliverySHA.MatchString(strings.TrimSpace(head)) {
@@ -115,10 +114,17 @@ func TestNativePreviewFixtureCommitsWithoutDeferredMaintenance(t *testing.T) {
 
 func confinedFixtureGit(t *testing.T, dir string, args ...string) string {
 	t.Helper()
+	root, err := ownedFixtureRoot(t, dir)
+	if err != nil {
+		t.Fatalf("scratch Git directory is not owned: %v", err)
+	}
 	// Keep adversarial native configuration intact, but never leave fixture
 	// maintenance mutating metadata after this synchronous helper returns.
 	args = append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)
-	out, err := runCommandEnvironment(context.Background(), "git", args, dir, project.ManagedGitEnvironment(os.Environ()))
+	// A scratch directory without metadata must not discover the developer's
+	// repository above the fixture, even when its temporary root is in a checkout.
+	env := append(project.ManagedGitEnvironment(os.Environ()), "GIT_CEILING_DIRECTORIES="+root)
+	out, err := runCommandEnvironment(context.Background(), "git", args, dir, env)
 	if err != nil {
 		t.Fatalf("scratch Git %v failed: %v", args, err)
 	}
@@ -127,6 +133,9 @@ func confinedFixtureGit(t *testing.T, dir string, args ...string) string {
 
 func commitConfinedFixture(t *testing.T, dir, content string) string {
 	t.Helper()
+	if err := validateOwnedFixtureWorktree(t, dir); err != nil {
+		t.Fatalf("commit fixture worktree is not owned: %v", err)
+	}
 	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte(content), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +150,7 @@ func TestJourneyGitAndArchiveRejectForeignMetadataBeforeStartingGit(t *testing.T
 			s, mux := journeyFixture(t)
 			p := createJourneyProject(t, mux, "owned")
 			commitConfinedFixture(t, p.Path, "owned project")
-			foreign := t.TempDir()
+			foreign := ownedFixtureTempDir(t)
 			confinedFixtureGit(t, foreign, "init", "--initial-branch=main", ".")
 			const private = "OTHER_ACCOUNT_PRIVATE_COMMIT"
 			foreignHead := commitConfinedFixture(t, foreign, private)
@@ -239,7 +248,7 @@ func TestJourneyGitPreservesInternalLinkedWorktreesAndRejectsForeignOnes(t *test
 	if primary := confinedFixtureGit(t, p.Path, "rev-parse", "HEAD"); primary != commit {
 		t.Fatal("linked-worktree commit changed the primary branch")
 	}
-	foreign := t.TempDir()
+	foreign := ownedFixtureTempDir(t)
 	confinedFixtureGit(t, foreign, "init", "--initial-branch=main", ".")
 	commitConfinedFixture(t, foreign, "foreign project")
 	if err := os.WriteFile(filepath.Join(linked, ".git"), []byte("gitdir: "+filepath.ToSlash(filepath.Join(foreign, ".git"))+"\n"), 0600); err != nil {
@@ -254,7 +263,7 @@ func TestJourneyGitAndArchiveIgnoreInheritedRepositoryRedirection(t *testing.T) 
 	s, mux := journeyFixture(t)
 	p := createJourneyProject(t, mux, "owned")
 	commit := commitConfinedFixture(t, p.Path, "owned project")
-	foreign := t.TempDir()
+	foreign := ownedFixtureTempDir(t)
 	confinedFixtureGit(t, foreign, "init", "--initial-branch=main", ".")
 	foreignCommit := commitConfinedFixture(t, foreign, "foreign project")
 	t.Setenv("GIT_DIR", filepath.Join(foreign, ".git"))

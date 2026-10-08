@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "commitBinding": null,
+  "originalReceipt": {
+    "artifact": "artifacts/cloud007/disk-admission-verification.json",
+    "sha256": "481709057deb0c9d90db9c2b2d2d2d7d1be9affc7ed6719cf64a355a94acfdff"
+  },
+  "originalTestEvents": {
+    "artifact": "artifacts/cloud007/api-race.jsonl",
+    "sha256": "13fb55ff943268f952bd2fad4f3ecf1dff0d2dc62bdc3485fafb86e9c94493b6"
+  },
+  "verification": {
+    "issue": "CLOUD-007",
+    "recordedAt": "2026-10-08T08:11:03.201561+00:00",
+    "result": "passed",
+    "scope": "Driver-aware create disk admission; no Docker allocation and no native Windows runtime claim",
+    "sourceHashes": {
+      "control-plane/internal/api/execution_disk_demand.go": "9355f0b20a52aca1fb9fbec7addd17f119eba13f65d64a27af7b319b24e45f1d",
+      "control-plane/internal/api/execution_disk_demand_test.go": "2923bbd98c3063eca649f61a5aeed23ac0d3eafb25e9e7f9b528aa18d1ef2f7d",
+      "control-plane/internal/api/execution_leases.go": "9cd0c598db586f0a3dc3f6cb5ca7a0501004bc9afcb6df269c44cfa7b3727378",
+      "control-plane/internal/api/execution_leases_test.go": "58b7940a641aa2090f364db3d899ba9c476d3bf83a4d9b0419a84dff6ca1cc4b",
+      "control-plane/internal/api/project_swarm_capacity_test.go": "4c06aea5de36216e4dca747d0b3e9875bcbb17a08a8d81ba1ab7a3abfca7a6d0"
+    },
+    "checks": [
+      {
+        "command": "go test ./internal/api -run 'TestExecution(CreateDiskEstimate|AdmissionVFS|AdmissionDisk|AdmissionUnknownOrOverflowing)' -count=1",
+        "result": "pass",
+        "elapsedSeconds": 0.092
+      },
+      {
+        "command": "go test -race -json ./internal/api -run 'TestExecution|TestQueued(Dispatch|Admission)|TestSwarmTask' -count=1",
+        "result": "pass",
+        "elapsedSeconds": 6.898,
+        "passedTestsIncludingSubtests": 70,
+        "skippedTests": 0,
+        "log": "artifacts/cloud007/api-race.jsonl",
+        "logSha256": "13fb55ff943268f952bd2fad4f3ecf1dff0d2dc62bdc3485fafb86e9c94493b6"
+      },
+      {
+        "command": "git diff --check",
+        "result": "pass"
+      }
+    ],
+    "contract": {
+      "rawImageTelemetry": "unchanged",
+      "vfsCreateAllowance": "2 * configured image virtual size; init and writable layer copies",
+      "overlayCreateAllowance": "1 * configured image virtual size for exact overlay, overlay2, overlayfs, fuse-overlayfs drivers",
+      "unknownDriver": "wait with execution_disk_estimate_unavailable, no lease allocated",
+      "demand": "checked (pending unobserved allocations + proposed child) * create allowance + configured disk reserve",
+      "pendingAcrossRestart": "retained through shared durable leases; same lease not double-charged",
+      "observedAllocation": "already reflected in observed disk free; not charged as a pending copy"
+    },
+    "provenance": [
+      "https://github.com/moby/moby/blob/v28.3.3/layer/layer_store.go#L520-L531",
+      "https://github.com/moby/moby/blob/v28.3.3/layer/layer_store.go#L645-L657",
+      "https://github.com/moby/moby/blob/v28.3.3/daemon/graphdriver/vfs/driver.go#L180-L192"
+    ],
+    "limitations": [
+      "Create allowance is an estimate, not a quota or lifetime bound on arbitrary worker writes.",
+      "Host disk changes include unrelated activity; implementation source proves VFS duplication, not attribution of all observed writes.",
+      "Backing filesystem/VM observation accuracy is a separate probe contract.",
+      "The synthetic four-project fixture explicitly identifies overlay2; this change does not alter earlier retained benchmark evidence."
+    ]
+  },
+  "independentlyRecounted": {
+    "testEvents": {
+      "pass": 70
+    },
+    "skippedTests": []
+  },
+  "sourceScope": "Only the five selected source hashes in the original receipt; not a full compilation manifest.",
+  "limitations": [
+    "The allowance estimates pending create demand; it is not a quota for arbitrary later worker writes.",
+    "This check allocated no Docker container and establishes neither actual runtime disk use nor Windows backing-volume capacity."
+  ]
+}

@@ -444,8 +444,16 @@ func (g *executionAdmission) reserveWorker(ctx context.Context, id, projectID, p
 			waiting("execution_disk_unavailable", "Current execution storage capacity is not available. Waiting for a fresh observation.")
 			return nil
 		}
-		imageDemand := *snap.Execution.ImageVirtualSizeBytes
-		diskDemand := imageDemand*uint64(pendingAllocations+1) + (uint64(policy.DiskReserveMiB) << 20)
+		createDisk, estimateErr := estimateExecutionCreateDisk(snap.Execution)
+		if estimateErr != nil {
+			waiting("execution_disk_estimate_unavailable", estimateErr.Error())
+			return nil
+		}
+		diskDemand, bounded := executionPendingDiskDemand(createDisk.Bytes, pendingAllocations, policy.DiskReserveMiB)
+		if !bounded {
+			waiting("execution_disk_estimate_unavailable", "Pending execution storage demand exceeds supported capacity accounting.")
+			return nil
+		}
 		if *snap.Execution.DaemonDisk.AvailableBytes < diskDemand {
 			waiting("execution_disk_pressure", "Execution storage cannot preserve the working reserve for the pending sandbox copies.")
 			return nil

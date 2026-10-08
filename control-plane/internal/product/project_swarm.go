@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -37,7 +38,10 @@ func (s *Server) swarmPath(projectID, runID, operationID string) (string, error)
 	parts := []string{".luci-swarms", projectID, runID, operationID}
 	relative := ""
 	for _, part := range parts {
-		relative = filepath.Join(relative, part)
+		// guardedProjectPath accepts portable slash-separated relative paths.
+		// filepath.Join emits backslashes on Windows once a parent exists,
+		// making every subsequent lookup/allocation fail its traversal guard.
+		relative = path.Join(relative, part)
 		_, err := guardedProjectPath(root, relative, true)
 		if err != nil {
 			return "", err
@@ -284,7 +288,18 @@ func (s *Server) reserveSwarmTask(ctx context.Context, p project.Project, runID,
 	}
 	s.projectRunDispatchMu.Lock()
 	defer s.projectRunDispatchMu.Unlock()
-	run, op, created, err := s.projectRuns.ReserveSwarmTask(p.ID, p.Path, run.ID, revision, key, taskID, head, func(id string) string { path, _ := s.swarmPath(p.ID, run.ID, id); return project.WorktreeID(path) })
+	var worktreeErr error
+	run, op, created, err := s.projectRuns.ReserveSwarmTask(p.ID, p.Path, run.ID, revision, key, taskID, head, func(id string) string {
+		path, pathErr := s.swarmPath(p.ID, run.ID, id)
+		if pathErr != nil {
+			worktreeErr = pathErr
+			return "" // Invalid IDs fail ledger validation; never hash an empty path.
+		}
+		return project.WorktreeID(path)
+	})
+	if worktreeErr != nil {
+		return ProjectRun{}, ProjectRunOperation{}, worktreeErr
+	}
 	if err != nil {
 		return ProjectRun{}, ProjectRunOperation{}, err
 	}

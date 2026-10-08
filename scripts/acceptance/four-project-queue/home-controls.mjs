@@ -154,11 +154,14 @@ async function controlledOverviewWitness(owner) {
     controlled.checks.push('While overview HTTP409 persists, a real browser priority control changes the actual backend queue revision without starting work.');
     await page.setViewportSize({ width: 390, height: 844 });
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await block.scrollIntoViewIfNeeded();
     await page.screenshot({ path: join(evidence, 'controlled-overview-busy-phone.png'), fullPage: true });
+    await block.screenshot({ path: join(evidence, 'controlled-overview-busy-card-phone.png') });
     await page.setViewportSize({ width: 1440, height: 1080 });
     stage = 'controlled-overview-403'; injected = { status: 403, error: 'forbidden', message: 'Controlled fixture: project summary access denied.' };
     await refresh.click(); await assertCleared(injected.message);
     controlled.checks.push('A confirmed HTTP403 response clears the retained goal, stage, counters, context details and next action.');
+    await block.scrollIntoViewIfNeeded();
     await page.screenshot({ path: join(evidence, 'controlled-overview-denied-desktop.png'), fullPage: true });
   } finally { await page.unroute(matches, handler); }
   stage = 'controlled-overview-real-recovery';

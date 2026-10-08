@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "comparisonCommit": "9898cf5d4a5302e431c8e42f5b3612c0a95e7061",
+  "entireRunBoundToCommit": false,
+  "sourceBinding": "source-binding.json#go-baseline",
+  "original": {
+    "artifact": "artifacts/quality-swarm/task-lifecycle-final/go-services/report.json",
+    "sha256": "be39942c7b40b1617d3682c17b9e3fcd8f4caa9952c20283abdd4ff59215a285"
+  },
+  "testEvents": {
+    "artifact": "artifacts/quality-swarm/task-lifecycle-final/go-services/test-events.jsonl",
+    "sha256": "02cfbfbc5661de03145e6affecf8a339bb00966bae9f5e2415a8e1f591d68022"
+  },
+  "at": "2026-10-08T07:25:34.653408+00:00",
+  "command": [
+    "go",
+    "test",
+    "-p",
+    "2",
+    "-json",
+    "./control-plane/...",
+    "./sandboxd/..."
+  ],
+  "exitCode": 0,
+  "durationSeconds": 363.44142037502024,
+  "testOutcomes": {
+    "pass": 2640,
+    "skip": 25
+  },
+  "packageOutcomes": {
+    "pass": 32,
+    "skip": 2
+  },
+  "sourceInputs": 699,
+  "changedInputs": [],
+  "failures": [],
+  "passed": true,
+  "limitations": [
+    "This full baseline predates the C004 launch-fence and final overview changes. Twelve recorded files differ from this commit. The final non-vendored execution_launch_observer.go and execution_launch_fence_test.go were not listed in the baseline manifest; vendored sources are outside that manifest scope.",
+    "Passing counts are the original Go JSON event counts, including subtests, not distinct top-level test cases.",
+    "Later affected-package checks are recorded separately; they do not convert this into a full-suite result on the final commit."
+  ]
+}

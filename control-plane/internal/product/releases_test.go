@@ -14,16 +14,42 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
-func commitPreviewFixture(t *testing.T, dir string) {
+func commitPreviewFixture(t *testing.T, dir string, tracePaths ...string) {
 	t.Helper()
+	if err := validateOwnedFixtureWorktree(t, dir); err != nil {
+		t.Fatalf("preview fixture worktree is not owned: %v", err)
+	}
+	root, err := ownedFixtureRoot(t, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	env := append(project.ManagedGitEnvironment(os.Environ()), "GIT_CEILING_DIRECTORIES="+root)
+	if len(tracePaths) > 1 {
+		t.Fatal("preview fixture accepts at most one explicit trace path")
+	}
+	if len(tracePaths) == 1 {
+		trace := tracePaths[0]
+		if !filepath.IsAbs(trace) || filepath.Clean(trace) != trace {
+			t.Fatal("preview fixture trace needs an explicit absolute path")
+		}
+		if err := validateOwnedFixtureDirectory(t, filepath.Dir(trace)); err != nil {
+			t.Fatalf("preview fixture trace directory is not owned: %v", err)
+		}
+		if _, err := os.Lstat(trace); !os.IsNotExist(err) {
+			t.Fatal("preview fixture trace must be a new file")
+		}
+		env = append(env, "GIT_TRACE2_EVENT="+filepath.ToSlash(trace))
+	}
 	for _, args := range [][]string{{"add", "--all"}, {"-c", "user.name=Luci Test Person", "-c", "user.email=person@example.com", "commit", "-m", "Prepare preview"}} {
 		// This native fixture deliberately bypasses the public commit policy to
 		// seed adversarial exports/secrets. It must still finish all its writers
 		// before deployment starts its strict metadata inspection.
 		args = append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)
-		if out, err := RunCommand(context.Background(), "git", args, dir); err != nil {
+		if out, err := runCommandEnvironment(context.Background(), "git", args, dir, env); err != nil {
 			t.Fatalf("commit fixture: %v: %s", err, out)
 		}
 	}

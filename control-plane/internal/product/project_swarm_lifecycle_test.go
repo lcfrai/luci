@@ -62,7 +62,7 @@ func TestSwarmReaperExitRequiresReviewReleasesConfirmedCapacityAndPreservesDepen
 		t.Fatal("first task did not start alone", current, err)
 	}
 	op := current.Operations[0]
-	workerPath, _ := s.swarmPath(run.ProjectID, run.ID, op.ID)
+	workerPath := mustSwarmPathFixture(t, s, run.ProjectID, run.ID, op.ID)
 	commit := swarmCommitFixture(t, workerPath, "alpha.txt", "review this retained change\n")
 	store, err := registry.NewFileStore(filepath.Join(t.TempDir(), "sessions.json"))
 	if err != nil {

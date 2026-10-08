@@ -1,0 +1,19 @@
+{
+  "version": "0.5.0",
+  "original": {
+    "artifact": "artifacts/quality-swarm/task-lifecycle-final/source-export.log",
+    "sha256": "a8af165a3d47f5ad9dbb3875c067ddac7fcff5fd31c070facbe5e074965b52d0"
+  },
+  "sourceCommit": "9898cf5d4a5302e431c8e42f5b3612c0a95e7061",
+  "files": 1480,
+  "bytes": 13941110,
+  "licenseReferences": 59,
+  "planOnly": false,
+  "archiveSha256": "49025711cbe2a0e5598f9e1e4c9d3799143c16f9baacde9b0944258dc5db9687",
+  "archiveBytes": 4824543,
+  "archiveHashIndependentlyRechecked": true,
+  "artifactName": "9898cf5d.zip",
+  "limitations": [
+    "Source export and licence references do not prove runtime acceptance."
+  ]
+}

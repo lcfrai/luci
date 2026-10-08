@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "originalIntegrity": {
+    "artifact": "artifacts/quality-swarm/task-lifecycle-final/package/package-integrity.json",
+    "sha256": "1d9195c842d15850af2bb31b49d9200b5a2c8cf70dbb6e1706503b8d50a6be28"
+  },
+  "originalProvenance": {
+    "artifact": "artifacts/quality-swarm/task-lifecycle-final/package/package-provenance.json",
+    "sha256": "994f83decc2a723f42b5f2911775427d89ba1c1d267ddd42ee69529e3d0ff8d2"
+  },
+  "integrity": {
+    "at": "2026-10-08T07:53:51.508279+00:00",
+    "sourceCommit": "9898cf5d4a5302e431c8e42f5b3612c0a95e7061",
+    "sourceDirty": false,
+    "verifiedExtractedFiles": 968,
+    "licenseComponents": 347,
+    "missingLicenses": 0,
+    "subjects": [
+      {
+        "name": "linux-amd64/luci-cloud-linux-amd64.tar.gz",
+        "sha256": "92372cddb8b974daf71300dcdafeab7c8545321e1dd79b7a51a3d89f7b20fc3b",
+        "bytes": 34249908
+      },
+      {
+        "name": "linux-amd64/luci-linux-amd64.tar.gz",
+        "sha256": "e3262a041983caac3fdc26de2d0da7b64cb016601c978a7f0698e7982781edf6",
+        "bytes": 68308864
+      },
+      {
+        "name": "linux-amd64/release-manifest.json",
+        "sha256": "f13e4f14e29869072c1101d931b9bafb5f7d6c5920deca39303ba8cd092af81c",
+        "bytes": 696
+      }
+    ],
+    "allMembersMatched": true
+  },
+  "provenance": {
+    "sourceCommit": "9898cf5d4a5302e431c8e42f5b3612c0a95e7061",
+    "sourceDirty": false,
+    "archiveSHA256": "e3262a041983caac3fdc26de2d0da7b64cb016601c978a7f0698e7982781edf6",
+    "binarySHA256": "f5990fad6e8b719acf72bfd5300a0486ba97e4b099c3283692d6d83280738dd7",
+    "webIndexSHA256": "09e453e90c411c637742f623f1bea31946c6836b044504eaca2c4ac3318093ce",
+    "subjects": [
+      {
+        "name": "linux-amd64/luci-cloud-linux-amd64.tar.gz",
+        "sha256": "92372cddb8b974daf71300dcdafeab7c8545321e1dd79b7a51a3d89f7b20fc3b",
+        "bytes": 34249908
+      },
+      {
+        "name": "linux-amd64/luci-linux-amd64.tar.gz",
+        "sha256": "e3262a041983caac3fdc26de2d0da7b64cb016601c978a7f0698e7982781edf6",
+        "bytes": 68308864
+      },
+      {
+        "name": "linux-amd64/release-manifest.json",
+        "sha256": "f13e4f14e29869072c1101d931b9bafb5f7d6c5920deca39303ba8cd092af81c",
+        "bytes": 696
+      }
+    ]
+  },
+  "limitations": [
+    "Linux amd64 package integrity and licence accounting only; no Windows package execution or installed workflow completion is implied.",
+    "The private retained extraction path is deliberately omitted."
+  ]
+}

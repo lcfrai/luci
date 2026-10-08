@@ -222,6 +222,16 @@ func (s *Server) integrateProjectSwarmTask(w http.ResponseWriter, r *http.Reques
 	}
 	taskID := r.PathValue("taskId")
 	op := *swarmOperation(&run, review.OperationID)
+	sourcePath, err := s.swarmPath(p.ID, run.ID, op.ID)
+	if err != nil {
+		projectRunProblem(w, err)
+		return
+	}
+	integrationPath, err := s.swarmPath(p.ID, run.ID, op.ID+"-integration")
+	if err != nil {
+		projectRunProblem(w, err)
+		return
+	}
 	run, err = s.projectRuns.mutateSwarm(p.ID, p.Path, run.ID, run.Revision, func(run *ProjectRun) error {
 		swarmTask(run, taskID).Integration = &ProjectSwarmIntegration{State: "integrating", SourceCommit: review.SourceCommit, TargetCommit: review.TargetCommit, ReviewDigest: review.ReviewDigest}
 		return nil
@@ -232,8 +242,6 @@ func (s *Server) integrateProjectSwarmTask(w http.ResponseWriter, r *http.Reques
 	}
 	// From this receipt onward, interruption is an unknown outcome. Never retry a
 	// filesystem mutation merely because the caller did not receive its result.
-	sourcePath, _ := s.swarmPath(p.ID, run.ID, op.ID)
-	integrationPath, _ := s.swarmPath(p.ID, run.ID, op.ID+"-integration")
 	candidate := ""
 	_, err = s.swarmGit(r.Context(), p.Path, "-c", "protocol.file.allow=always", "fetch", "--no-tags", "--no-write-fetch-head", "--", sourcePath, review.SourceCommit)
 	if err == nil {

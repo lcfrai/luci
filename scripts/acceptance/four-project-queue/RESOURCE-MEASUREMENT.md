@@ -59,7 +59,7 @@ The summarizer only reads existing files and writes `analysis.json`; it does not
 - The observer targets one-second intervals, but scheduler/API delays can create gaps; inspect actual intervals. Sampling starts after driver spawn. Post-exit settlement is not idle Luci, and neither interval proves input latency or other-app responsiveness.
 - Controlled commands prove execution mechanics only. Record live-model quality, heavier builds, native Windows behavior and whole-computer responsiveness separately.
 
-## Native Windows sampler: execution remains unverified
+## Native Windows sampler: short native check reported
 
 `sample-windows-owned.ps1` and its C# companion require Windows PowerShell 5.1 or PowerShell 7 on Windows. The helper reads exact process handles, native physical/commit/CPU/disk counters and optional bounded local Docker named-pipe statistics. It does not launch or stop applications, restart Docker, change WSL settings, pull images, move disks or invoke full container inspection. It writes only a fresh capture folder with a protected current-user ACL. An existing output folder is refused.
 
@@ -134,6 +134,6 @@ Nine controlled checks execute the real PowerShell selection/serialization code 
 .\scripts\acceptance\four-project-queue\test-windows-owned.ps1
 ```
 
-The [controlled-check receipt](../../../docs/luci/evidence/2026-10-08-windows-owned-observer-controlled.json) records Linux PowerShell validation and helper hashes. Native runtime, DACL behavior, Docker Desktop named-pipe compatibility and process attribution remain unverified until run on Windows.
+The [controlled-check receipt](../../../docs/luci/evidence/2026-10-08-windows-owned-observer-controlled.json) records Linux PowerShell validation and helper hashes. A separate [native tester report](../../../docs/luci/evidence/2026-10-08-windows-owned-observer-native-reported.md) records nine controlled checks passing on Windows and an 8.017-second, eight-sample native capture of an owned PowerShell root and exact descendant. Host/process/E: disk metrics and protected current-user output ACL creation were reported successful. The cloud session has not inspected those native artifacts or their hashes. Docker was not part of that capture; Docker named-pipe compatibility, Luci process attribution and sustained workload acceptance remain unverified.
 
 For release acceptance, record at least 60 seconds of idle Luci before agents, the [four-project workload](../../../docs/luci/SWARM-CAPACITY-ACCEPTANCE.md), and a settle interval. Mark those phase times separately. Measure UI input/project-switch latency and ordinary editor/browser responsiveness; resource counters alone do not establish them. Keep Docker/WSL VM resident memory separate from its guest containers, and do not assume every `vmmemWSL` process belongs to Luci when other distributions are active. Preserve failed task/recovery cases and verify actual results and integration.
