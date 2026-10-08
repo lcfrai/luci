@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
+import net from 'node:net';
 import { mkdtemp, rm, unlink, writeFile, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -242,4 +243,124 @@ test('a forwarded request that never finishes makes close fail after its bounded
   await request.promise;
   assert.equal(f.proxy.observations.cleanup.pendingRequests, 0);
   assert.equal(f.proxy.observations.cleanup.uncertainMutation, true);
+});
+
+const checkID = 'd'.repeat(64), checkRunID = 'check-' + 'e'.repeat(24), checkName = 'luci-check-' + checkRunID + '-0';
+const checkBody = { Image: 'fixture-check-image', Labels: { 'luci.check': 'true', 'luci.check-id': checkRunID } };
+const checkOptions = { allowCheckTraffic: true, maxCreatesByKind: { worker: 4, fence: 1, check: 1 }, maxCreates: 5, maxStarts: 5, identifyCreate: body => JSON.parse(body).Labels?.['luci.check'] === 'true' ? 'check' : 'worker' };
+function upgradeRequest(socketPath, path, extraHead = '') {
+  let socket;
+  const promise = new Promise(resolveReply => {
+    const chunks = [];
+    socket = net.createConnection({ path: socketPath }, () => socket.write(`POST ${path} HTTP/1.1\r\nHost: fixture\r\nConnection: Upgrade\r\nUpgrade: tcp\r\nContent-Length: 0\r\n\r\n${extraHead}`));
+    socket.on('data', data => chunks.push(data));
+    socket.on('error', () => {});
+    socket.once('close', () => resolveReply(Buffer.concat(chunks)));
+  });
+  return { promise, destroy: () => socket.destroy() };
+}
+const attachPath = id => `/v1.47/containers/${id}/attach?stream=1&stdout=1&stderr=1&stdin=0`;
+
+test('checks and upgrades are denied by default without forwarding', async t => {
+  const f = await fixture(t, (_req, res) => json(res, 201, { Id: checkID }), { identifyCreate: () => 'check' });
+  assert.equal((await f.request('POST', createPath(checkName), checkBody).promise).status, 503);
+  assert.equal((await upgradeRequest(f.socketPath, attachPath(checkID)).promise).length, 0);
+  assert.equal(f.received.length, 0);
+  assert.equal(f.proxy.observations.counts.check, undefined);
+});
+
+test('one explicitly enabled check forwards actual start/wait and unchanged named cleanup after exact inspect', async t => {
+  const f = await fixture(t, (_req, res, request) => {
+    if (request.path.includes('/create')) json(res, 201, { Id: checkID });
+    else if (request.path.endsWith('/json')) json(res, 200, { Id: checkID, Name: '/' + checkName, Config: { Labels: checkBody.Labels } });
+    else if (request.path.includes('/wait')) json(res, 200, { StatusCode: 0 });
+    else { res.writeHead(204); res.end(); }
+  }, checkOptions);
+  assert.equal((await f.request('POST', createPath(checkName), checkBody).promise).status, 201);
+  assert.equal((await f.request('POST', `/v1.47/containers/${checkID}/start`).promise).status, 204);
+  assert.deepEqual(JSON.parse((await f.request('POST', `/v1.47/containers/${checkID}/wait?condition=removed`).promise).body), { StatusCode: 0 });
+  const deletion = `/v1.47/containers/${checkName}?force=1`;
+  assert.equal((await f.request('DELETE', deletion).promise).status, 204);
+  assert.equal(f.received.at(-1).path, deletion);
+  assert.equal(f.received.at(-2).path, `/v1.47/containers/${checkName}/json`);
+  assert.equal(f.proxy.observations.requests.find(row => row.internalObservation)?.identity, 'exact');
+  assert.equal(f.proxy.observations.counts.check, 1); assert.equal(f.proxy.observations.counts.worker, 0);
+  assert.equal((await f.proxy.close()).drained, true);
+});
+
+test('named check cleanup preserves real404 while a swapped or uncertain name cannot delete anything', async t => {
+  for (const mode of ['absent', 'swapped', 'invalid', 'unavailable']) {
+    const f = await fixture(t, (_req, res, request) => {
+      if (request.path.includes('/create')) json(res, 201, { Id: checkID });
+      else if (request.path.endsWith('/json')) {
+        if (mode === 'absent') json(res, 404, { message: 'real fake-upstream absence' });
+        else if (mode === 'unavailable') json(res, 500, { message: 'unavailable' });
+        else if (mode === 'invalid') { res.writeHead(200); res.end('not json'); }
+        else json(res, 200, { Id: workerID, Name: '/' + checkName, Config: { Labels: checkBody.Labels } });
+      } else json(res, 404, { message: 'real fake-upstream remove absence' });
+    }, checkOptions);
+    await f.request('POST', createPath(checkName), checkBody).promise;
+    const reply = await f.request('DELETE', `/v1.47/containers/${checkName}?force=1`).promise;
+    assert.equal(reply.status, mode === 'absent' ? 404 : 503);
+    assert.equal(f.received.filter(row => row.method === 'DELETE').length, mode === 'absent' ? 1 : 0);
+  }
+});
+
+test('check identity, budgets, query and lifecycle bodies fail closed', async t => {
+  const f = await fixture(t, (_req, res) => json(res, 201, { Id: checkID }), checkOptions);
+  assert.equal((await f.request('DELETE', `/v1.47/containers/${checkName}?force=1`).promise).status, 503);
+  await f.request('POST', createPath(checkName), checkBody).promise;
+  for (const [method, path, body] of [
+    ['POST', `/v1.47/containers/${checkID}/stop`],
+    ['POST', `/v1.47/containers/${checkName}/start`],
+    ['POST', `/v1.47/containers/${checkID}/wait?condition=unsafe`],
+    ['DELETE', `/v1.47/containers/${checkID}?force=1&v=1`],
+    ['POST', `/v1.47/containers/${checkID}/start`, '{}'],
+    ['POST', createPath(checkName), checkBody],
+    ['POST', `/v1.47/containers/${checkID}/exec`, '{}'],
+  ]) assert.equal((await f.request(method, path, body).promise).status, 503);
+  assert.equal(f.received.length, 1);
+});
+
+test('known check attach preserves real upgrade header and output bytes with bounded drain', async t => {
+  const f = await fixture(t, (_req, res) => json(res, 201, { Id: checkID }), checkOptions);
+  const output = Buffer.from([1,0,0,0,0,0,0,6,111,107,10,226,156,147]);
+  const headers = 'HTTP/1.1 101 UPGRADED\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n';
+  let seen;
+  f.server.on('upgrade', (req, socket, head) => {
+    seen = { path: req.url, head: head.length };
+    socket.write(headers.slice(0, 19));
+    setImmediate(() => { socket.write(headers.slice(19)); socket.end(output); });
+  });
+  await f.request('POST', createPath(checkName), checkBody).promise;
+  const reply = await upgradeRequest(f.socketPath, attachPath(checkID)).promise;
+  assert.deepEqual(reply, Buffer.concat([Buffer.from(headers), output]));
+  assert.deepEqual(seen, { path: attachPath(checkID), head: 0 });
+  const observed = f.proxy.observations.requests.find(row => row.path.endsWith('/attach'));
+  assert.equal(observed.kind, 'check'); assert.equal(observed.status, 101); assert.equal(observed.responseBytes, reply.length);
+  assert.equal((await f.proxy.close()).drained, true); assert.deepEqual(f.proxy.observations.failures, []);
+});
+
+test('attach rejects workers, unknown checks, stdin and uploaded bytes before the upstream', async t => {
+  const f = await fixture(t, (_req, res) => json(res, 201, { Id: checkID }), checkOptions);
+  let upgraded = 0; f.server.on('upgrade', (_req, socket) => { upgraded++; socket.destroy(); });
+  await f.request('POST', createPath(checkName), checkBody).promise;
+  for (const [path, head] of [[attachPath(workerID), ''], [attachPath(checkID).replace('stdin=0','stdin=1'), ''], [attachPath(checkID), 'forbidden-input']]) {
+    assert.equal((await upgradeRequest(f.socketPath, path, head).promise).length, 0);
+  }
+  assert.equal(upgraded, 0);
+});
+
+test('attach output/time caps are explicit fixture failures and close releases all sockets', async t => {
+  for (const mode of ['bytes', 'time']) {
+    const f = await fixture(t, (_req, res) => json(res, 201, { Id: checkID }), { ...checkOptions, maxResponseBytes: 128, upstreamTimeoutMs: 80 });
+    f.server.on('upgrade', (_req, socket) => {
+      socket.write('HTTP/1.1 101 UPGRADED\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n');
+      if (mode === 'bytes') socket.write(Buffer.alloc(129));
+    });
+    await f.request('POST', createPath(checkName), checkBody).promise;
+    await upgradeRequest(f.socketPath, attachPath(checkID)).promise;
+    assert(f.proxy.observations.failures.includes(mode === 'bytes' ? 'check-attach-byte-limit' : 'check-attach-timeout'));
+    const closed = await f.proxy.close(); assert.equal(closed.activeHandlers, 0); assert.equal(closed.pendingRequests, 0);
+  }
 });

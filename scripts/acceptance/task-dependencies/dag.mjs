@@ -6,13 +6,14 @@ import { spawn, execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { createServer as httpServer } from 'node:http';
 import { createServer } from 'node:net';
-import { existsSync, statfsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, lstatSync, writeFileSync } from 'node:fs';
+import { existsSync, statfsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, lstatSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import {verifyTaskContextDelivery} from '../task-context-delivery.mjs';
 import {recordDependencyProbe,assertDependencyRefusal} from './dependency-probe.mjs';
 import {selectAuthorizedTask,taskFailureDiagnostic,assertExactTaskFailure} from './queued-failure.mjs';
+import {checkCommand,validateCheckCreate,assertRecordedCheck,assertCheckCapacity,assertJoinedCheck,assertOwnedCheckContainer} from './project-check-guard.mjs';
 import {taskContracts,variants,seedFiles as initialFiles,variantFor,changedPaths,taskCommand,taskHandoff,expectedResult} from './dag-fixture.mjs';
 import {contextFilesV1,contextFileNames,dependencyFile,validateContextManifest} from './context-contract.mjs';
 
@@ -82,7 +83,7 @@ if (existsSync(evidence)) assert.equal(readdirSync(evidence).length, 0, 'Use a f
 mkdirSync(evidence, { recursive: true, mode: 0o700 });
 writeFileSync(join(evidence, 'package-provenance.json'), provenanceBytes, { mode: 0o600, flag: 'wx' });
 writeFileSync(join(evidence,'image-provenance.json'),readFileSync(resolve(imageEvidencePath)),{mode:0o600,flag:'wx'});
-const driverNames=['dag.mjs','dag-fixture.mjs','context-contract.mjs','dependency-probe.mjs','queued-failure.mjs','run-with-observer.py'];
+const driverNames=['dag.mjs','dag-fixture.mjs','context-contract.mjs','dependency-probe.mjs','queued-failure.mjs','project-check-guard.mjs','run-with-observer.py'];
 const reusedHelpers=['task-context-delivery.mjs','four-project-queue/native-terminal-diagnostics.mjs','four-project-queue/sample-linux-owned.py','launch-recovery/fenced-docker-proxy.mjs','launch-recovery/worker-create-guard.mjs'];
 mkdirSync(join(evidence, 'accepted-harness'), { mode: 0o700 });
 for (const name of driverNames) writeFileSync(join(evidence, 'accepted-harness', name), readFileSync(new URL(name, import.meta.url)), { mode: 0o600, flag: 'wx' });
@@ -96,7 +97,7 @@ const receipt = {
   passed: false, mode:'dag-installed-scripted', startedAt: new Date().toISOString(), sourceCommit: provenance.sourceCommit, sourceDirty: provenance.sourceDirty,
   harnessCheckout: {commit:helperCommit,dirty:helperDirty,expectedSource:expectedHelperSource,productSource:provenance.sourceCommit,separateHelperRevision:helperCommit!==provenance.sourceCommit},
   packageIntegrity, initialRootFreeBytes: initialRootFree,
-  resourceScope: 'Exactly four real workers for one DAG (A,B1,B2,join), one at a time; B1 deliberately conflicts, B2 is separately authorized. Zero existing containers and six GiB root admission before every Create, no recovery fences allowed; hard one GiB running reserve. No image pulls, release or cloud allocation.',
+  resourceScope: 'Exactly four real workers for one DAG (A,B1,B2,join), plus one separately consented whole-build Docker check after integration, all serial; B1 deliberately conflicts, B2 is separately authorized. Zero existing containers and six GiB root admission before every Create, no recovery fences allowed; hard one GiB running reserve. No image pulls, release or cloud allocation.',
   binarySHA256: sha(readFileSync(binary)), webIndexSHA256: sha(readFileSync(join(web, 'index.html'))), driverSHA256: sha(readFileSync(fileURLToPath(import.meta.url))),
   helperSHA256: Object.fromEntries(driverNames.filter(name=>name!=='dag.mjs').map(name => [name, sha(readFileSync(new URL(name, import.meta.url)))])),
   reusedHelperSHA256:Object.fromEntries(reusedHelpers.map(name=>['scripts/acceptance/'+name,sha(readFileSync(join(repo,'scripts/acceptance',name)))])),
@@ -117,6 +118,7 @@ let service, proxy, provider, base, env, token, project, projectRoute;const work
 const controllerIdentities=[];let owner;
 let stage = 'startup', fixtureError, reserveTimer, deadlineTimer, closing = false, signalFailure;
 let providerCalls = 0, auxiliaryCalls = 0; const observations=new Map(), taskData=new Map(), calls=new Map(); let browser, page, run;
+let checkConsent=null,checkIdentity=null;
 let providerBase; const initialBundles=new Map(), projectStates=[], titles=new Map();
 const started = Date.now(), deadline = started + 15 * 60_000;
 const remaining = () => { if (Date.now() >= deadline) throw Error('Fifteen minute acceptance deadline expired'); return deadline - Date.now(); };
@@ -362,12 +364,29 @@ function privateRun(owner){const record=privateJSON(join(fixture,'state/sessions
 function instanceID(){const value=readFileSync(join(fixture,'state/instance/instance-id'),'utf8').trim();assert(value.length>0&&value.length<=200);return value;}
 function workerContainers(){return docker('ps','-aq','--no-trunc','--filter','label=luci.managed=true').split(/\s+/).filter(Boolean);}
 function identifyCreate(bytes,meta){
- const input=JSON.parse(bytes),sessionID=input.Labels?.['luci.session-id'];assert.match(sessionID??'',/^s-[a-f0-9]{8}$/);assert.equal(meta.name,'luci-'+sessionID);assert.equal(input.Labels?.['luci.managed'],'true');assert.equal(input.Labels?.['luci.launch-fence'],undefined);assert(owner);
+ const input=JSON.parse(bytes);
+ if(input.Labels?.['luci.check']==='true'){
+  assert(checkConsent&&stage==='product-check-verification','A check needs its separate explicit final-build consent');
+  const checkID=input.Labels['luci.check-id'];assert.match(checkID??'',/^check-[a-f0-9]{24}$/);
+  const history=privateJSON(join(fixture,'state/sessions/project-checks',owner.owner.id+'.json'),16*1024**2);
+  const candidates=history.filter(row=>row.id===checkID);assert.equal(candidates.length,1);
+  const recorded=candidates[0];const current=privateRun(owner);assert.equal(current.id,checkConsent.run.id);assert.deepEqual(current.input,checkConsent.run.input);
+  assert.equal(gitAt(owner.owner.path,'rev-parse','HEAD'),checkConsent.commit);assert.equal(gitAt(owner.owner.path,'status','--porcelain'),'');
+  const identity=validateCheckCreate(input,{name:meta.name,fixture,primary:owner.owner.path,check:recorded,run:current,commit:checkConsent.commit,sourceDigest:checkConsent.sourceDigest,image,imageID:imageInfo.Id,uid:process.getuid(),gid:process.getgid()});
+  if(checkIdentity)assert.deepEqual(identity,checkIdentity);else checkIdentity=identity;return 'check';
+ }
+ const sessionID=input.Labels?.['luci.session-id'];assert.match(sessionID??'',/^s-[a-f0-9]{8}$/);assert.equal(meta.name,'luci-'+sessionID);assert.equal(input.Labels?.['luci.managed'],'true');assert.equal(input.Labels?.['luci.launch-fence'],undefined);assert(owner);
  const saved=privateRun(owner),op=saved.operations.find(value=>value.childId===sessionID);assert(op);variantFor(op.taskId,op.attempt);const current=saved.swarm.tasks.find(t=>t.id===op.taskId);assert.equal(current.operationId,op.id);if(op.taskId==='task-join')for(const id of ['task-a','task-b'])assert.equal(saved.swarm.tasks.find(t=>t.id===id).integration?.state,'integrated','Join Create requires both current reviewed integrations');ownedSessions.add(sessionID);
  validateWorkerCreate(input,{fixture,projectID:owner.owner.id,runID:owner.run.id,operationID:op.id,session:row(sessionID),images:[image,imageInfo.Id],instance:instanceID(),uid:process.getuid(),gid:process.getgid(),taskContextVersion:2});return 'worker';
 }
-function admission({kind,ordinal,body,...meta}){
- try{assert.equal(kind,'worker');assert(ordinal>=1&&ordinal<=4);identifyCreate(body,meta);const free=rootFree();assert(free>=6*1024**3,'Six GiB pre-create guard remains mandatory');assert.equal(workerContainers().length,0,'No overlapping full worker permitted');(receipt.resourceObservations??=[]).push({at:new Date().toISOString(),stage,ordinal,rootFreeBytes:free});}catch(error){stopOnFailure(error);throw error;}
+async function checkAdmission(){
+ const engineInfo=JSON.parse(docker('info','--format','{{json .}}'));
+ const view=await api('GET','/v1/product/swarm-scheduler');
+ const measurement=assertCheckCapacity(view,{now:Date.now(),rootFreeBytes:rootFree(),engineID,engineInfo,daemonOnRootFilesystem:statSync(engineInfo.DockerRootDir).dev===statSync('/').dev,containerCount:docker('ps','-aq','--no-trunc').split(/\s+/).filter(Boolean).length,imageVirtualSize:imageInfo.Size});
+ (receipt.checkResourceAdmissions??=[]).push(measurement);return measurement;
+}
+async function admission({kind,ordinal,body,...meta}){
+ try{if(kind==='check'){assert.equal(ordinal,5,'One separate check follows exactly four worker Creates');assert.equal(proxy.observations.counts.worker,4);assert.equal(proxy.observations.counts.check,1);identifyCreate(body,meta);await checkAdmission();return;}assert.equal(kind,'worker');assert(ordinal>=1&&ordinal<=4);identifyCreate(body,meta);const free=rootFree();assert(free>=6*1024**3,'Six GiB pre-create guard remains mandatory');assert.equal(workerContainers().length,0,'No overlapping full worker permitted');(receipt.resourceObservations??=[]).push({at:new Date().toISOString(),stage,ordinal,rootFreeBytes:free});}catch(error){stopOnFailure(error);throw error;}
 }
 function health(){remaining();if(fixtureError)throw fixtureError;if(service&&service.exitCode!==null)throw Error('Owned service exited unexpectedly');}
 async function timed(promise,ms,label){let timer;try{return await Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error(label+' deadline exceeded')),ms);})]);}finally{clearTimeout(timer);}}
@@ -416,6 +435,34 @@ async function assertJoinBlocked(label){
  (receipt.dependencyGates??=[]).push({label,at:new Date().toISOString(),status:409,reason:probe.response.message,joinUnallocated:true,effects:before.effects});
 }
 
+async function verifyCombinedBuild(commit){
+ stage='product-check-verification';await openProject(owner);await refreshRun();assert.equal(owner.run.state,'awaiting-checks');assert.equal(workerContainers().length,0);
+ const coverage=(await api('GET',owner.route+'/checks')).coverage;assert.equal(coverage.source.available,true);assert.equal(coverage.source.dirty,false);assert.equal(coverage.source.commit,commit);
+ await page.getByRole('button',{name:'Verify this build',exact:true}).click();
+ const region=page.getByRole('region',{name:'Build verification',exact:true});await region.waitFor();
+ let count=await region.locator('.check-commands > li').count();assert(count<=8);
+ while(count>0){await region.locator('.check-commands > li').first().getByRole('button',{name:/^Remove /}).click();count=await region.locator('.check-commands > li').count();}
+ const advanced=region.locator('summary').filter({hasText:/^Advanced check commands$/});
+ if(!await advanced.evaluate(node=>node.parentElement.open))await advanced.click();
+ await region.getByLabel('Executable',{exact:true}).fill('node');await region.getByLabel('Arguments · JSON array',{exact:true}).fill('["verify.mjs","final"]');
+ await region.getByRole('button',{name:'Add check command',exact:true}).click();assert.equal(await region.locator('.check-commands > li').count(),1);
+ await region.getByRole('checkbox',{name:'Check AC-dag · Reviewed dependency join',exact:true}).check();
+ await region.getByRole('checkbox',{name:"I trust this project's code and these Docker commands to write project files and use the network.",exact:true}).check();
+ await checkAdmission();checkConsent={run:structuredClone(owner.run),commit,sourceDigest:coverage.source.sourceDigest,at:new Date().toISOString()};
+ const expectedRequest={commands:[checkCommand],execution:'docker',acknowledgeHostExecution:true,requirementIds:['AC-dag'],expectedSpecificationRevision:coverage.specification.revision,expectedDesignPlanRevision:coverage.design.revision};
+ const pending=page.waitForResponse(response=>new URL(response.url()).pathname===owner.route+'/checks'&&response.request().method()==='POST',{timeout:remainingBudget(120000)});
+ await region.getByRole('button',{name:'Run selected requirement checks',exact:true}).click();const response=await pending;
+ assert.deepEqual(response.request().postDataJSON(),expectedRequest);assert.equal(response.status(),202);const started=await response.json();
+ assertRecordedCheck(started,checkConsent);(receipt.checkConsents??=[]).push({at:checkConsent.at,request:expectedRequest,checkId:started.id,commit,sourceDigest:checkConsent.sourceDigest});
+ const checked=await until('Recorded whole-build Docker check',async()=>{const current=await api('GET',owner.route+'/checks/'+started.id);if(['queued','running'].includes(current.status))return null;return current;},120000);
+ assertRecordedCheck(checked,checkConsent,true);assert.equal(gitAt(owner.owner.path,'rev-parse','HEAD'),commit);assert.equal(gitAt(owner.owner.path,'status','--porcelain'),'');
+ const created=proxy.observations.requests.filter(row=>row.kind==='check'&&row.method==='POST'&&/\/containers\/create$/.test(row.path)&&row.status===201);assert.equal(created.length,1);assert.equal(created[0].name,'luci-check-'+started.id+'-0');assert.match(created[0].id,/^[a-f0-9]{64}$/);
+ await until('Confirmed check container absence',()=>!docker('ps','-aq','--no-trunc').split(/\s+/).includes(created[0].id),10000);
+ const joined=await action(owner.route+'/runs/'+owner.run.id+'/checks',()=>region.getByRole('button',{name:'Use these results for this build',exact:true}).click());owner.run=joined.run;run=owner.run;assertJoinedCheck(run,checked);
+ receipt.productVerification={check:checked,joinedEvidence:run.checks[0],runState:run.state,container:{id:created[0].id,name:created[0].name,imageId:imageInfo.Id,createdAt:created[0].completedAt},sourceUnchanged:true,scope:'Actual Luci Docker whole-build check and explicit join; preview/release and live-model quality remain unverified.',resourceScope:'Fresh acceptance-only capacity guards plus configured 1 GiB / 1 CPU / 256 PIDs. Frozen independent sampler attributes managed workers; this separate check container has no managed-instance label and its cgroup usage is not claimed by that sampler.'};
+ assert.equal(gitAt(owner.owner.path,'rev-parse','HEAD'),commit);assert.equal(gitAt(owner.owner.path,'status','--porcelain'),'');checkConsent=null;
+ await openProject(owner);await page.screenshot({path:join(evidence,'DAG-verified.png'),fullPage:true});
+}
 function retainedB(){
  const b=taskData.get('b1');assert(b);const integration=join(b.checkout+'-integration');assert(isFixturePath(b.checkout)&&isFixturePath(integration));const files=Object.fromEntries(changedPaths('b1').map(name=>{const file=join(b.checkout,name);const st=lstatSync(file);assert(st.isFile()&&!st.isSymbolicLink()&&st.nlink===1&&st.size<64*1024);return [name,sha(readFileSync(file))];}));const conflict=readFileSync(join(integration,'shared.txt'));assert(conflict.length<4096);return {sourceCommit:gitAt(b.checkout,'rev-parse','HEAD'),files,integrationHead:gitAt(integration,'rev-parse','HEAD'),unmerged:gitAt(integration,'ls-files','--unmerged'),conflictSHA256:sha(conflict)};
 }
@@ -424,12 +471,12 @@ try {
  deadlineTimer=setTimeout(()=>stopOnFailure(Error('Fifteen minute acceptance deadline expired')),15*60_000);
  reserveTimer=setInterval(()=>{try{const free=rootFree();(receipt.diskSamples??=[]).push({stage,at:new Date().toISOString(),rootFreeBytes:free});if(free<1024**3)stopOnFailure(Error('Hard one GiB reserve breached'));for(const worker of taskData.values())if(worker.finalReleased&&worker.session)observeTaskLease(worker);}catch(error){stopOnFailure(error);}},1000);
  for(const name of ['SIGTERM','SIGINT'])process.on(name,()=>{signalFailure=name;stopOnFailure(Error('Acceptance interrupted by '+name));});
- receipt.bounds={scenarioDeadlineMs:900000,upstreamRequestMs:120000,maxCreates:4,maxStarts:4,preCreateFreeBytes:6*1024**3,runningReserveBytes:1024**3,workerMemoryBytes:1024**3,workerNanoCPUs:1000000000,pidsLimit:256};
+ receipt.bounds={scenarioDeadlineMs:900000,upstreamRequestMs:120000,maxCreates:5,maxStarts:5,maxWorkerCreates:4,maxCheckCreates:1,checkCompletionMs:120000,preCreateFreeBytes:6*1024**3,runningReserveBytes:1024**3,workerMemoryBytes:1024**3,workerNanoCPUs:1000000000,pidsLimit:256};
  engineID=docker('info','--format','{{.ID}}');assert(engineID.length>0&&engineID.length<=256);receipt.engineIdentitySHA256=sha(engineID);
  startProvider();await new Promise((done,reject)=>provider.once('error',reject).listen(0,bridge,done));providerBase='http://host.docker.internal:'+provider.address().port+'/v1';
  const port=await freePort(),preview=await freePort();base='http://127.0.0.1:'+port;
  const upstream=process.env.DOCKER_HOST||'unix:///var/run/docker.sock';assert(upstream.startsWith('unix://'));
- proxy=await startFencedDockerProxy({socketPath:join(fixture,'docker-proxy.sock'),upstreamSocketPath:upstream.slice(7),identifyCreate,beforeCreate:admission,maxCreates:receipt.bounds.maxCreates,maxCreatesByKind:{worker:4,fence:1},maxStarts:receipt.bounds.maxStarts,maxObservations:20000,upstreamTimeoutMs:120000,holdTimeoutMs:600000});
+ proxy=await startFencedDockerProxy({socketPath:join(fixture,'docker-proxy.sock'),upstreamSocketPath:upstream.slice(7),identifyCreate,beforeCreate:admission,maxCreates:receipt.bounds.maxCreates,allowCheckTraffic:true,maxCreatesByKind:{worker:4,fence:1,check:1},maxStarts:receipt.bounds.maxStarts,maxObservations:20000,upstreamTimeoutMs:120000,holdTimeoutMs:600000});
  writeFileSync(join(fixture,'docker/config.json'),JSON.stringify({cliPluginsExtraDirs:process.env.DOCKER_CONFIG?[join(process.env.DOCKER_CONFIG,'cli-plugins')]:[]}),{mode:0o600});
  env=Object.fromEntries(['PATH','LANG','LC_ALL','TZ'].filter(name=>process.env[name]).map(name=>[name,process.env[name]]));
  Object.assign(env,{HOME:join(fixture,'home'),DOCKER_CONFIG:join(fixture,'docker'),DOCKER_HOST:'unix://'+join(fixture,'docker-proxy.sock'),LUCI_DOCKER_HOST:'unix://'+join(fixture,'docker-proxy.sock'),LUCI_ADDR:'127.0.0.1:'+port,LUCI_STATE_DIR:join(fixture,'state'),LUCI_PROJECTS_DIR:join(fixture,'projects'),LUCI_WEB_DIR:web,LUCI_RUNTIME_DIR:join(dirname(binary),'runtime'),LUCI_SANDBOX_IMAGE:image,LUCI_BACKEND:'docker',LUCI_SESSION_MEMORY_MIB:'1024',LUCI_SESSION_CPU_MILLIS:'1000',LUCI_MANAGED_SHUTDOWN_TOKEN:lifecycle,LUCI_LOG_LEVEL:'error',LUCI_BROWSER_PREVIEW_ADDR:'127.0.0.1:'+preview,LUCI_BROWSER_PREVIEW_PORT:String(preview),GIT_CONFIG_GLOBAL:join(fixture,'home/.gitconfig'),GIT_CONFIG_NOSYSTEM:'1'});
@@ -456,7 +503,7 @@ try {
  stage='dependency-release';const joined=await complete('join');assert.equal(joined.operation.baseCommit,integratedB.commit);const saved=privateRun(owner);for(const id of ['task-a','task-b'])assert.equal(saved.swarm.tasks.find(t=>t.id===id).integration.state,'integrated');await reconcile();const integratedJoin=await integrate('join');assert.equal(readFileSync(join(owner.owner.path,'result.json'),'utf8'),expectedResult);assert.equal(sha(readFileSync(join(owner.owner.path,'result.json'))),observations.get('join').artifact.outputs['result.json']);assert.deepEqual(retainedB(),retained);
  stage='final-exact-source-check';const finalHead=gitAt(owner.owner.path,'rev-parse','HEAD');assert.equal(finalHead,integratedJoin.commit);assert.equal(gitAt(owner.owner.path,'status','--porcelain'),'');const checkedAt=new Date().toISOString(),output=execFileSync(process.execPath,['verify.mjs','final'],{cwd:owner.owner.path,env:{PATH:process.env.PATH,HOME:join(fixture,'home')},encoding:'utf8',timeout:15000,maxBuffer:1024*1024});assert.equal(output,'DAG_CHECK_OK final\n');assert.equal(gitAt(owner.owner.path,'rev-parse','HEAD'),finalHead);assert.equal(gitAt(owner.owner.path,'status','--porcelain'),'');assert.deepEqual(canonical(),owner.canonicalBefore);for(const worker of taskData.values())assert.deepEqual(bundleSnapshot(worker.session.id),initialBundles.get(worker.session.id));
  receipt.finalCheck={scope:'Independent fixture check on exact combined main commit, following native join checks; not a Luci product check receipt or deployment acceptance',command:['node','verify.mjs','final'],exitCode:0,stdout:output,commit:finalHead,at:checkedAt,resultSHA256:sha(readFileSync(join(owner.owner.path,'result.json'))),productRunState:owner.run.state};assert.equal(owner.run.state,'awaiting-checks');receipt.retainedBAtCompletion=retainedB();
- await openProject(owner);await page.screenshot({path:join(evidence,'DAG-integrated.png'),fullPage:true});assert.equal(proxy.observations.counts.create,4);assert.equal(proxy.observations.counts.start,4);assert.equal(proxy.observations.dropped,0);assert.equal(proxy.observations.failures.length,0);assert.equal(observations.size,4);assert.equal(receipt.naturalCompletions.length,4);assert.equal(receipt.browserErrors.length,0);assert.equal(workerContainers().length,0);assert.equal(docker('info','--format','{{.ID}}'),engineID);check('Four serial native workers exercise reviewed DAG dependencies, actual conflict, renewed review, retained retry and exact combined output');receipt.passed=true;
+ await openProject(owner);await page.screenshot({path:join(evidence,'DAG-integrated.png'),fullPage:true});await verifyCombinedBuild(finalHead);assert.equal(proxy.observations.counts.create,5);assert.equal(proxy.observations.counts.worker,4);assert.equal(proxy.observations.counts.check,1);assert.equal(proxy.observations.counts.start,5);assert.equal(proxy.observations.dropped,0);assert.equal(proxy.observations.failures.length,0);assert.equal(observations.size,4);assert.equal(receipt.naturalCompletions.length,4);assert.equal(receipt.browserErrors.length,0);assert.equal(workerContainers().length,0);assert.equal(docker('info','--format','{{.ID}}'),engineID);check('Four serial native workers exercise reviewed DAG dependencies, actual conflict, renewed review, retained retry and exact combined output plus one explicitly joined Docker whole-build check');receipt.passed=true;
 }catch(error){receipt.failedStage=stage;receipt.failure=redactError(error);process.exitCode=1;console.error(receipt.failure);if(page){try{await page.screenshot({path:join(evidence,'failed-stage.png'),fullPage:true});}catch{}}}
 finally {
  closing=true;clearTimeout(deadlineTimer);clearInterval(reserveTimer);for(const socket of sockets)socket.close();receipt.actualTaskResults=Object.fromEntries(observations);
@@ -465,7 +512,10 @@ finally {
  if(browser){try{await browser.close();}catch(error){cleanupFailure(error);}const end=Date.now()+5000;while(Date.now()<end&&ownedProcesses('browser').length)await delay(100);for(const identity of ownedProcesses('browser')){cleanupFailure(Error('Owned browser required forced cleanup'));if(stillOwned(identity)){try{process.kill(identity.pid,'SIGKILL');}catch(error){if(error.code!=='ESRCH')cleanupFailure(error);}}}}
  let stopped=false;try{stopped=await stopService(false);assert(stopped);assert(controllerIdentities.filter(Boolean).every(identity=>!stillOwned(identity)));}catch(error){cleanupFailure(error);}receipt.controllersStopped=stopped&&controllerIdentities.filter(Boolean).every(identity=>!stillOwned(identity));
  if(proxy){try{const cleanup=await proxy.close();assert(cleanup.drained&&cleanup.pendingRequests===0&&cleanup.activeHandlers===0);receipt.dockerRequestsDrained=true;}catch(error){cleanupFailure(error);}receipt.dockerTransportObservations=structuredClone(proxy.observations);if(proxy.observations.dropped||proxy.observations.failures.length)cleanupFailure(Error('Docker transport recorded lost, refused or uncertain observations'));}else{receipt.dockerRequestsDrained=true;receipt.dockerTransportNotStarted=true;}
- if(receipt.controllersStopped&&receipt.dockerRequestsDrained&&proxy){const created=proxy.observations.requests.filter(value=>value.method==='POST'&&/\/containers\/create$/.test(value.path)&&value.status===201&&/^[a-f0-9]{64}$/.test(value.id??''));for(const creation of created){try{const ids=docker('ps','-aq','--no-trunc').split(/\s+/).filter(Boolean);if(!ids.includes(creation.id))continue;const value=JSON.parse(docker('inspect',creation.id))[0];assert.equal(value.Id,creation.id);assert.equal(value.Name,'/'+creation.name);assert.equal(value.Config.Labels['luci.instance'],instanceID());assert.equal(value.Config.Labels['luci.session-id'],creation.labels['luci.session-id']);assert(ownedSessions.has(value.Config.Labels['luci.session-id']));assert.equal(value.Config.Labels['luci.managed'],'true');assert.equal(value.Image,imageInfo.Id);assert(value.Mounts.some(mount=>mount.Destination==='/home/dev/work'&&projectStates.some(owner=>realpathSync(mount.Source).startsWith(join(dirname(owner.owner.path),'.luci-swarms')+sep))));cleanupFailure(Error('Unexpected full worker remained; exact failed-fixture cleanup required'));if(value.State.Running)docker('stop','--time','5',value.Id);const current=JSON.parse(docker('inspect',value.Id))[0];assert.equal(current.Id,value.Id);assert.equal(current.State.Running,false);docker('rm',value.Id);}catch(error){cleanupFailure(error);}}}
+ if(receipt.controllersStopped&&receipt.dockerRequestsDrained&&proxy){const created=proxy.observations.requests.filter(value=>value.method==='POST'&&/\/containers\/create$/.test(value.path)&&value.status===201&&/^[a-f0-9]{64}$/.test(value.id??''));for(const creation of created){try{const ids=docker('ps','-aq','--no-trunc').split(/\s+/).filter(Boolean);if(!ids.includes(creation.id))continue;const value=JSON.parse(docker('inspect',creation.id))[0];assert.equal(value.Id,creation.id);assert.equal(value.Name,'/'+creation.name);if(creation.kind==='check'){
+ assert(checkIdentity);assertOwnedCheckContainer(value,{creation,identity:checkIdentity,fixture,primary:owner.owner.path,imageID:imageInfo.Id});
+ cleanupFailure(Error('Unexpected exact check container remained; failed-fixture immutable-ID cleanup required'));if(value.State.Running)docker('stop','--time','5',value.Id);const current=JSON.parse(docker('inspect',value.Id))[0];assert.equal(current.Id,value.Id);assert.equal(current.State.Running,false);docker('rm',value.Id);continue;
+ }assert.equal(value.Config.Labels['luci.instance'],instanceID());assert.equal(value.Config.Labels['luci.session-id'],creation.labels['luci.session-id']);assert(ownedSessions.has(value.Config.Labels['luci.session-id']));assert.equal(value.Config.Labels['luci.managed'],'true');assert.equal(value.Image,imageInfo.Id);assert(value.Mounts.some(mount=>mount.Destination==='/home/dev/work'&&projectStates.some(owner=>realpathSync(mount.Source).startsWith(join(dirname(owner.owner.path),'.luci-swarms')+sep))));cleanupFailure(Error('Unexpected full worker remained; exact failed-fixture cleanup required'));if(value.State.Running)docker('stop','--time','5',value.Id);const current=JSON.parse(docker('inspect',value.Id))[0];assert.equal(current.Id,value.Id);assert.equal(current.State.Running,false);docker('rm',value.Id);}catch(error){cleanupFailure(error);}}}
  if(provider){provider.closeAllConnections();if(provider.listening)await new Promise(done=>provider.close(done));}
  try{assert(receipt.controllersStopped);assert.equal(receipt.dockerRequestsDrained,true);assert.equal(docker('ps','-aq'),'');assert.equal(docker('volume','ls','-q'),'');assert.equal(ownedProcesses().length,0);assert.equal(ownedProcesses('browser').length,0);assert.equal(JSON.parse(docker('image','inspect',image))[0].Id,imageInfo.Id);assert.equal(sha(readFileSync(binary)),provenance.binarySHA256);assert.equal(sha(readFileSync(join(web,'index.html'))),provenance.webIndexSHA256);assert.equal(docker('info','--format','{{.ID}}'),engineID);for(const name of driverNames)assert.equal(sha(readFileSync(new URL(name,import.meta.url))),sha(readFileSync(join(evidence,'accepted-harness',name))));for(const name of reusedHelpers)assert.equal(sha(readFileSync(join(repo,'scripts/acceptance',name))),sha(readFileSync(join(evidence,'accepted-harness',name.replaceAll('/','_')))));
   receipt.runtimeCleanup={containers:0,volumes:0,ownedServiceProcesses:0,ownedBrowserProcesses:0,protectedImagePackageAndHelpersUnchanged:true,rootFreeBytes:rootFree()};assert.equal(realpathSync(fixture),fixture);assert.equal(dirname(fixture),fixtureParent);assert(fixture.split(sep).at(-1).startsWith('luci-dag-'));receipt.fixturePreservedForInspection=true;

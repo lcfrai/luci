@@ -49,34 +49,41 @@ func (a *API) exactBackendStopped(ctx context.Context, sandboxID string) (bool, 
 }
 
 func (a *API) exactBackendTerminal(ctx context.Context, sandboxID string, requireAbsent bool) (bool, error) {
+	terminal, _, err := a.exactBackendTerminalObservation(ctx, sandboxID, requireAbsent)
+	return terminal, err
+}
+
+// Return the same exact observation to the capacity-release caller so a
+// stopped-but-present classification does not perform a second name lookup.
+func (a *API) exactBackendTerminalObservation(ctx context.Context, sandboxID string, requireAbsent bool) (bool, backend.Sandbox, error) {
 	if err := ctx.Err(); err != nil {
-		return false, err
+		return false, backend.Sandbox{}, err
 	}
 	if sandboxID == "" {
-		return false, errors.New("The stopped task has no exact backend identity; inspect and recover it before releasing its resources.")
+		return false, backend.Sandbox{}, errors.New("The stopped task has no exact backend identity; inspect and recover it before releasing its resources.")
 	}
 	sb, err := a.deps.Backend.Get(ctx, sandboxID)
 	if ctx.Err() != nil {
-		return false, ctx.Err()
+		return false, backend.Sandbox{}, ctx.Err()
 	}
 	if err != nil {
 		if unambiguousBackendNotFound(err) {
-			return true, nil
+			return true, backend.Sandbox{}, nil
 		}
-		return false, fmt.Errorf("The task backend could not be confirmed stopped: %w", err)
+		return false, backend.Sandbox{}, fmt.Errorf("The task backend could not be confirmed stopped: %w", err)
 	}
 	if sb.ID != sandboxID {
-		return false, errors.New("The stopped task backend returned a different identity.")
+		return false, backend.Sandbox{}, errors.New("The stopped task backend returned a different identity.")
 	}
 	switch sb.State {
 	case backend.StateGone:
-		return true, nil
+		return true, sb, nil
 	case backend.StateStopped:
-		return !requireAbsent, nil
+		return !requireAbsent, sb, nil
 	case backend.StateStarting, backend.StateRunning:
-		return false, nil
+		return false, sb, nil
 	default:
-		return false, errors.New("The task backend state is unknown; inspect it before releasing its resources.")
+		return false, backend.Sandbox{}, errors.New("The task backend state is unknown; inspect it before releasing its resources.")
 	}
 }
 

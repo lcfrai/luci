@@ -1,0 +1,43 @@
+{
+  "recordedAt": "2026-10-08T17:00:09.799378+00:00",
+  "scope": "Clean Linux package identity and extracted-member verification only; no matching installed scenario pass is implied.",
+  "sourceCommit": "b1d5aeaabc5876755b86b1ecb0f4c1923dfb90b9",
+  "sourceDirty": false,
+  "verifiedExtractedFiles": 1263,
+  "licenseComponents": 347,
+  "missingLicenses": 0,
+  "allMembersMatched": true,
+  "subjects": [
+    {
+      "name": "linux-amd64/luci-cloud-linux-amd64.tar.gz",
+      "sha256": "3e0098a0d235b4f0176a9164db613a45681e60485733dde792c234fb4aee2921",
+      "bytes": 42127547
+    },
+    {
+      "name": "linux-amd64/luci-linux-amd64.tar.gz",
+      "sha256": "b31507d2dfba99b7d1e2c4a6605e91dac0efb529454359f586c1d0c134709960",
+      "bytes": 84053188
+    },
+    {
+      "name": "linux-amd64/release-manifest.json",
+      "sha256": "b08b274889c9d276e0616a2f6eb17ec16ff74142d27c314e7aa8c7c6394827b2",
+      "bytes": 696
+    }
+  ],
+  "apiBinarySHA256": "7f9b22288a01efad927c568477f7178dca2b241e2492019c30980d388d1c2777",
+  "webIndexSHA256": "1fac9851347041c3d8dfffd2591d5825bd119a6f4da94abaca6d4f3d76f2fb6f",
+  "packageProvenanceSHA256": "0995cb18a157647d230f91b14c5e61ccba2fa4f587eb70f890df37032ca723aa",
+  "runtimeImage": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+  "runtimeScope": "Previously verified scripted C012 runtime; unchanged sandbox sources. This package has not yet passed its matching dependency, recorded checks or sustained acceptance.",
+  "buildCommand": [
+    "bash",
+    "scripts/build-release.sh",
+    "0.5.0",
+    "linux-amd64"
+  ],
+  "limitations": [
+    "CLOUD-020 shared admission for whole-build checks remains a source-confirmed open defect.",
+    "Native Windows, real-model quality and sustained four-project resource acceptance remain open.",
+    "Archives are retained in the cloud workspace; source commit is remotely retrievable. This record does not assert a public binary download."
+  ]
+}

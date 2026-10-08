@@ -555,6 +555,7 @@ var ErrExecutionLeaseHeld = errors.New("The child execution remains active or un
 
 func (g *executionAdmission) release(ctx context.Context, id string) error {
 	held := false
+	localCleanup := true
 	err := g.mutate(ctx, func(ledger *executionLeaseLedger) error {
 		kept := ledger.Leases[:0]
 		for _, lease := range ledger.Leases {
@@ -562,24 +563,30 @@ func (g *executionAdmission) release(ctx context.Context, id string) error {
 				if lease.SessionID != "" {
 					if !executionLaunchSettled(lease) {
 						held = true
+						localCleanup = false
 						kept = append(kept, lease)
 						continue
 					}
 					row, err := g.api.deps.Store.Get(lease.SessionID)
 					if err != nil || row.Status != registry.StatusExited || row.ID != lease.SessionID || row.ProjectID != lease.ProjectID || row.SandboxID == "" || row.SandboxID != lease.SandboxID {
 						held = true
+						localCleanup = false
 						kept = append(kept, lease)
 						continue
 					}
 					requiresAbsence, err := g.api.executionRequiresBackendAbsence(row)
 					if err != nil {
 						held = true
+						localCleanup = false
 						kept = append(kept, lease)
 						continue
 					}
-					stopped, err := g.api.exactBackendTerminal(ctx, row.SandboxID, requiresAbsence)
+					stopped, observed, err := g.api.exactBackendTerminalObservation(ctx, row.SandboxID, requiresAbsence)
 					if err != nil || !stopped {
 						held = true
+						if err != nil || !requiresAbsence || !g.stoppedCleanupIsLocal(ctx, lease, row, observed) {
+							localCleanup = false
+						}
 						kept = append(kept, lease)
 						continue
 					}
@@ -592,6 +599,9 @@ func (g *executionAdmission) release(ctx context.Context, id string) error {
 		return nil
 	})
 	if err == nil && held {
+		if localCleanup && ctx.Err() == nil {
+			return product.SwarmCleanupPending(ErrExecutionLeaseHeld)
+		}
 		return ErrExecutionLeaseHeld
 	}
 	return err

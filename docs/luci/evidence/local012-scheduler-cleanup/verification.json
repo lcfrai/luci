@@ -1,0 +1,110 @@
+{
+  "issue": "LOCAL-012",
+  "recordedAt": "2026-10-08",
+  "status": "controlled-source-verification-passed",
+  "baseRevision": "b1d5aeaabc5876755b86b1ecb0f4c1923dfb90b9",
+  "sourceScope": "Uncommitted tested changes over the base revision. This is not evidence that the base commit already includes the fix.",
+  "problem": "A terminal failed task whose exact stopped container remained present retained its capacity correctly, but its broad release error aborted each scheduler turn before other projects could use remaining capacity.",
+  "correction": "Only a positively identified original-engine, immutable owned stopped Docker allocation is classified as item-local cleanup pending. Its lease, resource charge, retained output and failure guidance remain. Other projects may pass their own normal admission gates.",
+  "lineage": [
+    {
+      "phase": "fixture-failure",
+      "classification": "Test fixture setup failure before the scheduler bug; queue consent was refused with scheduler_unavailable because required runtime callbacks had been removed. Production was unchanged."
+    },
+    {
+      "phase": "original-bug",
+      "classification": "Corrected fixture and original production source fail at the intended starvation assertion: terminal cleanup aborts before three independently admissible projects progress."
+    },
+    {
+      "phase": "fixed-focused",
+      "classification": "The identical four-project test plus new classification cases pass:35 test outcomes,0 failures,0 skips."
+    },
+    {
+      "phase": "fixed-affected",
+      "classification": "Affected API/product race:128 test outcomes,0 failures,0 skips. This includes overlapping tests from the focused run and is not an additional128 unique test claims."
+    }
+  ],
+  "fourProjectProof": {
+    "test": "TestSwarmTerminalCleanupDoesNotStarveOtherProjects",
+    "sameTestBytesBeforeAndAfter": true,
+    "testSHA256": "3f25fad0642f7fb8b7c962fe0f416c87c8cb61fb4baef9309b6a5b314045fd01",
+    "globalSlots": 4,
+    "perProjectSlots": 1,
+    "retainedTaskMemoryMiB": 1024,
+    "totalChargedMemoryMiB": 4096,
+    "independentProjectsProgressed": 3,
+    "properties": [
+      "Actual reviewed HTTP queue consent and typed session dispatch with a controlled Docker-shaped backend.",
+      "A remains failed with its same stopped immutable container, private settled lease and held-capacity message.",
+      "B, C and D each receive exactly one separately owned running child.",
+      "Repeated scheduler turns and service/store reopen do not replay or replace any attempt.",
+      "A fifth admission is refused at the four-slot bound; no scheduler Destroy call occurs."
+    ]
+  },
+  "negativeCoverage": [
+    "Running, starting, unknown, missing-ref and mismatched identity/ownership allocations are not local cleanup.",
+    "Legacy or unacknowledged launches, changed request, changed engine/instance, unavailable identity/lookup and joined transport ambiguity retain global refusal.",
+    "Cancellation, deadline, corrupt shared ledger and joined errors are not converted to local permission.",
+    "Classification does not alter private capacity/proof; corrupt shared ledger bytes remain unchanged."
+  ],
+  "verification": [
+    {
+      "phase": "fixture-failure",
+      "report": "fixture-failure-report.json",
+      "reportSHA256": "e21b6106b26d4957e4d60d5870da630d4eea85b861291553cfc64f4fb7c9fa5d",
+      "sourceBeforeSHA256": "094ca6c2324801c137fc65947b2897a0034f39e13abca2004672ca9afaafa428",
+      "sourceAfterSHA256": "094ca6c2324801c137fc65947b2897a0034f39e13abca2004672ca9afaafa428",
+      "testEventsSHA256": "e1d6a476cbee1cc048bd47072427031fde0b1ac436f5c6079603688a729151f2",
+      "sourceUnchanged": true
+    },
+    {
+      "phase": "original-bug",
+      "report": "original-bug-report.json",
+      "reportSHA256": "3be9fcb4592f04058931169f387ba7d9abd2fcf3caf30391d9b5e00ef6f413c8",
+      "sourceBeforeSHA256": "ab6afbf2c1b9177001edb5773127cea3b393c0d51136b9be346a8229a9e7e7c1",
+      "sourceAfterSHA256": "ab6afbf2c1b9177001edb5773127cea3b393c0d51136b9be346a8229a9e7e7c1",
+      "testEventsSHA256": "1c6abf3ba7c83e2b9add34c1648611fb9c3b591f936734c47ceb6c76f772a065",
+      "sourceUnchanged": true
+    },
+    {
+      "phase": "fixed-focused",
+      "report": "fixed-focused-report.json",
+      "reportSHA256": "bddc27e4a789b0c382c41181b7a5d875c1bc92446e806c8b6dea5edc83bb14c8",
+      "sourceBeforeSHA256": "4f55212c639d4ed0ca0c0f081db2c9267feea74afff306307523defc1f3e8014",
+      "sourceAfterSHA256": "4f55212c639d4ed0ca0c0f081db2c9267feea74afff306307523defc1f3e8014",
+      "testEventsSHA256": "9fb2f4b4d3d3322b86902ae5014ed100815be887589cff1ad71d9d6be5ab421c",
+      "sourceUnchanged": true
+    },
+    {
+      "phase": "fixed-affected",
+      "report": "fixed-affected-report.json",
+      "reportSHA256": "0aea97485eaa8a7e398f42796250231cb4625edc7606978bd694fcf4d7344ff0",
+      "sourceBeforeSHA256": "4f55212c639d4ed0ca0c0f081db2c9267feea74afff306307523defc1f3e8014",
+      "sourceAfterSHA256": "4f55212c639d4ed0ca0c0f081db2c9267feea74afff306307523defc1f3e8014",
+      "testEventsSHA256": "1c658d447f0b12b0fab12fa82908a612bfeed1188790aa45624d452d33ecf2dd",
+      "sourceUnchanged": true
+    }
+  ],
+  "sourceManifests": {
+    "original": "original-bug-source.json",
+    "fixed": "fixed-source.json",
+    "fixedInputCount": 774
+  },
+  "changedOwnedSourceSHA256": {
+    "control-plane/internal/api/execution_leases.go": "06c0ed9853cd816c766d73e17e60d11b98e4c896595753ad84cdbe9e88824b5f",
+    "control-plane/internal/api/swarm_worktree_observer.go": "734cd0bbd582c47364f995dab2eb6441f6f251d375fc331e5beed50932a5d26c",
+    "control-plane/internal/api/swarm_cleanup_pending.go": "e9faf0e2f139e1d207b746debdd563946834c484a2622ac5243fe980f68205a8",
+    "control-plane/internal/product/project_swarm_cleanup.go": "18d957625a5f1df321cd95f4c682c29d081c7d9ec58faeecb24d325f8365ac1f",
+    "control-plane/internal/product/project_swarm_scheduler.go": "6d4028f6d5242aa425805b1995b3a0ad2c386e76187eee55774ce56c85027b5c",
+    "control-plane/internal/api/swarm_release_fairness_test.go": "3f25fad0642f7fb8b7c962fe0f416c87c8cb61fb4baef9309b6a5b314045fd01",
+    "control-plane/internal/api/swarm_cleanup_pending_test.go": "e4620a5c5eff5c56aa8a7951c6f3056ec4aeecc038280b9bf1da90d5c16a7d99",
+    "control-plane/internal/product/project_swarm_cleanup_test.go": "19b969c5afea747f08e1f43b03d77edd0ed2182c9f7bcfff232d389c89627aa6"
+  },
+  "limitations": [
+    "Controlled Linux Go/API/product/registry mechanics, not actual Docker execution or native Windows testing.",
+    "No model-provider quality, sustained-load, UI latency or full-product acceptance claim.",
+    "This is a targeted affected race run, not a fresh whole-repository suite.",
+    "Only known original stopped objects are exempted from aborting a scheduler turn; uncertain or unsupported ownership remains conservative.",
+    "No reservation is released or cleanup/recovery authorized by the new error classification."
+  ]
+}

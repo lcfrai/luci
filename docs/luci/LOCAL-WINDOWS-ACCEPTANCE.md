@@ -16,6 +16,20 @@ public DNS and hosted infrastructure do not block this local milestone.
 
 ## Pending correction retest scopes
 
+- **LOCAL-012 (ready for native retest):** maintain an item-local stopped-container cleanup hold
+  across repeated ticks/restart while three other projects fit remaining normal
+  capacity. A's lease must stay charged until exact cleanup; global errors must
+  remain visible. The [Linux controlled source correction](evidence/local012-scheduler-cleanup/README.md)
+  passes focused 35/affected 128 race outcomes (overlap); native and actual Docker
+  behavior remain unverified. Use the immutable correction revision in the notice,
+  not the older b1 source finding.
+
+- **CLOUD-020 (correction pending):** whole-build checks must share admission and
+  pending capacity with agents across accounts/projects, not only apply container
+  limits after allocation. Verify refusal before memory/disk pressure, fresh
+  authority, cancellation, exact cleanup and restart recovery. Existing sampling
+  of active check containers does not prove safe concurrent admission.
+
 - **CLOUD-019:** verify a refused start retains an exact safe reason across restart,
   appears failed/Start blocked rather than completed, preserves dependent waiting,
   cannot silently replay, and holds capacity until existing cleanup proof succeeds.

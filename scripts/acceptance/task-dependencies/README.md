@@ -6,7 +6,9 @@ Codex path, and an explicitly scripted local provider. It makes no model-quality
 parallel throughput, Windows or deployment claim.
 
 The fixed maximum is four workers: A, initial B, explicitly authorized B retry,
-and join. A and B have no dependency edge but overlap `shared.txt`, so they are
+and join, plus one separately authorized whole-build Docker check after all four
+worker attempts finish and the three current tasks are integrated. The separate
+check uses the same 1 GiB / 1 CPU / 256 PID limits; total Create/Start caps are five. A and B have no dependency edge but overlap `shared.txt`, so they are
 not eligible for concurrent writes. One worker is allowed globally, with exactly
 1 GiB RAM, 1 CPU and 256 PIDs, 6 GiB before each Create and a 1 GiB running reserve.
 The complete scenario has a predeclared fifteen-minute deadline. No image pulls,
@@ -39,8 +41,13 @@ The witness requires:
    B1 is excluded. Worker-reported checks remain separate from recorded project
    checks. Join runs from that combined commit, checks alpha 17 and beta 25, emits the
    exact sum-42 artifact, exits naturally and integrates only after browser review.
-   A final independent fixture check is bound to exact clean main HEAD. This is
-   not fabricated as a Luci product check receipt: the run remains awaiting checks.
+   A final independent fixture check is bound to exact clean main HEAD.
+7. In **Verify this build**, select the exact `AC-dag` criterion and explicitly
+   consent to Docker execution of `node` with arguments `["verify.mjs","final"]`.
+   The actual product check must record exit 0, exact expected output, unchanged
+   clean source and the saved requirement/approval revisions. **Use these results
+   for this build** joins that receipt explicitly. The final run is
+   `awaiting-release`; preview, deployment and overall completion remain unverified.
 
 Old B source, conflict files, all task contexts, receipts and Git history remain
 in the private fixture even after success. The public report includes bounded
@@ -49,6 +56,8 @@ test credentials and must not be committed or shared. Docker cleanup acts only o
 exact acknowledged fixture IDs, after owned controllers stop and proxy requests
 drain. Any ambiguous mutation prevents destructive cleanup. Positive runs need no
 container stop/delete by the fixture because normal reaping removes every worker.
+The check's existing `docker run --rm` and subsequent named cleanup remain actual
+product behavior; the proxy does not rewrite them or fabricate their results.
 
 The bundle validator accepts only the explicit legacy V1 eight-file schema or V2
 nine-file schema (with `.luci/task-handoffs.json`); this new-task witness requires
@@ -74,15 +83,48 @@ A negative dependency probe records its bounded response error/code/message, req
 
 The driver also stops on a terminal `failed` queue entry belonging to the exact explicit queue authorization and previously unseen child. It saves bounded public queue, session and current operation diagnostics before failing, including `startFailure` when available. An older failed B1 cannot be selected after B2 receives its own authorization. Unknown outcomes keep the existing bounded observation behavior; the diagnostic never grants a retry or creates a worker. Attempt 2 on `3b8054e6` completed A but B1 was refused before sandbox allocation; its generic old record cannot establish the particular access/capacity condition. Both earlier failures remain separate.
 
+## Separate check admission and evidence limits
+
+Check traffic is explicitly enabled only for this helper; the shared proxy denies
+it by default. The one check must match the actual persisted project-check row,
+fully integrated clean source, selected criterion, exact native argv, configured
+image, and a single owned writable primary checkout mount. Worker authority,
+context/report mounts, arbitrary commands, extra mounts, ports, capabilities and
+host namespaces are refused. The check is never counted as an additional agent.
+Fresh acceptance-only host/engine capacity and zero-container observations run
+before consent and again before forwarding Create. These guards do not establish
+production-wide check resource admission; that separate gap is tracked as
+CLOUD-020.
+
+Only an acknowledged immutable check ID may attach, wait or start. The existing
+product's named `docker rm --force` is forwarded unchanged only after an
+independent name inspection returns that exact ID/name/check identity or actual
+404. This is a point-in-time check, not an atomic daemon name fence. It depends on
+the exclusive fixture-owned daemon window and single permitted check Create;
+there is no claim of race-proof production cleanup. On failure, fixture cleanup
+waits for owned controllers to stop and proxy requests to drain, then acts only
+on the acknowledged immutable ID with matching image, command, mounts and limits.
+Uncertain mutations or ownership stop destructive cleanup.
+
+The raw CLI Create guard follows Docker CLI v28.4.0 sources, separately from
+normalized daemon inspection. The fresh private Docker config has no inherited
+attach keys. Mock transport and source review do not establish installed CLI wire
+compatibility; the next actual run must still pass every guard without alteration.
+The frozen Linux sampler attributes managed agent containers, not this separately
+labelled check. Its check-container cgroup peak is therefore **not measured** by
+that sampler. The receipt retains configured check limits, fresh admission
+observations, host/process sampling and actual check evidence without inventing
+check memory/CPU measurements or a responsiveness result.
+
 ## Preparation checks
 
 From this directory:
 
 ```sh
-node --test --test-concurrency=1 ../task-context-delivery.test.mjs helper.test.mjs context-contract.test.mjs dependency-probe.test.mjs queued-failure.test.mjs
+node --test --test-concurrency=1 ../task-context-delivery.test.mjs helper.test.mjs context-contract.test.mjs dependency-probe.test.mjs queued-failure.test.mjs project-check-guard.test.mjs
 python3 -m unittest run_with_observer_test.py
 node --check dag.mjs
-node --test --test-concurrency=1 ../launch-recovery/worker-create-guard.test.mjs
+node --test --test-concurrency=1 ../launch-recovery/worker-create-guard.test.mjs ../launch-recovery/fenced-docker-proxy.test.mjs
 ```
 
 These checks start no Docker, Go compiler, Luci or provider. Oracle tests run Node

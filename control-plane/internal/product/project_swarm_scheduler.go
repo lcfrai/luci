@@ -121,9 +121,12 @@ func (s *Server) RunSwarmSchedulerOnce(ctx context.Context) error {
 	// Recover before capacity selection. An uncertain child is never replaced.
 	for _, item := range row.Items {
 		if swarmQueueTerminal(item.State) && (item.MemoryMiB > 0 || item.CPUMillis > 0) {
-			if err = s.releaseQueueLease(ctx, item.ID, runtime); err != nil {
+			if err = s.releaseQueueLease(ctx, item.ID, runtime); err != nil && !swarmCleanupIsPending(err) {
 				return err
 			}
+			// A positively identified stopped allocation can await cleanup while
+			// unrelated projects use remaining capacity. Release did not succeed:
+			// its private lease and recorded memory/CPU remain charged unchanged.
 		}
 		if swarmQueueActive(item.State) {
 			if err = s.reconcileQueuedSwarm(ctx, item, runtime); err != nil {

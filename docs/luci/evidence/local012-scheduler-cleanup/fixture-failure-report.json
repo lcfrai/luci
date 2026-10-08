@@ -1,0 +1,45 @@
+{
+  "startedAt": "2026-10-08T17:22:33.956944+00:00",
+  "finishedAt": "2026-10-08T17:24:54.664737+00:00",
+  "durationSeconds": 140.70779215401853,
+  "command": [
+    "go",
+    "test",
+    "-race",
+    "-p",
+    "1",
+    "-count=1",
+    "-timeout=5m",
+    "-json",
+    "./control-plane/internal/api",
+    "-run",
+    "^TestSwarmTerminalCleanupDoesNotStarveOtherProjects$"
+  ],
+  "exitCode": 1,
+  "testOutcomes": {
+    "fail": 1
+  },
+  "packageOutcomes": [
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "result": "fail",
+      "elapsed": 3.45
+    }
+  ],
+  "failures": [
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "test": "TestSwarmTerminalCleanupDoesNotStarveOtherProjects"
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "test": null
+    }
+  ],
+  "sourceInputs": 770,
+  "changedInputs": [],
+  "headAtStart": "b1d5aeaabc5876755b86b1ecb0f4c1923dfb90b9",
+  "headAtEnd": "b1d5aeaabc5876755b86b1ecb0f4c1923dfb90b9",
+  "GOMAXPROCS": "2",
+  "scope": "Controlled Linux API/product/registry and backend states; no Docker, provider or native Windows execution."
+}

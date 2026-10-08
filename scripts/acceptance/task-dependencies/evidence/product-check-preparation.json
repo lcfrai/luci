@@ -1,0 +1,162 @@
+{
+  "version": 1,
+  "observedAt": "2026-10-08T17:14:14.379728+00:00",
+  "productRevision": "b1d5aeaabc5876755b86b1ecb0f4c1923dfb90b9",
+  "scope": "External acceptance-helper preparation only; no Docker, browser, Luci server, Go compiler, installed check or model execution. Source-defined raw CLI shape and controlled transport are not installed proof.",
+  "commands": [
+    {
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=1",
+        "scripts/acceptance/task-context-delivery.test.mjs",
+        "scripts/acceptance/task-dependencies/context-contract.test.mjs",
+        "scripts/acceptance/task-dependencies/dependency-probe.test.mjs",
+        "scripts/acceptance/task-dependencies/helper.test.mjs",
+        "scripts/acceptance/task-dependencies/project-check-guard.test.mjs",
+        "scripts/acceptance/task-dependencies/queued-failure.test.mjs",
+        "scripts/acceptance/launch-recovery/fenced-docker-proxy.test.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 2.88,
+      "log": "check-controlled-1.log",
+      "logSHA256": "27b8fa77db2863978f28680b73cb28e98b1dbe357118f09584230c4e05ae7723"
+    },
+    {
+      "command": [
+        "python3",
+        "-B",
+        "-m",
+        "unittest",
+        "run_with_observer_test.py"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.282,
+      "log": "check-controlled-2.log",
+      "logSHA256": "7ec214accb43560883c6218248c2dd001c31f179456976750910fa1e53c5640e"
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "scripts/acceptance/task-dependencies/dag.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.05,
+      "log": "check-controlled-3.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.062,
+      "log": "check-controlled-4.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "inputs": {
+    "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs": "bc2ca69c7372d7f79ef5fc67bd9ebae17dd62c554dbe25b6df525e037f45b359",
+    "scripts/acceptance/launch-recovery/fenced-docker-proxy.test.mjs": "3cbc4a9f5b3e12e7ea276426dca892aeb44e0ced81a9b3e02c554e1dadba5ca5",
+    "scripts/acceptance/task-dependencies/README.md": "1bc8e2a457dc00a71cc7214a63df254412cff9e7bda7b46805d723ef60f43e8d",
+    "scripts/acceptance/task-dependencies/context-contract.mjs": "07cf795341efc55f6e6e08929e18c02cfec85cb32663f49be69260e6df8faee2",
+    "scripts/acceptance/task-dependencies/context-contract.test.mjs": "762dcea2b5c9d6e86fb55fbb4bcdc4b2d625f166b325c2d76585e4c5e57bbd18",
+    "scripts/acceptance/task-dependencies/dag-fixture.mjs": "5290f1cf6bc5e3dd0d31120606984e65979851a03e68e701c51a998e7138a0a2",
+    "scripts/acceptance/task-dependencies/dag.mjs": "d2d0e2a73be0f3522d9ea96d5454c5d7253bc1c14050241a2f11b7b5d27f83d0",
+    "scripts/acceptance/task-dependencies/dependency-probe.mjs": "eddf18208bbc1bf1ea52926406fb5fefced5d94b94bead7d7e68b5a3ee7d0ef2",
+    "scripts/acceptance/task-dependencies/dependency-probe.test.mjs": "f96ac3bf82b7b8e19d653b1c490f1f0f2cda345ab7aa507d9f87d0f870d59fbd",
+    "scripts/acceptance/task-dependencies/helper.test.mjs": "520739aa2a67ca683517a14a439493ff58b77a6e8a216300544e6c2e00621561",
+    "scripts/acceptance/task-dependencies/project-check-guard.mjs": "4a83b02cb63351c733bb596e9bb130e642b721466e6b5f5bab3a0d57c6a5fb9f",
+    "scripts/acceptance/task-dependencies/project-check-guard.test.mjs": "bc589fd1830178d5cefcf161075708584f080f9dc4cf1c6fb0ada285ba13e60f",
+    "scripts/acceptance/task-dependencies/queued-failure.mjs": "a141cd521c2d98ff0c475837eb42a861572a3e1c3533966262975de13de524d7",
+    "scripts/acceptance/task-dependencies/queued-failure.test.mjs": "316760ffa2a4df480692065c8da52cb68ce5ef524cdb1132f6bc12c3718f792a",
+    "scripts/acceptance/task-dependencies/run-with-observer.py": "80da81c9d46841df6ffa505c7e9d6641849408748ba1b1bc2661cd73f043068f",
+    "scripts/acceptance/task-dependencies/run_with_observer_test.py": "16d056f5c3b5cb4febdb0765c4a458b3afc9276b0c22f46902391145f6a71d1e",
+    "checkout/scripts/acceptance/task-context-delivery.mjs": "9c16efd099c2cbf475a206d487c7abe76ee2699ee19c2061f6d2be8dd063ad68",
+    "checkout/scripts/acceptance/task-context-delivery.test.mjs": "1a1620ebe1a60ad628008f02c0b6ccbb6f8eeba10052eb52672377d01de673cd"
+  },
+  "inputsUnchanged": true,
+  "passed": true,
+  "limits": {
+    "workers": 4,
+    "wholeBuildChecks": 1,
+    "totalCreates": 5,
+    "totalStarts": 5,
+    "driverDeadlineMs": 900000,
+    "preCreateFreeBytes": 6442450944,
+    "workerAndCheckMemoryBytes": 1073741824,
+    "workerAndCheckNanoCPUs": 1000000000,
+    "workerAndCheckPids": 256
+  },
+  "limitations": [
+    "Product b1 check cleanup remains name-based; proxy performs point-in-time identity validation under exclusive owned-daemon scope and does not rewrite the request.",
+    "Acceptance-only fresh check capacity guard does not establish production shared admission (CLOUD-020).",
+    "Frozen worker sampler does not attribute the separately labelled check cgroup.",
+    "Actual installed CLI wire compatibility and whole-build check acceptance are unverified."
+  ],
+  "counts": {
+    "node": {
+      "passed": 73,
+      "failed": 0,
+      "skipped": 0
+    },
+    "python": {
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    "syntaxChecks": 2
+  },
+  "inputScope": "Hashes bind staged helper files plus the two unchanged shared context-delivery files explicitly marked checkout/. No app execution or source compilation occurred.",
+  "publicationNote": "This sanitized receipt is added after the observed input snapshot and is not itself an input to the completed checks. Original command logs and external manifests remain retained.",
+  "wireSourceBasis": [
+    {
+      "url": "https://raw.githubusercontent.com/docker/cli/v28.4.0/cli/command/container/create.go",
+      "file": "cli_command_container_create.go",
+      "sha256": "20a24e879cb2038949ed47b7d6c104571d9d44217aa3de685bdb10540f006226",
+      "bytes": 14615
+    },
+    {
+      "url": "https://raw.githubusercontent.com/docker/cli/v28.4.0/cli/command/container/opts.go",
+      "file": "cli_command_container_opts.go",
+      "sha256": "33ab2e431f1defe43764956a8d44430a11c8cf301d816ebed80528e6e4ce5649",
+      "bytes": 44053
+    },
+    {
+      "url": "https://raw.githubusercontent.com/docker/cli/v28.4.0/opts/mount.go",
+      "file": "opts_mount.go",
+      "sha256": "f99bebf14ed188009eace2a6cd9f15f8ee24bdfb4c459fd1bec7f479a3c547f7",
+      "bytes": 7015
+    },
+    {
+      "url": "https://raw.githubusercontent.com/docker/cli/v28.4.0/opts/security_opt.go",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/docker/cli/v28.4.0/cli/command/container/run.go",
+      "file": "cli_command_container_run.go",
+      "sha256": "4d11856ffa2ea42064484e682d5bd9464a171de6abe4c04d7378f7e7d0f8770d",
+      "bytes": 11008
+    },
+    {
+      "url": "https://raw.githubusercontent.com/docker/cli/v28.4.0/opts/network.go",
+      "file": "opts_network.go",
+      "sha256": "4504602898b7305e872810e334201738e09d9d0788d188ab1d3ba19f281d59dc",
+      "bytes": 3769
+    },
+    {
+      "url": "https://raw.githubusercontent.com/docker/cli/v28.4.0/opts/opts.go",
+      "file": "opts_opts.go",
+      "sha256": "7f5a3361602aeb669a9fa01f3491e76f0af445bb72cece8a55af3085f42195d1",
+      "bytes": 14968
+    }
+  ],
+  "wireSourceBasisNotes": [
+    "Raw CLI flags follow Docker CLI v28.4.0 create/options/run/mount sources. The unsuccessful separate security_opt.go lookup is retained; parseSecurityOpts is implemented in container/opts.go.",
+    "Docker SDK v28.3.3 client/container_attach.go and hijack.go establish true-only query flags and TCP upgrade; daemon container/container_unix.go keeps HostConfig.Tmpfs separate from GetMountPoints for the source-defined --tmpfs flag.",
+    "Source evidence and controlled mocked wire bodies do not replace actual installed CLI/daemon acceptance."
+  ]
+}

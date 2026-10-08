@@ -905,3 +905,54 @@ The next package must match the published correction. Dependency conflict/join,
 actual product-recorded whole-build verification and sustained four-project work
 are pending. The local tester may audit or retest the new source between batches
 when resources permit; this is not the integrated LOCAL TEST HANDOFF READY notice.
+
+
+### CLOUD-020 shared admission for whole-build checks
+
+Source review at `b1d5aeaabc5876755b86b1ecb0f4c1923dfb90b9` confirms that project
+checks use per-container memory/CPU bounds and an in-process check count, but do
+not reserve shared capacity before Docker Create. Each account/team process has
+its own count. The observer charges already-visible `luci.check` containers to
+later worker admissions; that does not cover simultaneous pending checks.
+CLOUD-020 is P1, owner cloud implementation, preparing a correction. This is a
+source-confirmed admission gap, not an observed overload or Windows failure.
+Future acceptance must cover checks and agents competing across four projects,
+fresh authority/resource refusal, pending/active resource accounting, and exact
+cleanup/controller-restart recovery. The serialized dedicated C013 witness's
+external admission guard cannot establish that this product gap is fixed.
+
+
+### LOCAL-012 cross-project cleanup fairness and b1 source audit
+
+The local tester reports LOCAL-012 from source at exact `b1d5aeaa`: a terminal
+failed item's expected persistent cleanup hold returns from the scheduler before
+other projects use remaining normally admitted capacity. Cloud implementation
+owns the correction. Regressions must keep A's exact lease/resource charge,
+continue B/C/D only through normal admission, retain global error/cancellation
+handling, survive repeated ticks/restart, then release A only after confirmed
+removal. This is a source finding, not a native runtime or overload result.
+
+The same audit verifies LOCAL-011's original helper/fixture publication hashes,
+accepts LOCAL-010's scoped visual/source improvement for native retest, and binds
+all 682 CLOUD-019 final inputs to b1. The original installed B refusal cause and
+LOCAL-008 timing remain unknown. Failed full-run history and overlapping counts
+remain explicit. No local runtime was launched under the low-RAM condition.
+
+
+### LOCAL-012 controlled correction ready for native retest
+
+The corrected regression reproduces starvation against original production, then
+passes with the item-local cleanup classification. The first fixture setup failure
+is preserved separately. Focused Linux race checks pass 35 outcomes; affected API
+and product checks pass 128, with overlapping coverage, zero failures/skips and
+774 unchanged inputs. A retains its stopped exact object and 1 GiB lease; B/C/D
+advance under normal limits, repeated turns/store reopen do not replay attempts,
+a fifth admission is refused, and confirmed removal is required for A's release.
+Negative cases keep unknown/foreign/running objects, transport ambiguity, corrupt
+ledgers and cancellation conservative. [Source proof and reproducible commands](evidence/local012-scheduler-cleanup/README.md).
+
+This is not actual Docker or native Windows proof. The integrated dependency and
+whole-build check helper now has 73 controlled Node checks and four Python checks,
+plus syntax checks, with [exact input binding](../../scripts/acceptance/task-dependencies/evidence/product-check-preparation.json).
+Its strict serialized check admission is acceptance-only; CLOUD-020 production
+shared admission remains unfinished. No runtime pass follows from helper preparation.
