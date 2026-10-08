@@ -72,6 +72,7 @@ func TestTeamSwarmRoutesRequireExactCapabilities(t *testing.T) {
 		{"POST", "", true, true}, {"POST", "/queue", true, true}, {"POST", "/tasks/api/queue", true, true}, {"POST", "/tasks/api/reserve", true, true}, {"POST", "/tasks/api/integrate", true, true},
 		{"POST", "/pause", true, false}, {"POST", "/resume", true, true}, {"POST", "/cancel", true, false}, {"POST", "/reconcile", true, false}, {"POST", "/tasks/api/abandon", true, false},
 		{"GET", "/tasks/api/review", false, false}, {"GET", "/operations/op-one/workspace", false, false}, {"GET", "/operations/op-one/workspace/file?path=result.txt", false, false},
+		{"GET", "/operations/op-one/recovery", true, false}, {"HEAD", "/operations/op-one/recovery", true, false},
 	} {
 		for _, permission := range []TeamPermissions{{Read: true}, {Read: true, Edit: true}, {Read: true, Edit: true, Execute: true}, {}} {
 			w := httptest.NewRecorder()

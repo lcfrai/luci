@@ -1006,7 +1006,10 @@ func TestDestroyOfAnAlreadyGoneSandboxIsSuccess(t *testing.T) {
 }
 
 func TestDestroyIsIdempotentAcrossRepeatedCalls(t *testing.T) {
-	f := &fakeDocker{}
+	f := &fakeDocker{inspects: []inspectResult{
+		{resp: inspectOf("immutable-original", "running", "127.0.0.1", "51001", labelsFor("s-3f2a91c0", "sess-1"))},
+		{err: notFoundErr{"luci-s-3f2a91c0"}},
+	}}
 	b := newBackend(t, f)
 
 	for i := 0; i < 3; i++ {
@@ -1014,8 +1017,8 @@ func TestDestroyIsIdempotentAcrossRepeatedCalls(t *testing.T) {
 			t.Fatalf("Destroy call %d = %v, want nil", i+1, err)
 		}
 	}
-	if got := f.snapshotRemoves(); len(got) != 3 {
-		t.Fatalf("removes = %v, want three calls", got)
+	if got := f.snapshotRemoves(); len(got) != 1 || got[0] != "immutable-original" {
+		t.Fatalf("removes = %v, want one immutable original removal followed by confirmed absence", got)
 	}
 	if !f.removeOpts[0].Force || !f.removeOpts[0].RemoveVolumes {
 		t.Errorf("RemoveOptions = %+v, want Force and RemoveVolumes", f.removeOpts[0])
@@ -1023,7 +1026,7 @@ func TestDestroyIsIdempotentAcrossRepeatedCalls(t *testing.T) {
 }
 
 func TestDestroySurfacesARealDaemonFailure(t *testing.T) {
-	f := &fakeDocker{removeErr: errors.New("connection refused")}
+	f := &fakeDocker{inspects: []inspectResult{{resp: inspectOf("immutable-original", "running", "127.0.0.1", "51001", labelsFor("s-3f2a91c0", "sess-1"))}}, removeErr: errors.New("connection refused")}
 	b := newBackend(t, f)
 
 	err := b.Destroy(context.Background(), "s-3f2a91c0")

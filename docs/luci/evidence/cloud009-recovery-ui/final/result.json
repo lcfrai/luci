@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "tests": {
+    "numTotalTests": 124,
+    "numPassedTests": 124,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0
+  },
+  "files": 7,
+  "typecheckExitCode": 0,
+  "sourceUnchanged": true,
+  "limitations": [
+    "Source component/client checks; not installed or actual Docker/native recovery acceptance."
+  ]
+}

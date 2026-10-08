@@ -135,6 +135,10 @@ func (s *Server) projectRunOriginalChecks(projectID string) map[string]bool {
 }
 
 func projectRunViewWithOriginals(run ProjectRun, originals map[string]bool, freshness ProjectRunContextFreshness, blocker *ProjectRunCodingBlocker) ProjectRunView {
+	run.Operations = append([]ProjectRunOperation{}, run.Operations...)
+	for i := range run.Operations {
+		run.Operations[i] = publicSwarmOperation(run.Operations[i])
+	}
 	actions := []string{"reconcile"}
 	currentInputs := freshness.Status == "current" && blocker == nil
 	if run.Swarm != nil && !swarmAllIntegrated(run) {
@@ -379,7 +383,7 @@ func (s *Server) reserveProjectRunOperation(w http.ResponseWriter, r *http.Reque
 		projectRunProblem(w, err)
 		return
 	} else if found {
-		journeyJSON(w, http.StatusOK, map[string]any{"run": s.projectRunView(run), "operation": op})
+		journeyJSON(w, http.StatusOK, map[string]any{"run": s.projectRunView(run), "operation": publicSwarmOperation(op)})
 		return
 	}
 	run, err := s.projectRuns.Get(p.ID, p.Path, r.PathValue("runId"))
@@ -419,7 +423,7 @@ func (s *Server) reserveProjectRunOperation(w http.ResponseWriter, r *http.Reque
 	if created {
 		status = http.StatusCreated
 	}
-	journeyJSON(w, status, map[string]any{"run": s.projectRunView(run), "operation": op})
+	journeyJSON(w, status, map[string]any{"run": s.projectRunView(run), "operation": publicSwarmOperation(op)})
 }
 
 func projectRunPending(run ProjectRun) bool {

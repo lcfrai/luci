@@ -440,10 +440,10 @@ func (s *Server) reconcileQueuedSwarm(ctx context.Context, item swarmQueueRecord
 		}
 		return s.schedulerSetReason(item.ID, "unknown", "receipt_missing", "The reserved operation cannot be identified. No replacement will be launched.")
 	}
+	if swarmRetirementPending(op) {
+		return s.schedulerSetReason(item.ID, "unknown", "retirement_pending", "Finish this attempt's explicit launch recovery before retrying. Its output, frozen context and execution reservation remain retained.")
+	}
 	if op.Status == "cancelled" || op.Allocation == "abandoned" {
-		if swarmRetirementPending(op) {
-			return s.schedulerSetReason(item.ID, "unknown", "retirement_pending", "Finish the explicit missing-launch recovery to confirm its execution reservation was released. Files and context remain retained.")
-		}
 		if err = s.releaseQueueLease(ctx, item.ID, runtime); err != nil {
 			return s.schedulerSetReason(item.ID, "unknown", "resource_release_pending", "The task was retired, but its execution reservation cannot yet be confirmed released. No replacement will be launched.")
 		}

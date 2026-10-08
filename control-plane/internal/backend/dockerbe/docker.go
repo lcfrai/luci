@@ -404,6 +404,9 @@ func (b *Backend) Get(ctx context.Context, id string) (backend.Sandbox, error) {
 	if resp.ContainerJSONBase == nil {
 		return backend.Sandbox{}, fmt.Errorf("dockerbe: inspect %s returned no container body: %w", name, backend.ErrUnavailable)
 	}
+	if fenceMarked(resp) {
+		return backend.Sandbox{}, backend.ErrLaunchFenced
+	}
 	endpoint, err := b.endpointFromPortMap(portsOf(resp))
 	if err != nil {
 		return backend.Sandbox{}, err
@@ -480,6 +483,9 @@ func (b *Backend) List(ctx context.Context) ([]backend.Sandbox, error) {
 	b.forgetExposed(summaries)
 	out := make([]backend.Sandbox, 0, len(summaries))
 	for _, s := range summaries {
+		if _, fence := s.Labels[backend.LabelLaunchFence]; fence {
+			continue // retained recovery markers are never agent/orphan work
+		}
 		owner := s.Labels[backend.LabelInstance]
 		id := s.Labels[backend.LabelSandboxID]
 		endpoint, epErr := b.endpointFromSummaryPorts(s.Ports)
@@ -578,8 +584,29 @@ func (b *Backend) Attach(ctx context.Context, id, token string) (*websocket.Conn
 // Destroy is idempotent. Task 13's reaper and an explicit DELETE race by
 // design, so "already gone" is the outcome both wanted.
 func (b *Backend) Destroy(ctx context.Context, id string) error {
-	err := b.api.ContainerRemove(ctx, namePrefix+id, container.RemoveOptions{Force: true, RemoveVolumes: true})
-	if err == nil || client.IsErrNotFound(err) {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	resp, err := b.api.ContainerInspect(ctx, namePrefix+id)
+	if err != nil {
+		if ctx.Err() == nil && stoppedCleanupNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("dockerbe: inspect before remove %s: %w", id, backend.ErrUnavailable)
+	}
+	if fenceMarked(resp) {
+		return backend.ErrLaunchFenced
+	}
+	if resp.ContainerJSONBase == nil || resp.ID == "" || resp.Config == nil ||
+		resp.Config.Labels[backend.LabelManaged] != "true" || resp.Config.Labels[backend.LabelSandboxID] != id ||
+		(resp.Config.Labels[backend.LabelInstance] != "" && resp.Config.Labels[backend.LabelInstance] != b.instance) {
+		return fmt.Errorf("dockerbe: remove ownership is unconfirmed: %w", backend.ErrLaunchFenceOwnership)
+	}
+	// The lookup's immutable ID remains safe even when a recovery replaces the
+	// deterministic name before this RPC reaches Docker. Never send a delayed
+	// name-based remove which could erase a newly acknowledged fence.
+	err = b.api.ContainerRemove(ctx, resp.ID, container.RemoveOptions{Force: true, RemoveVolumes: true})
+	if err == nil || ctx.Err() == nil && stoppedCleanupNotFound(err) {
 		return nil
 	}
 	return fmt.Errorf("dockerbe: remove %s: %v: %w", id, err, backend.ErrUnavailable)

@@ -391,3 +391,31 @@ it('does not treat a missing Windows storage readiness check as authorization to
   await screen.findByText(/Check Docker storage readiness before preparing/);
   expect(client.installRuntime).not.toHaveBeenCalled();
 });
+
+it('invalidates an older readiness response without probing again or starting runtime preparation', async () => {
+  let complete!: (value:SetupStatus)=>void;
+  const storageReady={...ready,platform:'windows',checks:[...ready.checks,{id:'docker-backing-storage',label:'Storage',status:'ready',message:'Earlier storage check.',action:''}]} as SetupStatus;
+  const stale={...storageReady,checks:storageReady.checks.map(check=>check.id==='docker-backing-storage'?{...check,status:'unknown' as const,message:'Storage changed; check readiness explicitly.'}:check)};
+  const client={check:vi.fn().mockImplementationOnce(()=>new Promise(resolve=>{complete=resolve;})).mockResolvedValue(storageReady),runtime:vi.fn().mockResolvedValue({status:'idle'}),installRuntime:vi.fn().mockResolvedValue({status:'installing',message:'Explicit fresh readiness accepted.'})} as unknown as ProductClient;
+  const onStatus=vi.fn(),pending=vi.fn();
+  const view=render(<RuntimePreparation client={client} manageBacking automatic storageRevision={0} statusSnapshot={storageReady} onStatus={onStatus} onPendingChange={pending}/>);
+  view.rerender(<RuntimePreparation client={client} manageBacking automatic storageRevision={1} statusSnapshot={stale} onStatus={onStatus} onPendingChange={pending}/>);
+  await act(async()=>complete(storageReady));
+  expect(client.check).toHaveBeenCalledOnce();expect(client.installRuntime).not.toHaveBeenCalled();expect(onStatus).not.toHaveBeenCalled();
+  expect(pending).toHaveBeenLastCalledWith(false);
+  expect(screen.getByRole('button',{name:'Prepare agent runtime'})).toHaveProperty('disabled',true);
+  await userEvent.click(screen.getByRole('button',{name:'Check again'}));
+  await waitFor(()=>expect(client.check).toHaveBeenCalledTimes(2));
+  expect(onStatus).toHaveBeenCalledWith(storageReady,1);expect(client.installRuntime).toHaveBeenCalledOnce();
+});
+
+it('honors parent invalidation before new storage props have rendered', async () => {
+  let complete!:(value:SetupStatus)=>void,currentStorageRevision=0;
+  const client={check:vi.fn().mockImplementation(()=>new Promise(resolve=>{complete=resolve;})),runtime:vi.fn().mockResolvedValue({status:'idle'}),installRuntime:vi.fn()} as unknown as ProductClient;
+  const receive=vi.fn((_status:SetupStatus,checkedRevision?:number)=>checkedRevision===currentStorageRevision);
+  render(<RuntimePreparation client={client} manageBacking automatic storageRevision={0} onStatus={receive}/>);
+  currentStorageRevision=1;
+  await act(async()=>complete(ready));
+  expect(receive).toHaveBeenCalledWith(ready,0);
+  expect(client.check).toHaveBeenCalledOnce();expect(client.installRuntime).not.toHaveBeenCalled();
+});

@@ -33,8 +33,7 @@ func validExecutionRetirement(v executionRetirement) bool {
 		return false
 	}
 	observed, e1 := time.Parse(time.RFC3339Nano, v.Proof.ObservedAt)
-	inventory, e2 := time.Parse(time.RFC3339Nano, v.Proof.InventoryObservedAt)
-	return e1 == nil && e2 == nil && !observed.Before(inventory) && !v.RetiredAt.Before(observed)
+	return e1 == nil && product.ValidProjectSwarmRecoveryProof(v.Proof, v.ChildID) && !v.RetiredAt.Before(observed)
 }
 func retiredExecutionMatches(v executionRetirement, req product.ProjectSwarmRecoveryRequest) bool {
 	return v.ProjectID == req.ProjectID && v.RunID == req.RunID && v.OperationID == req.OperationID && v.ChildID == req.ChildID && v.QueueID == req.QueueID
@@ -62,6 +61,9 @@ func (g *executionAdmission) recoveryLease(ctx context.Context, req product.Proj
 	err := g.mutate(ctx, func(l *executionLeaseLedger) error {
 		for _, v := range l.Retirements {
 			if v.Scope == g.scope && retiredExecutionMatches(v, req) {
+				if v.Proof.Method == product.ProjectSwarmFenceRecoveryMethod {
+					return errMissingRecoveryUnproved
+				}
 				copy := v
 				retired = &copy
 				return nil

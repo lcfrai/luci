@@ -131,3 +131,15 @@ it('never paints a previous Super Admin’s private location when identity chang
   expect(observed[observed.length - 1]).not.toContain(fullPath);
   expect(screen.queryByText(fullPath, { exact: true })).toBeNull();
 });
+
+it('refreshes an unchanged cached observation without invalidating unrelated readiness', async () => {
+  const api=client(snapshot({state:'confirmed'})),changed=vi.fn();
+  render(<DockerStorageConfirmation client={api} enabled onChanged={changed}/>);
+  await screen.findByRole('button',{name:'Review or change storage location'});
+  await userEvent.click(screen.getByRole('button',{name:'Refresh Docker storage status'}));
+  expect(api.get).toHaveBeenCalledTimes(2);expect(changed).not.toHaveBeenCalled();
+  vi.mocked(api.get).mockResolvedValue(snapshot({revision:4,state:'invalidated',message:'Changed confirmed layout.'}));
+  await userEvent.click(screen.getByRole('button',{name:'Refresh Docker storage status'}));
+  await screen.findByText(/Changed confirmed layout/);
+  expect(changed).toHaveBeenCalledOnce();expect(api.confirm).not.toHaveBeenCalled();
+});

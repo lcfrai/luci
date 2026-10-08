@@ -17,9 +17,11 @@ export interface RunOperation {
   allocation?: 'allocating' | 'ready' | 'unknown' | 'abandoned';
   /** Durable missing-child proof; recovery finalization may still need retry. */
   absenceRetirement?: {childId: string; queueId?: string; leaseId: string; backend: string; observedAt: string; inventoryObservedAt: string; finalizedAt?: string};
+  /** Recorded recovery facts, never a live worker observation or new-start authority. */
+  recovery?: {state: 'pending' | 'fenced' | 'finalized'; requestedAt: string; provedAt?: string; finalizedAt?: string};
   integration?: SwarmTask['integration'];
 }
-export const runOperationNeedsRecovery = (operation?: RunOperation) => !!operation?.absenceRetirement && !operation.absenceRetirement.finalizedAt;
+export const runOperationNeedsRecovery = (operation?: RunOperation) => !!operation?.absenceRetirement && !operation.absenceRetirement.finalizedAt || !!operation?.recovery && operation.recovery.state !== 'finalized';
 export const runOperationNeedsReview = (operation?: RunOperation) => !!operation && ['review-required', 'succeeded'].includes(operation.status);
 export const runHasTaskReview = (run?: ProjectRun) => !!run?.swarm?.tasks.some(task => task.integration?.state !== 'integrated' && runOperationNeedsReview(run.operations.find(operation => operation.id === task.operationId)));
 export interface SwarmTask {

@@ -1,0 +1,10 @@
+{
+  "desktop/src/api/projectRuns.ts": "01d896ae9f6e5d0f38bbddda407abd61040c4f54b00e77f723a1bb45b81ab1ce",
+  "desktop/src/api/projectSwarm.ts": "eaaa4b57147baa52d150d9bbbb303b5b2d36a3cd7148b3a9b3a3b797d3374d63",
+  "desktop/src/api/projectSwarm.test.ts": "18a5e89ccad6dd6c44820806d44e3ca8a3c6ecf1d9067b0d9706febc2c340fb5",
+  "desktop/src/components/journey/ProjectSwarm.tsx": "09c676bd19557e18773822d2341848127a220ad7a0a76ea0d32d1b89cab34efb",
+  "desktop/src/components/journey/ProjectSwarm.test.tsx": "095c2821a485d0417c8c261bd3b8c6f82c7a0b48595909c4dd7562c19bde2b6f",
+  "desktop/src/components/journey/SwarmLaunchRecoveryDialog.tsx": "36ca3baff34bd972b4450f12c921b49a866695461328c10c1720d2e7f3ae51df",
+  "desktop/src/components/journey/SwarmLaunchRecovery.test.tsx": "fb2ef5621421c456fcbe5bfc927de28f26b62d364a48904b7ad1244555751a15",
+  "desktop/src/components/journey/project-swarm.css": "bec8e74032eabc58e721fa8e777e01e972f166ce8c07d7cca08d0ff9b9fd13c9"
+}

@@ -1,0 +1,177 @@
+{
+  "scope": "LOCAL005 source regression and controlled Settings browser witness; no installed/native process trace or backend/tool execution.",
+  "sourceCommit": "c46405fc7092d93bbc5514442eacd4b175d14518",
+  "sourceDirty": true,
+  "beforeFix": {
+    "tests": 2,
+    "failed": 2,
+    "receipt": "local005-storage-refresh-ui/before-fix-confirmed-vitest.json",
+    "behavior": [
+      "Manual refresh made one unintended readiness request and locked Settings Close/Back/section controls.",
+      "Portal refresh repeated the initial readiness request and locked Continue."
+    ]
+  },
+  "verified": {
+    "passed": true,
+    "testExitCode": 0,
+    "typecheckExitCode": 0,
+    "sourceUnchanged": true,
+    "counts": {
+      "numTotalTests": 66,
+      "numPassedTests": 66,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0
+    },
+    "files": 7,
+    "commands": [
+      [
+        "npm",
+        "test",
+        "--",
+        "--maxWorkers=2",
+        "src/components/setup/DockerStorageConfirmation.test.tsx",
+        "src/components/setup/SetupPanel.storage.test.tsx",
+        "src/components/setup/SetupPanel.test.tsx",
+        "src/components/setup/RuntimePreparation.test.tsx",
+        "src/components/setup/SetupProvider.test.tsx",
+        "src/components/setup/LocalTools.test.tsx",
+        "src/api/executionStorage.test.ts",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=/workspace/luci/artifacts/quality-swarm/local005-ui/verified/vitest.json"
+      ],
+      [
+        "npm",
+        "run",
+        "typecheck"
+      ]
+    ]
+  },
+  "verifiedReceipt": "local005-storage-refresh-ui/verified/result.json",
+  "browser": {
+    "passed": true,
+    "sourceUnchanged": true,
+    "scope": "Actual source SetupPanel, storage confirmation and runtime preparation in Linux Chromium with controlled HTTP callbacks; dependency installer panel omitted.",
+    "checks": [
+      {
+        "width": 1440,
+        "storageRefreshNoReadinessProbe": true,
+        "navigationUsableWhileStorageReadPending": true,
+        "lateResultIgnoredAfterLeavingStorage": true,
+        "axeViolations": [],
+        "calls": [
+          {
+            "path": "/v1/admin/execution-storage",
+            "method": "GET"
+          },
+          {
+            "path": "/v1/admin/execution-storage",
+            "method": "GET"
+          },
+          {
+            "path": "/v1/admin/execution-storage",
+            "method": "GET"
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "storageRefreshNoReadinessProbe": true,
+        "navigationUsableWhileStorageReadPending": true,
+        "lateResultIgnoredAfterLeavingStorage": true,
+        "axeViolations": [],
+        "calls": [
+          {
+            "path": "/v1/admin/execution-storage",
+            "method": "GET"
+          },
+          {
+            "path": "/v1/admin/execution-storage",
+            "method": "GET"
+          },
+          {
+            "path": "/v1/admin/execution-storage",
+            "method": "GET"
+          }
+        ]
+      },
+      {
+        "scenario": "explicit confirmation and separate readiness",
+        "noReadinessProbeUntilExplicitChoice": true,
+        "calls": [
+          {
+            "path": "/v1/admin/execution-storage",
+            "method": "GET"
+          },
+          {
+            "path": "/v1/admin/execution-storage",
+            "method": "POST"
+          },
+          {
+            "path": "/v1/admin/execution-storage",
+            "method": "GET"
+          },
+          {
+            "path": "/v1/setup/check",
+            "method": "POST"
+          }
+        ]
+      },
+      {
+        "scenario": "portal cached refresh",
+        "onlyInitialPreparationCheck": true,
+        "continuationAndSetupChoiceUsable": true,
+        "calls": [
+          {
+            "path": "/v1/admin/execution-storage",
+            "method": "GET"
+          },
+          {
+            "path": "/v1/setup/check",
+            "method": "POST"
+          },
+          {
+            "path": "/v1/setup/runtime/install",
+            "method": "GET"
+          },
+          {
+            "path": "/v1/setup/git/identity",
+            "method": "GET"
+          },
+          {
+            "path": "/v1/setup/runtime/install",
+            "method": "GET"
+          },
+          {
+            "path": "/v1/admin/execution-storage",
+            "method": "GET"
+          }
+        ]
+      }
+    ],
+    "geometry": [
+      {
+        "width": 1440,
+        "clientWidth": 920,
+        "scrollWidth": 920,
+        "left": 260,
+        "right": 1180,
+        "viewport": 1440
+      },
+      {
+        "width": 390,
+        "clientWidth": 370,
+        "scrollWidth": 370,
+        "left": 10,
+        "right": 380,
+        "viewport": 390
+      }
+    ]
+  },
+  "browserReceipt": "local005-storage-refresh-ui/browser-verified/result.json",
+  "installedWindowsAcceptance": false,
+  "nativeProcessStartTrace": false,
+  "actualDockerOrModelExecution": false,
+  "fullFrontendRunInThisBatch": false
+}

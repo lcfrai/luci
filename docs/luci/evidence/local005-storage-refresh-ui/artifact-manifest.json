@@ -1,0 +1,166 @@
+{
+  "sanitization": "Only the checkout prefix is replaced with <repo>. Fixture identity, paths and observations are controlled values; originals and curated copies retain separate SHA-256 values.",
+  "files": [
+    {
+      "file": "verified/result.json",
+      "sourceArtifact": "artifacts/quality-swarm/local005-ui/verified/result.json",
+      "originalSHA256": "60c2ec98a88d7c591b6e0c784ab454984988b8d46cd36a0e1104ebd7c153713f",
+      "curatedSHA256": "0c5dd561277b13894a3a0f6eb625726b26295206f17a665e46371df0ec91e970",
+      "checkoutPrefixReplaced": true
+    },
+    {
+      "file": "verified/source-after.json",
+      "sourceArtifact": "artifacts/quality-swarm/local005-ui/verified/source-after.json",
+      "originalSHA256": "dbb284a355fdc0d780fa270e973c25b458b12fcec4b8a629909054f93ba13307",
+      "curatedSHA256": "dbb284a355fdc0d780fa270e973c25b458b12fcec4b8a629909054f93ba13307",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "file": "verified/tests.log",
+      "sourceArtifact": "artifacts/quality-swarm/local005-ui/verified/tests.log",
+      "originalSHA256": "d82e168f359815e3de1541a8c3ddafa9c7465832fce087454e26a785e0401133",
+      "curatedSHA256": "a2b0cda871d07b6f5d1ba9e85370f52335b899d0c8edf4d7f53662ceaf18758b",
+      "checkoutPrefixReplaced": true
+    },
+    {
+      "file": "verified/typecheck.log",
+      "sourceArtifact": "artifacts/quality-swarm/local005-ui/verified/typecheck.log",
+      "originalSHA256": "6d51e3ec9a9d283eee096e5e9403c5d963c9468e9756fd61f3e9e0d3df1bde71",
+      "curatedSHA256": "6d51e3ec9a9d283eee096e5e9403c5d963c9468e9756fd61f3e9e0d3df1bde71",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "file": "verified/vitest.json",
+      "sourceArtifact": "artifacts/quality-swarm/local005-ui/verified/vitest.json",
+      "originalSHA256": "05a62c48976e1024c667cd2d685c1a951416a44e0927b90a75552038b130d545",
+      "curatedSHA256": "c754ea2ac4391535a8062d04df4b2735540e2add5a86eaeffb8d3a346a530c12",
+      "checkoutPrefixReplaced": true
+    },
+    {
+      "file": "verified/source-before.json",
+      "sourceArtifact": "artifacts/quality-swarm/local005-ui/verified/source-before.json",
+      "originalSHA256": "dbb284a355fdc0d780fa270e973c25b458b12fcec4b8a629909054f93ba13307",
+      "curatedSHA256": "dbb284a355fdc0d780fa270e973c25b458b12fcec4b8a629909054f93ba13307",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "file": "browser-verified/result.json",
+      "sourceArtifact": "artifacts/quality-swarm/local005-ui/browser-verified/result.json",
+      "originalSHA256": "92a6346d9e8edf15a60e374248d622a65da748b3e12f2736cf371df11a5c9dff",
+      "curatedSHA256": "92a6346d9e8edf15a60e374248d622a65da748b3e12f2736cf371df11a5c9dff",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "file": "browser-verified/settings-storage-pending-390.png",
+      "sourceArtifact": "artifacts/quality-swarm/local005-ui/browser-verified/settings-storage-pending-390.png",
+      "originalSHA256": "732d96e33e4a8539712cc64ba033314001f10134de86df0c5f2a8bb5e81d16fe",
+      "curatedSHA256": "732d96e33e4a8539712cc64ba033314001f10134de86df0c5f2a8bb5e81d16fe",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "file": "browser-verified/settings-storage-pending-1440.png",
+      "sourceArtifact": "artifacts/quality-swarm/local005-ui/browser-verified/settings-storage-pending-1440.png",
+      "originalSHA256": "981eb2ff03b75373e3878300679b23dd9d710624e57083469a2801592cfaadde",
+      "curatedSHA256": "981eb2ff03b75373e3878300679b23dd9d710624e57083469a2801592cfaadde",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "file": "browser-verified/fixture.tsx",
+      "sourceArtifact": "artifacts/quality-swarm/local005-ui/browser-verified/fixture.tsx",
+      "originalSHA256": "342f4629dea398f243cdcc45da93154a5a0b616b8fd28eac897bcb4939faaf88",
+      "curatedSHA256": "342f4629dea398f243cdcc45da93154a5a0b616b8fd28eac897bcb4939faaf88",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "file": "browser-verified/source-browser.mjs",
+      "sourceArtifact": "artifacts/quality-swarm/local005-ui/browser-verified/source-browser.mjs",
+      "originalSHA256": "de1586ff26add35757142aff2cf713af6f910bf8ccfc4def44e994fab191a057",
+      "curatedSHA256": "de1586ff26add35757142aff2cf713af6f910bf8ccfc4def44e994fab191a057",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "file": "before-fix.log",
+      "sourceArtifact": "artifacts/quality-swarm/local005-ui/before-fix.log",
+      "originalSHA256": "d84fa486b798b6737c9445f7c4de74b17bbce3aafb08044dd8a2da0dfd211806",
+      "curatedSHA256": "088153b596fb0846577e7fd3904dffa32d1decff424ddf2c9eae820690fb1660",
+      "checkoutPrefixReplaced": true
+    },
+    {
+      "file": "before-fix-vitest.json",
+      "sourceArtifact": "artifacts/quality-swarm/local005-ui/before-fix-vitest.json",
+      "originalSHA256": "eade7ed8aeed57b3d62815c5b8d3bfc334c7f361c743cd4ee81558d015d3812b",
+      "curatedSHA256": "d437cde10a737d1f2157bf10709bdd956e208f0da75c9ad68c9a8d3b299a13c1",
+      "checkoutPrefixReplaced": true
+    },
+    {
+      "file": "before-fix-source.json",
+      "sourceArtifact": "artifacts/quality-swarm/local005-ui/before-fix-source.json",
+      "originalSHA256": "10b64e92ce73c28f1c9b41600bc4cac1d1298bc38a21725c3df67cfb979a86e8",
+      "curatedSHA256": "10b64e92ce73c28f1c9b41600bc4cac1d1298bc38a21725c3df67cfb979a86e8",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "file": "before-fix-confirmed-vitest.json",
+      "sourceArtifact": "artifacts/quality-swarm/local005-ui/before-fix-confirmed-vitest.json",
+      "originalSHA256": "aa628d2dbcf0a89048a381319915151f94aa32aad2ff151107c250e1f39199f1",
+      "curatedSHA256": "73322caf6c94ddce99c50da7d3f85437d85b190757065185098bddb2cc1e8d27",
+      "checkoutPrefixReplaced": true
+    },
+    {
+      "file": "before-fix-exit.json",
+      "sourceArtifact": "artifacts/quality-swarm/local005-ui/before-fix-exit.json",
+      "originalSHA256": "4f41cd2a1d09f21e78b4bef216ab97f808c36ab34c8c6982196aab2c58fc795a",
+      "curatedSHA256": "278106b54cc30725aa5d6b1e3ab2bea03e4414916aaeaa2f26d7c8523229a66e",
+      "checkoutPrefixReplaced": true
+    },
+    {
+      "file": "before-fix-confirmed.log",
+      "sourceArtifact": "artifacts/quality-swarm/local005-ui/before-fix-confirmed.log",
+      "originalSHA256": "65926a1cf245baf942a52be836c2d528ac1075399d97edd542e09e622c566d0a",
+      "curatedSHA256": "7c33ac6044b048118d7ad753df7c9131ba426e5097af108fd161d51ced952d84",
+      "checkoutPrefixReplaced": true
+    },
+    {
+      "file": "before-fix-confirmed-exit.json",
+      "sourceArtifact": "artifacts/quality-swarm/local005-ui/before-fix-confirmed-exit.json",
+      "originalSHA256": "bf1c7809906ffbaaacf6ceadb4203e9d544e1eb8bde1d665339a7021894a35a6",
+      "curatedSHA256": "ae3dd3da55f8fa9782f960221ee03fd0482dbfe0094428fc906371ff05677692",
+      "checkoutPrefixReplaced": true
+    },
+    {
+      "file": "focused/result.json",
+      "sourceArtifact": "artifacts/quality-swarm/local005-ui/focused/result.json",
+      "originalSHA256": "519875ad7f4178d7d7de174a83370b77d971b41c4509b90b065fd58136f4ea6c",
+      "curatedSHA256": "f57f0d3df22715d2d2c1aec2bff66a34cbe7c4b694cebda6359604aa3c65b609",
+      "checkoutPrefixReplaced": true
+    },
+    {
+      "file": "focused/typecheck.log",
+      "sourceArtifact": "artifacts/quality-swarm/local005-ui/focused/typecheck.log",
+      "originalSHA256": "b0a30e684a58cbcd6bdadbb4d5b1f01c584f31cc319a0c7ef5f218bad772dc33",
+      "curatedSHA256": "b0a30e684a58cbcd6bdadbb4d5b1f01c584f31cc319a0c7ef5f218bad772dc33",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "file": "final/result.json",
+      "sourceArtifact": "artifacts/quality-swarm/local005-ui/final/result.json",
+      "originalSHA256": "966fed340e4bfef17384d405521ae55ce0d77a543a024f703a8cafbd1101d91c",
+      "curatedSHA256": "4e39afd8719a47ff66c5f766e2d605006c5798a1f586b7d19ace52ebd4b005d1",
+      "checkoutPrefixReplaced": true
+    },
+    {
+      "file": "final/typecheck.log",
+      "sourceArtifact": "artifacts/quality-swarm/local005-ui/final/typecheck.log",
+      "originalSHA256": "31ce09a68c66600e468ff6e67b2b17f71155872d76d585bcb38b48c7ab86600f",
+      "curatedSHA256": "31ce09a68c66600e468ff6e67b2b17f71155872d76d585bcb38b48c7ab86600f",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "file": "browser/result.json",
+      "sourceArtifact": "artifacts/quality-swarm/local005-ui/browser/result.json",
+      "originalSHA256": "3b64cca5afde45f63effce20c420ea90fdc0959b71b9d471000859e575764949",
+      "curatedSHA256": "3b64cca5afde45f63effce20c420ea90fdc0959b71b9d471000859e575764949",
+      "checkoutPrefixReplaced": false
+    }
+  ]
+}

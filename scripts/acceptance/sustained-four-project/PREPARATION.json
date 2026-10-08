@@ -1,0 +1,59 @@
+{
+  "status": "prepared-not-installed-executed",
+  "createdAt": "2026-10-08T11:43:11.997681+00:00",
+  "scope": "Prepared sustained acceptance harness. No installed/Docker execution from this preparation. Parent controls clean package and exclusive runtime window.",
+  "files": {
+    "README.md": "696cc515acd5f643c2810eebb8cfea9b9f28954dc769588d0ef18095a7dfb6e0",
+    "helper.test.mjs": "97c80e81827056aaa2c4ac346296e6cce1d0f375fe6ba65ad6ce5b355dd7b9ab",
+    "interaction-metrics.mjs": "f4c8b16e1debac1847ac1af53ba3abf99b515ca187fef4ba61d42c131de0d13e",
+    "run-with-observer.py": "a966ff9fc1a85a459b05d558d98406e7732d344ad14c05c3d076ad092ac38480",
+    "run_with_observer_test.py": "16d056f5c3b5cb4febdb0765c4a458b3afc9276b0c22f46902391145f6a71d1e",
+    "sustained.mjs": "30b088d88c2aed6dbcaed7cc832e7d273cd5076d822530301abe538f635c6d9a",
+    "task-command.mjs": "414015af6ea915ccd3c838c3a316b7f08e079b70cc5de299a7991bb0b5f9f6fe",
+    "workload-smoke-verification.json": "544bbcd6dc7e5b3d7ed306ffe3425628e8488e12173acb3f107650786bfd70de",
+    "workload.test.mjs": "0842134ed73e9cfae8a7ad8b2f306f45db9f9dda689a0920c2e5e129e7d6df0c",
+    "workloads.mjs": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306"
+  },
+  "controlledChecks": {
+    "nodeTestsPassed": 10,
+    "pythonTestsPassed": 4,
+    "nodeGeneratedBodiesParsed": 5,
+    "nodeCommand": "node --test helper.test.mjs workload.test.mjs",
+    "pythonCommand": "python3 run_with_observer_test.py",
+    "installedRuns": 0
+  },
+  "independentReview": {
+    "agent": "navigation_review",
+    "result": "No remaining blocking finding in scoped lifecycle/metrics/source review",
+    "mainSHA256": "5d9b8e7a1dcba6d97a7df4cdea3e66cee59bd2335663079dbf58fadd146d4015",
+    "commandSHA256": "414015af6ea915ccd3c838c3a316b7f08e079b70cc5de299a7991bb0b5f9f6fe",
+    "metricsSHA256": "f4c8b16e1debac1847ac1af53ba3abf99b515ca187fef4ba61d42c131de0d13e"
+  },
+  "predeclaredBounds": {
+    "scenarioSeconds": 1800,
+    "observerSeconds": 1980,
+    "workers": 5,
+    "concurrentWorkers": 1,
+    "requiredActiveFuzzReportedSeconds": 600,
+    "workerMemoryMiB": 1024,
+    "workerCPUMillis": 1000,
+    "scratchMiB": 512,
+    "corpusMiB": 32,
+    "fuzzCommandSeconds": 330,
+    "preCreateFreeGiB": 6,
+    "runningFloorGiB": 1
+  },
+  "remaining": [
+    "Parent verified clean package and exact runtime lineage",
+    "Actual installed workflow and latency/resource results",
+    "Live model quality, native Windows and concurrent heavy-worker checks remain separate"
+  ],
+  "postReviewChanges": [
+    {
+      "path": "scripts/acceptance/sustained-four-project/sustained.mjs",
+      "beforeSHA256": "5d9b8e7a1dcba6d97a7df4cdea3e66cee59bd2335663079dbf58fadd146d4015",
+      "afterSHA256": "30b088d88c2aed6dbcaed7cc832e7d273cd5076d822530301abe538f635c6d9a",
+      "change": "Removed one trailing space from the source-revision assertion; no semantic change."
+    }
+  ]
+}

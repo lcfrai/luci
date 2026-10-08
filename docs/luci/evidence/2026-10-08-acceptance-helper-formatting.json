@@ -1,0 +1,17 @@
+{
+  "changes": [
+    {
+      "path": "scripts/acceptance/launch-recovery/recovery.mjs",
+      "beforeSHA256": "be740588d2dc0e3019cd9a8d269156d2d7f09c71bcd15fecafdd83b16ef66c88",
+      "afterSHA256": "4e20fc62d3b3ab69fb11b245a60617d51d119cf0df324e484fc11e1a72df5262",
+      "change": "Removed one trailing space from the source-revision assertion; no semantic change."
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/sustained.mjs",
+      "beforeSHA256": "5d9b8e7a1dcba6d97a7df4cdea3e66cee59bd2335663079dbf58fadd146d4015",
+      "afterSHA256": "30b088d88c2aed6dbcaed7cc832e7d273cd5076d822530301abe538f635c6d9a",
+      "change": "Removed one trailing space from the source-revision assertion; no semantic change."
+    }
+  ],
+  "scope": "Formatting-only post-review change, checked by exact one-space byte replacement. Earlier structural tests still describe unchanged helper behavior; installed execution remains pending."
+}

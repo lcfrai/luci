@@ -25,8 +25,8 @@ import (
 )
 
 // fakeDaemon is the Docker Engine API, as much of it as serve and the reaper
-// call: /_ping, GET /containers/json and DELETE /containers/{name}. It is an
-// httptest server on 127.0.0.1, so a test that points
+// call: /_ping, GET /containers/json, exact inspect and immutable-ID delete.
+// It is an httptest server on 127.0.0.1, so a test that points
 // LUCI_DOCKER_HOST at it reaches no real daemon, and it holds no
 // container anybody made. Any other request is recorded and answered 404, so a
 // test can say what serve asked that it did not expect.
@@ -71,9 +71,56 @@ func (d *fakeDaemon) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(body)
+	case r.Method == http.MethodGet && strings.Contains(p, "/containers/") && strings.HasSuffix(p, "/json"):
+		reference := strings.TrimSuffix(p, "/json")
+		reference = reference[strings.LastIndex(reference, "/")+1:]
+		d.mu.Lock()
+		var found *container.Summary
+		for i := range d.list {
+			row := &d.list[i]
+			if row.ID == reference || len(row.Names) == 1 && strings.TrimPrefix(row.Names[0], "/") == reference {
+				copy := *row
+				found = &copy
+				break
+			}
+		}
+		d.mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		if found == nil {
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = io.WriteString(w, `{"message":"fake daemon: no such container"}`)
+			return
+		}
+		name := ""
+		if len(found.Names) == 1 {
+			name = found.Names[0]
+		}
+		_ = json.NewEncoder(w).Encode(container.InspectResponse{
+			ContainerJSONBase: &container.ContainerJSONBase{
+				ID: found.ID, Name: name,
+				State: &container.State{Status: found.State, Running: found.State == "running"},
+			},
+			Config: &container.Config{Labels: found.Labels},
+		})
 	case r.Method == http.MethodDelete && strings.Contains(p, "/containers/"):
 		name := p[strings.LastIndex(p, "/")+1:]
 		d.mu.Lock()
+		at := -1
+		for i := range d.list {
+			if d.list[i].ID == name {
+				at = i
+				break
+			}
+		}
+		if at < 0 {
+			d.other = append(d.other, r.Method+" "+p)
+			d.mu.Unlock()
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = io.WriteString(w, `{"message":"fake daemon: delete requires exact existing immutable ID"}`)
+			return
+		}
+		d.list = append(d.list[:at], d.list[at+1:]...)
 		d.removed = append(d.removed, name)
 		d.mu.Unlock()
 		select {
@@ -192,8 +239,8 @@ const (
 //
 // So this runs serve itself, against a fake Docker API, with an own orphan
 // and another instance's orphan on the "daemon": the startup sweep must
-// destroy the first by name and never touch the second. Hermetic: its own
-// state directory, 127.0.0.1:0, and a daemon that is an httptest server.
+// inspect and destroy the first by immutable ID and never touch the second.
+// Hermetic: its own state directory, 127.0.0.1:0, and an httptest daemon.
 func TestServeReapsItsOwnOrphanWithTheIDItLoadedAndSparesAnothers(t *testing.T) {
 	clearDockerEnv(t)
 	state := privateStateDir(t)
@@ -213,8 +260,8 @@ func TestServeReapsItsOwnOrphanWithTheIDItLoadedAndSparesAnothers(t *testing.T) 
 
 	select {
 	case name := <-d.removedCh:
-		if name != "luci-s-ownorph1" {
-			t.Errorf("the first container serve's reaper removed was %q, want its own orphan luci-s-ownorph1", name)
+		if name != "c-own-orphan" {
+			t.Errorf("the first container serve's reaper removed was %q, want its own orphan immutable ID c-own-orphan", name)
 		}
 	case err := <-done:
 		t.Fatalf("serve returned (%v) before its reaper destroyed its own orphan; logs:\n%s", err, logs.String())
@@ -231,8 +278,14 @@ func TestServeReapsItsOwnOrphanWithTheIDItLoadedAndSparesAnothers(t *testing.T) 
 	case <-time.After(20 * time.Second):
 		t.Fatal("serve did not return within 20s of its context being cancelled")
 	}
-	if got := d.removedNames(); !reflect.DeepEqual(got, []string{"luci-s-ownorph1"}) {
+	if got := d.removedNames(); !reflect.DeepEqual(got, []string{"c-own-orphan"}) {
 		t.Errorf("removed %v, want only this instance's orphan: another instance's is its own reaper's", got)
+	}
+	d.mu.Lock()
+	remaining := append([]container.Summary(nil), d.list...)
+	d.mu.Unlock()
+	if len(remaining) != 1 || remaining[0].ID != "c-their-orphan" || remaining[0].Labels[backend.LabelInstance] != fakeTheirs {
+		t.Errorf("remaining containers %v, want the unchanged foreign orphan", remaining)
 	}
 	if !strings.Contains(logs.String(), "instance="+fakeOurs) {
 		t.Errorf("the listening line did not name the instance id serve loaded (%s); logs:\n%s", fakeOurs, logs.String())

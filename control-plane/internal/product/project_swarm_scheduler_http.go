@@ -236,6 +236,13 @@ func (s *Server) enqueueProjectSwarmTask(w http.ResponseWriter, r *http.Request)
 	if err == nil && current.Revision != req.ExpectedRevision {
 		err = ErrProjectRunConflict
 	}
+	if err == nil {
+		for _, taskID := range req.TaskIDs {
+			if err = s.requireNoSwarmPendingLaunch(r.Context(), current, taskID); err != nil {
+				break
+			}
+		}
+	}
 	s.swarmScheduler.mu.Lock()
 	if err == nil {
 		row, err = s.readSwarmScheduler()

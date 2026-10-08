@@ -16,6 +16,8 @@ import (
 func swarmHTTPFixture(t *testing.T, taskOverrides ...ProjectTask) (*Server, *http.ServeMux, project.Project, ProjectRun, string, *ProjectRunSelection) {
 	t.Helper()
 	s, mux, p, req, selected, _ := projectRunHTTPFixture(t)
+	// This product-only fixture has no external execution lease ledger.
+	s.SetProjectSwarmPendingLaunch(func(context.Context, string, string, string, string) (bool, error) { return false, nil })
 	// Autonomous workers use only an explicitly saved supported permission;
 	// the ordinary interactive run fixture intentionally remains Ask.
 	req.PermissionMode, selected.PermissionMode = "bypass", "bypass"

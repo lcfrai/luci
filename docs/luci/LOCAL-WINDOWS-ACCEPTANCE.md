@@ -531,3 +531,9 @@ local milestone open until its required gates pass. After that local feedback
 and supplied access, use Luci's own reviewed agent workflows on Luci's source to
 implement and verify cloud connectivity/execution. Public cloud operation,
 managed billing and public distribution retain their separate release gates.
+
+
+For interrupted-launch recovery and cached storage-refresh corrections, use the
+[scoped recovery/storage matrix](LOCAL-RECOVERY-ACCEPTANCE.md) at the published
+exact revision. The [operator contract](INTERRUPTED-LAUNCH-RECOVERY.md) explains
+retained output, explicit continuation and finite recovery-history limits.

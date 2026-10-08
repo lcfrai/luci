@@ -8,6 +8,10 @@
 .project-swarm-tasks .journey-actions { margin-block-start: 12px; }
 .project-swarm code { overflow-wrap: anywhere; }
 .project-swarm-commits code { overflow-wrap: anywhere; }
+.swarm-recovery-scope { display: grid; gap: 8px; margin: 0; }
+.swarm-recovery-scope > div { display: grid; grid-template-columns: minmax(64px, 80px) minmax(0, 1fr); gap: 8px; }
+.swarm-recovery-scope dt { color: var(--ink-2); }
+.swarm-recovery-scope dd { margin: 0; overflow-wrap: anywhere; }
 .project-swarm-patch { padding: 12px; border: 1px solid var(--line-soft); border-radius: 8px; max-block-size: 40vh; overflow: auto; font-size: 12px; line-height: 1.6; background: var(--surface); color: var(--ink-1); }
 .project-swarm-patch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (max-width: 760px) { .project-swarm { padding: 12px; } .project-swarm-tasks > li { padding: 10px; } }

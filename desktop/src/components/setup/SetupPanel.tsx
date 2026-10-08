@@ -175,6 +175,9 @@ export function SetupPanel({
   const dependencies = useMemo(() => createDependencyClient(client), [client]);
   const executionStorage = useMemo(() => createExecutionStorageClient(client), [client]);
   const [toolsRevision, setToolsRevision] = useState(0);
+  const [storageRevision, setStorageRevision] = useState(0);
+  const storageInvalidation = useRef({revision: 0, needsCheck: false});
+  const latestStatus = useRef(status); latestStatus.current = status;
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState("");
@@ -215,10 +218,31 @@ export function SetupPanel({
       alive.current = false;
     };
   }, []);
-  const receive = (value: SetupStatus) => {
-    setStatus(value);
-    setConfig(value.config);
-    onStatus(value);
+  const staleStorageReadiness = (value: SetupStatus): SetupStatus => {
+    if (value.platform !== "windows" || value.workspace?.mode === "cloud") return value;
+    const previous = value.checks.find(check => check.id === "docker-backing-storage");
+    const check = {...previous, id: "docker-backing-storage", label: previous?.label || "Docker storage readiness", status: "unknown" as const,
+      message: "Docker storage changed. Choose Check readiness to refresh workspace readiness.", action: ""};
+    return {...value, checks: [...value.checks.filter(item => item.id !== check.id), check]};
+  };
+  const receive = (value: SetupStatus, checkedStorageRevision?: number, updateConfig = true) => {
+    if (checkedStorageRevision !== undefined && checkedStorageRevision !== storageInvalidation.current.revision) return false;
+    if (checkedStorageRevision === storageInvalidation.current.revision) storageInvalidation.current.needsCheck = false;
+    const next = storageInvalidation.current.needsCheck ? staleStorageReadiness(value) : value;
+    latestStatus.current = next; setStatus(next);
+    if (updateConfig) setConfig(value.config);
+    onStatus(next);
+    return true;
+  };
+  const invalidateStorageReadiness = () => {
+    storageInvalidation.current = {revision: storageInvalidation.current.revision + 1, needsCheck: true};
+    setStorageRevision(storageInvalidation.current.revision);
+    const previous = latestStatus.current;
+    if (previous) {
+      const next = staleStorageReadiness(previous);
+      latestStatus.current = next; setStatus(next); onStatus(next);
+    }
+    setNotice("Storage status changed. Check readiness when you want to refresh the complete workspace checks.");
   };
   async function run(label: string, action: () => Promise<void>) {
     if (inFlight.current) return;
@@ -468,9 +492,9 @@ export function SetupPanel({
                     variant="secondary" loading={busy === "Connecting"}
                     disabled={!!busy}
                     onClick={() =>
-                      void run("Connecting", async () =>
-                        receive(await client.status()),
-                      )
+                      void run("Connecting", async () => {
+                        receive(await client.status());
+                      })
                     }
                   >
                     Retry connection
@@ -536,14 +560,13 @@ export function SetupPanel({
                       />
                       <RuntimePreparation
                         refreshToken={toolsRevision}
+                        storageRevision={storageRevision}
+                        statusSnapshot={status}
                         client={client}
                         manageBacking={manageBacking}
                         automatic
                         onPendingChange={setRuntimePending}
-                        onStatus={(value) => {
-                          setStatus(value);
-                          onStatus(value);
-                        }}
+                        onStatus={(value, checkedStorageRevision) => receive(value, checkedStorageRevision, false)}
                       />
                     </>
                   )}
@@ -586,7 +609,8 @@ export function SetupPanel({
                         disabled={!!busy}
                         onClick={() =>
                           void run("Checking", async () => {
-                            receive(await client.check());
+                            const checkedStorageRevision = storageInvalidation.current.revision;
+                            receive(await client.check(), checkedStorageRevision);
                             setNotice("Readiness check finished.");
                           })
                         }
@@ -628,10 +652,7 @@ export function SetupPanel({
                   <DockerStorageConfirmation
                     client={executionStorage}
                     enabled={status?.platform === "windows" && !cloudWorkspace}
-                    onChanged={() => {
-                      setToolsRevision(value => value + 1);
-                      if (!runtimeActive) void run("Checking storage readiness", async () => receive(await client.check()));
-                    }}
+                    onChanged={invalidateStorageReadiness}
                   />
                   <LocalTools
                     runtimeBlockedReason={storagePreparationBlock(status)}

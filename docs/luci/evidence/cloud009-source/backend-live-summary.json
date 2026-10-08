@@ -1,0 +1,14 @@
+{
+  "command": "LUCI_TEST_DOCKER_FENCE=1 GOMAXPROCS=2 go test -p 2 -race -count=1 -json ./internal/backend/dockerbe -run 'TestLaunchFence|TestDestroy'",
+  "passed": 77,
+  "failed": 0,
+  "skipped": 0,
+  "sourceCount": 61,
+  "changedInputs": [],
+  "head": "656a1ae1052814a5a6789910bb99b406cbc652ae",
+  "scope": "Final current backend source: exact original-ref and complete child inventory proof, pin strengthening, inert resource observation, all fence/ordinary cleanup boundaries, actual Docker same-name conflict and lost-ACK replacement. Real provider/controller crash/native Windows acceptance separate.",
+  "sourceManifest": "backend-live-source-inputs.json",
+  "sourceManifestSHA256": "51d508385405d2cfb080433a51d03c9efa3cb40c1d9d549c09a75a5c4b5cb445",
+  "originalLogSHA256": "e998d6c8dbee758db7647acebf631fa335f7638a379645bc6ee745115823e39d",
+  "sourceNamingNote": "The77outcome receipt belongs to backend-pin source/log files; older backend-final-source files describe earlier bytes and are not its source binding."
+}

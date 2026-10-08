@@ -25,6 +25,7 @@ type preparedSessionAllocation struct {
 	AfterBackendCreate func(context.Context, string) error
 	Staging            string
 	HasReviewedContext bool
+	ExecutionLeaseID   string
 }
 
 type sessionAllocationError struct {
@@ -76,6 +77,14 @@ func (a *API) allocatePreparedSession(ctx context.Context, prepared preparedSess
 			a.markSessionExited(row.ID, "execution access or capacity changed before sandbox allocation")
 			return failure("changed", err)
 		}
+	}
+	if prepared.ExecutionLeaseID != "" {
+		release, err := a.execution.acquireLaunchLifecycle(ctx, prepared.ExecutionLeaseID, row)
+		if err != nil {
+			a.markSessionExited(row.ID, "the exact worker lifecycle could not be reserved")
+			return failure("changed", err)
+		}
+		defer release()
 	}
 	if prepared.BeforeBackendStart != nil {
 		if err := prepared.BeforeBackendStart(ctx); err != nil {

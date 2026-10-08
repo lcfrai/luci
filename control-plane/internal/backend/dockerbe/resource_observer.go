@@ -90,6 +90,16 @@ func (b *Backend) ObserveResources(ctx context.Context) resourcebudget.Execution
 		if row.State != "running" && row.State != "paused" && row.State != "restarting" && row.State != "created" {
 			continue
 		}
+		if _, marker := row.Labels[backend.LabelLaunchFence]; marker && row.State == "created" {
+			// Label presence alone is not exemption from capacity. Inspect the
+			// exact immutable ID and require the full inert scratch shape. These
+			// permanent, never-executable markers still occupy measured disk;
+			// the separate fence ledger/inventory limits their count.
+			inspected, inspectErr := b.api.ContainerInspect(ctx, row.ID)
+			if inspectErr == nil && inspected.ID == row.ID && inertFenceContainer(inspected) {
+				continue
+			}
+		}
 		active++
 		if active > 128 || ctx.Err() != nil {
 			s.Unavailable = append(s.Unavailable, resourcebudget.Issue{Metric: "execution.containers", Reason: "active-container observation exceeded its bounded sample budget"})

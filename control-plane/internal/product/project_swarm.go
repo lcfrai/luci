@@ -27,6 +27,7 @@ func (s *Server) registerProjectSwarm(mux Registrar) {
 	mux.HandleFunc("GET "+base+"/tasks/{taskId}/review", s.reviewProjectSwarmTask)
 	mux.HandleFunc("POST "+base+"/tasks/{taskId}/integrate", s.integrateProjectSwarmTask)
 	mux.HandleFunc("POST "+base+"/tasks/{taskId}/abandon", s.abandonProjectSwarmTask)
+	mux.HandleFunc("GET "+base+"/operations/{operationId}/recovery", s.projectSwarmRecoveryAvailability)
 	mux.HandleFunc("GET "+base+"/operations/{operationId}/workspace", s.inspectProjectSwarmWorkspace)
 	mux.HandleFunc("GET "+base+"/operations/{operationId}/workspace/file", s.readProjectSwarmWorkspaceFile)
 }
@@ -232,7 +233,7 @@ func (s *Server) reserveProjectSwarmTask(w http.ResponseWriter, r *http.Request)
 	if existing {
 		status = 200
 	}
-	journeyJSON(w, status, map[string]any{"run": s.projectRunView(run), "operation": op})
+	journeyJSON(w, status, map[string]any{"run": s.projectRunView(run), "operation": publicSwarmOperation(op)})
 }
 
 func (s *Server) reserveSwarmTask(ctx context.Context, p project.Project, runID, taskID, key string, revision int) (ProjectRun, ProjectRunOperation, error) {
@@ -288,6 +289,16 @@ func (s *Server) reserveSwarmTask(ctx context.Context, p project.Project, runID,
 	}
 	s.projectRunDispatchMu.Lock()
 	defer s.projectRunDispatchMu.Unlock()
+	current, currentErr := s.projectRuns.Get(p.ID, p.Path, run.ID)
+	if currentErr != nil {
+		return ProjectRun{}, ProjectRunOperation{}, currentErr
+	}
+	if current.Revision != revision {
+		return ProjectRun{}, ProjectRunOperation{}, ErrProjectRunConflict
+	}
+	if currentErr = s.requireNoSwarmPendingLaunch(ctx, current, taskID); currentErr != nil {
+		return ProjectRun{}, ProjectRunOperation{}, currentErr
+	}
 	var worktreeErr error
 	run, op, created, err := s.projectRuns.ReserveSwarmTask(p.ID, p.Path, run.ID, revision, key, taskID, head, func(id string) string {
 		path, pathErr := s.swarmPath(p.ID, run.ID, id)
@@ -409,7 +420,7 @@ func (s *Server) observeProjectSwarm(ctx context.Context, path string, run Proje
 		return run, errors.New("The session observer is unavailable.")
 	}
 	for _, op := range run.Operations {
-		if op.Allocation != "ready" || op.Status == "reserved" || projectRunOperationTerminal(op.Status) {
+		if op.Allocation != "ready" || op.Status == "reserved" || op.LaunchRecovery != nil || projectRunOperationTerminal(op.Status) {
 			continue
 		}
 		children, err := s.projectRunSessionObserver(ctx, run.ProjectID, run.ID, op.ID)
@@ -580,11 +591,19 @@ func (s *Server) abandonProjectSwarmTask(w http.ResponseWriter, r *http.Request)
 		OperationID         string `json:"operationId"`
 		ChildID             string `json:"childId"`
 		RecoverMissingChild bool   `json:"recoverMissingChild"`
+		StopUncertainLaunch bool   `json:"stopUncertainLaunch"`
 	}
 	if !journeyDecode(w, r, &req) {
 		return
 	}
-	s.projectRunDispatchMu.Lock()
+	if req.StopUncertainLaunch {
+		if !s.projectRunDispatchMu.TryLock() {
+			projectRunProblem(w, errors.New("A current allocation or project operation is still in flight. Wait for it to finish before explicitly retrying recovery; nothing was stopped or released."))
+			return
+		}
+	} else {
+		s.projectRunDispatchMu.Lock()
+	}
 	defer s.projectRunDispatchMu.Unlock()
 	run, err := s.projectRuns.Get(p.ID, p.Path, r.PathValue("runId"))
 	if err != nil {
@@ -605,6 +624,23 @@ func (s *Server) abandonProjectSwarmTask(w http.ResponseWriter, r *http.Request)
 		projectRunProblem(w, ErrProjectRunConflict)
 		return
 	}
+	if req.RecoverMissingChild && req.StopUncertainLaunch {
+		projectRunProblem(w, errors.New("Choose one recovery action. Missing-child observation and stopping an uncertain launch have different effects."))
+		return
+	}
+	if req.StopUncertainLaunch {
+		if req.OperationID == "" || req.ChildID == "" {
+			projectRunProblem(w, errors.New("Select the exact operation and child before consenting to stop an uncertain launch."))
+			return
+		}
+		run, err = s.recoverFencedSwarmChildLocked(r.Context(), p, run, req.OperationID, req.ChildID)
+		if err != nil {
+			projectRunProblem(w, err)
+			return
+		}
+		s.writeProjectRun(w, 200, run)
+		return
+	}
 	if req.RecoverMissingChild {
 		if req.OperationID == "" || req.ChildID == "" {
 			projectRunProblem(w, errors.New("Select the exact operation and child to recover this missing launch."))
@@ -616,6 +652,10 @@ func (s *Server) abandonProjectSwarmTask(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		s.writeProjectRun(w, 200, run)
+		return
+	}
+	if err = s.requireNoSwarmPendingLaunch(r.Context(), run, task.ID); err != nil {
+		projectRunProblem(w, err)
 		return
 	}
 	if swarmRetirementPending(*op) {
@@ -651,6 +691,13 @@ func (s *Server) abandonProjectSwarmTask(w http.ResponseWriter, r *http.Request)
 	run, err = s.projectRuns.mutateSwarm(p.ID, p.Path, run.ID, req.ExpectedRevision, func(run *ProjectRun) error {
 		task := swarmTask(run, r.PathValue("taskId"))
 		op := swarmOperation(run, task.OperationID)
+		// ClaimOperation must first change reserved to dispatching under the
+		// same dispatch exclusion. Preserve this no-launch fact durably before
+		// cancellation erases the original status; missing ledger files alone
+		// must never stand in for it on a later retry.
+		if op.Status == "reserved" && op.LaunchRecovery == nil && op.LaunchRecoveryProof == nil && op.AbsenceRetirement == nil && op.Integration == nil && task.Integration == nil {
+			op.UnclaimedRetirement = true
+		}
 		if task.Integration != nil {
 			op.Integration = task.Integration
 			task.Integration = nil

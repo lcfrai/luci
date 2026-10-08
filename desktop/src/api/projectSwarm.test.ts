@@ -36,6 +36,27 @@ it('requests missing-child proof for the exact retained operation without supply
   });
 });
 
+it('sends stopping consent only for the separately reviewed exact attempt and never retries a refused request', async () => {
+  const request = vi.spyOn(productApi, 'request').mockRejectedValue(new Error('Recovery marker limit reached. Capacity remains held.'));
+  await expect(projectSwarmApi.abandon('p-1', 'run-1', 'task-a', 11, {operationId: 'op-a', childId: 'child-a', stopUncertainLaunch: true})).rejects.toThrow('Recovery marker limit reached');
+  expect(request).toHaveBeenCalledTimes(1);
+  expect(request).toHaveBeenCalledWith('/v1/product/projects/p-1/runs/run-1/swarm/tasks/task-a/abandon', {
+    expectedRevision: 11, operationId: 'op-a', childId: 'child-a', stopUncertainLaunch: true,
+  });
+});
+
+it('reads recovery support only for the selected operation and rejects stale or foreign availability', async () => {
+  const run = {...receipt, revision: 12};
+  const value = {expectedRevision: 12, operationId: operation.id, childId: operation.childId, availability: {supported: true, reasonCode: 'supported', message: 'This attempt supports reviewed recovery.'}};
+  const request = vi.spyOn(productApi, 'request').mockResolvedValue(value);
+  await expect(projectSwarmApi.recovery('p-1', run, operation)).resolves.toEqual(value);
+  expect(request).toHaveBeenCalledWith('/v1/product/projects/p-1/runs/run-1/swarm/operations/op-a/recovery', undefined, 'GET', 30_000, undefined);
+  for (const patch of [{expectedRevision: 11}, {operationId: 'other'}, {childId: 'other'}, {availability: {...value.availability, supported: 'true'}}]) {
+    request.mockResolvedValue({...value, ...patch});
+    await expect(projectSwarmApi.recovery('p-1', run, operation)).rejects.toThrow('does not match this recorded attempt');
+  }
+});
+
 it('starts one captured task on the recorded route without consulting current defaults or the full run task selection', () => {
   const request = runSessionRequest(receipt, operation);
   expect(request.worktreeId).toBe('isolated-a');

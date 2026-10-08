@@ -159,6 +159,7 @@ var teamRouteRules = []teamRouteRule{
 	{"POST /v1/product/projects/{projectId}/runs/{runId}/swarm/tasks/{taskId}/abandon", teamEdit},
 	{"GET /v1/product/projects/{projectId}/runs/{runId}/swarm/operations/{operationId}/workspace", teamRead},
 	{"GET /v1/product/projects/{projectId}/runs/{runId}/swarm/operations/{operationId}/workspace/file", teamRead},
+	{"GET /v1/product/projects/{projectId}/runs/{runId}/swarm/operations/{operationId}/recovery", teamRead | teamEdit},
 	{"GET /v1/product/projects/{projectId}/git", teamRead},
 	{"POST /v1/product/projects/{projectId}/git/commit", teamEdit},
 	{"GET /v1/product/projects/{projectId}/git/branches", teamRead},

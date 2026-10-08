@@ -1,0 +1,22 @@
+{
+  "scope": "Windows amd64 API test cross-compilation only; not executed natively",
+  "startedAt": "2026-10-08T11:35:37.137724+00:00",
+  "completedAt": "2026-10-08T11:36:03.300374+00:00",
+  "command": [
+    "go",
+    "test",
+    "-c",
+    "-p",
+    "1",
+    "-o",
+    "/tmp/luci-retained-tools/cloud009-windows-api.test.exe",
+    "./control-plane/internal/api"
+  ],
+  "exitCode": 0,
+  "durationSeconds": 26.162680315988837,
+  "sourceInputs": 732,
+  "sourceUnchanged": true,
+  "passed": true,
+  "bytes": 40752640,
+  "sha256": "0b237ffa6aa1f0f80cdefc906d5d98bc1d7531b84c248231ef9c423aa059c51a"
+}

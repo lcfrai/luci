@@ -309,7 +309,7 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 		return a.execution.markBackendStarting(ctx, req.QueueID, candidate.ID, candidate.ID)
 	}, AfterBackendCreate: func(ctx context.Context, sandboxID string) error {
 		return a.execution.markBackendSettled(ctx, req.QueueID, candidate.ID, sandboxID)
-	}, HasReviewedContext: true})
+	}, HasReviewedContext: true, ExecutionLeaseID: req.QueueID})
 	if err != nil {
 		result.State, result.ReasonCode, result.Message = "unknown", "dispatch_unconfirmed", "The task start could not be confirmed. Its capacity and exact child identity are retained for recovery."
 		return result, nil

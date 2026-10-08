@@ -1,0 +1,181 @@
+{
+  "scope": "CLOUD009 frontend implementation and controlled source-browser witness; separate from real backend/Docker and installed/native acceptance.",
+  "sourceCommit": "8f78804ff318ab744226f139df5998cbd6e0d0ff",
+  "sourceDirty": true,
+  "focused": {
+    "passed": true,
+    "tests": {
+      "numTotalTests": 124,
+      "numPassedTests": 124,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0
+    },
+    "files": 7,
+    "typecheckExitCode": 0,
+    "sourceUnchanged": true,
+    "limitations": [
+      "Source component/client checks; not installed or actual Docker/native recovery acceptance."
+    ]
+  },
+  "focusedReceipt": "cloud009-recovery-ui/final/result.json",
+  "browser": {
+    "passed": true,
+    "scope": "Actual source ProjectSwarm and recovery dialog/controls/CSS in Linux Chromium with controlled API callbacks and the queue panel omitted.",
+    "sourceUnchanged": true,
+    "checks": [
+      {
+        "width": 1440,
+        "axeViolations": []
+      },
+      {
+        "width": 1440,
+        "focusTrapAndRestoration": true,
+        "explicitConsentOnly": true,
+        "fixtureCalls": [
+          {
+            "method": "GET availability",
+            "projectId": "p-1",
+            "runId": "run-1",
+            "operationId": "op-a",
+            "revision": 1
+          },
+          {
+            "method": "GET availability",
+            "projectId": "p-1",
+            "runId": "run-1",
+            "operationId": "op-a",
+            "revision": 1
+          },
+          {
+            "method": "POST stop",
+            "projectId": "p-1",
+            "runId": "run-1",
+            "taskId": "a",
+            "expectedRevision": 1,
+            "operationId": "op-a",
+            "childId": "child-a",
+            "stopUncertainLaunch": true
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "axeViolations": []
+      },
+      {
+        "width": 390,
+        "focusTrapAndRestoration": true,
+        "explicitConsentOnly": true,
+        "fixtureCalls": [
+          {
+            "method": "GET availability",
+            "projectId": "p-1",
+            "runId": "run-1",
+            "operationId": "op-a",
+            "revision": 1
+          },
+          {
+            "method": "GET availability",
+            "projectId": "p-1",
+            "runId": "run-1",
+            "operationId": "op-a",
+            "revision": 1
+          },
+          {
+            "method": "POST stop",
+            "projectId": "p-1",
+            "runId": "run-1",
+            "taskId": "a",
+            "expectedRevision": 1,
+            "operationId": "op-a",
+            "childId": "child-a",
+            "stopUncertainLaunch": true
+          }
+        ]
+      },
+      {
+        "scenario": "legacy refusal",
+        "fixtureCalls": [
+          {
+            "method": "GET availability",
+            "projectId": "p-1",
+            "runId": "run-1",
+            "operationId": "op-a",
+            "revision": 1
+          }
+        ],
+        "noMutation": true
+      },
+      {
+        "scenario": "lost fixture response",
+        "oneReadbackNoMutationRetry": true,
+        "fixtureCalls": [
+          {
+            "method": "GET availability",
+            "projectId": "p-1",
+            "runId": "run-1",
+            "operationId": "op-a",
+            "revision": 1
+          },
+          {
+            "method": "POST stop",
+            "projectId": "p-1",
+            "runId": "run-1",
+            "taskId": "a",
+            "expectedRevision": 1,
+            "operationId": "op-a",
+            "childId": "child-a",
+            "stopUncertainLaunch": true
+          },
+          {
+            "method": "GET readback",
+            "projectId": "p-1",
+            "runId": "run-1"
+          }
+        ]
+      },
+      {
+        "scenario": "controlled project switch with delayed availability",
+        "oldDialogNotRevived": true,
+        "fixtureCalls": [
+          {
+            "method": "GET availability",
+            "projectId": "p-1",
+            "runId": "run-1",
+            "operationId": "op-a",
+            "revision": 1
+          }
+        ]
+      }
+    ],
+    "geometry": [
+      {
+        "width": 1440,
+        "clientWidth": 538,
+        "scrollWidth": 538,
+        "left": 450,
+        "right": 990,
+        "top": 182.7265625,
+        "bottom": 897.2734375,
+        "viewport": 1440,
+        "height": 1080
+      },
+      {
+        "width": 390,
+        "clientWidth": 356,
+        "scrollWidth": 356,
+        "left": 16,
+        "right": 374,
+        "top": 24,
+        "bottom": 820,
+        "viewport": 390,
+        "height": 844
+      }
+    ]
+  },
+  "browserReceipt": "cloud009-recovery-ui/browser/result.json",
+  "fullFrontendRunInThisBatch": false,
+  "actualBackendOrDockerAcceptance": false,
+  "nativeWindowsAcceptance": false
+}

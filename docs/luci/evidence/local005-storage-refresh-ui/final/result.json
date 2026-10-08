@@ -1,0 +1,37 @@
+{
+  "passed": false,
+  "testExitCode": 0,
+  "typecheckExitCode": 2,
+  "sourceUnchanged": true,
+  "counts": {
+    "numTotalTests": 66,
+    "numPassedTests": 66,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0
+  },
+  "files": 7,
+  "commands": [
+    [
+      "npm",
+      "test",
+      "--",
+      "--maxWorkers=2",
+      "src/components/setup/DockerStorageConfirmation.test.tsx",
+      "src/components/setup/SetupPanel.storage.test.tsx",
+      "src/components/setup/SetupPanel.test.tsx",
+      "src/components/setup/RuntimePreparation.test.tsx",
+      "src/components/setup/SetupProvider.test.tsx",
+      "src/components/setup/LocalTools.test.tsx",
+      "src/api/executionStorage.test.ts",
+      "--reporter=default",
+      "--reporter=json",
+      "--outputFile=<repo>/artifacts/quality-swarm/local005-ui/final/vitest.json"
+    ],
+    [
+      "npm",
+      "run",
+      "typecheck"
+    ]
+  ]
+}

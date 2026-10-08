@@ -53,22 +53,26 @@ type ProjectRunInput struct {
 }
 
 type ProjectRunOperation struct {
-	AbsenceRetirement *ProjectSwarmRecoveryProof      `json:"absenceRetirement,omitempty"`
-	Integration       *ProjectSwarmIntegration        `json:"integration,omitempty"`
-	TaskID            string                          `json:"taskId,omitempty"`
-	WorktreeID        string                          `json:"worktreeId,omitempty"`
-	BaseCommit        string                          `json:"baseCommit,omitempty"`
-	Implementation    *registry.ImplementationContext `json:"implementation,omitempty"`
-	Allocation        string                          `json:"allocation,omitempty"`
-	ID                string                          `json:"id"`
-	Kind              string                          `json:"kind"`
-	ChildID           string                          `json:"childId"`
-	Attempt           int                             `json:"attempt"`
-	Status            string                          `json:"status"`
-	RequestDigest     string                          `json:"requestDigest"`
-	CreatedAt         string                          `json:"createdAt"`
-	UpdatedAt         string                          `json:"updatedAt"`
-	Message           string                          `json:"message,omitempty"`
+	UnclaimedRetirement bool                            `json:"unclaimedRetirement,omitempty"`
+	LaunchRecovery      *ProjectSwarmRecoveryIntent     `json:"launchRecovery,omitempty"`
+	LaunchRecoveryProof *ProjectSwarmRecoveryProof      `json:"launchRecoveryProof,omitempty"`
+	Recovery            *ProjectSwarmRecoveryView       `json:"recovery,omitempty"`
+	AbsenceRetirement   *ProjectSwarmRecoveryProof      `json:"absenceRetirement,omitempty"`
+	Integration         *ProjectSwarmIntegration        `json:"integration,omitempty"`
+	TaskID              string                          `json:"taskId,omitempty"`
+	WorktreeID          string                          `json:"worktreeId,omitempty"`
+	BaseCommit          string                          `json:"baseCommit,omitempty"`
+	Implementation      *registry.ImplementationContext `json:"implementation,omitempty"`
+	Allocation          string                          `json:"allocation,omitempty"`
+	ID                  string                          `json:"id"`
+	Kind                string                          `json:"kind"`
+	ChildID             string                          `json:"childId"`
+	Attempt             int                             `json:"attempt"`
+	Status              string                          `json:"status"`
+	RequestDigest       string                          `json:"requestDigest"`
+	CreatedAt           string                          `json:"createdAt"`
+	UpdatedAt           string                          `json:"updatedAt"`
+	Message             string                          `json:"message,omitempty"`
 }
 
 type ProjectRunCommandEvidence struct {
@@ -821,6 +825,9 @@ func (s *ProjectRunStore) ObserveOperation(projectID, projectPath, id string, ex
 			}
 			if op.ChildID != childID {
 				return false, ErrProjectRunInvalid
+			}
+			if op.LaunchRecovery != nil {
+				return false, ErrProjectRunPending
 			}
 			if projectRunOperationTerminal(op.Status) && op.Status != status {
 				return false, ErrProjectRunConflict

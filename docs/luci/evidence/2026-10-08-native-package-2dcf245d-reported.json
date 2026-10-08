@@ -1,0 +1,27 @@
+{
+  "scope": "Relayed native Windows clean packaging only; installer not executed, own-sidecar lifecycle and newer CLOUD009/LOCAL005 remain open",
+  "sourceCommit": "2dcf245daca98d93e9cf7a40399b8fc78f4608a2",
+  "command": "scripts/build-release.ps1 -Version 0.5.0 -Native",
+  "passed": true,
+  "sourceDirty": false,
+  "trackedFilesUnchanged": 1808,
+  "nativeLicenseComponents": 616,
+  "missingNativeLicenses": 0,
+  "portableLicenseComponents": [
+    348,
+    347,
+    347
+  ],
+  "installer": {
+    "bytes": 68179033,
+    "sha256": "eee38782ee60232ca42cbbf926ec1fe5657e537bb51db83240fa37dff38605d0",
+    "signed": false,
+    "executed": false
+  },
+  "buildOnlySamples": 38,
+  "minimumHostAvailableRAMGiB": 2.578,
+  "sampledNativeBuildTreeWorkingSetPeakGiB": 1.66,
+  "monitoringLimitations": "Separate driver installation excluded; no application responsiveness/workload claim",
+  "reportedBy": "originating local test thread",
+  "localEvidence": "E:/Luci-local-acceptance/evidence/2dcf245d/native-build/"
+}

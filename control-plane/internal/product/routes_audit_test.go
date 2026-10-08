@@ -3,15 +3,18 @@ package product
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/lcfrai/luci/control-plane/internal/management"
 	"github.com/lcfrai/luci/control-plane/internal/project"
 	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
@@ -29,6 +32,7 @@ func (r *productRouteRecorder) HandleFunc(pattern string, handler func(http.Resp
 // Adding a GET also requires a concrete reason it cannot provision resources,
 // change credentials, start a session or allocate a preview listener.
 var productReadOnlyRoutes = map[string]string{
+	"GET /v1/product/projects/{id}/runs/{runId}/swarm/operations/{operationId}/recovery": "Reads the exact retained operation and current edit-scoped private recovery capability; no lifecycle lock, Docker probe, intent/proof/lease write, child observation or resource allocation. See TestProductSwarmRecoveryCapabilityReadAudit for existing-attempt GET/HEAD and refusal paths.",
 	"GET /v1/product/swarm-scheduler":                                                          "Reads private scheduler settings and already-cached resource observations; no host sampling, queue repair, allocation or dispatch.",
 	"GET /v1/product/projects/{id}/swarm-queue":                                                "Reads only this project’s durable queue projection; no host sampling, child observation, ledger repair or dispatch.",
 	"GET /v1/product/projects/{id}/overview":                                                   "Reads bounded compact canonical context, private question projections and recorded queue counts; never migrates, repairs, reconciles, executes or writes on GET/HEAD.",
@@ -458,5 +462,114 @@ func TestProjectSwarmRegisteredReadsPreserveCandidatesPartialOutputsAndReceipts(
 	}
 	if len(s.previews) != 0 || len(s.tunnels) != 0 || len(s.jobs) != 0 || len(s.workspaceInstalls) != 0 || s.runtimeJob.Status != "idle" {
 		t.Fatal("swarm read allocated application resources")
+	}
+}
+
+// The registration-wide audit above exercises missing identities. This audit
+// also follows an existing eligible attempt through the exact recovery read
+// handler. It deliberately makes every mutating recovery/process/observer seam
+// fail, and compares private/project bytes for both GET and implicit HEAD.
+// API TestSwarmFencedHTTPCapabilityReadDoesNotProbeOrMutate separately exercises
+// the real private-ledger capability adapter and counts all backend probes.
+func TestProductSwarmRecoveryCapabilityReadAudit(t *testing.T) {
+	s, mux, run, op, base, _ := missingSwarmClaimFixture(t)
+	p, err := s.resolveProject(run.ProjectID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path, err := s.swarmPath(run.ProjectID, run.ID, op.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	beforeState, beforeProject, beforeTask := auditTree(t, s.stateDir), auditTree(t, p.Path), auditTree(t, path)
+	reads, effects := 0, 0
+	available, readFailure := true, false
+	effect := func() { effects++; t.Error("read route invoked mutation, backend/process or session-observation seam") }
+	s.runner = func(context.Context, string, []string, string) (string, error) {
+		effect()
+		return "", ErrProjectRunConflict
+	}
+	s.branchRunner = s.runner
+	s.projectRunSessionObserver = func(context.Context, string, string, string) ([]registry.Session, error) {
+		effect()
+		return nil, ErrProjectRunConflict
+	}
+	s.SetProjectSwarmFenceRecovery(func(_ context.Context, req ProjectSwarmFenceRecoveryRequest) (ProjectSwarmRecoveryAvailability, error) {
+		reads++
+		if req.ProjectID != run.ProjectID || req.RunID != run.ID || req.OperationID != op.ID || req.ChildID != op.ChildID || req.Intent != nil {
+			t.Fatal("capability read selected foreign or mutated attempt")
+		}
+		// The callback represents the permitted private read, never a runtime probe.
+		existing, e := s.GetProjectSwarmRun(req.ProjectID, req.RunID)
+		if e != nil || existing.Revision != run.Revision || existing.Operations[0].LaunchRecovery != nil {
+			t.Fatal("read changed recovery state", e)
+		}
+		if readFailure {
+			return ProjectSwarmRecoveryAvailability{}, ErrProjectRunConflict
+		}
+		return ProjectSwarmRecoveryAvailability{Supported: available, ReasonCode: "controlled_read", Message: "Capability alone grants no execution authority."}, nil
+	}, func(context.Context, ProjectSwarmFenceRecoveryRequest) error { effect(); return ErrProjectRunConflict },
+		func(context.Context, ProjectSwarmFenceRecoveryRequest) (ProjectSwarmRecoveryIntent, func(), error) {
+			effect()
+			return ProjectSwarmRecoveryIntent{}, nil, ErrProjectRunConflict
+		},
+		func(context.Context, ProjectSwarmFenceRecoveryRequest, ProjectSwarmRecoveryIntent) (ProjectSwarmRecoveryProof, error) {
+			effect()
+			return ProjectSwarmRecoveryProof{}, ErrProjectRunConflict
+		},
+		func(context.Context, ProjectSwarmFenceRecoveryRequest, ProjectSwarmRecoveryIntent, ProjectSwarmRecoveryProof) error {
+			effect()
+			return ErrProjectRunConflict
+		})
+	route := base + "/operations/" + op.ID + "/recovery"
+	for _, mode := range []string{"supported", "unsupported", "private read unavailable"} {
+		available, readFailure = mode == "supported", mode == "private read unavailable"
+		for _, method := range []string{"GET", "HEAD"} {
+			status := 200
+			if readFailure {
+				status = 409
+			}
+			response := journeyRequest(t, mux, method, route, nil, status)
+			if method == "GET" && !readFailure {
+				var view struct {
+					ExpectedRevision int                              `json:"expectedRevision"`
+					OperationID      string                           `json:"operationId"`
+					ChildID          string                           `json:"childId"`
+					Availability     ProjectSwarmRecoveryAvailability `json:"availability"`
+				}
+				if err := json.Unmarshal(response.Body.Bytes(), &view); err != nil || view.ExpectedRevision != run.Revision || view.OperationID != op.ID || view.ChildID != op.ChildID || view.Availability.Supported != available {
+					t.Fatal("wrong read-only capability", err, response.Body.String())
+				}
+			}
+			if !reflect.DeepEqual(beforeState, auditTree(t, s.stateDir)) || !reflect.DeepEqual(beforeProject, auditTree(t, p.Path)) || !reflect.DeepEqual(beforeTask, auditTree(t, path)) {
+				t.Fatal("capability read changed retained files/private state", mode, method)
+			}
+		}
+	}
+	if reads != 6 {
+		t.Fatal("capability paths were not exercised", reads)
+	}
+	for _, method := range []string{"GET", "HEAD"} {
+		journeyRequest(t, mux, method, base+"/operations/missing-operation/recovery", nil, 404)
+		// Authenticated project reader lacks Edit. Refuse before private capability.
+		access := management.TeamAccess{ProjectID: run.ProjectID, Permissions: management.TeamPermissions{Read: true}}
+		access.Team.ID = "team-audit"
+		access.Member.UserID = "reader-audit"
+		request := httptest.NewRequest(method, route, nil)
+		request = request.WithContext(management.WithExecutionAuthority(request.Context(), management.ExecutionAuthority{Actor: management.User{ID: "reader-audit", Role: "member"}, Team: &access}))
+		response := httptest.NewRecorder()
+		mux.ServeHTTP(response, request)
+		if response.Code != 403 {
+			t.Fatal("read-only viewer received recovery capability", response.Code, response.Body.String())
+		}
+	}
+	if reads != 6 || effects != 0 {
+		t.Fatal("refusal path leaked capability or invoked effects", reads, effects)
+	}
+	if !reflect.DeepEqual(beforeState, auditTree(t, s.stateDir)) || !reflect.DeepEqual(beforeProject, auditTree(t, p.Path)) || !reflect.DeepEqual(beforeTask, auditTree(t, path)) {
+		t.Fatal("refused read changed retained files/private state")
+	}
+	if len(s.previews) != 0 || len(s.tunnels) != 0 || len(s.jobs) != 0 || len(s.workspaceInstalls) != 0 || s.runtimeJob.Status != "idle" {
+		t.Fatal("recovery read allocated resources")
 	}
 }

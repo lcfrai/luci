@@ -1,0 +1,110 @@
+{
+  "sanitization": "Only the checkout prefix is replaced with <repo>; fixture project/operation identifiers are deliberately synthetic. Original and curated hashes are retained.",
+  "files": [
+    {
+      "file": "final/result.json",
+      "sourceArtifact": "artifacts/quality-swarm/cloud009-ui/final/result.json",
+      "originalSHA256": "36c6e10da936ec239953f6182d35996f2c40dcb445d43f4a016d192a80c60d85",
+      "curatedSHA256": "36c6e10da936ec239953f6182d35996f2c40dcb445d43f4a016d192a80c60d85",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "file": "final/source-after.json",
+      "sourceArtifact": "artifacts/quality-swarm/cloud009-ui/final/source-after.json",
+      "originalSHA256": "4955fe39e4f1c57d7be77184b7a0f85fa1fab0292ebc77ca25d7841becc734b1",
+      "curatedSHA256": "4955fe39e4f1c57d7be77184b7a0f85fa1fab0292ebc77ca25d7841becc734b1",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "file": "final/tests.log",
+      "sourceArtifact": "artifacts/quality-swarm/cloud009-ui/final/tests.log",
+      "originalSHA256": "16688610addfea356fd28c7675072355c17d9ead6538011b021be57548cdb667",
+      "curatedSHA256": "f287cc1d059a0092d7812fbb67ae949dc77e556b0d50afffd8a33de8f5391dc3",
+      "checkoutPrefixReplaced": true
+    },
+    {
+      "file": "final/typecheck.log",
+      "sourceArtifact": "artifacts/quality-swarm/cloud009-ui/final/typecheck.log",
+      "originalSHA256": "6d51e3ec9a9d283eee096e5e9403c5d963c9468e9756fd61f3e9e0d3df1bde71",
+      "curatedSHA256": "6d51e3ec9a9d283eee096e5e9403c5d963c9468e9756fd61f3e9e0d3df1bde71",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "file": "final/vitest.json",
+      "sourceArtifact": "artifacts/quality-swarm/cloud009-ui/final/vitest.json",
+      "originalSHA256": "82beea08cdfa1ea770d5eabfefe6fab998304d4cb392cad04487e5389f0b9635",
+      "curatedSHA256": "d0be3a74a95fd49dd5b500577e7bd91fb42b5cb291e99f0c56dd06f98f98ed5e",
+      "checkoutPrefixReplaced": true
+    },
+    {
+      "file": "final/source-before.json",
+      "sourceArtifact": "artifacts/quality-swarm/cloud009-ui/final/source-before.json",
+      "originalSHA256": "4955fe39e4f1c57d7be77184b7a0f85fa1fab0292ebc77ca25d7841becc734b1",
+      "curatedSHA256": "4955fe39e4f1c57d7be77184b7a0f85fa1fab0292ebc77ca25d7841becc734b1",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "file": "browser/result.json",
+      "sourceArtifact": "artifacts/quality-swarm/cloud009-ui/browser/result.json",
+      "originalSHA256": "d6bb569680bac9c950fb93f6812bc45715f6025061f5f2ac779bbbf324aaf477",
+      "curatedSHA256": "d6bb569680bac9c950fb93f6812bc45715f6025061f5f2ac779bbbf324aaf477",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "file": "browser/recovery-review-1440.png",
+      "sourceArtifact": "artifacts/quality-swarm/cloud009-ui/browser/recovery-review-1440.png",
+      "originalSHA256": "b35931c553a114c512e102fd67da8f219411d4069bfb953c71d43ab6e8bb800a",
+      "curatedSHA256": "b35931c553a114c512e102fd67da8f219411d4069bfb953c71d43ab6e8bb800a",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "file": "browser/recovery-consent-390.png",
+      "sourceArtifact": "artifacts/quality-swarm/cloud009-ui/browser/recovery-consent-390.png",
+      "originalSHA256": "ee28139c3af5d374e36290c1dfef4d741b7ccae3b39768966632391e412b07ef",
+      "curatedSHA256": "ee28139c3af5d374e36290c1dfef4d741b7ccae3b39768966632391e412b07ef",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "file": "browser/recovery-review-390.png",
+      "sourceArtifact": "artifacts/quality-swarm/cloud009-ui/browser/recovery-review-390.png",
+      "originalSHA256": "fb573319ea3ddbd1512833b5b162c623647283199674365900aa5ad2c689e3fa",
+      "curatedSHA256": "fb573319ea3ddbd1512833b5b162c623647283199674365900aa5ad2c689e3fa",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "file": "browser/recovery-legacy-refusal-390.png",
+      "sourceArtifact": "artifacts/quality-swarm/cloud009-ui/browser/recovery-legacy-refusal-390.png",
+      "originalSHA256": "3e78d4927a1ee9f98742e0606726faa4316d775fdffc96b3be27fb316ac1c4a8",
+      "curatedSHA256": "3e78d4927a1ee9f98742e0606726faa4316d775fdffc96b3be27fb316ac1c4a8",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "file": "browser/recovery-pending-390.png",
+      "sourceArtifact": "artifacts/quality-swarm/cloud009-ui/browser/recovery-pending-390.png",
+      "originalSHA256": "4a73434a8a22b261a194bd1b7206fa4e8bb24d5b543a8bf1a3f81552d0589871",
+      "curatedSHA256": "4a73434a8a22b261a194bd1b7206fa4e8bb24d5b543a8bf1a3f81552d0589871",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "file": "browser/recovery-consent-1440.png",
+      "sourceArtifact": "artifacts/quality-swarm/cloud009-ui/browser/recovery-consent-1440.png",
+      "originalSHA256": "921b470f336c66baffbe52939b56f6be4777e8ed7e268782cfb72833e1266589",
+      "curatedSHA256": "921b470f336c66baffbe52939b56f6be4777e8ed7e268782cfb72833e1266589",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "file": "browser/fixture.tsx",
+      "sourceArtifact": "artifacts/quality-swarm/cloud009-ui/browser/fixture.tsx",
+      "originalSHA256": "e26e79ec812afbf9b5cb07daa823effd562d50739bbeb595af680bf4743064ff",
+      "curatedSHA256": "e26e79ec812afbf9b5cb07daa823effd562d50739bbeb595af680bf4743064ff",
+      "checkoutPrefixReplaced": false
+    },
+    {
+      "file": "browser/source-browser.mjs",
+      "sourceArtifact": "artifacts/quality-swarm/cloud009-ui/browser/source-browser.mjs",
+      "originalSHA256": "fc862f8bb942e1aebcc198ab1cca27efbb70b4f3553e25ff09ae54386b335bb2",
+      "curatedSHA256": "fc862f8bb942e1aebcc198ab1cca27efbb70b4f3553e25ff09ae54386b335bb2",
+      "checkoutPrefixReplaced": false
+    }
+  ]
+}

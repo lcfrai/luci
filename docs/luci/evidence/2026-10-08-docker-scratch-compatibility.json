@@ -1,0 +1,105 @@
+{
+  "scope": "Actual Docker empty-image compatibility, not product crash recovery",
+  "startedAt": "2026-10-08T10:23:36.330729+00:00",
+  "completedAt": "2026-10-08T10:23:36.988089+00:00",
+  "passed": true,
+  "ownedCleanupVerified": true,
+  "daemon": {
+    "version": "28.4.0",
+    "api": "1.51",
+    "driver": "vfs"
+  },
+  "helperSHA256": "99d26bf2a898017802f085d5d1370a018c7655148c134526c45961ee87b81960",
+  "rawReceiptSHA256": "93ed3bbffa1de60a9739c14973efdb94acb46acba9f84945c3cdce1b0936fcac",
+  "checks": [
+    "Successful acknowledged empty-image Create",
+    "Same-name Create rejected with409",
+    "Unknown immutable ID Start rejected with404",
+    "Scratch directory command Start rejected with400 and PID0",
+    "Exact owned non-force removal204 and final empty containers/volumes"
+  ],
+  "limits": [
+    "Uses a dedicated compatibility label, not production FenceLaunch",
+    "Unknown ID is not an actually removed original allocation",
+    "No killed controller, durable product intent, lease release or lost-ack proof exercised",
+    "No image pulled, imported or built; no full worker allocated",
+    "Tiny timing sample establishes compatibility only, not recovery speed or workstation capacity"
+  ],
+  "events": [
+    {
+      "method": "GET",
+      "status": 200,
+      "elapsedSeconds": 0.057784823002293706
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "elapsedSeconds": 0.035089476994471624
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "elapsedSeconds": 0.0023300919856410474
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "elapsedSeconds": 0.00200807600049302
+    },
+    {
+      "method": "POST",
+      "status": 201,
+      "elapsedSeconds": 0.01590711800963618
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "elapsedSeconds": 0.002206200995715335
+    },
+    {
+      "method": "POST",
+      "status": 409,
+      "elapsedSeconds": 0.0020533149945549667
+    },
+    {
+      "method": "POST",
+      "status": 404,
+      "elapsedSeconds": 0.001971731981029734
+    },
+    {
+      "method": "POST",
+      "status": 400,
+      "elapsedSeconds": 0.5107612680003513
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "elapsedSeconds": 0.0036051789938937873
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "elapsedSeconds": 0.0014588589838240296
+    },
+    {
+      "method": "DELETE",
+      "status": 204,
+      "elapsedSeconds": 0.01403367897728458
+    },
+    {
+      "method": "GET",
+      "status": 404,
+      "elapsedSeconds": 0.0019534390012267977
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "elapsedSeconds": 0.0015274019970092922
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "elapsedSeconds": 0.0019745169847737998
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "startedAt": "2026-10-08T11:12:32.843445+00:00",
+  "completedAt": "2026-10-08T11:17:53.427564+00:00",
+  "durationSeconds": 320.58418358900235,
+  "steps": [
+    {
+      "label": "tests",
+      "command": [
+        "npm",
+        "test",
+        "--",
+        "--maxWorkers=2",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=/workspace/luci/artifacts/quality-swarm/cloud009-integrated-final/frontend/vitest.json"
+      ],
+      "exitCode": 0,
+      "durationSeconds": 266.79924212399055
+    },
+    {
+      "label": "typecheck",
+      "command": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "exitCode": 0,
+      "durationSeconds": 25.09971782998764
+    },
+    {
+      "label": "build",
+      "command": [
+        "npm",
+        "run",
+        "build"
+      ],
+      "exitCode": 0,
+      "durationSeconds": 28.43598614502116
+    }
+  ],
+  "counts": {
+    "numTotalTests": 2418,
+    "numPassedTests": 2418,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0
+  },
+  "sourceInputs": 1882,
+  "changedInputs": [],
+  "headBefore": "2dcf245daca98d93e9cf7a40399b8fc78f4608a2",
+  "headAfter": "2dcf245daca98d93e9cf7a40399b8fc78f4608a2",
+  "statusUnchanged": true,
+  "passed": true,
+  "scope": "Full frontend source suite; backend race ran concurrently at bounded parallelism. No installed performance claim."
+}

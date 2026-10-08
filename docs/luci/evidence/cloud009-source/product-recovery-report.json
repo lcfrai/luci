@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "scope": "Controlled product HTTP/store recovery mechanics; no Docker, model, native Windows, or installed application claim.",
+  "command": [
+    "go",
+    "test",
+    "-race",
+    "-p",
+    "1",
+    "./internal/product",
+    "-run",
+    "^TestProjectSwarmPendingLaunch|^TestProjectSwarmFence|^TestProjectSwarmMissingClaim|^TestProjectSwarmQueue",
+    "-count=1",
+    "-json"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 63.986,
+  "goInputs": 644,
+  "sourceUnchanged": true,
+  "changedInputs": [],
+  "passed": 29,
+  "failed": 0,
+  "skipped": 0,
+  "sourceBeforeSHA256": "24008391f2caac456b503c5b2603846f26ca3956db8b1e1e39d9373b6e7ec87d",
+  "logSHA256": "b99fe1fe5d95b3a2814544e08e7f480ad6a5c9ab5aa15bd97fdb5e2519cd9698"
+}

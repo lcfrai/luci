@@ -62,6 +62,12 @@ type Options struct {
 }
 
 type Server struct {
+	projectSwarmPendingLaunch       func(context.Context, string, string, string, string) (bool, error)
+	projectSwarmFenceAuthorize      func(context.Context, ProjectSwarmFenceRecoveryRequest) error
+	projectSwarmFenceAvailability   func(context.Context, ProjectSwarmFenceRecoveryRequest) (ProjectSwarmRecoveryAvailability, error)
+	projectSwarmFenceAcquire        func(context.Context, ProjectSwarmFenceRecoveryRequest) (ProjectSwarmRecoveryIntent, func(), error)
+	projectSwarmFenceProve          func(context.Context, ProjectSwarmFenceRecoveryRequest, ProjectSwarmRecoveryIntent) (ProjectSwarmRecoveryProof, error)
+	projectSwarmFenceFinalize       func(context.Context, ProjectSwarmFenceRecoveryRequest, ProjectSwarmRecoveryIntent, ProjectSwarmRecoveryProof) error
 	projectSwarmRecoveryProve       func(context.Context, ProjectSwarmRecoveryRequest) (ProjectSwarmRecoveryProof, error)
 	projectSwarmRecoveryFinalize    func(context.Context, ProjectSwarmRecoveryRequest, ProjectSwarmRecoveryProof) error
 	swarmSchedulerPolicyDir         string

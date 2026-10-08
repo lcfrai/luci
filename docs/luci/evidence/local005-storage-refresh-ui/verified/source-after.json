@@ -1,0 +1,9 @@
+{
+  "desktop/src/components/setup/DockerStorageConfirmation.tsx": "f6e9e5cc3359ebbada4a6dfe8d800acc7159fb2e55dfc453fa7c5c2f58f6c64c",
+  "desktop/src/components/setup/DockerStorageConfirmation.test.tsx": "8b3bb5914305d74c13525ab403f7d16e4fb84d641cb65008322d22c49c87eb5a",
+  "desktop/src/components/setup/SetupPanel.tsx": "7e8c4f2d03a7ee1a7fa408496024d4a18827064e8e38462e0c35c1b1e3850013",
+  "desktop/src/components/setup/SetupPanel.test.tsx": "7c3e78228c764f4af29cc0042038c2f9deb9f881cdc8dd140de265b3bfd22214",
+  "desktop/src/components/setup/SetupPanel.storage.test.tsx": "a28a107abe5242d02f5368d11b457bfed339dd782a1f1aed90a2949c9a28f655",
+  "desktop/src/components/setup/RuntimePreparation.tsx": "642d57d95972b2c280a02238ea7012c0c8be4e993da7e1da7a5d92e13030858c",
+  "desktop/src/components/setup/RuntimePreparation.test.tsx": "9930a5e2999bab4316cbd8eb9398ea2b4e448a6190a6f3fe57970f367f82880d"
+}

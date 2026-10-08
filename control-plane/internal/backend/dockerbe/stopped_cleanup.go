@@ -17,6 +17,9 @@ func (b *Backend) DestroyStopped(ctx context.Context, observed backend.Sandbox) 
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	if _, marked := observed.Labels[backend.LabelLaunchFence]; marked {
+		return backend.ErrLaunchFenced
+	}
 	if observed.ID == "" || observed.Ref == "" || observed.Kind != backend.KindDocker ||
 		observed.Instance != b.instance || observed.State != backend.StateStopped ||
 		observed.CreatedOnly || observed.CreationInFlight || observed.NonLoopback ||
@@ -34,6 +37,9 @@ func (b *Backend) DestroyStopped(ctx context.Context, observed backend.Sandbox) 
 			return nil
 		}
 		return fmt.Errorf("dockerbe: inspect stopped container: %w", err)
+	}
+	if fenceMarked(resp) {
+		return backend.ErrLaunchFenced
 	}
 	if resp.ContainerJSONBase == nil || resp.ID != observed.Ref || resp.State == nil ||
 		stateFrom(resp.State.Status) != backend.StateStopped || resp.State.Running || resp.State.Restarting ||

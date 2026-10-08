@@ -15,6 +15,7 @@ const labels: Record<ExecutionStorage['state'], string> = {
   invalidated: 'Confirm the changed location', unavailable: 'Storage unavailable',
 };
 
+/** A changed storage receipt invalidates advice; it must not start a readiness probe. */
 type StorageProps = { client: ExecutionStorageClient; enabled: boolean; onChanged?(): void };
 
 /** A fresh child owns every authenticated scope, so old paths never paint between identities. */
@@ -53,12 +54,14 @@ function StorageReview({ client, enabled, onChanged }: {
   useEffect(() => { if (editing) pathInput.current?.focus(); }, [editing]);
   const changed = useRef(onChanged); changed.current = onChanged;
   const usable = (epoch: number) => live.current && authority.current.epoch === epoch && authority.current.identity.startsWith('true:');
-  function accept(value: ExecutionStorage) {
+  function accept(value: ExecutionStorage, confirmed = false) {
     const previous = recorded.current;
-    if (previous && (previous.revision !== value.revision || previous.state !== value.state)) {
+    const changedReadiness = confirmed || !!previous && (previous.revision !== value.revision || previous.state !== value.state);
+    if (changedReadiness) {
       setReview(null); setAcknowledged(false);
     }
     recorded.current = value; setSnapshot(value); setServerDenied(false);
+    if (changedReadiness) changed.current?.();
   }
   function reject(cause: unknown) {
     if (cause instanceof ApiError && [401, 403].includes(cause.status)) {
@@ -89,7 +92,6 @@ function StorageReview({ client, enabled, onChanged }: {
         const value = await client.get(controller.signal);
         if (controller.signal.aborted || !usable(epoch)) return;
         accept(value);
-        if (value.state !== snapshot.state || value.revision !== snapshot.revision) changed.current?.();
       } catch (cause) { if (!controller.signal.aborted && usable(epoch)) reject(cause); }
       finally { active = false; }
     };
@@ -104,7 +106,7 @@ function StorageReview({ client, enabled, onChanged }: {
     working.current = true; setBusy('Refreshing Docker storage'); setReview(null); setAcknowledged(false); setError('');
     try {
       const value = await client.get();
-      if (usable(epoch)) { accept(value); setUnconfirmed(false); changed.current?.(); }
+      if (usable(epoch)) { accept(value); setUnconfirmed(false); }
     } catch (cause) { if (usable(epoch)) { recorded.current = null; setSnapshot(null); reject(cause); } }
     finally { if (usable(epoch)) { working.current = false; setBusy(''); } }
   }
@@ -114,7 +116,7 @@ function StorageReview({ client, enabled, onChanged }: {
     working.current = true; setBusy('Confirming Docker storage'); setError('');
     try {
       const value = await client.confirm(review.snapshot, review.path);
-      if (usable(epoch)) { accept(value); setReview(null); setAcknowledged(false); setEditing(false); changed.current?.(); }
+      if (usable(epoch)) { accept(value, true); setReview(null); setAcknowledged(false); setEditing(false); }
     } catch (cause) {
       if (usable(epoch)) {
         setUnconfirmed(true); setAcknowledged(false); reject(cause);

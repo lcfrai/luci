@@ -1,0 +1,26 @@
+{
+  "startedAt": "2026-10-08T11:32:42.380846+00:00",
+  "completedAt": "2026-10-08T11:33:08.029400+00:00",
+  "durationSeconds": 25.64861595799448,
+  "command": [
+    "go",
+    "test",
+    "-race",
+    "-p",
+    "1",
+    "-count=1",
+    "-timeout=5m",
+    "-json",
+    "./control-plane/internal/product",
+    "-run",
+    "^(TestProductRegisteredReadsCannotMutateProjectsOrStartResources|TestProductSwarmRecoveryCapabilityReadAudit)$"
+  ],
+  "exitCode": 0,
+  "testOutcomes": {
+    "pass": 2
+  },
+  "failures": [],
+  "sourceInputs": 730,
+  "sourceUnchanged": true,
+  "passed": true
+}

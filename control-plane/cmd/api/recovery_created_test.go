@@ -51,7 +51,7 @@ func TestRestartThenSweepRecoversExactInterruptedCreatedChildWithoutDispatch(t *
 			if len(be.destroyed) != 1 || be.destroyed[0] != row.SandboxID {
 				t.Fatal("did not reclaim exact owned child", be.destroyed)
 			}
-			if !arrivesLate && got.ExitReason != "sandbox creation was interrupted before the agent started; start a new attempt when ready" {
+			if !arrivesLate && got.ExitReason != "sandbox creation was interrupted before the agent started; review this attempt's recovery before retrying" {
 				t.Fatal(got.ExitReason)
 			}
 		})

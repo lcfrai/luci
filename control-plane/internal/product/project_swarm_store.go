@@ -54,7 +54,7 @@ func swarmOperation(run *ProjectRun, id string) *ProjectRunOperation {
 func validateProjectSwarm(run ProjectRun) error {
 	if run.Swarm == nil {
 		for _, op := range run.Operations {
-			if op.TaskID != "" || op.WorktreeID != "" || op.Implementation != nil || op.Allocation != "" || op.AbsenceRetirement != nil || op.Status == "review-required" {
+			if op.UnclaimedRetirement || op.TaskID != "" || op.WorktreeID != "" || op.Implementation != nil || op.Allocation != "" || op.AbsenceRetirement != nil || op.LaunchRecovery != nil || op.LaunchRecoveryProof != nil || op.Recovery != nil || op.Status == "review-required" {
 				return ErrProjectRunInvalid
 			}
 		}
@@ -110,6 +110,12 @@ func validateProjectSwarm(run ProjectRun) error {
 		}
 	}
 	for _, op := range run.Operations {
+		if op.UnclaimedRetirement && (op.Status != "cancelled" || op.LaunchRecovery != nil || op.LaunchRecoveryProof != nil || op.AbsenceRetirement != nil || op.Integration != nil) {
+			return ErrProjectRunInvalid
+		}
+		if !validSwarmOperationRecovery(run, op) {
+			return ErrProjectRunInvalid
+		}
 		if op.AbsenceRetirement != nil && (op.Status != "cancelled" || op.Allocation != "ready" || !validSwarmRecoveryProof(*op.AbsenceRetirement, op.ChildID)) {
 			return ErrProjectRunInvalid
 		}

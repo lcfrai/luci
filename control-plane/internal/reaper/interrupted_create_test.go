@@ -45,7 +45,7 @@ func TestInterruptedCreatedChildConvergesWithoutRecreatingOrLosingIdentity(t *te
 		t.Fatal(err)
 	}
 	after := get(t, store, before.ID)
-	if after.Status != registry.StatusExited || after.ExitReason != "sandbox creation was interrupted before the agent started; start a new attempt when ready" || after.AttachToken != "" {
+	if after.Status != registry.StatusExited || after.ExitReason != "sandbox creation was interrupted before the agent started; review this attempt's recovery before retrying" || after.AttachToken != "" {
 		t.Fatal(after)
 	}
 	if after.SandboxID != before.SandboxID || after.ProjectRunID != before.ProjectRunID || after.ProjectRunOperationID != before.ProjectRunOperationID || after.OpeningPrompt != before.OpeningPrompt {

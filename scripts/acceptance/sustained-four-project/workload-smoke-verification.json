@@ -1,0 +1,516 @@
+{
+  "status": "passed",
+  "scope": "External deterministic workload validation only; Linux Go1.26.3, one offline compiler group at a time; all four deliberate red-to-green cases plus amended renderer and short2s fuzz. No installed application, sustained150s fuzz, Windows or model-quality claim.",
+  "observations": [
+    {
+      "status": "passed",
+      "startedAt": "2026-10-08T11:21:53.040Z",
+      "finishedAt": "2026-10-08T11:31:36.886Z",
+      "toolchain": "go version go1.26.3 linux/amd64",
+      "scope": "One offline Go process group at a time, GOMAXPROCS1/-p1. Short2s fuzz smoke only, no installed app/Docker/150s sustained claim.",
+      "sourceSHA256": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306",
+      "sourceSHA256After": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306",
+      "originalReceiptSHA256": "4e5a5fb91fb6ba9d28ac56cd3fcc25e845d8965eb734ab8c2e7aef97884d4dcb",
+      "projects": [
+        {
+          "index": 0,
+          "label": "Escaped UI renderer",
+          "status": "passed",
+          "cachePeakBytes": 150209656,
+          "tmpPeakBytes": 63643111,
+          "scratchPeakBytes": 212606103,
+          "maxEntries": 2840,
+          "sampleCount": 1078,
+          "sourceHashes": {
+            "go.mod": "ac87d815384e24f630d8db580a96ee1fdeee2cb859d6df4bcf852c04f27f041a",
+            "engine.go": "81c77533b33fe2c9d1b49cfedc39a39ec653a483cda01aaaea830f93f57c489b",
+            "engine_test.go": "549bd39320f6a3d84a441facb540b9dfeae83a257fda38267b79d6590b0d7553",
+            "cmd/app/main.go": "7d2257bd5c3becbffc35f7737b0bf8cd5a1e7c200d30f07b11ecc4404b0d956c",
+            "witness.txt": "577afa4d58dc8806b4200fc09f2ad0b07f863c79c9f78e5932662f8f3567837b"
+          },
+          "implementationSHA256": "07f85fcf8496645e391e0e53edde402cc38c8264bfcf76275974b58cd96dee42",
+          "successfulScratchRemoved": true,
+          "commands": [
+            {
+              "label": "version",
+              "code": 0,
+              "signal": null,
+              "elapsedMs": 49,
+              "startedAt": "2026-10-08T11:21:53.049Z",
+              "finishedAt": "2026-10-08T11:21:53.107Z",
+              "outputBytes": 32,
+              "outputSHA256": "8ccf388c477b87cd5032fe803a73f16df6ed23ec5e3fcfea99800136c2d18bb7"
+            },
+            {
+              "label": "red",
+              "code": 1,
+              "signal": null,
+              "elapsedMs": 41266,
+              "startedAt": "2026-10-08T11:21:53.111Z",
+              "finishedAt": "2026-10-08T11:22:34.382Z",
+              "outputBytes": 333,
+              "outputSHA256": "d8c8987f7059dc5cfc0e45745659a607e1bf7fb214313aaded19a8969fae2dca"
+            },
+            {
+              "label": "build",
+              "code": 0,
+              "signal": null,
+              "elapsedMs": 21526,
+              "startedAt": "2026-10-08T11:22:34.385Z",
+              "finishedAt": "2026-10-08T11:22:55.918Z",
+              "outputBytes": 0,
+              "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "label": "fixed",
+              "code": 0,
+              "signal": null,
+              "elapsedMs": 749,
+              "startedAt": "2026-10-08T11:22:55.920Z",
+              "finishedAt": "2026-10-08T11:22:56.672Z",
+              "outputBytes": 87,
+              "outputSHA256": "53e1fbaa0abac7ce3e309b9cf5b96400d755a64ee7d563d4ddf534a933dd1a02"
+            },
+            {
+              "label": "output",
+              "code": 0,
+              "signal": null,
+              "elapsedMs": 2,
+              "startedAt": "2026-10-08T11:22:56.673Z",
+              "finishedAt": "2026-10-08T11:22:56.722Z",
+              "outputBytes": 98,
+              "outputSHA256": "16402d587067ced3f44ad930655ce9e02b0e85608aea8e3d12dd4ef4e4cfd842"
+            },
+            {
+              "label": "fuzz",
+              "code": 0,
+              "signal": null,
+              "elapsedMs": 48740,
+              "startedAt": "2026-10-08T11:22:56.722Z",
+              "finishedAt": "2026-10-08T11:23:45.475Z",
+              "outputBytes": 339,
+              "outputSHA256": "47cba6522750b1aff4ad75397a04abb0bb62d1999fb76a956e34261e62ba4623",
+              "nativeProgress": [
+                {
+                  "reportedSeconds": 3,
+                  "executions": 9976
+                },
+                {
+                  "reportedSeconds": 3,
+                  "executions": 9976
+                }
+              ],
+              "nativePackageElapsedSeconds": 3.038
+            },
+            {
+              "label": "amended-red",
+              "code": 1,
+              "signal": null,
+              "elapsedMs": 649,
+              "startedAt": "2026-10-08T11:23:45.476Z",
+              "finishedAt": "2026-10-08T11:23:46.130Z",
+              "outputBytes": 441,
+              "outputSHA256": "d979c86288a8186637f77b1235fa7bb2fe573a8789b19338a39e4861d1a69d64"
+            },
+            {
+              "label": "amended-build",
+              "code": 0,
+              "signal": null,
+              "elapsedMs": 323,
+              "startedAt": "2026-10-08T11:23:46.130Z",
+              "finishedAt": "2026-10-08T11:23:46.458Z",
+              "outputBytes": 0,
+              "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "label": "amended-fixed",
+              "code": 0,
+              "signal": null,
+              "elapsedMs": 562,
+              "startedAt": "2026-10-08T11:23:46.459Z",
+              "finishedAt": "2026-10-08T11:23:47.024Z",
+              "outputBytes": 87,
+              "outputSHA256": "8d63636bee98c33e8b85f2faf6fbeda10bd25185b555e30c69a702c0cb4a5f19"
+            },
+            {
+              "label": "amended-output",
+              "code": 0,
+              "signal": null,
+              "elapsedMs": 2,
+              "startedAt": "2026-10-08T11:23:47.025Z",
+              "finishedAt": "2026-10-08T11:23:47.030Z",
+              "outputBytes": 113,
+              "outputSHA256": "84f7a3684f640b001726a499dec386bfcd718c9b1b5b74ec5009858e143a028c"
+            },
+            {
+              "label": "amended-fuzz",
+              "code": 0,
+              "signal": null,
+              "elapsedMs": 4418,
+              "startedAt": "2026-10-08T11:23:47.030Z",
+              "finishedAt": "2026-10-08T11:23:51.454Z",
+              "outputBytes": 269,
+              "outputSHA256": "d2beace5d634743938a363418ecb3815ebad0294d24e05e91582336a6da1b1cd",
+              "nativeProgress": [
+                {
+                  "reportedSeconds": 3,
+                  "executions": 3932
+                }
+              ],
+              "nativePackageElapsedSeconds": 2.922
+            }
+          ]
+        },
+        {
+          "index": 1,
+          "label": "Role-scoped note HTTP API",
+          "status": "passed",
+          "cachePeakBytes": 311517293,
+          "tmpPeakBytes": 127561197,
+          "scratchPeakBytes": 439078490,
+          "maxEntries": 5611,
+          "sampleCount": 2087,
+          "sourceHashes": {
+            "go.mod": "ac87d815384e24f630d8db580a96ee1fdeee2cb859d6df4bcf852c04f27f041a",
+            "engine.go": "a832ef2f74d426b02897a3231c66fd6fdc50a8d460c18e2e3b8728193bd80fbb",
+            "engine_test.go": "dfc15913f0ebfdb62c889ab58cd3519060de6eac66adaf905451c2246532abbd",
+            "cmd/app/main.go": "d323896658db27c0b2e41e1d0a4706794c046c0a5a637547c326867984d3f828",
+            "witness.txt": "5afa3701a8606e2c75d8180d4fd25f10663da49823d6035b0392c548bc24403c"
+          },
+          "implementationSHA256": "f0ffcbee5d032248811fb10e07c31d03ed3c01aa7e4bdb4e980b02ba92633ed0",
+          "successfulScratchRemoved": true,
+          "commands": [
+            {
+              "label": "red",
+              "code": 1,
+              "signal": null,
+              "elapsedMs": 82517,
+              "startedAt": "2026-10-08T11:23:51.538Z",
+              "finishedAt": "2026-10-08T11:25:14.059Z",
+              "outputBytes": 228,
+              "outputSHA256": "2e87488aad22fa785f51e02933f02b3f49e4883ae140b97cb1e1cef4e52eb9a6"
+            },
+            {
+              "label": "build",
+              "code": 0,
+              "signal": null,
+              "elapsedMs": 53072,
+              "startedAt": "2026-10-08T11:25:14.061Z",
+              "finishedAt": "2026-10-08T11:26:07.136Z",
+              "outputBytes": 0,
+              "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "label": "fixed",
+              "code": 0,
+              "signal": null,
+              "elapsedMs": 1698,
+              "startedAt": "2026-10-08T11:26:07.137Z",
+              "finishedAt": "2026-10-08T11:26:08.837Z",
+              "outputBytes": 87,
+              "outputSHA256": "8ee79f70f107a7fabe401b46512aaed05e7cb7456d256881fb407391a20d080d"
+            },
+            {
+              "label": "output",
+              "code": 0,
+              "signal": null,
+              "elapsedMs": 5,
+              "startedAt": "2026-10-08T11:26:08.839Z",
+              "finishedAt": "2026-10-08T11:26:08.847Z",
+              "outputBytes": 21,
+              "outputSHA256": "fdc2bc2455603687139aa3290aa4557065678743f06f6d813e761ab7a7811dfd"
+            },
+            {
+              "label": "fuzz",
+              "code": 0,
+              "signal": null,
+              "elapsedMs": 100197,
+              "startedAt": "2026-10-08T11:26:08.847Z",
+              "finishedAt": "2026-10-08T11:27:49.045Z",
+              "outputBytes": 267,
+              "outputSHA256": "6b55c03bab61a4bcefae73778772807e9e717247a906600176d13f5293c21920",
+              "nativeProgress": [
+                {
+                  "reportedSeconds": 2,
+                  "executions": 2948
+                }
+              ],
+              "nativePackageElapsedSeconds": 2.04
+            }
+          ]
+        },
+        {
+          "index": 2,
+          "label": "Deduplicated CSV event aggregation",
+          "status": "passed",
+          "cachePeakBytes": 149960383,
+          "tmpPeakBytes": 63622550,
+          "scratchPeakBytes": 213582933,
+          "maxEntries": 2871,
+          "sampleCount": 1032,
+          "sourceHashes": {
+            "go.mod": "ac87d815384e24f630d8db580a96ee1fdeee2cb859d6df4bcf852c04f27f041a",
+            "engine.go": "85c037e7ff7ec18fe5fe2a4922e3bb418ba0aea49fef55121be130b108fc158f",
+            "engine_test.go": "4b35a0238f448ed8291641e101bbc4a49d9c6e826b0a0d3a6c60800958dfeb7c",
+            "cmd/app/main.go": "21731d2862f7d55a2b5a3fa7ded78ff2a83d412e52991dec5aced9fd589d9e1d",
+            "witness.txt": "cb9932ac62ecac7ff7e52b507e7a80d677ce0d7188dd7f441bec72d3c119a409"
+          },
+          "implementationSHA256": "9e68815c1908230596eccad2261693eaf55c6badf4061490b46fc145927cf4eb",
+          "successfulScratchRemoved": true,
+          "commands": [
+            {
+              "label": "red",
+              "code": 1,
+              "signal": null,
+              "elapsedMs": 39405,
+              "startedAt": "2026-10-08T11:27:49.197Z",
+              "finishedAt": "2026-10-08T11:28:28.605Z",
+              "outputBytes": 249,
+              "outputSHA256": "7badb306b3294200be2f5b83a0f44d187b3ae880aa5644a44f8b65c6baf2d08f"
+            },
+            {
+              "label": "build",
+              "code": 0,
+              "signal": null,
+              "elapsedMs": 20365,
+              "startedAt": "2026-10-08T11:28:28.606Z",
+              "finishedAt": "2026-10-08T11:28:48.975Z",
+              "outputBytes": 0,
+              "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "label": "fixed",
+              "code": 0,
+              "signal": null,
+              "elapsedMs": 561,
+              "startedAt": "2026-10-08T11:28:48.976Z",
+              "finishedAt": "2026-10-08T11:28:49.540Z",
+              "outputBytes": 87,
+              "outputSHA256": "20fa4978759c23326b4083b151b516d07f6c041bc3567d1335086cf2d88d5126"
+            },
+            {
+              "label": "output",
+              "code": 0,
+              "signal": null,
+              "elapsedMs": 3,
+              "startedAt": "2026-10-08T11:28:49.542Z",
+              "finishedAt": "2026-10-08T11:28:49.549Z",
+              "outputBytes": 13,
+              "outputSHA256": "4ce9bf3c01a5a99d73c84e3a2880581e00e4f97f676aa01522cca945824c9193"
+            },
+            {
+              "label": "fuzz",
+              "code": 0,
+              "signal": null,
+              "elapsedMs": 50823,
+              "startedAt": "2026-10-08T11:28:49.550Z",
+              "finishedAt": "2026-10-08T11:29:40.375Z",
+              "outputBytes": 269,
+              "outputSHA256": "90e208e9dbfc6e35731a519b9db5328b63c3bc6a054222cbbcb464886eec4ffb",
+              "nativeProgress": [
+                {
+                  "reportedSeconds": 2,
+                  "executions": 21764
+                }
+              ],
+              "nativePackageElapsedSeconds": 2.026
+            }
+          ]
+        },
+        {
+          "index": 3,
+          "label": "Dependency graph ready frontier",
+          "status": "passed",
+          "cachePeakBytes": 148679922,
+          "tmpPeakBytes": 63406067,
+          "scratchPeakBytes": 212085989,
+          "maxEntries": 2849,
+          "sampleCount": 1096,
+          "sourceHashes": {
+            "go.mod": "ac87d815384e24f630d8db580a96ee1fdeee2cb859d6df4bcf852c04f27f041a",
+            "engine.go": "4f1f87be114334590737234c41b5f61a8399622109724d253ce9f5004c3a3f61",
+            "engine_test.go": "85c947199bdc1a81f5b80eb4424c61ce56d583d062fcbdabc67a24d6321de610",
+            "cmd/app/main.go": "bc18cd049ba081641af13ee27dc6ea7e537686faa554c076005c6902b0230e2d",
+            "witness.txt": "11fa81e539970f7672b9733d18de87a2eb25ca1f3d8aca78b7e66abbc6e5752d"
+          },
+          "implementationSHA256": "2882b39c176a39f31e4e58a3066e34394d2045c8aae7827e43391389c717b583",
+          "successfulScratchRemoved": true,
+          "commands": [
+            {
+              "label": "red",
+              "code": 1,
+              "signal": null,
+              "elapsedMs": 51758,
+              "startedAt": "2026-10-08T11:29:40.466Z",
+              "finishedAt": "2026-10-08T11:30:32.228Z",
+              "outputBytes": 257,
+              "outputSHA256": "ecdd4a99477db8a8f842b73f29833847e1918a9057b24c6c426feea3b3c7e1a7"
+            },
+            {
+              "label": "build",
+              "code": 0,
+              "signal": null,
+              "elapsedMs": 22101,
+              "startedAt": "2026-10-08T11:30:32.232Z",
+              "finishedAt": "2026-10-08T11:30:54.337Z",
+              "outputBytes": 0,
+              "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "label": "fixed",
+              "code": 0,
+              "signal": null,
+              "elapsedMs": 647,
+              "startedAt": "2026-10-08T11:30:54.340Z",
+              "finishedAt": "2026-10-08T11:30:54.991Z",
+              "outputBytes": 87,
+              "outputSHA256": "8d63636bee98c33e8b85f2faf6fbeda10bd25185b555e30c69a702c0cb4a5f19"
+            },
+            {
+              "label": "output",
+              "code": 0,
+              "signal": null,
+              "elapsedMs": 2,
+              "startedAt": "2026-10-08T11:30:54.992Z",
+              "finishedAt": "2026-10-08T11:30:54.996Z",
+              "outputBytes": 11,
+              "outputSHA256": "7e28ab68857f5f240e58d724aeee83d7591aa505c6f6a9f961589b768ed5f677"
+            },
+            {
+              "label": "fuzz",
+              "code": 0,
+              "signal": null,
+              "elapsedMs": 41817,
+              "startedAt": "2026-10-08T11:30:54.996Z",
+              "finishedAt": "2026-10-08T11:31:36.815Z",
+              "outputBytes": 269,
+              "outputSHA256": "af07c6f5b51d64f00fed81c5c0af3e854da81a037cf79173d9a9a8bd3179e9b5",
+              "nativeProgress": [
+                {
+                  "reportedSeconds": 2,
+                  "executions": 36860
+                }
+              ],
+              "nativePackageElapsedSeconds": 2.034
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "status": "passed",
+      "startedAt": "2026-10-08T11:33:02.589Z",
+      "finishedAt": "2026-10-08T11:35:53.362Z",
+      "toolchain": "go version go1.26.3 linux/amd64",
+      "variant": "B cold uniform trimpath plus explicit fuzzcachedir",
+      "scope": "One offline Go process group at a time, GOMAXPROCS1/-p1. Short2s fuzz smoke only, no installed app/Docker/150s sustained claim.",
+      "sourceSHA256": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306",
+      "sourceSHA256After": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306",
+      "originalReceiptSHA256": "a4a8263aa962ac3cc21979897da54c3613fd73eda4358109792f151aba3cad39",
+      "projects": [
+        {
+          "index": 1,
+          "label": "Role-scoped note HTTP API",
+          "status": "passed",
+          "cachePeakBytes": 222097621,
+          "tmpPeakBytes": 127436482,
+          "scratchPeakBytes": 349534103,
+          "maxEntries": 4837,
+          "sampleCount": 1577,
+          "sourceHashes": {
+            "go.mod": "ac87d815384e24f630d8db580a96ee1fdeee2cb859d6df4bcf852c04f27f041a",
+            "engine.go": "a832ef2f74d426b02897a3231c66fd6fdc50a8d460c18e2e3b8728193bd80fbb",
+            "engine_test.go": "dfc15913f0ebfdb62c889ab58cd3519060de6eac66adaf905451c2246532abbd",
+            "cmd/app/main.go": "d323896658db27c0b2e41e1d0a4706794c046c0a5a637547c326867984d3f828",
+            "witness.txt": "5afa3701a8606e2c75d8180d4fd25f10663da49823d6035b0392c548bc24403c"
+          },
+          "implementationSHA256": "f0ffcbee5d032248811fb10e07c31d03ed3c01aa7e4bdb4e980b02ba92633ed0",
+          "successfulScratchRemoved": true,
+          "commands": [
+            {
+              "label": "version",
+              "code": 0,
+              "signal": null,
+              "elapsedMs": 27,
+              "startedAt": "2026-10-08T11:33:02.594Z",
+              "finishedAt": "2026-10-08T11:33:02.626Z",
+              "outputBytes": 32,
+              "outputSHA256": "8ccf388c477b87cd5032fe803a73f16df6ed23ec5e3fcfea99800136c2d18bb7"
+            },
+            {
+              "label": "red",
+              "code": 1,
+              "signal": null,
+              "elapsedMs": 79027,
+              "startedAt": "2026-10-08T11:33:02.628Z",
+              "finishedAt": "2026-10-08T11:34:21.657Z",
+              "outputBytes": 228,
+              "outputSHA256": "c1a54cb4ec9458ba8ed18e93d8f98f410eb343eca5362754501e0e16d208382c"
+            },
+            {
+              "label": "build",
+              "code": 0,
+              "signal": null,
+              "elapsedMs": 1265,
+              "startedAt": "2026-10-08T11:34:21.661Z",
+              "finishedAt": "2026-10-08T11:34:22.931Z",
+              "outputBytes": 0,
+              "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "label": "fixed",
+              "code": 0,
+              "signal": null,
+              "elapsedMs": 1126,
+              "startedAt": "2026-10-08T11:34:22.933Z",
+              "finishedAt": "2026-10-08T11:34:24.061Z",
+              "outputBytes": 87,
+              "outputSHA256": "c372513497242accf1e65c8ad85701fb9866f6ccbc1092e7d7cd128db0b6b3f6"
+            },
+            {
+              "label": "output",
+              "code": 0,
+              "signal": null,
+              "elapsedMs": 3,
+              "startedAt": "2026-10-08T11:34:24.062Z",
+              "finishedAt": "2026-10-08T11:34:24.067Z",
+              "outputBytes": 21,
+              "outputSHA256": "fdc2bc2455603687139aa3290aa4557065678743f06f6d813e761ab7a7811dfd"
+            },
+            {
+              "label": "fuzz",
+              "code": 0,
+              "signal": null,
+              "elapsedMs": 89184,
+              "startedAt": "2026-10-08T11:34:24.067Z",
+              "finishedAt": "2026-10-08T11:35:53.253Z",
+              "outputBytes": 267,
+              "outputSHA256": "46046854e34f55b4e0d7d1d1bff3c9a3e614af248a7f69ef5c20da366c61fec6",
+              "nativeProgress": [
+                {
+                  "reportedSeconds": 3,
+                  "executions": 5746
+                }
+              ],
+              "nativePackageElapsedSeconds": 2.591
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "approvedFutureBounds": {
+    "cacheAndTemporaryBytes": 536870912,
+    "corpusBytes": 33554432,
+    "fuzzCommandSeconds": 330,
+    "actualFuzzTargetSeconds": 150,
+    "scenarioSeconds": 1800,
+    "observerSeconds": 1980
+  },
+  "limitations": [
+    "100ms sampled scratch maxima can miss shorter peaks. Cache and temp maxima are reported separately; scratchPeakBytes is a sampled simultaneous sum.",
+    "Initial cold smoke used trimpath only for build; separate HTTP workload recheck applied uniform trimpath to all commands.",
+    "No long150s fuzz or installed native worker has run from this prepared fixture.",
+    "Native fuzz progress seconds are rounded Go output; command wall time includes instrumentation compilation."
+  ]
+}

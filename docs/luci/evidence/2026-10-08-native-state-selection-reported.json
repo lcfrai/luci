@@ -1,0 +1,45 @@
+{
+  "scope": "Relayed native Windows state-selection module/reproduction reports, not independently executed on this Linux host. Full Tauri build and owned-sidecar lifecycle remain unverified.",
+  "reports": [
+    {
+      "reportedAt": "2026-10-08T11:12:31.799257+00:00",
+      "revision": "c46405fc7092d93bbc5514442eacd4b175d14518",
+      "scope": "Reported native Windows selector module only; full Tauri caller/build/lifecycle and separate LOCAL006 remain open",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "trackedFilesUnchanged": 1807,
+      "headUnchanged": true,
+      "cleanCheckout": true,
+      "ownedProcessesRemain": false,
+      "rust": "1.99.0",
+      "source": "originating local test thread",
+      "evidence": "E:/Luci-local-acceptance/evidence/c46405fc/local004-module/",
+      "hostAvailableRAMGiB": 3.3
+    },
+    {
+      "reportedAt": "2026-10-08T11:26:32.387328+00:00",
+      "revision": "2dcf245daca98d93e9cf7a40399b8fc78f4608a2",
+      "scope": "Reported native Windows selector module and original external junction reproduction; full Tauri caller/build/lifecycle remains open",
+      "module": {
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0,
+        "trackedFilesUnchanged": 1808
+      },
+      "originalReproduction": {
+        "cases": 4,
+        "passed": 4,
+        "errorKind": "InvalidData",
+        "targetBytesUnchanged": true,
+        "moduleUnchanged": true
+      },
+      "headUnchanged": true,
+      "cleanCheckout": true,
+      "fixturesRemoved": true,
+      "rust": "1.99.0",
+      "evidence": "E:/Luci-local-acceptance/evidence/2dcf245d/",
+      "source": "originating local test thread"
+    }
+  ]
+}

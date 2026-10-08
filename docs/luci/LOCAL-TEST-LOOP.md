@@ -390,3 +390,127 @@ immutable correction revision: existing ordinary file, nested path under a file,
 and both junction cases with/without identity. Preserve before/after source and
 fixture-target hashes. No environment or dependency changes are required.
 LOCAL-005 and CLOUD-009 remain separate unpublished corrections at this checkpoint.
+
+
+### Current integrated retest status — staged 8 October 2026
+
+The local tester reports **LOCAL-004's focused module correction passed at
+`c46405fc7092d93bbc5514442eacd4b175d14518`**: all nine native tests passed,
+with HEAD and all 1,807 tracked-file hashes unchanged. This closes the reported
+ordinary-file parent reproduction for that module, not full native Tauri or
+own-sidecar lifecycle acceptance. The earlier eight-pass/one-failure receipt
+remains historical evidence.
+
+**LOCAL-006 is reported verified for its focused native scope at
+`2dcf245daca98d93e9cf7a40399b8fc78f4608a2`**, including LOCAL-004. All four
+original external `sessions`/`instance` junction cases, with and without earlier
+identity, reject with InvalidData and preserve target bytes. All ten unedited
+selector-module tests passed; HEAD and all 1,808 tracked-file hashes remained
+unchanged and the checkout stayed clean. The tester used offline Rust1.99, -j1
+and E:-only temporary state; no app, sidecar or Docker ran. Raw evidence remains
+under `E:/Luci-local-acceptance/evidence/2dcf245d/` in the local test thread.
+Full Tauri build and native own-sidecar lifecycle remain open. No dependency
+reinstall or global configuration change is part of this correction.
+
+LOCAL-005's corrected source passed 66 focused frontend tests and TypeScript,
+and a controlled source Chromium witness at 1440/390 px. Cached storage refresh
+performs only its cached status request; navigation stays usable and late replies
+cannot reopen departed setup. Explicit readiness remains a separate action.
+Native WebView/request/process-start evidence remains pending. Earlier real
+Windows storage confirmation and member refusal are retained as separate passes.
+
+CLOUD-009's source mechanics passed 242 API/management race outcomes with three
+expected skips and 29 product race outcomes with no skips/failures. Each batch
+kept all 644 Go/module inputs unchanged. It records intent before effects, proof
+before cancellation and exact lease retirement before final queue acknowledgement.
+It preserves partial output/context, refuses live allocators/foreign proof and
+legacy protocol 0, and blocks ordinary replacement of unresolved private claims.
+Untouched reserve → abandon → reopen → fresh reserve/queue has real HTTP
+regressions; missing execution state is never treated as launch-settlement proof.
+
+These corrections are not yet a **LOCAL TEST HANDOFF READY** integrated release.
+The complete Go race run finished with **2,939 passing outcomes, three failures
+and 29 skips**, 926.16 seconds, and all 1,882 source inputs unchanged. It is not
+a full-suite pass. One diagnosed fake-daemon fixture failure is in
+`TestServeReapsItsOwnOrphanWithTheIDItLoadedAndSparesAnothers`
+(`control-plane/cmd/api/fakedaemon_test.go`, original wait near line 222): the
+fixture did not implement `GET /containers/{name}/json`, so the new ownership
+inspection saw a fake 404 and correctly treated the object as absent. The test
+then waited 20 seconds for DELETE. A staged fixture correction supplies actual
+list-backed inspection and requires exact immutable-ID deletion, removal from
+the fixture list and preservation of the foreign object. This diagnosis does
+not establish a production deletion defect. The original failure remains
+failed evidence until the corrected test and required integrated checks pass;
+no full-suite pass is inferred from focused checks.
+
+The same full-suite run exposed a second controlled-test scheduling race in
+`TestSwarmFencedHTTPQueuedUncertainLaunchRetiresQueueAfterProof`: after its manual
+scheduler tick, a queued background reconciliation can legitimately hold the
+product dispatch lock, so recovery correctly returns the bounded busy409 instead
+of the test's assumed200. The staged test correction explicitly quiesces and
+drains the scheduler, reloads the current run revision, then performs recovery;
+it restores real runtime callbacks for the no-replay assertion. It does not
+weaken the live-allocator409 contract or add automatic recovery retries. The
+corrected test remains unverified until rerun after the source freeze.
+
+The third failure is the deliberate read-route audit:
+`TestProductRegisteredReadsCannotMutateProjectsOrStartResources` rejects the new
+unclassified `GET .../swarm/operations/{operationId}/recovery` at
+`routes_audit_test.go`. The correction must register its concrete read-only
+mechanism and exercise an existing eligible attempt through GET and implicit
+HEAD, unsupported/unavailable capability, missing identity and denied Edit
+paths. Snapshot private/project/task bytes and make mutation/process/observer
+callbacks fail; also retain the API adapter's exact backend-probe/private-ledger
+assertions. Adding a route name without this proof is insufficient. The test
+exposed missing coverage, not observed provisioning on GET. Correction and
+retest remain pending until the post-freeze focused checks complete.
+
+Publish the final integrated full commit/package and source hashes only after
+that verification completes. Native CLOUD-009 must then demonstrate actual
+controller/request death, real delayed Create/Start denial, a lost fence Create
+acknowledgement that retains capacity, explicit retry, death after durable proof
+before finalization, and same-proof continuation after restart. A subsequent
+separately authorized task must run and produce reviewable output. Controlled
+HTTP reopening and Linux-only Docker evidence do not pass those native gates.
+Keep permanent-marker/legacy limits, retained output, 30-minute four-project
+whole-computer responsiveness and live-provider quality explicit.
+
+
+### Corrected integrated source verification
+
+All three first-run failures above are retained. The corrected full API and
+service-package race suites pass **974 outcomes, zero failures and nine explicit
+skips**, with all 645 recorded inputs unchanged. The registration-wide read audit
+and the new actual GET/HEAD capability audit both pass, preserving private files,
+project/task bytes and resource collections while all mutation/process callbacks
+remain forbidden. The corrected queued scenario passes20 repeated race runs.
+Both retirement-history tests pass: independent 4,096-record saturation refuses
+before effects, or retains already saved proof and capacity if saturation occurs
+before finalization. Its message no longer incorrectly names the 64-marker limit.
+
+The full frontend passes **2418 tests**, TypeScript and production build with
+all 1,882 captured source inputs unchanged. Its desktop inputs still match after
+the Go-only corrections. Windows amd64 API tests cross-compile; that executable
+was not run natively here. Current backend bytes match the separately retained
+77-outcome race/live-Docker pin run. The initial failed whole-suite run, changed
+source list, corrected manifests and individual scope are in the
+[source-verification receipt](evidence/2026-10-08-cloud009-source-verification.json).
+Installed controller-death/lost-ack recovery and sustained application measures
+remain separate next checks; this source checkpoint is not the full handoff.
+
+### Native packaging reported passed at `2dcf245d`
+
+The local tester reports the documented
+`scripts/build-release.ps1 -Version 0.5.0 -Native` passed at exact
+`2dcf245daca98d93e9cf7a40399b8fc78f4608a2`, including Tauri release compilation,
+bundled sidecar/resources and unsigned NSIS generation. The installer was not
+executed. SourceDirty is false; all 1,808 tracked hashes and HEAD stayed unchanged.
+Native licensing lists 616 components with zero missing notices. The installer is
+68179033 bytes, SHA256
+`eee38782ee60232ca42cbbf926ec1fe5657e537bb51db83240fa37dff38605d0`.
+Thirty-eight build-only observations report minimum host availableRAM 2.578 GiB
+and sampled native build-tree peak 1.66 GiB working set, excluding separate driver
+installation; this is not app responsiveness or workload acceptance. See the
+[reported native packaging receipt](evidence/2026-10-08-native-package-2dcf245d-reported.json).
+The local tester proceeds with isolated native own-sidecar smoke; newer
+LOCAL-005/CLOUD-009 code still needs its own pinned correction/installed checks.

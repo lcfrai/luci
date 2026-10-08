@@ -1,0 +1,221 @@
+{
+  "startedAt": "2026-10-08T11:11:46.248356+00:00",
+  "finishedAt": "2026-10-08T11:27:12.400196+00:00",
+  "command": [
+    "go",
+    "test",
+    "-race",
+    "-p",
+    "1",
+    "-count=1",
+    "-timeout=10m",
+    "-json",
+    "./control-plane/...",
+    "./sandboxd/..."
+  ],
+  "GOMAXPROCS": 2,
+  "version": "go version go1.26.3 linux/amd64",
+  "exitCode": 1,
+  "durationSeconds": 926.1577238869795,
+  "testOutcomes": {
+    "pass": 2939,
+    "fail": 3,
+    "skip": 29
+  },
+  "packageOutcomes": {
+    "fail": 3,
+    "pass": 30,
+    "skip": 2
+  },
+  "sourceInputs": 1882,
+  "changedInputs": [],
+  "headBefore": "2dcf245daca98d93e9cf7a40399b8fc78f4608a2",
+  "headAfter": "2dcf245daca98d93e9cf7a40399b8fc78f4608a2",
+  "workingTreeStatusUnchanged": true,
+  "failures": [
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+      "Test": "TestServeReapsItsOwnOrphanWithTheIDItLoadedAndSparesAnothers",
+      "Elapsed": 20.01
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+      "Elapsed": 21.328
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestSwarmFencedHTTPQueuedUncertainLaunchRetiresQueueAfterProof",
+      "Elapsed": 1.13
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Elapsed": 125.939
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+      "Test": "TestProductRegisteredReadsCannotMutateProjectsOrStartResources",
+      "Elapsed": 0.21
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+      "Elapsed": 419.414
+    }
+  ],
+  "skips": [
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+      "Test": "TestServeRefusesAWorktreeSwappedInsideAConversationStore",
+      "Elapsed": 0.02
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+      "Test": "TestNewScannerRefusesAWorktreeSwappedInsideAConversationStore/the_location_itself",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/cmd/api",
+      "Test": "TestNewScannerRefusesAWorktreeSwappedInsideAConversationStore/a_directory_on_the_way",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestExecutionLifecycleLockChildProcess",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestProjectSwarmControlledBenchmark",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestProjectSwarmFourProjectControlledCapacity",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestWindowsNativeStorePreservesLegacyHomesAndPrefersMigratedCompactHomes",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAWorktreeAdminJunctionFailsTheCreateAndMountsNothing",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAWorktreeWhoseGitIsAReparsePointFailsTheCreate/a_junction",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/backend/dockerbe",
+      "Test": "TestLaunchFenceLiveDockerAcknowledgmentAndLateRequestBoundaries",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/backend/dockerbe",
+      "Test": "TestResourceObserverLiveDaemonReadOnly",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/backend/dockerbe",
+      "Test": "TestSharedWindowsStorageReaderProcess",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/gitcommand",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/hostpath",
+      "Test": "TestAJunctionHopIntoTheProjectsDirectoryIsRefused",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/management",
+      "Test": "TestTeamBrowserChromiumFixture",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/platform",
+      "Test": "TestDataEmailActualComposePreservesCredentialBytes",
+      "Elapsed": 0.05
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/platform",
+      "Test": "TestDataFunctionPinnedRuntimeEvaluation",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+      "Test": "TestDataIngressActualEnvoyClientBoundary",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/product",
+      "Test": "TestSwarmFixtureRefusalProcess",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/project",
+      "Test": "TestGitTimeoutEditorHelper",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/project",
+      "Test": "TestHelperSleepsPastItsDeadline",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/project",
+      "Test": "TestPathRefusesANestedWorktreeReachedThroughAJunctionedComponent",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/project",
+      "Test": "TestPathRefusesALocationInsideAnotherProjectsTree",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/project",
+      "Test": "TestPathRefusesAWorktreeNestedInAnOutsideLinkedWorktree",
+      "Elapsed": 0.01
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/project",
+      "Test": "TestPathRefusesALocationSpelledThroughAHostJunctionIntoAMount",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/project",
+      "Test": "TestPathRefusesANestedWorktreeLocationSwappedForAJunction",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/project",
+      "Test": "TestPathRefusesANestedJunctionUnderAnotherSpelling/long",
+      "Elapsed": 0.01
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/project",
+      "Test": "TestPathRefusesANestedJunctionUnderAnotherSpelling/upper",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/project",
+      "Test": "TestPathRefusesALocationInsideADirectorySandboxesWrite",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/project",
+      "Test": "TestPathRefusesALocationAnywhereUnderTheProjectsDirectory",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/registry/registrytest",
+      "Elapsed": 0
+    }
+  ],
+  "sourceDirty": true,
+  "passed": false
+}

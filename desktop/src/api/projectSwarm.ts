@@ -5,6 +5,15 @@ export interface SwarmReview {
   taskId: string; operationId: string; sourceCommit: string; targetCommit: string;
   reviewDigest: string; paths: string[]; patch: string; canIntegrate: boolean; reason: string;
 }
+/** Both actions identify the saved attempt; destructive consent is never inferred. */
+export type SwarmAttemptRecovery = {operationId: string; childId: string} & (
+  | {recoverMissingChild: true; stopUncertainLaunch?: never}
+  | {stopUncertainLaunch: true; recoverMissingChild?: never}
+);
+export interface SwarmRecoveryAvailability {
+  expectedRevision: number; operationId: string; childId: string;
+  availability: {supported: boolean; reasonCode: string; message: string};
+}
 const path = (project: string, run: string, suffix = '') => `/v1/product/projects/${encodeURIComponent(project)}/runs/${encodeURIComponent(run)}/swarm${suffix}`;
 function owned(project: string, run: string, value: ProjectRun) {
   if (!value || value.id !== run || value.projectId !== project || value.input?.implementation?.projectId !== project || !value.swarm) {
@@ -17,6 +26,15 @@ async function change(project: string, run: string, suffix: string, body: unknow
   return owned(project, run, result.run);
 }
 export const projectSwarmApi = {
+  async recovery(project: string, run: ProjectRun, operation: RunOperation, signal?: AbortSignal): Promise<SwarmRecoveryAvailability> {
+    const value = await productApi.request<SwarmRecoveryAvailability>(path(project, run.id, `/operations/${encodeURIComponent(operation.id)}/recovery`), undefined, 'GET', 30_000, signal);
+    if (!value || value.operationId !== operation.id || value.childId !== operation.childId ||
+        !Number.isInteger(value.expectedRevision) || value.expectedRevision !== run.revision ||
+        typeof value.availability?.supported !== 'boolean' || typeof value.availability?.reasonCode !== 'string' || typeof value.availability?.message !== 'string') {
+      throw new Error('Recovery availability does not match this recorded attempt. Refresh team status and review it again.');
+    }
+    return value;
+  },
   prepare: (project: string, run: string, expectedRevision: number, maxParallel: number) => change(project, run, '', {expectedRevision, maxParallel}),
   control: (project: string, run: string, action: 'pause' | 'resume' | 'cancel' | 'reconcile', expectedRevision: number) => change(project, run, `/${action}`, {expectedRevision}),
   async reserve(project: string, run: string, task: string, expectedRevision: number, idempotencyKey: string) {
@@ -38,5 +56,5 @@ export const projectSwarmApi = {
     return review;
   },
   integrate: (project: string, run: string, task: string, expectedRevision: number, reviewDigest: string) => change(project, run, `/tasks/${encodeURIComponent(task)}/integrate`, {expectedRevision, reviewDigest}),
-  abandon: (project: string, run: string, task: string, expectedRevision: number, recovery?: {operationId: string; childId: string; recoverMissingChild: true}) => change(project, run, `/tasks/${encodeURIComponent(task)}/abandon`, {expectedRevision, ...recovery}),
+  abandon: (project: string, run: string, task: string, expectedRevision: number, recovery?: SwarmAttemptRecovery) => change(project, run, `/tasks/${encodeURIComponent(task)}/abandon`, {expectedRevision, ...recovery}),
 };

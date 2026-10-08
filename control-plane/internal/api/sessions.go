@@ -1513,7 +1513,7 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 			CarriedConversationID: carriedConversation,
 		},
 		Spec:    backend.Spec{ID: sessionID, SessionID: sessionID, Image: a.sessionImage(), Command: command, Args: argv, Env: sandboxEnv, AttachToken: token, Resources: allocatedResources, WorkDir: sessionWorkDir, Mounts: sandboxMounts},
-		Account: account, Revalidate: runAdmission.Revalidate, BeforeAllocate: revalidateExecution, BeforeBackendStart: markExecutionStart, AfterBackendCreate: markExecutionSettled, Staging: staging, HasReviewedContext: reviewedDescriptor != nil,
+		Account: account, Revalidate: runAdmission.Revalidate, BeforeAllocate: revalidateExecution, BeforeBackendStart: markExecutionStart, AfterBackendCreate: markExecutionSettled, Staging: staging, HasReviewedContext: reviewedDescriptor != nil, ExecutionLeaseID: executionLeaseID,
 	})
 	if err != nil {
 		a.writeSessionAllocationProblem(w, r, err)

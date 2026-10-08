@@ -418,6 +418,8 @@ func New(d Deps) (*API, error) {
 	a.execution = newExecutionAdmission(a)
 	if d.Product != nil {
 		d.Product.SetProjectSwarmRecovery(a.proveSwarmMissingChild, a.finalizeSwarmMissingChild)
+		d.Product.SetProjectSwarmFenceRecovery(a.projectSwarmFenceRecoveryAvailability, a.authorizeSwarmFenceRecovery, a.acquireSwarmFenceRecovery, a.proveSwarmFencedLaunch, a.finalizeSwarmFencedLaunch)
+		d.Product.SetProjectSwarmPendingLaunch(a.projectSwarmPendingLaunch)
 		d.Product.SetRuntimeResourceSnapshot(d.ResourceSnapshot)
 		d.Product.SetProjectRunSelectionResolver(a.ResolveProjectRunSelection)
 		d.Product.SetProjectRunSessionObserver(a.ObserveProjectRunSessions)

@@ -46,7 +46,7 @@ const (
 	reasonDisappeared       = "sandbox disappeared"
 	reasonProcessExit       = "process exited"
 	reasonIdleTimeout       = "idle timeout"
-	reasonInterruptedCreate = "sandbox creation was interrupted before the agent started; start a new attempt when ready"
+	reasonInterruptedCreate = "sandbox creation was interrupted before the agent started; review this attempt's recovery before retrying"
 
 	// reasonNonLoopback answers "why did my sandbox vanish". A sandbox whose
 	// port was published off 127.0.0.1 is an unauthenticated shell on the LAN
@@ -487,9 +487,11 @@ func (r *Reaper) Sweep(ctx context.Context) error {
 	}
 
 	// A Docker create can finish in the daemon after its controller process
-	// exits. Its durable session still names it, so it is not an orphan, but no
-	// surviving caller can issue Start. Once the full create budget has elapsed,
-	// end only an exact owned, still-never-started allocation. CreatedAt comes
+	// exits. Its durable session still names it, so it is not an orphan. A
+	// previously dispatched Start can still be pending at the daemon: this
+	// status observation does not prove settlement or release its reservation.
+	// Once the full create budget has elapsed, mark only an exact owned,
+	// still-never-started allocation interrupted. CreatedAt comes
 	// from Docker: startup/rename writes must not renew this abandoned attempt.
 	for _, s := range sessions {
 		sb, present := bySandbox[s.SandboxID]
@@ -672,8 +674,9 @@ func (r *Reaper) recoverInterruptedCreate(ctx context.Context, observed registry
 		}
 		s.Status, s.ExitReason = registry.StatusExited, reasonInterruptedCreate
 		s.Endpoint, s.AttachToken, s.AttachCount = "", "", 0
-		// Keep the exact allocation and run identity. Rule 3a removes this
-		// terminal child's container on the next sweep; it never recreates one.
+		// Keep the exact allocation and run identity. Cleanup still requires its
+		// own positive proof; an unsettled task remains reserved for explicit
+		// recovery. This status change never authorizes another allocation.
 		return nil
 	})
 	r.reportUpdate(observed.ID, err)

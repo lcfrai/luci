@@ -26,30 +26,36 @@ import (
 // Every persisted lease accounts for a pending allocation even before Docker
 // sees it. Unknown outcomes retain their reservation across process restart.
 type executionLease struct {
-	ID            string                       `json:"id"`
-	Scope         string                       `json:"scope"`
-	Actor         management.ExecutionActorRef `json:"actor"`
-	ProjectID     string                       `json:"projectId"`
-	Provider      string                       `json:"provider"`
-	ProviderLimit int                          `json:"providerLimit"`
-	SessionID     string                       `json:"sessionId,omitempty"`
-	SandboxID     string                       `json:"sandboxId,omitempty"`
-	State         string                       `json:"state"`
-	LaunchGuard   int                          `json:"launchGuard,omitempty"`
-	Resources     backend.Resources            `json:"resources"`
-	CreatedAt     time.Time                    `json:"createdAt"`
-	UpdatedAt     time.Time                    `json:"updatedAt"`
+	ID              string                       `json:"id"`
+	Scope           string                       `json:"scope"`
+	Actor           management.ExecutionActorRef `json:"actor"`
+	ProjectID       string                       `json:"projectId"`
+	Provider        string                       `json:"provider"`
+	ProviderLimit   int                          `json:"providerLimit"`
+	SessionID       string                       `json:"sessionId,omitempty"`
+	SandboxID       string                       `json:"sandboxId,omitempty"`
+	State           string                       `json:"state"`
+	LaunchGuard     int                          `json:"launchGuard,omitempty"`
+	FenceProtocol   int                          `json:"fenceProtocol,omitempty"`
+	FenceEngineID   string                       `json:"fenceEngineId,omitempty"`
+	FenceInstanceID string                       `json:"fenceInstanceId,omitempty"`
+	FenceIntentID   string                       `json:"fenceIntentId,omitempty"`
+	Resources       backend.Resources            `json:"resources"`
+	CreatedAt       time.Time                    `json:"createdAt"`
+	UpdatedAt       time.Time                    `json:"updatedAt"`
 }
 type executionLeaseLedger struct {
-	Version     int                   `json:"version"`
-	Leases      []executionLease      `json:"leases"`
-	Retirements []executionRetirement `json:"retirements,omitempty"`
+	Version     int                    `json:"version"`
+	Leases      []executionLease       `json:"leases"`
+	Retirements []executionRetirement  `json:"retirements,omitempty"`
+	Fences      []executionFenceRecord `json:"fences,omitempty"`
 }
 type executionAdmission struct {
 	api         *API
 	mu          sync.Mutex
 	path, scope string
 	snapshot    atomic.Pointer[executionReservationView]
+	fenceGuards sync.Map
 }
 type executionReservationView struct {
 	ObservedAt time.Time `json:"observedAt"`
@@ -198,6 +204,9 @@ func decodeExecutionLedger(data []byte) (executionLeaseLedger, error) {
 			return ledger, errors.New("execution retirement ownership cannot be verified")
 		}
 		seen[key] = true
+	}
+	if err := validateExecutionFenceRecords(ledger); err != nil {
+		return ledger, err
 	}
 	return ledger, nil
 }
@@ -528,7 +537,7 @@ func (g *executionAdmission) bindSandbox(ctx context.Context, id, sessionID, san
 		for i := range ledger.Leases {
 			lease := &ledger.Leases[i]
 			if lease.Scope == g.scope && lease.ID == id {
-				if lease.State == "backend-dispatching" || lease.State == "backend-settled" {
+				if lease.State != "reserved" && lease.State != "allocating" && lease.State != "replacing" {
 					return errors.New("backend launch phase cannot be reset to an unstarted reservation")
 				}
 				if lease.SessionID != "" && lease.SessionID != sessionID {
@@ -631,10 +640,13 @@ func validExecutionLease(lease executionLease) bool {
 	if lease.Actor.Local && (lease.Actor.UserID != "" || lease.Actor.TeamID != "") || !lease.Actor.Local && lease.Actor.UserID == "" {
 		return false
 	}
+	if !validExecutionFenceLease(lease) {
+		return false
+	}
 	switch lease.State {
 	case "reserved":
 		return lease.SessionID == "" && lease.SandboxID == ""
-	case "allocating", "replacing", "backend-dispatching", "backend-settled":
+	case "allocating", "replacing", "backend-dispatching", "backend-settled", "fencing":
 		return lease.SessionID != "" && lease.SandboxID != ""
 	default:
 		return false

@@ -14,6 +14,8 @@ export function RuntimePreparation({
   manageBacking,
   automatic = false,
   refreshToken = 0,
+  storageRevision,
+  statusSnapshot,
   onStatus,
   onPendingChange,
 }: {
@@ -21,7 +23,12 @@ export function RuntimePreparation({
   manageBacking: boolean;
   automatic?: boolean;
   refreshToken?: number;
-  onStatus(status: SetupStatus): void;
+  /** Invalidates older check responses without starting another probe. */
+  storageRevision?: number;
+  /** Authoritative or explicitly invalidated parent advice; never a storage DTO. */
+  statusSnapshot?: SetupStatus | null;
+  /** The parent may reject a response invalidated before React has rendered new props. */
+  onStatus(status: SetupStatus, checkedStorageRevision?: number): void | boolean;
   /** Initial checks and install acceptance only; the backend build continues independently. */
   onPendingChange?(pending: boolean): void;
 }) {
@@ -38,6 +45,15 @@ export function RuntimePreparation({
   const installations = useRef(new WeakMap<ProductClient, Promise<RuntimeJob>>());
   const generation = useRef(0);
   const readiness = useRef<AbortController | null>(null);
+  const currentStorageRevision = useRef(storageRevision ?? 0);
+  currentStorageRevision.current = storageRevision ?? 0;
+  const publish = (value: SetupStatus, checkedStorageRevision: number) => {
+    if (checkedStorageRevision !== currentStorageRevision.current) return false;
+    const accepted = storageRevision === undefined ? callback.current(value) : callback.current(value, checkedStorageRevision);
+    if (accepted === false) return false;
+    setStatus(value);
+    return true;
+  };
   const prepare = (selected: ProductClient) => {
     const existing = installations.current.get(selected);
     if (existing) return existing;
@@ -58,12 +74,12 @@ export function RuntimePreparation({
     setChecking(true);
     pendingCallback.current?.(true);
     setError("");
+    const checkedStorageRevision = currentStorageRevision.current;
     void Promise.all([client.check(controller.signal), client.runtime(controller.signal)])
       .then(async ([next, runtime]) => {
         if (!alive) return;
-        setStatus(next);
-        callback.current(next);
         setJob(runtime);
+        if (!publish(next, checkedStorageRevision)) return;
         const docker =
           next.checks.find((check) => check.id === "docker")?.status ===
           "ready";
@@ -93,10 +109,10 @@ export function RuntimePreparation({
         // A job can finish after the first image check. Confirm actual image
         // readiness once rather than treating its ready state as proof.
         if (alive && settled.status === "ready" && !image) {
+          const checkRevision = currentStorageRevision.current;
           const current = await client.check(controller.signal);
           if (alive) {
-            setStatus(current);
-            callback.current(current);
+            publish(current, checkRevision);
           }
         }
       })
@@ -130,6 +146,7 @@ export function RuntimePreparation({
         .then(async (next) => {
           if (!alive) return;
           let current: SetupStatus | undefined;
+          const checkRevision = currentStorageRevision.current;
           let readinessError = "";
           if (next.status === "ready") {
             try {
@@ -142,8 +159,7 @@ export function RuntimePreparation({
           // Changing installing to ready tears down this polling effect. Apply
           // its actual readiness response before finishing that lifecycle.
           if (current) {
-            setStatus(current);
-            callback.current(current);
+            publish(current, checkRevision);
           }
           setJob(next);
           setError(readinessError);
@@ -161,12 +177,13 @@ export function RuntimePreparation({
       clearInterval(timer);
     };
   }, [client, job?.status, automatic, manageBacking, attempt, refreshToken]);
+  const shownStatus = statusSnapshot ?? status;
   const dockerReady =
-    status?.checks.find((check) => check.id === "docker")?.status === "ready";
+    shownStatus?.checks.find((check) => check.id === "docker")?.status === "ready";
   const imageReady =
-    status?.checks.find((check) => check.id === "sandbox-image")?.status ===
+    shownStatus?.checks.find((check) => check.id === "sandbox-image")?.status ===
     "ready";
-  const storageBlocked = storagePreparationBlock(status);
+  const storageBlocked = storagePreparationBlock(shownStatus);
   return (
     <section
       className="runtime-preparation"
@@ -187,7 +204,7 @@ export function RuntimePreparation({
         </p>
       )}
       <ul className="preparation-list">
-        {status?.checks
+        {shownStatus?.checks
           .filter((check) =>
             ["git", "docker", "sandbox-image", "docker-backing-storage"].includes(check.id),
           )
@@ -219,7 +236,7 @@ export function RuntimePreparation({
             "Runtime preparation did not finish. Check dependencies and retry."}
         </p>
       )}
-      {status && !dockerReady && (
+      {shownStatus && !dockerReady && (
         <p className="journey-muted">
           Use the tool setup above to install Docker where supported. Open
           Docker Desktop and wait for its engine to start, then check again.
@@ -258,10 +275,10 @@ export function RuntimePreparation({
                     if (generation.current !== currentGeneration) return;
                     setJob(next);
                     if (next.status === "ready" && !imageReady) {
+                      const checkRevision = currentStorageRevision.current;
                       const current = await client.check(signal);
                       if (generation.current === currentGeneration) {
-                        setStatus(current);
-                        callback.current(current);
+                        publish(current, checkRevision);
                       }
                     }
                   })

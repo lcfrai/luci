@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lcfrai/luci/control-plane/internal/backend"
 	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
@@ -21,16 +22,18 @@ type ProjectSwarmRecoveryRequest struct {
 	UpdatedAt   string
 }
 
-// The execution service proves a guarded pre-backend phase as well as current
-// registry/backend absence. This receipt grants retirement, never execution.
+// Method separates guarded pre-backend absence from an acknowledged Docker
+// name fence. Neither proof grants execution or establishes task success.
 type ProjectSwarmRecoveryProof struct {
-	ChildID             string `json:"childId"`
-	QueueID             string `json:"queueId,omitempty"`
-	LeaseID             string `json:"leaseId"`
-	Backend             string `json:"backend"`
-	ObservedAt          string `json:"observedAt"`
-	InventoryObservedAt string `json:"inventoryObservedAt"`
-	FinalizedAt         string `json:"finalizedAt,omitempty"`
+	Method              string                   `json:"method,omitempty"`
+	FenceProof          backend.LaunchFenceProof `json:"fenceProof,omitzero"`
+	ChildID             string                   `json:"childId"`
+	QueueID             string                   `json:"queueId,omitempty"`
+	LeaseID             string                   `json:"leaseId"`
+	Backend             string                   `json:"backend"`
+	ObservedAt          string                   `json:"observedAt"`
+	InventoryObservedAt string                   `json:"inventoryObservedAt,omitempty"`
+	FinalizedAt         string                   `json:"finalizedAt,omitempty"`
 }
 
 func (s *Server) SetProjectSwarmRecovery(prove func(context.Context, ProjectSwarmRecoveryRequest) (ProjectSwarmRecoveryProof, error), finalize func(context.Context, ProjectSwarmRecoveryRequest, ProjectSwarmRecoveryProof) error) {
@@ -44,8 +47,22 @@ func validSwarmRecoveryProof(proof ProjectSwarmRecoveryProof, childID string) bo
 		return false
 	}
 	observed, e1 := time.Parse(time.RFC3339Nano, proof.ObservedAt)
-	inventory, e2 := time.Parse(time.RFC3339Nano, proof.InventoryObservedAt)
-	if e1 != nil || e2 != nil || observed.Before(inventory) {
+	if e1 != nil {
+		return false
+	}
+	switch proof.Method {
+	case "", "pre-backend-absence":
+		inventory, err := time.Parse(time.RFC3339Nano, proof.InventoryObservedAt)
+		if err != nil || observed.Before(inventory) || proof.FenceProof != (backend.LaunchFenceProof{}) {
+			return false
+		}
+	case ProjectSwarmFenceRecoveryMethod:
+		fence := proof.FenceProof
+		ack, err := time.Parse(time.RFC3339Nano, fence.AcknowledgedAt)
+		if proof.Backend != "docker" || proof.InventoryObservedAt != "" || fence.Protocol != backend.LaunchFenceProtocol || fence.SessionID != childID || fence.ObservedAt != proof.ObservedAt || err != nil || observed.Before(ack) || !validSwarmFenceIdentity(fence.EngineID) || !validSwarmFenceIdentity(fence.InstanceID) || !validSwarmFenceIdentity(fence.SandboxID) || !validSwarmFenceIdentity(fence.IntentID) || !hexDigest(fence.FenceRef) || !hexDigest(fence.ScopeDigest) || !hexDigest(fence.OperationDigest) || !hexDigest(fence.ConfigDigest) {
+			return false
+		}
+	default:
 		return false
 	}
 	if proof.FinalizedAt != "" {
@@ -55,8 +72,14 @@ func validSwarmRecoveryProof(proof ProjectSwarmRecoveryProof, childID string) bo
 	return true
 }
 
+// Both recovery methods are private comparable receipts. Callers must still
+// revalidate current authority, the exact lease and the method's backend proof.
+func ValidProjectSwarmRecoveryProof(proof ProjectSwarmRecoveryProof, childID string) bool {
+	return validSwarmRecoveryProof(proof, childID)
+}
+
 func swarmRetirementPending(op ProjectRunOperation) bool {
-	return op.AbsenceRetirement != nil && op.AbsenceRetirement.FinalizedAt == ""
+	return op.LaunchRecovery != nil && (op.AbsenceRetirement == nil || op.AbsenceRetirement.FinalizedAt == "") || op.AbsenceRetirement != nil && op.AbsenceRetirement.FinalizedAt == ""
 }
 
 // ProjectSwarmRetirement is read-only and deliberately does not acquire the
@@ -69,11 +92,11 @@ func (s *Server) ProjectSwarmRetirement(projectID, runID, operationID, childID, 
 	}
 	op := swarmOperation(&run, operationID)
 	if op == nil || op.ChildID != childID || op.TaskID == "" || op.Status != "cancelled" || op.AbsenceRetirement == nil || op.AbsenceRetirement.QueueID != queueID || !validSwarmRecoveryProof(*op.AbsenceRetirement, childID) {
-		return nil, errors.New("This exact operation has no durable missing-child retirement receipt.")
+		return nil, errors.New("This exact operation has no durable launch retirement receipt.")
 	}
 	proof := *op.AbsenceRetirement
 	// Completion is a product acknowledgement, not part of the immutable
-	// absence evidence retained by the execution service.
+	// method-specific evidence retained by the execution service.
 	proof.FinalizedAt = ""
 	return &proof, nil
 }
@@ -85,6 +108,9 @@ func (s *Server) recoverMissingSwarmChildLocked(ctx context.Context, p project.P
 	op := swarmOperation(&run, operationID)
 	if op == nil || op.TaskID == "" || op.ChildID != childID || op.Allocation != "ready" {
 		return run, errors.New("Select the exact retained operation and child before recovering a missing launch.")
+	}
+	if op.LaunchRecovery != nil {
+		return run, errors.New("This attempt has an explicit stop-and-retain recovery intent. Continue that action; missing-child observation cannot replace its fence proof.")
 	}
 	task := swarmTask(&run, op.TaskID)
 	if task == nil || task.OperationID != op.ID || task.Integration != nil {
@@ -116,7 +142,7 @@ func (s *Server) recoverMissingSwarmChildLocked(ctx context.Context, p project.P
 		observed, e1 := time.Parse(time.RFC3339Nano, proof.ObservedAt)
 		inventory, e2 := time.Parse(time.RFC3339Nano, proof.InventoryObservedAt)
 		claimed, e3 := time.Parse(time.RFC3339Nano, req.UpdatedAt)
-		if !validSwarmRecoveryProof(proof, op.ChildID) || proof.FinalizedAt != "" || proof.QueueID != queueID || e1 != nil || e2 != nil || e3 != nil || inventory.Before(claimed) || observed.After(now) || now.Sub(observed) > 5*time.Second || now.Sub(inventory) > 5*time.Second {
+		if !validSwarmRecoveryProof(proof, op.ChildID) || proof.Method != "" && proof.Method != "pre-backend-absence" || proof.FinalizedAt != "" || proof.QueueID != queueID || e1 != nil || e2 != nil || e3 != nil || inventory.Before(claimed) || observed.After(now) || now.Sub(observed) > 5*time.Second || now.Sub(inventory) > 5*time.Second {
 			return run, errors.New("The missing-child proof is stale or does not match this operation. Nothing was retired or released.")
 		}
 		retainedOperationID, retainedChildID := op.ID, op.ChildID

@@ -1,0 +1,61 @@
+{
+  "scope": "Source validation after corrected fixture/audit integration. The initial whole-suite run remains failed evidence; corrected affected packages and audits pass. No installed controller-death, native Windows lifecycle, live-model quality or sustained responsiveness claim.",
+  "baseCommit": "2dcf245daca98d93e9cf7a40399b8fc78f4608a2",
+  "sourceDirty": true,
+  "initialFullGo": {
+    "passed": 2939,
+    "failed": 3,
+    "skipped": 29,
+    "inputsUnchanged": 1882
+  },
+  "correctedAffectedPackages": {
+    "passed": 974,
+    "failed": 0,
+    "skipped": 9,
+    "inputsUnchanged": 645
+  },
+  "correctedProductReadAudit": {
+    "passed": 2,
+    "failed": 0,
+    "inputsUnchanged": 730
+  },
+  "queuedRecoveryRepeatedRace": {
+    "passed": 20,
+    "failed": 0
+  },
+  "retirementBounds": {
+    "passed": 2,
+    "failed": 0
+  },
+  "frontend": {
+    "passed": 2418,
+    "failed": 0,
+    "typecheck": true,
+    "build": true,
+    "inputsUnchanged": 1882,
+    "unchangedSincePassedSuite": true
+  },
+  "windowsCrossCompilation": "Passed; API test executable not run here.",
+  "backendLiveSourceStillMatches": true,
+  "changedGoFilesAfterInitialRun": [
+    "control-plane/cmd/api/fakedaemon_test.go",
+    "control-plane/internal/api/swarm_fenced_recovery.go",
+    "control-plane/internal/api/swarm_fenced_recovery_test.go",
+    "control-plane/internal/product/routes_audit_test.go"
+  ],
+  "addedGoFilesAfterInitialRun": [
+    "control-plane/internal/api/swarm_fenced_retirement_limit_test.go"
+  ],
+  "evidence": [
+    "backend-live-source-inputs.json",
+    "backend-live-summary.json",
+    "corrected-api-cmd-report.json",
+    "corrected-go-inputs.json",
+    "corrected-route-audit-report.json",
+    "frontend-report.json",
+    "initial-full-go-report.json",
+    "initial-source-inputs.json",
+    "product-recovery-report.json",
+    "windows-crosscompile-report.json"
+  ]
+}

@@ -1,0 +1,1 @@
+{"exitCode": 1, "command": ["npm", "test", "--", "--maxWorkers=2", "src/components/setup/SetupPanel.storage.test.tsx", "--reporter=default", "--reporter=json", "--outputFile=<repo>/artifacts/quality-swarm/local005-ui/before-fix-vitest.json"]}
