@@ -1,0 +1,1037 @@
+{
+  "scope": "Derived read-only analysis of passed attempt 11; observed cgroup values are approximate sequential samples, not an atomic production admission snapshot or causal experiment.",
+  "overall": {
+    "sampleCount": 305,
+    "statusCounts": {
+      "not-observed": 23,
+      "observed": 282
+    },
+    "validObservationCount": 282,
+    "effectiveAvailableMinBytes": 10192949248,
+    "effectiveAvailableMaxBytes": 15794905088,
+    "physicalAvailableMinBytes": 21433262080,
+    "physicalAvailableMaxBytes": 22227185664,
+    "rootAvailableMinBytes": 1835933696,
+    "rootAvailableMaxBytes": 6599430144
+  },
+  "productCheckInterval": {
+    "start": "2026-10-08T22:13:56.161Z",
+    "end": "2026-10-08T22:14:32.962Z",
+    "sampleCount": 36,
+    "statusCounts": {
+      "observed": 36
+    },
+    "validObservationCount": 36,
+    "effectiveAvailableMinBytes": 10278354944,
+    "effectiveAvailableMaxBytes": 15273115648,
+    "physicalAvailableMinBytes": 21547384832,
+    "physicalAvailableMaxBytes": 21682094080,
+    "rootAvailableMinBytes": 1835933696,
+    "rootAvailableMaxBytes": 6571282432
+  },
+  "events": [
+    {
+      "name": "create-requestedAt",
+      "requestSequence": 30,
+      "at": "2026-10-08T22:09:51.553Z",
+      "samplerBrackets": {
+        "before": {
+          "sampleIndex": 9,
+          "observedAt": "2026-10-08T22:09:51.037433+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21433262080,
+          "rootAvailableBytes": 6597468160,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 15228805120,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -515.567
+        },
+        "after": {
+          "sampleIndex": 10,
+          "observedAt": "2026-10-08T22:09:52.051341+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21438988288,
+          "rootAvailableBytes": 6507102208,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 15129837568,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 498.34099999999995
+        }
+      }
+    },
+    {
+      "name": "create-respondedAt",
+      "requestSequence": 30,
+      "at": "2026-10-08T22:10:18.717Z",
+      "samplerBrackets": {
+        "before": {
+          "sampleIndex": 36,
+          "observedAt": "2026-10-08T22:10:18.064265+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21662998528,
+          "rootAvailableBytes": 2097000448,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10572845056,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -652.7349999999999
+        },
+        "after": {
+          "sampleIndex": 37,
+          "observedAt": "2026-10-08T22:10:19.062612+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21661921280,
+          "rootAvailableBytes": 1861308416,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10333753344,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 345.61199999999997
+        }
+      }
+    },
+    {
+      "name": "start-requestedAt",
+      "requestSequence": 116,
+      "at": "2026-10-08T22:10:18.842Z",
+      "samplerBrackets": {
+        "before": {
+          "sampleIndex": 36,
+          "observedAt": "2026-10-08T22:10:18.064265+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21662998528,
+          "rootAvailableBytes": 2097000448,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10572845056,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -777.7349999999999
+        },
+        "after": {
+          "sampleIndex": 37,
+          "observedAt": "2026-10-08T22:10:19.062612+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21661921280,
+          "rootAvailableBytes": 1861308416,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10333753344,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 220.612
+        }
+      }
+    },
+    {
+      "name": "start-respondedAt",
+      "requestSequence": 116,
+      "at": "2026-10-08T22:10:19.005Z",
+      "samplerBrackets": {
+        "before": {
+          "sampleIndex": 36,
+          "observedAt": "2026-10-08T22:10:18.064265+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21662998528,
+          "rootAvailableBytes": 2097000448,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10572845056,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -940.735
+        },
+        "after": {
+          "sampleIndex": 37,
+          "observedAt": "2026-10-08T22:10:19.062612+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21661921280,
+          "rootAvailableBytes": 1861308416,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10333753344,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 57.611999999999995
+        }
+      }
+    },
+    {
+      "name": "create-requestedAt",
+      "requestSequence": 279,
+      "at": "2026-10-08T22:10:58.054Z",
+      "samplerBrackets": {
+        "before": {
+          "sampleIndex": 75,
+          "observedAt": "2026-10-08T22:10:57.635606+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21680848896,
+          "rootAvailableBytes": 6591569920,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 15341752320,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -418.394
+        },
+        "after": {
+          "sampleIndex": 76,
+          "observedAt": "2026-10-08T22:10:58.651983+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21683032064,
+          "rootAvailableBytes": 6518747136,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 15267315712,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 597.9830000000001
+        }
+      }
+    },
+    {
+      "name": "create-respondedAt",
+      "requestSequence": 279,
+      "at": "2026-10-08T22:11:26.407Z",
+      "samplerBrackets": {
+        "before": {
+          "sampleIndex": 103,
+          "observedAt": "2026-10-08T22:11:25.717267+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21716873216,
+          "rootAvailableBytes": 1869021184,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10381750272,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -689.7330000000001
+        },
+        "after": {
+          "sampleIndex": 104,
+          "observedAt": "2026-10-08T22:11:26.672477+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21692919808,
+          "rootAvailableBytes": 1851817984,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10333503488,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 265.47700000000003
+        }
+      }
+    },
+    {
+      "name": "start-requestedAt",
+      "requestSequence": 368,
+      "at": "2026-10-08T22:11:26.437Z",
+      "samplerBrackets": {
+        "before": {
+          "sampleIndex": 103,
+          "observedAt": "2026-10-08T22:11:25.717267+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21716873216,
+          "rootAvailableBytes": 1869021184,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10381750272,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -719.733
+        },
+        "after": {
+          "sampleIndex": 104,
+          "observedAt": "2026-10-08T22:11:26.672477+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21692919808,
+          "rootAvailableBytes": 1851817984,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10333503488,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 235.477
+        }
+      }
+    },
+    {
+      "name": "start-respondedAt",
+      "requestSequence": 368,
+      "at": "2026-10-08T22:11:26.594Z",
+      "samplerBrackets": {
+        "before": {
+          "sampleIndex": 103,
+          "observedAt": "2026-10-08T22:11:25.717267+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21716873216,
+          "rootAvailableBytes": 1869021184,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10381750272,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -876.733
+        },
+        "after": {
+          "sampleIndex": 104,
+          "observedAt": "2026-10-08T22:11:26.672477+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21692919808,
+          "rootAvailableBytes": 1851817984,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10333503488,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 78.477
+        }
+      }
+    },
+    {
+      "name": "create-requestedAt",
+      "requestSequence": 527,
+      "at": "2026-10-08T22:12:02.800Z",
+      "samplerBrackets": {
+        "before": {
+          "sampleIndex": 138,
+          "observedAt": "2026-10-08T22:12:02.014988+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21497376768,
+          "rootAvailableBytes": 6582059008,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 15165751296,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -785.0120000000001
+        },
+        "after": {
+          "sampleIndex": 139,
+          "observedAt": "2026-10-08T22:12:03.005494+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21453918208,
+          "rootAvailableBytes": 6535360512,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 15109124096,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 205.494
+        }
+      }
+    },
+    {
+      "name": "create-respondedAt",
+      "requestSequence": 527,
+      "at": "2026-10-08T22:12:29.256Z",
+      "samplerBrackets": {
+        "before": {
+          "sampleIndex": 165,
+          "observedAt": "2026-10-08T22:12:29.022474+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21638209536,
+          "rootAvailableBytes": 1855254528,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10331860992,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -233.526
+        },
+        "after": {
+          "sampleIndex": 166,
+          "observedAt": "2026-10-08T22:12:30.018793+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21608771584,
+          "rootAvailableBytes": 1842511872,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10263633920,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 762.793
+        }
+      }
+    },
+    {
+      "name": "start-requestedAt",
+      "requestSequence": 613,
+      "at": "2026-10-08T22:12:29.298Z",
+      "samplerBrackets": {
+        "before": {
+          "sampleIndex": 165,
+          "observedAt": "2026-10-08T22:12:29.022474+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21638209536,
+          "rootAvailableBytes": 1855254528,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10331860992,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -275.526
+        },
+        "after": {
+          "sampleIndex": 166,
+          "observedAt": "2026-10-08T22:12:30.018793+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21608771584,
+          "rootAvailableBytes": 1842511872,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10263633920,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 720.793
+        }
+      }
+    },
+    {
+      "name": "start-respondedAt",
+      "requestSequence": 613,
+      "at": "2026-10-08T22:12:29.438Z",
+      "samplerBrackets": {
+        "before": {
+          "sampleIndex": 165,
+          "observedAt": "2026-10-08T22:12:29.022474+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21638209536,
+          "rootAvailableBytes": 1855254528,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10331860992,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -415.526
+        },
+        "after": {
+          "sampleIndex": 166,
+          "observedAt": "2026-10-08T22:12:30.018793+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21608771584,
+          "rootAvailableBytes": 1842511872,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10263633920,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 580.793
+        }
+      }
+    },
+    {
+      "name": "create-requestedAt",
+      "requestSequence": 733,
+      "at": "2026-10-08T22:12:57.048Z",
+      "samplerBrackets": {
+        "before": {
+          "sampleIndex": 191,
+          "observedAt": "2026-10-08T22:12:56.471850+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21588824064,
+          "rootAvailableBytes": 6576328704,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 15234617344,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -576.1500000000001
+        },
+        "after": {
+          "sampleIndex": 192,
+          "observedAt": "2026-10-08T22:12:57.416098+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21601124352,
+          "rootAvailableBytes": 6540402688,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 15196950528,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 368.09799999999996
+        }
+      }
+    },
+    {
+      "name": "create-respondedAt",
+      "requestSequence": 733,
+      "at": "2026-10-08T22:13:22.560Z",
+      "samplerBrackets": {
+        "before": {
+          "sampleIndex": 217,
+          "observedAt": "2026-10-08T22:13:22.424149+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21668515840,
+          "rootAvailableBytes": 1846411264,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10300530688,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -135.851
+        },
+        "after": {
+          "sampleIndex": 218,
+          "observedAt": "2026-10-08T22:13:23.419421+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21631877120,
+          "rootAvailableBytes": 1837076480,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10244313088,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 859.4209999999999
+        }
+      }
+    },
+    {
+      "name": "start-requestedAt",
+      "requestSequence": 813,
+      "at": "2026-10-08T22:13:22.590Z",
+      "samplerBrackets": {
+        "before": {
+          "sampleIndex": 217,
+          "observedAt": "2026-10-08T22:13:22.424149+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21668515840,
+          "rootAvailableBytes": 1846411264,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10300530688,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -165.851
+        },
+        "after": {
+          "sampleIndex": 218,
+          "observedAt": "2026-10-08T22:13:23.419421+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21631877120,
+          "rootAvailableBytes": 1837076480,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10244313088,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 829.4209999999999
+        }
+      }
+    },
+    {
+      "name": "start-respondedAt",
+      "requestSequence": 813,
+      "at": "2026-10-08T22:13:22.961Z",
+      "samplerBrackets": {
+        "before": {
+          "sampleIndex": 217,
+          "observedAt": "2026-10-08T22:13:22.424149+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21668515840,
+          "rootAvailableBytes": 1846411264,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10300530688,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -536.851
+        },
+        "after": {
+          "sampleIndex": 218,
+          "observedAt": "2026-10-08T22:13:23.419421+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21631877120,
+          "rootAvailableBytes": 1837076480,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10244313088,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 458.42100000000005
+        }
+      }
+    },
+    {
+      "name": "create-requestedAt",
+      "requestSequence": 961,
+      "at": "2026-10-08T22:13:58.502Z",
+      "samplerBrackets": {
+        "before": {
+          "sampleIndex": 252,
+          "observedAt": "2026-10-08T22:13:58.350558+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21547384832,
+          "rootAvailableBytes": 6571253760,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 15193395200,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -151.442
+        },
+        "after": {
+          "sampleIndex": 253,
+          "observedAt": "2026-10-08T22:13:59.448960+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21554475008,
+          "rootAvailableBytes": 6571241472,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 15187611648,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 946.96
+        }
+      }
+    },
+    {
+      "name": "create-respondedAt",
+      "requestSequence": 961,
+      "at": "2026-10-08T22:14:26.075Z",
+      "samplerBrackets": {
+        "before": {
+          "sampleIndex": 279,
+          "observedAt": "2026-10-08T22:14:25.352759+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21654679552,
+          "rootAvailableBytes": 1859014656,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10313166848,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -722.241
+        },
+        "after": {
+          "sampleIndex": 280,
+          "observedAt": "2026-10-08T22:14:26.436043+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21646880768,
+          "rootAvailableBytes": 1835933696,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10278354944,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 361.043
+        }
+      }
+    },
+    {
+      "name": "start-requestedAt",
+      "requestSequence": 1050,
+      "at": "2026-10-08T22:14:26.123Z",
+      "samplerBrackets": {
+        "before": {
+          "sampleIndex": 279,
+          "observedAt": "2026-10-08T22:14:25.352759+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21654679552,
+          "rootAvailableBytes": 1859014656,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10313166848,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -770.241
+        },
+        "after": {
+          "sampleIndex": 280,
+          "observedAt": "2026-10-08T22:14:26.436043+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21646880768,
+          "rootAvailableBytes": 1835933696,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10278354944,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 313.043
+        }
+      }
+    },
+    {
+      "name": "start-respondedAt",
+      "requestSequence": 1050,
+      "at": "2026-10-08T22:14:26.287Z",
+      "samplerBrackets": {
+        "before": {
+          "sampleIndex": 279,
+          "observedAt": "2026-10-08T22:14:25.352759+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21654679552,
+          "rootAvailableBytes": 1859014656,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10313166848,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -934.241
+        },
+        "after": {
+          "sampleIndex": 280,
+          "observedAt": "2026-10-08T22:14:26.436043+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21646880768,
+          "rootAvailableBytes": 1835933696,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10278354944,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 149.043
+        }
+      }
+    },
+    {
+      "name": "check-workflow-completed-cleanup-start",
+      "at": "2026-10-08T22:14:32.962Z",
+      "samplerBrackets": {
+        "before": {
+          "sampleIndex": 285,
+          "observedAt": "2026-10-08T22:14:32.580605+00:00",
+          "status": "observed",
+          "physicalAvailableBytes": 21561393152,
+          "rootAvailableBytes": 6571032576,
+          "observations": [
+            {
+              "pid": 2020520,
+              "startTicks": 24345504,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 15238422528,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -381.395
+        },
+        "after": {
+          "sampleIndex": 286,
+          "observedAt": "2026-10-08T22:14:33.464281+00:00",
+          "status": "not-observed",
+          "physicalAvailableBytes": 21932969984,
+          "rootAvailableBytes": 6570819584,
+          "observations": [],
+          "deltaMsFromEvent": 502.28099999999995
+        }
+      },
+      "driverDiskBrackets": {
+        "before": {
+          "stage": "product-check-verification",
+          "at": "2026-10-08T22:14:32.194Z",
+          "rootFreeBytes": 6571040768,
+          "deltaMsFromEvent": -768.0
+        },
+        "after": null
+      }
+    }
+  ],
+  "recordedCheckResourceAdmissions": [
+    {
+      "at": "2026-10-08T22:13:58.168Z",
+      "hostObservedAt": "2026-10-08T22:13:57.857534869Z",
+      "executionObservedAt": "2026-10-08T22:13:57.874296265Z",
+      "hostAvailableBytes": 15200002048,
+      "hostTotalBytes": 34359738368,
+      "executionTotalBytes": 35743784960,
+      "rootFreeBytes": 6571261952,
+      "imageVirtualSizeBytes": 2294629077,
+      "estimatedCreateDiskBytes": 4589258154,
+      "storageDriver": "vfs",
+      "containerCount": 0,
+      "reservations": 0,
+      "selfReservationCountedOnce": false,
+      "scope": "Fresh acceptance guard cross-checks the exact production creating lease; installed mixed-account load and responsiveness remain separate gates"
+    },
+    {
+      "at": "2026-10-08T22:14:00.012Z",
+      "hostObservedAt": "2026-10-08T22:13:57.857534869Z",
+      "executionObservedAt": "2026-10-08T22:13:57.874296265Z",
+      "hostAvailableBytes": 15200002048,
+      "hostTotalBytes": 34359738368,
+      "executionTotalBytes": 35743784960,
+      "rootFreeBytes": 6571233280,
+      "imageVirtualSizeBytes": 2294629077,
+      "estimatedCreateDiskBytes": 4589258154,
+      "storageDriver": "vfs",
+      "containerCount": 0,
+      "reservations": 1,
+      "selfReservationCountedOnce": true,
+      "scope": "Fresh acceptance guard cross-checks the exact production creating lease; installed mixed-account load and responsiveness remain separate gates"
+    }
+  ],
+  "requiredRootFreeBytes": 6442450944,
+  "limitations": [
+    "Sequential approximately 1 Hz counters are not atomic admission values.",
+    "Acceptance guards have two recorded fresh production-capacity readbacks, before submission and before Create forwarding; these do not replace a captured production Start decision.",
+    "Physical and cgroup-clamped available memory measure different scopes, including unrelated workload and retained RAM-backed files.",
+    "Observer interpreter cost excludes spawned Docker CLI/helpers/daemon. No matched no-observer control or isolated before/after causal comparison.",
+    "Check identity-only sampling has no check cgroup-memory sample; short execution must not be represented as zero memory use."
+  ],
+  "sourceBindings": {
+    "result/result.json": {
+      "bytes": 912030,
+      "sha256": "f9cb223610daba7d24e7795e0bc4598047515e86c7b70feb58481dbb3475e1f3"
+    },
+    "result/diagnostic-journal.jsonl": {
+      "bytes": 30133,
+      "sha256": "04b067049588515351dd479ecd43405332ad99ad4f3b2099f0b3461ee369b947"
+    },
+    "observer/samples.jsonl": {
+      "bytes": 1845840,
+      "sha256": "152cfab90571ac00d8fdb25a8474b5428df0765423609ebbb9589b60c221d2f7"
+    },
+    "observer/metadata.json": {
+      "bytes": 2996,
+      "sha256": "96bdf4e831e30e76f1d70027b8010fa3044546d01f977243a36654d4f93864fd"
+    }
+  }
+}

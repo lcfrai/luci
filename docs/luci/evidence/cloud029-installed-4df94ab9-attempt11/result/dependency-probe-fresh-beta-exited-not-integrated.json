@@ -1,0 +1,33 @@
+{
+  "label": "fresh-beta-exited-not-integrated",
+  "status": 409,
+  "requestedRevision": 26,
+  "publicRevisionBefore": 26,
+  "privateRevisionBefore": 26,
+  "privateRevisionAfter": 26,
+  "before": {
+    "effects": {
+      "create": 3,
+      "start": 3,
+      "destroy": 3
+    },
+    "primaryCommit": "79e6734e008953630e656879cdcbeef913786178",
+    "joinOperationIds": []
+  },
+  "after": {
+    "effects": {
+      "create": 3,
+      "start": 3,
+      "destroy": 3
+    },
+    "primaryCommit": "79e6734e008953630e656879cdcbeef913786178",
+    "joinOperationIds": []
+  },
+  "response": {
+    "message": "Integrate this task's dependencies before starting it.",
+    "error": "project_run_conflict"
+  },
+  "truncatedFields": [],
+  "at": "2026-10-08T22:12:51.695Z",
+  "classification": "unclassified-response"
+}

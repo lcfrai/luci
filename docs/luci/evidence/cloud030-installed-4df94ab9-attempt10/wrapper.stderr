@@ -1,0 +1,11 @@
+AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+  assert(positive(rootFreeBytes)>=6*1024**3)
+
+    at assertCheckCapacity (file:///workspace/luci/scripts/acceptance/task-dependencies/project-check-guard.mjs:123:2)
+    at checkAdmission (file:///workspace/luci/scripts/acceptance/task-dependencies/dag.mjs:432:20)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async verifyCombinedBuild (file:///workspace/luci/scripts/acceptance/task-dependencies/dag.mjs:498:2)
+    at async file:///workspace/luci/scripts/acceptance/task-dependencies/dag.mjs:572:107
+    at async Object.run (file:///workspace/luci/scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs:29:19)
+    at async file:///workspace/luci/scripts/acceptance/task-dependencies/dag.mjs:520:2

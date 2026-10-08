@@ -1,0 +1,30 @@
+{
+  "at": "2026-10-08T22:15:37.765551+00:00",
+  "method": "Independent read-only post-wrapper Docker inventory, exact fixture ledger, and sampled PID/start identities; no manual repair/removal",
+  "containers": [],
+  "volumes": [],
+  "executionLedgerSHA256": "c0022f0995797c072d8097729ea90e74487bcefb911576c91e4af0665403a49e",
+  "executionLedger": {
+    "version": 1,
+    "leases": []
+  },
+  "sampledProcessIdentityCount": 13,
+  "sampledProcessesStillPresent": [
+    {
+      "pid": 2020719,
+      "startTicks": 24345656,
+      "state": "Z",
+      "parentPid": 1,
+      "comm": "chromium"
+    },
+    {
+      "pid": 2020722,
+      "startTicks": 24345656,
+      "state": "Z",
+      "parentPid": 1,
+      "comm": "chromium"
+    }
+  ],
+  "sampledProcessChecksUnknown": [],
+  "scope": "Current inventory, exact empty ledger and recorded command cleanup prove this scoped run only. Sampling cannot prove absence of never-observed descendants; exited zombies are kept explicit."
+}

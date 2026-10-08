@@ -1,0 +1,96 @@
+{
+  "phase": "ready",
+  "armedAt": "2026-10-08T22:11:54.197Z",
+  "expectedPaths": [
+    "/v1/product/projects/p-3ec3dfd4/brief",
+    "/v1/product/projects/p-3ec3dfd4/design",
+    "/v1/product/projects/p-3ec3dfd4/specification",
+    "/v1/product/projects/p-3ec3dfd4/design-plan",
+    "/v1/product/projects/p-3ec3dfd4/git",
+    "/v1/product/projects/p-3ec3dfd4/orchestrator"
+  ],
+  "mutation": {
+    "method": "POST",
+    "path": "/v1/product/projects/p-3ec3dfd4/runs/run-e40222f652d871b2c8f3db93/swarm/tasks/task-a/integrate",
+    "startedAt": "2026-10-08T22:11:54.258Z",
+    "finishedAt": "2026-10-08T22:11:54.601Z",
+    "status": 200,
+    "state": "finished",
+    "bytes": 7428,
+    "bodySHA256": "e2e3ec3d45bdd4232c401806aed4488c1a887b56dfc009eb822569cfccfcca5e"
+  },
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/v1/product/projects/p-3ec3dfd4/brief",
+      "startedAt": "2026-10-08T22:11:54.586Z",
+      "finishedAt": "2026-10-08T22:11:54.613Z",
+      "status": 200,
+      "state": "finished",
+      "bytes": 717,
+      "bodySHA256": "59b863fe9e22a52ffcc09d2387aad662bcb46f286c4b4d8d4288d471dcd9b7a5"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/product/projects/p-3ec3dfd4/design",
+      "startedAt": "2026-10-08T22:11:54.586Z",
+      "finishedAt": "2026-10-08T22:11:54.614Z",
+      "status": 200,
+      "state": "finished",
+      "bytes": 85,
+      "bodySHA256": "07abfdeda40241ac4de70e8dab9bb7aec30c03fa8d74894a7a422f9f47ec298b"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/product/projects/p-3ec3dfd4/specification",
+      "startedAt": "2026-10-08T22:11:54.587Z",
+      "finishedAt": "2026-10-08T22:11:54.614Z",
+      "status": 200,
+      "state": "finished",
+      "bytes": 1021,
+      "bodySHA256": "8890189c129d914b8771007de44601fb1edd1ecf00980ffacc62473dad97b477"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/product/projects/p-3ec3dfd4/design-plan",
+      "startedAt": "2026-10-08T22:11:54.587Z",
+      "finishedAt": "2026-10-08T22:11:54.613Z",
+      "status": 200,
+      "state": "finished",
+      "bytes": 591,
+      "bodySHA256": "17683051d994ddb321b99b31e7ec63b6157ad1a3cbc376f7ca852494e29dea48"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/product/projects/p-3ec3dfd4/git",
+      "startedAt": "2026-10-08T22:11:54.588Z",
+      "finishedAt": "2026-10-08T22:11:54.690Z",
+      "status": 200,
+      "state": "finished",
+      "bytes": 480,
+      "bodySHA256": "f3afca5747994571a9dcf9cd017585f35bcf28db5229a08d1a4016becafe942c"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/product/projects/p-3ec3dfd4/orchestrator",
+      "startedAt": "2026-10-08T22:11:54.589Z",
+      "finishedAt": "2026-10-08T22:11:54.618Z",
+      "status": 200,
+      "state": "finished",
+      "bytes": 8598,
+      "bodySHA256": "eb90ff8a228a558b9e376e0933842a976a67f6956f3bb24c1f97488b767eb7fc"
+    }
+  ],
+  "stableUIBoundary": {
+    "factsVisible": true,
+    "factsReady": true,
+    "factsCurrentCommit": true,
+    "factsAlert": false,
+    "understandingVisible": true,
+    "understandingReady": true,
+    "understandingAlert": false,
+    "commit": "79e6734e008953630e656879cdcbeef913786178",
+    "at": "2026-10-08T22:11:54.913Z"
+  },
+  "finishedAt": "2026-10-08T22:11:54.913Z"
+}

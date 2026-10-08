@@ -1,0 +1,4 @@
+{"driverPID": 2020322, "startTicks": "24345104", "samplerPID": 2020323, "observationDirectory": "/workspace/luci/artifacts/quality-swarm/dependency-4df94ab9-helper-d6949ac1-attempt11/observer", "observerSelfCost": "/workspace/luci/artifacts/quality-swarm/dependency-4df94ab9-helper-d6949ac1-attempt11/observer-observer-self-cost.json"}
+PASS Four serial native workers exercise reviewed DAG dependencies, actual conflict, renewed review, retained retry and exact combined output plus one explicitly joined Docker whole-build check
+PASS /workspace/luci/artifacts/quality-swarm/dependency-4df94ab9-helper-d6949ac1-attempt11/result/result.json
+{"samples": 305, "durationSeconds": 309.6867680340074, "containerCount": 5, "driverExitObserved": true}

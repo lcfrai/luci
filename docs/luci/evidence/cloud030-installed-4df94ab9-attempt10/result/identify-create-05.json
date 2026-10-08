@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "at": "2026-10-08T22:04:49.593Z",
+  "stage": "native-command-b2",
+  "phase": "identify-create",
+  "bodyBytes": 7143,
+  "bodySHA256": "38f3d692cbdd53731c39bd96e7c6128cd4338538010da6f7c812e07cb1036d91",
+  "outcome": "identified",
+  "forwarded": false,
+  "requestSequence": 521,
+  "ordinal": 3,
+  "kind": "worker"
+}

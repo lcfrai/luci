@@ -1,0 +1,33 @@
+{
+  "label": "conflict-retired-not-replaced",
+  "status": 409,
+  "requestedRevision": 20,
+  "publicRevisionBefore": 20,
+  "privateRevisionBefore": 20,
+  "privateRevisionAfter": 20,
+  "before": {
+    "effects": {
+      "create": 2,
+      "start": 2,
+      "destroy": 2
+    },
+    "primaryCommit": "d49ee9cfdfa5c44f36e30c70674f651fab368f8c",
+    "joinOperationIds": []
+  },
+  "after": {
+    "effects": {
+      "create": 2,
+      "start": 2,
+      "destroy": 2
+    },
+    "primaryCommit": "d49ee9cfdfa5c44f36e30c70674f651fab368f8c",
+    "joinOperationIds": []
+  },
+  "response": {
+    "message": "Integrate this task's dependencies before starting it.",
+    "error": "project_run_conflict"
+  },
+  "truncatedFields": [],
+  "at": "2026-10-08T22:04:47.305Z",
+  "classification": "unclassified-response"
+}
