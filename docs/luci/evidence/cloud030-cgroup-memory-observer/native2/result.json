@@ -1,0 +1,255 @@
+{
+  "version": 1,
+  "startedAt": "2026-10-08T21:32:26.596074+00:00",
+  "scope": "Read-only native kernel/cgroup observations of this Python fixture process, manually supplied as a control-plane-role candidate to exercise the observer. This is not an actual Luci process, installed workflow or admission decision.",
+  "sourceSHA256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+  "driverSHA256": "39f09d9e47fad0897bf3556145edee6b6b3a495ccaf0580e9df001a0840b80b7",
+  "target": {
+    "pid": 1999776,
+    "startTicks": 24121541,
+    "actualRole": "native-observer-fixture",
+    "suppliedRole": "control-plane"
+  },
+  "samples": [
+    {
+      "observedAt": "2026-10-08T21:32:26.598700+00:00",
+      "physical": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 21534863360,
+        "SwapTotal": 0,
+        "SwapFree": 0,
+        "CommitLimit": 17871892480,
+        "Committed_AS": 13656502272,
+        "commitBasis": "Linux overcommit accounting; not equivalent to Windows committed private memory",
+        "physicalCountersValidated": true
+      },
+      "controlPlaneCgroupMemory": {
+        "status": "observed",
+        "scope": "Visible hierarchy for live owned control-plane role candidates, bound to PID/start ticks; process-name role classification is not executable-hash verification.",
+        "observations": [
+          {
+            "pid": 1999776,
+            "startTicks": 24121541,
+            "status": "observed",
+            "physicalTotalBytes": 35743784960,
+            "physicalAvailableBytes": 21534863360,
+            "productComparableEffectiveTotalBytes": 34359738368,
+            "productComparableEffectiveAvailableBytes": 14748594176,
+            "limitSource": "physical-and-control-plane-cgroup-v2",
+            "nodes": [
+              {
+                "hierarchy": 0,
+                "depth": 0,
+                "version": "2",
+                "locationSHA256": "113357a6b9aa734cea1027fde01fda1796bf0ddd738e4595c0e74d7aa92e9861",
+                "mountRoot": true,
+                "limitStatus": "finite",
+                "limitBytes": 34359738368,
+                "currentStatus": "observed",
+                "currentBytes": 19611144192,
+                "statStatus": "observed",
+                "stat": {
+                  "anon": 105852928,
+                  "file": 17441513472,
+                  "kernel": 2062856192,
+                  "kernel_stack": 573440,
+                  "pagetables": 2412544,
+                  "percpu": 981344,
+                  "sock": 0,
+                  "shmem": 12790366208,
+                  "file_mapped": 794624,
+                  "file_dirty": 51421184,
+                  "file_writeback": 0,
+                  "inactive_anon": 111484928,
+                  "active_anon": 12784685056,
+                  "inactive_file": 1111052288,
+                  "active_file": 3540094976,
+                  "unevictable": 0,
+                  "slab_reclaimable": 1888306520,
+                  "slab_unreclaimable": 168876352,
+                  "slab": 2057182872,
+                  "pgfault": 2416801555,
+                  "pgmajfault": 71114
+                },
+                "limitMinusCurrentBytes": 14748594176
+              }
+            ],
+            "issues": [],
+            "membershipSHA256": "e57fd7b21104f091de366ace1464596378a498b0a5e63f1b21147a8998c20107",
+            "mountTopologySHA256": "9fdf2d485e58c3a505535668e0c99cabb6b623c1128eab84e7a912b2b401e7bb",
+            "namespaceIdentitySHA256": "f97fa342916097b92081144d1c1a85efcf2df290351c60623bba383f43ef30d8",
+            "identityAndTopologyStable": true
+          }
+        ],
+        "issues": [],
+        "readCount": 18,
+        "readBytes": 4297,
+        "durationSeconds": 0.0018373820057604462
+      }
+    },
+    {
+      "observedAt": "2026-10-08T21:32:26.850730+00:00",
+      "physical": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 21534863360,
+        "SwapTotal": 0,
+        "SwapFree": 0,
+        "CommitLimit": 17871892480,
+        "Committed_AS": 13656502272,
+        "commitBasis": "Linux overcommit accounting; not equivalent to Windows committed private memory",
+        "physicalCountersValidated": true
+      },
+      "controlPlaneCgroupMemory": {
+        "status": "observed",
+        "scope": "Visible hierarchy for live owned control-plane role candidates, bound to PID/start ticks; process-name role classification is not executable-hash verification.",
+        "observations": [
+          {
+            "pid": 1999776,
+            "startTicks": 24121541,
+            "status": "observed",
+            "physicalTotalBytes": 35743784960,
+            "physicalAvailableBytes": 21534863360,
+            "productComparableEffectiveTotalBytes": 34359738368,
+            "productComparableEffectiveAvailableBytes": 14748594176,
+            "limitSource": "physical-and-control-plane-cgroup-v2",
+            "nodes": [
+              {
+                "hierarchy": 0,
+                "depth": 0,
+                "version": "2",
+                "locationSHA256": "113357a6b9aa734cea1027fde01fda1796bf0ddd738e4595c0e74d7aa92e9861",
+                "mountRoot": true,
+                "limitStatus": "finite",
+                "limitBytes": 34359738368,
+                "currentStatus": "observed",
+                "currentBytes": 19611144192,
+                "statStatus": "observed",
+                "stat": {
+                  "anon": 105852928,
+                  "file": 17441513472,
+                  "kernel": 2062856192,
+                  "kernel_stack": 573440,
+                  "pagetables": 2412544,
+                  "percpu": 981344,
+                  "sock": 0,
+                  "shmem": 12790366208,
+                  "file_mapped": 794624,
+                  "file_dirty": 51421184,
+                  "file_writeback": 0,
+                  "inactive_anon": 111484928,
+                  "active_anon": 12784685056,
+                  "inactive_file": 1111052288,
+                  "active_file": 3540094976,
+                  "unevictable": 0,
+                  "slab_reclaimable": 1888306520,
+                  "slab_unreclaimable": 168876352,
+                  "slab": 2057182872,
+                  "pgfault": 2416801555,
+                  "pgmajfault": 71114
+                },
+                "limitMinusCurrentBytes": 14748594176
+              }
+            ],
+            "issues": [],
+            "membershipSHA256": "e57fd7b21104f091de366ace1464596378a498b0a5e63f1b21147a8998c20107",
+            "mountTopologySHA256": "9fdf2d485e58c3a505535668e0c99cabb6b623c1128eab84e7a912b2b401e7bb",
+            "namespaceIdentitySHA256": "f97fa342916097b92081144d1c1a85efcf2df290351c60623bba383f43ef30d8",
+            "identityAndTopologyStable": true
+          }
+        ],
+        "issues": [],
+        "readCount": 18,
+        "readBytes": 4297,
+        "durationSeconds": 0.0009682610107120126
+      }
+    },
+    {
+      "observedAt": "2026-10-08T21:32:27.228468+00:00",
+      "physical": {
+        "MemTotal": 35743784960,
+        "MemAvailable": 21534633984,
+        "SwapTotal": 0,
+        "SwapFree": 0,
+        "CommitLimit": 17871892480,
+        "Committed_AS": 13656502272,
+        "commitBasis": "Linux overcommit accounting; not equivalent to Windows committed private memory",
+        "physicalCountersValidated": true
+      },
+      "controlPlaneCgroupMemory": {
+        "status": "observed",
+        "scope": "Visible hierarchy for live owned control-plane role candidates, bound to PID/start ticks; process-name role classification is not executable-hash verification.",
+        "observations": [
+          {
+            "pid": 1999776,
+            "startTicks": 24121541,
+            "status": "observed",
+            "physicalTotalBytes": 35743784960,
+            "physicalAvailableBytes": 21534633984,
+            "productComparableEffectiveTotalBytes": 34359738368,
+            "productComparableEffectiveAvailableBytes": 14748594176,
+            "limitSource": "physical-and-control-plane-cgroup-v2",
+            "nodes": [
+              {
+                "hierarchy": 0,
+                "depth": 0,
+                "version": "2",
+                "locationSHA256": "113357a6b9aa734cea1027fde01fda1796bf0ddd738e4595c0e74d7aa92e9861",
+                "mountRoot": true,
+                "limitStatus": "finite",
+                "limitBytes": 34359738368,
+                "currentStatus": "observed",
+                "currentBytes": 19611144192,
+                "statStatus": "observed",
+                "stat": {
+                  "anon": 105852928,
+                  "file": 17441513472,
+                  "kernel": 2062856192,
+                  "kernel_stack": 573440,
+                  "pagetables": 2412544,
+                  "percpu": 981344,
+                  "sock": 0,
+                  "shmem": 12790366208,
+                  "file_mapped": 794624,
+                  "file_dirty": 51421184,
+                  "file_writeback": 0,
+                  "inactive_anon": 111484928,
+                  "active_anon": 12784685056,
+                  "inactive_file": 1111052288,
+                  "active_file": 3540094976,
+                  "unevictable": 0,
+                  "slab_reclaimable": 1888306520,
+                  "slab_unreclaimable": 168876352,
+                  "slab": 2057182872,
+                  "pgfault": 2416801555,
+                  "pgmajfault": 71114
+                },
+                "limitMinusCurrentBytes": 14748594176
+              }
+            ],
+            "issues": [],
+            "membershipSHA256": "e57fd7b21104f091de366ace1464596378a498b0a5e63f1b21147a8998c20107",
+            "mountTopologySHA256": "9fdf2d485e58c3a505535668e0c99cabb6b623c1128eab84e7a912b2b401e7bb",
+            "namespaceIdentitySHA256": "f97fa342916097b92081144d1c1a85efcf2df290351c60623bba383f43ef30d8",
+            "identityAndTopologyStable": true
+          }
+        ],
+        "issues": [],
+        "readCount": 18,
+        "readBytes": 4300,
+        "durationSeconds": 0.046834120992571115
+      }
+    }
+  ],
+  "errors": [],
+  "captureCompleted": true,
+  "finishedAt": "2026-10-08T21:32:27.233292+00:00",
+  "selfCost": {
+    "scope": "This interpreter RUSAGE_SELF including imports and capture script; no child processes, Docker or application workload. Linux peak RSS includes shared pages. This is not per-sample incremental overhead and is not subtracted from shared cgroup usage.",
+    "wallSeconds": 1.0621069069893565,
+    "userCPUSeconds": 0.198511,
+    "systemCPUSeconds": 0.206644,
+    "maxRSSBytes": 43982848,
+    "inputBlockOperations": 0,
+    "outputBlockOperations": 8
+  }
+}

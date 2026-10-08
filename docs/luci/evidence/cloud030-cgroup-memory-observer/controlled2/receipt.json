@@ -1,0 +1,18 @@
+{
+  "command": [
+    "python3",
+    "-m",
+    "unittest",
+    "-v",
+    "sample_linux_owned_test.py",
+    "cgroup_memory_observer_test.py"
+  ],
+  "exitCode": 0,
+  "finishedAt": "2026-10-08T21:31:57.719726+00:00",
+  "scope": "Controlled fixtures only; source includes independent parser/physical-source/CPU-hierarchy review corrections.",
+  "sources": {
+    "cgroup_memory_observer_test.py": "861561c03f6e7dc5c160677089f626c7146a2aa27efd2e9e79dc5d11a15d723d",
+    "sample-linux-owned.py": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+    "sample_linux_owned_test.py": "6bae8f8c990a2ba8a5e5b01830c0a34ad18cfdd2777f238e1f5cc701171400e9"
+  }
+}

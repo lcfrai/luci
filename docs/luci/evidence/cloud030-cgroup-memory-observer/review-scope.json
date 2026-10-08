@@ -1,0 +1,18 @@
+{
+  "reviewer": "/root/check_frontend/cohort_review",
+  "scope": "Read-only product-formula/ancestry/identity/parser/output-privacy review; no child runtime",
+  "initialFindings": [
+    "Leading plus was accepted unlike Go ParseUint.",
+    "Oversized memory.stat integer conversion could invalidate effective memory.",
+    "Existing host parser did not validate kB units.",
+    "CPU-only overdeep hierarchy did not propagate product global invalidation.",
+    "50ms budget is cooperative rather than filesystem-read preemption."
+  ],
+  "disposition": "All concrete parser/ancestry findings corrected and controlled-tested. Metadata explicitly describes cooperative timing. Final review found no remaining concrete blocker in scope.",
+  "notClaimed": [
+    "Original attempt8 cause",
+    "Actual Luci native admission parity witness",
+    "Hard interruption of blocking kernel file reads",
+    "Zero observer overhead"
+  ]
+}

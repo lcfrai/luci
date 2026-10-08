@@ -1,0 +1,12 @@
+{
+  "at": "2026-10-08T21:37:34.227663+00:00",
+  "method": "Independent read-only post-wrapper Docker inventory and exact fixture ledger; no manual repair/removal",
+  "containers": [],
+  "volumes": [],
+  "executionLedgerSHA256": "c0022f0995797c072d8097729ea90e74487bcefb911576c91e4af0665403a49e",
+  "executionLedger": {
+    "version": 1,
+    "leases": []
+  },
+  "scope": "Current inventory only; exact successful cleanup remains separately recorded by the product and proxy."
+}

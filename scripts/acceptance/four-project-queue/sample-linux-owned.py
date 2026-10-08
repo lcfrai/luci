@@ -77,9 +77,12 @@ def processes():
 def host():
  out={}
  try:
-  mem={line.split(':')[0]:int(line.split()[1])*1024 for line in pathlib.Path('/proc/meminfo').read_text().splitlines()}
+  meminfo=pathlib.Path('/proc/meminfo').read_text()
+  mem={line.split(':')[0]:int(line.split()[1])*1024 for line in meminfo.splitlines()}
   out['memory']={k:mem.get(k) for k in ('MemTotal','MemAvailable','SwapTotal','SwapFree','CommitLimit','Committed_AS')}
   out['memory']['commitBasis']='Linux overcommit accounting; not equivalent to Windows committed private memory'
+  try:out['memory']['physicalCountersValidated']=cgroup_memory_physical(meminfo)=={key:mem.get(key) for key in ('MemTotal','MemAvailable')}
+  except CgroupMemoryUnavailable:out['memory']['physicalCountersValidated']=False
  except (OSError,ValueError):out['memory']=None
  try:
   line=pathlib.Path('/proc/stat').read_text().splitlines()[0].split()[1:9];out['cpuTicks']=[int(v) for v in line]
@@ -94,6 +97,205 @@ def host():
    s=os.statvfs(path);out['disks'][path]={'availableBytes':s.f_bavail*s.f_frsize,'totalBytes':s.f_blocks*s.f_frsize}
   except OSError:out['disks'][path]=None
  return out
+# Additive, read-only visible control-plane memory diagnostics. No Docker queries.
+# Formula mirrors resourcebudget samplePlatform/applyCgroup/applyMemoryLimit;
+# observation/namespace/identity bounds below can conservatively make it unavailable.
+CGROUP_MEMORY_BOUNDS={'targets':8,'hierarchyLevels':128,'nodeRows':128,'reads':512,'bytes':1048576,'seconds':0.05,'outputBytes':131072}
+CGROUP_MEMORY_PRODUCT_BASIS={
+ 'control-plane/internal/resourcebudget/probe_linux.go':'ed0294860d6c721b1fd8f96da8c09a0f4fecb68b991c66c3b8f524cda985c405',
+ 'control-plane/internal/resourcebudget/cgroup_linux.go':'1843acdc15db9f9876545a1393bf6c21b93bc01873a64d8651be3adb26b5a4d1',
+}
+CGROUP_MEMORY_STAT_KEYS=frozenset(('anon','file','kernel','kernel_stack','pagetables','percpu','sock','shmem','file_mapped','file_dirty','file_writeback','inactive_anon','active_anon','inactive_file','active_file','unevictable','slab_reclaimable','slab_unreclaimable','slab','pgfault','pgmajfault','cache','rss','rss_huge','mapped_file','dirty','writeback','swap','total_cache','total_rss','total_inactive_file','total_active_file','hierarchical_memory_limit'))
+class CgroupMemoryUnavailable(Exception):pass
+def cgroup_memory_read(path,limit):
+ with pathlib.Path(path).open('rb') as stream:return stream.read(limit+1)
+class CgroupMemoryBudget:
+ def __init__(self,read,link,clock,bounds):
+  self.reader=read;self.linker=link;self.clock=clock;self.bounds=bounds;self.started=clock();self.reads=0;self.bytes=0;self.nodes=0
+ def check(self):
+  if self.clock()-self.started>self.bounds['seconds']:raise CgroupMemoryUnavailable('observation-time-bound')
+  if self.reads>=self.bounds['reads']:raise CgroupMemoryUnavailable('observation-read-bound')
+ def read(self,path,limit=65536):
+  self.check();self.reads+=1
+  value=self.reader(path,limit)
+  if not isinstance(value,bytes):raise CgroupMemoryUnavailable('observation-reader-type')
+  self.bytes+=len(value)
+  if len(value)>limit:raise CgroupMemoryUnavailable('observation-file-bound')
+  if self.bytes>self.bounds['bytes']:raise CgroupMemoryUnavailable('observation-byte-bound')
+  self.check_time()
+  try:return value.decode('utf-8')
+  except UnicodeError:raise CgroupMemoryUnavailable('observation-encoding')
+ def check_time(self):
+  if self.clock()-self.started>self.bounds['seconds']:raise CgroupMemoryUnavailable('observation-time-bound')
+ def link(self,path):
+  self.check();self.reads+=1;value=self.linker(path);self.check_time()
+  if not isinstance(value,str) or not re.fullmatch(r'(?:mnt|cgroup):\[[0-9]+\]',value):raise CgroupMemoryUnavailable('namespace-identity-invalid')
+  return value
+
+def cgroup_memory_locations(membership,mountinfo):
+ # Keep CPU membership resolution: production rejects unresolved relevant mounts
+ # globally before applying memory limits, even though this observer measures no CPU quota.
+ groups={}
+ for line in membership.splitlines():
+  if not line:continue
+  fields=line.split(':',2)
+  if len(fields)!=3 or not fields[2].startswith('/') or os.path.normpath(fields[2])!=fields[2] or fields[2].startswith('//'):raise CgroupMemoryUnavailable('membership-invalid')
+  if fields[1]=='':groups['2']=fields[2]
+  else:
+   for controller in fields[1].split(','):
+    if controller in ('memory','cpu'):groups[controller]=fields[2]
+ found=set();result=[]
+ unescape=lambda value:re.sub(r'\\(040|011|012|134)',lambda match:{'040':' ','011':'\t','012':'\n','134':'\\'}[match[1]],value)
+ for line in mountinfo.splitlines():
+  parts=line.split(' - ',1)
+  if len(parts)!=2:continue
+  left,right=parts[0].split(),parts[1].split()
+  if len(left)<6 or len(right)<3 or right[0] not in ('cgroup2','cgroup'):continue
+  root,mount=unescape(left[3]),unescape(left[4])
+  if not mount.startswith('/') or os.path.normpath(mount)!=mount or mount.startswith('//'):raise CgroupMemoryUnavailable('mount-invalid')
+  version='2' if right[0]=='cgroup2' else '1'
+  for controller in (['2'] if version=='2' else right[2].split(',')):
+   if controller not in groups or controller in found:continue
+   group=groups[controller]
+   if group=='/' or group==root:relative='.'
+   elif root=='/':relative=group[1:]
+   elif group.startswith(root+'/'):relative=group[len(root)+1:]
+   else:raise CgroupMemoryUnavailable('namespace-mount-mismatch')
+   directory=os.path.normpath(os.path.join(mount,relative))
+   if os.path.commonpath([mount,directory])!=mount:raise CgroupMemoryUnavailable('mount-escape')
+   result.append((directory,mount,version,controller));found.add(controller)
+ if set(groups)-found:raise CgroupMemoryUnavailable('controller-mount-unavailable')
+ return result
+
+def cgroup_memory_uint(raw,positive=False):
+ text=raw.strip()
+ if not re.fullmatch(r'[0-9]+',text):raise CgroupMemoryUnavailable('counter-invalid')
+ significant=text.lstrip('0') or '0'
+ if len(significant)>20:raise CgroupMemoryUnavailable('counter-invalid')
+ value=int(significant)
+ if value>=2**64 or positive and value==0:raise CgroupMemoryUnavailable('counter-invalid')
+ return value
+
+def cgroup_memory_physical(raw):
+ values={}
+ for line in raw.splitlines():
+  fields=line.split()
+  if len(fields)!=3 or fields[0] not in ('MemTotal:','MemAvailable:'):continue
+  value=cgroup_memory_uint(fields[1])
+  if fields[2]!='kB' or value>(2**64-1)//1024:raise CgroupMemoryUnavailable('physical-memory-unavailable')
+  values[fields[0][:-1]]=value*1024
+ if set(values)!={'MemTotal','MemAvailable'} or values['MemTotal']==0 or values['MemAvailable']>values['MemTotal']:raise CgroupMemoryUnavailable('physical-memory-unavailable')
+ return values
+
+def cgroup_memory_observations(process_rows,physical,read=None,link=None,process_stat=None,clock=None,bounds=None):
+ """Owned control-plane role candidates only; never infer admission or hidden ancestry."""
+ budget=CgroupMemoryBudget(read or cgroup_memory_read,link or os.readlink,clock or time.monotonic,bounds or CGROUP_MEMORY_BOUNDS)
+ targets=[row for row in process_rows if row.get('role')=='control-plane' and row.get('state')!='Z']
+ output={'status':'not-observed' if not targets else 'observed','scope':'Visible hierarchy for live owned control-plane role candidates, bound to PID/start ticks; process-name role classification is not executable-hash verification.','observations':[],'issues':[]}
+ if len(targets)>budget.bounds['targets']:output['issues'].append('control-plane-target-bound')
+ def issue(row,code):
+  if code not in row['issues']:row['issues'].append(code)
+ def identity(pid,start):
+  budget.check_time()
+  if process_stat is not None:current=process_stat(pid)
+  else:
+   raw=budget.read('/proc/'+str(pid)+'/stat',4096);end=raw.rfind(')');fields=raw[end+2:].split()
+   if end<0 or len(fields)<20:raise CgroupMemoryUnavailable('process-stat-invalid')
+   current={'pid':int(raw.split(' ',1)[0]),'state':fields[0],'startTicks':int(fields[19])}
+  budget.check_time()
+  if current.get('pid')!=pid or current.get('startTicks')!=start or current.get('state')=='Z':raise CgroupMemoryUnavailable('process-identity-changed')
+ def namespace(pid):
+  value={}
+  for kind in ('cgroup','mnt'):
+   own=budget.link('/proc/self/ns/'+kind);target=budget.link('/proc/'+str(pid)+'/ns/'+kind)
+   if own!=target:raise CgroupMemoryUnavailable(kind+'-namespace-differs')
+   value[kind]=target
+  return value
+ for target in targets[:budget.bounds['targets']]:
+  pid,start=target['pid'],target['startTicks']
+  row={'pid':pid,'startTicks':start,'status':'observed','physicalTotalBytes':None,'physicalAvailableBytes':None,'productComparableEffectiveTotalBytes':None,'productComparableEffectiveAvailableBytes':None,'limitSource':'physical','nodes':[],'issues':[]}
+  output['observations'].append(row);effective_valid=True
+  try:
+   identity(pid,start);namespaces=namespace(pid)
+   proc='/proc/'+str(pid);membership=budget.read(proc+'/cgroup');mounts=budget.read(proc+'/mountinfo',131072)
+   row['membershipSHA256']=hashlib.sha256(membership.encode()).hexdigest();row['mountTopologySHA256']=hashlib.sha256(mounts.encode()).hexdigest()
+   row['namespaceIdentitySHA256']=hashlib.sha256(json.dumps(namespaces,sort_keys=True).encode()).hexdigest()
+   locations=cgroup_memory_locations(membership,mounts)
+   for directory,mount,version,controller in locations:
+    current=directory
+    for depth in range(budget.bounds['hierarchyLevels']):
+     budget.check_time()
+     if current==mount:break
+     parent=os.path.dirname(current)
+     if parent==current or os.path.commonpath([mount,parent])!=mount:raise CgroupMemoryUnavailable('hierarchy-mount-escape')
+     current=parent
+    else:raise CgroupMemoryUnavailable('hierarchy-depth-bound')
+   total=(physical or {}).get('MemTotal');available=(physical or {}).get('MemAvailable')
+   if (physical or {}).get('physicalCountersValidated') is not True or type(total) is not int or type(available) is not int or total<=0 or total>=2**64 or available<0 or available>total:
+    effective_valid=False;issue(row,'physical-memory-unavailable')
+   else:row.update(physicalTotalBytes=total,physicalAvailableBytes=available,productComparableEffectiveTotalBytes=total,productComparableEffectiveAvailableBytes=available)
+   memory_locations=[value for value in locations if value[2]=='2' or value[3]=='memory']
+   if not memory_locations:issue(row,'memory-controller-not-present')
+   for hierarchy,(directory,mount,version,controller) in enumerate(memory_locations):
+    current=directory
+    for depth in range(budget.bounds['hierarchyLevels']):
+     budget.check_time();budget.nodes+=1
+     if budget.nodes>budget.bounds['nodeRows']:raise CgroupMemoryUnavailable('observation-node-bound')
+     node={'hierarchy':hierarchy,'depth':depth,'version':version,'locationSHA256':hashlib.sha256((version+'\0'+current).encode()).hexdigest(),'mountRoot':current==mount,'limitStatus':'unavailable','limitBytes':None,'currentStatus':'unavailable','currentBytes':None,'statStatus':'unavailable','stat':None}
+     row['nodes'].append(node);finite=False
+     max_file,current_file=('memory.max','memory.current') if version=='2' else ('memory.limit_in_bytes','memory.usage_in_bytes')
+     try:
+      raw=budget.read(os.path.join(current,max_file))
+      if version=='2' and raw.strip()=='max':node['limitStatus']='unlimited'
+      else:node['limitBytes']=cgroup_memory_uint(raw,True);node['limitStatus']='finite';finite=True
+     except FileNotFoundError:
+      node['limitStatus']='missing';issue(row,'limit-file-missing-product-skips-level')
+     except (OSError,CgroupMemoryUnavailable) as error:
+      if isinstance(error,CgroupMemoryUnavailable) and str(error).startswith('observation-'):raise
+      effective_valid=False;issue(row,'limit-unavailable')
+     try:node['currentBytes']=cgroup_memory_uint(budget.read(os.path.join(current,current_file)));node['currentStatus']='observed'
+     except (OSError,CgroupMemoryUnavailable) as error:
+      if isinstance(error,CgroupMemoryUnavailable) and str(error).startswith('observation-'):raise
+      issue(row,'current-unavailable')
+      if finite:effective_valid=False
+     if finite:
+      row['limitSource']='physical-and-control-plane-cgroup-v'+version
+      if node['currentBytes'] is not None:
+       node['limitMinusCurrentBytes']=max(0,node['limitBytes']-node['currentBytes'])
+       if effective_valid:
+        row['productComparableEffectiveTotalBytes']=min(row['productComparableEffectiveTotalBytes'],node['limitBytes'])
+        row['productComparableEffectiveAvailableBytes']=min(row['productComparableEffectiveAvailableBytes'],node['limitMinusCurrentBytes'])
+     try:
+      counters={};raw=budget.read(os.path.join(current,'memory.stat'))
+      for line in raw.splitlines():
+       fields=line.split()
+       if fields and fields[0] in CGROUP_MEMORY_STAT_KEYS:
+        if len(fields)!=2 or fields[0] in counters:raise CgroupMemoryUnavailable('stat-invalid')
+        counters[fields[0]]=cgroup_memory_uint(fields[1])
+      if not counters:raise CgroupMemoryUnavailable('stat-empty')
+      node['stat']=counters;node['statStatus']='observed'
+     except (OSError,CgroupMemoryUnavailable) as error:
+      if isinstance(error,CgroupMemoryUnavailable) and str(error).startswith('observation-'):raise
+      issue(row,'stat-unavailable')
+     if current==mount:break
+     parent=os.path.dirname(current)
+     if parent==current or os.path.commonpath([mount,parent])!=mount:raise CgroupMemoryUnavailable('hierarchy-mount-escape')
+     current=parent
+    else:raise CgroupMemoryUnavailable('hierarchy-depth-bound')
+   identity(pid,start)
+   if namespace(pid)!=namespaces or budget.read(proc+'/cgroup')!=membership or budget.read(proc+'/mountinfo',131072)!=mounts:raise CgroupMemoryUnavailable('process-topology-changed')
+   identity(pid,start);row['identityAndTopologyStable']=True
+  except (OSError,ValueError,IndexError,CgroupMemoryUnavailable) as error:
+   effective_valid=False;row['identityAndTopologyStable']=False
+   issue(row,str(error) if isinstance(error,CgroupMemoryUnavailable) else 'process-or-topology-unavailable')
+  if not effective_valid:row['productComparableEffectiveTotalBytes']=None;row['productComparableEffectiveAvailableBytes']=None
+  if row['issues']:row['status']='partial' if row.get('identityAndTopologyStable') else 'unavailable'
+ if output['issues'] or any(row['issues'] for row in output['observations']):output['status']='partial'
+ output['readCount']=budget.reads;output['readBytes']=budget.bytes;output['durationSeconds']=max(0,budget.clock()-budget.started)
+ if len(json.dumps(output,separators=(',',':')).encode())>budget.bounds['outputBytes']:
+  output.update(status='unavailable',observations=[],issues=['observation-output-bound'])
+ return output
+
 CHECK_LABELS=('luci.check','luci.check-protocol','luci.instance','luci.check-engine','luci.check-allocation','luci.check-id','luci.check-command-index','luci.check-scope','luci.check-project','luci.check-command-digest','luci.check-source-digest','luci.check-image')
 class MeasurementError(Exception):pass
 def require_measurement(condition,code):
@@ -215,7 +417,7 @@ def main():
  HZ=os.sysconf('SC_CLK_TCK');PAGE=os.sysconf('SC_PAGE_SIZE');started=time.monotonic();now=lambda:datetime.datetime.now(datetime.timezone.utc).isoformat()
  tracked={a.driver_pid:a.driver_start_ticks}; identities={};previous={};docker_previous={};ever_containers=set();samples=0;driver_exit=None;peak=collections.defaultdict(float);counters=collections.defaultdict(float)
  container_kinds={};issue_counts=collections.Counter();check_coverage={'identitySamples':0,'cgroupUsageSamples':0}
- metadata={'startedAt':now(),'driver':{'pid':a.driver_pid,'startTicks':a.driver_start_ticks},'intervalSeconds':1,'baseline':'post-start; no pre-run idle baseline observed','imageId':a.image_id,'includeChecks':a.include_checks,'instanceIdentitySHA256':None,'scope':('Exact driver descendants and managed workers; opted-in checks additionally require exact instance/image/protocol/engine/allocation identity and fresh stats bounded by current PID/start/cgroup checks.' if a.include_checks else 'Exact driver descendants by PID/starttime, plus exact instance/managed/image-verified Docker containers. No command lines, environments, mount paths or provider payloads recorded.'),'limitations':['Sum of process RSS double-counts shared pages; it is not unique physical memory.','Container cgroup memory is separate and must not be added to container process RSS.','Docker daemon/shared kernel/VM overhead is unassigned; host memory includes unrelated work.','Processes starting and exiting between 1 Hz samples may be missed; delta counters cover observed intervals only.','Post-driver-exit settlement is not an application idle baseline.','No UI input latency, other-app responsiveness or model reasoning quality is measured.'],'helperSHA256':hashlib.sha256(pathlib.Path(__file__).read_bytes()).hexdigest()}
+ metadata={'controlPlaneCgroupMemory':{'version':1,'bounds':CGROUP_MEMORY_BOUNDS,'productBasisSHA256':CGROUP_MEMORY_PRODUCT_BASIS,'formula':'Independent minima of physical total and finite visible limits; physical available and max(0, limit-current) at every visible ancestor. No memory.stat, RSS, swap, high limit or scheduling reservation subtraction.','scope':'Same observer/target cgroup and mount namespaces; only already-owned live control-plane role candidates. Raw membership and mount paths are hash-only; missing values stay explicit.','selfCost':'Additional sampler reads/CPU are included in wrapper RUSAGE_SELF. Shared cgroup usage may include observer work; self-cost is not subtracted from memory counters.','limitations':['The 50 ms time budget is cooperative between synchronous reads, not a hard filesystem-read interruption.','Sequential sampled counters are not atomic and do not reproduce any prior admission decision.','Visibility ends at the process-visible mount root; hidden ancestors are not inferred.','Missing limit files are recorded as missing and skipped only to match product semantics; they are not claimed unlimited.','Role follows existing process-name classification after descendant/PID-start ownership proof, not executable-byte verification.']},'startedAt':now(),'driver':{'pid':a.driver_pid,'startTicks':a.driver_start_ticks},'intervalSeconds':1,'baseline':'post-start; no pre-run idle baseline observed','imageId':a.image_id,'includeChecks':a.include_checks,'instanceIdentitySHA256':None,'scope':('Exact driver descendants and managed workers; opted-in checks additionally require exact instance/image/protocol/engine/allocation identity and fresh stats bounded by current PID/start/cgroup checks.' if a.include_checks else 'Exact driver descendants by PID/starttime, plus exact instance/managed/image-verified Docker containers. No command lines, environments, mount paths or provider payloads recorded.'),'limitations':['Sum of process RSS double-counts shared pages; it is not unique physical memory.','Container cgroup memory is separate and must not be added to container process RSS.','Docker daemon/shared kernel/VM overhead is unassigned; host memory includes unrelated work.','Processes starting and exiting between 1 Hz samples may be missed; delta counters cover observed intervals only.','Post-driver-exit settlement is not an application idle baseline.','No UI input latency, other-app responsiveness or model reasoning quality is measured.'],'helperSHA256':hashlib.sha256(pathlib.Path(__file__).read_bytes()).hexdigest()}
  if not a.include_checks:metadata.pop('includeChecks')
  (a.output/'metadata.json').write_text(json.dumps(metadata,indent=2)+'\n');os.chmod(a.output/'metadata.json',0o600)
  (a.output/'accepted-sampler.py').write_bytes(pathlib.Path(__file__).read_bytes());os.chmod(a.output/'accepted-sampler.py',0o600)
@@ -224,7 +426,8 @@ def main():
   while time.monotonic()-started<a.seconds:
    tick=time.monotonic();proc,unreadable=processes();owned,issues=containers();living=any(p['pid']==a.driver_pid and p['startTicks']==a.driver_start_ticks and p['state']!='Z' for p in proc)
    if not living and driver_exit is None:driver_exit=time.monotonic()
-   row={'observedAt':now(),'elapsedSeconds':time.monotonic()-started,'phase':'post-start-running' if driver_exit is None else 'post-driver-exit-settle','driverAlive':living,'host':host(),'processes':proc,'containers':owned,'containerIssues':issues,'containerMeasurementStatus':'partial' if issues else 'observed','processStatUnreadableOrRacedCount':unreadable,'sampleDurationSeconds':time.monotonic()-tick}
+   host_sample=host();cgroup_memory=cgroup_memory_observations(proc,host_sample.get('memory'))
+   row={'observedAt':now(),'elapsedSeconds':time.monotonic()-started,'phase':'post-start-running' if driver_exit is None else 'post-driver-exit-settle','driverAlive':living,'host':host_sample,'controlPlaneCgroupMemory':cgroup_memory,'processes':proc,'containers':owned,'containerIssues':issues,'containerMeasurementStatus':'partial' if issues else 'observed','processStatUnreadableOrRacedCount':unreadable,'sampleDurationSeconds':time.monotonic()-tick}
    if not a.include_checks:row.pop('containerMeasurementStatus')
    groups=collections.Counter()
    for p in proc:groups[p['role']]+=p['residentBytes']

@@ -1,0 +1,125 @@
+{
+  "validatedAt": "2026-10-08T21:40:21.059544+00:00",
+  "scope": "Publication of selected final installed receipts and exactly two explicitly allowlisted controlled-metadata snapshots; no runtime/test/browser/daemon action or original fixture mutation.",
+  "productSourceCommit": "4df94ab9dad0e9fedd28a873bbadc56720e1402e",
+  "helperSourceCommit": "4df94ab9dad0e9fedd28a873bbadc56720e1402e",
+  "acceptedHarness": [
+    {
+      "path": "result/accepted-harness/dag.mjs",
+      "sha256": "1b39edb0c583c5cc171b7fc96f1812754b8d34a6c781821d1ea2757a9ed31c2f",
+      "sourcePath": "scripts/acceptance/task-dependencies/dag.mjs"
+    },
+    {
+      "path": "result/accepted-harness/dag-fixture.mjs",
+      "sha256": "5290f1cf6bc5e3dd0d31120606984e65979851a03e68e701c51a998e7138a0a2",
+      "sourcePath": "scripts/acceptance/task-dependencies/dag-fixture.mjs"
+    },
+    {
+      "path": "result/accepted-harness/context-contract.mjs",
+      "sha256": "07cf795341efc55f6e6e08929e18c02cfec85cb32663f49be69260e6df8faee2",
+      "sourcePath": "scripts/acceptance/task-dependencies/context-contract.mjs"
+    },
+    {
+      "path": "result/accepted-harness/dependency-probe.mjs",
+      "sha256": "eddf18208bbc1bf1ea52926406fb5fefced5d94b94bead7d7e68b5a3ee7d0ef2",
+      "sourcePath": "scripts/acceptance/task-dependencies/dependency-probe.mjs"
+    },
+    {
+      "path": "result/accepted-harness/stale-review-probe.mjs",
+      "sha256": "79aa3ec4acd6c597fbd79c2bba2594355252bd8d49f16777f212e427563d263a",
+      "sourcePath": "scripts/acceptance/task-dependencies/stale-review-probe.mjs"
+    },
+    {
+      "path": "result/accepted-harness/source-read-cohort.mjs",
+      "sha256": "bc4a630ffe43ad711e423f19afb6e614679151d3d2bce5f92774e005c42b9356",
+      "sourcePath": "scripts/acceptance/task-dependencies/source-read-cohort.mjs"
+    },
+    {
+      "path": "result/accepted-harness/identify-create-guard.mjs",
+      "sha256": "1fea09704ec11be34ab7b2184482462ab9d69f8aea3b923fc818a53b0ce3ec70",
+      "sourcePath": "scripts/acceptance/task-dependencies/identify-create-guard.mjs"
+    },
+    {
+      "path": "result/accepted-harness/queued-failure.mjs",
+      "sha256": "a141cd521c2d98ff0c475837eb42a861572a3e1c3533966262975de13de524d7",
+      "sourcePath": "scripts/acceptance/task-dependencies/queued-failure.mjs"
+    },
+    {
+      "path": "result/accepted-harness/project-check-guard.mjs",
+      "sha256": "4b4ff5957955c3e26d7153a808e518e6a4431f10878659e44bfc6c915486876f",
+      "sourcePath": "scripts/acceptance/task-dependencies/project-check-guard.mjs"
+    },
+    {
+      "path": "result/accepted-harness/run-with-observer.py",
+      "sha256": "5a4d13eefb245a5040e727d689a61aad5e18c2a945f2c6cee10658d6810eebdd",
+      "sourcePath": "scripts/acceptance/task-dependencies/run-with-observer.py"
+    },
+    {
+      "path": "result/accepted-harness/task-context-delivery.mjs",
+      "sha256": "9c16efd099c2cbf475a206d487c7abe76ee2699ee19c2061f6d2be8dd063ad68",
+      "sourcePath": "scripts/acceptance/task-context-delivery.mjs"
+    },
+    {
+      "path": "result/accepted-harness/four-project-queue_native-terminal-diagnostics.mjs",
+      "sha256": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+      "sourcePath": "scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs"
+    },
+    {
+      "path": "result/accepted-harness/four-project-queue_sample-linux-owned.py",
+      "sha256": "324d4543b0111619fe45a45f80af06f8fdc5022cfec491b04ca0e8f990f325b7",
+      "sourcePath": "scripts/acceptance/four-project-queue/sample-linux-owned.py"
+    },
+    {
+      "path": "result/accepted-harness/launch-recovery_fenced-docker-proxy.mjs",
+      "sha256": "48e97d6d5c915cf80c99f0c79a8fb16261eb219616f878fa1ce103ee2c59303d",
+      "sourcePath": "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs"
+    },
+    {
+      "path": "result/accepted-harness/launch-recovery_worker-create-guard.mjs",
+      "sha256": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+      "sourcePath": "scripts/acceptance/launch-recovery/worker-create-guard.mjs"
+    },
+    {
+      "path": "result/accepted-harness/launch-recovery_durable-acceptance-journal.mjs",
+      "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+      "sourcePath": "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs"
+    },
+    {
+      "path": "result/accepted-harness/launch-recovery_acceptance-lifecycle.mjs",
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "sourcePath": "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs"
+    },
+    {
+      "path": "result/accepted-harness/launch-recovery_acceptance-startup.mjs",
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "sourcePath": "scripts/acceptance/launch-recovery/acceptance-startup.mjs"
+    }
+  ],
+  "exactAcceptedHarnessMembers": 18,
+  "acceptedHelpersMatchPinnedGitSource": true,
+  "acceptedSamplerMatchesCapturedHarness": true,
+  "secretPatternFindings": [],
+  "textMembersScanned": 60,
+  "scanLimit": "Bounded common credential-signature scan and separately confirmed manual text/screenshot review; not exhaustive secret detection.",
+  "screenshotsReviewed": [
+    "result/DAG-conflict-retained.png",
+    "result/DAG-integrated.png",
+    "result/failed-stage.png"
+  ],
+  "privateFixtureExport": {
+    "allowedOriginalPaths": [
+      "/workspace/.c/.ls-5ofo0ljv/luci-dag-FY6JHn/state/control-plane/execution/leases.json",
+      "/workspace/.c/.ls-5ofo0ljv/luci-dag-FY6JHn/state/sessions/project-checks/p-6844c464.json"
+    ],
+    "memberPaths": [
+      "retained-state/execution-leases.json",
+      "retained-state/project-checks-p-6844c464.json"
+    ],
+    "review": "Each exact file was bounded below 262144 bytes, valid JSON, manually reviewed as controlled check/allocation metadata, and scanned for credential signatures before export. Original hashes are retained.",
+    "excluded": "All other private fixture files, including home/configuration, credential, identity/account, token, conversation and session database files.",
+    "originalsMutated": false,
+    "manualCapacityRelease": false
+  },
+  "originalsPreserved": true,
+  "runtimeRerunToPublish": false
+}

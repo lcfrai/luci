@@ -1,0 +1,11 @@
+{
+  "appliedAt": "2026-10-08T21:35:32.836956+00:00",
+  "checkoutCommitBeforeHelperCommit": "4df94ab9dad0e9fedd28a873bbadc56720e1402e",
+  "authorization": "Parent reported attempt9 fully closed and authorized additive observer application.",
+  "changedFiles": {
+    "scripts/acceptance/four-project-queue/sample-linux-owned.py": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+    "scripts/acceptance/four-project-queue/cgroup_memory_observer_test.py": "861561c03f6e7dc5c160677089f626c7146a2aa27efd2e9e79dc5d11a15d723d"
+  },
+  "nativeInstalledAdmissionDecisionObserved": false,
+  "noProductSourceChanges": true
+}

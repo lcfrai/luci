@@ -1,0 +1,19 @@
+{
+  "command": [
+    "python3",
+    "-m",
+    "unittest",
+    "-v",
+    "sample_linux_owned_test.py",
+    "cgroup_memory_observer_test.py"
+  ],
+  "cwd": "external/staged",
+  "exitCode": 0,
+  "finishedAt": "2026-10-08T21:28:01.292869+00:00",
+  "scope": "Controlled JSON, virtual file, PID, namespace and clock fixtures only; no native proc/cgroup, Docker or spawned workloads.",
+  "sources": {
+    "cgroup_memory_observer_test.py": "2864edfbd873b2aff56042bc521d8d9298e255af5b7719048c3b84933eb637f4",
+    "sample-linux-owned.py": "e4e9f9c6617858915442382c918dc80c269acc87866a5f6d94cde678883d47ea",
+    "sample_linux_owned_test.py": "6bae8f8c990a2ba8a5e5b01830c0a34ad18cfdd2777f238e1f5cc701171400e9"
+  }
+}

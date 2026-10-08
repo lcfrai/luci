@@ -1,0 +1,10 @@
+{
+  "status": "external-preparation",
+  "checkoutCommit": "81f2ba5b194a81a4f2ad167e466793f59162b387",
+  "productBasis": {
+    "control-plane/internal/resourcebudget/probe_linux.go": "ed0294860d6c721b1fd8f96da8c09a0f4fecb68b991c66c3b8f524cda985c405",
+    "control-plane/internal/resourcebudget/cgroup_linux.go": "1843acdc15db9f9876545a1393bf6c21b93bc01873a64d8651be3adb26b5a4d1",
+    "control-plane/internal/resourcebudget/probe_linux_test.go": "9100cfc4ce5b57106ff9df7e3f09c2e8ea83e1501466449bb2fabe3a25918ef7"
+  },
+  "originalSamplerSHA256": "324d4543b0111619fe45a45f80af06f8fdc5022cfec491b04ca0e8f990f325b7"
+}
