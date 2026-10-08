@@ -68,12 +68,8 @@ fn regular_marker(path: &Path) -> io::Result<Option<fs::Metadata>> {
     }
 }
 
-/// Current accounts/state always win. Only a valid, unlinked legacy workspace
-/// is reused; nothing is copied, overwritten, deleted, or created here.
-pub fn select(current: &Path, legacy: Option<&Path>) -> io::Result<PathBuf> {
-    if !current.is_absolute() {
-        return Err(invalid("Luci state folder must be absolute"));
-    }
+fn has_valid_state_markers(root: &Path) -> io::Result<bool> {
+    let mut found = false;
     for marker in [
         "control-plane/identity.json",
         "control-plane/bootstrap-token",
@@ -81,9 +77,22 @@ pub fn select(current: &Path, legacy: Option<&Path>) -> io::Result<PathBuf> {
         "sessions/sessions.json",
         "instance/instance-id",
     ] {
-        if regular_marker(&current.join(marker))?.is_some() {
-            return Ok(current.to_owned());
-        }
+        // Check every recognized path before accepting any marker. An earlier
+        // identity must not conceal a linked sessions/instance directory.
+        found |= regular_marker(&root.join(marker))?.is_some();
+    }
+    Ok(found)
+}
+
+/// Current accounts/state always win after all recognized paths are validated.
+/// Only a valid, unlinked legacy workspace is reused; nothing is copied,
+/// overwritten, deleted, or created here.
+pub fn select(current: &Path, legacy: Option<&Path>) -> io::Result<PathBuf> {
+    if !current.is_absolute() {
+        return Err(invalid("Luci state folder must be absolute"));
+    }
+    if has_valid_state_markers(current)? {
+        return Ok(current.to_owned());
     }
     let Some(legacy) = legacy else {
         return Ok(current.to_owned());
@@ -91,6 +100,7 @@ pub fn select(current: &Path, legacy: Option<&Path>) -> io::Result<PathBuf> {
     if !legacy.is_absolute() {
         return Err(invalid("Legacy Luci state folder must be absolute"));
     }
+    has_valid_state_markers(legacy)?;
     let path = legacy.join("sessions/luci.json");
     let Some(metadata) = regular_marker(&path)? else {
         return Ok(current.to_owned());
@@ -325,5 +335,43 @@ mod tests {
         fs::remove_dir(link).unwrap();
         #[cfg(unix)]
         fs::remove_file(link).unwrap();
+    }
+
+    #[test]
+    fn identity_marker_cannot_hide_later_linked_state_paths() {
+        let mut unexpected = Vec::new();
+        for name in ["sessions", "instance"] {
+            for identity_exists in [false, true] {
+                let f = Fixture::new();
+                let state = f.current();
+                fs::create_dir(&state).unwrap();
+                if identity_exists {
+                    f.write(&state, "control-plane/identity.json", b"existing identity");
+                }
+                let target = f.0.join("separate-target");
+                fs::create_dir(&target).unwrap();
+                fs::write(target.join("preserve.txt"), b"unchanged target").unwrap();
+                let link = state.join(name);
+                #[cfg(unix)]
+                std::os::unix::fs::symlink(&target, &link).unwrap();
+                #[cfg(windows)]
+                {
+                    let output = std::process::Command::new("cmd")
+                        .args(["/c", "mklink", "/J"])
+                        .arg(&link).arg(&target).output().unwrap();
+                    assert!(output.status.success(), "junction fixture could not be created");
+                }
+                let result = select_configured(Some(&state), || panic!("explicit state must not consult defaults"));
+                if result.is_ok() {
+                    unexpected.push(format!("{name}, identity={identity_exists}"));
+                }
+                assert_eq!(fs::read(target.join("preserve.txt")).unwrap(), b"unchanged target");
+                #[cfg(windows)]
+                fs::remove_dir(link).unwrap();
+                #[cfg(unix)]
+                fs::remove_file(link).unwrap();
+            }
+        }
+        assert!(unexpected.is_empty(), "linked state was accepted: {unexpected:?}");
     }
 }

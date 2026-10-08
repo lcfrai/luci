@@ -1,0 +1,31 @@
+{
+  "scope": "Linux Rust state-selection module with native LOCAL006 regression; full Tauri/native acceptance remains open",
+  "startedAt": "2026-10-08T11:03:08.621600+00:00",
+  "completedAt": "2026-10-08T11:03:10.572565+00:00",
+  "source": {
+    "desktop/src-tauri/src/state_dir.rs": "24accad07c54094140bd2915d90ea9cf4014cbd8fb51a85ebdd6afe525e7d5c9",
+    "desktop/src-tauri/src/lib.rs": "ec8e2df01bf45deabdea0e199303e0e828da75b3ff25fe7307e826fa10405f5c",
+    "desktop/src-tauri/Cargo.lock": "ae48aee4aaa8a8e8b3e08d859fcced01e839c44c04e81a75541bf60e6a063859"
+  },
+  "sourceUnchanged": true,
+  "exitCode": 0,
+  "tests": {
+    "passed": 10,
+    "failed": 0,
+    "ignored": 0
+  },
+  "beforeFix": {
+    "test": "identity_marker_cannot_hide_later_linked_state_paths",
+    "exitCode": 101,
+    "unexpectedAcceptances": [
+      "sessions with identity marker",
+      "instance with identity marker"
+    ],
+    "logSHA256": "e98f01d2c4395d3e11fe7e1be948d18441f2639795f1470e3eada423580fd138"
+  },
+  "logSHA256": "e8226cd73e8a6e212375f1897d731b5dc87b8f271c54eb48f592dbee9ebddbeb",
+  "nativeReportedBase": "656a1ae1052814a5a6789910bb99b406cbc652ae",
+  "nativeReportedCases": 4,
+  "nativeReportedUnexpectedAcceptances": 2,
+  "fullTauriCallerCompiled": false
+}

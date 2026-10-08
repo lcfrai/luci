@@ -354,13 +354,14 @@ Check its hash against `SHA256SUMS` and record `release-manifest.json`, which
 must identify the tested commit and whether source changes were present.
 Portable runtime use does not need host Go, Node or Python.
 
-### Isolated native WebView acceptance — LOCAL-004 correction
+### Isolated native WebView acceptance — LOCAL-004 / LOCAL-006 corrections
 
 With the native prerequisites installed, use
 `./scripts/build-release.ps1 -Version 0.5.0 -Native` at the exact fixed revision
 supplied by the LOCAL FIX READY TO RETEST handoff. **`8f78804f` ignores explicit state; the first correction `656a1ae1` still
 accepts an ordinary file as a state directory on Windows. Use the subsequent
-LOCAL-004 parent-directory correction handoff.** Do not launch those native packages
+LOCAL-004 parent-directory and LOCAL-006 all-marker validation correction handoff.
+The later `c46405fc` parent check alone still has the LOCAL-006 early-return gap.** Do not launch those native packages
 against an assumed isolated state override. Preserve the full native executable,
 matching sidecar and bundled resources together; record the package/source hashes
 before running. The unsigned NSIS installer is under

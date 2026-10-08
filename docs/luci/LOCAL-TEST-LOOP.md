@@ -364,3 +364,29 @@ native retest. [New receipt](evidence/2026-10-08-local004-windows-parent-correct
 retains the failed native scope and corrected source hashes. The new correction
 commit also publishes the formerly missing8f788 resource companion; its link
 must be checked in the source artifact before claiming the handoff complete.
+
+
+### LOCAL-006 acknowledged and marker-validation correction
+
+The native tester's exact `656a1ae1052814a5a6789910bb99b406cbc652ae`
+diagnostic proved a separate selection-contract failure: `sessions` and
+`instance` junctions were rejected without an identity marker but accepted after
+adding regular `control-plane/identity.json`. One diagnostic with four cases
+reported two unexpected acceptances. No app or sidecar ran; disposable target
+bytes remained unchanged, junctions were removed and the checkout stayed clean.
+Local raw evidence remains under `656a1ae1/linked-state-diagnostic/`.
+
+The selector now validates every recognized path before accepting any marker,
+for both current state and a considered legacy candidate. Current valid state
+still takes precedence without inspecting legacy state. The same four-case
+regression failed before the correction on Linux (both identity cases accepted)
+and passes afterward; the complete ten-test Rust module passes with captured
+unchanged inputs. See [the receipt](evidence/2026-10-08-local006-marker-validation.json).
+This remains module evidence, not a full Tauri compile or native acceptance.
+
+The fix includes LOCAL-004's explicit non-directory parent rejection from
+`c46405fc7092d93bbc5514442eacd4b175d14518`. Retest both IDs on the next
+immutable correction revision: existing ordinary file, nested path under a file,
+and both junction cases with/without identity. Preserve before/after source and
+fixture-target hashes. No environment or dependency changes are required.
+LOCAL-005 and CLOUD-009 remain separate unpublished corrections at this checkpoint.
