@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "675ed402385b4082afda539b63fb0ff03565f58e",
+  "scope": "Relayed native Windows corrected project navigation, normal reopen, explicit state and owned shutdown",
+  "provenance": {
+    "reportedBy": "originating local thread 01a1199f-7500-7843-b02b-081081e536fa",
+    "rawLocalArtifactsInspectedByCloud": false,
+    "evidenceRoot": "E:/Luci-local-acceptance/evidence/675ed402/native-navigation/",
+    "durableReceipt": "batch-report.json"
+  },
+  "packaging": {
+    "documentedNativeBuild": "passed",
+    "trackedHashesUnchanged": 1921,
+    "licensedComponents": 616,
+    "installerExecuted": false,
+    "unsignedInstallerSHA256": "cb65ed69c56025b5ab1927e36f80b43aa25b610c42808fb39c7bcef4818b3a88"
+  },
+  "LOCAL-007": {
+    "status": "corrected behavior verified",
+    "original2dcfMisselectionCause": "unconfirmed",
+    "fullyRecordedBatches": 2,
+    "fixedCoordinateSequentialClicksPerBatch": 5,
+    "catalogueResponseWaits": false,
+    "collapsedRowGeometryTolerancePx": 1,
+    "distinctSavedPurposes": 4,
+    "warmAndColdReopenPassed": true,
+    "checks": [
+      "explicit disclosure preserves selection and moves focus",
+      "one roving tree tab stop and arrow navigation",
+      "Enter and Space select without expansion",
+      "Windows Ctrl+K opens and closes commands",
+      "Commands and Settings remain separate",
+      "Keep editing preserves original project and unsaved draft"
+    ]
+  },
+  "lifecycle": {
+    "normalAltF4Cycles": 4,
+    "ownedAppSidecarWebViewsStopped": true,
+    "exactIsolatedStateRetained": true,
+    "returningOwnerSignInPassed": true,
+    "freeAPIPortChangeExpected": true,
+    "normalStatePreserved": [
+      "content",
+      "file IDs",
+      "creation time",
+      "last-write time",
+      "length",
+      "attributes"
+    ],
+    "methods": [
+      "refreshed .NET metadata",
+      "read-only native file handles"
+    ],
+    "lastAccess": "observer-sensitive; excluded",
+    "original2dcfHistoricalMetadataAnomaly": "retained unexplained, not retroactively passed"
+  },
+  "evidenceCorrection": {
+    "fault": "Initial helper reused a basename for structured JSON and screenshot body summary, overwriting detailed observations.",
+    "preserved": "Original summaries and screenshots",
+    "correction": "Unique helper names; repeated only focused navigation across two further normal restart cycles without product source changes.",
+    "completeReceipts": [
+      "receipt-repair-a-rapid-navigation.json",
+      "receipt-repair-b-rapid-navigation.json"
+    ],
+    "keyboardAndDraftEvidence": "original evidence intact"
+  },
+  "cleanup": {
+    "knownOwnedProcesses": 0,
+    "ownedListeners": 0,
+    "originalDockerContainersPreserved": 107,
+    "originalRunningDockerWorkloadsPreserved": 4,
+    "candidateAndOriginalCheckout": "clean"
+  },
+  "notVerified": [
+    "live-provider or worker execution",
+    "crash/cancel/retry recovery",
+    "scheduling and integration review",
+    "sustained RAM/CPU and whole-computer responsiveness",
+    "exact process-start tracing for LOCAL-005"
+  ]
+}

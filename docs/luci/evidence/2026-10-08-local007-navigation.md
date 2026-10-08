@@ -19,4 +19,4 @@ This does not prove the cause of the reported native WebDriver misselection.
 Explicit or previously saved expansion can still add rows. No native WebView,
 backend, worker or model ran in this fixture. The manifest identifies the tested
 working-tree bytes on the recorded base commit; a later source commit packages
-those changes. Native retesting remains open.
+those changes. The later [relayed native retest](2026-10-08-native-navigation-675ed402-reported.json) verifies the corrected behavior at `675ed402`, including cold reopen and final cleanup. The original misselection cause remains unconfirmed.

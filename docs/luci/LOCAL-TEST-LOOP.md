@@ -588,3 +588,35 @@ passing continuation; do not call it a complete product-package pass. All owned
 app/driver/WebView processes and ports are stopped, existing Docker inventory
 is preserved, and 1,911 tracked hashes are unchanged. See the
 [relayed scope](evidence/2026-10-08-native-919cffe0-reported.json).
+
+
+### Native navigation and cold-reopen report at `675ed402`
+
+The local thread reports the documented native build passed at exact
+`675ed402385b4082afda539b63fb0ff03565f58e`, with 1,921 tracked hashes unchanged.
+Warm and cold-reopen batches each passed five fixed-coordinate project label
+clicks with collapsed rows and the four distinct saved definitions preserved.
+Explicit disclosure preserves the selected project; single-tab-stop tree
+navigation, Right/Left, Enter/Space without expansion, Windows Ctrl+K and
+unsaved-edit Keep editing behavior pass. Returning-owner sign-in and isolated
+state selection pass after normal close; a different free API port is expected.
+The first exact-window close stopped the owned app, sidecar and WebViews, and
+normal-state native-handle/content/identity comparisons match except for
+observer-sensitive access times. The second close/cleanup and receipt audit are
+still pending in this relayed report. Original misselection cause remains
+unconfirmed. No worker, provider, throughput, crash or full resource acceptance
+is implied, and raw local receipts have not been inspected by the cloud thread.
+
+
+The completed follow-up now marks **LOCAL-007 corrected behavior verified** at
+that exact revision. Four normal shutdown cycles stopped app/sidecar/WebViews;
+final known owned processes/listeners are zero, and original 107 containers/four
+running Docker workloads are unchanged. The tester preserved an initial helper
+filename collision that overwrote detailed navigation JSON with screenshot body
+summaries, corrected names, and repeated only the focused navigation in two
+further normal restart cycles. The two complete receipts pass; keyboard/draft
+evidence was intact. Source and user checkout remain clean, 1,921 tracked hashes
+unchanged. See the [relayed final receipt](evidence/2026-10-08-native-navigation-675ed402-reported.json).
+Original misselection and historical metadata causes remain unconfirmed. This
+closes the corrected navigation scope, not the remaining recovery, workload,
+resource or live-provider release gates.
