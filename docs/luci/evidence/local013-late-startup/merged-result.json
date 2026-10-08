@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "command": [
+    "node",
+    "--test",
+    "--test-concurrency=1",
+    "scripts/acceptance/launch-recovery/acceptance-startup.test.mjs"
+  ],
+  "startedAt": "2026-10-08T20:14:58.972290+00:00",
+  "endedAt": "2026-10-08T20:14:59.510810+00:00",
+  "exitCode": 0,
+  "driverSyntaxExitCode": 0,
+  "passed": 15,
+  "failed": 0,
+  "source": {
+    "scripts/acceptance/task-dependencies/dag.mjs": "8ac2a44a08a018d33783282190ee6aa20ec02a351718128016b86cd925af9040",
+    "scripts/acceptance/launch-recovery/acceptance-startup.mjs": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+    "scripts/acceptance/launch-recovery/acceptance-startup.test.mjs": "28f675f2b994bf663784a702ce1e9930fb2cf4aa0d8aac0fa82d82acb20e128f",
+    "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+  },
+  "scope": "Affected actual-orchestration/location tests after exact CLOUD025/startup merge; unchanged proxy/lifecycle suites retain previous run."
+}

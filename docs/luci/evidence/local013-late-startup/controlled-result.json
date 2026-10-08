@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "command": [
+    "node",
+    "--test",
+    "--test-concurrency=1",
+    "scripts/acceptance/launch-recovery/acceptance-startup.test.mjs",
+    "scripts/acceptance/launch-recovery/acceptance-lifecycle.test.mjs",
+    "scripts/acceptance/launch-recovery/fenced-docker-proxy.test.mjs"
+  ],
+  "startedAt": "2026-10-08T20:13:18.360853+00:00",
+  "endedAt": "2026-10-08T20:13:19.560154+00:00",
+  "exitCode": 0,
+  "source": {
+    "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+    "scripts/acceptance/launch-recovery/acceptance-lifecycle.test.mjs": "e5f43c0edfa919341f449f7da3d86c76fda69229c6b61d73eb4f6e9feb80f840",
+    "scripts/acceptance/launch-recovery/acceptance-startup.mjs": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+    "scripts/acceptance/launch-recovery/acceptance-startup.test.mjs": "28f675f2b994bf663784a702ce1e9930fb2cf4aa0d8aac0fa82d82acb20e128f",
+    "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+    "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs": "48e97d6d5c915cf80c99f0c79a8fb16261eb219616f878fa1ce103ee2c59303d",
+    "scripts/acceptance/launch-recovery/fenced-docker-proxy.test.mjs": "f7b76ba8a0047cdeaed6741a81a10a36edca3513db4fcffde617fb37fcb0ef04",
+    "scripts/acceptance/task-dependencies/dag.mjs": "8df095b32a7cbc54c9038a663e7f1f8cfcad1bc6d612bcb8658079173843f38e"
+  },
+  "sourceUnchanged": true,
+  "scope": "15 startup/location actual-orchestration tests, 7 lifecycle/privacy tests, 29 synthetic proxy tests; no Docker/browser or process spawn."
+}

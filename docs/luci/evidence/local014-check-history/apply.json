@@ -1,0 +1,27 @@
+{
+  "issue": "LOCAL-014",
+  "appliedAt": "2026-10-08T20:06:39.447137+00:00",
+  "head": "6002b2eef3151ffd02963aa34cf32c71fc9b2755",
+  "preparedManifestSha256": "d86d689d1f2d5f6a4a9086a1f8c6662be1882883df2585c14bc9d6604f834bbe",
+  "authorization": "Root approved exact tested source application under existing user authorization",
+  "files": [
+    {
+      "path": "control-plane/internal/api/project_check_history_liveness_test.go",
+      "beforeSha256": null,
+      "preparedSha256": "fa8c17b258952a8ea40f313b794e928687d63b0f334b59e7c745f4ced166a6e7",
+      "appliedSha256": "fa8c17b258952a8ea40f313b794e928687d63b0f334b59e7c745f4ced166a6e7"
+    },
+    {
+      "path": "control-plane/internal/product/project_check_history_liveness_test.go",
+      "beforeSha256": null,
+      "preparedSha256": "4bdf4ce06661d7f5d5946a1718aa01dc79357d94c5153988dc7d5da99b6da0f9",
+      "appliedSha256": "4bdf4ce06661d7f5d5946a1718aa01dc79357d94c5153988dc7d5da99b6da0f9"
+    },
+    {
+      "path": "control-plane/internal/product/project_checks.go",
+      "beforeSha256": "acfe1c60d6706b326c5a76cdc4230ee1ee898434261bc94c9f4b1a66fe3dbdf6",
+      "preparedSha256": "cd7a2a28c0125566a3ddeccef823ea12676a77232d14423a0cd54609db5e999e",
+      "appliedSha256": "cd7a2a28c0125566a3ddeccef823ea12676a77232d14423a0cd54609db5e999e"
+    }
+  ]
+}

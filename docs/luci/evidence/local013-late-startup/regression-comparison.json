@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "scope": "Exact original/corrected DAG startup block and startService source slices executed in VM; same cancellation/cleanup invariant, all external effects injected. No Docker or actual processes.",
+  "records": [
+    {
+      "mode": "original",
+      "command": [
+        "node",
+        "original-vs-corrected-regression.mjs",
+        "original"
+      ],
+      "startedAt": "2026-10-08T20:11:21.484601+00:00",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "outcome": "resolved",
+      "postCancellationSpawns": 1,
+      "postCancellationConfigWrites": 1,
+      "sourceSHA256": "e22fabe57952ad03c763bc188121b3886c64ea0941cf2ebdc795523f360e91f3"
+    },
+    {
+      "mode": "corrected",
+      "command": [
+        "node",
+        "original-vs-corrected-regression.mjs",
+        "corrected"
+      ],
+      "startedAt": "2026-10-08T20:11:21.673114+00:00",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "outcome": "controlled-cancel",
+      "postCancellationSpawns": 0,
+      "postCancellationConfigWrites": 0,
+      "sourceSHA256": "8ac2a44a08a018d33783282190ee6aa20ec02a351718128016b86cd925af9040",
+      "recheckedAt": "2026-10-08T20:14:59.582047+00:00"
+    }
+  ]
+}

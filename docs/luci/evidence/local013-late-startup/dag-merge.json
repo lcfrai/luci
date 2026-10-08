@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "method": "Exact unique original-base to startup-candidate edit blocks applied onto current CLOUD025 DAG; each before-block matched once.",
+  "originalBaseSHA256": "e22fabe57952ad03c763bc188121b3886c64ea0941cf2ebdc795523f360e91f3",
+  "startupOnlySHA256": "8df095b32a7cbc54c9038a663e7f1f8cfcad1bc6d612bcb8658079173843f38e",
+  "currentRootWithCLOUD025SHA256": "8a07114aae0b58cbf530accd88613b58edfcb546245e8a3fcfc2aae695658bd2",
+  "mergedSHA256": "8ac2a44a08a018d33783282190ee6aa20ec02a351718128016b86cd925af9040",
+  "CLOUD025Retained": true
+}

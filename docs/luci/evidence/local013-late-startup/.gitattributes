@@ -1,0 +1,3 @@
+** -text
+followup/before.log -whitespace
+followup/dag-boundary-followup.patch -whitespace

@@ -1,0 +1,16 @@
+✔ actual action keeps failed-click response rejection observed through cleanup (166.986032ms)
+✔ actual readReview keeps failed-click response rejection observed through cleanup (73.902679ms)
+✔ actual checkWait keeps failed-click response rejection observed through cleanup (114.32403ms)
+✔ actual provider refuses new tool dispatch after pending body resumes during cancellation (3.680786ms)
+✔ actual provider refuses new tool dispatch after pending bundle resumes during cancellation (1.554186ms)
+✔ actual response writer refuses an already-built tool response after cancellation (2.502658ms)
+✔ healthy exact provider dispatch still emits one native tool response (1.225881ms)
+✔ observing a response waiter never suppresses its awaited failure (1.041111ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 467.135387

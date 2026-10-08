@@ -1,0 +1,37 @@
+{
+  "mode": "original",
+  "sourceSHA256": "e22fabe57952ad03c763bc188121b3886c64ea0941cf2ebdc795523f360e91f3",
+  "startupSliceSHA256": "22cd3a0071f69eb1fe8fd46bf2ed1004881172d2af17b82150425fab9b0a3e32",
+  "serviceSliceSHA256": "523bad0695b773ec633f0909405cb4e5e01b656e58fdd5dee31b599f9067729c",
+  "postCancellationSpawns": 1,
+  "postCancellationConfigWrites": 1,
+  "calls": [
+    "controller-cleanup-complete",
+    "config-write",
+    "service-spawn"
+  ],
+  "outcome": "resolved",
+  "cleanup": [
+    {
+      "name": "controllers",
+      "status": "completed",
+      "result": true
+    },
+    {
+      "name": "proxy",
+      "status": "completed",
+      "result": {
+        "drained": true,
+        "notStarted": true
+      }
+    },
+    {
+      "name": "held-phase",
+      "status": "completed"
+    }
+  ],
+  "startupResources": [],
+  "failures": [],
+  "externalProcessesStarted": 0,
+  "DockerRequests": 0
+}

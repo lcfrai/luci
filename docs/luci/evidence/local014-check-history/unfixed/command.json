@@ -1,0 +1,26 @@
+{
+  "command": [
+    "/workspace/.luci-tools/go1.26.3/bin/go",
+    "test",
+    "-race",
+    "-p",
+    "1",
+    "-count",
+    "1",
+    "-timeout=5m",
+    "-json",
+    "-overlay=/workspace/.luci-tools/check-history-liveness/unfixed/overlay.json",
+    "-run",
+    "^TestProjectCheck(HTTPSettledUnknownHistoryAllowsNextCheck|History)",
+    "./internal/api",
+    "./internal/product"
+  ],
+  "cwd": "/workspace/luci/control-plane",
+  "env": {
+    "GOMAXPROCS": "2",
+    "LUCI_CHECK_HTTP_CAPTURE": "/workspace/.luci-tools/check-history-liveness/unfixed/project-check-http.json",
+    "LUCI_CHECK_HTTP_EXPECTED": "/workspace/luci/control-plane/internal/product/testdata/project-check-http.json"
+  },
+  "startedAt": "2026-10-08T20:02:59.990125+00:00",
+  "scope": "Controlled API/product race regression; no Docker or installed execution"
+}

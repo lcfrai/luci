@@ -1,0 +1,71 @@
+{
+  "issue": "LOCAL-015",
+  "baseRevision": "6002b2eef3151ffd02963aa34cf32c71fc9b2755",
+  "scope": "Linux controlled component/API and focused Chromium callbacks; not native Windows/backend allocation evidence",
+  "source": {
+    "baseRevision": "6002b2eef3151ffd02963aa34cf32c71fc9b2755",
+    "staged": {
+      "desktop/src/components/journey/ProjectChecks.tsx": "d4f90d851807f6d5b8d0341eaadfd752065850f4ecf2d03f9522ac13b463b0b0",
+      "desktop/src/components/journey/ProjectChecks.test.tsx": "2c91638747dd62aa8e1f10db622de4e73dba0afbf2b6f44a45c78bb91daadaa7"
+    },
+    "expectedRoot": {
+      "desktop/src/components/journey/ProjectChecks.tsx": "fa7c138ff4fa81bdd523bd8ae939c3186dc3b17758e9472010b9960dc8e8bb48",
+      "desktop/src/components/journey/ProjectChecks.test.tsx": "7ac0b841e7689f0b988bdece4c0cb7c98c2f5656a0a48da40a56389e5f8a338e"
+    },
+    "rootFilesStillOriginal": true
+  },
+  "before": {
+    "passed": 2,
+    "failed": 4,
+    "unselected": 45,
+    "testsSHA256": "2c91638747dd62aa8e1f10db622de4e73dba0afbf2b6f44a45c78bb91daadaa7",
+    "productionSHA256": "fa7c138ff4fa81bdd523bd8ae939c3186dc3b17758e9472010b9960dc8e8bb48"
+  },
+  "after": {
+    "passed": 69,
+    "failed": 0,
+    "unselected": 0,
+    "typecheckExit": 0,
+    "files": [
+      {
+        "path": "desktop/src/api/product.test.ts",
+        "tests": 7,
+        "status": "passed"
+      },
+      {
+        "path": "desktop/src/components/journey/CheckRecoveryDialog.test.tsx",
+        "tests": 11,
+        "status": "passed"
+      },
+      {
+        "path": "desktop/src/components/journey/ProjectChecks.test.tsx",
+        "tests": 51,
+        "status": "passed"
+      }
+    ]
+  },
+  "browser": {
+    "attempt": 3,
+    "passed": true,
+    "checks": 6,
+    "version": "151.0.7922.173",
+    "sourceUnchanged": true,
+    "helperUnchanged": true,
+    "errors": [],
+    "cleanup": [
+      {
+        "label": "owned Chromium",
+        "closed": true
+      },
+      {
+        "label": "owned Vite",
+        "closed": true
+      },
+      {
+        "label": "private profile",
+        "closed": true
+      }
+    ]
+  },
+  "bindingLimit": "Component source-input manifests are reconstructed from the preserved isolated projection after test completion. Browser manifests are actual before/after fingerprints. No full-suite/native/backend acceptance inferred."
+}

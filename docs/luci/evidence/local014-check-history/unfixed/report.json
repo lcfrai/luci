@@ -1,0 +1,33 @@
+{
+  "exitCode": 1,
+  "counts": {
+    "pass": 9,
+    "fail": 5,
+    "skip": 0
+  },
+  "failures": [
+    "TestProjectCheckHTTPSettledUnknownHistoryAllowsNextCheck",
+    "TestProjectCheckHistoryPrunesSettledUnknownEvidence/source-changed",
+    "TestProjectCheckHistoryPrunesSettledUnknownEvidence/exit-unknown",
+    "TestProjectCheckHistoryPrunesSettledUnknownEvidence/remaining-skipped",
+    "TestProjectCheckHistoryPrunesSettledUnknownEvidence"
+  ],
+  "packages": [
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "action": "fail",
+      "elapsed": 3.473
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/product",
+      "action": "fail",
+      "elapsed": 0.689
+    }
+  ],
+  "wallSeconds": 42.458,
+  "inputsUnchanged": true,
+  "inputCount": 719,
+  "overlayInputCount": 2,
+  "headBefore": "6002b2eef3151ffd02963aa34cf32c71fc9b2755",
+  "headAfter": "6002b2eef3151ffd02963aa34cf32c71fc9b2755"
+}

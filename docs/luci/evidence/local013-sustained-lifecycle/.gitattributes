@@ -1,0 +1,3 @@
+** -text
+candidate.patch -whitespace
+controlled-js-final.tap -whitespace

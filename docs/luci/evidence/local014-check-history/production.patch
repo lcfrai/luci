@@ -1,0 +1,48 @@
+--- a/control-plane/internal/product/project_checks.go
++++ b/control-plane/internal/product/project_checks.go
+@@ -133,6 +133,36 @@
+ 	return rows, nil
+ }
+ 
++// Unknown evidence is not necessarily unresolved execution: source changes or
++// unavailable output can leave a safely cleaned run unknown. Only explicit
++// resource release and exact cleanup receipts make such a row evictable; legacy
++// or partial ownership remains pinned regardless of its diagnostic message.
++func checkHistoryNeedsExecution(row ProjectCheckRun) bool {
++	if row.Status == "queued" || row.Status == "running" || row.ResourcesHeld != nil && *row.ResourcesHeld {
++		return true
++	}
++	if row.Status != "unknown" {
++		return false
++	}
++	if row.Revision < 1 || row.ResourcesHeld == nil || len(row.Commands) == 0 {
++		return true
++	}
++	for _, command := range row.Commands {
++		if command.Status == "skipped" {
++			continue
++		}
++		if command.AllocationID == "" || !command.CleanupConfirmed {
++			return true
++		}
++		switch command.Status {
++		case "passed", "failed", "blocked", "unknown", "cancelled":
++		default:
++			return true
++		}
++	}
++	return false
++}
++
+ // Caller holds s.mu. Retain twenty bounded runs outside agent-writable project context.
+ func (s *Server) storeCheckRun(row ProjectCheckRun) error {
+ 	rows, err := s.readCheckHistory(row.ProjectID)
+@@ -153,7 +183,7 @@
+ 	if len(rows) > 20 {
+ 		keep := make([]ProjectCheckRun, 0, 20)
+ 		for _, candidate := range rows {
+-			if candidate.Status == "queued" || candidate.Status == "running" || candidate.Status == "unknown" || candidate.ResourcesHeld != nil && *candidate.ResourcesHeld {
++			if checkHistoryNeedsExecution(candidate) {
+ 				keep = append(keep, candidate)
+ 			}
+ 		}

@@ -1,0 +1,18 @@
+8:12:33 PM [vite] (client) Re-optimizing dependencies because vite config has changed
+8:12:36 PM [vite] (client) dependencies optimized: react-dom/client, @radix-ui/react-dialog, @radix-ui/react-slot, class-variance-authority, clsx, tailwind-merge, zustand, zustand/middleware
+8:12:36 PM [vite] (client) optimized dependencies changed. reloading
+8:12:36 PM [vite] (client) [console.error] You are calling ReactDOMClient.createRoot() on a container that has already been passed to createRoot() before. Instead, call root.render() on the existing root instead if you want to update it.
+The request id "/workspace/luci/desktop/node_modules/@fontsource-variable/inter/files/inter-latin-standard-normal.woff2" is outside of Vite serving allow list.
+
+- /workspace/.luci-tools/check-ui-uncertainty/tree
+- /workspace/luci/desktop/node_modules/vite/dist/client
+
+Refer to docs https://vite.dev/config/server-options.html#server-fs-allow for configurations and more details.
+
+locator.waitFor: Timeout 12000ms exceeded.
+Call log:
+[2m  - waiting for getByRole('button', { name: 'Refresh requirement evidence', exact: true }) to be visible[22m
+
+    at fresh (/workspace/.luci-tools/check-ui-uncertainty/browser-helper/source-browser.mjs:48:293)
+    at async file:///workspace/.luci-tools/check-ui-uncertainty/browser-helper/source-browser.mjs:51:4
+{"passed":false,"checks":0,"error":"locator.waitFor: Timeout 12000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Refresh requirement evidence', exact: true }) to be visible\u001b[22m\n\n    at fresh (/workspace/.luci-tools/check-ui-uncertainty/browser-helper/source-browser.mjs:48:293)\n    at async file:///workspace/.luci-tools/check-ui-uncertainty/browser-helper/source-browser.mjs:51:4","cleanup":[{"label":"owned Chromium","closed":true},{"label":"owned Vite","closed":true},{"label":"private profile","closed":true}]}

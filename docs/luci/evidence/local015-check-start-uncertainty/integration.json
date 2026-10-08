@@ -1,0 +1,12 @@
+{
+  "appliedAt": "2026-10-08T20:16:57.013851+00:00",
+  "head": "6002b2eef3151ffd02963aa34cf32c71fc9b2755",
+  "files": {
+    "desktop/src/components/journey/ProjectChecks.tsx": "d4f90d851807f6d5b8d0341eaadfd752065850f4ecf2d03f9522ac13b463b0b0",
+    "desktop/src/components/journey/ProjectChecks.test.tsx": "2c91638747dd62aa8e1f10db622de4e73dba0afbf2b6f44a45c78bb91daadaa7"
+  },
+  "evidencePath": "docs/luci/evidence/local015-check-start-uncertainty",
+  "allProjectedInputsMatchRoot": true,
+  "inputCount": 428,
+  "sourceNoFurtherChanges": true
+}

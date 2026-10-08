@@ -1,0 +1,284 @@
+{
+  "version": 1,
+  "issue": "LOCAL013",
+  "scope": "Affected sustained-four-project sibling acceptance lifecycle helper; not a new product issue.",
+  "recordedAt": "2026-10-08T20:10:11.631623+00:00",
+  "currentRootHEAD": "6002b2eef3151ffd02963aa34cf32c71fc9b2755",
+  "rootEdits": false,
+  "applyOnly": [
+    {
+      "path": "scripts/acceptance/sustained-four-project/sustained.mjs",
+      "action": "replace",
+      "rootSHA256": "ffaa37c64b5cfe0e1c139a92a4cadf3fdf1db00e3d5a42125092e8ea50d15c93",
+      "candidateSHA256": "0db057acedfaf76f09d1d37ea49ce21f072d6ada021b3498956a485e3a93f0e1",
+      "rootMatchesInitialBaseline": true
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/run-with-observer.py",
+      "action": "replace",
+      "rootSHA256": "a966ff9fc1a85a459b05d558d98406e7732d344ad14c05c3d076ad092ac38480",
+      "candidateSHA256": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a",
+      "rootMatchesInitialBaseline": true
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/run_with_observer_test.py",
+      "action": "replace",
+      "rootSHA256": "16d056f5c3b5cb4febdb0765c4a458b3afc9276b0c22f46902391145f6a71d1e",
+      "candidateSHA256": "7ad4e28b0172b4ee131ecbd04033aba5b36304f2bef34f800a0f6a45e6ef7b12",
+      "rootMatchesInitialBaseline": true
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/README.md",
+      "action": "replace",
+      "rootSHA256": "0c7fc81b620138e19815903106370379fc59137c875fa3f5a1e9b9be35d8f541",
+      "candidateSHA256": "897edbc5565895661680c4610d1e9d6cd5b89329e3736377557a8393e63ac29b",
+      "rootMatchesInitialBaseline": true
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/lifecycle.test.mjs",
+      "action": "add",
+      "rootSHA256": null,
+      "candidateSHA256": "b77a41f2d04d6a9f3bb217675c78fae26a58afb6ec711425bf5f3e998bd7ae08",
+      "rootMatchesInitialBaseline": true
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/source-binding.mjs",
+      "action": "add",
+      "rootSHA256": null,
+      "candidateSHA256": "ce82e6392ab8635f104b7dac14eff87b5e8ac58cd72dc59a1398ce2c5729a719",
+      "rootMatchesInitialBaseline": true
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/source-binding.test.mjs",
+      "action": "add",
+      "rootSHA256": null,
+      "candidateSHA256": "80ffa2d56f40fa85b4fe0400356c4ed5a6ac1cdf7f0668541addeb44651e2c45",
+      "rootMatchesInitialBaseline": true
+    }
+  ],
+  "reviewPatch": "candidate.patch",
+  "bounds": {
+    "preparationSeconds": 120,
+    "scenarioSeconds": 1800,
+    "cleanupSeconds": 180,
+    "driverTotalSeconds": 2100,
+    "observerSeconds": 2115,
+    "afterTotalDriverSignalGraceSeconds": 5,
+    "afterForcedDriverExitReapSeconds": 5,
+    "observerSettlementSeconds": [
+      30,
+      5,
+      5
+    ],
+    "watcherJoinSeconds": 2
+  },
+  "behavior": [
+    "Durable private failure checkpoint and journal stage/controller identities precede failure screenshots and cleanup awaits.",
+    "Workflow rejection races stuck awaits; later API/provider/browser/Create mutations are fenced. Intentional active-command service restart remains permitted.",
+    "Independent controller/proxy/browser/provider cleanup phases remain inside one cleanup deadline. Browser fallback handles missing launch handles and hanging/throwing close.",
+    "Destructive worker cleanup retains existing immutable ID/name/session/instance/image/worktree proofs and additionally requires completed controller/drain phases and certain transport state. Late results from timed-out phases cannot grant authority.",
+    "Wrapper failure and total timeout retain uncertainty, independently settle observer, and never add a second 180-second cleanup allowance after total expiry.",
+    "Registers pending provider/proxy/browser factories before invocation; postawait gates and bounded idempotent late-handle settlement prevent continuation after cancellation. Browser descendants are tracked through parent closure.",
+    "Shared proxy beforeStart callback refuses new Starts immediately after workflow failure while existing stop/delete/drain remains available.",
+    "Late API/ticket responses cannot open or send on a new WebSocket; pending browser response promises are observed immediately if clicks fail.",
+    "--expected-helper-source defaults to product revision and independently validates exact clean helper source. Product image comparison stays at packaged product revision; both source bindings are captured and helper binding rechecked at final verification."
+  ],
+  "checks": [
+    {
+      "name": "JavaScript parse",
+      "command": [
+        "node",
+        "--check",
+        "/workspace/.luci-tools/sustained-lifecycle-staging/scripts/acceptance/sustained-four-project/sustained.mjs"
+      ],
+      "result": "passed",
+      "exitCode": 0
+    },
+    {
+      "name": "Final controlled sustained helper tests",
+      "command": [
+        "node",
+        "--test",
+        "--test-isolation=none",
+        "--test-reporter=tap",
+        "--test-skip-pattern=actual browser collector",
+        "scripts/acceptance/sustained-four-project/event-drain.test.mjs",
+        "scripts/acceptance/sustained-four-project/task-context.test.mjs",
+        "scripts/acceptance/sustained-four-project/helper.test.mjs",
+        "scripts/acceptance/sustained-four-project/workload.test.mjs",
+        "scripts/acceptance/sustained-four-project/latency-diagnostics.test.mjs",
+        "scripts/acceptance/sustained-four-project/lifecycle.test.mjs",
+        "scripts/acceptance/sustained-four-project/source-binding.test.mjs"
+      ],
+      "cwd": "/workspace/.luci-tools/sustained-lifecycle-staging",
+      "environment": {
+        "LUCI_ACCEPTANCE_REPO": "/workspace/luci",
+        "LUCI_ACCEPTANCE_STARTUP_TEST_MODULE": "/workspace/.luci-tools/late-startup-lifecycle/staged/scripts/acceptance/launch-recovery/acceptance-startup.mjs"
+      },
+      "result": "passed",
+      "exitCode": 0,
+      "counts": {
+        "tests": 73,
+        "pass": 73,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "rawLog": "controlled-js-ready.tap",
+      "exclusions": [
+        "Actual-browser collector excluded by pattern, and not counted as selected or skipped by this Node runner."
+      ],
+      "newLifecycleCases": 13,
+      "newSourceBindingCases": 15
+    },
+    {
+      "name": "Python wrapper fault tests",
+      "result": "passed",
+      "exitCode": 0,
+      "counts": {
+        "pass": 28,
+        "fail": 0,
+        "skip": 0
+      },
+      "receipt": "python-verification.json",
+      "rawLog": null,
+      "note": "Observed child-agent tool result retained in transcript; no standalone raw log was saved and no rerun was made solely for output."
+    }
+  ],
+  "unchangedWorkloadContracts": {
+    "predeclared-workload-reason": {
+      "sha256": "d73bdf45545432e8bbe92dbf21db755b13166f9e45cd787235542bd1692ba204",
+      "unchangedInCandidate": true
+    },
+    "latency-targets": {
+      "sha256": "ba75501d7739a6155196f8bea4d272164bf6c0bafa934f41705616b6c287be9e",
+      "unchangedInCandidate": true
+    },
+    "latency-failure-thresholds": {
+      "sha256": "8b2a855dd3895132dc1b5cfaef31efa39f9ee6f588bbe8ea7f29565b53f13e09",
+      "unchangedInCandidate": true
+    },
+    "five-natural-completions-and-transport-gates": {
+      "sha256": "0f560511e1376fd1dbec744b071686f1ef298b7756ed0be9e33fc3eeb34c11b4",
+      "unchangedInCandidate": true
+    }
+  },
+  "unchangedCollateralHelpers": {
+    "scripts/acceptance/sustained-four-project/task-command.mjs": {
+      "rootSHA256": "414015af6ea915ccd3c838c3a316b7f08e079b70cc5de299a7991bb0b5f9f6fe",
+      "stagedSHA256": "414015af6ea915ccd3c838c3a316b7f08e079b70cc5de299a7991bb0b5f9f6fe",
+      "unchanged": true
+    },
+    "scripts/acceptance/sustained-four-project/workloads.mjs": {
+      "rootSHA256": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306",
+      "stagedSHA256": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306",
+      "unchanged": true
+    },
+    "scripts/acceptance/sustained-four-project/interaction-metrics.mjs": {
+      "rootSHA256": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502",
+      "stagedSHA256": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502",
+      "unchanged": true
+    },
+    "scripts/acceptance/sustained-four-project/latency-diagnostics.mjs": {
+      "rootSHA256": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96",
+      "stagedSHA256": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96",
+      "unchanged": true
+    },
+    "scripts/acceptance/sustained-four-project/task-context.mjs": {
+      "rootSHA256": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2",
+      "stagedSHA256": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2",
+      "unchanged": true
+    }
+  },
+  "sharedRootHelpersReadOnly": {
+    "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+    "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs": "062f24520425480bca2afb62f40ea0d4bed6e6c842cddd3ad9800e5d2c2b20ea",
+    "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs": "bb7e7ec6be9501eeb155b9c9d4112dffd6b9066fc539cd1cd45eac4ed732531d",
+    "scripts/acceptance/launch-recovery/worker-create-guard.mjs": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+    "scripts/acceptance/four-project-queue/sample-linux-owned.py": "324d4543b0111619fe45a45f80af06f8fdc5022cfec491b04ca0e8f990f325b7"
+  },
+  "limitations": [
+    "No installed sustained workflow, Docker action, real browser, compiler or cloud operation was started.",
+    "Node fixtures used actual lifecycle wiring with controlled promises/files; Python child handles and signals were mocked and observer self-cost executed in-process.",
+    "Full 30-minute installed workload and latency/resource acceptance remain pending.",
+    "Candidate remains external and root files are unchanged by this task. Final controlled source imports the explicitly hashed external shared startup module; shared proxy beforeStart implementation is validated separately by its owner."
+  ],
+  "artifacts": [
+    {
+      "file": "candidate.patch",
+      "bytes": 156801,
+      "sha256": "4b44b6159750a8a7abc439b559ec207bac5186e914f35bba90a4e1e3efab3f04"
+    },
+    {
+      "file": "source-baseline.json",
+      "bytes": 559,
+      "sha256": "5b50a7357937531d48dcda11a9283718fde2f00b8e0677fbaaa6461306cef8ad"
+    },
+    {
+      "file": "controlled-js-tests.tap",
+      "bytes": 10037,
+      "sha256": "7be90120b08ffb120122c92f2e7ad168e95995adbb525690d399aed01393dc4f"
+    },
+    {
+      "file": "lifecycle-test.log",
+      "bytes": 829,
+      "sha256": "a97958b823d2fe923bbb2a6c79d18ba9542953d46b170a6e97b094c498600937"
+    },
+    {
+      "file": "lifecycle-test-final.log",
+      "bytes": 940,
+      "sha256": "a2630efd4a276a168fd52c9549fe909b8979a4258ec9c0d2a5fab3189f5582aa"
+    },
+    {
+      "file": "python-verification.json",
+      "bytes": 3215,
+      "sha256": "eb897dcc9d620c4076bbb05161b8f7a0e76f7916652caa96c42eb880e1da282e"
+    },
+    {
+      "file": "source-and-continuation-tests.tap",
+      "bytes": 5828,
+      "sha256": "2e3912fae88cb0906536b16402d9cf8e4542ed2ee20d2d29c1f81bc4e347b9ae"
+    },
+    {
+      "file": "startup-wiring-tests.tap",
+      "bytes": 6335,
+      "sha256": "23beb5ac7f3bff599c1ae68066515ebb6b26ce0e7543e26a1be1796e7d7c2042"
+    },
+    {
+      "file": "controlled-js-final.tap",
+      "bytes": 15028,
+      "sha256": "b0821fe0417b0ef627bb7b608775c93d4bb00fd2bdcfa9b2e60106a3d31299bc"
+    },
+    {
+      "file": "controlled-js-final-corrected.tap",
+      "bytes": 14315,
+      "sha256": "ef97b55e93082ef5d2782aa36839d3c64fb7737916142eb4629c79f6e1171705"
+    },
+    {
+      "file": "controlled-js-ready.tap",
+      "bytes": 14579,
+      "sha256": "4a1e5678efedf3185de3915ba1cc8044f0bbcd6d58945974d7f7f851365c4991"
+    },
+    {
+      "file": "verification-before-startup-followup.json",
+      "bytes": 9886,
+      "sha256": "a6a984e20097feb4a18ba772e11c07216105aa9c91c11645008c0912e58c99d0"
+    }
+  ],
+  "retainedFailedCheck": {
+    "log": "controlled-js-final.tap",
+    "result": "72 selected, 71 passed, 1 failed",
+    "cause": "Controlled fixture outer phase timer was 15 ms while its browser close and fallback timers totaled 10 ms; scheduler delay exceeded fixture allowance, so assertion ran before fallback. Increased only the fixture outer cap to 200 ms. Production phase/workload/deadline values unchanged.",
+    "correctedChecks": [
+      "controlled-js-final-corrected.tap",
+      "controlled-js-ready.tap"
+    ]
+  },
+  "externalStartupDependency": {
+    "applyBy": "proxy_diagnosis/root, not this candidate patch",
+    "path": "scripts/acceptance/launch-recovery/acceptance-startup.mjs",
+    "testedSource": "/workspace/.luci-tools/late-startup-lifecycle/staged/scripts/acceptance/launch-recovery/acceptance-startup.mjs",
+    "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+    "proxyDependency": "The sibling must be integrated alongside the shared beforeStart proxy callback follow-up; root currently does not contain this new helper."
+  }
+}

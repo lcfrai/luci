@@ -1,0 +1,26 @@
+{
+  "recordedAt": "2026-10-08T20:22:48.363648+00:00",
+  "from": "/workspace/luci/artifacts/releases/0.5.0",
+  "to": "/workspace/luci/artifacts/releases/0.5.0-6002b2ee-dependency-failed",
+  "sourceCommit": "6002b2eef3151ffd02963aa34cf32c71fc9b2755",
+  "reason": "Preserve prior matching failed-attempt package before next clean-source build. Historical receipts keep original paths; resolve with this relocation record.",
+  "files": {
+    "release-manifest.json": {
+      "bytes": 697,
+      "sha256": "f26ae413b6e15948045627ee0c10b89fc311412ce100e5394cc9b8dc10c1ffb6"
+    },
+    "luci-cloud-linux-amd64.tar.gz": {
+      "bytes": 50766694,
+      "sha256": "e80db3d8c709048930ae7e6f9307769f650cb73fad2328d27f1de2c38a49228d"
+    },
+    "luci-linux-amd64.tar.gz": {
+      "bytes": 101338319,
+      "sha256": "c91acf44494cf2c0937c450c04ec073af249dde9271ebe11e2d7c6863ce20d2a"
+    },
+    "SHA256SUMS": {
+      "bytes": 186,
+      "sha256": "a9c9f7e81da21c5afd4c2f0216fd630c2db1af053d017c2f32965ca9dd0fd888"
+    }
+  },
+  "allBytesUnchanged": true
+}

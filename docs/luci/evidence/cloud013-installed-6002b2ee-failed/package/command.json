@@ -1,0 +1,12 @@
+{
+  "command": [
+    "bash",
+    "scripts/build-release.sh",
+    "0.5.0",
+    "linux-amd64"
+  ],
+  "sourceCommit": "6002b2eef3151ffd02963aa34cf32c71fc9b2755",
+  "startedAt": "2026-10-08T19:54:05.772205+00:00",
+  "GOMAXPROCS": 2,
+  "GOFLAGS": "-p=1"
+}

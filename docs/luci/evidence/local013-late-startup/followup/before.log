@@ -1,0 +1,161 @@
+✖ actual action keeps failed-click response rejection observed through cleanup (117.779385ms)
+✖ actual readReview keeps failed-click response rejection observed through cleanup (139.725583ms)
+✖ actual checkWait keeps failed-click response rejection observed through cleanup (60.910022ms)
+✖ actual provider refuses new tool dispatch after pending body resumes during cancellation (5.373791ms)
+✖ actual provider refuses new tool dispatch after pending bundle resumes during cancellation (3.916512ms)
+✖ actual response writer refuses an already-built tool response after cancellation (1.971346ms)
+✔ healthy exact provider dispatch still emits one native tool response (2.747528ms)
+✔ observing a response waiter never suppresses its awaited failure (2.201634ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 2
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 486.373246
+
+✖ failing tests:
+
+test at scripts/acceptance/task-dependencies/dag-lifecycle.test.mjs:21:55
+✖ actual action keeps failed-click response rejection observed through cleanup (117.779385ms)
+  AssertionError [ERR_ASSERTION]: Orphan waiter interrupted cleanup: file:///workspace/luci/[eval1]:6
+  const page={waitForResponse(){return new Promise((_resolve,reject)=>{setTimeout(()=>reject(Error('controlled-orphan-response')),5);});}};
+                                                                                             ^
+  
+  Error: controlled-orphan-response
+      at Timeout._onTimeout (file:///workspace/luci/[eval1]:6:92)
+      at listOnTimeout (node:internal/timers:635:17)
+      at process.processTimers (node:internal/timers:571:7)
+  
+  Node.js v24.19.0
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///workspace/luci/scripts/acceptance/task-dependencies/dag-lifecycle.test.mjs:37:45)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts/acceptance/task-dependencies/dag-lifecycle.test.mjs:21:55
+✖ actual readReview keeps failed-click response rejection observed through cleanup (139.725583ms)
+  AssertionError [ERR_ASSERTION]: Orphan waiter interrupted cleanup: file:///workspace/luci/[eval1]:6
+  const page={waitForResponse(){return new Promise((_resolve,reject)=>{setTimeout(()=>reject(Error('controlled-orphan-response')),5);});}};
+                                                                                             ^
+  
+  Error: controlled-orphan-response
+      at Timeout._onTimeout (file:///workspace/luci/[eval1]:6:92)
+      at listOnTimeout (node:internal/timers:635:17)
+      at process.processTimers (node:internal/timers:571:7)
+  
+  Node.js v24.19.0
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///workspace/luci/scripts/acceptance/task-dependencies/dag-lifecycle.test.mjs:37:45)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts/acceptance/task-dependencies/dag-lifecycle.test.mjs:21:55
+✖ actual checkWait keeps failed-click response rejection observed through cleanup (60.910022ms)
+  AssertionError [ERR_ASSERTION]: Orphan waiter interrupted cleanup: file:///workspace/luci/[eval1]:6
+  const page={waitForResponse(){return new Promise((_resolve,reject)=>{setTimeout(()=>reject(Error('controlled-orphan-response')),5);});}};
+                                                                                             ^
+  
+  Error: controlled-orphan-response
+      at Timeout._onTimeout (file:///workspace/luci/[eval1]:6:92)
+      at listOnTimeout (node:internal/timers:635:17)
+      at process.processTimers (node:internal/timers:571:7)
+  
+  Node.js v24.19.0
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///workspace/luci/scripts/acceptance/task-dependencies/dag-lifecycle.test.mjs:37:45)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts/acceptance/task-dependencies/dag-lifecycle.test.mjs:53:41
+✖ actual provider refuses new tool dispatch after pending body resumes during cancellation (5.373791ms)
+  AssertionError [ERR_ASSERTION]: No tool-dispatch authority may be recorded after cancellation
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///workspace/luci/scripts/acceptance/task-dependencies/dag-lifecycle.test.mjs:58:9)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts/acceptance/task-dependencies/dag-lifecycle.test.mjs:53:41
+✖ actual provider refuses new tool dispatch after pending bundle resumes during cancellation (3.916512ms)
+  AssertionError [ERR_ASSERTION]: No tool-dispatch authority may be recorded after cancellation
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///workspace/luci/scripts/acceptance/task-dependencies/dag-lifecycle.test.mjs:58:9)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts/acceptance/task-dependencies/dag-lifecycle.test.mjs:61:1
+✖ actual response writer refuses an already-built tool response after cancellation (1.971346ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (file:///workspace/luci/scripts/acceptance/task-dependencies/dag-lifecycle.test.mjs:63:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: { code: 'controlled-cancel' },
+    operator: 'throws',
+    diff: 'simple'
+  }

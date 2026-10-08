@@ -1,0 +1,10 @@
+{
+  "exitCode": 0,
+  "startedAt": "2026-10-08T19:49:23.549823+00:00",
+  "endedAt": "2026-10-08T19:52:27.350816+00:00",
+  "inputsUnchanged": true,
+  "inputCount": 717,
+  "scope": "Windows amd64 complete API binary crosscompile only; not native execution",
+  "binaryBytes": 88508416,
+  "binarySHA256": "b0b67dde362425dce52d1d1ffe446676d210fbaab7ba2432729c1b601e89dbc7"
+}

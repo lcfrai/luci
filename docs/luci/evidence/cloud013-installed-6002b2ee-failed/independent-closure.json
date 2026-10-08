@@ -1,0 +1,13 @@
+{
+  "at": "2026-10-08T20:00:17.317034+00:00",
+  "containers": [],
+  "volumes": [],
+  "reportedCleanup": {
+    "containers": 0,
+    "volumes": 0,
+    "ownedServiceProcesses": 0,
+    "ownedBrowserProcesses": 0,
+    "protectedImagePackageAndHelpersUnchanged": true,
+    "rootFreeBytes": 6547988480
+  }
+}

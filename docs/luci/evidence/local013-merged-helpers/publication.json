@@ -1,0 +1,29 @@
+{
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 1213,
+      "sha256": "7c822766065eb8a81322ea551b3c5930b15b446397508dcd1ad2e1e3209a64e7"
+    },
+    {
+      "path": "dag-wrapper.txt",
+      "bytes": 102,
+      "sha256": "b2300d1aafe0595c9c54a615ef485e8d42fbb732d33a076b213da446a6aafe8f"
+    },
+    {
+      "path": "merged-node.tap",
+      "bytes": 9413,
+      "sha256": "70c0155269dae40675b555a69d7cab383da067605f2a7cbd83794d4ebdf5d9a2"
+    },
+    {
+      "path": "result.json",
+      "bytes": 23846,
+      "sha256": "d9962cd7f85dc4c98dbc3f5b47d478f1cb4adb1698420b44c2bde635a7e76621"
+    },
+    {
+      "path": "sustained-wrapper.txt",
+      "bytes": 127,
+      "sha256": "4cfec31c47c44054a87092ec0a1879dcd1d7478df75617f604f4eb1b47ed8940"
+    }
+  ]
+}

@@ -1,0 +1,220 @@
+{
+  "version": 1,
+  "capturedAt": "2026-10-08T20:16:43.163594+00:00",
+  "captureScope": "Post-validation evidence snapshot. No complete pre-run input manifest was captured for these sustained checks. Earlier stage/final candidate hashes and raw logs are retained; do not relabel this as a before/after full-source stability claim.",
+  "checkoutAtEvidenceCapture": "6002b2eef3151ffd02963aa34cf32c71fc9b2755",
+  "toolVersionsObservedAtCapture": {
+    "node": "v24.19.0",
+    "python": "3.12.14"
+  },
+  "applyOnly": [
+    "scripts/acceptance/sustained-four-project/sustained.mjs",
+    "scripts/acceptance/sustained-four-project/run-with-observer.py",
+    "scripts/acceptance/sustained-four-project/run_with_observer_test.py",
+    "scripts/acceptance/sustained-four-project/README.md",
+    "scripts/acceptance/sustained-four-project/lifecycle.test.mjs",
+    "scripts/acceptance/sustained-four-project/source-binding.mjs",
+    "scripts/acceptance/sustained-four-project/source-binding.test.mjs"
+  ],
+  "inputs": [
+    {
+      "path": "scripts/acceptance/sustained-four-project/sustained.mjs",
+      "snapshot": "inputs/scripts/acceptance/sustained-four-project/sustained.mjs",
+      "origin": "/workspace/.luci-tools/sustained-lifecycle-staging/scripts/acceptance/sustained-four-project/sustained.mjs",
+      "sha256": "6655917e3b326bf192609ad071dca57b799a1e178c7d25879bf0d4b13cd47549",
+      "bytes": 86030,
+      "role": "apply candidate",
+      "binding": "final focused source hashes match verification.json"
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/run-with-observer.py",
+      "snapshot": "inputs/scripts/acceptance/sustained-four-project/run-with-observer.py",
+      "origin": "/workspace/.luci-tools/sustained-lifecycle-staging/scripts/acceptance/sustained-four-project/run-with-observer.py",
+      "sha256": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a",
+      "bytes": 17220,
+      "role": "apply candidate",
+      "binding": "final focused source hashes match verification.json"
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/run_with_observer_test.py",
+      "snapshot": "inputs/scripts/acceptance/sustained-four-project/run_with_observer_test.py",
+      "origin": "/workspace/.luci-tools/sustained-lifecycle-staging/scripts/acceptance/sustained-four-project/run_with_observer_test.py",
+      "sha256": "7ad4e28b0172b4ee131ecbd04033aba5b36304f2bef34f800a0f6a45e6ef7b12",
+      "bytes": 21628,
+      "role": "apply candidate",
+      "binding": "final focused source hashes match verification.json"
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/README.md",
+      "snapshot": "inputs/scripts/acceptance/sustained-four-project/README.md",
+      "origin": "/workspace/.luci-tools/sustained-lifecycle-staging/scripts/acceptance/sustained-four-project/README.md",
+      "sha256": "f0fd80b0159a4cd9970d30386795e1d3f256e34ad3ae09838fa4bcb2bd71d611",
+      "bytes": 14474,
+      "role": "apply candidate",
+      "binding": "final focused source hashes match verification.json"
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/lifecycle.test.mjs",
+      "snapshot": "inputs/scripts/acceptance/sustained-four-project/lifecycle.test.mjs",
+      "origin": "/workspace/.luci-tools/sustained-lifecycle-staging/scripts/acceptance/sustained-four-project/lifecycle.test.mjs",
+      "sha256": "b77a41f2d04d6a9f3bb217675c78fae26a58afb6ec711425bf5f3e998bd7ae08",
+      "bytes": 17006,
+      "role": "apply candidate",
+      "binding": "final focused source hashes match verification.json"
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/source-binding.mjs",
+      "snapshot": "inputs/scripts/acceptance/sustained-four-project/source-binding.mjs",
+      "origin": "/workspace/.luci-tools/sustained-lifecycle-staging/scripts/acceptance/sustained-four-project/source-binding.mjs",
+      "sha256": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796",
+      "bytes": 2768,
+      "role": "apply candidate",
+      "binding": "final focused source hashes match verification.json"
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/source-binding.test.mjs",
+      "snapshot": "inputs/scripts/acceptance/sustained-four-project/source-binding.test.mjs",
+      "origin": "/workspace/.luci-tools/sustained-lifecycle-staging/scripts/acceptance/sustained-four-project/source-binding.test.mjs",
+      "sha256": "8826d4a380ca1de945e714f4906c0675475e9090bd166a9d7677dcc8bc4d998c",
+      "bytes": 6801,
+      "role": "apply candidate",
+      "binding": "final focused source hashes match verification.json"
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/task-command.mjs",
+      "snapshot": "inputs/scripts/acceptance/sustained-four-project/task-command.mjs",
+      "origin": "/workspace/.luci-tools/sustained-lifecycle-staging/scripts/acceptance/sustained-four-project/task-command.mjs",
+      "sha256": "414015af6ea915ccd3c838c3a316b7f08e079b70cc5de299a7991bb0b5f9f6fe",
+      "bytes": 10172,
+      "role": "unchanged controlled-test input",
+      "binding": "post-validation comparison matches unchanged root bytes"
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/workloads.mjs",
+      "snapshot": "inputs/scripts/acceptance/sustained-four-project/workloads.mjs",
+      "origin": "/workspace/.luci-tools/sustained-lifecycle-staging/scripts/acceptance/sustained-four-project/workloads.mjs",
+      "sha256": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306",
+      "bytes": 18691,
+      "role": "unchanged controlled-test input",
+      "binding": "post-validation comparison matches unchanged root bytes"
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/interaction-metrics.mjs",
+      "snapshot": "inputs/scripts/acceptance/sustained-four-project/interaction-metrics.mjs",
+      "origin": "/workspace/.luci-tools/sustained-lifecycle-staging/scripts/acceptance/sustained-four-project/interaction-metrics.mjs",
+      "sha256": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502",
+      "bytes": 9846,
+      "role": "unchanged controlled-test input",
+      "binding": "post-validation comparison matches unchanged root bytes"
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/latency-diagnostics.mjs",
+      "snapshot": "inputs/scripts/acceptance/sustained-four-project/latency-diagnostics.mjs",
+      "origin": "/workspace/.luci-tools/sustained-lifecycle-staging/scripts/acceptance/sustained-four-project/latency-diagnostics.mjs",
+      "sha256": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96",
+      "bytes": 7545,
+      "role": "unchanged controlled-test input",
+      "binding": "post-validation comparison matches unchanged root bytes"
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/task-context.mjs",
+      "snapshot": "inputs/scripts/acceptance/sustained-four-project/task-context.mjs",
+      "origin": "/workspace/.luci-tools/sustained-lifecycle-staging/scripts/acceptance/sustained-four-project/task-context.mjs",
+      "sha256": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2",
+      "bytes": 2439,
+      "role": "unchanged controlled-test input",
+      "binding": "post-validation comparison matches unchanged root bytes"
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/event-drain.test.mjs",
+      "snapshot": "inputs/scripts/acceptance/sustained-four-project/event-drain.test.mjs",
+      "origin": "/workspace/.luci-tools/sustained-lifecycle-staging/scripts/acceptance/sustained-four-project/event-drain.test.mjs",
+      "sha256": "71004a86a08ba7da48e31b53f02c45a7a08bf5816113efa2a2f3cb584b6832a3",
+      "bytes": 4677,
+      "role": "unchanged controlled-test input",
+      "binding": "post-validation comparison matches unchanged root bytes"
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/task-context.test.mjs",
+      "snapshot": "inputs/scripts/acceptance/sustained-four-project/task-context.test.mjs",
+      "origin": "/workspace/.luci-tools/sustained-lifecycle-staging/scripts/acceptance/sustained-four-project/task-context.test.mjs",
+      "sha256": "cebae265599e0ba61ec7563e4f377b6a298ec19142b30a432597e43fd68f30fb",
+      "bytes": 2524,
+      "role": "unchanged controlled-test input",
+      "binding": "post-validation comparison matches unchanged root bytes"
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/helper.test.mjs",
+      "snapshot": "inputs/scripts/acceptance/sustained-four-project/helper.test.mjs",
+      "origin": "/workspace/.luci-tools/sustained-lifecycle-staging/scripts/acceptance/sustained-four-project/helper.test.mjs",
+      "sha256": "97c80e81827056aaa2c4ac346296e6cce1d0f375fe6ba65ad6ce5b355dd7b9ab",
+      "bytes": 2489,
+      "role": "unchanged controlled-test input",
+      "binding": "post-validation comparison matches unchanged root bytes"
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/workload.test.mjs",
+      "snapshot": "inputs/scripts/acceptance/sustained-four-project/workload.test.mjs",
+      "origin": "/workspace/.luci-tools/sustained-lifecycle-staging/scripts/acceptance/sustained-four-project/workload.test.mjs",
+      "sha256": "0842134ed73e9cfae8a7ad8b2f306f45db9f9dda689a0920c2e5e129e7d6df0c",
+      "bytes": 3394,
+      "role": "unchanged controlled-test input",
+      "binding": "post-validation comparison matches unchanged root bytes"
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/latency-diagnostics.test.mjs",
+      "snapshot": "inputs/scripts/acceptance/sustained-four-project/latency-diagnostics.test.mjs",
+      "origin": "/workspace/.luci-tools/sustained-lifecycle-staging/scripts/acceptance/sustained-four-project/latency-diagnostics.test.mjs",
+      "sha256": "9bef06f598fb78cccdccdf48b4e8f7e3283bfc91ad6b54a229bbc050d2dea311",
+      "bytes": 9445,
+      "role": "unchanged controlled-test input",
+      "binding": "post-validation comparison matches unchanged root bytes"
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs",
+      "snapshot": "inputs/scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs",
+      "origin": "/workspace/.luci-tools/late-startup-lifecycle/staged/scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs",
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "bytes": 4176,
+      "role": "shared dependency; owned and validated separately",
+      "binding": "startup/lifecycle bytes imported in sustained controlled tests"
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/acceptance-startup.mjs",
+      "snapshot": "inputs/scripts/acceptance/launch-recovery/acceptance-startup.mjs",
+      "origin": "/workspace/.luci-tools/late-startup-lifecycle/staged/scripts/acceptance/launch-recovery/acceptance-startup.mjs",
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "bytes": 4637,
+      "role": "shared dependency; owned and validated separately",
+      "binding": "startup/lifecycle bytes imported in sustained controlled tests"
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs",
+      "snapshot": "inputs/scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs",
+      "origin": "/workspace/.luci-tools/late-startup-lifecycle/staged/scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs",
+      "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+      "bytes": 6670,
+      "role": "shared dependency; owned and validated separately",
+      "binding": "final integration dependency from shared owner; sustained controlled fixtures mocked these interfaces"
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs",
+      "snapshot": "inputs/scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs",
+      "origin": "/workspace/.luci-tools/late-startup-lifecycle/staged/scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs",
+      "sha256": "48e97d6d5c915cf80c99f0c79a8fb16261eb219616f878fa1ce103ee2c59303d",
+      "bytes": 35707,
+      "role": "shared dependency; owned and validated separately",
+      "binding": "final integration dependency from shared owner; sustained controlled fixtures mocked these interfaces"
+    }
+  ],
+  "patch": {
+    "file": "candidate.patch",
+    "sha256": "0f50ee2da5eed2f70b1cc14c8e77fe38f71a02467191c2d0f965ad92e19b85f3"
+  },
+  "limitations": [
+    "Shared proxy/journal snapshots are final integration dependencies. Sustained tests exercise actual extracted wiring with controlled factory handles and promises, not a real proxy or browser.",
+    "Wrapper result has a source-bound transcript receipt but no standalone raw log; not rerun to manufacture one.",
+    "Full source manifests were not captured before each early fixture batch; original raw outputs and stage receipts identify their scope."
+  ],
+  "checkoutRevisionRecordedBeforeFollowup": "6002b2eef3151ffd02963aa34cf32c71fc9b2755"
+}

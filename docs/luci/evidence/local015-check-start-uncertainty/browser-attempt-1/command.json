@@ -1,0 +1,18 @@
+{
+  "attempt": 1,
+  "command": [
+    "node",
+    "/workspace/.luci-tools/check-ui-uncertainty/browser-attempt-1/source-browser.mjs",
+    "/workspace/.luci-tools/check-ui-uncertainty/browser-attempt-1"
+  ],
+  "environmentNames": {
+    "LUCI_LOCAL015_BROWSER_RELEASE": "1",
+    "LUCI_CHECK_UI_REPO": "/workspace/.luci-tools/check-ui-uncertainty/tree",
+    "LUCI_LOCAL015_INPUTS": "/workspace/.luci-tools/check-ui-uncertainty/fixed-source.json",
+    "LUCI_CHROMIUM_EXECUTABLE": "/usr/bin/chromium"
+  },
+  "scope": "invocation uses the exact helper/fixture archived in this directory; original invocation helper was in browser-helper/",
+  "originalHelperPath": "/workspace/.luci-tools/check-ui-uncertainty/browser-helper/source-browser.mjs",
+  "startedAt": "2026-10-08T20:12:33.404Z",
+  "finishedAt": "2026-10-08T20:12:49.320Z"
+}

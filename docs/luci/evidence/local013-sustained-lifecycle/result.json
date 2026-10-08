@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "issue": "LOCAL013",
+  "scope": "Sustained-four-project affected sibling helper correction; controlled evidence, not installed acceptance",
+  "sourceAppliedByThisTask": false,
+  "evidenceFolderOnly": true,
+  "patchSHA256": "0f50ee2da5eed2f70b1cc14c8e77fe38f71a02467191c2d0f965ad92e19b85f3",
+  "applyFiles": 7,
+  "sharedStartupSHA256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+  "sharedProxySHA256": "48e97d6d5c915cf80c99f0c79a8fb16261eb219616f878fa1ce103ee2c59303d",
+  "sharedJournalSHA256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+  "budgets": {
+    "preparationSeconds": 120,
+    "scenarioSeconds": 1800,
+    "cleanupSeconds": 180,
+    "driverTotalSeconds": 2100,
+    "observerSeconds": 2115,
+    "afterTotalDriverSignalGraceSeconds": 5,
+    "afterForcedDriverExitReapSeconds": 5,
+    "observerSettlementSeconds": [
+      30,
+      5,
+      5
+    ],
+    "watcherJoinSeconds": 2
+  },
+  "selectedNodeBatches": [
+    {
+      "file": "controlled-js-final.tap",
+      "tests": 72,
+      "pass": 71,
+      "fail": 1,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "file": "controlled-js-final-corrected.tap",
+      "tests": 72,
+      "pass": 72,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "file": "controlled-js-ready.tap",
+      "tests": 73,
+      "pass": 73,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "file": "helper-binding-final.tap",
+      "tests": 29,
+      "pass": 29,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    }
+  ],
+  "countsOverlap": true,
+  "wrapper": {
+    "passed": 28,
+    "failed": 0,
+    "skipped": 0,
+    "receipt": "python-verification.json",
+    "rawLog": null,
+    "scope": "Mocked subprocess handles; local fsync/files and in-process sampler self-cost fixtures. No driver/observer child, Docker, browser or compiler started."
+  },
+  "sharedDependencyChecks": {
+    "tests": 51,
+    "pass": 51,
+    "result": "shared-dependency-verification/result.json",
+    "rawLog": "shared-dependency-verification/node.log",
+    "scope": "Independent shared owner suite; not added to sustained counts"
+  },
+  "unrun": [
+    "Installed 30-minute sustained workload",
+    "Actual latency/buffer/resource acceptance",
+    "Actual browser collector (explicitly excluded)",
+    "Native Windows execution",
+    "Real-model product quality"
+  ],
+  "failedFixtureExplanation": "The first final combined batch had 71 pass/1 fail: fixture-only 15 ms outer cleanup timer was too close to 5 ms close plus 5 ms settle and scheduler delay. Fixture outer cap changed to 200 ms; production 12-second browser phase and all driver/workload budgets stayed unchanged. A 72-test correction passed; a new actual-browser-wiring mock made the next batch 73; the final 29 focused tests overlap and add the helper-location check.",
+  "inputManifest": "input-manifest.json"
+}

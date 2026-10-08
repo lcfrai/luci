@@ -13,15 +13,35 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { mixedTaskCommand } from './task-command.mjs';
 import { projectWorkload } from './workloads.mjs';
 import {contextFileNames, verifyTaskContext} from './task-context.mjs';
+import {parseSourceBindingOptions,validateSourceBinding,validateHelperLocation} from './source-binding.mjs';
 import { installBrowserTiming, timingSnapshot, interactionRunner, summarizeInteractions, createTimingLedger } from './interaction-metrics.mjs';
 
 const here=dirname(fileURLToPath(import.meta.url)),repo=resolve(process.env.LUCI_ACCEPTANCE_REPO??resolve(here,'../../..')),args=process.argv.slice(2);
+const option = (name, fallback) => { const i = args.indexOf(name); if (i < 0) return fallback; assert(args[i + 1] && !args[i + 1].startsWith('--'), 'Missing value for ' + name); return args[i + 1]; };
+if(args.includes('--help')){console.log('PREPARED ONLY: installed scripted five-worker/four-project mixed build/test acceptance. Required --binary --web --task-context-version1or2 --provenance --expected-source [--expected-helper-source CLEAN_HELPER_COMMIT] --image --expected-image-id --image-provenance --report FRESH_JSON --fixture-root SHORT_PATH. Root exclusive Docker window and verified clean package required; no model quality or Windows claim.');process.exit(0);}
+const PREPARATION_MS=120000,WORKFLOW_MS=1800000,CLEANUP_MS=180000,DRIVER_TOTAL_MS=PREPARATION_MS+WORKFLOW_MS+CLEANUP_MS;
+const driverStarted=Date.now(),preparationDeadline=driverStarted+PREPARATION_MS;
+let commandDeadline=preparationDeadline,preparationActive=true;
+const commandBudget=maximum=>{const left=commandDeadline-Date.now();if(left<=0)throw Object.assign(Error('Acceptance command deadline exceeded'),{code:preparationActive?'preparation-deadline-exceeded':'acceptance-command-deadline-exceeded'});return Math.min(maximum,left);};
+const report = resolve(option('--report', 'artifacts/quality-swarm/sustained-mixed/attempt-' + Date.now() + '/result.json')), evidence = dirname(report);
+if (existsSync(evidence)) assert.equal(readdirSync(evidence).length, 0, 'Use a fresh evidence directory; prior failures must remain');
+mkdirSync(evidence, { recursive: true, mode: 0o700 });
+const {createAcceptanceJournal,diagnosticError,journalProcessIdentity}=await import(join(repo,'scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs'));
+const {createWorkflowDeadline,boundedAttempt,runBoundedCleanup,writeFailureCheckpoint,settleOwnedBrowser}=await import(join(repo,'scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs'));
+const {createStartupScope,startAcceptanceServices,startAcceptanceBrowser}=await import(join(repo,'scripts/acceptance/launch-recovery/acceptance-startup.mjs'));
+
+const journal=createAcceptanceJournal(join(evidence,'diagnostic-journal.jsonl'));
+journal.record('driver-start',{...journalProcessIdentity(),deadlineMs:DRIVER_TOTAL_MS,stage:'preparation'});
+const preparationCheckpoint=error=>({version:1,passed:false,status:'preparation-failed',stage:'preparation',at:new Date().toISOString(),preparationDeadlineMs:PREPARATION_MS,scenarioDeadlineMs:WORKFLOW_MS,cleanupDeadlineMs:CLEANUP_MS,totalDeadlineMs:DRIVER_TOTAL_MS,driver:journalProcessIdentity(),failure:diagnosticError(error),externalResourcesStarted:false,originalReceiptComplete:false});
+process.on('uncaughtExceptionMonitor',(error,origin)=>{try{journal.record('driver-fatal',{...diagnosticError(error),origin,stage:preparationActive?'preparation':'driver'});if(preparationActive)writeFailureCheckpoint(report,preparationCheckpoint(error));}catch{}});
+process.on('exit',exitCode=>{try{journal.record('driver-exit',{exitCode});journal.close();}catch{}});
+const preparationHardStop=setTimeout(()=>{const error=Object.assign(Error('Preparation deadline exceeded'),{code:'preparation-deadline-exceeded'});try{journal.record('driver-caught-failure',{stage:'preparation',...diagnosticError(error)});writeFailureCheckpoint(report,preparationCheckpoint(error));}catch{}process.exit(1);},Math.max(1,preparationDeadline-Date.now()));
+for(const signal of ['SIGTERM','SIGINT'])process.on(signal,()=>{if(!preparationActive)return;const error=Object.assign(Error('Preparation interrupted'),{code:'preparation-interrupted'});try{journal.record('driver-signal',{stage:'preparation',signal});writeFailureCheckpoint(report,{...preparationCheckpoint(error),signal});}catch{}process.exit(1);});
 const {chromium}=await import(join(repo,'desktop/node_modules/playwright/index.mjs'));
 const {validateWorkerCreate}=await import(join(repo,'scripts/acceptance/launch-recovery/worker-create-guard.mjs'));
 const {startFencedDockerProxy}=await import(join(repo,'scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs'));
 const {createNativeTerminalProbe}=await import(join(repo,'scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs'));
-const option = (name, fallback) => { const i = args.indexOf(name); if (i < 0) return fallback; assert(args[i + 1] && !args[i + 1].startsWith('--'), 'Missing value for ' + name); return args[i + 1]; };
-if(args.includes('--help')){console.log('PREPARED ONLY: installed scripted five-worker/four-project mixed build/test acceptance. Required --binary --web --task-context-version1or2 --provenance --expected-source --image --expected-image-id --image-provenance --report FRESH_JSON --fixture-root SHORT_PATH. Root exclusive Docker window and verified clean package required; no model quality or Windows claim.');process.exit(0);}
+
 const taskContextVersion=Number(option('--task-context-version','1')); assert(taskContextVersion===1||taskContextVersion===2,'Explicit trusted context version must be1or2');
 const binary = resolve(option('--binary', 'artifacts/luci')), web = resolve(option('--web', 'desktop/dist'));
 const image = option('--image'), releaseImage = image;
@@ -33,11 +53,13 @@ assert(existsSync(binary)); assert(existsSync(join(web, 'index.html')));
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const provenancePath = option('--provenance'); assert(provenancePath, 'Matching clean package provenance is required');
 const provenanceBytes = readFileSync(resolve(provenancePath)), provenance = JSON.parse(provenanceBytes);
-assert.equal(provenance.sourceDirty, false); assert.equal(provenance.sourceCommit, option('--expected-source'));
-assert.match(provenance.sourceCommit, /^[a-f0-9]{40}$/);
+validateHelperLocation(realpathSync(here),realpathSync(join(repo,'scripts/acceptance/sustained-four-project')));
+const sourceBindingOptions=parseSourceBindingOptions(args);
+function verifySourceBinding(){return validateSourceBinding({provenance,...sourceBindingOptions,helperCommit:execFileSync('git',['rev-parse','HEAD'],{cwd:repo,encoding:'utf8',timeout:Math.ceil(commandBudget(15000))}).trim(),helperDirty:!!execFileSync('git',['status','--porcelain'],{cwd:repo,encoding:'utf8',timeout:Math.ceil(commandBudget(15000))}).trim()});}
+const harnessCheckout=verifySourceBinding();
 for(const [path,expected] of Object.entries(imageEvidence.sourcesBefore??{})){
  assert(/^(sandboxd\/|images\/sandbox\/)/.test(path)&&!path.split('/').includes('..'));
- assert.equal(sha(execFileSync('git',['show',provenance.sourceCommit+':'+path],{cwd:repo,maxBuffer:32*1024**2})),expected,'Sandbox source differs from packaged source commit: '+path);
+ assert.equal(sha(execFileSync('git',['show',provenance.sourceCommit+':'+path],{cwd:repo,maxBuffer:32*1024**2,timeout:Math.ceil(commandBudget(30000))})),expected,'Sandbox source differs from packaged source commit: '+path);
 }
 assert(Object.keys(imageEvidence.sourcesBefore??{}).length>10,'Sandbox source fence missing'); assert.equal(sha(readFileSync(binary)), provenance.binarySHA256); assert.equal(sha(readFileSync(join(web, 'index.html'))), provenance.webIndexSHA256);
 const packageIntegrity = JSON.parse(execFileSync('python3', ['-c', `import hashlib,json,pathlib,sys,tarfile
@@ -62,11 +84,11 @@ with tarfile.open(archive,'r:gz') as source:
    while block:=stream.read(1024*1024): b.update(block)
   if a.digest()!=b.digest(): raise ValueError('Installed package member differs: '+str(p))
   count+=1
-print(json.dumps({'archiveSHA256':digest.hexdigest(),'verifiedMembers':count,'allMembersMatch':True}))`, provenance.archive, provenance.archiveSHA256, dirname(binary)], { encoding: 'utf8', timeout: 60000, maxBuffer: 1024 * 1024 }));
+print(json.dumps({'archiveSHA256':digest.hexdigest(),'verifiedMembers':count,'allMembersMatch':True}))`, provenance.archive, provenance.archiveSHA256, dirname(binary)], { encoding: 'utf8', timeout: Math.ceil(commandBudget(60000)), maxBuffer: 1024 * 1024 }));
 assert.equal(realpathSync(web), realpathSync(join(dirname(binary), 'web')));
 const rootFree = () => { const volume = statfsSync('/'); return Number(volume.bavail) * Number(volume.bsize); };
 const initialRootFree = rootFree(); assert(initialRootFree >= 6 * 1024 ** 3, 'This fixture needs six GiB root free, including a conservative one GiB working reserve');
-const docker = (...values) => execFileSync('docker', values, { encoding: 'utf8', timeout: 30_000 }).trim();
+const docker = (...values) => execFileSync('docker', values, { encoding: 'utf8', timeout: Math.ceil(commandBudget(30_000)) }).trim();
 assert.equal(docker('ps', '-aq'), '', 'Exclusive runtime admission requires zero existing containers');
 assert.equal(docker('volume', 'ls', '-q'), '', 'Exclusive runtime admission requires zero existing volumes');
 const imageInfo = JSON.parse(docker('image', 'inspect', image))[0], releaseImageInfo = JSON.parse(docker('image', 'inspect', releaseImage))[0];
@@ -75,13 +97,10 @@ assert.equal(imageInfo.Id, expectedImage);
 assert.equal(releaseImageInfo.Id, expectedImage);
 const bridge = docker('network', 'inspect', 'bridge', '--format', '{{(index .IPAM.Config 0).Gateway}}');
 assert.match(bridge, /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/);
-const report = resolve(option('--report', 'artifacts/quality-swarm/sustained-mixed/attempt-' + Date.now() + '/result.json')), evidence = dirname(report);
-if (existsSync(evidence)) assert.equal(readdirSync(evidence).length, 0, 'Use a fresh evidence directory; prior failures must remain');
-mkdirSync(evidence, { recursive: true, mode: 0o700 });
 writeFileSync(join(evidence, 'package-provenance.json'), provenanceBytes, { mode: 0o600, flag: 'wx' });
 writeFileSync(join(evidence,'image-provenance.json'),readFileSync(resolve(imageEvidencePath)),{mode:0o600,flag:'wx'});
-const driverNames=['sustained.mjs','task-command.mjs','workloads.mjs','interaction-metrics.mjs','latency-diagnostics.mjs','task-context.mjs','run-with-observer.py'];
-const reusedHelpers=['four-project-queue/native-terminal-diagnostics.mjs','four-project-queue/sample-linux-owned.py','launch-recovery/fenced-docker-proxy.mjs','launch-recovery/worker-create-guard.mjs'];
+const driverNames=['sustained.mjs','task-command.mjs','workloads.mjs','interaction-metrics.mjs','latency-diagnostics.mjs','task-context.mjs','source-binding.mjs','run-with-observer.py'];
+const reusedHelpers=['four-project-queue/native-terminal-diagnostics.mjs','four-project-queue/sample-linux-owned.py','launch-recovery/fenced-docker-proxy.mjs','launch-recovery/worker-create-guard.mjs','launch-recovery/durable-acceptance-journal.mjs','launch-recovery/acceptance-lifecycle.mjs','launch-recovery/acceptance-startup.mjs'];
 mkdirSync(join(evidence, 'accepted-harness'), { mode: 0o700 });
 for (const name of driverNames) writeFileSync(join(evidence, 'accepted-harness', name), readFileSync(new URL(name, import.meta.url)), { mode: 0o600, flag: 'wx' });
 for (const name of reusedHelpers) writeFileSync(join(evidence,'accepted-harness',name.replaceAll('/','_')),readFileSync(join(repo,'scripts/acceptance',name)),{mode:0o600,flag:'wx'});
@@ -92,7 +111,7 @@ const key = 'fixture-only-' + randomUUID(), lifecycle = randomUUID() + randomUUI
 const sensitive = [key, lifecycle, password], scrub = value => sensitive.reduce((text, secret) => text.replaceAll(secret, '[redacted]'), String(value));
 const receipt = {
   passed: false, taskContextVersion, mode:'sustained-installed-scripted-mixed', startedAt: new Date().toISOString(), sourceCommit: provenance.sourceCommit, sourceDirty: provenance.sourceDirty,
-  harnessCheckout: { commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim(), dirty: !!execFileSync('git', ['status', '--porcelain'], { cwd: repo, encoding: 'utf8' }).trim() },
+  harnessCheckout,
   packageIntegrity, initialRootFreeBytes: initialRootFree,
   resourceScope: 'At most five real workers across four projects, one at a time; four initial150s fuzz phases and one short reviewed amendment. Worker handoff reports are intentionally not fabricated by this scripted workload; missing reports remain explicit and do not prove no questions. Zero existing containers and six GiB root admission before every Create, no recovery fences allowed; hard one GiB running reserve. No image pulls, release or cloud allocation.',
   binarySHA256: sha(readFileSync(binary)), webIndexSHA256: sha(readFileSync(join(web, 'index.html'))), driverSHA256: sha(readFileSync(fileURLToPath(import.meta.url))),
@@ -113,14 +132,18 @@ const sockets = new Set(), socketSessions = new Map(), ownedSessions = new Set()
 const terminalProbes = [];
 let service, proxy, provider, base, env, token, project, projectRoute;const workspace='';
 const controllerIdentities=[];let measuredPhase='setup',interactions,interactionRound=0;const taskEvents=new Map();
-let stage = 'startup', fixtureError, reserveTimer, deadlineTimer, closing = false, signalFailure;
+let stage = 'startup', fixtureError, reserveTimer, closing = false, signalFailure,workflowControl,cleanupHardStop,cleanupDeadline=Infinity,checkpointWritten=false;
+function setStage(value){health();stage=value;journal.record('driver-stage',{stage});}
 let providerCalls = 0, auxiliaryCalls = 0; const observations=new Map(), taskData=new Map(), calls=new Map(); let browser, page, run;
+const startupScope=createStartupScope({assertActive:assertWorkflowActive,onFailure:error=>{cleanupFailure(error);stopOnFailure(error);},onTransition:({name,state})=>journal.record('driver-stage',{stage:'startup-'+name+'-'+state})});
 let providerBase; const initialBundles=new Map(), projectStates=[], titles=new Map();
-receipt.phases=[];receipt.interactions=[];const timingLedger=createTimingLedger(receipt);const started = Date.now(), deadline = started + 30 * 60_000;
+commandBudget(1);preparationActive=false;clearTimeout(preparationHardStop);commandDeadline=Date.now()+WORKFLOW_MS;
+journal.record('driver-stage',{stage:'workflow-start'});
+receipt.phases=[];receipt.interactions=[];const timingLedger=createTimingLedger(receipt);const started = Date.now(), deadline = started + WORKFLOW_MS;
 const remaining = () => { if (Date.now() >= deadline) throw Error('Thirty minute acceptance deadline expired'); return deadline - Date.now(); };
 const remainingBudget = (ms = 120_000) => Math.max(1, Math.min(ms, remaining()));
 const redactError = error => scrub(error?.stack ?? error).replaceAll(fixture, '[private-fixture]').slice(0, 8000);
-function stopOnFailure(error) { if (!fixtureError) fixtureError = error; for (const socket of sockets) socket.close(); if (service?.exitCode === null) service.kill('SIGTERM'); }
+function stopOnFailure(error) { if (!fixtureError) {fixtureError = error;try{journal.record('driver-background-failure',{stage,...diagnosticError(error)});}catch{}} workflowControl?.fail(error); for (const socket of sockets) {try{socket.close();}catch{}} if (service?.exitCode === null) service.kill('SIGTERM'); }
 function processIdentity(pid) {
   try { const data = readFileSync(`/proc/${pid}/stat`, 'utf8'); const fields = data.slice(data.lastIndexOf(')') + 2).trim().split(/\s+/); return {pid:Number(pid),start:fields[19],group:Number(fields[2]),status:fields[0]}; }
   catch (error) { if (['ENOENT','ESRCH'].includes(error.code)) return null; throw error; }
@@ -138,23 +161,27 @@ function ownedProcesses(family='service') {
   return rows;
 }
 async function api(method, path, body, expected = 200, timeout = 30_000) {
+  const workflowRequest=!closing;
+  if(workflowRequest)health();else if(!['GET','HEAD'].includes(method))throw Error('Workflow mutation refused during cleanup');
   const response = await fetch(base + path, {method,redirect:'error',signal:AbortSignal.timeout(closing ? timeout : remainingBudget(timeout)),headers:{Origin:base,...(token?{Authorization:'Bearer '+token}:{}),...(body===undefined?{}:{'Content-Type':'application/json'})},body:body===undefined?undefined:JSON.stringify(body)});
   (receipt.apiActions ??= []).push({stage,method,path,status:response.status,at:new Date().toISOString()});
   const raw = await boundedResponse(response,2*1024**2); let value; try { value = raw ? JSON.parse(raw) : {}; } catch { throw Error('Invalid JSON response: '+method+' '+path+' '+response.status); }
   assert.equal(response.status, expected, method+' '+path+': '+response.status+' '+scrub(value.message??value.error??''));
+  if(workflowRequest)health();
   return value;
 }
 async function until(label, fn, ms = 120_000) {
   const end = Date.now() + remainingBudget(ms);
-  while (Date.now() < end) { if (fixtureError) throw fixtureError; if (service && service.exitCode !== null) throw Error('Owned service exited unexpectedly'); const value=await fn(); if(value)return value; await delay(150); }
+  while (Date.now() < end) { health();const value=await fn();health();if(value)return value;await delay(150); }
   throw Error(label+' did not complete within its bounded prerequisite window');
 }
 async function freePort() { const server=createServer(); await new Promise((done,reject)=>server.once('error',reject).listen(0,'127.0.0.1',done));const port=server.address().port;await new Promise(done=>server.close(done));return port; }
 async function startService() {
-  service=spawn(binary,[],{cwd:fixture,env,detached:true,stdio:['ignore','ignore','ignore']});service.on('error',stopOnFailure);controllerIdentities.push(processIdentity(service.pid));
+  assertWorkflowActive();
+  const child=spawn(binary,[],{cwd:fixture,env,detached:true,stdio:['ignore','ignore','ignore']});service=child;child.on('error',stopOnFailure);assert(Number.isSafeInteger(child.pid)&&child.pid>0,'Owned service process identity is unavailable');controllerIdentities.push(processIdentity(child.pid));journal.record('controller-start',journalProcessIdentity(child.pid));child.on('exit',(exitCode,signal)=>{try{journal.record('controller-exit',{pid:child.pid,exitCode,signal});}catch{}});
   const end=Date.now()+remainingBudget(45_000);let ready;
-  while(Date.now()<end) { if(fixtureError)throw fixtureError;assert.equal(service.exitCode,null);try{const res=await fetch(base+'/v1/control-plane/status',{signal:AbortSignal.timeout(1500)});if(res.ok){ready=await res.json();break;}}catch{}await delay(150); }
-  assert.equal(ready?.product,'Luci');assert.equal(ready?.version,'0.5.0');
+  while(Date.now()<end) { assertWorkflowActive();assert.equal(service.exitCode,null);try{const res=await fetch(base+'/v1/control-plane/status',{signal:AbortSignal.timeout(1500)});assertWorkflowActive();if(res.ok){ready=await res.json();assertWorkflowActive();break;}}catch{}assertWorkflowActive();await delay(150); }
+  assertWorkflowActive();assert.equal(ready?.product,'Luci');assert.equal(ready?.version,'0.5.0');
   (receipt.lifecycle??=[]).push({action:'start',pid:service.pid,at:new Date().toISOString()});
 }
 async function stopService(strict=true) {
@@ -242,6 +269,7 @@ async function completeNaturally(worker,owner){
 }
 
 function streamResponse(res,item,sequence){
+  assertWorkflowActive();
   const response={id:'resp_swarm_'+sequence,object:'response',created_at:1,status:'completed',model:'swarm-mechanics-fixture',output:[item],usage:{input_tokens:1,output_tokens:1,total_tokens:2,input_tokens_details:{cached_tokens:0},output_tokens_details:{reasoning_tokens:0}}};
   const events=[{type:'response.created',response:{...response,status:'in_progress',output:[]}},{type:'response.output_item.added',output_index:0,item:{...item,status:'in_progress',...(item.type==='function_call'?{arguments:''}:{content:[]})}}];
   if(item.type==='function_call')events.push({type:'response.function_call_arguments.delta',item_id:item.id,output_index:0,delta:item.arguments},{type:'response.function_call_arguments.done',item_id:item.id,output_index:0,arguments:item.arguments});
@@ -250,18 +278,18 @@ function streamResponse(res,item,sequence){
 }
 async function attach(id){
   const path=workspace+'/v1/sessions/'+id+'/attach';const {ticket}=await api('POST','/v1/auth/socket-ticket',{path});sensitive.push(ticket);
-  const socket=new WebSocket(base.replace('http:','ws:')+path+'?ticket='+encodeURIComponent(ticket));socket.binaryType='arraybuffer';sockets.add(socket);socketSessions.set(socket,id);
+  health();const socket=new WebSocket(base.replace('http:','ws:')+path+'?ticket='+encodeURIComponent(ticket));socket.binaryType='arraybuffer';sockets.add(socket);socketSessions.set(socket,id);
   assert(terminalProbes.length<8);const probe=createNativeTerminalProbe();terminalProbes.push({id,attachedStage:stage,probe});
   socket.addEventListener('message',event=>probe.frame(Buffer.from(event.data)));
   socket.addEventListener('close',event=>{probe.close(event.code,event.wasClean);sockets.delete(socket);socketSessions.delete(socket);});socket.addEventListener('error',()=>probe.error());
-  await new Promise((done,reject)=>{const timeout=setTimeout(()=>reject(Error('Authenticated attach timed out')),remainingBudget(10_000));socket.addEventListener('open',()=>{clearTimeout(timeout);socket.send(Uint8Array.from([2,0,120,0,40]));done();},{once:true});socket.addEventListener('error',()=>{clearTimeout(timeout);reject(Error('Authenticated attach failed'));},{once:true});});
-  return socket;
+  await new Promise((done,reject)=>{const timeout=setTimeout(()=>reject(Error('Authenticated attach timed out')),remainingBudget(10_000));socket.addEventListener('open',()=>{clearTimeout(timeout);try{health();socket.send(Uint8Array.from([2,0,120,0,40]));done();}catch(error){socket.close();reject(error);}},{once:true});socket.addEventListener('error',()=>{clearTimeout(timeout);reject(Error('Authenticated attach failed'));},{once:true});});
+  health();return socket;
 }
 
 function outputs(input,result=[]) {if(!input||typeof input!=='object')return result;if(input.type==='function_call_output')result.push(input);for(const v of Array.isArray(input)?input:Object.values(input))outputs(v,result);assert(result.length<=100);return result;}
 function message(text){return {id:'msg_swarm_'+providerCalls,type:'message',status:'completed',role:'assistant',content:[{type:'output_text',text,annotations:[]}]};}
 function commandFor(task){const value=taskData.get(task);assert(value);return mixedTaskCommand({task,operation:value.operation.id,projectId:value.owner.id,implementation:value.workload.implementation,expectedOutput:value.workload.expectedOutput,authorityRoot,contextNames:names,durationSeconds:task==='amend-a'?0:150});}
-function nextTool(state,name,args){if(name==='exec_command'){state.codingDispatches=(state.codingDispatches??0)+1;assert.equal(state.codingDispatches,1,'No duplicate task command');}assert(++state.count<=48,'Bounded task tool request cap');const callID='call_swarm_'+state.task+'_'+state.operation.id+'_'+state.count;calls.set(callID,{state,consumed:false});return {id:'fc_'+callID,type:'function_call',status:'completed',name,call_id:callID,arguments:JSON.stringify(args)};}
+function nextTool(state,name,args){assertWorkflowActive();if(name==='exec_command'){state.codingDispatches=(state.codingDispatches??0)+1;assert.equal(state.codingDispatches,1,'No duplicate task command');}assert(++state.count<=48,'Bounded task tool request cap');const callID='call_swarm_'+state.task+'_'+state.operation.id+'_'+state.count;calls.set(callID,{state,consumed:false});return {id:'fc_'+callID,type:'function_call',status:'completed',name,call_id:callID,arguments:JSON.stringify(args)};}
 function startProvider(){
  provider=httpServer(async(req,res)=>{try{
   assert.equal(req.method,'POST');assert.equal(req.headers.authorization,'Bearer '+key);if(closing){res.writeHead(503);res.end();return;}
@@ -282,7 +310,7 @@ function startProvider(){
   (receipt.providerRequests??=[]).push({number:providerCalls,toolOutputCount:resultItems.length,issuedTool:response.type==='function_call'?response.name:null});streamResponse(res,response,providerCalls);
  }catch(error){stopOnFailure(error);if(!res.headersSent)res.writeHead(500);res.end('Controlled swarm fixture contract failed');}});
 }
-async function action(path,click,expected=200){const pending=page.waitForResponse(r=>new URL(r.url()).pathname===path&&r.request().method()==='POST',{timeout:remainingBudget(150000)});await click();const response=await pending;assert.equal(response.status(),expected,path+': '+await response.text());return response.json();}
+async function action(path,click,expected=200){health();const pending=page.waitForResponse(r=>new URL(r.url()).pathname===path&&r.request().method()==='POST',{timeout:remainingBudget(150000)});void pending.catch(()=>{});await click();health();const response=await pending;health();assert.equal(response.status(),expected,path+': '+await response.text());return response.json();}
 async function openProject(state) {
  await passiveTiming('before-document-navigation');await page.goto(base);
  const username=page.getByLabel('Username',{exact:true}),enter=page.getByRole('button',{name:'Continue to projects',exact:true}),picker=page.getByLabel('Workspace',{exact:true});
@@ -323,7 +351,7 @@ async function setPaused(paused){
  return api('PUT','/v1/product/swarm-scheduler',{expectedRevision:settings.revision,policy:{maxActive:1,maxPerProject:1,headroomPercent:25,minHeadroomMiB:2048,diskReserveMiB:1024},dispatchPaused:paused});
 }
 
-async function integrate(task){stage='ui-review-integrate-'+task;const reviewResponse=page.waitForResponse(r=>new URL(r.url()).pathname===projectRoute+'/runs/'+run.id+'/swarm/tasks/'+task+'/review'&&r.request().method()==='GET');await taskRow(task).getByRole('button',{name:'Review task changes',exact:true}).click();const response=await reviewResponse;assert.equal(response.status(),200);const {review}=await response.json();assert.equal(review.canIntegrate,true);assert.equal(review.sourceCommit,observations.get(task).commit);assert.deepEqual([...review.paths].sort(),['engine.go',task+'-result.json'].sort());const dialog=page.getByRole('dialog',{name:'Review task changes',exact:true});await dialog.getByLabel('Reviewed task diff').waitFor();assert((await dialog.getByLabel('Reviewed task diff').innerText()).includes(task+'-result.json'));await dialog.getByRole('checkbox').check();const result=await action(projectRoute+'/runs/'+run.id+'/swarm/tasks/'+task+'/integrate',()=>dialog.getByRole('button',{name:'Integrate reviewed changes',exact:true}).click());run=result.run;assert.equal(run.swarm.tasks.find(t=>t.id===task).integration.state,'integrated');assert(existsSync(join(project.path,task+'-result.json')));(receipt.integrations??=[]).push({task,review,commit:run.swarm.tasks.find(t=>t.id===task).integration.commit});}
+async function integrate(task){setStage('ui-review-integrate-'+task);const reviewResponse=page.waitForResponse(r=>new URL(r.url()).pathname===projectRoute+'/runs/'+run.id+'/swarm/tasks/'+task+'/review'&&r.request().method()==='GET');void reviewResponse.catch(()=>{});await taskRow(task).getByRole('button',{name:'Review task changes',exact:true}).click();const response=await reviewResponse;assert.equal(response.status(),200);const {review}=await response.json();assert.equal(review.canIntegrate,true);assert.equal(review.sourceCommit,observations.get(task).commit);assert.deepEqual([...review.paths].sort(),['engine.go',task+'-result.json'].sort());const dialog=page.getByRole('dialog',{name:'Review task changes',exact:true});await dialog.getByLabel('Reviewed task diff').waitFor();assert((await dialog.getByLabel('Reviewed task diff').innerText()).includes(task+'-result.json'));await dialog.getByRole('checkbox').check();const result=await action(projectRoute+'/runs/'+run.id+'/swarm/tasks/'+task+'/integrate',()=>dialog.getByRole('button',{name:'Integrate reviewed changes',exact:true}).click());run=result.run;assert.equal(run.swarm.tasks.find(t=>t.id===task).integration.state,'integrated');assert(existsSync(join(project.path,task+'-result.json')));(receipt.integrations??=[]).push({task,review,commit:run.swarm.tasks.find(t=>t.id===task).integration.commit});}
 
 async function boundedResponse(response, limit) {
  const parts=[];let size=0;
@@ -335,14 +363,16 @@ function privateRun(owner){const record=privateJSON(join(fixture,'state/sessions
 function instanceID(){const value=readFileSync(join(fixture,'state/instance/instance-id'),'utf8').trim();assert(value.length>0&&value.length<=200);return value;}
 function workerContainers(){return docker('ps','-aq','--no-trunc','--filter','label=luci.managed=true').split(/\s+/).filter(Boolean);}
 function identifyCreate(bytes,meta){
+ health();
  const input=JSON.parse(bytes),sessionID=input.Labels?.['luci.session-id'];assert.match(sessionID??'',/^s-[a-f0-9]{8}$/);assert.equal(meta.name,'luci-'+sessionID);assert.equal(input.Labels?.['luci.managed'],'true');assert.equal(input.Labels?.['luci.launch-fence'],undefined);
  const owners=projectStates.filter(owner=>privateRun(owner).operations.some(op=>op.childId===sessionID));assert.equal(owners.length,1);const owner=owners[0],op=privateRun(owner).operations.find(value=>value.childId===sessionID);assert.equal(op.taskId,owner.task,'Only the five specified tasks can allocate');ownedSessions.add(sessionID);
  validateWorkerCreate(input,{fixture,projectID:owner.owner.id,runID:owner.run.id,operationID:op.id,session:row(sessionID),images:[image,imageInfo.Id],instance:instanceID(),uid:process.getuid(),gid:process.getgid(),taskContextVersion});return 'worker';
 }
 function admission({kind,ordinal,body,...meta}){
- try{assert.equal(kind,'worker');assert(ordinal>=1&&ordinal<=5);identifyCreate(body,meta);const free=rootFree();assert(free>=6*1024**3,'Six GiB pre-create guard remains mandatory');assert.equal(workerContainers().length,0,'No overlapping full worker permitted');(receipt.resourceObservations??=[]).push({at:new Date().toISOString(),stage,ordinal,rootFreeBytes:free});}catch(error){stopOnFailure(error);throw error;}
+ try{health();assert.equal(kind,'worker');assert(ordinal>=1&&ordinal<=5);identifyCreate(body,meta);const free=rootFree();assert(free>=6*1024**3,'Six GiB pre-create guard remains mandatory');assert.equal(workerContainers().length,0,'No overlapping full worker permitted');(receipt.resourceObservations??=[]).push({at:new Date().toISOString(),stage,ordinal,rootFreeBytes:free});}catch(error){stopOnFailure(error);throw error;}
 }
-function health(){remaining();if(fixtureError)throw fixtureError;if(service&&service.exitCode!==null)throw Error('Owned service exited unexpectedly');}
+function assertWorkflowActive(){if(closing)throw Error('Workflow closed for cleanup');workflowControl?.assertActive();remaining();if(fixtureError)throw fixtureError;}
+function health(){assertWorkflowActive();if(service&&service.exitCode!==null)throw Error('Owned service exited unexpectedly');}
 async function timed(promise,ms,label){let timer;try{return await Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error(label+' deadline exceeded')),ms);})]);}finally{clearTimeout(timer);}}
 function phaseStart(name){measuredPhase=name;const row={name,startedAt:new Date().toISOString(),monotonicStartMs:performance.now()};receipt.phases.push(row);return row;}
 function phaseEnd(row){row.finishedAt=new Date().toISOString();row.elapsedMs=performance.now()-row.monotonicStartMs;delete row.monotonicStartMs;}
@@ -350,7 +380,7 @@ async function passiveTiming(reason){if(!page)return;const value=await timed(tim
 async function quietPhase(name){const record=phaseStart(name);assert.equal(workerContainers().length,0);const before=effects();for(let elapsed=0;elapsed<60;elapsed++){health();await delay(1000);}assert.equal(workerContainers().length,0);assert.deepEqual(effects(),before);phaseEnd(record);assert(record.elapsedMs>=60000);}
 async function prepare(owner){await openProject(owner);await page.getByRole('button',{name:'Prepare agent team',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Prepare agent team',exact:true});await dialog.getByRole('combobox').selectOption('1');assert.equal(await dialog.getByRole('combobox').inputValue(),'1');owner.run=(await action(owner.route+'/runs/'+owner.run.id+'/swarm',()=>dialog.getByRole('button',{name:'Prepare team',exact:true}).click(),201)).run;}
 async function queueOwner(owner){await openProject(owner);await page.getByRole('button',{name:/^Queue reviewed tasks/}).click();const result=await action(owner.route+'/runs/'+owner.run.id+'/swarm/queue',()=>page.getByRole('dialog',{name:'Queue reviewed work',exact:true}).getByRole('button',{name:'Authorize queued tasks',exact:true}).click(),201);assert.equal(result.items.length,owner.task==='build-a'?2:1);owner.queued=result.items;}
-function seedFiles(owner,files){for(const [name,text] of Object.entries(files)){assert(['go.mod','engine.go','engine_test.go','cmd/app/main.go','witness.txt'].includes(name));const file=join(owner.path,name);mkdirSync(dirname(file),{recursive:true});assert(!existsSync(file)||lstatSync(file).isFile());writeFileSync(file,text,{mode:0o600});}}
+function seedFiles(owner,files){health();for(const [name,text] of Object.entries(files)){assert(['go.mod','engine.go','engine_test.go','cmd/app/main.go','witness.txt'].includes(name));const file=join(owner.path,name);mkdirSync(dirname(file),{recursive:true});assert(!existsSync(file)||lstatSync(file).isFile());writeFileSync(file,text,{mode:0o600});}}
 async function saveContext(owner,workload,task,goal,connectionID,amend=false){
  project=owner;projectRoute='/v1/product/projects/'+owner.id;
  const brief=amend?await api('GET',projectRoute+'/brief'):{revision:0};await api('POST',projectRoute+'/brief',{revision:brief.revision,purpose:goal,audience:'Project owners',constraints:'Offline controlled acceptance workload. No external model or package downloads.',criteria:[amend?'Render the exact visible item total after the list.':'Meet fixed requirements and varied-input invariants.']});
@@ -366,18 +396,18 @@ async function saveContext(owner,workload,task,goal,connectionID,amend=false){
  return {owner,route:projectRoute,run:saved,task,workload,goal,initialHead:execFileSync('git',['rev-parse','HEAD'],{cwd:owner.path,encoding:'utf8'}).trim(),canonicalBefore:canonical(),canonicalLuci:readFileSync(join(owner.path,'LUCI.md'))};
 }
 async function functionalDrafts(){
- stage='unsent-draft-isolation';await page.getByRole('button',{name:'All projects',exact:true}).click();
+ setStage('unsent-draft-isolation');await page.getByRole('button',{name:'All projects',exact:true}).click();
  for(const owner of projectStates){await page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true}).click();await page.getByRole('button',{name:'Define',exact:true}).click();await page.getByRole('textbox',{name:'The idea',exact:true}).fill(owner.goal+' UNSENT '+owner.owner.id);await page.getByRole('button',{name:'All projects',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Keep your changes?',exact:true});await dialog.getByRole('button',{name:'Keep drafts and continue',exact:true}).click();}
  for(const owner of projectStates){await page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true}).click();await page.getByRole('button',{name:'Define',exact:true}).click();await page.getByRole('button',{name:'Restore draft',exact:true}).click();assert.equal(await page.getByRole('textbox',{name:'The idea',exact:true}).inputValue(),owner.goal+' UNSENT '+owner.owner.id);await page.getByRole('textbox',{name:'The idea',exact:true}).fill(owner.goal);await page.getByRole('button',{name:'All projects',exact:true}).click();if(await page.getByRole('dialog',{name:'Keep your changes?',exact:true}).isVisible())await page.getByRole('button',{name:'Discard edits and continue',exact:true}).click();}
  for(const owner of projectStates){project=owner.owner;assert.deepEqual(canonical(),owner.canonicalBefore);}check('Four distinct unsent idea drafts restore to their own project without changing approved source context');
 }
 async function queueControls(first){
- stage='loaded-queue-controls';await openProject(first);const queueRegion=page.getByRole('region',{name:'Background task queue',exact:true});const cancelRow=queueRegion.locator('li').filter({hasText:'Cancel this extra queued task'}),entry=first.queued.find(value=>value.taskId==='cancel-a');assert(entry);const before=effects();await action(first.route+'/swarm-queue/'+entry.id+'/cancel',()=>cancelRow.getByRole('button',{name:'Cancel queued task',exact:true}).click());
+ setStage('loaded-queue-controls');await openProject(first);const queueRegion=page.getByRole('region',{name:'Background task queue',exact:true});const cancelRow=queueRegion.locator('li').filter({hasText:'Cancel this extra queued task'}),entry=first.queued.find(value=>value.taskId==='cancel-a');assert(entry);const before=effects();await action(first.route+'/swarm-queue/'+entry.id+'/cancel',()=>cancelRow.getByRole('button',{name:'Cancel queued task',exact:true}).click());
  const queue=await api('GET',first.route+'/swarm-queue'),canceled=queue.items.find(value=>value.id===entry.id);assert.equal(canceled.state,'cancelled');assert(!canceled.childId&&!canceled.operationId);assert.deepEqual(effects(),before);assert(!privateRun(first).operations.some(value=>value.taskId==='cancel-a'));
  const next=projectStates[1];await openProject(next);await action(next.route+'/swarm-queue/'+next.queued[0].id+'/priority',()=>page.getByLabel('Priority for '+titles.get(next.task),{exact:true}).selectOption('high'));const latest=await api('GET',next.route+'/swarm-queue');assert.equal(latest.items.find(value=>value.id===next.queued[0].id).priority,'high');check('Browser cancellation prevents allocation and queued priority changes retain exact project ownership');
 }
 async function activeRestart(worker){
- stage='active-command-restart';const before=effects(),original=live(worker.session.id),beforeRows=taskEvents.get(worker.task)??[];assert(beforeRows.some(row=>row.type==='command-start'&&row.label==='fuzz'));assert(!beforeRows.some(row=>row.type==='command-end'&&row.label==='fuzz'));
+ setStage('active-command-restart');const before=effects(),original=live(worker.session.id),beforeRows=taskEvents.get(worker.task)??[];assert(beforeRows.some(row=>row.type==='command-start'&&row.label==='fuzz'));assert(!beforeRows.some(row=>row.type==='command-end'&&row.label==='fuzz'));
  const began=new Date().toISOString();await passiveTiming('before-active-service-restart');await stopService(true);assert.equal(live(worker.session.id).pid,original.pid);await startService();token=(await api('POST','/v1/auth/login',{username:'swarmowner',password})).token;sensitive.push(token);assert.deepEqual(effects(),before);const after=live(worker.session.id);assert.equal(after.id,original.id);assert.equal(after.pid,original.pid);assert.deepEqual(bundleSnapshot(worker.session.id),initialBundles.get(worker.session.id));await attach(worker.session.id);await openProject();await interactions.warm();(receipt.activeRestarts??=[]).push({task:worker.task,startedAt:began,finishedAt:new Date().toISOString(),sameContainer:true,samePID:true,sameContext:true,oneCommandDispatch:worker.codingDispatches===1});check('Service restart preserves a real active fuzz command and exact worker/context without replay');
 }
 async function exercise(worker,{restart=false}={}){
@@ -388,22 +418,62 @@ async function exercise(worker,{restart=false}={}){
  if(restart)assert(restarted);assert.equal(execFileSync('git',['rev-parse','HEAD'],{cwd:worker.owner.path,encoding:'utf8'}).trim(),projectStates.find(value=>value.task===worker.task).initialHead,'Primary source is unchanged before reviewed integration');assert.deepEqual(bundleSnapshot(worker.session.id),initialBundles.get(worker.session.id));
 }
 async function reviewOwner(owner){await openProject(owner);run=(await action(owner.route+'/runs/'+owner.run.id+'/swarm/reconcile',()=>page.getByRole('button',{name:'Check team status',exact:true}).click())).run;await integrate(owner.task);owner.run=run;assert.equal(sha(readFileSync(join(owner.owner.path,owner.task+'-result.json'))),observations.get(owner.task).outputSHA256);assert.equal(readFileSync(join(owner.owner.path,'engine.go'),'utf8'),owner.workload.implementation);assert.deepEqual(canonical(),owner.canonicalBefore);}
-let engineID;
-try {
- deadlineTimer=setTimeout(()=>stopOnFailure(Error('Thirty minute acceptance deadline expired')),30*60_000);
- reserveTimer=setInterval(()=>{try{const free=rootFree();(receipt.diskSamples??=[]).push({stage,at:new Date().toISOString(),rootFreeBytes:free});if(free<1024**3)stopOnFailure(Error('Hard one GiB reserve breached'));for(const worker of taskData.values())if(worker.finalReleased&&worker.session)observeTaskLease(worker);}catch(error){stopOnFailure(error);}},1000);
- for(const name of ['SIGTERM','SIGINT'])process.on(name,()=>{signalFailure=name;stopOnFailure(Error('Acceptance interrupted by '+name));});
- receipt.bounds={scenarioDeadlineMs:1800000,maxMeasuredActions:6000,actualFuzzSecondsPerInitialWorker:150,upstreamRequestMs:120000,maxCreates:5,maxStarts:5,preCreateFreeBytes:6*1024**3,runningReserveBytes:1024**3,workerMemoryBytes:1024**3,workerNanoCPUs:1000000000};
- receipt.predeclaredTimingReason='Before installed execution, standalone offline cold smoke took584s for four2s-fuzz tasks; uniform-trimpath B recheck reduced one workload by about66s. Replacing four2s windows with150s estimates1110s initial command work before idle120s, amendment, UI and Docker/review overhead. Root approved30minutes before any installed run; no padding or on-run extension.';
- engineID=docker('info','--format','{{.ID}}');assert(engineID.length>0&&engineID.length<=256);receipt.engineIdentitySHA256=sha(engineID);
- startProvider();await new Promise((done,reject)=>provider.once('error',reject).listen(0,bridge,done));providerBase='http://host.docker.internal:'+provider.address().port+'/v1';
- const port=await freePort(),preview=await freePort();base='http://127.0.0.1:'+port;
+
+function cleanupBudget(maximum){const remaining=cleanupDeadline-Date.now();if(remaining<=0)throw Object.assign(Error('Owned cleanup deadline exceeded'),{code:'cleanup-deadline-exceeded'});return Math.min(maximum,remaining);}
+function cleanupFailure(error){receipt.cleanup.push(redactError(error));receipt.passed=false;process.exitCode=1;}
+function failureCheckpoint(){return {version:1,passed:false,status:'cleanup-incomplete',stage,at:new Date().toISOString(),preparationDeadlineMs:PREPARATION_MS,scenarioDeadlineMs:WORKFLOW_MS,cleanupDeadlineMs:CLEANUP_MS,totalDeadlineMs:DRIVER_TOTAL_MS,driver:journalProcessIdentity(),controllers:controllerIdentities.filter(Boolean),signal:signalFailure??null,failure:diagnosticError(fixtureError),controllersStopped:false,dockerRequestsDrained:false,dockerMutationStateCertain:false,workflowOperationUnsettled:workflowControl?.failed===true,startupResources:startupScope.snapshot(),originalReceiptComplete:false};}
+function persistFailureCheckpoint(){
+ if(checkpointWritten)return;
+ try{writeFailureCheckpoint(report+'.incomplete.json',failureCheckpoint());checkpointWritten=true;journal.record('driver-cleanup-start',{stage,deadlineMs:Math.max(0,cleanupDeadline-Date.now())});}catch(error){cleanupFailure(error);}
+}
+function beginCleanup(){
+ if(closing)return;closing=true;workflowControl?.close();clearInterval(reserveTimer);
+ cleanupDeadline=Math.min(Date.now()+CLEANUP_MS,driverStarted+DRIVER_TOTAL_MS);commandDeadline=cleanupDeadline;
+ cleanupHardStop=setTimeout(()=>{try{journal.record('driver-background-failure',{stage,code:'cleanup-hard-stop'});}catch{}try{writeFailureCheckpoint(report,{...failureCheckpoint(),status:'cleanup-hard-stop',finishedAt:new Date().toISOString()});}catch{}process.exit(1);},Math.max(1,cleanupDeadline-Date.now()));
+}
+// BEGIN SUSTAINED STARTUP WIRING: exercised with controlled factories only.
+async function startSustainedServices(){
  const upstream=process.env.DOCKER_HOST||'unix:///var/run/docker.sock';assert(upstream.startsWith('unix://'));
- proxy=await startFencedDockerProxy({socketPath:join(fixture,'docker-proxy.sock'),upstreamSocketPath:upstream.slice(7),identifyCreate,beforeCreate:admission,maxCreates:receipt.bounds.maxCreates,maxCreatesByKind:{worker:5,fence:1},maxStarts:receipt.bounds.maxStarts,maxObservations:20000,upstreamTimeoutMs:120000,holdTimeoutMs:600000});
+ return startAcceptanceServices({scope:startupScope,assertActive:assertWorkflowActive,
+  startProvider:async()=>{startProvider();await new Promise((done,reject)=>provider.once('error',reject).listen(0,bridge,done));return provider;},
+  adoptProvider:handle=>{provider=handle;},closeProvider:async handle=>{try{handle.closeAllConnections();}finally{if(handle.listening)await new Promise(done=>handle.close(done));}},
+  freePort,startProxy:()=>startFencedDockerProxy({socketPath:join(fixture,'docker-proxy.sock'),upstreamSocketPath:upstream.slice(7),journal,identifyCreate,beforeCreate:admission,beforeStart:assertWorkflowActive,maxCreates:receipt.bounds.maxCreates,maxCreatesByKind:{worker:5,fence:1},maxStarts:receipt.bounds.maxStarts,maxObservations:20000,upstreamTimeoutMs:120000,holdTimeoutMs:600000}),
+  adoptProxy:handle=>{proxy=handle;},closeProxy:handle=>handle.close(),
+  configure:({provider,port,preview})=>{assertWorkflowActive();providerBase='http://host.docker.internal:'+provider.address().port+'/v1';base='http://127.0.0.1:'+port;
  writeFileSync(join(fixture,'docker/config.json'),JSON.stringify({cliPluginsExtraDirs:process.env.DOCKER_CONFIG?[join(process.env.DOCKER_CONFIG,'cli-plugins')]:[]}),{mode:0o600});
  env=Object.fromEntries(['PATH','LANG','LC_ALL','TZ'].filter(name=>process.env[name]).map(name=>[name,process.env[name]]));
  Object.assign(env,{HOME:join(fixture,'home'),DOCKER_CONFIG:join(fixture,'docker'),DOCKER_HOST:'unix://'+join(fixture,'docker-proxy.sock'),LUCI_DOCKER_HOST:'unix://'+join(fixture,'docker-proxy.sock'),LUCI_ADDR:'127.0.0.1:'+port,LUCI_STATE_DIR:join(fixture,'state'),LUCI_PROJECTS_DIR:join(fixture,'projects'),LUCI_WEB_DIR:web,LUCI_RUNTIME_DIR:join(dirname(binary),'runtime'),LUCI_SANDBOX_IMAGE:image,LUCI_BACKEND:'docker',LUCI_SESSION_MEMORY_MIB:'1024',LUCI_SESSION_CPU_MILLIS:'1000',LUCI_MANAGED_SHUTDOWN_TOKEN:lifecycle,LUCI_LOG_LEVEL:'error',LUCI_BROWSER_PREVIEW_ADDR:'127.0.0.1:'+preview,LUCI_BROWSER_PREVIEW_PORT:String(preview),GIT_CONFIG_GLOBAL:join(fixture,'home/.gitconfig'),GIT_CONFIG_NOSYSTEM:'1'});
- await startService();
+  },startService,
+ });
+}
+// END SUSTAINED STARTUP WIRING
+// BEGIN SUSTAINED CLEANUP WIRING: exercised with controlled resources only.
+async function settleSustainedResources(){
+ const phases=await runBoundedCleanup({checkpoint:persistFailureCheckpoint,onFailure:cleanupFailure,onPhase:(name,status)=>journal.record('driver-stage',{stage:'cleanup-'+name+'-'+status}),phases:[
+  {name:'controllers',timeoutMs:30000,run:async()=>{const stopped=await stopService(false);assert(stopped);assert(controllerIdentities.filter(Boolean).every(identity=>!stillOwned(identity)));return {stopped:true};}},
+  {name:'proxy',timeoutMs:125000,run:async()=>{if(!startupScope.has('proxy'))return {drained:true,notStarted:true,mutationStateCertain:true};const result=await startupScope.close('proxy',cleanupBudget(124000));assert(proxy);assert(result.drained&&result.pendingRequests===0&&result.activeHandlers===0);assert.equal(proxy.observations.dropped,0);assert.equal(proxy.observations.failures.length,0,'Docker transport recorded lost, refused or uncertain observations');return {drained:true,mutationStateCertain:true};}},
+  {name:'browser',timeoutMs:12000,run:async()=>{try{if(startupScope.has('browser'))await startupScope.close('browser',cleanupBudget(5000));}catch(error){cleanupFailure(error);}finally{await settleOwnedBrowser({browser:undefined,listOwned:()=>ownedProcesses('browser'),stillOwned,forceTerminate:identity=>{try{process.kill(identity.pid,'SIGKILL');}catch(error){if(error.code!=='ESRCH')throw error;}},onFailure:cleanupFailure,closeTimeoutMs:cleanupBudget(5000),settleTimeoutMs:cleanupBudget(5000)});}}},
+  {name:'provider',timeoutMs:3000,run:()=>startupScope.has('provider')?startupScope.close('provider',cleanupBudget(2500)):undefined},
+ ]});
+ // A late result from a timed-out phase cannot grant destructive authority.
+ const completed=name=>phases.find(row=>row.name===name&&row.status==='completed')?.result;
+ receipt.controllersStopped=completed('controllers')?.stopped===true;
+ receipt.dockerRequestsDrained=completed('proxy')?.drained===true;
+ receipt.dockerMutationStateCertain=completed('proxy')?.mutationStateCertain===true;
+ receipt.dockerTransportNotStarted=completed('proxy')?.notStarted===true;
+ return phases;
+}
+// END SUSTAINED CLEANUP WIRING
+let engineID;
+try {
+ workflowControl=createWorkflowDeadline({timeoutMs:remaining(),onFailure:stopOnFailure});
+ await workflowControl.run(async()=>{
+ reserveTimer=setInterval(()=>{try{const free=rootFree();(receipt.diskSamples??=[]).push({stage,at:new Date().toISOString(),rootFreeBytes:free});if(free<1024**3)stopOnFailure(Error('Hard one GiB reserve breached'));for(const worker of taskData.values())if(worker.finalReleased&&worker.session)observeTaskLease(worker);}catch(error){stopOnFailure(error);}},1000);
+ for(const name of ['SIGTERM','SIGINT'])process.on(name,()=>{signalFailure=name;try{journal.record('driver-signal',{stage,signal:name});}catch{}stopOnFailure(Error('Acceptance interrupted by '+name));});
+ receipt.bounds={preparationDeadlineMs:PREPARATION_MS,scenarioDeadlineMs:1800000,cleanupDeadlineMs:CLEANUP_MS,totalDeadlineMs:DRIVER_TOTAL_MS,maxMeasuredActions:6000,actualFuzzSecondsPerInitialWorker:150,upstreamRequestMs:120000,maxCreates:5,maxStarts:5,preCreateFreeBytes:6*1024**3,runningReserveBytes:1024**3,workerMemoryBytes:1024**3,workerNanoCPUs:1000000000};
+ receipt.predeclaredTimingReason='Before installed execution, standalone offline cold smoke took584s for four2s-fuzz tasks; uniform-trimpath B recheck reduced one workload by about66s. Replacing four2s windows with150s estimates1110s initial command work before idle120s, amendment, UI and Docker/review overhead. Root approved30minutes before any installed run; no padding or on-run extension.';
+ engineID=docker('info','--format','{{.ID}}');assert(engineID.length>0&&engineID.length<=256);receipt.engineIdentitySHA256=sha(engineID);
+ await startSustainedServices();
  const bootstrap=readFileSync(join(fixture,'state/control-plane/bootstrap-token'),'utf8').trim();sensitive.push(bootstrap);
  const owner=await api('POST','/v1/auth/bootstrap',{bootstrapToken:bootstrap,username:'swarmowner',displayName:'Mixed Workload Fixture Owner',password},201);token=owner.token;sensitive.push(token);
  await api('POST','/v1/setup/git/identity',{name:'Swarm Fixture',email:'swarm@example.invalid'});
@@ -416,48 +486,70 @@ try {
   const owner=await api('POST','/v1/product/projects',{name:'mixed-project-'+'abcd'[index]},201);assert(realpathSync(owner.path).startsWith(fixture+sep));seedFiles(owner,workload.files);projectStates.push(await saveContext(owner,workload,task,'Build '+workload.label+' with explicit verified behavior.',connectionID));
  }
  const browserEnv=Object.fromEntries(['PATH','LANG','LC_ALL','TZ'].filter(n=>process.env[n]).map(n=>[n,process.env[n]]));browserEnv.LUCI_SWARM_BROWSER_FIXTURE=fixture;
- browser=await chromium.launch({headless:true,executablePath:option('--chromium','/usr/bin/chromium'),env:browserEnv,args:['--no-proxy-server']});receipt.browserVersion=browser.version();
- const context=await browser.newContext({viewport:{width:1440,height:1080},serviceWorkers:'block'});await installBrowserTiming(context);
- await context.route('**/*',async route=>{const request=route.request(),url=new URL(request.url());if(url.origin!==base){stopOnFailure(Error('Browser external request refused'));await route.abort('blockedbyclient');return;}if(!['GET','HEAD','OPTIONS'].includes(request.method()))receipt.browserMutations.push({stage,method:request.method(),path:url.pathname});await route.continue();});
- page=await context.newPage();page.setDefaultTimeout(15000);page.on('pageerror',error=>{receipt.browserErrors.push(scrub(error));stopOnFailure(Error('Browser script error'));});
- for(const owner of projectStates){stage='prepare-and-queue-'+owner.task;await prepare(owner);await queueOwner(owner);}
+ // BEGIN SUSTAINED BROWSER WIRING: exercised with controlled factories only.
+ await startAcceptanceBrowser({scope:startupScope,assertActive:assertWorkflowActive,
+  launch:()=>chromium.launch({headless:true,executablePath:option('--chromium','/usr/bin/chromium'),env:browserEnv,args:['--no-proxy-server']}),adoptBrowser:handle=>{browser=handle;},closeBrowser:handle=>handle.close(),
+  newContext:handle=>handle.newContext({viewport:{width:1440,height:1080},serviceWorkers:'block'}),
+  installRoutes:async context=>{await installBrowserTiming(context);assertWorkflowActive();await context.route('**/*',async route=>{const request=route.request(),url=new URL(request.url());if(closing||fixtureError||workflowControl?.failed){await route.abort('blockedbyclient');return;}if(url.origin!==base){stopOnFailure(Error('Browser external request refused'));await route.abort('blockedbyclient');return;}if(!['GET','HEAD','OPTIONS'].includes(request.method()))receipt.browserMutations.push({stage,method:request.method(),path:url.pathname});await route.continue();});assertWorkflowActive();},
+  newPage:context=>context.newPage(),adoptPage:handle=>{page=handle;},
+ });
+ assertWorkflowActive();receipt.browserVersion=browser.version();page.setDefaultTimeout(15000);page.on('pageerror',error=>{receipt.browserErrors.push(scrub(error));stopOnFailure(Error('Browser script error'));});
+ // END SUSTAINED BROWSER WIRING
+ for(const owner of projectStates){setStage('prepare-and-queue-'+owner.task);await prepare(owner);await queueOwner(owner);}
  assert.equal(effects().create,0);await functionalDrafts();interactions=interactionRunner({page,owners:projectStates,receipt,assertHealthy:health,phase:()=>measuredPhase,observe:passiveTiming});await interactions.warm();
- stage='idle-baseline';await quietPhase('quiet-app-open-idle');const idle=phaseStart('idle-interactive-calibration');await interactions.calibrate(100);phaseEnd(idle);await passiveTiming('end-idle-calibration');
- stage='sustained-work';const loaded=phaseStart('loaded');await setPaused(false);
+ setStage('idle-baseline');await quietPhase('quiet-app-open-idle');const idle=phaseStart('idle-interactive-calibration');await interactions.calibrate(100);phaseEnd(idle);await passiveTiming('end-idle-calibration');
+ setStage('sustained-work');const loaded=phaseStart('loaded');await setPaused(false);
  let worker=await queuedChild(projectStates[0],1);await attach(worker.session.id);await queueControls(projectStates[0]);await openProject();await interactions.warm();
  const completedOwners=[];
  for(let index=0;index<4;index++){
-  const owner=projectStates[index];stage='actual-work-'+owner.task;assert.equal(worker.task,owner.task);await exercise(worker,{restart:index===0});await completeNaturally(worker,owner);completedOwners.push(owner);
+  const owner=projectStates[index];setStage('actual-work-'+owner.task);assert.equal(worker.task,owner.task);await exercise(worker,{restart:index===0});await completeNaturally(worker,owner);completedOwners.push(owner);
   let successor;
   if(index<3){successor=await queuedChild(projectStates[index+1],index+2);await attach(successor.session.id);const beforeReview=(await api('GET',owner.route+'/runs/'+owner.run.id)).run;assert.notEqual(beforeReview.swarm.tasks.find(value=>value.id===owner.task).integration?.state,'integrated');(receipt.preIntegrationProgress??=[]).push({completedTask:owner.task,nextTask:successor.task,nextSessionID:successor.session.id,observedAt:new Date().toISOString()});}
   await reviewOwner(owner);await openProject();await interactions.warm();worker=successor;
  }
  phaseEnd(loaded);assert(interactionRound>=200,'At least200 loaded project switches and400 inputs must be actually recorded');assert.equal(observations.size,4);
  const activeSeconds=[...observations.values()].map(value=>value.artifact.commands.find(command=>command.label==='fuzz')?.activeFuzzSeconds??0);assert(activeSeconds.every(seconds=>seconds>=150));assert(activeSeconds.reduce((a,b)=>a+b,0)>=600);receipt.actualFuzzSeconds=activeSeconds;await passiveTiming('end-four-project-loaded-phase');
- stage='reviewed-amendment';const prior=projectStates[0],originalWorker=taskData.get('build-a'),oldBundle=initialBundles.get(originalWorker.session.id);assert.deepEqual(bundleSnapshot(originalWorker.session.id),oldBundle);
+ setStage('reviewed-amendment');const prior=projectStates[0],originalWorker=taskData.get('build-a'),oldBundle=initialBundles.get(originalWorker.session.id);assert.deepEqual(bundleSnapshot(originalWorker.session.id),oldBundle);
  const originalWitness=readFileSync(join(originalWorker.checkout,'witness.txt'),'utf8'),newWorkload={...prior.workload,label:'Escaped UI renderer with visible total',implementation:prior.workload.amendedImplementation,expectedOutput:prior.workload.amendedExpectedOutput};seedFiles(prior.owner,prior.workload.amendedFiles);titles.set('amend-a',newWorkload.label);
  const amended=await saveContext(prior.owner,newWorkload,'amend-a','Build escaped UI output with an exact visible item total.',connectionID,true);projectStates[0]=amended;interactions.expected(amended,amended.goal);assert.notDeepEqual(amended.canonicalBefore,prior.canonicalBefore);assert.deepEqual(bundleSnapshot(originalWorker.session.id),oldBundle);assert.equal(readFileSync(join(originalWorker.checkout,'witness.txt'),'utf8'),originalWitness);
  await prepare(amended);await queueOwner(amended);const amendedWorker=await queuedChild(amended,5);await attach(amendedWorker.session.id);assert.notDeepEqual(hashes(initialBundles.get(amendedWorker.session.id)),hashes(oldBundle));assert.equal(readFileSync(join(amendedWorker.checkout,'witness.txt'),'utf8'),prior.workload.amendedFiles['witness.txt']);await openProject();await interactions.warm();const amendmentPhase=phaseStart('amendment');await exercise(amendedWorker);await completeNaturally(amendedWorker,amended);await reviewOwner(amended);phaseEnd(amendmentPhase);assert.deepEqual(bundleSnapshot(originalWorker.session.id),oldBundle);check('Reviewed amendment passes new real tests while original task context and source snapshot remain exact');
- await openProject();await interactions.warm();stage='settle';await quietPhase('quiet-app-open-settle');const settled=phaseStart('settled-interactive-calibration');await interactions.calibrate(100);phaseEnd(settled);await passiveTiming('final-calibration');
+ await openProject();await interactions.warm();setStage('settle');await quietPhase('quiet-app-open-settle');const settled=phaseStart('settled-interactive-calibration');await interactions.calibrate(100);phaseEnd(settled);await passiveTiming('final-calibration');
  receipt.interactionSummary=summarizeInteractions(receipt.interactions);receipt.latencyTargets={measurement:'Full browser automation All projects→open saved Define context→two frames; input command→expected field→two frames; not physical display/input latency',projectSwitchP95Ms:300,inputP95Ms:100,p99Ms:1000,minimumSamples:{loadedSwitches:200,loadedInputs:400,idleSwitches:100,idleInputs:200,settledSwitches:100,settledInputs:200}};
  const latencyFailures=[];for(const name of ['idle-interactive-calibration','loaded','settled-interactive-calibration'])for(const kind of ['project-switch','input']){const value=receipt.interactionSummary[name+':'+kind];assert(value);if(value.failed||value.p95Ms>(kind==='input'?100:300)||value.p99Ms>=1000)latencyFailures.push({phase:name,kind,...value});}receipt.latencyTargetsMet=latencyFailures.length===0;receipt.latencyFailures=latencyFailures;
  await openProject(amended);await page.screenshot({path:join(evidence,'amended-project-desktop.png'),fullPage:true});await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'All projects',exact:true}).click();await page.getByRole('heading',{name:'Across your projects',exact:true}).waitFor();for(const owner of projectStates)await page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true}).waitFor();assert(await timed(page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),15000,'Phone document geometry'),'Phone overview must not horizontally overflow');await page.screenshot({path:join(evidence,'four-project-phone.png'),fullPage:true});
  assert.equal(proxy.observations.counts.create,5);assert.equal(proxy.observations.counts.start,5);assert.equal(proxy.observations.dropped,0);assert.equal(proxy.observations.failures.length,0);assert.equal(observations.size,5);assert.equal(receipt.browserErrors.length,0);assert.equal(receipt.naturalCompletions.length,5);assert.equal(receipt.preIntegrationProgress.length,3);assert.equal(workerContainers().length,0);assert.equal(docker('info','--format','{{.ID}}'),engineID);
  check('Five actual native task commands across four projects finish naturally, with600seconds real fuzz work and browser-reviewed amendment');receipt.functionalPassed=true;assert(receipt.latencyTargetsMet,'Measured UI latency exceeded the declared candidate targets; retain actual timings without relabeling functional success as full acceptance');receipt.passed=true;
-}catch(error){receipt.failedStage=stage;receipt.failure=redactError(error);process.exitCode=1;console.error(receipt.failure);if(page){try{await passiveTiming('failure');}catch{}try{await page.screenshot({path:join(evidence,'failed-stage.png'),fullPage:true});}catch{}}}
+ });
+}catch(error){
+ workflowControl?.fail(error);fixtureError??=error;
+ try{journal.record('driver-caught-failure',{stage,...diagnosticError(error)});}catch{}
+ receipt.failedStage=stage;receipt.failure=redactError(error);process.exitCode=1;console.error(receipt.failure);
+ beginCleanup();persistFailureCheckpoint();
+ if(page){try{await boundedAttempt(()=>passiveTiming('failure'),cleanupBudget(3000),'failure-timing-deadline-exceeded');}catch{}try{await boundedAttempt(()=>page.screenshot({path:join(evidence,'failed-stage.png'),fullPage:true}),cleanupBudget(3000),'failure-screenshot-deadline-exceeded');}catch{}}
+}
 finally {
- closing=true;clearTimeout(deadlineTimer);clearInterval(reserveTimer);for(const socket of sockets)socket.close();receipt.actualTaskResults=Object.fromEntries(observations);receipt.taskEvents=Object.fromEntries(taskEvents);receipt.interactionSummary=summarizeInteractions(receipt.interactions);
- receipt.taskChildren=[...taskData.values()].map(value=>({task:value.task,projectID:value.owner.id,operationID:value.operation.id,sessionID:value.session.id,container:value.container,bundle:initialBundles.get(value.session.id)}));receipt.terminalObservations=terminalProbes.map(({id,attachedStage,probe})=>({sessionID:id,attachedStage,...probe.snapshot()}));
- const cleanupFailure=error=>{receipt.cleanup.push(redactError(error));receipt.passed=false;process.exitCode=1;};
+ beginCleanup();persistFailureCheckpoint();
+ try {
+  for(const socket of sockets){try{socket.close();}catch(error){cleanupFailure(error);}}
+  receipt.actualTaskResults=Object.fromEntries(observations);receipt.taskEvents=Object.fromEntries(taskEvents);receipt.interactionSummary=summarizeInteractions(receipt.interactions);
+  receipt.taskChildren=[...taskData.values()].map(value=>({task:value.task,projectID:value.owner.id,operationID:value.operation.id,sessionID:value.session.id,container:value.container,bundle:initialBundles.get(value.session.id)}));receipt.terminalObservations=terminalProbes.map(({id,attachedStage,probe})=>({sessionID:id,attachedStage,...probe.snapshot()}));
  for(const value of taskData.values()){try{const file=join(value.checkout,'.luci-mixed-failure-'+value.task+'.json');if(existsSync(file)){const info=lstatSync(file);assert(info.isFile()&&!info.isSymbolicLink()&&info.size<=60*1024**2);const target=join(evidence,value.task+'-private-failure.json');writeFileSync(target,readFileSync(file),{mode:0o600,flag:'wx'});(receipt.failureDiagnostics??=[]).push({task:value.task,available:true,bytes:info.size,sha256:sha(readFileSync(target)),private:true});}else if(!observations.has(value.task)){(receipt.failureDiagnostics??=[]).push({task:value.task,available:false,reason:'No settled native failure bundle exists at cleanup. An active command may be interrupted by this failed fixture; its temporary corpus cannot be claimed retained.'});}}catch(error){cleanupFailure(error);}}
- if(browser){try{await browser.close();}catch(error){cleanupFailure(error);}const end=Date.now()+5000;while(Date.now()<end&&ownedProcesses('browser').length)await delay(100);for(const identity of ownedProcesses('browser')){cleanupFailure(Error('Owned browser required forced cleanup'));if(stillOwned(identity)){try{process.kill(identity.pid,'SIGKILL');}catch(error){if(error.code!=='ESRCH')cleanupFailure(error);}}}}
- let stopped=false;try{stopped=await stopService(false);assert(stopped);assert(controllerIdentities.filter(Boolean).every(identity=>!stillOwned(identity)));}catch(error){cleanupFailure(error);}receipt.controllersStopped=stopped&&controllerIdentities.filter(Boolean).every(identity=>!stillOwned(identity));
- if(proxy){try{const cleanup=await proxy.close();assert(cleanup.drained&&cleanup.pendingRequests===0&&cleanup.activeHandlers===0);receipt.dockerRequestsDrained=true;}catch(error){cleanupFailure(error);}receipt.dockerTransportObservations=structuredClone(proxy.observations);if(proxy.observations.dropped||proxy.observations.failures.length)cleanupFailure(Error('Docker transport recorded lost, refused or uncertain observations'));}else{receipt.dockerRequestsDrained=true;receipt.dockerTransportNotStarted=true;}
- if(receipt.controllersStopped&&receipt.dockerRequestsDrained&&proxy){const created=proxy.observations.requests.filter(value=>value.method==='POST'&&/\/containers\/create$/.test(value.path)&&value.status===201&&/^[a-f0-9]{64}$/.test(value.id??''));for(const creation of created){try{const ids=docker('ps','-aq','--no-trunc').split(/\s+/).filter(Boolean);if(!ids.includes(creation.id))continue;const value=JSON.parse(docker('inspect',creation.id))[0];assert.equal(value.Id,creation.id);assert.equal(value.Name,'/'+creation.name);assert.equal(value.Config.Labels['luci.instance'],instanceID());assert.equal(value.Config.Labels['luci.session-id'],creation.labels['luci.session-id']);assert(ownedSessions.has(value.Config.Labels['luci.session-id']));assert.equal(value.Config.Labels['luci.managed'],'true');assert.equal(value.Image,imageInfo.Id);assert(value.Mounts.some(mount=>mount.Destination==='/home/dev/work'&&projectStates.some(owner=>realpathSync(mount.Source).startsWith(join(dirname(owner.owner.path),'.luci-swarms')+sep))));cleanupFailure(Error('Unexpected full worker remained; exact failed-fixture cleanup required'));if(value.State.Running)docker('stop','--time','5',value.Id);const current=JSON.parse(docker('inspect',value.Id))[0];assert.equal(current.Id,value.Id);assert.equal(current.State.Running,false);docker('rm',value.Id);}catch(error){cleanupFailure(error);}}}
- if(provider){provider.closeAllConnections();if(provider.listening)await new Promise(done=>provider.close(done));}
- try{assert(receipt.controllersStopped);assert.equal(receipt.dockerRequestsDrained,true);assert.equal(docker('ps','-aq'),'');assert.equal(docker('volume','ls','-q'),'');assert.equal(ownedProcesses().length,0);assert.equal(ownedProcesses('browser').length,0);assert.equal(JSON.parse(docker('image','inspect',image))[0].Id,imageInfo.Id);assert.equal(sha(readFileSync(binary)),provenance.binarySHA256);assert.equal(sha(readFileSync(join(web,'index.html'))),provenance.webIndexSHA256);assert.equal(docker('info','--format','{{.ID}}'),engineID);for(const name of driverNames)assert.equal(sha(readFileSync(new URL(name,import.meta.url))),sha(readFileSync(join(evidence,'accepted-harness',name))));for(const name of reusedHelpers)assert.equal(sha(readFileSync(join(repo,'scripts/acceptance',name))),sha(readFileSync(join(evidence,'accepted-harness',name.replaceAll('/','_')))));
+
+  receipt.cleanupPhases=await settleSustainedResources();receipt.startupResources=startupScope.snapshot();
+  if(proxy)receipt.dockerTransportObservations=structuredClone(proxy.observations);
+ if(receipt.controllersStopped&&receipt.dockerRequestsDrained&&receipt.dockerMutationStateCertain&&proxy){const created=proxy.observations.requests.filter(value=>value.method==='POST'&&/\/containers\/create$/.test(value.path)&&value.status===201&&/^[a-f0-9]{64}$/.test(value.id??''));for(const creation of created){try{const ids=docker('ps','-aq','--no-trunc').split(/\s+/).filter(Boolean);if(!ids.includes(creation.id))continue;const value=JSON.parse(docker('inspect',creation.id))[0];assert.equal(value.Id,creation.id);assert.equal(value.Name,'/'+creation.name);assert.equal(value.Config.Labels['luci.instance'],instanceID());assert.equal(value.Config.Labels['luci.session-id'],creation.labels['luci.session-id']);assert(ownedSessions.has(value.Config.Labels['luci.session-id']));assert.equal(value.Config.Labels['luci.managed'],'true');assert.equal(value.Image,imageInfo.Id);assert(value.Mounts.some(mount=>mount.Destination==='/home/dev/work'&&projectStates.some(owner=>realpathSync(mount.Source).startsWith(join(dirname(owner.owner.path),'.luci-swarms')+sep))));cleanupFailure(Error('Unexpected full worker remained; exact failed-fixture cleanup required'));if(value.State.Running)docker('stop','--time','5',value.Id);const current=JSON.parse(docker('inspect',value.Id))[0];assert.equal(current.Id,value.Id);assert.equal(current.State.Running,false);docker('rm',value.Id);}catch(error){cleanupFailure(error);}}}
+ try{assert(startupScope.snapshot().every(row=>row.state==='closed'&&!row.closeTimedOut),'Startup resource remains unsettled');assert(receipt.controllersStopped);assert.equal(receipt.dockerRequestsDrained,true);assert.equal(receipt.dockerMutationStateCertain,true);assert.equal(docker('ps','-aq'),'');assert.equal(docker('volume','ls','-q'),'');assert.equal(ownedProcesses().length,0);assert.equal(ownedProcesses('browser').length,0);assert.equal(JSON.parse(docker('image','inspect',image))[0].Id,imageInfo.Id);assert.equal(sha(readFileSync(binary)),provenance.binarySHA256);assert.equal(sha(readFileSync(join(web,'index.html'))),provenance.webIndexSHA256);assert.equal(docker('info','--format','{{.ID}}'),engineID);for(const name of driverNames)assert.equal(sha(readFileSync(new URL(name,import.meta.url))),sha(readFileSync(join(evidence,'accepted-harness',name))));for(const name of reusedHelpers)assert.equal(sha(readFileSync(join(repo,'scripts/acceptance',name))),sha(readFileSync(join(evidence,'accepted-harness',name.replaceAll('/','_')))));
+  receipt.finalHarnessCheckout=verifySourceBinding();assert.deepEqual(receipt.finalHarnessCheckout,receipt.harnessCheckout);
   receipt.runtimeCleanup={containers:0,volumes:0,ownedServiceProcesses:0,ownedBrowserProcesses:0,protectedImagePackageAndHelpersUnchanged:true,rootFreeBytes:rootFree()};assert.equal(realpathSync(fixture),fixture);assert.equal(dirname(fixture),fixtureParent);assert(fixture.split(sep).at(-1).startsWith('luci-sustained-'));if(receipt.passed&&!fixtureError){rmSync(fixture,{recursive:true});receipt.fixtureRemoved=true;}
  }catch(error){cleanupFailure(error);}
  if(!receipt.fixtureRemoved)receipt.fixtureRetained={path:fixture,reason:'Failed or partial acceptance; private fixture credentials/source/context and bounded diagnostic files remain. Do not reuse as normal workspace.'};
- if(fixtureError){receipt.passed=false;process.exitCode=1;receipt.backgroundFailure=redactError(fixtureError);}receipt.providerCalls=providerCalls;receipt.auxiliaryCalls=auxiliaryCalls;receipt.actualTaskCount=observations.size;receipt.elapsedMs=Date.now()-started;receipt.signal=signalFailure??null;receipt.finishedAt=new Date().toISOString();writeFileSync(report,JSON.stringify(receipt,null,2)+'\n',{mode:0o600,flag:'wx'});console.log((receipt.passed?'PASS ':'FAIL ')+report);
+
+ }catch(error){cleanupFailure(error);}
+ finally {
+ if(fixtureError){receipt.passed=false;process.exitCode=1;receipt.backgroundFailure=redactError(fixtureError);}receipt.providerCalls=providerCalls;receipt.auxiliaryCalls=auxiliaryCalls;receipt.actualTaskCount=observations.size;receipt.elapsedMs=Date.now()-started;receipt.totalElapsedMs=Date.now()-driverStarted;receipt.workflowOperationUnsettled=workflowControl?.failed===true;receipt.startupResources=startupScope.snapshot();receipt.originalReceiptComplete=true;receipt.signal=signalFailure??null;receipt.finishedAt=new Date().toISOString();try{journal.record('driver-receipt-prepared',{stage,passed:receipt.passed});}catch(error){cleanupFailure(error);}writeFileSync(report,JSON.stringify(receipt,null,2)+'\n',{mode:0o600,flag:'wx'});console.log((receipt.passed?'PASS ':'FAIL ')+report);
+  clearTimeout(cleanupHardStop);
+  // Promise.race cannot cancel a losing operation. End only this driver after
+  // the durable final receipt; unsettled external resources stay explicit.
+  const finalExitCode=process.exitCode??(receipt.passed?0:1);setImmediate(()=>process.exit(finalExitCode));
+ }
 }

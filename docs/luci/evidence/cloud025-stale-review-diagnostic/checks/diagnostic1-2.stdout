@@ -1,0 +1,23 @@
+✔ actual stale-review path records diagnostics before passing every original gate (44.22988ms)
+✔ unrelated 409 remains failed after durable reason and state: Project source is busy. Wait before integrating. (9.657681ms)
+✔ unrelated 409 remains failed after durable reason and state: Project run changed; reload before continuing. (5.266593ms)
+✔ wrong HTTP status retains response and after-state before the existing API assertion escapes (5.151074ms)
+✔ truncated diagnostic fields remain bounded and cannot satisfy the reason gate (4.575901ms)
+✔ truncated JSON retains recorded HTTP status without inventing a returned reason (3.276445ms)
+✔ over-bound body retains recorded HTTP status without inventing a returned reason (38.466063ms)
+✔ original no-effect/source/checkout/revision gate remains strict: {"createDelta":1} (4.553432ms)
+✔ original no-effect/source/checkout/revision gate remains strict: {"changedHead":true} (6.635564ms)
+✔ original no-effect/source/checkout/revision gate remains strict: {"dirty":" M shared.txt"} (2.864839ms)
+✔ original no-effect/source/checkout/revision gate remains strict: {"integrationCheckout":true} (1.582779ms)
+✔ original no-effect/source/checkout/revision gate remains strict: {"revision":14} (1.352111ms)
+✔ failed after-state reads do not suppress independent observations or accept missing state (1.842701ms)
+✔ lost response preserves after-state, status remains unknown, and mutation is never replayed (1.624682ms)
+✔ only bounded known fields are retained and caller secrets are scrubbed before disk writes (1.083605ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 399.093691

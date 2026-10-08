@@ -1,0 +1,6 @@
+{
+  "Replace": {
+    "/workspace/luci/control-plane/internal/product/project_check_history_liveness_test.go": "/workspace/.luci-tools/check-history-liveness/tree/control-plane/internal/product/project_check_history_liveness_test.go",
+    "/workspace/luci/control-plane/internal/api/project_check_history_liveness_test.go": "/workspace/.luci-tools/check-history-liveness/tree/control-plane/internal/api/project_check_history_liveness_test.go"
+  }
+}

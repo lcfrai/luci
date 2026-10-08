@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "status": "external-only-awaiting-root-exact-hash-approval",
+  "originalBaseRevision": "6002b2eef3151ffd02963aa34cf32c71fc9b2755",
+  "preparedAt": "2026-10-08T20:14:59.599173+00:00",
+  "patchSHA256": "3c832ee0e31f10fed826b18430d8b1ff26e538659903890b146e60271f0717a4",
+  "files": [
+    {
+      "path": "scripts/acceptance/launch-recovery/acceptance-lifecycle.test.mjs",
+      "baseSHA256": "c168a87158ebf59b9d4cc027551d0f5867367c2153f810a2acac8fe77a625748",
+      "stagedSHA256": "e5f43c0edfa919341f449f7da3d86c76fda69229c6b61d73eb4f6e9feb80f840"
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/acceptance-startup.mjs",
+      "baseSHA256": null,
+      "stagedSHA256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680"
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/acceptance-startup.test.mjs",
+      "baseSHA256": null,
+      "stagedSHA256": "28f675f2b994bf663784a702ce1e9930fb2cf4aa0d8aac0fa82d82acb20e128f"
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs",
+      "baseSHA256": "062f24520425480bca2afb62f40ea0d4bed6e6c842cddd3ad9800e5d2c2b20ea",
+      "stagedSHA256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1"
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs",
+      "baseSHA256": "bb7e7ec6be9501eeb155b9c9d4112dffd6b9066fc539cd1cd45eac4ed732531d",
+      "stagedSHA256": "48e97d6d5c915cf80c99f0c79a8fb16261eb219616f878fa1ce103ee2c59303d"
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/fenced-docker-proxy.test.mjs",
+      "baseSHA256": "55d5e8558d54f76f4f44d15bcc801d245e755958050aa5321b050b8e2c68b21e",
+      "stagedSHA256": "f7b76ba8a0047cdeaed6741a81a10a36edca3513db4fcffde617fb37fcb0ef04"
+    },
+    {
+      "path": "scripts/acceptance/task-dependencies/README.md",
+      "baseSHA256": "54a4c3ba7d3e83b93bf7f1507e86f79407f6f414e753c03c5ddf5a832fce4599",
+      "stagedSHA256": "b1d89da4c1b685186d130472ae1e5fd67bc644967af175486dea02dd9ef590cd"
+    },
+    {
+      "path": "scripts/acceptance/task-dependencies/dag.mjs",
+      "baseSHA256": "8a07114aae0b58cbf530accd88613b58edfcb546245e8a3fcfc2aae695658bd2",
+      "stagedSHA256": "8ac2a44a08a018d33783282190ee6aa20ec02a351718128016b86cd925af9040"
+    }
+  ],
+  "controlledTests": {
+    "passed": 51,
+    "failed": 0,
+    "skipped": 0,
+    "receipt": "controlled-final-2/result.json",
+    "afterCLOUD025Merge": {
+      "passed": 15,
+      "failed": 0,
+      "receipt": "controlled-merged/result.json"
+    },
+    "accounting": "15 post-merge affected cases repeat within 51, not an additive count."
+  },
+  "exactOriginalRegression": {
+    "version": 1,
+    "scope": "Exact original/corrected DAG startup block and startService source slices executed in VM; same cancellation/cleanup invariant, all external effects injected. No Docker or actual processes.",
+    "records": [
+      {
+        "mode": "original",
+        "command": [
+          "node",
+          "original-vs-corrected-regression.mjs",
+          "original"
+        ],
+        "startedAt": "2026-10-08T20:11:21.484601+00:00",
+        "exitCode": 1,
+        "expectedExitCode": 1,
+        "outcome": "resolved",
+        "postCancellationSpawns": 1,
+        "postCancellationConfigWrites": 1,
+        "sourceSHA256": "e22fabe57952ad03c763bc188121b3886c64ea0941cf2ebdc795523f360e91f3"
+      },
+      {
+        "mode": "corrected",
+        "command": [
+          "node",
+          "original-vs-corrected-regression.mjs",
+          "corrected"
+        ],
+        "startedAt": "2026-10-08T20:11:21.673114+00:00",
+        "exitCode": 0,
+        "expectedExitCode": 0,
+        "outcome": "controlled-cancel",
+        "postCancellationSpawns": 0,
+        "postCancellationConfigWrites": 0,
+        "sourceSHA256": "8ac2a44a08a018d33783282190ee6aa20ec02a351718128016b86cd925af9040",
+        "recheckedAt": "2026-10-08T20:14:59.582047+00:00"
+      }
+    ]
+  },
+  "merge": {
+    "version": 1,
+    "method": "Exact unique original-base to startup-candidate edit blocks applied onto current CLOUD025 DAG; each before-block matched once.",
+    "originalBaseSHA256": "e22fabe57952ad03c763bc188121b3886c64ea0941cf2ebdc795523f360e91f3",
+    "startupOnlySHA256": "8df095b32a7cbc54c9038a663e7f1f8cfcad1bc6d612bcb8658079173843f38e",
+    "currentRootWithCLOUD025SHA256": "8a07114aae0b58cbf530accd88613b58edfcb546245e8a3fcfc2aae695658bd2",
+    "mergedSHA256": "8ac2a44a08a018d33783282190ee6aa20ec02a351718128016b86cd925af9040",
+    "CLOUD025Retained": true
+  },
+  "gitApplyCheck": "passed against current root including CLOUD025 diagnostics",
+  "limitations": [
+    "No installed C013 or sustained acceptance run.",
+    "Original attempts4/5 causes not inferred.",
+    "Only synchronous beforeStart is supported; Stop/Delete and draining retain original exact identity and ownership guards."
+  ]
+}

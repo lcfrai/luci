@@ -1,0 +1,227 @@
+{
+  "version": 1,
+  "recordedAt": "2026-10-08T20:18:54.908191+00:00",
+  "scope": "Hashes of every evidence file except this manifest itself.",
+  "files": [
+    {
+      "file": ".gitignore",
+      "bytes": 24,
+      "sha256": "b691ef757909f968337ff3c66f52a6f0961f37c8f4f56ad79f64436b0276c548"
+    },
+    {
+      "file": "README.md",
+      "bytes": 8127,
+      "sha256": "d59d353f1b7680cec22f8ecb834bb807668e7739f7c26fef919283d328248f53"
+    },
+    {
+      "file": "candidate.patch",
+      "bytes": 158042,
+      "sha256": "0f50ee2da5eed2f70b1cc14c8e77fe38f71a02467191c2d0f965ad92e19b85f3"
+    },
+    {
+      "file": "commands.json",
+      "bytes": 3536,
+      "sha256": "5978916dc04aeefae97510ad361f4920ff87dc13bfcf6e1c0c6cf08c4a51dd3d"
+    },
+    {
+      "file": "controlled-js-final-corrected.tap",
+      "bytes": 14315,
+      "sha256": "ef97b55e93082ef5d2782aa36839d3c64fb7737916142eb4629c79f6e1171705"
+    },
+    {
+      "file": "controlled-js-final.tap",
+      "bytes": 15028,
+      "sha256": "b0821fe0417b0ef627bb7b608775c93d4bb00fd2bdcfa9b2e60106a3d31299bc"
+    },
+    {
+      "file": "controlled-js-ready.tap",
+      "bytes": 14579,
+      "sha256": "4a1e5678efedf3185de3915ba1cc8044f0bbcd6d58945974d7f7f851365c4991"
+    },
+    {
+      "file": "controlled-js-tests.tap",
+      "bytes": 10037,
+      "sha256": "7be90120b08ffb120122c92f2e7ad168e95995adbb525690d399aed01393dc4f"
+    },
+    {
+      "file": "helper-binding-final.tap",
+      "bytes": 6800,
+      "sha256": "abd55547c4aef6bea8652bec42055e3d90329fbdf4024222ed8f8785523f7fb4"
+    },
+    {
+      "file": "input-manifest.json",
+      "bytes": 13139,
+      "sha256": "bc20e488419e90a56956247d3e208c438349e5bc6b343dfcf8540d45a74f1393"
+    },
+    {
+      "file": "inputs/scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs",
+      "bytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+    },
+    {
+      "file": "inputs/scripts/acceptance/launch-recovery/acceptance-startup.mjs",
+      "bytes": 4637,
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680"
+    },
+    {
+      "file": "inputs/scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs",
+      "bytes": 6670,
+      "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1"
+    },
+    {
+      "file": "inputs/scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs",
+      "bytes": 35707,
+      "sha256": "48e97d6d5c915cf80c99f0c79a8fb16261eb219616f878fa1ce103ee2c59303d"
+    },
+    {
+      "file": "inputs/scripts/acceptance/sustained-four-project/README.md",
+      "bytes": 14474,
+      "sha256": "f0fd80b0159a4cd9970d30386795e1d3f256e34ad3ae09838fa4bcb2bd71d611"
+    },
+    {
+      "file": "inputs/scripts/acceptance/sustained-four-project/event-drain.test.mjs",
+      "bytes": 4677,
+      "sha256": "71004a86a08ba7da48e31b53f02c45a7a08bf5816113efa2a2f3cb584b6832a3"
+    },
+    {
+      "file": "inputs/scripts/acceptance/sustained-four-project/helper.test.mjs",
+      "bytes": 2489,
+      "sha256": "97c80e81827056aaa2c4ac346296e6cce1d0f375fe6ba65ad6ce5b355dd7b9ab"
+    },
+    {
+      "file": "inputs/scripts/acceptance/sustained-four-project/interaction-metrics.mjs",
+      "bytes": 9846,
+      "sha256": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502"
+    },
+    {
+      "file": "inputs/scripts/acceptance/sustained-four-project/latency-diagnostics.mjs",
+      "bytes": 7545,
+      "sha256": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96"
+    },
+    {
+      "file": "inputs/scripts/acceptance/sustained-four-project/latency-diagnostics.test.mjs",
+      "bytes": 9445,
+      "sha256": "9bef06f598fb78cccdccdf48b4e8f7e3283bfc91ad6b54a229bbc050d2dea311"
+    },
+    {
+      "file": "inputs/scripts/acceptance/sustained-four-project/lifecycle.test.mjs",
+      "bytes": 17006,
+      "sha256": "b77a41f2d04d6a9f3bb217675c78fae26a58afb6ec711425bf5f3e998bd7ae08"
+    },
+    {
+      "file": "inputs/scripts/acceptance/sustained-four-project/run-with-observer.py",
+      "bytes": 17220,
+      "sha256": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a"
+    },
+    {
+      "file": "inputs/scripts/acceptance/sustained-four-project/run_with_observer_test.py",
+      "bytes": 21628,
+      "sha256": "7ad4e28b0172b4ee131ecbd04033aba5b36304f2bef34f800a0f6a45e6ef7b12"
+    },
+    {
+      "file": "inputs/scripts/acceptance/sustained-four-project/source-binding.mjs",
+      "bytes": 2768,
+      "sha256": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796"
+    },
+    {
+      "file": "inputs/scripts/acceptance/sustained-four-project/source-binding.test.mjs",
+      "bytes": 6801,
+      "sha256": "8826d4a380ca1de945e714f4906c0675475e9090bd166a9d7677dcc8bc4d998c"
+    },
+    {
+      "file": "inputs/scripts/acceptance/sustained-four-project/sustained.mjs",
+      "bytes": 86030,
+      "sha256": "6655917e3b326bf192609ad071dca57b799a1e178c7d25879bf0d4b13cd47549"
+    },
+    {
+      "file": "inputs/scripts/acceptance/sustained-four-project/task-command.mjs",
+      "bytes": 10172,
+      "sha256": "414015af6ea915ccd3c838c3a316b7f08e079b70cc5de299a7991bb0b5f9f6fe"
+    },
+    {
+      "file": "inputs/scripts/acceptance/sustained-four-project/task-context.mjs",
+      "bytes": 2439,
+      "sha256": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2"
+    },
+    {
+      "file": "inputs/scripts/acceptance/sustained-four-project/task-context.test.mjs",
+      "bytes": 2524,
+      "sha256": "cebae265599e0ba61ec7563e4f377b6a298ec19142b30a432597e43fd68f30fb"
+    },
+    {
+      "file": "inputs/scripts/acceptance/sustained-four-project/workload.test.mjs",
+      "bytes": 3394,
+      "sha256": "0842134ed73e9cfae8a7ad8b2f306f45db9f9dda689a0920c2e5e129e7d6df0c"
+    },
+    {
+      "file": "inputs/scripts/acceptance/sustained-four-project/workloads.mjs",
+      "bytes": 18691,
+      "sha256": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306"
+    },
+    {
+      "file": "lifecycle-test-final.log",
+      "bytes": 940,
+      "sha256": "a2630efd4a276a168fd52c9549fe909b8979a4258ec9c0d2a5fab3189f5582aa"
+    },
+    {
+      "file": "lifecycle-test.log",
+      "bytes": 829,
+      "sha256": "a97958b823d2fe923bbb2a6c79d18ba9542953d46b170a6e97b094c498600937"
+    },
+    {
+      "file": "python-verification.json",
+      "bytes": 3215,
+      "sha256": "eb897dcc9d620c4076bbb05161b8f7a0e76f7916652caa96c42eb880e1da282e"
+    },
+    {
+      "file": "result.json",
+      "bytes": 2929,
+      "sha256": "2acf227a7ae5e8de4ac27cb00ebb6a8db60137cf2d061d4c634e6c722d530b41"
+    },
+    {
+      "file": "shared-dependency-verification/node.log",
+      "bytes": 4998,
+      "sha256": "8c83b89a520e302eb4ad9c2c3d4a139ae7854f47254432e549ac9bf9bd33a082"
+    },
+    {
+      "file": "shared-dependency-verification/node.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "shared-dependency-verification/result.json",
+      "bytes": 1698,
+      "sha256": "4d10d0a2882249d7a0437b3b7906e3755e493e8088acc08b7357c7a4a2502e28"
+    },
+    {
+      "file": "source-and-continuation-tests.tap",
+      "bytes": 5828,
+      "sha256": "2e3912fae88cb0906536b16402d9cf8e4542ed2ee20d2d29c1f81bc4e347b9ae"
+    },
+    {
+      "file": "source-baseline.json",
+      "bytes": 559,
+      "sha256": "5b50a7357937531d48dcda11a9283718fde2f00b8e0677fbaaa6461306cef8ad"
+    },
+    {
+      "file": "startup-wiring-tests.tap",
+      "bytes": 6335,
+      "sha256": "23beb5ac7f3bff599c1ae68066515ebb6b26ce0e7543e26a1be1796e7d7c2042"
+    },
+    {
+      "file": "verification-before-helper-location.json",
+      "bytes": 13301,
+      "sha256": "35c72b35fd2043d63cdd19790f3b35c706a9785f50c3cae16f5136fd2a0cdf0f"
+    },
+    {
+      "file": "verification-before-startup-followup.json",
+      "bytes": 9886,
+      "sha256": "a6a984e20097feb4a18ba772e11c07216105aa9c91c11645008c0912e58c99d0"
+    },
+    {
+      "file": "verification.json",
+      "bytes": 17614,
+      "sha256": "3f3b332b4ff355b1eac8d4b715b5c0b886dc12855fec6dce692a660ad9399c76"
+    }
+  ]
+}

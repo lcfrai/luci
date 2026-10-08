@@ -1,0 +1,328 @@
+TAP version 13
+# Subtest: drained document sequences remain complete and independent across navigation
+ok 1 - drained document sequences remain complete and independent across navigation
+  ---
+  duration_ms: 8.34631
+  type: 'test'
+  ...
+# Subtest: gap is retained as explicit invalid evidence
+ok 2 - gap is retained as explicit invalid evidence
+  ---
+  duration_ms: 1.174642
+  type: 'test'
+  ...
+# Subtest: duplicate is retained as explicit invalid evidence
+ok 3 - duplicate is retained as explicit invalid evidence
+  ---
+  duration_ms: 1.069544
+  type: 'test'
+  ...
+# Subtest: buffer overflow is retained before refusal and never reset into valid evidence
+ok 4 - buffer overflow is retained before refusal and never reset into valid evidence
+  ---
+  duration_ms: 0.526063
+  type: 'test'
+  ...
+# Subtest: event ledger bound refuses before retaining excessive payload
+ok 5 - event ledger bound refuses before retaining excessive payload
+  ---
+  duration_ms: 0.767027
+  type: 'test'
+  ...
+# Subtest: byte ledger bound refuses before retaining excessive payload
+ok 6 - byte ledger bound refuses before retaining excessive payload
+  ---
+  duration_ms: 0.573785
+  type: 'test'
+  ...
+# Subtest: window ledger bound refuses before retaining excessive payload
+ok 7 - window ledger bound refuses before retaining excessive payload
+  ---
+  duration_ms: 0.423899
+  type: 'test'
+  ...
+# Subtest: document ledger bound refuses before retaining excessive payload
+ok 8 - document ledger bound refuses before retaining excessive payload
+  ---
+  duration_ms: 0.261475
+  type: 'test'
+  ...
+# Subtest: Generated native worker programs parse with actual fixture strings, without execution
+ok 9 - Generated native worker programs parse with actual fixture strings, without execution
+  ---
+  duration_ms: 8.887136
+  type: 'test'
+  ...
+# Subtest: Command refuses unexpected task identity and unbounded duration
+ok 10 - Command refuses unexpected task identity and unbounded duration
+  ---
+  duration_ms: 18.379014
+  type: 'test'
+  ...
+# Subtest: Nearest rank summaries preserve slow failures instead of survivor-only quantiles
+ok 11 - Nearest rank summaries preserve slow failures instead of survivor-only quantiles
+  ---
+  duration_ms: 0.832325
+  type: 'test'
+  ...
+# Subtest: Failure on first All projects click is inside project-switch measurement
+ok 12 - Failure on first All projects click is inside project-switch measurement
+  ---
+  duration_ms: 2.892273
+  type: 'test'
+  ...
+# Subtest: trusted input and frames retain timestamps but no key, value, target or text
+ok 13 - trusted input and frames retain timestamps but no key, value, target or text
+  ---
+  duration_ms: 8.07411
+  type: 'test'
+  ...
+# Subtest: synthetic DOM events are excluded and pointer capture is text-free
+ok 14 - synthetic DOM events are excluded and pointer capture is text-free
+  ---
+  duration_ms: 8.852725
+  type: 'test'
+  ...
+# Subtest: route timing retains only exact same-origin classes and strips identities/query
+ok 15 - route timing retains only exact same-origin classes and strips identities/query
+  ---
+  duration_ms: 4.197392
+  type: 'test'
+  ...
+# Subtest: unsupported resource observation stays explicit while input still works
+ok 16 - unsupported resource observation stays explicit while input still works
+  ---
+  duration_ms: 1.692212
+  type: 'test'
+  ...
+# Subtest: 2048 browser row cap is sticky across drains; no overflowing input frame scheduled
+ok 17 - 2048 browser row cap is sticky across drains; no overflowing input frame scheduled
+  ---
+  duration_ms: 13.932837
+  type: 'test'
+  ...
+# Subtest: bounded ledger verifies monotonic per-document sequence and accounts bytes
+ok 18 - bounded ledger verifies monotonic per-document sequence and accounts bytes
+  ---
+  duration_ms: 3.59984
+  type: 'test'
+  ...
+# Subtest: ledger refuses gap
+ok 19 - ledger refuses gap
+  ---
+  duration_ms: 2.025676
+  type: 'test'
+  ...
+# Subtest: ledger refuses counter
+ok 20 - ledger refuses counter
+  ---
+  duration_ms: 2.248852
+  type: 'test'
+  ...
+# Subtest: ledger refuses overflow
+ok 21 - ledger refuses overflow
+  ---
+  duration_ms: 2.199869
+  type: 'test'
+  ...
+# Subtest: ledger refuses rows bound
+ok 22 - ledger refuses rows bound
+  ---
+  duration_ms: 1.955019
+  type: 'test'
+  ...
+# Subtest: ledger refuses bytes bound
+ok 23 - ledger refuses bytes bound
+  ---
+  duration_ms: 1.984553
+  type: 'test'
+  ...
+# Subtest: ledger refuses windows bound
+ok 24 - ledger refuses windows bound
+  ---
+  duration_ms: 1.786605
+  type: 'test'
+  ...
+# Subtest: ledger refuses documents bound
+ok 25 - ledger refuses documents bound
+  ---
+  duration_ms: 1.627666
+  type: 'test'
+  ...
+# Subtest: Node stage recorder freezes on timeout/close and never changes primary elapsed
+ok 26 - Node stage recorder freezes on timeout/close and never changes primary elapsed
+  ---
+  duration_ms: 0.332661
+  type: 'test'
+  ...
+# Subtest: existing frame RPC returns two chronological callbacks in the browser clock
+ok 27 - existing frame RPC returns two chronological callbacks in the browser clock
+  ---
+  duration_ms: 1.989371
+  type: 'test'
+  ...
+# Subtest: one full round preserves action order and existing RPC count
+ok 28 - one full round preserves action order and existing RPC count
+  ---
+  duration_ms: 7.375736
+  type: 'test'
+  ...
+# Subtest: snapshot uses one existing RPC and keeps passive timing plus diagnostics
+ok 29 - snapshot uses one existing RPC and keeps passive timing plus diagnostics
+  ---
+  duration_ms: 1.248413
+  type: 'test'
+  ...
+# Subtest: stuck browser close cannot skip controller/proxy/provider cleanup or exact owned fallback
+ok 30 - stuck browser close cannot skip controller/proxy/provider cleanup or exact owned fallback
+  ---
+  duration_ms: 19.438923
+  type: 'test'
+  ...
+# Subtest: never-resolving or throwing proxy retains uncertainty and cannot gain authority from a late result
+ok 31 - never-resolving or throwing proxy retains uncertainty and cannot gain authority from a late result
+  ---
+  duration_ms: 28.480323
+  type: 'test'
+  ...
+# Subtest: transport failures refuse destructive authority even after a completed socket drain
+ok 32 - transport failures refuse destructive authority even after a completed socket drain
+  ---
+  duration_ms: 5.997007
+  type: 'test'
+  ...
+# Subtest: throwing controller/browser/provider cleanup still attempts every independent phase
+ok 33 - throwing controller/browser/provider cleanup still attempts every independent phase
+  ---
+  duration_ms: 2.998423
+  type: 'test'
+  ...
+# Subtest: missing browser handle still applies exact profile/process identity before fallback
+ok 34 - missing browser handle still applies exact profile/process identity before fallback
+  ---
+  duration_ms: 9.271275
+  type: 'test'
+  ...
+# Subtest: late workflow continuation cannot seed state after the deadline
+ok 35 - late workflow continuation cannot seed state after the deadline
+  ---
+  duration_ms: 11.862866
+  type: 'test'
+  ...
+# Subtest: intentional service restart is permitted while failure/cleanup still refuses a new child
+ok 36 - intentional service restart is permitted while failure/cleanup still refuses a new child
+  ---
+  duration_ms: 3.677357
+  type: 'test'
+  ...
+# Subtest: native provider progress survives intentional controller downtime but remains fenced on failure
+ok 37 - native provider progress survives intentional controller downtime but remains fenced on failure
+  ---
+  duration_ms: 2.454413
+  type: 'test'
+  ...
+# Subtest: exactV1 file/binding fixture accepted
+ok 38 - exactV1 file/binding fixture accepted
+  ---
+  duration_ms: 3.926413
+  type: 'test'
+  ...
+# Subtest: exactV2 file/binding fixture accepted
+ok 39 - exactV2 file/binding fixture accepted
+  ---
+  duration_ms: 1.503648
+  type: 'test'
+  ...
+# Subtest: trustedV1 refuses V2 context rather than guessing upgrade
+ok 40 - trustedV1 refuses V2 context rather than guessing upgrade
+  ---
+  duration_ms: 2.134139
+  type: 'test'
+  ...
+# Subtest: V2 refuses missing packet
+ok 41 - V2 refuses missing packet
+  ---
+  duration_ms: 0.694507
+  type: 'test'
+  ...
+# Subtest: V2 refuses wrong attempt
+ok 42 - V2 refuses wrong attempt
+  ---
+  duration_ms: 0.593595
+  type: 'test'
+  ...
+# Subtest: V2 refuses wrong child
+ok 43 - V2 refuses wrong child
+  ---
+  duration_ms: 0.404821
+  type: 'test'
+  ...
+# Subtest: V2 refuses changed frozen bytes
+ok 44 - V2 refuses changed frozen bytes
+  ---
+  duration_ms: 0.787388
+  type: 'test'
+  ...
+# Subtest: V2 refuses manifest authority changed
+ok 45 - V2 refuses manifest authority changed
+  ---
+  duration_ms: 0.407284
+  type: 'test'
+  ...
+# Subtest: V2 refuses typed packet digest differs
+ok 46 - V2 refuses typed packet digest differs
+  ---
+  duration_ms: 0.63693
+  type: 'test'
+  ...
+# Subtest: V2 refuses unexpected dependency count
+ok 47 - V2 refuses unexpected dependency count
+  ---
+  duration_ms: 0.59643
+  type: 'test'
+  ...
+# Subtest: workload 0 has a bounded offline source contract
+ok 48 - workload 0 has a bounded offline source contract
+  ---
+  duration_ms: 1.887958
+  type: 'test'
+  ...
+# Subtest: workload 1 has a bounded offline source contract
+ok 49 - workload 1 has a bounded offline source contract
+  ---
+  duration_ms: 4.734843
+  type: 'test'
+  ...
+# Subtest: workload 2 has a bounded offline source contract
+ok 50 - workload 2 has a bounded offline source contract
+  ---
+  duration_ms: 0.206652
+  type: 'test'
+  ...
+# Subtest: workload 3 has a bounded offline source contract
+ok 51 - workload 3 has a bounded offline source contract
+  ---
+  duration_ms: 0.155985
+  type: 'test'
+  ...
+# Subtest: goldens describe distinct verified output contracts
+ok 52 - goldens describe distinct verified output contracts
+  ---
+  duration_ms: 1.005858
+  type: 'test'
+  ...
+# Subtest: workloads are returned as independent mutable objects and invalid selection refuses
+ok 53 - workloads are returned as independent mutable objects and invalid selection refuses
+  ---
+  duration_ms: 0.666075
+  type: 'test'
+  ...
+1..53
+# tests 53
+# suites 0
+# pass 53
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 389.080738

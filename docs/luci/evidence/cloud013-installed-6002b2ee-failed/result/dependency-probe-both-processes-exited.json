@@ -1,0 +1,33 @@
+{
+  "label": "both-processes-exited",
+  "status": 409,
+  "requestedRevision": 14,
+  "publicRevisionBefore": 14,
+  "privateRevisionBefore": 14,
+  "privateRevisionAfter": 14,
+  "before": {
+    "effects": {
+      "create": 2,
+      "start": 2,
+      "destroy": 2
+    },
+    "primaryCommit": "ca002449789d3c0b4d785445d97538c42f5ec233",
+    "joinOperationIds": []
+  },
+  "after": {
+    "effects": {
+      "create": 2,
+      "start": 2,
+      "destroy": 2
+    },
+    "primaryCommit": "ca002449789d3c0b4d785445d97538c42f5ec233",
+    "joinOperationIds": []
+  },
+  "response": {
+    "message": "Integrate this task's dependencies before starting it.",
+    "error": "project_run_conflict"
+  },
+  "truncatedFields": [],
+  "at": "2026-10-08T19:59:03.693Z",
+  "classification": "unclassified-response"
+}

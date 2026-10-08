@@ -1,0 +1,1700 @@
+--- a/scripts/acceptance/sustained-four-project/sustained.mjs
++++ b/scripts/acceptance/sustained-four-project/sustained.mjs
+@@ -13,15 +13,35 @@
+ import { mixedTaskCommand } from './task-command.mjs';
+ import { projectWorkload } from './workloads.mjs';
+ import {contextFileNames, verifyTaskContext} from './task-context.mjs';
++import {parseSourceBindingOptions,validateSourceBinding,validateHelperLocation} from './source-binding.mjs';
+ import { installBrowserTiming, timingSnapshot, interactionRunner, summarizeInteractions, createTimingLedger } from './interaction-metrics.mjs';
+ 
+ const here=dirname(fileURLToPath(import.meta.url)),repo=resolve(process.env.LUCI_ACCEPTANCE_REPO??resolve(here,'../../..')),args=process.argv.slice(2);
++const option = (name, fallback) => { const i = args.indexOf(name); if (i < 0) return fallback; assert(args[i + 1] && !args[i + 1].startsWith('--'), 'Missing value for ' + name); return args[i + 1]; };
++if(args.includes('--help')){console.log('PREPARED ONLY: installed scripted five-worker/four-project mixed build/test acceptance. Required --binary --web --task-context-version1or2 --provenance --expected-source [--expected-helper-source CLEAN_HELPER_COMMIT] --image --expected-image-id --image-provenance --report FRESH_JSON --fixture-root SHORT_PATH. Root exclusive Docker window and verified clean package required; no model quality or Windows claim.');process.exit(0);}
++const PREPARATION_MS=120000,WORKFLOW_MS=1800000,CLEANUP_MS=180000,DRIVER_TOTAL_MS=PREPARATION_MS+WORKFLOW_MS+CLEANUP_MS;
++const driverStarted=Date.now(),preparationDeadline=driverStarted+PREPARATION_MS;
++let commandDeadline=preparationDeadline,preparationActive=true;
++const commandBudget=maximum=>{const left=commandDeadline-Date.now();if(left<=0)throw Object.assign(Error('Acceptance command deadline exceeded'),{code:preparationActive?'preparation-deadline-exceeded':'acceptance-command-deadline-exceeded'});return Math.min(maximum,left);};
++const report = resolve(option('--report', 'artifacts/quality-swarm/sustained-mixed/attempt-' + Date.now() + '/result.json')), evidence = dirname(report);
++if (existsSync(evidence)) assert.equal(readdirSync(evidence).length, 0, 'Use a fresh evidence directory; prior failures must remain');
++mkdirSync(evidence, { recursive: true, mode: 0o700 });
++const {createAcceptanceJournal,diagnosticError,journalProcessIdentity}=await import(join(repo,'scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs'));
++const {createWorkflowDeadline,boundedAttempt,runBoundedCleanup,writeFailureCheckpoint,settleOwnedBrowser}=await import(join(repo,'scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs'));
++const {createStartupScope,startAcceptanceServices,startAcceptanceBrowser}=await import(join(repo,'scripts/acceptance/launch-recovery/acceptance-startup.mjs'));
++
++const journal=createAcceptanceJournal(join(evidence,'diagnostic-journal.jsonl'));
++journal.record('driver-start',{...journalProcessIdentity(),deadlineMs:DRIVER_TOTAL_MS,stage:'preparation'});
++const preparationCheckpoint=error=>({version:1,passed:false,status:'preparation-failed',stage:'preparation',at:new Date().toISOString(),preparationDeadlineMs:PREPARATION_MS,scenarioDeadlineMs:WORKFLOW_MS,cleanupDeadlineMs:CLEANUP_MS,totalDeadlineMs:DRIVER_TOTAL_MS,driver:journalProcessIdentity(),failure:diagnosticError(error),externalResourcesStarted:false,originalReceiptComplete:false});
++process.on('uncaughtExceptionMonitor',(error,origin)=>{try{journal.record('driver-fatal',{...diagnosticError(error),origin,stage:preparationActive?'preparation':'driver'});if(preparationActive)writeFailureCheckpoint(report,preparationCheckpoint(error));}catch{}});
++process.on('exit',exitCode=>{try{journal.record('driver-exit',{exitCode});journal.close();}catch{}});
++const preparationHardStop=setTimeout(()=>{const error=Object.assign(Error('Preparation deadline exceeded'),{code:'preparation-deadline-exceeded'});try{journal.record('driver-caught-failure',{stage:'preparation',...diagnosticError(error)});writeFailureCheckpoint(report,preparationCheckpoint(error));}catch{}process.exit(1);},Math.max(1,preparationDeadline-Date.now()));
++for(const signal of ['SIGTERM','SIGINT'])process.on(signal,()=>{if(!preparationActive)return;const error=Object.assign(Error('Preparation interrupted'),{code:'preparation-interrupted'});try{journal.record('driver-signal',{stage:'preparation',signal});writeFailureCheckpoint(report,{...preparationCheckpoint(error),signal});}catch{}process.exit(1);});
+ const {chromium}=await import(join(repo,'desktop/node_modules/playwright/index.mjs'));
+ const {validateWorkerCreate}=await import(join(repo,'scripts/acceptance/launch-recovery/worker-create-guard.mjs'));
+ const {startFencedDockerProxy}=await import(join(repo,'scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs'));
+ const {createNativeTerminalProbe}=await import(join(repo,'scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs'));
+-const option = (name, fallback) => { const i = args.indexOf(name); if (i < 0) return fallback; assert(args[i + 1] && !args[i + 1].startsWith('--'), 'Missing value for ' + name); return args[i + 1]; };
+-if(args.includes('--help')){console.log('PREPARED ONLY: installed scripted five-worker/four-project mixed build/test acceptance. Required --binary --web --task-context-version1or2 --provenance --expected-source --image --expected-image-id --image-provenance --report FRESH_JSON --fixture-root SHORT_PATH. Root exclusive Docker window and verified clean package required; no model quality or Windows claim.');process.exit(0);}
++
+ const taskContextVersion=Number(option('--task-context-version','1')); assert(taskContextVersion===1||taskContextVersion===2,'Explicit trusted context version must be1or2');
+ const binary = resolve(option('--binary', 'artifacts/luci')), web = resolve(option('--web', 'desktop/dist'));
+ const image = option('--image'), releaseImage = image;
+@@ -33,11 +53,13 @@
+ const sha = bytes => createHash('sha256').update(bytes).digest('hex');
+ const provenancePath = option('--provenance'); assert(provenancePath, 'Matching clean package provenance is required');
+ const provenanceBytes = readFileSync(resolve(provenancePath)), provenance = JSON.parse(provenanceBytes);
+-assert.equal(provenance.sourceDirty, false); assert.equal(provenance.sourceCommit, option('--expected-source'));
+-assert.match(provenance.sourceCommit, /^[a-f0-9]{40}$/);
++validateHelperLocation(realpathSync(here),realpathSync(join(repo,'scripts/acceptance/sustained-four-project')));
++const sourceBindingOptions=parseSourceBindingOptions(args);
++function verifySourceBinding(){return validateSourceBinding({provenance,...sourceBindingOptions,helperCommit:execFileSync('git',['rev-parse','HEAD'],{cwd:repo,encoding:'utf8',timeout:Math.ceil(commandBudget(15000))}).trim(),helperDirty:!!execFileSync('git',['status','--porcelain'],{cwd:repo,encoding:'utf8',timeout:Math.ceil(commandBudget(15000))}).trim()});}
++const harnessCheckout=verifySourceBinding();
+ for(const [path,expected] of Object.entries(imageEvidence.sourcesBefore??{})){
+  assert(/^(sandboxd\/|images\/sandbox\/)/.test(path)&&!path.split('/').includes('..'));
+- assert.equal(sha(execFileSync('git',['show',provenance.sourceCommit+':'+path],{cwd:repo,maxBuffer:32*1024**2})),expected,'Sandbox source differs from packaged source commit: '+path);
++ assert.equal(sha(execFileSync('git',['show',provenance.sourceCommit+':'+path],{cwd:repo,maxBuffer:32*1024**2,timeout:Math.ceil(commandBudget(30000))})),expected,'Sandbox source differs from packaged source commit: '+path);
+ }
+ assert(Object.keys(imageEvidence.sourcesBefore??{}).length>10,'Sandbox source fence missing'); assert.equal(sha(readFileSync(binary)), provenance.binarySHA256); assert.equal(sha(readFileSync(join(web, 'index.html'))), provenance.webIndexSHA256);
+ const packageIntegrity = JSON.parse(execFileSync('python3', ['-c', `import hashlib,json,pathlib,sys,tarfile
+@@ -62,11 +84,11 @@
+    while block:=stream.read(1024*1024): b.update(block)
+   if a.digest()!=b.digest(): raise ValueError('Installed package member differs: '+str(p))
+   count+=1
+-print(json.dumps({'archiveSHA256':digest.hexdigest(),'verifiedMembers':count,'allMembersMatch':True}))`, provenance.archive, provenance.archiveSHA256, dirname(binary)], { encoding: 'utf8', timeout: 60000, maxBuffer: 1024 * 1024 }));
++print(json.dumps({'archiveSHA256':digest.hexdigest(),'verifiedMembers':count,'allMembersMatch':True}))`, provenance.archive, provenance.archiveSHA256, dirname(binary)], { encoding: 'utf8', timeout: Math.ceil(commandBudget(60000)), maxBuffer: 1024 * 1024 }));
+ assert.equal(realpathSync(web), realpathSync(join(dirname(binary), 'web')));
+ const rootFree = () => { const volume = statfsSync('/'); return Number(volume.bavail) * Number(volume.bsize); };
+ const initialRootFree = rootFree(); assert(initialRootFree >= 6 * 1024 ** 3, 'This fixture needs six GiB root free, including a conservative one GiB working reserve');
+-const docker = (...values) => execFileSync('docker', values, { encoding: 'utf8', timeout: 30_000 }).trim();
++const docker = (...values) => execFileSync('docker', values, { encoding: 'utf8', timeout: Math.ceil(commandBudget(30_000)) }).trim();
+ assert.equal(docker('ps', '-aq'), '', 'Exclusive runtime admission requires zero existing containers');
+ assert.equal(docker('volume', 'ls', '-q'), '', 'Exclusive runtime admission requires zero existing volumes');
+ const imageInfo = JSON.parse(docker('image', 'inspect', image))[0], releaseImageInfo = JSON.parse(docker('image', 'inspect', releaseImage))[0];
+@@ -75,13 +97,10 @@
+ assert.equal(releaseImageInfo.Id, expectedImage);
+ const bridge = docker('network', 'inspect', 'bridge', '--format', '{{(index .IPAM.Config 0).Gateway}}');
+ assert.match(bridge, /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/);
+-const report = resolve(option('--report', 'artifacts/quality-swarm/sustained-mixed/attempt-' + Date.now() + '/result.json')), evidence = dirname(report);
+-if (existsSync(evidence)) assert.equal(readdirSync(evidence).length, 0, 'Use a fresh evidence directory; prior failures must remain');
+-mkdirSync(evidence, { recursive: true, mode: 0o700 });
+ writeFileSync(join(evidence, 'package-provenance.json'), provenanceBytes, { mode: 0o600, flag: 'wx' });
+ writeFileSync(join(evidence,'image-provenance.json'),readFileSync(resolve(imageEvidencePath)),{mode:0o600,flag:'wx'});
+-const driverNames=['sustained.mjs','task-command.mjs','workloads.mjs','interaction-metrics.mjs','latency-diagnostics.mjs','task-context.mjs','run-with-observer.py'];
+-const reusedHelpers=['four-project-queue/native-terminal-diagnostics.mjs','four-project-queue/sample-linux-owned.py','launch-recovery/fenced-docker-proxy.mjs','launch-recovery/worker-create-guard.mjs'];
++const driverNames=['sustained.mjs','task-command.mjs','workloads.mjs','interaction-metrics.mjs','latency-diagnostics.mjs','task-context.mjs','source-binding.mjs','run-with-observer.py'];
++const reusedHelpers=['four-project-queue/native-terminal-diagnostics.mjs','four-project-queue/sample-linux-owned.py','launch-recovery/fenced-docker-proxy.mjs','launch-recovery/worker-create-guard.mjs','launch-recovery/durable-acceptance-journal.mjs','launch-recovery/acceptance-lifecycle.mjs','launch-recovery/acceptance-startup.mjs'];
+ mkdirSync(join(evidence, 'accepted-harness'), { mode: 0o700 });
+ for (const name of driverNames) writeFileSync(join(evidence, 'accepted-harness', name), readFileSync(new URL(name, import.meta.url)), { mode: 0o600, flag: 'wx' });
+ for (const name of reusedHelpers) writeFileSync(join(evidence,'accepted-harness',name.replaceAll('/','_')),readFileSync(join(repo,'scripts/acceptance',name)),{mode:0o600,flag:'wx'});
+@@ -92,7 +111,7 @@
+ const sensitive = [key, lifecycle, password], scrub = value => sensitive.reduce((text, secret) => text.replaceAll(secret, '[redacted]'), String(value));
+ const receipt = {
+   passed: false, taskContextVersion, mode:'sustained-installed-scripted-mixed', startedAt: new Date().toISOString(), sourceCommit: provenance.sourceCommit, sourceDirty: provenance.sourceDirty,
+-  harnessCheckout: { commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim(), dirty: !!execFileSync('git', ['status', '--porcelain'], { cwd: repo, encoding: 'utf8' }).trim() },
++  harnessCheckout,
+   packageIntegrity, initialRootFreeBytes: initialRootFree,
+   resourceScope: 'At most five real workers across four projects, one at a time; four initial150s fuzz phases and one short reviewed amendment. Worker handoff reports are intentionally not fabricated by this scripted workload; missing reports remain explicit and do not prove no questions. Zero existing containers and six GiB root admission before every Create, no recovery fences allowed; hard one GiB running reserve. No image pulls, release or cloud allocation.',
+   binarySHA256: sha(readFileSync(binary)), webIndexSHA256: sha(readFileSync(join(web, 'index.html'))), driverSHA256: sha(readFileSync(fileURLToPath(import.meta.url))),
+@@ -113,14 +132,18 @@
+ const terminalProbes = [];
+ let service, proxy, provider, base, env, token, project, projectRoute;const workspace='';
+ const controllerIdentities=[];let measuredPhase='setup',interactions,interactionRound=0;const taskEvents=new Map();
+-let stage = 'startup', fixtureError, reserveTimer, deadlineTimer, closing = false, signalFailure;
++let stage = 'startup', fixtureError, reserveTimer, closing = false, signalFailure,workflowControl,cleanupHardStop,cleanupDeadline=Infinity,checkpointWritten=false;
++function setStage(value){health();stage=value;journal.record('driver-stage',{stage});}
+ let providerCalls = 0, auxiliaryCalls = 0; const observations=new Map(), taskData=new Map(), calls=new Map(); let browser, page, run;
++const startupScope=createStartupScope({assertActive:assertWorkflowActive,onFailure:error=>{cleanupFailure(error);stopOnFailure(error);},onTransition:({name,state})=>journal.record('driver-stage',{stage:'startup-'+name+'-'+state})});
+ let providerBase; const initialBundles=new Map(), projectStates=[], titles=new Map();
+-receipt.phases=[];receipt.interactions=[];const timingLedger=createTimingLedger(receipt);const started = Date.now(), deadline = started + 30 * 60_000;
++commandBudget(1);preparationActive=false;clearTimeout(preparationHardStop);commandDeadline=Date.now()+WORKFLOW_MS;
++journal.record('driver-stage',{stage:'workflow-start'});
++receipt.phases=[];receipt.interactions=[];const timingLedger=createTimingLedger(receipt);const started = Date.now(), deadline = started + WORKFLOW_MS;
+ const remaining = () => { if (Date.now() >= deadline) throw Error('Thirty minute acceptance deadline expired'); return deadline - Date.now(); };
+ const remainingBudget = (ms = 120_000) => Math.max(1, Math.min(ms, remaining()));
+ const redactError = error => scrub(error?.stack ?? error).replaceAll(fixture, '[private-fixture]').slice(0, 8000);
+-function stopOnFailure(error) { if (!fixtureError) fixtureError = error; for (const socket of sockets) socket.close(); if (service?.exitCode === null) service.kill('SIGTERM'); }
++function stopOnFailure(error) { if (!fixtureError) {fixtureError = error;try{journal.record('driver-background-failure',{stage,...diagnosticError(error)});}catch{}} workflowControl?.fail(error); for (const socket of sockets) {try{socket.close();}catch{}} if (service?.exitCode === null) service.kill('SIGTERM'); }
+ function processIdentity(pid) {
+   try { const data = readFileSync(`/proc/${pid}/stat`, 'utf8'); const fields = data.slice(data.lastIndexOf(')') + 2).trim().split(/\s+/); return {pid:Number(pid),start:fields[19],group:Number(fields[2]),status:fields[0]}; }
+   catch (error) { if (['ENOENT','ESRCH'].includes(error.code)) return null; throw error; }
+@@ -138,23 +161,27 @@
+   return rows;
+ }
+ async function api(method, path, body, expected = 200, timeout = 30_000) {
++  const workflowRequest=!closing;
++  if(workflowRequest)health();else if(!['GET','HEAD'].includes(method))throw Error('Workflow mutation refused during cleanup');
+   const response = await fetch(base + path, {method,redirect:'error',signal:AbortSignal.timeout(closing ? timeout : remainingBudget(timeout)),headers:{Origin:base,...(token?{Authorization:'Bearer '+token}:{}),...(body===undefined?{}:{'Content-Type':'application/json'})},body:body===undefined?undefined:JSON.stringify(body)});
+   (receipt.apiActions ??= []).push({stage,method,path,status:response.status,at:new Date().toISOString()});
+   const raw = await boundedResponse(response,2*1024**2); let value; try { value = raw ? JSON.parse(raw) : {}; } catch { throw Error('Invalid JSON response: '+method+' '+path+' '+response.status); }
+   assert.equal(response.status, expected, method+' '+path+': '+response.status+' '+scrub(value.message??value.error??''));
++  if(workflowRequest)health();
+   return value;
+ }
+ async function until(label, fn, ms = 120_000) {
+   const end = Date.now() + remainingBudget(ms);
+-  while (Date.now() < end) { if (fixtureError) throw fixtureError; if (service && service.exitCode !== null) throw Error('Owned service exited unexpectedly'); const value=await fn(); if(value)return value; await delay(150); }
++  while (Date.now() < end) { health();const value=await fn();health();if(value)return value;await delay(150); }
+   throw Error(label+' did not complete within its bounded prerequisite window');
+ }
+ async function freePort() { const server=createServer(); await new Promise((done,reject)=>server.once('error',reject).listen(0,'127.0.0.1',done));const port=server.address().port;await new Promise(done=>server.close(done));return port; }
+ async function startService() {
+-  service=spawn(binary,[],{cwd:fixture,env,detached:true,stdio:['ignore','ignore','ignore']});service.on('error',stopOnFailure);controllerIdentities.push(processIdentity(service.pid));
++  assertWorkflowActive();
++  const child=spawn(binary,[],{cwd:fixture,env,detached:true,stdio:['ignore','ignore','ignore']});service=child;child.on('error',stopOnFailure);assert(Number.isSafeInteger(child.pid)&&child.pid>0,'Owned service process identity is unavailable');controllerIdentities.push(processIdentity(child.pid));journal.record('controller-start',journalProcessIdentity(child.pid));child.on('exit',(exitCode,signal)=>{try{journal.record('controller-exit',{pid:child.pid,exitCode,signal});}catch{}});
+   const end=Date.now()+remainingBudget(45_000);let ready;
+-  while(Date.now()<end) { if(fixtureError)throw fixtureError;assert.equal(service.exitCode,null);try{const res=await fetch(base+'/v1/control-plane/status',{signal:AbortSignal.timeout(1500)});if(res.ok){ready=await res.json();break;}}catch{}await delay(150); }
+-  assert.equal(ready?.product,'Luci');assert.equal(ready?.version,'0.5.0');
++  while(Date.now()<end) { assertWorkflowActive();assert.equal(service.exitCode,null);try{const res=await fetch(base+'/v1/control-plane/status',{signal:AbortSignal.timeout(1500)});assertWorkflowActive();if(res.ok){ready=await res.json();assertWorkflowActive();break;}}catch{}assertWorkflowActive();await delay(150); }
++  assertWorkflowActive();assert.equal(ready?.product,'Luci');assert.equal(ready?.version,'0.5.0');
+   (receipt.lifecycle??=[]).push({action:'start',pid:service.pid,at:new Date().toISOString()});
+ }
+ async function stopService(strict=true) {
+@@ -242,6 +269,7 @@
+ }
+ 
+ function streamResponse(res,item,sequence){
++  assertWorkflowActive();
+   const response={id:'resp_swarm_'+sequence,object:'response',created_at:1,status:'completed',model:'swarm-mechanics-fixture',output:[item],usage:{input_tokens:1,output_tokens:1,total_tokens:2,input_tokens_details:{cached_tokens:0},output_tokens_details:{reasoning_tokens:0}}};
+   const events=[{type:'response.created',response:{...response,status:'in_progress',output:[]}},{type:'response.output_item.added',output_index:0,item:{...item,status:'in_progress',...(item.type==='function_call'?{arguments:''}:{content:[]})}}];
+   if(item.type==='function_call')events.push({type:'response.function_call_arguments.delta',item_id:item.id,output_index:0,delta:item.arguments},{type:'response.function_call_arguments.done',item_id:item.id,output_index:0,arguments:item.arguments});
+@@ -250,18 +278,18 @@
+ }
+ async function attach(id){
+   const path=workspace+'/v1/sessions/'+id+'/attach';const {ticket}=await api('POST','/v1/auth/socket-ticket',{path});sensitive.push(ticket);
+-  const socket=new WebSocket(base.replace('http:','ws:')+path+'?ticket='+encodeURIComponent(ticket));socket.binaryType='arraybuffer';sockets.add(socket);socketSessions.set(socket,id);
++  health();const socket=new WebSocket(base.replace('http:','ws:')+path+'?ticket='+encodeURIComponent(ticket));socket.binaryType='arraybuffer';sockets.add(socket);socketSessions.set(socket,id);
+   assert(terminalProbes.length<8);const probe=createNativeTerminalProbe();terminalProbes.push({id,attachedStage:stage,probe});
+   socket.addEventListener('message',event=>probe.frame(Buffer.from(event.data)));
+   socket.addEventListener('close',event=>{probe.close(event.code,event.wasClean);sockets.delete(socket);socketSessions.delete(socket);});socket.addEventListener('error',()=>probe.error());
+-  await new Promise((done,reject)=>{const timeout=setTimeout(()=>reject(Error('Authenticated attach timed out')),remainingBudget(10_000));socket.addEventListener('open',()=>{clearTimeout(timeout);socket.send(Uint8Array.from([2,0,120,0,40]));done();},{once:true});socket.addEventListener('error',()=>{clearTimeout(timeout);reject(Error('Authenticated attach failed'));},{once:true});});
+-  return socket;
++  await new Promise((done,reject)=>{const timeout=setTimeout(()=>reject(Error('Authenticated attach timed out')),remainingBudget(10_000));socket.addEventListener('open',()=>{clearTimeout(timeout);try{health();socket.send(Uint8Array.from([2,0,120,0,40]));done();}catch(error){socket.close();reject(error);}},{once:true});socket.addEventListener('error',()=>{clearTimeout(timeout);reject(Error('Authenticated attach failed'));},{once:true});});
++  health();return socket;
+ }
+ 
+ function outputs(input,result=[]) {if(!input||typeof input!=='object')return result;if(input.type==='function_call_output')result.push(input);for(const v of Array.isArray(input)?input:Object.values(input))outputs(v,result);assert(result.length<=100);return result;}
+ function message(text){return {id:'msg_swarm_'+providerCalls,type:'message',status:'completed',role:'assistant',content:[{type:'output_text',text,annotations:[]}]};}
+ function commandFor(task){const value=taskData.get(task);assert(value);return mixedTaskCommand({task,operation:value.operation.id,projectId:value.owner.id,implementation:value.workload.implementation,expectedOutput:value.workload.expectedOutput,authorityRoot,contextNames:names,durationSeconds:task==='amend-a'?0:150});}
+-function nextTool(state,name,args){if(name==='exec_command'){state.codingDispatches=(state.codingDispatches??0)+1;assert.equal(state.codingDispatches,1,'No duplicate task command');}assert(++state.count<=48,'Bounded task tool request cap');const callID='call_swarm_'+state.task+'_'+state.operation.id+'_'+state.count;calls.set(callID,{state,consumed:false});return {id:'fc_'+callID,type:'function_call',status:'completed',name,call_id:callID,arguments:JSON.stringify(args)};}
++function nextTool(state,name,args){assertWorkflowActive();if(name==='exec_command'){state.codingDispatches=(state.codingDispatches??0)+1;assert.equal(state.codingDispatches,1,'No duplicate task command');}assert(++state.count<=48,'Bounded task tool request cap');const callID='call_swarm_'+state.task+'_'+state.operation.id+'_'+state.count;calls.set(callID,{state,consumed:false});return {id:'fc_'+callID,type:'function_call',status:'completed',name,call_id:callID,arguments:JSON.stringify(args)};}
+ function startProvider(){
+  provider=httpServer(async(req,res)=>{try{
+   assert.equal(req.method,'POST');assert.equal(req.headers.authorization,'Bearer '+key);if(closing){res.writeHead(503);res.end();return;}
+@@ -282,7 +310,7 @@
+   (receipt.providerRequests??=[]).push({number:providerCalls,toolOutputCount:resultItems.length,issuedTool:response.type==='function_call'?response.name:null});streamResponse(res,response,providerCalls);
+  }catch(error){stopOnFailure(error);if(!res.headersSent)res.writeHead(500);res.end('Controlled swarm fixture contract failed');}});
+ }
+-async function action(path,click,expected=200){const pending=page.waitForResponse(r=>new URL(r.url()).pathname===path&&r.request().method()==='POST',{timeout:remainingBudget(150000)});await click();const response=await pending;assert.equal(response.status(),expected,path+': '+await response.text());return response.json();}
++async function action(path,click,expected=200){health();const pending=page.waitForResponse(r=>new URL(r.url()).pathname===path&&r.request().method()==='POST',{timeout:remainingBudget(150000)});void pending.catch(()=>{});await click();health();const response=await pending;health();assert.equal(response.status(),expected,path+': '+await response.text());return response.json();}
+ async function openProject(state) {
+  await passiveTiming('before-document-navigation');await page.goto(base);
+  const username=page.getByLabel('Username',{exact:true}),enter=page.getByRole('button',{name:'Continue to projects',exact:true}),picker=page.getByLabel('Workspace',{exact:true});
+@@ -323,7 +351,7 @@
+  return api('PUT','/v1/product/swarm-scheduler',{expectedRevision:settings.revision,policy:{maxActive:1,maxPerProject:1,headroomPercent:25,minHeadroomMiB:2048,diskReserveMiB:1024},dispatchPaused:paused});
+ }
+ 
+-async function integrate(task){stage='ui-review-integrate-'+task;const reviewResponse=page.waitForResponse(r=>new URL(r.url()).pathname===projectRoute+'/runs/'+run.id+'/swarm/tasks/'+task+'/review'&&r.request().method()==='GET');await taskRow(task).getByRole('button',{name:'Review task changes',exact:true}).click();const response=await reviewResponse;assert.equal(response.status(),200);const {review}=await response.json();assert.equal(review.canIntegrate,true);assert.equal(review.sourceCommit,observations.get(task).commit);assert.deepEqual([...review.paths].sort(),['engine.go',task+'-result.json'].sort());const dialog=page.getByRole('dialog',{name:'Review task changes',exact:true});await dialog.getByLabel('Reviewed task diff').waitFor();assert((await dialog.getByLabel('Reviewed task diff').innerText()).includes(task+'-result.json'));await dialog.getByRole('checkbox').check();const result=await action(projectRoute+'/runs/'+run.id+'/swarm/tasks/'+task+'/integrate',()=>dialog.getByRole('button',{name:'Integrate reviewed changes',exact:true}).click());run=result.run;assert.equal(run.swarm.tasks.find(t=>t.id===task).integration.state,'integrated');assert(existsSync(join(project.path,task+'-result.json')));(receipt.integrations??=[]).push({task,review,commit:run.swarm.tasks.find(t=>t.id===task).integration.commit});}
++async function integrate(task){setStage('ui-review-integrate-'+task);const reviewResponse=page.waitForResponse(r=>new URL(r.url()).pathname===projectRoute+'/runs/'+run.id+'/swarm/tasks/'+task+'/review'&&r.request().method()==='GET');void reviewResponse.catch(()=>{});await taskRow(task).getByRole('button',{name:'Review task changes',exact:true}).click();const response=await reviewResponse;assert.equal(response.status(),200);const {review}=await response.json();assert.equal(review.canIntegrate,true);assert.equal(review.sourceCommit,observations.get(task).commit);assert.deepEqual([...review.paths].sort(),['engine.go',task+'-result.json'].sort());const dialog=page.getByRole('dialog',{name:'Review task changes',exact:true});await dialog.getByLabel('Reviewed task diff').waitFor();assert((await dialog.getByLabel('Reviewed task diff').innerText()).includes(task+'-result.json'));await dialog.getByRole('checkbox').check();const result=await action(projectRoute+'/runs/'+run.id+'/swarm/tasks/'+task+'/integrate',()=>dialog.getByRole('button',{name:'Integrate reviewed changes',exact:true}).click());run=result.run;assert.equal(run.swarm.tasks.find(t=>t.id===task).integration.state,'integrated');assert(existsSync(join(project.path,task+'-result.json')));(receipt.integrations??=[]).push({task,review,commit:run.swarm.tasks.find(t=>t.id===task).integration.commit});}
+ 
+ async function boundedResponse(response, limit) {
+  const parts=[];let size=0;
+@@ -335,14 +363,16 @@
+ function instanceID(){const value=readFileSync(join(fixture,'state/instance/instance-id'),'utf8').trim();assert(value.length>0&&value.length<=200);return value;}
+ function workerContainers(){return docker('ps','-aq','--no-trunc','--filter','label=luci.managed=true').split(/\s+/).filter(Boolean);}
+ function identifyCreate(bytes,meta){
++ health();
+  const input=JSON.parse(bytes),sessionID=input.Labels?.['luci.session-id'];assert.match(sessionID??'',/^s-[a-f0-9]{8}$/);assert.equal(meta.name,'luci-'+sessionID);assert.equal(input.Labels?.['luci.managed'],'true');assert.equal(input.Labels?.['luci.launch-fence'],undefined);
+  const owners=projectStates.filter(owner=>privateRun(owner).operations.some(op=>op.childId===sessionID));assert.equal(owners.length,1);const owner=owners[0],op=privateRun(owner).operations.find(value=>value.childId===sessionID);assert.equal(op.taskId,owner.task,'Only the five specified tasks can allocate');ownedSessions.add(sessionID);
+  validateWorkerCreate(input,{fixture,projectID:owner.owner.id,runID:owner.run.id,operationID:op.id,session:row(sessionID),images:[image,imageInfo.Id],instance:instanceID(),uid:process.getuid(),gid:process.getgid(),taskContextVersion});return 'worker';
+ }
+ function admission({kind,ordinal,body,...meta}){
+- try{assert.equal(kind,'worker');assert(ordinal>=1&&ordinal<=5);identifyCreate(body,meta);const free=rootFree();assert(free>=6*1024**3,'Six GiB pre-create guard remains mandatory');assert.equal(workerContainers().length,0,'No overlapping full worker permitted');(receipt.resourceObservations??=[]).push({at:new Date().toISOString(),stage,ordinal,rootFreeBytes:free});}catch(error){stopOnFailure(error);throw error;}
+-}
+-function health(){remaining();if(fixtureError)throw fixtureError;if(service&&service.exitCode!==null)throw Error('Owned service exited unexpectedly');}
++ try{health();assert.equal(kind,'worker');assert(ordinal>=1&&ordinal<=5);identifyCreate(body,meta);const free=rootFree();assert(free>=6*1024**3,'Six GiB pre-create guard remains mandatory');assert.equal(workerContainers().length,0,'No overlapping full worker permitted');(receipt.resourceObservations??=[]).push({at:new Date().toISOString(),stage,ordinal,rootFreeBytes:free});}catch(error){stopOnFailure(error);throw error;}
++}
++function assertWorkflowActive(){if(closing)throw Error('Workflow closed for cleanup');workflowControl?.assertActive();remaining();if(fixtureError)throw fixtureError;}
++function health(){assertWorkflowActive();if(service&&service.exitCode!==null)throw Error('Owned service exited unexpectedly');}
+ async function timed(promise,ms,label){let timer;try{return await Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error(label+' deadline exceeded')),ms);})]);}finally{clearTimeout(timer);}}
+ function phaseStart(name){measuredPhase=name;const row={name,startedAt:new Date().toISOString(),monotonicStartMs:performance.now()};receipt.phases.push(row);return row;}
+ function phaseEnd(row){row.finishedAt=new Date().toISOString();row.elapsedMs=performance.now()-row.monotonicStartMs;delete row.monotonicStartMs;}
+@@ -350,7 +380,7 @@
+ async function quietPhase(name){const record=phaseStart(name);assert.equal(workerContainers().length,0);const before=effects();for(let elapsed=0;elapsed<60;elapsed++){health();await delay(1000);}assert.equal(workerContainers().length,0);assert.deepEqual(effects(),before);phaseEnd(record);assert(record.elapsedMs>=60000);}
+ async function prepare(owner){await openProject(owner);await page.getByRole('button',{name:'Prepare agent team',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Prepare agent team',exact:true});await dialog.getByRole('combobox').selectOption('1');assert.equal(await dialog.getByRole('combobox').inputValue(),'1');owner.run=(await action(owner.route+'/runs/'+owner.run.id+'/swarm',()=>dialog.getByRole('button',{name:'Prepare team',exact:true}).click(),201)).run;}
+ async function queueOwner(owner){await openProject(owner);await page.getByRole('button',{name:/^Queue reviewed tasks/}).click();const result=await action(owner.route+'/runs/'+owner.run.id+'/swarm/queue',()=>page.getByRole('dialog',{name:'Queue reviewed work',exact:true}).getByRole('button',{name:'Authorize queued tasks',exact:true}).click(),201);assert.equal(result.items.length,owner.task==='build-a'?2:1);owner.queued=result.items;}
+-function seedFiles(owner,files){for(const [name,text] of Object.entries(files)){assert(['go.mod','engine.go','engine_test.go','cmd/app/main.go','witness.txt'].includes(name));const file=join(owner.path,name);mkdirSync(dirname(file),{recursive:true});assert(!existsSync(file)||lstatSync(file).isFile());writeFileSync(file,text,{mode:0o600});}}
++function seedFiles(owner,files){health();for(const [name,text] of Object.entries(files)){assert(['go.mod','engine.go','engine_test.go','cmd/app/main.go','witness.txt'].includes(name));const file=join(owner.path,name);mkdirSync(dirname(file),{recursive:true});assert(!existsSync(file)||lstatSync(file).isFile());writeFileSync(file,text,{mode:0o600});}}
+ async function saveContext(owner,workload,task,goal,connectionID,amend=false){
+  project=owner;projectRoute='/v1/product/projects/'+owner.id;
+  const brief=amend?await api('GET',projectRoute+'/brief'):{revision:0};await api('POST',projectRoute+'/brief',{revision:brief.revision,purpose:goal,audience:'Project owners',constraints:'Offline controlled acceptance workload. No external model or package downloads.',criteria:[amend?'Render the exact visible item total after the list.':'Meet fixed requirements and varied-input invariants.']});
+@@ -366,18 +396,18 @@
+  return {owner,route:projectRoute,run:saved,task,workload,goal,initialHead:execFileSync('git',['rev-parse','HEAD'],{cwd:owner.path,encoding:'utf8'}).trim(),canonicalBefore:canonical(),canonicalLuci:readFileSync(join(owner.path,'LUCI.md'))};
+ }
+ async function functionalDrafts(){
+- stage='unsent-draft-isolation';await page.getByRole('button',{name:'All projects',exact:true}).click();
++ setStage('unsent-draft-isolation');await page.getByRole('button',{name:'All projects',exact:true}).click();
+  for(const owner of projectStates){await page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true}).click();await page.getByRole('button',{name:'Define',exact:true}).click();await page.getByRole('textbox',{name:'The idea',exact:true}).fill(owner.goal+' UNSENT '+owner.owner.id);await page.getByRole('button',{name:'All projects',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Keep your changes?',exact:true});await dialog.getByRole('button',{name:'Keep drafts and continue',exact:true}).click();}
+  for(const owner of projectStates){await page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true}).click();await page.getByRole('button',{name:'Define',exact:true}).click();await page.getByRole('button',{name:'Restore draft',exact:true}).click();assert.equal(await page.getByRole('textbox',{name:'The idea',exact:true}).inputValue(),owner.goal+' UNSENT '+owner.owner.id);await page.getByRole('textbox',{name:'The idea',exact:true}).fill(owner.goal);await page.getByRole('button',{name:'All projects',exact:true}).click();if(await page.getByRole('dialog',{name:'Keep your changes?',exact:true}).isVisible())await page.getByRole('button',{name:'Discard edits and continue',exact:true}).click();}
+  for(const owner of projectStates){project=owner.owner;assert.deepEqual(canonical(),owner.canonicalBefore);}check('Four distinct unsent idea drafts restore to their own project without changing approved source context');
+ }
+ async function queueControls(first){
+- stage='loaded-queue-controls';await openProject(first);const queueRegion=page.getByRole('region',{name:'Background task queue',exact:true});const cancelRow=queueRegion.locator('li').filter({hasText:'Cancel this extra queued task'}),entry=first.queued.find(value=>value.taskId==='cancel-a');assert(entry);const before=effects();await action(first.route+'/swarm-queue/'+entry.id+'/cancel',()=>cancelRow.getByRole('button',{name:'Cancel queued task',exact:true}).click());
++ setStage('loaded-queue-controls');await openProject(first);const queueRegion=page.getByRole('region',{name:'Background task queue',exact:true});const cancelRow=queueRegion.locator('li').filter({hasText:'Cancel this extra queued task'}),entry=first.queued.find(value=>value.taskId==='cancel-a');assert(entry);const before=effects();await action(first.route+'/swarm-queue/'+entry.id+'/cancel',()=>cancelRow.getByRole('button',{name:'Cancel queued task',exact:true}).click());
+  const queue=await api('GET',first.route+'/swarm-queue'),canceled=queue.items.find(value=>value.id===entry.id);assert.equal(canceled.state,'cancelled');assert(!canceled.childId&&!canceled.operationId);assert.deepEqual(effects(),before);assert(!privateRun(first).operations.some(value=>value.taskId==='cancel-a'));
+  const next=projectStates[1];await openProject(next);await action(next.route+'/swarm-queue/'+next.queued[0].id+'/priority',()=>page.getByLabel('Priority for '+titles.get(next.task),{exact:true}).selectOption('high'));const latest=await api('GET',next.route+'/swarm-queue');assert.equal(latest.items.find(value=>value.id===next.queued[0].id).priority,'high');check('Browser cancellation prevents allocation and queued priority changes retain exact project ownership');
+ }
+ async function activeRestart(worker){
+- stage='active-command-restart';const before=effects(),original=live(worker.session.id),beforeRows=taskEvents.get(worker.task)??[];assert(beforeRows.some(row=>row.type==='command-start'&&row.label==='fuzz'));assert(!beforeRows.some(row=>row.type==='command-end'&&row.label==='fuzz'));
++ setStage('active-command-restart');const before=effects(),original=live(worker.session.id),beforeRows=taskEvents.get(worker.task)??[];assert(beforeRows.some(row=>row.type==='command-start'&&row.label==='fuzz'));assert(!beforeRows.some(row=>row.type==='command-end'&&row.label==='fuzz'));
+  const began=new Date().toISOString();await passiveTiming('before-active-service-restart');await stopService(true);assert.equal(live(worker.session.id).pid,original.pid);await startService();token=(await api('POST','/v1/auth/login',{username:'swarmowner',password})).token;sensitive.push(token);assert.deepEqual(effects(),before);const after=live(worker.session.id);assert.equal(after.id,original.id);assert.equal(after.pid,original.pid);assert.deepEqual(bundleSnapshot(worker.session.id),initialBundles.get(worker.session.id));await attach(worker.session.id);await openProject();await interactions.warm();(receipt.activeRestarts??=[]).push({task:worker.task,startedAt:began,finishedAt:new Date().toISOString(),sameContainer:true,samePID:true,sameContext:true,oneCommandDispatch:worker.codingDispatches===1});check('Service restart preserves a real active fuzz command and exact worker/context without replay');
+ }
+ async function exercise(worker,{restart=false}={}){
+@@ -388,22 +418,62 @@
+  if(restart)assert(restarted);assert.equal(execFileSync('git',['rev-parse','HEAD'],{cwd:worker.owner.path,encoding:'utf8'}).trim(),projectStates.find(value=>value.task===worker.task).initialHead,'Primary source is unchanged before reviewed integration');assert.deepEqual(bundleSnapshot(worker.session.id),initialBundles.get(worker.session.id));
+ }
+ async function reviewOwner(owner){await openProject(owner);run=(await action(owner.route+'/runs/'+owner.run.id+'/swarm/reconcile',()=>page.getByRole('button',{name:'Check team status',exact:true}).click())).run;await integrate(owner.task);owner.run=run;assert.equal(sha(readFileSync(join(owner.owner.path,owner.task+'-result.json'))),observations.get(owner.task).outputSHA256);assert.equal(readFileSync(join(owner.owner.path,'engine.go'),'utf8'),owner.workload.implementation);assert.deepEqual(canonical(),owner.canonicalBefore);}
+-let engineID;
+-try {
+- deadlineTimer=setTimeout(()=>stopOnFailure(Error('Thirty minute acceptance deadline expired')),30*60_000);
+- reserveTimer=setInterval(()=>{try{const free=rootFree();(receipt.diskSamples??=[]).push({stage,at:new Date().toISOString(),rootFreeBytes:free});if(free<1024**3)stopOnFailure(Error('Hard one GiB reserve breached'));for(const worker of taskData.values())if(worker.finalReleased&&worker.session)observeTaskLease(worker);}catch(error){stopOnFailure(error);}},1000);
+- for(const name of ['SIGTERM','SIGINT'])process.on(name,()=>{signalFailure=name;stopOnFailure(Error('Acceptance interrupted by '+name));});
+- receipt.bounds={scenarioDeadlineMs:1800000,maxMeasuredActions:6000,actualFuzzSecondsPerInitialWorker:150,upstreamRequestMs:120000,maxCreates:5,maxStarts:5,preCreateFreeBytes:6*1024**3,runningReserveBytes:1024**3,workerMemoryBytes:1024**3,workerNanoCPUs:1000000000};
+- receipt.predeclaredTimingReason='Before installed execution, standalone offline cold smoke took584s for four2s-fuzz tasks; uniform-trimpath B recheck reduced one workload by about66s. Replacing four2s windows with150s estimates1110s initial command work before idle120s, amendment, UI and Docker/review overhead. Root approved30minutes before any installed run; no padding or on-run extension.';
+- engineID=docker('info','--format','{{.ID}}');assert(engineID.length>0&&engineID.length<=256);receipt.engineIdentitySHA256=sha(engineID);
+- startProvider();await new Promise((done,reject)=>provider.once('error',reject).listen(0,bridge,done));providerBase='http://host.docker.internal:'+provider.address().port+'/v1';
+- const port=await freePort(),preview=await freePort();base='http://127.0.0.1:'+port;
++
++function cleanupBudget(maximum){const remaining=cleanupDeadline-Date.now();if(remaining<=0)throw Object.assign(Error('Owned cleanup deadline exceeded'),{code:'cleanup-deadline-exceeded'});return Math.min(maximum,remaining);}
++function cleanupFailure(error){receipt.cleanup.push(redactError(error));receipt.passed=false;process.exitCode=1;}
++function failureCheckpoint(){return {version:1,passed:false,status:'cleanup-incomplete',stage,at:new Date().toISOString(),preparationDeadlineMs:PREPARATION_MS,scenarioDeadlineMs:WORKFLOW_MS,cleanupDeadlineMs:CLEANUP_MS,totalDeadlineMs:DRIVER_TOTAL_MS,driver:journalProcessIdentity(),controllers:controllerIdentities.filter(Boolean),signal:signalFailure??null,failure:diagnosticError(fixtureError),controllersStopped:false,dockerRequestsDrained:false,dockerMutationStateCertain:false,workflowOperationUnsettled:workflowControl?.failed===true,startupResources:startupScope.snapshot(),originalReceiptComplete:false};}
++function persistFailureCheckpoint(){
++ if(checkpointWritten)return;
++ try{writeFailureCheckpoint(report+'.incomplete.json',failureCheckpoint());checkpointWritten=true;journal.record('driver-cleanup-start',{stage,deadlineMs:Math.max(0,cleanupDeadline-Date.now())});}catch(error){cleanupFailure(error);}
++}
++function beginCleanup(){
++ if(closing)return;closing=true;workflowControl?.close();clearInterval(reserveTimer);
++ cleanupDeadline=Math.min(Date.now()+CLEANUP_MS,driverStarted+DRIVER_TOTAL_MS);commandDeadline=cleanupDeadline;
++ cleanupHardStop=setTimeout(()=>{try{journal.record('driver-background-failure',{stage,code:'cleanup-hard-stop'});}catch{}try{writeFailureCheckpoint(report,{...failureCheckpoint(),status:'cleanup-hard-stop',finishedAt:new Date().toISOString()});}catch{}process.exit(1);},Math.max(1,cleanupDeadline-Date.now()));
++}
++// BEGIN SUSTAINED STARTUP WIRING: exercised with controlled factories only.
++async function startSustainedServices(){
+  const upstream=process.env.DOCKER_HOST||'unix:///var/run/docker.sock';assert(upstream.startsWith('unix://'));
+- proxy=await startFencedDockerProxy({socketPath:join(fixture,'docker-proxy.sock'),upstreamSocketPath:upstream.slice(7),identifyCreate,beforeCreate:admission,maxCreates:receipt.bounds.maxCreates,maxCreatesByKind:{worker:5,fence:1},maxStarts:receipt.bounds.maxStarts,maxObservations:20000,upstreamTimeoutMs:120000,holdTimeoutMs:600000});
++ return startAcceptanceServices({scope:startupScope,assertActive:assertWorkflowActive,
++  startProvider:async()=>{startProvider();await new Promise((done,reject)=>provider.once('error',reject).listen(0,bridge,done));return provider;},
++  adoptProvider:handle=>{provider=handle;},closeProvider:async handle=>{try{handle.closeAllConnections();}finally{if(handle.listening)await new Promise(done=>handle.close(done));}},
++  freePort,startProxy:()=>startFencedDockerProxy({socketPath:join(fixture,'docker-proxy.sock'),upstreamSocketPath:upstream.slice(7),journal,identifyCreate,beforeCreate:admission,beforeStart:assertWorkflowActive,maxCreates:receipt.bounds.maxCreates,maxCreatesByKind:{worker:5,fence:1},maxStarts:receipt.bounds.maxStarts,maxObservations:20000,upstreamTimeoutMs:120000,holdTimeoutMs:600000}),
++  adoptProxy:handle=>{proxy=handle;},closeProxy:handle=>handle.close(),
++  configure:({provider,port,preview})=>{assertWorkflowActive();providerBase='http://host.docker.internal:'+provider.address().port+'/v1';base='http://127.0.0.1:'+port;
+  writeFileSync(join(fixture,'docker/config.json'),JSON.stringify({cliPluginsExtraDirs:process.env.DOCKER_CONFIG?[join(process.env.DOCKER_CONFIG,'cli-plugins')]:[]}),{mode:0o600});
+  env=Object.fromEntries(['PATH','LANG','LC_ALL','TZ'].filter(name=>process.env[name]).map(name=>[name,process.env[name]]));
+  Object.assign(env,{HOME:join(fixture,'home'),DOCKER_CONFIG:join(fixture,'docker'),DOCKER_HOST:'unix://'+join(fixture,'docker-proxy.sock'),LUCI_DOCKER_HOST:'unix://'+join(fixture,'docker-proxy.sock'),LUCI_ADDR:'127.0.0.1:'+port,LUCI_STATE_DIR:join(fixture,'state'),LUCI_PROJECTS_DIR:join(fixture,'projects'),LUCI_WEB_DIR:web,LUCI_RUNTIME_DIR:join(dirname(binary),'runtime'),LUCI_SANDBOX_IMAGE:image,LUCI_BACKEND:'docker',LUCI_SESSION_MEMORY_MIB:'1024',LUCI_SESSION_CPU_MILLIS:'1000',LUCI_MANAGED_SHUTDOWN_TOKEN:lifecycle,LUCI_LOG_LEVEL:'error',LUCI_BROWSER_PREVIEW_ADDR:'127.0.0.1:'+preview,LUCI_BROWSER_PREVIEW_PORT:String(preview),GIT_CONFIG_GLOBAL:join(fixture,'home/.gitconfig'),GIT_CONFIG_NOSYSTEM:'1'});
+- await startService();
++  },startService,
++ });
++}
++// END SUSTAINED STARTUP WIRING
++// BEGIN SUSTAINED CLEANUP WIRING: exercised with controlled resources only.
++async function settleSustainedResources(){
++ const phases=await runBoundedCleanup({checkpoint:persistFailureCheckpoint,onFailure:cleanupFailure,onPhase:(name,status)=>journal.record('driver-stage',{stage:'cleanup-'+name+'-'+status}),phases:[
++  {name:'controllers',timeoutMs:30000,run:async()=>{const stopped=await stopService(false);assert(stopped);assert(controllerIdentities.filter(Boolean).every(identity=>!stillOwned(identity)));return {stopped:true};}},
++  {name:'proxy',timeoutMs:125000,run:async()=>{if(!startupScope.has('proxy'))return {drained:true,notStarted:true,mutationStateCertain:true};const result=await startupScope.close('proxy',cleanupBudget(124000));assert(proxy);assert(result.drained&&result.pendingRequests===0&&result.activeHandlers===0);assert.equal(proxy.observations.dropped,0);assert.equal(proxy.observations.failures.length,0,'Docker transport recorded lost, refused or uncertain observations');return {drained:true,mutationStateCertain:true};}},
++  {name:'browser',timeoutMs:12000,run:async()=>{try{if(startupScope.has('browser'))await startupScope.close('browser',cleanupBudget(5000));}catch(error){cleanupFailure(error);}finally{await settleOwnedBrowser({browser:undefined,listOwned:()=>ownedProcesses('browser'),stillOwned,forceTerminate:identity=>{try{process.kill(identity.pid,'SIGKILL');}catch(error){if(error.code!=='ESRCH')throw error;}},onFailure:cleanupFailure,closeTimeoutMs:cleanupBudget(5000),settleTimeoutMs:cleanupBudget(5000)});}}},
++  {name:'provider',timeoutMs:3000,run:()=>startupScope.has('provider')?startupScope.close('provider',cleanupBudget(2500)):undefined},
++ ]});
++ // A late result from a timed-out phase cannot grant destructive authority.
++ const completed=name=>phases.find(row=>row.name===name&&row.status==='completed')?.result;
++ receipt.controllersStopped=completed('controllers')?.stopped===true;
++ receipt.dockerRequestsDrained=completed('proxy')?.drained===true;
++ receipt.dockerMutationStateCertain=completed('proxy')?.mutationStateCertain===true;
++ receipt.dockerTransportNotStarted=completed('proxy')?.notStarted===true;
++ return phases;
++}
++// END SUSTAINED CLEANUP WIRING
++let engineID;
++try {
++ workflowControl=createWorkflowDeadline({timeoutMs:remaining(),onFailure:stopOnFailure});
++ await workflowControl.run(async()=>{
++ reserveTimer=setInterval(()=>{try{const free=rootFree();(receipt.diskSamples??=[]).push({stage,at:new Date().toISOString(),rootFreeBytes:free});if(free<1024**3)stopOnFailure(Error('Hard one GiB reserve breached'));for(const worker of taskData.values())if(worker.finalReleased&&worker.session)observeTaskLease(worker);}catch(error){stopOnFailure(error);}},1000);
++ for(const name of ['SIGTERM','SIGINT'])process.on(name,()=>{signalFailure=name;try{journal.record('driver-signal',{stage,signal:name});}catch{}stopOnFailure(Error('Acceptance interrupted by '+name));});
++ receipt.bounds={preparationDeadlineMs:PREPARATION_MS,scenarioDeadlineMs:1800000,cleanupDeadlineMs:CLEANUP_MS,totalDeadlineMs:DRIVER_TOTAL_MS,maxMeasuredActions:6000,actualFuzzSecondsPerInitialWorker:150,upstreamRequestMs:120000,maxCreates:5,maxStarts:5,preCreateFreeBytes:6*1024**3,runningReserveBytes:1024**3,workerMemoryBytes:1024**3,workerNanoCPUs:1000000000};
++ receipt.predeclaredTimingReason='Before installed execution, standalone offline cold smoke took584s for four2s-fuzz tasks; uniform-trimpath B recheck reduced one workload by about66s. Replacing four2s windows with150s estimates1110s initial command work before idle120s, amendment, UI and Docker/review overhead. Root approved30minutes before any installed run; no padding or on-run extension.';
++ engineID=docker('info','--format','{{.ID}}');assert(engineID.length>0&&engineID.length<=256);receipt.engineIdentitySHA256=sha(engineID);
++ await startSustainedServices();
+  const bootstrap=readFileSync(join(fixture,'state/control-plane/bootstrap-token'),'utf8').trim();sensitive.push(bootstrap);
+  const owner=await api('POST','/v1/auth/bootstrap',{bootstrapToken:bootstrap,username:'swarmowner',displayName:'Mixed Workload Fixture Owner',password},201);token=owner.token;sensitive.push(token);
+  await api('POST','/v1/setup/git/identity',{name:'Swarm Fixture',email:'swarm@example.invalid'});
+@@ -416,48 +486,70 @@
+   const owner=await api('POST','/v1/product/projects',{name:'mixed-project-'+'abcd'[index]},201);assert(realpathSync(owner.path).startsWith(fixture+sep));seedFiles(owner,workload.files);projectStates.push(await saveContext(owner,workload,task,'Build '+workload.label+' with explicit verified behavior.',connectionID));
+  }
+  const browserEnv=Object.fromEntries(['PATH','LANG','LC_ALL','TZ'].filter(n=>process.env[n]).map(n=>[n,process.env[n]]));browserEnv.LUCI_SWARM_BROWSER_FIXTURE=fixture;
+- browser=await chromium.launch({headless:true,executablePath:option('--chromium','/usr/bin/chromium'),env:browserEnv,args:['--no-proxy-server']});receipt.browserVersion=browser.version();
+- const context=await browser.newContext({viewport:{width:1440,height:1080},serviceWorkers:'block'});await installBrowserTiming(context);
+- await context.route('**/*',async route=>{const request=route.request(),url=new URL(request.url());if(url.origin!==base){stopOnFailure(Error('Browser external request refused'));await route.abort('blockedbyclient');return;}if(!['GET','HEAD','OPTIONS'].includes(request.method()))receipt.browserMutations.push({stage,method:request.method(),path:url.pathname});await route.continue();});
+- page=await context.newPage();page.setDefaultTimeout(15000);page.on('pageerror',error=>{receipt.browserErrors.push(scrub(error));stopOnFailure(Error('Browser script error'));});
+- for(const owner of projectStates){stage='prepare-and-queue-'+owner.task;await prepare(owner);await queueOwner(owner);}
++ // BEGIN SUSTAINED BROWSER WIRING: exercised with controlled factories only.
++ await startAcceptanceBrowser({scope:startupScope,assertActive:assertWorkflowActive,
++  launch:()=>chromium.launch({headless:true,executablePath:option('--chromium','/usr/bin/chromium'),env:browserEnv,args:['--no-proxy-server']}),adoptBrowser:handle=>{browser=handle;},closeBrowser:handle=>handle.close(),
++  newContext:handle=>handle.newContext({viewport:{width:1440,height:1080},serviceWorkers:'block'}),
++  installRoutes:async context=>{await installBrowserTiming(context);assertWorkflowActive();await context.route('**/*',async route=>{const request=route.request(),url=new URL(request.url());if(closing||fixtureError||workflowControl?.failed){await route.abort('blockedbyclient');return;}if(url.origin!==base){stopOnFailure(Error('Browser external request refused'));await route.abort('blockedbyclient');return;}if(!['GET','HEAD','OPTIONS'].includes(request.method()))receipt.browserMutations.push({stage,method:request.method(),path:url.pathname});await route.continue();});assertWorkflowActive();},
++  newPage:context=>context.newPage(),adoptPage:handle=>{page=handle;},
++ });
++ assertWorkflowActive();receipt.browserVersion=browser.version();page.setDefaultTimeout(15000);page.on('pageerror',error=>{receipt.browserErrors.push(scrub(error));stopOnFailure(Error('Browser script error'));});
++ // END SUSTAINED BROWSER WIRING
++ for(const owner of projectStates){setStage('prepare-and-queue-'+owner.task);await prepare(owner);await queueOwner(owner);}
+  assert.equal(effects().create,0);await functionalDrafts();interactions=interactionRunner({page,owners:projectStates,receipt,assertHealthy:health,phase:()=>measuredPhase,observe:passiveTiming});await interactions.warm();
+- stage='idle-baseline';await quietPhase('quiet-app-open-idle');const idle=phaseStart('idle-interactive-calibration');await interactions.calibrate(100);phaseEnd(idle);await passiveTiming('end-idle-calibration');
+- stage='sustained-work';const loaded=phaseStart('loaded');await setPaused(false);
++ setStage('idle-baseline');await quietPhase('quiet-app-open-idle');const idle=phaseStart('idle-interactive-calibration');await interactions.calibrate(100);phaseEnd(idle);await passiveTiming('end-idle-calibration');
++ setStage('sustained-work');const loaded=phaseStart('loaded');await setPaused(false);
+  let worker=await queuedChild(projectStates[0],1);await attach(worker.session.id);await queueControls(projectStates[0]);await openProject();await interactions.warm();
+  const completedOwners=[];
+  for(let index=0;index<4;index++){
+-  const owner=projectStates[index];stage='actual-work-'+owner.task;assert.equal(worker.task,owner.task);await exercise(worker,{restart:index===0});await completeNaturally(worker,owner);completedOwners.push(owner);
++  const owner=projectStates[index];setStage('actual-work-'+owner.task);assert.equal(worker.task,owner.task);await exercise(worker,{restart:index===0});await completeNaturally(worker,owner);completedOwners.push(owner);
+   let successor;
+   if(index<3){successor=await queuedChild(projectStates[index+1],index+2);await attach(successor.session.id);const beforeReview=(await api('GET',owner.route+'/runs/'+owner.run.id)).run;assert.notEqual(beforeReview.swarm.tasks.find(value=>value.id===owner.task).integration?.state,'integrated');(receipt.preIntegrationProgress??=[]).push({completedTask:owner.task,nextTask:successor.task,nextSessionID:successor.session.id,observedAt:new Date().toISOString()});}
+   await reviewOwner(owner);await openProject();await interactions.warm();worker=successor;
+  }
+  phaseEnd(loaded);assert(interactionRound>=200,'At least200 loaded project switches and400 inputs must be actually recorded');assert.equal(observations.size,4);
+  const activeSeconds=[...observations.values()].map(value=>value.artifact.commands.find(command=>command.label==='fuzz')?.activeFuzzSeconds??0);assert(activeSeconds.every(seconds=>seconds>=150));assert(activeSeconds.reduce((a,b)=>a+b,0)>=600);receipt.actualFuzzSeconds=activeSeconds;await passiveTiming('end-four-project-loaded-phase');
+- stage='reviewed-amendment';const prior=projectStates[0],originalWorker=taskData.get('build-a'),oldBundle=initialBundles.get(originalWorker.session.id);assert.deepEqual(bundleSnapshot(originalWorker.session.id),oldBundle);
++ setStage('reviewed-amendment');const prior=projectStates[0],originalWorker=taskData.get('build-a'),oldBundle=initialBundles.get(originalWorker.session.id);assert.deepEqual(bundleSnapshot(originalWorker.session.id),oldBundle);
+  const originalWitness=readFileSync(join(originalWorker.checkout,'witness.txt'),'utf8'),newWorkload={...prior.workload,label:'Escaped UI renderer with visible total',implementation:prior.workload.amendedImplementation,expectedOutput:prior.workload.amendedExpectedOutput};seedFiles(prior.owner,prior.workload.amendedFiles);titles.set('amend-a',newWorkload.label);
+  const amended=await saveContext(prior.owner,newWorkload,'amend-a','Build escaped UI output with an exact visible item total.',connectionID,true);projectStates[0]=amended;interactions.expected(amended,amended.goal);assert.notDeepEqual(amended.canonicalBefore,prior.canonicalBefore);assert.deepEqual(bundleSnapshot(originalWorker.session.id),oldBundle);assert.equal(readFileSync(join(originalWorker.checkout,'witness.txt'),'utf8'),originalWitness);
+  await prepare(amended);await queueOwner(amended);const amendedWorker=await queuedChild(amended,5);await attach(amendedWorker.session.id);assert.notDeepEqual(hashes(initialBundles.get(amendedWorker.session.id)),hashes(oldBundle));assert.equal(readFileSync(join(amendedWorker.checkout,'witness.txt'),'utf8'),prior.workload.amendedFiles['witness.txt']);await openProject();await interactions.warm();const amendmentPhase=phaseStart('amendment');await exercise(amendedWorker);await completeNaturally(amendedWorker,amended);await reviewOwner(amended);phaseEnd(amendmentPhase);assert.deepEqual(bundleSnapshot(originalWorker.session.id),oldBundle);check('Reviewed amendment passes new real tests while original task context and source snapshot remain exact');
+- await openProject();await interactions.warm();stage='settle';await quietPhase('quiet-app-open-settle');const settled=phaseStart('settled-interactive-calibration');await interactions.calibrate(100);phaseEnd(settled);await passiveTiming('final-calibration');
++ await openProject();await interactions.warm();setStage('settle');await quietPhase('quiet-app-open-settle');const settled=phaseStart('settled-interactive-calibration');await interactions.calibrate(100);phaseEnd(settled);await passiveTiming('final-calibration');
+  receipt.interactionSummary=summarizeInteractions(receipt.interactions);receipt.latencyTargets={measurement:'Full browser automation All projects→open saved Define context→two frames; input command→expected field→two frames; not physical display/input latency',projectSwitchP95Ms:300,inputP95Ms:100,p99Ms:1000,minimumSamples:{loadedSwitches:200,loadedInputs:400,idleSwitches:100,idleInputs:200,settledSwitches:100,settledInputs:200}};
+  const latencyFailures=[];for(const name of ['idle-interactive-calibration','loaded','settled-interactive-calibration'])for(const kind of ['project-switch','input']){const value=receipt.interactionSummary[name+':'+kind];assert(value);if(value.failed||value.p95Ms>(kind==='input'?100:300)||value.p99Ms>=1000)latencyFailures.push({phase:name,kind,...value});}receipt.latencyTargetsMet=latencyFailures.length===0;receipt.latencyFailures=latencyFailures;
+  await openProject(amended);await page.screenshot({path:join(evidence,'amended-project-desktop.png'),fullPage:true});await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'All projects',exact:true}).click();await page.getByRole('heading',{name:'Across your projects',exact:true}).waitFor();for(const owner of projectStates)await page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true}).waitFor();assert(await timed(page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),15000,'Phone document geometry'),'Phone overview must not horizontally overflow');await page.screenshot({path:join(evidence,'four-project-phone.png'),fullPage:true});
+  assert.equal(proxy.observations.counts.create,5);assert.equal(proxy.observations.counts.start,5);assert.equal(proxy.observations.dropped,0);assert.equal(proxy.observations.failures.length,0);assert.equal(observations.size,5);assert.equal(receipt.browserErrors.length,0);assert.equal(receipt.naturalCompletions.length,5);assert.equal(receipt.preIntegrationProgress.length,3);assert.equal(workerContainers().length,0);assert.equal(docker('info','--format','{{.ID}}'),engineID);
+  check('Five actual native task commands across four projects finish naturally, with600seconds real fuzz work and browser-reviewed amendment');receipt.functionalPassed=true;assert(receipt.latencyTargetsMet,'Measured UI latency exceeded the declared candidate targets; retain actual timings without relabeling functional success as full acceptance');receipt.passed=true;
+-}catch(error){receipt.failedStage=stage;receipt.failure=redactError(error);process.exitCode=1;console.error(receipt.failure);if(page){try{await passiveTiming('failure');}catch{}try{await page.screenshot({path:join(evidence,'failed-stage.png'),fullPage:true});}catch{}}}
++ });
++}catch(error){
++ workflowControl?.fail(error);fixtureError??=error;
++ try{journal.record('driver-caught-failure',{stage,...diagnosticError(error)});}catch{}
++ receipt.failedStage=stage;receipt.failure=redactError(error);process.exitCode=1;console.error(receipt.failure);
++ beginCleanup();persistFailureCheckpoint();
++ if(page){try{await boundedAttempt(()=>passiveTiming('failure'),cleanupBudget(3000),'failure-timing-deadline-exceeded');}catch{}try{await boundedAttempt(()=>page.screenshot({path:join(evidence,'failed-stage.png'),fullPage:true}),cleanupBudget(3000),'failure-screenshot-deadline-exceeded');}catch{}}
++}
+ finally {
+- closing=true;clearTimeout(deadlineTimer);clearInterval(reserveTimer);for(const socket of sockets)socket.close();receipt.actualTaskResults=Object.fromEntries(observations);receipt.taskEvents=Object.fromEntries(taskEvents);receipt.interactionSummary=summarizeInteractions(receipt.interactions);
+- receipt.taskChildren=[...taskData.values()].map(value=>({task:value.task,projectID:value.owner.id,operationID:value.operation.id,sessionID:value.session.id,container:value.container,bundle:initialBundles.get(value.session.id)}));receipt.terminalObservations=terminalProbes.map(({id,attachedStage,probe})=>({sessionID:id,attachedStage,...probe.snapshot()}));
+- const cleanupFailure=error=>{receipt.cleanup.push(redactError(error));receipt.passed=false;process.exitCode=1;};
++ beginCleanup();persistFailureCheckpoint();
++ try {
++  for(const socket of sockets){try{socket.close();}catch(error){cleanupFailure(error);}}
++  receipt.actualTaskResults=Object.fromEntries(observations);receipt.taskEvents=Object.fromEntries(taskEvents);receipt.interactionSummary=summarizeInteractions(receipt.interactions);
++  receipt.taskChildren=[...taskData.values()].map(value=>({task:value.task,projectID:value.owner.id,operationID:value.operation.id,sessionID:value.session.id,container:value.container,bundle:initialBundles.get(value.session.id)}));receipt.terminalObservations=terminalProbes.map(({id,attachedStage,probe})=>({sessionID:id,attachedStage,...probe.snapshot()}));
+  for(const value of taskData.values()){try{const file=join(value.checkout,'.luci-mixed-failure-'+value.task+'.json');if(existsSync(file)){const info=lstatSync(file);assert(info.isFile()&&!info.isSymbolicLink()&&info.size<=60*1024**2);const target=join(evidence,value.task+'-private-failure.json');writeFileSync(target,readFileSync(file),{mode:0o600,flag:'wx'});(receipt.failureDiagnostics??=[]).push({task:value.task,available:true,bytes:info.size,sha256:sha(readFileSync(target)),private:true});}else if(!observations.has(value.task)){(receipt.failureDiagnostics??=[]).push({task:value.task,available:false,reason:'No settled native failure bundle exists at cleanup. An active command may be interrupted by this failed fixture; its temporary corpus cannot be claimed retained.'});}}catch(error){cleanupFailure(error);}}
+- if(browser){try{await browser.close();}catch(error){cleanupFailure(error);}const end=Date.now()+5000;while(Date.now()<end&&ownedProcesses('browser').length)await delay(100);for(const identity of ownedProcesses('browser')){cleanupFailure(Error('Owned browser required forced cleanup'));if(stillOwned(identity)){try{process.kill(identity.pid,'SIGKILL');}catch(error){if(error.code!=='ESRCH')cleanupFailure(error);}}}}
+- let stopped=false;try{stopped=await stopService(false);assert(stopped);assert(controllerIdentities.filter(Boolean).every(identity=>!stillOwned(identity)));}catch(error){cleanupFailure(error);}receipt.controllersStopped=stopped&&controllerIdentities.filter(Boolean).every(identity=>!stillOwned(identity));
+- if(proxy){try{const cleanup=await proxy.close();assert(cleanup.drained&&cleanup.pendingRequests===0&&cleanup.activeHandlers===0);receipt.dockerRequestsDrained=true;}catch(error){cleanupFailure(error);}receipt.dockerTransportObservations=structuredClone(proxy.observations);if(proxy.observations.dropped||proxy.observations.failures.length)cleanupFailure(Error('Docker transport recorded lost, refused or uncertain observations'));}else{receipt.dockerRequestsDrained=true;receipt.dockerTransportNotStarted=true;}
+- if(receipt.controllersStopped&&receipt.dockerRequestsDrained&&proxy){const created=proxy.observations.requests.filter(value=>value.method==='POST'&&/\/containers\/create$/.test(value.path)&&value.status===201&&/^[a-f0-9]{64}$/.test(value.id??''));for(const creation of created){try{const ids=docker('ps','-aq','--no-trunc').split(/\s+/).filter(Boolean);if(!ids.includes(creation.id))continue;const value=JSON.parse(docker('inspect',creation.id))[0];assert.equal(value.Id,creation.id);assert.equal(value.Name,'/'+creation.name);assert.equal(value.Config.Labels['luci.instance'],instanceID());assert.equal(value.Config.Labels['luci.session-id'],creation.labels['luci.session-id']);assert(ownedSessions.has(value.Config.Labels['luci.session-id']));assert.equal(value.Config.Labels['luci.managed'],'true');assert.equal(value.Image,imageInfo.Id);assert(value.Mounts.some(mount=>mount.Destination==='/home/dev/work'&&projectStates.some(owner=>realpathSync(mount.Source).startsWith(join(dirname(owner.owner.path),'.luci-swarms')+sep))));cleanupFailure(Error('Unexpected full worker remained; exact failed-fixture cleanup required'));if(value.State.Running)docker('stop','--time','5',value.Id);const current=JSON.parse(docker('inspect',value.Id))[0];assert.equal(current.Id,value.Id);assert.equal(current.State.Running,false);docker('rm',value.Id);}catch(error){cleanupFailure(error);}}}
+- if(provider){provider.closeAllConnections();if(provider.listening)await new Promise(done=>provider.close(done));}
+- try{assert(receipt.controllersStopped);assert.equal(receipt.dockerRequestsDrained,true);assert.equal(docker('ps','-aq'),'');assert.equal(docker('volume','ls','-q'),'');assert.equal(ownedProcesses().length,0);assert.equal(ownedProcesses('browser').length,0);assert.equal(JSON.parse(docker('image','inspect',image))[0].Id,imageInfo.Id);assert.equal(sha(readFileSync(binary)),provenance.binarySHA256);assert.equal(sha(readFileSync(join(web,'index.html'))),provenance.webIndexSHA256);assert.equal(docker('info','--format','{{.ID}}'),engineID);for(const name of driverNames)assert.equal(sha(readFileSync(new URL(name,import.meta.url))),sha(readFileSync(join(evidence,'accepted-harness',name))));for(const name of reusedHelpers)assert.equal(sha(readFileSync(join(repo,'scripts/acceptance',name))),sha(readFileSync(join(evidence,'accepted-harness',name.replaceAll('/','_')))));
++
++  receipt.cleanupPhases=await settleSustainedResources();receipt.startupResources=startupScope.snapshot();
++  if(proxy)receipt.dockerTransportObservations=structuredClone(proxy.observations);
++ if(receipt.controllersStopped&&receipt.dockerRequestsDrained&&receipt.dockerMutationStateCertain&&proxy){const created=proxy.observations.requests.filter(value=>value.method==='POST'&&/\/containers\/create$/.test(value.path)&&value.status===201&&/^[a-f0-9]{64}$/.test(value.id??''));for(const creation of created){try{const ids=docker('ps','-aq','--no-trunc').split(/\s+/).filter(Boolean);if(!ids.includes(creation.id))continue;const value=JSON.parse(docker('inspect',creation.id))[0];assert.equal(value.Id,creation.id);assert.equal(value.Name,'/'+creation.name);assert.equal(value.Config.Labels['luci.instance'],instanceID());assert.equal(value.Config.Labels['luci.session-id'],creation.labels['luci.session-id']);assert(ownedSessions.has(value.Config.Labels['luci.session-id']));assert.equal(value.Config.Labels['luci.managed'],'true');assert.equal(value.Image,imageInfo.Id);assert(value.Mounts.some(mount=>mount.Destination==='/home/dev/work'&&projectStates.some(owner=>realpathSync(mount.Source).startsWith(join(dirname(owner.owner.path),'.luci-swarms')+sep))));cleanupFailure(Error('Unexpected full worker remained; exact failed-fixture cleanup required'));if(value.State.Running)docker('stop','--time','5',value.Id);const current=JSON.parse(docker('inspect',value.Id))[0];assert.equal(current.Id,value.Id);assert.equal(current.State.Running,false);docker('rm',value.Id);}catch(error){cleanupFailure(error);}}}
++ try{assert(startupScope.snapshot().every(row=>row.state==='closed'&&!row.closeTimedOut),'Startup resource remains unsettled');assert(receipt.controllersStopped);assert.equal(receipt.dockerRequestsDrained,true);assert.equal(receipt.dockerMutationStateCertain,true);assert.equal(docker('ps','-aq'),'');assert.equal(docker('volume','ls','-q'),'');assert.equal(ownedProcesses().length,0);assert.equal(ownedProcesses('browser').length,0);assert.equal(JSON.parse(docker('image','inspect',image))[0].Id,imageInfo.Id);assert.equal(sha(readFileSync(binary)),provenance.binarySHA256);assert.equal(sha(readFileSync(join(web,'index.html'))),provenance.webIndexSHA256);assert.equal(docker('info','--format','{{.ID}}'),engineID);for(const name of driverNames)assert.equal(sha(readFileSync(new URL(name,import.meta.url))),sha(readFileSync(join(evidence,'accepted-harness',name))));for(const name of reusedHelpers)assert.equal(sha(readFileSync(join(repo,'scripts/acceptance',name))),sha(readFileSync(join(evidence,'accepted-harness',name.replaceAll('/','_')))));
++  receipt.finalHarnessCheckout=verifySourceBinding();assert.deepEqual(receipt.finalHarnessCheckout,receipt.harnessCheckout);
+   receipt.runtimeCleanup={containers:0,volumes:0,ownedServiceProcesses:0,ownedBrowserProcesses:0,protectedImagePackageAndHelpersUnchanged:true,rootFreeBytes:rootFree()};assert.equal(realpathSync(fixture),fixture);assert.equal(dirname(fixture),fixtureParent);assert(fixture.split(sep).at(-1).startsWith('luci-sustained-'));if(receipt.passed&&!fixtureError){rmSync(fixture,{recursive:true});receipt.fixtureRemoved=true;}
+  }catch(error){cleanupFailure(error);}
+  if(!receipt.fixtureRemoved)receipt.fixtureRetained={path:fixture,reason:'Failed or partial acceptance; private fixture credentials/source/context and bounded diagnostic files remain. Do not reuse as normal workspace.'};
+- if(fixtureError){receipt.passed=false;process.exitCode=1;receipt.backgroundFailure=redactError(fixtureError);}receipt.providerCalls=providerCalls;receipt.auxiliaryCalls=auxiliaryCalls;receipt.actualTaskCount=observations.size;receipt.elapsedMs=Date.now()-started;receipt.signal=signalFailure??null;receipt.finishedAt=new Date().toISOString();writeFileSync(report,JSON.stringify(receipt,null,2)+'\n',{mode:0o600,flag:'wx'});console.log((receipt.passed?'PASS ':'FAIL ')+report);
+-}
++
++ }catch(error){cleanupFailure(error);}
++ finally {
++ if(fixtureError){receipt.passed=false;process.exitCode=1;receipt.backgroundFailure=redactError(fixtureError);}receipt.providerCalls=providerCalls;receipt.auxiliaryCalls=auxiliaryCalls;receipt.actualTaskCount=observations.size;receipt.elapsedMs=Date.now()-started;receipt.totalElapsedMs=Date.now()-driverStarted;receipt.workflowOperationUnsettled=workflowControl?.failed===true;receipt.startupResources=startupScope.snapshot();receipt.originalReceiptComplete=true;receipt.signal=signalFailure??null;receipt.finishedAt=new Date().toISOString();try{journal.record('driver-receipt-prepared',{stage,passed:receipt.passed});}catch(error){cleanupFailure(error);}writeFileSync(report,JSON.stringify(receipt,null,2)+'\n',{mode:0o600,flag:'wx'});console.log((receipt.passed?'PASS ':'FAIL ')+report);
++  clearTimeout(cleanupHardStop);
++  // Promise.race cannot cancel a losing operation. End only this driver after
++  // the durable final receipt; unsettled external resources stay explicit.
++  const finalExitCode=process.exitCode??(receipt.passed?0:1);setImmediate(()=>process.exit(finalExitCode));
++ }
++}
+--- a/scripts/acceptance/sustained-four-project/run-with-observer.py
++++ b/scripts/acceptance/sustained-four-project/run-with-observer.py
+@@ -6,7 +6,6 @@
+ the observer. It never reads provider credentials or changes Docker resources.
+ """
+ import argparse
+-import contextlib
+ import json
+ import os
+ from pathlib import Path
+@@ -15,18 +14,34 @@
+ import sys
+ import tempfile
+ import threading
++import time
++import datetime
++
++# Entire process budgets include preparation, workflow, and bounded cleanup.
++PREPARATION_SECONDS = 120
++WORKFLOW_SECONDS = 1800
++CLEANUP_SECONDS = 180
++DRIVER_TOTAL_SECONDS = PREPARATION_SECONDS + WORKFLOW_SECONDS + CLEANUP_SECONDS
++INTERRUPT_GRACE_SECONDS = 5
++OBSERVER_SECONDS = DRIVER_TOTAL_SECONDS + 15
+ 
+ 
+ 
+ # The frozen sampler executes in this same interpreter. RUSAGE_SELF deliberately
+ # excludes its subprocesses and Docker daemon. Do not relabel it family cost.
+ SAMPLER_LAUNCHER = r"""
+-import datetime,json,os,resource,runpy,sys,time
++import datetime,json,os,resource,runpy,sys,time,signal
+ sampler,cost=sys.argv[1:3]
+ sys.argv=[sampler,*sys.argv[3:]]
+ started=time.monotonic()
+ status='completed'
+ exit_code=0
++received_signal=None
++def stop(signum,_frame):
++    global received_signal
++    received_signal=signum
++    raise SystemExit(128+signum)
++for signum in (signal.SIGTERM,signal.SIGINT):signal.signal(signum,stop)
+ try:
+     runpy.run_path(sampler,run_name='__main__')
+ except SystemExit as error:
+@@ -44,7 +59,7 @@
+         start_ticks=int(status_file.read().rsplit(') ',1)[1].split()[19])
+     clock_ticks=os.sysconf('SC_CLK_TCK')
+     process_duration=time.clock_gettime(time.CLOCK_BOOTTIME)-start_ticks/clock_ticks
+-    receipt={'version':1,'status':status,'exitCode':exit_code,'pid':os.getpid(),
++    receipt={'version':1,'status':status,'exitCode':exit_code,'pid':os.getpid(),'signalNumber':received_signal,
+       'finishedAt':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+       'scope':'Observer interpreter RUSAGE_SELF, including interpreter imports and launcher; excludes spawned Docker CLI/helpers and all Docker daemon work.',
+       'wallSeconds':process_duration,'launcherWallSeconds':duration,'processStartClockTicks':start_ticks,'clockTicksPerSecond':clock_ticks,'userCPUSeconds':own.ru_utime,'systemCPUSeconds':own.ru_stime,
+@@ -68,7 +83,7 @@
+     forwarded = args.driver_args
+     if forwarded[:1] == ['--']:
+         forwarded = forwarded[1:]
+-    if sys.platform != 'linux' or '--fixture-root' in forwarded:
++    if sys.platform != 'linux' or any(value == '--fixture-root' or value.startswith('--fixture-root=') for value in forwarded):
+         parser.error('Linux is required; the wrapper supplies its own --fixture-root')
+     try:
+         image = forwarded[forwarded.index('--expected-image-id') + 1]
+@@ -77,7 +92,8 @@
+     output = args.observation_dir.resolve()
+     pointer = output.with_name(output.name + '-instance-path.txt')
+     self_cost = output.with_name(output.name + '-observer-self-cost.json')
+-    if output.exists() or pointer.exists() or self_cost.exists():
++    lifecycle_path = output.with_name(output.name + '-lifecycle.jsonl')
++    if output.exists() or pointer.exists() or self_cost.exists() or lifecycle_path.exists():
+         parser.error('Use fresh observation and instance-path locations')
+     base = args.fixture_base.resolve(strict=True)
+     if not base.is_dir():
+@@ -86,34 +102,101 @@
+     template = base / '.ls-XXXXXXXX' / 'luci-sustained-XXXXXX' / '.luci-docker-proxy-XXXXXX' / 'docker.sock'
+     if len(os.fsencode(template)) >= 108:
+         parser.error('--fixture-base is too long for the private Unix socket')
+-    output.parent.mkdir(parents=True, exist_ok=True)
+-    os.umask(0o077)
+-    fixture_parent = Path(tempfile.mkdtemp(prefix='.ls-', dir=base))
+     here = Path(__file__).resolve().parent
+     repo = Path(os.environ.get('LUCI_ACCEPTANCE_REPO', str(here.parents[2]))).resolve(strict=True)
+     sampler = repo / 'scripts' / 'acceptance' / 'four-project-queue' / 'sample-linux-owned.py'
+     if not sampler.is_file():
+         parser.error('Set LUCI_ACCEPTANCE_REPO to the real checkout containing the frozen sampler')
++    output.parent.mkdir(parents=True, exist_ok=True)
++    os.umask(0o077)
++    lifecycle = os.open(lifecycle_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_APPEND, 0o600)
++    try:
++        parent_fd = os.open(output.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
++        try:
++            os.fsync(parent_fd)
++        finally:
++            os.close(parent_fd)
++    except BaseException:
++        os.close(lifecycle)
++        raise
++    journal_bytes = 0
++    journal_failed = False
++    def record(event, **fields):
++        nonlocal journal_bytes, journal_failed
++        if journal_failed:return False
++        # Fixed event names and scalar numeric ownership/budget/exit fields only.
++        allowed = {'pid','parentPid','group','session','startTicks','signalNumber','returnCode','driverPID','observerPID','preparationSeconds','workloadSeconds','cleanupSeconds','totalSeconds','observerSeconds'}
++        safe = {key:value for key,value in fields.items() if key in allowed and type(value) is int}
++        value = {'version':1,'event':event,'at':datetime.datetime.now(datetime.timezone.utc).isoformat(),**safe}
++        encoded = (json.dumps(value,separators=(',',':'))+'\n').encode()
++        try:
++            if len(encoded)>4096 or journal_bytes+len(encoded)>65536:raise RuntimeError('Wrapper lifecycle journal budget exceeded')
++            if os.write(lifecycle,encoded)!=len(encoded):raise RuntimeError('Wrapper lifecycle journal short write')
++            journal_bytes += len(encoded)
++            os.fsync(lifecycle)
++            return True
++        except OSError:
++            journal_failed = True
++            return False
++        except RuntimeError:
++            journal_failed = True
++            return False
++    fixture_parent = None
+     driver = observer = watcher = None
+     failures = []
+     stop = threading.Event()
+     interrupted = None
+     code = 1
+     observed = 1
++    driver_deadline = time.monotonic() + DRIVER_TOTAL_SECONDS
++    total_budget_expired = False
++    waiting_for_driver = False
++    previous_handlers = {}
++
++    def running(child, label):
++        try:
++            return child.poll() is None
++        except BaseException as error:
++            failures.append(label + ' status exception: ' + type(error).__name__)
++            return True
++
++    def request_stop(child, label, force=False, signum=signal.SIGTERM):
++        event = label.lower() + ('-forced-exit-request' if force else '-termination-request')
++        record(event, **{label.lower() + 'PID': child.pid},
++               signalNumber=signal.SIGKILL.value if force else int(signum))
++        try:
++            if force:
++                child.kill()
++            else:
++                child.send_signal(signum)
++        except ProcessLookupError:
++            pass
++        except BaseException as error:
++            # Signaling races or failures must not skip reaping or the other child.
++            failures.append(label + ' signaling exception: ' + type(error).__name__)
++
++    def wait_for(child, label, seconds):
++        try:
++            return child.wait(timeout=seconds)
++        except subprocess.TimeoutExpired:
++            return None
++        except BaseException as error:
++            failures.append(label + ' wait exception: ' + type(error).__name__)
++            return None
+ 
+     def interrupt(signum, _frame):
+         nonlocal interrupted
+         interrupted = signum
++        record('wrapper-signal',signalNumber=signum)
+         if 'Wrapper interrupted; driver cleanup requested' not in failures:
+             failures.append('Wrapper interrupted; driver cleanup requested')
+-        if driver is not None and driver.poll() is None:
+-            try:
+-                driver.send_signal(signum)
+-            except ProcessLookupError:
+-                pass
+-
+-    for signum in (signal.SIGTERM, signal.SIGINT):
+-        signal.signal(signum, interrupt)
++        if driver is not None and running(driver, 'Driver'):
++            request_stop(driver, 'Driver', signum=signum)
++        # Do not raise during Popen, when the owned handle may not be assigned,
++        # or during cleanup. Interrupt a long main wait so early signals receive
++        # the same bounded cleanup allowance as other early failures.
++        if waiting_for_driver:
++            raise InterruptedError('Wrapper interrupted while awaiting driver')
+ 
+     def publish_identity():
+         try:
+@@ -131,13 +214,19 @@
+                 stop.wait(0.1)
+         except Exception as error:
+             failures.append(str(error))
+-            if driver.poll() is None:
+-                try:
+-                    driver.send_signal(signal.SIGTERM)
+-                except ProcessLookupError:
+-                    pass
++            if running(driver, 'Driver'):
++                request_stop(driver, 'Driver')
+ 
+     try:
++        own_start = int(Path('/proc/self/stat').read_text().rsplit(') ', 1)[1].split()[19])
++        if not record('wrapper-start', pid=os.getpid(), parentPid=os.getppid(), group=os.getpgrp(),
++                      session=os.getsid(0), startTicks=own_start, preparationSeconds=PREPARATION_SECONDS,
++                      workloadSeconds=WORKFLOW_SECONDS, cleanupSeconds=CLEANUP_SECONDS,
++                      totalSeconds=DRIVER_TOTAL_SECONDS, observerSeconds=OBSERVER_SECONDS):
++            raise RuntimeError('Wrapper lifecycle journal unavailable before launch')
++        fixture_parent = Path(tempfile.mkdtemp(prefix='.ls-', dir=base))
++        for signum in (signal.SIGTERM, signal.SIGINT):
++            previous_handlers[signum] = signal.signal(signum, interrupt)
+         if interrupted is not None:
+             raise RuntimeError('Interrupted before driver startup')
+         driver = subprocess.Popen(['node', str(here / 'sustained.mjs'),
+@@ -148,68 +237,84 @@
+         observer = subprocess.Popen([sys.executable, '-c', SAMPLER_LAUNCHER, str(sampler), str(self_cost),
+                                      '--driver-pid', str(driver.pid), '--driver-start-ticks', start,
+                                      '--instance-path-file', str(pointer), '--image-id', image,
+-                                     '--output', str(output), '--seconds', '1980'], cwd=repo)
++                                     '--output', str(output), '--seconds', str(OBSERVER_SECONDS)], cwd=repo)
++        if not record('children-started', driverPID=driver.pid, observerPID=observer.pid):
++            raise RuntimeError('Wrapper lifecycle journal unavailable after launch')
+         print(json.dumps({'driverPID': driver.pid, 'startTicks': start,
+                           'samplerPID': observer.pid, 'observationDirectory': str(output), 'observerSelfCost': str(self_cost)}), flush=True)
+         watcher = threading.Thread(target=publish_identity, daemon=True)
+         watcher.start()
+-        # Driver's predeclared deadline is thirty minutes; allow three minutes
+-        # for owned cleanup and retain the independent observer throughout.
+-        code = driver.wait(timeout=1980)
++        # One explicit total budget, followed only by a five-second interrupt
++        # grace. Do not add a second three-minute cleanup window after expiry.
++        if interrupted is not None:
++            raise InterruptedError('Interrupted during observer startup')
++        waiting_for_driver = True
++        code = driver.wait(timeout=max(0, driver_deadline - time.monotonic()))
++        waiting_for_driver = False
++        record('driver-returned',returnCode=code)
+     except BaseException as error:
++        total_budget_expired = waiting_for_driver and isinstance(error, subprocess.TimeoutExpired)
++        record('wrapper-wait-timeout' if total_budget_expired else 'wrapper-failure')
+         failures.append(type(error).__name__ + ': ' + str(error))
+     finally:
++        waiting_for_driver = False
+         stop.set()
+-        if watcher is not None and watcher.ident is not None:
+-            try:
+-                watcher.join(timeout=2)
+-            except BaseException as error:
+-                failures.append('Identity watcher cleanup exception: ' + type(error).__name__)
+-        try:
+-            if driver is not None and driver.poll() is None:
+-                with contextlib.suppress(ProcessLookupError):
+-                    driver.send_signal(signal.SIGTERM)
+-                try:
+-                    driver.wait(timeout=180)
+-                except subprocess.TimeoutExpired:
++        try:
++            if driver is not None and running(driver, 'Driver'):
++                request_stop(driver, 'Driver')
++                remaining = max(0, driver_deadline - time.monotonic())
++                allowance = INTERRUPT_GRACE_SECONDS if total_budget_expired else min(CLEANUP_SECONDS, remaining)
++                if wait_for(driver, 'Driver', allowance) is None:
+                     # A forced driver exit cannot prove Docker cleanup. Preserve
+                     # the fixture and report uncertainty for manual inspection.
+-                    failures.append('Driver cleanup exceeded 180 seconds; forced driver exit, Docker cleanup unknown')
+-                    with contextlib.suppress(ProcessLookupError):
+-                        driver.kill()
+-                    try:
+-                        driver.wait(timeout=5)
+-                    except subprocess.TimeoutExpired:
++                    failures.append('Driver total budget/interrupt grace exceeded; forced driver exit, Docker cleanup unknown')
++                    request_stop(driver, 'Driver', force=True)
++                    if wait_for(driver, 'Driver', INTERRUPT_GRACE_SECONDS) is None:
+                         failures.append('Owned driver could not be reaped')
+             elif driver is not None:
+-                driver.wait(timeout=5)
++                if wait_for(driver, 'Driver', INTERRUPT_GRACE_SECONDS) is None:
++                    failures.append('Owned driver could not be reaped')
+         except BaseException as error:
+             failures.append('Driver cleanup exception; Docker cleanup unknown: ' + type(error).__name__)
+         finally:
+             # Observer cleanup must run even if driver signaling/reaping fails.
+             try:
+                 if observer is not None:
+-                    try:
+-                        observed = observer.wait(timeout=30)
+-                    except subprocess.TimeoutExpired:
++                    settled = wait_for(observer, 'Observer', 30)
++                    if settled is None:
+                         failures.append('Observer exceeded its settlement window; termination requested')
+-                        with contextlib.suppress(ProcessLookupError):
+-                            observer.terminate()
+-                        try:
+-                            observed = observer.wait(timeout=5)
+-                        except subprocess.TimeoutExpired:
+-                            with contextlib.suppress(ProcessLookupError):
+-                                observer.kill()
+-                            try:
+-                                observed = observer.wait(timeout=5)
+-                            except subprocess.TimeoutExpired:
++                        request_stop(observer, 'Observer')
++                        settled = wait_for(observer, 'Observer', INTERRUPT_GRACE_SECONDS)
++                        if settled is None:
++                            request_stop(observer, 'Observer', force=True)
++                            settled = wait_for(observer, 'Observer', INTERRUPT_GRACE_SECONDS)
++                            if settled is None:
+                                 failures.append('Owned observer could not be reaped')
++                    if settled is not None:
++                        observed = settled
+             except BaseException as error:
+                 failures.append('Observer cleanup exception: ' + type(error).__name__)
++        if watcher is not None and watcher.ident is not None:
++            try:
++                watcher.join(timeout=2)
++            except BaseException as error:
++                failures.append('Identity watcher cleanup exception: ' + type(error).__name__)
++        for signum, previous in previous_handlers.items():
++            signal.signal(signum, previous)
+         if not self_cost.exists():
+             failures.append('Observer self-cost receipt missing; its own process cost is unverified')
+         if not pointer.exists():
+             failures.append('No owned personal instance became available; no container coverage is claimed')
++        if journal_failed:
++            failures.append('Wrapper lifecycle journal failed; shutdown cause evidence incomplete')
++        record('wrapper-settled', returnCode=code if code else (1 if observed or failures else 0),
++               driverPID=driver.pid if driver else 0, observerPID=observer.pid if observer else 0)
++        try:
++            os.close(lifecycle)
++        except OSError:
++            journal_failed = True
++        if journal_failed and 'Wrapper lifecycle journal failed; shutdown cause evidence incomplete' not in failures:
++            failures.append('Wrapper lifecycle journal failed; shutdown cause evidence incomplete')
+         if failures:
+             print(json.dumps({'observerWrapperFailures': failures,
+                               'privateFixtureParent': str(fixture_parent)}), file=sys.stderr)
+--- a/scripts/acceptance/sustained-four-project/run_with_observer_test.py
++++ b/scripts/acceptance/sustained-four-project/run_with_observer_test.py
+@@ -1,36 +1,45 @@
+-"""Subprocess cleanup fault injection; never starts Node, Docker or an observer."""
++"""Mocked lifecycle faults and in-process self-cost checks; no child launches."""
+ import contextlib
+ import importlib.util
+ import io
+ import json
+-import sys
+ import os
+ from pathlib import Path
+ import signal
+ import subprocess
++import sys
+ import tempfile
+ import unittest
+ from unittest.mock import patch
+ 
+-spec = importlib.util.spec_from_file_location('observer_wrapper', Path(__file__).with_name('run-with-observer.py'))
++
++spec = importlib.util.spec_from_file_location('sustained_observer_wrapper', Path(__file__).with_name('run-with-observer.py'))
+ wrapper = importlib.util.module_from_spec(spec)
+ spec.loader.exec_module(wrapper)
+ 
+ 
++def timeout():
++    return subprocess.TimeoutExpired('controlled-child', 1)
++
++
+ class Child:
+-    def __init__(self, waits=(), signal_race=False, kill_race=False):
+-        self.pid = os.getpid()  # Only /proc metadata is read; no actual signaling.
++    def __init__(self, waits=(), signal_error=None, kill_error=None, poll_error=None):
++        self.pid = os.getpid()  # Read only this process's metadata; never signal it.
+         self.returncode = None
+         self.waits = list(waits)
+         self.events = []
+-        self.signal_race, self.kill_race = signal_race, kill_race
++        self.signal_error, self.kill_error, self.poll_error = signal_error, kill_error, poll_error
+ 
+     def poll(self):
++        if self.poll_error:
++            raise self.poll_error
+         return self.returncode
+ 
+     def wait(self, timeout):
+         self.events.append(('wait', timeout))
+         value = self.waits.pop(0) if self.waits else 0
++        if callable(value):
++            value = value()
+         if isinstance(value, BaseException):
+             raise value
+         self.returncode = value
+@@ -38,84 +47,370 @@
+ 
+     def send_signal(self, value):
+         self.events.append(('signal', value))
+-        if self.signal_race:
+-            raise ProcessLookupError()
+-
+-    def terminate(self):
+-        self.send_signal(signal.SIGTERM)
++        if self.signal_error:
++            raise self.signal_error
+ 
+     def kill(self):
+         self.events.append(('kill',))
+-        if self.kill_race:
+-            raise ProcessLookupError()
+-
+-
+-@unittest.skipUnless(os.path.isdir('/proc'), 'Linux /proc metadata required')
++        if self.kill_error:
++            raise self.kill_error
++
++
++@unittest.skipUnless(sys.platform == 'linux', 'Linux /proc metadata required')
+ class OwnedCleanupTests(unittest.TestCase):
+-    def run_fault(self, children, thread_failure=False):
+-        with tempfile.TemporaryDirectory(prefix='lq-') as temp:
+-            # Popen is mocked below. Supply a private placeholder so these
+-            # cleanup tests do not depend on an external checkout/environment.
+-            repo = Path(temp) / 'repo'
++    def run_fault(self, children, *, thread_failure=False, join_failure=False, fixture=None,
++                  receipts=False, elapsed_at_observer=0, read_failure=None, write_failure=None,
++                  short_write=None, sync_failure=None, forwarded=(), existing_journal=False):
++        self.journal, self.launches, self.handlers, self.closed = [], [], {}, []
++        self.clock = 0
++        self.stderr = io.StringIO()
++        with tempfile.TemporaryDirectory(prefix='ls-') as temp:
++            root = Path(temp)
++            repo = root / 'repo'
+             sampler = repo / 'scripts/acceptance/four-project-queue/sample-linux-owned.py'
+             sampler.parent.mkdir(parents=True)
+             sampler.write_text('# Controlled preflight placeholder; never executed.\n')
+-            argv = ['wrapper', '--fixture-base', temp, '--observation-dir', str(Path(temp) / 'report'),
+-                    '--', '--expected-image-id', 'sha256:' + 'a' * 64]
+-            with contextlib.ExitStack() as stack:
+-                stack.enter_context(patch.object(wrapper.sys, 'argv', argv))
+-                stack.enter_context(patch.dict(wrapper.os.environ, {'LUCI_ACCEPTANCE_REPO': str(repo)}))
+-                stack.enter_context(patch.object(wrapper.signal, 'signal'))
+-                stack.enter_context(patch.object(wrapper.subprocess, 'Popen', side_effect=children))
+-                stack.enter_context(contextlib.redirect_stdout(io.StringIO()))
+-                stack.enter_context(contextlib.redirect_stderr(io.StringIO()))
+-                # No thread is needed to discover a nonexistent fixture.
+-                stack.enter_context(patch.object(wrapper.threading.Thread, 'start',
+-                                                  side_effect=RuntimeError('thread unavailable') if thread_failure else None))
+-                return wrapper.main()
++            output = root / 'report'
++            journal_path = root / 'report-lifecycle.jsonl'
++            if existing_journal:
++                journal_path.write_text('{"preserved":true}\n')
++            argv = ['wrapper', '--fixture-base', temp, '--observation-dir', str(output),
++                    '--', '--expected-image-id', 'sha256:' + 'a' * 64, *forwarded]
++            child_iter = iter(children)
++            real_read, real_write, real_sync, real_close = Path.read_text, os.write, os.fsync, os.close
++            self.write_calls, self.sync_calls = 0, 0
++
++            def launch(command, **kwargs):
++                self.launches.append((command, kwargs))
++                if command[0] == 'node':
++                    self.fixture_parent = Path(command[command.index('--fixture-root') + 1])
++                    if fixture:
++                        instance = self.fixture_parent / 'luci-sustained-owned/state/instance/instance-id'
++                        instance.parent.mkdir(parents=True)
++                        if fixture == 'symlink':
++                            target = root / 'outside-instance'
++                            target.write_text('outside-owned-scope\n')
++                            instance.symlink_to(target)
++                        else:
++                            instance.write_text('controlled-instance\n')
++                        self.exact_instance = str(instance)
++                        if fixture == 'multiple':
++                            another = self.fixture_parent / 'luci-sustained-other/state/instance/instance-id'
++                            another.parent.mkdir(parents=True)
++                            another.write_text('second-instance\n')
++                else:
++                    self.clock = elapsed_at_observer
++                    if receipts:
++                        (root / 'report-observer-self-cost.json').write_text('{}\n')
++                value = next(child_iter)
++                if isinstance(value, BaseException):
++                    raise value
++                return value
++
++            def read(path, *args, **kwargs):
++                if read_failure and str(path) == read_failure:
++                    raise OSError('controlled metadata read failure')
++                return real_read(path, *args, **kwargs)
++
++            def write(fd, data):
++                self.write_calls += 1
++                if self.write_calls == write_failure:
++                    raise OSError('controlled journal write failure')
++                if self.write_calls == short_write:
++                    return 0
++                return real_write(fd, data)
++
++            def sync(fd):
++                self.sync_calls += 1
++                if self.sync_calls == sync_failure:
++                    raise OSError('controlled journal sync failure')
++                return real_sync(fd)
++
++            def close(fd):
++                self.closed.append(fd)
++                return real_close(fd)
++
++            def install_handler(signum, callback):
++                previous = self.handlers.get(signum, signal.SIG_DFL)
++                self.handlers[signum] = callback
++                return previous
++
++            class Thread:
++                ident = None
++
++                def __init__(self, target, daemon):
++                    self.target = target
++
++                def start(self):
++                    if thread_failure:
++                        raise RuntimeError('thread unavailable')
++                    if fixture:
++                        self.ident = 1
++                        self.target()
++
++                def join(self, timeout):
++                    if join_failure:
++                        raise RuntimeError('join unavailable')
++
++            old_umask = os.umask(0o077)
++            try:
++                with contextlib.ExitStack() as stack:
++                    stack.enter_context(patch.object(wrapper.sys, 'argv', argv))
++                    stack.enter_context(patch.dict(wrapper.os.environ, {'LUCI_ACCEPTANCE_REPO': str(repo)}))
++                    stack.enter_context(patch.object(wrapper.signal, 'signal', side_effect=install_handler))
++                    stack.enter_context(patch.object(wrapper.subprocess, 'Popen', side_effect=launch))
++                    stack.enter_context(patch.object(wrapper.threading, 'Thread', Thread))
++                    stack.enter_context(patch.object(wrapper.time, 'monotonic', side_effect=lambda: self.clock))
++                    stack.enter_context(patch.object(Path, 'read_text', read))
++                    stack.enter_context(patch.object(wrapper.os, 'write', side_effect=write))
++                    stack.enter_context(patch.object(wrapper.os, 'fsync', side_effect=sync))
++                    stack.enter_context(patch.object(wrapper.os, 'close', side_effect=close))
++                    stack.enter_context(contextlib.redirect_stdout(io.StringIO()))
++                    stack.enter_context(contextlib.redirect_stderr(self.stderr))
++                    result = wrapper.main()
++                self.journal_text = journal_path.read_text()
++                self.journal = [json.loads(line) for line in self.journal_text.splitlines()]
++                self.journal_mode = journal_path.stat().st_mode & 0o777
++                pointer = root / 'report-instance-path.txt'
++                self.pointer = pointer.read_text().strip() if pointer.exists() else None
++                self.fixture_retained = self.fixture_parent.exists() if self.launches else False
++                return result
++            finally:
++                os.umask(old_umask)
++
++    def events(self):
++        return [row['event'] for row in self.journal]
++
++    def test_success_uses_exact_worker_identity_and_one_durable_total_budget(self):
++        driver, observer = Child(), Child()
++        self.assertEqual(self.run_fault([driver, observer], fixture='ordinary', receipts=True,
++                                       forwarded=['--controlled-marker', 'not-for-the-journal']), 0)
++        command = self.launches[1][0]
++        self.assertEqual(command[command.index('--seconds') + 1], '2115')
++        self.assertNotIn('--include-checks', command)
++        self.assertEqual(command[command.index('--driver-pid') + 1], str(driver.pid))
++        self.assertEqual(self.pointer, self.exact_instance)
++        self.assertEqual(self.journal[0]['preparationSeconds'], 120)
++        self.assertEqual(self.journal[0]['workloadSeconds'], 1800)
++        self.assertEqual(self.journal[0]['cleanupSeconds'], 180)
++        self.assertEqual(self.journal[0]['totalSeconds'], 2100)
++        self.assertEqual(self.journal[0]['observerSeconds'], 2115)
++        self.assertEqual(self.journal[-1]['returnCode'], 0)
++        self.assertEqual(self.journal_mode, 0o600)
++        self.assertEqual(self.sync_calls, len(self.journal) + 1)
++        self.assertNotIn('not-for-the-journal', self.journal_text)
++        self.assertNotIn(self.exact_instance, self.journal_text)
++        self.assertEqual(driver.events[0], ('wait', 2100))
++        self.assertTrue(all(value == signal.SIG_DFL for value in self.handlers.values()))
+ 
+     def test_observer_start_failure_stops_and_reaps_owned_driver(self):
+         driver = Child()
+         self.assertEqual(self.run_fault([driver, OSError('observer unavailable')]), 1)
++        self.assertEqual(driver.events, [('signal', signal.SIGTERM), ('wait', 180)])
++        self.assertIn('wrapper-failure', self.events())
++        self.assertTrue(self.fixture_retained)
++
++    def test_watcher_start_failure_cannot_skip_both_children(self):
++        driver, observer = Child(), Child()
++        self.assertEqual(self.run_fault([driver, observer], thread_failure=True), 1)
++        self.assertEqual(driver.events, [('signal', signal.SIGTERM), ('wait', 180)])
++        self.assertEqual(observer.events, [('wait', 30)])
++
++    def test_total_timeout_gets_only_term_five_kill_reap_five(self):
++        driver = Child([timeout(), timeout(), 0], kill_error=ProcessLookupError())
++        observer = Child([timeout(), 0], signal_error=ProcessLookupError())
++        self.assertEqual(self.run_fault([driver, observer]), 1)
++        self.assertEqual(driver.events, [('wait', 2100), ('signal', signal.SIGTERM),
++                                         ('wait', 5), ('kill',), ('wait', 5)])
++        self.assertIn('wrapper-wait-timeout', self.events())
++        self.assertIn('driver-forced-exit-request', self.events())
++        self.assertEqual(observer.events, [('wait', 30), ('signal', signal.SIGTERM), ('wait', 5)])
++        self.assertIn('Docker cleanup unknown', self.stderr.getvalue())
++
++    def test_early_failure_cleanup_cannot_extend_remaining_total_budget(self):
++        driver = Child([timeout(), 0])
++        self.assertEqual(self.run_fault([driver, OSError('observer unavailable')], elapsed_at_observer=2098), 1)
++        self.assertEqual(driver.events, [('signal', signal.SIGTERM), ('wait', 2), ('kill',), ('wait', 5)])
++        self.assertNotIn('wrapper-wait-timeout', self.events())
++
++    def test_timeout_before_main_wait_uses_early_failure_cleanup(self):
++        driver = Child()
++        self.assertEqual(self.run_fault([driver, timeout()]), 1)
++        self.assertIn(('wait', 180), driver.events)
++        self.assertNotIn('wrapper-wait-timeout', self.events())
++
++    def test_early_signal_interrupts_main_wait_and_bounds_cleanup(self):
++        def interrupt():
++            self.handlers[signal.SIGTERM](signal.SIGTERM, None)
++        driver, observer = Child([interrupt, 0]), Child()
++        self.assertEqual(self.run_fault([driver, observer]), 1)
++        self.assertIn('wrapper-signal', self.events())
++        self.assertIn(('wait', 180), driver.events)
++        self.assertEqual(observer.events, [('wait', 30)])
++
++    def test_signal_exception_still_reaps_owned_driver_and_observer(self):
++        driver, observer = Child(signal_error=OSError('signal failed')), Child()
++        self.assertEqual(self.run_fault([driver, observer], thread_failure=True), 1)
++        self.assertIn(('wait', 180), driver.events)
++        self.assertEqual(observer.events, [('wait', 30)])
++        self.assertIn('Driver signaling exception', self.stderr.getvalue())
++
++    def test_driver_kill_exception_still_attempts_reap_and_observer_cleanup(self):
++        driver = Child([timeout(), timeout(), 0], kill_error=OSError('kill failed'))
++        observer = Child()
++        self.assertEqual(self.run_fault([driver, observer]), 1)
++        self.assertEqual(driver.events[-1], ('wait', 5))
++        self.assertEqual(observer.events, [('wait', 30)])
++
++    def test_throwing_driver_waits_force_bounded_reap(self):
++        driver = Child([OSError('main wait failed'), OSError('cleanup wait failed'), 0])
++        observer = Child()
++        self.assertEqual(self.run_fault([driver, observer]), 1)
++        self.assertEqual(driver.events[-2:], [('kill',), ('wait', 5)])
++        self.assertEqual(observer.events, [('wait', 30)])
++
++    def test_throwing_driver_poll_cannot_skip_owned_reaping(self):
++        driver, observer = Child(poll_error=OSError('poll failed')), Child()
++        self.assertEqual(self.run_fault([driver, observer], thread_failure=True), 1)
++        self.assertIn(('wait', 180), driver.events)
++        self.assertEqual(observer.events, [('wait', 30)])
++
++    def test_throwing_observer_operations_still_attempt_bounded_reap(self):
++        driver = Child()
++        observer = Child([OSError('wait failed'), timeout(), 0],
++                         signal_error=OSError('signal failed'), kill_error=OSError('kill failed'))
++        self.assertEqual(self.run_fault([driver, observer]), 1)
++        self.assertEqual(observer.events, [('wait', 30), ('signal', signal.SIGTERM),
++                                           ('wait', 5), ('kill',), ('wait', 5)])
++        self.assertIn('observer-forced-exit-request', self.events())
++
++    def test_unreaped_children_fail_without_more_waits(self):
++        driver, observer = Child([timeout(), timeout(), timeout()]), Child([timeout(), timeout(), timeout()])
++        self.assertEqual(self.run_fault([driver, observer]), 1)
++        self.assertEqual([event[1] for event in driver.events if event[0] == 'wait'], [2100, 5, 5])
++        self.assertEqual([event[1] for event in observer.events if event[0] == 'wait'], [30, 5, 5])
++        self.assertIn('Owned driver could not be reaped', self.stderr.getvalue())
++        self.assertIn('Owned observer could not be reaped', self.stderr.getvalue())
++
++    def test_join_failure_preserves_completed_child_cleanup(self):
++        driver, observer = Child(), Child()
++        self.assertEqual(self.run_fault([driver, observer], fixture='ordinary', receipts=True, join_failure=True), 1)
++        self.assertEqual(observer.events, [('wait', 30)])
++        self.assertEqual(self.journal[-1]['returnCode'], 1)
++
++    def test_multiple_instances_cannot_publish_ambiguous_identity(self):
++        driver, observer = Child(), Child()
++        self.assertEqual(self.run_fault([driver, observer], fixture='multiple', receipts=True), 1)
++        self.assertIsNone(self.pointer)
+         self.assertIn(('signal', signal.SIGTERM), driver.events)
+-        self.assertIn(('wait', 180), driver.events)
+-
+-    def test_watcher_start_failure_cannot_skip_both_children(self):
+-        driver, observer = Child(), Child()
+-        self.assertEqual(self.run_fault([driver, observer], thread_failure=True), 1)
+-        self.assertIn(('signal', signal.SIGTERM), driver.events)
+-        self.assertIn(('wait', 30), observer.events)
+-
+-    def test_signal_lookup_races_still_reap_driver_and_observer(self):
+-        timeout = lambda: subprocess.TimeoutExpired('controlled-child', 1)
+-        driver = Child([timeout(), timeout(), 0], kill_race=True)
+-        observer = Child([timeout(), 0], signal_race=True)
+-        self.assertEqual(self.run_fault([driver, observer]), 1)
+-        self.assertIn(('kill',), driver.events)
+-        self.assertIn(('wait', 5), driver.events)
+-        self.assertIn(('signal', signal.SIGTERM), observer.events)
+-        self.assertIn(('wait', 5), observer.events)
++        self.assertIn('Multiple fixture instances', self.stderr.getvalue())
++
++    def test_symlink_instance_cannot_publish_unconfined_identity(self):
++        driver, observer = Child(), Child()
++        self.assertEqual(self.run_fault([driver, observer], fixture='symlink', receipts=True), 1)
++        self.assertIsNone(self.pointer)
++        self.assertIn('ordinary confined file', self.stderr.getvalue())
++
++    def test_missing_observer_receipt_cannot_claim_success(self):
++        self.assertEqual(self.run_fault([Child(), Child()], fixture='ordinary'), 1)
++        self.assertIn('Observer self-cost receipt missing', self.stderr.getvalue())
++        self.assertEqual(self.journal[-1]['returnCode'], 1)
++
++    def test_nonzero_driver_status_is_preserved(self):
++        self.assertEqual(self.run_fault([Child([7]), Child()], fixture='ordinary', receipts=True), 7)
++        self.assertEqual(self.journal[-1]['returnCode'], 7)
++
++    def test_own_process_metadata_read_failure_closes_journal_before_launch(self):
++        self.assertEqual(self.run_fault([], read_failure='/proc/self/stat'), 1)
++        self.assertEqual(self.launches, [])
++        self.assertEqual(self.events(), ['wrapper-failure', 'wrapper-settled'])
++        self.assertEqual(len(self.closed), 2)
++
++    def test_driver_metadata_read_failure_reaps_driver(self):
++        driver = Child()
++        self.assertEqual(self.run_fault([driver], read_failure='/proc/' + str(driver.pid) + '/stat'), 1)
++        self.assertEqual(len(self.launches), 1)
++        self.assertEqual(driver.events, [('signal', signal.SIGTERM), ('wait', 180)])
++
++    def test_initial_journal_write_failure_prevents_launch_and_closes_descriptor(self):
++        self.assertEqual(self.run_fault([], write_failure=1), 1)
++        self.assertEqual(self.launches, [])
++        self.assertEqual(self.journal, [])
++        self.assertEqual(len(self.closed), 2)
++        self.assertIn('journal failed', self.stderr.getvalue())
++
++    def test_journal_short_write_after_launch_stops_both_owned_children(self):
++        driver, observer = Child(), Child()
++        self.assertEqual(self.run_fault([driver, observer], short_write=2), 1)
++        self.assertEqual(driver.events, [('signal', signal.SIGTERM), ('wait', 180)])
++        self.assertEqual(observer.events, [('wait', 30)])
++        self.assertEqual(self.events(), ['wrapper-start'])
++
++    def test_journal_sync_failure_cannot_claim_success(self):
++        self.assertEqual(self.run_fault([], sync_failure=2), 1)
++        self.assertEqual(self.launches, [])
++        self.assertIn('journal failed', self.stderr.getvalue())
++
++    def test_existing_journal_rejected_before_launch(self):
++        with self.assertRaises(SystemExit) as raised:
++            self.run_fault([], existing_journal=True)
++        self.assertEqual(raised.exception.code, 2)
++        self.assertEqual(self.launches, [])
++
++    def test_forwarded_fixture_override_is_rejected(self):
++        for value in ('--fixture-root', '--fixture-root=/tmp/unowned'):
++            with self.subTest(value=value), self.assertRaises(SystemExit):
++                self.run_fault([], forwarded=[value])
++            self.assertEqual(self.launches, [])
+ 
+ 
+ @unittest.skipUnless(sys.platform == 'linux', 'Linux resource units and /proc required')
+ class OwnProcessCostTests(unittest.TestCase):
++    def run_launcher(self, script_body, exception, *, signal_number=None):
++        with tempfile.TemporaryDirectory(prefix='observer-cost-') as temp:
++            root = Path(temp)
++            script, cost = root / 'tiny-observer.py', root / 'own.json'
++            script.write_text(script_body)
++            handlers = {}
++            with contextlib.ExitStack() as stack:
++                stack.enter_context(patch.object(sys, 'argv', ['launcher', str(script), str(cost)]))
++                stack.enter_context(patch.object(signal, 'signal', side_effect=lambda number, handler: handlers.update({number: handler})))
++                # In-process execution exercises the real launcher and resource
++                # accounting without starting any subprocess or actual sampler.
++                if signal_number is not None:
++                    import runpy
++                    stack.enter_context(patch.object(runpy, 'run_path', side_effect=lambda *args, **kwargs: handlers[signal_number](signal_number, None)))
++                with self.assertRaises(exception) as raised:
++                    exec(wrapper.SAMPLER_LAUNCHER, {'__name__': '__main__'})
++            self.assertEqual(cost.stat().st_mode & 0o777, 0o600)
++            receipt = json.loads(cost.read_text())
++            self.assertEqual(receipt['pid'], os.getpid())
++            self.assertGreater(receipt['maxRSSBytes'], 0)
++            self.assertGreaterEqual(receipt['userCPUSeconds'], 0)
++            self.assertIn('excludes spawned Docker CLI', receipt['scope'])
++            self.assertGreater(receipt['wallSeconds'], 0)
++            return receipt, raised.exception
++
+     def test_same_process_cost_preserves_success_and_failure_exit_codes(self):
+         for code in (0, 7):
+-            with self.subTest(code=code), tempfile.TemporaryDirectory(prefix='observer-cost-') as temp:
+-                root = Path(temp)
+-                script = root / 'tiny-observer.py'
+-                script.write_text('raise SystemExit(' + str(code) + ')\n')
+-                cost = root / 'own.json'
+-                result = subprocess.run([sys.executable, '-c', wrapper.SAMPLER_LAUNCHER, str(script), str(cost)],
+-                                        capture_output=True, timeout=10, check=False)
+-                self.assertEqual(result.returncode, code)
+-                observed = json.loads(cost.read_text())
+-                self.assertEqual(observed['exitCode'], code)
+-                self.assertEqual(observed['status'], 'completed' if code == 0 else 'failed')
+-                self.assertGreater(observed['maxRSSBytes'], 0)
+-                self.assertGreaterEqual(observed['userCPUSeconds'], 0)
+-                self.assertIn('excludes spawned Docker CLI', observed['scope'])
+-                self.assertEqual(cost.stat().st_mode & 0o777, 0o600)
++            with self.subTest(code=code):
++                receipt, error = self.run_launcher('raise SystemExit(' + str(code) + ')\n', SystemExit)
++                self.assertEqual(error.code, code)
++                self.assertEqual(receipt['exitCode'], code)
++                self.assertEqual(receipt['status'], 'completed' if code == 0 else 'failed')
++                self.assertIsNone(receipt['signalNumber'])
++
++    def test_unexpected_sampler_exception_still_writes_self_cost(self):
++        receipt, _ = self.run_launcher('raise RuntimeError("controlled failure")\n', RuntimeError)
++        self.assertEqual(receipt['exitCode'], 1)
++        self.assertEqual(receipt['status'], 'failed')
++
++    def test_observer_termination_records_signal_and_self_cost(self):
++        receipt, error = self.run_launcher('# not executed\n', SystemExit, signal_number=signal.SIGTERM)
++        self.assertEqual(error.code, 143)
++        self.assertEqual(receipt['exitCode'], 143)
++        self.assertEqual(receipt['signalNumber'], signal.SIGTERM)
++        self.assertEqual(receipt['status'], 'failed')
+ 
+ 
+ if __name__ == '__main__':
+--- a/scripts/acceptance/sustained-four-project/README.md
++++ b/scripts/acceptance/sustained-four-project/README.md
+@@ -14,8 +14,8 @@
+ - Fifteen-second host-side action deadlines. Failed and timed-out actions remain in p50/p95/p99 calculations. Predeclared candidate targets are p95 input ≤100 ms, p95 full switch ≤300 ms, and p99 <1 second. Exceeding them preserves the functional result and reports acceptance failure; thresholds are not adjusted after seeing the run.
+ - Passive Chromium Event Timing, when supported, is recorded with its 16 ms reporting threshold and rounded durations. Per-round snapshots drain this fixture's observation buffer outside measured action intervals. Monotonic delivered-entry sequences reject gaps, duplicates and drops; the ledger is capped at200,000events/32MiB/2,000windows/128documents and each document buffer stays at10,000events. These checks cover delivered observer entries, not all physical input or events below16ms. Snapshots precede every full document navigation. Missing support stays explicit. The primary timings do not depend on this API. Agent terminal protocol is observed through an authenticated socket; the browser latency samples cover context views, not sustained terminal painting.
+ - Whole exact-owned process RSS/CPU/I/O and separately verified worker cgroup measurements come from the frozen Linux observer. RSS includes shared-page duplication; worker cgroup memory must not be added to process RSS. Shared Docker/kernel overhead is unassigned. The wrapper records the observer interpreter's own `RUSAGE_SELF`; Docker CLI/daemon overhead is excluded from that self-cost measurement.
+-- The 30-minute scenario deadline, five Create/Start maximum, one worker, 1 GiB/1 CPU/256 PID worker limit, 6 GiB pre-create disk guard and 1 GiB running reserve are fixed. No image pull or cloud allocation occurs.
+-- Per-worker scratch is bounded to 512 MiB, including a separate 32 MiB corpus cap, with one-second sampling. Uniform `GOFLAGS=-p=1 -trimpath` avoids duplicate trim-path build profiles; toolchain/modules are offline. These bounds were chosen before any installed run after a real cold API smoke exceeded 384 MiB total scratch. Fuzz command deadline is 330 seconds, including instrumentation; initial task command budget is nine minutes and amendment command budget is 90 seconds. The overall scenario deadline still applies. Before execution, standalone offline smoke took584s for four2s-fuzz workloads; the uniform-trimpath B recheck saved about66s. Replacing the four2s windows with150s estimates1110s before quiet phases, amendment, UI and lifecycle/review overhead. Root therefore approved30minutes before execution, with a33-minute observer window; this is not an after-the-fact extension.
++- The 30-minute scenario deadline remains unchanged. Read-only preparation has a separate120-second allowance, and failure diagnostics plus owned cleanup share at most180seconds; total driver budget is2100seconds. The five Create/Start maximum, one worker, 1 GiB/1 CPU/256 PID worker limit, 6 GiB pre-create disk guard and 1 GiB running reserve are fixed. No image pull or cloud allocation occurs.
++- Per-worker scratch is bounded to 512 MiB, including a separate 32 MiB corpus cap, with one-second sampling. Uniform `GOFLAGS=-p=1 -trimpath` avoids duplicate trim-path build profiles; toolchain/modules are offline. These bounds were chosen before any installed run after a real cold API smoke exceeded 384 MiB total scratch. Fuzz command deadline is 330 seconds, including instrumentation; initial task command budget is nine minutes and amendment command budget is 90 seconds. The overall scenario deadline still applies. Before execution, standalone offline smoke took584s for four2s-fuzz workloads; the uniform-trimpath B recheck saved about66s. Replacing the four2s windows with150s estimates1110s before quiet phases, amendment, UI and lifecycle/review overhead. Root therefore approved30minutes before execution, with the original33-minute observer window; this was not an after-the-fact workload extension. The LOCAL013 lifecycle correction now declares preparation120s + unchanged workload1800s + cleanup180s =2100s total, with2115s observation so bounded shutdown remains observed.
+ - Actual fuzz command wall time includes cold instrumentation. Restart is asserted during that active command and may occur during instrumentation rather than the mutation loop. Reported fuzz elapsed seconds are rounded. Only reported active fuzz elapsed seconds satisfy the four ×150-second gate; corpus execution counts are fixture-specific, not product/model throughput. Ordinary test names and real exit codes are recorded. Cache peaks are sampled, not exact instantaneous maxima.
+ - A settled native command failure writes bounded command logs/crashing corpus into a private owned checkout diagnostic, copied to the fresh report before exact container teardown. If the browser/controller fails while the native command is still active, the receipt explicitly records the unavailable failure bundle; teardown may interrupt that command and its temporary corpus is not claimed retained. Failed fixtures and partial measurements are retained. Unknown Docker mutation/drain state prevents destructive cleanup rather than being relabeled as success.
+ 
+@@ -36,19 +36,62 @@
+   --report /workspace/luci/artifacts/quality-swarm/sustained-mixed/NEW/result.json
+ ```
+ 
+-The placeholders are mandatory inputs, not a claim that a candidate is ready. The runner verifies installed package members against the archive and sandbox source hashes against the package commit; moving checkout source does not substitute for that lineage. All executed helpers are captured and rehashed at the end.
++The placeholders are mandatory inputs, not a claim that a candidate is ready. The runner verifies installed package members against the archive and sandbox source hashes against the package commit; moving checkout source does not substitute for that lineage. All executed helpers are captured and rehashed at the end. `--expected-source` pins the clean packaged product. `--expected-helper-source` separately pins the clean helper checkout and defaults to the product revision; a helper-only correction may explicitly use a different clean revision. The receipt records both exact revisions, product and helper cleanliness, and the final helper binding. Sandbox source comparison remains bound to the product revision. The executed driver must reside in that declared clean helper checkout; pointing `LUCI_ACCEPTANCE_REPO` at a different clean repository does not authorize an external driver.
+ 
+ Controlled helper checks, with no browser, Docker or compiler (the separate actual-browser collector case is explicitly excluded):
+ 
+ ```sh
+-node --test --test-skip-pattern="actual browser collector" /workspace/luci/scripts/acceptance/sustained-four-project/{event-drain,task-context,helper,workload,latency-diagnostics}.test.mjs /workspace/luci/scripts/acceptance/launch-recovery/worker-create-guard.test.mjs
++node --test --test-skip-pattern="actual browser collector" /workspace/luci/scripts/acceptance/sustained-four-project/{event-drain,task-context,helper,workload,latency-diagnostics,lifecycle,source-binding}.test.mjs /workspace/luci/scripts/acceptance/launch-recovery/worker-create-guard.test.mjs
+ LUCI_ACCEPTANCE_REPO=/workspace/luci python3 /workspace/luci/scripts/acceptance/sustained-four-project/run_with_observer_test.py
+ ```
+ 
+-After a real run, preserve `result.json`, accepted helper snapshots, package/image receipts, screenshots, `samples.jsonl`, observer metadata/summary and the separate observer-self-cost receipt. The driver's timestamped `phases` identify actual quiet baseline, workload, amendment and settle intervals. The frozen sampler's generic “post-start” phase text does not itself identify quiet idle; join it to this driver's explicit intervals and report missing/partial samples honestly. Historical failure receipts must remain separate.
++After a real run, preserve `result.json`, `result.json.incomplete.json`, `diagnostic-journal.jsonl`, the wrapper `*-lifecycle.jsonl`, accepted helper snapshots, package/image receipts, screenshots, `samples.jsonl`, observer metadata/summary and the separate observer-self-cost receipt. The driver's timestamped `phases` identify actual quiet baseline, workload, amendment and settle intervals. The frozen sampler's generic “post-start” phase text does not itself identify quiet idle; join it to this driver's explicit intervals and report missing/partial samples honestly. Historical failure receipts must remain separate.
+ 
+ Live-provider result quality, simultaneous heavy workers, native Windows/WebView latency and other-application responsiveness remain separate release gates.
+ 
+ For pre-C011 packages explicitly select `--task-context-version 1`; the default remains1 and retains the original strict mount/file contract. New task packages require version2 and the reviewed shared V2 create guard. Version is trusted fixture configuration, never inferred from a worker request. V2 requires exactly nine context files, the exact per-child writable report mount, matching manifest/binding digests and an empty direct-dependency packet bound to this independent task attempt. The scripted workload intentionally does not manufacture a worker handoff report; its absence stays explicit and cannot count as successful handoff quality. Actual report and dependency behavior is tested by the separate DAG/checkpoint witnesses.
+ 
+ Additive [latency diagnostics](LATENCY-DIAGNOSTICS.md) retain Node action/verification/frame subspans and bounded browser-clock input/DOM/frame/resource observations. They preserve the original full end-to-end action sequence and100/300ms p95 targets. The added bookkeeping has measurement overhead; the earlier919 baseline remains an uninstrumented-primary comparison with explicit limits, not an isolated product regression estimate. The diagnostics do not measure physical paint or prove React persistence completion.
++
++
++## Bounded failure and shutdown evidence (LOCAL013 sibling correction)
++
++A rejected workflow deadline races a stuck browser or other awaited operation,
++records the failing stage and process identities durably, and fences later API,
++provider-command, socket, browser-route and Docker Create/Start mutations. It does not shorten
++the declared30-minute workload or change latency, fuzz, event-buffer or resource
++assertions. Provider polling remains permitted during the deliberate active-command
++controller restart while the workflow itself is healthy. Provider, proxy and browser factories are registered before invocation, with workflow checks after every startup await. A handle returned after cancellation is retained and closed once; a pending proxy is never labeled not started or drained. Browser contexts/pages are also tracked, including late results after their parent closes. Pending or timed-out startup rows keep the final receipt failed and the fixture retained.
++
++Before any failure screenshot or cleanup await, a private fsynced incomplete
++checkpoint records the stage, driver/controller identities and unknown Docker
++state. The bounded shared journal preserves stage transitions, controller exit,
++proxy mutation acknowledgements/drain and shutdown cause without credentials or
++payloads. The checkpoint is an intermediate receipt with
++`originalReceiptComplete:false`; the eventual final receipt is authoritative and
++sets that field true. A hard-stop receipt remains explicitly incomplete.
++
++Independent cleanup attempts proceed through controllers (30s), proxy drain
++(125s), browser (12s) and provider (3s), inside one180-second total cleanup window.
++A missing browser launch handle, throwing close or never-resolving close still
++reaches the exact-owned profile/process fallback. A timed-out phase remains
++unsettled: its late result cannot grant Docker deletion authority. Worker cleanup
++requires completed controller/drain phases, no transport uncertainty and the
++original immutable-ID, name, instance/session, image and worktree checks. Unknown
++mutation state retains the fixture for inspection. The final driver watchdog
++terminates only its own process and does not guess ownership of external resources.
++
++The wrapper grants no second180-second cleanup period after its2100-second total
++expires: it requests termination, allows5seconds, then force-exits/reaps only its
++owned driver with another5-second wait. The independent observer has bounded
++30s/5s/5s settlement and the identity watcher a2-second join. Early interruptions
++and startup failures get at most180seconds within the remaining driver budget.
++Forced exit cannot prove Docker cleanup. The wrapper preserves the uncertainty,
++private fixture, independent observer cost and durable lifecycle events.
++
++Controlled lifecycle tests use the driver's real cleanup wiring with mocked
++resources and promises, including hanging/throwing browser/proxy/provider paths,
++late drain results, exact process identities, late API/socket continuations and cancellation inside the actual sustained startup orchestration. Source-binding checks cover default and explicitly separate clean helper/product revisions. Response promises are observed immediately so a failed click cannot cause an unhandled response rejection during cleanup.
++Python tests mock child processes and exercise bounded timeout, interruption,
++identity, durable-write failure and observer-self-cost paths in-process. They do
++not establish a successful installed sustained workload.
+--- /dev/null
++++ b/scripts/acceptance/sustained-four-project/lifecycle.test.mjs
+@@ -0,0 +1,188 @@
++// Exercise the driver's actual phase wiring with controlled promises and files.
++// No child process, browser, Docker client, provider server or compiler starts.
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import vm from 'node:vm';
++import {mkdtempSync,readFileSync,rmSync,statSync} from 'node:fs';
++import {dirname,join,resolve} from 'node:path';
++import {tmpdir} from 'node:os';
++import {fileURLToPath} from 'node:url';
++const here=dirname(fileURLToPath(import.meta.url));
++const repo=resolve(process.env.LUCI_ACCEPTANCE_REPO??resolve(here,'../../..'));
++const {runBoundedCleanup,settleOwnedBrowser,writeFailureCheckpoint,createWorkflowDeadline,boundedAttempt}=await import(join(repo,'scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs'));
++const {createStartupScope,startAcceptanceServices,startAcceptanceBrowser}=await import(process.env.LUCI_ACCEPTANCE_STARTUP_TEST_MODULE??join(repo,'scripts/acceptance/launch-recovery/acceptance-startup.mjs'));
++const source=readFileSync(new URL('./sustained.mjs',import.meta.url),'utf8');
++const wiring=source.split('// BEGIN SUSTAINED CLEANUP WIRING: exercised with controlled resources only.\n')[1]?.split('// END SUSTAINED CLEANUP WIRING')[0];
++assert(wiring,'Missing actual driver cleanup wiring');
++const never=()=>new Promise(()=>{});
++function context(t,overrides={}){
++ const directory=mkdtempSync(join(tmpdir(),'sustained-lifecycle-'));t.after(()=>rmSync(directory,{recursive:true,force:true}));
++ const checkpoint=join(directory,'incomplete.json'),failures=[],events=[],killed=[],receipt={};
++ const owned={pid:41,start:'42'},reused={pid:51,start:'52'};
++ const ctx={assert,receipt,proxy:{observations:{dropped:0,failures:[]},close:async()=>{events.push('proxy');return {drained:true,pendingRequests:0,activeHandlers:0};}},browser:undefined,
++  controllerIdentities:[{pid:1,start:'2'}],stillOwned:identity=>identity===owned,
++  stopService:async()=>{events.push('controllers');return true;},ownedProcesses:()=>[],
++  provider:{listening:true,closeAllConnections(){events.push('provider-connections');},close(done){events.push('provider');done();}},
++  process:{kill:pid=>killed.push(pid)},cleanupBudget:maximum=>Math.min(maximum,5),settleOwnedBrowser,
++  cleanupFailure:error=>{failures.push(error.code??error.message);receipt.passed=false;},
++  persistFailureCheckpoint:()=>writeFailureCheckpoint(checkpoint,{passed:false,status:'cleanup-incomplete',stage:'sustained-work',driver:{pid:7,startTicks:8},controllers:[{pid:1,start:2}],dockerRequestsDrained:false}),
++  journal:{record(_event,row){events.push(row.stage);}},
++  runBoundedCleanup:options=>runBoundedCleanup({...options,phases:options.phases.map(phase=>({...phase,timeoutMs:200,run:()=>{assert.equal(JSON.parse(readFileSync(checkpoint)).passed,false);return phase.run();}}))}),
++  ...overrides};
++ if(!ctx.startupScope)ctx.startupScope={has:name=>!!ctx[name],close:(name,timeoutMs)=>boundedAttempt(async()=>{const handle=ctx[name];if(name==='provider'){handle.closeAllConnections();if(handle.listening)await new Promise(resolve=>handle.close(resolve));return;}return handle.close();},timeoutMs,'startup-'+name+'-close-deadline-exceeded')};
++ vm.runInNewContext(wiring+'\nglobalThis.run=settleSustainedResources;',ctx);
++ return {ctx,checkpoint,receipt,failures,events,killed,owned,reused};
++}
++
++test('stuck browser close cannot skip controller/proxy/provider cleanup or exact owned fallback',async t=>{
++ const fixture=context(t,{browser:{close:never}});
++ fixture.ctx.ownedProcesses=()=>[fixture.owned,fixture.reused];
++ const phases=await fixture.ctx.run();
++ assert.deepEqual(phases.map(row=>row.name),['controllers','proxy','browser','provider']);
++ assert(fixture.events.includes('controllers')&&fixture.events.includes('proxy')&&fixture.events.includes('provider'));
++ assert(fixture.failures.includes('startup-browser-close-deadline-exceeded'));
++ assert.deepEqual(fixture.killed,[fixture.owned.pid]);
++ assert.equal(fixture.receipt.controllersStopped,true);assert.equal(fixture.receipt.dockerRequestsDrained,true);
++ assert.equal(statSync(fixture.checkpoint).mode&0o777,0o600);
++});
++
++test('never-resolving or throwing proxy retains uncertainty and cannot gain authority from a late result',async t=>{
++ for(const throwing of [false,true]){
++  let release;
++  const fixture=context(t,{proxy:{observations:{dropped:0,failures:[]},close:()=>throwing?Promise.reject(Error('controlled close failure')):new Promise(resolve=>{release=resolve;})}});
++  const phases=await fixture.ctx.run();
++  assert.equal(phases.find(row=>row.name==='proxy').status,'failed-or-unsettled');
++  assert.equal(fixture.receipt.dockerRequestsDrained,false);assert.equal(fixture.receipt.dockerMutationStateCertain,false);
++  assert(fixture.events.includes('provider'));
++  release?.({drained:true,pendingRequests:0,activeHandlers:0});await new Promise(resolve=>setImmediate(resolve));
++  assert.equal(fixture.receipt.dockerRequestsDrained,false);assert.equal(fixture.receipt.dockerMutationStateCertain,false);
++ }
++});
++
++test('transport failures refuse destructive authority even after a completed socket drain',async t=>{
++ const fixture=context(t,{proxy:{observations:{dropped:0,failures:[{uncertainMutation:true}]},close:async()=>({drained:true,pendingRequests:0,activeHandlers:0})}});
++ await fixture.ctx.run();
++ assert.equal(fixture.receipt.controllersStopped,true);assert.equal(fixture.receipt.dockerRequestsDrained,false);assert.equal(fixture.receipt.dockerMutationStateCertain,false);
++ assert(fixture.events.includes('provider'));assert(fixture.failures.length>0);
++});
++
++test('throwing controller/browser/provider cleanup still attempts every independent phase',async t=>{
++ const fixture=context(t,{stopService:async()=>{throw Error('controlled controller failure');},browser:{close:()=>{throw Error('controlled browser failure');}},provider:{listening:true,closeAllConnections(){throw Error('controlled provider failure');}}});
++ const phases=await fixture.ctx.run();
++ assert.deepEqual(phases.map(row=>row.name),['controllers','proxy','browser','provider']);
++ assert.equal(fixture.receipt.controllersStopped,false);assert.equal(fixture.receipt.dockerRequestsDrained,true);
++ assert.equal(phases.find(row=>row.name==='provider').status,'failed-or-unsettled');assert(fixture.failures.length>=3);
++});
++
++test('missing browser handle still applies exact profile/process identity before fallback',async t=>{
++ const fixture=context(t);fixture.ctx.ownedProcesses=()=>[fixture.owned,fixture.reused];
++ await fixture.ctx.run();assert.deepEqual(fixture.killed,[fixture.owned.pid]);
++});
++
++test('late workflow continuation cannot seed state after the deadline',async()=>{
++ const active=source.slice(source.indexOf('function assertWorkflowActive()'),source.indexOf('async function timed('));
++ const seed=source.slice(source.indexOf('function seedFiles('),source.indexOf('async function saveContext('));
++ let release,writes=0;
++ const control=createWorkflowDeadline({timeoutMs:10});
++ const ctx={assert,closing:false,workflowControl:control,fixtureError:undefined,remaining:()=>100,service:undefined,join,dirname,mkdirSync:()=>{},existsSync:()=>false,lstatSync:()=>({isFile:()=>true}),writeFileSync:()=>writes++};
++ vm.runInNewContext(active+seed+'\nglobalThis.seed=seedFiles;',ctx);
++ const pending=control.run(async()=>{await new Promise(resolve=>{release=resolve;});ctx.seed({path:'/controlled'}, {'engine.go':'unreachable'});});
++ await assert.rejects(pending,{code:'workflow-deadline-exceeded'});release();await new Promise(resolve=>setImmediate(resolve));assert.equal(writes,0);
++});
++
++test('intentional service restart is permitted while failure/cleanup still refuses a new child',async()=>{
++ const active=source.slice(source.indexOf('function assertWorkflowActive()'),source.indexOf('async function timed('));
++ const start=source.slice(source.indexOf('async function startService()'),source.indexOf('async function stopService('));
++ let spawns=0;
++ const ctx={assert,closing:false,workflowControl:{assertActive(){}},fixtureError:undefined,remaining:()=>1000,remainingBudget:()=>1000,service:{exitCode:0},binary:'fixture',fixture:'fixture',env:{},spawn:()=>{spawns++;return {pid:9,exitCode:null,on(){}};},stopOnFailure(){},controllerIdentities:[],processIdentity:pid=>({pid,start:'1'}),journalProcessIdentity:pid=>({pid,startTicks:1}),journal:{record(){}},fetch:async()=>({ok:true,json:async()=>({product:'Luci',version:'0.5.0'})}),base:'fixture',AbortSignal,delay:async()=>{},receipt:{}};
++ vm.runInNewContext(active+start+'\nglobalThis.start=startService;',ctx);
++ await ctx.start();assert.equal(spawns,1);assert.equal(ctx.receipt.lifecycle.length,1);
++ ctx.spawn=()=>({pid:undefined,on(){}});await assert.rejects(ctx.start(),/process identity is unavailable/);assert.equal(ctx.controllerIdentities.length,1);
++ ctx.closing=true;await assert.rejects(ctx.start(),/Workflow closed/);assert.equal(spawns,1);
++});
++
++test('native provider progress survives intentional controller downtime but remains fenced on failure',()=>{
++ const active=source.slice(source.indexOf('function assertWorkflowActive()'),source.indexOf('async function timed('));
++ const tool=source.slice(source.indexOf('function nextTool('),source.indexOf('function startProvider('));
++ const ctx={assert,closing:false,fixtureError:undefined,workflowControl:{assertActive(){}},remaining:()=>1000,service:{exitCode:0},calls:new Map()};
++ vm.runInNewContext(active+tool+'\nglobalThis.next=nextTool;',ctx);
++ const state={task:'build-a',operation:{id:'operation'},count:0};
++ assert.equal(ctx.next(state,'write_stdin',{chars:''}).name,'write_stdin');
++ ctx.fixtureError=Error('controlled deadline');assert.throws(()=>ctx.next(state,'write_stdin',{chars:''}),/controlled deadline/);assert.equal(state.count,1);
++});
++
++test('a late socket ticket cannot create a connection after cleanup started',async()=>{
++ const active=source.slice(source.indexOf('function assertWorkflowActive()'),source.indexOf('async function timed('));
++ const attach=source.slice(source.indexOf('async function attach('),source.indexOf('function outputs('));
++ let release,opened=0;
++ const ctx={assert,closing:false,fixtureError:undefined,workflowControl:{assertActive(){}},remaining:()=>1000,service:undefined,workspace:'',api:()=>new Promise(resolve=>{release=resolve;}),sensitive:[],WebSocket:class{constructor(){opened++;}},base:'http://fixture'};
++ vm.runInNewContext(active+attach+'\nglobalThis.attachFixture=attach;',ctx);
++ const pending=ctx.attachFixture('session');ctx.closing=true;release({ticket:'private-fixture-ticket'});
++ await assert.rejects(pending,/Workflow closed/);assert.equal(opened,0);
++});
++
++test('a late API response cannot resume the workflow after cleanup started',async()=>{
++ const active=source.slice(source.indexOf('function assertWorkflowActive()'),source.indexOf('async function timed('));
++ const api=source.slice(source.indexOf('async function api('),source.indexOf('async function until('));
++ let release;
++ const ctx={assert,closing:false,fixtureError:undefined,workflowControl:{assertActive(){}},remaining:()=>1000,remainingBudget:()=>1000,service:undefined,base:'http://fixture',token:undefined,AbortSignal,stage:'controlled-response',receipt:{},scrub:String,fetch:async()=>({status:200}),boundedResponse:()=>new Promise(resolve=>{release=resolve;})};
++ vm.runInNewContext(active+api+'\nglobalThis.apiFixture=api;',ctx);
++ const pending=ctx.apiFixture('POST','/controlled',{});await new Promise(resolve=>setImmediate(resolve));ctx.closing=true;release('{"accepted":true}');
++ await assert.rejects(pending,/Workflow closed/);
++});
++
++test('a failed click observes its response promise even when the response rejects later',async()=>{
++ const action=source.slice(source.indexOf('async function action('),source.indexOf('async function openProject('));
++ let rejectResponse;
++ const ctx={assert,health(){},page:{waitForResponse:()=>new Promise((_resolve,reject)=>{rejectResponse=reject;})},remainingBudget:()=>100};
++ vm.runInNewContext(action+'\nglobalThis.actionFixture=action;',ctx);
++ await assert.rejects(ctx.actionFixture('/controlled',async()=>{throw Error('controlled click failure');}),/controlled click failure/);
++ rejectResponse(Error('controlled late browser close'));await new Promise(resolve=>setImmediate(resolve));
++});
++
++test('actual sustained startup cannot configure or spawn after a pending proxy resolves following cleanup',async t=>{
++ const startup=source.split('// BEGIN SUSTAINED STARTUP WIRING: exercised with controlled factories only.\n')[1]?.split('// END SUSTAINED STARTUP WIRING')[0];assert(startup);
++ const active=source.slice(source.indexOf('function assertWorkflowActive()'),source.indexOf('async function timed('));
++ let releaseProxy,enteredProxy,writes=0,spawns=0,proxyCloses=0;
++ const entered=new Promise(resolve=>{enteredProxy=resolve;});
++ const fixture=context(t,{proxy:undefined,provider:undefined,closing:false,fixtureError:undefined,service:undefined,remaining:()=>1000,
++  process:{env:{}},join,dirname,fixture:'/controlled',web:'/controlled/web',binary:'/controlled/binary',image:'controlled-image',lifecycle:'private-controlled-token',
++  receipt:{bounds:{maxCreates:5,maxStarts:5}},journal:{record(){}},identifyCreate(){},admission(){},bridge:'127.0.0.1',freePort:async()=>1234,
++  startAcceptanceServices,writeFileSync:()=>writes++,startService:async()=>{spawns++;},
++  startFencedDockerProxy:options=>{assert.equal(typeof options.beforeStart,'function');enteredProxy();return new Promise(resolve=>{releaseProxy=resolve;});},
++ });
++ const {ctx}=fixture;
++ ctx.startProvider=()=>{ctx.provider={once(){return this;},listen(_port,_host,done){this.listening=true;done();return this;},address:()=>({port:1234}),closeAllConnections(){},close(done){this.listening=false;done();}};};
++ const control=createWorkflowDeadline({timeoutMs:1000});ctx.workflowControl=control;
++ vm.runInNewContext(active+'\nglobalThis.active=assertWorkflowActive;',ctx);
++ ctx.startupScope=createStartupScope({assertActive:ctx.active,onFailure:ctx.cleanupFailure,lateCloseTimeoutMs:10});
++ vm.runInNewContext(startup+'\nglobalThis.start=startSustainedServices;',ctx);
++ const pending=control.run(()=>ctx.start());await entered;
++ control.fail(Error('controlled cancellation'));await assert.rejects(pending,/controlled cancellation/);ctx.closing=true;
++ await ctx.run();assert.equal(ctx.receipt.controllersStopped,true);assert.equal(ctx.receipt.dockerRequestsDrained,false);assert.equal(ctx.receipt.dockerMutationStateCertain,false);
++ releaseProxy({observations:{dropped:0,failures:[]},close:async()=>{proxyCloses++;return {drained:true,pendingRequests:0,activeHandlers:0};}});
++ await new Promise(resolve=>setImmediate(resolve));await new Promise(resolve=>setImmediate(resolve));
++ assert.equal(writes,0);assert.equal(spawns,0);assert.equal(proxyCloses,1);
++ assert.equal(ctx.receipt.dockerRequestsDrained,false);assert.equal(ctx.receipt.dockerMutationStateCertain,false);
++ const state=ctx.startupScope.snapshot().find(row=>row.name==='proxy');assert.equal(state.state,'closed');assert.equal(state.late,true);assert.equal(state.closeTimedOut,true);
++});
++
++test('actual sustained browser wiring cannot install routes or open a page after canceled timing setup',async t=>{
++ const browserWiring=source.split('// BEGIN SUSTAINED BROWSER WIRING: exercised with controlled factories only.\n')[1]?.split('// END SUSTAINED BROWSER WIRING')[0];assert(browserWiring);
++ const active=source.slice(source.indexOf('function assertWorkflowActive()'),source.indexOf('async function timed('));
++ let releaseTiming,enteredTiming,routes=0,pages=0,closes=0;
++ const entered=new Promise(resolve=>{enteredTiming=resolve;});
++ const browserContext={route:async()=>{routes++;},newPage:async()=>{pages++;},close:async()=>{}};
++ const browserHandle={newContext:async()=>browserContext,close:async()=>{closes++;},version:()=> 'controlled'};
++ const fixture=context(t,{proxy:undefined,provider:undefined,browser:undefined,closing:false,fixtureError:undefined,service:undefined,remaining:()=>1000,
++  startAcceptanceBrowser,chromium:{launch:async()=>browserHandle},option:(_name,fallback)=>fallback,browserEnv:{},
++  installBrowserTiming:()=>{enteredTiming();return new Promise(resolve=>{releaseTiming=resolve;});},scrub:String,stopOnFailure(){},});
++ const {ctx}=fixture,control=createWorkflowDeadline({timeoutMs:1000});ctx.workflowControl=control;
++ vm.runInNewContext(active+'\nglobalThis.active=assertWorkflowActive;',ctx);
++ ctx.startupScope=createStartupScope({assertActive:ctx.active,onFailure:ctx.cleanupFailure,lateCloseTimeoutMs:10});
++ vm.runInNewContext('globalThis.startBrowserFixture=async()=>{'+browserWiring+'};',ctx);
++ const pending=control.run(()=>ctx.startBrowserFixture());await entered;control.fail(Error('controlled cancellation'));await assert.rejects(pending,/controlled cancellation/);ctx.closing=true;
++ await ctx.run();releaseTiming();await new Promise(resolve=>setImmediate(resolve));
++ assert.equal(closes,1);assert.equal(routes,0);assert.equal(pages,0);
++ assert(ctx.startupScope.snapshot().every(row=>row.state==='closed'));
++});
+--- /dev/null
++++ b/scripts/acceptance/sustained-four-project/source-binding.mjs
+@@ -0,0 +1,57 @@
++// Pure source binding: callers read Git with their own bounded command budget.
++import assert from 'node:assert/strict';
++
++/** Read only the two source options; retain the driver's existing CLI semantics. */
++export function parseSourceBindingOptions(args) {
++  assert(Array.isArray(args), 'Source options must be an argument array');
++  const option = name => {
++    const index = args.indexOf(name);
++    if (index < 0) return undefined;
++    const value = args[index + 1];
++    assert(typeof value === 'string' && value && !value.startsWith('--'), 'Missing value for ' + name);
++    return value;
++  };
++  return {
++    expectedProduct: option('--expected-source'),
++    expectedHelper: option('--expected-helper-source'),
++  };
++}
++
++function exactCommit(value, description) {
++  // The length check also excludes a trailing newline, which JavaScript's $
++  // regular-expression anchor would otherwise allow before the final newline.
++  assert(typeof value === 'string' && value.length === 40 && /^[a-f0-9]{40}$/.test(value),
++    description + ' must be an exact lowercase 40-hex commit');
++}
++
++/** Validate already-read values without inspecting a checkout or changing provenance. */
++export function validateSourceBinding({provenance, expectedProduct, expectedHelper, helperCommit, helperDirty}) {
++  assert(provenance && typeof provenance === 'object' && !Array.isArray(provenance),
++    'Matching clean package provenance is required');
++  assert.equal(provenance.sourceDirty, false, 'Packaged product source must be clean');
++  exactCommit(provenance.sourceCommit, 'Packaged product source');
++  exactCommit(expectedProduct, '--expected-source');
++  assert.equal(provenance.sourceCommit, expectedProduct,
++    'Packaged product source must match --expected-source');
++
++  const expectedSource = expectedHelper === undefined ? provenance.sourceCommit : expectedHelper;
++  exactCommit(expectedSource, '--expected-helper-source');
++  exactCommit(helperCommit, 'Acceptance helper checkout HEAD');
++  assert.equal(helperCommit, expectedSource,
++    'Acceptance helper checkout must match its separately declared source');
++  assert.equal(helperDirty, false, 'Acceptance helper source must be clean');
++
++  return {
++    commit: helperCommit,
++    dirty: helperDirty,
++    expectedSource,
++    productSource: provenance.sourceCommit,
++    separateHelperRevision: helperCommit !== provenance.sourceCommit,
++  };
++}
++
++/** Inputs are canonical directories resolved by the caller before any workload. */
++export function validateHelperLocation(actualDirectory, checkoutDirectory) {
++  assert(typeof actualDirectory === 'string' && actualDirectory.length > 0, 'Executed helper directory is required');
++  assert.equal(actualDirectory, checkoutDirectory, 'Executed helper must belong to the declared clean checkout');
++}
+--- /dev/null
++++ b/scripts/acceptance/sustained-four-project/source-binding.test.mjs
+@@ -0,0 +1,131 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import {parseSourceBindingOptions, validateSourceBinding, validateHelperLocation} from './source-binding.mjs';
++
++const product = 'a'.repeat(40), helper = 'b'.repeat(40), other = 'c'.repeat(40);
++const valid = overrides => ({
++  provenance: {sourceCommit: product, sourceDirty: false},
++  expectedProduct: product,
++  helperCommit: product,
++  helperDirty: false,
++  ...overrides,
++});
++
++test('default source binding requires the clean helper HEAD to equal the product revision', () => {
++  const options = parseSourceBindingOptions(['--expected-source', product]);
++  assert.deepEqual(options, {expectedProduct: product, expectedHelper: undefined});
++  assert.deepEqual(validateSourceBinding(valid(options)), {
++    commit: product, dirty: false, expectedSource: product,
++    productSource: product, separateHelperRevision: false,
++  });
++  assert.throws(() => validateSourceBinding(valid({...options, helperCommit: helper})), /separately declared source/);
++});
++
++test('an explicit separate helper revision preserves the packaged product binding', () => {
++  const provenance = Object.freeze({sourceCommit: product, sourceDirty: false});
++  const options = parseSourceBindingOptions(['--expected-source', product, '--expected-helper-source', helper]);
++  assert.deepEqual(validateSourceBinding(valid({...options, provenance, helperCommit: helper})), {
++    commit: helper, dirty: false, expectedSource: helper,
++    productSource: product, separateHelperRevision: true,
++  });
++  assert.equal(provenance.sourceCommit, product);
++});
++
++test('an explicit helper revision equal to the product is recorded as the same revision', () => {
++  assert.equal(validateSourceBinding(valid({expectedHelper: product})).separateHelperRevision, false);
++});
++
++test('unknown arguments are ignored without mutating the original command line', () => {
++  const args = Object.freeze(['--unknown-option', 'value', '--expected-source', product, '--another-flag']);
++  assert.deepEqual(parseSourceBindingOptions(args), {expectedProduct: product, expectedHelper: undefined});
++  assert.deepEqual(args, ['--unknown-option', 'value', '--expected-source', product, '--another-flag']);
++});
++
++test('duplicate source options preserve the existing first occurrence behavior', () => {
++  assert.deepEqual(parseSourceBindingOptions([
++    '--expected-source', product, '--expected-source', other,
++    '--expected-helper-source', helper, '--expected-helper-source', other,
++  ]), {expectedProduct: product, expectedHelper: helper});
++});
++
++test('an absent product option fails validation instead of inferring trust from provenance', () => {
++  const options = parseSourceBindingOptions(['--unrelated', 'value']);
++  assert.throws(() => validateSourceBinding(valid(options)), /--expected-source must be an exact/);
++});
++
++test('each recognized option rejects a missing value or the following flag', () => {
++  for (const name of ['--expected-source', '--expected-helper-source']) {
++    for (const args of [[name], [name, ''], [name, '--other'], [name, '--expected-source', product]]) {
++      assert.throws(() => parseSourceBindingOptions(args), /Missing value for/);
++    }
++  }
++});
++
++test('equal-sign option spellings retain the existing unknown-option behavior', () => {
++  assert.deepEqual(parseSourceBindingOptions([
++    '--expected-source', product, '--expected-helper-source=' + helper,
++  ]), {expectedProduct: product, expectedHelper: undefined});
++});
++
++test('missing or malformed product provenance cannot establish a source binding', () => {
++  for (const provenance of [undefined, null, [], {}, {sourceCommit: product}, {sourceDirty: false}]) {
++    assert.throws(() => validateSourceBinding(valid({provenance})));
++  }
++});
++
++test('product provenance and expected product revisions require exact lowercase full hashes', () => {
++  const malformed = [undefined, null, '', 'HEAD', 'a'.repeat(39), 'a'.repeat(41),
++    'A'.repeat(40), 'g'.repeat(40), product + '\n', ' ' + product, 123];
++  for (const value of malformed) {
++    assert.throws(() => validateSourceBinding(valid({
++      provenance: {sourceCommit: value, sourceDirty: false},
++    })), /Packaged product source must be an exact/);
++    assert.throws(() => validateSourceBinding(valid({expectedProduct: value})), /--expected-source must be an exact/);
++  }
++});
++
++test('explicit helper revisions and helper HEAD require exact lowercase full hashes', () => {
++  const malformed = [null, '', 'HEAD', 'b'.repeat(39), 'b'.repeat(41),
++    'B'.repeat(40), 'g'.repeat(40), helper + '\n', ' ' + helper, 123];
++  for (const value of malformed) {
++    assert.throws(() => validateSourceBinding(valid({expectedHelper: value})), /--expected-helper-source must be an exact/);
++    assert.throws(() => validateSourceBinding(valid({helperCommit: value})), /helper checkout HEAD must be an exact/);
++  }
++  assert.throws(() => validateSourceBinding(valid({helperCommit: undefined})), /helper checkout HEAD must be an exact/);
++});
++
++test('dirty or unknown product state is rejected even with a separately declared clean helper', () => {
++  for (const sourceDirty of [true, undefined, null, 0, '', 'false']) {
++    assert.throws(() => validateSourceBinding(valid({
++      provenance: {sourceCommit: product, sourceDirty}, expectedHelper: helper, helperCommit: helper,
++    })), /Packaged product source must be clean/);
++  }
++});
++
++test('dirty or unknown helper state is rejected for same and separate revisions', () => {
++  for (const helperDirty of [true, undefined, null, 0, '', 'false']) {
++    for (const expectedHelper of [product, helper]) {
++      assert.throws(() => validateSourceBinding(valid({
++        expectedHelper, helperCommit: expectedHelper, helperDirty,
++      })), /Acceptance helper source must be clean/);
++    }
++  }
++});
++
++test('declaring the correct helper cannot override a product provenance mismatch', () => {
++  assert.throws(() => validateSourceBinding(valid({
++    expectedProduct: other, expectedHelper: helper, helperCommit: helper,
++  })), /Packaged product source must match --expected-source/);
++});
++
++test('a clean but undeclared helper HEAD fails exact revision binding', () => {
++  assert.throws(() => validateSourceBinding(valid({
++    expectedHelper: helper, helperCommit: other,
++  })), /Acceptance helper checkout must match its separately declared source/);
++});
++
++test('executed helper directory must belong to the declared clean checkout', () => {
++  validateHelperLocation('/checkout/scripts/acceptance/sustained-four-project', '/checkout/scripts/acceptance/sustained-four-project');
++  assert.throws(() => validateHelperLocation('/external/staged/scripts/acceptance/sustained-four-project', '/checkout/scripts/acceptance/sustained-four-project'), /declared clean checkout/);
++  assert.throws(() => validateHelperLocation('', ''), /directory is required/);
++});

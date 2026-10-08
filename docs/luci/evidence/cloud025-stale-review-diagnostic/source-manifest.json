@@ -1,0 +1,22 @@
+{
+  "scope": "Exact external staged source checked by diagnostic1; no product, Docker, browser or network execution.",
+  "baseline": {
+    "path": "scripts/acceptance/task-dependencies/dag.mjs",
+    "sha256": "e22fabe57952ad03c763bc188121b3886c64ea0941cf2ebdc795523f360e91f3"
+  },
+  "files": {
+    "scripts/acceptance/task-dependencies/stale-review-probe.mjs": {
+      "sha256": "79aa3ec4acd6c597fbd79c2bba2594355252bd8d49f16777f212e427563d263a",
+      "bytes": 4634
+    },
+    "scripts/acceptance/task-dependencies/dag.mjs": {
+      "sha256": "8a07114aae0b58cbf530accd88613b58edfcb546245e8a3fcfc2aae695658bd2",
+      "bytes": 88881
+    },
+    "scripts/acceptance/task-dependencies/stale-review-probe.test.mjs": {
+      "sha256": "4824669aa540caa9fb64428f4581651a05ce70682ba0f8b00a322c951456b206",
+      "bytes": 10167
+    }
+  },
+  "patchSHA256": "1e8768c8c91cc4eae946c12b376713ef11ec8776a8a933543bc8ab9e25544c56"
+}

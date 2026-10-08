@@ -1,0 +1,51 @@
+--- a/scripts/acceptance/task-dependencies/dag.mjs
++++ b/scripts/acceptance/task-dependencies/dag.mjs
+@@ -265,6 +265,7 @@
+ }
+ 
+ function streamResponse(res,item,sequence){
++  health();
+   const response={id:'resp_swarm_'+sequence,object:'response',created_at:1,status:'completed',model:'swarm-mechanics-fixture',output:[item],usage:{input_tokens:1,output_tokens:1,total_tokens:2,input_tokens_details:{cached_tokens:0},output_tokens_details:{reasoning_tokens:0}}};
+   const events=[{type:'response.created',response:{...response,status:'in_progress',output:[]}},{type:'response.output_item.added',output_index:0,item:{...item,status:'in_progress',...(item.type==='function_call'?{arguments:''}:{content:[]})}}];
+   if(item.type==='function_call')events.push({type:'response.function_call_arguments.delta',item_id:item.id,output_index:0,delta:item.arguments},{type:'response.function_call_arguments.done',item_id:item.id,output_index:0,arguments:item.arguments});
+@@ -284,11 +285,11 @@
+ function outputs(input,result=[]) {if(!input||typeof input!=='object')return result;if(input.type==='function_call_output')result.push(input);for(const v of Array.isArray(input)?input:Object.values(input))outputs(v,result);assert(result.length<=100);return result;}
+ function message(text){return {id:'msg_swarm_'+providerCalls,type:'message',status:'completed',role:'assistant',content:[{type:'output_text',text,annotations:[]}]};}
+ function commandFor(key){const value=taskData.get(key);assert(value);return taskCommand({variant:key,operation:value.operation.id,projectId:value.owner.id,runId:owner.run.id,baseCommit:value.operation.baseCommit,contextHashes:hashes(initialBundles.get(value.session.id)),dependencyDigest:value.operation.dependencyContext.digest,dependencies:value.dependencies,expectedUid:process.getuid()});}
+-function nextTool(state,name,args){if(name==='exec_command'){state.codingDispatches=(state.codingDispatches??0)+1;assert.equal(state.codingDispatches,1,'No duplicate task command');}assert(++state.count<=48,'Bounded task tool request cap');const callID='call_swarm_'+state.task+'_'+state.operation.id+'_'+state.count;calls.set(callID,{state,consumed:false});return {id:'fc_'+callID,type:'function_call',status:'completed',name,call_id:callID,arguments:JSON.stringify(args)};}
++function nextTool(state,name,args){health();if(name==='exec_command'){state.codingDispatches=(state.codingDispatches??0)+1;assert.equal(state.codingDispatches,1,'No duplicate task command');}assert(++state.count<=48,'Bounded task tool request cap');const callID='call_swarm_'+state.task+'_'+state.operation.id+'_'+state.count;calls.set(callID,{state,consumed:false});return {id:'fc_'+callID,type:'function_call',status:'completed',name,call_id:callID,arguments:JSON.stringify(args)};}
+ function startProvider(){
+  health();provider=httpServer(async(req,res)=>{try{
+   assert.equal(req.method,'POST');assert.equal(req.headers.authorization,'Bearer '+key);if(closing){res.writeHead(503);res.end();return;}
+-  assert.equal(req.url,'/v1/responses');const parts=[];let bytes=0;for await(const part of req){bytes+=part.length;assert(bytes<4*1024**2);parts.push(part);}const body=JSON.parse(Buffer.concat(parts));assert.equal(body.model,'swarm-mechanics-fixture');assert(++providerCalls<=80);
++  assert.equal(req.url,'/v1/responses');const parts=[];let bytes=0;for await(const part of req){bytes+=part.length;assert(bytes<4*1024**2);parts.push(part);}health();const body=JSON.parse(Buffer.concat(parts));assert.equal(body.model,'swarm-mechanics-fixture');assert(++providerCalls<=80);
+   const resultItems=outputs(body.input),pending=resultItems.filter(v=>calls.has(v.call_id)&&!calls.get(v.call_id).consumed);assert(pending.length<=1);let response;
+   if(pending.length){const output=pending[0],entry=calls.get(output.call_id),state=entry.state;entry.consumed=true;const raw=typeof output.output==='string'?output.output:JSON.stringify(output.output);assert(!/Process exited with code (?:[1-9]\d*|-\d+)|"exit_code"\s*:\s*(?:[1-9]\d*|-\d+)|Command failed/.test(raw));
+    const matches=[...raw.matchAll(/LUCI_DAG_OBSERVATION=([A-Za-z0-9+/=]+)/g)];
+@@ -303,7 +304,7 @@
+   (receipt.providerRequests??=[]).push({number:providerCalls,toolOutputCount:resultItems.length,issuedTool:response.type==='function_call'?response.name:null});streamResponse(res,response,providerCalls);
+  }catch(error){stopOnFailure(error);if(!res.headersSent)res.writeHead(500);res.end('Controlled DAG fixture contract failed');}});
+ }
+-async function action(path,click,expected=200){const pending=page.waitForResponse(r=>new URL(r.url()).pathname===path&&r.request().method()==='POST',{timeout:remainingBudget(150000)});await click();const response=await pending;assert.equal(response.status(),expected,path+': '+await response.text());return response.json();}
++async function action(path,click,expected=200){health();const pending=page.waitForResponse(r=>new URL(r.url()).pathname===path&&r.request().method()==='POST',{timeout:remainingBudget(150000)});void pending.catch(()=>{});await click();health();const response=await pending;health();assert.equal(response.status(),expected,path+': '+await response.text());return response.json();}
+ async function openProject(state) {
+  await page.goto(base);
+  const username=page.getByLabel('Username',{exact:true}),enter=page.getByRole('button',{name:'Continue to projects',exact:true}),picker=page.getByLabel('Workspace',{exact:true});
+@@ -363,7 +364,7 @@
+ }
+ 
+ async function readReview(key){
+- const worker=taskData.get(key);assert(worker);setStage('browser-review-'+key);await openProject(owner);const pending=page.waitForResponse(r=>new URL(r.url()).pathname===owner.route+'/runs/'+owner.run.id+'/swarm/tasks/'+worker.taskId+'/review'&&r.request().method()==='GET');await taskRow(worker.taskId).getByRole('button',{name:'Review task changes',exact:true}).click();const response=await pending;assert.equal(response.status(),200);const {review}=await response.json();assert.equal(review.canIntegrate,true);assert.equal(review.sourceCommit,observations.get(key).commit);assert.deepEqual([...review.paths].sort(),changedPaths(key));const dialog=page.getByRole('dialog',{name:'Review task changes',exact:true});await dialog.getByLabel('Reviewed task diff').waitFor();assert((await dialog.getByLabel('Reviewed task diff').innerText()).includes(variants[key].receipt));return {review,dialog};
++ const worker=taskData.get(key);assert(worker);setStage('browser-review-'+key);await openProject(owner);const pending=page.waitForResponse(r=>new URL(r.url()).pathname===owner.route+'/runs/'+owner.run.id+'/swarm/tasks/'+worker.taskId+'/review'&&r.request().method()==='GET');void pending.catch(()=>{});await taskRow(worker.taskId).getByRole('button',{name:'Review task changes',exact:true}).click();const response=await pending;assert.equal(response.status(),200);const {review}=await response.json();assert.equal(review.canIntegrate,true);assert.equal(review.sourceCommit,observations.get(key).commit);assert.deepEqual([...review.paths].sort(),changedPaths(key));const dialog=page.getByRole('dialog',{name:'Review task changes',exact:true});await dialog.getByLabel('Reviewed task diff').waitFor();assert((await dialog.getByLabel('Reviewed task diff').innerText()).includes(variants[key].receipt));return {review,dialog};
+ }
+ async function integrate(key,expected='integrated'){
+  const {review,dialog}=await readReview(key);await dialog.getByRole('checkbox').check();const result=await action(owner.route+'/runs/'+owner.run.id+'/swarm/tasks/'+variants[key].taskId+'/integrate',()=>dialog.getByRole('button',{name:'Integrate reviewed changes',exact:true}).click());owner.run=result.run;run=owner.run;const integration=run.swarm.tasks.find(t=>t.id===variants[key].taskId).integration;assert.equal(integration.state,expected);(receipt.integrations??=[]).push({variant:key,review,integration});return integration;
+@@ -467,7 +468,7 @@
+  await region.getByRole('checkbox',{name:"I trust this project's code and these Docker commands to write project files and use the network.",exact:true}).check();
+  await checkAdmission();checkConsent={run:structuredClone(owner.run),commit,sourceDigest:coverage.source.sourceDigest,at:new Date().toISOString()};
+  const expectedRequest={commands:[checkCommand],execution:'docker',acknowledgeHostExecution:true,requirementIds:['AC-dag'],expectedSpecificationRevision:coverage.specification.revision,expectedDesignPlanRevision:coverage.design.revision};
+- const pending=page.waitForResponse(response=>new URL(response.url()).pathname===owner.route+'/checks'&&response.request().method()==='POST',{timeout:remainingBudget(120000)});
++ const pending=page.waitForResponse(response=>new URL(response.url()).pathname===owner.route+'/checks'&&response.request().method()==='POST',{timeout:remainingBudget(120000)});void pending.catch(()=>{});
+  await region.getByRole('button',{name:'Run selected requirement checks',exact:true}).click();const response=await pending;
+  assert.deepEqual(response.request().postDataJSON(),expectedRequest);assert.equal(response.status(),202);const started=await response.json();
+  assertRecordedCheck(started,checkConsent);(receipt.checkConsents??=[]).push({at:checkConsent.at,request:expectedRequest,checkId:started.id,commit,sourceDigest:checkConsent.sourceDigest});

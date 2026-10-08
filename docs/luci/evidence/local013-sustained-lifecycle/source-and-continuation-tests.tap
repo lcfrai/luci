@@ -1,0 +1,160 @@
+TAP version 13
+# Subtest: stuck browser close cannot skip controller/proxy/provider cleanup or exact owned fallback
+ok 1 - stuck browser close cannot skip controller/proxy/provider cleanup or exact owned fallback
+  ---
+  duration_ms: 25.657972
+  type: 'test'
+  ...
+# Subtest: never-resolving or throwing proxy retains uncertainty and cannot gain authority from a late result
+ok 2 - never-resolving or throwing proxy retains uncertainty and cannot gain authority from a late result
+  ---
+  duration_ms: 21.280508
+  type: 'test'
+  ...
+# Subtest: transport failures refuse destructive authority even after a completed socket drain
+ok 3 - transport failures refuse destructive authority even after a completed socket drain
+  ---
+  duration_ms: 4.272003
+  type: 'test'
+  ...
+# Subtest: throwing controller/browser/provider cleanup still attempts every independent phase
+ok 4 - throwing controller/browser/provider cleanup still attempts every independent phase
+  ---
+  duration_ms: 2.35381
+  type: 'test'
+  ...
+# Subtest: missing browser handle still applies exact profile/process identity before fallback
+ok 5 - missing browser handle still applies exact profile/process identity before fallback
+  ---
+  duration_ms: 8.654079
+  type: 'test'
+  ...
+# Subtest: late workflow continuation cannot seed state after the deadline
+ok 6 - late workflow continuation cannot seed state after the deadline
+  ---
+  duration_ms: 11.051249
+  type: 'test'
+  ...
+# Subtest: intentional service restart is permitted while failure/cleanup still refuses a new child
+ok 7 - intentional service restart is permitted while failure/cleanup still refuses a new child
+  ---
+  duration_ms: 4.794286
+  type: 'test'
+  ...
+# Subtest: native provider progress survives intentional controller downtime but remains fenced on failure
+ok 8 - native provider progress survives intentional controller downtime but remains fenced on failure
+  ---
+  duration_ms: 2.243964
+  type: 'test'
+  ...
+# Subtest: a late socket ticket cannot create a connection after cleanup started
+ok 9 - a late socket ticket cannot create a connection after cleanup started
+  ---
+  duration_ms: 2.785872
+  type: 'test'
+  ...
+# Subtest: a late API response cannot resume the workflow after cleanup started
+ok 10 - a late API response cannot resume the workflow after cleanup started
+  ---
+  duration_ms: 4.748392
+  type: 'test'
+  ...
+# Subtest: default source binding requires the clean helper HEAD to equal the product revision
+ok 11 - default source binding requires the clean helper HEAD to equal the product revision
+  ---
+  duration_ms: 1.314913
+  type: 'test'
+  ...
+# Subtest: an explicit separate helper revision preserves the packaged product binding
+ok 12 - an explicit separate helper revision preserves the packaged product binding
+  ---
+  duration_ms: 0.288996
+  type: 'test'
+  ...
+# Subtest: an explicit helper revision equal to the product is recorded as the same revision
+ok 13 - an explicit helper revision equal to the product is recorded as the same revision
+  ---
+  duration_ms: 0.189826
+  type: 'test'
+  ...
+# Subtest: unknown arguments are ignored without mutating the original command line
+ok 14 - unknown arguments are ignored without mutating the original command line
+  ---
+  duration_ms: 0.267844
+  type: 'test'
+  ...
+# Subtest: duplicate source options preserve the existing first occurrence behavior
+ok 15 - duplicate source options preserve the existing first occurrence behavior
+  ---
+  duration_ms: 0.207133
+  type: 'test'
+  ...
+# Subtest: an absent product option fails validation instead of inferring trust from provenance
+ok 16 - an absent product option fails validation instead of inferring trust from provenance
+  ---
+  duration_ms: 1.018657
+  type: 'test'
+  ...
+# Subtest: each recognized option rejects a missing value or the following flag
+ok 17 - each recognized option rejects a missing value or the following flag
+  ---
+  duration_ms: 1.158848
+  type: 'test'
+  ...
+# Subtest: equal-sign option spellings retain the existing unknown-option behavior
+ok 18 - equal-sign option spellings retain the existing unknown-option behavior
+  ---
+  duration_ms: 0.246031
+  type: 'test'
+  ...
+# Subtest: missing or malformed product provenance cannot establish a source binding
+ok 19 - missing or malformed product provenance cannot establish a source binding
+  ---
+  duration_ms: 0.759165
+  type: 'test'
+  ...
+# Subtest: product provenance and expected product revisions require exact lowercase full hashes
+ok 20 - product provenance and expected product revisions require exact lowercase full hashes
+  ---
+  duration_ms: 2.910721
+  type: 'test'
+  ...
+# Subtest: explicit helper revisions and helper HEAD require exact lowercase full hashes
+ok 21 - explicit helper revisions and helper HEAD require exact lowercase full hashes
+  ---
+  duration_ms: 1.146539
+  type: 'test'
+  ...
+# Subtest: dirty or unknown product state is rejected even with a separately declared clean helper
+ok 22 - dirty or unknown product state is rejected even with a separately declared clean helper
+  ---
+  duration_ms: 0.569859
+  type: 'test'
+  ...
+# Subtest: dirty or unknown helper state is rejected for same and separate revisions
+ok 23 - dirty or unknown helper state is rejected for same and separate revisions
+  ---
+  duration_ms: 0.905456
+  type: 'test'
+  ...
+# Subtest: declaring the correct helper cannot override a product provenance mismatch
+ok 24 - declaring the correct helper cannot override a product provenance mismatch
+  ---
+  duration_ms: 0.208054
+  type: 'test'
+  ...
+# Subtest: a clean but undeclared helper HEAD fails exact revision binding
+ok 25 - a clean but undeclared helper HEAD fails exact revision binding
+  ---
+  duration_ms: 0.20561
+  type: 'test'
+  ...
+1..25
+# tests 25
+# suites 0
+# pass 25
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 136.765723

@@ -1,0 +1,442 @@
+TAP version 13
+# Subtest: drained document sequences remain complete and independent across navigation
+ok 1 - drained document sequences remain complete and independent across navigation
+  ---
+  duration_ms: 2.771233
+  type: 'test'
+  ...
+# Subtest: gap is retained as explicit invalid evidence
+ok 2 - gap is retained as explicit invalid evidence
+  ---
+  duration_ms: 0.899417
+  type: 'test'
+  ...
+# Subtest: duplicate is retained as explicit invalid evidence
+ok 3 - duplicate is retained as explicit invalid evidence
+  ---
+  duration_ms: 0.170527
+  type: 'test'
+  ...
+# Subtest: buffer overflow is retained before refusal and never reset into valid evidence
+ok 4 - buffer overflow is retained before refusal and never reset into valid evidence
+  ---
+  duration_ms: 0.187092
+  type: 'test'
+  ...
+# Subtest: event ledger bound refuses before retaining excessive payload
+ok 5 - event ledger bound refuses before retaining excessive payload
+  ---
+  duration_ms: 0.31199
+  type: 'test'
+  ...
+# Subtest: byte ledger bound refuses before retaining excessive payload
+ok 6 - byte ledger bound refuses before retaining excessive payload
+  ---
+  duration_ms: 0.133602
+  type: 'test'
+  ...
+# Subtest: window ledger bound refuses before retaining excessive payload
+ok 7 - window ledger bound refuses before retaining excessive payload
+  ---
+  duration_ms: 0.127021
+  type: 'test'
+  ...
+# Subtest: document ledger bound refuses before retaining excessive payload
+ok 8 - document ledger bound refuses before retaining excessive payload
+  ---
+  duration_ms: 0.091778
+  type: 'test'
+  ...
+# Subtest: Generated native worker programs parse with actual fixture strings, without execution
+ok 9 - Generated native worker programs parse with actual fixture strings, without execution
+  ---
+  duration_ms: 4.579592
+  type: 'test'
+  ...
+# Subtest: Command refuses unexpected task identity and unbounded duration
+ok 10 - Command refuses unexpected task identity and unbounded duration
+  ---
+  duration_ms: 9.221807
+  type: 'test'
+  ...
+# Subtest: Nearest rank summaries preserve slow failures instead of survivor-only quantiles
+ok 11 - Nearest rank summaries preserve slow failures instead of survivor-only quantiles
+  ---
+  duration_ms: 0.547346
+  type: 'test'
+  ...
+# Subtest: Failure on first All projects click is inside project-switch measurement
+ok 12 - Failure on first All projects click is inside project-switch measurement
+  ---
+  duration_ms: 1.839496
+  type: 'test'
+  ...
+# Subtest: trusted input and frames retain timestamps but no key, value, target or text
+ok 13 - trusted input and frames retain timestamps but no key, value, target or text
+  ---
+  duration_ms: 4.421233
+  type: 'test'
+  ...
+# Subtest: synthetic DOM events are excluded and pointer capture is text-free
+ok 14 - synthetic DOM events are excluded and pointer capture is text-free
+  ---
+  duration_ms: 3.348153
+  type: 'test'
+  ...
+# Subtest: route timing retains only exact same-origin classes and strips identities/query
+ok 15 - route timing retains only exact same-origin classes and strips identities/query
+  ---
+  duration_ms: 4.120979
+  type: 'test'
+  ...
+# Subtest: unsupported resource observation stays explicit while input still works
+ok 16 - unsupported resource observation stays explicit while input still works
+  ---
+  duration_ms: 2.819325
+  type: 'test'
+  ...
+# Subtest: 2048 browser row cap is sticky across drains; no overflowing input frame scheduled
+ok 17 - 2048 browser row cap is sticky across drains; no overflowing input frame scheduled
+  ---
+  duration_ms: 22.041911
+  type: 'test'
+  ...
+# Subtest: bounded ledger verifies monotonic per-document sequence and accounts bytes
+ok 18 - bounded ledger verifies monotonic per-document sequence and accounts bytes
+  ---
+  duration_ms: 9.887673
+  type: 'test'
+  ...
+# Subtest: ledger refuses gap
+ok 19 - ledger refuses gap
+  ---
+  duration_ms: 1.628177
+  type: 'test'
+  ...
+# Subtest: ledger refuses counter
+ok 20 - ledger refuses counter
+  ---
+  duration_ms: 2.658622
+  type: 'test'
+  ...
+# Subtest: ledger refuses overflow
+ok 21 - ledger refuses overflow
+  ---
+  duration_ms: 2.288084
+  type: 'test'
+  ...
+# Subtest: ledger refuses rows bound
+ok 22 - ledger refuses rows bound
+  ---
+  duration_ms: 2.124677
+  type: 'test'
+  ...
+# Subtest: ledger refuses bytes bound
+ok 23 - ledger refuses bytes bound
+  ---
+  duration_ms: 2.006048
+  type: 'test'
+  ...
+# Subtest: ledger refuses windows bound
+ok 24 - ledger refuses windows bound
+  ---
+  duration_ms: 3.200911
+  type: 'test'
+  ...
+# Subtest: ledger refuses documents bound
+ok 25 - ledger refuses documents bound
+  ---
+  duration_ms: 1.81553
+  type: 'test'
+  ...
+# Subtest: Node stage recorder freezes on timeout/close and never changes primary elapsed
+ok 26 - Node stage recorder freezes on timeout/close and never changes primary elapsed
+  ---
+  duration_ms: 0.229276
+  type: 'test'
+  ...
+# Subtest: existing frame RPC returns two chronological callbacks in the browser clock
+ok 27 - existing frame RPC returns two chronological callbacks in the browser clock
+  ---
+  duration_ms: 2.191698
+  type: 'test'
+  ...
+# Subtest: one full round preserves action order and existing RPC count
+ok 28 - one full round preserves action order and existing RPC count
+  ---
+  duration_ms: 3.58506
+  type: 'test'
+  ...
+# Subtest: snapshot uses one existing RPC and keeps passive timing plus diagnostics
+ok 29 - snapshot uses one existing RPC and keeps passive timing plus diagnostics
+  ---
+  duration_ms: 2.364118
+  type: 'test'
+  ...
+# Subtest: stuck browser close cannot skip controller/proxy/provider cleanup or exact owned fallback
+ok 30 - stuck browser close cannot skip controller/proxy/provider cleanup or exact owned fallback
+  ---
+  duration_ms: 24.264544
+  type: 'test'
+  ...
+# Subtest: never-resolving or throwing proxy retains uncertainty and cannot gain authority from a late result
+ok 31 - never-resolving or throwing proxy retains uncertainty and cannot gain authority from a late result
+  ---
+  duration_ms: 13.615098
+  type: 'test'
+  ...
+# Subtest: transport failures refuse destructive authority even after a completed socket drain
+ok 32 - transport failures refuse destructive authority even after a completed socket drain
+  ---
+  duration_ms: 4.417767
+  type: 'test'
+  ...
+# Subtest: throwing controller/browser/provider cleanup still attempts every independent phase
+ok 33 - throwing controller/browser/provider cleanup still attempts every independent phase
+  ---
+  duration_ms: 4.182332
+  type: 'test'
+  ...
+# Subtest: missing browser handle still applies exact profile/process identity before fallback
+ok 34 - missing browser handle still applies exact profile/process identity before fallback
+  ---
+  duration_ms: 8.537304
+  type: 'test'
+  ...
+# Subtest: late workflow continuation cannot seed state after the deadline
+ok 35 - late workflow continuation cannot seed state after the deadline
+  ---
+  duration_ms: 10.965118
+  type: 'test'
+  ...
+# Subtest: intentional service restart is permitted while failure/cleanup still refuses a new child
+ok 36 - intentional service restart is permitted while failure/cleanup still refuses a new child
+  ---
+  duration_ms: 4.741245
+  type: 'test'
+  ...
+# Subtest: native provider progress survives intentional controller downtime but remains fenced on failure
+ok 37 - native provider progress survives intentional controller downtime but remains fenced on failure
+  ---
+  duration_ms: 2.838273
+  type: 'test'
+  ...
+# Subtest: a late socket ticket cannot create a connection after cleanup started
+ok 38 - a late socket ticket cannot create a connection after cleanup started
+  ---
+  duration_ms: 2.883392
+  type: 'test'
+  ...
+# Subtest: a late API response cannot resume the workflow after cleanup started
+ok 39 - a late API response cannot resume the workflow after cleanup started
+  ---
+  duration_ms: 7.396753
+  type: 'test'
+  ...
+# Subtest: a failed click observes its response promise even when the response rejects later
+ok 40 - a failed click observes its response promise even when the response rejects later
+  ---
+  duration_ms: 4.714536
+  type: 'test'
+  ...
+# Subtest: actual sustained startup cannot configure or spawn after a pending proxy resolves following cleanup
+ok 41 - actual sustained startup cannot configure or spawn after a pending proxy resolves following cleanup
+  ---
+  duration_ms: 13.416487
+  type: 'test'
+  ...
+# Subtest: default source binding requires the clean helper HEAD to equal the product revision
+ok 42 - default source binding requires the clean helper HEAD to equal the product revision
+  ---
+  duration_ms: 5.131595
+  type: 'test'
+  ...
+# Subtest: an explicit separate helper revision preserves the packaged product binding
+ok 43 - an explicit separate helper revision preserves the packaged product binding
+  ---
+  duration_ms: 0.231099
+  type: 'test'
+  ...
+# Subtest: an explicit helper revision equal to the product is recorded as the same revision
+ok 44 - an explicit helper revision equal to the product is recorded as the same revision
+  ---
+  duration_ms: 0.121653
+  type: 'test'
+  ...
+# Subtest: unknown arguments are ignored without mutating the original command line
+ok 45 - unknown arguments are ignored without mutating the original command line
+  ---
+  duration_ms: 0.118289
+  type: 'test'
+  ...
+# Subtest: duplicate source options preserve the existing first occurrence behavior
+ok 46 - duplicate source options preserve the existing first occurrence behavior
+  ---
+  duration_ms: 0.183086
+  type: 'test'
+  ...
+# Subtest: an absent product option fails validation instead of inferring trust from provenance
+ok 47 - an absent product option fails validation instead of inferring trust from provenance
+  ---
+  duration_ms: 5.092746
+  type: 'test'
+  ...
+# Subtest: each recognized option rejects a missing value or the following flag
+ok 48 - each recognized option rejects a missing value or the following flag
+  ---
+  duration_ms: 0.703092
+  type: 'test'
+  ...
+# Subtest: equal-sign option spellings retain the existing unknown-option behavior
+ok 49 - equal-sign option spellings retain the existing unknown-option behavior
+  ---
+  duration_ms: 0.140472
+  type: 'test'
+  ...
+# Subtest: missing or malformed product provenance cannot establish a source binding
+ok 50 - missing or malformed product provenance cannot establish a source binding
+  ---
+  duration_ms: 0.592184
+  type: 'test'
+  ...
+# Subtest: product provenance and expected product revisions require exact lowercase full hashes
+ok 51 - product provenance and expected product revisions require exact lowercase full hashes
+  ---
+  duration_ms: 0.844455
+  type: 'test'
+  ...
+# Subtest: explicit helper revisions and helper HEAD require exact lowercase full hashes
+ok 52 - explicit helper revisions and helper HEAD require exact lowercase full hashes
+  ---
+  duration_ms: 1.032969
+  type: 'test'
+  ...
+# Subtest: dirty or unknown product state is rejected even with a separately declared clean helper
+ok 53 - dirty or unknown product state is rejected even with a separately declared clean helper
+  ---
+  duration_ms: 0.913929
+  type: 'test'
+  ...
+# Subtest: dirty or unknown helper state is rejected for same and separate revisions
+ok 54 - dirty or unknown helper state is rejected for same and separate revisions
+  ---
+  duration_ms: 0.965788
+  type: 'test'
+  ...
+# Subtest: declaring the correct helper cannot override a product provenance mismatch
+ok 55 - declaring the correct helper cannot override a product provenance mismatch
+  ---
+  duration_ms: 0.207863
+  type: 'test'
+  ...
+# Subtest: a clean but undeclared helper HEAD fails exact revision binding
+ok 56 - a clean but undeclared helper HEAD fails exact revision binding
+  ---
+  duration_ms: 0.148584
+  type: 'test'
+  ...
+# Subtest: exactV1 file/binding fixture accepted
+ok 57 - exactV1 file/binding fixture accepted
+  ---
+  duration_ms: 1.773727
+  type: 'test'
+  ...
+# Subtest: exactV2 file/binding fixture accepted
+ok 58 - exactV2 file/binding fixture accepted
+  ---
+  duration_ms: 1.253251
+  type: 'test'
+  ...
+# Subtest: trustedV1 refuses V2 context rather than guessing upgrade
+ok 59 - trustedV1 refuses V2 context rather than guessing upgrade
+  ---
+  duration_ms: 1.611292
+  type: 'test'
+  ...
+# Subtest: V2 refuses missing packet
+ok 60 - V2 refuses missing packet
+  ---
+  duration_ms: 0.558252
+  type: 'test'
+  ...
+# Subtest: V2 refuses wrong attempt
+ok 61 - V2 refuses wrong attempt
+  ---
+  duration_ms: 0.646345
+  type: 'test'
+  ...
+# Subtest: V2 refuses wrong child
+ok 62 - V2 refuses wrong child
+  ---
+  duration_ms: 0.445362
+  type: 'test'
+  ...
+# Subtest: V2 refuses changed frozen bytes
+ok 63 - V2 refuses changed frozen bytes
+  ---
+  duration_ms: 0.801099
+  type: 'test'
+  ...
+# Subtest: V2 refuses manifest authority changed
+ok 64 - V2 refuses manifest authority changed
+  ---
+  duration_ms: 0.383729
+  type: 'test'
+  ...
+# Subtest: V2 refuses typed packet digest differs
+ok 65 - V2 refuses typed packet digest differs
+  ---
+  duration_ms: 0.632184
+  type: 'test'
+  ...
+# Subtest: V2 refuses unexpected dependency count
+ok 66 - V2 refuses unexpected dependency count
+  ---
+  duration_ms: 0.501356
+  type: 'test'
+  ...
+# Subtest: workload 0 has a bounded offline source contract
+ok 67 - workload 0 has a bounded offline source contract
+  ---
+  duration_ms: 1.22256
+  type: 'test'
+  ...
+# Subtest: workload 1 has a bounded offline source contract
+ok 68 - workload 1 has a bounded offline source contract
+  ---
+  duration_ms: 0.475477
+  type: 'test'
+  ...
+# Subtest: workload 2 has a bounded offline source contract
+ok 69 - workload 2 has a bounded offline source contract
+  ---
+  duration_ms: 0.261876
+  type: 'test'
+  ...
+# Subtest: workload 3 has a bounded offline source contract
+ok 70 - workload 3 has a bounded offline source contract
+  ---
+  duration_ms: 0.488788
+  type: 'test'
+  ...
+# Subtest: goldens describe distinct verified output contracts
+ok 71 - goldens describe distinct verified output contracts
+  ---
+  duration_ms: 0.468807
+  type: 'test'
+  ...
+# Subtest: workloads are returned as independent mutable objects and invalid selection refuses
+ok 72 - workloads are returned as independent mutable objects and invalid selection refuses
+  ---
+  duration_ms: 0.498693
+  type: 'test'
+  ...
+1..72
+# tests 72
+# suites 0
+# pass 72
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 299.34746

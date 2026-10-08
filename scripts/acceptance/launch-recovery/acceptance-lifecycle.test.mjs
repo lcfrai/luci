@@ -62,9 +62,9 @@ test('failure locations preserve source line without exception message or privat
 test('shared lifecycle and sustained diagnostics retain only approved basenames',t=>{
  const path=join(directory(t),'journal.jsonl');
  const error=new Error('credential=private');
- error.stack='Error: credential=private\n at run (/private/fixture/sustained.mjs:17:8)\n at timeout (/private/helpers/acceptance-lifecycle.mjs:29:5)\n at secret (/private/fixture/unknown.mjs:1:1)';
+ error.stack='Error: credential=private\n at run (/private/fixture/sustained.mjs:17:8)\n at timeout (/private/helpers/acceptance-lifecycle.mjs:29:5)\n at startup (/private/helpers/acceptance-startup.mjs:40:6)\n at secret (/private/fixture/unknown.mjs:1:1)';
  const details=diagnosticError(error);
- assert.deepEqual(details.locations,[{file:'sustained.mjs',line:17,column:8},{file:'acceptance-lifecycle.mjs',line:29,column:5}]);
+ assert.deepEqual(details.locations,[{file:'sustained.mjs',line:17,column:8},{file:'acceptance-lifecycle.mjs',line:29,column:5},{file:'acceptance-startup.mjs',line:40,column:6}]);
  const journal=createAcceptanceJournal(path);
  journal.record('driver-fatal',{...details,locations:[...details.locations,{file:'/private/sustained.mjs',line:2,column:1},{file:'unknown.mjs',line:1,column:1}]});
  journal.close();

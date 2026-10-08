@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { startFencedDockerProxy } from './fenced-docker-proxy.mjs';
 import { createAcceptanceJournal } from './durable-acceptance-journal.mjs';
+import { createWorkflowDeadline } from './acceptance-lifecycle.mjs';
 
 const workerID = 'a'.repeat(64), fenceID = 'b'.repeat(64), secondFenceID = 'c'.repeat(64);
 const createPath = name => `/v1.47/containers/create?name=${name}`;
@@ -107,6 +108,31 @@ test('delayed immutable Start receives actual 404 after remove and never retarge
   const startsBefore = f.received.length;
   assert.equal((await f.request('POST', `/v1.47/containers/${fenceID}/start`).promise).status, 503);
   assert.equal(f.received.length, startsBefore);
+});
+
+test('new Start is fenced at forwarding after deadline; exact Stop/Delete and drain remain reachable',async t=>{
+ let control;
+ const f=await fixture(t,(_req,res,request)=>{if(request.path.includes('/create'))json(res,201,{Id:workerID});else{res.writeHead(204);res.end();}},
+  {beforeStart:()=>control?.assertActive()});
+ assert.equal((await f.request('POST',createPath('luci-task-one'),workerBody).promise).status,201);
+ assert.equal((await f.request('POST',`/v1.47/containers/${workerID}/start`).promise).status,204);
+ f.proxy.armGate({id:'start-after-deadline',phase:'before-forward',method:'POST',match:meta=>meta.path.endsWith('/start')});
+ control=createWorkflowDeadline({timeoutMs:30});t.after(()=>control.close());
+ const expired=assert.rejects(control.run(()=>new Promise(()=>{})),{code:'workflow-deadline-exceeded'});
+ const late=f.request('POST',`/v1.47/containers/${workerID}/start`);await f.proxy.waitForGate('start-after-deadline');await expired;
+ const result=await f.proxy.releaseGate('start-after-deadline');assert.equal(result.proxyStatus,503);assert.equal(result.forwardedAt,undefined);assert.equal((await late.promise).status,503);
+ assert.equal(f.received.filter(row=>row.path.endsWith('/start')).length,1);
+ assert.equal((await f.request('POST',`/v1.47/containers/${workerID}/stop?t=1`).promise).status,204);
+ assert.equal((await f.request('DELETE',`/v1.47/containers/${workerID}`).promise).status,204);
+ const closed=await f.proxy.close();assert.equal(closed.drained,true);assert.equal(closed.pendingRequests,0);assert.equal(closed.activeHandlers,0);
+});
+
+test('an asynchronous Start guard is refused before upstream mutation',async t=>{
+ const f=await fixture(t,(_req,res)=>json(res,201,{Id:workerID}),{beforeStart:async()=>{}});
+ assert.equal((await f.request('POST',createPath('luci-task-one'),workerBody).promise).status,201);
+ assert.equal((await f.request('POST',`/v1.47/containers/${workerID}/start`).promise).status,503);
+ assert.equal(f.received.length,1);assert.equal(f.proxy.observations.requests.at(-1).forwardedAt,undefined);
+ assert.equal((await f.proxy.close()).drained,true);
 });
 
 test('lost real fence ACK retains ID; async proof predicate holds only the final inspect response', async t => {
@@ -466,4 +492,14 @@ test('SDK exact-ID cancellation removal accepts only explicit v=1 and optional f
  assert.equal((await f.request('POST',createPath(sdkName),sdkBody).promise).status,201);
  assert.equal((await f.request('DELETE',`/v1.47/containers/${workerID}?force=1&v=1`).promise).status,204);
  const recorded=f.received.at(-1);assert.equal(recorded.path,`/v1.47/containers/${workerID}?force=1&v=1`);
+});
+
+test('SDK Start obeys the same active fence while exact cancellation removal remains available',async t=>{
+ const f=await fixture(t,(_req,res,request)=>{if(request.path.includes('/create'))json(res,201,{Id:workerID});else{res.writeHead(204);res.end();}},
+  {...sdkOptions,beforeStart:()=>{throw Object.assign(Error('cancelled'),{code:'workflow-deadline-exceeded'});}});
+ assert.equal((await f.request('POST',createPath(sdkName),sdkBody).promise).status,201);
+ assert.equal((await f.request('POST',`/v1.47/containers/${workerID}/start`).promise).status,503);
+ assert.equal(f.received.filter(row=>row.path.endsWith('/start')).length,0);
+ assert.equal((await f.request('DELETE',`/v1.47/containers/${workerID}?force=1&v=1`).promise).status,204);
+ assert.equal((await f.proxy.close()).drained,true);
 });

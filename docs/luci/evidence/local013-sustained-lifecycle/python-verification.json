@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "command": "PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s /workspace/.luci-tools/sustained-lifecycle-staging/scripts/acceptance/sustained-four-project -p run_with_observer_test.py -v",
+  "workingDirectory": "/workspace",
+  "result": {
+    "exitCode": 0,
+    "passed": 28,
+    "failed": 0,
+    "skipped": 0,
+    "unittestSeconds": 0.115,
+    "toolWallTimeSeconds": 0.161976575
+  },
+  "sourceEvidence": "Observed exec_command result, chunk 3b9876: Ran 28 tests in 0.115s; OK; exit code 0.",
+  "files": [
+    {
+      "path": "scripts/acceptance/sustained-four-project/run-with-observer.py",
+      "sha256": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a"
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/run_with_observer_test.py",
+      "sha256": "7ad4e28b0172b4ee131ecbd04033aba5b36304f2bef34f800a0f6a45e6ef7b12"
+    }
+  ],
+  "rawOutputLog": null,
+  "rawOutputNote": "No standalone raw output log was retained. Full verbose output was observed in the tool transcript. Tests were not rerun solely to capture output.",
+  "executionScope": {
+    "wrapperChildren": "subprocess.Popen mocked throughout wrapper tests; no Node driver or observer process started",
+    "observerSelfCost": "SAMPLER_LAUNCHER executed in the unittest interpreter against tiny temporary scripts; signal delivery simulated in process",
+    "fixtures": "Temporary local fixture files and real Linux /proc self metadata; journal writes, fsyncs, modes, and JSON readback exercised locally",
+    "notExecuted": [
+      "Docker",
+      "browser",
+      "compilers",
+      "installed sustained workflow",
+      "frozen resource sampler"
+    ],
+    "repositoryEdits": "None; only external staging files were written"
+  },
+  "deviationsFromDagWrapper": [
+    "Uses sustained.mjs and luci-sustained-* fixture paths; preparation 120s, workflow 1800s, cleanup 180s, total 2100s, observer 2115s.",
+    "Omits --include-checks so observation retains the sustained workflow worker-only scope.",
+    "Early cleanup is min(180s, remaining total budget), with no five-second minimum that could exceed the remaining budget; primary total timeout retains TERM 5s then kill/reap 5s.",
+    "Interrupts the main driver wait on a wrapper signal so early interruption reaches bounded cleanup; avoids raising during Popen or cleanup and restores previous signal handlers.",
+    "Continues bounded reaping and observer cleanup when child polling, signaling, killing, or waiting throws; requests driver termination before joining the identity watcher.",
+    "Moves sampler validation before journal creation; closes the journal on parent-fsync failure; contains /proc read failures in the cleanup path.",
+    "Requires a successful durable children-started record before entering the workflow wait and records the final result after missing evidence is accounted for.",
+    "Includes preparationSeconds and observerSeconds in numeric-only journal budget evidence; rejects forwarded --fixture-root=value overrides as well as --fixture-root.",
+    "Expands focused tests to 28 mocked lifecycle/failure cases and in-process cost checks; no actual subprocess starts are used by the wrapper tests."
+  ]
+}

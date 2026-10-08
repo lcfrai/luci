@@ -78,6 +78,9 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
   const setupEdited = useRef(false);
   const [trusted, setTrusted] = useState(false);
   const [startUnconfirmed, setStartUnconfirmed] = useState(false);
+  // The mutation belongs to this project scope, not the current display authority.
+  // Only a usable receipt or an explicit read begun after settlement can retire it.
+  const startAttempt = useRef<{ settled: boolean } | null>(null);
   const [recoveryId, setRecoveryId] = useState<string | null>(null);
   const [readDenied, setReadDenied] = useState(false);
   const readDeniedNow = useRef(false); readDeniedNow.current = readDenied;
@@ -133,6 +136,7 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
   async function load(replaceCommands = false, confirmStart = false, confirmAccess = false) {
     if (!canRead || readDeniedNow.current && !confirmAccess) return;
     const context = generation.current, request = ++readGeneration.current;
+    const confirmingAttempt = confirmStart && startAttempt.current?.settled ? startAttempt.current : null;
     historyRead.current?.abort(); const controller = new AbortController(); historyRead.current = controller;
     setRefreshing(true);
     try {
@@ -148,7 +152,9 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
         ...current.filter(run => !value.runs.some(row => row.id === run.id)),
       ].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
       if (confirmAccess) { readDeniedNow.current = false; setReadDenied(false); setBuildRead(current => current + 1); }
-      if (confirmStart) setStartUnconfirmed(false);
+      if (confirmingAttempt && startAttempt.current === confirmingAttempt) {
+        startAttempt.current = null; setStartUnconfirmed(false); setTrusted(false);
+      }
       setSuggested(value.suggested || []);
       if (replaceCommands && !setupEdited.current && !pendingDraft.current) setCommands(value.suggested || []);
       if (selectedContext.current && (!value.coverage || contextKey(value.coverage) !== selectedContext.current)) {
@@ -254,6 +260,9 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
     const context = generation.current;
     if (working.current !== null) return;
     working.current = context;
+    const attempt = submittedSetup ? { settled: false } : null;
+    if (attempt) { startAttempt.current = attempt; setTrusted(false); }
+    let confirmedStart = false;
     setBusy(true);
     setError("");
     try {
@@ -261,6 +270,7 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
       if (alive.current && mayRead.current && context === generation.current) {
         if (run.projectId !== projectId) throw new Error("The returned checks do not belong to this project. Refresh check history before continuing.");
         updateRun(run);
+        confirmedStart = true;
         // Keep a reusable browser template, but do not call an unchanged,
         // recorded submission unsaved work. Unadded text remains a draft.
         if (submittedSetup && !submittedSetup.executable && submittedSetup.args === "[]") setRecordedSetup(JSON.stringify(submittedSetup));
@@ -270,9 +280,14 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
     } catch (cause) {
       if (alive.current && context === generation.current) {
         setError(errorText(cause));
-        if (submittedSetup) { setTrusted(false); setStartUnconfirmed(!(cause instanceof ApiError && cause.status >= 400 && cause.status < 500)); }
+        confirmedStart = cause instanceof ApiError && cause.status >= 400 && cause.status < 500;
       }
     } finally {
+      if (attempt && alive.current && startAttempt.current === attempt) {
+        attempt.settled = true;
+        if (confirmedStart) startAttempt.current = null;
+        setStartUnconfirmed(!confirmedStart); setTrusted(false);
+      }
       if (working.current === context) { working.current = null; if (alive.current) setBusy(false); }
     }
   }
@@ -435,7 +450,7 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
         <input
           type="checkbox"
           checked={trusted}
-          disabled={!canExecute || !!draft.pending || !!recoveringSelection || refreshing || readingBuild}
+          disabled={!canExecute || busy || startUnconfirmed || !!draft.pending || !!recoveringSelection || refreshing || readingBuild}
           onChange={(event) => setTrusted(event.target.checked)}
         />
         I trust this project's code and these Docker commands to write project files and use the network.

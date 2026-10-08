@@ -572,3 +572,105 @@ it('ignores an old project recovery read denial after switching to another proje
   expect(screen.getByText('Beta retained history')).toBeTruthy();expect(screen.queryByRole('button',{name:'Refresh check access'})).toBeNull();
   expect(screen.queryByText('Alpha retained history')).toBeNull();expect(productApi.runChecks).not.toHaveBeenCalled();
 });
+
+
+it.each(['uncertain rejection', 'discarded success'] as const)('LOCAL-015 retains the start barrier after Edit churn and %s until later explicit history and fresh consent', async outcome => {
+  let resolve!: (run: CheckRun) => void, reject!: (error: Error) => void;
+  vi.mocked(productApi.runChecks).mockReturnValueOnce(new Promise((done, fail) => { resolve = done; reject = fail; }));
+  const view = render(<ProjectChecks projectId="p-1" />);
+  await screen.findByRole('button', { name: 'Remove Acceptance tests' });
+  await userEvent.click(screen.getByRole('checkbox', { name: /I trust this project's code/ }));
+  await userEvent.click(screen.getByRole('button', { name: 'Run project checks' }));
+  access.canEdit = false; view.rerender(<ProjectChecks projectId="p-1" />);
+  await waitFor(() => expect(productApi.checks).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Refresh requirement evidence' })).toHaveProperty('disabled', false));
+  access.canEdit = true; view.rerender(<ProjectChecks projectId="p-1" />);
+  await waitFor(() => expect(productApi.checks).toHaveBeenCalledTimes(3));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Refresh requirement evidence' })).toHaveProperty('disabled', false));
+  expect(screen.getByText('No verification runs recorded yet.')).toBeTruthy();
+  expect(productApi.runChecks).toHaveBeenCalledOnce();
+  await act(async () => {
+    if (outcome === 'uncertain rejection') reject(new ApiError('request_timeout' as ProblemCode, 'Private old-authority failure detail', 0));
+    else resolve({ ...passing, message: 'Private old-authority successful receipt' });
+  });
+  expect(screen.getByRole('button', { name: 'Run project checks' })).toHaveProperty('disabled', true);
+  expect(screen.getByText(/check start result is unconfirmed/)).toBeTruthy();
+  expect(screen.getByRole('checkbox', { name: /I trust this project's code/ })).toHaveProperty('checked', false);
+  expect(screen.queryByText(/Private old-authority/)).toBeNull();
+  act(() => notifyRequirementEvidenceChanged('p-1'));
+  await waitFor(() => expect(productApi.checks).toHaveBeenCalledTimes(4));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Refresh check history' })).toHaveProperty('disabled', false));
+  expect(screen.getByRole('button', { name: 'Run project checks' })).toHaveProperty('disabled', true);
+  vi.mocked(productApi.checks).mockRejectedValueOnce(new Error('History still unavailable'));
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh check history' }));
+  await screen.findByText('History still unavailable');
+  expect(screen.getByText(/check start result is unconfirmed/)).toBeTruthy();
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh check history' }));
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'Refresh check history' })).toBeNull());
+  const consent = screen.getByRole('checkbox', { name: /I trust this project's code/ });
+  expect(consent).toHaveProperty('checked', false);
+  expect(screen.getByRole('button', { name: 'Run project checks' })).toHaveProperty('disabled', true);
+  expect(productApi.runChecks).toHaveBeenCalledOnce();
+  await userEvent.click(consent);
+  expect(screen.getByRole('button', { name: 'Run project checks' })).toHaveProperty('disabled', false);
+  await userEvent.click(screen.getByRole('button', { name: 'Run project checks' }));
+  await waitFor(() => expect(productApi.runChecks).toHaveBeenCalledTimes(2));
+});
+
+it('LOCAL-015 does not use an explicit history read begun before start settlement to clear uncertainty', async () => {
+  let reject!: (error: Error) => void;
+  vi.mocked(productApi.runChecks).mockReturnValueOnce(new Promise((_done, fail) => { reject = fail; }));
+  render(<ProjectChecks projectId="p-1" />);
+  await screen.findByRole('button', { name: 'Remove Acceptance tests' });
+  await userEvent.click(screen.getByRole('checkbox', { name: /I trust this project's code/ }));
+  await userEvent.click(screen.getByRole('button', { name: 'Run project checks' }));
+  let history!: (value: Awaited<ReturnType<typeof productApi.checks>>) => void;
+  vi.mocked(productApi.checks).mockReturnValueOnce(new Promise(done => { history = done; }));
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh requirement evidence' }));
+  await act(async () => reject(new ApiError('request_timeout' as ProblemCode, 'Connection interrupted', 0)));
+  expect(screen.getByText(/check start result is unconfirmed/)).toBeTruthy();
+  await act(async () => history({ runs: [], suggested: commands, coverage }));
+  expect(screen.getByText(/check start result is unconfirmed/)).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Run project checks' })).toHaveProperty('disabled', true);
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh check history' }));
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'Refresh check history' })).toBeNull());
+  expect(screen.getByRole('checkbox', { name: /I trust this project's code/ })).toHaveProperty('checked', false);
+  expect(productApi.runChecks).toHaveBeenCalledOnce();
+});
+
+it('LOCAL-015 keeps read revocation private and retains start uncertainty after access returns', async () => {
+  let resolve!: (run: CheckRun) => void;
+  vi.mocked(productApi.runChecks).mockReturnValueOnce(new Promise(done => { resolve = done; }));
+  const view = render(<ProjectChecks projectId="p-1" />);
+  await screen.findByRole('button', { name: 'Remove Acceptance tests' });
+  await userEvent.click(screen.getByRole('checkbox', { name: /I trust this project's code/ }));
+  await userEvent.click(screen.getByRole('button', { name: 'Run project checks' }));
+  access.canRead = false; view.rerender(<ProjectChecks projectId="p-1" />);
+  await act(async () => resolve({ ...passing, message: 'Private revoked receipt' }));
+  expect(screen.queryByText('Private revoked receipt')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Run project checks' })).toBeNull();
+  access.canRead = true; view.rerender(<ProjectChecks projectId="p-1" />);
+  await screen.findByRole('button', { name: 'Refresh check history' });
+  expect(screen.getByRole('button', { name: 'Run project checks' })).toHaveProperty('disabled', true);
+  expect(screen.queryByText('Private revoked receipt')).toBeNull();
+  expect(productApi.runChecks).toHaveBeenCalledOnce();
+});
+
+it.each(['project', 'account'] as const)('LOCAL-015 does not leak an old start result or barrier into another %s scope', async changedScope => {
+  let reject!: (error: Error) => void;
+  vi.mocked(productApi.runChecks).mockReturnValueOnce(new Promise((_done, fail) => { reject = fail; }));
+  vi.mocked(productApi.checks).mockImplementation(async id => ({ runs: [], suggested: commands, coverage: { ...coverage, projectId: id } }));
+  const view = render(<ProjectChecks projectId="p-1" />);
+  await screen.findByRole('button', { name: 'Remove Acceptance tests' });
+  await userEvent.click(screen.getByRole('checkbox', { name: /I trust this project's code/ }));
+  await userEvent.click(screen.getByRole('button', { name: 'Run project checks' }));
+  if (changedScope === 'account') identity.scope = 'another-owner';
+  view.rerender(<ProjectChecks projectId={changedScope === 'project' ? 'p-2' : 'p-1'} />);
+  await screen.findByRole('button', { name: 'Remove Acceptance tests' });
+  await act(async () => reject(new ApiError('request_timeout' as ProblemCode, 'Private original scope error', 0)));
+  expect(screen.queryByText('Private original scope error')).toBeNull();
+  expect(screen.queryByText(/check start result is unconfirmed/)).toBeNull();
+  await userEvent.click(screen.getByRole('checkbox', { name: /I trust this project's code/ }));
+  expect(screen.getByRole('button', { name: 'Run project checks' })).toHaveProperty('disabled', false);
+  expect(productApi.runChecks).toHaveBeenCalledOnce();
+});

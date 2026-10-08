@@ -1,0 +1,46 @@
+{
+  "mode": "corrected",
+  "sourceSHA256": "8ac2a44a08a018d33783282190ee6aa20ec02a351718128016b86cd925af9040",
+  "startupSliceSHA256": "fb771b1d829da8c63055bdcd40a8e91d4aa6e8adc681eb7159935b0ac4c4f2b1",
+  "serviceSliceSHA256": "a563c38c79c96469d37a822c8932dadaed620a6b27f46370342fa0e7fdec26ae",
+  "postCancellationSpawns": 0,
+  "postCancellationConfigWrites": 0,
+  "calls": [
+    "controller-cleanup-complete",
+    "proxy-close"
+  ],
+  "outcome": "controlled-cancel",
+  "cleanup": [
+    {
+      "name": "controllers",
+      "status": "completed",
+      "result": true
+    },
+    {
+      "name": "proxy",
+      "status": "failed-or-unsettled",
+      "code": "startup-proxy-close-deadline-exceeded"
+    },
+    {
+      "name": "held-phase",
+      "status": "completed"
+    }
+  ],
+  "startupResources": [
+    {
+      "name": "provider",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "name": "proxy",
+      "state": "closed",
+      "late": true,
+      "closeTimedOut": true
+    }
+  ],
+  "failures": [],
+  "externalProcessesStarted": 0,
+  "DockerRequests": 0
+}

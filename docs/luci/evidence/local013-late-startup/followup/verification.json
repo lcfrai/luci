@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "command": [
+    "node",
+    "--test",
+    "--test-concurrency=1",
+    "scripts/acceptance/task-dependencies/dag-lifecycle.test.mjs"
+  ],
+  "records": [
+    {
+      "mode": "before",
+      "startedAt": "2026-10-08T20:25:00.448262+00:00",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "sourceSHA256": "8ac2a44a08a018d33783282190ee6aa20ec02a351718128016b86cd925af9040"
+    },
+    {
+      "mode": "after",
+      "startedAt": "2026-10-08T20:25:01.021337+00:00",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "sourceSHA256": "8a21d4eba86b74c26e381ba6ba87bd1a44fcb9acdbb42c1cd948133c48d007ed"
+    }
+  ],
+  "testSHA256": "28cff5737a0b91e4e681bafa0f7e042c29b05f4047361332833b0dd294d9f690",
+  "scope": "Exact extracted driver functions and HTTP handler; controlled promises and one short sequential Node child at a time for real unhandled rejection semantics; no Docker/browser/Luci."
+}

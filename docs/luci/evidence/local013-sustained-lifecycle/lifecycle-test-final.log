@@ -1,0 +1,16 @@
+✔ stuck browser close cannot skip controller/proxy/provider cleanup or exact owned fallback (28.550977ms)
+✔ never-resolving or throwing proxy retains uncertainty and cannot gain authority from a late result (23.971211ms)
+✔ transport failures refuse destructive authority even after a completed socket drain (4.738709ms)
+✔ throwing controller/browser/provider cleanup still attempts every independent phase (2.693994ms)
+✔ missing browser handle still applies exact profile/process identity before fallback (8.1864ms)
+✔ late workflow continuation cannot seed state after the deadline (12.25344ms)
+✔ intentional service restart is permitted while failure/cleanup still refuses a new child (3.917881ms)
+✔ native provider progress survives intentional controller downtime but remains fenced on failure (3.263343ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 320.55009

@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "status": "Prepared helper patch; root applies separately after exact hash approval.",
+  "executedExternalRegressionSHA256": "bc7fa57d4dfe8725a0ff14a9b43a9239c77885449cee478d656d57959ada978b",
+  "publishedRegressionSHA256": "7fe986deab5d312ec6bec68573200bbcff3a06f50e24cbe73a5357cbbfc49389",
+  "reproductionAdapter": "Only helper import paths changed from external staged sources to repository-relative helpers; exact extracted original/corrected driver source and test logic unchanged.",
+  "filesSHA256": {
+    "merged-result.json": "bb4661483fd2be2be6fec3f3ea1e0a868130248feaddc2c202a0ef510ceb99b8",
+    "orchestration-extraction.json": "cf130c08bbb7d32a538606c3b02b4ad8308ad683ef104d4816a060a10afaff15",
+    "manifest.json": "432e4225abfa3ad4a85080e97dcf292c7ea4216cb2b15420599beb4840a8f14c",
+    "merged-node.log": "5c1c427d5e5f97c66fe1b25f3675b7a9b2db2525198f24d37bb96336bb49a1e6",
+    "controlled-node.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "corrected-regression.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "regression-comparison.json": "a73b45d33691f941470f543350c6ed67992e0b58286270ac18011a85b0d35f16",
+    "original-regression.log": "791970c50cea3f17a7d70d18b3af24d6ec337c1d3c5051eebc9f65b8ec5940f9",
+    "dag-merge.json": "589cf2573e89a06d09fe7973105ad5a149d8e74ba862230fa858919d0b1b4800",
+    "corrected-regression.log": "fbb00faeca0f7b94fd74516d380ee9cb9041435272ea2718d97ed454cacfc6eb",
+    "original-regression.stderr": "2d38d45e7fd0bc04af95a613f5982df4cb1bee5f1409598c4ed6f6b061567842",
+    "exact-source-regression.mjs": "7fe986deab5d312ec6bec68573200bbcff3a06f50e24cbe73a5357cbbfc49389",
+    "controlled-node.log": "8c83b89a520e302eb4ad9c2c3d4a139ae7854f47254432e549ac9bf9bd33a082",
+    "merged-node.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "controlled-result.json": "4d10d0a2882249d7a0437b3b7906e3755e493e8088acc08b7357c7a4a2502e28"
+  }
+}

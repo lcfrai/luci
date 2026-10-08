@@ -1,0 +1,30 @@
+{
+  "scope": "Targeted extraction of the original failed installed receipt; not a reconstruction of its response body.",
+  "originalReportPath": "artifacts/quality-swarm/dependency-6002b2ee-attempt5/result/result.json",
+  "originalReportSHA256": "8aeaeb328d5f34a0f2a4d1a7fd416d99c388497418fdda391dc10870b58d4a9a",
+  "passed": false,
+  "failedStage": "stale-review-refusal",
+  "failure": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert(/review/i.test(rejected.message??rejected.error??''))\n\n    at file:///workspace/luci/scripts/acceptance/task-dependencies/dag.mjs:513:390\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async Object.run (file:///workspace/luci/scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs:29:19)\n    at async file:///workspace/luci/scripts/acceptance/task-dependencies/dag.mjs:485:2",
+  "actualTaskCount": 2,
+  "staleReviewResponseReason": "unclassified; response body not retained",
+  "staleReviewResponseDiagnosticPresent": false,
+  "staleIntegrationActions": [
+    {
+      "stage": "stale-review-refusal",
+      "method": "POST",
+      "path": "/v1/product/projects/p-36f721d3/runs/run-ae4cc10a3535d25fe5628dce/swarm/tasks/task-b/integrate",
+      "status": 409,
+      "at": "2026-10-08T19:59:08.633Z"
+    }
+  ],
+  "runtimeCleanup": {
+    "containers": 0,
+    "volumes": 0,
+    "ownedServiceProcesses": 0,
+    "ownedBrowserProcesses": 0,
+    "protectedImagePackageAndHelpersUnchanged": true,
+    "rootFreeBytes": 6547988480
+  },
+  "controllersStopped": true,
+  "dockerRequestsDrained": true
+}

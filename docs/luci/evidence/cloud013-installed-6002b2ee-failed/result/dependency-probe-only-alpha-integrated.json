@@ -1,0 +1,33 @@
+{
+  "label": "only-alpha-integrated",
+  "status": 409,
+  "requestedRevision": 17,
+  "publicRevisionBefore": 17,
+  "privateRevisionBefore": 17,
+  "privateRevisionAfter": 17,
+  "before": {
+    "effects": {
+      "create": 2,
+      "start": 2,
+      "destroy": 2
+    },
+    "primaryCommit": "5a3367e5baa10ae35a916b777353b54290a1d19b",
+    "joinOperationIds": []
+  },
+  "after": {
+    "effects": {
+      "create": 2,
+      "start": 2,
+      "destroy": 2
+    },
+    "primaryCommit": "5a3367e5baa10ae35a916b777353b54290a1d19b",
+    "joinOperationIds": []
+  },
+  "response": {
+    "message": "Integrate this task's dependencies before starting it.",
+    "error": "project_run_conflict"
+  },
+  "truncatedFields": [],
+  "at": "2026-10-08T19:59:08.605Z",
+  "classification": "unclassified-response"
+}

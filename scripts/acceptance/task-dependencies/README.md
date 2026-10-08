@@ -165,6 +165,18 @@ The wrapper records its own PID/start/group/session, sent signals and child exit
 results in a durable lifecycle journal. These safeguards do not make SIGKILL or
 an external supervisor loss observable inside a killed process.
 
+A later LOCAL-013 audit found a separate late-startup race: a pending proxy
+factory could resolve after cancellation and completed controller cleanup, then
+spawn Luci. The corrected driver uses tracked provider/proxy/browser factories,
+checks workflow activity after each startup await and at the actual spawn,
+settles late handles within a bound, and never treats a pending factory as absent.
+Only completed cleanup phases grant stopped/drained authority. An optional
+synchronous proxy Start guard is checked immediately before forwarding; exact
+Stop/Delete and existing request draining remain available. The executed driver
+must also reside inside the declared helper checkout. See the
+[exact-source negative and corrected startup regression](../../../docs/luci/evidence/local013-late-startup/README.md).
+This correction does not establish the cause of any interrupted installed run.
+
 Attempt 4 on `4e7d5fe4` retained the four worker exits and all current task
 integrations, but the final legacy check recorded Create EOF/exit 125 and no
 complete driver/observer receipt. Its disappearance remains unclassified. The
@@ -181,7 +193,7 @@ From this directory:
 node --test --test-concurrency=1 ../task-context-delivery.test.mjs helper.test.mjs context-contract.test.mjs dependency-probe.test.mjs queued-failure.test.mjs project-check-guard.test.mjs
 python3 -m unittest run_with_observer_test.py
 node --check dag.mjs
-node --test --test-concurrency=1 ../launch-recovery/worker-create-guard.test.mjs ../launch-recovery/fenced-docker-proxy.test.mjs ../launch-recovery/acceptance-lifecycle.test.mjs
+node --test --test-concurrency=1 ../launch-recovery/worker-create-guard.test.mjs ../launch-recovery/fenced-docker-proxy.test.mjs ../launch-recovery/acceptance-lifecycle.test.mjs ../launch-recovery/acceptance-startup.test.mjs
 python3 ../four-project-queue/sample_linux_owned_test.py
 ```
 

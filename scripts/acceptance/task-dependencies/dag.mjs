@@ -4,6 +4,7 @@
 import assert from 'node:assert/strict';
 import {createAcceptanceJournal,diagnosticError,journalProcessIdentity} from '../launch-recovery/durable-acceptance-journal.mjs';
 import {createWorkflowDeadline,boundedAttempt,runBoundedCleanup,writeFailureCheckpoint,settleOwnedBrowser} from '../launch-recovery/acceptance-lifecycle.mjs';
+import {createStartupScope,startAcceptanceServices,startAcceptanceBrowser} from '../launch-recovery/acceptance-startup.mjs';
 import { spawn, execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { createServer as httpServer } from 'node:http';
@@ -14,12 +15,14 @@ import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import {verifyTaskContextDelivery} from '../task-context-delivery.mjs';
 import {recordDependencyProbe,assertDependencyRefusal} from './dependency-probe.mjs';
+import {probeStaleReview} from './stale-review-probe.mjs';
 import {selectAuthorizedTask,taskFailureDiagnostic,assertExactTaskFailure} from './queued-failure.mjs';
 import {checkCommand,validateCheckCreate,assertRecordedCheck,assertCheckCapacity,assertJoinedCheck,assertOwnedCheckContainer} from './project-check-guard.mjs';
 import {taskContracts,variants,seedFiles as initialFiles,variantFor,changedPaths,taskCommand,taskHandoff,expectedResult} from './dag-fixture.mjs';
 import {contextFilesV1,contextFileNames,dependencyFile,validateContextManifest} from './context-contract.mjs';
 
 const here=dirname(fileURLToPath(import.meta.url)),repo=resolve(process.env.LUCI_ACCEPTANCE_REPO??resolve(here,'../../..')),args=process.argv.slice(2);
+assert.equal(realpathSync(here),realpathSync(join(repo,'scripts/acceptance/task-dependencies')),'Executed DAG helper must be inside the declared helper checkout');
 const {chromium}=await import(join(repo,'desktop/node_modules/playwright/index.mjs'));
 const {validateWorkerCreate}=await import(join(repo,'scripts/acceptance/launch-recovery/worker-create-guard.mjs'));
 const {startFencedDockerProxy}=await import(join(repo,'scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs'));
@@ -91,8 +94,8 @@ process.on('uncaughtExceptionMonitor',(error,origin)=>{try{journal.record('drive
 process.on('exit',exitCode=>{try{journal.record('driver-exit',{exitCode});journal.close();}catch{}});
 writeFileSync(join(evidence, 'package-provenance.json'), provenanceBytes, { mode: 0o600, flag: 'wx' });
 writeFileSync(join(evidence,'image-provenance.json'),readFileSync(resolve(imageEvidencePath)),{mode:0o600,flag:'wx'});
-const driverNames=['dag.mjs','dag-fixture.mjs','context-contract.mjs','dependency-probe.mjs','queued-failure.mjs','project-check-guard.mjs','run-with-observer.py'];
-const reusedHelpers=['task-context-delivery.mjs','four-project-queue/native-terminal-diagnostics.mjs','four-project-queue/sample-linux-owned.py','launch-recovery/fenced-docker-proxy.mjs','launch-recovery/worker-create-guard.mjs','launch-recovery/durable-acceptance-journal.mjs','launch-recovery/acceptance-lifecycle.mjs'];
+const driverNames=['dag.mjs','dag-fixture.mjs','context-contract.mjs','dependency-probe.mjs','stale-review-probe.mjs','queued-failure.mjs','project-check-guard.mjs','run-with-observer.py'];
+const reusedHelpers=['task-context-delivery.mjs','four-project-queue/native-terminal-diagnostics.mjs','four-project-queue/sample-linux-owned.py','launch-recovery/fenced-docker-proxy.mjs','launch-recovery/worker-create-guard.mjs','launch-recovery/durable-acceptance-journal.mjs','launch-recovery/acceptance-lifecycle.mjs','launch-recovery/acceptance-startup.mjs'];
 mkdirSync(join(evidence, 'accepted-harness'), { mode: 0o700 });
 for (const name of driverNames) writeFileSync(join(evidence, 'accepted-harness', name), readFileSync(new URL(name, import.meta.url)), { mode: 0o600, flag: 'wx' });
 for (const name of reusedHelpers) writeFileSync(join(evidence,'accepted-harness',name.replaceAll('/','_')),readFileSync(join(repo,'scripts/acceptance',name)),{mode:0o600,flag:'wx'});
@@ -157,19 +160,20 @@ async function api(method, path, body, expected = 200, timeout = 30_000, observe
   const raw = await boundedResponse(response,2*1024**2); let value; try { value = raw ? JSON.parse(raw) : {}; } catch { throw Error('Invalid JSON response: '+method+' '+path+' '+response.status); }
   observeResponse?.(value,response.status);
   assert.equal(response.status, expected, method+' '+path+': '+response.status+' '+scrub(value.message??value.error??''));
-  return value;
+  health();return value;
 }
 async function until(label, fn, ms = 120_000) {
   const end = Date.now() + remainingBudget(ms);
   while (Date.now() < end) { if (fixtureError) throw fixtureError; if (service && service.exitCode !== null) throw Error('Owned service exited unexpectedly'); const value=await fn(); if(value)return value; await delay(150); }
   throw Error(label+' did not complete within its bounded prerequisite window');
 }
-async function freePort() { const server=createServer(); await new Promise((done,reject)=>server.once('error',reject).listen(0,'127.0.0.1',done));const port=server.address().port;await new Promise(done=>server.close(done));return port; }
+async function freePort() { health();const server=createServer();await new Promise((done,reject)=>server.once('error',reject).listen(0,'127.0.0.1',done));let port;try{health();port=server.address().port;}finally{await new Promise(done=>server.close(done));}health();return port; }
 async function startService() {
+  health(); // Fence the actual spawn even if a startup factory resolved during cleanup.
   service=spawn(binary,[],{cwd:fixture,env,detached:true,stdio:['ignore','ignore','ignore']});service.on('error',stopOnFailure);controllerIdentities.push(processIdentity(service.pid));journal.record('controller-start',journalProcessIdentity(service.pid));service.on('exit',(exitCode,signal)=>{try{journal.record('controller-exit',{pid:service.pid,exitCode,signal});}catch{}});
   const end=Date.now()+remainingBudget(45_000);let ready;
-  while(Date.now()<end) { if(fixtureError)throw fixtureError;assert.equal(service.exitCode,null);try{const res=await fetch(base+'/v1/control-plane/status',{signal:AbortSignal.timeout(1500)});if(res.ok){ready=await res.json();break;}}catch{}await delay(150); }
-  assert.equal(ready?.product,'Luci');assert.equal(ready?.version,'0.5.0');
+  while(Date.now()<end) { health();assert.equal(service.exitCode,null);try{const res=await fetch(base+'/v1/control-plane/status',{signal:AbortSignal.timeout(1500)});if(res.ok){ready=await res.json();health();break;}}catch{}health();await delay(150); }
+  health();assert.equal(ready?.product,'Luci');assert.equal(ready?.version,'0.5.0');
   (receipt.lifecycle??=[]).push({action:'start',pid:service.pid,at:new Date().toISOString()});
 }
 async function stopService(strict=true) {
@@ -261,6 +265,7 @@ async function completeNaturally(worker,owner){
 }
 
 function streamResponse(res,item,sequence){
+  health();
   const response={id:'resp_swarm_'+sequence,object:'response',created_at:1,status:'completed',model:'swarm-mechanics-fixture',output:[item],usage:{input_tokens:1,output_tokens:1,total_tokens:2,input_tokens_details:{cached_tokens:0},output_tokens_details:{reasoning_tokens:0}}};
   const events=[{type:'response.created',response:{...response,status:'in_progress',output:[]}},{type:'response.output_item.added',output_index:0,item:{...item,status:'in_progress',...(item.type==='function_call'?{arguments:''}:{content:[]})}}];
   if(item.type==='function_call')events.push({type:'response.function_call_arguments.delta',item_id:item.id,output_index:0,delta:item.arguments},{type:'response.function_call_arguments.done',item_id:item.id,output_index:0,arguments:item.arguments});
@@ -269,22 +274,22 @@ function streamResponse(res,item,sequence){
 }
 async function attach(id){
   const path=workspace+'/v1/sessions/'+id+'/attach';const {ticket}=await api('POST','/v1/auth/socket-ticket',{path});sensitive.push(ticket);
-  const socket=new WebSocket(base.replace('http:','ws:')+path+'?ticket='+encodeURIComponent(ticket));socket.binaryType='arraybuffer';sockets.add(socket);socketSessions.set(socket,id);
+  health();const socket=new WebSocket(base.replace('http:','ws:')+path+'?ticket='+encodeURIComponent(ticket));socket.binaryType='arraybuffer';sockets.add(socket);socketSessions.set(socket,id);
   assert(terminalProbes.length<8);const probe=createNativeTerminalProbe();terminalProbes.push({id,attachedStage:stage,probe});
   socket.addEventListener('message',event=>probe.frame(Buffer.from(event.data)));
   socket.addEventListener('close',event=>{probe.close(event.code,event.wasClean);sockets.delete(socket);socketSessions.delete(socket);});socket.addEventListener('error',()=>probe.error());
-  await new Promise((done,reject)=>{const timeout=setTimeout(()=>reject(Error('Authenticated attach timed out')),remainingBudget(10_000));socket.addEventListener('open',()=>{clearTimeout(timeout);socket.send(Uint8Array.from([2,0,120,0,40]));done();},{once:true});socket.addEventListener('error',()=>{clearTimeout(timeout);reject(Error('Authenticated attach failed'));},{once:true});});
+  await new Promise((done,reject)=>{const timeout=setTimeout(()=>reject(Error('Authenticated attach timed out')),remainingBudget(10_000));socket.addEventListener('open',()=>{clearTimeout(timeout);try{health();socket.send(Uint8Array.from([2,0,120,0,40]));done();}catch(error){socket.close();reject(error);}},{once:true});socket.addEventListener('error',()=>{clearTimeout(timeout);reject(Error('Authenticated attach failed'));},{once:true});});
   return socket;
 }
 
 function outputs(input,result=[]) {if(!input||typeof input!=='object')return result;if(input.type==='function_call_output')result.push(input);for(const v of Array.isArray(input)?input:Object.values(input))outputs(v,result);assert(result.length<=100);return result;}
 function message(text){return {id:'msg_swarm_'+providerCalls,type:'message',status:'completed',role:'assistant',content:[{type:'output_text',text,annotations:[]}]};}
 function commandFor(key){const value=taskData.get(key);assert(value);return taskCommand({variant:key,operation:value.operation.id,projectId:value.owner.id,runId:owner.run.id,baseCommit:value.operation.baseCommit,contextHashes:hashes(initialBundles.get(value.session.id)),dependencyDigest:value.operation.dependencyContext.digest,dependencies:value.dependencies,expectedUid:process.getuid()});}
-function nextTool(state,name,args){if(name==='exec_command'){state.codingDispatches=(state.codingDispatches??0)+1;assert.equal(state.codingDispatches,1,'No duplicate task command');}assert(++state.count<=48,'Bounded task tool request cap');const callID='call_swarm_'+state.task+'_'+state.operation.id+'_'+state.count;calls.set(callID,{state,consumed:false});return {id:'fc_'+callID,type:'function_call',status:'completed',name,call_id:callID,arguments:JSON.stringify(args)};}
+function nextTool(state,name,args){health();if(name==='exec_command'){state.codingDispatches=(state.codingDispatches??0)+1;assert.equal(state.codingDispatches,1,'No duplicate task command');}assert(++state.count<=48,'Bounded task tool request cap');const callID='call_swarm_'+state.task+'_'+state.operation.id+'_'+state.count;calls.set(callID,{state,consumed:false});return {id:'fc_'+callID,type:'function_call',status:'completed',name,call_id:callID,arguments:JSON.stringify(args)};}
 function startProvider(){
- provider=httpServer(async(req,res)=>{try{
+ health();provider=httpServer(async(req,res)=>{try{
   assert.equal(req.method,'POST');assert.equal(req.headers.authorization,'Bearer '+key);if(closing){res.writeHead(503);res.end();return;}
-  assert.equal(req.url,'/v1/responses');const parts=[];let bytes=0;for await(const part of req){bytes+=part.length;assert(bytes<4*1024**2);parts.push(part);}const body=JSON.parse(Buffer.concat(parts));assert.equal(body.model,'swarm-mechanics-fixture');assert(++providerCalls<=80);
+  assert.equal(req.url,'/v1/responses');const parts=[];let bytes=0;for await(const part of req){bytes+=part.length;assert(bytes<4*1024**2);parts.push(part);}health();const body=JSON.parse(Buffer.concat(parts));assert.equal(body.model,'swarm-mechanics-fixture');assert(++providerCalls<=80);
   const resultItems=outputs(body.input),pending=resultItems.filter(v=>calls.has(v.call_id)&&!calls.get(v.call_id).consumed);assert(pending.length<=1);let response;
   if(pending.length){const output=pending[0],entry=calls.get(output.call_id),state=entry.state;entry.consumed=true;const raw=typeof output.output==='string'?output.output:JSON.stringify(output.output);assert(!/Process exited with code (?:[1-9]\d*|-\d+)|"exit_code"\s*:\s*(?:[1-9]\d*|-\d+)|Command failed/.test(raw));
    const matches=[...raw.matchAll(/LUCI_DAG_OBSERVATION=([A-Za-z0-9+/=]+)/g)];
@@ -299,7 +304,7 @@ function startProvider(){
   (receipt.providerRequests??=[]).push({number:providerCalls,toolOutputCount:resultItems.length,issuedTool:response.type==='function_call'?response.name:null});streamResponse(res,response,providerCalls);
  }catch(error){stopOnFailure(error);if(!res.headersSent)res.writeHead(500);res.end('Controlled DAG fixture contract failed');}});
 }
-async function action(path,click,expected=200){const pending=page.waitForResponse(r=>new URL(r.url()).pathname===path&&r.request().method()==='POST',{timeout:remainingBudget(150000)});await click();const response=await pending;assert.equal(response.status(),expected,path+': '+await response.text());return response.json();}
+async function action(path,click,expected=200){health();const pending=page.waitForResponse(r=>new URL(r.url()).pathname===path&&r.request().method()==='POST',{timeout:remainingBudget(150000)});void pending.catch(()=>{});await click();health();const response=await pending;health();assert.equal(response.status(),expected,path+': '+await response.text());return response.json();}
 async function openProject(state) {
  await page.goto(base);
  const username=page.getByLabel('Username',{exact:true}),enter=page.getByRole('button',{name:'Continue to projects',exact:true}),picker=page.getByLabel('Workspace',{exact:true});
@@ -359,7 +364,7 @@ async function setPaused(paused){
 }
 
 async function readReview(key){
- const worker=taskData.get(key);assert(worker);setStage('browser-review-'+key);await openProject(owner);const pending=page.waitForResponse(r=>new URL(r.url()).pathname===owner.route+'/runs/'+owner.run.id+'/swarm/tasks/'+worker.taskId+'/review'&&r.request().method()==='GET');await taskRow(worker.taskId).getByRole('button',{name:'Review task changes',exact:true}).click();const response=await pending;assert.equal(response.status(),200);const {review}=await response.json();assert.equal(review.canIntegrate,true);assert.equal(review.sourceCommit,observations.get(key).commit);assert.deepEqual([...review.paths].sort(),changedPaths(key));const dialog=page.getByRole('dialog',{name:'Review task changes',exact:true});await dialog.getByLabel('Reviewed task diff').waitFor();assert((await dialog.getByLabel('Reviewed task diff').innerText()).includes(variants[key].receipt));return {review,dialog};
+ const worker=taskData.get(key);assert(worker);setStage('browser-review-'+key);await openProject(owner);const pending=page.waitForResponse(r=>new URL(r.url()).pathname===owner.route+'/runs/'+owner.run.id+'/swarm/tasks/'+worker.taskId+'/review'&&r.request().method()==='GET');void pending.catch(()=>{});await taskRow(worker.taskId).getByRole('button',{name:'Review task changes',exact:true}).click();const response=await pending;assert.equal(response.status(),200);const {review}=await response.json();assert.equal(review.canIntegrate,true);assert.equal(review.sourceCommit,observations.get(key).commit);assert.deepEqual([...review.paths].sort(),changedPaths(key));const dialog=page.getByRole('dialog',{name:'Review task changes',exact:true});await dialog.getByLabel('Reviewed task diff').waitFor();assert((await dialog.getByLabel('Reviewed task diff').innerText()).includes(variants[key].receipt));return {review,dialog};
 }
 async function integrate(key,expected='integrated'){
  const {review,dialog}=await readReview(key);await dialog.getByRole('checkbox').check();const result=await action(owner.route+'/runs/'+owner.run.id+'/swarm/tasks/'+variants[key].taskId+'/integrate',()=>dialog.getByRole('button',{name:'Integrate reviewed changes',exact:true}).click());owner.run=result.run;run=owner.run;const integration=run.swarm.tasks.find(t=>t.id===variants[key].taskId).integration;assert.equal(integration.state,expected);(receipt.integrations??=[]).push({variant:key,review,integration});return integration;
@@ -409,7 +414,7 @@ async function timed(promise,ms,label){let timer;try{return await Promise.race([
 
 async function prepare(owner){await openProject(owner);await page.getByRole('button',{name:'Prepare agent team',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Prepare agent team',exact:true});await dialog.getByRole('combobox').selectOption('1');assert.equal(await dialog.getByRole('combobox').inputValue(),'1');owner.run=(await action(owner.route+'/runs/'+owner.run.id+'/swarm',()=>dialog.getByRole('button',{name:'Prepare team',exact:true}).click(),201)).run;}
 async function queueOwner(expectedTaskIds){await openProject(owner);await page.getByRole('button',{name:/^Queue reviewed tasks/}).click();const result=await action(owner.route+'/runs/'+owner.run.id+'/swarm/queue',()=>page.getByRole('dialog',{name:'Queue reviewed work',exact:true}).getByRole('button',{name:'Authorize queued tasks',exact:true}).click(),201);assert.deepEqual(result.items.map(item=>item.taskId).sort(),[...expectedTaskIds].sort());(receipt.queueConsents??=[]).push({at:new Date().toISOString(),taskIds:expectedTaskIds,items:result.items});owner.queued=result.items;owner.queueAuthorizations??=new Map();for(const item of result.items){assert.equal(item.projectId,owner.owner.id);assert.equal(item.runId,owner.run.id);owner.queueAuthorizations.set(item.taskId,{id:item.id,projectId:item.projectId,runId:item.runId,taskId:item.taskId});}}
-function seedSource(project){for(const [name,text] of Object.entries(initialFiles)){assert(['verify.mjs','README.md'].includes(name));const file=join(project.path,name);assert(!existsSync(file)||lstatSync(file).isFile());writeFileSync(file,text,{mode:0o600});}}
+function seedSource(project){health();for(const [name,text] of Object.entries(initialFiles)){assert(['verify.mjs','README.md'].includes(name));const file=join(project.path,name);assert(!existsSync(file)||lstatSync(file).isFile());writeFileSync(file,text,{mode:0o600});}}
 async function saveContext(projectOwner,connectionID){
  project=projectOwner;projectRoute='/v1/product/projects/'+project.id;const goal='Build alpha and beta in isolated serial attempts, review their shared-file integration conflict, then join only the current integrated results.';
  await api('POST',projectRoute+'/brief',{revision:0,purpose:goal,audience:'Project owners',constraints:'Controlled offline DAG fixture. A and B have no dependency edge but intentionally overlap shared.txt and cannot write concurrently. Four workers maximum, including one explicitly authorized B retry.',criteria:['alpha=17','beta=25','joined sum=42 after reviewed integration only']});
@@ -463,7 +468,7 @@ async function verifyCombinedBuild(commit){
  await region.getByRole('checkbox',{name:"I trust this project's code and these Docker commands to write project files and use the network.",exact:true}).check();
  await checkAdmission();checkConsent={run:structuredClone(owner.run),commit,sourceDigest:coverage.source.sourceDigest,at:new Date().toISOString()};
  const expectedRequest={commands:[checkCommand],execution:'docker',acknowledgeHostExecution:true,requirementIds:['AC-dag'],expectedSpecificationRevision:coverage.specification.revision,expectedDesignPlanRevision:coverage.design.revision};
- const pending=page.waitForResponse(response=>new URL(response.url()).pathname===owner.route+'/checks'&&response.request().method()==='POST',{timeout:remainingBudget(120000)});
+ const pending=page.waitForResponse(response=>new URL(response.url()).pathname===owner.route+'/checks'&&response.request().method()==='POST',{timeout:remainingBudget(120000)});void pending.catch(()=>{});
  await region.getByRole('button',{name:'Run selected requirement checks',exact:true}).click();const response=await pending;
  assert.deepEqual(response.request().postDataJSON(),expectedRequest);assert.equal(response.status(),202);const started=await response.json();
  assertRecordedCheck(started,checkConsent);(receipt.checkConsents??=[]).push({at:checkConsent.at,request:expectedRequest,checkId:started.id,commit,sourceDigest:checkConsent.sourceDigest});
@@ -479,6 +484,7 @@ async function verifyCombinedBuild(commit){
 function retainedB(){
  const b=taskData.get('b1');assert(b);const integration=join(b.checkout+'-integration');assert(isFixturePath(b.checkout)&&isFixturePath(integration));const files=Object.fromEntries(changedPaths('b1').map(name=>{const file=join(b.checkout,name);const st=lstatSync(file);assert(st.isFile()&&!st.isSymbolicLink()&&st.nlink===1&&st.size<64*1024);return [name,sha(readFileSync(file))];}));const conflict=readFileSync(join(integration,'shared.txt'));assert(conflict.length<4096);return {sourceCommit:gitAt(b.checkout,'rev-parse','HEAD'),files,integrationHead:gitAt(integration,'rev-parse','HEAD'),unmerged:gitAt(integration,'ls-files','--unmerged'),conflictSHA256:sha(conflict)};
 }
+const startupScope=createStartupScope({assertActive:health,onFailure:stopOnFailure,onTransition:row=>journal.record('driver-stage',{stage:'startup-'+row.name+'-'+row.state})});
 let engineID;
 try {
  workflowControl=createWorkflowDeadline({timeoutMs:remaining(),onFailure:stopOnFailure});
@@ -487,14 +493,18 @@ try {
  for(const name of ['SIGTERM','SIGINT'])process.on(name,()=>{signalFailure=name;try{journal.record('driver-signal',{stage,signal:name});}catch{}stopOnFailure(Error('Acceptance interrupted by '+name));});
  receipt.bounds={scenarioDeadlineMs:900000,cleanupDeadlineMs:180000,upstreamRequestMs:120000,maxCreates:5,maxStarts:5,maxWorkerCreates:4,maxCheckCreates:1,checkCompletionMs:120000,preCreateFreeBytes:6*1024**3,runningReserveBytes:1024**3,workerMemoryBytes:1024**3,workerNanoCPUs:1000000000,pidsLimit:256};
  engineID=docker('info','--format','{{.ID}}');assert(engineID.length>0&&engineID.length<=256);receipt.engineIdentitySHA256=sha(engineID);
- startProvider();await new Promise((done,reject)=>provider.once('error',reject).listen(0,bridge,done));providerBase='http://host.docker.internal:'+provider.address().port+'/v1';
- const port=await freePort(),preview=await freePort();base='http://127.0.0.1:'+port;
- const upstream=process.env.DOCKER_HOST||'unix:///var/run/docker.sock';assert(upstream.startsWith('unix://'));
- proxy=await startFencedDockerProxy({socketPath:join(fixture,'docker-proxy.sock'),upstreamSocketPath:upstream.slice(7),journal,identifyCreate,beforeCreate:admission,maxCreates:receipt.bounds.maxCreates,allowCheckTraffic:true,checkTrafficProtocol:'sdk-ledger-v1',maxCreatesByKind:{worker:4,fence:1,check:1},maxStarts:receipt.bounds.maxStarts,maxObservations:20000,upstreamTimeoutMs:120000,holdTimeoutMs:600000});
+ await startAcceptanceServices({scope:startupScope,assertActive:health,
+  startProvider:async()=>{health();startProvider();const handle=provider;await new Promise((done,reject)=>handle.once('error',reject).listen(0,bridge,done));return handle;},
+  adoptProvider:handle=>{provider=handle;},closeProvider:async handle=>{handle.closeAllConnections();if(handle.listening)await new Promise(done=>handle.close(done));},
+  freePort,
+  startProxy:()=>{health();const upstream=process.env.DOCKER_HOST||'unix:///var/run/docker.sock';assert(upstream.startsWith('unix://'));return startFencedDockerProxy({socketPath:join(fixture,'docker-proxy.sock'),upstreamSocketPath:upstream.slice(7),journal,identifyCreate,beforeCreate:admission,beforeStart:health,maxCreates:receipt.bounds.maxCreates,allowCheckTraffic:true,checkTrafficProtocol:'sdk-ledger-v1',maxCreatesByKind:{worker:4,fence:1,check:1},maxStarts:receipt.bounds.maxStarts,maxObservations:20000,upstreamTimeoutMs:120000,holdTimeoutMs:600000});},
+  adoptProxy:handle=>{proxy=handle;},closeProxy:handle=>handle.close(),
+  configure:({provider,port,preview})=>{health();providerBase='http://host.docker.internal:'+provider.address().port+'/v1';base='http://127.0.0.1:'+port;
  writeFileSync(join(fixture,'docker/config.json'),JSON.stringify({cliPluginsExtraDirs:process.env.DOCKER_CONFIG?[join(process.env.DOCKER_CONFIG,'cli-plugins')]:[]}),{mode:0o600});
  env=Object.fromEntries(['PATH','LANG','LC_ALL','TZ'].filter(name=>process.env[name]).map(name=>[name,process.env[name]]));
  Object.assign(env,{HOME:join(fixture,'home'),DOCKER_CONFIG:join(fixture,'docker'),DOCKER_HOST:'unix://'+join(fixture,'docker-proxy.sock'),LUCI_DOCKER_HOST:'unix://'+join(fixture,'docker-proxy.sock'),LUCI_ADDR:'127.0.0.1:'+port,LUCI_STATE_DIR:join(fixture,'state'),LUCI_PROJECTS_DIR:join(fixture,'projects'),LUCI_WEB_DIR:web,LUCI_RUNTIME_DIR:join(dirname(binary),'runtime'),LUCI_SANDBOX_IMAGE:image,LUCI_BACKEND:'docker',LUCI_SESSION_MEMORY_MIB:'1024',LUCI_SESSION_CPU_MILLIS:'1000',LUCI_MANAGED_SHUTDOWN_TOKEN:lifecycle,LUCI_LOG_LEVEL:'error',LUCI_BROWSER_PREVIEW_ADDR:'127.0.0.1:'+preview,LUCI_BROWSER_PREVIEW_PORT:String(preview),GIT_CONFIG_GLOBAL:join(fixture,'home/.gitconfig'),GIT_CONFIG_NOSYSTEM:'1'});
- await startService();
+  },startService,
+ });health();
  const bootstrap=readFileSync(join(fixture,'state/control-plane/bootstrap-token'),'utf8').trim();sensitive.push(bootstrap);
  const account=await api('POST','/v1/auth/bootstrap',{bootstrapToken:bootstrap,username:'swarmowner',displayName:'DAG Fixture Owner',password},201);token=account.token;sensitive.push(token);fixtureOwnerID=account.user.id;
  await api('POST','/v1/setup/git/identity',{name:'Swarm Fixture',email:'swarm@example.invalid'});
@@ -503,14 +513,26 @@ try {
  await setPaused(true);
  const projectOwner=await api('POST','/v1/product/projects',{name:'reviewed-dag-fixture'},201);assert(isFixturePath(projectOwner.path));seedSource(projectOwner);for(const task of taskContracts)titles.set(task.id,task.title);owner=await saveContext(projectOwner,connectionID);projectStates.push(owner);receipt.acceptedIntent.canonicalHashes=owner.canonicalBefore;receipt.acceptedIntent.initialCommit=owner.initialHead;receipt.fixtureSourceHashes=Object.fromEntries(Object.entries(initialFiles).map(([name,value])=>[name,sha(value)]));
  const browserEnv=Object.fromEntries(['PATH','LANG','LC_ALL','TZ'].filter(n=>process.env[n]).map(n=>[n,process.env[n]]));browserEnv.LUCI_SWARM_BROWSER_FIXTURE=fixture;
- browser=await chromium.launch({headless:true,executablePath:option('--chromium','/usr/bin/chromium'),env:browserEnv,args:['--no-proxy-server']});receipt.browserVersion=browser.version();
- const context=await browser.newContext({viewport:{width:1440,height:1080},serviceWorkers:'block'});
- await context.route('**/*',async route=>{const request=route.request(),url=new URL(request.url());if(closing||fixtureError||workflowControl?.failed){await route.abort('blockedbyclient');return;}if(url.origin!==base){stopOnFailure(Error('Browser external request refused'));await route.abort('blockedbyclient');return;}if(!['GET','HEAD','OPTIONS'].includes(request.method()))receipt.browserMutations.push({stage,method:request.method(),path:url.pathname});await route.continue();});
- page=await context.newPage();page.setDefaultTimeout(15000);page.on('pageerror',error=>{receipt.browserErrors.push(scrub(error));stopOnFailure(Error('Browser script error'));});
+ await startAcceptanceBrowser({scope:startupScope,assertActive:health,
+  launch:()=>{health();return chromium.launch({headless:true,executablePath:option('--chromium','/usr/bin/chromium'),env:browserEnv,args:['--no-proxy-server']});},adoptBrowser:handle=>{browser=handle;},closeBrowser:handle=>handle.close(),
+  newContext:handle=>handle.newContext({viewport:{width:1440,height:1080},serviceWorkers:'block'}),
+  installRoutes:async context=>{health();await context.route('**/*',async route=>{const request=route.request(),url=new URL(request.url());if(closing||fixtureError||workflowControl?.failed){await route.abort('blockedbyclient');return;}if(url.origin!==base){stopOnFailure(Error('Browser external request refused'));await route.abort('blockedbyclient');return;}if(!['GET','HEAD','OPTIONS'].includes(request.method()))receipt.browserMutations.push({stage,method:request.method(),path:url.pathname});await route.continue();});health();},newPage:context=>context.newPage(),adoptPage:handle=>{page=handle;},
+ });health();receipt.browserVersion=browser.version();
+ page.setDefaultTimeout(15000);page.on('pageerror',error=>{receipt.browserErrors.push(scrub(error));stopOnFailure(Error('Browser script error'));});
  setStage('prepare-and-authorize-DAG');await prepare(owner);await queueOwner(['task-a','task-b','task-join']);const initialQueue=await api('GET',owner.route+'/swarm-queue');const aEntry=initialQueue.items.find(value=>value.taskId==='task-a');assert(aEntry);await api('POST',owner.route+'/swarm-queue/'+aEntry.id+'/priority',{expectedRevision:aEntry.revision,priority:'high'});await assertJoinBlocked('before-starts');assert.equal(effects().create,0);
  await setPaused(false);const a=await complete('a');const b1=await complete('b1');assert.equal(a.operation.baseCommit,owner.initialHead);assert.equal(b1.operation.baseCommit,owner.initialHead);assert.equal(gitAt(owner.owner.path,'rev-parse','HEAD'),owner.initialHead);await reconcile();await assertJoinBlocked('both-processes-exited');
  const oldB=await readReview('b1');receipt.staleReview={captured:oldB.review};await oldB.dialog.getByRole('button',{name:'Keep reviewing',exact:true}).click();const integratedA=await integrate('a');assert.equal(gitAt(owner.owner.path,'rev-parse','HEAD'),integratedA.commit);await assertJoinBlocked('only-alpha-integrated');
- setStage('stale-review-refusal');await refreshRun();const beforeStale=effects(),staleHead=gitAt(owner.owner.path,'rev-parse','HEAD'),staleRevision=owner.run.revision;assert(!existsSync(b1.checkout+'-integration'));const rejected=await api('POST',owner.route+'/runs/'+owner.run.id+'/swarm/tasks/task-b/integrate',{expectedRevision:staleRevision,reviewDigest:oldB.review.reviewDigest},409);assert(/review/i.test(rejected.message??rejected.error??''));assert.deepEqual(effects(),beforeStale);assert.equal(gitAt(owner.owner.path,'rev-parse','HEAD'),staleHead);assert(!existsSync(b1.checkout+'-integration'));await refreshRun();assert.equal(owner.run.revision,staleRevision);receipt.staleReview={...receipt.staleReview,rejectedAt:new Date().toISOString(),usedCurrentRevision:staleRevision,status:409,noIntegrationCheckout:true,mainUnchanged:true};
+ setStage('stale-review-refusal');await refreshRun();
+ const staleRevision=owner.run.revision,stalePath=owner.route+'/runs/'+owner.run.id+'/swarm/tasks/task-b/integrate',staleActionOffset=receipt.apiActions?.length??0;
+ const staleProbe=await probeStaleReview({receipt,requestedRevision:staleRevision,scrub,
+  request:observe=>api('POST',stalePath,{expectedRevision:staleRevision,reviewDigest:oldB.review.reviewDigest},409,30_000,observe),
+  responseStatus:()=>receipt.apiActions?.slice(staleActionOffset).find(row=>row.method==='POST'&&row.path===stalePath)?.status,
+  read:{effects:()=>effects(),primaryCommit:()=>gitAt(owner.owner.path,'rev-parse','HEAD'),
+   primaryStatusSHA256:()=>sha(gitAt(owner.owner.path,'status','--porcelain')),
+   privateRevision:()=>privateRun(owner).revision,integrationCheckoutExists:()=>existsSync(b1.checkout+'-integration'),
+   publicRevision:async phase=>{if(phase==='after'){owner.run=(await api('GET',owner.route+'/runs/'+owner.run.id,undefined,200,5_000)).run;run=owner.run;}return owner.run.revision;}},
+  persist:(probe,first)=>writeFileSync(join(evidence,'stale-review-probe.json'),JSON.stringify(probe,null,2)+'\n',{mode:0o600,flag:first?'wx':'w'})});
+ receipt.staleReview={...receipt.staleReview,rejectedAt:new Date().toISOString(),usedCurrentRevision:staleRevision,status:staleProbe.status,noIntegrationCheckout:true,mainUnchanged:true};
  setStage('renewed-review-real-conflict');const conflict=await integrate('b1','unknown');assert.equal(conflict.commit??'','');assert.equal(conflict.targetCommit,integratedA.commit);assert.notEqual(conflict.reviewDigest,oldB.review.reviewDigest);assert.equal(gitAt(owner.owner.path,'rev-parse','HEAD'),integratedA.commit);assert.equal(gitAt(owner.owner.path,'status','--porcelain'),'');const retained=retainedB();assert(retained.unmerged.includes('shared.txt'));assert.match(readFileSync(join(b1.checkout+'-integration','shared.txt'),'utf8'),/<<<<<<< HEAD[\s\S]*alpha[\s\S]*=======[\s\S]*beta[\s\S]*>>>>>>>/);receipt.conflict={integration:conflict,retained,mainCommit:integratedA.commit,at:new Date().toISOString()};await page.getByRole('dialog',{name:'Review task changes',exact:true}).waitFor({state:'hidden'});await until('Visible retained conflict notice',async()=>{const text=await page.getByRole('region',{name:'Agent team',exact:true}).locator(':scope > [role=status]').allTextContents();return text.length>0?text:null;});receipt.conflict.visibleStatus=await page.getByRole('region',{name:'Agent team',exact:true}).locator(':scope > [role=status]').allTextContents();await page.screenshot({path:join(evidence,'DAG-conflict-retained.png'),fullPage:true});assert(!receipt.conflict.visibleStatus.some(text=>/Reviewed changes integrated|Dependent tasks can now start/i.test(text)),'CLOUD-015: retained conflict must not claim integration or dependency release');assert(receipt.conflict.visibleStatus.some(text=>/not|unconfirmed|conflict|retained/i.test(text)),'Retained integration failure needs explicit status');writeFileSync(join(evidence,'retained-conflict-shared.txt'),readFileSync(join(b1.checkout+'-integration','shared.txt')),{mode:0o600,flag:'wx'});writeFileSync(join(evidence,'retained-b1.patch'),gitAt(b1.checkout,'diff','--binary',b1.operation.baseCommit,'HEAD','--')+'\n',{mode:0o600,flag:'wx'});await assertJoinBlocked('beta-conflict-retained');
  setStage('browser-retire-conflicted-attempt');await openProject(owner);await openTaskActions('task-b');await taskRow('task-b').getByRole('button',{name:'Retain changes and retry',exact:true}).click();const retireDialog=page.getByRole('dialog',{name:'Retain changes and retry',exact:true});owner.run=(await action(owner.route+'/runs/'+owner.run.id+'/swarm/tasks/task-b/abandon',()=>retireDialog.getByRole('button',{name:'Retain output and allow retry',exact:true}).click())).run;run=owner.run;const previous=run.operations.find(op=>op.id===b1.operation.id);assert.equal(previous.status,'cancelled');assert.equal(previous.integration.state,'unknown');assert.equal(run.swarm.tasks.find(t=>t.id==='task-b').integration,undefined);assert.deepEqual(retainedB(),retained);await assertJoinBlocked('conflict-retired-not-replaced');
  setStage('authorize-fresh-beta');await setPaused(true);await queueOwner(['task-b']);assert.equal(effects().create,2);await setPaused(false);const b2=await complete('b2');assert.notEqual(b2.operation.id,b1.operation.id);assert.notEqual(b2.checkout,b1.checkout);assert.equal(b2.operation.baseCommit,integratedA.commit);assert.deepEqual(retainedB(),retained);await reconcile();await assertJoinBlocked('fresh-beta-exited-not-integrated');const integratedB=await integrate('b2');assert.equal(gitAt(owner.owner.path,'rev-parse','HEAD'),integratedB.commit);assert.deepEqual(retainedB(),retained);
@@ -524,7 +546,7 @@ finally {
  closing=true;workflowControl?.close();clearTimeout(deadlineTimer);clearInterval(reserveTimer);
  cleanupDeadline=Date.now()+180000;
  const cleanupFailure=error=>{receipt.cleanup.push(redactError(error));receipt.passed=false;process.exitCode=1;};
- const failureCheckpoint={version:1,passed:false,status:'cleanup-incomplete',stage,at:new Date().toISOString(),scenarioDeadlineMs:900000,cleanupDeadlineMs:180000,driver:journalProcessIdentity(),controllers:controllerIdentities.filter(Boolean),signal:signalFailure??null,failure:diagnosticError(fixtureError),dockerRequestsDrained:false,originalReceiptComplete:false};
+ const failureCheckpoint={version:1,passed:false,status:'cleanup-incomplete',stage,at:new Date().toISOString(),scenarioDeadlineMs:900000,cleanupDeadlineMs:180000,driver:journalProcessIdentity(),controllers:controllerIdentities.filter(Boolean),signal:signalFailure??null,failure:diagnosticError(fixtureError),dockerRequestsDrained:false,startupResources:startupScope.snapshot(),originalReceiptComplete:false};
  // The watchdog only terminates this driver. Unsettled external resources are
  // explicitly retained, never inferred absent or selected for forced cleanup.
  cleanupHardStop=setTimeout(()=>{
@@ -538,26 +560,31 @@ finally {
    onFailure:cleanupFailure,
    onPhase:(name,status)=>journal.record('driver-stage',{stage:'cleanup-'+name+'-'+status}),
    phases:[
-    {name:'controllers',timeoutMs:30000,run:async()=>{const stopped=await stopService(false);assert(stopped);assert(controllerIdentities.filter(Boolean).every(identity=>!stillOwned(identity)));receipt.controllersStopped=true;}},
-    {name:'proxy',timeoutMs:125000,run:async()=>{if(proxy){const cleanup=await proxy.close();assert(cleanup.drained&&cleanup.pendingRequests===0&&cleanup.activeHandlers===0);receipt.dockerRequestsDrained=true;receipt.dockerTransportObservations=structuredClone(proxy.observations);if(proxy.observations.dropped||proxy.observations.failures.length)throw Error('Docker transport recorded lost, refused or uncertain observations');}else{receipt.dockerRequestsDrained=true;receipt.dockerTransportNotStarted=true;}}},
-    {name:'browser',timeoutMs:12000,run:()=>settleOwnedBrowser({browser,listOwned:()=>ownedProcesses('browser'),stillOwned,forceTerminate:identity=>{try{process.kill(identity.pid,'SIGKILL');}catch(error){if(error.code!=='ESRCH')throw error;}},onFailure:cleanupFailure,closeTimeoutMs:cleanupBudget(5000),settleTimeoutMs:cleanupBudget(5000)})},
-    {name:'provider',timeoutMs:3000,run:async()=>{if(provider){provider.closeAllConnections();if(provider.listening)await new Promise(done=>provider.close(done));}}},
+    {name:'controllers',timeoutMs:30000,run:async()=>{const stopped=await stopService(false);assert(stopped);assert(controllerIdentities.filter(Boolean).every(identity=>!stillOwned(identity)));return true;}},
+    {name:'proxy',timeoutMs:125000,run:async()=>{if(startupScope.has('proxy')){const cleanup=await startupScope.close('proxy',cleanupBudget(125000));assert(cleanup.drained&&cleanup.pendingRequests===0&&cleanup.activeHandlers===0);receipt.dockerTransportObservations=structuredClone(proxy.observations);if(proxy.observations.dropped||proxy.observations.failures.length)throw Error('Docker transport recorded lost, refused or uncertain observations');return {drained:true};}return {drained:true,notStarted:true};}},
+    {name:'browser',timeoutMs:12000,run:async()=>{if(startupScope.has('browser')){try{await startupScope.close('browser',cleanupBudget(5000));}catch(error){cleanupFailure(error);}}await settleOwnedBrowser({browser:undefined,listOwned:()=>ownedProcesses('browser'),stillOwned,forceTerminate:identity=>{try{process.kill(identity.pid,'SIGKILL');}catch(error){if(error.code!=='ESRCH')throw error;}},onFailure:cleanupFailure,settleTimeoutMs:cleanupBudget(5000)});}},
+    {name:'provider',timeoutMs:3000,run:async()=>{if(startupScope.has('provider'))await startupScope.close('provider',cleanupBudget(3000));}},
    ],
   });
+  // Only a completed bounded phase grants cleanup authority. A late callback
+  // cannot retroactively turn a timed-out phase into stopped/drained proof.
+  receipt.controllersStopped=receipt.cleanupPhases.some(row=>row.name==='controllers'&&row.status==='completed'&&row.result===true);
+  const proxyPhase=receipt.cleanupPhases.find(row=>row.name==='proxy'&&row.status==='completed');
+  receipt.dockerRequestsDrained=proxyPhase?.result?.drained===true;receipt.dockerTransportNotStarted=proxyPhase?.result?.notStarted===true;
   for(const socket of sockets)socket.close();receipt.actualTaskResults=Object.fromEntries(observations);
   receipt.taskChildren=[...taskData.values()].map(value=>({task:value.task,projectID:value.owner.id,operationID:value.operation.id,sessionID:value.session.id,container:value.container,bundle:initialBundles.get(value.session.id)}));receipt.terminalObservations=terminalProbes.map(({id,attachedStage,probe})=>({sessionID:id,attachedStage,...probe.snapshot()}));
  if(receipt.controllersStopped&&receipt.dockerRequestsDrained&&proxy){const created=proxy.observations.requests.filter(value=>value.method==='POST'&&/\/containers\/create$/.test(value.path)&&value.status===201&&/^[a-f0-9]{64}$/.test(value.id??''));for(const creation of created){try{const ids=docker('ps','-aq','--no-trunc').split(/\s+/).filter(Boolean);if(!ids.includes(creation.id))continue;const value=JSON.parse(docker('inspect',creation.id))[0];assert.equal(value.Id,creation.id);assert.equal(value.Name,'/'+creation.name);if(creation.kind==='check'){
  assert(checkIdentity);assertOwnedCheckContainer(value,{creation,identity:checkIdentity,fixture,primary:owner.owner.path,imageID:imageInfo.Id});
  cleanupFailure(Error('Unexpected exact check container remained; failed-fixture immutable-ID cleanup required'));if(value.State.Running)docker('stop','--time','5',value.Id);const current=JSON.parse(docker('inspect',value.Id))[0];assert.equal(current.Id,value.Id);assert.equal(current.State.Running,false);docker('rm',value.Id);continue;
  }assert.equal(value.Config.Labels['luci.instance'],instanceID());assert.equal(value.Config.Labels['luci.session-id'],creation.labels['luci.session-id']);assert(ownedSessions.has(value.Config.Labels['luci.session-id']));assert.equal(value.Config.Labels['luci.managed'],'true');assert.equal(value.Image,imageInfo.Id);assert(value.Mounts.some(mount=>mount.Destination==='/home/dev/work'&&projectStates.some(owner=>realpathSync(mount.Source).startsWith(join(dirname(owner.owner.path),'.luci-swarms')+sep))));cleanupFailure(Error('Unexpected full worker remained; exact failed-fixture cleanup required'));if(value.State.Running)docker('stop','--time','5',value.Id);const current=JSON.parse(docker('inspect',value.Id))[0];assert.equal(current.Id,value.Id);assert.equal(current.State.Running,false);docker('rm',value.Id);}catch(error){cleanupFailure(error);}}}
- try{assert(receipt.controllersStopped);assert.equal(receipt.dockerRequestsDrained,true);assert.equal(docker('ps','-aq'),'');assert.equal(docker('volume','ls','-q'),'');assert.equal(ownedProcesses().length,0);assert.equal(ownedProcesses('browser').length,0);assert.equal(JSON.parse(docker('image','inspect',image))[0].Id,imageInfo.Id);assert.equal(sha(readFileSync(binary)),provenance.binarySHA256);assert.equal(sha(readFileSync(join(web,'index.html'))),provenance.webIndexSHA256);assert.equal(docker('info','--format','{{.ID}}'),engineID);for(const name of driverNames)assert.equal(sha(readFileSync(new URL(name,import.meta.url))),sha(readFileSync(join(evidence,'accepted-harness',name))));for(const name of reusedHelpers)assert.equal(sha(readFileSync(join(repo,'scripts/acceptance',name))),sha(readFileSync(join(evidence,'accepted-harness',name.replaceAll('/','_')))));
+ try{assert(receipt.controllersStopped);assert.equal(receipt.dockerRequestsDrained,true);assert(startupScope.snapshot().every(row=>row.state==='closed'&&!row.closeTimedOut),'Startup factory or handle remains unsettled');assert.equal(docker('ps','-aq'),'');assert.equal(docker('volume','ls','-q'),'');assert.equal(ownedProcesses().length,0);assert.equal(ownedProcesses('browser').length,0);assert.equal(JSON.parse(docker('image','inspect',image))[0].Id,imageInfo.Id);assert.equal(sha(readFileSync(binary)),provenance.binarySHA256);assert.equal(sha(readFileSync(join(web,'index.html'))),provenance.webIndexSHA256);assert.equal(docker('info','--format','{{.ID}}'),engineID);for(const name of driverNames)assert.equal(sha(readFileSync(new URL(name,import.meta.url))),sha(readFileSync(join(evidence,'accepted-harness',name))));for(const name of reusedHelpers)assert.equal(sha(readFileSync(join(repo,'scripts/acceptance',name))),sha(readFileSync(join(evidence,'accepted-harness',name.replaceAll('/','_')))));
   receipt.runtimeCleanup={containers:0,volumes:0,ownedServiceProcesses:0,ownedBrowserProcesses:0,protectedImagePackageAndHelpersUnchanged:true,rootFreeBytes:rootFree()};assert.equal(realpathSync(fixture),fixture);assert.equal(dirname(fixture),fixtureParent);assert(fixture.split(sep).at(-1).startsWith('luci-dag-'));receipt.fixturePreservedForInspection=true;
  }catch(error){cleanupFailure(error);}
  if(!receipt.fixtureRemoved)receipt.fixtureRetained={path:fixture,reason:'The exact original, conflicting and replacement task checkouts, frozen contexts and integration conflict are retained for inspection even after successful acceptance. This private fixture contains test credentials; do not publish or reuse it as a normal workspace.'};
 
  }catch(error){cleanupFailure(error);}
  finally {
- if(fixtureError){receipt.passed=false;process.exitCode=1;receipt.backgroundFailure=redactError(fixtureError);}receipt.providerCalls=providerCalls;receipt.auxiliaryCalls=auxiliaryCalls;receipt.actualTaskCount=observations.size;receipt.elapsedMs=Date.now()-started;receipt.signal=signalFailure??null;receipt.finishedAt=new Date().toISOString();try{journal.record('driver-receipt-prepared',{stage,passed:receipt.passed});}catch(error){cleanupFailure(error);}writeFileSync(report,JSON.stringify(receipt,null,2)+'\n',{mode:0o600,flag:'wx'});console.log((receipt.passed?'PASS ':'FAIL ')+report);
+ receipt.startupResources=startupScope.snapshot();if(fixtureError){receipt.passed=false;process.exitCode=1;receipt.backgroundFailure=redactError(fixtureError);}receipt.providerCalls=providerCalls;receipt.auxiliaryCalls=auxiliaryCalls;receipt.actualTaskCount=observations.size;receipt.elapsedMs=Date.now()-started;receipt.signal=signalFailure??null;receipt.finishedAt=new Date().toISOString();try{journal.record('driver-receipt-prepared',{stage,passed:receipt.passed});}catch(error){cleanupFailure(error);}writeFileSync(report,JSON.stringify(receipt,null,2)+'\n',{mode:0o600,flag:'wx'});console.log((receipt.passed?'PASS ':'FAIL ')+report);
   clearTimeout(cleanupHardStop);
   // A rejected race leaves its operation pending. Only this driver's lifetime
   // ends here; the failed receipt retains every unsettled resource and phase.

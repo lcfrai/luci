@@ -1,0 +1,36 @@
+{
+  "original": {
+    "sourceRevision": "6002b2eef3151ffd02963aa34cf32c71fc9b2755",
+    "sourcePath": "scripts/acceptance/task-dependencies/dag.mjs",
+    "sourceSHA256": "e22fabe57952ad03c763bc188121b3886c64ea0941cf2ebdc795523f360e91f3",
+    "startup": {
+      "firstLine": 490,
+      "lastLine": 497,
+      "SHA256": "22cd3a0071f69eb1fe8fd46bf2ed1004881172d2af17b82150425fab9b0a3e32",
+      "source": " startProvider();await new Promise((done,reject)=>provider.once('error',reject).listen(0,bridge,done));providerBase='http://host.docker.internal:'+provider.address().port+'/v1';\n const port=await freePort(),preview=await freePort();base='http://127.0.0.1:'+port;\n const upstream=process.env.DOCKER_HOST||'unix:///var/run/docker.sock';assert(upstream.startsWith('unix://'));\n proxy=await startFencedDockerProxy({socketPath:join(fixture,'docker-proxy.sock'),upstreamSocketPath:upstream.slice(7),journal,identifyCreate,beforeCreate:admission,maxCreates:receipt.bounds.maxCreates,allowCheckTraffic:true,checkTrafficProtocol:'sdk-ledger-v1',maxCreatesByKind:{worker:4,fence:1,check:1},maxStarts:receipt.bounds.maxStarts,maxObservations:20000,upstreamTimeoutMs:120000,holdTimeoutMs:600000});\n writeFileSync(join(fixture,'docker/config.json'),JSON.stringify({cliPluginsExtraDirs:process.env.DOCKER_CONFIG?[join(process.env.DOCKER_CONFIG,'cli-plugins')]:[]}),{mode:0o600});\n env=Object.fromEntries(['PATH','LANG','LC_ALL','TZ'].filter(name=>process.env[name]).map(name=>[name,process.env[name]]));\n Object.assign(env,{HOME:join(fixture,'home'),DOCKER_CONFIG:join(fixture,'docker'),DOCKER_HOST:'unix://'+join(fixture,'docker-proxy.sock'),LUCI_DOCKER_HOST:'unix://'+join(fixture,'docker-proxy.sock'),LUCI_ADDR:'127.0.0.1:'+port,LUCI_STATE_DIR:join(fixture,'state'),LUCI_PROJECTS_DIR:join(fixture,'projects'),LUCI_WEB_DIR:web,LUCI_RUNTIME_DIR:join(dirname(binary),'runtime'),LUCI_SANDBOX_IMAGE:image,LUCI_BACKEND:'docker',LUCI_SESSION_MEMORY_MIB:'1024',LUCI_SESSION_CPU_MILLIS:'1000',LUCI_MANAGED_SHUTDOWN_TOKEN:lifecycle,LUCI_LOG_LEVEL:'error',LUCI_BROWSER_PREVIEW_ADDR:'127.0.0.1:'+preview,LUCI_BROWSER_PREVIEW_PORT:String(preview),GIT_CONFIG_GLOBAL:join(fixture,'home/.gitconfig'),GIT_CONFIG_NOSYSTEM:'1'});\n await startService();\n"
+    },
+    "service": {
+      "firstLine": 168,
+      "lastLine": 174,
+      "SHA256": "523bad0695b773ec633f0909405cb4e5e01b656e58fdd5dee31b599f9067729c",
+      "source": "async function startService() {\n  service=spawn(binary,[],{cwd:fixture,env,detached:true,stdio:['ignore','ignore','ignore']});service.on('error',stopOnFailure);controllerIdentities.push(processIdentity(service.pid));journal.record('controller-start',journalProcessIdentity(service.pid));service.on('exit',(exitCode,signal)=>{try{journal.record('controller-exit',{pid:service.pid,exitCode,signal});}catch{}});\n  const end=Date.now()+remainingBudget(45_000);let ready;\n  while(Date.now()<end) { if(fixtureError)throw fixtureError;assert.equal(service.exitCode,null);try{const res=await fetch(base+'/v1/control-plane/status',{signal:AbortSignal.timeout(1500)});if(res.ok){ready=await res.json();break;}}catch{}await delay(150); }\n  assert.equal(ready?.product,'Luci');assert.equal(ready?.version,'0.5.0');\n  (receipt.lifecycle??=[]).push({action:'start',pid:service.pid,at:new Date().toISOString()});\n}\n"
+    }
+  },
+  "corrected": {
+    "sourceRevision": "external-candidate",
+    "sourcePath": "scripts/acceptance/task-dependencies/dag.mjs",
+    "sourceSHA256": "8ac2a44a08a018d33783282190ee6aa20ec02a351718128016b86cd925af9040",
+    "startup": {
+      "firstLine": 495,
+      "lastLine": 506,
+      "SHA256": "fb771b1d829da8c63055bdcd40a8e91d4aa6e8adc681eb7159935b0ac4c4f2b1",
+      "source": " await startAcceptanceServices({scope:startupScope,assertActive:health,\n  startProvider:async()=>{health();startProvider();const handle=provider;await new Promise((done,reject)=>handle.once('error',reject).listen(0,bridge,done));return handle;},\n  adoptProvider:handle=>{provider=handle;},closeProvider:async handle=>{handle.closeAllConnections();if(handle.listening)await new Promise(done=>handle.close(done));},\n  freePort,\n  startProxy:()=>{health();const upstream=process.env.DOCKER_HOST||'unix:///var/run/docker.sock';assert(upstream.startsWith('unix://'));return startFencedDockerProxy({socketPath:join(fixture,'docker-proxy.sock'),upstreamSocketPath:upstream.slice(7),journal,identifyCreate,beforeCreate:admission,beforeStart:health,maxCreates:receipt.bounds.maxCreates,allowCheckTraffic:true,checkTrafficProtocol:'sdk-ledger-v1',maxCreatesByKind:{worker:4,fence:1,check:1},maxStarts:receipt.bounds.maxStarts,maxObservations:20000,upstreamTimeoutMs:120000,holdTimeoutMs:600000});},\n  adoptProxy:handle=>{proxy=handle;},closeProxy:handle=>handle.close(),\n  configure:({provider,port,preview})=>{health();providerBase='http://host.docker.internal:'+provider.address().port+'/v1';base='http://127.0.0.1:'+port;\n writeFileSync(join(fixture,'docker/config.json'),JSON.stringify({cliPluginsExtraDirs:process.env.DOCKER_CONFIG?[join(process.env.DOCKER_CONFIG,'cli-plugins')]:[]}),{mode:0o600});\n env=Object.fromEntries(['PATH','LANG','LC_ALL','TZ'].filter(name=>process.env[name]).map(name=>[name,process.env[name]]));\n Object.assign(env,{HOME:join(fixture,'home'),DOCKER_CONFIG:join(fixture,'docker'),DOCKER_HOST:'unix://'+join(fixture,'docker-proxy.sock'),LUCI_DOCKER_HOST:'unix://'+join(fixture,'docker-proxy.sock'),LUCI_ADDR:'127.0.0.1:'+port,LUCI_STATE_DIR:join(fixture,'state'),LUCI_PROJECTS_DIR:join(fixture,'projects'),LUCI_WEB_DIR:web,LUCI_RUNTIME_DIR:join(dirname(binary),'runtime'),LUCI_SANDBOX_IMAGE:image,LUCI_BACKEND:'docker',LUCI_SESSION_MEMORY_MIB:'1024',LUCI_SESSION_CPU_MILLIS:'1000',LUCI_MANAGED_SHUTDOWN_TOKEN:lifecycle,LUCI_LOG_LEVEL:'error',LUCI_BROWSER_PREVIEW_ADDR:'127.0.0.1:'+preview,LUCI_BROWSER_PREVIEW_PORT:String(preview),GIT_CONFIG_GLOBAL:join(fixture,'home/.gitconfig'),GIT_CONFIG_NOSYSTEM:'1'});\n  },startService,\n });health();\n"
+    },
+    "service": {
+      "firstLine": 171,
+      "lastLine": 178,
+      "SHA256": "a563c38c79c96469d37a822c8932dadaed620a6b27f46370342fa0e7fdec26ae",
+      "source": "async function startService() {\n  health(); // Fence the actual spawn even if a startup factory resolved during cleanup.\n  service=spawn(binary,[],{cwd:fixture,env,detached:true,stdio:['ignore','ignore','ignore']});service.on('error',stopOnFailure);controllerIdentities.push(processIdentity(service.pid));journal.record('controller-start',journalProcessIdentity(service.pid));service.on('exit',(exitCode,signal)=>{try{journal.record('controller-exit',{pid:service.pid,exitCode,signal});}catch{}});\n  const end=Date.now()+remainingBudget(45_000);let ready;\n  while(Date.now()<end) { health();assert.equal(service.exitCode,null);try{const res=await fetch(base+'/v1/control-plane/status',{signal:AbortSignal.timeout(1500)});if(res.ok){ready=await res.json();health();break;}}catch{}health();await delay(150); }\n  health();assert.equal(ready?.product,'Luci');assert.equal(ready?.version,'0.5.0');\n  (receipt.lifecycle??=[]).push({action:'start',pid:service.pid,at:new Date().toISOString()});\n}\n"
+    }
+  }
+}

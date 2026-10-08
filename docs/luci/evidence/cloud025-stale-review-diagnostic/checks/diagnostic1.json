@@ -1,0 +1,42 @@
+{
+  "at": "2026-10-08T20:08:19.258569+00:00",
+  "scope": "Source checks and exact extracted stale-review/API path using local fakes. No Docker, browser, network or product process.",
+  "inputs": {
+    "stale-review-probe.mjs": "79aa3ec4acd6c597fbd79c2bba2594355252bd8d49f16777f212e427563d263a",
+    "dag.mjs": "8a07114aae0b58cbf530accd88613b58edfcb546245e8a3fcfc2aae695658bd2",
+    "stale-review-probe.test.mjs": "4824669aa540caa9fb64428f4581651a05ce70682ba0f8b00a322c951456b206"
+  },
+  "inputsAfter": {
+    "stale-review-probe.mjs": "79aa3ec4acd6c597fbd79c2bba2594355252bd8d49f16777f212e427563d263a",
+    "dag.mjs": "8a07114aae0b58cbf530accd88613b58edfcb546245e8a3fcfc2aae695658bd2",
+    "stale-review-probe.test.mjs": "4824669aa540caa9fb64428f4581651a05ce70682ba0f8b00a322c951456b206"
+  },
+  "unchanged": true,
+  "results": [
+    {
+      "command": [
+        "node",
+        "--check",
+        "/workspace/.luci-tools/stale-review-diagnostics/staged/scripts/acceptance/task-dependencies/dag.mjs"
+      ],
+      "exitCode": 0
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "/workspace/.luci-tools/stale-review-diagnostics/staged/scripts/acceptance/task-dependencies/stale-review-probe.mjs"
+      ],
+      "exitCode": 0
+    },
+    {
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=1",
+        "/workspace/.luci-tools/stale-review-diagnostics/staged/scripts/acceptance/task-dependencies/stale-review-probe.test.mjs"
+      ],
+      "exitCode": 0
+    }
+  ]
+}

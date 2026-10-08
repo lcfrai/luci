@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "passed": false,
+  "status": "cleanup-incomplete",
+  "stage": "stale-review-refusal",
+  "at": "2026-10-08T19:59:08.794Z",
+  "scenarioDeadlineMs": 900000,
+  "cleanupDeadlineMs": 180000,
+  "driver": {
+    "pid": 1943766,
+    "parentPid": 1943765,
+    "group": 1943754,
+    "session": 1943754,
+    "startTicks": 23548430
+  },
+  "controllers": [
+    {
+      "pid": 1943963,
+      "start": "23548816",
+      "group": 1943963,
+      "status": "R"
+    }
+  ],
+  "signal": null,
+  "failure": {
+    "locations": []
+  },
+  "dockerRequestsDrained": false,
+  "originalReceiptComplete": false
+}

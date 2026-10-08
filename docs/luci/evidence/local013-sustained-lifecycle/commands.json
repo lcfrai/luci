@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "scope": "Commands already executed in external staging; no commands rerun for evidence publication. Earlier stage logs share commands but different candidate/test stages.",
+  "nodeChecks": [
+    {
+      "name": "JavaScript parse",
+      "command": [
+        "node",
+        "--check",
+        "/workspace/.luci-tools/sustained-lifecycle-staging/scripts/acceptance/sustained-four-project/sustained.mjs"
+      ],
+      "exitCode": 0
+    },
+    {
+      "name": "Final controlled sustained helper tests",
+      "command": [
+        "node",
+        "--test",
+        "--test-isolation=none",
+        "--test-reporter=tap",
+        "--test-skip-pattern=actual browser collector",
+        "scripts/acceptance/sustained-four-project/event-drain.test.mjs",
+        "scripts/acceptance/sustained-four-project/task-context.test.mjs",
+        "scripts/acceptance/sustained-four-project/helper.test.mjs",
+        "scripts/acceptance/sustained-four-project/workload.test.mjs",
+        "scripts/acceptance/sustained-four-project/latency-diagnostics.test.mjs",
+        "scripts/acceptance/sustained-four-project/lifecycle.test.mjs",
+        "scripts/acceptance/sustained-four-project/source-binding.test.mjs"
+      ],
+      "cwd": "/workspace/.luci-tools/sustained-lifecycle-staging",
+      "environment": {
+        "LUCI_ACCEPTANCE_REPO": "/workspace/luci",
+        "LUCI_ACCEPTANCE_STARTUP_TEST_MODULE": "/workspace/.luci-tools/late-startup-lifecycle/staged/scripts/acceptance/launch-recovery/acceptance-startup.mjs"
+      },
+      "rawLog": "controlled-js-ready.tap",
+      "exitCode": 0,
+      "counts": {
+        "tests": 73,
+        "pass": 73,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "sourceSnapshot": "verification-before-helper-location.json"
+    },
+    {
+      "name": "Final helper location/source binding and lifecycle wiring",
+      "command": [
+        "node",
+        "--test",
+        "--test-isolation=none",
+        "--test-reporter=tap",
+        "scripts/acceptance/sustained-four-project/lifecycle.test.mjs",
+        "scripts/acceptance/sustained-four-project/source-binding.test.mjs"
+      ],
+      "cwd": "/workspace/.luci-tools/sustained-lifecycle-staging",
+      "environment": {
+        "LUCI_ACCEPTANCE_REPO": "/workspace/luci",
+        "LUCI_ACCEPTANCE_STARTUP_TEST_MODULE": "/workspace/.luci-tools/late-startup-lifecycle/staged/scripts/acceptance/launch-recovery/acceptance-startup.mjs"
+      },
+      "rawLog": "helper-binding-final.tap",
+      "exitCode": 0,
+      "counts": {
+        "tests": 29,
+        "pass": 29,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      }
+    }
+  ],
+  "pythonWrapper": {
+    "command": "PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s /workspace/.luci-tools/sustained-lifecycle-staging/scripts/acceptance/sustained-four-project -p run_with_observer_test.py -v",
+    "cwd": "/workspace",
+    "exitCode": 0,
+    "rawLog": null,
+    "receipt": "python-verification.json"
+  },
+  "sharedOwner": {
+    "command": [
+      "node",
+      "--test",
+      "--test-concurrency=1",
+      "scripts/acceptance/launch-recovery/acceptance-startup.test.mjs",
+      "scripts/acceptance/launch-recovery/acceptance-lifecycle.test.mjs",
+      "scripts/acceptance/launch-recovery/fenced-docker-proxy.test.mjs"
+    ],
+    "cwd": "/workspace/.luci-tools/late-startup-lifecycle/staged",
+    "result": "shared-dependency-verification/result.json",
+    "rawLog": "shared-dependency-verification/node.log",
+    "exitCode": 0
+  }
+}

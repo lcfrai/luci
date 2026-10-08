@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "recordedAt": "2026-10-08T20:26:06.485622+00:00",
+  "status": "Applied authorized narrow DAG follow-up; prior capsules unchanged.",
+  "files": [
+    {
+      "path": "scripts/acceptance/task-dependencies/dag.mjs",
+      "baseSHA256": "8ac2a44a08a018d33783282190ee6aa20ec02a351718128016b86cd925af9040",
+      "resultSHA256": "8a21d4eba86b74c26e381ba6ba87bd1a44fcb9acdbb42c1cd948133c48d007ed"
+    },
+    {
+      "path": "scripts/acceptance/task-dependencies/dag-lifecycle.test.mjs",
+      "baseSHA256": null,
+      "resultSHA256": "28cff5737a0b91e4e681bafa0f7e042c29b05f4047361332833b0dd294d9f690"
+    }
+  ],
+  "originalNegativeControl": {
+    "tests": 8,
+    "passed": 2,
+    "failed": 6,
+    "exitCode": 1,
+    "expectedFailure": true
+  },
+  "corrected": {
+    "tests": 8,
+    "passed": 8,
+    "failed": 0,
+    "skipped": 0,
+    "exitCode": 0
+  },
+  "driverSyntax": "node --check passed",
+  "CLOUD025ProbeUnchanged": true,
+  "CLOUD025ProbeSHA256": "ff10d63c1423a081586ddcecce20adfd1a829ccf997b56119e4c0ce36a5e7d9d",
+  "otherSevenPreviousPatchFilesUnchanged": true,
+  "patchSHA256": "9e969b9e59db21f7a365d2ec8a9139513fb168388d1c22dcdcfd53573206eb6a",
+  "limitations": [
+    "Exact driver source exercised through controlled VM dependencies and sequential short Node rejection probes; no Docker/browser/Luci process.",
+    "No installed acceptance or historical failure-cause claim."
+  ],
+  "artifactsSHA256": {
+    "after.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "verification.json": "8621270445394ee4adad35a7dc77a8bdcbfc0be6fa0012072b163dad4fd80ee3",
+    "dag-boundary-followup.patch": "9e969b9e59db21f7a365d2ec8a9139513fb168388d1c22dcdcfd53573206eb6a",
+    "before.log": "488658d74a88015b7d8441f2ef4d81e6645060e3df709d49750c3b8860532b5d",
+    "after.log": "e3d7dcda4932a37b1788d09eeb1ce958b46b15450812f770f0c817743d5c6a9e",
+    "dag-before.mjs.txt": "8ac2a44a08a018d33783282190ee6aa20ec02a351718128016b86cd925af9040",
+    "base.json": "78964ceb7798daae22a726724e5deb6d8bdaf2d520fb4ce3ac5c6ad627c35174",
+    "before.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

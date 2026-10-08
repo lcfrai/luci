@@ -16,7 +16,7 @@ export function diagnosticError(error) {
   const value = {};
   if (['Error', 'AssertionError', 'TypeError', 'RangeError', 'AbortError', 'SyntaxError'].includes(error?.name)) value.errorName = error.name;
   if (short(error?.code)) value.errorCode = error.code;
-  const locations = [...String(error?.stack ?? '').matchAll(/(?:^|[/\\])(dag\.mjs|sustained\.mjs|acceptance-lifecycle\.mjs|fenced-docker-proxy\.mjs|project-check-guard\.mjs|durable-acceptance-journal\.mjs):(\d{1,7}):(\d{1,7})/g)];
+  const locations = [...String(error?.stack ?? '').matchAll(/(?:^|[/\\])(dag\.mjs|sustained\.mjs|acceptance-lifecycle\.mjs|acceptance-startup\.mjs|fenced-docker-proxy\.mjs|project-check-guard\.mjs|durable-acceptance-journal\.mjs):(\d{1,7}):(\d{1,7})/g)];
   value.locations = locations.slice(0, 8).map(([, file, line, column]) => ({file, line: Number(line), column: Number(column)}));
   return value;
 }
@@ -38,7 +38,7 @@ function sanitize(input) {
   if (['GET', 'HEAD', 'POST', 'DELETE'].includes(input.method)) row.method = input.method;
   if (/^\/v\d+\.\d+\/containers\/(?:create|[a-f0-9]{64}(?:\/(?:start|stop|json|stats|attach|wait|logs))?|luci-check-(?:check-[a-f0-9]{24}-0|checkexec-[a-f0-9]{24})(?:\/(?:start|stop|json|attach|wait))?)$/.test(input.path ?? '')) row.path = input.path;
   if (input.labels && typeof input.labels === 'object') row.labels = Object.fromEntries(Object.entries(input.labels).filter(([key, value]) => labels.has(key) && short(value)));
-  if (Array.isArray(input.locations)) row.locations = input.locations.slice(0, 8).filter(item => ['dag.mjs', 'sustained.mjs', 'acceptance-lifecycle.mjs', 'fenced-docker-proxy.mjs', 'project-check-guard.mjs', 'durable-acceptance-journal.mjs'].includes(item?.file) && Number.isSafeInteger(item.line) && item.line > 0 && Number.isSafeInteger(item.column) && item.column > 0).map(({file, line, column}) => ({file, line, column}));
+  if (Array.isArray(input.locations)) row.locations = input.locations.slice(0, 8).filter(item => ['dag.mjs', 'sustained.mjs', 'acceptance-lifecycle.mjs', 'acceptance-startup.mjs', 'fenced-docker-proxy.mjs', 'project-check-guard.mjs', 'durable-acceptance-journal.mjs'].includes(item?.file) && Number.isSafeInteger(item.line) && item.line > 0 && Number.isSafeInteger(item.column) && item.column > 0).map(({file, line, column}) => ({file, line, column}));
   return row;
 }
 

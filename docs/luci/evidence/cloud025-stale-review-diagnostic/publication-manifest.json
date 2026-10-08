@@ -1,0 +1,65 @@
+{
+  "scope": "CLOUD-025 external staged helper diagnostic evidence; source-only synthetic checks, not installed acceptance.",
+  "files": {
+    "README.md": {
+      "sha256": "17eb22cce3a8ef0ee99f166812a30784663a278e769eaf7d6abfce1548d1998a",
+      "bytes": 3648
+    },
+    "checks/diagnostic1-0.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "checks/diagnostic1-0.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "checks/diagnostic1-1.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "checks/diagnostic1-1.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "checks/diagnostic1-2.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "checks/diagnostic1-2.stdout": {
+      "sha256": "4a7031b32d351c75f1dab700b88398a01b1391d80d6faeb3eae2a6841a82d6c0",
+      "bytes": 1710
+    },
+    "checks/diagnostic1.json": {
+      "sha256": "994bfe969a9ee8bc107b41998bb2948ae183a856fb6795f7dc4679459f359145",
+      "bytes": 1517
+    },
+    "original-failure-summary.json": {
+      "sha256": "d9d56c56142ecee70ec70640d92a8288ae67dcbeacc9026a8d74695477678962",
+      "bytes": 1616
+    },
+    "source/dag.before.mjs": {
+      "sha256": "e22fabe57952ad03c763bc188121b3886c64ea0941cf2ebdc795523f360e91f3",
+      "bytes": 88258
+    },
+    "source/dag.mjs": {
+      "sha256": "8a07114aae0b58cbf530accd88613b58edfcb546245e8a3fcfc2aae695658bd2",
+      "bytes": 88881
+    },
+    "source/stale-review-probe.mjs": {
+      "sha256": "79aa3ec4acd6c597fbd79c2bba2594355252bd8d49f16777f212e427563d263a",
+      "bytes": 4634
+    },
+    "source/stale-review-probe.test.mjs": {
+      "sha256": "4824669aa540caa9fb64428f4581651a05ce70682ba0f8b00a322c951456b206",
+      "bytes": 10167
+    },
+    "source-manifest.json": {
+      "sha256": "147e85755d1ba4ec322580eab03e4b3fef9b0f30be1e035218cae9fd87be9877",
+      "bytes": 916
+    },
+    "stale-review-diagnostic.patch": {
+      "sha256": "1e8768c8c91cc4eae946c12b376713ef11ec8776a8a933543bc8ab9e25544c56",
+      "bytes": 24487
+    }
+  }
+}

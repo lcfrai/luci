@@ -1,0 +1,8 @@
+{
+  "files": {
+    "scripts/acceptance/sustained-four-project/sustained.mjs": "ffaa37c64b5cfe0e1c139a92a4cadf3fdf1db00e3d5a42125092e8ea50d15c93",
+    "scripts/acceptance/sustained-four-project/run-with-observer.py": "a966ff9fc1a85a459b05d558d98406e7732d344ad14c05c3d076ad092ac38480",
+    "scripts/acceptance/sustained-four-project/run_with_observer_test.py": "16d056f5c3b5cb4febdb0765c4a458b3afc9276b0c22f46902391145f6a71d1e",
+    "scripts/acceptance/sustained-four-project/README.md": "0c7fc81b620138e19815903106370379fc59137c875fa3f5a1e9b9be35d8f541"
+  }
+}

@@ -1,0 +1,23 @@
+✔ actual startup cannot spawn after controller cleanup; late proxy cannot repair a timed-out drain phase (18.841785ms)
+✔ late provider is closed once and no port, proxy, or service starts (6.052146ms)
+✔ cancellation while port 1 is pending prevents later startup effects (1.413972ms)
+✔ cancellation while port 2 is pending prevents later startup effects (0.74289ms)
+✔ unreturned proxy factory remains explicitly pending after bounded close (12.249946ms)
+✔ late never-resolving proxy close is bounded and retains uncertainty (17.79985ms)
+✔ late browser handle is closed and cannot advance browser startup (1.974828ms)
+✔ late browser-context handle is closed and cannot advance browser startup (1.182553ms)
+✔ late browser-page handle is closed and cannot advance browser startup (0.682249ms)
+✔ normal production startup order and real close result are preserved (2.963533ms)
+✔ factory failure retains a started-but-failed resource and never permits service startup (0.559104ms)
+✔ a failed handle adoption still retains and closes the returned resource (2.923398ms)
+✔ confirmed browser close settles acquired descendants but never a pending child factory (5.448395ms)
+✔ DAG invokes tested orchestration and guards the actual direct spawn boundary (6.071695ms)
+✔ actual DAG location assertion refuses an external driver pointed at a different clean checkout (11.974341ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 294.197799

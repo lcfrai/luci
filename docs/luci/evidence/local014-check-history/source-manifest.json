@@ -1,0 +1,38 @@
+{
+  "issue": "LOCAL-014",
+  "status": "prepared-and-tested; awaiting root source-application approval",
+  "capturedAt": "2026-10-08T20:05:30.532026+00:00",
+  "baseHead": "6002b2eef3151ffd02963aa34cf32c71fc9b2755",
+  "scope": "One product retention file, two dedicated regression files; controlled API/product race fixtures, no Docker or installed execution",
+  "files": [
+    {
+      "path": "control-plane/internal/api/project_check_history_liveness_test.go",
+      "beforeSha256": null,
+      "preparedSha256": "fa8c17b258952a8ea40f313b794e928687d63b0f334b59e7c745f4ced166a6e7"
+    },
+    {
+      "path": "control-plane/internal/product/project_check_history_liveness_test.go",
+      "beforeSha256": null,
+      "preparedSha256": "4bdf4ce06661d7f5d5946a1718aa01dc79357d94c5153988dc7d5da99b6da0f9"
+    },
+    {
+      "path": "control-plane/internal/product/project_checks.go",
+      "beforeSha256": "acfe1c60d6706b326c5a76cdc4230ee1ee898434261bc94c9f4b1a66fe3dbdf6",
+      "preparedSha256": "cd7a2a28c0125566a3ddeccef823ea12676a77232d14423a0cd54609db5e999e"
+    }
+  ],
+  "unfixed": {
+    "report": "unfixed/report.json",
+    "reportSha256": "9333d7576c0176df027c5b375cb9dc55456cccf2dbbb19b81e7a346fb71ee528",
+    "apiTestSha256": "fa8c17b258952a8ea40f313b794e928687d63b0f334b59e7c745f4ced166a6e7",
+    "productTestSha256": "4bdf4ce06661d7f5d5946a1718aa01dc79357d94c5153988dc7d5da99b6da0f9",
+    "productionSha256": "acfe1c60d6706b326c5a76cdc4230ee1ee898434261bc94c9f4b1a66fe3dbdf6"
+  },
+  "fixed": {
+    "report": "fixed/report.json",
+    "reportSha256": "4cce5fa236815ea3332c96a86c9757ebb5d7f0add44fa27c2b584e9f5a860e43",
+    "apiTestSha256": "fa8c17b258952a8ea40f313b794e928687d63b0f334b59e7c745f4ced166a6e7",
+    "productTestSha256": "4bdf4ce06661d7f5d5946a1718aa01dc79357d94c5153988dc7d5da99b6da0f9",
+    "productionSha256": "cd7a2a28c0125566a3ddeccef823ea12676a77232d14423a0cd54609db5e999e"
+  }
+}

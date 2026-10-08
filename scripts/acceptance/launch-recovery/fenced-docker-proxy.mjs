@@ -30,7 +30,7 @@ const cleanMeta = row => structuredClone(Object.fromEntries(Object.entries(row).
  * drains sent requests, and rejects on any uncertain forwarded mutation.
  */
 export async function startFencedDockerProxy({
-  socketPath, upstreamSocketPath, identifyCreate, beforeCreate,
+  socketPath, upstreamSocketPath, identifyCreate, beforeCreate, beforeStart,
   maxCreates = 4, maxCreatesByKind = { worker: 2, fence: 2 }, maxStarts = 2,
   maxObservations = 20_000, maxBodyBytes = 16 * 1024 * 1024,
   maxBufferedResponseBytes = 1024 * 1024, maxResponseBytes = 64 * 1024 * 1024,
@@ -44,6 +44,7 @@ export async function startFencedDockerProxy({
   if (!isAbsolute(socketPath ?? '') || !isAbsolute(upstreamSocketPath ?? '') || resolve(socketPath) === resolve(upstreamSocketPath)) throw problem('distinct-absolute-sockets-required');
   if (Buffer.byteLength(socketPath) >= 108 || Buffer.byteLength(join(dirname(socketPath), '.luci-fence-proxy-XXXXXX', 'docker.sock')) >= 108) throw problem('socket-path-too-long');
   if (typeof identifyCreate !== 'function' || typeof beforeCreate !== 'function') throw problem('explicit-create-guards-required');
+  if (beforeStart !== undefined && typeof beforeStart !== 'function') throw problem('invalid-start-guard');
   for (const [name, value] of Object.entries({ maxCreates, maxStarts, maxObservations, maxBodyBytes, maxBufferedResponseBytes, maxResponseBytes, maxConcurrentRequests, maxPendingBodyBytes, upstreamTimeoutMs, holdTimeoutMs, worker: maxCreatesByKind?.worker, fence: maxCreatesByKind?.fence })) {
     if (!Number.isSafeInteger(value) || value < 1) throw problem(`invalid-${name}`);
   }
@@ -222,6 +223,12 @@ export async function startFencedDockerProxy({
     const mutation = !['GET', 'HEAD'].includes(row.method), create = row.method === 'POST' && CREATE.test(row.path);
     // Intent is not proof of sending or receipt. Durability must precede send.
     if (mutation) {if (journalFailed) throw problem('journal-write-failed'); persist('mutation-forward-intent', row, true);}
+    // Optional workflow fence is synchronous and immediately precedes forwarding.
+    // Cleanup Stop/Delete and already-forwarded request draining remain available.
+    if (row.method === 'POST' && /\/start$/.test(row.path) && beforeStart) {
+      const guarded = beforeStart(cleanMeta(row));
+      if (guarded && typeof guarded.then === 'function') {void Promise.resolve(guarded).catch(() => {});throw problem('start-guard-must-be-synchronous');}
+    }
     const completion = deferred(); pending.add(completion.promise);
     let done = false, upstream;
     const timer = setTimeout(() => fail('upstream-timeout'), upstreamTimeoutMs);
