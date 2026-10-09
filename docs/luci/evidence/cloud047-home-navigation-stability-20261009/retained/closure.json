@@ -1,0 +1,32 @@
+{
+  "observedAt": "2026-10-09T07:23:28.957594+00:00",
+  "mode": "read-only; no signals, Docker requests, model calls, or unrelated process changes",
+  "allBrowserReceiptsAwaitedBrowserAndServerClose": true,
+  "matchingLiveHelperOrProfileIdentities": [],
+  "profileDirectoriesRemaining": [],
+  "unreadableOtherProcessEnvironments": {
+    "zombieCount": 6236,
+    "live": [
+      {
+        "pid": 203,
+        "state": "S",
+        "startTicks": "1521"
+      },
+      {
+        "pid": 254,
+        "state": "S",
+        "startTicks": "1534"
+      },
+      {
+        "pid": 260700,
+        "state": "S",
+        "startTicks": "2331192"
+      }
+    ],
+    "noLongerPresentCount": 0
+  },
+  "limitations": [
+    "No per-browser PID/start snapshot was retained before launch; this does not certify complete browser/zombie/whole-machine closure.",
+    "Driver process completion, awaited browser/server close and profile removal are scoped fixture cleanup evidence. Zombie ownership was not established by this post-run scan; zombies were not removed."
+  ]
+}

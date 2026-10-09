@@ -98,6 +98,8 @@ type Session struct {
 	Status       Status              `json:"status"`
 	ExitReason   string              `json:"exitReason"`
 	StartFailure SessionStartFailure `json:"startFailure,omitzero"`
+	// Private aggregate host telemetry; never projected by the shared session DTO.
+	StartAdmissionEvidence StartAdmissionEvidence `json:"startAdmissionEvidence,omitzero"`
 
 	Backend     string `json:"backend"`     // backend.Kind, held as a string so
 	SandboxID   string `json:"sandboxId"`   // registry imports no other package

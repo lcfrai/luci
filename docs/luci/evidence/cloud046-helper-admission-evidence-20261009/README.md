@@ -1,0 +1,9 @@
+# CLOUD-046: exact admission operands in the refusal receipt
+
+The sustained helper now retains valid `session.startAdmissionEvidence` after exact session identity validation. CPU and memory operands use a fixed field allowlist and the original decision timestamp; missing or malformed values stay unavailable. Later scheduler snapshots remain separately labelled non-atomic. No retry, admission threshold or acceptance outcome changes.
+
+The identical updated tests preserve all 46 prior passes against frozen CLOUD-045 commit `e2abd0e39e934e68ead3fd3e906a79336a8bda19`, with eight expected new capture failures. The revised helper passes **54/54**, with zero skipped or cancelled tests. Syntax and scoped diff checks pass. These are inert fixture tests; no installed runtime, native platform, UI rendering or performance pass follows. Backend persistence validation is separate.
+
+The [exact frozen capsule](capsule/README.md) includes original and revised helper/test bytes, the retained fixture, both raw stdout/stderr pairs, the patch, source hashes, exact commands and validation receipt. All original bytes are copied unchanged, including every expected failure. [Publication bindings](publication.json) map each copied member to its original hash; [checksums](SHA256SUMS) cover all publication members except the checksum file itself.
+
+A read-only privacy scan found no actual fixture credential, recognized live credential or absolute private fixture path. Source templates and controlled test placeholders are intentional; original absolute build-tool paths in commands and failure stacks are preserved for reproducibility. No retained application state or account credentials are included. This publication makes no new test or runtime claim and leaves the earlier CLOUD-045 capsule and original sustained attempts unchanged.

@@ -1,0 +1,23 @@
+{
+  "issue": "CLOUD-047",
+  "scope": "Controlled source component/navigation and TypeScript checks; no installed or latency acceptance.",
+  "affectedCommand": "npm run test -- --maxWorkers=1 src/components/projects/ProjectOverviewBoard.test.tsx src/components/projects/HostCapacity.test.tsx src/store/projectNavigation.test.ts --reporter=json --outputFile=<output>/focused.json",
+  "affectedExitCode": 0,
+  "passed": 65,
+  "failed": 0,
+  "files": 3,
+  "typecheckCommand": "npm run typecheck",
+  "typecheckExitCode": 0,
+  "originalHelperFailure": {
+    "passed": 52,
+    "failed": 1,
+    "reason": "New test used unsupported Chai toHaveAttribute matcher; changed to explicit getAttribute. No product failure claimed.",
+    "exitCode": 1
+  },
+  "inputs": 426,
+  "capturedSourceStableDuringTests": true,
+  "laterChanges": [
+    "desktop/src/components/projects/project-overview.css"
+  ],
+  "laterChangeCoverage": "Only CSS h3 overflow-wrap changed after source tests; final controlled Chromium 390px long-name case and all final geometry checks passed with its exact final CSS binding."
+}

@@ -132,6 +132,53 @@ test('failure to durably record the initial refusal cannot proceed to diagnostic
  await assert.rejects(f.select(t.candidates),/controlled disk failure/);assert.equal(f.diagnosticReads.length,0);
 });
 
+function actualEvidence(metric='host_cpu_utilization_percent'){
+ return {metric,observedAt:'2020-01-02T03:04:00.000000001Z',decidedAt:'2020-01-02T03:04:05.000000001Z',observedPercent:metric==='host_cpu_utilization_percent'?81.25:0,maximumPercent:metric==='host_cpu_utilization_percent'?75:0,observedBytes:0,requiredBytes:metric==='host_cpu_utilization_percent'?0:3221225472};
+}
+async function captureAdmission(t){
+ const before=JSON.stringify(t),f=selectionContext(t.rows,{read:t.read});
+ await assert.rejects(f.select(t.candidates),error=>error.code==='required-queued-task-terminal');assert.equal(JSON.stringify(t),before);
+ assert.equal(f.checkpoints.length,2);assert(!f.checkpoints[0].value.session);
+ return f.checkpoints[1].value;
+}
+test('exact historical CPU admission operands remain distinct from later non-atomic scheduler observations',async()=>{
+ const t=terminalFixture(),expected=actualEvidence();t.session.startAdmissionEvidence={...expected,command:'PRIVATE command',nested:{token:'PRIVATE token'}};
+ const diagnostic=await captureAdmission(t);assert.deepEqual(diagnostic.session.startAdmissionEvidence,expected,'Exact actual decision operands were not captured');assert.equal(diagnostic.admissionDecision.status,'retained');assert.match(diagnostic.admissionDecision.basis,/Actual final admission operands/);assert.match(diagnostic.admissionDecision.basis,/decidedAt/);
+ assert.equal(diagnostic.resources.host.cpu.utilizationPercent,12.5);assert.match(diagnostic.resourceObservationBasis,/non-atomic/);assert(!JSON.stringify(diagnostic).includes('PRIVATE'));assert.equal(diagnostic.retryAttempted,false);
+});
+for(const metric of ['host_available_memory','execution_total_memory'])test('exact '+metric+' admission preserves measured zero and the original required bytes',async()=>{
+ const t=terminalFixture();t.item.reasonCode='memory_pressure';t.session.startFailure.reasonCode='memory_pressure';const expected=actualEvidence(metric);t.session.startAdmissionEvidence=expected;
+ const diagnostic=await captureAdmission(t);assert.deepEqual(diagnostic.session.startAdmissionEvidence,expected,'Exact actual decision operands were not captured');assert.equal(diagnostic.admissionDecision.status,'retained');assert.equal(diagnostic.session.startAdmissionEvidence.observedBytes,0);
+});
+test('missing optional admission evidence and incomplete operands remain explicitly unavailable',async()=>{
+ for(const evidence of [undefined,null,{},[],{...actualEvidence(),observedPercent:undefined},{...actualEvidence(),observedBytes:undefined}]){
+  const t=terminalFixture();t.session.startAdmissionEvidence=evidence;const diagnostic=await captureAdmission(t);assert.equal(diagnostic.admissionDecision.status,'unavailable');assert(!diagnostic.session.startAdmissionEvidence);assert.equal(diagnostic.diagnosticReads.session,'observed');
+ }
+});
+test('malformed admission enums and nonfinite out-of-range or unsafe numeric operands are omitted',async()=>{
+ for(const changes of [{metric:'PRIVATE metric'},{observedPercent:NaN},{observedPercent:Infinity},{maximumPercent:-Infinity},{observedPercent:'81.25'},{maximumPercent:-1},{maximumPercent:101},{observedPercent:101},{observedPercent:75},{observedPercent:-1},{observedBytes:1},{requiredBytes:1},{observedBytes:false},{observedBytes:-1},{observedBytes:0.5}]){
+  const t=terminalFixture();t.session.startAdmissionEvidence={...actualEvidence(),...changes};const diagnostic=await captureAdmission(t);assert.equal(diagnostic.admissionDecision.status,'unavailable');assert(!diagnostic.session.startAdmissionEvidence);
+ }
+ for(const changes of [{observedPercent:1},{maximumPercent:1},{requiredBytes:0},{observedBytes:3221225472},{observedBytes:Number.MAX_SAFE_INTEGER+1,requiredBytes:Number.MAX_SAFE_INTEGER+2},{requiredBytes:1.5}]){
+  const t=terminalFixture();t.session.startFailure.reasonCode='memory_pressure';t.session.startAdmissionEvidence={...actualEvidence('host_available_memory'),...changes};const diagnostic=await captureAdmission(t);assert.equal(diagnostic.admissionDecision.status,'unavailable');assert(!diagnostic.session.startAdmissionEvidence);
+ }
+});
+test('admission freshness uses precise original timestamps and rejects stale future or malformed samples',async()=>{
+ for(const changes of [{observedAt:'2020-01-02T03:04:00.000000000Z'},{observedAt:'2020-01-02T03:04:05.000000002Z'},{observedAt:'2020-02-30T03:04:00Z'},{observedAt:'not-a-time'},{decidedAt:null},{decidedAt:'2020-01-02T03:04:05.000000001Z PRIVATE'},{observedAt:'0001-01-01T00:00:00Z',decidedAt:'0001-01-01T00:00:00Z'}]){
+  const t=terminalFixture();t.session.startAdmissionEvidence={...actualEvidence(),...changes};const diagnostic=await captureAdmission(t);assert.equal(diagnostic.admissionDecision.status,'unavailable');assert(!diagnostic.session.startAdmissionEvidence);
+ }
+});
+test('actual admission operands require the matching failure stage reason and exited session',async()=>{
+ for(const alter of [t=>{t.session.startFailure.stage='run-revalidation';},t=>{t.session.startFailure.reasonCode='memory_pressure';},t=>{t.session.status='running';},t=>{delete t.session.startFailure;}]){
+  const t=terminalFixture();t.session.startAdmissionEvidence=actualEvidence();alter(t);const diagnostic=await captureAdmission(t);assert.equal(diagnostic.admissionDecision.status,'unavailable');assert(!diagnostic.session.startAdmissionEvidence);
+ }
+});
+test('actual admission evidence is never attached when exact session identity validation fails',async()=>{
+ for(const key of ['id','projectId','projectRunId','projectRunOperationId']){
+  const t=terminalFixture();t.session.startAdmissionEvidence=actualEvidence();t.session[key]='foreign';const diagnostic=await captureAdmission(t);assert.equal(diagnostic.admissionDecision.status,'unavailable');assert.equal(diagnostic.diagnosticReads.session,'identity-or-shape-mismatch');assert(!diagnostic.session);
+ }
+});
+
 function workerContext(overrides={}){
  const f=selectionContext(),row=f.rows.find(row=>row.owner.task==='build-d'),owner=row.owner,queued=row.queue.items[0];
  owner.owner.path='/controlled/primary-d';owner.canonicalLuci=Buffer.from('Exact project D brief');

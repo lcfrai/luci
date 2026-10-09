@@ -10,6 +10,7 @@ import { useCockpit } from '../../store/store';
 import type { Project, Lens } from '../../store/types';
 import { useTeamProjectPermissions, useTeamWorkspace } from '../teams/TeamWorkspaceProvider';
 import { Button } from '../fluid/components/button';
+import { Button as ProjectDestinationButton } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { NavigationIcon } from '../common/NavigationIcon';
 import { WorkflowDialog } from '../common/WorkflowDialog';
@@ -128,8 +129,12 @@ function ScopedOverview({ projects }: { projects: Project[] }) {
   }
   const selection = Object.values(picked);
   return <div className="project-overview-board">
-    <HostCapacity />
     <div className="overview-heading"><div><h2>Across your projects</h2><p>Goals, activity and the next decision.</p></div><Button variant="secondary" disabled={pending} onClick={() => setRefresh(value => value + 1)}>Refresh overview</Button></div>
+    {/* Keep the primary project destinations ahead of all asynchronous content.
+        Capacity and individual summaries arrive independently and may contain
+        long warnings. None of those reads should move a project under a click. */}
+    <nav className="overview-projects" aria-label="Open a project"><ul>{visible.map(project => <li key={project.id}><ProjectDestinationButton variant="outline" className="overview-project-destination" onClick={() => useCockpit.getState().selectProject(project.id)} aria-label={`Open project ${project.name}`}><span>{project.name}</span><NavigationIcon name="chevron-right" /></ProjectDestinationButton></li>)}</ul></nav>
+    <HostCapacity />
     {selection.length > 0 && <section className="overview-bulk" aria-label="Selected queued tasks">
       <strong>{selection.length} waiting {selection.length === 1 ? 'task' : 'tasks'} selected</strong>
       <div className="overview-actions"><Button variant="secondary" disabled={pending || !selection.some(row => eligible(row.item, 'pause'))} onClick={() => void apply('pause')}>Pause waiting</Button><Button variant="secondary" disabled={pending || !selection.some(row => row.canExecute && eligible(row.item, 'resume'))} onClick={() => void apply('resume')}>Resume paused</Button><Button variant="tertiary" disabled={pending} onClick={() => setCancelReview(true)}>Cancel waiting…</Button>
@@ -170,7 +175,7 @@ const ProjectCard = memo(function ProjectCard({ project, summary, refresh, picke
     const lens = (['discover', 'design', 'develop', 'files', 'merge', 'deploy'].includes(value.nextAction.lens) ? value.nextAction.lens : undefined) as Lens | undefined;
     openDestination(lens, value.nextAction.runId);
   }
-  return <li className="overview-card"><header><h3><button className="overview-project-open" onClick={() => useCockpit.getState().selectProject(project.id)} aria-label={`Open project ${project.name}`}>{project.name}<NavigationIcon name="chevron-right" /></button></h3>{value && <Badge variant="outline">{summary?.sourceBusy && 'Last recorded: '}{value.phase.label}</Badge>}</header>
+  return <li className="overview-card"><header><h3>{project.name}</h3>{value && <Badge variant="outline">{summary?.sourceBusy && 'Last recorded: '}{value.phase.label}</Badge>}</header>
     {!summary ? <p role="status">Loading project context…</p> : summary.error ? <p className="overview-warning" role="status">Summary unavailable. {summary.error}</p> : value && <>
       {summary.sourceBusy && <p className="overview-warning" role="status">Source is being prepared; showing last recorded context. Queue controls remain available. Activity counts are recorded, not live.</p>}
       <p className="overview-goal">{value.goal?.text || (value.goal ? 'Add the outcome you want to build.' : 'Saved context could not be read.')}{value.goal?.truncated && '…'}</p>

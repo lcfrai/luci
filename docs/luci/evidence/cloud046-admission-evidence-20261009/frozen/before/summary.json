@@ -1,0 +1,26 @@
+{
+  "recordedNamedResults": {
+    "pass": 0,
+    "fail": 4,
+    "skip": 0
+  },
+  "leafCases": {
+    "pass": 0,
+    "fail": 3,
+    "skip": 0
+  },
+  "topLevelTests": {
+    "pass": 0,
+    "fail": 1,
+    "skip": 0
+  },
+  "packageResults": [
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "status": "fail",
+      "elapsedSeconds": 2.267
+    }
+  ],
+  "declaredCompileSourceFiles": 2334,
+  "syntheticGeneratedInputs": 0
+}

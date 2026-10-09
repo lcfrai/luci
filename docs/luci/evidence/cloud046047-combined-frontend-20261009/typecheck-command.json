@@ -1,0 +1,12 @@
+{
+  "command": [
+    "npm",
+    "run",
+    "typecheck"
+  ],
+  "startedAt": "2026-10-09T07:37:05.176356+00:00",
+  "elapsedSeconds": 27.199632828996982,
+  "exitCode": 0,
+  "stableInputs": true,
+  "scope": "Current combined candidate, same input scope as full frontend run"
+}

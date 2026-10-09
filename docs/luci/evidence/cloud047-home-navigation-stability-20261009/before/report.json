@@ -1,0 +1,558 @@
+{
+  "passed": false,
+  "scope": "Actual AppShell/ProjectsHome/ProjectOverviewBoard/HostCapacity, controlled read-only callbacks, Chromium Linux; no backend, agents, models, resource/performance acceptance.",
+  "sourceBefore": {
+    "desktop/src/components/projects/ProjectOverviewBoard.tsx": "939c2ffe6980e9ac8b685f983e4aedddfac05728f2053d11722b5a3c7198c4d4",
+    "desktop/src/components/projects/HostCapacity.tsx": "a67deeea0453eeee37cd63ddfa7febf7dcd640e2615b7feff7f631f61d994999",
+    "desktop/src/components/projects/project-overview.css": "7f2dd42461b61ade25c548e5c50ac98e3ceeab5a9e3c23575cf1117a0b1923a8"
+  },
+  "helperSHA256": "21b233317a65380476b1d29e9106ed9913867991cd209ca5b3b012defcbd052f",
+  "fixtureSHA256": "470ef7dd7a6836a46ddc0c17d01e497d9e7fcb24954a2f1b32a08f973ff4f56c",
+  "checks": [
+    {
+      "label": "initial-1440",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 310,
+          "y": 511.1875,
+          "width": 74.953125,
+          "height": 27
+        },
+        {
+          "id": "beta",
+          "x": 867,
+          "y": 511.1875,
+          "width": 66.25,
+          "height": 27
+        },
+        {
+          "id": "gamma",
+          "x": 310,
+          "y": 699.1875,
+          "width": 91.671875,
+          "height": 27
+        },
+        {
+          "id": "delta",
+          "x": 867,
+          "y": 699.1875,
+          "width": 71.0625,
+          "height": 27
+        }
+      ]
+    },
+    {
+      "label": "capacity-1440",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 310,
+          "y": 528.390625,
+          "width": 74.953125,
+          "height": 27
+        },
+        {
+          "id": "beta",
+          "x": 867,
+          "y": 528.390625,
+          "width": 66.25,
+          "height": 27
+        },
+        {
+          "id": "gamma",
+          "x": 310,
+          "y": 716.390625,
+          "width": 91.671875,
+          "height": 27
+        },
+        {
+          "id": "delta",
+          "x": 867,
+          "y": 716.390625,
+          "width": 71.0625,
+          "height": 27
+        }
+      ]
+    },
+    {
+      "label": "resolved-alpha-1440",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 310,
+          "y": 528.390625,
+          "width": 74.953125,
+          "height": 27
+        },
+        {
+          "id": "beta",
+          "x": 867,
+          "y": 528.390625,
+          "width": 66.25,
+          "height": 27
+        },
+        {
+          "id": "gamma",
+          "x": 310,
+          "y": 1007.0625,
+          "width": 91.671875,
+          "height": 27
+        },
+        {
+          "id": "delta",
+          "x": 867,
+          "y": 1007.0625,
+          "width": 71.0625,
+          "height": 27
+        }
+      ]
+    },
+    {
+      "label": "resolved-beta-1440",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 310,
+          "y": 528.390625,
+          "width": 74.953125,
+          "height": 27
+        },
+        {
+          "id": "beta",
+          "x": 867,
+          "y": 528.390625,
+          "width": 66.25,
+          "height": 27
+        },
+        {
+          "id": "gamma",
+          "x": 310,
+          "y": 1007.0625,
+          "width": 91.671875,
+          "height": 27
+        },
+        {
+          "id": "delta",
+          "x": 867,
+          "y": 1007.0625,
+          "width": 71.0625,
+          "height": 27
+        }
+      ]
+    },
+    {
+      "label": "resolved-gamma-1440",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 310,
+          "y": 528.390625,
+          "width": 74.953125,
+          "height": 27
+        },
+        {
+          "id": "beta",
+          "x": 867,
+          "y": 528.390625,
+          "width": 66.25,
+          "height": 27
+        },
+        {
+          "id": "gamma",
+          "x": 310,
+          "y": 1007.0625,
+          "width": 91.671875,
+          "height": 27
+        },
+        {
+          "id": "delta",
+          "x": 867,
+          "y": 1007.0625,
+          "width": 71.0625,
+          "height": 27
+        }
+      ]
+    },
+    {
+      "label": "resolved-delta-1440",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 310,
+          "y": 528.390625,
+          "width": 74.953125,
+          "height": 27
+        },
+        {
+          "id": "beta",
+          "x": 867,
+          "y": 528.390625,
+          "width": 66.25,
+          "height": 27
+        },
+        {
+          "id": "gamma",
+          "x": 310,
+          "y": 1007.0625,
+          "width": 91.671875,
+          "height": 27
+        },
+        {
+          "id": "delta",
+          "x": 867,
+          "y": 1007.0625,
+          "width": 71.0625,
+          "height": 27
+        }
+      ]
+    },
+    {
+      "label": "warnings-1440",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 310,
+          "y": 528.390625,
+          "width": 74.953125,
+          "height": 27
+        },
+        {
+          "id": "beta",
+          "x": 867,
+          "y": 528.390625,
+          "width": 66.25,
+          "height": 27
+        },
+        {
+          "id": "gamma",
+          "x": 310,
+          "y": 1127.203125,
+          "width": 91.671875,
+          "height": 27
+        },
+        {
+          "id": "delta",
+          "x": 867,
+          "y": 1127.203125,
+          "width": 71.0625,
+          "height": 27
+        }
+      ]
+    },
+    {
+      "label": "denied-1440",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 310,
+          "y": 528.390625,
+          "width": 74.953125,
+          "height": 27
+        },
+        {
+          "id": "beta",
+          "x": 867,
+          "y": 528.390625,
+          "width": 66.25,
+          "height": 27
+        },
+        {
+          "id": "gamma",
+          "x": 310,
+          "y": 712.578125,
+          "width": 91.671875,
+          "height": 27
+        },
+        {
+          "id": "delta",
+          "x": 867,
+          "y": 712.578125,
+          "width": 71.0625,
+          "height": 27
+        }
+      ]
+    },
+    {
+      "label": "target-stability-1440",
+      "maxShiftPx": 428.015625,
+      "passed": false
+    },
+    {
+      "label": "initial-390",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 40,
+          "y": 494.09375,
+          "width": 74.953125,
+          "height": 27
+        },
+        {
+          "id": "beta",
+          "x": 40,
+          "y": 682.09375,
+          "width": 66.25,
+          "height": 27
+        },
+        {
+          "id": "gamma",
+          "x": 40,
+          "y": 870.09375,
+          "width": 91.671875,
+          "height": 27
+        },
+        {
+          "id": "delta",
+          "x": 40,
+          "y": 1058.09375,
+          "width": 71.0625,
+          "height": 27
+        }
+      ]
+    },
+    {
+      "label": "capacity-390",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 40,
+          "y": 559.296875,
+          "width": 74.953125,
+          "height": 27
+        },
+        {
+          "id": "beta",
+          "x": 40,
+          "y": 747.296875,
+          "width": 66.25,
+          "height": 27
+        },
+        {
+          "id": "gamma",
+          "x": 40,
+          "y": 935.296875,
+          "width": 91.671875,
+          "height": 27
+        },
+        {
+          "id": "delta",
+          "x": 40,
+          "y": 1123.296875,
+          "width": 71.0625,
+          "height": 27
+        }
+      ]
+    },
+    {
+      "label": "resolved-alpha-390",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 40,
+          "y": 559.296875,
+          "width": 74.953125,
+          "height": 27
+        },
+        {
+          "id": "beta",
+          "x": 40,
+          "y": 1076.765625,
+          "width": 66.25,
+          "height": 27
+        },
+        {
+          "id": "gamma",
+          "x": 40,
+          "y": 1264.765625,
+          "width": 91.671875,
+          "height": 27
+        },
+        {
+          "id": "delta",
+          "x": 40,
+          "y": 1452.765625,
+          "width": 71.0625,
+          "height": 27
+        }
+      ]
+    },
+    {
+      "label": "resolved-beta-390",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 40,
+          "y": 559.296875,
+          "width": 74.953125,
+          "height": 27
+        },
+        {
+          "id": "beta",
+          "x": 40,
+          "y": 1076.765625,
+          "width": 66.25,
+          "height": 27
+        },
+        {
+          "id": "gamma",
+          "x": 40,
+          "y": 1594.234375,
+          "width": 91.671875,
+          "height": 27
+        },
+        {
+          "id": "delta",
+          "x": 40,
+          "y": 1782.234375,
+          "width": 71.0625,
+          "height": 27
+        }
+      ]
+    },
+    {
+      "label": "resolved-gamma-390",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 40,
+          "y": 559.296875,
+          "width": 74.953125,
+          "height": 27
+        },
+        {
+          "id": "beta",
+          "x": 40,
+          "y": 1076.765625,
+          "width": 66.25,
+          "height": 27
+        },
+        {
+          "id": "gamma",
+          "x": 40,
+          "y": 1594.234375,
+          "width": 91.671875,
+          "height": 27
+        },
+        {
+          "id": "delta",
+          "x": 40,
+          "y": 2111.703125,
+          "width": 71.0625,
+          "height": 27
+        }
+      ]
+    },
+    {
+      "label": "resolved-delta-390",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 40,
+          "y": 559.296875,
+          "width": 74.953125,
+          "height": 27
+        },
+        {
+          "id": "beta",
+          "x": 40,
+          "y": 1076.765625,
+          "width": 66.25,
+          "height": 27
+        },
+        {
+          "id": "gamma",
+          "x": 40,
+          "y": 1594.234375,
+          "width": 91.671875,
+          "height": 27
+        },
+        {
+          "id": "delta",
+          "x": 40,
+          "y": 2111.703125,
+          "width": 71.0625,
+          "height": 27
+        }
+      ]
+    },
+    {
+      "label": "warnings-390",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 40,
+          "y": 559.296875,
+          "width": 74.953125,
+          "height": 27
+        },
+        {
+          "id": "beta",
+          "x": 40,
+          "y": 1227.078125,
+          "width": 66.25,
+          "height": 27
+        },
+        {
+          "id": "gamma",
+          "x": 40,
+          "y": 1894.859375,
+          "width": 91.671875,
+          "height": 27
+        },
+        {
+          "id": "delta",
+          "x": 40,
+          "y": 2562.640625,
+          "width": 71.0625,
+          "height": 27
+        }
+      ]
+    },
+    {
+      "label": "denied-390",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 40,
+          "y": 559.296875,
+          "width": 74.953125,
+          "height": 27
+        },
+        {
+          "id": "beta",
+          "x": 40,
+          "y": 743.484375,
+          "width": 66.25,
+          "height": 27
+        },
+        {
+          "id": "gamma",
+          "x": 40,
+          "y": 927.671875,
+          "width": 91.671875,
+          "height": 27
+        },
+        {
+          "id": "delta",
+          "x": 40,
+          "y": 1111.859375,
+          "width": 71.0625,
+          "height": 27
+        }
+      ]
+    },
+    {
+      "label": "target-stability-390",
+      "maxShiftPx": 1504.546875,
+      "passed": false
+    }
+  ],
+  "errors": [],
+  "sourceAfter": {
+    "desktop/src/components/projects/ProjectOverviewBoard.tsx": "939c2ffe6980e9ac8b685f983e4aedddfac05728f2053d11722b5a3c7198c4d4",
+    "desktop/src/components/projects/HostCapacity.tsx": "a67deeea0453eeee37cd63ddfa7febf7dcd640e2615b7feff7f631f61d994999",
+    "desktop/src/components/projects/project-overview.css": "7f2dd42461b61ade25c548e5c50ac98e3ceeab5a9e3c23575cf1117a0b1923a8"
+  },
+  "sourceUnchanged": true
+}

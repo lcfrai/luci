@@ -1,0 +1,5 @@
+
+> @lcfr/luci-desktop@0.5.0 test
+> vitest run --maxWorkers=1 src/components/projects/ProjectOverviewBoard.test.tsx src/components/projects/HostCapacity.test.tsx --reporter=json --outputFile=/workspace/.luci-tools/cloud032-home-stability/focused-tests.json
+
+JSON report written to /workspace/.luci-tools/cloud032-home-stability/focused-tests.json

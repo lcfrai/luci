@@ -20,7 +20,7 @@ worker Stop/restart positives retain their separate source pins and scopes in
 QUALITY-WORKLIST.md. Original failures, charged fixtures and untested
 first-observer/concurrent-charge recovery cases remain explicit. This latest
 failed fixture has an empty ledger; it does not clear earlier fixtures.
-Windows runtime is currently RAM-held (latest relayed 1.284 GiB available);
+Windows runtime is currently RAM-held (latest relayed 0.015 GiB available at 07:27 UTC on 9 October);
 no user workloads are stopped. Native/live-provider and full-product gates
 remain open. These results do not constitute LOCAL TEST HANDOFF READY.
 

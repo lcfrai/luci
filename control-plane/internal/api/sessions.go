@@ -1775,6 +1775,7 @@ func (a *API) watchSessionReady(sessionID, sandboxID, endpoint string) {
 		sess.Endpoint = endpoint
 		sess.ExitReason = ""
 		sess.StartFailure = registry.SessionStartFailure{}
+		sess.StartAdmissionEvidence = registry.StartAdmissionEvidence{}
 		return nil
 	}); err != nil && !errors.Is(err, sessionErrMoved) && !errors.Is(err, registry.ErrNotFound) {
 		a.sessionLog().Error("mark the session running", "sessionId", sessionID, "err", err)
@@ -1923,7 +1924,7 @@ func (a *API) handleSessionGet(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, toJSON(sess, sessionBasePath))
+	httpx.WriteJSON(w, http.StatusOK, sessionDetailJSON{sessionJSON: toJSON(sess, sessionBasePath), StartAdmissionEvidence: sessionAdmissionEvidence(r, sess)})
 }
 
 func (a *API) handleSessionPatch(w http.ResponseWriter, r *http.Request) {
@@ -2312,6 +2313,7 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		sess.Status = registry.StatusStarting
 		sess.ExitReason = ""
 		sess.StartFailure = registry.SessionStartFailure{}
+		sess.StartAdmissionEvidence = registry.StartAdmissionEvidence{}
 		// AttachCount is deliberately untouched. Task 12's relay defer
 		// decrements it when the dropped socket notices; zeroing it here would
 		// take the count negative.

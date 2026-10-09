@@ -1,0 +1,475 @@
+TAP version 13
+# Subtest: retained D-before-C allocation is selected without changing its queue or issuing work
+ok 1 - retained D-before-C allocation is selected without changing its queue or issuing work
+  ---
+  duration_ms: 13.054431
+  type: 'test'
+  ...
+# Subtest: empty and ambiguous active candidates refuse instead of choosing or launching a worker
+ok 2 - empty and ambiguous active candidates refuse instead of choosing or launching a worker
+  ---
+  duration_ms: 11.491709
+  type: 'test'
+  ...
+# Subtest: foreign task project run enqueue identity and missing child cannot establish an owned allocation
+ok 3 - foreign task project run enqueue identity and missing child cannot establish an owned allocation
+  ---
+  duration_ms: 21.276788
+  type: 'test'
+  ...
+# Subtest: cancelled waiting fixture cannot allocate and duplicate candidate sets remain bounded
+ok 4 - cancelled waiting fixture cannot allocate and duplicate candidate sets remain bounded
+  ---
+  duration_ms: 6.462889
+  type: 'test'
+  ...
+# Subtest: high priority within B does not predict its cross-project turn
+ok 5 - high priority within B does not predict its cross-project turn
+  ---
+  duration_ms: 5.751432
+  type: 'test'
+  ...
+# Subtest: required failed B is durably diagnosed before accepting running D, without replay or raw private fields
+ok 6 - required failed B is durably diagnosed before accepting running D, without replay or raw private fields
+  ---
+  duration_ms: 10.525028
+  type: 'test'
+  ...
+# Subtest: required cancelled target without a child fails promptly while deliberate extra cancellation stays ignored
+ok 7 - required cancelled target without a child fails promptly while deliberate extra cancellation stays ignored
+  ---
+  duration_ms: 9.715856
+  type: 'test'
+  ...
+# Subtest: required completion before receipt capture fails distinctly without accepting a verified result
+ok 8 - required completion before receipt capture fails distinctly without accepting a verified result
+  ---
+  duration_ms: 5.705448
+  type: 'test'
+  ...
+# Subtest: terminal refusal remains the failure when run session and scheduler diagnostics are unavailable
+ok 9 - terminal refusal remains the failure when run session and scheduler diagnostics are unavailable
+  ---
+  duration_ms: 4.794427
+  type: 'test'
+  ...
+# Subtest: blocked unknown and other nonterminal required targets retain conservative selection and waiting
+ok 10 - blocked unknown and other nonterminal required targets retain conservative selection and waiting
+  ---
+  duration_ms: 20.012951
+  type: 'test'
+  ...
+# Subtest: terminal target requires its exact project run enqueue and unique identity before diagnostic reads
+ok 11 - terminal target requires its exact project run enqueue and unique identity before diagnostic reads
+  ---
+  duration_ms: 15.542336
+  type: 'test'
+  ...
+# Subtest: terminal peer never bypasses running identity and one-worker guards
+ok 12 - terminal peer never bypasses running identity and one-worker guards
+  ---
+  duration_ms: 7.968515
+  type: 'test'
+  ...
+# Subtest: diagnostic run operation and session identities cannot attach another attempt to the refusal
+ok 13 - diagnostic run operation and session identities cannot attach another attempt to the refusal
+  ---
+  duration_ms: 36.178791
+  type: 'test'
+  ...
+# Subtest: failure to durably record the initial refusal cannot proceed to diagnostics or accept a worker
+ok 14 - failure to durably record the initial refusal cannot proceed to diagnostics or accept a worker
+  ---
+  duration_ms: 3.141969
+  type: 'test'
+  ...
+# Subtest: exact historical CPU admission operands remain distinct from later non-atomic scheduler observations
+not ok 15 - exact historical CPU admission operands remain distinct from later non-atomic scheduler observations
+  ---
+  duration_ms: 4.472212
+  type: 'test'
+  location: '/workspace/.luci-tools/cloud046-helper-admission-evidence/after/queue-selection.test.mjs:144:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Exact actual decision operands were not captured
+    + actual - expected
+    
+    + undefined
+    - {
+    -   decidedAt: '2020-01-02T03:04:05.000000001Z',
+    -   maximumPercent: 75,
+    -   metric: 'host_cpu_utilization_percent',
+    -   observedAt: '2020-01-02T03:04:00.000000001Z',
+    -   observedBytes: 0,
+    -   observedPercent: 81.25,
+    -   requiredBytes: 0
+    - }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    metric: 'host_cpu_utilization_percent'
+    observedAt: '2020-01-02T03:04:00.000000001Z'
+    decidedAt: '2020-01-02T03:04:05.000000001Z'
+    observedPercent: 81.25
+    maximumPercent: 75
+    observedBytes: 0
+    requiredBytes: 0
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/.luci-tools/cloud046-helper-admission-evidence/after/queue-selection.test.mjs:146:52)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: exact host_available_memory admission preserves measured zero and the original required bytes
+not ok 16 - exact host_available_memory admission preserves measured zero and the original required bytes
+  ---
+  duration_ms: 3.298825
+  type: 'test'
+  location: '/workspace/.luci-tools/cloud046-helper-admission-evidence/after/queue-selection.test.mjs:149:72'
+  failureType: 'testCodeFailure'
+  error: |-
+    Exact actual decision operands were not captured
+    + actual - expected
+    
+    + undefined
+    - {
+    -   decidedAt: '2020-01-02T03:04:05.000000001Z',
+    -   maximumPercent: 0,
+    -   metric: 'host_available_memory',
+    -   observedAt: '2020-01-02T03:04:00.000000001Z',
+    -   observedBytes: 0,
+    -   observedPercent: 0,
+    -   requiredBytes: 3221225472
+    - }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    metric: 'host_available_memory'
+    observedAt: '2020-01-02T03:04:00.000000001Z'
+    decidedAt: '2020-01-02T03:04:05.000000001Z'
+    observedPercent: 0
+    maximumPercent: 0
+    observedBytes: 0
+    requiredBytes: 3221225472
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/.luci-tools/cloud046-helper-admission-evidence/after/queue-selection.test.mjs:151:52)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: exact execution_total_memory admission preserves measured zero and the original required bytes
+not ok 17 - exact execution_total_memory admission preserves measured zero and the original required bytes
+  ---
+  duration_ms: 2.731412
+  type: 'test'
+  location: '/workspace/.luci-tools/cloud046-helper-admission-evidence/after/queue-selection.test.mjs:149:72'
+  failureType: 'testCodeFailure'
+  error: |-
+    Exact actual decision operands were not captured
+    + actual - expected
+    
+    + undefined
+    - {
+    -   decidedAt: '2020-01-02T03:04:05.000000001Z',
+    -   maximumPercent: 0,
+    -   metric: 'execution_total_memory',
+    -   observedAt: '2020-01-02T03:04:00.000000001Z',
+    -   observedBytes: 0,
+    -   observedPercent: 0,
+    -   requiredBytes: 3221225472
+    - }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    metric: 'execution_total_memory'
+    observedAt: '2020-01-02T03:04:00.000000001Z'
+    decidedAt: '2020-01-02T03:04:05.000000001Z'
+    observedPercent: 0
+    maximumPercent: 0
+    observedBytes: 0
+    requiredBytes: 3221225472
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/.luci-tools/cloud046-helper-admission-evidence/after/queue-selection.test.mjs:151:52)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: missing optional admission evidence and incomplete operands remain explicitly unavailable
+not ok 18 - missing optional admission evidence and incomplete operands remain explicitly unavailable
+  ---
+  duration_ms: 7.163523
+  type: 'test'
+  location: '/workspace/.luci-tools/cloud046-helper-admission-evidence/after/queue-selection.test.mjs:153:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'status')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/.luci-tools/cloud046-helper-admission-evidence/after/queue-selection.test.mjs:155:156)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: malformed admission enums and nonfinite out-of-range or unsafe numeric operands are omitted
+not ok 19 - malformed admission enums and nonfinite out-of-range or unsafe numeric operands are omitted
+  ---
+  duration_ms: 2.32542
+  type: 'test'
+  location: '/workspace/.luci-tools/cloud046-helper-admission-evidence/after/queue-selection.test.mjs:158:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'status')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/.luci-tools/cloud046-helper-admission-evidence/after/queue-selection.test.mjs:160:180)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: admission freshness uses precise original timestamps and rejects stale future or malformed samples
+not ok 20 - admission freshness uses precise original timestamps and rejects stale future or malformed samples
+  ---
+  duration_ms: 1.749293
+  type: 'test'
+  location: '/workspace/.luci-tools/cloud046-helper-admission-evidence/after/queue-selection.test.mjs:166:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'status')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/.luci-tools/cloud046-helper-admission-evidence/after/queue-selection.test.mjs:168:180)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: actual admission operands require the matching failure stage reason and exited session
+not ok 21 - actual admission operands require the matching failure stage reason and exited session
+  ---
+  duration_ms: 1.925809
+  type: 'test'
+  location: '/workspace/.luci-tools/cloud046-helper-admission-evidence/after/queue-selection.test.mjs:171:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'status')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/.luci-tools/cloud046-helper-admission-evidence/after/queue-selection.test.mjs:173:173)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: actual admission evidence is never attached when exact session identity validation fails
+not ok 22 - actual admission evidence is never attached when exact session identity validation fails
+  ---
+  duration_ms: 2.188624
+  type: 'test'
+  location: '/workspace/.luci-tools/cloud046-helper-admission-evidence/after/queue-selection.test.mjs:176:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'status')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/.luci-tools/cloud046-helper-admission-evidence/after/queue-selection.test.mjs:178:189)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: actual child helper retains owned context and single-container checks after peer selection
+ok 23 - actual child helper retains owned context and single-container checks after peer selection
+  ---
+  duration_ms: 11.631149
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-a → build-b → build-c → build-d
+ok 24 - actual startup and completion loop visits each project once with scheduler order build-a → build-b → build-c → build-d
+  ---
+  duration_ms: 5.728533
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-a → build-b → build-d → build-c
+ok 25 - actual startup and completion loop visits each project once with scheduler order build-a → build-b → build-d → build-c
+  ---
+  duration_ms: 6.547391
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-a → build-c → build-b → build-d
+ok 26 - actual startup and completion loop visits each project once with scheduler order build-a → build-c → build-b → build-d
+  ---
+  duration_ms: 8.990173
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-a → build-c → build-d → build-b
+ok 27 - actual startup and completion loop visits each project once with scheduler order build-a → build-c → build-d → build-b
+  ---
+  duration_ms: 9.052207
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-a → build-d → build-b → build-c
+ok 28 - actual startup and completion loop visits each project once with scheduler order build-a → build-d → build-b → build-c
+  ---
+  duration_ms: 8.034996
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-a → build-d → build-c → build-b
+ok 29 - actual startup and completion loop visits each project once with scheduler order build-a → build-d → build-c → build-b
+  ---
+  duration_ms: 6.856802
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-b → build-a → build-c → build-d
+ok 30 - actual startup and completion loop visits each project once with scheduler order build-b → build-a → build-c → build-d
+  ---
+  duration_ms: 10.969903
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-b → build-a → build-d → build-c
+ok 31 - actual startup and completion loop visits each project once with scheduler order build-b → build-a → build-d → build-c
+  ---
+  duration_ms: 8.704032
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-b → build-c → build-a → build-d
+ok 32 - actual startup and completion loop visits each project once with scheduler order build-b → build-c → build-a → build-d
+  ---
+  duration_ms: 9.200189
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-b → build-c → build-d → build-a
+ok 33 - actual startup and completion loop visits each project once with scheduler order build-b → build-c → build-d → build-a
+  ---
+  duration_ms: 14.312705
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-b → build-d → build-a → build-c
+ok 34 - actual startup and completion loop visits each project once with scheduler order build-b → build-d → build-a → build-c
+  ---
+  duration_ms: 6.242777
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-b → build-d → build-c → build-a
+ok 35 - actual startup and completion loop visits each project once with scheduler order build-b → build-d → build-c → build-a
+  ---
+  duration_ms: 4.754908
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-c → build-a → build-b → build-d
+ok 36 - actual startup and completion loop visits each project once with scheduler order build-c → build-a → build-b → build-d
+  ---
+  duration_ms: 5.71946
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-c → build-a → build-d → build-b
+ok 37 - actual startup and completion loop visits each project once with scheduler order build-c → build-a → build-d → build-b
+  ---
+  duration_ms: 5.536078
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-c → build-b → build-a → build-d
+ok 38 - actual startup and completion loop visits each project once with scheduler order build-c → build-b → build-a → build-d
+  ---
+  duration_ms: 6.966126
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-c → build-b → build-d → build-a
+ok 39 - actual startup and completion loop visits each project once with scheduler order build-c → build-b → build-d → build-a
+  ---
+  duration_ms: 6.557982
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-c → build-d → build-a → build-b
+ok 40 - actual startup and completion loop visits each project once with scheduler order build-c → build-d → build-a → build-b
+  ---
+  duration_ms: 7.937768
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-c → build-d → build-b → build-a
+ok 41 - actual startup and completion loop visits each project once with scheduler order build-c → build-d → build-b → build-a
+  ---
+  duration_ms: 8.429259
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-d → build-a → build-b → build-c
+ok 42 - actual startup and completion loop visits each project once with scheduler order build-d → build-a → build-b → build-c
+  ---
+  duration_ms: 5.302232
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-d → build-a → build-c → build-b
+ok 43 - actual startup and completion loop visits each project once with scheduler order build-d → build-a → build-c → build-b
+  ---
+  duration_ms: 4.691222
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-d → build-b → build-a → build-c
+ok 44 - actual startup and completion loop visits each project once with scheduler order build-d → build-b → build-a → build-c
+  ---
+  duration_ms: 6.359282
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-d → build-b → build-c → build-a
+ok 45 - actual startup and completion loop visits each project once with scheduler order build-d → build-b → build-c → build-a
+  ---
+  duration_ms: 9.709786
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-d → build-c → build-a → build-b
+ok 46 - actual startup and completion loop visits each project once with scheduler order build-d → build-c → build-a → build-b
+  ---
+  duration_ms: 11.057986
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-d → build-c → build-b → build-a
+ok 47 - actual startup and completion loop visits each project once with scheduler order build-d → build-c → build-b → build-a
+  ---
+  duration_ms: 4.635859
+  type: 'test'
+  ...
+# Subtest: actual initial discovery rejects the canceled child before exercise even when D starts first
+ok 48 - actual initial discovery rejects the canceled child before exercise even when D starts first
+  ---
+  duration_ms: 6.148225
+  type: 'test'
+  ...
+# Subtest: actual queue controls protect exact A then cancel under load with build-a active
+ok 49 - actual queue controls protect exact A then cancel under load with build-a active
+  ---
+  duration_ms: 4.355996
+  type: 'test'
+  ...
+# Subtest: actual queue controls protect exact A then cancel under load with build-b active
+ok 50 - actual queue controls protect exact A then cancel under load with build-b active
+  ---
+  duration_ms: 3.747762
+  type: 'test'
+  ...
+# Subtest: actual queue controls protect exact A then cancel under load with build-c active
+ok 51 - actual queue controls protect exact A then cancel under load with build-c active
+  ---
+  duration_ms: 3.205606
+  type: 'test'
+  ...
+# Subtest: actual queue controls protect exact A then cancel under load with build-d active
+ok 52 - actual queue controls protect exact A then cancel under load with build-d active
+  ---
+  duration_ms: 3.157823
+  type: 'test'
+  ...
+# Subtest: queue control observations reject wrong scope duplicate identity and allocated targets before action
+ok 53 - queue control observations reject wrong scope duplicate identity and allocated targets before action
+  ---
+  duration_ms: 13.230537
+  type: 'test'
+  ...
+# Subtest: queue priority requires another current waiting owner and exact high readback
+ok 54 - queue priority requires another current waiting owner and exact high readback
+  ---
+  duration_ms: 7.287865
+  type: 'test'
+  ...
+1..54
+# tests 54
+# suites 0
+# pass 46
+# fail 8
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 677.143199

@@ -1,0 +1,167 @@
+{
+  "case": "CLOUD046 P2 actual final-admission diagnostics",
+  "capturedAt": "2026-10-09T07:27:19.941765+00:00",
+  "sourceHeadAtCapture": "e2abd0e39e934e68ead3fd3e906a79336a8bda19",
+  "files": [
+    {
+      "path": "control-plane/internal/registry/session.go",
+      "sha256": "009cca518c80f3390846da6ecefbd415d0e7738e15ecf663b6ffdfb7ab5fa28e",
+      "bytes": 8199
+    },
+    {
+      "path": "control-plane/internal/registry/admission_evidence.go",
+      "sha256": "27dd184f16a89f46ff50f9b20c791fbd29d6f240aaa022cf7e9584251c1d3b27",
+      "bytes": 1909
+    },
+    {
+      "path": "control-plane/internal/registry/admission_evidence_test.go",
+      "sha256": "df287d9d34256baede23c42abfc49355a4e5dc24c123750ad2822000cd3b46b3",
+      "bytes": 3140
+    },
+    {
+      "path": "control-plane/internal/api/execution_capacity.go",
+      "sha256": "87d19bc9adcf0146ff68665d6e98b9746af0d8da7e00af1fba23eddfc822592a",
+      "bytes": 7966
+    },
+    {
+      "path": "control-plane/internal/api/execution_leases.go",
+      "sha256": "539dff31c1c9c06f4f0c6250d392ac5f72a0e52d34bad69bb5e73221ef9f7a3d",
+      "bytes": 28162
+    },
+    {
+      "path": "control-plane/internal/api/session_start_failure.go",
+      "sha256": "5c1875f041534e59a807a687e021c13ee46703c18af6c4235b41ef6dacf82dc6",
+      "bytes": 3599
+    },
+    {
+      "path": "control-plane/internal/api/session_admission_evidence.go",
+      "sha256": "68d36b2a2cf5fe1a2bfea17696e0a5525c26f3e5a30158190849574c6ad017a0",
+      "bytes": 977
+    },
+    {
+      "path": "control-plane/internal/api/session_admission_evidence_test.go",
+      "sha256": "b4b378a35398d46d4ebf7dc2ea6f7cbcec031075a5f76d0b00ee0fbaccb4242f",
+      "bytes": 11744
+    },
+    {
+      "path": "control-plane/internal/api/sessions.go",
+      "sha256": "00e6edb0a98299a572345de9eb94841380f2223d4d314c65e1ccfa7740a43913",
+      "bytes": 116876
+    },
+    {
+      "path": "control-plane/internal/product/project_swarm_scheduler_http.go",
+      "sha256": "2190baf5128fd28f5c14f5a89cc81c8ddd05eb65f297e758ccd6592fb1a0e1e2",
+      "bytes": 12439
+    }
+  ],
+  "beforeSummary": {
+    "recordedNamedResults": {
+      "pass": 0,
+      "fail": 4,
+      "skip": 0
+    },
+    "leafCases": {
+      "pass": 0,
+      "fail": 3,
+      "skip": 0
+    },
+    "topLevelTests": {
+      "pass": 0,
+      "fail": 1,
+      "skip": 0
+    },
+    "packageResults": [
+      {
+        "package": "github.com/lcfrai/luci/control-plane/internal/api",
+        "status": "fail",
+        "elapsedSeconds": 2.267
+      }
+    ],
+    "declaredCompileSourceFiles": 2334,
+    "syntheticGeneratedInputs": 0
+  },
+  "validationSummary": {
+    "recordedNamedResults": {
+      "pass": 98,
+      "fail": 0,
+      "skip": 0
+    },
+    "leafCases": {
+      "pass": 85,
+      "fail": 0,
+      "skip": 0
+    },
+    "topLevelTests": {
+      "pass": 33,
+      "fail": 0,
+      "skip": 0
+    },
+    "packageResults": [
+      {
+        "package": "github.com/lcfrai/luci/control-plane/internal/api",
+        "status": "pass",
+        "elapsedSeconds": 6.45
+      },
+      {
+        "package": "github.com/lcfrai/luci/control-plane/internal/registry",
+        "status": "pass",
+        "elapsedSeconds": 0.003
+      },
+      {
+        "package": "github.com/lcfrai/luci/control-plane/internal/product",
+        "status": "pass",
+        "elapsedSeconds": 3.623
+      }
+    ],
+    "declaredCompileSourceFiles": 2435,
+    "syntheticGeneratedInputs": 0
+  },
+  "validationExitCode": 0,
+  "changedInputsDuringValidation": [],
+  "sourceReview": {
+    "reviewer": "candidate_review",
+    "result": "No actionable privacy/lifecycle/operand defect identified; read-only review, no tests run by reviewer."
+  },
+  "limitations": [
+    "Controlled Go fixture tests, not installed-product or real-Docker acceptance.",
+    "Original attempt6 numeric operands cannot be reconstructed; new evidence applies only to future refusals.",
+    "No product UI rendering added; guarded existing single-session GET exposes the optional historical evidence.",
+    "No automatic retry, resource-policy relaxation, resampling, public canonical-reason change, full API suite, commit or original-fixture mutation."
+  ],
+  "artifacts": {
+    "before/compiled-inputs.json": "4de7d25273ce9ab6166f1f31d40078143169b0e4bef7105a86c7c61c662ce94e",
+    "before/declared-compile-source-inputs.json": "1b6a319a8523d4432ce1d5c3769a44568a19f144771898918f569047f7b0175b",
+    "before/execution.json": "069d59b546342f30b86f86df504f2ecce0027ff8049be976efcc0c419f61fb09",
+    "before/go-list.jsonstream": "3ed1e575dabfc15b163f62d8614e5ab78c878c0b0275d080d7b1ce5e12aa4464",
+    "before/go-list.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "before/go-test.jsonl": "636a61960997157c3b270f4ff2cfcac7df69c6da7b21a35ba74d8e942ff59aa0",
+    "before/go-test.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "before/session_admission_evidence_test.go": "1f226f6961460e1de46d35b06f18a2fef623bcb437480212b34f04090fe948d3",
+    "before/source/control-plane/internal/api/execution_capacity.go": "a97113455a9da43a0d2402fde940cc07d357a85b4228fa552208b7c239d0b217",
+    "before/source/control-plane/internal/api/execution_leases.go": "b01237f04c9584c78d39a02f0f26c2424f2786d89587af230d7a7d6f33c40ddd",
+    "before/source/control-plane/internal/api/session_start_failure.go": "b917c06040ae516665c91aa836ec48c75b25a33cf0f3e22b4ce435247f704a67",
+    "before/source/control-plane/internal/api/sessions.go": "19766075cb606d57e5bc585880fb6fa395feccdd4e632009f5a6308d508db6c4",
+    "before/source/control-plane/internal/product/project_swarm_scheduler_http.go": "39127d21d6c76d588da2fa3ed4f42ea394411e7a3482d62e27cdf474e47c0878",
+    "before/source/control-plane/internal/registry/session.go": "41047408ac456be72cb9e629be0e53d0728fbb7ef528988515a8a22e20981479",
+    "before/summary.json": "254580de6dd25e8c8367bb73eae8f06273d92e9d742dbbd4f081406d4dd09192",
+    "validation-1/compiled-inputs.json": "8cbaa8d408aa0f63544d99e03158ddb2a5077f60b4b24082e0f36bf575308eaa",
+    "validation-1/declared-compile-source-inputs.json": "1e76662311b6e8e47cf76a2b3661ad3c6a6623bc272938a4f14f450a216bf679",
+    "validation-1/execution.json": "61251777544e12fb744070dded910da13a997f72bc1f3235781f6bdafab67fd3",
+    "validation-1/go-list.jsonstream": "865fb3e36d0479dfd153712f289570c95b6f23b7077e646c6f5e0e72ca4dcf78",
+    "validation-1/go-list.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "validation-1/go-test.jsonl": "4257caf9b9e390215e67c936cc901ccc7798d18411450901adca6197db5b0400",
+    "validation-1/go-test.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "validation-1/source/internal/api/execution_capacity.go": "87d19bc9adcf0146ff68665d6e98b9746af0d8da7e00af1fba23eddfc822592a",
+    "validation-1/source/internal/api/execution_leases.go": "539dff31c1c9c06f4f0c6250d392ac5f72a0e52d34bad69bb5e73221ef9f7a3d",
+    "validation-1/source/internal/api/session_admission_evidence.go": "68d36b2a2cf5fe1a2bfea17696e0a5525c26f3e5a30158190849574c6ad017a0",
+    "validation-1/source/internal/api/session_admission_evidence_test.go": "b4b378a35398d46d4ebf7dc2ea6f7cbcec031075a5f76d0b00ee0fbaccb4242f",
+    "validation-1/source/internal/api/session_start_failure.go": "5c1875f041534e59a807a687e021c13ee46703c18af6c4235b41ef6dacf82dc6",
+    "validation-1/source/internal/api/sessions.go": "00e6edb0a98299a572345de9eb94841380f2223d4d314c65e1ccfa7740a43913",
+    "validation-1/source/internal/product/project_swarm_scheduler_http.go": "2190baf5128fd28f5c14f5a89cc81c8ddd05eb65f297e758ccd6592fb1a0e1e2",
+    "validation-1/source/internal/registry/admission_evidence.go": "27dd184f16a89f46ff50f9b20c791fbd29d6f240aaa022cf7e9584251c1d3b27",
+    "validation-1/source/internal/registry/admission_evidence_test.go": "df287d9d34256baede23c42abfc49355a4e5dc24c123750ad2822000cd3b46b3",
+    "validation-1/source/internal/registry/session.go": "009cca518c80f3390846da6ecefbd415d0e7738e15ecf663b6ffdfb7ab5fa28e",
+    "validation-1/summary.json": "cd4003b766599f35ebfcba85e9b17f294c54588a3f402cdefe37a2db2dc66d57",
+    "README.md": "1067955d106af9034d24f2f3c2dcd1d55fffb0ef2eab1583c9935c9d0ceff85e"
+  }
+}

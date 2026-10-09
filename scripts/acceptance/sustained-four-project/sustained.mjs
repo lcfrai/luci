@@ -339,9 +339,31 @@ async function failRequiredQueuedTarget(terminals,running){
  const fields=(value,keys)=>Object.fromEntries(keys.map(key=>[key,value?.[key]]).filter(([,value])=>value===null||typeof value==='boolean'||typeof value==='number'&&Number.isFinite(value)||typeof value==='string'&&/^[a-zA-Z0-9_.:+-]{1,128}$/.test(value)));
  const queueView=item=>fields(item,['id','projectId','runId','taskId','state','reasonCode','revision','priority','queuedAt','updatedAt','operationId','childId','memoryMiB','cpuMillis']);
  const startFailure=value=>fields(value,['stage','reasonCode']);
+ const admissionEvidence=(value,failure)=>{
+  if(!value||Array.isArray(value)||typeof value!=='object'||failure?.stage!=='admission')return null;
+  // Go emits UTC RFC3339Nano. Preserve nanoseconds when checking the original
+  // five-second decision window; today's time is unrelated to this history.
+  const timestamp=value=>{
+   if(typeof value!=='string')return null;
+   const parts=/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,9}))?Z$/.exec(value);if(!parts)return null;
+   const millis=Date.parse(parts[1]+'Z');if(!Number.isFinite(millis)||new Date(millis).toISOString().slice(0,19)!==parts[1])return null;
+   const nanos=BigInt((parts[2]??'').padEnd(9,'0'));if(parts[1]==='0001-01-01T00:00:00'&&nanos===0n)return null;
+   return BigInt(millis)*1000000n+nanos;
+  };
+  const observed=timestamp(value.observedAt),decided=timestamp(value.decidedAt);
+  if(observed===null||decided===null||decided<observed||decided-observed>5000000000n)return null;
+  if(!['observedPercent','maximumPercent'].every(key=>typeof value[key]==='number'&&Number.isFinite(value[key]))||!['observedBytes','requiredBytes'].every(key=>Number.isSafeInteger(value[key])&&value[key]>=0))return null;
+  if(value.metric==='host_cpu_utilization_percent'){
+   if(failure.reasonCode!=='cpu_pressure'||value.observedBytes!==0||value.requiredBytes!==0||value.maximumPercent<0||value.maximumPercent>100||value.observedPercent>100||value.observedPercent<=value.maximumPercent)return null;
+  }else if(['host_available_memory','execution_total_memory'].includes(value.metric)){
+   if(failure.reasonCode!=='memory_pressure'||value.observedPercent!==0||value.maximumPercent!==0||value.requiredBytes<=0||value.observedBytes>=value.requiredBytes)return null;
+  }else return null;
+  return fields(value,['metric','observedAt','decidedAt','observedPercent','maximumPercent','observedBytes','requiredBytes']);
+ };
  const diagnostic={version:1,code:queued.state==='completed'?'required-queued-task-completed-before-capture':'required-queued-task-terminal',observedAt:new Date().toISOString(),observedDuringStage:stage,
   queue:queueView(queued),otherTerminalTargets:terminals.slice(1).map(value=>queueView(value.queued)),runningPeers:running.map(value=>queueView(value.queued)),
-  resourceObservationBasis:'Later cached scheduler GET; non-atomic with queue, run, session and actual refusal. Exact admission operands are not retained.',
+  resourceObservationBasis:'Later cached scheduler GET; non-atomic with queue, run, session and actual refusal. Exact admission operands are not retained by this scheduler snapshot.',
+  admissionDecision:{status:'unavailable'},
   diagnosticReads:'pending',retryAttempted:false};
  receipt.queueRefusal=diagnostic;
  // The first durable record precedes every diagnostic await. The second is
@@ -368,6 +390,8 @@ async function failRequiredQueuedTarget(terminals,running){
    }else if(kind==='session'){
     assert.equal(value.id,queued.childId);assert.equal(value.projectId,owner.owner.id);assert.equal(value.projectRunId,owner.run.id);assert.equal(value.projectRunOperationId,queued.operationId);
     diagnostic.session={...fields(value,['id','projectId','projectRunId','projectRunOperationId','status','createdAt','updatedAt']),startFailure:startFailure(value.startFailure)};
+    const actual=value.status==='exited'?admissionEvidence(value.startAdmissionEvidence,value.startFailure):null;
+    if(actual){diagnostic.session.startAdmissionEvidence=actual;diagnostic.admissionDecision={status:'retained',basis:'Actual final admission operands from the exact session; freshness is measured at decidedAt, not the later diagnostic GET.'};}
    }else{
     const resources=value.resources??{},host=resources.host??{},execution=resources.execution??{};
     diagnostic.scheduler={...fields(value,['revision','observedAt','dispatchPaused']),policy:fields(value.policy,['maxActive','maxPerProject','headroomPercent','minHeadroomMiB','diskReserveMiB'])};

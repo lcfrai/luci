@@ -1,0 +1,244 @@
+{
+  "issue": "CLOUD-043",
+  "scope": "Read-only allowlisted projections from unchanged failed fixture; no daemon/app calls",
+  "productRevision": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+  "helperRevision": "e2f426bb50267a7cceac1f53eb1e00a0a4cc278e",
+  "originalReportSHA256": "16f8f311d9cb0aca7a8d8b38c3be7eb3e1a8b4806e4b4c9247d8315dccc20ff9",
+  "oldDriverSHA256": "5536748f74f7d34936d547ae403dc22875c8bf7d2ce9fc7bcc76d9e8ea076f86",
+  "privateSchedulerSHA256": "7e6eab7fb45cae69ee38920ed9005734939e21d00422ed8ff0e4a7a296fd2a72",
+  "failedStage": "actual-work-build-b",
+  "providerFailure": "Error: Controller verifies actual task bundle did not complete within its bounded prerequisite window\n    at until (file:///workspace/luci/scripts/acceptance/sustained-four-project/sustained.mjs:178:9)\n    at async Server.<anonymous> (file:///workspace/luci/scripts/acceptance/sustained-four-project/sustained.mjs:310:336)",
+  "verifiedTasks": [
+    "build-a",
+    "build-b"
+  ],
+  "acceptedTaskResults": [
+    "build-a",
+    "build-b"
+  ],
+  "naturalExitTasks": [
+    "build-a",
+    "build-b"
+  ],
+  "observations": [
+    {
+      "owner": {
+        "task": "build-a",
+        "owner": {
+          "id": "p-6698e7f1"
+        },
+        "route": "/v1/product/projects/p-6698e7f1",
+        "run": {
+          "id": "run-e64cc282f8be89ce79304e1b"
+        }
+      },
+      "queue": {
+        "projectId": "p-6698e7f1",
+        "items": [
+          {
+            "id": "queue-6dce257fd1c6f20dda30f1fb",
+            "projectId": "p-6698e7f1",
+            "runId": "run-e64cc282f8be89ce79304e1b",
+            "taskId": "build-a",
+            "childId": "s-a6b14acd",
+            "state": "completed",
+            "priority": "normal",
+            "reason": "The agent stopped. Review its retained changes and verify the result; process exit does not integrate dependencies.",
+            "memoryMiB": null,
+            "cpuMillis": null
+          },
+          {
+            "id": "queue-9b11781e804ba47284673d97",
+            "projectId": "p-6698e7f1",
+            "runId": "run-e64cc282f8be89ce79304e1b",
+            "taskId": "cancel-a",
+            "childId": null,
+            "state": "cancelled",
+            "priority": "normal",
+            "reason": "Future execution was cancelled. Retained attempts and results remain available.",
+            "memoryMiB": null,
+            "cpuMillis": null
+          }
+        ]
+      },
+      "operations": [
+        {
+          "id": "op-a2f37e6ccad0f39804ec7fe1",
+          "taskId": "build-a",
+          "childId": "s-a6b14acd",
+          "status": "review-required"
+        }
+      ],
+      "privateRunSHA256": "01db075473e8215a2e9b08d77aa7781aae0ed99eae2090839e6fc5c258b98da7"
+    },
+    {
+      "owner": {
+        "task": "build-b",
+        "owner": {
+          "id": "p-765de3ed"
+        },
+        "route": "/v1/product/projects/p-765de3ed",
+        "run": {
+          "id": "run-8f9458945886823576907817"
+        }
+      },
+      "queue": {
+        "projectId": "p-765de3ed",
+        "items": [
+          {
+            "id": "queue-6bdcc1e2c0047b502211e440",
+            "projectId": "p-765de3ed",
+            "runId": "run-8f9458945886823576907817",
+            "taskId": "build-b",
+            "childId": "s-aca5a2df",
+            "state": "completed",
+            "priority": "high",
+            "reason": "The agent stopped. Review its retained changes and verify the result; process exit does not integrate dependencies.",
+            "memoryMiB": null,
+            "cpuMillis": null
+          }
+        ]
+      },
+      "operations": [
+        {
+          "id": "op-820720a86bb1fae84a2f7330",
+          "taskId": "build-b",
+          "childId": "s-aca5a2df",
+          "status": "review-required"
+        }
+      ],
+      "privateRunSHA256": "97267365df249746217373c23b8e5158d941ea797efbdaa4566aaa29b7a3794d"
+    },
+    {
+      "owner": {
+        "task": "build-c",
+        "owner": {
+          "id": "p-d0b80659"
+        },
+        "route": "/v1/product/projects/p-d0b80659",
+        "run": {
+          "id": "run-305bdf088384ee74797b9c31"
+        }
+      },
+      "queue": {
+        "projectId": "p-d0b80659",
+        "items": [
+          {
+            "id": "queue-790b2158cf4ae7dc11edffc6",
+            "projectId": "p-d0b80659",
+            "runId": "run-305bdf088384ee74797b9c31",
+            "taskId": "build-c",
+            "childId": null,
+            "state": "queued",
+            "priority": "normal",
+            "reason": "Waiting for the shared or project agent limit. Existing work continues.",
+            "memoryMiB": null,
+            "cpuMillis": null
+          }
+        ]
+      },
+      "operations": [],
+      "privateRunSHA256": "8028e9db87adf6da0cd1ce3537cf799a5ca093df0fd5e839a6550767b77ad309"
+    },
+    {
+      "owner": {
+        "task": "build-d",
+        "owner": {
+          "id": "p-f686c006"
+        },
+        "route": "/v1/product/projects/p-f686c006",
+        "run": {
+          "id": "run-c9bb55572a14e9385b746af4"
+        }
+      },
+      "queue": {
+        "projectId": "p-f686c006",
+        "items": [
+          {
+            "id": "queue-e271747355890121c64156ef",
+            "projectId": "p-f686c006",
+            "runId": "run-c9bb55572a14e9385b746af4",
+            "taskId": "build-d",
+            "childId": "s-58d19866",
+            "state": "running",
+            "priority": "normal",
+            "reason": "The exact reserved agent is running in its isolated checkout.",
+            "memoryMiB": 1024,
+            "cpuMillis": 1000
+          }
+        ]
+      },
+      "operations": [
+        {
+          "id": "op-13e7db55e7a454367ad14551",
+          "taskId": "build-d",
+          "childId": "s-58d19866",
+          "status": "running"
+        }
+      ],
+      "privateRunSHA256": "ac7169dfcc649a0154576669cdbce2e55e96554bfde811de45c41ed0858b15b1"
+    }
+  ],
+  "lastQueueGETs": [
+    {
+      "stage": "actual-work-build-b",
+      "method": "GET",
+      "path": "/v1/product/projects/p-d0b80659/swarm-queue",
+      "status": 200,
+      "at": "2026-10-09T02:50:18.226Z"
+    },
+    {
+      "stage": "actual-work-build-b",
+      "method": "GET",
+      "path": "/v1/product/projects/p-d0b80659/swarm-queue",
+      "status": 200,
+      "at": "2026-10-09T02:50:18.380Z"
+    },
+    {
+      "stage": "actual-work-build-b",
+      "method": "GET",
+      "path": "/v1/product/projects/p-d0b80659/swarm-queue",
+      "status": 200,
+      "at": "2026-10-09T02:50:18.534Z"
+    },
+    {
+      "stage": "actual-work-build-b",
+      "method": "GET",
+      "path": "/v1/product/projects/p-d0b80659/swarm-queue",
+      "status": 200,
+      "at": "2026-10-09T02:50:18.687Z"
+    },
+    {
+      "stage": "actual-work-build-b",
+      "method": "GET",
+      "path": "/v1/product/projects/p-d0b80659/swarm-queue",
+      "status": 200,
+      "at": "2026-10-09T02:50:18.842Z"
+    },
+    {
+      "stage": "actual-work-build-b",
+      "method": "GET",
+      "path": "/v1/product/projects/p-d0b80659/swarm-queue",
+      "status": 200,
+      "at": "2026-10-09T02:50:18.996Z"
+    }
+  ],
+  "openingPrompt": {
+    "taskLine": "build-d: Dependency graph ready frontier",
+    "textSHA256": "793988e8eba18153499f59543f28e15f49a9ba308a269b0aca65ea7205c08b3b",
+    "privateRolloutSHA256": "c75f0a3260cdb35286c3cbe0d7a6002af0979e8eef82d490d6d3a6e7a1187650",
+    "at": "2026-10-09T02:48:18.897Z"
+  },
+  "thirdCreate": {
+    "path": "/v1.51/containers/create",
+    "id": "fdbcbcd92bdb58af66ddcd257e132355bc77613c0a0ecaacbc7b67ad2d1bf4f5",
+    "name": "luci-s-58d19866",
+    "status": 201,
+    "labels": {
+      "luci.instance": "3cd533a6-3c73-45f9-ac38-a5875d4b79b7",
+      "luci.managed": "true",
+      "luci.sandbox-id": "s-58d19866",
+      "luci.session-id": "s-58d19866"
+    }
+  }
+}

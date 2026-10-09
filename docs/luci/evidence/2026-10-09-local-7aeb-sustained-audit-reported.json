@@ -1,0 +1,60 @@
+{
+  "source": "Relayed local Windows tester audit; private original ledger/inventory/archive bytes not fetched",
+  "publication": "7aeb3373f9cf21c1c8d39711f9ee6ec294226633",
+  "productAndHelper": "0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f",
+  "auditSHA256": "24a60a480b978947c7601175991e11db28b3824b2436b1b33511e82f38909ff5",
+  "publicationFiles": 50,
+  "checksums": 49,
+  "publicationBindings": 48,
+  "helpers": 17,
+  "actions": 1292,
+  "quantileGroups": 6,
+  "switchP95Ms": {
+    "idle": 485.371075,
+    "loaded": 551.55683
+  },
+  "inputP95Ms": {
+    "idle": 64.613646,
+    "loaded": 72.251546
+  },
+  "loadedCounts": {
+    "switches": 223,
+    "inputs": 446
+  },
+  "resource": {
+    "samples": 1132,
+    "valid": 1107,
+    "unobserved": 24,
+    "partial": 1,
+    "formulaMismatches": 0,
+    "minimumEffectiveAvailableBytes": 7089815552,
+    "peakOwnedRSSBytes": 1479077888
+  },
+  "progress": {
+    "naturalExitZero": [
+      "A",
+      "C",
+      "D"
+    ],
+    "exactReceiptHashesAndLeaseDisappearancesMatched": true,
+    "integrated": [
+      "A",
+      "C"
+    ],
+    "websocketClosures": "code1006/socketError/unclean closure; distinct from native exit0"
+  },
+  "publisherClosure": {
+    "ledgerContainersVolumesEmpty": true,
+    "knownIdentitiesAbsent": 13,
+    "ChromiumZombies": 2,
+    "unreadableUnrelatedEnvironments": 3,
+    "unchangedPrivateFiles": 703
+  },
+  "limits": [
+    "Four-project/amendment/settled workflow incomplete",
+    "Switch p95 fails unchanged300ms",
+    "B cpu_pressure row not verified by this audit; separate e2abd bound projection subsequently identified",
+    "No Windows/live-provider or causal improvement claim",
+    "Prepared nine-case synthetic local helper reproduction not executed under36MiB availableRAM"
+  ]
+}

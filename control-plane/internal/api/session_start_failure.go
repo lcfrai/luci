@@ -11,8 +11,9 @@ import (
 // The code is public, the cause is internal. In particular an authorization or
 // filesystem error must never become the persisted operator-facing message.
 type executionAdmissionError struct {
-	code  string
-	cause error
+	code     string
+	cause    error
+	evidence registry.StartAdmissionEvidence
 }
 
 func (e *executionAdmissionError) Error() string { return e.cause.Error() }
@@ -24,7 +25,7 @@ func admissionFailure(code string, cause error) error {
 	return &executionAdmissionError{code: code, cause: cause}
 }
 func admissionDecisionFailure(decision executionDecision) error {
-	return admissionFailure(decision.Code, errors.New(decision.Message))
+	return &executionAdmissionError{code: decision.Code, cause: errors.New(decision.Message), evidence: decision.Evidence}
 }
 
 func publicSessionStartFailure(row registry.Session) registry.SessionStartFailure {
@@ -41,12 +42,17 @@ func (a *API) recordSessionStartFailure(row registry.Session, stage string, caus
 		code = admission.code
 	}
 	diagnostic := registry.NewSessionStartFailure(stage, code)
+	var evidence registry.StartAdmissionEvidence
+	if admission != nil && admission.evidence.ValidFor(diagnostic) {
+		evidence = admission.evidence
+	}
 	a.sessionLog().Warn("session refused before backend allocation", "sessionId", row.ID, "stage", stage, "reasonCode", diagnostic.ReasonCode, "err", cause)
 	_, err := a.deps.Store.Update(row.ID, func(current *registry.Session) error {
 		if current.Status != registry.StatusStarting || current.SandboxRef != "" || current.SandboxID != row.SandboxID || current.ProjectID != row.ProjectID || current.WorktreeID != row.WorktreeID || current.ProjectRunID != row.ProjectRunID || current.ProjectRunOperationID != row.ProjectRunOperationID || product.ProjectRunSessionRequestDigest(*current) != product.ProjectRunSessionRequestDigest(row) {
 			return sessionErrMoved
 		}
 		current.Status, current.ExitReason, current.StartFailure = registry.StatusExited, diagnostic.Message, diagnostic
+		current.StartAdmissionEvidence = evidence
 		current.Endpoint, current.AttachToken = "", ""
 		return nil
 	})

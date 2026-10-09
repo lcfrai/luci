@@ -1,0 +1,36 @@
+{
+  "recordedNamedResults": {
+    "pass": 98,
+    "fail": 0,
+    "skip": 0
+  },
+  "leafCases": {
+    "pass": 85,
+    "fail": 0,
+    "skip": 0
+  },
+  "topLevelTests": {
+    "pass": 33,
+    "fail": 0,
+    "skip": 0
+  },
+  "packageResults": [
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "status": "pass",
+      "elapsedSeconds": 6.45
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/registry",
+      "status": "pass",
+      "elapsedSeconds": 0.003
+    },
+    {
+      "package": "github.com/lcfrai/luci/control-plane/internal/product",
+      "status": "pass",
+      "elapsedSeconds": 3.623
+    }
+  ],
+  "declaredCompileSourceFiles": 2435,
+  "syntheticGeneratedInputs": 0
+}

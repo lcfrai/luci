@@ -28,6 +28,43 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+it('opens a current project before summary reads finish and preserves the unsaved-draft decision', async () => {
+  vi.mocked(projectOverviewApi.get).mockImplementation(() => new Promise(() => {}));
+  useCockpit.getState().selectProject('p2', 'design');
+  useCockpit.getState().setUnsavedProjectDraft('design', { projectId: 'p2', label: 'Design', lens: 'design' });
+  const user = userEvent.setup(); render(<ProjectOverviewBoard projects={projects} />);
+  const destinations = screen.getByRole('navigation', { name: 'Open a project' });
+  expect(within(destinations).getAllByRole('button')).toHaveLength(2);
+  expect(screen.getAllByText('Loading project context…')).toHaveLength(2);
+  const notes = within(destinations).getByRole('button', { name: 'Open project Notes' });
+  expect(notes.getAttribute('data-slot')).toBe('button');
+  notes.focus(); await user.keyboard('{Enter}');
+  expect(useCockpit.getState().selection.projectId).toBe('p2');
+  expect(useCockpit.getState().pendingNavigation).toEqual({ kind: 'project', projectId: 'p1', lens: undefined });
+  act(() => useCockpit.getState().cancelNavigation());
+  expect(useCockpit.getState().selection.projectId).toBe('p2');
+  expect(useCockpit.getState().unsavedProjectDrafts.design?.projectId).toBe('p2');
+  expect(swarmQueueApi.get).not.toHaveBeenCalled();
+  expect(swarmQueueApi.control).not.toHaveBeenCalled();
+});
+
+it('removes a destination with its current catalogue entry and ignores the departed overview reply', async () => {
+  const pending = new Map<string, (value: ProjectOverview) => void>();
+  vi.mocked(projectOverviewApi.get).mockImplementation(id => new Promise(resolve => pending.set(id, resolve)));
+  const view = render(<ProjectOverviewBoard projects={projects} />);
+  const departed = pending.get('p1')!;
+  expect(screen.getByRole('button', { name: 'Open project Notes' })).toBeTruthy();
+  act(() => useCockpit.getState().setProjects([projects[1]]));
+  view.rerender(<ProjectOverviewBoard projects={[projects[1]]} />);
+  await act(async () => departed(overview('p1')));
+  expect(screen.queryByRole('button', { name: 'Open project Notes' })).toBeNull();
+  expect(screen.queryByText('Build p1')).toBeNull();
+  expect(within(screen.getByRole('navigation', { name: 'Open a project' })).getAllByRole('button')).toHaveLength(1);
+  await userEvent.click(screen.getByRole('button', { name: 'Open project Shop' }));
+  expect(useCockpit.getState().selection.projectId).toBe('p2');
+  expect(swarmQueueApi.control).not.toHaveBeenCalled();
+});
+
 it('renders only the changed project summary while preserving fresh independent overview reads', async () => {
   const pending = new Map<string, (value: ProjectOverview) => void>();
   vi.mocked(projectOverviewApi.get).mockImplementation(id => new Promise(resolve => { pending.set(id, resolve); }));

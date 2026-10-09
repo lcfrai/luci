@@ -1,0 +1,824 @@
+{
+  "passed": true,
+  "scope": "Actual AppShell/ProjectsHome/ProjectOverviewBoard/HostCapacity, controlled read-only callbacks, Chromium Linux; no backend, agents, models, resource/performance acceptance.",
+  "sourceBefore": {
+    "desktop/src/components/projects/ProjectOverviewBoard.tsx": "380db2996d677f099da77e2702fabfe5391e4dd226404513db1e58546a59b48f",
+    "desktop/src/components/projects/HostCapacity.tsx": "a67deeea0453eeee37cd63ddfa7febf7dcd640e2615b7feff7f631f61d994999",
+    "desktop/src/components/projects/project-overview.css": "878bd60c9a1df8068121e0cdce10ee96524013973f5fd8b72e2e0c05f76750e6"
+  },
+  "helperSHA256": "fa4daf11fac1c0e7cb00ee2af4075cda733c59e0394c3f26bb030341ffdf2cf3",
+  "fixtureSHA256": "65af6ba321c8bae849c76645413d10ad5c1d0cc4d40e268d9dc4352652ad477f",
+  "checks": [
+    {
+      "label": "initial-1440",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 288,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 564.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 841,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 1117.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "label": "keyboard-order-1440",
+      "passed": true
+    },
+    {
+      "label": "capacity-error-1440",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 288,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 564.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 841,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 1117.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "label": "capacity-retry-loading-1440",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 288,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 564.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 841,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 1117.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "label": "capacity-1440",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 288,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 564.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 841,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 1117.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "label": "resolved-alpha-1440",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 288,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 564.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 841,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 1117.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "label": "resolved-beta-1440",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 288,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 564.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 841,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 1117.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "label": "resolved-gamma-1440",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 288,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 564.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 841,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 1117.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "label": "resolved-delta-1440",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 288,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 564.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 841,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 1117.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "label": "warnings-1440",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 288,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 564.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 841,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 1117.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "label": "warnings-visible-1440",
+      "passed": true
+    },
+    {
+      "label": "source-busy-1440",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 288,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 564.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 841,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 1117.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "label": "stale-review-unavailable-1440",
+      "passed": true
+    },
+    {
+      "label": "denied-1440",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 288,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 564.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 841,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 1117.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "label": "target-stability-1440",
+      "maxShiftPx": 0,
+      "passed": true
+    },
+    {
+      "label": "denied-private-summary-removed-1440",
+      "passed": true
+    },
+    {
+      "label": "accessibility-1440",
+      "passed": true,
+      "passes": 17,
+      "incomplete": 0
+    },
+    {
+      "label": "keyboard-current-context-1440",
+      "passed": true
+    },
+    {
+      "label": "initial-390",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 22,
+          "y": 407.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 200,
+          "y": 407.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 22,
+          "y": 465.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 200,
+          "y": 465.296875,
+          "width": 168,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "label": "keyboard-order-390",
+      "passed": true
+    },
+    {
+      "label": "capacity-error-390",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 22,
+          "y": 407.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 200,
+          "y": 407.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 22,
+          "y": 465.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 200,
+          "y": 465.296875,
+          "width": 168,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "label": "capacity-retry-loading-390",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 22,
+          "y": 407.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 200,
+          "y": 407.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 22,
+          "y": 465.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 200,
+          "y": 465.296875,
+          "width": 168,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "label": "capacity-390",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 22,
+          "y": 407.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 200,
+          "y": 407.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 22,
+          "y": 465.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 200,
+          "y": 465.296875,
+          "width": 168,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "label": "resolved-alpha-390",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 22,
+          "y": 407.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 200,
+          "y": 407.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 22,
+          "y": 465.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 200,
+          "y": 465.296875,
+          "width": 168,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "label": "resolved-beta-390",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 22,
+          "y": 407.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 200,
+          "y": 407.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 22,
+          "y": 465.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 200,
+          "y": 465.296875,
+          "width": 168,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "label": "resolved-gamma-390",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 22,
+          "y": 407.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 200,
+          "y": 407.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 22,
+          "y": 465.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 200,
+          "y": 465.296875,
+          "width": 168,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "label": "resolved-delta-390",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 22,
+          "y": 407.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 200,
+          "y": 407.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 22,
+          "y": 465.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 200,
+          "y": 465.296875,
+          "width": 168,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "label": "warnings-390",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 22,
+          "y": 407.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 200,
+          "y": 407.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 22,
+          "y": 465.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 200,
+          "y": 465.296875,
+          "width": 168,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "label": "warnings-visible-390",
+      "passed": true
+    },
+    {
+      "label": "source-busy-390",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 22,
+          "y": 407.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 200,
+          "y": 407.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 22,
+          "y": 465.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 200,
+          "y": 465.296875,
+          "width": 168,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "label": "stale-review-unavailable-390",
+      "passed": true
+    },
+    {
+      "label": "denied-390",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 22,
+          "y": 407.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 200,
+          "y": 407.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 22,
+          "y": 465.296875,
+          "width": 168,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 200,
+          "y": 465.296875,
+          "width": 168,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "label": "target-stability-390",
+      "maxShiftPx": 0,
+      "passed": true
+    },
+    {
+      "label": "denied-private-summary-removed-390",
+      "passed": true
+    },
+    {
+      "label": "accessibility-390",
+      "passed": true,
+      "passes": 17,
+      "incomplete": 0
+    },
+    {
+      "label": "keyboard-current-context-390",
+      "passed": true
+    },
+    {
+      "label": "long-name-390",
+      "passed": true,
+      "beforeLong": {
+        "x": 22,
+        "y": 465.296875,
+        "width": 168,
+        "height": 236
+      },
+      "afterLong": {
+        "x": 22,
+        "y": 465.296875,
+        "width": 168,
+        "height": 236
+      }
+    }
+  ],
+  "errors": [],
+  "sourceAfter": {
+    "desktop/src/components/projects/ProjectOverviewBoard.tsx": "380db2996d677f099da77e2702fabfe5391e4dd226404513db1e58546a59b48f",
+    "desktop/src/components/projects/HostCapacity.tsx": "a67deeea0453eeee37cd63ddfa7febf7dcd640e2615b7feff7f631f61d994999",
+    "desktop/src/components/projects/project-overview.css": "878bd60c9a1df8068121e0cdce10ee96524013973f5fd8b72e2e0c05f76750e6"
+  },
+  "sourceUnchanged": true
+}

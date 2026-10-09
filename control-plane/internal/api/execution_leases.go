@@ -68,6 +68,7 @@ type executionReservationView struct {
 type executionDecision struct {
 	State, Code, Message string
 	Resources            backend.Resources
+	Evidence             registry.StartAdmissionEvidence
 }
 
 func newExecutionAdmission(a *API) *executionAdmission {
@@ -460,8 +461,9 @@ func (g *executionAdmission) reserveWorker(ctx context.Context, id, projectID, p
 		if err := addCheckCapacity(snap, ledger.Checks, "", "", &demand); err != nil {
 			return err
 		}
-		if code, message := evaluateExecutionCapacity(snap, policy, resources, demand, now); code != "" {
-			waiting(code, message)
+		if capacity := evaluateExecutionCapacityWithEvidence(snap, policy, resources, demand, now); capacity.Code != "" {
+			waiting(capacity.Code, capacity.Message)
+			decision.Evidence = capacity.Evidence
 			return nil
 		}
 		if len(ledger.Leases)+len(ledger.Checks) >= 4096 {

@@ -1,0 +1,293 @@
+{
+  "passed": false,
+  "scope": "Actual AppShell/ProjectsHome/ProjectOverviewBoard/HostCapacity, controlled read-only callbacks, Chromium Linux; no backend, agents, models, resource/performance acceptance.",
+  "sourceBefore": {
+    "desktop/src/components/projects/ProjectOverviewBoard.tsx": "380db2996d677f099da77e2702fabfe5391e4dd226404513db1e58546a59b48f",
+    "desktop/src/components/projects/HostCapacity.tsx": "a67deeea0453eeee37cd63ddfa7febf7dcd640e2615b7feff7f631f61d994999",
+    "desktop/src/components/projects/project-overview.css": "8e7cea018e9c21d22b59f1b7268db077f21843046c365bac827c2f57d8dfb3f9"
+  },
+  "helperSHA256": "80ba284ba3fe3bf900d5fc6cfebff2ef5f0de210a1a62bbe2ca29c16430d466e",
+  "fixtureSHA256": "470ef7dd7a6836a46ddc0c17d01e497d9e7fcb24954a2f1b32a08f973ff4f56c",
+  "checks": [
+    {
+      "label": "initial-1440",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 288,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 564.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 841,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 1117.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "label": "keyboard-order-1440",
+      "passed": true
+    },
+    {
+      "label": "capacity-1440",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 288,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 564.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 841,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 1117.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "label": "resolved-alpha-1440",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 288,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 564.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 841,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 1117.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "label": "resolved-beta-1440",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 288,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 564.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 841,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 1117.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "label": "resolved-gamma-1440",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 288,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 564.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 841,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 1117.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "label": "resolved-delta-1440",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 288,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 564.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 841,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 1117.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "label": "warnings-1440",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 288,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 564.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 841,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 1117.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "label": "warnings-visible-1440",
+      "passed": true
+    },
+    {
+      "label": "source-busy-1440",
+      "rows": [
+        {
+          "id": "alpha",
+          "x": 288,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "beta",
+          "x": 564.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "gamma",
+          "x": 841,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        },
+        {
+          "id": "delta",
+          "x": 1117.5,
+          "y": 420.390625,
+          "width": 266.5,
+          "height": 48
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "failure": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n0 !== 4\n\n    at file:///workspace/.luci-tools/cloud032-home-stability/browser.mjs:32:331",
+  "sourceAfter": {
+    "desktop/src/components/projects/ProjectOverviewBoard.tsx": "380db2996d677f099da77e2702fabfe5391e4dd226404513db1e58546a59b48f",
+    "desktop/src/components/projects/HostCapacity.tsx": "a67deeea0453eeee37cd63ddfa7febf7dcd640e2615b7feff7f631f61d994999",
+    "desktop/src/components/projects/project-overview.css": "8e7cea018e9c21d22b59f1b7268db077f21843046c365bac827c2f57d8dfb3f9"
+  },
+  "sourceUnchanged": true
+}

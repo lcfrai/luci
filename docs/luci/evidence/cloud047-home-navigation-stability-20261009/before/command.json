@@ -1,0 +1,7 @@
+{
+  "workingDirectory": "/workspace/luci",
+  "command": "node <capsule>/before/browser.mjs <fresh-output-directory>",
+  "runtime": "Node 24.19.0; installed pinned desktop Vite/Playwright/axe; /usr/bin/chromium Linux",
+  "exitCode": 1,
+  "scope": "Controlled actual AppShell components. No backend/provider/Docker work; not an installed benchmark."
+}

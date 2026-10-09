@@ -40,6 +40,11 @@ func schedulerAdministrator(r *http.Request) bool {
 	actor, _, ok := management.ActorFromContext(r.Context())
 	return !ok || actor.Role == "admin" || actor.Role == "super-admin"
 }
+
+// CanInspectHostResources shares the scheduler's host-operator boundary with
+// narrow historical resource diagnostics. Team administrators are excluded.
+func CanInspectHostResources(r *http.Request) bool { return schedulerAdministrator(r) }
+
 func (s *Server) getSwarmScheduler(w http.ResponseWriter, r *http.Request) {
 	if !schedulerAdministrator(r) {
 		problem(w, 403, "scheduler_policy_forbidden", "Only the workspace administrator can inspect machine-wide scheduling settings.")

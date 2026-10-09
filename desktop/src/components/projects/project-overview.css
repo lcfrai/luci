@@ -3,13 +3,17 @@
 .overview-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .overview-heading h2, .overview-capacity h2 { margin: 0; font-size: 17px; font-weight: 600; }
 .overview-heading p, .overview-capacity p { margin: 6px 0 0; font-size: 13px; color: var(--ink-3); line-height: 1.6; }
+.overview-projects ul { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); list-style: none; padding: 0; margin: 0; gap: 10px; }
+.overview-projects li { min-width: 0; }
+.overview-project-destination { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 48px; height: 100%; padding: 12px 14px; border: 1px solid var(--line-strong); border-radius: var(--r-ctl); background: var(--surface); color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; text-align: left; cursor: pointer; }
+.overview-project-destination > span { min-width: 0; overflow-wrap: anywhere; white-space: normal; }
+.overview-project-destination > svg { flex-shrink: 0; }
+.overview-project-destination:hover { background: var(--inset); color: var(--accent-hi); }
+.overview-project-destination:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .overview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); list-style: none; padding: 0; margin: 0; gap: 18px; align-items: start; }
 .overview-card { min-width: 0; border-radius: var(--r-card); background: var(--surface); box-shadow: var(--e-card); padding: 22px; }
 .overview-card > header { display: flex; gap: 12px; align-items: baseline; justify-content: space-between; }
-.overview-card h3 { margin: 0; min-width: 0; font-size: 18px; }
-.overview-project-open { display: inline-flex; text-align: left; gap: 10px; align-items: baseline; border: 0; padding: 0; color: var(--ink); background: transparent; font: inherit; font-weight: 600; cursor: pointer; overflow-wrap: anywhere; }
-.overview-project-open span { color: var(--ink-3); font-size: 14px; }
-.overview-project-open:hover { color: var(--accent-hi); }
+.overview-card h3 { margin: 0; min-width: 0; font-size: 18px; overflow-wrap: anywhere; }
 .overview-goal { margin: 12px 0 14px; line-height: 1.6; font-size: 14px; color: var(--ink-2); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 9.6em; overflow: auto; }
 .overview-counts, .overview-capacity dl { display: flex; flex-wrap: wrap; gap: 24px; margin: 16px 0; }
 .overview-counts > div, .overview-capacity dl > div { display: grid; gap: 5px; }
@@ -54,6 +58,7 @@
 .overview-cancel-list { padding-left: 20px; max-height: 40dvh; overflow: auto; font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
 @media (max-width: 760px) { .overview-grid { grid-template-columns: minmax(0, 1fr); } .overview-heading { align-items: flex-start; flex-direction: column; gap: 14px; } .overview-card { padding: 18px; } .overview-actions { gap: 12px; } .overview-actions select { min-height: 44px; } .overview-details summary, .overview-questions summary, .overview-capacity summary { min-height: 44px; display: list-item; padding-block: 12px; } .overview-queue-title { min-height: 44px; } }
 @media (max-width: 760px) {
+  .overview-projects ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .overview-capacity-brief { display: grid; gap: 4px; }
   .overview-capacity-brief dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
   .overview-capacity-brief > button { justify-self: start; padding-inline: 0; }

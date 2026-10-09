@@ -1,0 +1,104 @@
+{
+  "createdAt": "2026-10-09T07:37:56.808269+00:00",
+  "scope": "Publication analysis of completed source validation; no rerun or product/runtime/performance verification.",
+  "members": [
+    {
+      "path": "README.md",
+      "bytes": 3187,
+      "sha256": "b3b59d88a4613af39241f751844d342994c5da7ba4eaca32e3ca72c719b93513"
+    },
+    {
+      "path": "analysis.json",
+      "bytes": 24431,
+      "sha256": "c2540e9a244f123c7fcd92939b85ced7a96dd5716832ee0fc96d5f4ffe8bec43"
+    },
+    {
+      "path": "command.json",
+      "bytes": 413,
+      "sha256": "f2e2ff3b36905fe91618af1007193df38483dd12d9175759a9507ae87382055f"
+    },
+    {
+      "path": "dependencies-after-typecheck.json.gz",
+      "bytes": 891231,
+      "sha256": "ce05c088c4d9f301270195377d7080647c7023fb68be9c79a371e0ed93d556cb"
+    },
+    {
+      "path": "dependencies-after.json.gz",
+      "bytes": 891231,
+      "sha256": "ce05c088c4d9f301270195377d7080647c7023fb68be9c79a371e0ed93d556cb"
+    },
+    {
+      "path": "dependencies-before.json.gz",
+      "bytes": 891231,
+      "sha256": "ce05c088c4d9f301270195377d7080647c7023fb68be9c79a371e0ed93d556cb"
+    },
+    {
+      "path": "full.json.gz",
+      "bytes": 121198,
+      "sha256": "e031b91ed6ae277a11a60ed22067dbe7f9c945da902a1775a7a9bfc1fde692bb"
+    },
+    {
+      "path": "full.stderr.log",
+      "bytes": 200,
+      "sha256": "ad9ef12f2f19d2532fbd05b9772e28e31d4b97c1b0de43e902d3b8edc87fcee5"
+    },
+    {
+      "path": "full.stdout.log",
+      "bytes": 88,
+      "sha256": "a31521b34a191ee1cbebe0b743e1cd02751a8a19d5dbe7dbb4048eb640cb70a4"
+    },
+    {
+      "path": "original-bindings.json",
+      "bytes": 7977,
+      "sha256": "35341372a8978c141e2af6f4964f3ffad25a51663fa4f09427f293a5202a6a41"
+    },
+    {
+      "path": "repository-after-typecheck.json.gz",
+      "bytes": 61638,
+      "sha256": "3cb836e1a7fcfa2c99a22e8294f6e91b044245cb0be02663d902c09fa4d6d13f"
+    },
+    {
+      "path": "repository-after.json.gz",
+      "bytes": 61638,
+      "sha256": "3cb836e1a7fcfa2c99a22e8294f6e91b044245cb0be02663d902c09fa4d6d13f"
+    },
+    {
+      "path": "repository-before.json.gz",
+      "bytes": 61638,
+      "sha256": "3cb836e1a7fcfa2c99a22e8294f6e91b044245cb0be02663d902c09fa4d6d13f"
+    },
+    {
+      "path": "result.json",
+      "bytes": 582,
+      "sha256": "1f47e23a1f13cf454d1b855211ba68ca885e6fed45f7e313fac72dce71f2a96f"
+    },
+    {
+      "path": "run-cloud046047-combined-validation.py",
+      "bytes": 4851,
+      "sha256": "74993ae415cb1b41864bdcb2972ba36544ec36ce26484c829dcb7ba97c86de7f"
+    },
+    {
+      "path": "timeout.json",
+      "bytes": 42,
+      "sha256": "ae9f70d70719cf3ca2360f43087383d72dfe989970c2a5c9888613a8ecf9145e"
+    },
+    {
+      "path": "typecheck-command.json",
+      "bytes": 273,
+      "sha256": "6a13cab153047fa4a06444f2b081d7f1d92b4509feb5be643f42abfef24625a6"
+    },
+    {
+      "path": "typecheck.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "typecheck.stdout.log",
+      "bytes": 54,
+      "sha256": "6d51e3ec9a9d283eee096e5e9403c5d963c9468e9756fd61f3e9e0d3df1bde71"
+    }
+  ],
+  "originals": "original-bindings.json",
+  "analysis": "analysis.json",
+  "status": "PASSED at this source-validation scope"
+}

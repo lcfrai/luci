@@ -1,0 +1,35 @@
+{
+  "kind": "relayed-local-audit",
+  "publication": "e2abd0e39e934e68ead3fd3e906a79336a8bda19",
+  "sourceThread": "01a1199f-7500-7843-b02b-081081e536fa",
+  "auditSHA256": "81f3cffa8b8e86f297976592afc88f0c6ba7881f22f0d301fa7bc8e2bfb4be66",
+  "projectionSHA256": "520f93d366a142bdc6e55a5a05ad0ca77e95e6de48a34cb5e33c6e84fd4b6aa7",
+  "finding": "Missing public B terminal-row gap closed at allowlisted retained-projection scope",
+  "identity": {
+    "queue": "queue-86b8db96f7c1911003538d9e",
+    "operation": "op-a7270538520c4a652f9a164d",
+    "session": "s-5c705a0a"
+  },
+  "observations": [
+    "failed queue/admission operation, blocked run, exited session, cpu_pressure, empty sandboxRef",
+    "Seven exact original source hashes corroborate pre-Create refusal and canonical persistence; failed queues excluded from automatic dispatch",
+    "CPU guard comparison strictly greater than 75 percent; actual original measured CPU and decision timestamp unavailable",
+    "Nine selected capsule checksums, candidate links and four final-log hash/count bindings matched",
+    "Original 39 pass / seven fail and corrected 46 pass retained"
+  ],
+  "limitations": [
+    "Original private scheduler/session/run bytes not retrieved by local tester",
+    "Five original-file invariance claims remain publisher attestations",
+    "No local source/app/runtime test; reported available RAM 0.015 GiB",
+    "This cloud file relays the local report; it is not the original local audit bytes"
+  ],
+  "finalSourceReview": {
+    "sha256": "f588b48cb9388d160669cfc9a807153aa388a4a80661d5ceb845b1b22cd4e30e",
+    "combinedAuditSummarySHA256": "df4d05df32ba9b2e647e716448482820d6a32740c0d698fe86870ec788fbe51e",
+    "status": "ready_to_retest",
+    "finding": "No actionable source defect in exact terminal identity, one-worker checks, pre-diagnostic checkpoint, bounded allowlisted GETs or later-observation separation",
+    "controlledRetestPreparedNotExecuted": true,
+    "adapterSHA256": "0788003a8ae7007d4f39358673b0c86b35b255752ba4e21743fd9211d03aba0f",
+    "scope": "Source/publication review only; no installed or native performance pass"
+  }
+}

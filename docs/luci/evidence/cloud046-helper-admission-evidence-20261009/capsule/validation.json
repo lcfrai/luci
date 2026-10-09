@@ -1,0 +1,109 @@
+{
+  "issue": "CLOUD-046-helper",
+  "startedAt": "2026-10-09T07:29:27.489277+00:00",
+  "scope": "Pure inert GET/context/loop fixtures; no service/browser/Docker/network/native workload",
+  "baseline": "e2abd0e39e934e68ead3fd3e906a79336a8bda19",
+  "head": "e2abd0e39e934e68ead3fd3e906a79336a8bda19",
+  "nodeVersion": "v24.19.0",
+  "sameTestSHA256": "1884f0c53dd9995a5a36d477a1d85a2ced5c556b994928436063c7b4b612c183",
+  "inputBindingsBefore": {
+    "scripts/acceptance/sustained-four-project/sustained.mjs": "9c2b5cb28585603504453ee267982c519de1f057551839d8775525ac4729346c",
+    "scripts/acceptance/sustained-four-project/queue-selection.test.mjs": "1884f0c53dd9995a5a36d477a1d85a2ced5c556b994928436063c7b4b612c183",
+    "scripts/acceptance/sustained-four-project/fixtures/queue-order-retained.json": "42cf70a9d9b23f8fd422485635cd4081994fe1bb3e1000b7ddecfa628352fee2",
+    "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+    "control-plane/internal/registry/admission_evidence.go": "27dd184f16a89f46ff50f9b20c791fbd29d6f240aaa022cf7e9584251c1d3b27"
+  },
+  "cases": [
+    {
+      "label": "before",
+      "command": [
+        "node",
+        "--test",
+        "--test-reporter=tap",
+        "/workspace/.luci-tools/cloud046-helper-admission-evidence/after/queue-selection.test.mjs"
+      ],
+      "environmentOverride": {
+        "LUCI_SUSTAINED_TEST_SOURCE": "/workspace/.luci-tools/cloud046-helper-admission-evidence/before/sustained.mjs"
+      },
+      "sourceSHA256": "aa62a03a91e226a5e18bafc4fc3a37a749a3ed904a4a49aab715c66e945c9980",
+      "testSHA256": "1884f0c53dd9995a5a36d477a1d85a2ced5c556b994928436063c7b4b612c183",
+      "exitCode": 1,
+      "elapsedSeconds": 0.827,
+      "counts": {
+        "tests": 54,
+        "pass": 46,
+        "fail": 8,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "logs": {
+        "stdout": {
+          "path": "before.stdout.log",
+          "sha256": "23fb4692838369aa5b6bbea10ea46ad7c65b50ff0f016a6a1ff33ec405fc3441",
+          "bytes": 21457
+        },
+        "stderr": {
+          "path": "before.stderr.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        }
+      }
+    },
+    {
+      "label": "after",
+      "command": [
+        "node",
+        "--test",
+        "--test-reporter=tap",
+        "/workspace/.luci-tools/cloud046-helper-admission-evidence/after/queue-selection.test.mjs"
+      ],
+      "environmentOverride": {
+        "LUCI_SUSTAINED_TEST_SOURCE": "/workspace/.luci-tools/cloud046-helper-admission-evidence/after/sustained.mjs"
+      },
+      "sourceSHA256": "9c2b5cb28585603504453ee267982c519de1f057551839d8775525ac4729346c",
+      "testSHA256": "1884f0c53dd9995a5a36d477a1d85a2ced5c556b994928436063c7b4b612c183",
+      "exitCode": 0,
+      "elapsedSeconds": 0.652,
+      "counts": {
+        "tests": 54,
+        "pass": 54,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "logs": {
+        "stdout": {
+          "path": "after.stdout.log",
+          "sha256": "93adca2d8b7b289caea96a2d53cd546b1c1cff44045d28a5aa0f7d1a76870efd",
+          "bytes": 15309
+        },
+        "stderr": {
+          "path": "after.stderr.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        }
+      }
+    }
+  ],
+  "syntax": {
+    "exitCode": 0,
+    "stderr": ""
+  },
+  "diffCheck": {
+    "exitCode": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "inputBindingsAfter": {
+    "scripts/acceptance/sustained-four-project/sustained.mjs": "9c2b5cb28585603504453ee267982c519de1f057551839d8775525ac4729346c",
+    "scripts/acceptance/sustained-four-project/queue-selection.test.mjs": "1884f0c53dd9995a5a36d477a1d85a2ced5c556b994928436063c7b4b612c183",
+    "scripts/acceptance/sustained-four-project/fixtures/queue-order-retained.json": "42cf70a9d9b23f8fd422485635cd4081994fe1bb3e1000b7ddecfa628352fee2",
+    "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+    "control-plane/internal/registry/admission_evidence.go": "27dd184f16a89f46ff50f9b20c791fbd29d6f240aaa022cf7e9584251c1d3b27"
+  },
+  "inputsUnchangedDuringValidation": true,
+  "baselineMatchesGitBlob": true,
+  "finishedAt": "2026-10-09T07:29:29.061674+00:00"
+}

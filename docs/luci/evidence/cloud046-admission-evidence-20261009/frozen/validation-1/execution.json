@@ -1,0 +1,21 @@
+{
+  "command": [
+    "go",
+    "test",
+    "-p",
+    "1",
+    "-count=1",
+    "-timeout=180s",
+    "-json",
+    "./internal/api",
+    "./internal/registry",
+    "./internal/product",
+    "-run",
+    "^(TestAdmissionEvidence.*|TestStartAdmissionEvidence.*|TestSessionStartFailure.*|TestQueuedStartFailure.*|TestExecutionAdmission.*|TestQueuedDispatchRechecksFreshAuthorityAfterDurableClaim|TestQueuedAdmissionRefusesRevokedActorBeforeCapacityOrAllocation|TestExecutionReservationViewDoesNotWidenSchedulerAuthority|TestManualTaskStartFailureIsObservedWithoutQueueOrReconcile|TestSwarmSchedulerSeparatesFailedStartFromFailedWorkerAndNormalExit|TestSwarmFailedQueueRetainsDiagnosisWhileCleanupRetries)$"
+  ],
+  "GOMAXPROCS": "2",
+  "exitCode": 0,
+  "inputFiles": 3600,
+  "changedInputsDuringRun": [],
+  "goVersion": "go version go1.26.3 linux/amd64"
+}
