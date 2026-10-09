@@ -1,0 +1,6 @@
+{
+  "scope": "Read-only publication helper correction, not a Luci defect or runtime retry.",
+  "initialFailure": "Image metadata is a {reference,id} object; initial closure helper passed that dict as subprocess argv and TypeError stopped before image inspect. Empty container and volume reads had already returned.",
+  "correction": "Use immutable result.image.id. Exact driver/controller absent and Docker/image/source/artifact checks then completed.",
+  "noMutations": true
+}

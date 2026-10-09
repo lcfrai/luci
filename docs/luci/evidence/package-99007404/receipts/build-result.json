@@ -1,0 +1,25 @@
+{
+  "sourceCommit": "99007404a5ddd8592dee376ea00d99c6180d26fe",
+  "startedAt": "2026-10-09T07:39:13.747450+00:00",
+  "command": [
+    "bash",
+    "scripts/build-release.sh",
+    "0.5.0",
+    "linux-amd64"
+  ],
+  "environment": {
+    "GOMAXPROCS": "2",
+    "GOFLAGS": "-mod=readonly -p=1"
+  },
+  "timeoutSeconds": 600,
+  "cleanBefore": true,
+  "status": "finished",
+  "ownedPID": 2251868,
+  "ownedProcessGroup": 2251868,
+  "exitCode": 0,
+  "timedOut": false,
+  "elapsedSeconds": 73.21058499498758,
+  "finishedAt": "2026-10-09T07:40:26.958269+00:00",
+  "cleanAfter": true,
+  "sameHead": true
+}

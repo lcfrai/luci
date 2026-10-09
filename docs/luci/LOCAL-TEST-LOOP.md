@@ -6,7 +6,9 @@ cloud implementation task and local thread
 Windows; the cloud thread implements and validates corrections. Neither waits
 unnecessarily for the other to finish a whole suite.
 
-Current measured product/helper is `0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f`.
+Newest retrievable integrated source is `99007404a5ddd8592dee376ea00d99c6180d26fe`, including CLOUD-045/046 diagnostics and CLOUD-047 stable Home destinations. [Exact Windows test checkpoint](TEST-CHECKPOINT-99007404.md) preserves the same isolation and setup contract. Clean Linux build/archive verification passes; the matching idle diagnostic completes all400primary actions but switching p95 **561.358913ms fails300** (input81.122122ms passes100). Full matching sustained/native/provider acceptance remains open. Original failed preflight, measured failures and scoped test receipts are retained in the worklist.
+
+Prior full sustained product/helper is `0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f`.
 Sustained attempt 6 has three natural A/C/D completions with exact charge release
 and two reviewed integrations; B is terminally refused for CPU pressure before
 Docker allocation. The helper times out instead of reporting that refusal

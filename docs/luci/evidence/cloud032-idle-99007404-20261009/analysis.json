@@ -1,0 +1,1921 @@
+{
+  "originalResultSHA256": "49bdf265402693d5af3d7d9e1dc38ce87b0e25fc048f594cbdf818fccd66f8e9",
+  "originalTraceSHA256": "9a71c6390075f3bb8ed1b8935b3f7132968809c27d2fe6c214cf386643c48480",
+  "sourceCommit": "99007404a5ddd8592dee376ea00d99c6180d26fe",
+  "cohorts": {
+    "idle-interactive-calibration:project-switch": {
+      "count": 100,
+      "successful": 100,
+      "failed": 0,
+      "p50Ms": 242.77857600001153,
+      "p95Ms": 561.3589130000037,
+      "p99Ms": 756.9043330000131,
+      "maxMs": 824.9964009999821,
+      "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+      "timeouts": []
+    },
+    "idle-interactive-calibration:input": {
+      "count": 200,
+      "successful": 200,
+      "failed": 0,
+      "p50Ms": 49.22190699999919,
+      "p95Ms": 81.12212200000067,
+      "p99Ms": 313.26893700000073,
+      "maxMs": 370.0379299999913,
+      "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+      "timeouts": []
+    },
+    "idle-interactive-calibration:draft-reset": {
+      "count": 100,
+      "successful": 100,
+      "failed": 0,
+      "p50Ms": 283.0841120000114,
+      "p95Ms": 617.2739940000029,
+      "p99Ms": 701.3265820000088,
+      "maxMs": 1095.784616000019,
+      "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+      "timeouts": []
+    },
+    "idle-actionability-trace-followup:project-switch": {
+      "count": 8,
+      "successful": 8,
+      "failed": 0,
+      "p50Ms": 226.76578399998834,
+      "p95Ms": 272.26935799999046,
+      "p99Ms": 272.26935799999046,
+      "maxMs": 272.26935799999046,
+      "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+      "timeouts": []
+    },
+    "idle-actionability-trace-followup:input": {
+      "count": 16,
+      "successful": 16,
+      "failed": 0,
+      "p50Ms": 48.916563000006136,
+      "p95Ms": 247.79636800001026,
+      "p99Ms": 247.79636800001026,
+      "maxMs": 247.79636800001026,
+      "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+      "timeouts": []
+    },
+    "idle-actionability-trace-followup:draft-reset": {
+      "count": 8,
+      "successful": 8,
+      "failed": 0,
+      "p50Ms": 234.84424100001343,
+      "p95Ms": 669.3503830000118,
+      "p99Ms": 669.3503830000118,
+      "maxMs": 669.3503830000118,
+      "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+      "timeouts": []
+    }
+  },
+  "thresholdComparison": {
+    "project-switch": {
+      "count": 100,
+      "successful": 100,
+      "failed": 0,
+      "p50Ms": 242.77857600001153,
+      "p95Ms": 561.3589130000037,
+      "p99Ms": 756.9043330000131,
+      "maxMs": 824.9964009999821,
+      "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+      "timeouts": [],
+      "withinReference": false
+    },
+    "input": {
+      "count": 200,
+      "successful": 200,
+      "failed": 0,
+      "p50Ms": 49.22190699999919,
+      "p95Ms": 81.12212200000067,
+      "p99Ms": 313.26893700000073,
+      "maxMs": 370.0379299999913,
+      "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+      "timeouts": [],
+      "withinReference": true
+    }
+  },
+  "primarySlowSwitches": 18,
+  "primarySwitches": 100,
+  "nodeSpanSummaries": {
+    "all": {
+      "allProjectsCommand": {
+        "count": 100,
+        "p50Ms": 75.57744100000127,
+        "p95Ms": 122.35945499999798,
+        "p99Ms": 483.3578030000208,
+        "maxMs": 540.7745570000261
+      },
+      "overviewHeadingWait": {
+        "count": 100,
+        "p50Ms": 10.877254999999423,
+        "p95Ms": 24.774382999981754,
+        "p99Ms": 26.32140499999514,
+        "maxMs": 26.580165999999736
+      },
+      "openProjectCommand": {
+        "count": 100,
+        "p50Ms": 72.34896199998911,
+        "p95Ms": 128.16844100000162,
+        "p99Ms": 391.6328290000092,
+        "maxMs": 533.3355030000093
+      },
+      "verifyExpectedContext": {
+        "count": 100,
+        "p50Ms": 51.626038000016706,
+        "p95Ms": 98.92545199999586,
+        "p99Ms": 328.49788999999873,
+        "maxMs": 343.367631000001
+      },
+      "twoFrameCommand": {
+        "count": 100,
+        "p50Ms": 28.36493500000506,
+        "p95Ms": 37.09977100000833,
+        "p99Ms": 46.15040399998543,
+        "maxMs": 46.71750100000645
+      }
+    },
+    "over300": {
+      "allProjectsCommand": {
+        "count": 18,
+        "p50Ms": 86.6603049999976,
+        "p95Ms": 540.7745570000261,
+        "p99Ms": 540.7745570000261,
+        "maxMs": 540.7745570000261
+      },
+      "overviewHeadingWait": {
+        "count": 18,
+        "p50Ms": 13.348841000013635,
+        "p95Ms": 25.24428600000101,
+        "p99Ms": 25.24428600000101,
+        "maxMs": 25.24428600000101
+      },
+      "openProjectCommand": {
+        "count": 18,
+        "p50Ms": 97.67593999998644,
+        "p95Ms": 533.3355030000093,
+        "p99Ms": 533.3355030000093,
+        "maxMs": 533.3355030000093
+      },
+      "verifyExpectedContext": {
+        "count": 18,
+        "p50Ms": 83.93430100000114,
+        "p95Ms": 343.367631000001,
+        "p99Ms": 343.367631000001,
+        "maxMs": 343.367631000001
+      },
+      "twoFrameCommand": {
+        "count": 18,
+        "p50Ms": 29.351782000012463,
+        "p95Ms": 46.15040399998543,
+        "p99Ms": 46.15040399998543,
+        "maxMs": 46.15040399998543
+      }
+    },
+    "atMost300": {
+      "allProjectsCommand": {
+        "count": 82,
+        "p50Ms": 74.23906700000225,
+        "p95Ms": 98.20453799999086,
+        "p99Ms": 122.35945499999798,
+        "maxMs": 122.35945499999798
+      },
+      "overviewHeadingWait": {
+        "count": 82,
+        "p50Ms": 9.967123000009451,
+        "p95Ms": 22.69423700000334,
+        "p99Ms": 26.580165999999736,
+        "maxMs": 26.580165999999736
+      },
+      "openProjectCommand": {
+        "count": 82,
+        "p50Ms": 69.15572000000975,
+        "p95Ms": 89.61618100001942,
+        "p99Ms": 127.65164099998947,
+        "maxMs": 127.65164099998947
+      },
+      "verifyExpectedContext": {
+        "count": 82,
+        "p50Ms": 48.01827999998932,
+        "p95Ms": 60.526333000001614,
+        "p99Ms": 64.50179999999818,
+        "maxMs": 64.50179999999818
+      },
+      "twoFrameCommand": {
+        "count": 82,
+        "p50Ms": 28.030381000004127,
+        "p95Ms": 37.09977100000833,
+        "p99Ms": 46.71750100000645,
+        "maxMs": 46.71750100000645
+      }
+    }
+  },
+  "browserSpanSummaries": {
+    "lastPointerToDriverExpectedDOMWitnessMs": {
+      "count": 18,
+      "p50Ms": 106.0,
+      "p95Ms": 417.60000002384186,
+      "p99Ms": 417.60000002384186,
+      "maxMs": 417.60000002384186
+    },
+    "driverExpectedDOMWitnessToFrameRequestMs": {
+      "count": 18,
+      "p50Ms": 6.899999976158142,
+      "p95Ms": 30.600000023841858,
+      "p99Ms": 30.600000023841858,
+      "maxMs": 30.600000023841858
+    },
+    "frameRequestToSecondCallbackMs": {
+      "count": 18,
+      "p50Ms": 24.599999964237213,
+      "p95Ms": 36.0,
+      "p99Ms": 36.0,
+      "maxMs": 36.0
+    }
+  },
+  "slowSwitches": [
+    {
+      "index": 0,
+      "phase": "idle-interactive-calibration",
+      "elapsedMs": 360.65072900000087,
+      "nodeSpans": {
+        "allProjectsCommand": 144.4092590000073,
+        "overviewHeadingWait": 13.340417999992496,
+        "openProjectCommand": 105.28988300000492,
+        "verifyExpectedContext": 65.59573499999533,
+        "twoFrameCommand": 30.995495999988634
+      },
+      "browserClockSpans": {
+        "lastPointerToDriverExpectedDOMWitnessMs": 92.59999996423721,
+        "driverExpectedDOMWitnessToFrameRequestMs": 7.400000035762787,
+        "frameRequestToSecondCallbackMs": 24.599999964237213
+      },
+      "browserRefs": {
+        "pointer": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 204,
+          "kind": "pointer-dispatch",
+          "at": 67961.90000003576
+        },
+        "expectedDOM": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 207,
+          "kind": "expected-dom",
+          "actionKind": "project-switch",
+          "at": 68054.5,
+          "input": {
+            "sequence": 147,
+            "at": 6140.100000023842
+          },
+          "pointer": {
+            "sequence": 204,
+            "at": 67961.90000003576
+          }
+        },
+        "frames": {
+          "requestedAt": 68061.90000003576,
+          "firstFrameAt": 68069.70000004768,
+          "secondFrameAt": 68086.5,
+          "references": {
+            "timeOrigin": 1791531711661.5,
+            "input": {
+              "sequence": 147,
+              "at": 6140.100000023842
+            },
+            "pointer": {
+              "sequence": 204,
+              "at": 67961.90000003576
+            },
+            "expectedDOM": {
+              "sequence": 207,
+              "at": 68054.5,
+              "actionKind": "project-switch"
+            }
+          }
+        }
+      },
+      "temporallyOverlappingResources": [
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 205,
+          "kind": "resource",
+          "route": "project-specification",
+          "at": 67974.30000001192,
+          "duration": 18.80000001192093,
+          "responseStatus": 200,
+          "requestStart": 67989.90000003576,
+          "responseStart": 67991.60000002384,
+          "responseEnd": 67993.10000002384,
+          "transferSize": 1072,
+          "encodedBodySize": 772,
+          "decodedBodySize": 772
+        },
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 206,
+          "kind": "resource",
+          "route": "project-orchestrator",
+          "at": 67977.20000004768,
+          "duration": 45.5,
+          "responseStatus": 200,
+          "requestStart": 67991.20000004768,
+          "responseStart": 68020.70000004768,
+          "responseEnd": 68022.70000004768,
+          "transferSize": 4705,
+          "encodedBodySize": 4405,
+          "decodedBodySize": 4405
+        }
+      ]
+    },
+    {
+      "index": 28,
+      "phase": "idle-interactive-calibration",
+      "elapsedMs": 464.33719500000007,
+      "nodeSpans": {
+        "allProjectsCommand": 70.9783269999898,
+        "overviewHeadingWait": 7.0171770000015385,
+        "openProjectCommand": 78.60798300000897,
+        "verifyExpectedContext": 270.45505600000615,
+        "twoFrameCommand": 36.96528899999976
+      },
+      "browserClockSpans": {
+        "lastPointerToDriverExpectedDOMWitnessMs": 274.80000001192093,
+        "driverExpectedDOMWitnessToFrameRequestMs": 20.5,
+        "frameRequestToSecondCallbackMs": 30.399999976158142
+      },
+      "browserRefs": {
+        "pointer": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 378,
+          "kind": "pointer-dispatch",
+          "at": 73626.80000001192
+        },
+        "expectedDOM": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 381,
+          "kind": "expected-dom",
+          "actionKind": "project-switch",
+          "at": 73901.60000002384,
+          "input": {
+            "sequence": 361,
+            "at": 73195.20000004768
+          },
+          "pointer": {
+            "sequence": 378,
+            "at": 73626.80000001192
+          }
+        },
+        "frames": {
+          "requestedAt": 73922.10000002384,
+          "firstFrameAt": 73936.30000001192,
+          "secondFrameAt": 73952.5,
+          "references": {
+            "timeOrigin": 1791531711661.5,
+            "input": {
+              "sequence": 361,
+              "at": 73195.20000004768
+            },
+            "pointer": {
+              "sequence": 378,
+              "at": 73626.80000001192
+            },
+            "expectedDOM": {
+              "sequence": 381,
+              "at": 73901.60000002384,
+              "actionKind": "project-switch"
+            }
+          }
+        }
+      },
+      "temporallyOverlappingResources": [
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 379,
+          "kind": "resource",
+          "route": "project-specification",
+          "at": 73635.40000003576,
+          "duration": 17.80000001192093,
+          "responseStatus": 200,
+          "requestStart": 73646.70000004768,
+          "responseStart": 73649.90000003576,
+          "responseEnd": 73653.20000004768,
+          "transferSize": 1096,
+          "encodedBodySize": 796,
+          "decodedBodySize": 796
+        },
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 380,
+          "kind": "resource",
+          "route": "project-orchestrator",
+          "at": 73636.70000004768,
+          "duration": 38.299999952316284,
+          "responseStatus": 200,
+          "requestStart": 73647,
+          "responseStart": 73671.70000004768,
+          "responseEnd": 73675,
+          "transferSize": 4512,
+          "encodedBodySize": 4212,
+          "decodedBodySize": 4212
+        }
+      ]
+    },
+    {
+      "index": 80,
+      "phase": "idle-interactive-calibration",
+      "elapsedMs": 467.5708169999998,
+      "nodeSpans": {
+        "allProjectsCommand": 59.10877099999925,
+        "overviewHeadingWait": 6.191523000001325,
+        "openProjectCommand": 58.83164800000668,
+        "verifyExpectedContext": 316.79323699999077,
+        "twoFrameCommand": 26.52411500000744
+      },
+      "browserClockSpans": {
+        "lastPointerToDriverExpectedDOMWitnessMs": 325.19999998807907,
+        "driverExpectedDOMWitnessToFrameRequestMs": 10.800000011920929,
+        "frameRequestToSecondCallbackMs": 21.899999976158142
+      },
+      "browserRefs": {
+        "pointer": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 703,
+          "kind": "pointer-dispatch",
+          "at": 82710.90000003576
+        },
+        "expectedDOM": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 706,
+          "kind": "expected-dom",
+          "actionKind": "project-switch",
+          "at": 83036.10000002384,
+          "input": {
+            "sequence": 686,
+            "at": 82313.5
+          },
+          "pointer": {
+            "sequence": 703,
+            "at": 82710.90000003576
+          }
+        },
+        "frames": {
+          "requestedAt": 83046.90000003576,
+          "firstFrameAt": 83052.5,
+          "secondFrameAt": 83068.80000001192,
+          "references": {
+            "timeOrigin": 1791531711661.5,
+            "input": {
+              "sequence": 686,
+              "at": 82313.5
+            },
+            "pointer": {
+              "sequence": 703,
+              "at": 82710.90000003576
+            },
+            "expectedDOM": {
+              "sequence": 706,
+              "at": 83036.10000002384,
+              "actionKind": "project-switch"
+            }
+          }
+        }
+      },
+      "temporallyOverlappingResources": [
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 704,
+          "kind": "resource",
+          "route": "project-specification",
+          "at": 82716.40000003576,
+          "duration": 11.099999964237213,
+          "responseStatus": 200,
+          "requestStart": 82725.20000004768,
+          "responseStart": 82726.10000002384,
+          "responseEnd": 82727.5,
+          "transferSize": 1072,
+          "encodedBodySize": 772,
+          "decodedBodySize": 772
+        },
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 705,
+          "kind": "resource",
+          "route": "project-orchestrator",
+          "at": 82717.20000004768,
+          "duration": 24.799999952316284,
+          "responseStatus": 200,
+          "requestStart": 82725.40000003576,
+          "responseStart": 82740.70000004768,
+          "responseEnd": 82742,
+          "transferSize": 4705,
+          "encodedBodySize": 4405,
+          "decodedBodySize": 4405
+        }
+      ]
+    },
+    {
+      "index": 96,
+      "phase": "idle-interactive-calibration",
+      "elapsedMs": 465.1369790000026,
+      "nodeSpans": {
+        "allProjectsCommand": 291.65646800000104,
+        "overviewHeadingWait": 11.636371000000509,
+        "openProjectCommand": 72.34896199998911,
+        "verifyExpectedContext": 53.88266299999668,
+        "twoFrameCommand": 35.59081100000185
+      },
+      "browserClockSpans": {
+        "lastPointerToDriverExpectedDOMWitnessMs": 70.89999997615814,
+        "driverExpectedDOMWitnessToFrameRequestMs": 6.600000023841858,
+        "frameRequestToSecondCallbackMs": 30.69999998807907
+      },
+      "browserRefs": {
+        "pointer": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 803,
+          "kind": "pointer-dispatch",
+          "at": 85727.60000002384
+        },
+        "expectedDOM": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 806,
+          "kind": "expected-dom",
+          "actionKind": "project-switch",
+          "at": 85798.5,
+          "input": {
+            "sequence": 786,
+            "at": 85060.70000004768
+          },
+          "pointer": {
+            "sequence": 803,
+            "at": 85727.60000002384
+          }
+        },
+        "frames": {
+          "requestedAt": 85805.10000002384,
+          "firstFrameAt": 85818.60000002384,
+          "secondFrameAt": 85835.80000001192,
+          "references": {
+            "timeOrigin": 1791531711661.5,
+            "input": {
+              "sequence": 786,
+              "at": 85060.70000004768
+            },
+            "pointer": {
+              "sequence": 803,
+              "at": 85727.60000002384
+            },
+            "expectedDOM": {
+              "sequence": 806,
+              "at": 85798.5,
+              "actionKind": "project-switch"
+            }
+          }
+        }
+      },
+      "temporallyOverlappingResources": [
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 804,
+          "kind": "resource",
+          "route": "project-specification",
+          "at": 85735.80000001192,
+          "duration": 15.699999988079071,
+          "responseStatus": 200,
+          "requestStart": 85747.10000002384,
+          "responseStart": 85749.5,
+          "responseEnd": 85751.5,
+          "transferSize": 1072,
+          "encodedBodySize": 772,
+          "decodedBodySize": 772
+        },
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 805,
+          "kind": "resource",
+          "route": "project-orchestrator",
+          "at": 85736.90000003576,
+          "duration": 46.19999998807907,
+          "responseStatus": 200,
+          "requestStart": 85749.60000002384,
+          "responseStart": 85782,
+          "responseEnd": 85783.10000002384,
+          "transferSize": 4705,
+          "encodedBodySize": 4405,
+          "decodedBodySize": 4405
+        }
+      ]
+    },
+    {
+      "index": 120,
+      "phase": "idle-interactive-calibration",
+      "elapsedMs": 637.2812689999992,
+      "nodeSpans": {
+        "allProjectsCommand": 115.81011199999193,
+        "overviewHeadingWait": 13.4699729999993,
+        "openProjectCommand": 391.6328290000092,
+        "verifyExpectedContext": 84.01307000000088,
+        "twoFrameCommand": 32.28674100000353
+      },
+      "browserClockSpans": {
+        "lastPointerToDriverExpectedDOMWitnessMs": 159.69999998807907,
+        "driverExpectedDOMWitnessToFrameRequestMs": 6.5,
+        "frameRequestToSecondCallbackMs": 28.899999976158142
+      },
+      "browserRefs": {
+        "pointer": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 953,
+          "kind": "pointer-dispatch",
+          "at": 90207.20000004768
+        },
+        "expectedDOM": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 956,
+          "kind": "expected-dom",
+          "actionKind": "project-switch",
+          "at": 90366.90000003576,
+          "input": {
+            "sequence": 936,
+            "at": 89412
+          },
+          "pointer": {
+            "sequence": 953,
+            "at": 90207.20000004768
+          }
+        },
+        "frames": {
+          "requestedAt": 90373.40000003576,
+          "firstFrameAt": 90387.90000003576,
+          "secondFrameAt": 90402.30000001192,
+          "references": {
+            "timeOrigin": 1791531711661.5,
+            "input": {
+              "sequence": 936,
+              "at": 89412
+            },
+            "pointer": {
+              "sequence": 953,
+              "at": 90207.20000004768
+            },
+            "expectedDOM": {
+              "sequence": 956,
+              "at": 90366.90000003576,
+              "actionKind": "project-switch"
+            }
+          }
+        }
+      },
+      "temporallyOverlappingResources": [
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 954,
+          "kind": "resource",
+          "route": "project-specification",
+          "at": 90244.60000002384,
+          "duration": 60,
+          "responseStatus": 200,
+          "requestStart": 90287.30000001192,
+          "responseStart": 90302,
+          "responseEnd": 90304.60000002384,
+          "transferSize": 1102,
+          "encodedBodySize": 802,
+          "decodedBodySize": 802
+        },
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 955,
+          "kind": "resource",
+          "route": "project-orchestrator",
+          "at": 90246.80000001192,
+          "duration": 96.19999998807907,
+          "responseStatus": 200,
+          "requestStart": 90287.80000001192,
+          "responseStart": 90342,
+          "responseEnd": 90343,
+          "transferSize": 4536,
+          "encodedBodySize": 4236,
+          "decodedBodySize": 4236
+        }
+      ]
+    },
+    {
+      "index": 124,
+      "phase": "idle-interactive-calibration",
+      "elapsedMs": 302.3360560000001,
+      "nodeSpans": {
+        "allProjectsCommand": 82.31805400000303,
+        "overviewHeadingWait": 13.862444999991567,
+        "openProjectCommand": 128.16844100000162,
+        "verifyExpectedContext": 44.663882000008016,
+        "twoFrameCommand": 33.30142000000342
+      },
+      "browserClockSpans": {
+        "lastPointerToDriverExpectedDOMWitnessMs": 101.60000002384186,
+        "driverExpectedDOMWitnessToFrameRequestMs": 9.0,
+        "frameRequestToSecondCallbackMs": 28.599999964237213
+      },
+      "browserRefs": {
+        "pointer": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 978,
+          "kind": "pointer-dispatch",
+          "at": 91080.10000002384
+        },
+        "expectedDOM": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 981,
+          "kind": "expected-dom",
+          "actionKind": "project-switch",
+          "at": 91181.70000004768,
+          "input": {
+            "sequence": 961,
+            "at": 90528.30000001192
+          },
+          "pointer": {
+            "sequence": 978,
+            "at": 91080.10000002384
+          }
+        },
+        "frames": {
+          "requestedAt": 91190.70000004768,
+          "firstFrameAt": 91202.40000003576,
+          "secondFrameAt": 91219.30000001192,
+          "references": {
+            "timeOrigin": 1791531711661.5,
+            "input": {
+              "sequence": 961,
+              "at": 90528.30000001192
+            },
+            "pointer": {
+              "sequence": 978,
+              "at": 91080.10000002384
+            },
+            "expectedDOM": {
+              "sequence": 981,
+              "at": 91181.70000004768,
+              "actionKind": "project-switch"
+            }
+          }
+        }
+      },
+      "temporallyOverlappingResources": [
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 979,
+          "kind": "resource",
+          "route": "project-specification",
+          "at": 91103.5,
+          "duration": 37.60000002384186,
+          "responseStatus": 200,
+          "requestStart": 91129.80000001192,
+          "responseStart": 91135.70000004768,
+          "responseEnd": 91141.10000002384,
+          "transferSize": 1096,
+          "encodedBodySize": 796,
+          "decodedBodySize": 796
+        },
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 980,
+          "kind": "resource",
+          "route": "project-orchestrator",
+          "at": 91105.70000004768,
+          "duration": 51.799999952316284,
+          "responseStatus": 200,
+          "requestStart": 91131.80000001192,
+          "responseStart": 91156.5,
+          "responseEnd": 91157.5,
+          "transferSize": 4512,
+          "encodedBodySize": 4212,
+          "decodedBodySize": 4212
+        }
+      ]
+    },
+    {
+      "index": 184,
+      "phase": "idle-interactive-calibration",
+      "elapsedMs": 593.1481340000028,
+      "nodeSpans": {
+        "allProjectsCommand": 67.87963099998888,
+        "overviewHeadingWait": 14.866628000003402,
+        "openProjectCommand": 381.5057400000078,
+        "verifyExpectedContext": 102.74739200000477,
+        "twoFrameCommand": 25.90918300001067
+      },
+      "browserClockSpans": {
+        "lastPointerToDriverExpectedDOMWitnessMs": 417.60000002384186,
+        "driverExpectedDOMWitnessToFrameRequestMs": 6.899999976158142,
+        "frameRequestToSecondCallbackMs": 22.900000035762787
+      },
+      "browserRefs": {
+        "pointer": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 1353,
+          "kind": "pointer-dispatch",
+          "at": 102420.5
+        },
+        "expectedDOM": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 1356,
+          "kind": "expected-dom",
+          "actionKind": "project-switch",
+          "at": 102838.10000002384,
+          "input": {
+            "sequence": 1336,
+            "at": 101951.10000002384
+          },
+          "pointer": {
+            "sequence": 1353,
+            "at": 102420.5
+          }
+        },
+        "frames": {
+          "requestedAt": 102845,
+          "firstFrameAt": 102851.90000003576,
+          "secondFrameAt": 102867.90000003576,
+          "references": {
+            "timeOrigin": 1791531711661.5,
+            "input": {
+              "sequence": 1336,
+              "at": 101951.10000002384
+            },
+            "pointer": {
+              "sequence": 1353,
+              "at": 102420.5
+            },
+            "expectedDOM": {
+              "sequence": 1356,
+              "at": 102838.10000002384,
+              "actionKind": "project-switch"
+            }
+          }
+        }
+      },
+      "temporallyOverlappingResources": [
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 1354,
+          "kind": "resource",
+          "route": "project-specification",
+          "at": 102620.80000001192,
+          "duration": 127.60000002384186,
+          "responseStatus": 200,
+          "requestStart": 102727.5,
+          "responseStart": 102743.90000003576,
+          "responseEnd": 102748.40000003576,
+          "transferSize": 1102,
+          "encodedBodySize": 802,
+          "decodedBodySize": 802
+        },
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 1355,
+          "kind": "resource",
+          "route": "project-orchestrator",
+          "at": 102629.70000004768,
+          "duration": 156,
+          "responseStatus": 200,
+          "requestStart": 102728.20000004768,
+          "responseStart": 102783.70000004768,
+          "responseEnd": 102785.70000004768,
+          "transferSize": 4536,
+          "encodedBodySize": 4236,
+          "decodedBodySize": 4236
+        }
+      ]
+    },
+    {
+      "index": 196,
+      "phase": "idle-interactive-calibration",
+      "elapsedMs": 516.9970009999961,
+      "nodeSpans": {
+        "allProjectsCommand": 71.87776199998916,
+        "overviewHeadingWait": 13.348841000013635,
+        "openProjectCommand": 72.66281499998877,
+        "verifyExpectedContext": 328.49788999999873,
+        "twoFrameCommand": 30.456443000002764
+      },
+      "browserClockSpans": {
+        "lastPointerToDriverExpectedDOMWitnessMs": 319.19999998807907,
+        "driverExpectedDOMWitnessToFrameRequestMs": 30.600000023841858,
+        "frameRequestToSecondCallbackMs": 23.100000023841858
+      },
+      "browserRefs": {
+        "pointer": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 1428,
+          "kind": "pointer-dispatch",
+          "at": 104628.30000001192
+        },
+        "expectedDOM": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 1431,
+          "kind": "expected-dom",
+          "actionKind": "project-switch",
+          "at": 104947.5,
+          "input": {
+            "sequence": 1411,
+            "at": 104179.20000004768
+          },
+          "pointer": {
+            "sequence": 1428,
+            "at": 104628.30000001192
+          }
+        },
+        "frames": {
+          "requestedAt": 104978.10000002384,
+          "firstFrameAt": 104984.40000003576,
+          "secondFrameAt": 105001.20000004768,
+          "references": {
+            "timeOrigin": 1791531711661.5,
+            "input": {
+              "sequence": 1411,
+              "at": 104179.20000004768
+            },
+            "pointer": {
+              "sequence": 1428,
+              "at": 104628.30000001192
+            },
+            "expectedDOM": {
+              "sequence": 1431,
+              "at": 104947.5,
+              "actionKind": "project-switch"
+            }
+          }
+        }
+      },
+      "temporallyOverlappingResources": [
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 1429,
+          "kind": "resource",
+          "route": "project-specification",
+          "at": 104634.40000003576,
+          "duration": 14.399999976158142,
+          "responseStatus": 200,
+          "requestStart": 104644.20000004768,
+          "responseStart": 104646.30000001192,
+          "responseEnd": 104648.80000001192,
+          "transferSize": 1084,
+          "encodedBodySize": 784,
+          "decodedBodySize": 784
+        },
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 1430,
+          "kind": "resource",
+          "route": "project-orchestrator",
+          "at": 104635.30000001192,
+          "duration": 30.5,
+          "responseStatus": 200,
+          "requestStart": 104645.80000001192,
+          "responseStart": 104664.70000004768,
+          "responseEnd": 104665.80000001192,
+          "transferSize": 4464,
+          "encodedBodySize": 4164,
+          "decodedBodySize": 4164
+        }
+      ]
+    },
+    {
+      "index": 228,
+      "phase": "idle-interactive-calibration",
+      "elapsedMs": 322.96128099999623,
+      "nodeSpans": {
+        "allProjectsCommand": 120.80215900001349,
+        "overviewHeadingWait": 17.695333000010578,
+        "openProjectCommand": 97.67593999998644,
+        "verifyExpectedContext": 60.88119899999583,
+        "twoFrameCommand": 25.846679999987828
+      },
+      "browserClockSpans": {
+        "lastPointerToDriverExpectedDOMWitnessMs": 81.69999998807907,
+        "driverExpectedDOMWitnessToFrameRequestMs": 6.100000023841858,
+        "frameRequestToSecondCallbackMs": 22.399999976158142
+      },
+      "browserRefs": {
+        "pointer": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 1628,
+          "kind": "pointer-dispatch",
+          "at": 110324.60000002384
+        },
+        "expectedDOM": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 1631,
+          "kind": "expected-dom",
+          "actionKind": "project-switch",
+          "at": 110406.30000001192,
+          "input": {
+            "sequence": 1611,
+            "at": 109795.90000003576
+          },
+          "pointer": {
+            "sequence": 1628,
+            "at": 110324.60000002384
+          }
+        },
+        "frames": {
+          "requestedAt": 110412.40000003576,
+          "firstFrameAt": 110417.60000002384,
+          "secondFrameAt": 110434.80000001192,
+          "references": {
+            "timeOrigin": 1791531711661.5,
+            "input": {
+              "sequence": 1611,
+              "at": 109795.90000003576
+            },
+            "pointer": {
+              "sequence": 1628,
+              "at": 110324.60000002384
+            },
+            "expectedDOM": {
+              "sequence": 1631,
+              "at": 110406.30000001192,
+              "actionKind": "project-switch"
+            }
+          }
+        }
+      },
+      "temporallyOverlappingResources": [
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 1629,
+          "kind": "resource",
+          "route": "project-specification",
+          "at": 110330.80000001192,
+          "duration": 18.69999998807907,
+          "responseStatus": 200,
+          "requestStart": 110346.20000004768,
+          "responseStart": 110347.90000003576,
+          "responseEnd": 110349.5,
+          "transferSize": 1084,
+          "encodedBodySize": 784,
+          "decodedBodySize": 784
+        },
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 1630,
+          "kind": "resource",
+          "route": "project-orchestrator",
+          "at": 110332.5,
+          "duration": 48.60000002384186,
+          "responseStatus": 200,
+          "requestStart": 110346.30000001192,
+          "responseStart": 110379.10000002384,
+          "responseEnd": 110381.10000002384,
+          "transferSize": 4464,
+          "encodedBodySize": 4164,
+          "decodedBodySize": 4164
+        }
+      ]
+    },
+    {
+      "index": 248,
+      "phase": "idle-interactive-calibration",
+      "elapsedMs": 703.5326300000015,
+      "nodeSpans": {
+        "allProjectsCommand": 483.3578030000208,
+        "overviewHeadingWait": 11.605973999976413,
+        "openProjectCommand": 89.40064700000221,
+        "verifyExpectedContext": 85.27629000000888,
+        "twoFrameCommand": 33.78360300001805
+      },
+      "browserClockSpans": {
+        "lastPointerToDriverExpectedDOMWitnessMs": 106.0,
+        "driverExpectedDOMWitnessToFrameRequestMs": 6.699999988079071,
+        "frameRequestToSecondCallbackMs": 30.400000035762787
+      },
+      "browserRefs": {
+        "pointer": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 1753,
+          "kind": "pointer-dispatch",
+          "at": 114024.60000002384
+        },
+        "expectedDOM": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 1756,
+          "kind": "expected-dom",
+          "actionKind": "project-switch",
+          "at": 114130.60000002384,
+          "input": {
+            "sequence": 1736,
+            "at": 113109.80000001192
+          },
+          "pointer": {
+            "sequence": 1753,
+            "at": 114024.60000002384
+          }
+        },
+        "frames": {
+          "requestedAt": 114137.30000001192,
+          "firstFrameAt": 114150.90000003576,
+          "secondFrameAt": 114167.70000004768,
+          "references": {
+            "timeOrigin": 1791531711661.5,
+            "input": {
+              "sequence": 1736,
+              "at": 113109.80000001192
+            },
+            "pointer": {
+              "sequence": 1753,
+              "at": 114024.60000002384
+            },
+            "expectedDOM": {
+              "sequence": 1756,
+              "at": 114130.60000002384,
+              "actionKind": "project-switch"
+            }
+          }
+        }
+      },
+      "temporallyOverlappingResources": [
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 1754,
+          "kind": "resource",
+          "route": "project-specification",
+          "at": 114032.60000002384,
+          "duration": 36.80000001192093,
+          "responseStatus": 200,
+          "requestStart": 114050,
+          "responseStart": 114066.20000004768,
+          "responseEnd": 114069.40000003576,
+          "transferSize": 1102,
+          "encodedBodySize": 802,
+          "decodedBodySize": 802
+        },
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 1755,
+          "kind": "resource",
+          "route": "project-orchestrator",
+          "at": 114033.5,
+          "duration": 57,
+          "responseStatus": 200,
+          "requestStart": 114050.5,
+          "responseStart": 114089,
+          "responseEnd": 114090.5,
+          "transferSize": 4536,
+          "encodedBodySize": 4236,
+          "decodedBodySize": 4236
+        }
+      ]
+    },
+    {
+      "index": 268,
+      "phase": "idle-interactive-calibration",
+      "elapsedMs": 756.9043330000131,
+      "nodeSpans": {
+        "allProjectsCommand": 96.85497799998848,
+        "overviewHeadingWait": 19.02684100001352,
+        "openProjectCommand": 533.3355030000093,
+        "verifyExpectedContext": 74.75305100000696,
+        "twoFrameCommand": 32.85575199997402
+      },
+      "browserClockSpans": {
+        "lastPointerToDriverExpectedDOMWitnessMs": 105.89999997615814,
+        "driverExpectedDOMWitnessToFrameRequestMs": 16.80000001192093,
+        "frameRequestToSecondCallbackMs": 27.399999976158142
+      },
+      "browserRefs": {
+        "pointer": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 1878,
+          "kind": "pointer-dispatch",
+          "at": 118417.70000004768
+        },
+        "expectedDOM": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 1881,
+          "kind": "expected-dom",
+          "actionKind": "project-switch",
+          "at": 118523.60000002384,
+          "input": {
+            "sequence": 1861,
+            "at": 117476.20000004768
+          },
+          "pointer": {
+            "sequence": 1878,
+            "at": 118417.70000004768
+          }
+        },
+        "frames": {
+          "requestedAt": 118540.40000003576,
+          "firstFrameAt": 118551.20000004768,
+          "secondFrameAt": 118567.80000001192,
+          "references": {
+            "timeOrigin": 1791531711661.5,
+            "input": {
+              "sequence": 1861,
+              "at": 117476.20000004768
+            },
+            "pointer": {
+              "sequence": 1878,
+              "at": 118417.70000004768
+            },
+            "expectedDOM": {
+              "sequence": 1881,
+              "at": 118523.60000002384,
+              "actionKind": "project-switch"
+            }
+          }
+        }
+      },
+      "temporallyOverlappingResources": [
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 1879,
+          "kind": "resource",
+          "route": "project-specification",
+          "at": 118429.10000002384,
+          "duration": 39.89999997615814,
+          "responseStatus": 200,
+          "requestStart": 118459.30000001192,
+          "responseStart": 118465.80000001192,
+          "responseEnd": 118469,
+          "transferSize": 1096,
+          "encodedBodySize": 796,
+          "decodedBodySize": 796
+        },
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 1880,
+          "kind": "resource",
+          "route": "project-orchestrator",
+          "at": 118430.10000002384,
+          "duration": 88.10000002384186,
+          "responseStatus": 200,
+          "requestStart": 118459.90000003576,
+          "responseStart": 118509.10000002384,
+          "responseEnd": 118518.20000004768,
+          "transferSize": 4512,
+          "encodedBodySize": 4212,
+          "decodedBodySize": 4212
+        }
+      ]
+    },
+    {
+      "index": 280,
+      "phase": "idle-interactive-calibration",
+      "elapsedMs": 354.0367660000047,
+      "nodeSpans": {
+        "allProjectsCommand": 146.1147409999976,
+        "overviewHeadingWait": 25.211303999996744,
+        "openProjectCommand": 106.94923299999209,
+        "verifyExpectedContext": 54.73063099998399,
+        "twoFrameCommand": 20.989394000003813
+      },
+      "browserClockSpans": {
+        "lastPointerToDriverExpectedDOMWitnessMs": 73.19999998807907,
+        "driverExpectedDOMWitnessToFrameRequestMs": 4.399999976158142,
+        "frameRequestToSecondCallbackMs": 17.700000047683716
+      },
+      "browserRefs": {
+        "pointer": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 1953,
+          "kind": "pointer-dispatch",
+          "at": 121655.40000003576
+        },
+        "expectedDOM": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 1956,
+          "kind": "expected-dom",
+          "actionKind": "project-switch",
+          "at": 121728.60000002384,
+          "input": {
+            "sequence": 1936,
+            "at": 120163.10000002384
+          },
+          "pointer": {
+            "sequence": 1953,
+            "at": 121655.40000003576
+          }
+        },
+        "frames": {
+          "requestedAt": 121733,
+          "firstFrameAt": 121733.80000001192,
+          "secondFrameAt": 121750.70000004768,
+          "references": {
+            "timeOrigin": 1791531711661.5,
+            "input": {
+              "sequence": 1936,
+              "at": 120163.10000002384
+            },
+            "pointer": {
+              "sequence": 1953,
+              "at": 121655.40000003576
+            },
+            "expectedDOM": {
+              "sequence": 1956,
+              "at": 121728.60000002384,
+              "actionKind": "project-switch"
+            }
+          }
+        }
+      },
+      "temporallyOverlappingResources": [
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 1954,
+          "kind": "resource",
+          "route": "project-specification",
+          "at": 121663.90000003576,
+          "duration": 15.099999964237213,
+          "responseStatus": 200,
+          "requestStart": 121675.80000001192,
+          "responseStart": 121677.20000004768,
+          "responseEnd": 121679,
+          "transferSize": 1102,
+          "encodedBodySize": 802,
+          "decodedBodySize": 802
+        },
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 1955,
+          "kind": "resource",
+          "route": "project-orchestrator",
+          "at": 121665.20000004768,
+          "duration": 41.59999996423721,
+          "responseStatus": 200,
+          "requestStart": 121679.10000002384,
+          "responseStart": 121704.60000002384,
+          "responseEnd": 121706.80000001192,
+          "transferSize": 4536,
+          "encodedBodySize": 4236,
+          "decodedBodySize": 4236
+        }
+      ]
+    },
+    {
+      "index": 288,
+      "phase": "idle-interactive-calibration",
+      "elapsedMs": 311.5803059999889,
+      "nodeSpans": {
+        "allProjectsCommand": 91.70781799999531,
+        "overviewHeadingWait": 11.561466999992263,
+        "openProjectCommand": 110.73656499999925,
+        "verifyExpectedContext": 72.89789000002202,
+        "twoFrameCommand": 24.583265000022948
+      },
+      "browserClockSpans": {
+        "lastPointerToDriverExpectedDOMWitnessMs": 96.40000003576279,
+        "driverExpectedDOMWitnessToFrameRequestMs": 9.099999964237213,
+        "frameRequestToSecondCallbackMs": 22.600000023841858
+      },
+      "browserRefs": {
+        "pointer": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 2003,
+          "kind": "pointer-dispatch",
+          "at": 123106.30000001192
+        },
+        "expectedDOM": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 2006,
+          "kind": "expected-dom",
+          "actionKind": "project-switch",
+          "at": 123202.70000004768,
+          "input": {
+            "sequence": 1986,
+            "at": 122544.70000004768
+          },
+          "pointer": {
+            "sequence": 2003,
+            "at": 123106.30000001192
+          }
+        },
+        "frames": {
+          "requestedAt": 123211.80000001192,
+          "firstFrameAt": 123218.20000004768,
+          "secondFrameAt": 123234.40000003576,
+          "references": {
+            "timeOrigin": 1791531711661.5,
+            "input": {
+              "sequence": 1986,
+              "at": 122544.70000004768
+            },
+            "pointer": {
+              "sequence": 2003,
+              "at": 123106.30000001192
+            },
+            "expectedDOM": {
+              "sequence": 2006,
+              "at": 123202.70000004768,
+              "actionKind": "project-switch"
+            }
+          }
+        }
+      },
+      "temporallyOverlappingResources": [
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 2004,
+          "kind": "resource",
+          "route": "project-specification",
+          "at": 123117.20000004768,
+          "duration": 17.599999964237213,
+          "responseStatus": 200,
+          "requestStart": 123131.5,
+          "responseStart": 123132.5,
+          "responseEnd": 123134.80000001192,
+          "transferSize": 1072,
+          "encodedBodySize": 772,
+          "decodedBodySize": 772
+        },
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 2005,
+          "kind": "resource",
+          "route": "project-orchestrator",
+          "at": 123118.20000004768,
+          "duration": 47.59999996423721,
+          "responseStatus": 200,
+          "requestStart": 123134.80000001192,
+          "responseStart": 123163.40000003576,
+          "responseEnd": 123165.80000001192,
+          "transferSize": 4705,
+          "encodedBodySize": 4405,
+          "decodedBodySize": 4405
+        }
+      ]
+    },
+    {
+      "index": 300,
+      "phase": "idle-interactive-calibration",
+      "elapsedMs": 824.9964009999821,
+      "nodeSpans": {
+        "allProjectsCommand": 540.7745570000261,
+        "overviewHeadingWait": 24.774382999981754,
+        "openProjectCommand": 131.1454580000136,
+        "verifyExpectedContext": 98.92545199999586,
+        "twoFrameCommand": 29.351782000012463
+      },
+      "browserClockSpans": {
+        "lastPointerToDriverExpectedDOMWitnessMs": 132.80000001192093,
+        "driverExpectedDOMWitnessToFrameRequestMs": 9.199999988079071,
+        "frameRequestToSecondCallbackMs": 25.100000023841858
+      },
+      "browserRefs": {
+        "pointer": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 2078,
+          "kind": "pointer-dispatch",
+          "at": 125700.30000001192
+        },
+        "expectedDOM": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 2081,
+          "kind": "expected-dom",
+          "actionKind": "project-switch",
+          "at": 125833.10000002384,
+          "input": {
+            "sequence": 2061,
+            "at": 124705.90000003576
+          },
+          "pointer": {
+            "sequence": 2078,
+            "at": 125700.30000001192
+          }
+        },
+        "frames": {
+          "requestedAt": 125842.30000001192,
+          "firstFrameAt": 125851,
+          "secondFrameAt": 125867.40000003576,
+          "references": {
+            "timeOrigin": 1791531711661.5,
+            "input": {
+              "sequence": 2061,
+              "at": 124705.90000003576
+            },
+            "pointer": {
+              "sequence": 2078,
+              "at": 125700.30000001192
+            },
+            "expectedDOM": {
+              "sequence": 2081,
+              "at": 125833.10000002384,
+              "actionKind": "project-switch"
+            }
+          }
+        }
+      },
+      "temporallyOverlappingResources": [
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 2079,
+          "kind": "resource",
+          "route": "project-specification",
+          "at": 125717.40000003576,
+          "duration": 25.599999964237213,
+          "responseStatus": 200,
+          "requestStart": 125736.40000003576,
+          "responseStart": 125738,
+          "responseEnd": 125743,
+          "transferSize": 1096,
+          "encodedBodySize": 796,
+          "decodedBodySize": 796
+        },
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 2080,
+          "kind": "resource",
+          "route": "project-orchestrator",
+          "at": 125721.20000004768,
+          "duration": 59.09999996423721,
+          "responseStatus": 200,
+          "requestStart": 125736.80000001192,
+          "responseStart": 125778.80000001192,
+          "responseEnd": 125780.30000001192,
+          "transferSize": 4512,
+          "encodedBodySize": 4212,
+          "decodedBodySize": 4212
+        }
+      ]
+    },
+    {
+      "index": 316,
+      "phase": "idle-interactive-calibration",
+      "elapsedMs": 306.7071949999954,
+      "nodeSpans": {
+        "allProjectsCommand": 86.6603049999976,
+        "overviewHeadingWait": 19.609777999983635,
+        "openProjectCommand": 92.5677030000079,
+        "verifyExpectedContext": 84.58322000000044,
+        "twoFrameCommand": 23.264837000024272
+      },
+      "browserClockSpans": {
+        "lastPointerToDriverExpectedDOMWitnessMs": 109.10000002384186,
+        "driverExpectedDOMWitnessToFrameRequestMs": 4.599999964237213,
+        "frameRequestToSecondCallbackMs": 20.900000035762787
+      },
+      "browserRefs": {
+        "pointer": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 2178,
+          "kind": "pointer-dispatch",
+          "at": 128982.80000001192
+        },
+        "expectedDOM": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 2181,
+          "kind": "expected-dom",
+          "actionKind": "project-switch",
+          "at": 129091.90000003576,
+          "input": {
+            "sequence": 2161,
+            "at": 128444.20000004768
+          },
+          "pointer": {
+            "sequence": 2178,
+            "at": 128982.80000001192
+          }
+        },
+        "frames": {
+          "requestedAt": 129096.5,
+          "firstFrameAt": 129100.20000004768,
+          "secondFrameAt": 129117.40000003576,
+          "references": {
+            "timeOrigin": 1791531711661.5,
+            "input": {
+              "sequence": 2161,
+              "at": 128444.20000004768
+            },
+            "pointer": {
+              "sequence": 2178,
+              "at": 128982.80000001192
+            },
+            "expectedDOM": {
+              "sequence": 2181,
+              "at": 129091.90000003576,
+              "actionKind": "project-switch"
+            }
+          }
+        }
+      },
+      "temporallyOverlappingResources": [
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 2179,
+          "kind": "resource",
+          "route": "project-specification",
+          "at": 128993,
+          "duration": 20.30000001192093,
+          "responseStatus": 200,
+          "requestStart": 129009.30000001192,
+          "responseStart": 129012.20000004768,
+          "responseEnd": 129013.30000001192,
+          "transferSize": 1096,
+          "encodedBodySize": 796,
+          "decodedBodySize": 796
+        },
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 2180,
+          "kind": "resource",
+          "route": "project-orchestrator",
+          "at": 128994.10000002384,
+          "duration": 58.60000002384186,
+          "responseStatus": 200,
+          "requestStart": 129009.40000003576,
+          "responseStart": 129051.40000003576,
+          "responseEnd": 129052.70000004768,
+          "transferSize": 4512,
+          "encodedBodySize": 4212,
+          "decodedBodySize": 4212
+        }
+      ]
+    },
+    {
+      "index": 320,
+      "phase": "idle-interactive-calibration",
+      "elapsedMs": 310.705872999999,
+      "nodeSpans": {
+        "allProjectsCommand": 85.95996900001774,
+        "overviewHeadingWait": 25.24428600000101,
+        "openProjectCommand": 86.64037899998948,
+        "verifyExpectedContext": 66.68457500002114,
+        "twoFrameCommand": 46.15040399998543
+      },
+      "browserClockSpans": {
+        "lastPointerToDriverExpectedDOMWitnessMs": 86.0,
+        "driverExpectedDOMWitnessToFrameRequestMs": 5.799999952316284,
+        "frameRequestToSecondCallbackMs": 36.0
+      },
+      "browserRefs": {
+        "pointer": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 2203,
+          "kind": "pointer-dispatch",
+          "at": 129846.70000004768
+        },
+        "expectedDOM": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 2206,
+          "kind": "expected-dom",
+          "actionKind": "project-switch",
+          "at": 129932.70000004768,
+          "input": {
+            "sequence": 2186,
+            "at": 129232.10000002384
+          },
+          "pointer": {
+            "sequence": 2203,
+            "at": 129846.70000004768
+          }
+        },
+        "frames": {
+          "requestedAt": 129938.5,
+          "firstFrameAt": 129953.20000004768,
+          "secondFrameAt": 129974.5,
+          "references": {
+            "timeOrigin": 1791531711661.5,
+            "input": {
+              "sequence": 2186,
+              "at": 129232.10000002384
+            },
+            "pointer": {
+              "sequence": 2203,
+              "at": 129846.70000004768
+            },
+            "expectedDOM": {
+              "sequence": 2206,
+              "at": 129932.70000004768,
+              "actionKind": "project-switch"
+            }
+          }
+        }
+      },
+      "temporallyOverlappingResources": [
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 2204,
+          "kind": "resource",
+          "route": "project-specification",
+          "at": 129854.70000004768,
+          "duration": 19,
+          "responseStatus": 200,
+          "requestStart": 129867.90000003576,
+          "responseStart": 129870.60000002384,
+          "responseEnd": 129873.70000004768,
+          "transferSize": 1072,
+          "encodedBodySize": 772,
+          "decodedBodySize": 772
+        },
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 2205,
+          "kind": "resource",
+          "route": "project-orchestrator",
+          "at": 129855.90000003576,
+          "duration": 52.30000001192093,
+          "responseStatus": 200,
+          "requestStart": 129868.20000004768,
+          "responseStart": 129906.90000003576,
+          "responseEnd": 129908.20000004768,
+          "transferSize": 4705,
+          "encodedBodySize": 4405,
+          "decodedBodySize": 4405
+        }
+      ]
+    },
+    {
+      "index": 360,
+      "phase": "idle-interactive-calibration",
+      "elapsedMs": 500.0251799999969,
+      "nodeSpans": {
+        "allProjectsCommand": 62.59442500001751,
+        "overviewHeadingWait": 6.44580099999439,
+        "openProjectCommand": 62.37842999998247,
+        "verifyExpectedContext": 343.367631000001,
+        "twoFrameCommand": 25.218551999976626
+      },
+      "browserClockSpans": {
+        "lastPointerToDriverExpectedDOMWitnessMs": 358.80000001192093,
+        "driverExpectedDOMWitnessToFrameRequestMs": 8.800000011920929,
+        "frameRequestToSecondCallbackMs": 21.69999998807907
+      },
+      "browserRefs": {
+        "pointer": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 2453,
+          "kind": "pointer-dispatch",
+          "at": 136793.80000001192
+        },
+        "expectedDOM": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 2456,
+          "kind": "expected-dom",
+          "actionKind": "project-switch",
+          "at": 137152.60000002384,
+          "input": {
+            "sequence": 2436,
+            "at": 136376.80000001192
+          },
+          "pointer": {
+            "sequence": 2453,
+            "at": 136793.80000001192
+          }
+        },
+        "frames": {
+          "requestedAt": 137161.40000003576,
+          "firstFrameAt": 137166.60000002384,
+          "secondFrameAt": 137183.10000002384,
+          "references": {
+            "timeOrigin": 1791531711661.5,
+            "input": {
+              "sequence": 2436,
+              "at": 136376.80000001192
+            },
+            "pointer": {
+              "sequence": 2453,
+              "at": 136793.80000001192
+            },
+            "expectedDOM": {
+              "sequence": 2456,
+              "at": 137152.60000002384,
+              "actionKind": "project-switch"
+            }
+          }
+        }
+      },
+      "temporallyOverlappingResources": [
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 2454,
+          "kind": "resource",
+          "route": "project-specification",
+          "at": 136799.20000004768,
+          "duration": 51.89999997615814,
+          "responseStatus": 200,
+          "requestStart": 136815.80000001192,
+          "responseStart": 136848.90000003576,
+          "responseEnd": 136851.10000002384,
+          "transferSize": 1102,
+          "encodedBodySize": 802,
+          "decodedBodySize": 802
+        },
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 2455,
+          "kind": "resource",
+          "route": "project-orchestrator",
+          "at": 136800.10000002384,
+          "duration": 271.10000002384186,
+          "responseStatus": 200,
+          "requestStart": 136818.20000004768,
+          "responseStart": 137050.30000001192,
+          "responseEnd": 137071.20000004768,
+          "transferSize": 4536,
+          "encodedBodySize": 4236,
+          "decodedBodySize": 4236
+        }
+      ]
+    },
+    {
+      "index": 372,
+      "phase": "idle-interactive-calibration",
+      "elapsedMs": 561.3589130000037,
+      "nodeSpans": {
+        "allProjectsCommand": 76.52896399999736,
+        "overviewHeadingWait": 8.933445000002393,
+        "openProjectCommand": 362.77795399999013,
+        "verifyExpectedContext": 83.93430100000114,
+        "twoFrameCommand": 29.114904999994906
+      },
+      "browserClockSpans": {
+        "lastPointerToDriverExpectedDOMWitnessMs": 269.19999998807907,
+        "driverExpectedDOMWitnessToFrameRequestMs": 5.400000035762787,
+        "frameRequestToSecondCallbackMs": 25.899999976158142
+      },
+      "browserRefs": {
+        "pointer": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 2528,
+          "kind": "pointer-dispatch",
+          "at": 139282.60000002384
+        },
+        "expectedDOM": {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 2531,
+          "kind": "expected-dom",
+          "actionKind": "project-switch",
+          "at": 139551.80000001192,
+          "input": {
+            "sequence": 2511,
+            "at": 138677.70000004768
+          },
+          "pointer": {
+            "sequence": 2528,
+            "at": 139282.60000002384
+          }
+        },
+        "frames": {
+          "requestedAt": 139557.20000004768,
+          "firstFrameAt": 139566.90000003576,
+          "secondFrameAt": 139583.10000002384,
+          "references": {
+            "timeOrigin": 1791531711661.5,
+            "input": {
+              "sequence": 2511,
+              "at": 138677.70000004768
+            },
+            "pointer": {
+              "sequence": 2528,
+              "at": 139282.60000002384
+            },
+            "expectedDOM": {
+              "sequence": 2531,
+              "at": 139551.80000001192,
+              "actionKind": "project-switch"
+            }
+          }
+        }
+      },
+      "temporallyOverlappingResources": [
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 2529,
+          "kind": "resource",
+          "route": "project-specification",
+          "at": 139379,
+          "duration": 99.60000002384186,
+          "responseStatus": 200,
+          "requestStart": 139462.70000004768,
+          "responseStart": 139477.10000002384,
+          "responseEnd": 139478.60000002384,
+          "transferSize": 1084,
+          "encodedBodySize": 784,
+          "decodedBodySize": 784
+        },
+        {
+          "timeOrigin": 1791531711661.5,
+          "sequence": 2530,
+          "kind": "resource",
+          "route": "project-orchestrator",
+          "at": 139383.90000003576,
+          "duration": 139.5999999642372,
+          "responseStatus": 200,
+          "requestStart": 139463.20000004768,
+          "responseStart": 139521.5,
+          "responseEnd": 139523.5,
+          "transferSize": 4464,
+          "encodedBodySize": 4164,
+          "decodedBodySize": 4164
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "Original end-to-end rows and thresholds are unchanged; no timing subtraction, excluded outliers or additive p95 calculation.",
+    "Node command spans include Playwright transport and scheduling/actionability. They do not isolate product functions.",
+    "Expected-DOM is sampled by a driver-triggered evaluate after its locator wait; its browser-clock interval also includes intervening driver/transport waits and is not autonomous React-commit or physical-paint timing.",
+    "Resource entries are browser-observed timing and are associated by clock overlap only. Route categories lack exact project identity; overlap is not causality or exclusive request-to-action mapping.",
+    "Primary slow actions were not traced. The trace is the separately instrumented 32-action follow-up, which must not explain earlier failures by inference.",
+    "No CPU profile or weighted CPU attribution is used. No allocation, workload throughput, live-model or Windows claim."
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "at": "2026-10-09T07:40:05.482732+00:00",
+  "scope": "Fresh read-only verification after correcting stale remote-tracking refs; not original fetch transport log",
+  "commands": [
+    {
+      "command": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "exitCode": 0,
+      "stdout": "99007404a5ddd8592dee376ea00d99c6180d26fe\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "ls-remote",
+        "origin",
+        "refs/heads/codex/luci-production-runs"
+      ],
+      "exitCode": 0,
+      "stdout": "99007404a5ddd8592dee376ea00d99c6180d26fe\trefs/heads/codex/luci-production-runs\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "for-each-ref",
+        "--contains=99007404a5ddd8592dee376ea00d99c6180d26fe",
+        "--count=1",
+        "--format=%(objectname)",
+        "refs/remotes/origin/"
+      ],
+      "exitCode": 0,
+      "stdout": "99007404a5ddd8592dee376ea00d99c6180d26fe\n",
+      "stderr": ""
+    }
+  ]
+}

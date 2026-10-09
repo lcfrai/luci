@@ -1,0 +1,26 @@
+{
+  "at": "2026-10-09T07:40:31.093040+00:00",
+  "sourceCommit": "99007404a5ddd8592dee376ea00d99c6180d26fe",
+  "sourceDirty": false,
+  "verifiedExtractedFiles": 954,
+  "licenseComponents": 347,
+  "missingLicenses": 0,
+  "subjects": [
+    {
+      "name": "linux-amd64/luci-cloud-linux-amd64.tar.gz",
+      "sha256": "620246cf1f48a7a9b4f8df27a026dbd042d7cd84e4501b9afefa46e63e276e05",
+      "bytes": 34608456
+    },
+    {
+      "name": "linux-amd64/luci-linux-amd64.tar.gz",
+      "sha256": "9bf32d8ebe0c7c7d3297c81e91f0451f0035357cb77eb7abf06099920dd9f164",
+      "bytes": 69027325
+    },
+    {
+      "name": "linux-amd64/release-manifest.json",
+      "sha256": "496daa3ce135dbf630281592fef3ccb6dd65167f08e5a9575a0cdf357ac9286f",
+      "bytes": 696
+    }
+  ],
+  "allMembersMatched": true
+}

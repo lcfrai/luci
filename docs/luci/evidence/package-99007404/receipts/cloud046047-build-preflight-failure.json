@@ -1,0 +1,14 @@
+{
+  "at": "2026-10-09T07:39:12.292474+00:00",
+  "source": "99007404a5ddd8592dee376ea00d99c6180d26fe",
+  "command": [
+    "python3",
+    "/workspace/.luci-tools/build-cloud046047-candidate.py"
+  ],
+  "exitCode": 1,
+  "stage": "remote-ref-preflight",
+  "failure": "AssertionError: local refs/remotes/origin contains no revision despite successful push",
+  "buildStarted": false,
+  "releaseDirectoryMutated": false,
+  "followup": "Fetch exact branch tracking ref, independently compare remote head before rerunning build; preserve this preflight failure"
+}

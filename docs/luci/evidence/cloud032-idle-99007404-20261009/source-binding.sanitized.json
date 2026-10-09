@@ -1,0 +1,112 @@
+{
+  "original": {
+    "sha256": "fc0a29902240c639f4edb9e8e3599a7a4d5ef6ee0ca65d374022d05ac66d6518",
+    "bytes": 6206
+  },
+  "representation": "External execution location replaced; hashes and extraction contracts unchanged.",
+  "binding": {
+    "version": 1,
+    "executionDirectory": "<EXTERNAL_DIAGNOSTIC_DIRECTORY>/actual",
+    "scope": "External generated diagnostic, not the clean helper checkout itself. Dependency checkout remains separately exact/clean.",
+    "templateSourceSHA256": "9c2b5cb28585603504453ee267982c519de1f057551839d8775525ac4729346c",
+    "localSources": {
+      "sustained.mjs": "18429d2a6497cfec582c8565b572b3ca567b756f2f9d403efd79b6b405719dc2",
+      "task-command.mjs": "7557cc863201e136a6ea0f4d039472d6e225a8efb0fb2afe267b9d65e01a541f",
+      "receipt-transport.mjs": "6a676eefc02c4be569e65f6c3a16da50f750be67acaf4f1380a86739791c34a1",
+      "workloads.mjs": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306",
+      "interaction-metrics.mjs": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502",
+      "latency-diagnostics.mjs": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96",
+      "task-context.mjs": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2",
+      "source-binding.mjs": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796",
+      "queue-controls.mjs": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0",
+      "run-with-observer.py": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a"
+    },
+    "repositoryDependencies": {
+      "scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+      "scripts/acceptance/four-project-queue/sample-linux-owned.py": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+      "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs": "b965b9a5d03f8a4cbc19b6e065559e1d9b10a2812453bfafb992e3f0041e448f",
+      "scripts/acceptance/launch-recovery/worker-create-guard.mjs": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+      "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+      "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "scripts/acceptance/launch-recovery/acceptance-startup.mjs": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680"
+    },
+    "dependencyDifferences": {},
+    "extractionChanges": [
+      {
+        "label": "bounded diagnostic deadline",
+        "oldSHA256": "c45c7bc6f53b5154e0055250213d142f3fa18196532da53a49b1988a9f894cf1",
+        "newSHA256": "899698759f994c9419287ae3087bab08dc612b6835466bea3ef6c8f19995c5fc"
+      },
+      {
+        "label": "accurate deadline text",
+        "oldSHA256": "32ae559796543dc0cdc187cb421dd0363261deff28895722fe0c5e33523f5631",
+        "newSHA256": "b7af6b7711ba984e50fbf1628a3e8a97a1b4c42989dfcb19de73b7bba55a34a0"
+      },
+      {
+        "label": "external executed-source identity; retain product/clean dependency checkout binding",
+        "oldSHA256": "c44d3ee4312196041b004a80fe348729769e0335f561b167ca381e819c5e5920",
+        "newSHA256": "9d1344e3c8763968569fa7bd36766c77bbaf6a44c157f4f9c06c1a716c28a553"
+      },
+      {
+        "label": "declare diagnostic scope before startup",
+        "oldSHA256": "f83e6940f8441a426323c4bb68b339decb6466c392db47ed5c26c673b0b65274",
+        "newSHA256": "42da79d8e1534403a868bfa5aeb60c01d32ac65f4300c2ed4f655f4e5379cf0b"
+      },
+      {
+        "label": "never unpause queue",
+        "oldSHA256": "ab1dad9a61fd3a7cf43d7b6acd4c9f7557a44322bae519dd1351d90a7f3f3883",
+        "newSHA256": "a0933104d91e72758766f0f348d00a4eb07ece2a4fd0075fa36f2bfb909049f7"
+      },
+      {
+        "label": "hard zero Create identity guard",
+        "oldSHA256": "03327a42e8120bd6978a0dc37ecfc1cfabedc7944fb69ad385a053c6c70b04bf",
+        "newSHA256": "4546d71406891b2ece133ec285dbecd474fbff5d4454e5a52e5121d8799097dd"
+      },
+      {
+        "label": "hard zero Create and Start forwarding guards",
+        "oldSHA256": "32132ad6e815ec091561e73ce5772afc7f386de645b338db5d43fbd7cdc536a9",
+        "newSHA256": "f4e8398267075b349946240bad98eea6105f4e7e82e4d2deb65eaf9586b21caa"
+      },
+      {
+        "label": "match declared positive structural proxy budgets; hard deny remains authority",
+        "oldSHA256": "1be9ae5875b183f656ea0353ea1f59bccdfa2154da0075bbf54467c14c69029b",
+        "newSHA256": "bdbe30fd87c9c3dd0ed2c9ad7541d02d9c847e2ffbdff9ec33638266230ce86b"
+      },
+      {
+        "label": "Diagnostic cleanup controllers\u2192browser\u2192provider\u2192proxy; preserve original proxy close bounds, reserve browser fallback before a slow read drain",
+        "movedPhaseSHA256": "b9d4375289c282cd5cedf675c313f133440a37db068330730fac6608146a06ff"
+      },
+      {
+        "label": "capture external binding beside all executed source",
+        "oldSHA256": "cbeee219b3dbe82e0674dc12fceeef332520701f238ba61428d21c4a0d77d4a8",
+        "newSHA256": "e4d8148b23e5f094ba0224d9c3cc7e02f115d7a728ca090e2945476d384bc5b0"
+      },
+      {
+        "label": "diagnostic budgets; proxy positive structural bounds cannot grant mutation",
+        "oldSHA256": "59a5b0cbe37bac0057fc01e63277a6c2627eb3b62dbd84fff0997f41e3400e54",
+        "newSHA256": "71215f22d6f9c8abb14ad3bae20a7e8344091528233e396ab58354d24a6fbc95"
+      },
+      {
+        "label": "accurate workload timing rationale",
+        "oldSHA256": "d73bdf45545432e8bbe92dbf21db755b13166f9e45cd787235542bd1692ba204",
+        "newSHA256": "fc6969ccb543b06e72370df7e9d5a8d5aabe4a81a970d0b522a3bffc424ea0b6"
+      },
+      {
+        "label": "Stop after exact original idle phase; remove dispatch/work/amendment/settled acceptance tail",
+        "removedBytes": 6411,
+        "oldSHA256": "30e26910d36ccd4d11efcc82cc7cc9f64c7ada5008159eae5a74989327ecb93b",
+        "newSHA256": "b84e6f21aff47e2889457f350bb82fb060a47d1a85e4cc55276fd7d72d32a075"
+      },
+      {
+        "label": "explicit external diagnostic repository fallback",
+        "oldSHA256": "34ce8aee07eae41a44a6e63faa9ab4239a51043376fb17a13f0cc3a99888e073",
+        "newSHA256": "b5f535836dbe60166a3d54e6673680ed5c60866cf40a60b18133fa4f70d7a478"
+      },
+      {
+        "label": "diagnostic CLI scope",
+        "oldSHA256": "34cb4d441a1723e6f1052ce777a7649f5c435df97d8e37ff11a76e41e3705c97",
+        "newSHA256": "b9d25c72d99057904259ee9e155e33bb13c2c5292df1ecc2a1d8e906d7c3fa74"
+      }
+    ]
+  }
+}

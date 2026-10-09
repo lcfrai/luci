@@ -1,0 +1,55 @@
+{
+  "at": "2026-10-09T07:36:43.588927+00:00",
+  "scope": "Own generated historical release archives only. Exact retained originals copied and verified before atomic compatibility-link replacement. Original manifests, failed fixture/state/output and current package unchanged. tmpfs consumption is host memory and not free capacity.",
+  "members": [
+    {
+      "originalPath": "/workspace/luci/artifacts/releases/0.5.0-9de6c800-dependency-failed/luci-cloud-linux-amd64.tar.gz",
+      "retainedPath": "/tmp/luci-retained-tools/release-payloads-historical-20261009T0736Z/0.5.0-9de6c800-dependency-failed/luci-cloud-linux-amd64.tar.gz",
+      "bytes": 42204849,
+      "sha256": "c0ca9294c236acafed9b964cf9fb6baf8319766617dd621341b29cfa8c83fa1f",
+      "sourceCommit": "9de6c800ae4afdcd7f1821e3c74ff6955c1173ee",
+      "bytesUnchanged": true
+    },
+    {
+      "originalPath": "/workspace/luci/artifacts/releases/0.5.0-9de6c800-dependency-failed/luci-linux-amd64.tar.gz",
+      "retainedPath": "/tmp/luci-retained-tools/release-payloads-historical-20261009T0736Z/0.5.0-9de6c800-dependency-failed/luci-linux-amd64.tar.gz",
+      "bytes": 84212514,
+      "sha256": "15739fdd7a01a6196e59da6260c8701fb4292606172b53b37e212ea51aeafcd9",
+      "sourceCommit": "9de6c800ae4afdcd7f1821e3c74ff6955c1173ee",
+      "bytesUnchanged": true
+    },
+    {
+      "originalPath": "/workspace/luci/artifacts/releases/0.5.0-c4400f11-continuation-accepted-DAG-failed/luci-cloud-linux-amd64.tar.gz",
+      "retainedPath": "/tmp/luci-retained-tools/release-payloads-historical-20261009T0736Z/0.5.0-c4400f11-continuation-accepted-DAG-failed/luci-cloud-linux-amd64.tar.gz",
+      "bytes": 38330788,
+      "sha256": "7481b89be974ac1dbc085459797b33d5a3046f3bc713ef82c2571919d55dc783",
+      "sourceCommit": "c4400f11736e923617a93e8e86803f15d7187bef",
+      "bytesUnchanged": true
+    },
+    {
+      "originalPath": "/workspace/luci/artifacts/releases/0.5.0-c4400f11-continuation-accepted-DAG-failed/luci-linux-amd64.tar.gz",
+      "retainedPath": "/tmp/luci-retained-tools/release-payloads-historical-20261009T0736Z/0.5.0-c4400f11-continuation-accepted-DAG-failed/luci-linux-amd64.tar.gz",
+      "bytes": 76458791,
+      "sha256": "db6a842a9252059c5f269a3f794c0f6900b116c880ac6bed85040287482a741f",
+      "sourceCommit": "c4400f11736e923617a93e8e86803f15d7187bef",
+      "bytesUnchanged": true
+    },
+    {
+      "originalPath": "/workspace/luci/artifacts/releases/0.5.0-919cffe0-installed-recovery-accepted/luci-cloud-linux-amd64.tar.gz",
+      "retainedPath": "/tmp/luci-retained-tools/release-payloads-historical-20261009T0736Z/0.5.0-919cffe0-installed-recovery-accepted/luci-cloud-linux-amd64.tar.gz",
+      "bytes": 37309481,
+      "sha256": "3b5220b25ea5e36254ba8abace5bb09025806f9262022b1f41b2c95d7fecfe58",
+      "sourceCommit": "919cffe014d1104d9e65fa19351683d182355f36",
+      "bytesUnchanged": true
+    },
+    {
+      "originalPath": "/workspace/luci/artifacts/releases/0.5.0-919cffe0-installed-recovery-accepted/luci-linux-amd64.tar.gz",
+      "retainedPath": "/tmp/luci-retained-tools/release-payloads-historical-20261009T0736Z/0.5.0-919cffe0-installed-recovery-accepted/luci-linux-amd64.tar.gz",
+      "bytes": 74429712,
+      "sha256": "210780c433ff590d2e5ee181065a619d9d5ab0f64b8e143e55084b88f89c1fc5",
+      "sourceCommit": "919cffe014d1104d9e65fa19351683d182355f36",
+      "bytesUnchanged": true
+    }
+  ],
+  "bytesRelocated": 352946135
+}
