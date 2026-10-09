@@ -1,0 +1,27 @@
+{
+  "sourceHead": "5e3f85dc33072abe44e7c7d087484d2a5b8cf9ad",
+  "changedFinalFiles": [
+    {
+      "path": "desktop/src/components/teams/TeamWorkspaceCoalescing.test.tsx",
+      "sha256": "2b916bb06468c2ef3b796264d92e06c37177c0df00926699880a2787d7fbdb32",
+      "bytes": 14394
+    },
+    {
+      "path": "desktop/src/components/teams/TeamWorkspaceProvider.test.tsx",
+      "sha256": "3f2f2732b8cc93e5ea7a4e32acfcf929cffec6cd2abc65726e6556faa4c85334",
+      "bytes": 31614
+    },
+    {
+      "path": "desktop/src/components/teams/TeamWorkspaceProvider.tsx",
+      "sha256": "26bc0af9979eb3621b72a7dfce76f436c826136758cdf51070408a1d2e17e64b",
+      "bytes": 16088
+    },
+    {
+      "path": "desktop/src/components/teams/projectPermissionReads.ts",
+      "sha256": "a4080a3984ae5d8b31c3a8efe47f0729e518759693ad34e0b2af1e52f2d5ce7a",
+      "bytes": 2091
+    }
+  ],
+  "unchangedCapturedInputs": 511,
+  "scope": "Integrated bytes match tested external overlay; not an additional test execution."
+}

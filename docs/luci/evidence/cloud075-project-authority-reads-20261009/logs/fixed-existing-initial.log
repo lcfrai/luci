@@ -1,0 +1,150 @@
+
+ RUN  v5.0.1 /workspace/.luci-tools/cloud075-authority-coalescing/fixed/desktop
+
+ ✓ src/components/teams/TeamWorkspaceControl.test.tsx (7 tests) 2442ms
+   ✓ adds a collaborator with explicit independent grants and the current team revision 895ms
+   ✓ CLOUD060 hides stale team administrator controls through a current revision read, denial and fresh viewer restoration 360ms
+   ✓ CLOUD060 suspends old project sharing while a different exact project grant read is pending or denied 440ms
+ ❯ src/components/teams/TeamWorkspaceProvider.test.tsx (28 tests | 2 failed) 2761ms
+   × resolves the remembered team before mounting project content or issuing project requests 83ms
+   ✓ opens the managed team regardless of a personal preference and refuses workspace switching 190ms
+   ✓ blocks an account outside the managed team without offering personal fallback 23ms
+   ✓ lets an existing nonmember join the bound managed team only after membership is refreshed 159ms
+   × defers private child effects until the first confirmed membership and mounts a clean workspace after joining 184ms
+   ✓ keeps a previously admitted managed editor mounted but hidden after team access is revoked 208ms
+   ✓ keeps an accepted invitation blocked when fresh membership is absent and retries reads without resubmitting its code 139ms
+   ✓ rejects a wrong-team invitation response without switching, refreshing membership or consuming the entry form 98ms
+   ✓ does not expose an invitation for an unconfirmed managed binding after the initial lookup fails 21ms
+   ✓ clears an entered invitation and fences late acceptance when the account changes 124ms
+   ✓ clears an entered invitation and fences late acceptance when the installation changes 140ms
+   ✓ ignores the old account membership refresh after an accepted invitation when the account changes 159ms
+   ✓ fences an accepted invitation refresh after a newer read confirms membership removal 148ms
+   ✓ clears invitation input and fences a late acceptance while signing out from blocked entry 119ms
+   ✓ retries the complete initial load and restores the remembered team after a connection failure 25ms
+   ✓ restores navigation only when its stored workspace marker matches (match=true) 7ms
+   ✓ restores navigation only when its stored workspace marker matches (match=false) 6ms
+   ✓ does not broadcast draft registry changes while workspace selection still guards the current drafts 115ms
+   ✓ broadcasts revision-only refreshes and fresh membership permissions after context memoization 62ms
+   ✓ keeps an unsaved editor mounted while refreshing access and disables every stale write grant 81ms
+   ✓ keeps drafts mounted after a transient team refresh failure and retries without resetting the workspace 81ms
+   ✓ retains only prior read access after a temporary project lookup failure, then recovers on refresh 94ms
+   ✓ hides a revoked team without switching to personal authority or discarding its mounted drafts 90ms
+   ✓ clears confirmed denied project permissions and rejects late results from a different project 24ms
+   ✓ ignores an older successful refresh after the latest refresh revokes membership 35ms
+   ✓ asks before switching a workspace with unsaved drafts (retained=true) 108ms
+   ✓ asks before switching a workspace with unsaved drafts (retained=false) 127ms
+   ✓ keeps local check drafts protected on workspace change without suggesting a nonexistent shared save 108ms
+ ✓ src/components/teams/TeamWorkspacePortalAuthority.test.tsx (13 tests) 2825ms
+   ✓ CLOUD-060 actual Radix portal is removed on fresh authoritative denial before membership settles 355ms
+   ✓ CLOUD-060 busy private review releases modal traps without clearing its parent answer draft 428ms
+   ✓ CLOUD-060 actual nested provider form fields survive suspension without saving or connecting 475ms
+ ✓ src/components/teams/TeamWorkspaceAuthority.test.tsx (18 tests) 1618ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/teams/TeamWorkspaceProvider.test.tsx > resolves the remembered team before mounting project content or issuing project requests
+AssertionError: expected "projectAccess" to be called with arguments: [ 'team-abcdefghijklmnopqrstuv', …(1) ]
+
+Received:
+
+  1st projectAccess call:
+
+  [
+    "team-abcdefghijklmnopqrstuv",
+    "project-a",
++   AbortSignal {
++     Symbol(kEvents): undefined,
++     Symbol(events.maxEventTargetListeners): 0,
++     Symbol(events.maxEventTargetListenersWarned): false,
++     Symbol(kHandlers): undefined,
++     Symbol(kAborted): false,
++     Symbol(kReason): undefined,
++     Symbol(kComposite): false,
++   },
+  ]
+
+
+Number of calls: 1
+
+ ❯ src/components/teams/TeamWorkspaceProvider.test.tsx:74:34
+     72|   await waitFor(() => expect(permissions().loading).toBe(false));
+     73|   expect(selectedTeamId()).toBe(teamA);
+     74|   expect(teamsApi.projectAccess).toHaveBeenCalledWith(teamA, 'project-…
+       |                                  ^
+     75| });
+     76|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/components/teams/TeamWorkspaceProvider.test.tsx > defers private child effects until the first confirmed membership and mounts a clean workspace after joining
+AssertionError: expected "projectAccess" to be called once with arguments: [ 'team-abcdefghijklmnopqrstuv', …(1) ]
+
+Received:
+
+  1st projectAccess call:
+
+  [
+    "team-abcdefghijklmnopqrstuv",
+    "project-a",
++   AbortSignal {
++     Symbol(kEvents): undefined,
++     Symbol(events.maxEventTargetListeners): 0,
++     Symbol(events.maxEventTargetListenersWarned): false,
++     Symbol(kHandlers): undefined,
++     Symbol(kAborted): false,
++     Symbol(kReason): undefined,
++     Symbol(kComposite): false,
++   },
+  ]
+
+
+Number of calls: 1
+
+ ❯ src/components/teams/TeamWorkspaceProvider.test.tsx:136:34
+    134|   await act(async () => membership.resolve({ teams: [summary()], manag…
+    135|   await screen.findByRole('textbox', { name: 'Project draft' });
+    136|   expect(teamsApi.projectAccess).toHaveBeenCalledExactlyOnceWith(teamA…
+       |                                  ^
+    137|   expect(permissions()).toEqual({ permissions: personalPermissions, lo…
+    138| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯ Unhandled Rejection ⎯⎯⎯⎯⎯
+Error: Revoked
+ ❯ src/components/teams/TeamWorkspaceProvider.test.tsx:425:39
+    423|   expect(screen.getByTestId('scope')).toHaveProperty('textContent', 'p…
+    424|   expect(selectedTeamId()).toBe('');
+    425|   await act(async () => denied.reject(new Error('Revoked')));
+       |                                       ^
+    426|   expect(permissions().permissions).toEqual(personalPermissions);
+    427| });
+ ❯ ../../../../luci/desktop/node_modules/@testing-library/react/dist/act-compat.js:47:24
+ ❯ process.env.NODE_ENV.exports.act ../../../../luci/desktop/node_modules/react/cjs/react.development.js:890:22
+ ❯ Proxy.<anonymous> ../../../../luci/desktop/node_modules/@testing-library/react/dist/act-compat.js:46:25
+ ❯ src/components/teams/TeamWorkspaceProvider.test.tsx:425:9
+ ❯ ../../../../luci/desktop/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:20
+
+This error originated in "src/components/teams/TeamWorkspaceProvider.test.tsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The last test to run before this error was "hides a revoked team without switching to personal authority or discarding its mounted drafts". This means either:
+- the error was thrown while Vitest was running this test, or
+- the error was thrown after the test completed, and this was the most recent test at that point.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files  1 failed | 3 passed (4)
+      Tests  2 failed | 64 passed (66)
+     Errors  1 error
+   Start at  17:00:03
+   Duration  19.58s (tests 53%, environment 28%, transform 11%, import 6%, setup 3%)
+
+Environment  jsdom was created 4 times · 5.11s total, 28% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments
+
+JSON report written to /workspace/.luci-tools/cloud075-authority-coalescing/logs/fixed-existing-initial.json

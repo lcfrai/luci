@@ -1,0 +1,13 @@
+
+ RUN  v5.0.1 /workspace/.luci-tools/cloud075-authority-coalescing/fixed/desktop
+
+ ✓ src/components/teams/TeamWorkspaceCoalescing.test.tsx (10 tests) 1413ms
+   ✓ shares one overlapping project grant read but a later subscriber must read fresh authority 401ms
+   ✓ different projects and refreshed membership revisions have independent reads and late results cannot restore grants 485ms
+
+ Test Files  1 passed (1)
+      Tests  10 passed (10)
+   Start at  16:59:48
+   Duration  5.25s (environment 47%, tests 29%, transform 15%, import 5%, setup 4%)
+
+JSON report written to /workspace/.luci-tools/cloud075-authority-coalescing/logs/fixed-regression.json

@@ -1,0 +1,66 @@
+{
+  "dependencyReuse": "Existing desktop/node_modules symlink; no install",
+  "lockfileSha256": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a",
+  "selectedPackages": {
+    "react": {
+      "installed": "19.3.0",
+      "locked": "19.3.0",
+      "matches": true,
+      "packageJsonSha256": "6e003e4e9ed25afa7fdd55613f8aa877cefa9b359d9c13f81ee704030248e24e"
+    },
+    "react-dom": {
+      "installed": "19.3.0",
+      "locked": "19.3.0",
+      "matches": true,
+      "packageJsonSha256": "136d4af63de473392ea79d6a21932b0ed9eb37fe518ce70f4621250f3d79e9bb"
+    },
+    "zustand": {
+      "installed": "5.0.15",
+      "locked": "5.0.15",
+      "matches": true,
+      "packageJsonSha256": "b53b4d5e7f6baeb1e832792390354f8af54edaefbd6fe23b490a4d2d2e37dff1"
+    },
+    "typescript": {
+      "installed": "6.0.3",
+      "locked": "6.0.3",
+      "matches": true,
+      "packageJsonSha256": "9332e97c30d3e53ed54910b89207ed657fb444066484df6e5b6965bf130865e9"
+    },
+    "vitest": {
+      "installed": "5.0.1",
+      "locked": "5.0.1",
+      "matches": true,
+      "packageJsonSha256": "bb27a3b3f172321701a7b1f1d90a59e5c9596673176f553a91c1e93b9667abfa"
+    },
+    "vite": {
+      "installed": "8.3.0",
+      "locked": "8.3.0",
+      "matches": true,
+      "packageJsonSha256": "0a75f2254630e11aa4fde386a2f883e2acc8430acc3fb5a833f25da264c62a16"
+    },
+    "jsdom": {
+      "installed": "30.1.0",
+      "locked": "30.1.0",
+      "matches": true,
+      "packageJsonSha256": "651b67b0f9ae95ae7bc5aea9ed5de30cbc5a722e2ce62dbdae9a4f90c9bea059"
+    },
+    "@testing-library/react": {
+      "installed": "16.3.3",
+      "locked": "16.3.3",
+      "matches": true,
+      "packageJsonSha256": "8ec075b66acb20cf1705fc56c7bfeca0ba88eb62f354827c29d65afc25a3d967"
+    },
+    "@testing-library/user-event": {
+      "installed": "14.6.7",
+      "locked": "14.6.7",
+      "matches": true,
+      "packageJsonSha256": "a61a997f2fe8ba36d87607fde1d3194d3d7c5a157fae3900d2e92f6206aac08a"
+    },
+    "@radix-ui/react-dialog": {
+      "installed": "1.1.23",
+      "locked": "1.1.23",
+      "matches": true,
+      "packageJsonSha256": "443c6bcf3f468416e4b778da3bdbd5ed837f7671f20bb8f499522d1cfe4cb5eb"
+    }
+  }
+}

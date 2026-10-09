@@ -1,0 +1,393 @@
+--- a/desktop/src/components/teams/TeamWorkspaceProvider.tsx
++++ b/desktop/src/components/teams/TeamWorkspaceProvider.tsx
+@@ -14,6 +14,7 @@
+ import { WorkspaceOverlayScope } from '../common/WorkspaceOverlayScope';
+ import { Button } from '../fluid/components/button';
+ import './teams.css';
++import { createProjectPermissionReads } from './projectPermissionReads';
+ interface TeamWorkspaceValue {
+   teams: TeamSummary[]; selected: TeamSummary | null; teamId: string; managedTeamId: string; revision: number;
+   /** A reversible display/stream barrier; cached drafts remain mounted. */
+@@ -21,6 +22,7 @@
+   refresh(): Promise<void>; select(id: string): void;
+ }
+ const TeamWorkspaceContext = createContext<TeamWorkspaceValue | null>(null);
++const ProjectPermissionReadsContext = createContext<ReturnType<typeof createProjectPermissionReads> | null>(null);
+ export const useTeamWorkspace = () => useContext(TeamWorkspaceContext);
+ export function TeamWorkspaceProvider({children}: {children:ReactNode}) {
+   const auth = useAuth();
+@@ -32,6 +34,8 @@
+ }
+ function ScopedTeamWorkspaceProvider({children,auth,storageKey}: {children:ReactNode;auth:ReturnType<typeof useAuth>;storageKey:string}) {
+   const userId = auth?.profile.user.id ?? '';
++  const [permissionReads] = useState(createProjectPermissionReads);
++  useEffect(() => () => permissionReads.invalidate(), [permissionReads]);
+   const [teams,setTeams] = useState<TeamSummary[]>([]);
+   const [selected,setSelected] = useState('');
+   const [managedTeamId,setManagedTeamId] = useState('');
+@@ -51,6 +55,7 @@
+   const denialRefresh = useRef(false);
+   const drafts = useCockpit(s=>s.unsavedProjectDrafts);
+   const apply = useCallback((id:string, initial=false) => {
++    permissionReads.invalidate();
+     detachAllTerminals();
+     let sameStoredScope=false;
+     try { sameStoredScope=localStorage.getItem(storageKey+'.cockpit')===id; } catch { /* Re-fetch without restoring navigation. */ }
+@@ -58,7 +63,7 @@
+     selectTeamScope(id); active.current=id; deniedScope.current=null; denialRefresh.current=false;
+     setSelected(id); setEpoch(v=>v+1); setError(''); setBlocked(false); setPending(null);
+     try { localStorage.setItem(storageKey,id); localStorage.setItem(storageKey+'.cockpit',id); } catch { /* Selection can remain session-only. */ }
+-  },[storageKey]);
++  },[storageKey,permissionReads]);
+   const refresh = useCallback(async()=>{
+     const attempt=++request.current;
+     const scope=active.current, scopeGeneration=teamScopeGeneration();
+@@ -67,6 +72,8 @@
+     try {
+       const result=await teamsApi.list();
+       if(!current())return;
++      // A new membership observation supersedes every older project grant read.
++      permissionReads.invalidate();
+       if(result.managedTeamId && result.managedTeamId!==scope) {
+         detachAllTerminals(); setBlocked(true); setError('This service is bound to a different team. Reopen Luci to load its workspace.');
+       } else if(scope && !result.teams.some(row=>row.team.id===scope)) {
+@@ -101,13 +108,14 @@
+       setManagedTeamId(result.managedTeamId??'');
+       setTeams(result.teams); setRevision(v=>v+1);
+     } catch(cause) { if(current())setError(errorText(cause)); throw cause; }
+-  },[]);
++  },[permissionReads]);
+   useEffect(()=>{
+     const denied=(event:Event)=>{
+       const detail=(event as CustomEvent<TeamAccessDenial>).detail;
+       if(!detail || detail.teamId!==active.current || !detail.teamId || detail.generation!==teamScopeGeneration())return;
+       // Object identity fences an older membership/catalogue success even when
+       // a second denial arrives during the coalesced revalidation.
++      permissionReads.invalidate();
+       const repeated=deniedScope.current!==null;
+       deniedScope.current={teamId:detail.teamId,generation:detail.generation};
+       // A blocked episode keeps Retry, focus and the periodic refresh. Further
+@@ -120,7 +128,7 @@
+     };
+     window.addEventListener(TEAM_WORKSPACE_ACCESS_DENIED,denied);
+     return()=>window.removeEventListener(TEAM_WORKSPACE_ACCESS_DENIED,denied);
+-  },[refresh]);
++  },[refresh,permissionReads]);
+   useEffect(()=>{
+     let live=true;
+     setReady(false); setError('');
+@@ -157,7 +165,7 @@
+   const overlayAdmission=useMemo(()=>({available:!blocked,retry:refresh}),[blocked,refresh]);
+   const retained=Object.values(drafts).every(draft=>draft.retained);
+   const localSetup=Object.values(drafts).some(draft=>draft.purpose==='verification-setup');
+-  return <TeamWorkspaceContext.Provider value={value}>
++  return <ProjectPermissionReadsContext.Provider value={permissionReads}><TeamWorkspaceContext.Provider value={value}>
+     {/* Initial nonmembers must not start private child reads. After admission,
+         retain mounted editors through access refreshes and hide them on denial. */}
+     {ready&&(!blocked||admitted)&&<div className="team-app-host" hidden={blocked}><WorkspaceOverlayScope value={overlayAdmission}><Fragment key={`${userId}:${epoch}`}>{children}</Fragment></WorkspaceOverlayScope></div>}
+@@ -174,27 +182,29 @@
+     {pending!==null&&<WorkflowDialog title="Switch workspace?" description={localSetup?'Your project has unsaved edits. Continue editing here, keep any retained browser drafts, or discard the edits before switching.':'Your project has unsaved edits. Save them before leaving, keep the retained browser drafts, or discard them.'} onClose={()=>setPending(null)}>
+       <div className="workflow-actions"><Button variant="secondary" onClick={()=>{Object.values(drafts).forEach(draft=>draft.discard?.());apply(pending);}}>Discard edits and switch</Button>{retained&&<Button variant="secondary" onClick={()=>apply(pending)}>Keep drafts and switch</Button>}<Button onClick={()=>setPending(null)}>Stay here</Button></div>
+     </WorkflowDialog>}
+-  </TeamWorkspaceContext.Provider>;
++  </TeamWorkspaceContext.Provider></ProjectPermissionReadsContext.Provider>;
+ }
+ export function useTeamProjectPermissions(projectId:string): {permissions:TeamPermissions;loading:boolean;error:string} {
+   const workspace=useTeamWorkspace();
++  const permissionReads=useContext(ProjectPermissionReadsContext);
+   const teamId=workspace?.teamId??'';
+   const revision=workspace?.revision??0;
+   const scope=JSON.stringify([teamId,projectId]);
+   const key=JSON.stringify([teamId,projectId,revision]);
+   const [result,setResult]=useState<{scope:string;key:string;permissions:TeamPermissions;error:string}|null>(null);
+   useEffect(()=>{
+-    if(!teamId||!projectId)return;
++    if(!teamId||!projectId||!permissionReads||workspace?.accessBlocked)return;
+     let live=true;
+-    void teamsApi.projectAccess(teamId,projectId).then(value=>{
+-      if(live)setResult({scope,key,permissions:value.permissions,error:''});
++    const read=permissionReads.acquire(teamId,projectId,revision);
++    void read.promise.then(value=>{
++      if(live&&read.current())setResult({scope,key,permissions:value.permissions,error:''});
+     }).catch(cause=>{
+-      if(!live)return;
++      if(!live||!read.current())return;
+       const denied=cause instanceof ApiError && [401,403,404].includes(cause.status);
+       setResult(previous=>({scope,key,permissions:{...noPermissions,read:!denied&&previous?.scope===scope&&previous.permissions.read},error:errorText(cause)}));
+     });
+-    return()=>{live=false;};
+-  },[teamId,projectId,scope,key]);
++    return()=>{live=false;read.release();};
++  },[teamId,projectId,scope,key,revision,permissionReads,workspace?.accessBlocked]);
+   if(!teamId)return {permissions:personalPermissions,loading:false,error:''};
+   // The provider hides the whole workspace while retaining mounted editors.
+   // Keep only its prior read projection to preserve drafts. Writes and terminal
+--- /dev/null
++++ b/desktop/src/components/teams/projectPermissionReads.ts
+@@ -0,0 +1,54 @@
++import { teamsApi, type ProjectAccess } from '../../api/teams';
++import { productApi } from '../../api/product';
++import { teamScopeGeneration } from '../../api/teamScope';
++
++interface PendingRead {
++  controller: AbortController;
++  promise: Promise<ProjectAccess>;
++  subscribers: number;
++  generation: number;
++}
++
++/** Share only overlapping display reads within one provider. Settled grants are
++ * never cached; each hook still owns its previous read projection and write gate. */
++export function createProjectPermissionReads() {
++  const pending = new Map<string, PendingRead>();
++  let generation = 0;
++  return {
++    invalidate() {
++      generation++;
++      for (const read of pending.values()) read.controller.abort();
++      pending.clear();
++    },
++    acquire(teamId: string, projectId: string, revision: number) {
++      const scope = teamScopeGeneration();
++      const key = JSON.stringify([productApi.baseUrl, scope, teamId, projectId, revision, generation]);
++      let read = pending.get(key);
++      if (!read) {
++        const controller = new AbortController();
++        const promise = teamsApi.projectAccess(teamId, projectId, controller.signal);
++        read = { controller, promise, subscribers: 0, generation };
++        const created = read;
++        pending.set(key, created);
++        // Register both settlement paths without leaving a rejected cleanup promise.
++        const settled = () => { if (pending.get(key) === created) pending.delete(key); };
++        void promise.then(settled, settled);
++      }
++      const subscribed = read;
++      subscribed.subscribers++;
++      let released = false;
++      return {
++        promise: subscribed.promise,
++        current: () => !released && !subscribed.controller.signal.aborted && subscribed.generation === generation && scope === teamScopeGeneration(),
++        release() {
++          if (released) return;
++          released = true;
++          if (--subscribed.subscribers === 0) {
++            if (pending.get(key) === subscribed) pending.delete(key);
++            subscribed.controller.abort();
++          }
++        },
++      };
++    },
++  };
++}
+--- /dev/null
++++ b/desktop/src/components/teams/TeamWorkspaceCoalescing.test.tsx
+@@ -0,0 +1,166 @@
++import { afterEach, beforeEach, expect, it, vi } from 'vitest';
++import { StrictMode } from 'react';
++import { act, render, screen, waitFor } from '@testing-library/react';
++import userEvent from '@testing-library/user-event';
++import { TeamWorkspaceProvider, useTeamProjectPermissions, useTeamWorkspace } from './TeamWorkspaceProvider';
++import { teamsApi, noPermissions, personalPermissions, type ProjectAccess, type TeamSummary } from '../../api/teams';
++import { productApi } from '../../api/product';
++import { reportTeamAccessDenied, selectTeamScope, teamScopeGeneration } from '../../api/teamScope';
++import { teamWorkspaceStorageKey } from '../../api/teamWorkspacePreference';
++import { resetCockpit } from '../../store/store';
++import { api } from '../../api';
++
++const auth = vi.hoisted(() => ({ userId: 'alice' }));
++vi.mock('../auth/AuthProvider', () => ({ useAuth: () => ({ profile: { user: { id: auth.userId } }, logout: vi.fn() }) }));
++vi.mock('../../api/attachRegistry', () => ({ detachAllTerminals: vi.fn() }));
++const teamId = 'team-abcdefghijklmnopqrstuv';
++const summary: TeamSummary = { team: { id: teamId, name: 'Atlas', revision: 1, createdAt: '', updatedAt: '' }, membership: { userId: 'alice', role: 'owner', grants: personalPermissions, revision: 1 }, permissions: personalPermissions };
++const access = (projectId = 'project-a', permissions = personalPermissions): ProjectAccess => ({ team: summary.team, projectId, permissions, grants: [] });
++function deferred<T>() { let resolve!: (value: T) => void; let reject!: (error: Error) => void; const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; }
++function remember(userId = 'alice') { const key = teamWorkspaceStorageKey(productApi.baseUrl, userId); localStorage.setItem(key, teamId); localStorage.setItem(key + '.cockpit', teamId); }
++function Probe({ name, projectId = 'project-a' }: { name: string; projectId?: string }) {
++  const current = useTeamProjectPermissions(projectId);
++  return <section aria-label={name}><output data-testid={name}>{JSON.stringify(current)}</output>{current.permissions.read && <label>{name} draft<textarea defaultValue="Saved idea" /></label>}<button disabled={current.loading || !current.permissions.edit}>Save {name}</button></section>;
++}
++function Controls() { const workspace = useTeamWorkspace()!; return <button onClick={() => void workspace.refresh().catch(() => {})}>Refresh access</button>; }
++function Workspace({ names = ['one', 'two'], secondProject = 'project-a' }: { names?: string[]; secondProject?: string }) { return <TeamWorkspaceProvider><Controls />{names.map(name => <Probe key={name} name={name} projectId={name === 'two' ? secondProject : 'project-a'} />)}</TeamWorkspaceProvider>; }
++const permission = (name: string) => JSON.parse(screen.getByTestId(name).textContent!);
++const settle = async () => { await act(async () => {}); };
++beforeEach(() => {
++  auth.userId = 'alice'; selectTeamScope(''); localStorage.clear(); resetCockpit(); remember();
++  vi.spyOn(teamsApi, 'list').mockResolvedValue({ teams: [summary] });
++  vi.spyOn(teamsApi, 'projectAccess').mockImplementation(async (_team, projectId) => access(projectId));
++  vi.spyOn(api, 'listProjects').mockResolvedValue([]); vi.spyOn(api, 'listSessions').mockResolvedValue([]);
++});
++afterEach(() => { vi.restoreAllMocks(); selectTeamScope(''); localStorage.clear(); resetCockpit(); });
++
++it('shares one overlapping project grant read but a later subscriber must read fresh authority', async () => {
++  const first = deferred<ProjectAccess>(); vi.mocked(teamsApi.projectAccess).mockReturnValue(first.promise);
++  const view = render(<Workspace />);
++  await screen.findByTestId('two'); await settle();
++  expect(teamsApi.projectAccess).toHaveBeenCalledTimes(1);
++  expect(permission('one').loading).toBe(true); expect(permission('two').loading).toBe(true);
++  await act(async () => first.resolve(access()));
++  expect(permission('one').permissions).toEqual(personalPermissions); expect(permission('two').permissions).toEqual(personalPermissions);
++  const fresh = deferred<ProjectAccess>(); vi.mocked(teamsApi.projectAccess).mockReturnValue(fresh.promise);
++  view.rerender(<Workspace names={['one', 'two', 'three']} />); await settle();
++  expect(teamsApi.projectAccess).toHaveBeenCalledTimes(2);
++  expect(permission('three')).toEqual({ permissions: noPermissions, loading: true, error: '' });
++  await act(async () => fresh.resolve(access('project-a', { ...noPermissions, read: true })));
++  expect(permission('three').permissions.edit).toBe(false);
++});
++
++it('unsubscribing one reader preserves the other and leaving the last reader aborts its request', async () => {
++  const pending = deferred<ProjectAccess>(); vi.mocked(teamsApi.projectAccess).mockReturnValue(pending.promise);
++  const view = render(<Workspace />); await screen.findByTestId('two'); await settle();
++  expect(teamsApi.projectAccess).toHaveBeenCalledTimes(1);
++  const signal = vi.mocked(teamsApi.projectAccess).mock.calls[0][2]!;
++  expect(signal?.aborted).toBe(false);
++  view.rerender(<Workspace names={['two']} />); await settle(); expect(signal.aborted).toBe(false);
++  await act(async () => pending.resolve(access())); expect(permission('two').permissions.edit).toBe(true);
++  const next = deferred<ProjectAccess>(); vi.mocked(teamsApi.projectAccess).mockReturnValue(next.promise);
++  view.rerender(<Workspace names={['two', 'three']} />); await settle();
++  const nextSignal = vi.mocked(teamsApi.projectAccess).mock.calls[1][2]!;
++  view.rerender(<Workspace names={['two']} />); await settle(); expect(nextSignal.aborted).toBe(true);
++  await act(async () => next.resolve(access())); expect(screen.queryByTestId('three')).toBeNull(); expect(permission('two').permissions.edit).toBe(true);
++});
++
++it('different projects and refreshed membership revisions have independent reads and late results cannot restore grants', async () => {
++  const oldA = deferred<ProjectAccess>(), oldB = deferred<ProjectAccess>();
++  vi.mocked(teamsApi.projectAccess).mockImplementation((_team, projectId) => projectId === 'project-a' ? oldA.promise : oldB.promise);
++  render(<Workspace secondProject="project-b" />); await screen.findByTestId('two'); await settle();
++  expect(teamsApi.projectAccess).toHaveBeenCalledTimes(2);
++  const oldSignals = vi.mocked(teamsApi.projectAccess).mock.calls.map(call => call[2]);
++  const fresh = deferred<ProjectAccess>(); vi.mocked(teamsApi.projectAccess).mockImplementation(async (_team, projectId) => projectId === 'project-a' ? fresh.promise : access(projectId, noPermissions));
++  await userEvent.click(screen.getByRole('button', { name: 'Refresh access' }));
++  await waitFor(() => expect(teamsApi.projectAccess).toHaveBeenCalledTimes(4));
++  expect(oldSignals.every(signal => signal?.aborted)).toBe(true);
++  await act(async () => fresh.resolve(access('project-a', { ...noPermissions, read: true })));
++  await act(async () => { oldA.resolve(access()); oldB.resolve(access('project-b')); });
++  expect(permission('one').permissions).toEqual({ ...noPermissions, read: true }); expect(permission('two').permissions).toEqual(noPermissions);
++});
++
++it('a denial aborts shared reads and its delayed success cannot authorize restored consumers', async () => {
++  const old = deferred<ProjectAccess>(); vi.mocked(teamsApi.projectAccess).mockReturnValue(old.promise);
++  render(<Workspace />); await screen.findByTestId('two'); await settle();
++  const signal = vi.mocked(teamsApi.projectAccess).mock.calls[0][2]!;
++  const membership = deferred<{ teams: TeamSummary[] }>(); vi.mocked(teamsApi.list).mockReturnValueOnce(membership.promise);
++  act(() => reportTeamAccessDenied(teamScopeGeneration()));
++  expect(signal?.aborted).toBe(true); expect(screen.getByRole('heading', { name: 'Workspace unavailable' })).toBeTruthy();
++  const restored = deferred<ProjectAccess>(); vi.mocked(teamsApi.projectAccess).mockReturnValue(restored.promise);
++  await act(async () => membership.resolve({ teams: [summary] }));
++  await waitFor(() => expect(screen.queryByRole('heading', { name: 'Workspace unavailable' })).toBeNull());
++  expect(teamsApi.projectAccess).toHaveBeenCalledTimes(2);
++  await act(async () => old.resolve(access()));
++  expect(permission('one').permissions).toEqual(noPermissions); expect(permission('two').permissions).toEqual(noPermissions);
++  await act(async () => restored.resolve(access('project-a', { ...noPermissions, read: true })));
++  expect(permission('one').permissions.edit).toBe(false); expect(permission('two').permissions.edit).toBe(false);
++});
++
++it('account replacement disposes shared reads and requires a new authority observation', async () => {
++  const old = deferred<ProjectAccess>(); vi.mocked(teamsApi.projectAccess).mockReturnValue(old.promise);
++  const view = render(<Workspace />); await screen.findByTestId('two'); await settle();
++  const signal = vi.mocked(teamsApi.projectAccess).mock.calls[0][2]!;
++  const replacement = deferred<ProjectAccess>(); vi.mocked(teamsApi.projectAccess).mockReturnValue(replacement.promise);
++  auth.userId = 'bob'; remember('bob'); view.rerender(<Workspace />); await screen.findByTestId('two'); await settle();
++  expect(signal?.aborted).toBe(true); expect(teamsApi.projectAccess).toHaveBeenCalledTimes(2);
++  await act(async () => old.resolve(access())); expect(permission('one').permissions).toEqual(noPermissions);
++  await act(async () => replacement.resolve(access('project-a', { ...noPermissions, read: true })));
++  expect(permission('one').permissions.edit).toBe(false); expect(permission('two').permissions.edit).toBe(false);
++});
++
++it('shared refresh keeps each dirty editor mounted and pauses writes through an offline failure', async () => {
++  render(<Workspace />); const first = await screen.findByRole('textbox', { name: 'one draft' }); const second = screen.getByRole('textbox', { name: 'two draft' });
++  await userEvent.type(first, ' first edits'); await userEvent.type(second, ' second edits');
++  const pending = deferred<ProjectAccess>(); vi.mocked(teamsApi.projectAccess).mockReturnValue(pending.promise);
++  await userEvent.click(screen.getByRole('button', { name: 'Refresh access' })); await waitFor(() => expect(permission('one').loading).toBe(true));
++  expect(screen.getByRole('textbox', { name: 'one draft' })).toBe(first); expect(screen.getByRole('textbox', { name: 'two draft' })).toBe(second);
++  expect(screen.getByRole('button', { name: 'Save one' })).toHaveProperty('disabled', true); expect(screen.getByRole('button', { name: 'Save two' })).toHaveProperty('disabled', true);
++  await act(async () => pending.reject(new Error('Offline')));
++  expect(permission('one').permissions).toEqual({ ...noPermissions, read: true }); expect(permission('two').permissions).toEqual({ ...noPermissions, read: true });
++  expect(first).toHaveProperty('value', 'Saved idea first edits'); expect(second).toHaveProperty('value', 'Saved idea second edits');
++});
++
++it('StrictMode remounts never reuse an aborted request', async () => {
++  const pending = deferred<ProjectAccess>(); vi.mocked(teamsApi.projectAccess).mockReturnValue(pending.promise);
++  render(<StrictMode><Workspace /></StrictMode>); await screen.findByTestId('two'); await settle();
++  const calls = vi.mocked(teamsApi.projectAccess).mock.calls;
++  expect(calls.filter(call => call[2] && !call[2].aborted)).toHaveLength(1);
++  await act(async () => pending.resolve(access()));
++  expect(permission('one').permissions.edit).toBe(true); expect(permission('two').permissions.edit).toBe(true);
++});
++
++it('a grant resolved immediately before denial cannot become a prior readable projection after recovery', async () => {
++  const old = deferred<ProjectAccess>(); vi.mocked(teamsApi.projectAccess).mockReturnValue(old.promise);
++  render(<Workspace />); await screen.findByTestId('two'); await settle();
++  const membership = deferred<{ teams: TeamSummary[] }>(); vi.mocked(teamsApi.list).mockReturnValueOnce(membership.promise);
++  act(() => { old.resolve(access()); reportTeamAccessDenied(teamScopeGeneration()); }); await settle();
++  const restored = deferred<ProjectAccess>(); vi.mocked(teamsApi.projectAccess).mockReturnValue(restored.promise);
++  await act(async () => membership.resolve({ teams: [summary] }));
++  await waitFor(() => expect(screen.queryByRole('heading', { name: 'Workspace unavailable' })).toBeNull());
++  expect(permission('one').permissions).toEqual(noPermissions); expect(permission('two').permissions).toEqual(noPermissions);
++  expect(screen.queryByRole('textbox', { name: 'one draft' })).toBeNull();
++  await act(async () => restored.resolve(access('project-a', noPermissions)));
++});
++
++it('late completion from an abandoned request cannot evict a replacement shared by new readers', async () => {
++  const abandoned = deferred<ProjectAccess>(); vi.mocked(teamsApi.projectAccess).mockReturnValue(abandoned.promise);
++  const view = render(<Workspace names={['one']} />); await screen.findByTestId('one'); await settle();
++  const signal = vi.mocked(teamsApi.projectAccess).mock.calls[0][2]!;
++  view.rerender(<Workspace names={[]} />); await settle();
++  const replacement = deferred<ProjectAccess>(); vi.mocked(teamsApi.projectAccess).mockReturnValue(replacement.promise);
++  view.rerender(<Workspace names={['two']} />); await settle();
++  expect(signal?.aborted).toBe(true); expect(teamsApi.projectAccess).toHaveBeenCalledTimes(2);
++  await act(async () => abandoned.resolve(access()));
++  view.rerender(<Workspace names={['two', 'three']} />); await settle(); expect(teamsApi.projectAccess).toHaveBeenCalledTimes(2);
++  await act(async () => replacement.resolve(access('project-a', { ...noPermissions, read: true })));
++  expect(permission('two').permissions.edit).toBe(false); expect(permission('three').permissions.edit).toBe(false);
++});
++
++it('separate provider instances never share even simultaneous reads for the same team and project', async () => {
++  const pending = deferred<ProjectAccess>(); vi.mocked(teamsApi.projectAccess).mockReturnValue(pending.promise);
++  render(<><TeamWorkspaceProvider><Probe name="one" /></TeamWorkspaceProvider><TeamWorkspaceProvider><Probe name="two" /></TeamWorkspaceProvider></>);
++  await screen.findByTestId('two'); await settle(); expect(teamsApi.projectAccess).toHaveBeenCalledTimes(2);
++  await act(async () => pending.resolve(access()));
++  expect(permission('one').permissions.edit).toBe(true); expect(permission('two').permissions.edit).toBe(true);
++});
+--- a/desktop/src/components/teams/TeamWorkspaceProvider.test.tsx
++++ b/desktop/src/components/teams/TeamWorkspaceProvider.test.tsx
+@@ -71,7 +71,7 @@
+   expect(await screen.findByTestId('scope')).toHaveProperty('textContent', teamA);
+   await waitFor(() => expect(permissions().loading).toBe(false));
+   expect(selectedTeamId()).toBe(teamA);
+-  expect(teamsApi.projectAccess).toHaveBeenCalledWith(teamA, 'project-a');
++  expect(teamsApi.projectAccess).toHaveBeenCalledWith(teamA, 'project-a', expect.any(AbortSignal));
+ });
+ 
+ it('opens the managed team regardless of a personal preference and refuses workspace switching', async () => {
+@@ -133,7 +133,7 @@
+   expect(screen.queryByTestId('access')).toBeNull();
+   await act(async () => membership.resolve({ teams: [summary()], managedTeamId: teamA }));
+   await screen.findByRole('textbox', { name: 'Project draft' });
+-  expect(teamsApi.projectAccess).toHaveBeenCalledExactlyOnceWith(teamA, 'project-a');
++  expect(teamsApi.projectAccess).toHaveBeenCalledExactlyOnceWith(teamA, 'project-a', expect.any(AbortSignal));
+   expect(permissions()).toEqual({ permissions: personalPermissions, loading: false, error: '' });
+ });
+ 
+@@ -409,20 +409,19 @@
+   const draft = await screen.findByRole('textbox', { name: 'Project draft' });
+   await userEvent.type(draft, ' private changes');
+   vi.mocked(teamsApi.list).mockResolvedValueOnce({ teams: [] });
+-  const denied = deferred<ProjectAccess>();
+-  vi.mocked(teamsApi.projectAccess).mockReturnValueOnce(denied.promise);
++  const readsBeforeDenial = vi.mocked(teamsApi.projectAccess).mock.calls.length;
+   await userEvent.click(screen.getByRole('button', { name: 'Refresh access' }));
+   await screen.findByRole('heading', { name: 'Workspace unavailable' });
+   expect(screen.queryByRole('textbox', { name: 'Project draft' })).toBeNull();
+   expect(draft.isConnected).toBe(true);
+   expect(draft).toHaveProperty('value', 'My saved idea private changes');
+   expect(selectedTeamId()).toBe(teamA);
++  expect(teamsApi.projectAccess).toHaveBeenCalledTimes(readsBeforeDenial);
+   expect(permissions().permissions).toEqual({ ...noPermissions, read: true });
+   expect(vi.mocked(detachAllTerminals)).toHaveBeenCalledTimes(2);
+   await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Workspace' }), '');
+   expect(screen.getByTestId('scope')).toHaveProperty('textContent', 'personal');
+   expect(selectedTeamId()).toBe('');
+-  await act(async () => denied.reject(new Error('Revoked')));
+   expect(permissions().permissions).toEqual(personalPermissions);
+ });
+ 

@@ -1,0 +1,11 @@
+
+ RUN  v5.0.1 /workspace/.luci-tools/cloud075-authority-coalescing/fixed/desktop
+
+ ✓ src/components/teams/TeamWorkspaceProvider.test.tsx (28 tests) 2774ms
+
+ Test Files  1 passed (1)
+      Tests  28 passed (28)
+   Start at  17:00:45
+   Duration  5.28s (tests 54%, environment 30%, transform 10%, import 3%, setup 3%)
+
+JSON report written to /workspace/.luci-tools/cloud075-authority-coalescing/logs/fixed-existing-corrected.json

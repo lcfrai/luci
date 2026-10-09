@@ -1,0 +1,169 @@
+
+ RUN  v5.0.1 /workspace/.luci-tools/cloud075-authority-coalescing/before/desktop
+
+ ❯ src/components/teams/TeamWorkspaceCoalescing.test.tsx (10 tests | 8 failed) 679ms
+   × shares one overlapping project grant read but a later subscriber must read fresh authority 81ms
+   × unsubscribing one reader preserves the other and leaving the last reader aborts its request 12ms
+   × different projects and refreshed membership revisions have independent reads and late results cannot restore grants 191ms
+   × a denial aborts shared reads and its delayed success cannot authorize restored consumers 18ms
+   × account replacement disposes shared reads and requires a new authority observation 16ms
+   ✓ shared refresh keeps each dirty editor mounted and pauses writes through an offline failure 262ms
+   × StrictMode remounts never reuse an aborted request 21ms
+   × a grant resolved immediately before denial cannot become a prior readable projection after recovery 36ms
+   × late completion from an abandoned request cannot evict a replacement shared by new readers 18ms
+   ✓ separate provider instances never share even simultaneous reads for the same team and project 22ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/teams/TeamWorkspaceCoalescing.test.tsx > shares one overlapping project grant read but a later subscriber must read fresh authority
+AssertionError: expected "projectAccess" to be called 1 times, but got 2 times
+ ❯ src/components/teams/TeamWorkspaceCoalescing.test.tsx:41:34
+     39|   const view = render(<Workspace />);
+     40|   await screen.findByTestId('two'); await settle();
+     41|   expect(teamsApi.projectAccess).toHaveBeenCalledTimes(1);
+       |                                  ^
+     42|   expect(permission('one').loading).toBe(true); expect(permission('two…
+     43|   await act(async () => first.resolve(access()));
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯
+
+ FAIL  src/components/teams/TeamWorkspaceCoalescing.test.tsx > unsubscribing one reader preserves the other and leaving the last reader aborts its request
+AssertionError: expected "projectAccess" to be called 1 times, but got 2 times
+ ❯ src/components/teams/TeamWorkspaceCoalescing.test.tsx:56:34
+     54|   const pending = deferred<ProjectAccess>(); vi.mocked(teamsApi.projec…
+     55|   const view = render(<Workspace />); await screen.findByTestId('two')…
+     56|   expect(teamsApi.projectAccess).toHaveBeenCalledTimes(1);
+       |                                  ^
+     57|   const signal = vi.mocked(teamsApi.projectAccess).mock.calls[0][2]!;
+     58|   expect(signal?.aborted).toBe(false);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯
+
+ FAIL  src/components/teams/TeamWorkspaceCoalescing.test.tsx > different projects and refreshed membership revisions have independent reads and late results cannot restore grants
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/components/teams/TeamWorkspaceCoalescing.test.tsx:77:55
+     75|   await userEvent.click(screen.getByRole('button', { name: 'Refresh ac…
+     76|   await waitFor(() => expect(teamsApi.projectAccess).toHaveBeenCalledT…
+     77|   expect(oldSignals.every(signal => signal?.aborted)).toBe(true);
+       |                                                       ^
+     78|   await act(async () => fresh.resolve(access('project-a', { ...noPermi…
+     79|   await act(async () => { oldA.resolve(access()); oldB.resolve(access(…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯
+
+ FAIL  src/components/teams/TeamWorkspaceCoalescing.test.tsx > a denial aborts shared reads and its delayed success cannot authorize restored consumers
+AssertionError: expected undefined to be true // Object.is equality
+
+- Expected:
+true
+
++ Received:
+undefined
+
+ ❯ src/components/teams/TeamWorkspaceCoalescing.test.tsx:89:27
+     87|   const membership = deferred<{ teams: TeamSummary[] }>(); vi.mocked(t…
+     88|   act(() => reportTeamAccessDenied(teamScopeGeneration()));
+     89|   expect(signal?.aborted).toBe(true); expect(screen.getByRole('heading…
+       |                           ^
+     90|   const restored = deferred<ProjectAccess>(); vi.mocked(teamsApi.proje…
+     91|   await act(async () => membership.resolve({ teams: [summary] }));
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯
+
+ FAIL  src/components/teams/TeamWorkspaceCoalescing.test.tsx > account replacement disposes shared reads and requires a new authority observation
+AssertionError: expected undefined to be true // Object.is equality
+
+- Expected:
+true
+
++ Received:
+undefined
+
+ ❯ src/components/teams/TeamWorkspaceCoalescing.test.tsx:106:27
+    104|   const replacement = deferred<ProjectAccess>(); vi.mocked(teamsApi.pr…
+    105|   auth.userId = 'bob'; remember('bob'); view.rerender(<Workspace />); …
+    106|   expect(signal?.aborted).toBe(true); expect(teamsApi.projectAccess).t…
+       |                           ^
+    107|   await act(async () => old.resolve(access())); expect(permission('one…
+    108|   await act(async () => replacement.resolve(access('project-a', { ...n…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯
+
+ FAIL  src/components/teams/TeamWorkspaceCoalescing.test.tsx > StrictMode remounts never reuse an aborted request
+AssertionError: expected [] to have a length of 1 but got +0
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ src/components/teams/TeamWorkspaceCoalescing.test.tsx:128:61
+    126|   render(<StrictMode><Workspace /></StrictMode>); await screen.findByT…
+    127|   const calls = vi.mocked(teamsApi.projectAccess).mock.calls;
+    128|   expect(calls.filter(call => call[2] && !call[2].aborted)).toHaveLeng…
+       |                                                             ^
+    129|   await act(async () => pending.resolve(access()));
+    130|   expect(permission('one').permissions.edit).toBe(true); expect(permis…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/8]⎯
+
+ FAIL  src/components/teams/TeamWorkspaceCoalescing.test.tsx > a grant resolved immediately before denial cannot become a prior readable projection after recovery
+AssertionError: expected { read: true, edit: false, …(4) } to deeply equal { read: false, edit: false, …(4) }
+
+- Expected
++ Received
+
+  {
+    "admin": false,
+    "deploy": false,
+    "edit": false,
+    "execute": false,
+-   "read": false,
++   "read": true,
+    "secrets": false,
+  }
+
+ ❯ src/components/teams/TeamWorkspaceCoalescing.test.tsx:141:41
+    139|   await act(async () => membership.resolve({ teams: [summary] }));
+    140|   await waitFor(() => expect(screen.queryByRole('heading', { name: 'Wo…
+    141|   expect(permission('one').permissions).toEqual(noPermissions); expect…
+       |                                         ^
+    142|   expect(screen.queryByRole('textbox', { name: 'one draft' })).toBeNul…
+    143|   await act(async () => restored.resolve(access('project-a', noPermiss…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/8]⎯
+
+ FAIL  src/components/teams/TeamWorkspaceCoalescing.test.tsx > late completion from an abandoned request cannot evict a replacement shared by new readers
+AssertionError: expected undefined to be true // Object.is equality
+
+- Expected:
+true
+
++ Received:
+undefined
+
+ ❯ src/components/teams/TeamWorkspaceCoalescing.test.tsx:153:27
+    151|   const replacement = deferred<ProjectAccess>(); vi.mocked(teamsApi.pr…
+    152|   view.rerender(<Workspace names={['two']} />); await settle();
+    153|   expect(signal?.aborted).toBe(true); expect(teamsApi.projectAccess).t…
+       |                           ^
+    154|   await act(async () => abandoned.resolve(access()));
+    155|   view.rerender(<Workspace names={['two', 'three']} />); await settle(…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/8]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  8 failed | 2 passed (10)
+   Start at  16:59:32
+   Duration  4.21s (environment 54%, tests 17%, transform 17%, import 6%, setup 5%)
+
+JSON report written to /workspace/.luci-tools/cloud075-authority-coalescing/logs/before.json

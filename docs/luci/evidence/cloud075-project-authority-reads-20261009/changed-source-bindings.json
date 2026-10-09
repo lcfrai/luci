@@ -1,0 +1,22 @@
+[
+  {
+    "path": "desktop/src/components/teams/TeamWorkspaceProvider.tsx",
+    "originalSha256": "a8a96ee7ccf6dcdb16decfe31e42c40081dd408e2e8004101c1af64f3bb9c3fa",
+    "finalSha256": "26bc0af9979eb3621b72a7dfce76f436c826136758cdf51070408a1d2e17e64b"
+  },
+  {
+    "path": "desktop/src/components/teams/projectPermissionReads.ts",
+    "originalSha256": null,
+    "finalSha256": "a4080a3984ae5d8b31c3a8efe47f0729e518759693ad34e0b2af1e52f2d5ce7a"
+  },
+  {
+    "path": "desktop/src/components/teams/TeamWorkspaceCoalescing.test.tsx",
+    "originalSha256": null,
+    "finalSha256": "2b916bb06468c2ef3b796264d92e06c37177c0df00926699880a2787d7fbdb32"
+  },
+  {
+    "path": "desktop/src/components/teams/TeamWorkspaceProvider.test.tsx",
+    "originalSha256": "a62822f66c88afdfa4f157d9ff995bbf15c9a6573899408460572a24ff097a71",
+    "finalSha256": "3f2f2732b8cc93e5ea7a4e32acfcf929cffec6cd2abc65726e6556faa4c85334"
+  }
+]

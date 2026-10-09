@@ -1,0 +1,45 @@
+{
+  "before": {
+    "numTotalTestSuites": 1,
+    "numTotalTests": 10,
+    "numPassedTests": 2,
+    "numFailedTests": 8,
+    "numPendingTests": 0,
+    "success": false,
+    "exitCode": 1
+  },
+  "fixed-regression": {
+    "numTotalTestSuites": 1,
+    "numTotalTests": 10,
+    "numPassedTests": 10,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "success": true,
+    "exitCode": 0
+  },
+  "fixed-existing-initial": {
+    "numTotalTestSuites": 4,
+    "numTotalTests": 66,
+    "numPassedTests": 64,
+    "numFailedTests": 2,
+    "numPendingTests": 0,
+    "success": false,
+    "exitCode": 1
+  },
+  "fixed-existing-corrected": {
+    "numTotalTestSuites": 1,
+    "numTotalTests": 28,
+    "numPassedTests": 28,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "success": true,
+    "exitCode": 0
+  },
+  "fixed-typecheck": {
+    "exitCode": 0
+  },
+  "sameBodyRegression": {
+    "beforeSha256": "2b916bb06468c2ef3b796264d92e06c37177c0df00926699880a2787d7fbdb32",
+    "fixedSha256": "2b916bb06468c2ef3b796264d92e06c37177c0df00926699880a2787d7fbdb32"
+  }
+}

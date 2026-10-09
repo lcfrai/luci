@@ -71,7 +71,7 @@ it('resolves the remembered team before mounting project content or issuing proj
   expect(await screen.findByTestId('scope')).toHaveProperty('textContent', teamA);
   await waitFor(() => expect(permissions().loading).toBe(false));
   expect(selectedTeamId()).toBe(teamA);
-  expect(teamsApi.projectAccess).toHaveBeenCalledWith(teamA, 'project-a');
+  expect(teamsApi.projectAccess).toHaveBeenCalledWith(teamA, 'project-a', expect.any(AbortSignal));
 });
 
 it('opens the managed team regardless of a personal preference and refuses workspace switching', async () => {
@@ -133,7 +133,7 @@ it('defers private child effects until the first confirmed membership and mounts
   expect(screen.queryByTestId('access')).toBeNull();
   await act(async () => membership.resolve({ teams: [summary()], managedTeamId: teamA }));
   await screen.findByRole('textbox', { name: 'Project draft' });
-  expect(teamsApi.projectAccess).toHaveBeenCalledExactlyOnceWith(teamA, 'project-a');
+  expect(teamsApi.projectAccess).toHaveBeenCalledExactlyOnceWith(teamA, 'project-a', expect.any(AbortSignal));
   expect(permissions()).toEqual({ permissions: personalPermissions, loading: false, error: '' });
 });
 
@@ -409,20 +409,19 @@ it('hides a revoked team without switching to personal authority or discarding i
   const draft = await screen.findByRole('textbox', { name: 'Project draft' });
   await userEvent.type(draft, ' private changes');
   vi.mocked(teamsApi.list).mockResolvedValueOnce({ teams: [] });
-  const denied = deferred<ProjectAccess>();
-  vi.mocked(teamsApi.projectAccess).mockReturnValueOnce(denied.promise);
+  const readsBeforeDenial = vi.mocked(teamsApi.projectAccess).mock.calls.length;
   await userEvent.click(screen.getByRole('button', { name: 'Refresh access' }));
   await screen.findByRole('heading', { name: 'Workspace unavailable' });
   expect(screen.queryByRole('textbox', { name: 'Project draft' })).toBeNull();
   expect(draft.isConnected).toBe(true);
   expect(draft).toHaveProperty('value', 'My saved idea private changes');
   expect(selectedTeamId()).toBe(teamA);
+  expect(teamsApi.projectAccess).toHaveBeenCalledTimes(readsBeforeDenial);
   expect(permissions().permissions).toEqual({ ...noPermissions, read: true });
   expect(vi.mocked(detachAllTerminals)).toHaveBeenCalledTimes(2);
   await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Workspace' }), '');
   expect(screen.getByTestId('scope')).toHaveProperty('textContent', 'personal');
   expect(selectedTeamId()).toBe('');
-  await act(async () => denied.reject(new Error('Revoked')));
   expect(permissions().permissions).toEqual(personalPermissions);
 });
 

@@ -14,6 +14,7 @@ import { WorkflowDialog } from '../common/WorkflowDialog';
 import { WorkspaceOverlayScope } from '../common/WorkspaceOverlayScope';
 import { Button } from '../fluid/components/button';
 import './teams.css';
+import { createProjectPermissionReads } from './projectPermissionReads';
 interface TeamWorkspaceValue {
   teams: TeamSummary[]; selected: TeamSummary | null; teamId: string; managedTeamId: string; revision: number;
   /** A reversible display/stream barrier; cached drafts remain mounted. */
@@ -21,6 +22,7 @@ interface TeamWorkspaceValue {
   refresh(): Promise<void>; select(id: string): void;
 }
 const TeamWorkspaceContext = createContext<TeamWorkspaceValue | null>(null);
+const ProjectPermissionReadsContext = createContext<ReturnType<typeof createProjectPermissionReads> | null>(null);
 export const useTeamWorkspace = () => useContext(TeamWorkspaceContext);
 export function TeamWorkspaceProvider({children}: {children:ReactNode}) {
   const auth = useAuth();
@@ -32,6 +34,8 @@ export function TeamWorkspaceProvider({children}: {children:ReactNode}) {
 }
 function ScopedTeamWorkspaceProvider({children,auth,storageKey}: {children:ReactNode;auth:ReturnType<typeof useAuth>;storageKey:string}) {
   const userId = auth?.profile.user.id ?? '';
+  const [permissionReads] = useState(createProjectPermissionReads);
+  useEffect(() => () => permissionReads.invalidate(), [permissionReads]);
   const [teams,setTeams] = useState<TeamSummary[]>([]);
   const [selected,setSelected] = useState('');
   const [managedTeamId,setManagedTeamId] = useState('');
@@ -51,6 +55,7 @@ function ScopedTeamWorkspaceProvider({children,auth,storageKey}: {children:React
   const denialRefresh = useRef(false);
   const drafts = useCockpit(s=>s.unsavedProjectDrafts);
   const apply = useCallback((id:string, initial=false) => {
+    permissionReads.invalidate();
     detachAllTerminals();
     let sameStoredScope=false;
     try { sameStoredScope=localStorage.getItem(storageKey+'.cockpit')===id; } catch { /* Re-fetch without restoring navigation. */ }
@@ -58,7 +63,7 @@ function ScopedTeamWorkspaceProvider({children,auth,storageKey}: {children:React
     selectTeamScope(id); active.current=id; deniedScope.current=null; denialRefresh.current=false;
     setSelected(id); setEpoch(v=>v+1); setError(''); setBlocked(false); setPending(null);
     try { localStorage.setItem(storageKey,id); localStorage.setItem(storageKey+'.cockpit',id); } catch { /* Selection can remain session-only. */ }
-  },[storageKey]);
+  },[storageKey,permissionReads]);
   const refresh = useCallback(async()=>{
     const attempt=++request.current;
     const scope=active.current, scopeGeneration=teamScopeGeneration();
@@ -67,6 +72,8 @@ function ScopedTeamWorkspaceProvider({children,auth,storageKey}: {children:React
     try {
       const result=await teamsApi.list();
       if(!current())return;
+      // A new membership observation supersedes every older project grant read.
+      permissionReads.invalidate();
       if(result.managedTeamId && result.managedTeamId!==scope) {
         detachAllTerminals(); setBlocked(true); setError('This service is bound to a different team. Reopen Luci to load its workspace.');
       } else if(scope && !result.teams.some(row=>row.team.id===scope)) {
@@ -101,13 +108,14 @@ function ScopedTeamWorkspaceProvider({children,auth,storageKey}: {children:React
       setManagedTeamId(result.managedTeamId??'');
       setTeams(result.teams); setRevision(v=>v+1);
     } catch(cause) { if(current())setError(errorText(cause)); throw cause; }
-  },[]);
+  },[permissionReads]);
   useEffect(()=>{
     const denied=(event:Event)=>{
       const detail=(event as CustomEvent<TeamAccessDenial>).detail;
       if(!detail || detail.teamId!==active.current || !detail.teamId || detail.generation!==teamScopeGeneration())return;
       // Object identity fences an older membership/catalogue success even when
       // a second denial arrives during the coalesced revalidation.
+      permissionReads.invalidate();
       const repeated=deniedScope.current!==null;
       deniedScope.current={teamId:detail.teamId,generation:detail.generation};
       // A blocked episode keeps Retry, focus and the periodic refresh. Further
@@ -120,7 +128,7 @@ function ScopedTeamWorkspaceProvider({children,auth,storageKey}: {children:React
     };
     window.addEventListener(TEAM_WORKSPACE_ACCESS_DENIED,denied);
     return()=>window.removeEventListener(TEAM_WORKSPACE_ACCESS_DENIED,denied);
-  },[refresh]);
+  },[refresh,permissionReads]);
   useEffect(()=>{
     let live=true;
     setReady(false); setError('');
@@ -157,7 +165,7 @@ function ScopedTeamWorkspaceProvider({children,auth,storageKey}: {children:React
   const overlayAdmission=useMemo(()=>({available:!blocked,retry:refresh}),[blocked,refresh]);
   const retained=Object.values(drafts).every(draft=>draft.retained);
   const localSetup=Object.values(drafts).some(draft=>draft.purpose==='verification-setup');
-  return <TeamWorkspaceContext.Provider value={value}>
+  return <ProjectPermissionReadsContext.Provider value={permissionReads}><TeamWorkspaceContext.Provider value={value}>
     {/* Initial nonmembers must not start private child reads. After admission,
         retain mounted editors through access refreshes and hide them on denial. */}
     {ready&&(!blocked||admitted)&&<div className="team-app-host" hidden={blocked}><WorkspaceOverlayScope value={overlayAdmission}><Fragment key={`${userId}:${epoch}`}>{children}</Fragment></WorkspaceOverlayScope></div>}
@@ -174,27 +182,29 @@ function ScopedTeamWorkspaceProvider({children,auth,storageKey}: {children:React
     {pending!==null&&<WorkflowDialog title="Switch workspace?" description={localSetup?'Your project has unsaved edits. Continue editing here, keep any retained browser drafts, or discard the edits before switching.':'Your project has unsaved edits. Save them before leaving, keep the retained browser drafts, or discard them.'} onClose={()=>setPending(null)}>
       <div className="workflow-actions"><Button variant="secondary" onClick={()=>{Object.values(drafts).forEach(draft=>draft.discard?.());apply(pending);}}>Discard edits and switch</Button>{retained&&<Button variant="secondary" onClick={()=>apply(pending)}>Keep drafts and switch</Button>}<Button onClick={()=>setPending(null)}>Stay here</Button></div>
     </WorkflowDialog>}
-  </TeamWorkspaceContext.Provider>;
+  </TeamWorkspaceContext.Provider></ProjectPermissionReadsContext.Provider>;
 }
 export function useTeamProjectPermissions(projectId:string): {permissions:TeamPermissions;loading:boolean;error:string} {
   const workspace=useTeamWorkspace();
+  const permissionReads=useContext(ProjectPermissionReadsContext);
   const teamId=workspace?.teamId??'';
   const revision=workspace?.revision??0;
   const scope=JSON.stringify([teamId,projectId]);
   const key=JSON.stringify([teamId,projectId,revision]);
   const [result,setResult]=useState<{scope:string;key:string;permissions:TeamPermissions;error:string}|null>(null);
   useEffect(()=>{
-    if(!teamId||!projectId)return;
+    if(!teamId||!projectId||!permissionReads||workspace?.accessBlocked)return;
     let live=true;
-    void teamsApi.projectAccess(teamId,projectId).then(value=>{
-      if(live)setResult({scope,key,permissions:value.permissions,error:''});
+    const read=permissionReads.acquire(teamId,projectId,revision);
+    void read.promise.then(value=>{
+      if(live&&read.current())setResult({scope,key,permissions:value.permissions,error:''});
     }).catch(cause=>{
-      if(!live)return;
+      if(!live||!read.current())return;
       const denied=cause instanceof ApiError && [401,403,404].includes(cause.status);
       setResult(previous=>({scope,key,permissions:{...noPermissions,read:!denied&&previous?.scope===scope&&previous.permissions.read},error:errorText(cause)}));
     });
-    return()=>{live=false;};
-  },[teamId,projectId,scope,key]);
+    return()=>{live=false;read.release();};
+  },[teamId,projectId,scope,key,revision,permissionReads,workspace?.accessBlocked]);
   if(!teamId)return {permissions:personalPermissions,loading:false,error:''};
   // The provider hides the whole workspace while retaining mounted editors.
   // Keep only its prior read projection to preserve drafts. Writes and terminal

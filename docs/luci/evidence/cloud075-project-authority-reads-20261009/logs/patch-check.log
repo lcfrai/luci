@@ -1,0 +1,6 @@
+error: patch failed: desktop/src/components/teams/TeamWorkspaceProvider.tsx:14
+error: desktop/src/components/teams/TeamWorkspaceProvider.tsx: patch does not apply
+error: desktop/src/components/teams/projectPermissionReads.ts: already exists in working directory
+error: desktop/src/components/teams/TeamWorkspaceCoalescing.test.tsx: already exists in working directory
+error: patch failed: desktop/src/components/teams/TeamWorkspaceProvider.test.tsx:71
+error: desktop/src/components/teams/TeamWorkspaceProvider.test.tsx: patch does not apply
