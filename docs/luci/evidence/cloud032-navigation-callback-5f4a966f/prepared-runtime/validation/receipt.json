@@ -1,0 +1,42 @@
+{
+  "scope": "Syntax plus read-only selected17-input source identity, not app/browser/runtime tests. Unchanged11 controls not rerun.",
+  "pythonSyntaxPassed": true,
+  "localBoundSourcesMatch": true,
+  "commands": [
+    {
+      "command": [
+        "node",
+        "--check",
+        "/workspace/.luci-tools/cloud032-navigation-verifier-5f4-runtime-v1/actual/sustained.mjs"
+      ],
+      "exitCode": 0,
+      "stdout": "0.stdout",
+      "stderr": "0.stderr"
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "/workspace/.luci-tools/cloud032-navigation-verifier-5f4-runtime-v1/actual/interaction-metrics.mjs"
+      ],
+      "exitCode": 0,
+      "stdout": "1.stdout",
+      "stderr": "1.stderr"
+    },
+    {
+      "command": [
+        "python3",
+        "/workspace/.luci-tools/cloud032-navigation-verifier-5f4-runtime-v1/actual/checkout-binding.py",
+        "--repo",
+        "/workspace/luci",
+        "--helper",
+        "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+        "--capture",
+        "/workspace/.luci-tools/cloud032-navigation-verifier-5f4-runtime-v1/actual/template-capture.json"
+      ],
+      "exitCode": 0,
+      "stdout": "2.stdout",
+      "stderr": "2.stderr"
+    }
+  ]
+}

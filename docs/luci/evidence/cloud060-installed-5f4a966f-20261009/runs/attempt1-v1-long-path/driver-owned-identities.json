@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "runRoot": "/workspace/.luci-tools/cloud060-runs-5f4a966f/c060-run-512irgca",
+  "identities": [
+    {
+      "pid": 2438858,
+      "startTicks": "29959600",
+      "role": "controller"
+    },
+    {
+      "pid": 2438924,
+      "startTicks": "29959887",
+      "role": "controller"
+    }
+  ]
+}

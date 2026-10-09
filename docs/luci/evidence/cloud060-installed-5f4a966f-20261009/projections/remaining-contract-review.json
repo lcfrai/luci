@@ -1,0 +1,89 @@
+{
+  "scope": "Read-only source contract review, not runtime acceptance",
+  "product": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "sources": [
+    {
+      "path": "desktop/src/components/teams/TeamWorkspaceProvider.tsx",
+      "sha256": "a8a96ee7ccf6dcdb16decfe31e42c40081dd408e2e8004101c1af64f3bb9c3fa",
+      "bytes": 15171
+    },
+    {
+      "path": "desktop/src/components/teams/TeamWorkspaceControl.tsx",
+      "sha256": "859b39ecddb16bcec882d41f0e0a136d935b892781a5f00ed48a202a1d0c4039",
+      "bytes": 14794
+    },
+    {
+      "path": "desktop/src/components/teams/TeamSettings.tsx",
+      "sha256": "47e1426cb4acff764196765cbf0ac072ee1e93c05811f8e7763515d3190cb029",
+      "bytes": 2952
+    },
+    {
+      "path": "desktop/src/components/setup/SetupProvider.tsx",
+      "sha256": "186a01e20072de1e590a85e763fae581ae1ebb6b802c3253dabf3bc44c72bfc6",
+      "bytes": 6910
+    },
+    {
+      "path": "desktop/src/components/rail/RailFooter.tsx",
+      "sha256": "766ab1d5045a1ba71ac35419da7bc93ae475c6e6b2ff8107ea8934330d222e8f",
+      "bytes": 2465
+    },
+    {
+      "path": "desktop/src/components/rail/ProjectRow.tsx",
+      "sha256": "71dcaf85dfddb4feff179cd1c3f53cd80d647a472fdbc00952395358674257f9",
+      "bytes": 3009
+    },
+    {
+      "path": "desktop/src/components/common/WorkflowDialog.tsx",
+      "sha256": "14effd3e6108aeca895fbd786e68384dc81b37533adc488d9ebdfe680dc1b3a2",
+      "bytes": 4793
+    },
+    {
+      "path": "desktop/src/components/common/DraftRecovery.tsx",
+      "sha256": "722df78f80260428547296cccdb247c26e8cc934860e9532dec425589ba238a0",
+      "bytes": 7653
+    },
+    {
+      "path": "desktop/src/components/definition/DefinitionWorkspace.tsx",
+      "sha256": "fe63aa3dcda3c5896ab13140ff2db74c492eda0e068a415cc560b7ec7777cfc7",
+      "bytes": 31738
+    }
+  ],
+  "findings": [
+    {
+      "selector": "Retry connection / Workspace unavailable",
+      "contract": "Provider supplies exact button/heading after unavailable access"
+    },
+    {
+      "selector": "Team access / Close",
+      "contract": "Real team panel title and closure; actual V3 opening already observed"
+    },
+    {
+      "selector": "Settings -> named Team settings / Back to projects",
+      "contract": "RailFooter invokes setup.openSettings; selected team selects TeamSettings with exact current team title and close button"
+    },
+    {
+      "selector": "The idea",
+      "contract": "Semantic role/name within current team and selected ProjectRow; pinned exact label mismatch controlled under CLOUD-064"
+    },
+    {
+      "selector": "Unsaved changes \u00b7 kept in this browser",
+      "contract": "DraftRecovery renders this state when current dirty draft retained and not yet restored"
+    },
+    {
+      "selector": "Save definition",
+      "contract": "Explicit button when editor has dirty current spec; disabled while loading/busy/recovery"
+    },
+    {
+      "selector": "390 Projects / All projects",
+      "contract": "CLOUD-062 exact workspace and aria-expanded helper carried unchanged"
+    }
+  ],
+  "stillRequiresActualRun": [
+    "Desktop restoration and retained draft",
+    "Phone portal suspension and denied-episode count",
+    "Membership restore without project grant",
+    "Regrant and final explicit save",
+    "Axe result/focus/pointer/scroll at both widths"
+  ],
+  "noAdditionalSourceDefectFound": true
+}

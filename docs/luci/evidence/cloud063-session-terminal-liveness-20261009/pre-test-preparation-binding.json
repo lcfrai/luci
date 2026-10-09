@@ -1,0 +1,10 @@
+{
+  "tree/control-plane/internal/api/attach.go": "f25be65e45c7632b451c5b359887deb2b0586aacdcfe213d4efa974a3b929ddc",
+  "tree/control-plane/internal/api/attach_terminal.go": "3da597074e06f45f0d314b1f7f896113df460fcc96674f68250862d9a0c8bbbb",
+  "tree/control-plane/internal/api/attach_terminal_test.go": "fb7efa0f868620efff7f84812351015f4e404476eab5abcad878525333b38675",
+  "tree/control-plane/internal/api/attach_test.go": "fff9aed555128c5becf7333188dd11c7b490dc6df074bc21383b68354b421a14",
+  "tree/control-plane/internal/proxy/close_ack_test.go": "9b53eceb149431d5fdacb31469b2a2a16fca974923f094c10a7b85fc1d2126c5",
+  "tree/control-plane/internal/proxy/exit_hook_test.go": "74163cf2c6dc633c82e22d498b12a6f304c2dc9836f9892ebef589992cc0ba4c",
+  "tree/control-plane/internal/proxy/proxy.go": "e8ff2788ba256cb0b46085f86aabb026c5fc66afe23128c959a5134f52c9ffb1",
+  "tree/control-plane/internal/proxy/proxy_test.go": "6e76c9bca68a80ab885fe704962b4856aa52ca061ae7523b11232cf27795a045"
+}

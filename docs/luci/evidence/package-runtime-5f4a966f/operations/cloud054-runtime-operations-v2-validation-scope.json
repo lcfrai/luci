@@ -1,0 +1,8 @@
+{
+  "scope": "Clarification to frozen v2 preparation receipt45e2dfd73496dd5209d23c5309d3367f08f3a2b95da27a9c551aab995b7890a9; no source/hash/invocation change",
+  "originalPartialObservation": "Two groups passed and busy group errored against retained before-partial-observation source with the then-identical test bytes; corrected PermissionError control passed.",
+  "finalExtension": "Final grouped test source subsequently adds FileNotFoundError alongside PermissionError. That extra case is final-source passing coverage, not a rerun of the original before source.",
+  "fieldQualification": "sameFinalTestBeforeAndAfter:true in frozen receipt refers to the earlier same-test partial-observation correction; it must not be read as byte-identical before/after evidence for the subsequent expanded final test file.",
+  "finalGroupsPassed": 3,
+  "runtimeOperationExecuted": false
+}

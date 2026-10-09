@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "scope": "Read-only exact Git product, original archive/extracted package, copied outputs, helper and current dependency binding audit; no tests/build/app/browser/Docker",
+  "product": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "startedAt": 1791556230.6357803,
+  "buildReceipt": {
+    "path": "/workspace/.luci-tools/cloud060-package-reuse-v4-5f4a966f/build-receipt.json",
+    "sha256": "9791aa38b3b8a1265e9a2c3060d486c9ba6ce542530df305e4b0fa74cd65c43a",
+    "bytes": 407556
+  },
+  "packageProvenance": {
+    "path": "/workspace/luci/artifacts/quality-swarm/candidate-5f4a966f/package/package-provenance.json",
+    "sha256": "2e378e550fa41a68af2477f472c92f6c15cd1bbe4048e453c769db2e08dca8be",
+    "bytes": 1039
+  },
+  "errors": [],
+  "immutableGit": {
+    "matched": 1476,
+    "declared": 1476,
+    "declaredSourceSetMatchesSelectedGitTree": true,
+    "relativeHelperClosure": [
+      "scripts/acceptance/check-create-recovery/check-create-guard.mjs",
+      "scripts/acceptance/check-create-recovery/fixture-guards.mjs",
+      "scripts/acceptance/check-create-recovery/installed-recovery.mjs",
+      "scripts/acceptance/check-create-recovery/provenance.mjs",
+      "scripts/acceptance/check-create-recovery/recovery-scenario.mjs",
+      "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs",
+      "scripts/acceptance/launch-recovery/acceptance-startup.mjs",
+      "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs",
+      "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs"
+    ],
+    "workingTreeUsedForSourceProof": false
+  },
+  "helperInputs": {
+    "declared": 14,
+    "matched": 14,
+    "setMatched": true
+  },
+  "currentRuntimeDependencies": {
+    "declared": 206,
+    "matched": 206,
+    "stableAcrossAudit": true,
+    "scope": "Actual pinned Playwright/playwright-core/axe file bytes, not all node_modules"
+  },
+  "copiedOutputs": {
+    "declared": 425,
+    "matched": 425,
+    "setMatched": true,
+    "archiveAndExtractedAndCopyParity": true
+  },
+  "originalArchive": {
+    "path": "/workspace/luci/artifacts/releases/0.5.0/luci-linux-amd64.tar.gz",
+    "sha256": "bc7d8b76b76d3c291c651c3f46423f75f7e63f31f49ddde59372fe6de97e6290",
+    "bytes": 69108246
+  },
+  "binarySHA256": "5d1404766d21fe74eac4f87fc4ec2177b3bb3bca2bee0347afb21eaefb25adf1",
+  "webIndexSHA256": "7c3a938b41384326d857b8c923de79172286a2b8318cff6237e0f9637ad6d7c3",
+  "noNewBuildExecuted": true,
+  "originLimit": "Publisher clean-build assertion retained; this audit verifies artifact bytes against that declared immutable product, not an independent recompilation",
+  "passed": true,
+  "endedAt": 1791556232.854142,
+  "seconds": 2.2183618545532227,
+  "details": {
+    "path": "source-binding-details.json",
+    "sha256": "214b427f8a83fb1d9e20eb4519cfa17932d85ce6598d734afeac95254397e828",
+    "bytes": 666315
+  }
+}

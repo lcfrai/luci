@@ -1,0 +1,814 @@
+{
+  "originals": [
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/before-launch.json",
+      "publishedPath": "run/before-launch.json",
+      "original": {
+        "sha256": "79c3166aa8452b23f79c489566b402a365c6bb552eb37dbdb7d781835c0a7c5a",
+        "bytes": 2680
+      },
+      "published": {
+        "sha256": "79c3166aa8452b23f79c489566b402a365c6bb552eb37dbdb7d781835c0a7c5a",
+        "bytes": 2680
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/identities.jsonl",
+      "publishedPath": "run/identities.jsonl",
+      "original": {
+        "sha256": "a0a2ac80bf46bbfd20ae2f3d76786fea272ce647efcb81dc878797f9cfbceca4",
+        "bytes": 105262
+      },
+      "published": {
+        "sha256": "ab46ce782a9400a5160d977ee34531d2b903fc198f61ce42bf9fb8f0dba17bec",
+        "bytes": 105201
+      },
+      "representation": "exact-private-root-substitution",
+      "substitutions": 1
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/launcher.stderr",
+      "publishedPath": "run/launcher.stderr",
+      "original": {
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      "published": {
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/launcher.stdout",
+      "publishedPath": "run/launcher.stdout",
+      "original": {
+        "sha256": "15fb5e79e4e021742c0c92e8d95143347ef685fb79320858e201cb99fe537ea1",
+        "bytes": 220
+      },
+      "published": {
+        "sha256": "15fb5e79e4e021742c0c92e8d95143347ef685fb79320858e201cb99fe537ea1",
+        "bytes": 220
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/wrapper-result.json",
+      "publishedPath": "run/wrapper-result.json",
+      "original": {
+        "sha256": "7f1d84180c8f4021337f71d4c41e7125a5c3cffb78b6b631d43197bbc91ee73a",
+        "bytes": 4999
+      },
+      "published": {
+        "sha256": "7f1d84180c8f4021337f71d4c41e7125a5c3cffb78b6b631d43197bbc91ee73a",
+        "bytes": 4999
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/failure.png",
+      "publishedPath": "run/driver/failure.png",
+      "original": {
+        "sha256": "4fc320f57c3841ad09b22053043dcb948ecbccadf420f3842c58470fd29675c5",
+        "bytes": 181532
+      },
+      "published": {
+        "sha256": "4fc320f57c3841ad09b22053043dcb948ecbccadf420f3842c58470fd29675c5",
+        "bytes": 181532
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/first-ended-poll-held.png",
+      "publishedPath": "run/driver/first-ended-poll-held.png",
+      "original": {
+        "sha256": "8f541ca1ec114f81f755fe4e4bddbf9f2bb7a6369f534c4e1a8d854ceb37ce17",
+        "bytes": 181561
+      },
+      "published": {
+        "sha256": "8f541ca1ec114f81f755fe4e4bddbf9f2bb7a6369f534c4e1a8d854ceb37ce17",
+        "bytes": 181561
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/image-provenance.json",
+      "publishedPath": "run/driver/image-provenance.json",
+      "original": {
+        "sha256": "a6fb7d93c1ce81b726923a155e44a5adbd53ed6da1198bafb76e4a82da009331",
+        "bytes": 35099
+      },
+      "published": {
+        "sha256": "a6fb7d93c1ce81b726923a155e44a5adbd53ed6da1198bafb76e4a82da009331",
+        "bytes": 35099
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/package-provenance.json",
+      "publishedPath": "run/driver/package-provenance.json",
+      "original": {
+        "sha256": "2e378e550fa41a68af2477f472c92f6c15cd1bbe4048e453c769db2e08dca8be",
+        "bytes": 1039
+      },
+      "published": {
+        "sha256": "2e378e550fa41a68af2477f472c92f6c15cd1bbe4048e453c769db2e08dca8be",
+        "bytes": 1039
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/phase-001.json",
+      "publishedPath": "run/driver/phase-001.json",
+      "original": {
+        "sha256": "e32b2cd0f2423ef8b8bc95e50d8e30113da75f6fb83380c78dd05761e774eef0",
+        "bytes": 97
+      },
+      "published": {
+        "sha256": "e32b2cd0f2423ef8b8bc95e50d8e30113da75f6fb83380c78dd05761e774eef0",
+        "bytes": 97
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/phase-002.json",
+      "publishedPath": "run/driver/phase-002.json",
+      "original": {
+        "sha256": "d736a27a31069024e88b546555c368502d0f633baac729183b1f0ea4f1279f94",
+        "bytes": 93
+      },
+      "published": {
+        "sha256": "d736a27a31069024e88b546555c368502d0f633baac729183b1f0ea4f1279f94",
+        "bytes": 93
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/phase-003.json",
+      "publishedPath": "run/driver/phase-003.json",
+      "original": {
+        "sha256": "b84e2ff3295e46ff5ee99f59d29c2920fc61644469033713a84345f26ef880f5",
+        "bytes": 2931
+      },
+      "published": {
+        "sha256": "b84e2ff3295e46ff5ee99f59d29c2920fc61644469033713a84345f26ef880f5",
+        "bytes": 2931
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/phase-004.json",
+      "publishedPath": "run/driver/phase-004.json",
+      "original": {
+        "sha256": "23094f0780b634717f6a76c65b17267cbf8b739a3a86d541eb366f69b06c00a4",
+        "bytes": 1345
+      },
+      "published": {
+        "sha256": "23094f0780b634717f6a76c65b17267cbf8b739a3a86d541eb366f69b06c00a4",
+        "bytes": 1345
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/phase-005.json",
+      "publishedPath": "run/driver/phase-005.json",
+      "original": {
+        "sha256": "ccb6940df674eb79d7ae1a7e7b04294097e9db1741a97c2ef9879fbcf829e74a",
+        "bytes": 206
+      },
+      "published": {
+        "sha256": "ccb6940df674eb79d7ae1a7e7b04294097e9db1741a97c2ef9879fbcf829e74a",
+        "bytes": 206
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/phase-006.json",
+      "publishedPath": "run/driver/phase-006.json",
+      "original": {
+        "sha256": "fc94daf2c021b77a903fe1b4665efd43d5704c2fb0074ad1eac88880ac55b3dd",
+        "bytes": 94
+      },
+      "published": {
+        "sha256": "fc94daf2c021b77a903fe1b4665efd43d5704c2fb0074ad1eac88880ac55b3dd",
+        "bytes": 94
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/phase-007.json",
+      "publishedPath": "run/driver/phase-007.json",
+      "original": {
+        "sha256": "88aef8a995a99bae6d2ca67c98933bfa8f90f337e03711263832ce97f09ca5ee",
+        "bytes": 409
+      },
+      "published": {
+        "sha256": "88aef8a995a99bae6d2ca67c98933bfa8f90f337e03711263832ce97f09ca5ee",
+        "bytes": 409
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/phase-008.json",
+      "publishedPath": "run/driver/phase-008.json",
+      "original": {
+        "sha256": "0a134d814b16811d4f15027acf97709fbaf9c38bc2cb441b4e428f99c1160cc8",
+        "bytes": 98
+      },
+      "published": {
+        "sha256": "0a134d814b16811d4f15027acf97709fbaf9c38bc2cb441b4e428f99c1160cc8",
+        "bytes": 98
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/phase-009.json",
+      "publishedPath": "run/driver/phase-009.json",
+      "original": {
+        "sha256": "f05c5eba12d61ed4a4fc031de7faa4c247d6e144dc82b40d7001af04b195a6d1",
+        "bytes": 117
+      },
+      "published": {
+        "sha256": "f05c5eba12d61ed4a4fc031de7faa4c247d6e144dc82b40d7001af04b195a6d1",
+        "bytes": 117
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/phase-010.json",
+      "publishedPath": "run/driver/phase-010.json",
+      "original": {
+        "sha256": "7300dcd9d3c9d10663a24efc4a65ef575b47d621518dfe88a93ec699b19346a8",
+        "bytes": 405
+      },
+      "published": {
+        "sha256": "7300dcd9d3c9d10663a24efc4a65ef575b47d621518dfe88a93ec699b19346a8",
+        "bytes": 405
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/phase-011.json",
+      "publishedPath": "run/driver/phase-011.json",
+      "original": {
+        "sha256": "3afefd18699733773ecb0423ba76e8b12d4b71f0ef54776773f7bf3d8fead5d2",
+        "bytes": 101
+      },
+      "published": {
+        "sha256": "3afefd18699733773ecb0423ba76e8b12d4b71f0ef54776773f7bf3d8fead5d2",
+        "bytes": 101
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/phase-012.json",
+      "publishedPath": "run/driver/phase-012.json",
+      "original": {
+        "sha256": "b5c98109de5a2835290381769c164ff163db60066b5371d672197a91aa9f3475",
+        "bytes": 107
+      },
+      "published": {
+        "sha256": "b5c98109de5a2835290381769c164ff163db60066b5371d672197a91aa9f3475",
+        "bytes": 107
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/phase-013.json",
+      "publishedPath": "run/driver/phase-013.json",
+      "original": {
+        "sha256": "bcbadc5cc80a03e5959cefcaa2e6d0a8a65d9b268910db2cf15eb054dbf8afbf",
+        "bytes": 111
+      },
+      "published": {
+        "sha256": "bcbadc5cc80a03e5959cefcaa2e6d0a8a65d9b268910db2cf15eb054dbf8afbf",
+        "bytes": 111
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/phase-014.json",
+      "publishedPath": "run/driver/phase-014.json",
+      "original": {
+        "sha256": "2c0457aa159cd905c41b59a74ee56c1edd740cc382ddb051e7a74ce4eaf2ae2e",
+        "bytes": 202
+      },
+      "published": {
+        "sha256": "2c0457aa159cd905c41b59a74ee56c1edd740cc382ddb051e7a74ce4eaf2ae2e",
+        "bytes": 202
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/phase-015.json",
+      "publishedPath": "run/driver/phase-015.json",
+      "original": {
+        "sha256": "613592e2661831348c3406287b5cfa73ac398b4cfdae4c78bc0f674ab91d51ab",
+        "bytes": 797
+      },
+      "published": {
+        "sha256": "613592e2661831348c3406287b5cfa73ac398b4cfdae4c78bc0f674ab91d51ab",
+        "bytes": 797
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/phase-016.json",
+      "publishedPath": "run/driver/phase-016.json",
+      "original": {
+        "sha256": "df4e881f59322e1d9a18c9721cdb5c62f4ea1953956452c4df6d3fe3b069e247",
+        "bytes": 106
+      },
+      "published": {
+        "sha256": "df4e881f59322e1d9a18c9721cdb5c62f4ea1953956452c4df6d3fe3b069e247",
+        "bytes": 106
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/phase-017.json",
+      "publishedPath": "run/driver/phase-017.json",
+      "original": {
+        "sha256": "97b9a9faf4738f4de5d436fcb6856b3f1d5405d3f4d8fda91e2baa55540174a2",
+        "bytes": 854
+      },
+      "published": {
+        "sha256": "97b9a9faf4738f4de5d436fcb6856b3f1d5405d3f4d8fda91e2baa55540174a2",
+        "bytes": 854
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/phase-018.json",
+      "publishedPath": "run/driver/phase-018.json",
+      "original": {
+        "sha256": "d2013a3b7024532ecbaf3d06a73d982bd85a09a9a5befb85672c1807bbec6640",
+        "bytes": 104
+      },
+      "published": {
+        "sha256": "d2013a3b7024532ecbaf3d06a73d982bd85a09a9a5befb85672c1807bbec6640",
+        "bytes": 104
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/phase-019.json",
+      "publishedPath": "run/driver/phase-019.json",
+      "original": {
+        "sha256": "8320088701691a06c58c1929bd8d84b24e34b334763939a74c3b6268d9d182af",
+        "bytes": 109
+      },
+      "published": {
+        "sha256": "8320088701691a06c58c1929bd8d84b24e34b334763939a74c3b6268d9d182af",
+        "bytes": 109
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/phase-020.json",
+      "publishedPath": "run/driver/phase-020.json",
+      "original": {
+        "sha256": "da005d2927c74810b4b7c356e81b11b1a873ecf37dcf79c6c2c6170ab4788180",
+        "bytes": 105
+      },
+      "published": {
+        "sha256": "da005d2927c74810b4b7c356e81b11b1a873ecf37dcf79c6c2c6170ab4788180",
+        "bytes": 105
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/phase-021.json",
+      "publishedPath": "run/driver/phase-021.json",
+      "original": {
+        "sha256": "2be83d66702598c9bc2061b6e971efb045fc7cf66398d18152af03fde5e7c3d0",
+        "bytes": 119
+      },
+      "published": {
+        "sha256": "2be83d66702598c9bc2061b6e971efb045fc7cf66398d18152af03fde5e7c3d0",
+        "bytes": 119
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/phase-022.json",
+      "publishedPath": "run/driver/phase-022.json",
+      "original": {
+        "sha256": "04bd70434b18e26533f43347b33a3031be23a4bde892e74d899602cc1fc9cb10",
+        "bytes": 53690
+      },
+      "published": {
+        "sha256": "04bd70434b18e26533f43347b33a3031be23a4bde892e74d899602cc1fc9cb10",
+        "bytes": 53690
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/phase-023.json",
+      "publishedPath": "run/driver/phase-023.json",
+      "original": {
+        "sha256": "ec4dd5b89d4b95b99069e595d77141b77ddf19d05ec6ed52925702032c3e61c6",
+        "bytes": 106
+      },
+      "published": {
+        "sha256": "ec4dd5b89d4b95b99069e595d77141b77ddf19d05ec6ed52925702032c3e61c6",
+        "bytes": 106
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/phase-024.json",
+      "publishedPath": "run/driver/phase-024.json",
+      "original": {
+        "sha256": "e510e6233c114186960c8401b7270a729c6bb1139a0e55764c37eca2a71b1320",
+        "bytes": 866
+      },
+      "published": {
+        "sha256": "e510e6233c114186960c8401b7270a729c6bb1139a0e55764c37eca2a71b1320",
+        "bytes": 866
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/phase-025.json",
+      "publishedPath": "run/driver/phase-025.json",
+      "original": {
+        "sha256": "2d8eee04df94948aecd96ad414b1b9b05f968652882e9b7d4ff74856b9f93ea2",
+        "bytes": 1256
+      },
+      "published": {
+        "sha256": "2d8eee04df94948aecd96ad414b1b9b05f968652882e9b7d4ff74856b9f93ea2",
+        "bytes": 1256
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/phase-026.json",
+      "publishedPath": "run/driver/phase-026.json",
+      "original": {
+        "sha256": "b21f72f0b856fc56b30eb4657a7810f0b7384f938a5bbebfdd79281c1ebe07bb",
+        "bytes": 53747
+      },
+      "published": {
+        "sha256": "b21f72f0b856fc56b30eb4657a7810f0b7384f938a5bbebfdd79281c1ebe07bb",
+        "bytes": 53747
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/phase-027.json",
+      "publishedPath": "run/driver/phase-027.json",
+      "original": {
+        "sha256": "c7d7c0c78f9872d749e6a9518ce50f4c3463124f402a2e792c63173a6fdb9e7c",
+        "bytes": 682
+      },
+      "published": {
+        "sha256": "c7d7c0c78f9872d749e6a9518ce50f4c3463124f402a2e792c63173a6fdb9e7c",
+        "bytes": 682
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/phase-028.json",
+      "publishedPath": "run/driver/phase-028.json",
+      "original": {
+        "sha256": "ed308e62cbfbaadd2b5822ffe495006e87943d8d3f853f9c6a24b773db8c0248",
+        "bytes": 2054
+      },
+      "published": {
+        "sha256": "ed308e62cbfbaadd2b5822ffe495006e87943d8d3f853f9c6a24b773db8c0248",
+        "bytes": 2054
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/result.json",
+      "publishedPath": "run/driver/result.json",
+      "original": {
+        "sha256": "d4a8892d6cf0065f7ed87cab9abb48ccc57429360726f4298a0d69eff993145e",
+        "bytes": 156374
+      },
+      "published": {
+        "sha256": "d4a8892d6cf0065f7ed87cab9abb48ccc57429360726f4298a0d69eff993145e",
+        "bytes": 156374
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/result.json.incomplete.json",
+      "publishedPath": "run/driver/result.json.incomplete.json",
+      "original": {
+        "sha256": "0db4f35cfc9f94b4fadb2b8b2eb6c796c02b0d52db5f11ee00d9dc102d214ce4",
+        "bytes": 971
+      },
+      "published": {
+        "sha256": "0db4f35cfc9f94b4fadb2b8b2eb6c796c02b0d52db5f11ee00d9dc102d214ce4",
+        "bytes": 971
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/accepted-harness/check-create-recovery/fixture-guards.mjs",
+      "publishedPath": "sources/accepted-harness/check-create-recovery/fixture-guards.mjs",
+      "original": {
+        "sha256": "5bb86009d73cdd158637a716c4a3a348edb30337e9e2a8cd93ebef82773e1b35",
+        "bytes": 11868
+      },
+      "published": {
+        "sha256": "5bb86009d73cdd158637a716c4a3a348edb30337e9e2a8cd93ebef82773e1b35",
+        "bytes": 11868
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/accepted-harness/check-create-recovery/provenance.mjs",
+      "publishedPath": "sources/accepted-harness/check-create-recovery/provenance.mjs",
+      "original": {
+        "sha256": "6b41954f56052d167954018018c79f561722a80497856d135d403904bfd9c08e",
+        "bytes": 4889
+      },
+      "published": {
+        "sha256": "6b41954f56052d167954018018c79f561722a80497856d135d403904bfd9c08e",
+        "bytes": 4889
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/accepted-harness/launch-recovery/acceptance-lifecycle.mjs",
+      "publishedPath": "sources/accepted-harness/launch-recovery/acceptance-lifecycle.mjs",
+      "original": {
+        "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+        "bytes": 4176
+      },
+      "published": {
+        "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+        "bytes": 4176
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/accepted-harness/launch-recovery/acceptance-startup.mjs",
+      "publishedPath": "sources/accepted-harness/launch-recovery/acceptance-startup.mjs",
+      "original": {
+        "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+        "bytes": 4637
+      },
+      "published": {
+        "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+        "bytes": 4637
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/accepted-harness/launch.mjs",
+      "publishedPath": "sources/accepted-harness/launch.mjs",
+      "original": {
+        "sha256": "1e24175a110c67652a9dcf2d54899760d06fc9d76b414e41689cf52f2a836bf0",
+        "bytes": 64548
+      },
+      "published": {
+        "sha256": "1e24175a110c67652a9dcf2d54899760d06fc9d76b414e41689cf52f2a836bf0",
+        "bytes": 64548
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8/driver/accepted-harness/scenario.mjs",
+      "publishedPath": "sources/accepted-harness/scenario.mjs",
+      "original": {
+        "sha256": "3e5acc9fbd2a568e7e27137743d32aa42ae6b774db7cc801feed9f3753f35219",
+        "bytes": 29106
+      },
+      "published": {
+        "sha256": "3e5acc9fbd2a568e7e27137743d32aa42ae6b774db7cc801feed9f3753f35219",
+        "bytes": 29106
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/outer-v2/run.py",
+      "publishedPath": "sources/outer-run.py",
+      "original": {
+        "sha256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49",
+        "bytes": 22954
+      },
+      "published": {
+        "sha256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49",
+        "bytes": 22954
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/closure-attempt8/safe-projection.json",
+      "publishedPath": "closure/safe-projection.json",
+      "original": {
+        "sha256": "a7ac88654438463d78f4b79d04263934821f24491c1492f8bae7428b203a8f26",
+        "bytes": 6025
+      },
+      "published": {
+        "sha256": "a7ac88654438463d78f4b79d04263934821f24491c1492f8bae7428b203a8f26",
+        "bytes": 6025
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/closure-attempt8/project-safe-result.py",
+      "publishedPath": "closure/project-safe-result.py",
+      "original": {
+        "sha256": "65a5f7c5de18895c69715707e2df21f9688c1351259340d23251fc8f569f544e",
+        "bytes": 4194
+      },
+      "published": {
+        "sha256": "65a5f7c5de18895c69715707e2df21f9688c1351259340d23251fc8f569f544e",
+        "bytes": 4194
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/closure-attempt8/independent-closure.py",
+      "publishedPath": "closure/independent-closure.py",
+      "original": {
+        "sha256": "3060ae1fd85302765fe7acb1379f2f0f7cd6a24271c54e021996eb4004037e21",
+        "bytes": 10132
+      },
+      "published": {
+        "sha256": "3060ae1fd85302765fe7acb1379f2f0f7cd6a24271c54e021996eb4004037e21",
+        "bytes": 10132
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/closure-attempt8/prepared.json",
+      "publishedPath": "closure/prepared.json",
+      "original": {
+        "sha256": "2c6f45c3a62d216df28a78e620bfe6c3abd4e3c4b8ef34df86de16d96b2e1126",
+        "bytes": 905
+      },
+      "published": {
+        "sha256": "2c6f45c3a62d216df28a78e620bfe6c3abd4e3c4b8ef34df86de16d96b2e1126",
+        "bytes": 905
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/publish-cloud054-5f4-attempt8/README.prepared.md",
+      "publishedPath": "README.md",
+      "original": {
+        "sha256": "fb9da8acf4524ffdae5e73fb4d65c792ac413eac4f82536037bdd8ef26c71091",
+        "bytes": 4812
+      },
+      "published": {
+        "sha256": "fb9da8acf4524ffdae5e73fb4d65c792ac413eac4f82536037bdd8ef26c71091",
+        "bytes": 4812
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/publish-cloud054-5f4-attempt8/assemble.py",
+      "publishedPath": "assemble.py",
+      "original": {
+        "sha256": "1e7dafbb962f495d8d44be2cc881bdf9d96a95d8f67fb96c6877f784765acd12",
+        "bytes": 9485
+      },
+      "published": {
+        "sha256": "1e7dafbb962f495d8d44be2cc881bdf9d96a95d8f67fb96c6877f784765acd12",
+        "bytes": 9485
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/publish-cloud054-5f4-attempt8/assembly-attempt1-volume-type/assemble.py",
+      "publishedPath": "publication-attempt1/assemble.py",
+      "original": {
+        "sha256": "a6d21ea57e8dae5d8951479cb0b091dbc54ee905b3dbe659b673d87c00289e85",
+        "bytes": 9334
+      },
+      "published": {
+        "sha256": "a6d21ea57e8dae5d8951479cb0b091dbc54ee905b3dbe659b673d87c00289e85",
+        "bytes": 9334
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/publish-cloud054-5f4-attempt8/assembly-attempt1-volume-type/assembly.stdout",
+      "publishedPath": "publication-attempt1/assembly.stdout",
+      "original": {
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      "published": {
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/publish-cloud054-5f4-attempt8/assembly-attempt1-volume-type/assembly.stderr",
+      "publishedPath": "publication-attempt1/assembly.stderr",
+      "original": {
+        "sha256": "47fd53423c663f92b0fdaa082431985836dc3eb0cb971126a75b3dcac1859d84",
+        "bytes": 418
+      },
+      "published": {
+        "sha256": "47fd53423c663f92b0fdaa082431985836dc3eb0cb971126a75b3dcac1859d84",
+        "bytes": 418
+      },
+      "representation": "exact-original",
+      "substitutions": 0
+    }
+  ],
+  "excluded": [
+    {
+      "path": "driver/private-fixture-path",
+      "reason": "Used only for exact redaction; pointer bytes and fixture root excluded"
+    },
+    {
+      "path": "driver/private-controller.stderr",
+      "bytes": 2055,
+      "sha256": "a07c06cceff2414b44ec60e37259ca25a2436f33ac696f4d9bbd9ed40702191d",
+      "hashScope": "Writer-reported private retained bytes, not reread by publisher",
+      "reason": "Raw potentially private log text excluded"
+    },
+    {
+      "path": "driver/private-transport-errors.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "hashScope": "Writer-reported private retained bytes, not reread by publisher",
+      "reason": "Private diagnostic sink excluded even when empty"
+    },
+    {
+      "path": "independent-closure.json",
+      "sha256": "4d798667d82a7e218ccfc7300336cacab5e40c9ac80080344de21354eb941914",
+      "hashScope": "Bound by provided safe projection; private original not read or copied",
+      "reason": "Use safe whitelisted closure projection only"
+    },
+    {
+      "path": "launcher-home/",
+      "reason": "Private CLI environment directory excluded"
+    },
+    {
+      "path": "original fixture contents, binary package/image/archive",
+      "reason": "No bytes read/copied; scope remains publisher receipts"
+    }
+  ],
+  "redactionPolicy": {
+    "replacement": "[PRIVATE_FIXTURE_ATTEMPT_8]",
+    "rootSHA256": "8ea9bd787568773873a355c50342760d286eb7a221c12251fe59577d3f71f9da",
+    "rootBytes": 88,
+    "onlyExactRootSubstitution": true
+  }
+}

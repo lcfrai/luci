@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "operation": "relocate-exact-task-tool",
+  "passed": false,
+  "startedAt": "2026-10-09T13:40:02.436596+00:00",
+  "sourceBefore": {
+    "/workspace/.luci-tools/cloud054-runtime-operations-v2/relocate_tools.py": "a86951497592b707ff2b157cf4c6e193180f18eedf5af42e09f98994242a3f78",
+    "/workspace/.luci-tools/cloud054-runtime-operations-v2/operation_common.py": "ff414e7be81a069bfb7a08eab0a73f826e4dc731596049324812dbfc70a1aa39"
+  },
+  "steps": [
+    {
+      "number": 1,
+      "stage": "created",
+      "at": "2026-10-09T13:40:02.436731+00:00"
+    },
+    {
+      "number": 2,
+      "stage": "preflight-observations",
+      "at": "2026-10-09T13:40:02.664392+00:00"
+    }
+  ],
+  "stage": "preflight-observations",
+  "tool": "powershell-7.5.5",
+  "direction": "to-root",
+  "manifestSHA256": "5ba3b502a34bb6c8978cbc09dd9fc229f082ba26eb5a801922d4d50af64d215b",
+  "paths": {
+    "tmp": "/tmp/luci-retained-tools/powershell-7.5.5",
+    "root": "/workspace/.luci-tools/cloud054-runtime-operations-v2/retained-tools/powershell-7.5.5",
+    "scratch": "/tmp/luci-retained-tools/.powershell-7.5.5-cloud054-to-root",
+    "compat": "/workspace/.luci-tools/powershell-7.5.5",
+    "source": "/tmp/luci-retained-tools/powershell-7.5.5",
+    "destination": "/workspace/.luci-tools/cloud054-runtime-operations-v2/retained-tools/powershell-7.5.5"
+  },
+  "coordination": {
+    "version": 2,
+    "scope": "cloud054-exclusive-tools",
+    "exclusive": true,
+    "activeOperations": [],
+    "bootID": "7842f7cb-c15d-43b4-bffc-65ba7e3140f2",
+    "monotonicNS": 299271605254346,
+    "expiresMonotonicNS": 299871605254346,
+    "ownerPID": 2437254,
+    "ownerStartTicks": "29927143",
+    "acceptedUnknownProcesses": [
+      {
+        "pid": 203,
+        "startTicks": "1521"
+      },
+      {
+        "pid": 254,
+        "startTicks": "1534"
+      },
+      {
+        "pid": 260700,
+        "startTicks": "2331192"
+      }
+    ],
+    "operationSources": {
+      "operation_common.py": "ff414e7be81a069bfb7a08eab0a73f826e4dc731596049324812dbfc70a1aa39",
+      "relocate_tools.py": "a86951497592b707ff2b157cf4c6e193180f18eedf5af42e09f98994242a3f78"
+    },
+    "limits": "Operator tool window; exact unreadable dockerd/containerd/gpg identities remain unobserved. No universal inactivity or right to inspect their environments/signal them. All known task compilers/tool users are stopped."
+  },
+  "processObservation": {
+    "observed": 7,
+    "busy": [],
+    "unknown": [
+      {
+        "pid": 203,
+        "startTicks": "1521",
+        "identityStable": true,
+        "reason": "observation-unavailable-or-changed"
+      },
+      {
+        "pid": 254,
+        "startTicks": "1534",
+        "identityStable": true,
+        "reason": "observation-unavailable-or-changed"
+      },
+      {
+        "pid": 260700,
+        "startTicks": "2331192",
+        "identityStable": true,
+        "reason": "observation-unavailable-or-changed"
+      }
+    ],
+    "scope": "Readable exact executable/cwd/argv/maps/fd observations; no future-launch exclusion or universal daemon-operation proof"
+  }
+}

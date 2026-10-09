@@ -1,0 +1,27 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "-B",
+    "/workspace/.luci-tools/cloud054-runtime-operations-v2/relocate_tools.py",
+    "--execute-relocation",
+    "--tool",
+    "powershell-7.5.5",
+    "--direction",
+    "to-root",
+    "--quiescence",
+    "/workspace/.luci-tools/cloud054-runtime-operations-v2/root-powershell-7.5.5-to-root-299271604916627/coordination.json",
+    "--quiescence-sha256",
+    "5ee1aa23b651ccaac99ddc0dc8b3ad8c2915b1f871e6857c34e0d94b3be60854",
+    "--receipt",
+    "/workspace/.luci-tools/cloud054-runtime-operations-v2/operation-powershell-7.5.5-to-root-299271604916627"
+  ],
+  "coordination": "/workspace/.luci-tools/cloud054-runtime-operations-v2/root-powershell-7.5.5-to-root-299271604916627/coordination.json",
+  "operationReceipt": "/workspace/.luci-tools/cloud054-runtime-operations-v2/operation-powershell-7.5.5-to-root-299271604916627",
+  "status": "finished",
+  "wrapperSHA256": "9b7fbd8bd35173fa30d4fea74479ebaeab7b4b1628f576a54bb9796a701ff697",
+  "hardEnvelopeSeconds": 420,
+  "pid": 2437257,
+  "startTicks": "29927160",
+  "exitCode": 0,
+  "timedOut": false
+}

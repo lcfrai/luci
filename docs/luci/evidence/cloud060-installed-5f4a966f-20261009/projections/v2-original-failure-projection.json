@@ -1,0 +1,225 @@
+{
+  "issue": "CLOUD-064",
+  "product": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "helper": "v2",
+  "passed": false,
+  "stage": "scenario:workspace-and-definition-draft",
+  "failedOperation": "purpose().waitFor() uses getByLabel('The idea', exact:true)",
+  "errorType": "TimeoutError",
+  "errorMessageBytes": 123,
+  "errorMessageSHA256": "27f0f1c055f58bbe3d42d1f4314abffb6dd5a879bbad297e0ec7571f7c04761a",
+  "bindings": [
+    {
+      "path": "evidence/result.json",
+      "bytes": 14807,
+      "sha256": "3780a6d32605ba2f92c35d371c73ad4221d3f3c1be7023f53a02f1253815ae4d",
+      "sourceRetainedAt": "/workspace/.t/c60/c060-run-qrni203l/evidence/result.json",
+      "privateOriginalNotAutoPublished": false
+    },
+    {
+      "path": "evidence/events.jsonl",
+      "bytes": 7072,
+      "sha256": "d9d2ac4e4e0dd4d05efb5fbb61d7455eaba0e7f930ca6d9b32f9343f9a84d5aa",
+      "sourceRetainedAt": "/workspace/.t/c60/c060-run-qrni203l/evidence/events.jsonl",
+      "privateOriginalNotAutoPublished": false
+    },
+    {
+      "path": "evidence/private-failure.json",
+      "bytes": 947,
+      "sha256": "fa241e6baf4b23ea0022f667e8845fa9957404f3a0d5ebca521354ead1630f92",
+      "sourceRetainedAt": "/workspace/.t/c60/c060-run-qrni203l/evidence/private-failure.json",
+      "privateOriginalNotAutoPublished": true
+    },
+    {
+      "path": "evidence/incomplete.json",
+      "bytes": 1527,
+      "sha256": "c8e168f2d2724f1d2fb7348cd135d54381324438cb92c2f523723929164e2108",
+      "sourceRetainedAt": "/workspace/.t/c60/c060-run-qrni203l/evidence/incomplete.json",
+      "privateOriginalNotAutoPublished": false
+    },
+    {
+      "path": "evidence/failure.png",
+      "bytes": 169562,
+      "sha256": "00c95b4312d65e717a3fb39db28d6ddbeec2043ce4b0d1b0aff0e08700d7c228",
+      "sourceRetainedAt": "/workspace/.t/c60/c060-run-qrni203l/evidence/failure.png",
+      "privateOriginalNotAutoPublished": false
+    },
+    {
+      "path": "supervisor/final.json",
+      "bytes": 7254,
+      "sha256": "3ce32a93ebfc093a0096bc0f56c8c880e1c53f27016442ab2ef52cd3b4bd439a",
+      "sourceRetainedAt": "/workspace/.t/c60/c060-run-qrni203l/supervisor/final.json",
+      "privateOriginalNotAutoPublished": false
+    },
+    {
+      "path": "driver-owned-identities.json",
+      "bytes": 648,
+      "sha256": "80f1ac2a6f2436073f2acaf5be15e63c107654df22ee6790d36ab31d901adbcf",
+      "sourceRetainedAt": "/workspace/.t/c60/c060-run-qrni203l/driver-owned-identities.json",
+      "privateOriginalNotAutoPublished": false
+    }
+  ],
+  "actualRailObservation": {
+    "exactWorkspace": true,
+    "expanded": true,
+    "openedByHelper": false,
+    "name": "All projects",
+    "viewport": 1440
+  },
+  "screenInspection": "Specification and purpose textarea visibly rendered with authored fixture purpose; no DOM text/accessibility snapshot was captured at failure",
+  "scope": "Original retained run only; label semantics reproduction pending, no privacy/revocation assertion or product accessibility defect inferred",
+  "originalFixtureUnchanged": true,
+  "inputsStable": true,
+  "scopedProcessClosureProven": false,
+  "finalKnownLiveCount": 0,
+  "finalKnownUnknownCount": 0,
+  "ownedZombies": [
+    {
+      "expected": {
+        "firstObservedAt": "2026-10-09T14:05:37.702+00:00",
+        "origin": "exact-run-marker",
+        "pid": 2449471,
+        "role": "scoped-marker",
+        "startTicks": 30080659
+      },
+      "observed": {
+        "parentPid": 1,
+        "pid": 2449471,
+        "startTicks": 30080659,
+        "state": "Z",
+        "status": "zombie",
+        "uid": 1000
+      }
+    },
+    {
+      "expected": {
+        "firstObservedAt": "2026-10-09T14:05:37.703+00:00",
+        "origin": "exact-run-marker",
+        "pid": 2449474,
+        "role": "scoped-marker",
+        "startTicks": 30080659
+      },
+      "observed": {
+        "parentPid": 1,
+        "pid": 2449474,
+        "startTicks": 30080659,
+        "state": "Z",
+        "status": "zombie",
+        "uid": 1000
+      }
+    }
+  ],
+  "knownOwnedObservations": [
+    {
+      "expected": {
+        "firstObservedAt": "2026-10-09T14:05:32.910+00:00",
+        "origin": "direct-child",
+        "pid": 2449409,
+        "role": "driver",
+        "startTicks": 30080214
+      },
+      "observed": {
+        "pid": 2449409,
+        "status": "absent"
+      }
+    },
+    {
+      "expected": {
+        "firstObservedAt": "2026-10-09T14:05:35.150+00:00",
+        "origin": "driver-owned-identities",
+        "pid": 2449438,
+        "role": "controller",
+        "startTicks": 30080336
+      },
+      "observed": {
+        "pid": 2449438,
+        "status": "absent"
+      }
+    },
+    {
+      "expected": {
+        "firstObservedAt": "2026-10-09T14:05:37.428+00:00",
+        "origin": "driver-owned-identities",
+        "pid": 2449450,
+        "role": "controller",
+        "startTicks": 30080533
+      },
+      "observed": {
+        "pid": 2449450,
+        "status": "absent"
+      }
+    },
+    {
+      "expected": {
+        "firstObservedAt": "2026-10-09T14:05:37.700+00:00",
+        "origin": "exact-run-marker",
+        "pid": 2449469,
+        "role": "scoped-marker",
+        "startTicks": 30080646
+      },
+      "observed": {
+        "pid": 2449469,
+        "status": "absent"
+      }
+    },
+    {
+      "expected": {
+        "firstObservedAt": "2026-10-09T14:05:37.702+00:00",
+        "origin": "exact-run-marker",
+        "pid": 2449471,
+        "role": "scoped-marker",
+        "startTicks": 30080659
+      },
+      "observed": {
+        "parentPid": 1,
+        "pid": 2449471,
+        "startTicks": 30080659,
+        "state": "Z",
+        "status": "zombie",
+        "uid": 1000
+      }
+    },
+    {
+      "expected": {
+        "firstObservedAt": "2026-10-09T14:05:37.703+00:00",
+        "origin": "exact-run-marker",
+        "pid": 2449474,
+        "role": "scoped-marker",
+        "startTicks": 30080659
+      },
+      "observed": {
+        "parentPid": 1,
+        "pid": 2449474,
+        "startTicks": 30080659,
+        "state": "Z",
+        "status": "zombie",
+        "uid": 1000
+      }
+    },
+    {
+      "expected": {
+        "firstObservedAt": "2026-10-09T14:05:42.142+00:00",
+        "origin": "driver-owned-identities",
+        "pid": 2449660,
+        "role": "controller",
+        "startTicks": 30081032
+      },
+      "observed": {
+        "pid": 2449660,
+        "status": "absent"
+      }
+    }
+  ],
+  "wholeMachineClosureClaim": false,
+  "scan": {
+    "scanned": 6527,
+    "complete": false,
+    "issueCount": 6272,
+    "otherUIDSkipped": 251,
+    "managedScopeLedger": {
+      "rows": 3,
+      "sha256": "dd9896008044e700d656494c1ef78b78fa3ab15260af2b285ffa1f81cae0144b",
+      "status": "read"
+    }
+  }
+}

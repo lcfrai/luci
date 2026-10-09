@@ -1,0 +1,17 @@
+{
+  "at": "2026-10-09T13:51:03.990171+00:00",
+  "command": [
+    "/usr/local/bin/docker",
+    "--host",
+    "unix:///var/run/docker.sock",
+    "buildx",
+    "inspect",
+    "default",
+    "--format",
+    "{{json .}}"
+  ],
+  "exitCode": 125,
+  "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderrSHA256": "efc09f33c161340d92b67de0d7b3cdf5b7e414f3730315c879d9bfedcacb2353",
+  "scope": "Read-only builder topology, no bootstrap"
+}

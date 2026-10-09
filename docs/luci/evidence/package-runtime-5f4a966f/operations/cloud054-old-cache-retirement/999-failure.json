@@ -1,0 +1,8 @@
+{
+  "source": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "helperSHA256": "76321952b42cab68be9b0965a59d3813adb1464794fbefcfc73944bfdfb6d266",
+  "status": "failed-or-uncertain",
+  "scope": "Root-exclusive exact task-owned old COPY cache record only. Associated lease/unreferenced storage GC possible. No fixture, ledger, product capacity, runtime or whole-machine-idle claim.",
+  "errorType": "CalledProcessError",
+  "automaticRetry": false
+}

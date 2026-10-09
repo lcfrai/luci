@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "product": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "runRoot": "/workspace/.t/c60/c060-run-kr3pvffq",
+  "pid": 2459176,
+  "identity": {
+    "pid": 2459176,
+    "start": "30143489",
+    "group": 2459176,
+    "status": "R"
+  },
+  "buildReceiptSHA256": "60d120224c65fee21810c6b69aae4870219bd67b1098f74aeba7dfc7c93a6749"
+}

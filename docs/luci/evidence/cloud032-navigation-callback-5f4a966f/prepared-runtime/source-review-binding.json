@@ -1,0 +1,61 @@
+{
+  "sourceCommit": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "scope": "Read-only source assessment; hashes identify immutable Git files, not CPU attribution. No production modifications.",
+  "files": [
+    {
+      "path": "desktop/src/components/AppShell.tsx",
+      "bytes": 6381,
+      "sha256": "b3aaf4ce4302109c2c10b023ecbff249b96655955f4d29bf0bb4834b4fc8fcd4"
+    },
+    {
+      "path": "desktop/src/components/projects/ProjectsHome.tsx",
+      "bytes": 5213,
+      "sha256": "ac22f3cf538ae28e231263aad85c4154c5acc4d4b3d2381d69c4603260669986"
+    },
+    {
+      "path": "desktop/src/components/projects/ProjectOverviewBoard.tsx",
+      "bytes": 25690,
+      "sha256": "3f198ff66958b205a65309a8a53192959bd0e1c805cc8c0b40b692f676eef9a8"
+    },
+    {
+      "path": "desktop/src/components/projects/HostCapacity.tsx",
+      "bytes": 14116,
+      "sha256": "a67deeea0453eeee37cd63ddfa7febf7dcd640e2615b7feff7f631f61d994999"
+    },
+    {
+      "path": "desktop/src/components/definition/DefinitionWorkspace.tsx",
+      "bytes": 31738,
+      "sha256": "fe63aa3dcda3c5896ab13140ff2db74c492eda0e068a415cc560b7ec7777cfc7"
+    },
+    {
+      "path": "desktop/src/components/orchestrator/OrchestratorPanel.tsx",
+      "bytes": 53147,
+      "sha256": "4213194e38481cc9e0b4e1f8c3eccfd1a0c62a67823a3a29fae92c5e55baf73f"
+    },
+    {
+      "path": "desktop/src/components/teams/TeamWorkspaceProvider.tsx",
+      "bytes": 15171,
+      "sha256": "a8a96ee7ccf6dcdb16decfe31e42c40081dd408e2e8004101c1af64f3bb9c3fa"
+    },
+    {
+      "path": "desktop/src/hooks/useProjectDraft.ts",
+      "bytes": 7167,
+      "sha256": "d9991f749c285641bddb7eb8f565b3c853e61136148a7a32aa98a49f4fb831b2"
+    },
+    {
+      "path": "desktop/src/store/store.ts",
+      "bytes": 4709,
+      "sha256": "e65151cbfc1686b8e4050179f726bf9cd7e3abcc3f6e661cebdb444fec1302c6"
+    },
+    {
+      "path": "desktop/src/store/slices/uiSlice.ts",
+      "bytes": 17032,
+      "sha256": "4da15890388c23ac657ffe99311b5a1155001b78400f1b40846061372f1a5b0b"
+    },
+    {
+      "path": "desktop/src/preferences/projectNavigation.ts",
+      "bytes": 4413,
+      "sha256": "ceef277726d06c850e02bf9fc1f9d167b21f3b03a1c115aca27e2652023ac31b"
+    }
+  ]
+}

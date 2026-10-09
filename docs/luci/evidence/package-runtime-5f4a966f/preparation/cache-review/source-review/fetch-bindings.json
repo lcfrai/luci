@@ -1,0 +1,36 @@
+[
+  {
+    "path": "buildx-prune.go",
+    "url": "https://raw.githubusercontent.com/docker/buildx/44945d71ff077ce7fc142fbdee6acec8d9acb630/commands/prune.go",
+    "bytes": 8209,
+    "sha256": "a47575944671e23abe561498fca8c60bbb04b4b77584ffea40ab235db6dd77a1"
+  },
+  {
+    "path": "buildx-build-prune.go",
+    "url": "https://raw.githubusercontent.com/docker/buildx/44945d71ff077ce7fc142fbdee6acec8d9acb630/build/prune.go",
+    "error": "HTTPError"
+  },
+  {
+    "path": "buildx-filters.go",
+    "url": "https://raw.githubusercontent.com/docker/buildx/44945d71ff077ce7fc142fbdee6acec8d9acb630/util/buildflags/filters.go",
+    "error": "HTTPError"
+  },
+  {
+    "path": "buildkit-manager.go",
+    "url": "https://raw.githubusercontent.com/moby/buildkit/v0.24.0/cache/manager.go",
+    "bytes": 46510,
+    "sha256": "26eb5fe2be548e229922e5e1e90dcb4ba68de52033c42a4d9914da26f141c820"
+  },
+  {
+    "path": "buildkit-refs.go",
+    "url": "https://raw.githubusercontent.com/moby/buildkit/v0.24.0/cache/refs.go",
+    "bytes": 52065,
+    "sha256": "949028bdc1a597802d29bd63a0f9397f22602dd414ff6484452b0241a097ff7c"
+  },
+  {
+    "path": "moby-builder.go",
+    "url": "https://raw.githubusercontent.com/moby/moby/v28.4.0/builder/builder-next/builder.go",
+    "bytes": 17918,
+    "sha256": "19e82561f9e6c280a25a026f6ee7aab5d1e7f85b997b07db6e215c887ff511c7"
+  }
+]

@@ -1,0 +1,47 @@
+{
+  "scope": "Safe derived context only. Original actual installed attempt8 is separate evidence; no private controller stderr, transport-error text, screenshots, terminal output or fixture state is copied here.",
+  "sourceCommit": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "helperSourceCommit": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "passed": false,
+  "package": {
+    "sourceCommit": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+    "binarySHA256": "5d1404766d21fe74eac4f87fc4ec2177b3bb3bca2bee0347afb21eaefb25adf1",
+    "webIndexSHA256": "7c3a938b41384326d857b8c923de79172286a2b8318cff6237e0f9637ad6d7c3",
+    "archiveSHA256": "bc7d8b76b76d3c291c651c3f46423f75f7e63f31f49ddde59372fe6de97e6290"
+  },
+  "firstExit": {
+    "typedExitCode": 0,
+    "browserCloseCode": 1000,
+    "clean": true,
+    "typedExitAt": "2026-10-09T13:59:01.598Z"
+  },
+  "pollRelease": {
+    "at": "2026-10-09T13:59:04.303Z",
+    "expired": false,
+    "settlement": {
+      "attempted": "fulfill",
+      "acknowledged": true,
+      "requestFailed": false
+    }
+  },
+  "failedWait": {
+    "stage": "first-poll-release",
+    "observedAt": "2026-10-09T13:59:24.410Z",
+    "restartCount": 0,
+    "statusStillRunning": true,
+    "terminalEnded": true
+  },
+  "limits": [
+    "No post-exit fresh browser session response was retained; no failed sweep or exact timing cause is proved.",
+    "The helper waits20 seconds, shorter than the default30-second sweep; its original failure and timeout remain unchanged.",
+    "Supported Stop emptied this fixture lease; the exact helper then removed its stopped container. This is not automatic cleanup evidence.",
+    "Two literal PID1 browser zombies remained; no zero-PID claim.",
+    "C063 source tests do not establish installed Restart, second exit, native Windows behavior, performance, provider quality or integration."
+  ],
+  "originalFileHashes": {
+    "result.json": "d4a8892d6cf0065f7ed87cab9abb48ccc57429360726f4298a0d69eff993145e",
+    "phase-022.json": "04bd70434b18e26533f43347b33a3031be23a4bde892e74d899602cc1fc9cb10",
+    "phase-024.json": "e510e6233c114186960c8401b7270a729c6bb1139a0e55764c37eca2a71b1320",
+    "phase-026.json": "b21f72f0b856fc56b30eb4657a7810f0b7384f938a5bbebfdd79281c1ebe07bb"
+  }
+}

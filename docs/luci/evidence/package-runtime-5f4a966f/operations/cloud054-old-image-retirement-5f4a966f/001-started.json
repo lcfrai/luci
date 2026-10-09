@@ -1,0 +1,8 @@
+{
+  "source": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "helperSHA256": "cbaef0c7b6630c968f91cb321fa17d67ebbfffcf0b6aeb2a647178524ca37a48",
+  "candidateReceiptSHA256": "46fae0ba7a99bed59551b6e832514d8ab35eb2b37f9983b248dda1191b4730da",
+  "scope": "Root-coordinated exclusive Docker maintenance, exact task-owned tags only; no global process-idle assertion. Known unreadable dockerd/containerd/gpg identities remain unobserved. No fixture/ledger changes or capacity-release claim.",
+  "status": "preflight",
+  "steps": []
+}

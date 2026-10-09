@@ -1,0 +1,10 @@
+{
+  "at": "2026-10-09T13:48:01.057013+00:00",
+  "method": "GET",
+  "path": "/v1.51/system/df",
+  "endpoint": "unix:///var/run/docker.sock",
+  "status": 200,
+  "sha256": "b071817411e8f24b6eeea36c5b82afe3186cb3e7f9f5e68e08c05b2c3919832d",
+  "bytes": 22630,
+  "scope": "Read-only cache/image inventory; no mutation"
+}

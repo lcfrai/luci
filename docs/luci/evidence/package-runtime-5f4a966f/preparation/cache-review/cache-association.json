@@ -1,0 +1,132 @@
+{
+  "at": "2026-10-09T13:47:20.079370+00:00",
+  "scope": "Read-only cache ownership correlation and protection inputs; no mutation, direct cacheID/diffID mapping unavailable",
+  "inputBindings": {
+    "/workspace/.luci-tools/runtime-archive-1f845cfd2b45/metadata-333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98.raw": {
+      "sha256": "333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+      "bytes": 776
+    },
+    "/workspace/.luci-tools/sandbox-candidate-20261009T134118Z-4a347241/receipt.json": {
+      "sha256": "46fae0ba7a99bed59551b6e832514d8ab35eb2b37f9983b248dda1191b4730da",
+      "bytes": 33585
+    },
+    "/workspace/.luci-tools/cloud054-old-image-retirement-5f4a966f/007-final.json": {
+      "sha256": "21d1c8533bda9b409c49fa3b3b7f6ca39ae1d587f31cd85f4bc78510a387126e",
+      "bytes": 4059
+    },
+    "/workspace/.luci-tools/cloud054-cache-retirement-plan/all-cache-du.stdout": {
+      "sha256": "c7364c55496269ceeea7412b876bb724ed0f2c5051662da188b537c482194682",
+      "bytes": 22857
+    },
+    "/workspace/.luci-tools/cloud054-cache-retirement-plan/exact-cache-du.stdout": {
+      "sha256": "c3aceb08e720423444a3587677aa21f59d5fa8ffc57bf3a5a4e1a03bfbdbb0c6",
+      "bytes": 329
+    }
+  },
+  "selectedCache": {
+    "CreatedAt": "2026-10-08 14:01:24.232384903 +0000 UTC",
+    "Description": "[2/2] COPY --chown=0:0 --chmod=0755 bin/ /usr/local/bin/",
+    "ID": "jxury1xmsdvxr24fm76wfizm5",
+    "LastUsedAt": "24 hours ago",
+    "Mutable": false,
+    "Parents": [
+      "a0z9tfoq25ub9hkicmah62g4c"
+    ],
+    "Reclaimable": true,
+    "Shared": false,
+    "Size": "9.457MB",
+    "Type": "regular",
+    "UsageCount": 1
+  },
+  "oldConfig": {
+    "sha256": "333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+    "created": "2026-10-08T14:01:24.232384903Z",
+    "history": [
+      {
+        "created": "2026-10-06T02:49:22.608961173Z",
+        "comment": "Imported from -"
+      },
+      {
+        "created": "2026-10-08T14:01:24.232384903Z",
+        "created_by": "COPY --chown=0:0 --chmod=0755 bin/ /usr/local/bin/ # buildkit",
+        "comment": "buildkit.dockerfile.v0"
+      }
+    ],
+    "rootfs": {
+      "type": "layers",
+      "diff_ids": [
+        "sha256:d6b024dc076b491eb43e58c3e02fd5a9bfc6158e53f89c8d6e94d17bc52a5045",
+        "sha256:f835d6e052706be7cd2ca12ad01f31cce9e3c5b5dae375e8a9422a632e1a170d"
+      ]
+    }
+  },
+  "timestampExactMatch": true,
+  "recordsWhoseParentIsSelected": [],
+  "protectedCache": {
+    "CreatedAt": "2026-10-09 13:41:50.307524218 +0000 UTC",
+    "Description": "[2/2] COPY --chown=0:0 --chmod=0755 bin/ /usr/local/bin/",
+    "ID": "ue36gvnn6iqhphceohjhzwae5",
+    "LastUsedAt": "3 minutes ago",
+    "Mutable": false,
+    "Parents": [
+      "a0z9tfoq25ub9hkicmah62g4c"
+    ],
+    "Reclaimable": true,
+    "Shared": true,
+    "Size": "9.466MB",
+    "Type": "regular",
+    "UsageCount": 1
+  },
+  "protectedBaseCache": {
+    "CreatedAt": "2026-10-06 03:21:13.30829397 +0000 UTC",
+    "Description": "from local ",
+    "ID": "a0z9tfoq25ub9hkicmah62g4c",
+    "LastUsedAt": "3 minutes ago",
+    "Mutable": false,
+    "Parents": null,
+    "Reclaimable": true,
+    "Shared": true,
+    "Size": "0B",
+    "Type": "regular",
+    "UsageCount": 4
+  },
+  "protectedCandidate": {
+    "Id": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+    "Config": {
+      "Cmd": null,
+      "Entrypoint": [
+        "/usr/local/bin/entrypoint.sh"
+      ],
+      "Env": [
+        "PATH=/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "NODE_VERSION=24.21.0",
+        "YARN_VERSION=1.22.22"
+      ],
+      "ExposedPorts": {
+        "8080/tcp": {}
+      },
+      "Labels": null,
+      "OnBuild": null,
+      "User": "dev",
+      "Volumes": null,
+      "WorkingDir": "/home/dev"
+    },
+    "RootFS": {
+      "Type": "layers",
+      "Layers": [
+        "sha256:d6b024dc076b491eb43e58c3e02fd5a9bfc6158e53f89c8d6e94d17bc52a5045",
+        "sha256:49e0686a1ea1befd615b3f4625d1436a7960769bf12bd15963d0cc9ed05a6a33"
+      ]
+    },
+    "Size": 2294638105,
+    "Architecture": "amd64",
+    "Os": "linux"
+  },
+  "predictedPhysicalReclamationBytes": null,
+  "reasonPredictionUnavailable": "DiskUsage reports logical delta9.457MB; VFS fullsnapshot retention and physical release are not measured by this API",
+  "limits": [
+    "Direct daemon layer/cache databases unavailable due filesystem permission; sudo unavailable. No permission bypass or host-reading container created.",
+    "Old config hash/diffID is exact; cache association is nanosecond timestamp+operation+shared parent+sole old COPY record, not a direct hash-addressed cacheID-to-layerDB read.",
+    "No fresh archive restore or load; old restore archive proof comes from separately bound retained receipts."
+  ]
+}

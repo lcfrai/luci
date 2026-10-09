@@ -1,0 +1,43 @@
+{
+  "kind": "scenario-failure",
+  "step": "first-poll-release",
+  "error": {
+    "name": "Error",
+    "code": null,
+    "messageSHA256": "a509289939c63bf4694b252d9216cbe9b6ecdc447332b340459ded6b37f1c818",
+    "messageBytes": 40,
+    "messageRetained": false,
+    "kind": "timeout"
+  },
+  "gates": [
+    {
+      "entry": {
+        "at": "2026-10-09T13:59:01.446Z",
+        "monotonicMs": 40085.221063,
+        "deadlineMonotonicMs": 48085.221063,
+        "budgetMs": 8000
+      },
+      "at": "2026-10-09T13:59:01.446Z",
+      "monotonicMs": 40085.221063,
+      "deadlineMonotonicMs": 48085.221063,
+      "budgetMs": 8000,
+      "bodyObservedMonotonicMs": 40100.643087,
+      "bodySHA256": "a5109074dd58bccdae04daeddfbd9b28f3d186a2360c4597362285449efd3000",
+      "bodyBytes": 642,
+      "session": {
+        "id": "s-05496235",
+        "status": "running",
+        "executionGeneration": "79244b2900de38d127bb602bc7ee8145fd1b9d59cf0c898ee53995fb7dccbd68"
+      },
+      "released": "2026-10-09T13:59:04.303Z",
+      "expired": false,
+      "releasedMonotonicMs": 42941.694501,
+      "settlement": {
+        "attempted": "fulfill",
+        "acknowledged": true,
+        "requestFailed": false
+      }
+    }
+  ],
+  "observedAt": "2026-10-09T13:59:24.365Z"
+}

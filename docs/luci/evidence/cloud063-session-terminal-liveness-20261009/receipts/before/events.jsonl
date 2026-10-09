@@ -1,0 +1,9 @@
+{"Time":"2026-10-09T14:10:51.732996448Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/api"}
+{"Time":"2026-10-09T14:10:51.748101422Z","Action":"run","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestAttachTypedExitPublishesCurrentRoutesWithoutReaper"}
+{"Time":"2026-10-09T14:10:51.748147872Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestAttachTypedExitPublishesCurrentRoutesWithoutReaper","Output":"=== RUN   TestAttachTypedExitPublishesCurrentRoutesWithoutReaper\n"}
+{"Time":"2026-10-09T14:10:56.780519903Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestAttachTypedExitPublishesCurrentRoutesWithoutReaper","Output":"    cloud063_before_test.go:37: typed Exit did not publish terminal status without a background sweep\n"}
+{"Time":"2026-10-09T14:10:56.799469344Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestAttachTypedExitPublishesCurrentRoutesWithoutReaper","Output":"--- FAIL: TestAttachTypedExitPublishesCurrentRoutesWithoutReaper (5.05s)\n"}
+{"Time":"2026-10-09T14:10:56.800323241Z","Action":"fail","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestAttachTypedExitPublishesCurrentRoutesWithoutReaper","Elapsed":5.05}
+{"Time":"2026-10-09T14:10:56.800759087Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Output":"FAIL\n"}
+{"Time":"2026-10-09T14:10:56.809428584Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Output":"FAIL\tgithub.com/lcfrai/luci/control-plane/internal/api\t5.075s\n"}
+{"Time":"2026-10-09T14:10:56.80976413Z","Action":"fail","Package":"github.com/lcfrai/luci/control-plane/internal/api","Elapsed":5.077}

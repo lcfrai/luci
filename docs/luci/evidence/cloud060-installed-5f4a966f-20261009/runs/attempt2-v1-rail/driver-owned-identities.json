@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "runRoot": "/workspace/.t/c60/c060-run-rwk78w7t",
+  "identities": [
+    {
+      "pid": 2439122,
+      "startTicks": "29972420",
+      "role": "controller"
+    },
+    {
+      "pid": 2439134,
+      "startTicks": "29972588",
+      "role": "controller"
+    },
+    {
+      "pid": 2439261,
+      "startTicks": "29973184",
+      "role": "controller"
+    },
+    {
+      "pid": 2439154,
+      "startTicks": "29972758",
+      "role": "browser"
+    },
+    {
+      "pid": 2439156,
+      "startTicks": "29972775",
+      "role": "browser"
+    },
+    {
+      "pid": 2439159,
+      "startTicks": "29972776",
+      "role": "browser"
+    },
+    {
+      "pid": 2439198,
+      "startTicks": "29972837",
+      "role": "browser"
+    }
+  ]
+}

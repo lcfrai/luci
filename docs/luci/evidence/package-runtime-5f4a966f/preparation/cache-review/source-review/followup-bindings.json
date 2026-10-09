@@ -1,0 +1,20 @@
+[
+  {
+    "path": "moby-controller.go",
+    "url": "https://raw.githubusercontent.com/moby/moby/v28.4.0/builder/builder-next/controller.go",
+    "bytes": 16796,
+    "sha256": "27230c736e39797fe419d917aa7c18d2701a92658736146798753e76107b2311"
+  },
+  {
+    "path": "moby-worker.go",
+    "url": "https://raw.githubusercontent.com/moby/moby/v28.4.0/builder/builder-next/worker/worker.go",
+    "bytes": 17701,
+    "sha256": "c30ccd47efe4eac8267c0c18fddbdcf0e2e16320e99da82b2052dbc19a8bf58f"
+  },
+  {
+    "path": "buildkit-control.go",
+    "url": "https://raw.githubusercontent.com/moby/buildkit/v0.24.0/control/control.go",
+    "bytes": 23148,
+    "sha256": "3ee964334f238b78eae5c2d49718d7580d5d88424d1c33fb372b510354c95685"
+  }
+]

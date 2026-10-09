@@ -1,0 +1,228 @@
+{
+  "candidate": {
+    "Id": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+    "RepoTags": [
+      "luci/sandbox:dev",
+      "luci/sandbox:verified-candidate-20261008t140025z-a4a2e82b"
+    ],
+    "RepoDigests": [],
+    "Parent": "",
+    "Comment": "buildkit.dockerfile.v0",
+    "Created": "2026-10-08T14:01:24.232384903Z",
+    "DockerVersion": "",
+    "Author": "",
+    "Architecture": "amd64",
+    "Os": "linux",
+    "Size": 2294629077,
+    "GraphDriver": {
+      "Data": null,
+      "Name": "vfs"
+    },
+    "RootFS": {
+      "Type": "layers",
+      "Layers": [
+        "sha256:d6b024dc076b491eb43e58c3e02fd5a9bfc6158e53f89c8d6e94d17bc52a5045",
+        "sha256:f835d6e052706be7cd2ca12ad01f31cce9e3c5b5dae375e8a9422a632e1a170d"
+      ]
+    },
+    "Metadata": {
+      "LastTagTime": "2026-10-08T17:05:06.858059613Z"
+    },
+    "Config": {
+      "Cmd": null,
+      "Entrypoint": [
+        "/usr/local/bin/entrypoint.sh"
+      ],
+      "Env": [
+        "PATH=/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "NODE_VERSION=24.21.0",
+        "YARN_VERSION=1.22.22"
+      ],
+      "ExposedPorts": {
+        "8080/tcp": {}
+      },
+      "Labels": null,
+      "OnBuild": null,
+      "User": "dev",
+      "Volumes": null,
+      "WorkingDir": "/home/dev"
+    }
+  },
+  "layers": {
+    "blobs/sha256/d6b024dc076b491eb43e58c3e02fd5a9bfc6158e53f89c8d6e94d17bc52a5045": {
+      "rawSHA256": "d6b024dc076b491eb43e58c3e02fd5a9bfc6158e53f89c8d6e94d17bc52a5045",
+      "diffID": "sha256:d6b024dc076b491eb43e58c3e02fd5a9bfc6158e53f89c8d6e94d17bc52a5045",
+      "files": {
+        "usr/local/bin/entrypoint.sh": {
+          "sha256": "4e3650aa74b6f91ce8543b5418c2be9a32aad51434652fba8fb1bbddf7b7bcc9",
+          "bytes": 1843,
+          "mode": "0755",
+          "uid": 0,
+          "gid": 0
+        },
+        "usr/local/bin/sandboxd": {
+          "sha256": "1df43f7a93907e9403e1e7e2072eb24de370b982dcb78b861e77846d5e3a377b",
+          "bytes": 9459436,
+          "mode": "0755",
+          "uid": 0,
+          "gid": 0
+        }
+      },
+      "directories": {
+        "usr": {
+          "mode": "0755",
+          "uid": 0,
+          "gid": 0
+        },
+        "usr/local": {
+          "mode": "0755",
+          "uid": 0,
+          "gid": 0
+        },
+        "usr/local/bin": {
+          "mode": "0755",
+          "uid": 0,
+          "gid": 0
+        }
+      },
+      "nonDirectoryCount": 26104,
+      "nonTargetCount": 26102
+    },
+    "blobs/sha256/f835d6e052706be7cd2ca12ad01f31cce9e3c5b5dae375e8a9422a632e1a170d": {
+      "rawSHA256": "f835d6e052706be7cd2ca12ad01f31cce9e3c5b5dae375e8a9422a632e1a170d",
+      "diffID": "sha256:f835d6e052706be7cd2ca12ad01f31cce9e3c5b5dae375e8a9422a632e1a170d",
+      "files": {
+        "usr/local/bin/entrypoint.sh": {
+          "sha256": "c3d925a1b08874079c44820cbc70e50fa370c4af26ecddfbb656687a04eebe3a",
+          "bytes": 2228,
+          "mode": "0755",
+          "uid": 0,
+          "gid": 0
+        },
+        "usr/local/bin/sandboxd": {
+          "sha256": "5c850eea4b3c5b8f13e71a0d142ce69e1b9aff5faae09974a0ba20027a1b2298",
+          "bytes": 9454883,
+          "mode": "0755",
+          "uid": 0,
+          "gid": 0
+        }
+      },
+      "directories": {
+        "usr": {
+          "mode": "0755",
+          "uid": 0,
+          "gid": 0
+        },
+        "usr/local": {
+          "mode": "0755",
+          "uid": 0,
+          "gid": 0
+        },
+        "usr/local/bin": {
+          "mode": "0755",
+          "uid": 0,
+          "gid": 0
+        }
+      },
+      "nonDirectoryCount": 2,
+      "nonTargetCount": 0
+    }
+  },
+  "metadata": {
+    "blobs/sha256/01042bf7b0f8f6ff0876d22f8e9059c96001cd4fbf34462566c0590a35ca3779": {
+      "sha256": "01042bf7b0f8f6ff0876d22f8e9059c96001cd4fbf34462566c0590a35ca3779",
+      "bytes": 556,
+      "path": "/workspace/.luci-tools/runtime-archive-1f845cfd2b45/metadata-01042bf7b0f8f6ff0876d22f8e9059c96001cd4fbf34462566c0590a35ca3779.raw"
+    },
+    "blobs/sha256/333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98": {
+      "sha256": "333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+      "bytes": 776,
+      "path": "/workspace/.luci-tools/runtime-archive-1f845cfd2b45/metadata-333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98.raw"
+    },
+    "blobs/sha256/93edd173e1eb122d93f3c5b6381f2e5aae91daf0f6cf45dfb37c91f3959aef4b": {
+      "sha256": "93edd173e1eb122d93f3c5b6381f2e5aae91daf0f6cf45dfb37c91f3959aef4b",
+      "bytes": 401,
+      "path": "/workspace/.luci-tools/runtime-archive-1f845cfd2b45/metadata-93edd173e1eb122d93f3c5b6381f2e5aae91daf0f6cf45dfb37c91f3959aef4b.raw"
+    },
+    "blobs/sha256/f2dad95647d306f6d747fd96e3425ed3811869b10c157b5c1947c6e8ae85eebd": {
+      "sha256": "f2dad95647d306f6d747fd96e3425ed3811869b10c157b5c1947c6e8ae85eebd",
+      "bytes": 982,
+      "path": "/workspace/.luci-tools/runtime-archive-1f845cfd2b45/metadata-f2dad95647d306f6d747fd96e3425ed3811869b10c157b5c1947c6e8ae85eebd.raw"
+    },
+    "index.json": {
+      "sha256": "4154704d8bad184b040ec4faba65a4fabc3b758330f7d0fffff5364d6f8d9ae5",
+      "bytes": 354,
+      "path": "/workspace/.luci-tools/runtime-archive-1f845cfd2b45/metadata-4154704d8bad184b040ec4faba65a4fabc3b758330f7d0fffff5364d6f8d9ae5.raw"
+    },
+    "manifest.json": {
+      "sha256": "673ab04df5682f8208efa68027b8d9b49073a1890741ef0119ec3b63cdc6511f",
+      "bytes": 770,
+      "path": "/workspace/.luci-tools/runtime-archive-1f845cfd2b45/metadata-673ab04df5682f8208efa68027b8d9b49073a1890741ef0119ec3b63cdc6511f.raw"
+    },
+    "oci-layout": {
+      "sha256": "0cdedc0869d60bb59e3dde736f996025e70318180587e049cfa22f80d67aa8e5",
+      "bytes": 31,
+      "path": "/workspace/.luci-tools/runtime-archive-1f845cfd2b45/metadata-0cdedc0869d60bb59e3dde736f996025e70318180587e049cfa22f80d67aa8e5.raw"
+    },
+    "repositories": {
+      "sha256": "68b16b45b158eb95ec4655d588c6419bbbbd3e95d8fa5d8782c062f7a0ed91a3",
+      "bytes": 92,
+      "path": "/workspace/.luci-tools/runtime-archive-1f845cfd2b45/metadata-68b16b45b158eb95ec4655d588c6419bbbbd3e95d8fa5d8782c062f7a0ed91a3.raw"
+    }
+  },
+  "rawConfigPath": "/workspace/.luci-tools/runtime-archive-1f845cfd2b45/metadata-333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98.raw",
+  "rawConfig": {
+    "architecture": "amd64",
+    "config": {
+      "User": "dev",
+      "ExposedPorts": {
+        "8080/tcp": {}
+      },
+      "Env": [
+        "PATH=/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "NODE_VERSION=24.21.0",
+        "YARN_VERSION=1.22.22"
+      ],
+      "Entrypoint": [
+        "/usr/local/bin/entrypoint.sh"
+      ],
+      "WorkingDir": "/home/dev"
+    },
+    "created": "2026-10-08T14:01:24.232384903Z",
+    "history": [
+      {
+        "created": "2026-10-06T02:49:22.608961173Z",
+        "comment": "Imported from -"
+      },
+      {
+        "created": "2026-10-08T14:01:24.232384903Z",
+        "created_by": "COPY --chown=0:0 --chmod=0755 bin/ /usr/local/bin/ # buildkit",
+        "comment": "buildkit.dockerfile.v0"
+      }
+    ],
+    "os": "linux",
+    "rootfs": {
+      "type": "layers",
+      "diff_ids": [
+        "sha256:d6b024dc076b491eb43e58c3e02fd5a9bfc6158e53f89c8d6e94d17bc52a5045",
+        "sha256:f835d6e052706be7cd2ca12ad01f31cce9e3c5b5dae375e8a9422a632e1a170d"
+      ]
+    }
+  },
+  "configComparison": {
+    "acceptedMissingToNull": [
+      "Cmd",
+      "Labels",
+      "OnBuild",
+      "Volumes"
+    ],
+    "differences": []
+  },
+  "expectedRootFS": {
+    "type": "layers",
+    "diff_ids": [
+      "sha256:d6b024dc076b491eb43e58c3e02fd5a9bfc6158e53f89c8d6e94d17bc52a5045",
+      "sha256:f835d6e052706be7cd2ca12ad01f31cce9e3c5b5dae375e8a9422a632e1a170d"
+    ]
+  }
+}

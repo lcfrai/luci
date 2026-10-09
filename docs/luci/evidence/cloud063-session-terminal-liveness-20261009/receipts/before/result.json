@@ -1,0 +1,27 @@
+{
+  "argv": [
+    "/workspace/.luci-tools/go1.26.3/bin/go",
+    "test",
+    "-p",
+    "2",
+    "-count=1",
+    "-timeout=90s",
+    "-json",
+    "-overlay=/workspace/.luci-tools/cloud063-session-terminal-liveness/before-overlay.json",
+    "-run",
+    "^TestAttachTypedExitPublishesCurrentRoutesWithoutReaper$",
+    "./internal/api"
+  ],
+  "cwd": "/workspace/luci/control-plane",
+  "sourceCommit": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "startedAt": 1791555042.0933735,
+  "exitCode": 1,
+  "endedAt": 1791555056.9077575,
+  "testActions": {
+    "fail": 1
+  },
+  "failedTests": [
+    "TestAttachTypedExitPublishesCurrentRoutesWithoutReaper"
+  ],
+  "eventsSHA256": "d92c52426c8505806f08f87200c11360bffb0c9283c35fbd23c3855b1e217483"
+}

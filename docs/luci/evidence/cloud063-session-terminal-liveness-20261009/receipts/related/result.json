@@ -1,0 +1,28 @@
+{
+  "argv": [
+    "/workspace/.luci-tools/go1.26.3/bin/go",
+    "test",
+    "-p",
+    "2",
+    "-count=1",
+    "-timeout=90s",
+    "-json",
+    "-race",
+    "-overlay=/workspace/.luci-tools/cloud063-session-terminal-liveness/overlay.json",
+    "-run",
+    "Test(StoppedTaskCleanup|ObservedExit|ConfirmedStoppedTask|TaskCleanupKeeps|TaskCompletionObserver|ProjectRunChildObservation|SocketTicketsAreSingleUsePathBoundExpiringAndRevocable|TeamProxyResolvesSessionWorktreeAndResumeSourceGrants|TeamProxyDropsBufferedSessionResultAfterRevocation)",
+    "./internal/api",
+    "./internal/reaper",
+    "./internal/management"
+  ],
+  "cwd": "/workspace/luci/control-plane",
+  "sourceCommit": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "startedAt": 1791555293.8164864,
+  "exitCode": 0,
+  "endedAt": 1791555337.2394228,
+  "testActions": {
+    "pass": 41
+  },
+  "failedTests": [],
+  "eventsSHA256": "bb62fe2ea6a8a06b3c581f4603e5bc90cb0c87f74438fb3e20ed9b3f667c51f0"
+}

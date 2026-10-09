@@ -1,0 +1,351 @@
+{
+  "env": [
+    {
+      "file": "runtime/build-receipt.original.json",
+      "path": "/baseConfig/Env",
+      "names": [
+        "PATH",
+        "NODE_VERSION",
+        "YARN_VERSION"
+      ],
+      "entries": 3
+    },
+    {
+      "file": "runtime/build-receipt.original.json",
+      "path": "/candidate/Config/Env",
+      "names": [
+        "PATH",
+        "NODE_VERSION",
+        "YARN_VERSION"
+      ],
+      "entries": 3
+    },
+    {
+      "file": "runtime/export-verified-receipt.original.json",
+      "path": "/baseConfig/Env",
+      "names": [
+        "PATH",
+        "NODE_VERSION",
+        "YARN_VERSION"
+      ],
+      "entries": 3
+    },
+    {
+      "file": "runtime/export-verified-receipt.original.json",
+      "path": "/candidate/Config/Env",
+      "names": [
+        "PATH",
+        "NODE_VERSION",
+        "YARN_VERSION"
+      ],
+      "entries": 3
+    },
+    {
+      "file": "preparation/cache-review/cache-association.json",
+      "path": "/protectedCandidate/Config/Env",
+      "names": [
+        "PATH",
+        "NODE_VERSION",
+        "YARN_VERSION"
+      ],
+      "entries": 3
+    },
+    {
+      "file": "runtime/export/diagnostics.json",
+      "path": "/candidate/Config/Env",
+      "names": [
+        "PATH",
+        "NODE_VERSION",
+        "YARN_VERSION"
+      ],
+      "entries": 3
+    },
+    {
+      "file": "runtime/export/diagnostics.json",
+      "path": "/rawConfig/config/Env",
+      "names": [
+        "PATH",
+        "NODE_VERSION",
+        "YARN_VERSION"
+      ],
+      "entries": 3
+    },
+    {
+      "file": "runtime/export/metadata-76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8.raw",
+      "path": "/config/Env",
+      "names": [
+        "PATH",
+        "NODE_VERSION",
+        "YARN_VERSION"
+      ],
+      "entries": 3
+    },
+    {
+      "file": "runtime/export/metadata-375d94971dd70a1ed15f360a76e18e5d0f004c9c78910d4498224176146ef699.raw",
+      "path": "/config/Env",
+      "names": [
+        "PATH",
+        "NODE_VERSION",
+        "YARN_VERSION"
+      ],
+      "entries": 3
+    },
+    {
+      "file": "runtime/export/receipt-before.json",
+      "path": "/baseConfig/Env",
+      "names": [
+        "PATH",
+        "NODE_VERSION",
+        "YARN_VERSION"
+      ],
+      "entries": 3
+    },
+    {
+      "file": "runtime/export/receipt-before.json",
+      "path": "/candidate/Config/Env",
+      "names": [
+        "PATH",
+        "NODE_VERSION",
+        "YARN_VERSION"
+      ],
+      "entries": 3
+    },
+    {
+      "file": "operations/old-archive-proof/cloud054-runtime-space-plan-retained-333eff-archive-inspection.json",
+      "path": "/config/config/Env",
+      "names": [
+        "PATH",
+        "NODE_VERSION",
+        "YARN_VERSION"
+      ],
+      "entries": 3
+    },
+    {
+      "file": "operations/old-archive-proof/runtime-archive-1f845cfd2b45-receipt.json",
+      "path": "/candidate/Config/Env",
+      "names": [
+        "PATH",
+        "NODE_VERSION",
+        "YARN_VERSION"
+      ],
+      "entries": 3
+    },
+    {
+      "file": "operations/old-archive-proof/runtime-archive-1f845cfd2b45-diagnostics.json",
+      "path": "/candidate/Config/Env",
+      "names": [
+        "PATH",
+        "NODE_VERSION",
+        "YARN_VERSION"
+      ],
+      "entries": 3
+    },
+    {
+      "file": "operations/old-archive-proof/runtime-archive-1f845cfd2b45-diagnostics.json",
+      "path": "/rawConfig/config/Env",
+      "names": [
+        "PATH",
+        "NODE_VERSION",
+        "YARN_VERSION"
+      ],
+      "entries": 3
+    },
+    {
+      "file": "operations/cloud054-old-cache-retirement-attempt2/002-preflight.json",
+      "path": "/imagesBefore/sha256:345c8087a592c68bc6b1c347bb865b43e14cdefec77d741f85195588028f57a4/Config/Env",
+      "names": [
+        "PATH",
+        "GOSU_VERSION",
+        "LANG",
+        "PG_MAJOR",
+        "PG_VERSION",
+        "PGDATA"
+      ],
+      "entries": 6
+    },
+    {
+      "file": "operations/cloud054-old-cache-retirement-attempt2/002-preflight.json",
+      "path": "/imagesBefore/sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8/Config/Env",
+      "names": [
+        "PATH",
+        "NODE_VERSION",
+        "YARN_VERSION"
+      ],
+      "entries": 3
+    },
+    {
+      "file": "operations/cloud054-old-cache-retirement-attempt2/002-preflight.json",
+      "path": "/imagesBefore/sha256:7c3b093add7c43400ee83b815ab2cda98794a10045bcf76ce9bb2f89b97cbc5c/Config/Env",
+      "names": [
+        "PATH",
+        "NODE_VERSION",
+        "YARN_VERSION"
+      ],
+      "entries": 3
+    },
+    {
+      "file": "operations/cloud054-old-cache-retirement-attempt2/002-preflight.json",
+      "path": "/imagesBefore/sha256:9e0fd9f731408c4405c4b9e97308bf807c8088cf521a138c0b1921667a831351/Config/Env",
+      "names": [
+        "PATH",
+        "NODE_VERSION",
+        "YARN_VERSION"
+      ],
+      "entries": 3
+    },
+    {
+      "file": "operations/cloud054-old-cache-retirement-attempt2/002-preflight.json",
+      "path": "/imagesBefore/sha256:dc73b49f5124cf2ee538dfbdfbd121f0b4ccdcb20fea30f3a81bd477c02e2bb5/Config/Env",
+      "names": [
+        "PATH",
+        "NGINX_VERSION",
+        "PKG_RELEASE",
+        "DYNPKG_RELEASE",
+        "NJS_VERSION",
+        "NJS_RELEASE",
+        "ACME_VERSION"
+      ],
+      "entries": 7
+    },
+    {
+      "file": "operations/cloud054-old-cache-retirement-attempt2/002-preflight.json",
+      "path": "/imagesBefore/sha256:e2ac70e7319a02c5a477f5825259bd118b94e8b02c279c67afa63adab6d8685b/Config/Env",
+      "names": [
+        "PATH"
+      ],
+      "entries": 1
+    },
+    {
+      "file": "operations/cloud054-old-cache-retirement-attempt2/005-final.json",
+      "path": "/imagesBefore/sha256:345c8087a592c68bc6b1c347bb865b43e14cdefec77d741f85195588028f57a4/Config/Env",
+      "names": [
+        "PATH",
+        "GOSU_VERSION",
+        "LANG",
+        "PG_MAJOR",
+        "PG_VERSION",
+        "PGDATA"
+      ],
+      "entries": 6
+    },
+    {
+      "file": "operations/cloud054-old-cache-retirement-attempt2/005-final.json",
+      "path": "/imagesBefore/sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8/Config/Env",
+      "names": [
+        "PATH",
+        "NODE_VERSION",
+        "YARN_VERSION"
+      ],
+      "entries": 3
+    },
+    {
+      "file": "operations/cloud054-old-cache-retirement-attempt2/005-final.json",
+      "path": "/imagesBefore/sha256:7c3b093add7c43400ee83b815ab2cda98794a10045bcf76ce9bb2f89b97cbc5c/Config/Env",
+      "names": [
+        "PATH",
+        "NODE_VERSION",
+        "YARN_VERSION"
+      ],
+      "entries": 3
+    },
+    {
+      "file": "operations/cloud054-old-cache-retirement-attempt2/005-final.json",
+      "path": "/imagesBefore/sha256:9e0fd9f731408c4405c4b9e97308bf807c8088cf521a138c0b1921667a831351/Config/Env",
+      "names": [
+        "PATH",
+        "NODE_VERSION",
+        "YARN_VERSION"
+      ],
+      "entries": 3
+    },
+    {
+      "file": "operations/cloud054-old-cache-retirement-attempt2/005-final.json",
+      "path": "/imagesBefore/sha256:dc73b49f5124cf2ee538dfbdfbd121f0b4ccdcb20fea30f3a81bd477c02e2bb5/Config/Env",
+      "names": [
+        "PATH",
+        "NGINX_VERSION",
+        "PKG_RELEASE",
+        "DYNPKG_RELEASE",
+        "NJS_VERSION",
+        "NJS_RELEASE",
+        "ACME_VERSION"
+      ],
+      "entries": 7
+    },
+    {
+      "file": "operations/cloud054-old-cache-retirement-attempt2/005-final.json",
+      "path": "/imagesBefore/sha256:e2ac70e7319a02c5a477f5825259bd118b94e8b02c279c67afa63adab6d8685b/Config/Env",
+      "names": [
+        "PATH"
+      ],
+      "entries": 1
+    },
+    {
+      "file": "operations/cloud054-old-cache-retirement-attempt2/005-final.json",
+      "path": "/imagesAfter/sha256:345c8087a592c68bc6b1c347bb865b43e14cdefec77d741f85195588028f57a4/Config/Env",
+      "names": [
+        "PATH",
+        "GOSU_VERSION",
+        "LANG",
+        "PG_MAJOR",
+        "PG_VERSION",
+        "PGDATA"
+      ],
+      "entries": 6
+    },
+    {
+      "file": "operations/cloud054-old-cache-retirement-attempt2/005-final.json",
+      "path": "/imagesAfter/sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8/Config/Env",
+      "names": [
+        "PATH",
+        "NODE_VERSION",
+        "YARN_VERSION"
+      ],
+      "entries": 3
+    },
+    {
+      "file": "operations/cloud054-old-cache-retirement-attempt2/005-final.json",
+      "path": "/imagesAfter/sha256:7c3b093add7c43400ee83b815ab2cda98794a10045bcf76ce9bb2f89b97cbc5c/Config/Env",
+      "names": [
+        "PATH",
+        "NODE_VERSION",
+        "YARN_VERSION"
+      ],
+      "entries": 3
+    },
+    {
+      "file": "operations/cloud054-old-cache-retirement-attempt2/005-final.json",
+      "path": "/imagesAfter/sha256:9e0fd9f731408c4405c4b9e97308bf807c8088cf521a138c0b1921667a831351/Config/Env",
+      "names": [
+        "PATH",
+        "NODE_VERSION",
+        "YARN_VERSION"
+      ],
+      "entries": 3
+    },
+    {
+      "file": "operations/cloud054-old-cache-retirement-attempt2/005-final.json",
+      "path": "/imagesAfter/sha256:dc73b49f5124cf2ee538dfbdfbd121f0b4ccdcb20fea30f3a81bd477c02e2bb5/Config/Env",
+      "names": [
+        "PATH",
+        "NGINX_VERSION",
+        "PKG_RELEASE",
+        "DYNPKG_RELEASE",
+        "NJS_VERSION",
+        "NJS_RELEASE",
+        "ACME_VERSION"
+      ],
+      "entries": 7
+    },
+    {
+      "file": "operations/cloud054-old-cache-retirement-attempt2/005-final.json",
+      "path": "/imagesAfter/sha256:e2ac70e7319a02c5a477f5825259bd118b94e8b02c279c67afa63adab6d8685b/Config/Env",
+      "names": [
+        "PATH"
+      ],
+      "entries": 1
+    }
+  ],
+  "sensitiveFieldLocations": [],
+  "unparsed": []
+}

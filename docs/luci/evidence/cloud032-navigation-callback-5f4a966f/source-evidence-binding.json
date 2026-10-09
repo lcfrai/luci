@@ -1,0 +1,35 @@
+{
+  "sourceCommit": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "files": [
+    {
+      "path": "desktop/src/components/projects/ProjectOverviewBoard.tsx",
+      "bytes": 25690,
+      "sha256": "3f198ff66958b205a65309a8a53192959bd0e1c805cc8c0b40b692f676eef9a8"
+    },
+    {
+      "path": "desktop/src/components/projects/project-overview.css",
+      "bytes": 7227,
+      "sha256": "878bd60c9a1df8068121e0cdce10ee96524013973f5fd8b72e2e0c05f76750e6"
+    },
+    {
+      "path": "desktop/src/components/rail/rail.css",
+      "bytes": 5608,
+      "sha256": "b318f96c825f8108409fe0d6bffd1cbde37a513c9db29a4ec54ef4007eaf42fb"
+    },
+    {
+      "path": "desktop/src/components/shell.css",
+      "bytes": 5942,
+      "sha256": "1cfd4cc0fc3ca1321a5ee9721d0d99f29bccfd2b22e569cbf6d58b0827af7ecb"
+    },
+    {
+      "path": "desktop/src/components/ui/button.tsx",
+      "bytes": 1755,
+      "sha256": "fa975deeed946ff9b2fe9c4ef1e09e04d0287a0fa83dd12b577cb8a7d79b5a5a"
+    },
+    {
+      "path": "desktop/src/styles/shadcn.css",
+      "bytes": 4805,
+      "sha256": "e7f7f84a4f9837bed1b5474951afb3a8436d62c803f38f65e099447f9a388a69"
+    }
+  ]
+}

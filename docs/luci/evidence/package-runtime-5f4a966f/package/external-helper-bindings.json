@@ -1,0 +1,19 @@
+{
+  "scope": "Referenced originals to be included by parent capsule; no executable helper was run by this publication.",
+  "files": [
+    {
+      "originalPath": "/workspace/.luci-tools/cloud054-runtime-helper/build-package.py",
+      "name": "build-package.py",
+      "sha256": "150b7e999d7238eb765f3025e9e42f904001828e37defdde39e780a937d463f1",
+      "bytes": 5334,
+      "publicationOwner": "main package-runtime capsule; not copied in this fragment"
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/cloud054-runtime-helper/package-attempt1-preflight-refusal.json",
+      "name": "package-attempt1-preflight-refusal.json",
+      "sha256": "621161500c775bdd192d51ba851a4cd765cbda944e5cf9058cda3b6ab7ffa6b5",
+      "bytes": 679,
+      "publicationOwner": "main package-runtime capsule; not copied in this fragment"
+    }
+  ]
+}

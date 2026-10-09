@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/workspace/.luci-tools/publish-cloud054-5f4-attempt8/assemble.py", line 63, in <module>
+    assert r['final']['ledger']['leases']==[]and r['final']['containers']==[]and r['final']['volumes']==[]and not r['pendingMutations']
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

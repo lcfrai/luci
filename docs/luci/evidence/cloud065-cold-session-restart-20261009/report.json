@@ -1,0 +1,58 @@
+{
+  "issue": "CLOUD-065",
+  "baseHead": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "mode": "controlled real SessionPane/Terminal/store/registry with fake WebSocket/xterm and mocked HTTP response; no native/browser/server/Docker/provider runtime",
+  "original": {
+    "tests": 16,
+    "passed": 11,
+    "failed": 5,
+    "failures": [
+      "attaches once after actual Restart from a cold already-cleaned exited pane without an allocation baseline",
+      "waits for the actual menu Restart response rather than attaching its optimistic starting record",
+      "does not attach a pending restart response after unmount; returning to its pane attaches exactly once",
+      "does not attach a pending restart response after switch-project; returning to its pane attaches exactly once",
+      "pending Restart plus new live list fingerprint never attaches before its success outcome"
+    ]
+  },
+  "corrected": {
+    "broad": {
+      "passed": 251,
+      "files": 7,
+      "sourceBinding": "broad251-effective-inputs-derived.json",
+      "note": "Source binding reconstructed from preserved exact frozen inputs and base registry test; final production acknowledgement idempotency comparator and two guard tests covered by final followup"
+    },
+    "finalFollowup": {
+      "passed": 42,
+      "files": 2,
+      "sourceBinding": "final-effective-inputs.json"
+    },
+    "distinctLatestOutcomes": 253,
+    "overlap": 40,
+    "typecheckExit": 0
+  },
+  "productionFiles": [
+    "desktop/src/api/attachRegistry.ts",
+    "desktop/src/components/develop/SessionPane.tsx",
+    "desktop/src/components/develop/sessionVerbs.ts"
+  ],
+  "testFiles": [
+    "desktop/src/api/attachRegistry.exit.test.ts",
+    "desktop/src/components/develop/SessionPane.restartAttach.test.tsx",
+    "desktop/src/components/develop/sessionVerbs.test.ts"
+  ],
+  "validWireShapeEvidence": [
+    "control-plane/internal/api/session_execution_generation_test.go:TestSessionExecutionGenerationOmitsUnavailableLegacyOrErasedSecrets/cleaned-terminal",
+    "control-plane/internal/api/sessions.go:sessionJSON.ExecutionGeneration omitempty; markExited clears AttachToken/Endpoint"
+  ],
+  "remainingScope": "No installed/native Windows confirmation. Captured acknowledgement ordinal protects only marker ordering/idempotency; this patch does not add a general competing-HTTP-response store fence. Existing request-baseline polling merge remains unchanged.",
+  "fixtureCorrections": [
+    "before-expanded includes a shutdown test transport reset fault; corrected by reconfiguring fake transport after registry teardown, final-original5fail receipt uses corrected fixture",
+    "fixed-focused3fail: existing sessionVerbs unit mock lacked new prepareAttachRestart member; minimal mock extension, real behavior tested in new component suite",
+    "typecheck first failed because newly authored getByRole options incorrectly included exact; removed option, final check passes"
+  ],
+  "retainedIntermediateFailures": [
+    "initial explicit-ack staging missed new-fingerprint poll-before-ack with store deduplication (intermediate-new-poll-race1failed/15passed)",
+    "non-idempotent repeated acknowledgement before socketopen gave second attach (intermediate-ack-repeat1failure/25filtered; corrected<=guard, final42pass)"
+  ],
+  "repositoryUnmodified": true
+}

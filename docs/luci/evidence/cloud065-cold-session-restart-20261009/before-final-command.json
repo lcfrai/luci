@@ -1,0 +1,15 @@
+{
+  "command": [
+    "./node_modules/.bin/vitest",
+    "run",
+    "src/components/develop/SessionPane.restartAttach.test.tsx",
+    "--maxWorkers=1",
+    "--no-file-parallelism",
+    "--reporter=json",
+    "--outputFile=../before-final.json"
+  ],
+  "startedAt": "2026-10-09T14:27:47.830128+00:00",
+  "finishedAt": "2026-10-09T14:27:53.427523+00:00",
+  "exitCode": 1,
+  "mode": "controlled component, original production and final regression"
+}

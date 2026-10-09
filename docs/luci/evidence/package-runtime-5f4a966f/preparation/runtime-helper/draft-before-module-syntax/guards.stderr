@@ -1,0 +1,18 @@
+E........
+======================================================================
+ERROR: test_corrected_vendor_required (__main__.Guards.test_corrected_vendor_required)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/.luci-tools/cloud054-runtime-helper/guards.test.py", line 24, in test_corrected_vendor_required
+    if ok:r.verify_runtime_module()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/.luci-tools/cloud054-runtime-helper/prepare-runtime.py", line 71, in verify_runtime_module
+    require(re.search(r'^\s*github\.com/coder/websocket v1\.8\.15\s*$',module,re.M), 'Expected corrected runtime websocket v1.8.15')
+  File "/workspace/.luci-tools/cloud054-runtime-helper/prepare-runtime.py", line 82, in require
+    raise RuntimeError(message)
+RuntimeError: Expected corrected runtime websocket v1.8.15
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.008s
+
+FAILED (errors=1)

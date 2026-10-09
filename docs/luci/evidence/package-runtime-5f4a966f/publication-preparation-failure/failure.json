@@ -1,0 +1,8 @@
+{
+  "scope": "Publication assembler path error, not product/build/runtime failure",
+  "missingGitPath": "control-plane/vendor/modules.txt",
+  "sourceCommit": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "cause": "Controller uses module manifest/sums; only sandboxd vendor metadata is tracked. No original or repository file changed.",
+  "assemblerSHA256": "3edd32828aec13fb216f2c22f04cad410c619b5cd5b841a67184e45d54378334",
+  "stderrSHA256": "e177a3a2f30ba3228dc8cbd85e2e0a712229a7bf4e07ff794e67fee3c223f2c7"
+}

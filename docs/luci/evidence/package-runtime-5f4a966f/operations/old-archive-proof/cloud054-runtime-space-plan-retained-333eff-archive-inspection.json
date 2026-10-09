@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "at": "2026-10-09T13:18:46.501430+00:00",
+  "archive": "/workspace/.luci-tools/runtime-archive-1f845cfd2b45/verified-luci-sandbox-dev.tar.gz",
+  "archiveSHA256": "7caf7aab012cd4a5bf2ace5c8a2e12e617b4afbaef20f6b3db64586a24e9fcf3",
+  "archiveBytes": 1013367768,
+  "archiveCRCAndFullReadPassed": true,
+  "image": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+  "manifest": {
+    "Config": "blobs/sha256/333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+    "RepoTags": [
+      "luci/sandbox:dev"
+    ],
+    "Layers": [
+      "blobs/sha256/d6b024dc076b491eb43e58c3e02fd5a9bfc6158e53f89c8d6e94d17bc52a5045",
+      "blobs/sha256/f835d6e052706be7cd2ca12ad01f31cce9e3c5b5dae375e8a9422a632e1a170d"
+    ],
+    "LayerSources": {
+      "sha256:d6b024dc076b491eb43e58c3e02fd5a9bfc6158e53f89c8d6e94d17bc52a5045": {
+        "mediaType": "application/vnd.oci.image.layer.v1.tar",
+        "size": 2306770944,
+        "digest": "sha256:d6b024dc076b491eb43e58c3e02fd5a9bfc6158e53f89c8d6e94d17bc52a5045"
+      },
+      "sha256:f835d6e052706be7cd2ca12ad01f31cce9e3c5b5dae375e8a9422a632e1a170d": {
+        "mediaType": "application/vnd.oci.image.layer.v1.tar",
+        "size": 9461248,
+        "digest": "sha256:f835d6e052706be7cd2ca12ad01f31cce9e3c5b5dae375e8a9422a632e1a170d"
+      }
+    }
+  },
+  "configSHA256": "333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+  "config": {
+    "architecture": "amd64",
+    "os": "linux",
+    "rootfs": {
+      "type": "layers",
+      "diff_ids": [
+        "sha256:d6b024dc076b491eb43e58c3e02fd5a9bfc6158e53f89c8d6e94d17bc52a5045",
+        "sha256:f835d6e052706be7cd2ca12ad01f31cce9e3c5b5dae375e8a9422a632e1a170d"
+      ]
+    },
+    "config": {
+      "User": "dev",
+      "ExposedPorts": {
+        "8080/tcp": {}
+      },
+      "Env": [
+        "PATH=/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "NODE_VERSION=24.21.0",
+        "YARN_VERSION=1.22.22"
+      ],
+      "Entrypoint": [
+        "/usr/local/bin/entrypoint.sh"
+      ],
+      "WorkingDir": "/home/dev"
+    }
+  },
+  "membersRead": 12,
+  "expandedMemberBytes": 2316236154,
+  "inode": 545278,
+  "links": 2,
+  "sourceArchiveUnchanged": true,
+  "limitations": [
+    "Read-only full compressed-byte hash/CRC and selected manifest/config check, not fresh docker load.",
+    "Historical receipt already verified layer diffIDs and exact payload; this pass does not recompute each layer diffID or sandboxd payload hash.",
+    "No image/tag/cache/private fixture/ledger mutation."
+  ]
+}

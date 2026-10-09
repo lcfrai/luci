@@ -1,0 +1,21 @@
+{
+  "preparedAt": "2026-10-09T14:01:15.263605+00:00",
+  "command": [
+    "python3",
+    "/workspace/.luci-tools/cloud054-terminal-close/closure-attempt8/independent-closure.py",
+    "--base",
+    "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/evidence/attempt8",
+    "--fixture-parent",
+    "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/fixtures",
+    "--repo",
+    "/workspace/luci",
+    "--expected-source",
+    "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+    "--expected-image",
+    "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8"
+  ],
+  "scriptSHA256": "3060ae1fd85302765fe7acb1379f2f0f7cd6a24271c54e021996eb4004037e21",
+  "originalHelperSHA256": "d69e532491406e047720f011b0b544c682d0280bc9515bbe6512e553ff33f3c6",
+  "validation": "Python AST parse only; runtime read-only observation not yet executed",
+  "runtimeMutationAllowed": false
+}

@@ -1,0 +1,45 @@
+{
+  "kind": "initial-allocation",
+  "sessionId": "s-05496235",
+  "createResponseStatus": "starting",
+  "executionGeneration": "79244b2900de38d127bb602bc7ee8145fd1b9d59cf0c898ee53995fb7dccbd68",
+  "containers": [
+    {
+      "id": "2899b54ff7bad02e5495e2f677a4c6a2767e3590f6042532663bd1691d66c843",
+      "sandboxId": "s-05496235",
+      "sessionId": "s-05496235",
+      "instanceId": "f9e713aa-cb17-413f-9ac5-d1a95c0040f2",
+      "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+      "name": "/luci-s-05496235",
+      "status": "running",
+      "pid": 2442342,
+      "created": "2026-10-09T13:58:26.706023213Z",
+      "startedAt": "2026-10-09T13:58:55.636606042Z",
+      "memoryBytes": 1073741824,
+      "cpuNano": 1000000000,
+      "pidsLimit": 256
+    }
+  ],
+  "ledger": {
+    "present": true,
+    "sha256": "9281029e0a73f411db2c51b61c8b751a5eb60cf9cafeb7b2ee70c549ff56059d",
+    "bytes": 498,
+    "leases": [
+      {
+        "id": "manual-1e4811be",
+        "sessionId": "s-05496235",
+        "sandboxId": "s-05496235",
+        "projectId": "p-24984526",
+        "state": "backend-settled",
+        "resources": {
+          "CPUMillis": 1000,
+          "MemoryMiB": 1024
+        }
+      }
+    ],
+    "checks": [],
+    "fences": [],
+    "checkFences": []
+  },
+  "observedAt": "2026-10-09T13:58:56.424Z"
+}

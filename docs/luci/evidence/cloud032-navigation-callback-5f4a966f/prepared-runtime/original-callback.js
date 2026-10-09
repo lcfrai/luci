@@ -1,0 +1,1 @@
+(el,value)=>new Promise((done,reject)=>{const until=performance.now()+10000;const sample=()=>{if(el.isConnected&&el.value===value){window.__luciAcceptanceLatency.markExpectedDOM('project-switch');return done();}if(performance.now()>=until)return reject(Error('Expected project context did not render'));requestAnimationFrame(sample);};sample();})

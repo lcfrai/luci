@@ -1,0 +1,225 @@
+@import "../styles/tokens.css";
+.account-session-workspace {
+  display: flex;
+  flex-direction: column;
+  block-size: 100%;
+  min-block-size: 0;
+}
+.account-session-workspace > header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 26px;
+  border-block-end: 1px solid var(--line);
+}
+.account-session-workspace h1 {
+  font-size: 21px;
+  margin: 0 0 8px;
+}
+.account-session-workspace p {
+  color: var(--ink-2);
+  margin: 0;
+  max-inline-size: 70ch;
+}
+.account-session-terminal {
+  flex: 1;
+  min-block-size: 180px;
+}
+
+/* Wide workspaces have a project tree and journey rail. Compact workspaces retain
+   the same controls, with the journey above the content and projects in a drawer. */
+.shell {
+  --rail-w: 232px;
+  --sub-w: 0px;
+  /* Fix the cockpit to the viewport and prevent focus/reveal from scrolling this
+     frame. Compact layouts explicitly enable the shell's own scrolling below. */
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-columns: var(--rail-w) var(--sub-w) minmax(0, 1fr);
+  block-size: 100dvh;
+  background: var(--page);
+  color: var(--ink);
+  overflow: clip;
+}
+.shell-deep {
+  --sub-w: 168px;
+}
+.shell-rail-collapsed {
+  --rail-w: 0px;
+}
+.shell-main {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-inline-size: 0;
+  min-block-size: 0;
+  overflow: hidden;
+}
+.shell-workspace {
+  display: flex;
+  min-inline-size: 0;
+  min-block-size: 0;
+  overflow: hidden;
+}
+.shell-lens {
+  flex: 1;
+  min-block-size: 0;
+  min-inline-size: 0;
+  overflow: hidden;
+  container-type: inline-size;
+}
+.shell-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: var(--scrim);
+}
+.lens-placeholder {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 8px;
+  block-size: 100%;
+  padding: 24px;
+  color: var(--ink-2);
+  text-align: center;
+}
+.lens-placeholder h2 {
+  color: var(--ink);
+  text-transform: capitalize;
+}
+@media (max-width: 1100px) {
+  .shell-workspace { flex-direction: column; }
+  .shell {
+    grid-template-columns: var(--rail-w) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .shell > .rail {
+    grid-column: 1;
+    grid-row: 1 / 3;
+  }
+  .shell > .sub,
+  .shell-sub-empty {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .shell-main {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}
+@media (max-width: 760px) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .shell > .sub,
+  .shell-sub-empty,
+  .shell-main {
+    grid-column: 1;
+  }
+  .shell > .rail {
+    position: fixed;
+    inset-block: 0;
+    inset-inline-start: 0;
+    inline-size: min(320px, calc(100vw - 48px));
+    z-index: 90;
+    visibility: hidden;
+    transform: translateX(-100%);
+  }
+  .shell-projects-open > .rail {
+    visibility: visible;
+    transform: none;
+    box-shadow: var(--e-overlay);
+  }
+}
+
+/* At high browser zoom or in a short landscape window, fixed shell controls
+   can consume the whole viewport. Keep them and the journey in one scroll
+   flow so keyboard navigation can reveal the work below the toolbar. */
+@media (max-width: 760px) and (max-height: 500px) {
+  .shell {
+    grid-template-rows: auto auto;
+    align-content: start;
+    overflow-y: auto;
+    scroll-padding-block: 12px;
+  }
+  .shell-main,
+  .shell-workspace {
+    display: block;
+    overflow: visible;
+  }
+  .shell-lens {
+    overflow: visible;
+  }
+  .shell .journey-page,
+  .shell .deployment-workspace,
+  .shell .develop-workspace,
+  .shell .account-session-workspace,
+  .shell .orchestrator-open {
+    block-size: auto;
+    overflow: visible;
+  }
+  .shell .project-work,
+  .shell .project-runs {
+    max-block-size: none;
+    overflow: visible;
+  }
+  .shell .orchestrator-body {
+    overflow: visible;
+  }
+  /* Terminal rows and the movable canvas need a definite drawing surface;
+     their own content can scroll while the surrounding journey stays in flow. */
+  .shell .develop-workspace:not(.develop-workspace--planning) > .develop-sessions,
+  .shell .account-session-terminal {
+    flex: none;
+    block-size: 360px;
+  }
+}
+
+/* A coding session has its own readable terminal, scope and controls. On a
+   phone, let the whole Develop journey scroll instead of dividing the space
+   left below the toolbar between several independently clipped regions. */
+@media (max-width: 760px) {
+  .shell:has(.develop-workspace:not(.develop-workspace--planning)) {
+    grid-template-rows: auto auto;
+    align-content: start;
+    overflow-y: auto;
+    scroll-padding-block: 12px;
+  }
+  .shell:has(.develop-workspace:not(.develop-workspace--planning)) .shell-main,
+  .shell:has(.develop-workspace:not(.develop-workspace--planning)) .shell-workspace {
+    display: block;
+    overflow: visible;
+  }
+  .shell:has(.develop-workspace:not(.develop-workspace--planning)) .shell-lens,
+  .shell:has(.develop-workspace:not(.develop-workspace--planning)) .orchestrator-body {
+    overflow: visible;
+  }
+  .shell:has(.develop-workspace:not(.develop-workspace--planning)) .develop-workspace,
+  .shell:has(.develop-workspace:not(.develop-workspace--planning)) .orchestrator-open {
+    block-size: auto;
+    overflow: visible;
+  }
+  .shell:has(.develop-workspace:not(.develop-workspace--planning)) .project-work,
+  .shell:has(.develop-workspace:not(.develop-workspace--planning)) .project-runs {
+    max-block-size: none;
+    overflow: visible;
+  }
+  .shell .develop-workspace:not(.develop-workspace--planning) > .develop-sessions {
+    flex: none;
+    block-size: 360px;
+  }
+  .shell .develop-workspace > .develop-sessions:has(> .cols-scroll) {
+    block-size: auto;
+  }
+  .shell .develop-workspace .cols-scroll {
+    height: auto;
+  }
+  .shell .develop-workspace .cols-pane > .pane:not(.pane--gone) {
+    /* The minimum belongs to the terminal row, so longer scope notes, the
+       inspector action and exit details add space rather than taking it away. */
+    grid-template-rows: auto minmax(240px, 1fr) auto auto;
+  }
+}

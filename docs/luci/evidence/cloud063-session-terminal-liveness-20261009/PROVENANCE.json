@@ -1,0 +1,41 @@
+{
+  "baseCommit": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "frozenPatchSHA256": "8cd09ce770df1e3f82116da355374cf81b4c92ff5d5d30473484af5d349f4e22",
+  "originalProduction": {
+    "original-5f4a966f/control-plane/internal/api/attach.go": "405d96bb411197d9c227c3cbad3ad83592f1dd50944b9af3be9a039f2a63e9ee",
+    "original-5f4a966f/control-plane/internal/proxy/proxy.go": "ebc02379306e5b555f317fc6d66a3f3ec3f9e6c29a5b93cd898165e65a8d565b"
+  },
+  "fixedCopiedFiles": {
+    "fixed/control-plane/internal/api/attach.go": "7ee88e50948319280b4917aafaabf7fb2a6644f97eb69606ac752b29d50efe13",
+    "fixed/control-plane/internal/api/attach_terminal.go": "3da597074e06f45f0d314b1f7f896113df460fcc96674f68250862d9a0c8bbbb",
+    "fixed/control-plane/internal/api/attach_terminal_test.go": "c962e4f45e23c695d2e230c4c7e599fc7cd046bdb3d46ec59cd1a4846b269379",
+    "fixed/control-plane/internal/api/attach_test.go": "fff9aed555128c5becf7333188dd11c7b490dc6df074bc21383b68354b421a14",
+    "fixed/control-plane/internal/proxy/close_ack_test.go": "9b53eceb149431d5fdacb31469b2a2a16fca974923f094c10a7b85fc1d2126c5",
+    "fixed/control-plane/internal/proxy/exit_hook_test.go": "74163cf2c6dc633c82e22d498b12a6f304c2dc9836f9892ebef589992cc0ba4c",
+    "fixed/control-plane/internal/proxy/proxy.go": "e8ff2788ba256cb0b46085f86aabb026c5fc66afe23128c959a5134f52c9ffb1",
+    "fixed/control-plane/internal/proxy/proxy_test.go": "6e76c9bca68a80ab885fe704962b4856aa52ca061ae7523b11232cf27795a045"
+  },
+  "sourceBindingScope": "Hashes are the final external frozen source and patch, checked again when this capsule was prepared. The runner recorded base commit, command, timestamps and test-log hash; it did not collect whole-input or per-overlay before/after hashes during execution.",
+  "firstBatchCommentVersion": {
+    "file": "control-plane/internal/api/attach.go",
+    "sha256": "f25be65e45c7632b451c5b359887deb2b0586aacdcfe213d4efa974a3b929ddc",
+    "evidence": "Reconstruction matches the pre-test prepared-sources hash. Only its relayAttached comment was changed before the related batch; exact comment delta retained. This is reconstruction evidence, not a contemporaneous whole-input attestation."
+  },
+  "counterexampleBody": "before_test.go function bodies are byte-identical to the same route fixture and test functions in fixed/control-plane/internal/api/attach_terminal_test.go.",
+  "omittedLargeFrozenFiles": [
+    "tree/desktop/src/seams.test.ts",
+    "tree/docs/SEAMS.md",
+    "tree/docs/luci/API.md",
+    "tree/docs/superpowers/contracts/2026-09-18-phase-2-go-contract.md"
+  ],
+  "omittedFilesRepresentation": "Complete changes for omitted documentation/seam files are in cloud063.patch; their final external file hashes remain in source-binding.json.",
+  "replay": "Original command and overlay JSON retain their original external paths. For relocation, rewrite only overlay values to capsule file locations; use the base commit for unchanged repository inputs. These are source tests, not installed acceptance.",
+  "preparationBinding": {
+    "file": "pre-test-preparation-binding.json",
+    "scope": "An earlier preparation snapshot, not an execution attestation. Six of its eight files still match frozen-final; two differences are explained below.",
+    "differences": {
+      "tree/control-plane/internal/api/attach.go": "Only the relayAttached comment was revised after the94-pass-node affected batch and before the41-pass-node related batch. The reconstructed earlier bytes match the preparation hash; first-batch-comment-version.patch contains that exact delta.",
+      "tree/control-plane/internal/api/attach_terminal_test.go": "The preparation snapshot predates addition of the blocked-persistence socket-close regression and correction of the REST DTO string/status test comparison. Both changes preceded the retained original runtime counterexample and the successful affected/related batches. This file was still under preparation; its earlier hash is not claimed to bind any completed test run."
+    }
+  }
+}

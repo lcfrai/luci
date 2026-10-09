@@ -1,0 +1,2668 @@
+{
+  "at": "2026-10-09T14:09:55.763139+00:00",
+  "checks": 664,
+  "failed": 0,
+  "memberCount": 220,
+  "originalCount": 211,
+  "publicationSHA256": "f7f5540a90f45998dca19f540548140aaaef794449371e92baab2536141e3cb9",
+  "sumsSHA256": "02acdf4915ec092cce0aeffaecda7e08892703aec2cbc7ccfe06db18373a7b62",
+  "scope": "Independent small-file consistency and exact original parity; no package/image binary read or runtime rerun. Original private archive/inventory assertions remain publisher evidence.",
+  "results": [
+    {
+      "check": "member:README.md",
+      "passed": true
+    },
+    {
+      "check": "member:operations/cloud054-default-go-cache-reclamation.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/cloud054-old-cache-retirement/001-started.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/cloud054-old-cache-retirement/999-failure.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/cloud054-old-cache-retirement-attempt2/001-started.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/cloud054-old-cache-retirement-attempt2/002-preflight.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/cloud054-old-cache-retirement-attempt2/003-pending.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/cloud054-old-cache-retirement-attempt2/004-returned.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/cloud054-old-cache-retirement-attempt2/005-final.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/cloud054-old-image-retirement-5f4a966f/001-started.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/cloud054-old-image-retirement-5f4a966f/002-preflight.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/cloud054-old-image-retirement-5f4a966f/003-remove-pending.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/cloud054-old-image-retirement-5f4a966f/004-remove-returned.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/cloud054-old-image-retirement-5f4a966f/005-remove-pending.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/cloud054-old-image-retirement-5f4a966f/006-remove-returned.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/cloud054-old-image-retirement-5f4a966f/007-final.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/cloud054-relocation-wrapper-preflight-refusal.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/cloud054-runtime-helper-independent-review.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/cloud054-runtime-operations-v2-validation-scope.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/cloud054-task-cache-reclamation.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/cloud054-tool-relocation-readonly-observation.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/helpers/clean-task-default-go-cache.py",
+      "passed": true
+    },
+    {
+      "check": "member:operations/helpers/retire-cloud054-old-cache.py",
+      "passed": true
+    },
+    {
+      "check": "member:operations/helpers/retire-cloud054-old-cache.py.preflight-original",
+      "passed": true
+    },
+    {
+      "check": "member:operations/helpers/retire-cloud054-old-image-root.py",
+      "passed": true
+    },
+    {
+      "check": "member:operations/helpers/run-cloud054-tool-relocation-before-final-pin.py",
+      "passed": true
+    },
+    {
+      "check": "member:operations/helpers/run-cloud054-tool-relocation.py",
+      "passed": true
+    },
+    {
+      "check": "member:operations/old-archive-proof/cloud054-runtime-space-plan-retained-333eff-archive-inspection.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/old-archive-proof/runtime-archive-1f845cfd2b45-diagnostics.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/old-archive-proof/runtime-archive-1f845cfd2b45-receipt.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/original-tool-manifests/rust-relocation-20261009-tree-before.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/original-tool-manifests/tool-relocation-20261009T1158-powershell-7.5.5-tree-before.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-powershell-7.5.5-return-to-tmp-300195423476862/001-created.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-powershell-7.5.5-return-to-tmp-300195423476862/002-preflight-observations.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-powershell-7.5.5-return-to-tmp-300195423476862/003-copy-pending.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-powershell-7.5.5-return-to-tmp-300195423476862/004-copy-verified.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-powershell-7.5.5-return-to-tmp-300195423476862/005-switch-preflight.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-powershell-7.5.5-return-to-tmp-300195423476862/006-exchange-pending.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-powershell-7.5.5-return-to-tmp-300195423476862/007-exchange-observed.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-powershell-7.5.5-return-to-tmp-300195423476862/008-duplicate-retirement-pending.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-powershell-7.5.5-return-to-tmp-300195423476862/009-finished.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-powershell-7.5.5-to-root-299271604916627/001-created.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-powershell-7.5.5-to-root-299271604916627/002-preflight-observations.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-powershell-7.5.5-to-root-299271604916627/003-copy-pending.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-powershell-7.5.5-to-root-299271604916627/004-copy-verified.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-powershell-7.5.5-to-root-299271604916627/005-switch-preflight.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-powershell-7.5.5-to-root-299271604916627/006-exchange-pending.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-powershell-7.5.5-to-root-299271604916627/007-exchange-observed.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-powershell-7.5.5-to-root-299271604916627/008-duplicate-retirement-pending.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-powershell-7.5.5-to-root-299271604916627/009-finished.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-rust-1.99.0-return-to-tmp-300167204847105/001-created.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-rust-1.99.0-return-to-tmp-300167204847105/002-preflight-observations.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-rust-1.99.0-return-to-tmp-300167204847105/003-copy-pending.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-rust-1.99.0-return-to-tmp-300167204847105/004-copy-verified.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-rust-1.99.0-return-to-tmp-300167204847105/005-switch-preflight.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-rust-1.99.0-return-to-tmp-300167204847105/006-exchange-pending.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-rust-1.99.0-return-to-tmp-300167204847105/007-exchange-observed.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-rust-1.99.0-return-to-tmp-300167204847105/008-duplicate-retirement-pending.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-rust-1.99.0-return-to-tmp-300167204847105/009-finished.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-rust-1.99.0-to-root-299231442072680/001-created.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-rust-1.99.0-to-root-299231442072680/002-preflight-observations.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-rust-1.99.0-to-root-299231442072680/003-copy-pending.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-rust-1.99.0-to-root-299231442072680/004-copy-verified.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-rust-1.99.0-to-root-299231442072680/005-switch-preflight.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-rust-1.99.0-to-root-299231442072680/006-exchange-pending.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-rust-1.99.0-to-root-299231442072680/007-exchange-observed.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-rust-1.99.0-to-root-299231442072680/008-duplicate-retirement-pending.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/operation-rust-1.99.0-to-root-299231442072680/009-finished.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/root-powershell-7.5.5-return-to-tmp-300195423476862/coordination.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/root-powershell-7.5.5-return-to-tmp-300195423476862/stderr.log",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/root-powershell-7.5.5-return-to-tmp-300195423476862/stdout.log",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/root-powershell-7.5.5-return-to-tmp-300195423476862/wrapper.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/root-powershell-7.5.5-to-root-299271604916627/coordination.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/root-powershell-7.5.5-to-root-299271604916627/stderr.log",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/root-powershell-7.5.5-to-root-299271604916627/stdout.log",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/root-powershell-7.5.5-to-root-299271604916627/wrapper.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/root-rust-1.99.0-return-to-tmp-300167204847105/coordination.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/root-rust-1.99.0-return-to-tmp-300167204847105/stderr.log",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/root-rust-1.99.0-return-to-tmp-300167204847105/stdout.log",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/root-rust-1.99.0-return-to-tmp-300167204847105/wrapper.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/root-rust-1.99.0-to-root-299231442072680/coordination.json",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/root-rust-1.99.0-to-root-299231442072680/stderr.log",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/root-rust-1.99.0-to-root-299231442072680/stdout.log",
+      "passed": true
+    },
+    {
+      "check": "member:operations/tool-moves/root-rust-1.99.0-to-root-299231442072680/wrapper.json",
+      "passed": true
+    },
+    {
+      "check": "member:original-bindings.json",
+      "passed": true
+    },
+    {
+      "check": "member:package/README.md",
+      "passed": true
+    },
+    {
+      "check": "member:package/SHA256SUMS",
+      "passed": true
+    },
+    {
+      "check": "member:package/external-helper-bindings.json",
+      "passed": true
+    },
+    {
+      "check": "member:package/helpers/assemble-package-fragment.py",
+      "passed": true
+    },
+    {
+      "check": "member:package/helpers/verify-local-package.py",
+      "passed": true
+    },
+    {
+      "check": "member:package/original-bindings.json",
+      "passed": true
+    },
+    {
+      "check": "member:package/publication.json",
+      "passed": true
+    },
+    {
+      "check": "member:package/receipts/build-invocation.json",
+      "passed": true
+    },
+    {
+      "check": "member:package/receipts/build-result.json",
+      "passed": true
+    },
+    {
+      "check": "member:package/receipts/build.log",
+      "passed": true
+    },
+    {
+      "check": "member:package/receipts/package-integrity.json",
+      "passed": true
+    },
+    {
+      "check": "member:package/receipts/package-provenance.json",
+      "passed": true
+    },
+    {
+      "check": "member:package/receipts/previous-release-preservation.json",
+      "passed": true
+    },
+    {
+      "check": "member:package/release/SHA256SUMS",
+      "passed": true
+    },
+    {
+      "check": "member:package/release/release-manifest.json",
+      "passed": true
+    },
+    {
+      "check": "member:package/source/scripts/build-release.sh",
+      "passed": true
+    },
+    {
+      "check": "member:package/source/scripts/collect-licenses.py",
+      "passed": true
+    },
+    {
+      "check": "member:package/source/scripts/launch-unix.sh",
+      "passed": true
+    },
+    {
+      "check": "member:package/source/scripts/package.py",
+      "passed": true
+    },
+    {
+      "check": "member:package/source/scripts/stage-release-docs.py",
+      "passed": true
+    },
+    {
+      "check": "member:package/source-guide-inventory.json",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/PROTECTION-PLAN.md",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/all-cache-du.json",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/all-cache-du.stderr",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/all-cache-du.stdout",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/builder-inspect-plain.receipt.json",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/builder-inspect-plain.stderr",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/builder-inspect-plain.stdout",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/builder-inspect.receipt.json",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/builder-inspect.stderr",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/builder-inspect.stdout",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/cache-association.json",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/exact-cache-du.json",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/exact-cache-du.stderr",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/exact-cache-du.stdout",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/filter-review.md",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/manifest.original.json",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/old-cache-du.json",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/old-cache-du.stderr",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/old-cache-du.stdout",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/prune-help.json",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/prune-help.stderr",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/prune-help.stdout",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/source-review/buildkit-control.go",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/source-review/buildkit-manager.go",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/source-review/buildkit-refs.go",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/source-review/buildx-prune.go",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/source-review/fetch-bindings.json",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/source-review/followup-bindings.json",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/source-review/moby-builder.go",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/source-review/moby-controller.go",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/source-review/moby-worker.go",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/system-df.original.json",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/system-df.receipt.json",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/version.json",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/version.stderr",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/cache-review/version.stdout",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/operations-v1/README.md",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/operations-v1/controlled-initial.stderr",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/operations-v1/controlled-initial.stdout",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/operations-v1/controlled.stderr",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/operations-v1/controlled.stdout",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/operations-v1/manifest.original.json",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/operations-v1/operation_common.before-failure-binding.py",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/operations-v1/operation_common.py",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/operations-v1/preparation-receipt.json",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/operations-v1/relocate_tools.py",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/operations-v1/retire_old_image.py",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/operations-v1/test_operations.py",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/operations-v2/README.md",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/operations-v2/before-disappearing-controlled.stderr",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/operations-v2/before-disappearing-controlled.stdout",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/operations-v2/before-partial-observation.stderr",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/operations-v2/before-partial-observation.stdout",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/operations-v2/controlled.stderr",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/operations-v2/controlled.stdout",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/operations-v2/initial-controlled.stderr",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/operations-v2/initial-controlled.stdout",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/operations-v2/manifest.original.json",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/operations-v2/operation_common.before-disappearing-observation.py",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/operations-v2/operation_common.before-partial-observation.py",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/operations-v2/operation_common.py",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/operations-v2/preparation-receipt.json",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/operations-v2/relocate_tools.py",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/operations-v2/test_scoped_coordination.py",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/runtime-helper/README.md",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/runtime-helper/build-package.py",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/runtime-helper/draft-before-module-syntax/guards.exit",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/runtime-helper/draft-before-module-syntax/guards.stderr",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/runtime-helper/draft-before-module-syntax/guards.stdout",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/runtime-helper/draft-before-module-syntax/guards.test.py",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/runtime-helper/draft-before-module-syntax/prepare-runtime.py",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/runtime-helper/final-guards.exit",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/runtime-helper/final-guards.stderr",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/runtime-helper/final-guards.stdout",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/runtime-helper/guards.exit",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/runtime-helper/guards.stderr",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/runtime-helper/guards.stdout",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/runtime-helper/guards.test.py",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/runtime-helper/manifest.original.json",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/runtime-helper/original-cloud016.py",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/runtime-helper/package-attempt1-preflight-refusal.json",
+      "passed": true
+    },
+    {
+      "check": "member:preparation/runtime-helper/prepare-runtime.py",
+      "passed": true
+    },
+    {
+      "check": "member:publication-preparation-failure/README.prepared.md",
+      "passed": true
+    },
+    {
+      "check": "member:publication-preparation-failure/assemble.py",
+      "passed": true
+    },
+    {
+      "check": "member:publication-preparation-failure/assembly.stderr",
+      "passed": true
+    },
+    {
+      "check": "member:publication-preparation-failure/assembly.stdout",
+      "passed": true
+    },
+    {
+      "check": "member:publication-preparation-failure/failure.json",
+      "passed": true
+    },
+    {
+      "check": "member:repro/assemble.py",
+      "passed": true
+    },
+    {
+      "check": "member:runtime/additive-Dockerfile.original",
+      "passed": true
+    },
+    {
+      "check": "member:runtime/build-receipt.original.json",
+      "passed": true
+    },
+    {
+      "check": "member:runtime/compile-disk.jsonl",
+      "passed": true
+    },
+    {
+      "check": "member:runtime/compile.log",
+      "passed": true
+    },
+    {
+      "check": "member:runtime/docker-build-disk.jsonl",
+      "passed": true
+    },
+    {
+      "check": "member:runtime/docker-build.log",
+      "passed": true
+    },
+    {
+      "check": "member:runtime/entrypoint.original.sh",
+      "passed": true
+    },
+    {
+      "check": "member:runtime/export/diagnostics.json",
+      "passed": true
+    },
+    {
+      "check": "member:runtime/export/docker-save-disk.jsonl",
+      "passed": true
+    },
+    {
+      "check": "member:runtime/export/docker-save.stderr",
+      "passed": true
+    },
+    {
+      "check": "member:runtime/export/metadata-0cdedc0869d60bb59e3dde736f996025e70318180587e049cfa22f80d67aa8e5.raw",
+      "passed": true
+    },
+    {
+      "check": "member:runtime/export/metadata-375d94971dd70a1ed15f360a76e18e5d0f004c9c78910d4498224176146ef699.raw",
+      "passed": true
+    },
+    {
+      "check": "member:runtime/export/metadata-64500570d2d3fa978bdb3132c9165dfdbff7646f36cd675f19d7745312224a77.raw",
+      "passed": true
+    },
+    {
+      "check": "member:runtime/export/metadata-76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8.raw",
+      "passed": true
+    },
+    {
+      "check": "member:runtime/export/metadata-93edd173e1eb122d93f3c5b6381f2e5aae91daf0f6cf45dfb37c91f3959aef4b.raw",
+      "passed": true
+    },
+    {
+      "check": "member:runtime/export/metadata-a4f91d26b4fd705130701878884c0718893f5464d02c1f057854d1c0b7180c72.raw",
+      "passed": true
+    },
+    {
+      "check": "member:runtime/export/metadata-a891b1e204264c7964d30acd630e52774851ca4a21ae3b344be58df5a65312d1.raw",
+      "passed": true
+    },
+    {
+      "check": "member:runtime/export/receipt-before.json",
+      "passed": true
+    },
+    {
+      "check": "member:runtime/export-verified-receipt.original.json",
+      "passed": true
+    },
+    {
+      "check": "member:runtime/module-sources/control-plane/go.mod",
+      "passed": true
+    },
+    {
+      "check": "member:runtime/module-sources/control-plane/go.sum",
+      "passed": true
+    },
+    {
+      "check": "member:runtime/module-sources/sandboxd/go.mod",
+      "passed": true
+    },
+    {
+      "check": "member:runtime/module-sources/sandboxd/go.sum",
+      "passed": true
+    },
+    {
+      "check": "member:runtime/module-sources/sandboxd/vendor/modules.txt",
+      "passed": true
+    },
+    {
+      "check": "member:runtime/source-bindings.json",
+      "passed": true
+    },
+    {
+      "check": "member:scope-limits.json",
+      "passed": true
+    },
+    {
+      "check": "sum:README.md",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/cloud054-default-go-cache-reclamation.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/cloud054-old-cache-retirement/001-started.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/cloud054-old-cache-retirement/999-failure.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/cloud054-old-cache-retirement-attempt2/001-started.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/cloud054-old-cache-retirement-attempt2/002-preflight.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/cloud054-old-cache-retirement-attempt2/003-pending.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/cloud054-old-cache-retirement-attempt2/004-returned.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/cloud054-old-cache-retirement-attempt2/005-final.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/cloud054-old-image-retirement-5f4a966f/001-started.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/cloud054-old-image-retirement-5f4a966f/002-preflight.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/cloud054-old-image-retirement-5f4a966f/003-remove-pending.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/cloud054-old-image-retirement-5f4a966f/004-remove-returned.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/cloud054-old-image-retirement-5f4a966f/005-remove-pending.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/cloud054-old-image-retirement-5f4a966f/006-remove-returned.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/cloud054-old-image-retirement-5f4a966f/007-final.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/cloud054-relocation-wrapper-preflight-refusal.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/cloud054-runtime-helper-independent-review.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/cloud054-runtime-operations-v2-validation-scope.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/cloud054-task-cache-reclamation.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/cloud054-tool-relocation-readonly-observation.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/helpers/clean-task-default-go-cache.py",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/helpers/retire-cloud054-old-cache.py",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/helpers/retire-cloud054-old-cache.py.preflight-original",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/helpers/retire-cloud054-old-image-root.py",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/helpers/run-cloud054-tool-relocation-before-final-pin.py",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/helpers/run-cloud054-tool-relocation.py",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/old-archive-proof/cloud054-runtime-space-plan-retained-333eff-archive-inspection.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/old-archive-proof/runtime-archive-1f845cfd2b45-diagnostics.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/old-archive-proof/runtime-archive-1f845cfd2b45-receipt.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/original-tool-manifests/rust-relocation-20261009-tree-before.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/original-tool-manifests/tool-relocation-20261009T1158-powershell-7.5.5-tree-before.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-powershell-7.5.5-return-to-tmp-300195423476862/001-created.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-powershell-7.5.5-return-to-tmp-300195423476862/002-preflight-observations.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-powershell-7.5.5-return-to-tmp-300195423476862/003-copy-pending.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-powershell-7.5.5-return-to-tmp-300195423476862/004-copy-verified.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-powershell-7.5.5-return-to-tmp-300195423476862/005-switch-preflight.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-powershell-7.5.5-return-to-tmp-300195423476862/006-exchange-pending.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-powershell-7.5.5-return-to-tmp-300195423476862/007-exchange-observed.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-powershell-7.5.5-return-to-tmp-300195423476862/008-duplicate-retirement-pending.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-powershell-7.5.5-return-to-tmp-300195423476862/009-finished.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-powershell-7.5.5-to-root-299271604916627/001-created.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-powershell-7.5.5-to-root-299271604916627/002-preflight-observations.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-powershell-7.5.5-to-root-299271604916627/003-copy-pending.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-powershell-7.5.5-to-root-299271604916627/004-copy-verified.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-powershell-7.5.5-to-root-299271604916627/005-switch-preflight.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-powershell-7.5.5-to-root-299271604916627/006-exchange-pending.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-powershell-7.5.5-to-root-299271604916627/007-exchange-observed.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-powershell-7.5.5-to-root-299271604916627/008-duplicate-retirement-pending.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-powershell-7.5.5-to-root-299271604916627/009-finished.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-rust-1.99.0-return-to-tmp-300167204847105/001-created.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-rust-1.99.0-return-to-tmp-300167204847105/002-preflight-observations.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-rust-1.99.0-return-to-tmp-300167204847105/003-copy-pending.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-rust-1.99.0-return-to-tmp-300167204847105/004-copy-verified.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-rust-1.99.0-return-to-tmp-300167204847105/005-switch-preflight.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-rust-1.99.0-return-to-tmp-300167204847105/006-exchange-pending.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-rust-1.99.0-return-to-tmp-300167204847105/007-exchange-observed.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-rust-1.99.0-return-to-tmp-300167204847105/008-duplicate-retirement-pending.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-rust-1.99.0-return-to-tmp-300167204847105/009-finished.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-rust-1.99.0-to-root-299231442072680/001-created.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-rust-1.99.0-to-root-299231442072680/002-preflight-observations.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-rust-1.99.0-to-root-299231442072680/003-copy-pending.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-rust-1.99.0-to-root-299231442072680/004-copy-verified.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-rust-1.99.0-to-root-299231442072680/005-switch-preflight.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-rust-1.99.0-to-root-299231442072680/006-exchange-pending.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-rust-1.99.0-to-root-299231442072680/007-exchange-observed.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-rust-1.99.0-to-root-299231442072680/008-duplicate-retirement-pending.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/operation-rust-1.99.0-to-root-299231442072680/009-finished.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/root-powershell-7.5.5-return-to-tmp-300195423476862/coordination.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/root-powershell-7.5.5-return-to-tmp-300195423476862/stderr.log",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/root-powershell-7.5.5-return-to-tmp-300195423476862/stdout.log",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/root-powershell-7.5.5-return-to-tmp-300195423476862/wrapper.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/root-powershell-7.5.5-to-root-299271604916627/coordination.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/root-powershell-7.5.5-to-root-299271604916627/stderr.log",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/root-powershell-7.5.5-to-root-299271604916627/stdout.log",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/root-powershell-7.5.5-to-root-299271604916627/wrapper.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/root-rust-1.99.0-return-to-tmp-300167204847105/coordination.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/root-rust-1.99.0-return-to-tmp-300167204847105/stderr.log",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/root-rust-1.99.0-return-to-tmp-300167204847105/stdout.log",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/root-rust-1.99.0-return-to-tmp-300167204847105/wrapper.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/root-rust-1.99.0-to-root-299231442072680/coordination.json",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/root-rust-1.99.0-to-root-299231442072680/stderr.log",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/root-rust-1.99.0-to-root-299231442072680/stdout.log",
+      "passed": true
+    },
+    {
+      "check": "sum:operations/tool-moves/root-rust-1.99.0-to-root-299231442072680/wrapper.json",
+      "passed": true
+    },
+    {
+      "check": "sum:original-bindings.json",
+      "passed": true
+    },
+    {
+      "check": "sum:package/README.md",
+      "passed": true
+    },
+    {
+      "check": "sum:package/SHA256SUMS",
+      "passed": true
+    },
+    {
+      "check": "sum:package/external-helper-bindings.json",
+      "passed": true
+    },
+    {
+      "check": "sum:package/helpers/assemble-package-fragment.py",
+      "passed": true
+    },
+    {
+      "check": "sum:package/helpers/verify-local-package.py",
+      "passed": true
+    },
+    {
+      "check": "sum:package/original-bindings.json",
+      "passed": true
+    },
+    {
+      "check": "sum:package/publication.json",
+      "passed": true
+    },
+    {
+      "check": "sum:package/receipts/build-invocation.json",
+      "passed": true
+    },
+    {
+      "check": "sum:package/receipts/build-result.json",
+      "passed": true
+    },
+    {
+      "check": "sum:package/receipts/build.log",
+      "passed": true
+    },
+    {
+      "check": "sum:package/receipts/package-integrity.json",
+      "passed": true
+    },
+    {
+      "check": "sum:package/receipts/package-provenance.json",
+      "passed": true
+    },
+    {
+      "check": "sum:package/receipts/previous-release-preservation.json",
+      "passed": true
+    },
+    {
+      "check": "sum:package/release/SHA256SUMS",
+      "passed": true
+    },
+    {
+      "check": "sum:package/release/release-manifest.json",
+      "passed": true
+    },
+    {
+      "check": "sum:package/source/scripts/build-release.sh",
+      "passed": true
+    },
+    {
+      "check": "sum:package/source/scripts/collect-licenses.py",
+      "passed": true
+    },
+    {
+      "check": "sum:package/source/scripts/launch-unix.sh",
+      "passed": true
+    },
+    {
+      "check": "sum:package/source/scripts/package.py",
+      "passed": true
+    },
+    {
+      "check": "sum:package/source/scripts/stage-release-docs.py",
+      "passed": true
+    },
+    {
+      "check": "sum:package/source-guide-inventory.json",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/PROTECTION-PLAN.md",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/all-cache-du.json",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/all-cache-du.stderr",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/all-cache-du.stdout",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/builder-inspect-plain.receipt.json",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/builder-inspect-plain.stderr",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/builder-inspect-plain.stdout",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/builder-inspect.receipt.json",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/builder-inspect.stderr",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/builder-inspect.stdout",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/cache-association.json",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/exact-cache-du.json",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/exact-cache-du.stderr",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/exact-cache-du.stdout",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/filter-review.md",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/manifest.original.json",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/old-cache-du.json",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/old-cache-du.stderr",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/old-cache-du.stdout",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/prune-help.json",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/prune-help.stderr",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/prune-help.stdout",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/source-review/buildkit-control.go",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/source-review/buildkit-manager.go",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/source-review/buildkit-refs.go",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/source-review/buildx-prune.go",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/source-review/fetch-bindings.json",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/source-review/followup-bindings.json",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/source-review/moby-builder.go",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/source-review/moby-controller.go",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/source-review/moby-worker.go",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/system-df.original.json",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/system-df.receipt.json",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/version.json",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/version.stderr",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/cache-review/version.stdout",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/operations-v1/README.md",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/operations-v1/controlled-initial.stderr",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/operations-v1/controlled-initial.stdout",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/operations-v1/controlled.stderr",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/operations-v1/controlled.stdout",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/operations-v1/manifest.original.json",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/operations-v1/operation_common.before-failure-binding.py",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/operations-v1/operation_common.py",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/operations-v1/preparation-receipt.json",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/operations-v1/relocate_tools.py",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/operations-v1/retire_old_image.py",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/operations-v1/test_operations.py",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/operations-v2/README.md",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/operations-v2/before-disappearing-controlled.stderr",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/operations-v2/before-disappearing-controlled.stdout",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/operations-v2/before-partial-observation.stderr",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/operations-v2/before-partial-observation.stdout",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/operations-v2/controlled.stderr",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/operations-v2/controlled.stdout",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/operations-v2/initial-controlled.stderr",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/operations-v2/initial-controlled.stdout",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/operations-v2/manifest.original.json",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/operations-v2/operation_common.before-disappearing-observation.py",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/operations-v2/operation_common.before-partial-observation.py",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/operations-v2/operation_common.py",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/operations-v2/preparation-receipt.json",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/operations-v2/relocate_tools.py",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/operations-v2/test_scoped_coordination.py",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/runtime-helper/README.md",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/runtime-helper/build-package.py",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/runtime-helper/draft-before-module-syntax/guards.exit",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/runtime-helper/draft-before-module-syntax/guards.stderr",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/runtime-helper/draft-before-module-syntax/guards.stdout",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/runtime-helper/draft-before-module-syntax/guards.test.py",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/runtime-helper/draft-before-module-syntax/prepare-runtime.py",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/runtime-helper/final-guards.exit",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/runtime-helper/final-guards.stderr",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/runtime-helper/final-guards.stdout",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/runtime-helper/guards.exit",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/runtime-helper/guards.stderr",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/runtime-helper/guards.stdout",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/runtime-helper/guards.test.py",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/runtime-helper/manifest.original.json",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/runtime-helper/original-cloud016.py",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/runtime-helper/package-attempt1-preflight-refusal.json",
+      "passed": true
+    },
+    {
+      "check": "sum:preparation/runtime-helper/prepare-runtime.py",
+      "passed": true
+    },
+    {
+      "check": "sum:publication-preparation-failure/README.prepared.md",
+      "passed": true
+    },
+    {
+      "check": "sum:publication-preparation-failure/assemble.py",
+      "passed": true
+    },
+    {
+      "check": "sum:publication-preparation-failure/assembly.stderr",
+      "passed": true
+    },
+    {
+      "check": "sum:publication-preparation-failure/assembly.stdout",
+      "passed": true
+    },
+    {
+      "check": "sum:publication-preparation-failure/failure.json",
+      "passed": true
+    },
+    {
+      "check": "sum:repro/assemble.py",
+      "passed": true
+    },
+    {
+      "check": "sum:runtime/additive-Dockerfile.original",
+      "passed": true
+    },
+    {
+      "check": "sum:runtime/build-receipt.original.json",
+      "passed": true
+    },
+    {
+      "check": "sum:runtime/compile-disk.jsonl",
+      "passed": true
+    },
+    {
+      "check": "sum:runtime/compile.log",
+      "passed": true
+    },
+    {
+      "check": "sum:runtime/docker-build-disk.jsonl",
+      "passed": true
+    },
+    {
+      "check": "sum:runtime/docker-build.log",
+      "passed": true
+    },
+    {
+      "check": "sum:runtime/entrypoint.original.sh",
+      "passed": true
+    },
+    {
+      "check": "sum:runtime/export/diagnostics.json",
+      "passed": true
+    },
+    {
+      "check": "sum:runtime/export/docker-save-disk.jsonl",
+      "passed": true
+    },
+    {
+      "check": "sum:runtime/export/docker-save.stderr",
+      "passed": true
+    },
+    {
+      "check": "sum:runtime/export/metadata-0cdedc0869d60bb59e3dde736f996025e70318180587e049cfa22f80d67aa8e5.raw",
+      "passed": true
+    },
+    {
+      "check": "sum:runtime/export/metadata-375d94971dd70a1ed15f360a76e18e5d0f004c9c78910d4498224176146ef699.raw",
+      "passed": true
+    },
+    {
+      "check": "sum:runtime/export/metadata-64500570d2d3fa978bdb3132c9165dfdbff7646f36cd675f19d7745312224a77.raw",
+      "passed": true
+    },
+    {
+      "check": "sum:runtime/export/metadata-76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8.raw",
+      "passed": true
+    },
+    {
+      "check": "sum:runtime/export/metadata-93edd173e1eb122d93f3c5b6381f2e5aae91daf0f6cf45dfb37c91f3959aef4b.raw",
+      "passed": true
+    },
+    {
+      "check": "sum:runtime/export/metadata-a4f91d26b4fd705130701878884c0718893f5464d02c1f057854d1c0b7180c72.raw",
+      "passed": true
+    },
+    {
+      "check": "sum:runtime/export/metadata-a891b1e204264c7964d30acd630e52774851ca4a21ae3b344be58df5a65312d1.raw",
+      "passed": true
+    },
+    {
+      "check": "sum:runtime/export/receipt-before.json",
+      "passed": true
+    },
+    {
+      "check": "sum:runtime/export-verified-receipt.original.json",
+      "passed": true
+    },
+    {
+      "check": "sum:runtime/module-sources/control-plane/go.mod",
+      "passed": true
+    },
+    {
+      "check": "sum:runtime/module-sources/control-plane/go.sum",
+      "passed": true
+    },
+    {
+      "check": "sum:runtime/module-sources/sandboxd/go.mod",
+      "passed": true
+    },
+    {
+      "check": "sum:runtime/module-sources/sandboxd/go.sum",
+      "passed": true
+    },
+    {
+      "check": "sum:runtime/module-sources/sandboxd/vendor/modules.txt",
+      "passed": true
+    },
+    {
+      "check": "sum:runtime/source-bindings.json",
+      "passed": true
+    },
+    {
+      "check": "sum:scope-limits.json",
+      "passed": true
+    },
+    {
+      "check": "sum:publication.json",
+      "passed": true
+    },
+    {
+      "check": "exact-publication-inventory",
+      "passed": true
+    },
+    {
+      "check": "original:package/README.md",
+      "passed": true
+    },
+    {
+      "check": "original:package/SHA256SUMS",
+      "passed": true
+    },
+    {
+      "check": "original:package/external-helper-bindings.json",
+      "passed": true
+    },
+    {
+      "check": "original:package/helpers/assemble-package-fragment.py",
+      "passed": true
+    },
+    {
+      "check": "original:package/helpers/verify-local-package.py",
+      "passed": true
+    },
+    {
+      "check": "original:package/original-bindings.json",
+      "passed": true
+    },
+    {
+      "check": "original:package/publication.json",
+      "passed": true
+    },
+    {
+      "check": "original:package/receipts/build-invocation.json",
+      "passed": true
+    },
+    {
+      "check": "original:package/receipts/build-result.json",
+      "passed": true
+    },
+    {
+      "check": "original:package/receipts/build.log",
+      "passed": true
+    },
+    {
+      "check": "original:package/receipts/package-integrity.json",
+      "passed": true
+    },
+    {
+      "check": "original:package/receipts/package-provenance.json",
+      "passed": true
+    },
+    {
+      "check": "original:package/receipts/previous-release-preservation.json",
+      "passed": true
+    },
+    {
+      "check": "original:package/release/SHA256SUMS",
+      "passed": true
+    },
+    {
+      "check": "original:package/release/release-manifest.json",
+      "passed": true
+    },
+    {
+      "check": "original:package/source/scripts/build-release.sh",
+      "passed": true
+    },
+    {
+      "check": "original:package/source/scripts/collect-licenses.py",
+      "passed": true
+    },
+    {
+      "check": "original:package/source/scripts/launch-unix.sh",
+      "passed": true
+    },
+    {
+      "check": "original:package/source/scripts/package.py",
+      "passed": true
+    },
+    {
+      "check": "original:package/source/scripts/stage-release-docs.py",
+      "passed": true
+    },
+    {
+      "check": "original:package/source-guide-inventory.json",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/runtime-helper/README.md",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/runtime-helper/build-package.py",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/runtime-helper/draft-before-module-syntax/guards.exit",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/runtime-helper/draft-before-module-syntax/guards.stderr",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/runtime-helper/draft-before-module-syntax/guards.stdout",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/runtime-helper/draft-before-module-syntax/guards.test.py",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/runtime-helper/draft-before-module-syntax/prepare-runtime.py",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/runtime-helper/final-guards.exit",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/runtime-helper/final-guards.stderr",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/runtime-helper/final-guards.stdout",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/runtime-helper/guards.exit",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/runtime-helper/guards.stderr",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/runtime-helper/guards.stdout",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/runtime-helper/guards.test.py",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/runtime-helper/original-cloud016.py",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/runtime-helper/package-attempt1-preflight-refusal.json",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/runtime-helper/prepare-runtime.py",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/runtime-helper/manifest.original.json",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/operations-v1/controlled.stderr",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/operations-v1/relocate_tools.py",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/operations-v1/controlled-initial.stdout",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/operations-v1/README.md",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/operations-v1/controlled-initial.stderr",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/operations-v1/operation_common.before-failure-binding.py",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/operations-v1/controlled.stdout",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/operations-v1/retire_old_image.py",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/operations-v1/operation_common.py",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/operations-v1/test_operations.py",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/operations-v1/preparation-receipt.json",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/operations-v1/manifest.original.json",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/operations-v2/controlled.stderr",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/operations-v2/before-disappearing-controlled.stdout",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/operations-v2/test_scoped_coordination.py",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/operations-v2/relocate_tools.py",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/operations-v2/operation_common.before-partial-observation.py",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/operations-v2/initial-controlled.stderr",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/operations-v2/initial-controlled.stdout",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/operations-v2/before-partial-observation.stdout",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/operations-v2/README.md",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/operations-v2/before-partial-observation.stderr",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/operations-v2/controlled.stdout",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/operations-v2/before-disappearing-controlled.stderr",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/operations-v2/operation_common.py",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/operations-v2/operation_common.before-disappearing-observation.py",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/operations-v2/preparation-receipt.json",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/operations-v2/manifest.original.json",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/PROTECTION-PLAN.md",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/all-cache-du.json",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/all-cache-du.stderr",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/all-cache-du.stdout",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/builder-inspect-plain.receipt.json",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/builder-inspect-plain.stderr",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/builder-inspect-plain.stdout",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/builder-inspect.receipt.json",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/builder-inspect.stderr",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/builder-inspect.stdout",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/cache-association.json",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/exact-cache-du.json",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/exact-cache-du.stderr",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/exact-cache-du.stdout",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/filter-review.md",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/old-cache-du.json",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/old-cache-du.stderr",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/old-cache-du.stdout",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/prune-help.json",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/prune-help.stderr",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/prune-help.stdout",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/source-review/buildkit-control.go",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/source-review/buildkit-manager.go",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/source-review/buildkit-refs.go",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/source-review/buildx-prune.go",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/source-review/fetch-bindings.json",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/source-review/followup-bindings.json",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/source-review/moby-builder.go",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/source-review/moby-controller.go",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/source-review/moby-worker.go",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/system-df.original.json",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/system-df.receipt.json",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/version.json",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/version.stderr",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/version.stdout",
+      "passed": true
+    },
+    {
+      "check": "original:preparation/cache-review/manifest.original.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/cloud054-runtime-helper-independent-review.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/cloud054-runtime-operations-v2-validation-scope.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/cloud054-tool-relocation-readonly-observation.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/cloud054-relocation-wrapper-preflight-refusal.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/cloud054-task-cache-reclamation.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/cloud054-default-go-cache-reclamation.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/helpers/run-cloud054-tool-relocation-before-final-pin.py",
+      "passed": true
+    },
+    {
+      "check": "original:operations/helpers/run-cloud054-tool-relocation.py",
+      "passed": true
+    },
+    {
+      "check": "original:operations/helpers/retire-cloud054-old-image-root.py",
+      "passed": true
+    },
+    {
+      "check": "original:operations/helpers/retire-cloud054-old-cache.py.preflight-original",
+      "passed": true
+    },
+    {
+      "check": "original:operations/helpers/retire-cloud054-old-cache.py",
+      "passed": true
+    },
+    {
+      "check": "original:operations/helpers/clean-task-default-go-cache.py",
+      "passed": true
+    },
+    {
+      "check": "original:operations/cloud054-old-image-retirement-5f4a966f/001-started.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/cloud054-old-image-retirement-5f4a966f/002-preflight.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/cloud054-old-image-retirement-5f4a966f/003-remove-pending.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/cloud054-old-image-retirement-5f4a966f/004-remove-returned.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/cloud054-old-image-retirement-5f4a966f/005-remove-pending.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/cloud054-old-image-retirement-5f4a966f/006-remove-returned.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/cloud054-old-image-retirement-5f4a966f/007-final.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/cloud054-old-cache-retirement/001-started.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/cloud054-old-cache-retirement/999-failure.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/cloud054-old-cache-retirement-attempt2/001-started.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/cloud054-old-cache-retirement-attempt2/002-preflight.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/cloud054-old-cache-retirement-attempt2/003-pending.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/cloud054-old-cache-retirement-attempt2/004-returned.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/cloud054-old-cache-retirement-attempt2/005-final.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-powershell-7.5.5-return-to-tmp-300195423476862/001-created.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-powershell-7.5.5-return-to-tmp-300195423476862/002-preflight-observations.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-powershell-7.5.5-return-to-tmp-300195423476862/003-copy-pending.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-powershell-7.5.5-return-to-tmp-300195423476862/004-copy-verified.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-powershell-7.5.5-return-to-tmp-300195423476862/005-switch-preflight.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-powershell-7.5.5-return-to-tmp-300195423476862/006-exchange-pending.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-powershell-7.5.5-return-to-tmp-300195423476862/007-exchange-observed.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-powershell-7.5.5-return-to-tmp-300195423476862/008-duplicate-retirement-pending.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-powershell-7.5.5-return-to-tmp-300195423476862/009-finished.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-powershell-7.5.5-to-root-299271604916627/001-created.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-powershell-7.5.5-to-root-299271604916627/002-preflight-observations.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-powershell-7.5.5-to-root-299271604916627/003-copy-pending.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-powershell-7.5.5-to-root-299271604916627/004-copy-verified.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-powershell-7.5.5-to-root-299271604916627/005-switch-preflight.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-powershell-7.5.5-to-root-299271604916627/006-exchange-pending.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-powershell-7.5.5-to-root-299271604916627/007-exchange-observed.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-powershell-7.5.5-to-root-299271604916627/008-duplicate-retirement-pending.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-powershell-7.5.5-to-root-299271604916627/009-finished.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-rust-1.99.0-return-to-tmp-300167204847105/001-created.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-rust-1.99.0-return-to-tmp-300167204847105/002-preflight-observations.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-rust-1.99.0-return-to-tmp-300167204847105/003-copy-pending.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-rust-1.99.0-return-to-tmp-300167204847105/004-copy-verified.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-rust-1.99.0-return-to-tmp-300167204847105/005-switch-preflight.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-rust-1.99.0-return-to-tmp-300167204847105/006-exchange-pending.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-rust-1.99.0-return-to-tmp-300167204847105/007-exchange-observed.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-rust-1.99.0-return-to-tmp-300167204847105/008-duplicate-retirement-pending.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-rust-1.99.0-return-to-tmp-300167204847105/009-finished.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-rust-1.99.0-to-root-299231442072680/001-created.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-rust-1.99.0-to-root-299231442072680/002-preflight-observations.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-rust-1.99.0-to-root-299231442072680/003-copy-pending.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-rust-1.99.0-to-root-299231442072680/004-copy-verified.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-rust-1.99.0-to-root-299231442072680/005-switch-preflight.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-rust-1.99.0-to-root-299231442072680/006-exchange-pending.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-rust-1.99.0-to-root-299231442072680/007-exchange-observed.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-rust-1.99.0-to-root-299231442072680/008-duplicate-retirement-pending.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/operation-rust-1.99.0-to-root-299231442072680/009-finished.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/root-powershell-7.5.5-return-to-tmp-300195423476862/coordination.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/root-powershell-7.5.5-return-to-tmp-300195423476862/stderr.log",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/root-powershell-7.5.5-return-to-tmp-300195423476862/stdout.log",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/root-powershell-7.5.5-return-to-tmp-300195423476862/wrapper.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/root-powershell-7.5.5-to-root-299271604916627/coordination.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/root-powershell-7.5.5-to-root-299271604916627/stderr.log",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/root-powershell-7.5.5-to-root-299271604916627/stdout.log",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/root-powershell-7.5.5-to-root-299271604916627/wrapper.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/root-rust-1.99.0-return-to-tmp-300167204847105/coordination.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/root-rust-1.99.0-return-to-tmp-300167204847105/stderr.log",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/root-rust-1.99.0-return-to-tmp-300167204847105/stdout.log",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/root-rust-1.99.0-return-to-tmp-300167204847105/wrapper.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/root-rust-1.99.0-to-root-299231442072680/coordination.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/root-rust-1.99.0-to-root-299231442072680/stderr.log",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/root-rust-1.99.0-to-root-299231442072680/stdout.log",
+      "passed": true
+    },
+    {
+      "check": "original:operations/tool-moves/root-rust-1.99.0-to-root-299231442072680/wrapper.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/original-tool-manifests/rust-relocation-20261009-tree-before.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/original-tool-manifests/tool-relocation-20261009T1158-powershell-7.5.5-tree-before.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/old-archive-proof/cloud054-runtime-space-plan-retained-333eff-archive-inspection.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/old-archive-proof/runtime-archive-1f845cfd2b45-receipt.json",
+      "passed": true
+    },
+    {
+      "check": "original:operations/old-archive-proof/runtime-archive-1f845cfd2b45-diagnostics.json",
+      "passed": true
+    },
+    {
+      "check": "original:runtime/build-receipt.original.json",
+      "passed": true
+    },
+    {
+      "check": "original:runtime/export-verified-receipt.original.json",
+      "passed": true
+    },
+    {
+      "check": "original:runtime/compile-disk.jsonl",
+      "passed": true
+    },
+    {
+      "check": "original:runtime/compile.log",
+      "passed": true
+    },
+    {
+      "check": "original:runtime/docker-build-disk.jsonl",
+      "passed": true
+    },
+    {
+      "check": "original:runtime/docker-build.log",
+      "passed": true
+    },
+    {
+      "check": "original:runtime/additive-Dockerfile.original",
+      "passed": true
+    },
+    {
+      "check": "original:runtime/entrypoint.original.sh",
+      "passed": true
+    },
+    {
+      "check": "original:runtime/export/diagnostics.json",
+      "passed": true
+    },
+    {
+      "check": "original:runtime/export/docker-save-disk.jsonl",
+      "passed": true
+    },
+    {
+      "check": "original:runtime/export/docker-save.stderr",
+      "passed": true
+    },
+    {
+      "check": "original:runtime/export/metadata-0cdedc0869d60bb59e3dde736f996025e70318180587e049cfa22f80d67aa8e5.raw",
+      "passed": true
+    },
+    {
+      "check": "original:runtime/export/metadata-375d94971dd70a1ed15f360a76e18e5d0f004c9c78910d4498224176146ef699.raw",
+      "passed": true
+    },
+    {
+      "check": "original:runtime/export/metadata-64500570d2d3fa978bdb3132c9165dfdbff7646f36cd675f19d7745312224a77.raw",
+      "passed": true
+    },
+    {
+      "check": "original:runtime/export/metadata-76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8.raw",
+      "passed": true
+    },
+    {
+      "check": "original:runtime/export/metadata-93edd173e1eb122d93f3c5b6381f2e5aae91daf0f6cf45dfb37c91f3959aef4b.raw",
+      "passed": true
+    },
+    {
+      "check": "original:runtime/export/metadata-a4f91d26b4fd705130701878884c0718893f5464d02c1f057854d1c0b7180c72.raw",
+      "passed": true
+    },
+    {
+      "check": "original:runtime/export/metadata-a891b1e204264c7964d30acd630e52774851ca4a21ae3b344be58df5a65312d1.raw",
+      "passed": true
+    },
+    {
+      "check": "original:runtime/export/receipt-before.json",
+      "passed": true
+    },
+    {
+      "check": "original:publication-preparation-failure/assemble.py",
+      "passed": true
+    },
+    {
+      "check": "original:publication-preparation-failure/README.prepared.md",
+      "passed": true
+    },
+    {
+      "check": "original:publication-preparation-failure/assembly.stdout",
+      "passed": true
+    },
+    {
+      "check": "original:publication-preparation-failure/assembly.stderr",
+      "passed": true
+    },
+    {
+      "check": "original:publication-preparation-failure/failure.json",
+      "passed": true
+    },
+    {
+      "check": "original:repro/assemble.py",
+      "passed": true
+    },
+    {
+      "check": "exact106runtime-inputs",
+      "passed": true
+    },
+    {
+      "check": "newruntime-source-image",
+      "passed": true
+    },
+    {
+      "check": "phase-status-separation",
+      "passed": true
+    },
+    {
+      "check": "verified-binary-payload",
+      "passed": true
+    },
+    {
+      "check": "bothmodulepins-and-sandboxvendor",
+      "passed": true
+    },
+    {
+      "check": "fourcompleted-move-return-journals",
+      "passed": true
+    },
+    {
+      "check": "cache-final-passed",
+      "passed": true
+    },
+    {
+      "check": "only-selected-public-cache-row-removed",
+      "passed": true
+    },
+    {
+      "check": "protected-all-image-inventory-preserved",
+      "passed": true
+    },
+    {
+      "check": "physical-free-observation-operands",
+      "passed": true
+    },
+    {
+      "check": "no-binary-archive-copied",
+      "passed": true
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "argv": [
+    "go",
+    "test",
+    "-race",
+    "-json",
+    "-count=1",
+    "-timeout=120s",
+    "-p=2",
+    "./internal/api",
+    "./internal/proxy",
+    "-run",
+    "Test(AttachTypedExitPublishesCurrentRoutesWithoutReaper|AttachLateTypedExitCannotTerminateReplacement|AttachTerminal|RelayUpstreamExitHook|RelayNilUpstreamExitHook)"
+  ],
+  "exitCode": 0,
+  "seconds": 103.05128479003906,
+  "pass": 30,
+  "fail": 0,
+  "skip": 0,
+  "topLevelPass": 9
+}

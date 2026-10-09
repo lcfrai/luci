@@ -1,0 +1,33 @@
+{
+  "sourceCommit": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "files": {
+    "tree/control-plane/internal/api/attach.go": "7ee88e50948319280b4917aafaabf7fb2a6644f97eb69606ac752b29d50efe13",
+    "tree/control-plane/internal/api/attach_terminal.go": "3da597074e06f45f0d314b1f7f896113df460fcc96674f68250862d9a0c8bbbb",
+    "tree/control-plane/internal/api/attach_terminal_test.go": "c962e4f45e23c695d2e230c4c7e599fc7cd046bdb3d46ec59cd1a4846b269379",
+    "tree/control-plane/internal/api/attach_test.go": "fff9aed555128c5becf7333188dd11c7b490dc6df074bc21383b68354b421a14",
+    "tree/control-plane/internal/proxy/close_ack_test.go": "9b53eceb149431d5fdacb31469b2a2a16fca974923f094c10a7b85fc1d2126c5",
+    "tree/control-plane/internal/proxy/exit_hook_test.go": "74163cf2c6dc633c82e22d498b12a6f304c2dc9836f9892ebef589992cc0ba4c",
+    "tree/control-plane/internal/proxy/proxy.go": "e8ff2788ba256cb0b46085f86aabb026c5fc66afe23128c959a5134f52c9ffb1",
+    "tree/control-plane/internal/proxy/proxy_test.go": "6e76c9bca68a80ab885fe704962b4856aa52ca061ae7523b11232cf27795a045",
+    "tree/desktop/src/seams.test.ts": "b2f9fa26b08c0f3477b2b7ce126c4b67701703ab315c2a8443bb13459e8262e5",
+    "tree/docs/SEAMS.md": "a1a5766b7f6a05f85abf07c453e690ed75018628ecbb412fd440f58f7aee594b",
+    "tree/docs/luci/API.md": "472fc7746e6e28b5c85c7ef1b816f94d14001766c047f18c9d0edbc68ace211c",
+    "tree/docs/superpowers/contracts/2026-09-18-phase-2-go-contract.md": "fee11330f3f8fef5149048f42dc569af43b96b47193c6413003999cef7acc061"
+  },
+  "beforeTestSHA256": "fa56dcf80013f7efe7132f180b792c8963511dfe0a6ec75e4407026aba0b8d3e",
+  "sameCounterexampleBody": true,
+  "patchSHA256": "8cd09ce770df1e3f82116da355374cf81b4c92ff5d5d30473484af5d349f4e22",
+  "changed": [
+    "control-plane/internal/api/attach.go",
+    "control-plane/internal/api/attach_terminal.go",
+    "control-plane/internal/api/attach_terminal_test.go",
+    "control-plane/internal/api/attach_test.go",
+    "control-plane/internal/proxy/close_ack_test.go",
+    "control-plane/internal/proxy/exit_hook_test.go",
+    "control-plane/internal/proxy/proxy.go",
+    "desktop/src/seams.test.ts",
+    "docs/SEAMS.md",
+    "docs/luci/API.md",
+    "docs/superpowers/contracts/2026-09-18-phase-2-go-contract.md"
+  ]
+}

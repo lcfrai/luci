@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "runRoot": "/workspace/.t/c60/c060-run-v5_wchzi",
+  "identities": [
+    {
+      "pid": 2461095,
+      "startTicks": "30205866",
+      "role": "controller"
+    },
+    {
+      "pid": 2461108,
+      "startTicks": "30206001",
+      "role": "controller"
+    },
+    {
+      "pid": 2461236,
+      "startTicks": "30206542",
+      "role": "controller"
+    },
+    {
+      "pid": 2461127,
+      "startTicks": "30206127",
+      "role": "browser"
+    },
+    {
+      "pid": 2461129,
+      "startTicks": "30206139",
+      "role": "browser"
+    },
+    {
+      "pid": 2461132,
+      "startTicks": "30206139",
+      "role": "browser"
+    }
+  ]
+}

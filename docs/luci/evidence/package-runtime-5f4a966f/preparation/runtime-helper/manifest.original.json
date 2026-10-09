@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "frozenAt": "2026-10-09T13:35:57.452168+00:00",
+  "scope": "External helper/source preparation, inert tests and retained preflight refusal. Actual package/runtime evidence separate.",
+  "members": [
+    {
+      "path": "README.md",
+      "sha256": "7f8b53a05c049d1a49d17120ca49e41eb136d1c9c5c1e0372856975020bb7ba2",
+      "bytes": 2701
+    },
+    {
+      "path": "build-package.py",
+      "sha256": "150b7e999d7238eb765f3025e9e42f904001828e37defdde39e780a937d463f1",
+      "bytes": 5334
+    },
+    {
+      "path": "draft-before-module-syntax/guards.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    },
+    {
+      "path": "draft-before-module-syntax/guards.stderr",
+      "sha256": "0fb72c348613ac8db1065c5fccdead2c60ff123bd4b47533c7484206ce30c5cb",
+      "bytes": 1004
+    },
+    {
+      "path": "draft-before-module-syntax/guards.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "draft-before-module-syntax/guards.test.py",
+      "sha256": "a28b411cc8b66e3f820766e027d7f2bd7c0fa7456c7f0c5588342d6a1c8f47be",
+      "bytes": 4842
+    },
+    {
+      "path": "draft-before-module-syntax/prepare-runtime.py",
+      "sha256": "2d29165839433fc5be139448d85fdf0e1d94b78a4739d6c38dc69aaa2cf7360f",
+      "bytes": 32954
+    },
+    {
+      "path": "final-guards.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "final-guards.stderr",
+      "sha256": "5684d13977a1f6829bcd5f644c72b35ab6f8d42951d571a5f230c4cc35a359f3",
+      "bytes": 107
+    },
+    {
+      "path": "final-guards.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "guards.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "guards.stderr",
+      "sha256": "3a1c4cd02a1576f2aafd89a805ce14566da40f26587c010179bb2611fcfbc795",
+      "bytes": 107
+    },
+    {
+      "path": "guards.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "guards.test.py",
+      "sha256": "70429d6c3b4c08e7f5719188d4ac503a486870e3358f562d07ec12a121f48aba",
+      "bytes": 4881
+    },
+    {
+      "path": "original-cloud016.py",
+      "sha256": "5018084eca4e49bb6bb22d304a46a973390d6ec2b34af1ca5cb1dedec249636e",
+      "bytes": 28698
+    },
+    {
+      "path": "package-attempt1-preflight-refusal.json",
+      "sha256": "621161500c775bdd192d51ba851a4cd765cbda944e5cf9058cda3b6ab7ffa6b5",
+      "bytes": 679
+    },
+    {
+      "path": "prepare-runtime.py",
+      "sha256": "85fccb3b256ee373f795b4a6c00e4b108610227545c3b889cf1fdec4d08171dc",
+      "bytes": 33298
+    }
+  ]
+}

@@ -1,0 +1,1434 @@
+{
+  "source": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "helperSHA256": "c424ab94a8736491c02d21b9a9efc631e85d6adfde59afafbe7adf95f0fc627e",
+  "status": "preflight",
+  "scope": "Root-exclusive exact task-owned old COPY cache record only. Associated lease/unreferenced storage GC possible. No fixture, ledger, product capacity, runtime or whole-machine-idle claim.",
+  "cacheBefore": {
+    "2ejd0sjwb10cjn4d1s96u491t": {
+      "CreatedAt": "2026-10-06 13:24:48.303621814 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "2ejd0sjwb10cjn4d1s96u491t",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "0B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "31v0db71yzajrcuk7o6bdgfkt": {
+      "CreatedAt": "2026-10-06 06:33:07.555673138 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "31v0db71yzajrcuk7o6bdgfkt",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "0B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "a0z9tfoq25ub9hkicmah62g4c": {
+      "CreatedAt": "2026-10-06 03:21:13.30829397 +0000 UTC",
+      "Description": "from local ",
+      "ID": "a0z9tfoq25ub9hkicmah62g4c",
+      "LastUsedAt": "11 minutes ago",
+      "Mutable": false,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": true,
+      "Size": "0B",
+      "Type": "regular",
+      "UsageCount": 4
+    },
+    "at25ode9e4bcwcz9sw5bsf1qx": {
+      "CreatedAt": "2026-10-06 13:24:35.254719979 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "at25ode9e4bcwcz9sw5bsf1qx",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "0B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "bj7g4tfu7ef7wwthcppx6ybod": {
+      "CreatedAt": "2026-10-06 20:46:16.368788435 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "bj7g4tfu7ef7wwthcppx6ybod",
+      "LastUsedAt": "2 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "0B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "dj0w026omde9u9u0o92q5869q": {
+      "CreatedAt": "2026-10-06 06:49:38.942928564 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "dj0w026omde9u9u0o92q5869q",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "0B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "i06xibnzgnkjukvgrhuofkhop": {
+      "CreatedAt": "2026-10-06 06:18:51.498747487 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "i06xibnzgnkjukvgrhuofkhop",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "0B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "i6yktv8vd44sg785ioti5xad7": {
+      "CreatedAt": "2026-10-06 13:35:06.562364233 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "i6yktv8vd44sg785ioti5xad7",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "0B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "il0fqry6307fra4da5cie0i9d": {
+      "CreatedAt": "2026-10-06 05:27:14.735997975 +0000 UTC",
+      "Description": "[2/3] WORKDIR /app",
+      "ID": "il0fqry6307fra4da5cie0i9d",
+      "LastUsedAt": "2 days ago",
+      "Mutable": false,
+      "Parents": [
+        "mqb85r4xx3kye0ytvu3cjy301"
+      ],
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "0B",
+      "Type": "regular",
+      "UsageCount": 14
+    },
+    "it4srl02gwomjqcb5ocwfrhme": {
+      "CreatedAt": "2026-10-06 05:27:13.991419713 +0000 UTC",
+      "Description": "from local ",
+      "ID": "it4srl02gwomjqcb5ocwfrhme",
+      "LastUsedAt": "3 days ago",
+      "Mutable": false,
+      "Parents": [
+        "rpt69uu6ie71l5fwfm6ss3w5f"
+      ],
+      "Reclaimable": true,
+      "Shared": true,
+      "Size": "0B",
+      "Type": "regular",
+      "UsageCount": 1
+    },
+    "k8hirmigbys2b75hstfeoxv8n": {
+      "CreatedAt": "2026-10-08 06:11:50.36895485 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "k8hirmigbys2b75hstfeoxv8n",
+      "LastUsedAt": "24 hours ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "0B",
+      "Type": "source.local",
+      "UsageCount": 2
+    },
+    "kapaxcjg4cj37b9i11r5gnfgk": {
+      "CreatedAt": "2026-10-06 10:16:59.307218997 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "kapaxcjg4cj37b9i11r5gnfgk",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "0B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "lp7h5yt3vng2ecit806kifrmr": {
+      "CreatedAt": "2026-10-06 13:41:00.932671569 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "lp7h5yt3vng2ecit806kifrmr",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "0B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "mqb85r4xx3kye0ytvu3cjy301": {
+      "CreatedAt": "2026-10-06 05:27:13.997399895 +0000 UTC",
+      "Description": "from local ",
+      "ID": "mqb85r4xx3kye0ytvu3cjy301",
+      "LastUsedAt": "3 days ago",
+      "Mutable": false,
+      "Parents": [
+        "it4srl02gwomjqcb5ocwfrhme"
+      ],
+      "Reclaimable": true,
+      "Shared": true,
+      "Size": "0B",
+      "Type": "regular",
+      "UsageCount": 1
+    },
+    "nfjqaou6fboj8t4gv0ooilj3o": {
+      "CreatedAt": "2026-10-06 12:39:28.859512263 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "nfjqaou6fboj8t4gv0ooilj3o",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "0B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "o8n3smsomwg1709adzq2oi1aa": {
+      "CreatedAt": "2026-10-06 05:27:13.957843411 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "o8n3smsomwg1709adzq2oi1aa",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "0B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "pk7v58b93gnpqeomzfwr2ncdt": {
+      "CreatedAt": "2026-10-06 12:39:12.822050966 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "pk7v58b93gnpqeomzfwr2ncdt",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "0B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "qs7q2e2xn2flxng0ye7psrqw6": {
+      "CreatedAt": "2026-10-06 13:32:19.473633171 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "qs7q2e2xn2flxng0ye7psrqw6",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "0B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "rpt69uu6ie71l5fwfm6ss3w5f": {
+      "CreatedAt": "2026-10-06 05:27:13.982868938 +0000 UTC",
+      "Description": "from local ",
+      "ID": "rpt69uu6ie71l5fwfm6ss3w5f",
+      "LastUsedAt": "3 days ago",
+      "Mutable": false,
+      "Parents": [
+        "xscr1nkp1444d034tuugybb6z"
+      ],
+      "Reclaimable": true,
+      "Shared": true,
+      "Size": "0B",
+      "Type": "regular",
+      "UsageCount": 1
+    },
+    "twhf8rau00rhibhkkutzi42gx": {
+      "CreatedAt": "2026-10-06 13:40:44.162489595 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "twhf8rau00rhibhkkutzi42gx",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "0B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "tyw07svsari1vz8dpyh085a17": {
+      "CreatedAt": "2026-10-06 20:46:03.791852006 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "tyw07svsari1vz8dpyh085a17",
+      "LastUsedAt": "2 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "0B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "v1ldblx6xr2oqawjke36cl3s0": {
+      "CreatedAt": "2026-10-06 07:15:43.058431683 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "v1ldblx6xr2oqawjke36cl3s0",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "0B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "v8bnd45tuz77es0aue7bhdow1": {
+      "CreatedAt": "2026-10-06 12:22:08.86660559 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "v8bnd45tuz77es0aue7bhdow1",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "0B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "xhl21dtles7mjhtpmmypbu8fu": {
+      "CreatedAt": "2026-10-09 13:41:27.175082021 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "xhl21dtles7mjhtpmmypbu8fu",
+      "LastUsedAt": "11 minutes ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "0B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "xscr1nkp1444d034tuugybb6z": {
+      "CreatedAt": "2026-10-06 05:27:13.978336247 +0000 UTC",
+      "Description": "from local ",
+      "ID": "xscr1nkp1444d034tuugybb6z",
+      "LastUsedAt": "3 days ago",
+      "Mutable": false,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": true,
+      "Size": "0B",
+      "Type": "regular",
+      "UsageCount": 1
+    },
+    "teos2u93q9icb9tqv0mes2fdj": {
+      "CreatedAt": "2026-10-09 13:41:27.159043456 +0000 UTC",
+      "Description": "local source for dockerfile",
+      "ID": "teos2u93q9icb9tqv0mes2fdj",
+      "LastUsedAt": "11 minutes ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "109B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "0r8uu7b2i3nyae07mwe6vi22s": {
+      "CreatedAt": "2026-10-06 13:41:00.905397819 +0000 UTC",
+      "Description": "local source for dockerfile",
+      "ID": "0r8uu7b2i3nyae07mwe6vi22s",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "121B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "2er2680rr62dd850yxpaysyh9": {
+      "CreatedAt": "2026-10-06 13:24:35.226654573 +0000 UTC",
+      "Description": "local source for dockerfile",
+      "ID": "2er2680rr62dd850yxpaysyh9",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "121B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "ahmu88pfmwh8oyutuvtm4gx2k": {
+      "CreatedAt": "2026-10-06 20:46:03.758874191 +0000 UTC",
+      "Description": "local source for dockerfile",
+      "ID": "ahmu88pfmwh8oyutuvtm4gx2k",
+      "LastUsedAt": "2 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "121B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "ivtmtozzdq151ufggidupy6mc": {
+      "CreatedAt": "2026-10-06 12:22:08.836837204 +0000 UTC",
+      "Description": "local source for dockerfile",
+      "ID": "ivtmtozzdq151ufggidupy6mc",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "121B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "jr8h7acuqmc80m33hylje5d3n": {
+      "CreatedAt": "2026-10-06 13:32:19.442889457 +0000 UTC",
+      "Description": "local source for dockerfile",
+      "ID": "jr8h7acuqmc80m33hylje5d3n",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "121B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "k0baxgpc98io5n05szf9sbkh6": {
+      "CreatedAt": "2026-10-06 12:39:12.786684719 +0000 UTC",
+      "Description": "local source for dockerfile",
+      "ID": "k0baxgpc98io5n05szf9sbkh6",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "121B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "o262imuusxjoucczb3pi0upvl": {
+      "CreatedAt": "2026-10-06 13:40:44.134608987 +0000 UTC",
+      "Description": "local source for dockerfile",
+      "ID": "o262imuusxjoucczb3pi0upvl",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "121B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "okv062fglt3g0qfngu3get86j": {
+      "CreatedAt": "2026-10-06 10:16:59.268503187 +0000 UTC",
+      "Description": "local source for dockerfile",
+      "ID": "okv062fglt3g0qfngu3get86j",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "121B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "prsb21mvlsdkfzlclpdye913z": {
+      "CreatedAt": "2026-10-06 20:46:16.345791354 +0000 UTC",
+      "Description": "local source for dockerfile",
+      "ID": "prsb21mvlsdkfzlclpdye913z",
+      "LastUsedAt": "2 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "121B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "qqcu0z37k5m7qttyscel18m6h": {
+      "CreatedAt": "2026-10-06 13:24:48.267522172 +0000 UTC",
+      "Description": "local source for dockerfile",
+      "ID": "qqcu0z37k5m7qttyscel18m6h",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "121B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "u13jybrlmuti1nj5l5gr6yfz0": {
+      "CreatedAt": "2026-10-06 12:39:28.83703225 +0000 UTC",
+      "Description": "local source for dockerfile",
+      "ID": "u13jybrlmuti1nj5l5gr6yfz0",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "121B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "umo5y1ikvjtwbfmpg3a1tjebh": {
+      "CreatedAt": "2026-10-06 13:35:06.54233992 +0000 UTC",
+      "Description": "local source for dockerfile",
+      "ID": "umo5y1ikvjtwbfmpg3a1tjebh",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "121B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "g9xbaan80mhsipmjur3lxpt10": {
+      "CreatedAt": "2026-10-08 06:06:13.610020514 +0000 UTC",
+      "Description": "local source for dockerfile",
+      "ID": "g9xbaan80mhsipmjur3lxpt10",
+      "LastUsedAt": "24 hours ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "128B",
+      "Type": "source.local",
+      "UsageCount": 3
+    },
+    "4j3809dcrmj7ivjv6xs5wtojc": {
+      "CreatedAt": "2026-10-06 06:18:51.468985317 +0000 UTC",
+      "Description": "local source for dockerfile",
+      "ID": "4j3809dcrmj7ivjv6xs5wtojc",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "183B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "ilse3td4vdwc3lzpi73xbfh5n": {
+      "CreatedAt": "2026-10-06 06:33:07.541542535 +0000 UTC",
+      "Description": "local source for dockerfile",
+      "ID": "ilse3td4vdwc3lzpi73xbfh5n",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "183B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "k2bhpxs8y8bccm24sgbhdz6ns": {
+      "CreatedAt": "2026-10-06 05:27:13.938542701 +0000 UTC",
+      "Description": "local source for dockerfile",
+      "ID": "k2bhpxs8y8bccm24sgbhdz6ns",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "183B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "ol46jqiuqg5gu5vn630jxjbzn": {
+      "CreatedAt": "2026-10-06 06:49:38.929675233 +0000 UTC",
+      "Description": "local source for dockerfile",
+      "ID": "ol46jqiuqg5gu5vn630jxjbzn",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "183B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "woglt9wtb88nwwcdhq6czk5b9": {
+      "CreatedAt": "2026-10-06 07:15:43.014968614 +0000 UTC",
+      "Description": "local source for dockerfile",
+      "ID": "woglt9wtb88nwwcdhq6czk5b9",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "183B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "2wuyyp4ecraddwpvjr1kugelz": {
+      "CreatedAt": "2026-10-06 05:27:13.984401437 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "2wuyyp4ecraddwpvjr1kugelz",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "312B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "ebs0k1at356zpg7iozijlzur3": {
+      "CreatedAt": "2026-10-06 06:18:51.517807428 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "ebs0k1at356zpg7iozijlzur3",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "312B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "rjqy790zsp2oy798gx9322oai": {
+      "CreatedAt": "2026-10-06 06:33:07.567915125 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "rjqy790zsp2oy798gx9322oai",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "312B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "uqfztmn367kmmpyprb8rqk3tw": {
+      "CreatedAt": "2026-10-06 07:15:43.090247985 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "uqfztmn367kmmpyprb8rqk3tw",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "312B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "wundh1kyz5vianv5ikxhyhj8u": {
+      "CreatedAt": "2026-10-06 06:49:38.958364871 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "wundh1kyz5vianv5ikxhyhj8u",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "312B",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "1lzy4dh2xg4t32sdpf8iq9kna": {
+      "CreatedAt": "2026-10-06 10:16:59.332682813 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "1lzy4dh2xg4t32sdpf8iq9kna",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "2.022kB",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "t88rxqt23s6o4fz9hfb8ecmrs": {
+      "CreatedAt": "2026-10-06 12:22:08.889556991 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "t88rxqt23s6o4fz9hfb8ecmrs",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "2.262kB",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "1eun2hlk8xss15nma91mfieni": {
+      "CreatedAt": "2026-10-06 13:24:35.290061786 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "1eun2hlk8xss15nma91mfieni",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "2.301kB",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "3z4u8wnh64ors6udjaaph2vf9": {
+      "CreatedAt": "2026-10-06 13:35:06.577971384 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "3z4u8wnh64ors6udjaaph2vf9",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "2.301kB",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "510yjq7wyy9xee2oe9j977ano": {
+      "CreatedAt": "2026-10-06 20:46:16.384627446 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "510yjq7wyy9xee2oe9j977ano",
+      "LastUsedAt": "2 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "2.301kB",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "5vy0nevdpwck5nfhwpuucsglj": {
+      "CreatedAt": "2026-10-06 13:32:19.517434091 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "5vy0nevdpwck5nfhwpuucsglj",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "2.301kB",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "d16wz5itiaahosv0dkfmnlggd": {
+      "CreatedAt": "2026-10-06 13:41:00.953237368 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "d16wz5itiaahosv0dkfmnlggd",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "2.301kB",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "okydob55e5anu1mddcnub7skc": {
+      "CreatedAt": "2026-10-06 13:24:48.324284317 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "okydob55e5anu1mddcnub7skc",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "2.301kB",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "rjzii1l8xayuv493ko7ab1bsh": {
+      "CreatedAt": "2026-10-06 13:40:44.217233243 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "rjzii1l8xayuv493ko7ab1bsh",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "2.301kB",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "rr8arwj5b4lqe4ydw0mox5l1r": {
+      "CreatedAt": "2026-10-06 12:39:28.886662867 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "rr8arwj5b4lqe4ydw0mox5l1r",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "2.301kB",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "wy11aziazk96e7x4cjhq1qcef": {
+      "CreatedAt": "2026-10-06 20:46:03.82381154 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "wy11aziazk96e7x4cjhq1qcef",
+      "LastUsedAt": "2 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "2.301kB",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "xbatsamgu12iq19m2fh6fq2qp": {
+      "CreatedAt": "2026-10-06 12:39:12.8670166 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "xbatsamgu12iq19m2fh6fq2qp",
+      "LastUsedAt": "3 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "2.301kB",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "712ipojf65f8ilv58lqor5146": {
+      "CreatedAt": "2026-10-06 20:53:10.650706668 +0000 UTC",
+      "Description": "copy /context /",
+      "ID": "712ipojf65f8ilv58lqor5146",
+      "LastUsedAt": "2 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "2.318kB",
+      "Type": "regular",
+      "UsageCount": 1
+    },
+    "9127qhdhva9pe5s6tto4kg34e": {
+      "CreatedAt": "2026-10-06 14:34:02.375468018 +0000 UTC",
+      "Description": "copy /context /",
+      "ID": "9127qhdhva9pe5s6tto4kg34e",
+      "LastUsedAt": "2 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "2.335kB",
+      "Type": "regular",
+      "UsageCount": 1
+    },
+    "chbk6bpz0qpd4na787xns0c80": {
+      "CreatedAt": "2026-10-06 15:09:28.981968978 +0000 UTC",
+      "Description": "copy /context /",
+      "ID": "chbk6bpz0qpd4na787xns0c80",
+      "LastUsedAt": "2 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "2.335kB",
+      "Type": "regular",
+      "UsageCount": 1
+    },
+    "cmdnvswldz0kteh315ph5moxp": {
+      "CreatedAt": "2026-10-06 14:32:21.867807513 +0000 UTC",
+      "Description": "copy /context /",
+      "ID": "cmdnvswldz0kteh315ph5moxp",
+      "LastUsedAt": "2 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "2.335kB",
+      "Type": "regular",
+      "UsageCount": 1
+    },
+    "mqrllarboenrty5181srwubni": {
+      "CreatedAt": "2026-10-06 14:32:31.706838753 +0000 UTC",
+      "Description": "copy /context /",
+      "ID": "mqrllarboenrty5181srwubni",
+      "LastUsedAt": "2 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "2.335kB",
+      "Type": "regular",
+      "UsageCount": 1
+    },
+    "xq10lhyphfnmwvimbfdiq09ql": {
+      "CreatedAt": "2026-10-06 15:08:00.298452593 +0000 UTC",
+      "Description": "copy /context /",
+      "ID": "xq10lhyphfnmwvimbfdiq09ql",
+      "LastUsedAt": "2 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "2.335kB",
+      "Type": "regular",
+      "UsageCount": 1
+    },
+    "y0ou8m8u2f7kgkuvoektfyh98": {
+      "CreatedAt": "2026-10-06 15:07:47.863823793 +0000 UTC",
+      "Description": "copy /context /",
+      "ID": "y0ou8m8u2f7kgkuvoektfyh98",
+      "LastUsedAt": "2 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "2.335kB",
+      "Type": "regular",
+      "UsageCount": 1
+    },
+    "ktglyke4k0a5v38l9wo6r0f60": {
+      "CreatedAt": "2026-10-06 20:58:17.14489074 +0000 UTC",
+      "Description": "copy /context /",
+      "ID": "ktglyke4k0a5v38l9wo6r0f60",
+      "LastUsedAt": "2 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "2.391kB",
+      "Type": "regular",
+      "UsageCount": 1
+    },
+    "vd0u8t19xj60367gzyxohk5q8": {
+      "CreatedAt": "2026-10-06 20:55:47.671548015 +0000 UTC",
+      "Description": "copy /context /",
+      "ID": "vd0u8t19xj60367gzyxohk5q8",
+      "LastUsedAt": "2 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "2.391kB",
+      "Type": "regular",
+      "UsageCount": 1
+    },
+    "bp8jbr3d1aao1ivwd367u2rgy": {
+      "CreatedAt": "2026-10-06 14:34:02.352593833 +0000 UTC",
+      "Description": "http url http://buildkit-session/vsdvu0l2dpdtleyl5vpr49hlh",
+      "ID": "bp8jbr3d1aao1ivwd367u2rgy",
+      "LastUsedAt": "2 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "5.632kB",
+      "Type": "regular",
+      "UsageCount": 2
+    },
+    "grdwu6kzkdrxisf2d93iwj35i": {
+      "CreatedAt": "2026-10-06 15:09:28.952962118 +0000 UTC",
+      "Description": "http url http://buildkit-session/s5w1tdhhws2wq1h0fr6ah4y71",
+      "ID": "grdwu6kzkdrxisf2d93iwj35i",
+      "LastUsedAt": "2 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "5.632kB",
+      "Type": "regular",
+      "UsageCount": 2
+    },
+    "hf9gdn4ve5z21k5ppxu6a88q2": {
+      "CreatedAt": "2026-10-06 15:07:47.843617996 +0000 UTC",
+      "Description": "http url http://buildkit-session/r9w72rlsg3zql9lopebzvd93z",
+      "ID": "hf9gdn4ve5z21k5ppxu6a88q2",
+      "LastUsedAt": "2 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "5.632kB",
+      "Type": "regular",
+      "UsageCount": 2
+    },
+    "j4xvfo03igawlx25reqgh00t2": {
+      "CreatedAt": "2026-10-06 15:08:00.280617251 +0000 UTC",
+      "Description": "http url http://buildkit-session/oo4dys2cuh2phvc80oz1dlyhe",
+      "ID": "j4xvfo03igawlx25reqgh00t2",
+      "LastUsedAt": "2 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "5.632kB",
+      "Type": "regular",
+      "UsageCount": 2
+    },
+    "q37ehfwn1invio9zq9144sew7": {
+      "CreatedAt": "2026-10-06 20:53:10.623114374 +0000 UTC",
+      "Description": "http url http://buildkit-session/5ik59cauau48gxx9l0zp7ef7k",
+      "ID": "q37ehfwn1invio9zq9144sew7",
+      "LastUsedAt": "2 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "5.632kB",
+      "Type": "regular",
+      "UsageCount": 2
+    },
+    "svajy950rrcjpq4etfyvtkanm": {
+      "CreatedAt": "2026-10-06 14:32:31.693974317 +0000 UTC",
+      "Description": "http url http://buildkit-session/tdjnx4tfzbz3360suhr8ts1rr",
+      "ID": "svajy950rrcjpq4etfyvtkanm",
+      "LastUsedAt": "2 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "5.632kB",
+      "Type": "regular",
+      "UsageCount": 2
+    },
+    "vyxafcxbqmn6anoul0ye3h4on": {
+      "CreatedAt": "2026-10-06 20:58:17.125930709 +0000 UTC",
+      "Description": "http url http://buildkit-session/ietm4h6sdrv4invr00k6p4nxv",
+      "ID": "vyxafcxbqmn6anoul0ye3h4on",
+      "LastUsedAt": "2 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "5.632kB",
+      "Type": "regular",
+      "UsageCount": 2
+    },
+    "wu2vs07j9pdv75kntn2dramsc": {
+      "CreatedAt": "2026-10-06 14:32:21.844031681 +0000 UTC",
+      "Description": "http url http://buildkit-session/ri6artanij1xif4gr8yu50j8s",
+      "ID": "wu2vs07j9pdv75kntn2dramsc",
+      "LastUsedAt": "2 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "5.632kB",
+      "Type": "regular",
+      "UsageCount": 2
+    },
+    "x12tybmmbsmq5tuxgq8ecer35": {
+      "CreatedAt": "2026-10-06 20:55:47.658689671 +0000 UTC",
+      "Description": "http url http://buildkit-session/xetiqk9ams4c7i72k9qq48t3g",
+      "ID": "x12tybmmbsmq5tuxgq8ecer35",
+      "LastUsedAt": "2 days ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "5.632kB",
+      "Type": "regular",
+      "UsageCount": 2
+    },
+    "2i490cp45da5eyaysyjd0nww1": {
+      "CreatedAt": "2026-10-08 06:11:50.391445773 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "2i490cp45da5eyaysyjd0nww1",
+      "LastUsedAt": "24 hours ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "9.446MB",
+      "Type": "source.local",
+      "UsageCount": 2
+    },
+    "jxury1xmsdvxr24fm76wfizm5": {
+      "CreatedAt": "2026-10-08 14:01:24.232384903 +0000 UTC",
+      "Description": "[2/2] COPY --chown=0:0 --chmod=0755 bin/ /usr/local/bin/",
+      "ID": "jxury1xmsdvxr24fm76wfizm5",
+      "LastUsedAt": "24 hours ago",
+      "Mutable": false,
+      "Parents": [
+        "a0z9tfoq25ub9hkicmah62g4c"
+      ],
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "9.457MB",
+      "Type": "regular",
+      "UsageCount": 1
+    },
+    "syqbq3spnuovv3dlc2pmjr70t": {
+      "CreatedAt": "2026-10-09 13:41:27.191842625 +0000 UTC",
+      "Description": "local source for context",
+      "ID": "syqbq3spnuovv3dlc2pmjr70t",
+      "LastUsedAt": "11 minutes ago",
+      "Mutable": true,
+      "Parents": null,
+      "Reclaimable": true,
+      "Shared": false,
+      "Size": "9.466MB",
+      "Type": "source.local",
+      "UsageCount": 1
+    },
+    "ue36gvnn6iqhphceohjhzwae5": {
+      "CreatedAt": "2026-10-09 13:41:50.307524218 +0000 UTC",
+      "Description": "[2/2] COPY --chown=0:0 --chmod=0755 bin/ /usr/local/bin/",
+      "ID": "ue36gvnn6iqhphceohjhzwae5",
+      "LastUsedAt": "11 minutes ago",
+      "Mutable": false,
+      "Parents": [
+        "a0z9tfoq25ub9hkicmah62g4c"
+      ],
+      "Reclaimable": true,
+      "Shared": true,
+      "Size": "9.466MB",
+      "Type": "regular",
+      "UsageCount": 1
+    }
+  },
+  "imagesBefore": {
+    "sha256:345c8087a592c68bc6b1c347bb865b43e14cdefec77d741f85195588028f57a4": {
+      "Id": "sha256:345c8087a592c68bc6b1c347bb865b43e14cdefec77d741f85195588028f57a4",
+      "RepoTags": [],
+      "RepoDigests": [
+        "postgres@sha256:efedf3595f1d6f415c08568ba171029bf54052e754cc9f030e3f2412b21f3d67"
+      ],
+      "Parent": "",
+      "Comment": "buildkit.dockerfile.v0",
+      "Created": "2026-09-19T00:36:41.950723877Z",
+      "DockerVersion": "",
+      "Author": "",
+      "Architecture": "amd64",
+      "Os": "linux",
+      "Size": 435358655,
+      "GraphDriver": {
+        "Data": null,
+        "Name": "vfs"
+      },
+      "RootFS": {
+        "Type": "layers",
+        "Layers": [
+          "sha256:34467cc93912af891dfee8a3902adf9b4f355a9bca4eaa46f658d1181a21de0d",
+          "sha256:51c53d132ec91bca06119134bacca423827e8a612e4f5689523c0e72142eec6d",
+          "sha256:0d46a783183d47b4fe14de6325eecc4cfcf733da8260524e66079634f386f90d",
+          "sha256:614662ec165c571c14bdfe132aadba28282faeff7ecaa6e587e965675b5a3331",
+          "sha256:49add01d02178d409635ff6801af0bc71ec564da0a88b868702785505aae51d0",
+          "sha256:6c8655cb8ee48c4cdd2f32b8ee3f5ff69271a75c79d40c9d626793073d507156",
+          "sha256:8d23d1f472139beea8667baba04b669b04bf814b4c373ea9df1cb5c011f9fa30",
+          "sha256:018e47810eb267ca1aa09b987a7ab88b58fdfa39e55abf3900bb81775a095907",
+          "sha256:a8f20ac35cdc3218b93c3564a82d956f2d67e95f577207ca2c00ab5be0e487e4",
+          "sha256:db135c7e48584074bd6cb98d00e80a4fa4d7b1000a4a67c741d4d29e9474d7a3",
+          "sha256:7cd3b8c945cf47c596b441691be4fcf043b44fa3de16c5600f1fa0ec4faf7a08",
+          "sha256:e86169dbea66cd9c54ac296b84c76506f1d4e29c1d1d2fe0bf76064010fff70a",
+          "sha256:0c345ffeb5125c804c24ea97186b3ac3e37cf5c28b55bf0352724daab7d482e6",
+          "sha256:09ca402f2e8923a3f4d8b0e08445885b91b2657cc61e5eb342cf2554f24b8985"
+        ]
+      },
+      "Metadata": {
+        "LastTagTime": "0001-01-01T00:00:00Z"
+      },
+      "Config": {
+        "Cmd": [
+          "postgres"
+        ],
+        "Entrypoint": [
+          "docker-entrypoint.sh"
+        ],
+        "Env": [
+          "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/lib/postgresql/16/bin",
+          "GOSU_VERSION=1.19",
+          "LANG=en_US.utf8",
+          "PG_MAJOR=16",
+          "PG_VERSION=16.15-1.pgdg12+2",
+          "PGDATA=/var/lib/postgresql/data"
+        ],
+        "ExposedPorts": {
+          "5432/tcp": {}
+        },
+        "Labels": null,
+        "OnBuild": null,
+        "StopSignal": "SIGINT",
+        "User": "",
+        "Volumes": {
+          "/var/lib/postgresql/data": {}
+        },
+        "WorkingDir": ""
+      }
+    },
+    "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8": {
+      "Id": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+      "RepoTags": [
+        "luci/sandbox:verified-candidate-20261009t134118z-4a347241"
+      ],
+      "RepoDigests": [],
+      "Parent": "",
+      "Comment": "buildkit.dockerfile.v0",
+      "Created": "2026-10-09T13:41:50.307524218Z",
+      "DockerVersion": "",
+      "Author": "",
+      "Architecture": "amd64",
+      "Os": "linux",
+      "Size": 2294638105,
+      "GraphDriver": {
+        "Data": null,
+        "Name": "vfs"
+      },
+      "RootFS": {
+        "Type": "layers",
+        "Layers": [
+          "sha256:d6b024dc076b491eb43e58c3e02fd5a9bfc6158e53f89c8d6e94d17bc52a5045",
+          "sha256:49e0686a1ea1befd615b3f4625d1436a7960769bf12bd15963d0cc9ed05a6a33"
+        ]
+      },
+      "Metadata": {
+        "LastTagTime": "2026-10-09T13:41:51.06211082Z"
+      },
+      "Config": {
+        "Cmd": null,
+        "Entrypoint": [
+          "/usr/local/bin/entrypoint.sh"
+        ],
+        "Env": [
+          "PATH=/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+          "NODE_VERSION=24.21.0",
+          "YARN_VERSION=1.22.22"
+        ],
+        "ExposedPorts": {
+          "8080/tcp": {}
+        },
+        "Labels": null,
+        "OnBuild": null,
+        "User": "dev",
+        "Volumes": null,
+        "WorkingDir": "/home/dev"
+      }
+    },
+    "sha256:7c3b093add7c43400ee83b815ab2cda98794a10045bcf76ce9bb2f89b97cbc5c": {
+      "Id": "sha256:7c3b093add7c43400ee83b815ab2cda98794a10045bcf76ce9bb2f89b97cbc5c",
+      "RepoTags": [
+        "node:22-alpine"
+      ],
+      "RepoDigests": [
+        "node@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402"
+      ],
+      "Parent": "",
+      "Comment": "buildkit.dockerfile.v0",
+      "Created": "2026-09-23T21:09:27.761584925Z",
+      "DockerVersion": "",
+      "Author": "",
+      "Architecture": "amd64",
+      "Os": "linux",
+      "Size": 167343632,
+      "GraphDriver": {
+        "Data": null,
+        "Name": "vfs"
+      },
+      "RootFS": {
+        "Type": "layers",
+        "Layers": [
+          "sha256:74d97c428c51a828f9051a7a40a53ff1fc99e54fc30323ce36760701b0b7f711",
+          "sha256:ba3263475f993ce3855e4edf69b59a64716f9b4f4b43c369113a33f0c6a1b114",
+          "sha256:50a35fcbb91b0a6dd3821fb8ee87c3e44743f5f57c4337c1721280ff811f2d2a",
+          "sha256:ff5db628aec4eaf74f091c36d7fc5f855481dfa4de3cb6c0b05b0684bfcea637"
+        ]
+      },
+      "Metadata": {
+        "LastTagTime": "0001-01-01T00:00:00Z"
+      },
+      "Config": {
+        "Cmd": [
+          "node"
+        ],
+        "Entrypoint": [
+          "docker-entrypoint.sh"
+        ],
+        "Env": [
+          "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+          "NODE_VERSION=22.23.3",
+          "YARN_VERSION=1.22.22"
+        ],
+        "Labels": null,
+        "OnBuild": null,
+        "User": "",
+        "Volumes": null,
+        "WorkingDir": "/"
+      }
+    },
+    "sha256:9e0fd9f731408c4405c4b9e97308bf807c8088cf521a138c0b1921667a831351": {
+      "Id": "sha256:9e0fd9f731408c4405c4b9e97308bf807c8088cf521a138c0b1921667a831351",
+      "RepoTags": [
+        "luci/sandbox:provider-base-20261008t061146z-87b06740",
+        "luci/sandbox:provider-base-20261008t140025z-a4a2e82b",
+        "luci/sandbox:provider-base-20261009t134118z-4a347241"
+      ],
+      "RepoDigests": [],
+      "Parent": "",
+      "Comment": "Imported from -",
+      "Created": "2026-10-06T02:49:22.608961173Z",
+      "DockerVersion": "28.4.0",
+      "Author": "",
+      "Architecture": "amd64",
+      "Os": "linux",
+      "Size": 2285171966,
+      "GraphDriver": {
+        "Data": null,
+        "Name": "vfs"
+      },
+      "RootFS": {
+        "Type": "layers",
+        "Layers": [
+          "sha256:d6b024dc076b491eb43e58c3e02fd5a9bfc6158e53f89c8d6e94d17bc52a5045"
+        ]
+      },
+      "Metadata": {
+        "LastTagTime": "2026-10-09T13:41:26.710040727Z"
+      },
+      "Config": {
+        "Cmd": null,
+        "Entrypoint": [
+          "/usr/local/bin/entrypoint.sh"
+        ],
+        "Env": [
+          "PATH=/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+          "NODE_VERSION=24.21.0",
+          "YARN_VERSION=1.22.22"
+        ],
+        "ExposedPorts": {
+          "8080/tcp": {}
+        },
+        "Labels": null,
+        "OnBuild": null,
+        "User": "dev",
+        "Volumes": null,
+        "WorkingDir": "/home/dev"
+      }
+    },
+    "sha256:dc73b49f5124cf2ee538dfbdfbd121f0b4ccdcb20fea30f3a81bd477c02e2bb5": {
+      "Id": "sha256:dc73b49f5124cf2ee538dfbdfbd121f0b4ccdcb20fea30f3a81bd477c02e2bb5",
+      "RepoTags": [
+        "nginx:1.28-alpine"
+      ],
+      "RepoDigests": [
+        "nginx@sha256:a8b39bd9cf0f83869a2162827a0caf6137ddf759d50a171451b335cecc87d236"
+      ],
+      "Parent": "",
+      "Comment": "buildkit.dockerfile.v0",
+      "Created": "2026-03-24T23:11:15.718500787Z",
+      "DockerVersion": "",
+      "Author": "",
+      "Architecture": "amd64",
+      "Os": "linux",
+      "Size": 62072530,
+      "GraphDriver": {
+        "Data": null,
+        "Name": "vfs"
+      },
+      "RootFS": {
+        "Type": "layers",
+        "Layers": [
+          "sha256:989e799e634906e94dc9a5ee2ee26fc92ad260522990f26e707861a5f52bf64e",
+          "sha256:a2738b08d7114c9d5581dd5482d3b5cc297fcf73b8d330c3ba38d24c43939119",
+          "sha256:47a53288c3ef0ee51df84ef47d217f18c1762412532fded9af1fd88ecee14294",
+          "sha256:9e707aa6db4786355904a1b794c80f378b690f8f0384af56117708a23a91f1da",
+          "sha256:a3446cc6c821fa11b704a45811ab554675f0327307af71b3f4ff5a70c7a4eec8",
+          "sha256:42608b42cb5e68548abf1c71aa851acfd65816d0ceaff6ee85849c7c478463f0",
+          "sha256:53c769b49ca0a2f0f6cf5e4a807af8933cec6cde9302d56d91a78bc38ea407a8",
+          "sha256:f76f397f2ce6b266573b70eb60ef1335e9984a1941eedd2a3505af4870c3afa0"
+        ]
+      },
+      "Metadata": {
+        "LastTagTime": "0001-01-01T00:00:00Z"
+      },
+      "Config": {
+        "Cmd": [
+          "nginx",
+          "-g",
+          "daemon off;"
+        ],
+        "Entrypoint": [
+          "/docker-entrypoint.sh"
+        ],
+        "Env": [
+          "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+          "NGINX_VERSION=1.28.3",
+          "PKG_RELEASE=1",
+          "DYNPKG_RELEASE=1",
+          "NJS_VERSION=0.9.6",
+          "NJS_RELEASE=1",
+          "ACME_VERSION=0.3.1"
+        ],
+        "ExposedPorts": {
+          "80/tcp": {}
+        },
+        "Labels": {
+          "maintainer": "NGINX Docker Maintainers <docker-maint@nginx.com>"
+        },
+        "OnBuild": null,
+        "StopSignal": "SIGQUIT",
+        "User": "",
+        "Volumes": null,
+        "WorkingDir": "/"
+      }
+    },
+    "sha256:e2ac70e7319a02c5a477f5825259bd118b94e8b02c279c67afa63adab6d8685b": {
+      "Id": "sha256:e2ac70e7319a02c5a477f5825259bd118b94e8b02c279c67afa63adab6d8685b",
+      "RepoTags": [
+        "hello-world:latest"
+      ],
+      "RepoDigests": [
+        "hello-world@sha256:5e23090353324d887c48ad5e5c56d294eab81588df9605b07d1afe895f9cc8f8"
+      ],
+      "Parent": "",
+      "Comment": "buildkit.dockerfile.v0",
+      "Created": "2026-03-23T21:33:59.562202219Z",
+      "DockerVersion": "",
+      "Author": "",
+      "Architecture": "amd64",
+      "Os": "linux",
+      "Size": 10072,
+      "GraphDriver": {
+        "Data": null,
+        "Name": "vfs"
+      },
+      "RootFS": {
+        "Type": "layers",
+        "Layers": [
+          "sha256:897b3f2a7c1bc2f3d02432f7892fe31c6272c521ad4d70257df624504a3238b4"
+        ]
+      },
+      "Metadata": {
+        "LastTagTime": "0001-01-01T00:00:00Z"
+      },
+      "Config": {
+        "Cmd": [
+          "/hello"
+        ],
+        "Entrypoint": null,
+        "Env": [
+          "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        ],
+        "Labels": null,
+        "OnBuild": null,
+        "User": "",
+        "Volumes": null,
+        "WorkingDir": "/"
+      }
+    }
+  },
+  "topology": "Name:   default\nDriver: docker\n\nNodes:\nName:             default\nEndpoint:         default\nStatus:           running\nBuildKit version: v0.24.0\nPlatforms:        linux/amd64, linux/amd64/v2, linux/amd64/v3, linux/amd64/v4\nLabels:\n org.mobyproject.buildkit.worker.moby.host-gateway-ip: 172.17.0.1\nGC Policy rule#0:\n All:            false\n Filters:        type==source.local,type==exec.cachemount,type==source.git.checkout\n Keep Duration:  48h0m0s\n Max Used Space: 527.1MiB\nGC Policy rule#1:\n All:            false\n Keep Duration:  1440h0m0s\n Reserved Space: 3.725GiB\n Max Used Space: 953.7MiB\n Min Free Space: 1.863GiB\nGC Policy rule#2:\n All:            false\n Reserved Space: 3.725GiB\n Max Used Space: 953.7MiB\n Min Free Space: 1.863GiB\nGC Policy rule#3:\n All:            true\n Reserved Space: 3.725GiB\n Max Used Space: 953.7MiB\n Min Free Space: 1.863GiB",
+  "freeBefore": {
+    "/workspace": 3408728064,
+    "/tmp": 3940151296
+  },
+  "archiveSHA256": "7caf7aab012cd4a5bf2ace5c8a2e12e617b4afbaef20f6b3db64586a24e9fcf3"
+}

@@ -1,0 +1,18 @@
+{
+  "at": "2026-10-09T13:45:14.137405+00:00",
+  "command": [
+    "/usr/local/bin/docker",
+    "--host",
+    "unix:///var/run/docker.sock",
+    "buildx",
+    "du",
+    "--filter",
+    "id==jxury1xmsdvx",
+    "--format",
+    "json"
+  ],
+  "exitCode": 1,
+  "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderrSHA256": "fd49c6b1c214494c8d7a7abdc4eecdaa9c1f67279516f292e0d2d773e25deabe",
+  "scope": "Read-only Docker observation/help; no prune or mutation"
+}

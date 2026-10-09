@@ -1,0 +1,67 @@
+{
+  "workItem": "CLOUD-063",
+  "baseCommit": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "checkoutEdited": false,
+  "dockerUsed": false,
+  "attempt8": {
+    "status": "failed",
+    "normalCloseObserved": true,
+    "heldReplyReleased": true,
+    "heldReplyReleasedAt": "2026-10-09T13:59:04.303Z",
+    "helperFailureAt": "2026-10-09T13:59:24.365Z",
+    "helperWaitMilliseconds": 20000,
+    "productionReaperDefaultMilliseconds": 30000,
+    "limitations": [
+      "No retained post-exit fresh browser GET/list response establishes the exact cause of that run failing to converge.",
+      "Normal sweep timing plausibly falls beyond the helper window; no failed sweep is claimed.",
+      "The helper timeout has not been changed."
+    ]
+  },
+  "change": [
+    "Only upstream binary protocol kind 0x03 emits a payload-free notification, once per relay.",
+    "The attach lifecycle owns one asynchronous atomic registry update and joins accepted persistence after socket closure.",
+    "Nonempty captured backend/allocation/reference/token and exact session/project/worktree/branch/run/operation identity fence stale events.",
+    "Publish exited with static process-only reason, erase stale endpoint/token, retain allocation references and reservation ledger.",
+    "Duplicate events and old/replaced/cleared identities commit no registry write."
+  ],
+  "validation": {
+    "before": {
+      "exitCode": 1,
+      "testActionNodes": {
+        "fail": 1
+      },
+      "topLevelPasses": 0,
+      "topLevelFailures": 1,
+      "result": "receipts/before/result.json"
+    },
+    "after": {
+      "exitCode": 0,
+      "testActionNodes": {
+        "pass": 94
+      },
+      "topLevelPasses": 38,
+      "topLevelFailures": 0,
+      "result": "receipts/after/result.json"
+    },
+    "related": {
+      "exitCode": 0,
+      "testActionNodes": {
+        "pass": 41
+      },
+      "topLevelPasses": 17,
+      "topLevelFailures": 0,
+      "result": "receipts/related/result.json"
+    }
+  },
+  "pending": [
+    "Desktop seams test with the staged seam and canonical documentation changes; these files were statically reviewed but not executed under the Go overlay.",
+    "Actual installed C054 interactive run including fresh Restart; no installed pass is claimed."
+  ],
+  "limits": [
+    "Typed process completion is not success, integration, container cleanup, capacity release, or provider/model quality.",
+    "No Docker calls, new runtime, repository edits, installed image build, or automatic cleanup claim.",
+    "The existing frontend first-mount-exited-to-Restart missing-generation edge is a separate observation, outside this patch."
+  ],
+  "counterexampleBodyMatchesFixedTest": true,
+  "patchAppliesCleanly": true
+}

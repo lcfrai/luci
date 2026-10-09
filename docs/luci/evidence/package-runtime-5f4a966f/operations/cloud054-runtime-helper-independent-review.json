@@ -1,0 +1,32 @@
+{
+  "at": "2026-10-09T13:54:48.090551+00:00",
+  "scope": "Narrow read-only source comparison; no tests/build/runtime launched; no file edits in helper or repository",
+  "sources": [
+    {
+      "path": "/workspace/.luci-tools/cloud054-runtime-helper/prepare-runtime.py",
+      "bytes": 33298,
+      "sha256": "85fccb3b256ee373f795b4a6c00e4b108610227545c3b889cf1fdec4d08171dc"
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud054-runtime-helper/original-cloud016.py",
+      "bytes": 28698,
+      "sha256": "5018084eca4e49bb6bb22d304a46a973390d6ec2b34af1ca5cb1dedec249636e"
+    }
+  ],
+  "findings": [],
+  "verifiedBySource": [
+    "Exact full lowercase source revision and clean checkout required before work, repeated before build and after build/export",
+    "Sandboxd input inventory and every byte compared to exact Git tree; snapshot bytes checked before compilation",
+    "Expected coder/websocket v1.8.15 pin and vendor metadata required",
+    "Explicit Unix Docker endpoint and expected engine; allowlisted isolated Docker client environment excludes inherited context/TLS/config; fresh private config",
+    "Existing333eff image and retained7caf archive identities explicitly pinned; additive tags only, old tags/pins/archive preserved",
+    "Original VFS copy/export headroom and monitor cancellation guards remain; cancellation explicitly not treated as daemon settlement",
+    "Streaming export enforces diffIDs/config and exact final layer file modes/ownership/content",
+    "Atomic receipt uses exclusive0600 temporary file, file fsync, replace and parent fsync"
+  ],
+  "limitations": [
+    "No installed build/export/runtime pass inferred",
+    "--window-granted is an operator coordination assertion, not a daemon-wide locking protocol",
+    "Review is supplemental to root source review and existing inert controls"
+  ]
+}

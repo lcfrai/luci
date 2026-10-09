@@ -1,0 +1,45 @@
+{
+  "scope": "Task-user Go standard build cache only; no source, module cache, package, evidence, state, fixture or product ledger mutation. No wholehost idle claim. Other agents coordinating read-only preparation only.",
+  "path": "/home/agent/.cache/go-build",
+  "beforeBytes": 6587498496,
+  "ownerUID": 1000,
+  "readmeSHA256": "a3262e677c9d569d3fa9da7a2255f4584dc7e81409952ce924e9073a1df48fc7",
+  "helperSHA256": "367e830ddc22977967114c251f6f9ba4d9106d4bbe93b7102166ab62aa3a4f17",
+  "command": [
+    "go",
+    "clean",
+    "-cache"
+  ],
+  "status": "passed",
+  "knownZombieCompilerIdentities": [
+    {
+      "pid": 42508,
+      "comm": "go",
+      "state": "Z",
+      "startTicks": "234650"
+    },
+    {
+      "pid": 371551,
+      "comm": "go",
+      "state": "Z",
+      "startTicks": "4085421"
+    },
+    {
+      "pid": 1074383,
+      "comm": "compile",
+      "state": "Z",
+      "startTicks": "18573724"
+    },
+    {
+      "pid": 1859760,
+      "comm": "compile",
+      "state": "Z",
+      "startTicks": "23223377"
+    }
+  ],
+  "priorPreflight": "Names-only compiler scan refused before cache mutation; subsequent exact stat confirmed four zombies. No processes signalled.",
+  "exitCode": 0,
+  "stdout": "",
+  "stderr": "",
+  "afterBytes": 6874865664
+}

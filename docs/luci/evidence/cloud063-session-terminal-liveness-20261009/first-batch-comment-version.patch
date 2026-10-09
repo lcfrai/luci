@@ -1,0 +1,14 @@
+--- first-batch/control-plane/internal/api/attach.go
++++ frozen-final/control-plane/internal/api/attach.go
+@@ -188,8 +188,9 @@
+ 	return true
+ }
+ 
+-// relayAttached owns everything after the upgrade. Its one job beyond copying
+-// bytes is to leave the world exactly as it found it.
++// relayAttached owns everything after the upgrade: byte transport, attachment
++// bookkeeping, and generation-bound process completion. It never destroys an
++// allocation or releases its execution reservation.
+ func (a *API) relayAttached(r *http.Request, log *slog.Logger, client *websocket.Conn, sess registry.Session) {
+ 	// 7. The upstream dial, AFTER the upgrade because §3.16 orders it so. The
+ 	//    reason is sandboxd's replay frame: a dial that succeeds and is then

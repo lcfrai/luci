@@ -1,0 +1,29 @@
+{
+  "observed": 7,
+  "busy": [],
+  "unknown": [
+    {
+      "pid": 203,
+      "startTicks": "1521",
+      "identityStable": true,
+      "reason": "observation-unavailable-or-changed",
+      "commandName": "dockerd"
+    },
+    {
+      "pid": 254,
+      "startTicks": "1534",
+      "identityStable": true,
+      "reason": "observation-unavailable-or-changed",
+      "commandName": "containerd"
+    },
+    {
+      "pid": 260700,
+      "startTicks": "2331192",
+      "identityStable": true,
+      "reason": "observation-unavailable-or-changed",
+      "commandName": "gpg-agent"
+    }
+  ],
+  "scope": "Readable exact executable/cwd/argv/maps/fd observations; no future-launch exclusion or universal daemon-operation proof",
+  "sourceSHA256": "9ba913d11cf08e0696b0d47c7da02687ccb0b09ef1aaf1aff185e1c12bc9a77c"
+}

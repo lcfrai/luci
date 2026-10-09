@@ -1,0 +1,233 @@
+{
+  "sourceCommit": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+  "workflowPassed": false,
+  "failedStage": "terminal-scenario",
+  "failedStep": "first-poll-release",
+  "driverResultSHA256": "d4a8892d6cf0065f7ed87cab9abb48ccc57429360726f4298a0d69eff993145e",
+  "wrapperResultSHA256": "7f1d84180c8f4021337f71d4c41e7125a5c3cffb78b6b631d43197bbc91ee73a",
+  "independentClosureSHA256": "4d798667d82a7e218ccfc7300336cacab5e40c9ac80080344de21354eb941914",
+  "observations": [
+    {
+      "phase": "typed-exit-before-poll",
+      "observedAt": "2026-10-09T13:59:04.295Z",
+      "browserSocketCount": 1,
+      "browserRows": [
+        {
+          "ordinal": 1,
+          "error": false,
+          "close": {
+            "code": 1000,
+            "wasClean": true
+          },
+          "exit": [
+            {
+              "kind": "exit-status",
+              "code": 0,
+              "sequence": 73
+            }
+          ],
+          "markers": {
+            "ready": {
+              "sequence": 68
+            },
+            "body": {
+              "sequence": 69
+            },
+            "first": {
+              "sequence": 72
+            }
+          },
+          "closeEvents": [
+            {
+              "sequence": 74,
+              "code": 1000,
+              "wasClean": true
+            }
+          ]
+        }
+      ],
+      "browserObserverFailureCount": 0,
+      "cdpSocketCount": 1,
+      "cdpCloseFrameCount": 0,
+      "ui": {
+        "labelEndsRunning": true,
+        "labelEndsExited": false,
+        "termPresent": true,
+        "restartCount": 0
+      }
+    },
+    {
+      "phase": "scenario-failure-observation",
+      "observedAt": "2026-10-09T13:59:24.410Z",
+      "browserSocketCount": 1,
+      "browserRows": [
+        {
+          "ordinal": 1,
+          "error": false,
+          "close": {
+            "code": 1000,
+            "wasClean": true
+          },
+          "exit": [
+            {
+              "kind": "exit-status",
+              "code": 0,
+              "sequence": 73
+            }
+          ],
+          "markers": {
+            "ready": {
+              "sequence": 68
+            },
+            "body": {
+              "sequence": 69
+            },
+            "first": {
+              "sequence": 72
+            }
+          },
+          "closeEvents": [
+            {
+              "sequence": 74,
+              "code": 1000,
+              "wasClean": true
+            }
+          ]
+        }
+      ],
+      "browserObserverFailureCount": 0,
+      "cdpSocketCount": 1,
+      "cdpCloseFrameCount": 0,
+      "ui": {
+        "labelEndsRunning": true,
+        "labelEndsExited": false,
+        "termPresent": true,
+        "restartCount": 0
+      }
+    }
+  ],
+  "cleanupKinds": [
+    "failed-scenario-supported-stop",
+    "failed-fixture-exact-removal"
+  ],
+  "exactHelperRemovalIsNotProductRelease": true,
+  "cleanupPhases": [
+    {
+      "name": "browser",
+      "status": "completed"
+    },
+    {
+      "name": "supported-session-stop",
+      "status": "completed"
+    },
+    {
+      "name": "controller",
+      "status": "completed"
+    },
+    {
+      "name": "private-controller-log",
+      "status": "completed"
+    },
+    {
+      "name": "exact-container-leftovers",
+      "status": "completed"
+    },
+    {
+      "name": "final-source-and-inventory",
+      "status": "completed"
+    }
+  ],
+  "wrapperExitCode": 1,
+  "wrapperSignalCount": 0,
+  "pendingMutationCount": 0,
+  "closure": {
+    "identities": [
+      {
+        "pid": 2441738,
+        "expectedStartTicks": "30037058",
+        "family": "launcher",
+        "now": {
+          "status": "absent"
+        }
+      },
+      {
+        "pid": 2441914,
+        "expectedStartTicks": "30037488",
+        "family": "controller",
+        "now": {
+          "status": "absent"
+        }
+      },
+      {
+        "pid": 2442543,
+        "expectedStartTicks": "30040649",
+        "family": "browser",
+        "now": {
+          "status": "absent"
+        }
+      },
+      {
+        "pid": 2442558,
+        "expectedStartTicks": "30040657",
+        "family": "browser",
+        "now": {
+          "status": "observed",
+          "startTicks": "30040657",
+          "state": "Z",
+          "parentPID": 1
+        }
+      },
+      {
+        "pid": 2442561,
+        "expectedStartTicks": "30040657",
+        "family": "browser",
+        "now": {
+          "status": "observed",
+          "startTicks": "30040657",
+          "state": "Z",
+          "parentPID": 1
+        }
+      }
+    ],
+    "knownLiveProcessCount": 0,
+    "knownZombieCount": 2,
+    "knownUnavailableProcessCount": 0,
+    "unreadableEnvironmentObservations": {
+      "wrapper": 397186,
+      "driver": 78176,
+      "freshEnvironmentCensusPerformed": false,
+      "wholeMachineClosureEstablished": false
+    },
+    "knownContainers": [
+      {
+        "id": "2899b54ff7bad02e5495e2f677a4c6a2767e3590f6042532663bd1691d66c843",
+        "status": "confirmed-absent-at-observation",
+        "exitCode": 1
+      }
+    ],
+    "containers": [],
+    "volumes": [],
+    "ledger": {
+      "sha256": "c0022f0995797c072d8097729ea90e74487bcefb911576c91e4af0665403a49e",
+      "bytes": 25,
+      "counts": {
+        "leases": 0,
+        "checks": 0,
+        "fences": 0,
+        "checkFences": 0
+      },
+      "matchesDriverFinal": true
+    },
+    "sameEngine": true,
+    "immutableImageVerified": {
+      "id": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+      "os": "linux",
+      "architecture": "amd64"
+    },
+    "originalFilesUnchanged": true,
+    "fixtureFilesUnchanged": true,
+    "sourceBindingsUnchanged": true
+  },
+  "scope": "Whitelisted fields from completed receipts only. No raw controller stderr, transport errors, frame payloads, environment values or fixture contents. First browser normal closure does not establish completed Restart or product-owned cleanup. CDP close-frame count is reported separately from browser CloseEvent evidence."
+}

@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "product": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "runRoot": "/workspace/.t/c60/c060-run-rwk78w7t",
+  "pid": 2439114,
+  "identity": {
+    "pid": 2439114,
+    "start": "29972217",
+    "group": 2439114,
+    "status": "R"
+  },
+  "buildReceiptSHA256": "dad96e00fcc9d8ca2e73aec93c73ee3c6114fef5e3751a6857ebac9d2fb1ef2e"
+}

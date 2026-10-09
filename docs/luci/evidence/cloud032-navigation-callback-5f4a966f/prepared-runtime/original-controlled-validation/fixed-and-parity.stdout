@@ -1,0 +1,17 @@
+✔ original no-marker response remains explicit baseline, same immediate predicate (7.400202ms)
+✔ fixed immediate match returns bounded timing/count allowlist, no values (2.77314ms)
+✔ value mismatch then match retains exact baseline reads/raf/mark sequence (4.077656ms)
+✔ disconnected sample preserves original short circuit and exact same element next frame (4.354322ms)
+✔ mixed failures retain exclusive reason counts with unchanged frame cadence (1.954506ms)
+✔ both variants reject with original10s timeout and no success marker/receipt (5.073266ms)
+✔ existing marker failure is preserved, never converted to a diagnostic success (9.310892ms)
+✔ closed receipt slot refuses late callback data without changing completed evidence (0.724542ms)
+✔ real interactionRunner preserves four-action round and12 switch marks with no added RPC (6.409029ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 201.878396

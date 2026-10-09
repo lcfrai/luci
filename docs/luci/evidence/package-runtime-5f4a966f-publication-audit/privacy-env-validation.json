@@ -1,0 +1,6 @@
+{
+  "entriesChecked": 114,
+  "allValuesMatchStaticVersionLocaleOrAbsolutePathPatterns": true,
+  "unexpectedLocations": [],
+  "scope": "Narrow Config.Env value-pattern check; no general secrets absence guarantee; no values printed."
+}

@@ -1,0 +1,11 @@
+# Matching Linux package and runtime checkpoint
+
+Clean source `5f4a966f6d70264c92ee2176dde912e1b43fc3c7` now has completed Linux package verification and a rebuilt/export-verified sandbox runtime with websocket1.8.15. The [bound receipt capsule](package-runtime-5f4a966f/README.md) keeps this build/export milestone separate from installed application acceptance.
+
+- Package:961 verified extracted files,347 licensed components, zero missing entries. Portable archive SHA256 `bc7d8b76b76d3c291c651c3f46423f75f7e63f31f49ddde59372fe6de97e6290`; service binary `5d1404766d21fe74eac4f87fc4ec2177b3bb3bca2bee0347afb21eaefb25adf1`. Binary archives remain publisher-held; this checkpoint does not create a download link.
+- Runtime: image `sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8`,106 current source inputs checked against the immutable commit, and actual exported layer/payload/config verification. This is a source-bound additive build on the preserved trusted base, with matching sandboxd bytes—not a full fresh base rebuild or an installed terminal pass.
+- Maintenance: exact old image/cache retirement, temporary Rust/PowerShell placement and full return, and two separately scoped recomputable Go-cache cleanups retain their original receipts. Failed fixtures and charged product leases are outside these operations. Earlier preflight/publication mistakes remain preserved and do not invalidate or replace the original run outcomes.
+
+The frozen capsule contains220 manifest members/221 checksums and211 exact original copies. The small-file audit passed664 consistency checks, including runtime inputs and exact preservation of all other public cache/image rows. Capsule publication SHA256 is `f7f5540a90f45998dca19f540548140aaaef794449371e92baab2536141e3cb9`; audit SHA256 is `619246ba6d89405effa4f5757d3e4b27c82f7df87c142071abc03daa74089d70`.
+
+Windows runtime, provider quality, complete interruption/restart/recovery workflows, sustained four-project resource use and the unchanged responsiveness gates remain open. Installed terminal observations belong to their separately bound run, including any failure. This is a build checkpoint within the local-first milestone, not `LOCAL TEST HANDOFF READY` or completed local acceptance.

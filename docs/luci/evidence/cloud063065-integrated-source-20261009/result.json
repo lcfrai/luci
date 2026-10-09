@@ -1,0 +1,39 @@
+{
+  "commands": [
+    {
+      "name": "frontend",
+      "command": [
+        "npm",
+        "exec",
+        "vitest",
+        "--",
+        "run",
+        "src/seams.test.ts",
+        "src/api/attachRegistry.exit.test.ts",
+        "src/components/develop/SessionPane.restartAttach.test.tsx",
+        "src/components/develop/sessionVerbs.test.ts",
+        "--maxWorkers=1",
+        "--no-file-parallelism",
+        "--reporter=json",
+        "--outputFile=/workspace/.luci-tools/integrated-terminal-c063-c065/frontend.json"
+      ],
+      "cwd": "/workspace/luci/desktop",
+      "exitCode": 0,
+      "seconds": 14.940845966339111
+    },
+    {
+      "name": "typecheck",
+      "command": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "cwd": "/workspace/luci/desktop",
+      "exitCode": 0,
+      "seconds": 26.67630910873413
+    }
+  ],
+  "inputCount": 587,
+  "inputsUnchanged": true,
+  "cosmeticDelta": "Three CLOUD-065 Entry initializer lines indented from 4 to 6 spaces; integration source hashes retained."
+}

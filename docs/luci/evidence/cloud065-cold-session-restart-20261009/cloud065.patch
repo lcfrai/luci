@@ -1,0 +1,383 @@
+--- a/desktop/src/api/attachRegistry.ts
++++ b/desktop/src/api/attachRegistry.ts
+@@ -107,6 +107,9 @@
+   /** Last known opaque allocation identity; omission cannot erase a terminal outcome. */
+   executionGeneration: string | null;
+   terminalExit: boolean;
++  acknowledgedRestartGeneration: string | null;
++  restartRequestVersion: number;
++  acknowledgedRestartRequestVersion: number;
+   permitted: boolean;
+   connectPermitted: boolean;
+   ws: WebSocket | null;
+@@ -172,6 +175,9 @@
+       readOnly: opts.readOnly,
+       executionGeneration: knownExecutionGeneration(session),
+       terminalExit: false,
++    acknowledgedRestartGeneration: null,
++    restartRequestVersion: 0,
++    acknowledgedRestartRequestVersion: 0,
+       permitted: opts.permitted ?? true,
+       connectPermitted: opts.connectPermitted ?? opts.permitted ?? true,
+       ws: null,
+@@ -264,14 +270,46 @@
+   });
+ }
+ 
++/** Capture the currently mounted cold-ended entry before a user Restart request.
++ * Only its successful response may identify the first replacement allocation: a
++ * late live poll alone cannot prove that an already-cleaned session was restarted.
++ * This records display continuity, not authority. A matching already-polled
++ * allocation may attach only while mounted and through the ordinary authority gates. */
++export function prepareAttachRestart(sessionId: SessionId): (restarted: Session) => void {
++  const entry = entries.get(sessionId);
++  if (!entry || entry.destroyed || entry.session.status !== "exited" ||
++      entry.executionGeneration !== null || entry.terminalExit || entry.everAttached) return () => {};
++  const original = entry.session;
++  const requestVersion = ++entry.restartRequestVersion;
++  return (restarted) => {
++    if (entries.get(sessionId) !== entry || entry.destroyed || entry.terminalExit || entry.everAttached ||
++        requestVersion <= entry.acknowledgedRestartRequestVersion ||
++        !sameSessionScope(original, restarted) || !sameSessionScope(entry.session, restarted) ||
++        restarted.status === "exited") return;
++    const generation = knownExecutionGeneration(restarted);
++    if (generation === null) return;
++    entry.acknowledgedRestartRequestVersion = requestVersion;
++    entry.acknowledgedRestartGeneration = generation;
++    // The store may deduplicate an identical response after a poll already saw
++    // this allocation. Consume the acknowledgement here only for its current,
++    // mounted live record; otherwise the normal component update consumes it.
++    if (entry.refs > 0 && entry.session.status !== "exited" && knownExecutionGeneration(entry.session) === generation) {
++      updateAttachSession(entry.session);
++    }
++  };
++}
++
+ export function updateAttachSession(session: Session): void {
+   const entry = entries.get(session.id);
+   if (!entry || !sameSessionScope(entry.session, session)) return;
+   const generation = knownExecutionGeneration(session);
+   const replacement = generation !== null && entry.executionGeneration !== null && generation !== entry.executionGeneration;
++  const acknowledgedColdRestart = generation !== null && generation === entry.acknowledgedRestartGeneration &&
++    !entry.terminalExit && !entry.everAttached && session.status !== "exited";
+   const wasExited = entry.session.status === "exited";
+   entry.session = session;
+-  if (replacement) {
++  if (replacement || acknowledgedColdRestart) {
++    entry.acknowledgedRestartGeneration = null;
+     clearRetry(entry);
+     entry.connectVersion += 1;
+     entry.opening = false;
+--- a/desktop/src/components/develop/SessionPane.tsx
++++ b/desktop/src/components/develop/SessionPane.tsx
+@@ -3,7 +3,7 @@
+ import { api } from "../../api";
+ import type { ApiError } from "../../api/client";
+ import { classify } from "../../api/problems";
+-import { useAttachState } from "../../api/attachRegistry";
++import { prepareAttachRestart, useAttachState } from "../../api/attachRegistry";
+ import { useHeartbeat } from "../../hooks/heartbeat";
+ import { useProjectAccess } from "../../hooks/useProjectAccess";
+ import { Terminal } from "../Terminal";
+@@ -31,8 +31,10 @@
+  *  was created in no longer resolves.", deliberately a 409 rather than a 404 because a 404
+  *  reads as "no such session" and sends the user after the wrong problem. */
+ async function restartSession(sessionId: SessionId): Promise<void> {
++  const acknowledgeRestart = prepareAttachRestart(sessionId);
+   try {
+     const session = await api.restartSession(sessionId);
++    acknowledgeRestart(session);
+     // Same id, so this UPDATES the record rather than adding one. The transcript stays and
+     // nothing is orphaned.
+     useCockpit.getState().upsertSession(session);
+--- a/desktop/src/components/develop/sessionVerbs.ts
++++ b/desktop/src/components/develop/sessionVerbs.ts
+@@ -11,7 +11,7 @@
+ // not work, which is worse than no button.
+ import { useSyncExternalStore } from "react";
+ import { api } from "../../api";
+-import { canReconnectEndedAttach, getAttachState, retryAttach } from "../../api/attachRegistry";
++import { canReconnectEndedAttach, getAttachState, prepareAttachRestart, retryAttach } from "../../api/attachRegistry";
+ import { ApiError } from "../../api/client";
+ import { classify } from "../../api/problems";
+ import { teamScopeGeneration } from "../../api/teamScope";
+@@ -533,7 +533,8 @@
+       // exit bar — `api.restartSession` keeps the session id, so the transcript and the record
+       // survive and nothing is orphaned. Not a create-with-copied-settings.
+       label: "Restart",
+-      run: act(() =>
++      run: act(() => {
++        const acknowledgeRestart = prepareAttachRestart(id);
+         runImmediate({
+           sessionId: id,
+           apply: () =>
+@@ -545,9 +546,13 @@
+                 exitReason: "",
+               }),
+           rollback: restoreSession(session),
+-          commit: () => api.restartSession(id),
+-        }),
+-      ),
++          commit: async () => {
++            const restarted = await api.restartSession(id);
++            acknowledgeRestart(restarted);
++            return restarted;
++          },
++        });
++      }),
+     },
+     {
+       id: "rename",
+--- a/desktop/src/components/develop/sessionVerbs.test.ts
++++ b/desktop/src/components/develop/sessionVerbs.test.ts
+@@ -58,6 +58,8 @@
+   }),
+   retryAttach: retryAttachMock,
+   canReconnectEndedAttach: reconnectEndedMock,
++  // Real cold-start acknowledgement/socket behavior is covered by SessionPane.restartAttach.test.tsx.
++  prepareAttachRestart: () => () => {},
+ }));
+ 
+ import {
+--- /dev/null
++++ b/desktop/src/components/develop/SessionPane.restartAttach.test.tsx
+@@ -0,0 +1,195 @@
++import { afterEach, beforeEach, expect, it, vi } from 'vitest';
++import { act, render, screen, waitFor } from '@testing-library/react';
++import userEvent from '@testing-library/user-event';
++import { SessionPane } from './SessionPane';
++import { FakeWebSocket } from '../../test/fakes';
++import { aSession } from '../../test/fixtures';
++import { resetCockpit, useCockpit } from '../../store/store';
++import { __resetAttachRegistry, configureAttachRegistry, getAttachState } from '../../api/attachRegistry';
++import { startPolling } from '../../api/poller';
++import { ApiError, type CockpitClient } from '../../api/client';
++import { __resetSessionVerbs, sessionVerbs } from './sessionVerbs';
++import type { Session } from '../../store/types';
++
++const mocks = vi.hoisted(() => ({ restart: vi.fn(), create: vi.fn() }));
++vi.mock('../../api', () => ({ api: { restartSession: mocks.restart, createSession: mocks.create } }));
++const access = vi.hoisted(() => ({ canExecute: true, canAssist: true, canEdit: true, loading: false, permissions: { secrets: true, admin: true }, message: '' }));
++vi.mock('../../hooks/useProjectAccess', () => ({ useProjectAccess: () => access }));
++vi.mock('../../hooks/useProjectDraft', () => ({ useProjectDraftScope: () => 'account:workspace' }));
++vi.mock('@xterm/xterm', async () => {
++  const { FakeTerm } = await import('../../test/fakes');
++  return { Terminal: class extends FakeTerm { options: Record<string, unknown>; constructor(options: Record<string, unknown>) { super(); this.options = options; } } };
++});
++vi.mock('@xterm/addon-fit', () => ({ FitAddon: class { fit() {} activate() {} dispose() {} } }));
++vi.mock('@xterm/xterm/css/xterm.css', () => ({}));
++
++beforeEach(() => {
++  resetCockpit(); __resetAttachRegistry(); __resetSessionVerbs(); FakeWebSocket.reset();
++  mocks.restart.mockReset(); mocks.create.mockReset();
++  access.canExecute = true; access.canAssist = true; access.loading = false;
++  configureFakeTransport();
++});
++function configureFakeTransport() {
++  configureAttachRegistry({ client: {
++    openAttach: (session: Session) => new FakeWebSocket(`ws://localhost${session.attachPath}`) as unknown as WebSocket,
++    getSession: async (id: string) => useCockpit.getState().sessions[id],
++  } });
++}
++let stopPoll: (() => void) | undefined;
++afterEach(() => { stopPoll?.(); stopPoll = undefined; __resetSessionVerbs(); __resetAttachRegistry(); });
++
++it('attaches once after actual Restart from a cold already-cleaned exited pane without an allocation baseline', async () => {
++  const exited = aSession({ id: 'cold-restart', harness: 'shell', status: 'exited', executionGeneration: undefined, exitReason: 'exit status 0', attachPath: '/v1/sessions/cold-restart/attach' });
++  const restarted: Session = { ...exited, status: 'running', exitReason: '', executionGeneration: 'b'.repeat(64) };
++  let finish!: (value: Session) => void;
++  mocks.restart.mockReturnValue(new Promise<Session>(resolve => { finish = resolve; }));
++  useCockpit.setState({ sessions: { [exited.id]: exited } });
++  render(<SessionPane sessionId={exited.id} variant="column" />);
++  expect(getAttachState(exited.id).phase).toBe('ended');
++  expect(FakeWebSocket.instances).toHaveLength(0);
++  let finishOldPoll!: (value: Session[]) => void;
++  stopPoll = startPolling({ listSessions: () => new Promise<Session[]>(resolve => { finishOldPoll = resolve; }) } as unknown as CockpitClient, useCockpit);
++  await userEvent.setup().click(screen.getByRole('button', { name: 'Restart' }));
++  expect(mocks.restart).toHaveBeenCalledExactlyOnceWith(exited.id);
++  expect(FakeWebSocket.instances).toHaveLength(0);
++  await act(async () => finish(restarted));
++  expect(useCockpit.getState().sessions[exited.id]).toEqual(restarted);
++  expect(screen.queryByRole('button', { name: 'Restart' })).toBeNull();
++  expect(mocks.create).not.toHaveBeenCalled();
++  await waitFor(() => expect(FakeWebSocket.instances).toHaveLength(1));
++  act(() => FakeWebSocket.last()!.acceptOpen());
++  expect(getAttachState(exited.id).phase).toBe('attached');
++  await act(async () => finishOldPoll([exited]));
++  expect(useCockpit.getState().sessions[exited.id]).toEqual(restarted);
++  expect(getAttachState(exited.id).phase).toBe('attached');
++  act(() => useCockpit.getState().upsertSession({ ...restarted }));
++  expect(FakeWebSocket.instances).toHaveLength(1);
++});
++
++
++function coldPane() {
++  const exited = aSession({ id: 'cold-restart', harness: 'shell', status: 'exited', executionGeneration: undefined, exitReason: 'exit status 0', attachPath: '/v1/sessions/cold-restart/attach' });
++  const restarted: Session = { ...exited, status: 'running', exitReason: '', executionGeneration: 'b'.repeat(64) };
++  let finish!: (value: Session) => void;
++  let reject!: (error: unknown) => void;
++  mocks.restart.mockReturnValue(new Promise<Session>((resolve, fail) => { finish = resolve; reject = fail; }));
++  useCockpit.setState({ sessions: { [exited.id]: exited } });
++  const view = render(<SessionPane sessionId={exited.id} variant="column" />);
++  return { exited, restarted, finish, reject, view };
++}
++
++it('waits for the actual menu Restart response rather than attaching its optimistic starting record', async () => {
++  const { exited, restarted, finish } = coldPane();
++  const menu = sessionVerbs(exited.id, { close: vi.fn(), beginRename: vi.fn(), createSession: mocks.create, access });
++  act(() => menu.find(item => item.id === 'restart')!.run!());
++  expect(useCockpit.getState().sessions[exited.id].status).toBe('starting');
++  expect(FakeWebSocket.instances).toHaveLength(0);
++  expect(mocks.restart).toHaveBeenCalledExactlyOnceWith(exited.id);
++  await act(async () => finish(restarted));
++  expect(FakeWebSocket.instances).toHaveLength(1);
++  act(() => FakeWebSocket.last()!.acceptOpen());
++  expect(getAttachState(exited.id).phase).toBe('attached');
++  expect(mocks.create).not.toHaveBeenCalled();
++});
++
++it('never attaches on an uncertain restart rejection or invents a successful outcome', async () => {
++  const { exited, reject } = coldPane();
++  await userEvent.setup().click(screen.getByRole('button', { name: 'Restart' }));
++  await act(async () => reject(new ApiError('internal', 'Restart response unavailable', 0)));
++  expect(FakeWebSocket.instances).toHaveLength(0);
++  expect(getAttachState(exited.id).phase).toBe('ended');
++  expect(useCockpit.getState().sessions[exited.id].status).toBe('exited');
++  expect(screen.getByRole('button', { name: 'Restart' })).not.toBeNull();
++  expect(mocks.restart).toHaveBeenCalledTimes(1);
++  expect(mocks.create).not.toHaveBeenCalled();
++});
++
++it('retains current attach authority while an acknowledged restart is received', async () => {
++  const { exited, restarted, finish, view } = coldPane();
++  await userEvent.setup().click(screen.getByRole('button', { name: 'Restart' }));
++  access.canExecute = false;
++  view.rerender(<SessionPane sessionId={exited.id} variant="tile" />);
++  await act(async () => finish(restarted));
++  expect(FakeWebSocket.instances).toHaveLength(0);
++  access.canExecute = true;
++  view.rerender(<SessionPane sessionId={exited.id} variant="column" />);
++  expect(FakeWebSocket.instances).toHaveLength(1);
++  act(() => FakeWebSocket.last()!.acceptOpen());
++  access.canExecute = false;
++  view.rerender(<SessionPane sessionId={exited.id} variant="tile" />);
++  expect(FakeWebSocket.last()!.closedWith).not.toBeNull();
++  expect(FakeWebSocket.instances).toHaveLength(1);
++});
++
++it.each(['unmount', 'shutdown', 'switch-project'] as const)('does not attach a pending restart response after %s; returning to its pane attaches exactly once', async (departure) => {
++  const { exited, restarted, finish, view } = coldPane();
++  await userEvent.setup().click(screen.getByRole('button', { name: 'Restart' }));
++  if (departure === 'switch-project') {
++    const other = aSession({ id: 'other-session', projectId: 'other-project', status: 'exited' });
++    act(() => useCockpit.getState().upsertSession(other));
++    view.rerender(<SessionPane sessionId={other.id} variant="column" />);
++  } else {
++    view.unmount();
++    if (departure === 'shutdown') { __resetAttachRegistry(); configureFakeTransport(); }
++  }
++  await act(async () => finish(restarted));
++  expect(FakeWebSocket.instances).toHaveLength(0);
++  if (departure === 'switch-project') view.rerender(<SessionPane sessionId={exited.id} variant="column" />);
++  else render(<SessionPane sessionId={exited.id} variant="column" />);
++  expect(FakeWebSocket.instances).toHaveLength(1);
++  act(() => FakeWebSocket.last()!.acceptOpen());
++  expect(getAttachState(exited.id).phase).toBe('attached');
++  expect(Object.keys(useCockpit.getState().sessions)).toContain(exited.id);
++  expect(mocks.restart).toHaveBeenCalledTimes(1);
++  expect(mocks.create).not.toHaveBeenCalled();
++});
++
++it.each([undefined, '', 'invalid-generation'])('does not infer allocation replacement from a missing/malformed restart fingerprint %j', async (executionGeneration) => {
++  const { exited, restarted, finish } = coldPane();
++  await userEvent.setup().click(screen.getByRole('button', { name: 'Restart' }));
++  await act(async () => finish({ ...restarted, executionGeneration }));
++  expect(FakeWebSocket.instances).toHaveLength(0);
++  expect(getAttachState(exited.id).phase).toBe('ended');
++  expect(mocks.restart).toHaveBeenCalledTimes(1);
++});
++
++
++it('a late old live list response before any Restart cannot attach a cold ended pane', async () => {
++  const { exited } = coldPane();
++  let finishList!: (value: Session[]) => void;
++  stopPoll = startPolling({ listSessions: () => new Promise<Session[]>(resolve => { finishList = resolve; }) } as unknown as CockpitClient, useCockpit);
++  await act(async () => finishList([{ ...exited, status: 'running', executionGeneration: 'a'.repeat(64), exitReason: '' }]));
++  expect(FakeWebSocket.instances).toHaveLength(0);
++  expect(getAttachState(exited.id).phase).toBe('ended');
++  expect(mocks.restart).not.toHaveBeenCalled();
++});
++
++it.each([['old', 'success'], ['old', 'uncertain'], ['new', 'success'], ['new', 'uncertain']] as const)('pending Restart plus %s live list fingerprint never attaches before its %s outcome', async (fingerprint, outcome) => {
++  const { exited, restarted, finish, reject } = coldPane();
++  await userEvent.setup().click(screen.getByRole('button', { name: 'Restart' }));
++  let finishList!: (value: Session[]) => void;
++  stopPoll = startPolling({ listSessions: () => new Promise<Session[]>(resolve => { finishList = resolve; }) } as unknown as CockpitClient, useCockpit);
++  await act(async () => finishList([{ ...exited, status: 'running', executionGeneration: (fingerprint === 'old' ? 'a' : 'b').repeat(64), exitReason: '' }]));
++  expect(FakeWebSocket.instances).toHaveLength(0);
++  expect(getAttachState(exited.id).phase).toBe('ended');
++  if (outcome === 'uncertain') {
++    await act(async () => reject(new ApiError('internal', 'Restart response unavailable', 0)));
++    expect(FakeWebSocket.instances).toHaveLength(0);
++    expect(getAttachState(exited.id).phase).toBe('ended');
++  } else {
++    await act(async () => finish(restarted));
++    expect(FakeWebSocket.instances).toHaveLength(1);
++    act(() => FakeWebSocket.last()!.acceptOpen());
++    expect(getAttachState(exited.id).phase).toBe('attached');
++  }
++  expect(mocks.restart).toHaveBeenCalledTimes(1);
++  expect(mocks.create).not.toHaveBeenCalled();
++});
++
++it('an acknowledgement belonging to a different project cannot reopen the original entry', async () => {
++  const { exited, restarted, finish } = coldPane();
++  await userEvent.setup().click(screen.getByRole('button', { name: 'Restart' }));
++  await act(async () => finish({ ...restarted, projectId: 'unrelated-project' }));
++  expect(FakeWebSocket.instances).toHaveLength(0);
++  expect(getAttachState(exited.id).phase).toBe('ended');
++});
+--- a/desktop/src/api/attachRegistry.exit.test.ts
++++ b/desktop/src/api/attachRegistry.exit.test.ts
+@@ -1,5 +1,5 @@
+ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+-import { __resetAttachRegistry, acquireAttach, configureAttachRegistry, FLUSH_INTERVAL_MS, getAttachState, GRACE_MS, releaseAttach, RETRY_BUDGET_MS, retryAttach, setAttachPermission, setAttachReadOnly, updateAttachSession } from './attachRegistry';
++import { __resetAttachRegistry, acquireAttach, configureAttachRegistry, FLUSH_INTERVAL_MS, getAttachState, GRACE_MS, releaseAttach, RETRY_BUDGET_MS, retryAttach, setAttachPermission, setAttachReadOnly, prepareAttachRestart, updateAttachSession } from './attachRegistry';
+ import { attachLabel } from '../components/develop/SessionPaneFooter';
+ import { FakeTerm, FakeWebSocket } from '../test/fakes';
+ import { aSession } from '../test/fixtures';
+@@ -232,3 +232,34 @@
+   });
+ 
+ });
++
++
++describe('acknowledged restart of an initially cleaned terminal', () => {
++  it('an older successful acknowledgement cannot replace the marker from a later acknowledged request', () => {
++    const exited = live({ status: 'exited', executionGeneration: undefined });
++    acquireAttach(exited, { createTerm: () => (term = new FakeTerm()), readOnly: true });
++    const acknowledgeOld = prepareAttachRestart(exited.id);
++    const acknowledgeNew = prepareAttachRestart(exited.id);
++    acknowledgeNew(live({ executionGeneration: 'c'.repeat(64) }));
++    acknowledgeOld(live({ executionGeneration: 'b'.repeat(64) }));
++    expect(openAttach).not.toHaveBeenCalled();
++    updateAttachSession(live({ executionGeneration: 'c'.repeat(64) }));
++    expect(openAttach).toHaveBeenCalledTimes(1);
++    acknowledgeNew(live({ executionGeneration: 'c'.repeat(64) }));
++    expect(openAttach).toHaveBeenCalledTimes(1);
++    FakeWebSocket.last()!.acceptOpen();
++    expect(getAttachState(exited.id).phase).toBe('attached');
++  });
++
++  it('a delayed acknowledgement cannot arm a replacement registry entry after teardown', () => {
++    const exited = live({ status: 'exited', executionGeneration: undefined });
++    acquireAttach(exited, { createTerm: () => (term = new FakeTerm()), readOnly: true });
++    const acknowledge = prepareAttachRestart(exited.id);
++    releaseAttach(exited.id); vi.advanceTimersByTime(GRACE_MS);
++    acquireAttach(exited, { createTerm: () => (term = new FakeTerm()), readOnly: true });
++    acknowledge(live({ executionGeneration: 'b'.repeat(64) }));
++    updateAttachSession(live({ executionGeneration: 'b'.repeat(64) }));
++    expect(openAttach).not.toHaveBeenCalled();
++    expect(getAttachState(exited.id).phase).toBe('ended');
++  });
++});

@@ -1,0 +1,3686 @@
+{
+  "rows": [
+    {
+      "ordinal": 0,
+      "traceCallID": "call@4912",
+      "kind": "all-projects",
+      "traceStartTime": 183764.512,
+      "traceEndTime": 183856.255,
+      "elapsedMs": 91.74300000001676,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 183765.004,
+          "offsetMs": 0.4919999999983702
+        },
+        {
+          "label": "locator-resolved",
+          "time": 183773.812,
+          "offsetMs": 9.300000000017462
+        },
+        {
+          "label": "attempt-click",
+          "time": 183782.435,
+          "offsetMs": 17.92300000000978
+        },
+        {
+          "label": "wait-actionability",
+          "time": 183782.521,
+          "offsetMs": 18.009000000020023
+        },
+        {
+          "label": "actionable",
+          "time": 183816.756,
+          "offsetMs": 52.244000000006054
+        },
+        {
+          "label": "scroll-start",
+          "time": 183816.83,
+          "offsetMs": 52.3179999999993
+        },
+        {
+          "label": "scroll-end",
+          "time": 183819.168,
+          "offsetMs": 54.65600000001723
+        },
+        {
+          "label": "perform-start",
+          "time": 183822.19,
+          "offsetMs": 57.678000000014435
+        },
+        {
+          "label": "perform-end",
+          "time": 183851.84,
+          "offsetMs": 87.32800000000861
+        },
+        {
+          "label": "navigation-wait",
+          "time": 183851.886,
+          "offsetMs": 87.37400000001071
+        },
+        {
+          "label": "navigation-end",
+          "time": 183856.151,
+          "offsetMs": 91.63900000002468
+        }
+      ],
+      "regionsMs": {
+        "lookup": 9.300000000017462,
+        "resolvedToAttempt": 8.622999999992317,
+        "actionability": 34.23499999998603,
+        "scroll": 2.338000000017928,
+        "scrollToPerform": 3.021999999997206,
+        "perform": 29.64999999999418,
+        "scheduledNavigation": 4.26500000001397,
+        "afterNavigationReturn": 0.10399999999208376
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 1,
+      "traceCallID": "call@4926",
+      "kind": "open-project",
+      "traceStartTime": 183887.558,
+      "traceEndTime": 183982.276,
+      "elapsedMs": 94.71800000002258,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 183887.679,
+          "offsetMs": 0.12100000001373701
+        },
+        {
+          "label": "locator-resolved",
+          "time": 183910.593,
+          "offsetMs": 23.035000000003492
+        },
+        {
+          "label": "attempt-click",
+          "time": 183916.265,
+          "offsetMs": 28.70700000002398
+        },
+        {
+          "label": "wait-actionability",
+          "time": 183916.303,
+          "offsetMs": 28.745000000024447
+        },
+        {
+          "label": "actionable",
+          "time": 183949.164,
+          "offsetMs": 61.60599999999977
+        },
+        {
+          "label": "scroll-start",
+          "time": 183949.195,
+          "offsetMs": 61.637000000017
+        },
+        {
+          "label": "scroll-end",
+          "time": 183950.833,
+          "offsetMs": 63.27500000002328
+        },
+        {
+          "label": "perform-start",
+          "time": 183957.845,
+          "offsetMs": 70.28700000001118
+        },
+        {
+          "label": "perform-end",
+          "time": 183980.194,
+          "offsetMs": 92.6359999999986
+        },
+        {
+          "label": "navigation-wait",
+          "time": 183980.201,
+          "offsetMs": 92.64300000001094
+        },
+        {
+          "label": "navigation-end",
+          "time": 183982.133,
+          "offsetMs": 94.57500000001164
+        }
+      ],
+      "regionsMs": {
+        "lookup": 23.035000000003492,
+        "resolvedToAttempt": 5.672000000020489,
+        "actionability": 32.86099999997532,
+        "scroll": 1.6380000000062864,
+        "scrollToPerform": 7.011999999987893,
+        "perform": 22.348999999987427,
+        "scheduledNavigation": 1.9320000000006985,
+        "afterNavigationReturn": 0.14300000001094304
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 2,
+      "traceCallID": "call@4962",
+      "kind": "design",
+      "traceStartTime": 184214.879,
+      "traceEndTime": 184272.373,
+      "elapsedMs": 57.494000000006054,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 184215.008,
+          "offsetMs": 0.12900000001536682
+        },
+        {
+          "label": "locator-resolved",
+          "time": 184220.41,
+          "offsetMs": 5.5310000000172295
+        },
+        {
+          "label": "attempt-click",
+          "time": 184221.411,
+          "offsetMs": 6.532000000006519
+        },
+        {
+          "label": "wait-actionability",
+          "time": 184221.442,
+          "offsetMs": 6.563000000023749
+        },
+        {
+          "label": "actionable",
+          "time": 184247.369,
+          "offsetMs": 32.49000000001979
+        },
+        {
+          "label": "scroll-start",
+          "time": 184247.409,
+          "offsetMs": 32.53000000002794
+        },
+        {
+          "label": "scroll-end",
+          "time": 184248.05,
+          "offsetMs": 33.171000000002095
+        },
+        {
+          "label": "perform-start",
+          "time": 184251.16,
+          "offsetMs": 36.28100000001723
+        },
+        {
+          "label": "perform-end",
+          "time": 184271.198,
+          "offsetMs": 56.319000000017695
+        },
+        {
+          "label": "navigation-wait",
+          "time": 184271.224,
+          "offsetMs": 56.345000000001164
+        },
+        {
+          "label": "navigation-end",
+          "time": 184272.124,
+          "offsetMs": 57.24500000002445
+        }
+      ],
+      "regionsMs": {
+        "lookup": 5.5310000000172295,
+        "resolvedToAttempt": 1.0009999999892898,
+        "actionability": 25.926999999996042,
+        "scroll": 0.6409999999741558,
+        "scrollToPerform": 3.110000000015134,
+        "perform": 20.038000000000466,
+        "scheduledNavigation": 0.9000000000232831,
+        "afterNavigationReturn": 0.24899999998160638
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 3,
+      "traceCallID": "call@4964",
+      "kind": "discard-edits",
+      "traceStartTime": 184273.552,
+      "traceEndTime": 184346.332,
+      "elapsedMs": 72.77999999999884,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 184273.659,
+          "offsetMs": 0.10700000001816079
+        },
+        {
+          "label": "locator-resolved",
+          "time": 184278.641,
+          "offsetMs": 5.089000000007218
+        },
+        {
+          "label": "attempt-click",
+          "time": 184280.186,
+          "offsetMs": 6.63399999999092
+        },
+        {
+          "label": "wait-actionability",
+          "time": 184280.212,
+          "offsetMs": 6.6600000000034925
+        },
+        {
+          "label": "actionable",
+          "time": 184315.049,
+          "offsetMs": 41.49700000000303
+        },
+        {
+          "label": "scroll-start",
+          "time": 184315.111,
+          "offsetMs": 41.55900000000838
+        },
+        {
+          "label": "scroll-end",
+          "time": 184315.708,
+          "offsetMs": 42.15600000001723
+        },
+        {
+          "label": "perform-start",
+          "time": 184319.029,
+          "offsetMs": 45.477000000013504
+        },
+        {
+          "label": "perform-end",
+          "time": 184344.428,
+          "offsetMs": 70.8760000000184
+        },
+        {
+          "label": "navigation-wait",
+          "time": 184344.439,
+          "offsetMs": 70.887000000017
+        },
+        {
+          "label": "navigation-end",
+          "time": 184346.229,
+          "offsetMs": 72.67699999999604
+        }
+      ],
+      "regionsMs": {
+        "lookup": 5.089000000007218,
+        "resolvedToAttempt": 1.5449999999837019,
+        "actionability": 34.836999999999534,
+        "scroll": 0.5970000000088476,
+        "scrollToPerform": 3.3209999999962747,
+        "perform": 25.39900000000489,
+        "scheduledNavigation": 1.7899999999790452,
+        "afterNavigationReturn": 0.10300000000279397
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 4,
+      "traceCallID": "call@4974",
+      "kind": "define",
+      "traceStartTime": 184346.834,
+      "traceEndTime": 184408.249,
+      "elapsedMs": 61.41500000000815,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 184347.015,
+          "offsetMs": 0.1810000000114087
+        },
+        {
+          "label": "locator-resolved",
+          "time": 184353.998,
+          "offsetMs": 7.1639999999897555
+        },
+        {
+          "label": "attempt-click",
+          "time": 184357.153,
+          "offsetMs": 10.318999999988591
+        },
+        {
+          "label": "wait-actionability",
+          "time": 184357.183,
+          "offsetMs": 10.348999999987427
+        },
+        {
+          "label": "actionable",
+          "time": 184383.066,
+          "offsetMs": 36.23199999998906
+        },
+        {
+          "label": "scroll-start",
+          "time": 184383.096,
+          "offsetMs": 36.26199999998789
+        },
+        {
+          "label": "scroll-end",
+          "time": 184384.698,
+          "offsetMs": 37.8640000000014
+        },
+        {
+          "label": "perform-start",
+          "time": 184387.759,
+          "offsetMs": 40.92499999998836
+        },
+        {
+          "label": "perform-end",
+          "time": 184403.471,
+          "offsetMs": 56.63699999998789
+        },
+        {
+          "label": "navigation-wait",
+          "time": 184403.478,
+          "offsetMs": 56.64400000000023
+        },
+        {
+          "label": "navigation-end",
+          "time": 184408.145,
+          "offsetMs": 61.31099999998696
+        }
+      ],
+      "regionsMs": {
+        "lookup": 7.1639999999897555,
+        "resolvedToAttempt": 3.154999999998836,
+        "actionability": 25.88300000000163,
+        "scroll": 1.6020000000135042,
+        "scrollToPerform": 3.0609999999869615,
+        "perform": 15.711999999999534,
+        "scheduledNavigation": 4.666999999986729,
+        "afterNavigationReturn": 0.10400000002118759
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 5,
+      "traceCallID": "call@4986",
+      "kind": "all-projects",
+      "traceStartTime": 184486.573,
+      "traceEndTime": 184538.394,
+      "elapsedMs": 51.820999999996275,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 184486.773,
+          "offsetMs": 0.1999999999825377
+        },
+        {
+          "label": "locator-resolved",
+          "time": 184491.966,
+          "offsetMs": 5.392999999981839
+        },
+        {
+          "label": "attempt-click",
+          "time": 184492.757,
+          "offsetMs": 6.184000000008382
+        },
+        {
+          "label": "wait-actionability",
+          "time": 184492.889,
+          "offsetMs": 6.315999999991618
+        },
+        {
+          "label": "actionable",
+          "time": 184514.136,
+          "offsetMs": 27.562999999994645
+        },
+        {
+          "label": "scroll-start",
+          "time": 184514.157,
+          "offsetMs": 27.58400000000256
+        },
+        {
+          "label": "scroll-end",
+          "time": 184514.987,
+          "offsetMs": 28.413999999989755
+        },
+        {
+          "label": "perform-start",
+          "time": 184517.299,
+          "offsetMs": 30.72599999999511
+        },
+        {
+          "label": "perform-end",
+          "time": 184536.083,
+          "offsetMs": 49.51000000000931
+        },
+        {
+          "label": "navigation-wait",
+          "time": 184536.092,
+          "offsetMs": 49.51900000000023
+        },
+        {
+          "label": "navigation-end",
+          "time": 184538.296,
+          "offsetMs": 51.72299999999814
+        }
+      ],
+      "regionsMs": {
+        "lookup": 5.392999999981839,
+        "resolvedToAttempt": 0.7910000000265427,
+        "actionability": 21.247000000003027,
+        "scroll": 0.8299999999871943,
+        "scrollToPerform": 2.312000000005355,
+        "perform": 18.784000000014203,
+        "scheduledNavigation": 2.2039999999979045,
+        "afterNavigationReturn": 0.09799999999813735
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 6,
+      "traceCallID": "call@5000",
+      "kind": "open-project",
+      "traceStartTime": 184547.561,
+      "traceEndTime": 184640.643,
+      "elapsedMs": 93.08200000002398,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 184547.704,
+          "offsetMs": 0.14300000001094304
+        },
+        {
+          "label": "locator-resolved",
+          "time": 184562.386,
+          "offsetMs": 14.825000000011642
+        },
+        {
+          "label": "attempt-click",
+          "time": 184566.703,
+          "offsetMs": 19.142000000021653
+        },
+        {
+          "label": "wait-actionability",
+          "time": 184566.737,
+          "offsetMs": 19.176000000006752
+        },
+        {
+          "label": "actionable",
+          "time": 184598.296,
+          "offsetMs": 50.735000000015134
+        },
+        {
+          "label": "scroll-start",
+          "time": 184598.321,
+          "offsetMs": 50.76000000000931
+        },
+        {
+          "label": "scroll-end",
+          "time": 184598.96,
+          "offsetMs": 51.39900000000489
+        },
+        {
+          "label": "perform-start",
+          "time": 184602.154,
+          "offsetMs": 54.593000000022585
+        },
+        {
+          "label": "perform-end",
+          "time": 184637.644,
+          "offsetMs": 90.08300000001327
+        },
+        {
+          "label": "navigation-wait",
+          "time": 184637.664,
+          "offsetMs": 90.1030000000028
+        },
+        {
+          "label": "navigation-end",
+          "time": 184640.375,
+          "offsetMs": 92.81400000001304
+        }
+      ],
+      "regionsMs": {
+        "lookup": 14.825000000011642,
+        "resolvedToAttempt": 4.317000000010012,
+        "actionability": 31.559000000008382,
+        "scroll": 0.6389999999955762,
+        "scrollToPerform": 3.194000000017695,
+        "perform": 35.48999999999069,
+        "scheduledNavigation": 2.7110000000102445,
+        "afterNavigationReturn": 0.26800000001094304
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 7,
+      "traceCallID": "call@5034",
+      "kind": "design",
+      "traceStartTime": 184831.664,
+      "traceEndTime": 184899.474,
+      "elapsedMs": 67.80999999999767,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 184831.769,
+          "offsetMs": 0.10500000001047738
+        },
+        {
+          "label": "locator-resolved",
+          "time": 184836.455,
+          "offsetMs": 4.790999999997439
+        },
+        {
+          "label": "attempt-click",
+          "time": 184837.292,
+          "offsetMs": 5.627999999996973
+        },
+        {
+          "label": "wait-actionability",
+          "time": 184837.31,
+          "offsetMs": 5.646000000007916
+        },
+        {
+          "label": "actionable",
+          "time": 184864.364,
+          "offsetMs": 32.70000000001164
+        },
+        {
+          "label": "scroll-start",
+          "time": 184864.389,
+          "offsetMs": 32.72500000000582
+        },
+        {
+          "label": "scroll-end",
+          "time": 184864.914,
+          "offsetMs": 33.25
+        },
+        {
+          "label": "perform-start",
+          "time": 184867.224,
+          "offsetMs": 35.55999999999767
+        },
+        {
+          "label": "perform-end",
+          "time": 184896.502,
+          "offsetMs": 64.83800000001793
+        },
+        {
+          "label": "navigation-wait",
+          "time": 184896.527,
+          "offsetMs": 64.86300000001211
+        },
+        {
+          "label": "navigation-end",
+          "time": 184899.351,
+          "offsetMs": 67.68700000000536
+        }
+      ],
+      "regionsMs": {
+        "lookup": 4.790999999997439,
+        "resolvedToAttempt": 0.8369999999995343,
+        "actionability": 27.054000000003725,
+        "scroll": 0.5249999999941792,
+        "scrollToPerform": 2.3099999999976717,
+        "perform": 29.278000000020256,
+        "scheduledNavigation": 2.823999999993248,
+        "afterNavigationReturn": 0.12299999999231659
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 8,
+      "traceCallID": "call@5036",
+      "kind": "discard-edits",
+      "traceStartTime": 184900.171,
+      "traceEndTime": 184978.796,
+      "elapsedMs": 78.625,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 184900.277,
+          "offsetMs": 0.10599999999976717
+        },
+        {
+          "label": "locator-resolved",
+          "time": 184904.536,
+          "offsetMs": 4.364999999990687
+        },
+        {
+          "label": "attempt-click",
+          "time": 184905.701,
+          "offsetMs": 5.529999999998836
+        },
+        {
+          "label": "wait-actionability",
+          "time": 184905.73,
+          "offsetMs": 5.559000000008382
+        },
+        {
+          "label": "actionable",
+          "time": 184935.208,
+          "offsetMs": 35.037000000011176
+        },
+        {
+          "label": "scroll-start",
+          "time": 184935.228,
+          "offsetMs": 35.0570000000007
+        },
+        {
+          "label": "scroll-end",
+          "time": 184936.367,
+          "offsetMs": 36.195999999996275
+        },
+        {
+          "label": "perform-start",
+          "time": 184944.375,
+          "offsetMs": 44.203999999997905
+        },
+        {
+          "label": "perform-end",
+          "time": 184978.24,
+          "offsetMs": 78.06899999998859
+        },
+        {
+          "label": "navigation-wait",
+          "time": 184978.251,
+          "offsetMs": 78.0799999999872
+        },
+        {
+          "label": "navigation-end",
+          "time": 184978.504,
+          "offsetMs": 78.33299999998417
+        }
+      ],
+      "regionsMs": {
+        "lookup": 4.364999999990687,
+        "resolvedToAttempt": 1.165000000008149,
+        "actionability": 29.478000000002794,
+        "scroll": 1.1389999999955762,
+        "scrollToPerform": 8.00800000000163,
+        "perform": 33.86499999999069,
+        "scheduledNavigation": 0.2529999999969732,
+        "afterNavigationReturn": 0.2920000000158325
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 9,
+      "traceCallID": "call@5046",
+      "kind": "define",
+      "traceStartTime": 184979.419,
+      "traceEndTime": 185059.456,
+      "elapsedMs": 80.03700000001118,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 184979.5,
+          "offsetMs": 0.08100000000558794
+        },
+        {
+          "label": "locator-resolved",
+          "time": 184986.532,
+          "offsetMs": 7.113000000012107
+        },
+        {
+          "label": "attempt-click",
+          "time": 184989.255,
+          "offsetMs": 9.836000000010245
+        },
+        {
+          "label": "wait-actionability",
+          "time": 184989.279,
+          "offsetMs": 9.860000000015134
+        },
+        {
+          "label": "actionable",
+          "time": 185030.99,
+          "offsetMs": 51.570999999996275
+        },
+        {
+          "label": "scroll-start",
+          "time": 185031.083,
+          "offsetMs": 51.66400000001886
+        },
+        {
+          "label": "scroll-end",
+          "time": 185032.07,
+          "offsetMs": 52.65100000001257
+        },
+        {
+          "label": "perform-start",
+          "time": 185034.413,
+          "offsetMs": 54.994000000006054
+        },
+        {
+          "label": "perform-end",
+          "time": 185057.177,
+          "offsetMs": 77.75800000000163
+        },
+        {
+          "label": "navigation-wait",
+          "time": 185057.195,
+          "offsetMs": 77.77600000001257
+        },
+        {
+          "label": "navigation-end",
+          "time": 185059.203,
+          "offsetMs": 79.7840000000142
+        }
+      ],
+      "regionsMs": {
+        "lookup": 7.113000000012107,
+        "resolvedToAttempt": 2.7229999999981374,
+        "actionability": 41.71099999998114,
+        "scroll": 0.9869999999937136,
+        "scrollToPerform": 2.3429999999934807,
+        "perform": 22.763999999995576,
+        "scheduledNavigation": 2.00800000000163,
+        "afterNavigationReturn": 0.2529999999969732
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 10,
+      "traceCallID": "call@5058",
+      "kind": "all-projects",
+      "traceStartTime": 185194.319,
+      "traceEndTime": 185409.706,
+      "elapsedMs": 215.387000000017,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 185194.557,
+          "offsetMs": 0.2380000000121072
+        },
+        {
+          "label": "locator-resolved",
+          "time": 185204.402,
+          "offsetMs": 10.083000000013271
+        },
+        {
+          "label": "attempt-click",
+          "time": 185205.745,
+          "offsetMs": 11.426000000006752
+        },
+        {
+          "label": "wait-actionability",
+          "time": 185205.808,
+          "offsetMs": 11.489000000001397
+        },
+        {
+          "label": "actionable",
+          "time": 185230.881,
+          "offsetMs": 36.562000000005355
+        },
+        {
+          "label": "scroll-start",
+          "time": 185230.905,
+          "offsetMs": 36.586000000010245
+        },
+        {
+          "label": "scroll-end",
+          "time": 185231.773,
+          "offsetMs": 37.453999999997905
+        },
+        {
+          "label": "perform-start",
+          "time": 185234.426,
+          "offsetMs": 40.10700000001816
+        },
+        {
+          "label": "perform-end",
+          "time": 185259.251,
+          "offsetMs": 64.9320000000007
+        },
+        {
+          "label": "navigation-wait",
+          "time": 185259.256,
+          "offsetMs": 64.93700000000536
+        },
+        {
+          "label": "navigation-end",
+          "time": 185409.528,
+          "offsetMs": 215.20900000000256
+        }
+      ],
+      "regionsMs": {
+        "lookup": 10.083000000013271,
+        "resolvedToAttempt": 1.3429999999934807,
+        "actionability": 25.073000000003958,
+        "scroll": 0.86799999998766,
+        "scrollToPerform": 2.6530000000202563,
+        "perform": 24.824999999982538,
+        "scheduledNavigation": 150.2719999999972,
+        "afterNavigationReturn": 0.1780000000144355
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 11,
+      "traceCallID": "call@5072",
+      "kind": "open-project",
+      "traceStartTime": 185425.875,
+      "traceEndTime": 185506.846,
+      "elapsedMs": 80.97099999999045,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 185426.073,
+          "offsetMs": 0.19800000000395812
+        },
+        {
+          "label": "locator-resolved",
+          "time": 185450.903,
+          "offsetMs": 25.027999999991152
+        },
+        {
+          "label": "attempt-click",
+          "time": 185452.513,
+          "offsetMs": 26.638000000006286
+        },
+        {
+          "label": "wait-actionability",
+          "time": 185452.542,
+          "offsetMs": 26.66699999998673
+        },
+        {
+          "label": "actionable",
+          "time": 185481.437,
+          "offsetMs": 55.562000000005355
+        },
+        {
+          "label": "scroll-start",
+          "time": 185481.459,
+          "offsetMs": 55.58400000000256
+        },
+        {
+          "label": "scroll-end",
+          "time": 185482.364,
+          "offsetMs": 56.4890000000014
+        },
+        {
+          "label": "perform-start",
+          "time": 185484.946,
+          "offsetMs": 59.070999999996275
+        },
+        {
+          "label": "perform-end",
+          "time": 185505.355,
+          "offsetMs": 79.48000000001048
+        },
+        {
+          "label": "navigation-wait",
+          "time": 185505.371,
+          "offsetMs": 79.49600000001374
+        },
+        {
+          "label": "navigation-end",
+          "time": 185506.741,
+          "offsetMs": 80.86600000000908
+        }
+      ],
+      "regionsMs": {
+        "lookup": 25.027999999991152,
+        "resolvedToAttempt": 1.610000000015134,
+        "actionability": 28.895000000018626,
+        "scroll": 0.9049999999988358,
+        "scrollToPerform": 2.5819999999948777,
+        "perform": 20.409000000014203,
+        "scheduledNavigation": 1.3699999999953434,
+        "afterNavigationReturn": 0.10499999998137355
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 12,
+      "traceCallID": "call@5106",
+      "kind": "design",
+      "traceStartTime": 185731.545,
+      "traceEndTime": 185787.701,
+      "elapsedMs": 56.155999999988126,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 185731.681,
+          "offsetMs": 0.13599999999860302
+        },
+        {
+          "label": "locator-resolved",
+          "time": 185736.181,
+          "offsetMs": 4.635999999998603
+        },
+        {
+          "label": "attempt-click",
+          "time": 185737.085,
+          "offsetMs": 5.539999999979045
+        },
+        {
+          "label": "wait-actionability",
+          "time": 185737.109,
+          "offsetMs": 5.563999999983935
+        },
+        {
+          "label": "actionable",
+          "time": 185764.164,
+          "offsetMs": 32.61899999997695
+        },
+        {
+          "label": "scroll-start",
+          "time": 185764.182,
+          "offsetMs": 32.63699999998789
+        },
+        {
+          "label": "scroll-end",
+          "time": 185764.69,
+          "offsetMs": 33.14499999998952
+        },
+        {
+          "label": "perform-start",
+          "time": 185768.156,
+          "offsetMs": 36.61099999997532
+        },
+        {
+          "label": "perform-end",
+          "time": 185786.449,
+          "offsetMs": 54.90399999998044
+        },
+        {
+          "label": "navigation-wait",
+          "time": 185786.471,
+          "offsetMs": 54.92599999997765
+        },
+        {
+          "label": "navigation-end",
+          "time": 185787.374,
+          "offsetMs": 55.828999999997905
+        }
+      ],
+      "regionsMs": {
+        "lookup": 4.635999999998603,
+        "resolvedToAttempt": 0.9039999999804422,
+        "actionability": 27.054999999993015,
+        "scroll": 0.5080000000016298,
+        "scrollToPerform": 3.4659999999857973,
+        "perform": 18.293000000005122,
+        "scheduledNavigation": 0.9030000000202563,
+        "afterNavigationReturn": 0.3269999999902211
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 13,
+      "traceCallID": "call@5108",
+      "kind": "discard-edits",
+      "traceStartTime": 185788.53,
+      "traceEndTime": 185841.751,
+      "elapsedMs": 53.220999999990454,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 185788.654,
+          "offsetMs": 0.12400000001071021
+        },
+        {
+          "label": "locator-resolved",
+          "time": 185793.273,
+          "offsetMs": 4.74299999998766
+        },
+        {
+          "label": "attempt-click",
+          "time": 185794.021,
+          "offsetMs": 5.49100000000908
+        },
+        {
+          "label": "wait-actionability",
+          "time": 185794.051,
+          "offsetMs": 5.521000000007916
+        },
+        {
+          "label": "actionable",
+          "time": 185814.129,
+          "offsetMs": 25.598999999987427
+        },
+        {
+          "label": "scroll-start",
+          "time": 185814.151,
+          "offsetMs": 25.621000000013737
+        },
+        {
+          "label": "scroll-end",
+          "time": 185814.748,
+          "offsetMs": 26.21799999999348
+        },
+        {
+          "label": "perform-start",
+          "time": 185817.082,
+          "offsetMs": 28.551999999996042
+        },
+        {
+          "label": "perform-end",
+          "time": 185841.136,
+          "offsetMs": 52.60599999999977
+        },
+        {
+          "label": "navigation-wait",
+          "time": 185841.141,
+          "offsetMs": 52.611000000004424
+        },
+        {
+          "label": "navigation-end",
+          "time": 185841.693,
+          "offsetMs": 53.163000000000466
+        }
+      ],
+      "regionsMs": {
+        "lookup": 4.74299999998766,
+        "resolvedToAttempt": 0.7480000000214204,
+        "actionability": 20.07799999997951,
+        "scroll": 0.5969999999797437,
+        "scrollToPerform": 2.334000000002561,
+        "perform": 24.054000000003725,
+        "scheduledNavigation": 0.5519999999960419,
+        "afterNavigationReturn": 0.05799999998998828
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 14,
+      "traceCallID": "call@5118",
+      "kind": "define",
+      "traceStartTime": 185842.129,
+      "traceEndTime": 186004.875,
+      "elapsedMs": 162.74600000001374,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 185842.216,
+          "offsetMs": 0.08699999999953434
+        },
+        {
+          "label": "locator-resolved",
+          "time": 185849.448,
+          "offsetMs": 7.319000000017695
+        },
+        {
+          "label": "attempt-click",
+          "time": 185851.933,
+          "offsetMs": 9.804000000003725
+        },
+        {
+          "label": "wait-actionability",
+          "time": 185851.963,
+          "offsetMs": 9.834000000002561
+        },
+        {
+          "label": "actionable",
+          "time": 185898.107,
+          "offsetMs": 55.978000000002794
+        },
+        {
+          "label": "scroll-start",
+          "time": 185898.148,
+          "offsetMs": 56.01900000000023
+        },
+        {
+          "label": "scroll-end",
+          "time": 185901.397,
+          "offsetMs": 59.26800000001094
+        },
+        {
+          "label": "perform-start",
+          "time": 185921.558,
+          "offsetMs": 79.42900000000373
+        },
+        {
+          "label": "perform-end",
+          "time": 185974.372,
+          "offsetMs": 132.24300000001676
+        },
+        {
+          "label": "navigation-wait",
+          "time": 185974.556,
+          "offsetMs": 132.42700000002515
+        },
+        {
+          "label": "navigation-end",
+          "time": 186004.113,
+          "offsetMs": 161.98400000002584
+        }
+      ],
+      "regionsMs": {
+        "lookup": 7.319000000017695,
+        "resolvedToAttempt": 2.48499999998603,
+        "actionability": 46.14400000000023,
+        "scroll": 3.24900000001071,
+        "scrollToPerform": 20.160999999992782,
+        "perform": 52.81400000001304,
+        "scheduledNavigation": 29.5570000000007,
+        "afterNavigationReturn": 0.7619999999878928
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 15,
+      "traceCallID": "call@5132",
+      "kind": "all-projects",
+      "traceStartTime": 186731.255,
+      "traceEndTime": 186855.814,
+      "elapsedMs": 124.55900000000838,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 186732.688,
+          "offsetMs": 1.4329999999899883
+        },
+        {
+          "label": "locator-resolved",
+          "time": 186746.338,
+          "offsetMs": 15.082999999984168
+        },
+        {
+          "label": "attempt-click",
+          "time": 186748.488,
+          "offsetMs": 17.23300000000745
+        },
+        {
+          "label": "wait-actionability",
+          "time": 186748.649,
+          "offsetMs": 17.394000000000233
+        },
+        {
+          "label": "actionable",
+          "time": 186782.481,
+          "offsetMs": 51.22599999999511
+        },
+        {
+          "label": "scroll-start",
+          "time": 186782.5,
+          "offsetMs": 51.24499999999534
+        },
+        {
+          "label": "scroll-end",
+          "time": 186786.823,
+          "offsetMs": 55.5679999999993
+        },
+        {
+          "label": "perform-start",
+          "time": 186791.346,
+          "offsetMs": 60.0909999999858
+        },
+        {
+          "label": "perform-end",
+          "time": 186846.3,
+          "offsetMs": 115.0449999999837
+        },
+        {
+          "label": "navigation-wait",
+          "time": 186846.314,
+          "offsetMs": 115.05900000000838
+        },
+        {
+          "label": "navigation-end",
+          "time": 186855.641,
+          "offsetMs": 124.3859999999986
+        }
+      ],
+      "regionsMs": {
+        "lookup": 15.082999999984168,
+        "resolvedToAttempt": 2.150000000023283,
+        "actionability": 33.83199999999488,
+        "scroll": 4.323000000003958,
+        "scrollToPerform": 4.522999999986496,
+        "perform": 54.953999999997905,
+        "scheduledNavigation": 9.326999999990221,
+        "afterNavigationReturn": 0.1730000000097789
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 16,
+      "traceCallID": "call@5146",
+      "kind": "open-project",
+      "traceStartTime": 186873.043,
+      "traceEndTime": 186989.439,
+      "elapsedMs": 116.39600000000792,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 186873.278,
+          "offsetMs": 0.23499999998603016
+        },
+        {
+          "label": "locator-resolved",
+          "time": 186895.256,
+          "offsetMs": 22.212999999988824
+        },
+        {
+          "label": "attempt-click",
+          "time": 186909.306,
+          "offsetMs": 36.263000000006286
+        },
+        {
+          "label": "wait-actionability",
+          "time": 186909.597,
+          "offsetMs": 36.554000000003725
+        },
+        {
+          "label": "actionable",
+          "time": 186930.909,
+          "offsetMs": 57.86600000000908
+        },
+        {
+          "label": "scroll-start",
+          "time": 186930.933,
+          "offsetMs": 57.889999999984866
+        },
+        {
+          "label": "scroll-end",
+          "time": 186937.142,
+          "offsetMs": 64.09899999998743
+        },
+        {
+          "label": "perform-start",
+          "time": 186944.066,
+          "offsetMs": 71.0229999999865
+        },
+        {
+          "label": "perform-end",
+          "time": 186978.442,
+          "offsetMs": 105.39900000000489
+        },
+        {
+          "label": "navigation-wait",
+          "time": 186978.446,
+          "offsetMs": 105.40299999999115
+        },
+        {
+          "label": "navigation-end",
+          "time": 186989.233,
+          "offsetMs": 116.19000000000233
+        }
+      ],
+      "regionsMs": {
+        "lookup": 22.212999999988824,
+        "resolvedToAttempt": 14.050000000017462,
+        "actionability": 21.312000000005355,
+        "scroll": 6.209000000002561,
+        "scrollToPerform": 6.923999999999069,
+        "perform": 34.376000000018394,
+        "scheduledNavigation": 10.787000000011176,
+        "afterNavigationReturn": 0.20600000000558794
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 17,
+      "traceCallID": "call@5180",
+      "kind": "design",
+      "traceStartTime": 187265.023,
+      "traceEndTime": 187335.542,
+      "elapsedMs": 70.51900000000023,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 187265.178,
+          "offsetMs": 0.15500000002793968
+        },
+        {
+          "label": "locator-resolved",
+          "time": 187269.639,
+          "offsetMs": 4.61600000000908
+        },
+        {
+          "label": "attempt-click",
+          "time": 187271.015,
+          "offsetMs": 5.992000000027474
+        },
+        {
+          "label": "wait-actionability",
+          "time": 187271.041,
+          "offsetMs": 6.018000000010943
+        },
+        {
+          "label": "actionable",
+          "time": 187299.361,
+          "offsetMs": 34.33800000001793
+        },
+        {
+          "label": "scroll-start",
+          "time": 187299.378,
+          "offsetMs": 34.35500000001048
+        },
+        {
+          "label": "scroll-end",
+          "time": 187299.88,
+          "offsetMs": 34.85700000001816
+        },
+        {
+          "label": "perform-start",
+          "time": 187302.914,
+          "offsetMs": 37.89100000000326
+        },
+        {
+          "label": "perform-end",
+          "time": 187333.315,
+          "offsetMs": 68.29200000001583
+        },
+        {
+          "label": "navigation-wait",
+          "time": 187333.334,
+          "offsetMs": 68.31100000001607
+        },
+        {
+          "label": "navigation-end",
+          "time": 187335.264,
+          "offsetMs": 70.24100000000908
+        }
+      ],
+      "regionsMs": {
+        "lookup": 4.61600000000908,
+        "resolvedToAttempt": 1.3760000000183936,
+        "actionability": 28.320000000006985,
+        "scroll": 0.5020000000076834,
+        "scrollToPerform": 3.033999999985099,
+        "perform": 30.401000000012573,
+        "scheduledNavigation": 1.929999999993015,
+        "afterNavigationReturn": 0.27799999999115244
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 18,
+      "traceCallID": "call@5182",
+      "kind": "discard-edits",
+      "traceStartTime": 187336.414,
+      "traceEndTime": 187415.038,
+      "elapsedMs": 78.62400000001071,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 187336.599,
+          "offsetMs": 0.1849999999976717
+        },
+        {
+          "label": "locator-resolved",
+          "time": 187346.759,
+          "offsetMs": 10.345000000001164
+        },
+        {
+          "label": "attempt-click",
+          "time": 187349.243,
+          "offsetMs": 12.828999999997905
+        },
+        {
+          "label": "wait-actionability",
+          "time": 187349.28,
+          "offsetMs": 12.86600000000908
+        },
+        {
+          "label": "actionable",
+          "time": 187381.673,
+          "offsetMs": 45.25900000002002
+        },
+        {
+          "label": "scroll-start",
+          "time": 187381.692,
+          "offsetMs": 45.278000000020256
+        },
+        {
+          "label": "scroll-end",
+          "time": 187382.629,
+          "offsetMs": 46.21499999999651
+        },
+        {
+          "label": "perform-start",
+          "time": 187385.5,
+          "offsetMs": 49.086000000010245
+        },
+        {
+          "label": "perform-end",
+          "time": 187411.234,
+          "offsetMs": 74.82000000000698
+        },
+        {
+          "label": "navigation-wait",
+          "time": 187411.242,
+          "offsetMs": 74.82800000000861
+        },
+        {
+          "label": "navigation-end",
+          "time": 187414.857,
+          "offsetMs": 78.4429999999993
+        }
+      ],
+      "regionsMs": {
+        "lookup": 10.345000000001164,
+        "resolvedToAttempt": 2.4839999999967404,
+        "actionability": 32.39300000001094,
+        "scroll": 0.9369999999762513,
+        "scrollToPerform": 2.871000000013737,
+        "perform": 25.73399999999674,
+        "scheduledNavigation": 3.6149999999906868,
+        "afterNavigationReturn": 0.1810000000114087
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 19,
+      "traceCallID": "call@5192",
+      "kind": "define",
+      "traceStartTime": 187418.155,
+      "traceEndTime": 187517.014,
+      "elapsedMs": 98.85899999999674,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 187418.295,
+          "offsetMs": 0.14000000001396984
+        },
+        {
+          "label": "locator-resolved",
+          "time": 187434.199,
+          "offsetMs": 16.043999999994412
+        },
+        {
+          "label": "attempt-click",
+          "time": 187436.197,
+          "offsetMs": 18.04199999998673
+        },
+        {
+          "label": "wait-actionability",
+          "time": 187436.238,
+          "offsetMs": 18.08300000001327
+        },
+        {
+          "label": "actionable",
+          "time": 187465.551,
+          "offsetMs": 47.396000000007916
+        },
+        {
+          "label": "scroll-start",
+          "time": 187465.57,
+          "offsetMs": 47.41500000000815
+        },
+        {
+          "label": "scroll-end",
+          "time": 187467.472,
+          "offsetMs": 49.31700000001001
+        },
+        {
+          "label": "perform-start",
+          "time": 187472.192,
+          "offsetMs": 54.037000000011176
+        },
+        {
+          "label": "perform-end",
+          "time": 187509.529,
+          "offsetMs": 91.37400000001071
+        },
+        {
+          "label": "navigation-wait",
+          "time": 187509.539,
+          "offsetMs": 91.38399999999092
+        },
+        {
+          "label": "navigation-end",
+          "time": 187516.712,
+          "offsetMs": 98.5570000000007
+        }
+      ],
+      "regionsMs": {
+        "lookup": 16.043999999994412,
+        "resolvedToAttempt": 1.9979999999923166,
+        "actionability": 29.312999999994645,
+        "scroll": 1.9020000000018626,
+        "scrollToPerform": 4.720000000001164,
+        "perform": 37.336999999999534,
+        "scheduledNavigation": 7.173000000009779,
+        "afterNavigationReturn": 0.3019999999960419
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 20,
+      "traceCallID": "call@5204",
+      "kind": "all-projects",
+      "traceStartTime": 187610.959,
+      "traceEndTime": 187694.904,
+      "elapsedMs": 83.94500000000698,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 187611.121,
+          "offsetMs": 0.16200000001117587
+        },
+        {
+          "label": "locator-resolved",
+          "time": 187618.523,
+          "offsetMs": 7.563999999983935
+        },
+        {
+          "label": "attempt-click",
+          "time": 187619.734,
+          "offsetMs": 8.77499999999418
+        },
+        {
+          "label": "wait-actionability",
+          "time": 187619.764,
+          "offsetMs": 8.804999999993015
+        },
+        {
+          "label": "actionable",
+          "time": 187649.544,
+          "offsetMs": 38.58499999999185
+        },
+        {
+          "label": "scroll-start",
+          "time": 187649.564,
+          "offsetMs": 38.60500000001048
+        },
+        {
+          "label": "scroll-end",
+          "time": 187650.852,
+          "offsetMs": 39.89300000001094
+        },
+        {
+          "label": "perform-start",
+          "time": 187654.491,
+          "offsetMs": 43.53200000000652
+        },
+        {
+          "label": "perform-end",
+          "time": 187690.947,
+          "offsetMs": 79.987999999983
+        },
+        {
+          "label": "navigation-wait",
+          "time": 187690.964,
+          "offsetMs": 80.00500000000466
+        },
+        {
+          "label": "navigation-end",
+          "time": 187694.663,
+          "offsetMs": 83.7039999999979
+        }
+      ],
+      "regionsMs": {
+        "lookup": 7.563999999983935,
+        "resolvedToAttempt": 1.2110000000102445,
+        "actionability": 29.779999999998836,
+        "scroll": 1.2880000000004657,
+        "scrollToPerform": 3.638999999995576,
+        "perform": 36.455999999976484,
+        "scheduledNavigation": 3.698999999993248,
+        "afterNavigationReturn": 0.2410000000090804
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 21,
+      "traceCallID": "call@5218",
+      "kind": "open-project",
+      "traceStartTime": 187712.146,
+      "traceEndTime": 187803.837,
+      "elapsedMs": 91.69099999999162,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 187712.392,
+          "offsetMs": 0.24599999998463318
+        },
+        {
+          "label": "locator-resolved",
+          "time": 187727.394,
+          "offsetMs": 15.247999999992317
+        },
+        {
+          "label": "attempt-click",
+          "time": 187728.862,
+          "offsetMs": 16.715999999985797
+        },
+        {
+          "label": "wait-actionability",
+          "time": 187728.889,
+          "offsetMs": 16.74299999998766
+        },
+        {
+          "label": "actionable",
+          "time": 187749.873,
+          "offsetMs": 37.7269999999844
+        },
+        {
+          "label": "scroll-start",
+          "time": 187749.936,
+          "offsetMs": 37.789999999979045
+        },
+        {
+          "label": "scroll-end",
+          "time": 187751.598,
+          "offsetMs": 39.45199999999022
+        },
+        {
+          "label": "perform-start",
+          "time": 187755.527,
+          "offsetMs": 43.380999999993946
+        },
+        {
+          "label": "perform-end",
+          "time": 187794.676,
+          "offsetMs": 82.52999999999884
+        },
+        {
+          "label": "navigation-wait",
+          "time": 187794.688,
+          "offsetMs": 82.54199999998673
+        },
+        {
+          "label": "navigation-end",
+          "time": 187803.647,
+          "offsetMs": 91.50099999998929
+        }
+      ],
+      "regionsMs": {
+        "lookup": 15.247999999992317,
+        "resolvedToAttempt": 1.4679999999934807,
+        "actionability": 20.98399999999674,
+        "scroll": 1.6620000000111759,
+        "scrollToPerform": 3.9290000000037253,
+        "perform": 39.14900000000489,
+        "scheduledNavigation": 8.959000000002561,
+        "afterNavigationReturn": 0.1900000000023283
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 22,
+      "traceCallID": "call@5254",
+      "kind": "design",
+      "traceStartTime": 188065.041,
+      "traceEndTime": 188120.629,
+      "elapsedMs": 55.587999999988824,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 188065.246,
+          "offsetMs": 0.20500000001629815
+        },
+        {
+          "label": "locator-resolved",
+          "time": 188070.089,
+          "offsetMs": 5.048000000009779
+        },
+        {
+          "label": "attempt-click",
+          "time": 188070.962,
+          "offsetMs": 5.9210000000020955
+        },
+        {
+          "label": "wait-actionability",
+          "time": 188070.986,
+          "offsetMs": 5.945000000006985
+        },
+        {
+          "label": "actionable",
+          "time": 188097.982,
+          "offsetMs": 32.94099999999162
+        },
+        {
+          "label": "scroll-start",
+          "time": 188097.999,
+          "offsetMs": 32.95800000001327
+        },
+        {
+          "label": "scroll-end",
+          "time": 188098.579,
+          "offsetMs": 33.538000000000466
+        },
+        {
+          "label": "perform-start",
+          "time": 188101.429,
+          "offsetMs": 36.388000000006286
+        },
+        {
+          "label": "perform-end",
+          "time": 188119.728,
+          "offsetMs": 54.687000000005355
+        },
+        {
+          "label": "navigation-wait",
+          "time": 188119.842,
+          "offsetMs": 54.80100000000675
+        },
+        {
+          "label": "navigation-end",
+          "time": 188120.403,
+          "offsetMs": 55.361999999993714
+        }
+      ],
+      "regionsMs": {
+        "lookup": 5.048000000009779,
+        "resolvedToAttempt": 0.8729999999923166,
+        "actionability": 26.995999999984633,
+        "scroll": 0.5799999999871943,
+        "scrollToPerform": 2.8500000000058208,
+        "perform": 18.29899999999907,
+        "scheduledNavigation": 0.5609999999869615,
+        "afterNavigationReturn": 0.22599999999511056
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 23,
+      "traceCallID": "call@5256",
+      "kind": "discard-edits",
+      "traceStartTime": 188121.758,
+      "traceEndTime": 188178.371,
+      "elapsedMs": 56.61300000001211,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 188121.918,
+          "offsetMs": 0.16000000000349246
+        },
+        {
+          "label": "locator-resolved",
+          "time": 188126.083,
+          "offsetMs": 4.3250000000116415
+        },
+        {
+          "label": "attempt-click",
+          "time": 188126.746,
+          "offsetMs": 4.988000000012107
+        },
+        {
+          "label": "wait-actionability",
+          "time": 188126.879,
+          "offsetMs": 5.120999999984633
+        },
+        {
+          "label": "actionable",
+          "time": 188148.616,
+          "offsetMs": 26.85800000000745
+        },
+        {
+          "label": "scroll-start",
+          "time": 188148.632,
+          "offsetMs": 26.87400000001071
+        },
+        {
+          "label": "scroll-end",
+          "time": 188149.244,
+          "offsetMs": 27.486000000004424
+        },
+        {
+          "label": "perform-start",
+          "time": 188151.337,
+          "offsetMs": 29.578999999997905
+        },
+        {
+          "label": "perform-end",
+          "time": 188175.077,
+          "offsetMs": 53.31899999998859
+        },
+        {
+          "label": "navigation-wait",
+          "time": 188175.082,
+          "offsetMs": 53.32399999999325
+        },
+        {
+          "label": "navigation-end",
+          "time": 188176.097,
+          "offsetMs": 54.33900000000722
+        }
+      ],
+      "regionsMs": {
+        "lookup": 4.3250000000116415,
+        "resolvedToAttempt": 0.6630000000004657,
+        "actionability": 21.737000000022817,
+        "scroll": 0.6119999999937136,
+        "scrollToPerform": 2.0929999999934807,
+        "perform": 23.739999999990687,
+        "scheduledNavigation": 1.0150000000139698,
+        "afterNavigationReturn": 2.2740000000048894
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 24,
+      "traceCallID": "call@5266",
+      "kind": "define",
+      "traceStartTime": 188179.296,
+      "traceEndTime": 188256.852,
+      "elapsedMs": 77.55600000001141,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 188179.408,
+          "offsetMs": 0.11199999999371357
+        },
+        {
+          "label": "locator-resolved",
+          "time": 188189.805,
+          "offsetMs": 10.50899999999092
+        },
+        {
+          "label": "attempt-click",
+          "time": 188194.892,
+          "offsetMs": 15.595999999990454
+        },
+        {
+          "label": "wait-actionability",
+          "time": 188194.923,
+          "offsetMs": 15.627000000007683
+        },
+        {
+          "label": "actionable",
+          "time": 188230.696,
+          "offsetMs": 51.39999999999418
+        },
+        {
+          "label": "scroll-start",
+          "time": 188230.717,
+          "offsetMs": 51.421000000002095
+        },
+        {
+          "label": "scroll-end",
+          "time": 188232.315,
+          "offsetMs": 53.01900000000023
+        },
+        {
+          "label": "perform-start",
+          "time": 188235.146,
+          "offsetMs": 55.85000000000582
+        },
+        {
+          "label": "perform-end",
+          "time": 188250.117,
+          "offsetMs": 70.82099999999627
+        },
+        {
+          "label": "navigation-wait",
+          "time": 188250.12,
+          "offsetMs": 70.82399999999325
+        },
+        {
+          "label": "navigation-end",
+          "time": 188256.615,
+          "offsetMs": 77.31899999998859
+        }
+      ],
+      "regionsMs": {
+        "lookup": 10.50899999999092,
+        "resolvedToAttempt": 5.086999999999534,
+        "actionability": 35.772999999986496,
+        "scroll": 1.5979999999981374,
+        "scrollToPerform": 2.831000000005588,
+        "perform": 14.970999999990454,
+        "scheduledNavigation": 6.494999999995343,
+        "afterNavigationReturn": 0.2370000000228174
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 25,
+      "traceCallID": "call@5278",
+      "kind": "all-projects",
+      "traceStartTime": 188341.295,
+      "traceEndTime": 188427.167,
+      "elapsedMs": 85.87199999997392,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 188341.565,
+          "offsetMs": 0.2699999999895226
+        },
+        {
+          "label": "locator-resolved",
+          "time": 188347.023,
+          "offsetMs": 5.72799999997369
+        },
+        {
+          "label": "attempt-click",
+          "time": 188347.721,
+          "offsetMs": 6.425999999977648
+        },
+        {
+          "label": "wait-actionability",
+          "time": 188347.744,
+          "offsetMs": 6.448999999993248
+        },
+        {
+          "label": "actionable",
+          "time": 188383.215,
+          "offsetMs": 41.9199999999837
+        },
+        {
+          "label": "scroll-start",
+          "time": 188383.287,
+          "offsetMs": 41.99199999999837
+        },
+        {
+          "label": "scroll-end",
+          "time": 188384.304,
+          "offsetMs": 43.00899999999092
+        },
+        {
+          "label": "perform-start",
+          "time": 188388.599,
+          "offsetMs": 47.30399999997462
+        },
+        {
+          "label": "perform-end",
+          "time": 188419.015,
+          "offsetMs": 77.72000000000116
+        },
+        {
+          "label": "navigation-wait",
+          "time": 188419.027,
+          "offsetMs": 77.73199999998906
+        },
+        {
+          "label": "navigation-end",
+          "time": 188426.89,
+          "offsetMs": 85.59500000000116
+        }
+      ],
+      "regionsMs": {
+        "lookup": 5.72799999997369,
+        "resolvedToAttempt": 0.6980000000039581,
+        "actionability": 35.470999999990454,
+        "scroll": 1.0169999999925494,
+        "scrollToPerform": 4.294999999983702,
+        "perform": 30.416000000026543,
+        "scheduledNavigation": 7.863000000012107,
+        "afterNavigationReturn": 0.2769999999727588
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 26,
+      "traceCallID": "call@5292",
+      "kind": "open-project",
+      "traceStartTime": 188439.304,
+      "traceEndTime": 189042.381,
+      "elapsedMs": 603.0769999999902,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 188439.482,
+          "offsetMs": 0.17799999998533167
+        },
+        {
+          "label": "locator-resolved",
+          "time": 188477.404,
+          "offsetMs": 38.10000000000582
+        },
+        {
+          "label": "attempt-click",
+          "time": 188482.355,
+          "offsetMs": 43.05100000000675
+        },
+        {
+          "label": "wait-actionability",
+          "time": 188482.533,
+          "offsetMs": 43.228999999992084
+        },
+        {
+          "label": "actionable",
+          "time": 188815.208,
+          "offsetMs": 375.90400000000955
+        },
+        {
+          "label": "scroll-start",
+          "time": 188816.82,
+          "offsetMs": 377.51600000000326
+        },
+        {
+          "label": "scroll-end",
+          "time": 188819.691,
+          "offsetMs": 380.3869999999879
+        },
+        {
+          "label": "perform-start",
+          "time": 188870.68,
+          "offsetMs": 431.3759999999893
+        },
+        {
+          "label": "perform-end",
+          "time": 189021.617,
+          "offsetMs": 582.3129999999946
+        },
+        {
+          "label": "navigation-wait",
+          "time": 189021.655,
+          "offsetMs": 582.3509999999951
+        },
+        {
+          "label": "navigation-end",
+          "time": 189041.896,
+          "offsetMs": 602.5920000000042
+        }
+      ],
+      "regionsMs": {
+        "lookup": 38.10000000000582,
+        "resolvedToAttempt": 4.951000000000931,
+        "actionability": 332.67500000001746,
+        "scroll": 2.870999999984633,
+        "scrollToPerform": 50.9890000000014,
+        "perform": 150.93700000000536,
+        "scheduledNavigation": 20.24100000000908,
+        "afterNavigationReturn": 0.48499999998603016
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 27,
+      "traceCallID": "call@5326",
+      "kind": "design",
+      "traceStartTime": 189372.485,
+      "traceEndTime": 189449.245,
+      "elapsedMs": 76.76000000000931,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 189372.712,
+          "offsetMs": 0.22700000001350418
+        },
+        {
+          "label": "locator-resolved",
+          "time": 189379.628,
+          "offsetMs": 7.143000000010943
+        },
+        {
+          "label": "attempt-click",
+          "time": 189381.329,
+          "offsetMs": 8.844000000011874
+        },
+        {
+          "label": "wait-actionability",
+          "time": 189381.36,
+          "offsetMs": 8.875
+        },
+        {
+          "label": "actionable",
+          "time": 189414.389,
+          "offsetMs": 41.904000000009546
+        },
+        {
+          "label": "scroll-start",
+          "time": 189414.492,
+          "offsetMs": 42.00700000001234
+        },
+        {
+          "label": "scroll-end",
+          "time": 189414.905,
+          "offsetMs": 42.420000000012806
+        },
+        {
+          "label": "perform-start",
+          "time": 189417.317,
+          "offsetMs": 44.83200000002398
+        },
+        {
+          "label": "perform-end",
+          "time": 189447.607,
+          "offsetMs": 75.12200000000303
+        },
+        {
+          "label": "navigation-wait",
+          "time": 189447.626,
+          "offsetMs": 75.14100000000326
+        },
+        {
+          "label": "navigation-end",
+          "time": 189449.116,
+          "offsetMs": 76.63100000002305
+        }
+      ],
+      "regionsMs": {
+        "lookup": 7.143000000010943,
+        "resolvedToAttempt": 1.7010000000009313,
+        "actionability": 33.029000000009546,
+        "scroll": 0.41300000000046566,
+        "scrollToPerform": 2.412000000011176,
+        "perform": 30.289999999979045,
+        "scheduledNavigation": 1.4900000000197906,
+        "afterNavigationReturn": 0.128999999986263
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 28,
+      "traceCallID": "call@5328",
+      "kind": "discard-edits",
+      "traceStartTime": 189450.828,
+      "traceEndTime": 189519.843,
+      "elapsedMs": 69.01499999998487,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 189451.074,
+          "offsetMs": 0.24599999998463318
+        },
+        {
+          "label": "locator-resolved",
+          "time": 189456.766,
+          "offsetMs": 5.937999999994645
+        },
+        {
+          "label": "attempt-click",
+          "time": 189457.916,
+          "offsetMs": 7.087999999988824
+        },
+        {
+          "label": "wait-actionability",
+          "time": 189457.945,
+          "offsetMs": 7.11699999999837
+        },
+        {
+          "label": "actionable",
+          "time": 189482.444,
+          "offsetMs": 31.615999999979977
+        },
+        {
+          "label": "scroll-start",
+          "time": 189482.462,
+          "offsetMs": 31.63399999999092
+        },
+        {
+          "label": "scroll-end",
+          "time": 189483.214,
+          "offsetMs": 32.3859999999986
+        },
+        {
+          "label": "perform-start",
+          "time": 189486.578,
+          "offsetMs": 35.75
+        },
+        {
+          "label": "perform-end",
+          "time": 189518.367,
+          "offsetMs": 67.53899999998976
+        },
+        {
+          "label": "navigation-wait",
+          "time": 189518.374,
+          "offsetMs": 67.5460000000021
+        },
+        {
+          "label": "navigation-end",
+          "time": 189519.686,
+          "offsetMs": 68.85799999997835
+        }
+      ],
+      "regionsMs": {
+        "lookup": 5.937999999994645,
+        "resolvedToAttempt": 1.1499999999941792,
+        "actionability": 24.498999999981606,
+        "scroll": 0.7520000000076834,
+        "scrollToPerform": 3.364000000001397,
+        "perform": 31.788999999989755,
+        "scheduledNavigation": 1.3119999999762513,
+        "afterNavigationReturn": 0.15700000000651926
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 29,
+      "traceCallID": "call@5338",
+      "kind": "define",
+      "traceStartTime": 189521.373,
+      "traceEndTime": 189605.665,
+      "elapsedMs": 84.29200000001583,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 189521.877,
+          "offsetMs": 0.5040000000153668
+        },
+        {
+          "label": "locator-resolved",
+          "time": 189532.255,
+          "offsetMs": 10.88200000001234
+        },
+        {
+          "label": "attempt-click",
+          "time": 189545.105,
+          "offsetMs": 23.73200000001816
+        },
+        {
+          "label": "wait-actionability",
+          "time": 189545.158,
+          "offsetMs": 23.785000000003492
+        },
+        {
+          "label": "actionable",
+          "time": 189565.953,
+          "offsetMs": 44.5800000000163
+        },
+        {
+          "label": "scroll-start",
+          "time": 189566.079,
+          "offsetMs": 44.70600000000559
+        },
+        {
+          "label": "scroll-end",
+          "time": 189567.1,
+          "offsetMs": 45.727000000013504
+        },
+        {
+          "label": "perform-start",
+          "time": 189573.955,
+          "offsetMs": 52.58199999999488
+        },
+        {
+          "label": "perform-end",
+          "time": 189603.582,
+          "offsetMs": 82.20900000000256
+        },
+        {
+          "label": "navigation-wait",
+          "time": 189603.844,
+          "offsetMs": 82.47100000001956
+        },
+        {
+          "label": "navigation-end",
+          "time": 189605.572,
+          "offsetMs": 84.19899999999325
+        }
+      ],
+      "regionsMs": {
+        "lookup": 10.88200000001234,
+        "resolvedToAttempt": 12.85000000000582,
+        "actionability": 20.795000000012806,
+        "scroll": 1.0210000000079162,
+        "scrollToPerform": 6.8549999999813735,
+        "perform": 29.627000000007683,
+        "scheduledNavigation": 1.7279999999736901,
+        "afterNavigationReturn": 0.09300000002258457
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 30,
+      "traceCallID": "call@5350",
+      "kind": "all-projects",
+      "traceStartTime": 189685.921,
+      "traceEndTime": 189779.19,
+      "elapsedMs": 93.26900000000023,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 189686.135,
+          "offsetMs": 0.21400000000721775
+        },
+        {
+          "label": "locator-resolved",
+          "time": 189708.813,
+          "offsetMs": 22.89199999999255
+        },
+        {
+          "label": "attempt-click",
+          "time": 189717.481,
+          "offsetMs": 31.55999999999767
+        },
+        {
+          "label": "wait-actionability",
+          "time": 189717.662,
+          "offsetMs": 31.74100000000908
+        },
+        {
+          "label": "actionable",
+          "time": 189747.379,
+          "offsetMs": 61.45799999998417
+        },
+        {
+          "label": "scroll-start",
+          "time": 189747.477,
+          "offsetMs": 61.55600000001141
+        },
+        {
+          "label": "scroll-end",
+          "time": 189748.445,
+          "offsetMs": 62.52400000000489
+        },
+        {
+          "label": "perform-start",
+          "time": 189753.454,
+          "offsetMs": 67.53299999999581
+        },
+        {
+          "label": "perform-end",
+          "time": 189776.94,
+          "offsetMs": 91.01900000000023
+        },
+        {
+          "label": "navigation-wait",
+          "time": 189776.95,
+          "offsetMs": 91.02900000000955
+        },
+        {
+          "label": "navigation-end",
+          "time": 189779.115,
+          "offsetMs": 93.19399999998859
+        }
+      ],
+      "regionsMs": {
+        "lookup": 22.89199999999255,
+        "resolvedToAttempt": 8.668000000005122,
+        "actionability": 29.716999999975087,
+        "scroll": 0.9679999999934807,
+        "scrollToPerform": 5.00899999999092,
+        "perform": 23.486000000004424,
+        "scheduledNavigation": 2.1649999999790452,
+        "afterNavigationReturn": 0.07500000001164153
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 31,
+      "traceCallID": "call@5364",
+      "kind": "open-project",
+      "traceStartTime": 189787.16,
+      "traceEndTime": 189864.21,
+      "elapsedMs": 77.04999999998836,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 189787.293,
+          "offsetMs": 0.13300000000162981
+        },
+        {
+          "label": "locator-resolved",
+          "time": 189806.331,
+          "offsetMs": 19.171000000002095
+        },
+        {
+          "label": "attempt-click",
+          "time": 189808.185,
+          "offsetMs": 21.02499999999418
+        },
+        {
+          "label": "wait-actionability",
+          "time": 189808.317,
+          "offsetMs": 21.15700000000652
+        },
+        {
+          "label": "actionable",
+          "time": 189831.439,
+          "offsetMs": 44.279000000009546
+        },
+        {
+          "label": "scroll-start",
+          "time": 189831.46,
+          "offsetMs": 44.29999999998836
+        },
+        {
+          "label": "scroll-end",
+          "time": 189832.019,
+          "offsetMs": 44.85899999999674
+        },
+        {
+          "label": "perform-start",
+          "time": 189834.589,
+          "offsetMs": 47.429000000003725
+        },
+        {
+          "label": "perform-end",
+          "time": 189861.687,
+          "offsetMs": 74.52700000000186
+        },
+        {
+          "label": "navigation-wait",
+          "time": 189861.869,
+          "offsetMs": 74.70900000000256
+        },
+        {
+          "label": "navigation-end",
+          "time": 189863.991,
+          "offsetMs": 76.83100000000559
+        }
+      ],
+      "regionsMs": {
+        "lookup": 19.171000000002095,
+        "resolvedToAttempt": 1.8539999999920838,
+        "actionability": 23.122000000003027,
+        "scroll": 0.5590000000083819,
+        "scrollToPerform": 2.570000000006985,
+        "perform": 27.097999999998137,
+        "scheduledNavigation": 2.122000000003027,
+        "afterNavigationReturn": 0.21899999998277053
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 32,
+      "traceCallID": "call@5400",
+      "kind": "design",
+      "traceStartTime": 190117.345,
+      "traceEndTime": 190178.503,
+      "elapsedMs": 61.15799999999581,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 190117.631,
+          "offsetMs": 0.28599999999278225
+        },
+        {
+          "label": "locator-resolved",
+          "time": 190124.544,
+          "offsetMs": 7.198999999993248
+        },
+        {
+          "label": "attempt-click",
+          "time": 190126.149,
+          "offsetMs": 8.804000000003725
+        },
+        {
+          "label": "wait-actionability",
+          "time": 190126.176,
+          "offsetMs": 8.831000000005588
+        },
+        {
+          "label": "actionable",
+          "time": 190149.218,
+          "offsetMs": 31.872999999992317
+        },
+        {
+          "label": "scroll-start",
+          "time": 190149.237,
+          "offsetMs": 31.89199999999255
+        },
+        {
+          "label": "scroll-end",
+          "time": 190149.662,
+          "offsetMs": 32.31700000001001
+        },
+        {
+          "label": "perform-start",
+          "time": 190152.526,
+          "offsetMs": 35.18100000001141
+        },
+        {
+          "label": "perform-end",
+          "time": 190176.43,
+          "offsetMs": 59.08499999999185
+        },
+        {
+          "label": "navigation-wait",
+          "time": 190176.447,
+          "offsetMs": 59.1019999999844
+        },
+        {
+          "label": "navigation-end",
+          "time": 190178.385,
+          "offsetMs": 61.04000000000815
+        }
+      ],
+      "regionsMs": {
+        "lookup": 7.198999999993248,
+        "resolvedToAttempt": 1.6050000000104774,
+        "actionability": 23.04199999998673,
+        "scroll": 0.4250000000174623,
+        "scrollToPerform": 2.864000000001397,
+        "perform": 23.903999999980442,
+        "scheduledNavigation": 1.9380000000237487,
+        "afterNavigationReturn": 0.11799999998765998
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 33,
+      "traceCallID": "call@5402",
+      "kind": "discard-edits",
+      "traceStartTime": 190179.245,
+      "traceEndTime": 190263.952,
+      "elapsedMs": 84.70699999999488,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 190179.372,
+          "offsetMs": 0.1270000000076834
+        },
+        {
+          "label": "locator-resolved",
+          "time": 190189.72,
+          "offsetMs": 10.47500000000582
+        },
+        {
+          "label": "attempt-click",
+          "time": 190190.729,
+          "offsetMs": 11.48399999999674
+        },
+        {
+          "label": "wait-actionability",
+          "time": 190190.756,
+          "offsetMs": 11.510999999998603
+        },
+        {
+          "label": "actionable",
+          "time": 190215.431,
+          "offsetMs": 36.186000000016065
+        },
+        {
+          "label": "scroll-start",
+          "time": 190215.455,
+          "offsetMs": 36.20999999999185
+        },
+        {
+          "label": "scroll-end",
+          "time": 190216.295,
+          "offsetMs": 37.05000000001746
+        },
+        {
+          "label": "perform-start",
+          "time": 190221.401,
+          "offsetMs": 42.15600000001723
+        },
+        {
+          "label": "perform-end",
+          "time": 190260.05,
+          "offsetMs": 80.80499999999302
+        },
+        {
+          "label": "navigation-wait",
+          "time": 190260.054,
+          "offsetMs": 80.80900000000838
+        },
+        {
+          "label": "navigation-end",
+          "time": 190263.738,
+          "offsetMs": 84.49300000001676
+        }
+      ],
+      "regionsMs": {
+        "lookup": 10.47500000000582,
+        "resolvedToAttempt": 1.0089999999909196,
+        "actionability": 24.675000000017462,
+        "scroll": 0.8400000000256114,
+        "scrollToPerform": 5.105999999999767,
+        "perform": 38.648999999975786,
+        "scheduledNavigation": 3.684000000008382,
+        "afterNavigationReturn": 0.21399999997811392
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 34,
+      "traceCallID": "call@5412",
+      "kind": "define",
+      "traceStartTime": 190266.594,
+      "traceEndTime": 190360.475,
+      "elapsedMs": 93.88099999999395,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 190266.842,
+          "offsetMs": 0.2479999999923166
+        },
+        {
+          "label": "locator-resolved",
+          "time": 190294.685,
+          "offsetMs": 28.090999999985797
+        },
+        {
+          "label": "attempt-click",
+          "time": 190303.351,
+          "offsetMs": 36.756999999983236
+        },
+        {
+          "label": "wait-actionability",
+          "time": 190303.396,
+          "offsetMs": 36.80199999999604
+        },
+        {
+          "label": "actionable",
+          "time": 190330.646,
+          "offsetMs": 64.05199999999604
+        },
+        {
+          "label": "scroll-start",
+          "time": 190330.666,
+          "offsetMs": 64.07199999998556
+        },
+        {
+          "label": "scroll-end",
+          "time": 190331.194,
+          "offsetMs": 64.59999999997672
+        },
+        {
+          "label": "perform-start",
+          "time": 190333.717,
+          "offsetMs": 67.12299999999232
+        },
+        {
+          "label": "perform-end",
+          "time": 190358.807,
+          "offsetMs": 92.21299999998882
+        },
+        {
+          "label": "navigation-wait",
+          "time": 190358.852,
+          "offsetMs": 92.25800000000163
+        },
+        {
+          "label": "navigation-end",
+          "time": 190360.408,
+          "offsetMs": 93.81399999998393
+        }
+      ],
+      "regionsMs": {
+        "lookup": 28.090999999985797,
+        "resolvedToAttempt": 8.665999999997439,
+        "actionability": 27.25,
+        "scroll": 0.5279999999911524,
+        "scrollToPerform": 2.5230000000155997,
+        "perform": 25.089999999996508,
+        "scheduledNavigation": 1.5559999999823049,
+        "afterNavigationReturn": 0.06700000001001172
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 35,
+      "traceCallID": "call@5424",
+      "kind": "all-projects",
+      "traceStartTime": 190450.331,
+      "traceEndTime": 190533.63,
+      "elapsedMs": 83.29899999999907,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 190450.53,
+          "offsetMs": 0.1989999999932479
+        },
+        {
+          "label": "locator-resolved",
+          "time": 190460.382,
+          "offsetMs": 10.051000000006752
+        },
+        {
+          "label": "attempt-click",
+          "time": 190461.727,
+          "offsetMs": 11.396000000007916
+        },
+        {
+          "label": "wait-actionability",
+          "time": 190461.761,
+          "offsetMs": 11.429999999993015
+        },
+        {
+          "label": "actionable",
+          "time": 190483.289,
+          "offsetMs": 32.95799999998417
+        },
+        {
+          "label": "scroll-start",
+          "time": 190483.31,
+          "offsetMs": 32.978999999992084
+        },
+        {
+          "label": "scroll-end",
+          "time": 190484.748,
+          "offsetMs": 34.41699999998673
+        },
+        {
+          "label": "perform-start",
+          "time": 190492.613,
+          "offsetMs": 42.28200000000652
+        },
+        {
+          "label": "perform-end",
+          "time": 190528.53,
+          "offsetMs": 78.19899999999325
+        },
+        {
+          "label": "navigation-wait",
+          "time": 190528.538,
+          "offsetMs": 78.20699999999488
+        },
+        {
+          "label": "navigation-end",
+          "time": 190533.039,
+          "offsetMs": 82.70799999998417
+        }
+      ],
+      "regionsMs": {
+        "lookup": 10.051000000006752,
+        "resolvedToAttempt": 1.3450000000011642,
+        "actionability": 21.527999999991152,
+        "scroll": 1.437999999994645,
+        "scrollToPerform": 7.865000000019791,
+        "perform": 35.91699999998673,
+        "scheduledNavigation": 4.50099999998929,
+        "afterNavigationReturn": 0.5910000000149012
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 36,
+      "traceCallID": "call@5438",
+      "kind": "open-project",
+      "traceStartTime": 190548.296,
+      "traceEndTime": 190660.277,
+      "elapsedMs": 111.98099999999977,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 190548.46,
+          "offsetMs": 0.16399999998975545
+        },
+        {
+          "label": "locator-resolved",
+          "time": 190569.852,
+          "offsetMs": 21.55600000001141
+        },
+        {
+          "label": "attempt-click",
+          "time": 190571.766,
+          "offsetMs": 23.470000000001164
+        },
+        {
+          "label": "wait-actionability",
+          "time": 190571.839,
+          "offsetMs": 23.543000000005122
+        },
+        {
+          "label": "actionable",
+          "time": 190601.153,
+          "offsetMs": 52.85699999998906
+        },
+        {
+          "label": "scroll-start",
+          "time": 190601.18,
+          "offsetMs": 52.88399999999092
+        },
+        {
+          "label": "scroll-end",
+          "time": 190602.523,
+          "offsetMs": 54.2269999999844
+        },
+        {
+          "label": "perform-start",
+          "time": 190610.7,
+          "offsetMs": 62.404000000009546
+        },
+        {
+          "label": "perform-end",
+          "time": 190654.958,
+          "offsetMs": 106.66200000001118
+        },
+        {
+          "label": "navigation-wait",
+          "time": 190654.968,
+          "offsetMs": 106.67199999999139
+        },
+        {
+          "label": "navigation-end",
+          "time": 190659.772,
+          "offsetMs": 111.47599999999511
+        }
+      ],
+      "regionsMs": {
+        "lookup": 21.55600000001141,
+        "resolvedToAttempt": 1.9139999999897555,
+        "actionability": 29.313999999983935,
+        "scroll": 1.3429999999934807,
+        "scrollToPerform": 8.177000000025146,
+        "perform": 44.25800000000163,
+        "scheduledNavigation": 4.804000000003725,
+        "afterNavigationReturn": 0.5050000000046566
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 37,
+      "traceCallID": "call@5472",
+      "kind": "design",
+      "traceStartTime": 191310.156,
+      "traceEndTime": 191397.584,
+      "elapsedMs": 87.42800000001444,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 191310.403,
+          "offsetMs": 0.2470000000030268
+        },
+        {
+          "label": "locator-resolved",
+          "time": 191318.212,
+          "offsetMs": 8.056000000011409
+        },
+        {
+          "label": "attempt-click",
+          "time": 191319.902,
+          "offsetMs": 9.746000000013737
+        },
+        {
+          "label": "wait-actionability",
+          "time": 191319.932,
+          "offsetMs": 9.776000000012573
+        },
+        {
+          "label": "actionable",
+          "time": 191349.007,
+          "offsetMs": 38.851000000024214
+        },
+        {
+          "label": "scroll-start",
+          "time": 191349.027,
+          "offsetMs": 38.87100000001374
+        },
+        {
+          "label": "scroll-end",
+          "time": 191350.597,
+          "offsetMs": 40.44100000002072
+        },
+        {
+          "label": "perform-start",
+          "time": 191355.265,
+          "offsetMs": 45.109000000025844
+        },
+        {
+          "label": "perform-end",
+          "time": 191394.908,
+          "offsetMs": 84.75200000000768
+        },
+        {
+          "label": "navigation-wait",
+          "time": 191394.989,
+          "offsetMs": 84.83300000001327
+        },
+        {
+          "label": "navigation-end",
+          "time": 191397.456,
+          "offsetMs": 87.30000000001746
+        }
+      ],
+      "regionsMs": {
+        "lookup": 8.056000000011409,
+        "resolvedToAttempt": 1.6900000000023283,
+        "actionability": 29.07500000001164,
+        "scroll": 1.570000000006985,
+        "scrollToPerform": 4.668000000005122,
+        "perform": 39.64299999998184,
+        "scheduledNavigation": 2.467000000004191,
+        "afterNavigationReturn": 0.1279999999969732
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 38,
+      "traceCallID": "call@5474",
+      "kind": "discard-edits",
+      "traceStartTime": 191399.019,
+      "traceEndTime": 191492.547,
+      "elapsedMs": 93.52799999999115,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 191399.462,
+          "offsetMs": 0.4429999999993015
+        },
+        {
+          "label": "locator-resolved",
+          "time": 191407.912,
+          "offsetMs": 8.893000000010943
+        },
+        {
+          "label": "attempt-click",
+          "time": 191409.641,
+          "offsetMs": 10.622000000003027
+        },
+        {
+          "label": "wait-actionability",
+          "time": 191409.736,
+          "offsetMs": 10.717000000004191
+        },
+        {
+          "label": "actionable",
+          "time": 191441.64,
+          "offsetMs": 42.62100000001374
+        },
+        {
+          "label": "scroll-start",
+          "time": 191441.662,
+          "offsetMs": 42.64300000001094
+        },
+        {
+          "label": "scroll-end",
+          "time": 191443.484,
+          "offsetMs": 44.46499999999651
+        },
+        {
+          "label": "perform-start",
+          "time": 191446.293,
+          "offsetMs": 47.27400000000489
+        },
+        {
+          "label": "perform-end",
+          "time": 191486.844,
+          "offsetMs": 87.82500000001164
+        },
+        {
+          "label": "navigation-wait",
+          "time": 191486.859,
+          "offsetMs": 87.83999999999651
+        },
+        {
+          "label": "navigation-end",
+          "time": 191492.485,
+          "offsetMs": 93.4659999999858
+        }
+      ],
+      "regionsMs": {
+        "lookup": 8.893000000010943,
+        "resolvedToAttempt": 1.7289999999920838,
+        "actionability": 31.904000000009546,
+        "scroll": 1.8219999999855645,
+        "scrollToPerform": 2.809000000008382,
+        "perform": 40.55100000000675,
+        "scheduledNavigation": 5.62599999998929,
+        "afterNavigationReturn": 0.062000000005355105
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    },
+    {
+      "ordinal": 39,
+      "traceCallID": "call@5484",
+      "kind": "define",
+      "traceStartTime": 191494.341,
+      "traceEndTime": 191594.414,
+      "elapsedMs": 100.07300000000396,
+      "marks": [
+        {
+          "label": "locator-wait",
+          "time": 191494.554,
+          "offsetMs": 0.21300000001792796
+        },
+        {
+          "label": "locator-resolved",
+          "time": 191506.964,
+          "offsetMs": 12.62300000002142
+        },
+        {
+          "label": "attempt-click",
+          "time": 191515.28,
+          "offsetMs": 20.93900000001304
+        },
+        {
+          "label": "wait-actionability",
+          "time": 191515.339,
+          "offsetMs": 20.99800000002142
+        },
+        {
+          "label": "actionable",
+          "time": 191557.031,
+          "offsetMs": 62.69000000000233
+        },
+        {
+          "label": "scroll-start",
+          "time": 191557.096,
+          "offsetMs": 62.75500000000466
+        },
+        {
+          "label": "scroll-end",
+          "time": 191560.512,
+          "offsetMs": 66.1710000000021
+        },
+        {
+          "label": "perform-start",
+          "time": 191568.275,
+          "offsetMs": 73.93400000000838
+        },
+        {
+          "label": "perform-end",
+          "time": 191590.327,
+          "offsetMs": 95.98600000000442
+        },
+        {
+          "label": "navigation-wait",
+          "time": 191590.333,
+          "offsetMs": 95.99200000002747
+        },
+        {
+          "label": "navigation-end",
+          "time": 191594.036,
+          "offsetMs": 99.69500000000698
+        }
+      ],
+      "regionsMs": {
+        "lookup": 12.62300000002142,
+        "resolvedToAttempt": 8.315999999991618,
+        "actionability": 41.69199999998091,
+        "scroll": 3.415999999997439,
+        "scrollToPerform": 7.763000000006286,
+        "perform": 22.051999999996042,
+        "scheduledNavigation": 3.702999999979511,
+        "afterNavigationReturn": 0.3779999999969732
+      },
+      "attempts": 1,
+      "actionabilityWaits": 1,
+      "errors": false
+    }
+  ],
+  "inputMetadata": [
+    {
+      "callOrdinal": 0,
+      "kind": "all-projects",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 39.89,
+        "y": 34
+      }
+    },
+    {
+      "callOrdinal": 1,
+      "kind": "open-project",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 421.25,
+        "y": 489.39
+      }
+    },
+    {
+      "callOrdinal": 2,
+      "kind": "design",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 316,
+        "y": 152
+      }
+    },
+    {
+      "callOrdinal": 3,
+      "kind": "discard-edits",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 665.75,
+        "y": 590.2
+      }
+    },
+    {
+      "callOrdinal": 4,
+      "kind": "define",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 316,
+        "y": 106
+      }
+    },
+    {
+      "callOrdinal": 5,
+      "kind": "all-projects",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 39.89,
+        "y": 34
+      }
+    },
+    {
+      "callOrdinal": 6,
+      "kind": "open-project",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 697.75,
+        "y": 489.39
+      }
+    },
+    {
+      "callOrdinal": 7,
+      "kind": "design",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 316,
+        "y": 152
+      }
+    },
+    {
+      "callOrdinal": 8,
+      "kind": "discard-edits",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 665.75,
+        "y": 590.2
+      }
+    },
+    {
+      "callOrdinal": 9,
+      "kind": "define",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 316,
+        "y": 106
+      }
+    },
+    {
+      "callOrdinal": 10,
+      "kind": "all-projects",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 39.89,
+        "y": 34
+      }
+    },
+    {
+      "callOrdinal": 11,
+      "kind": "open-project",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 974.25,
+        "y": 489.39
+      }
+    },
+    {
+      "callOrdinal": 12,
+      "kind": "design",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 316,
+        "y": 152
+      }
+    },
+    {
+      "callOrdinal": 13,
+      "kind": "discard-edits",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 665.75,
+        "y": 590.2
+      }
+    },
+    {
+      "callOrdinal": 14,
+      "kind": "define",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 316,
+        "y": 106
+      }
+    },
+    {
+      "callOrdinal": 15,
+      "kind": "all-projects",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 39.89,
+        "y": 34
+      }
+    },
+    {
+      "callOrdinal": 16,
+      "kind": "open-project",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 1250.75,
+        "y": 489.39
+      }
+    },
+    {
+      "callOrdinal": 17,
+      "kind": "design",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 316,
+        "y": 152
+      }
+    },
+    {
+      "callOrdinal": 18,
+      "kind": "discard-edits",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 665.75,
+        "y": 590.2
+      }
+    },
+    {
+      "callOrdinal": 19,
+      "kind": "define",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 316,
+        "y": 106
+      }
+    },
+    {
+      "callOrdinal": 20,
+      "kind": "all-projects",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 39.89,
+        "y": 34
+      }
+    },
+    {
+      "callOrdinal": 21,
+      "kind": "open-project",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 421.25,
+        "y": 489.39
+      }
+    },
+    {
+      "callOrdinal": 22,
+      "kind": "design",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 316,
+        "y": 152
+      }
+    },
+    {
+      "callOrdinal": 23,
+      "kind": "discard-edits",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 665.75,
+        "y": 590.2
+      }
+    },
+    {
+      "callOrdinal": 24,
+      "kind": "define",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 316,
+        "y": 106
+      }
+    },
+    {
+      "callOrdinal": 25,
+      "kind": "all-projects",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 39.89,
+        "y": 34
+      }
+    },
+    {
+      "callOrdinal": 26,
+      "kind": "open-project",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 697.75,
+        "y": 489.39
+      }
+    },
+    {
+      "callOrdinal": 27,
+      "kind": "design",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 316,
+        "y": 152
+      }
+    },
+    {
+      "callOrdinal": 28,
+      "kind": "discard-edits",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 665.75,
+        "y": 590.2
+      }
+    },
+    {
+      "callOrdinal": 29,
+      "kind": "define",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 316,
+        "y": 106
+      }
+    },
+    {
+      "callOrdinal": 30,
+      "kind": "all-projects",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 39.89,
+        "y": 34
+      }
+    },
+    {
+      "callOrdinal": 31,
+      "kind": "open-project",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 974.25,
+        "y": 489.39
+      }
+    },
+    {
+      "callOrdinal": 32,
+      "kind": "design",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 316,
+        "y": 152
+      }
+    },
+    {
+      "callOrdinal": 33,
+      "kind": "discard-edits",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 665.75,
+        "y": 590.2
+      }
+    },
+    {
+      "callOrdinal": 34,
+      "kind": "define",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 316,
+        "y": 106
+      }
+    },
+    {
+      "callOrdinal": 35,
+      "kind": "all-projects",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 39.89,
+        "y": 34
+      }
+    },
+    {
+      "callOrdinal": 36,
+      "kind": "open-project",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 1250.75,
+        "y": 489.39
+      }
+    },
+    {
+      "callOrdinal": 37,
+      "kind": "design",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 316,
+        "y": 152
+      }
+    },
+    {
+      "callOrdinal": 38,
+      "kind": "discard-edits",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 665.75,
+        "y": 590.2
+      }
+    },
+    {
+      "callOrdinal": 39,
+      "kind": "define",
+      "keys": [
+        "type",
+        "callId",
+        "point",
+        "box"
+      ],
+      "point": {
+        "x": 316,
+        "y": 106
+      }
+    }
+  ]
+}

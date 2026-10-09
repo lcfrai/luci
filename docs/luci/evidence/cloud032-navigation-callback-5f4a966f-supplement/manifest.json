@@ -1,0 +1,17 @@
+{
+  "scope": "Small companion to frozen analysis; deferred plan and complete upstream MIT grant for copied ui/button source. No change to frozen118-file capsule. Publish alongside it.",
+  "frozenAnalysisManifestSHA256": "e25b9e73bea4050d6f6f463ab8d8b7eaeda80ae1ce2674fcbe887be23bd8d0fd",
+  "payloadMembers": 2,
+  "files": [
+    {
+      "path": "NEXT-STEPS.md",
+      "bytes": 3756,
+      "sha256": "860e47e072499127c42631b9d2302643fc8acbf9d546d618c6e9e72ac250da8a"
+    },
+    {
+      "path": "shadcn-ui-LICENSE",
+      "bytes": 1063,
+      "sha256": "1564074e13439397221ffd522e2e504d56561994a23d371aa5e3ad43e4f5423f"
+    }
+  ]
+}

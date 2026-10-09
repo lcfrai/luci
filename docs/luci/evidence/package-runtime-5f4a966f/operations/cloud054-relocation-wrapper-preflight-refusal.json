@@ -1,0 +1,10 @@
+{
+  "stage": "wrapper-exact-source-pin",
+  "exitCode": 1,
+  "sourcePinExpected": "9ba913d11cf08e0696b0d47c7da02687ccb0b09ef1aaf1aff185e1c12bc9a77c",
+  "sourcePinObserved": "ff414e7be81a069bfb7a08eab0a73f826e4dc731596049324812dbfc70a1aa39",
+  "originalWrapperSHA256": "9c42f33fcbb998a8b2daa10768231491e18d21da2667258723247af9e8cd6f4b",
+  "cause": "Helper final busy-reference guard changed during preparation; root wrapper refused before coordination/create/copy",
+  "operationStarted": false,
+  "scope": "Tool-output receipt, raw refusal remains in conversation; not a filesystem failure"
+}

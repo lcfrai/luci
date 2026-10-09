@@ -1,0 +1,18 @@
+{
+  "at": "2026-10-09T13:46:21.253008+00:00",
+  "command": [
+    "/usr/local/bin/docker",
+    "--host",
+    "unix:///var/run/docker.sock",
+    "buildx",
+    "du",
+    "--filter",
+    "id=^jxury1xmsdvxr24fm76wfizm5$",
+    "--format",
+    "json"
+  ],
+  "exitCode": 0,
+  "stdoutSHA256": "c3aceb08e720423444a3587677aa21f59d5fa8ffc57bf3a5a4e1a03bfbdbb0c6",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "scope": "Read-only filter selection; no prune"
+}

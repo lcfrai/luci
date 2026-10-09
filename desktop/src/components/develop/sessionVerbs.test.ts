@@ -58,6 +58,8 @@ vi.mock("../../api/attachRegistry", () => ({
   }),
   retryAttach: retryAttachMock,
   canReconnectEndedAttach: reconnectEndedMock,
+  // Real cold-start acknowledgement/socket behavior is covered by SessionPane.restartAttach.test.tsx.
+  prepareAttachRestart: () => () => {},
 }));
 
 import {

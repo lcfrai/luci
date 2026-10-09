@@ -535,6 +535,8 @@ const SEAMS: Seam[] = [
     anchors: [
       { file: "control-plane/internal/proxy/proxy.go", present: /^func RelayHooked\(ctx context\.Context, client, upstream \*websocket\.Conn, h Hooks\) error \{$/m },
       { file: "control-plane/internal/proxy/proxy.go", absent: /^func Relay\(/m },
+      { file: "control-plane/internal/proxy/proxy.go", present: /OnUpstreamExit func\(\)/ },
+      { file: "control-plane/internal/proxy/proxy.go", present: /typ == websocket\.MessageBinary && len\(data\) > 0 && data\[0\] == 0x03/ },
       // Nor a wrapper under another name: a three-line relay beside RelayHooked is what Relay was.
       { file: "control-plane/internal/proxy/proxy.go", absent: /^func (?!RelayHooked\()\w*Relay\w*\(/m },
       { file: "control-plane/internal/api/attach.go", present: /\bproxy\.RelayHooked\(r\.Context\(\), client, upstream, / },
@@ -603,8 +605,9 @@ const SEAMS: Seam[] = [
       // And by what a relay moves: messages. One whose connections are typed by a local interface
       // (fix round 2's predicted survivor G-X1, which survived the rule above) names the message
       // type in that interface; one that wraps them as streams names websocket.NetConn and a
-      // message kind. No control-plane code names any of the four today: RelayHooked's loop infers
-      // its `typ`. Phase 8 writing its own frame with a named kind trips it, loudly.
+      // message kind. The sole relay recognizes MessageBinary for its payload-free
+      // upstream Exit notification. Other named message/stream APIs remain forbidden
+      // there; Phase 8 writing its own frame with a named kind still trips this guard.
       // And the relay that names neither: `httputil.NewSingleHostReverseProxy(pod).ServeHTTP(w, r)`
       // has no connection, no message and no local at all, and has forwarded a WebSocket upgrade
       // since Go 1.12 — the first thing a Phase 8 author reaching a pod over HTTP would write, and
@@ -619,6 +622,7 @@ const SEAMS: Seam[] = [
         // The authenticated management gateway routes a user to their isolated worker;
         // it does not interpret terminal frames or replace the worker's byte relay.
         except: [
+          "control-plane/internal/proxy/proxy.go",
           "control-plane/internal/product/workspace.go",
           "control-plane/internal/product/preview_proxy.go",
           "control-plane/internal/previewgateway/gateway.go",
@@ -628,6 +632,12 @@ const SEAMS: Seam[] = [
           "control-plane/internal/management/team_runtime.go",
           "control-plane/internal/management/sockets.go",
         ],
+      },
+      {
+        dir: "control-plane",
+        absent: /\b\w+\.(?:MessageType|MessageText|NetConn)\b|\bhttputil\.|\.Hijack\(/,
+        only: ["control-plane/internal/proxy/proxy.go"],
+        except: [],
       },
     ],
   },

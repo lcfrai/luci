@@ -1,0 +1,15 @@
+{
+  "at": "2026-10-09T13:45:14.475230+00:00",
+  "command": [
+    "/usr/local/bin/docker",
+    "--host",
+    "unix:///var/run/docker.sock",
+    "buildx",
+    "prune",
+    "--help"
+  ],
+  "exitCode": 0,
+  "stdoutSHA256": "375c8f524a2252384ab656ec19f5a7b4fa1c3a19fce8fd9d32b3ee6988ed7bf0",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "scope": "Read-only Docker observation/help; no prune or mutation"
+}

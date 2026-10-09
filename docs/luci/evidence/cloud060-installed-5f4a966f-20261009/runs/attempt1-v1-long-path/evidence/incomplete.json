@@ -1,0 +1,38 @@
+{
+  "passed": false,
+  "stage": "browser",
+  "failure": {
+    "name": "Error",
+    "code": null,
+    "messageSHA256": "7ed518dc0e6b300129a5e730249c1843a2450b984275cb493792549831f35b60",
+    "messageBytes": 5314
+  },
+  "known": [
+    {
+      "pid": 2438858,
+      "start": "29959600",
+      "group": 2438858,
+      "status": "S"
+    },
+    {
+      "pid": 2438924,
+      "start": "29959887",
+      "group": 2438924,
+      "status": "S"
+    }
+  ],
+  "startup": [
+    {
+      "name": "controller",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "name": "browser",
+      "state": "factory-failed",
+      "late": false,
+      "closeTimedOut": false
+    }
+  ]
+}

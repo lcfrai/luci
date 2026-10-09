@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "runRoot": "/workspace/.t/c60/c060-run-qrni203l",
+  "identities": [
+    {
+      "pid": 2449438,
+      "startTicks": "30080336",
+      "role": "controller"
+    },
+    {
+      "pid": 2449450,
+      "startTicks": "30080533",
+      "role": "controller"
+    },
+    {
+      "pid": 2449660,
+      "startTicks": "30081032",
+      "role": "controller"
+    },
+    {
+      "pid": 2449469,
+      "startTicks": "30080646",
+      "role": "browser"
+    },
+    {
+      "pid": 2449471,
+      "startTicks": "30080659",
+      "role": "browser"
+    },
+    {
+      "pid": 2449474,
+      "startTicks": "30080659",
+      "role": "browser"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { __resetAttachRegistry, acquireAttach, configureAttachRegistry, FLUSH_INTERVAL_MS, getAttachState, GRACE_MS, releaseAttach, RETRY_BUDGET_MS, retryAttach, setAttachPermission, setAttachReadOnly, updateAttachSession } from './attachRegistry';
+import { __resetAttachRegistry, acquireAttach, configureAttachRegistry, FLUSH_INTERVAL_MS, getAttachState, GRACE_MS, releaseAttach, RETRY_BUDGET_MS, retryAttach, setAttachPermission, setAttachReadOnly, prepareAttachRestart, updateAttachSession } from './attachRegistry';
 import { attachLabel } from '../components/develop/SessionPaneFooter';
 import { FakeTerm, FakeWebSocket } from '../test/fakes';
 import { aSession } from '../test/fixtures';
@@ -231,4 +231,35 @@ describe('typed terminal outcome survives transport closure', () => {
     expect(openAttach).toHaveBeenCalledTimes(1);
   });
 
+});
+
+
+describe('acknowledged restart of an initially cleaned terminal', () => {
+  it('an older successful acknowledgement cannot replace the marker from a later acknowledged request', () => {
+    const exited = live({ status: 'exited', executionGeneration: undefined });
+    acquireAttach(exited, { createTerm: () => (term = new FakeTerm()), readOnly: true });
+    const acknowledgeOld = prepareAttachRestart(exited.id);
+    const acknowledgeNew = prepareAttachRestart(exited.id);
+    acknowledgeNew(live({ executionGeneration: 'c'.repeat(64) }));
+    acknowledgeOld(live({ executionGeneration: 'b'.repeat(64) }));
+    expect(openAttach).not.toHaveBeenCalled();
+    updateAttachSession(live({ executionGeneration: 'c'.repeat(64) }));
+    expect(openAttach).toHaveBeenCalledTimes(1);
+    acknowledgeNew(live({ executionGeneration: 'c'.repeat(64) }));
+    expect(openAttach).toHaveBeenCalledTimes(1);
+    FakeWebSocket.last()!.acceptOpen();
+    expect(getAttachState(exited.id).phase).toBe('attached');
+  });
+
+  it('a delayed acknowledgement cannot arm a replacement registry entry after teardown', () => {
+    const exited = live({ status: 'exited', executionGeneration: undefined });
+    acquireAttach(exited, { createTerm: () => (term = new FakeTerm()), readOnly: true });
+    const acknowledge = prepareAttachRestart(exited.id);
+    releaseAttach(exited.id); vi.advanceTimersByTime(GRACE_MS);
+    acquireAttach(exited, { createTerm: () => (term = new FakeTerm()), readOnly: true });
+    acknowledge(live({ executionGeneration: 'b'.repeat(64) }));
+    updateAttachSession(live({ executionGeneration: 'b'.repeat(64) }));
+    expect(openAttach).not.toHaveBeenCalled();
+    expect(getAttachState(exited.id).phase).toBe('ended');
+  });
 });

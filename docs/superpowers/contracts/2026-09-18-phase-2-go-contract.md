@@ -2916,12 +2916,12 @@ of destroying another control plane's running agent; today it is left to its own
 `proxy.Relay` gains a hooked variant:
 
 ```go
-// Hooks observe the SIZES of relayed messages. They never receive payload bytes,
-// and there is no variant that does: docs/PROGRAM.md forbids deriving meaning
-// from agent output absolutely, and a hook holding a []byte is an invitation.
+// Hooks observe message sizes and the upstream terminal Exit discriminant.
+// They never receive payload bytes or derive meaning from agent output.
 type Hooks struct {
 	OnUpstream func(n int) // sandbox → desktop, i.e. the agent produced output
 	OnClient   func(n int) // desktop → sandbox, i.e. the user typed
+	OnUpstreamExit func()  // once, upstream binary Exit only; no payload or success claim
 }
 
 // RelayHooked is Relay with observation. Relay(ctx, c, u) is
@@ -2941,6 +2941,16 @@ closing paren rather than by `(*`, hold the three by-name exemptions to `proxy.g
 blind spot is an inferred-locals relay that also avoids those two). The same holds for
 `// proxy.Relay already takes *websocket.Conn.` in §2.2's block: `backend.go:9` now names
 `proxy.RelayHooked`.
+
+AMENDED by CLOUD-063 (2026-10-09): the upstream binary Exit discriminant also
+triggers one lifecycle-owned asynchronous registry observation. It compares the
+captured private allocation and project/worktree identity atomically, records
+`exited` with a static process-only reason, and clears stale attach credentials.
+Late old-generation events and duplicate observations are no-ops. Socket closure
+does not wait for the persistence write; handler teardown joins an accepted write.
+No terminal payload reaches the hook, and no sandbox removal, lease release, work
+success, or integration follows from this observation. Text/output lookalikes,
+client frames, overload and ordinary transport closure do not establish exit.
 
 The attach handler passes `OnUpstream` that records `time.Now()` into a local variable
 and, **at most once every two seconds**, flushes it to the registry via

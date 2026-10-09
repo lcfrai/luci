@@ -1,0 +1,12 @@
+{
+  "Replace": {
+    "/workspace/luci/control-plane/internal/api/attach.go": "/workspace/.luci-tools/cloud063-session-terminal-liveness/tree/control-plane/internal/api/attach.go",
+    "/workspace/luci/control-plane/internal/api/attach_terminal.go": "/workspace/.luci-tools/cloud063-session-terminal-liveness/tree/control-plane/internal/api/attach_terminal.go",
+    "/workspace/luci/control-plane/internal/api/attach_terminal_test.go": "/workspace/.luci-tools/cloud063-session-terminal-liveness/tree/control-plane/internal/api/attach_terminal_test.go",
+    "/workspace/luci/control-plane/internal/api/attach_test.go": "/workspace/.luci-tools/cloud063-session-terminal-liveness/tree/control-plane/internal/api/attach_test.go",
+    "/workspace/luci/control-plane/internal/proxy/close_ack_test.go": "/workspace/.luci-tools/cloud063-session-terminal-liveness/tree/control-plane/internal/proxy/close_ack_test.go",
+    "/workspace/luci/control-plane/internal/proxy/exit_hook_test.go": "/workspace/.luci-tools/cloud063-session-terminal-liveness/tree/control-plane/internal/proxy/exit_hook_test.go",
+    "/workspace/luci/control-plane/internal/proxy/proxy.go": "/workspace/.luci-tools/cloud063-session-terminal-liveness/tree/control-plane/internal/proxy/proxy.go",
+    "/workspace/luci/control-plane/internal/proxy/proxy_test.go": "/workspace/.luci-tools/cloud063-session-terminal-liveness/tree/control-plane/internal/proxy/proxy_test.go"
+  }
+}

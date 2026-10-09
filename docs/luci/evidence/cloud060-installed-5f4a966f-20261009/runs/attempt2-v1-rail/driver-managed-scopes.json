@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "runRoot": "/workspace/.t/c60/c060-run-rwk78w7t",
+  "product": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "scopes": [
+    {
+      "kind": "user",
+      "id": "user-jh3kcR0H7SfhKFsk9SvVrq",
+      "stateDir": "/workspace/.t/c60/c060-run-rwk78w7t/state/control-plane/users/user-jh3kcR0H7SfhKFsk9SvVrq/runtime/state"
+    },
+    {
+      "kind": "user",
+      "id": "user-GWKhOwTOBtPkrHqLfY5LfS",
+      "stateDir": "/workspace/.t/c60/c060-run-rwk78w7t/state/control-plane/users/user-GWKhOwTOBtPkrHqLfY5LfS/runtime/state"
+    },
+    {
+      "kind": "team",
+      "id": "team-RIQU6Sbq-1nwQT9yOrp3k7",
+      "stateDir": "/workspace/.t/c60/c060-run-rwk78w7t/state/control-plane/teams/team-RIQU6Sbq-1nwQT9yOrp3k7/runtime/state"
+    }
+  ]
+}

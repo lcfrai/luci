@@ -1,0 +1,15 @@
+{
+  "cache": "/tmp/luci-go-build-cache",
+  "command": [
+    "go",
+    "clean",
+    "-cache"
+  ],
+  "exitCode": 0,
+  "startedAtUnix": 1791553421.8203316,
+  "endedAtUnix": 1791553422.4666698,
+  "tmpFreeBefore": 1025478656,
+  "tmpFreeAfter": 3940151296,
+  "noReadableActiveGoCompilerObserved": true,
+  "scope": "Recomputable task cache only after coordinated compiler completion; module cache, tools, archives, packages and failed fixtures preserved. Process-name scan is not universal inactivity proof; not a product performance improvement."
+}

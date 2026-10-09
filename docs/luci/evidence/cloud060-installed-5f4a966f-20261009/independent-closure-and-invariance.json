@@ -1,0 +1,158 @@
+{
+  "at": "2026-10-09T14:29:54.675361+00:00",
+  "scope": "Independent read-only observation after actual V4 run; original five fixture byte invariance during this audit, not before/after workload identity",
+  "product": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "originalSupervisorSHA256": "baacb0a9e260dd604ecb2f903e2d0cb44eced292bf453e499cfced7b7dddb5d6",
+  "known": [
+    {
+      "expected": {
+        "firstObservedAt": "2026-10-09T14:26:28.626+00:00",
+        "origin": "direct-child",
+        "pid": 2461087,
+        "role": "driver",
+        "startTicks": 30205786
+      },
+      "current": {
+        "pid": 2461087,
+        "status": "absent"
+      }
+    },
+    {
+      "expected": {
+        "firstObservedAt": "2026-10-09T14:26:30.875+00:00",
+        "origin": "driver-owned-identities",
+        "pid": 2461095,
+        "role": "controller",
+        "startTicks": 30205866
+      },
+      "current": {
+        "pid": 2461095,
+        "status": "absent"
+      }
+    },
+    {
+      "expected": {
+        "firstObservedAt": "2026-10-09T14:26:31.124+00:00",
+        "origin": "exact-managed-scope",
+        "pid": 2461108,
+        "role": "managed-team-runtime",
+        "startTicks": 30206001
+      },
+      "current": {
+        "pid": 2461108,
+        "status": "absent"
+      }
+    },
+    {
+      "expected": {
+        "firstObservedAt": "2026-10-09T14:26:33.128+00:00",
+        "origin": "driver-owned-identities",
+        "pid": 2461127,
+        "role": "browser",
+        "startTicks": 30206127
+      },
+      "current": {
+        "pid": 2461127,
+        "status": "absent"
+      }
+    },
+    {
+      "expected": {
+        "firstObservedAt": "2026-10-09T14:26:33.129+00:00",
+        "origin": "driver-owned-identities",
+        "pid": 2461129,
+        "role": "browser",
+        "startTicks": 30206139
+      },
+      "current": {
+        "pid": 2461129,
+        "startTicks": "30206139",
+        "state": "Z",
+        "parentPid": 1,
+        "status": "same"
+      }
+    },
+    {
+      "expected": {
+        "firstObservedAt": "2026-10-09T14:26:33.131+00:00",
+        "origin": "driver-owned-identities",
+        "pid": 2461132,
+        "role": "browser",
+        "startTicks": 30206139
+      },
+      "current": {
+        "pid": 2461132,
+        "startTicks": "30206139",
+        "state": "Z",
+        "parentPid": 1,
+        "status": "same"
+      }
+    },
+    {
+      "expected": {
+        "firstObservedAt": "2026-10-09T14:26:37.782+00:00",
+        "origin": "driver-owned-identities",
+        "pid": 2461236,
+        "role": "controller",
+        "startTicks": 30206542
+      },
+      "current": {
+        "pid": 2461236,
+        "status": "absent"
+      }
+    }
+  ],
+  "dockerReadOnly": [
+    {
+      "argv": [
+        "docker",
+        "info",
+        "--format",
+        "{{.ID}}"
+      ],
+      "exitCode": 0,
+      "stdoutSHA256": "333d407c8c1c1009557aac00cebe68a7deee7e65bdff6df8d4f62fd4b2c25001",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "daemonIdentity": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259"
+    },
+    {
+      "argv": [
+        "docker",
+        "ps",
+        "-aq",
+        "--no-trunc"
+      ],
+      "exitCode": 0,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "immutableContainerIDs": []
+    },
+    {
+      "argv": [
+        "docker",
+        "volume",
+        "ls",
+        "-q"
+      ],
+      "exitCode": 0,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "volumeCount": 0
+    }
+  ],
+  "fixtureInvariance": {
+    "fixtureCount": 5,
+    "entryCount": 389,
+    "regularFileCount": 389,
+    "beforeManifestSHA256": "a6d64ce6d1e894239cbdfb7f8aaec5ef0f5d46f16a37a4511b4dc8cabaab8e82",
+    "afterManifestSHA256": "a6d64ce6d1e894239cbdfb7f8aaec5ef0f5d46f16a37a4511b4dc8cabaab8e82",
+    "unchanged": true,
+    "fullPrivateManifestPublished": false
+  },
+  "limits": [
+    "No raw application credentials or private failure messages published",
+    "Independent daemon snapshot does not establish historical absence or release product reservations",
+    "Known PID/start observations are not complete descendant or whole-machine closure",
+    "Original unreadable environment scan and exact zombies are preserved"
+  ]
+}

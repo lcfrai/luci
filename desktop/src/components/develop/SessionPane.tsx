@@ -3,7 +3,7 @@ import type { JSX, PointerEvent } from "react";
 import { api } from "../../api";
 import type { ApiError } from "../../api/client";
 import { classify } from "../../api/problems";
-import { useAttachState } from "../../api/attachRegistry";
+import { prepareAttachRestart, useAttachState } from "../../api/attachRegistry";
 import { useHeartbeat } from "../../hooks/heartbeat";
 import { useProjectAccess } from "../../hooks/useProjectAccess";
 import { Terminal } from "../Terminal";
@@ -31,8 +31,10 @@ import type { SessionId } from "../../store/types";
  *  was created in no longer resolves.", deliberately a 409 rather than a 404 because a 404
  *  reads as "no such session" and sends the user after the wrong problem. */
 async function restartSession(sessionId: SessionId): Promise<void> {
+  const acknowledgeRestart = prepareAttachRestart(sessionId);
   try {
     const session = await api.restartSession(sessionId);
+    acknowledgeRestart(session);
     // Same id, so this UPDATES the record rather than adding one. The transcript stays and
     // nothing is orphaned.
     useCockpit.getState().upsertSession(session);

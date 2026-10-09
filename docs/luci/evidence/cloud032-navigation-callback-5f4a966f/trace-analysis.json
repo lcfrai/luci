@@ -1,0 +1,452 @@
+{
+  "traceArchiveSHA256": "776bb64c6f8e91039d1de4270bf5c699ddcaee259f3cc40b8bbb17fbbf62c1dc",
+  "scope": "Existing trace follow-up only;40 recorded clicks in8 extra rounds. No primary-action trace exists. Safe enum/time/point projection; locator strings/DOM excerpts/params are not published.",
+  "clicks": 40,
+  "singleAttemptClicks": 40,
+  "singleSuccessfulActionabilityWaits": 40,
+  "retryOrInstabilityLogs": 0,
+  "clickErrors": 0,
+  "byKind": {
+    "all-projects": {
+      "elapsed": {
+        "n": 8,
+        "median": 88.80749999999534,
+        "p95": 215.387000000017,
+        "max": 215.387000000017
+      },
+      "lookup": {
+        "n": 8,
+        "median": 9.675500000012107,
+        "p95": 22.89199999999255,
+        "max": 22.89199999999255
+      },
+      "resolvedToAttempt": {
+        "n": 8,
+        "median": 1.3439999999973224,
+        "p95": 8.668000000005122,
+        "max": 8.668000000005122
+      },
+      "actionability": {
+        "n": 8,
+        "median": 29.74849999998696,
+        "p95": 35.470999999990454,
+        "max": 35.470999999990454
+      },
+      "scroll": {
+        "n": 8,
+        "median": 1.1524999999965075,
+        "p95": 4.323000000003958,
+        "max": 4.323000000003958
+      },
+      "scrollToPerform": {
+        "n": 8,
+        "median": 3.966999999989639,
+        "p95": 7.865000000019791,
+        "max": 7.865000000019791
+      },
+      "perform": {
+        "n": 8,
+        "median": 30.03300000001036,
+        "p95": 54.953999999997905,
+        "max": 54.953999999997905
+      },
+      "scheduledNavigation": {
+        "n": 8,
+        "median": 4.38300000000163,
+        "p95": 150.2719999999972,
+        "max": 150.2719999999972
+      },
+      "afterNavigationReturn": {
+        "n": 8,
+        "median": 0.1755000000121072,
+        "p95": 0.5910000000149012,
+        "max": 0.5910000000149012
+      }
+    },
+    "define": {
+      "elapsed": {
+        "n": 8,
+        "median": 89.08650000000489,
+        "p95": 162.74600000001374,
+        "max": 162.74600000001374
+      },
+      "lookup": {
+        "n": 8,
+        "median": 10.69550000000163,
+        "p95": 28.090999999985797,
+        "max": 28.090999999985797
+      },
+      "resolvedToAttempt": {
+        "n": 8,
+        "median": 4.120999999999185,
+        "p95": 12.85000000000582,
+        "max": 12.85000000000582
+      },
+      "actionability": {
+        "n": 8,
+        "median": 32.54299999999057,
+        "p95": 46.14400000000023,
+        "max": 46.14400000000023
+      },
+      "scroll": {
+        "n": 8,
+        "median": 1.6000000000058208,
+        "p95": 3.415999999997439,
+        "max": 3.415999999997439
+      },
+      "scrollToPerform": {
+        "n": 8,
+        "median": 3.890499999994063,
+        "p95": 20.160999999992782,
+        "max": 20.160999999992782
+      },
+      "perform": {
+        "n": 8,
+        "median": 23.926999999996042,
+        "p95": 52.81400000001304,
+        "max": 52.81400000001304
+      },
+      "scheduledNavigation": {
+        "n": 8,
+        "median": 4.18499999998312,
+        "p95": 29.5570000000007,
+        "max": 29.5570000000007
+      },
+      "afterNavigationReturn": {
+        "n": 8,
+        "median": 0.2450000000098953,
+        "p95": 0.7619999999878928,
+        "max": 0.7619999999878928
+      }
+    },
+    "design": {
+      "elapsed": {
+        "n": 8,
+        "median": 64.48399999999674,
+        "p95": 87.42800000001444,
+        "max": 87.42800000001444
+      },
+      "lookup": {
+        "n": 8,
+        "median": 5.289500000013504,
+        "p95": 8.056000000011409,
+        "max": 8.056000000011409
+      },
+      "resolvedToAttempt": {
+        "n": 8,
+        "median": 1.1885000000038417,
+        "p95": 1.7010000000009313,
+        "max": 1.7010000000009313
+      },
+      "actionability": {
+        "n": 8,
+        "median": 27.05449999999837,
+        "p95": 33.029000000009546,
+        "max": 33.029000000009546
+      },
+      "scroll": {
+        "n": 8,
+        "median": 0.5164999999979045,
+        "p95": 1.570000000006985,
+        "max": 1.570000000006985
+      },
+      "scrollToPerform": {
+        "n": 8,
+        "median": 2.948999999993248,
+        "p95": 4.668000000005122,
+        "max": 4.668000000005122
+      },
+      "perform": {
+        "n": 8,
+        "median": 26.59100000000035,
+        "p95": 39.64299999998184,
+        "max": 39.64299999998184
+      },
+      "scheduledNavigation": {
+        "n": 8,
+        "median": 1.7100000000064028,
+        "p95": 2.823999999993248,
+        "max": 2.823999999993248
+      },
+      "afterNavigationReturn": {
+        "n": 8,
+        "median": 0.17749999999068677,
+        "p95": 0.3269999999902211,
+        "max": 0.3269999999902211
+      }
+    },
+    "discard-edits": {
+      "elapsed": {
+        "n": 8,
+        "median": 75.70200000000477,
+        "p95": 93.52799999999115,
+        "max": 93.52799999999115
+      },
+      "lookup": {
+        "n": 8,
+        "median": 5.513500000000931,
+        "p95": 10.47500000000582,
+        "max": 10.47500000000582
+      },
+      "resolvedToAttempt": {
+        "n": 8,
+        "median": 1.1575000000011642,
+        "p95": 2.4839999999967404,
+        "max": 2.4839999999967404
+      },
+      "actionability": {
+        "n": 8,
+        "median": 27.076500000010128,
+        "p95": 34.836999999999534,
+        "max": 34.836999999999534
+      },
+      "scroll": {
+        "n": 8,
+        "median": 0.7960000000166474,
+        "p95": 1.8219999999855645,
+        "max": 1.8219999999855645
+      },
+      "scrollToPerform": {
+        "n": 8,
+        "median": 3.096000000005006,
+        "p95": 8.00800000000163,
+        "max": 8.00800000000163
+      },
+      "perform": {
+        "n": 8,
+        "median": 28.761499999993248,
+        "p95": 40.55100000000675,
+        "max": 40.55100000000675
+      },
+      "scheduledNavigation": {
+        "n": 8,
+        "median": 1.5509999999776483,
+        "p95": 5.62599999998929,
+        "max": 5.62599999998929
+      },
+      "afterNavigationReturn": {
+        "n": 8,
+        "median": 0.16900000000896398,
+        "p95": 2.2740000000048894,
+        "max": 2.2740000000048894
+      }
+    },
+    "open-project": {
+      "elapsed": {
+        "n": 8,
+        "median": 93.90000000002328,
+        "p95": 603.0769999999902,
+        "max": 603.0769999999902
+      },
+      "lookup": {
+        "n": 8,
+        "median": 21.884500000000116,
+        "p95": 38.10000000000582,
+        "max": 38.10000000000582
+      },
+      "resolvedToAttempt": {
+        "n": 8,
+        "median": 3.1154999999998836,
+        "p95": 14.050000000017462,
+        "max": 14.050000000017462
+      },
+      "actionability": {
+        "n": 8,
+        "median": 29.10450000000128,
+        "p95": 332.67500000001746,
+        "max": 332.67500000001746
+      },
+      "scroll": {
+        "n": 8,
+        "median": 1.4904999999998836,
+        "p95": 6.209000000002561,
+        "max": 6.209000000002561
+      },
+      "scrollToPerform": {
+        "n": 8,
+        "median": 5.426500000001397,
+        "p95": 50.9890000000014,
+        "max": 50.9890000000014
+      },
+      "perform": {
+        "n": 8,
+        "median": 34.93300000000454,
+        "p95": 150.93700000000536,
+        "max": 150.93700000000536
+      },
+      "scheduledNavigation": {
+        "n": 8,
+        "median": 3.757500000006985,
+        "p95": 20.24100000000908,
+        "max": 20.24100000000908
+      },
+      "afterNavigationReturn": {
+        "n": 8,
+        "median": 0.21249999999417923,
+        "p95": 0.5050000000046566,
+        "max": 0.5050000000046566
+      }
+    }
+  },
+  "longestOpen": {
+    "ordinal": 26,
+    "traceCallID": "call@5292",
+    "kind": "open-project",
+    "traceStartTime": 188439.304,
+    "traceEndTime": 189042.381,
+    "elapsedMs": 603.0769999999902,
+    "marks": [
+      {
+        "label": "locator-wait",
+        "time": 188439.482,
+        "offsetMs": 0.17799999998533167
+      },
+      {
+        "label": "locator-resolved",
+        "time": 188477.404,
+        "offsetMs": 38.10000000000582
+      },
+      {
+        "label": "attempt-click",
+        "time": 188482.355,
+        "offsetMs": 43.05100000000675
+      },
+      {
+        "label": "wait-actionability",
+        "time": 188482.533,
+        "offsetMs": 43.228999999992084
+      },
+      {
+        "label": "actionable",
+        "time": 188815.208,
+        "offsetMs": 375.90400000000955
+      },
+      {
+        "label": "scroll-start",
+        "time": 188816.82,
+        "offsetMs": 377.51600000000326
+      },
+      {
+        "label": "scroll-end",
+        "time": 188819.691,
+        "offsetMs": 380.3869999999879
+      },
+      {
+        "label": "perform-start",
+        "time": 188870.68,
+        "offsetMs": 431.3759999999893
+      },
+      {
+        "label": "perform-end",
+        "time": 189021.617,
+        "offsetMs": 582.3129999999946
+      },
+      {
+        "label": "navigation-wait",
+        "time": 189021.655,
+        "offsetMs": 582.3509999999951
+      },
+      {
+        "label": "navigation-end",
+        "time": 189041.896,
+        "offsetMs": 602.5920000000042
+      }
+    ],
+    "regionsMs": {
+      "lookup": 38.10000000000582,
+      "resolvedToAttempt": 4.951000000000931,
+      "actionability": 332.67500000001746,
+      "scroll": 2.870999999984633,
+      "scrollToPerform": 50.9890000000014,
+      "perform": 150.93700000000536,
+      "scheduledNavigation": 20.24100000000908,
+      "afterNavigationReturn": 0.48499999998603016
+    },
+    "attempts": 1,
+    "actionabilityWaits": 1,
+    "errors": false
+  },
+  "longestAllProjects": {
+    "ordinal": 10,
+    "traceCallID": "call@5058",
+    "kind": "all-projects",
+    "traceStartTime": 185194.319,
+    "traceEndTime": 185409.706,
+    "elapsedMs": 215.387000000017,
+    "marks": [
+      {
+        "label": "locator-wait",
+        "time": 185194.557,
+        "offsetMs": 0.2380000000121072
+      },
+      {
+        "label": "locator-resolved",
+        "time": 185204.402,
+        "offsetMs": 10.083000000013271
+      },
+      {
+        "label": "attempt-click",
+        "time": 185205.745,
+        "offsetMs": 11.426000000006752
+      },
+      {
+        "label": "wait-actionability",
+        "time": 185205.808,
+        "offsetMs": 11.489000000001397
+      },
+      {
+        "label": "actionable",
+        "time": 185230.881,
+        "offsetMs": 36.562000000005355
+      },
+      {
+        "label": "scroll-start",
+        "time": 185230.905,
+        "offsetMs": 36.586000000010245
+      },
+      {
+        "label": "scroll-end",
+        "time": 185231.773,
+        "offsetMs": 37.453999999997905
+      },
+      {
+        "label": "perform-start",
+        "time": 185234.426,
+        "offsetMs": 40.10700000001816
+      },
+      {
+        "label": "perform-end",
+        "time": 185259.251,
+        "offsetMs": 64.9320000000007
+      },
+      {
+        "label": "navigation-wait",
+        "time": 185259.256,
+        "offsetMs": 64.93700000000536
+      },
+      {
+        "label": "navigation-end",
+        "time": 185409.528,
+        "offsetMs": 215.20900000000256
+      }
+    ],
+    "regionsMs": {
+      "lookup": 10.083000000013271,
+      "resolvedToAttempt": 1.3429999999934807,
+      "actionability": 25.073000000003958,
+      "scroll": 0.86799999998766,
+      "scrollToPerform": 2.6530000000202563,
+      "perform": 24.824999999982538,
+      "scheduledNavigation": 150.2719999999972,
+      "afterNavigationReturn": 0.1780000000144355
+    },
+    "attempts": 1,
+    "actionabilityWaits": 1,
+    "errors": false
+  },
+  "limits": [
+    "Logs establish no retry, invisible/disabled/unstable refusal, interception or overlay recovery in these40 clicks; they do not measure every frame of geometry or rule out concurrent rendering.",
+    "Perform interval includes Playwright mouse/input protocol work and browser event processing; no internal app CPU attribution.",
+    "Trace clock is analyzed internally only; no subtraction against browser readiness clock or original full action metrics."
+  ]
+}

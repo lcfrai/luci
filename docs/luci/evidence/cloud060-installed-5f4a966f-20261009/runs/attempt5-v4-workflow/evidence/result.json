@@ -1,0 +1,664 @@
+{
+  "version": 1,
+  "passed": true,
+  "executed": true,
+  "product": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "runRoot": "/workspace/.t/c60/c060-run-v5_wchzi",
+  "buildReceiptSHA256": "9791aa38b3b8a1265e9a2c3060d486c9ba6ce542530df305e4b0fa74cd65c43a",
+  "scope": "Source-built actual application; Docker deliberately unavailable; empty sessions; no installed package/native or provider claim",
+  "cleanup": [],
+  "startedAt": "2026-10-09T14:26:29.403Z",
+  "browserVersion": "151.0.7922.173",
+  "scenario": {
+    "passed": true,
+    "scope": "Actual source API/browser authority and Team access/settings portal suspension; retained definition draft; zero agent sessions",
+    "membershipReads": 6,
+    "focusEvents": 0
+  },
+  "cleanupPhases": [
+    {
+      "name": "browser",
+      "status": "completed",
+      "result": true
+    },
+    {
+      "name": "controller",
+      "status": "completed",
+      "result": true
+    },
+    {
+      "name": "final-observations",
+      "status": "completed",
+      "result": {
+        "identities": {
+          "controller": [
+            {
+              "initial": {
+                "pid": 2461095,
+                "start": "30205866",
+                "group": 2461095,
+                "status": "S"
+              },
+              "final": {
+                "pid": 2461095,
+                "start": "30205866",
+                "group": 2461095,
+                "status": "Z"
+              }
+            },
+            {
+              "initial": {
+                "pid": 2461108,
+                "start": "30206001",
+                "group": 2461108,
+                "status": "S"
+              },
+              "final": null
+            },
+            {
+              "initial": {
+                "pid": 2461236,
+                "start": "30206542",
+                "group": 2461236,
+                "status": "S"
+              },
+              "final": null
+            }
+          ],
+          "browser": [
+            {
+              "initial": {
+                "pid": 2461127,
+                "start": "30206127",
+                "group": 2461127,
+                "status": "S"
+              },
+              "final": null
+            },
+            {
+              "initial": {
+                "pid": 2461129,
+                "start": "30206139",
+                "group": 2461128,
+                "status": "S"
+              },
+              "final": {
+                "pid": 2461129,
+                "start": "30206139",
+                "group": 2461128,
+                "status": "Z"
+              }
+            },
+            {
+              "initial": {
+                "pid": 2461132,
+                "start": "30206139",
+                "group": 2461131,
+                "status": "S"
+              },
+              "final": {
+                "pid": 2461132,
+                "start": "30206139",
+                "group": 2461131,
+                "status": "Z"
+              }
+            }
+          ]
+        },
+        "unreadableProcessEnvironments": [
+          {
+            "pid": 100012,
+            "code": "EACCES"
+          },
+          {
+            "pid": 100015,
+            "code": "EACCES"
+          },
+          {
+            "pid": 100017,
+            "code": "EACCES"
+          },
+          {
+            "pid": 100018,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1000648,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1000658,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1000739,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1000805,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1000810,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1000871,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1000880,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1000895,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1000970,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1000975,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001043,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001048,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001054,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001111,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001119,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001181,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001193,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001198,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001262,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001267,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001277,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001287,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001297,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001314,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001320,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001381,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001441,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001447,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001507,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001512,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001577,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001584,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001648,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001653,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001711,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001773,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001835,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001840,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001895,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001957,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1001962,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1002062,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1002079,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1002176,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1002253,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1002319,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1002386,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1002452,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1002519,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1002585,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1002659,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1002664,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1002741,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1002746,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1002804,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1002859,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1002914,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1002977,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1002983,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1007377,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1007402,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1007426,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1007454,
+            "code": "EACCES"
+          },
+          {
+            "pid": 100749,
+            "code": "EACCES"
+          },
+          {
+            "pid": 100797,
+            "code": "EACCES"
+          },
+          {
+            "pid": 100800,
+            "code": "EACCES"
+          },
+          {
+            "pid": 100801,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1008013,
+            "code": "EACCES"
+          },
+          {
+            "pid": 100802,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1008037,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1008061,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1008090,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1008294,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1008318,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1008342,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1008370,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1009040,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1009043,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1009045,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1009046,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1009281,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1009305,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1009329,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1009358,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1012902,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1012904,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1012909,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1012910,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1013479,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1013544,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1013595,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1013648,
+            "code": "EACCES"
+          },
+          {
+            "pid": 101370,
+            "code": "EACCES"
+          },
+          {
+            "pid": 101401,
+            "code": "EACCES"
+          },
+          {
+            "pid": 101438,
+            "code": "EACCES"
+          },
+          {
+            "pid": 101452,
+            "code": "EACCES"
+          },
+          {
+            "pid": 101454,
+            "code": "EACCES"
+          },
+          {
+            "pid": 101455,
+            "code": "EACCES"
+          },
+          {
+            "pid": 101458,
+            "code": "EACCES"
+          },
+          {
+            "pid": 101459,
+            "code": "EACCES"
+          },
+          {
+            "pid": 101473,
+            "code": "EACCES"
+          },
+          {
+            "pid": 101513,
+            "code": "EACCES"
+          },
+          {
+            "pid": 101527,
+            "code": "EACCES"
+          },
+          {
+            "pid": 101559,
+            "code": "EACCES"
+          },
+          {
+            "pid": 101566,
+            "code": "EACCES"
+          },
+          {
+            "pid": 101657,
+            "code": "EACCES"
+          },
+          {
+            "pid": 101663,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1016640,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1016673,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1016706,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1016741,
+            "code": "EACCES"
+          },
+          {
+            "pid": 101677,
+            "code": "EACCES"
+          },
+          {
+            "pid": 101700,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1017041,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1017044,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1017046,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1017047,
+            "code": "EACCES"
+          },
+          {
+            "pid": 101710,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1017304,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1017337,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1017370,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1017405,
+            "code": "EACCES"
+          },
+          {
+            "pid": 1017439,
+            "code": "EACCES"
+          },
+          {
+            "pid": 101745,
+            "code": "EACCES"
+          }
+        ],
+        "startup": [
+          {
+            "name": "controller",
+            "state": "closed",
+            "late": false,
+            "closeTimedOut": false
+          },
+          {
+            "name": "browser",
+            "state": "closed",
+            "late": false,
+            "closeTimedOut": false
+          },
+          {
+            "name": "browser-context",
+            "state": "closed",
+            "late": false,
+            "closeTimedOut": false,
+            "parent": "browser",
+            "closedByParent": true
+          },
+          {
+            "name": "browser-page",
+            "state": "closed",
+            "late": false,
+            "closeTimedOut": false,
+            "parent": "browser-context",
+            "closedByParent": true
+          }
+        ],
+        "dockerBoundary": "Fresh absent private Unix socket; no real daemon accessed",
+        "notWholeMachineClosure": true
+      }
+    }
+  ],
+  "endedAt": "2026-10-09T14:26:50.153Z",
+  "journal": {
+    "path": "events.jsonl",
+    "count": 101,
+    "bytes": 18036,
+    "sha256": "f1e8de89ac0a815db0b97890a30d3174ff2a1997ce0f64ee4455f5c012687814"
+  }
+}

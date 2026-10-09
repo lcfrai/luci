@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "product": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "runRoot": "/workspace/.t/c60/c060-run-v5_wchzi",
+  "pid": 2461087,
+  "identity": {
+    "pid": 2461087,
+    "start": "30205786",
+    "group": 2461087,
+    "status": "R"
+  },
+  "buildReceiptSHA256": "9791aa38b3b8a1265e9a2c3060d486c9ba6ce542530df305e4b0fa74cd65c43a"
+}

@@ -1,0 +1,831 @@
+--- a/control-plane/internal/api/attach.go
++++ b/control-plane/internal/api/attach.go
+@@ -188,8 +188,9 @@
+ 	return true
+ }
+ 
+-// relayAttached owns everything after the upgrade. Its one job beyond copying
+-// bytes is to leave the world exactly as it found it.
++// relayAttached owns everything after the upgrade: byte transport, attachment
++// bookkeeping, and generation-bound process completion. It never destroys an
++// allocation or releases its execution reservation.
+ func (a *API) relayAttached(r *http.Request, log *slog.Logger, client *websocket.Conn, sess registry.Session) {
+ 	// 7. The upstream dial, AFTER the upgrade because §3.16 orders it so. The
+ 	//    reason is sandboxd's replay frame: a dial that succeeds and is then
+@@ -213,7 +214,13 @@
+ 
+ 	// 8. OnClient is deliberately nil. The user typing is not output, and
+ 	//    idle is defined on output only (§5.4).
+-	relayErr := proxy.RelayHooked(r.Context(), client, upstream, proxy.Hooks{OnUpstream: tracker.observe})
++	terminal := a.newAttachedExitObserver(sess)
++	// Joining happens after the explicit socket closes below, before final
++	// registry bookkeeping. The observer is owned by this attach lifecycle.
++	defer terminal.finish()
++	relayErr := proxy.RelayHooked(r.Context(), client, upstream, proxy.Hooks{
++		OnUpstream: tracker.observe, OnUpstreamExit: terminal.observe,
++	})
+ 	if relayErr != nil {
+ 		// A dropped desktop is the normal case, not an incident.
+ 		log.Info("attach relay ended", "err", relayErr)
+--- /dev/null
++++ b/control-plane/internal/api/attach_terminal.go
+@@ -0,0 +1,79 @@
++package api
++
++import (
++	"errors"
++	"sync"
++
++	"github.com/lcfrai/luci/control-plane/internal/registry"
++)
++
++// attachedExitObserver owns at most one asynchronous registry observation. Its
++// callback never performs disk I/O on the socket-copy goroutine. finish closes
++// the callback gate and joins any accepted observation after both sockets have
++// been closed; cancellation cannot abandon an already accepted terminal event.
++type attachedExitObserver struct {
++	mu     sync.Mutex
++	closed bool
++	done   chan struct{}
++	commit func()
++}
++
++func (a *API) newAttachedExitObserver(observed registry.Session) *attachedExitObserver {
++	observed = observed.Clone()
++	return &attachedExitObserver{commit: func() { a.markAttachedSessionExited(observed) }}
++}
++
++func (o *attachedExitObserver) observe() {
++	o.mu.Lock()
++	defer o.mu.Unlock()
++	if o.closed || o.done != nil {
++		return
++	}
++	o.done = make(chan struct{})
++	go func() {
++		defer close(o.done)
++		o.commit()
++	}()
++}
++
++func (o *attachedExitObserver) finish() {
++	o.mu.Lock()
++	o.closed = true
++	done := o.done
++	o.mu.Unlock()
++	if done != nil {
++		<-done
++	}
++}
++
++// A typed sandbox Exit is a process observation, not proof that Docker removed
++// its allocation or that work succeeded. This only publishes terminal status;
++// it never destroys a sandbox, frees a lease, or interprets command output.
++func (a *API) markAttachedSessionExited(observed registry.Session) {
++	if observed.ID == "" || observed.Backend == "" || observed.SandboxID == "" ||
++		observed.SandboxRef == "" || observed.AttachToken == "" {
++		return
++	}
++	_, err := a.deps.Store.Update(observed.ID, func(current *registry.Session) error {
++		// Mutable timestamps/counts may advance during this same attachment.
++		// The private allocation identity instead fences every same-ID restart
++		// and scope change. A cleared token is unknown, never a matching epoch.
++		if current.Status == registry.StatusExited || current.ID != observed.ID ||
++			current.Backend != observed.Backend || current.SandboxID != observed.SandboxID ||
++			current.SandboxRef != observed.SandboxRef || current.AttachToken != observed.AttachToken ||
++			current.ProjectID != observed.ProjectID || current.WorktreeID != observed.WorktreeID ||
++			current.BranchID != observed.BranchID || current.ProjectRunID != observed.ProjectRunID ||
++			current.ProjectRunOperationID != observed.ProjectRunOperationID {
++			return sessionErrMoved
++		}
++		current.Status = registry.StatusExited
++		if current.ExitReason == "" {
++			current.ExitReason = "process exited"
++		}
++		current.Endpoint, current.AttachToken = "", ""
++		return nil
++	})
++	if err != nil && !errors.Is(err, sessionErrMoved) && !errors.Is(err, registry.ErrNotFound) {
++		a.sessionLog().Warn("could not record terminal process completion", "sessionId", observed.ID, "err", err)
++	}
++}
+--- /dev/null
++++ b/control-plane/internal/api/attach_terminal_test.go
+@@ -0,0 +1,319 @@
++package api
++
++import (
++	"context"
++	"encoding/json"
++	"errors"
++	"io"
++	"log/slog"
++	"net/http"
++	"net/http/httptest"
++	"os"
++	"path/filepath"
++	"reflect"
++	"strings"
++	"sync"
++	"sync/atomic"
++	"testing"
++	"time"
++
++	"github.com/coder/websocket"
++	"github.com/lcfrai/luci/control-plane/internal/registry"
++)
++
++func terminalFixtureSession(s *registry.Session) {
++	s.ProjectID, s.WorktreeID, s.BranchID = "project-terminal", "worktree-terminal", "branch-terminal"
++}
++
++func TestAttachTypedExitPublishesCurrentRoutesWithoutReaper(t *testing.T) {
++	f := attachNewFixture(t, nil, terminalFixtureSession)
++	// Serve the production router, not just the test attach registration. No
++	// reaper runs in this fixture: the former implementation never converges.
++	srv := httptest.NewServer(f.api)
++	defer srv.Close()
++	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
++	defer cancel()
++	c, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(srv.URL, "http")+"/v1/sessions/"+f.id+"/attach", nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer c.CloseNow()
++	f.sandboxd.push([]byte("\x03private terminal detail must not become REST metadata"))
++	if _, _, err := c.Read(ctx); err != nil {
++		t.Fatal(err)
++	}
++	attachWaitFor(t, 5*time.Second, func() bool {
++		s, err := f.store.Get(f.id)
++		return err == nil && s.Status == registry.StatusExited
++	}, "typed Exit did not publish terminal status without a background sweep")
++	for _, path := range []string{"/v1/sessions/" + f.id, "/v1/sessions"} {
++		res, err := http.Get(srv.URL + path)
++		if err != nil {
++			t.Fatal(err)
++		}
++		body, err := io.ReadAll(res.Body)
++		res.Body.Close()
++		if err != nil || res.StatusCode != http.StatusOK {
++			t.Fatal("terminal read failed", res.StatusCode, err)
++		}
++		var row sessionJSON
++		if path == "/v1/sessions" {
++			var value sessionListResponse
++			if err := json.Unmarshal(body, &value); err != nil || len(value.Sessions) != 1 {
++				t.Fatal("invalid terminal list", err)
++			}
++			row = value.Sessions[0]
++		} else if err := json.Unmarshal(body, &row); err != nil {
++			t.Fatal(err)
++		}
++		if row.Status != string(registry.StatusExited) || row.ExitReason != "process exited" || strings.Contains(string(body), "private terminal detail") {
++			t.Fatal("terminal REST projection did not preserve static process-only semantics")
++		}
++	}
++	res, err := http.Get(srv.URL + "/v1/sessions/" + f.id + "/attach")
++	if err != nil {
++		t.Fatal(err)
++	}
++	res.Body.Close()
++	if res.StatusCode != http.StatusConflict || f.be.destroyCount() != 0 {
++		t.Fatal("ended attach was not refused or destroyed allocation", res.StatusCode)
++	}
++	f.sandboxd.close <- websocket.StatusNormalClosure
++	_, _, err = c.Read(ctx)
++	if websocket.CloseStatus(err) != websocket.StatusNormalClosure {
++		t.Fatal("terminal transport lost normal close", err)
++	}
++}
++
++func TestAttachLateTypedExitCannotTerminateReplacement(t *testing.T) {
++	f := attachNewFixture(t, nil, terminalFixtureSession)
++	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
++	defer cancel()
++	c := f.dial(ctx, t)
++	defer c.CloseNow()
++	// A completed restart publishes a new private allocation under the same ID.
++	// Keep the old socket alive and deliver its delayed terminal event afterward.
++	_, err := f.store.Update(f.id, func(s *registry.Session) error {
++		s.SandboxID, s.SandboxRef, s.AttachToken = "new-sandbox", "new-reference", "new-token"
++		s.Endpoint, s.Status = "127.0.0.1:12345", registry.StatusRunning
++		return nil
++	})
++	if err != nil {
++		t.Fatal(err)
++	}
++	f.sandboxd.push([]byte("\x03exit status 0"))
++	if _, _, err := c.Read(ctx); err != nil {
++		t.Fatal(err)
++	}
++	f.sandboxd.close <- websocket.StatusNormalClosure
++	_, _, err = c.Read(ctx)
++	if websocket.CloseStatus(err) != websocket.StatusNormalClosure {
++		t.Fatal(err)
++	}
++	attachWaitFor(t, 5*time.Second, func() bool { s, err := f.store.Get(f.id); return err == nil && s.AttachCount == 0 }, "old relay did not settle")
++	row, err := f.store.Get(f.id)
++	if err != nil || row.Status != registry.StatusRunning || row.SandboxID != "new-sandbox" || row.SandboxRef != "new-reference" || row.AttachToken != "new-token" || row.Endpoint != "127.0.0.1:12345" || row.ExitReason != "" || f.be.destroyCount() != 0 {
++		t.Fatal("old typed Exit altered replacement allocation", err)
++	}
++}
++
++func TestAttachTerminalObservationFencesIdentityAndPersistsWithoutLeaseRelease(t *testing.T) {
++	for _, name := range []string{"current", "backend", "sandbox", "reference", "token", "token-cleared", "captured-token-missing", "project", "worktree", "branch", "run", "operation", "already-exited", "mutable-observation"} {
++		t.Run(name, func(t *testing.T) {
++			dir := t.TempDir()
++			path := filepath.Join(dir, "sessions.json")
++			store, err := registry.NewFileStore(path)
++			if err != nil {
++				t.Fatal(err)
++			}
++			observed := registry.Session{ID: "s-terminal", Backend: "docker", SandboxID: "sandbox-old", SandboxRef: "reference-old", AttachToken: "token-old", Endpoint: "127.0.0.1:23456", ProjectID: "project", WorktreeID: "worktree", BranchID: "branch", Status: registry.StatusRunning}
++			current := observed.Clone()
++			switch name {
++			case "backend":
++				current.Backend = "replacement"
++			case "sandbox":
++				current.SandboxID = "replacement"
++			case "reference":
++				current.SandboxRef = "replacement"
++			case "token":
++				current.AttachToken = "replacement"
++			case "token-cleared":
++				current.AttachToken = ""
++			case "captured-token-missing":
++				observed.AttachToken, current.AttachToken = "", ""
++			case "project":
++				current.ProjectID = "replacement"
++			case "worktree":
++				current.WorktreeID = "replacement"
++			case "branch":
++				current.BranchID = "replacement"
++			case "run":
++				current.ProjectRunID = "replacement"
++			case "operation":
++				current.ProjectRunOperationID = "replacement"
++			case "already-exited":
++				current.Status, current.ExitReason = registry.StatusExited, "existing reason"
++			case "mutable-observation":
++				current.UpdatedAt, current.LastOutputAt, current.AttachCount = time.Now(), time.Now(), 2
++			}
++			if err := store.Create(current); err != nil {
++				t.Fatal(err)
++			}
++			before, err := os.ReadFile(path)
++			if err != nil {
++				t.Fatal(err)
++			}
++			ledgerPath := filepath.Join(dir, "leases.json")
++			ledgerBytes := []byte(`{"leases":[{"state":"backend-settled","sessionId":"s-terminal"}]}`)
++			if err := os.WriteFile(ledgerPath, ledgerBytes, 0600); err != nil {
++				t.Fatal(err)
++			}
++			a := &API{deps: Deps{Store: store, Log: slog.New(slog.NewTextHandler(io.Discard, nil))}, execution: &executionAdmission{path: ledgerPath}}
++			a.markAttachedSessionExited(observed)
++			after, err := os.ReadFile(path)
++			if err != nil {
++				t.Fatal(err)
++			}
++			reopened, err := registry.NewFileStore(path)
++			if err != nil {
++				t.Fatal(err)
++			}
++			got, err := reopened.Get(current.ID)
++			if err != nil {
++				t.Fatal(err)
++			}
++			if name == "current" || name == "mutable-observation" {
++				if got.Status != registry.StatusExited || got.ExitReason != "process exited" || got.Endpoint != "" || got.AttachToken != "" || got.SandboxID != observed.SandboxID || got.SandboxRef != observed.SandboxRef || got.AttachCount != current.AttachCount {
++					t.Fatal("terminal observation not durably recorded with allocation retained")
++				}
++				a.markAttachedSessionExited(observed)
++				repeat, err := os.ReadFile(path)
++				if err != nil || string(repeat) != string(after) {
++					t.Fatal("duplicate viewer rewrote terminal row", err)
++				}
++			} else if string(after) != string(before) {
++				t.Fatal("incompatible or already-ended observation wrote registry")
++			}
++			ledgerAfter, err := os.ReadFile(ledgerPath)
++			if err != nil || string(ledgerAfter) != string(ledgerBytes) {
++				t.Fatal("terminal display observation released reservation", err)
++			}
++		})
++	}
++}
++
++func TestAttachTerminalObserverJoinsOneAcceptedWriteAfterCancellation(t *testing.T) {
++	started, release, finished := make(chan struct{}), make(chan struct{}), make(chan struct{})
++	var calls atomic.Int64
++	o := &attachedExitObserver{commit: func() { calls.Add(1); close(started); <-release }}
++	var releaseOnce sync.Once
++	unblock := func() { releaseOnce.Do(func() { close(release) }) }
++	defer unblock()
++	o.observe()
++	<-started
++	for range 100 {
++		o.observe()
++	}
++	go func() { o.finish(); close(finished) }()
++	select {
++	case <-finished:
++		t.Fatal("accepted observation was abandoned")
++	default:
++	}
++	unblock()
++	select {
++	case <-finished:
++	case <-time.After(5 * time.Second):
++		t.Fatal("observer did not settle")
++	}
++	o.observe()
++	o.finish()
++	if calls.Load() != 1 {
++		t.Fatal("observer was replayed after finish")
++	}
++}
++
++type terminalBlockingStore struct {
++	registry.Store
++	entered chan struct{}
++	release chan struct{}
++	once    sync.Once
++}
++
++func (s *terminalBlockingStore) Update(id string, fn func(*registry.Session) error) (registry.Session, error) {
++	return s.Store.Update(id, func(row *registry.Session) error {
++		err := fn(row)
++		if err == nil && row.Status == registry.StatusExited {
++			s.once.Do(func() { close(s.entered); <-s.release })
++		}
++		return err
++	})
++}
++
++func TestAttachTerminalPersistenceCannotDelaySocketClose(t *testing.T) {
++	f := attachNewFixture(t, nil, terminalFixtureSession)
++	blocked := &terminalBlockingStore{Store: f.store, entered: make(chan struct{}), release: make(chan struct{})}
++	var releaseOnce sync.Once
++	release := func() { releaseOnce.Do(func() { close(blocked.release) }) }
++	defer release()
++	f.api.deps.Store = blocked
++	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
++	defer cancel()
++	c := f.dial(ctx, t)
++	defer c.CloseNow()
++	f.sandboxd.push([]byte("\x03exit status 0"))
++	if _, _, err := c.Read(ctx); err != nil {
++		t.Fatal(err)
++	}
++	select {
++	case <-blocked.entered:
++	case <-ctx.Done():
++		t.Fatal("terminal persistence was never attempted")
++	}
++	f.sandboxd.close <- websocket.StatusNormalClosure
++	_, _, err := c.Read(ctx)
++	if websocket.CloseStatus(err) != websocket.StatusNormalClosure {
++		t.Fatal("registry persistence blocked the terminal close", err)
++	}
++	release()
++	attachWaitFor(t, 5*time.Second, func() bool {
++		row, err := f.store.Get(f.id)
++		return err == nil && row.Status == registry.StatusExited && row.AttachCount == 0
++	}, "accepted completion was not joined before relay bookkeeping settled")
++	if f.be.destroyCount() != 0 {
++		t.Fatal("process completion destroyed allocation")
++	}
++}
++
++type terminalFailStore struct {
++	registry.Store
++	fail atomic.Bool
++}
++
++func (s *terminalFailStore) Update(id string, fn func(*registry.Session) error) (registry.Session, error) {
++	if s.fail.Load() {
++		return registry.Session{}, errors.New("controlled persistence failure")
++	}
++	return s.Store.Update(id, fn)
++}
++
++func TestAttachTerminalPersistenceFailureDoesNotInventCompletion(t *testing.T) {
++	f := attachNewFixture(t, nil, terminalFixtureSession)
++	row, err := f.store.Get(f.id)
++	if err != nil {
++		t.Fatal(err)
++	}
++	s := &terminalFailStore{Store: f.store}
++	s.fail.Store(true)
++	f.api.deps.Store = s
++	o := f.api.newAttachedExitObserver(row)
++	o.observe()
++	o.finish()
++	got, err := f.store.Get(f.id)
++	if err != nil || !reflect.DeepEqual(got, row) {
++		t.Fatal("failed durable observation changed live state", err)
++	}
++	if f.be.destroyCount() != 0 {
++		t.Fatal("persistence failure destroyed allocation")
++	}
++}
+--- a/control-plane/internal/api/attach_test.go
++++ b/control-plane/internal/api/attach_test.go
+@@ -687,8 +687,8 @@
+ 		return err == nil && row.AttachCount == 0
+ 	}, "normal attachment did not release its display counter")
+ 	row, err := f.store.Get(f.id)
+-	if err != nil || row.Status != registry.StatusRunning || f.be.destroyCount() != 0 {
+-		t.Fatalf("transport closure mutated lifecycle: %+v, %v", row, err)
++	if err != nil || row.Status != registry.StatusExited || f.be.destroyCount() != 0 {
++		t.Fatalf("typed terminal exit did not publish process completion: %+v, %v", row, err)
+ 	}
+ }
+ 
+--- a/control-plane/internal/proxy/close_ack_test.go
++++ b/control-plane/internal/proxy/close_ack_test.go
+@@ -12,6 +12,7 @@
+ 	"net/http"
+ 	"net/http/httptest"
+ 	"strings"
++	"sync/atomic"
+ 	"testing"
+ 	"time"
+ 	"unicode/utf8"
+@@ -31,7 +32,9 @@
+ 	}{
+ 		{"exit-zero", websocket.StatusNormalClosure, "exit status 0"},
+ 		{"exit-nonzero", websocket.StatusNormalClosure, "exit status 7"},
++		{"normal-without-exit", websocket.StatusNormalClosure, ""},
+ 		{"overload", websocket.StatusTryAgainLater, ""},
++		{"exit-then-overload", websocket.StatusTryAgainLater, "exit status 7"},
+ 	} {
+ 		t.Run(tc.name, func(t *testing.T) {
+ 			ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+@@ -46,6 +49,7 @@
+ 				upstreamReady <- c
+ 			}))
+ 			t.Cleanup(upstream.Close)
++			var exitObserved atomic.Int32
+ 			relayDone := make(chan error, 1)
+ 			relay := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+ 				c, err := websocket.Accept(w, r, nil)
+@@ -60,7 +64,9 @@
+ 					return
+ 				}
+ 				defer peer.CloseNow()
+-				relayDone <- proxy.RelayHooked(r.Context(), c, peer, proxy.Hooks{})
++				relayDone <- proxy.RelayHooked(r.Context(), c, peer, proxy.Hooks{
++					OnUpstreamExit: func() { exitObserved.Add(1) },
++				})
+ 			}))
+ 			t.Cleanup(relay.Close)
+ 			conn, reader := closeAckDial(t, ctx, relay.URL)
+@@ -123,6 +129,13 @@
+ 			case <-ctx.Done():
+ 				t.Fatal("relay did not settle")
+ 			}
++			wantExits := int32(0)
++			if tc.exit != "" {
++				wantExits = 1
++			}
++			if got := exitObserved.Load(); got != wantExits {
++				t.Fatalf("exit observations = %d, want %d", got, wantExits)
++			}
+ 		})
+ 	}
+ }
+--- /dev/null
++++ b/control-plane/internal/proxy/exit_hook_test.go
+@@ -0,0 +1,159 @@
++package proxy_test
++
++import (
++	"bytes"
++	"context"
++	"net/http"
++	"net/http/httptest"
++	"reflect"
++	"strings"
++	"sync"
++	"sync/atomic"
++	"testing"
++	"time"
++
++	"github.com/coder/websocket"
++	"github.com/lcfrai/luci/control-plane/internal/proxy"
++)
++
++// Each endpoint is controlled independently: an echo server would turn a client
++// Exit lookalike into a genuine upstream frame and fail to test direction.
++func exitHookRelay(t *testing.T, hooks proxy.Hooks) (client, peer *websocket.Conn, ctx context.Context) {
++	t.Helper()
++	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
++	t.Cleanup(cancel)
++	ready := make(chan *websocket.Conn, 1)
++	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		conn, err := websocket.Accept(w, r, nil)
++		if err != nil {
++			t.Error(err)
++			return
++		}
++		ready <- conn
++	}))
++	t.Cleanup(upstream.Close)
++	finished := make(chan error, 1)
++	relay := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		conn, err := websocket.Accept(w, r, nil)
++		if err != nil {
++			finished <- err
++			return
++		}
++		defer conn.CloseNow()
++		up, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(upstream.URL, "http"), nil)
++		if err != nil {
++			finished <- err
++			return
++		}
++		defer up.CloseNow()
++		finished <- proxy.RelayHooked(ctx, conn, up, hooks)
++	}))
++	t.Cleanup(relay.Close)
++	var err error
++	client, _, err = websocket.Dial(ctx, "ws"+strings.TrimPrefix(relay.URL, "http"), nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++	t.Cleanup(func() { _ = client.CloseNow() })
++	select {
++	case peer = <-ready:
++	case <-ctx.Done():
++		t.Fatal("upstream did not accept before bounded deadline")
++	}
++	t.Cleanup(func() {
++		_ = client.CloseNow()
++		_ = peer.CloseNow()
++		terminalRelayAwait(t, finished)
++	})
++	return client, peer, ctx
++}
++
++func exitHookForward(t *testing.T, ctx context.Context, from, to *websocket.Conn, typ websocket.MessageType, frame []byte) {
++	t.Helper()
++	if err := from.Write(ctx, typ, frame); err != nil {
++		t.Fatal(err)
++	}
++	gotType, got, err := to.Read(ctx)
++	if err != nil || gotType != typ || !bytes.Equal(got, frame) {
++		t.Fatalf("relay changed frame: type=%v data=%x error=%v", gotType, got, err)
++	}
++}
++
++func TestRelayUpstreamExitHookDiscriminatesDirectionAndType(t *testing.T) {
++	var mu sync.Mutex
++	var upstreamSizes, clientSizes []int
++	var exits, sizesBeforeExit int
++	client, peer, ctx := exitHookRelay(t, proxy.Hooks{
++		OnUpstream: func(n int) { mu.Lock(); upstreamSizes = append(upstreamSizes, n); mu.Unlock() },
++		OnClient:   func(n int) { mu.Lock(); clientSizes = append(clientSizes, n); mu.Unlock() },
++		OnUpstreamExit: func() {
++			mu.Lock()
++			exits++
++			sizesBeforeExit = len(upstreamSizes)
++			mu.Unlock()
++		},
++	})
++	assertExits := func(t *testing.T, want int) {
++		t.Helper()
++		mu.Lock()
++		defer mu.Unlock()
++		if exits != want {
++			t.Fatalf("exit observations = %d, want %d", exits, want)
++		}
++	}
++	clientExit := []byte{0x03, 'c', 'l', 'i', 'e', 'n', 't'}
++	exitHookForward(t, ctx, client, peer, websocket.MessageBinary, clientExit)
++	assertExits(t, 0)
++	var wantUpstreamSizes []int
++	for _, tc := range []struct {
++		name  string
++		typ   websocket.MessageType
++		frame []byte
++	}{
++		{"empty-binary", websocket.MessageBinary, nil},
++		{"empty-text", websocket.MessageText, nil},
++		{"text-discriminant", websocket.MessageText, []byte{0x03, 'x'}},
++		{"text-lookalike", websocket.MessageText, []byte(`{"type":"exit","code":0}`)},
++		{"stdout-discriminant", websocket.MessageBinary, []byte{0x00, 0x03}},
++		{"stdout-lookalike", websocket.MessageBinary, []byte("\x00exit status 0\n[session ended]")},
++		{"other-binary-kind", websocket.MessageBinary, []byte{0x02, 0x03}},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			exitHookForward(t, ctx, peer, client, tc.typ, tc.frame)
++			assertExits(t, 0)
++		})
++		wantUpstreamSizes = append(wantUpstreamSizes, len(tc.frame))
++	}
++	for _, frame := range [][]byte{{0x03}, {0x03, 0xff, 0x00, 0xfe}, []byte("\x03exit status 17")} {
++		exitHookForward(t, ctx, peer, client, websocket.MessageBinary, frame)
++		wantUpstreamSizes = append(wantUpstreamSizes, len(frame))
++		assertExits(t, 1)
++	}
++	mu.Lock()
++	defer mu.Unlock()
++	if !reflect.DeepEqual(upstreamSizes, wantUpstreamSizes) || !reflect.DeepEqual(clientSizes, []int{len(clientExit)}) {
++		t.Fatalf("size hooks changed: upstream=%v client=%v", upstreamSizes, clientSizes)
++	}
++	if sizesBeforeExit != len(wantUpstreamSizes)-2 {
++		t.Fatalf("exit hook ran before its size hook: sizes=%d", sizesBeforeExit)
++	}
++}
++
++func TestRelayUpstreamExitHookIsOncePerRelay(t *testing.T) {
++	var exits atomic.Int32
++	hooks := proxy.Hooks{OnUpstreamExit: func() { exits.Add(1) }}
++	for i := int32(1); i <= 2; i++ {
++		client, peer, ctx := exitHookRelay(t, hooks)
++		for repeat := 0; repeat < 2; repeat++ {
++			exitHookForward(t, ctx, peer, client, websocket.MessageBinary, []byte{0x03})
++			if got := exits.Load(); got != i {
++				t.Fatalf("exit observations = %d after relay %d, want %d", got, i, i)
++			}
++		}
++	}
++}
++
++func TestRelayNilUpstreamExitHookPreservesTypedFrame(t *testing.T) {
++	client, peer, ctx := exitHookRelay(t, proxy.Hooks{})
++	exitHookForward(t, ctx, peer, client, websocket.MessageBinary, []byte{0x03, 0xff, 0x00})
++}
+--- a/control-plane/internal/proxy/proxy.go
++++ b/control-plane/internal/proxy/proxy.go
+@@ -1,5 +1,6 @@
+ // Package proxy relays WebSocket traffic between a desktop client and a
+-// sandbox. It never inspects payloads; the frame protocol is opaque here.
++// sandbox. It recognizes the upstream Exit discriminant; agent output and
++// the remaining frame payload stay opaque.
+ package proxy
+ 
+ import (
+@@ -9,18 +10,17 @@
+ 	"github.com/coder/websocket"
+ )
+ 
+-// Hooks observe the SIZES of relayed messages. They never receive payload
+-// bytes, and there is no variant that does: docs/PROGRAM.md forbids deriving
+-// meaning from agent output absolutely, and a hook holding a []byte is an
+-// invitation. A nil function is skipped.
+-//
+-// The one consumer is the attach handler, which turns OnUpstream into
+-// registry.Session.LastOutputAt and so into the "idle" status. That is the
+-// entire mechanism: idle means no output crossed this relay for N seconds, and
+-// nothing here can tell what the output said.
++// Hooks observe message sizes and the upstream terminal Exit discriminant.
++// They never receive payload bytes or derive meaning from agent output. The
++// attach handler uses OnUpstream for LastOutputAt and OnUpstreamExit to request
++// an authoritative session observation. A nil function is skipped. Hooks run
++// inline and should return promptly.
+ type Hooks struct {
+ 	OnUpstream func(n int) // sandbox → desktop, i.e. the agent produced output
+ 	OnClient   func(n int) // desktop → sandbox, i.e. the user typed
++	// OnUpstreamExit fires once per relay for a binary upstream Exit frame.
++	// It conveys no exit payload or success claim.
++	OnUpstreamExit func()
+ }
+ 
+ // RelayHooked copies messages between client and upstream until either closes
+@@ -37,7 +37,8 @@
+ 
+ 	errs := make(chan error, 2)
+ 
+-	copyMessages := func(dst, src *websocket.Conn, observe func(int)) {
++	copyMessages := func(dst, src *websocket.Conn, observe func(int), observeExit func()) {
++		exitObserved := false
+ 		for {
+ 			typ, data, err := src.Read(ctx)
+ 			if err != nil {
+@@ -62,6 +63,10 @@
+ 			if observe != nil {
+ 				observe(len(data))
+ 			}
++			if !exitObserved && observeExit != nil && typ == websocket.MessageBinary && len(data) > 0 && data[0] == 0x03 {
++				exitObserved = true
++				observeExit()
++			}
+ 			if err := dst.Write(ctx, typ, data); err != nil {
+ 				errs <- err
+ 				return
+@@ -69,8 +74,8 @@
+ 		}
+ 	}
+ 
+-	go copyMessages(upstream, client, h.OnClient)
+-	go copyMessages(client, upstream, h.OnUpstream)
++	go copyMessages(upstream, client, h.OnClient, nil)
++	go copyMessages(client, upstream, h.OnUpstream, h.OnUpstreamExit)
+ 
+ 	err := <-errs
+ 	cancel()
+--- a/desktop/src/seams.test.ts
++++ b/desktop/src/seams.test.ts
+@@ -535,6 +535,8 @@
+     anchors: [
+       { file: "control-plane/internal/proxy/proxy.go", present: /^func RelayHooked\(ctx context\.Context, client, upstream \*websocket\.Conn, h Hooks\) error \{$/m },
+       { file: "control-plane/internal/proxy/proxy.go", absent: /^func Relay\(/m },
++      { file: "control-plane/internal/proxy/proxy.go", present: /OnUpstreamExit func\(\)/ },
++      { file: "control-plane/internal/proxy/proxy.go", present: /typ == websocket\.MessageBinary && len\(data\) > 0 && data\[0\] == 0x03/ },
+       // Nor a wrapper under another name: a three-line relay beside RelayHooked is what Relay was.
+       { file: "control-plane/internal/proxy/proxy.go", absent: /^func (?!RelayHooked\()\w*Relay\w*\(/m },
+       { file: "control-plane/internal/api/attach.go", present: /\bproxy\.RelayHooked\(r\.Context\(\), client, upstream, / },
+@@ -603,8 +605,9 @@
+       // And by what a relay moves: messages. One whose connections are typed by a local interface
+       // (fix round 2's predicted survivor G-X1, which survived the rule above) names the message
+       // type in that interface; one that wraps them as streams names websocket.NetConn and a
+-      // message kind. No control-plane code names any of the four today: RelayHooked's loop infers
+-      // its `typ`. Phase 8 writing its own frame with a named kind trips it, loudly.
++      // message kind. The sole relay recognizes MessageBinary for its payload-free
++      // upstream Exit notification. Other named message/stream APIs remain forbidden
++      // there; Phase 8 writing its own frame with a named kind still trips this guard.
+       // And the relay that names neither: `httputil.NewSingleHostReverseProxy(pod).ServeHTTP(w, r)`
+       // has no connection, no message and no local at all, and has forwarded a WebSocket upgrade
+       // since Go 1.12 — the first thing a Phase 8 author reaching a pod over HTTP would write, and
+@@ -619,6 +622,7 @@
+         // The authenticated management gateway routes a user to their isolated worker;
+         // it does not interpret terminal frames or replace the worker's byte relay.
+         except: [
++          "control-plane/internal/proxy/proxy.go",
+           "control-plane/internal/product/workspace.go",
+           "control-plane/internal/product/preview_proxy.go",
+           "control-plane/internal/previewgateway/gateway.go",
+@@ -628,6 +632,12 @@
+           "control-plane/internal/management/team_runtime.go",
+           "control-plane/internal/management/sockets.go",
+         ],
++      },
++      {
++        dir: "control-plane",
++        absent: /\b\w+\.(?:MessageType|MessageText|NetConn)\b|\bhttputil\.|\.Hijack\(/,
++        only: ["control-plane/internal/proxy/proxy.go"],
++        except: [],
+       },
+     ],
+   },
+--- a/docs/SEAMS.md
++++ b/docs/SEAMS.md
+@@ -119,7 +119,7 @@
+ | S8.4 | 8 | `const runtimeClass = "kata-mshv-vm-isolation"` (`sandbox/manager.go:20`) | Confirm it against a real cluster (Phase 1 unproven item 2) | Ship it unobserved | seams.test.ts `S8.4` |
+ | S8.5 | 8 | `isolationFor` (`api/catalog.go:174`); the rail's badge (`MachineChip.tsx:45`) | Report `microvm` for Kata machines | Hide the badge client-side | seams.test.ts `S8.5` |
+ | S8.6 | 8 | `desktop/src/api/client.ts`, `authSession.ts`, `control-plane/internal/management` — paired client/server authentication | Attach bearer credentials to API requests; obtain path-bound single-use socket tickets | Add credentials without server enforcement, put bearer tokens in URLs, or let callers choose a worker identity | seams.test.ts `S8.6`, auth transport and management tests |
+-| S8.7 | 8 | `proxy.RelayHooked` is the single sandbox terminal relay | Use that relay for sandbox frames. `management/runtime.go` and `management/team_runtime.go` intentionally forward authenticated requests to the assigned personal or team loopback worker; `management.go`, `sockets.go` and `team_runtime.go` track upgraded connections for expiry and revocation. Team forwarding preserves the real member and verified project grants. `previewgateway/gateway.go` forwards only verified application and data traffic at isolated local origins; it never accepts agent terminal routes | Add a second sandbox frame relay or spread worker proxy/connection tracking outside these explicit management files | seams.test.ts `S8.7`, management socket revocation and preview gateway isolation tests |
++| S8.7 | 8 | `proxy.RelayHooked` is the single sandbox terminal relay | Use that relay for sandbox frames. Its once-only upstream binary Exit notification carries no payload and records only the exact attached allocation as exited; message/stream APIs other than this binary discriminant remain forbidden in the relay. `management/runtime.go` and `management/team_runtime.go` intentionally forward authenticated requests to the assigned personal or team loopback worker; `management.go`, `sockets.go` and `team_runtime.go` track upgraded connections for expiry and revocation. Team forwarding preserves the real member and verified project grants. `previewgateway/gateway.go` forwards only verified application and data traffic at isolated local origins; it never accepts agent terminal routes | Add a second sandbox frame relay or spread worker proxy/connection tracking outside these explicit management files | seams.test.ts `S8.7`, management socket revocation and preview gateway isolation tests |
+ | S8.8 | 8 | The conversation store: `<state>/conversations/local/<worktree>/` mounted read-write at `sessionConversationDir` (`api/sessions.go`), and a fork's staged read-only copy of its source's transcript (`carried`, appended by `sessionMounts`); refused by S8.3's `len(spec.Mounts) > 0` | Provide a volume per user and worktree that outlives the pod and holds `projects/` only (Go contract §2.6), so SX.10's resume survives a pod | Put the store in the pod's `emptyDir` home; share one store across users or worktrees | `TestCreateMountsOnlyThisWorktreesConversationStore`, `TestAForkIsShownAStagedReadOnlyCopyOfTheSourcesTranscript`; seams.test.ts `S8.8` |
+ | S8.9 | 8 | The CA bundle: `LUCI_CA_BUNDLE` mounted read-only at `sessionCABundlePath` = `/etc/luci/ca-bundle.pem` and named by `NODE_EXTRA_CA_CERTS` (`api/sessions.go`); refused by S8.3's check | Deliver the operator's CA to the pod another way, at the same path and named by the same variable | Drop `NODE_EXTRA_CA_CERTS`, without which Claude Code cannot start on a TLS-inspecting network; set `SSL_CERT_FILE` or `NODE_TLS_REJECT_UNAUTHORIZED`, which tests assert are absent | `TestACABundleIsMountedReadOnlyAndNamedByNodeExtraCACerts`; seams.test.ts `S8.9` |
+ | S8.10 | 8 | A primary worktree's `.git/worktrees`, mounted read-only over itself at `sessionWorktreeAdminDir` (`api/sessions.go`); refused by S8.3's check | Decide it with S8.3's worktree delivery; under OD-2's one local clone per worktree it may vanish, and this row with it | Make it writable: the sandbox's git calls every linked worktree prunable, and a `git worktree prune` there deletes the host's metadata (`sessionWorktreeAdmin`'s comment) | `TestAPrimaryWorktreesLinkedWorktreeMetadataIsReadOnlyInTheSandbox`; seams.test.ts `S8.10` |
+--- a/docs/luci/API.md
++++ b/docs/luci/API.md
+@@ -17,7 +17,7 @@
+ 
+ Session responses may include `executionGeneration`, an opaque 64-character hexadecimal allocation fingerprint. Compare it only for equality within the same session/project/worktree/attach scope; it is not an ordered revision, credential or authorization. A restart changes the fingerprint even though the session ID stays the same. Legacy records and terminal records whose private allocation token has been erased may omit it; omission must not clear an already observed terminal Exit. The fingerprint exposes no raw attach token, sandbox identity or endpoint. Existing read permissions still govern the whole session response.
+ 
+-The terminal relay drains final output and preserves an upstream normal WebSocket close before canceling its sibling read. A typed Exit ends that allocation's terminal display without an automatic reconnect while status polling catches up. It does not establish successful work, verified output, cleanup or integration. A distinct current allocation fingerprint permits attachment after restart; missing fingerprints on older servers require an explicit reconnect when the session is still live. Overload and abnormal disconnects remain distinct from a clean terminal close.
++The terminal relay drains final output and preserves an upstream normal WebSocket close before canceling its sibling read. A typed upstream binary Exit ends that allocation's terminal display without an automatic reconnect and asynchronously records the same exact private allocation as exited. The next status poll exposes Restart without waiting for the periodic reaper. The observation rejects replaced generations and cleared tokens, retains allocation identity and execution reservations, and does not delay socket close while persisting. It does not establish successful work, verified output, cleanup or integration. A distinct current allocation fingerprint permits attachment after restart; missing fingerprints on older servers require an explicit reconnect when the session is still live. Overload and abnormal disconnects remain distinct from a clean terminal close.
+ 
+ Administrators can `GET /v1/admin/users` (`{users}`), `POST /v1/admin/users {username, displayName, password, role}` (`201 User`), and `PATCH /v1/admin/users/{id} {role?, disabled?, password?}` (`User`). Admins manage member accounts; only Super Admins create or modify administrators. Role/password/disable changes revoke sessions and stop an affected child runtime. The last enabled Super Admin cannot be disabled or demoted. `GET /v1/admin/audit` returns the most recent thousand `{events: [{id, at, actorId, action, target, outcome}]}` without credentials or raw command output.
+ 
+--- a/docs/superpowers/contracts/2026-09-18-phase-2-go-contract.md
++++ b/docs/superpowers/contracts/2026-09-18-phase-2-go-contract.md
+@@ -2916,12 +2916,12 @@
+ `proxy.Relay` gains a hooked variant:
+ 
+ ```go
+-// Hooks observe the SIZES of relayed messages. They never receive payload bytes,
+-// and there is no variant that does: docs/PROGRAM.md forbids deriving meaning
+-// from agent output absolutely, and a hook holding a []byte is an invitation.
++// Hooks observe message sizes and the upstream terminal Exit discriminant.
++// They never receive payload bytes or derive meaning from agent output.
+ type Hooks struct {
+ 	OnUpstream func(n int) // sandbox → desktop, i.e. the agent produced output
+ 	OnClient   func(n int) // desktop → sandbox, i.e. the user typed
++	OnUpstreamExit func()  // once, upstream binary Exit only; no payload or success claim
+ }
+ 
+ // RelayHooked is Relay with observation. Relay(ctx, c, u) is
+@@ -2941,6 +2941,16 @@
+ blind spot is an inferred-locals relay that also avoids those two). The same holds for
+ `// proxy.Relay already takes *websocket.Conn.` in §2.2's block: `backend.go:9` now names
+ `proxy.RelayHooked`.
++
++AMENDED by CLOUD-063 (2026-10-09): the upstream binary Exit discriminant also
++triggers one lifecycle-owned asynchronous registry observation. It compares the
++captured private allocation and project/worktree identity atomically, records
++`exited` with a static process-only reason, and clears stale attach credentials.
++Late old-generation events and duplicate observations are no-ops. Socket closure
++does not wait for the persistence write; handler teardown joins an accepted write.
++No terminal payload reaches the hook, and no sandbox removal, lease release, work
++success, or integration follows from this observation. Text/output lookalikes,
++client frames, overload and ordinary transport closure do not establish exit.
+ 
+ The attach handler passes `OnUpstream` that records `time.Now()` into a local variable
+ and, **at most once every two seconds**, flushes it to the registry via

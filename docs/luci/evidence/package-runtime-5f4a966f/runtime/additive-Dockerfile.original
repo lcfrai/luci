@@ -1,0 +1,2 @@
+FROM luci/sandbox:provider-base-20261009t134118z-4a347241
+COPY --chown=0:0 --chmod=0755 bin/ /usr/local/bin/

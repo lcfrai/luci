@@ -107,6 +107,9 @@ interface Entry {
   /** Last known opaque allocation identity; omission cannot erase a terminal outcome. */
   executionGeneration: string | null;
   terminalExit: boolean;
+  acknowledgedRestartGeneration: string | null;
+  restartRequestVersion: number;
+  acknowledgedRestartRequestVersion: number;
   permitted: boolean;
   connectPermitted: boolean;
   ws: WebSocket | null;
@@ -172,6 +175,9 @@ export function acquireAttach(
       readOnly: opts.readOnly,
       executionGeneration: knownExecutionGeneration(session),
       terminalExit: false,
+      acknowledgedRestartGeneration: null,
+      restartRequestVersion: 0,
+      acknowledgedRestartRequestVersion: 0,
       permitted: opts.permitted ?? true,
       connectPermitted: opts.connectPermitted ?? opts.permitted ?? true,
       ws: null,
@@ -264,14 +270,46 @@ function publishTerminalExit(entry: Entry): void {
   });
 }
 
+/** Capture the currently mounted cold-ended entry before a user Restart request.
+ * Only its successful response may identify the first replacement allocation: a
+ * late live poll alone cannot prove that an already-cleaned session was restarted.
+ * This records display continuity, not authority. A matching already-polled
+ * allocation may attach only while mounted and through the ordinary authority gates. */
+export function prepareAttachRestart(sessionId: SessionId): (restarted: Session) => void {
+  const entry = entries.get(sessionId);
+  if (!entry || entry.destroyed || entry.session.status !== "exited" ||
+      entry.executionGeneration !== null || entry.terminalExit || entry.everAttached) return () => {};
+  const original = entry.session;
+  const requestVersion = ++entry.restartRequestVersion;
+  return (restarted) => {
+    if (entries.get(sessionId) !== entry || entry.destroyed || entry.terminalExit || entry.everAttached ||
+        requestVersion <= entry.acknowledgedRestartRequestVersion ||
+        !sameSessionScope(original, restarted) || !sameSessionScope(entry.session, restarted) ||
+        restarted.status === "exited") return;
+    const generation = knownExecutionGeneration(restarted);
+    if (generation === null) return;
+    entry.acknowledgedRestartRequestVersion = requestVersion;
+    entry.acknowledgedRestartGeneration = generation;
+    // The store may deduplicate an identical response after a poll already saw
+    // this allocation. Consume the acknowledgement here only for its current,
+    // mounted live record; otherwise the normal component update consumes it.
+    if (entry.refs > 0 && entry.session.status !== "exited" && knownExecutionGeneration(entry.session) === generation) {
+      updateAttachSession(entry.session);
+    }
+  };
+}
+
 export function updateAttachSession(session: Session): void {
   const entry = entries.get(session.id);
   if (!entry || !sameSessionScope(entry.session, session)) return;
   const generation = knownExecutionGeneration(session);
   const replacement = generation !== null && entry.executionGeneration !== null && generation !== entry.executionGeneration;
+  const acknowledgedColdRestart = generation !== null && generation === entry.acknowledgedRestartGeneration &&
+    !entry.terminalExit && !entry.everAttached && session.status !== "exited";
   const wasExited = entry.session.status === "exited";
   entry.session = session;
-  if (replacement) {
+  if (replacement || acknowledgedColdRestart) {
+    entry.acknowledgedRestartGeneration = null;
     clearRetry(entry);
     entry.connectVersion += 1;
     entry.opening = false;

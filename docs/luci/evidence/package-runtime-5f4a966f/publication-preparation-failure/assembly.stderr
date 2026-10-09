@@ -1,0 +1,14 @@
+fatal: path 'control-plane/vendor/modules.txt' does not exist in '5f4a966f6d70264c92ee2176dde912e1b43fc3c7'
+Traceback (most recent call last):
+  File "/workspace/.luci-tools/publish-package-runtime-5f4/assemble.py", line 106, in <module>
+    if __name__=='__main__':main()
+                            ^^^^^^
+  File "/workspace/.luci-tools/publish-package-runtime-5f4/assemble.py", line 84, in main
+    b=subprocess.check_output(['git','-C',str(ROOT),'show',COMMIT+':'+name],timeout=30);put('runtime/module-sources/'+name,b)
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/subprocess.py", line 466, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['git', '-C', '/workspace/luci', 'show', '5f4a966f6d70264c92ee2176dde912e1b43fc3c7:control-plane/vendor/modules.txt']' returned non-zero exit status 128.

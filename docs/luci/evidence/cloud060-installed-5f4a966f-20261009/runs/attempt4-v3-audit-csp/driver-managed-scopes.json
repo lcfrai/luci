@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "runRoot": "/workspace/.t/c60/c060-run-kr3pvffq",
+  "product": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "scopes": [
+    {
+      "kind": "user",
+      "id": "user-5nLcQv2YP4ZdwTN9fPGHYn",
+      "stateDir": "/workspace/.t/c60/c060-run-kr3pvffq/state/control-plane/users/user-5nLcQv2YP4ZdwTN9fPGHYn/runtime/state"
+    },
+    {
+      "kind": "user",
+      "id": "user-FZ91J7o50E2h56pduwa4Fz",
+      "stateDir": "/workspace/.t/c60/c060-run-kr3pvffq/state/control-plane/users/user-FZ91J7o50E2h56pduwa4Fz/runtime/state"
+    },
+    {
+      "kind": "team",
+      "id": "team-IyW__TLvjJnWVPoBfWPZm4",
+      "stateDir": "/workspace/.t/c60/c060-run-kr3pvffq/state/control-plane/teams/team-IyW__TLvjJnWVPoBfWPZm4/runtime/state"
+    }
+  ]
+}

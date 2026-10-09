@@ -1,0 +1,675 @@
+{
+  "product": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "helper": "v4",
+  "functionalScenarioPassed": true,
+  "driverPassed": true,
+  "outerPassed": false,
+  "cleanupCertified": false,
+  "driverExitCode": 0,
+  "eventRows": 101,
+  "eventsSHA256": "f1e8de89ac0a815db0b97890a30d3174ff2a1997ce0f64ee4455f5c012687814",
+  "resultSHA256": "728b82a253abc030ba8018be2e2527b51c1df3133aa532a8be76f12ddcacd48f",
+  "outerSHA256": "baacb0a9e260dd604ecb2f903e2d0cb44eced292bf453e499cfced7b7dddb5d6",
+  "actualScope": "Matching packaged Go API/web + Chromium; real management/team/project HTTP and UI; no agent session/provider/Docker allocation; no installer/native/Windows/performance claim",
+  "scopedWitnesses": [
+    {
+      "sequence": 34,
+      "at": "2026-10-09T14:26:37.808Z",
+      "kind": "actual-definition-draft",
+      "projectId": "p-c4e67112",
+      "valueSHA256": "66a80073dd02ff25cebfa22200679008362ecaedcfcb423d72e541152af4797c"
+    },
+    {
+      "sequence": 38,
+      "at": "2026-10-09T14:26:38.187Z",
+      "kind": "actual-portal-open",
+      "portal": "access",
+      "title": "Team access",
+      "viewport": {
+        "width": 1440,
+        "height": 1080
+      }
+    },
+    {
+      "sequence": 43,
+      "at": "2026-10-09T14:26:39.202Z",
+      "kind": "blocked-modal-state",
+      "label": "1440-team-access-suspended",
+      "hostHidden": true,
+      "privateInvisible": true,
+      "noModal": true,
+      "noPointerLock": true,
+      "noScrollLock": true,
+      "entryAccessible": true,
+      "focusOutsidePrivate": true,
+      "overflow": false
+    },
+    {
+      "sequence": 44,
+      "at": "2026-10-09T14:26:39.216Z",
+      "kind": "blocked-keyboard-focus",
+      "label": "1440-team-access-suspended",
+      "visible": true,
+      "hidden": false,
+      "inPrivate": false
+    },
+    {
+      "sequence": 45,
+      "at": "2026-10-09T14:26:39.697Z",
+      "kind": "blocked-axe",
+      "label": "1440-team-access-suspended",
+      "violations": [],
+      "passes": 8,
+      "incomplete": 0
+    },
+    {
+      "sequence": 54,
+      "at": "2026-10-09T14:26:40.283Z",
+      "kind": "actual-portal-restored",
+      "portal": "access",
+      "draftPreserved": true
+    },
+    {
+      "sequence": 58,
+      "at": "2026-10-09T14:26:40.759Z",
+      "kind": "actual-portal-open",
+      "portal": "settings",
+      "title": "C056 isolated team settings",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "sequence": 64,
+      "at": 1791556001210,
+      "kind": "early-before-membership-release",
+      "hostHidden": true,
+      "privateInvisible": true,
+      "noModal": true,
+      "noPointerLock": true,
+      "noScrollLock": true,
+      "entryAccessible": true,
+      "focusOutsidePrivate": true,
+      "overflow": false,
+      "expiresAt": 1791556008906,
+      "released": false
+    },
+    {
+      "sequence": 67,
+      "at": "2026-10-09T14:26:41.295Z",
+      "kind": "blocked-modal-state",
+      "label": "390-team-settings-suspended",
+      "hostHidden": true,
+      "privateInvisible": true,
+      "noModal": true,
+      "noPointerLock": true,
+      "noScrollLock": true,
+      "entryAccessible": true,
+      "focusOutsidePrivate": true,
+      "overflow": false
+    },
+    {
+      "sequence": 68,
+      "at": "2026-10-09T14:26:41.314Z",
+      "kind": "blocked-keyboard-focus",
+      "label": "390-team-settings-suspended",
+      "visible": true,
+      "hidden": false,
+      "inPrivate": false
+    },
+    {
+      "sequence": 69,
+      "at": "2026-10-09T14:26:41.694Z",
+      "kind": "blocked-axe",
+      "label": "390-team-settings-suspended",
+      "violations": [],
+      "passes": 8,
+      "incomplete": 0
+    },
+    {
+      "sequence": 73,
+      "at": "2026-10-09T14:26:44.916Z",
+      "kind": "actual-denied-episode-traffic",
+      "start": 3,
+      "end": 4,
+      "pollCount": 3,
+      "focusEvents": 0,
+      "elapsedMs": 4156
+    },
+    {
+      "sequence": 81,
+      "at": "2026-10-09T14:26:45.324Z",
+      "kind": "membership-restored-without-project-grant",
+      "privateProjectVisible": false,
+      "exactMemberProjectGET": 403,
+      "workspaceDialogClosed": true
+    },
+    {
+      "sequence": 95,
+      "at": "2026-10-09T14:26:47.448Z",
+      "kind": "actual-definition-saved",
+      "projectId": "p-c4e67112",
+      "valueSHA256": "66a80073dd02ff25cebfa22200679008362ecaedcfcb423d72e541152af4797c"
+    }
+  ],
+  "railWitnesses": [
+    {
+      "sequence": 33,
+      "at": "2026-10-09T14:26:36.953Z",
+      "kind": "rail-navigation",
+      "action": "select",
+      "name": "All projects",
+      "teamId": "team-wP37B1VviOX0yuiN7CkWt4",
+      "opened": false,
+      "hostCount": 1,
+      "hostReady": true,
+      "workspaceId": "team-wP37B1VviOX0yuiN7CkWt4",
+      "expanded": "true",
+      "controls": "project-navigation",
+      "navigationReady": true,
+      "viewport": 1440
+    },
+    {
+      "sequence": 37,
+      "at": "2026-10-09T14:26:37.827Z",
+      "kind": "rail-navigation",
+      "action": "select",
+      "name": "Team access",
+      "teamId": "team-wP37B1VviOX0yuiN7CkWt4",
+      "opened": false,
+      "hostCount": 1,
+      "hostReady": true,
+      "workspaceId": "team-wP37B1VviOX0yuiN7CkWt4",
+      "expanded": "true",
+      "controls": "project-navigation",
+      "navigationReady": true,
+      "viewport": 1440
+    },
+    {
+      "sequence": 56,
+      "at": "2026-10-09T14:26:40.356Z",
+      "kind": "rail-navigation",
+      "action": "open",
+      "name": "Settings",
+      "teamId": "team-wP37B1VviOX0yuiN7CkWt4",
+      "hostCount": 1,
+      "hostReady": true,
+      "workspaceId": "team-wP37B1VviOX0yuiN7CkWt4",
+      "expanded": "false",
+      "controls": "project-navigation",
+      "navigationReady": false,
+      "viewport": 390
+    },
+    {
+      "sequence": 57,
+      "at": "2026-10-09T14:26:40.436Z",
+      "kind": "rail-navigation",
+      "action": "select",
+      "name": "Settings",
+      "teamId": "team-wP37B1VviOX0yuiN7CkWt4",
+      "opened": true,
+      "hostCount": 1,
+      "hostReady": true,
+      "workspaceId": "team-wP37B1VviOX0yuiN7CkWt4",
+      "expanded": "true",
+      "controls": "project-navigation",
+      "navigationReady": true,
+      "viewport": 390
+    },
+    {
+      "sequence": 90,
+      "at": "2026-10-09T14:26:46.193Z",
+      "kind": "rail-navigation",
+      "action": "open",
+      "name": "All projects",
+      "teamId": "team-wP37B1VviOX0yuiN7CkWt4",
+      "hostCount": 1,
+      "hostReady": true,
+      "workspaceId": "team-wP37B1VviOX0yuiN7CkWt4",
+      "expanded": "false",
+      "controls": "project-navigation",
+      "navigationReady": false,
+      "viewport": 390
+    },
+    {
+      "sequence": 91,
+      "at": "2026-10-09T14:26:46.299Z",
+      "kind": "rail-navigation",
+      "action": "select",
+      "name": "All projects",
+      "teamId": "team-wP37B1VviOX0yuiN7CkWt4",
+      "opened": true,
+      "hostCount": 1,
+      "hostReady": true,
+      "workspaceId": "team-wP37B1VviOX0yuiN7CkWt4",
+      "expanded": "true",
+      "controls": "project-navigation",
+      "navigationReady": true,
+      "viewport": 390
+    }
+  ],
+  "typedDenials": [
+    {
+      "sequence": 42,
+      "at": 1791555998879,
+      "kind": "catalogue-response",
+      "path": "/v1/teams/team-wP37B1VviOX0yuiN7CkWt4/workspace/v1/sessions",
+      "status": 403,
+      "sha256": "1119065fb74e3db10fad70c296b0522e2a4895cc46edcf44adbf0b830eaeee11",
+      "bytes": 149,
+      "code": "team_access_denied"
+    },
+    {
+      "sequence": 62,
+      "at": 1791556000883,
+      "kind": "catalogue-response",
+      "path": "/v1/teams/team-wP37B1VviOX0yuiN7CkWt4/workspace/v1/sessions",
+      "status": 403,
+      "sha256": "1119065fb74e3db10fad70c296b0522e2a4895cc46edcf44adbf0b830eaeee11",
+      "bytes": 149,
+      "code": "team_access_denied"
+    },
+    {
+      "sequence": 71,
+      "at": 1791556002844,
+      "kind": "catalogue-response",
+      "path": "/v1/teams/team-wP37B1VviOX0yuiN7CkWt4/workspace/v1/sessions",
+      "status": 403,
+      "sha256": "1119065fb74e3db10fad70c296b0522e2a4895cc46edcf44adbf0b830eaeee11",
+      "bytes": 149,
+      "code": "team_access_denied"
+    },
+    {
+      "sequence": 72,
+      "at": 1791556004863,
+      "kind": "catalogue-response",
+      "path": "/v1/teams/team-wP37B1VviOX0yuiN7CkWt4/workspace/v1/sessions",
+      "status": 403,
+      "sha256": "1119065fb74e3db10fad70c296b0522e2a4895cc46edcf44adbf0b830eaeee11",
+      "bytes": 149,
+      "code": "team_access_denied"
+    }
+  ],
+  "issueScopes": {
+    "CLOUD-056": "Actual fresh team403 workspace suppression, finite denied-episode membership reads and fresh catalogue restoration within tested owner/team/project",
+    "CLOUD-060": "Actual Team access1440 and Team settings390 portal suspension, effects/focus/axe and definition draft preservation; other project dialogs/nested editors retain earlier controlled-only scope",
+    "CLOUD-061": "Short-parent browser startup observed; original long-path failure preserved",
+    "CLOUD-062": "Actual desktop/compact exact-scope rail navigation observed; original collapse cause still unknown",
+    "CLOUD-064": "Actual semantic purpose selection/edit/restore/save observed, controlled original label counterexample retained",
+    "CLOUD-066": "Actual pinned axe audit through privileged evaluation at both sizes under unchanged CSP; separate control proves ordinary inline scripts still refused"
+  },
+  "remaining": [
+    "Windows/native acceptance",
+    "Other project-specific portal actual-runtime coverage",
+    "Provider/agent/live-model workflows",
+    "Full swarm/recovery/resource/responsiveness gates",
+    "Complete process closure: exact zombies and unreadable scan remain"
+  ],
+  "originalFailedFixturesPreserved": true,
+  "privateOriginalsExcluded": [
+    {
+      "fixture": "attempt1-v1-long-path",
+      "member": "evidence/private-failure.json",
+      "bytes": 11568,
+      "sha256": "4a60ca9210ce2850ae284c66e9edd031c29055333705740f61e1338174363313",
+      "published": false,
+      "reason": "Private raw error, cause and stack are retained in original fixture; only failure hash and narrow allowlisted finding are public"
+    },
+    {
+      "fixture": "attempt2-v1-rail",
+      "member": "evidence/private-failure.json",
+      "bytes": 7712,
+      "sha256": "c0e685994d54893964feea0fc4bf5234041a6f9cf347e328fc7480750364f93d",
+      "published": false,
+      "reason": "Private raw error, cause and stack are retained in original fixture; only failure hash and narrow allowlisted finding are public"
+    },
+    {
+      "fixture": "attempt3-v2-purpose",
+      "member": "evidence/private-failure.json",
+      "bytes": 947,
+      "sha256": "fa241e6baf4b23ea0022f667e8845fa9957404f3a0d5ebca521354ead1630f92",
+      "published": false,
+      "reason": "Private raw error, cause and stack are retained in original fixture; only failure hash and narrow allowlisted finding are public"
+    },
+    {
+      "fixture": "attempt4-v3-audit-csp",
+      "member": "evidence/private-failure.json",
+      "bytes": 1353,
+      "sha256": "1b9fe0ee77aefb2ad4c9191a490f224f979e2acbbbf0cc7c8100d081831a898c",
+      "published": false,
+      "reason": "Private raw error, cause and stack are retained in original fixture; only failure hash and narrow allowlisted finding are public"
+    }
+  ],
+  "publicationBindings": [
+    {
+      "sourceFixture": "attempt1-v1-long-path",
+      "sourceMember": "evidence/result.json",
+      "publishedPath": "runs/attempt1-v1-long-path/evidence/result.json",
+      "bytes": 13142,
+      "sha256": "ce8a32d114c90c0c9a96f0301f7fcf66c25fd01fc5ea080d4c9e51aeed77cbd6"
+    },
+    {
+      "sourceFixture": "attempt1-v1-long-path",
+      "sourceMember": "evidence/events.jsonl",
+      "publishedPath": "runs/attempt1-v1-long-path/evidence/events.jsonl",
+      "bytes": 3052,
+      "sha256": "f869280ef091cfe34bbb0602c90d09ef58303b1f5824bc471a58ed45921e060d"
+    },
+    {
+      "sourceFixture": "attempt1-v1-long-path",
+      "sourceMember": "evidence/incomplete.json",
+      "publishedPath": "runs/attempt1-v1-long-path/evidence/incomplete.json",
+      "bytes": 704,
+      "sha256": "e0475ec0c7f7b048ea515650958f9705da578c38609eaceb9209e92a8e9e9072"
+    },
+    {
+      "sourceFixture": "attempt1-v1-long-path",
+      "sourceMember": "driver-result.json",
+      "publishedPath": "runs/attempt1-v1-long-path/driver-result.json",
+      "bytes": 13579,
+      "sha256": "33d66edce9940d517325e6d52fb989d62a3e2209e88b558ff3529e1a42267f48"
+    },
+    {
+      "sourceFixture": "attempt1-v1-long-path",
+      "sourceMember": "driver-start.json",
+      "publishedPath": "runs/attempt1-v1-long-path/driver-start.json",
+      "bytes": 372,
+      "sha256": "90199ff127cc30966cd090726cdf93741e0d2c138cb8761a6680a2b3e654998a"
+    },
+    {
+      "sourceFixture": "attempt1-v1-long-path",
+      "sourceMember": "driver-owned-identities.json",
+      "publishedPath": "runs/attempt1-v1-long-path/driver-owned-identities.json",
+      "bytes": 309,
+      "sha256": "f5f9a81817bcaf329a5d2dad08cd39d102a40250a3297302861640f1f75a6dd7"
+    },
+    {
+      "sourceFixture": "attempt1-v1-long-path",
+      "sourceMember": "driver-managed-scopes.json",
+      "publishedPath": "runs/attempt1-v1-long-path/driver-managed-scopes.json",
+      "bytes": 864,
+      "sha256": "ad6b2faf86d997e3046ba7038ce4f4c0b7f23ac9f092cb09d7eeb52d6f0706b0"
+    },
+    {
+      "sourceFixture": "attempt1-v1-long-path",
+      "sourceMember": "supervisor/final.json",
+      "publishedPath": "runs/attempt1-v1-long-path/supervisor/final.json",
+      "bytes": 6141,
+      "sha256": "3fb8ee71847b2af62e248fa76ca3e92fbeafdd77e0d92994bc0f2f4dd199009f"
+    },
+    {
+      "sourceFixture": "attempt2-v1-rail",
+      "sourceMember": "evidence/result.json",
+      "publishedPath": "runs/attempt2-v1-rail/evidence/result.json",
+      "bytes": 15042,
+      "sha256": "8d7d0e63ca19412058f373a6fb4659c88fc4aae718d9ef321913d1b8c6fa523f"
+    },
+    {
+      "sourceFixture": "attempt2-v1-rail",
+      "sourceMember": "evidence/events.jsonl",
+      "publishedPath": "runs/attempt2-v1-rail/evidence/events.jsonl",
+      "bytes": 6509,
+      "sha256": "ed2b1fd3da047c0d74db97046fd753fdceef07594abd7bc172acaf5674738649"
+    },
+    {
+      "sourceFixture": "attempt2-v1-rail",
+      "sourceMember": "evidence/incomplete.json",
+      "publishedPath": "runs/attempt2-v1-rail/evidence/incomplete.json",
+      "bytes": 1634,
+      "sha256": "d2bb83fb1437edced1e99ae4128a1bf3aaaed628bad2fd71393b7f640d32fc7b"
+    },
+    {
+      "sourceFixture": "attempt2-v1-rail",
+      "sourceMember": "driver-result.json",
+      "publishedPath": "runs/attempt2-v1-rail/driver-result.json",
+      "bytes": 15536,
+      "sha256": "d8a2cfeb1b1fff3138733fcda9890a98e870111d4e83ef347a31ce4787aa23f0"
+    },
+    {
+      "sourceFixture": "attempt2-v1-rail",
+      "sourceMember": "driver-start.json",
+      "publishedPath": "runs/attempt2-v1-rail/driver-start.json",
+      "bytes": 344,
+      "sha256": "aa96e34331e8951d8e7a3bc6935e081a21be183533c3a16637afdeccf58dc429"
+    },
+    {
+      "sourceFixture": "attempt2-v1-rail",
+      "sourceMember": "driver-owned-identities.json",
+      "publishedPath": "runs/attempt2-v1-rail/driver-owned-identities.json",
+      "bytes": 739,
+      "sha256": "9bdb34b1759519e89027bc724226d7101b0592112f3c274c0482445431f4bda2"
+    },
+    {
+      "sourceFixture": "attempt2-v1-rail",
+      "sourceMember": "driver-managed-scopes.json",
+      "publishedPath": "runs/attempt2-v1-rail/driver-managed-scopes.json",
+      "bytes": 752,
+      "sha256": "20975cb90f617a7fd6b4e1ec513b5a4960638a2d55710b3c8fc8db3efc8a2361"
+    },
+    {
+      "sourceFixture": "attempt2-v1-rail",
+      "sourceMember": "supervisor/final.json",
+      "publishedPath": "runs/attempt2-v1-rail/supervisor/final.json",
+      "bytes": 7463,
+      "sha256": "1e43f7188dbad9a86efe71f860721a3378931f5df1613ca4698bb54275209d58"
+    },
+    {
+      "sourceFixture": "attempt2-v1-rail",
+      "sourceMember": "evidence/failure.png",
+      "publishedPath": "runs/attempt2-v1-rail/evidence/failure.png",
+      "bytes": 65562,
+      "sha256": "efd3389e000b8e64d210c1a828cefc23b16db180d31d5b1dad0ad1329c6ef228"
+    },
+    {
+      "sourceFixture": "attempt3-v2-purpose",
+      "sourceMember": "evidence/result.json",
+      "publishedPath": "runs/attempt3-v2-purpose/evidence/result.json",
+      "bytes": 14807,
+      "sha256": "3780a6d32605ba2f92c35d371c73ad4221d3f3c1be7023f53a02f1253815ae4d"
+    },
+    {
+      "sourceFixture": "attempt3-v2-purpose",
+      "sourceMember": "evidence/events.jsonl",
+      "publishedPath": "runs/attempt3-v2-purpose/evidence/events.jsonl",
+      "bytes": 7072,
+      "sha256": "d9d2ac4e4e0dd4d05efb5fbb61d7455eaba0e7f930ca6d9b32f9343f9a84d5aa"
+    },
+    {
+      "sourceFixture": "attempt3-v2-purpose",
+      "sourceMember": "evidence/incomplete.json",
+      "publishedPath": "runs/attempt3-v2-purpose/evidence/incomplete.json",
+      "bytes": 1527,
+      "sha256": "c8e168f2d2724f1d2fb7348cd135d54381324438cb92c2f523723929164e2108"
+    },
+    {
+      "sourceFixture": "attempt3-v2-purpose",
+      "sourceMember": "driver-result.json",
+      "publishedPath": "runs/attempt3-v2-purpose/driver-result.json",
+      "bytes": 15284,
+      "sha256": "5df5c5402962de76b127f67f9bc59a4d2735ca34801e763763a48c1cbe168489"
+    },
+    {
+      "sourceFixture": "attempt3-v2-purpose",
+      "sourceMember": "driver-start.json",
+      "publishedPath": "runs/attempt3-v2-purpose/driver-start.json",
+      "bytes": 344,
+      "sha256": "d7bbe113367ae26cbce9c6c1f087ebf32718e5978f88e122b36664edc553d8ef"
+    },
+    {
+      "sourceFixture": "attempt3-v2-purpose",
+      "sourceMember": "driver-owned-identities.json",
+      "publishedPath": "runs/attempt3-v2-purpose/driver-owned-identities.json",
+      "bytes": 648,
+      "sha256": "80f1ac2a6f2436073f2acaf5be15e63c107654df22ee6790d36ab31d901adbcf"
+    },
+    {
+      "sourceFixture": "attempt3-v2-purpose",
+      "sourceMember": "driver-managed-scopes.json",
+      "publishedPath": "runs/attempt3-v2-purpose/driver-managed-scopes.json",
+      "bytes": 752,
+      "sha256": "dd9896008044e700d656494c1ef78b78fa3ab15260af2b285ffa1f81cae0144b"
+    },
+    {
+      "sourceFixture": "attempt3-v2-purpose",
+      "sourceMember": "supervisor/final.json",
+      "publishedPath": "runs/attempt3-v2-purpose/supervisor/final.json",
+      "bytes": 7254,
+      "sha256": "3ce32a93ebfc093a0096bc0f56c8c880e1c53f27016442ab2ef52cd3b4bd439a"
+    },
+    {
+      "sourceFixture": "attempt3-v2-purpose",
+      "sourceMember": "evidence/failure.png",
+      "publishedPath": "runs/attempt3-v2-purpose/evidence/failure.png",
+      "bytes": 169562,
+      "sha256": "00c95b4312d65e717a3fb39db28d6ddbeec2043ce4b0d1b0aff0e08700d7c228"
+    },
+    {
+      "sourceFixture": "attempt4-v3-audit-csp",
+      "sourceMember": "evidence/result.json",
+      "publishedPath": "runs/attempt4-v3-audit-csp/evidence/result.json",
+      "bytes": 14796,
+      "sha256": "147662b590ae0d8fbfe098ea16ddd05a94f8cd31f906e9eee2db6a7d235328de"
+    },
+    {
+      "sourceFixture": "attempt4-v3-audit-csp",
+      "sourceMember": "evidence/events.jsonl",
+      "publishedPath": "runs/attempt4-v3-audit-csp/evidence/events.jsonl",
+      "bytes": 8017,
+      "sha256": "26060129b5a208b9d40303991d1da14468cd43fe291b6d369a98021c83e332e7"
+    },
+    {
+      "sourceFixture": "attempt4-v3-audit-csp",
+      "sourceMember": "evidence/incomplete.json",
+      "publishedPath": "runs/attempt4-v3-audit-csp/evidence/incomplete.json",
+      "bytes": 1516,
+      "sha256": "8dd83dd1f0ec325d510bd8d343bad6a838a633545d20b741bab18a38617490dc"
+    },
+    {
+      "sourceFixture": "attempt4-v3-audit-csp",
+      "sourceMember": "driver-result.json",
+      "publishedPath": "runs/attempt4-v3-audit-csp/driver-result.json",
+      "bytes": 15284,
+      "sha256": "15ffe652259b8983b7d46b1aa553398d1dfc38655c8165d44145ac0a4286c277"
+    },
+    {
+      "sourceFixture": "attempt4-v3-audit-csp",
+      "sourceMember": "driver-start.json",
+      "publishedPath": "runs/attempt4-v3-audit-csp/driver-start.json",
+      "bytes": 344,
+      "sha256": "3f19e6e88071a066294601fa6c3c64cdb2b40479ea4d975acd77867dfee7f2d8"
+    },
+    {
+      "sourceFixture": "attempt4-v3-audit-csp",
+      "sourceMember": "driver-owned-identities.json",
+      "publishedPath": "runs/attempt4-v3-audit-csp/driver-owned-identities.json",
+      "bytes": 648,
+      "sha256": "995d5cee7ce17e12fdccff27bbfba276ca263ab6837b862d9ddc5493cf93f8e0"
+    },
+    {
+      "sourceFixture": "attempt4-v3-audit-csp",
+      "sourceMember": "driver-managed-scopes.json",
+      "publishedPath": "runs/attempt4-v3-audit-csp/driver-managed-scopes.json",
+      "bytes": 752,
+      "sha256": "af9dc513d7302e82c520c2fdc6dd4a5981c662cbeec081c5be75521c0694b879"
+    },
+    {
+      "sourceFixture": "attempt4-v3-audit-csp",
+      "sourceMember": "supervisor/final.json",
+      "publishedPath": "runs/attempt4-v3-audit-csp/supervisor/final.json",
+      "bytes": 7266,
+      "sha256": "5117cef7e584abf018402b86823dfe17950dcc0b2a80e88938caf3ea7924df98"
+    },
+    {
+      "sourceFixture": "attempt4-v3-audit-csp",
+      "sourceMember": "evidence/1440-team-access-suspended.png",
+      "publishedPath": "runs/attempt4-v3-audit-csp/evidence/1440-team-access-suspended.png",
+      "bytes": 32191,
+      "sha256": "8feb1882dcea666e1a363bf454ff759ca6af530b87bf129d54d97e267c4b124a"
+    },
+    {
+      "sourceFixture": "attempt4-v3-audit-csp",
+      "sourceMember": "evidence/failure.png",
+      "publishedPath": "runs/attempt4-v3-audit-csp/evidence/failure.png",
+      "bytes": 32191,
+      "sha256": "8feb1882dcea666e1a363bf454ff759ca6af530b87bf129d54d97e267c4b124a"
+    },
+    {
+      "sourceFixture": "attempt5-v4-workflow",
+      "sourceMember": "evidence/result.json",
+      "publishedPath": "runs/attempt5-v4-workflow/evidence/result.json",
+      "bytes": 14630,
+      "sha256": "728b82a253abc030ba8018be2e2527b51c1df3133aa532a8be76f12ddcacd48f"
+    },
+    {
+      "sourceFixture": "attempt5-v4-workflow",
+      "sourceMember": "evidence/events.jsonl",
+      "publishedPath": "runs/attempt5-v4-workflow/evidence/events.jsonl",
+      "bytes": 18036,
+      "sha256": "f1e8de89ac0a815db0b97890a30d3174ff2a1997ce0f64ee4455f5c012687814"
+    },
+    {
+      "sourceFixture": "attempt5-v4-workflow",
+      "sourceMember": "evidence/incomplete.json",
+      "publishedPath": "runs/attempt5-v4-workflow/evidence/incomplete.json",
+      "bytes": 1375,
+      "sha256": "ee6611bcffd5cb285cc5adc76dd5322ab801c1374b9e1f36cbbca8de21426c3e"
+    },
+    {
+      "sourceFixture": "attempt5-v4-workflow",
+      "sourceMember": "driver-result.json",
+      "publishedPath": "runs/attempt5-v4-workflow/driver-result.json",
+      "bytes": 15283,
+      "sha256": "342ad8a3ae974c51901b72fd3523df7571fcdacd368b0eb6c89613dfaaf0d99f"
+    },
+    {
+      "sourceFixture": "attempt5-v4-workflow",
+      "sourceMember": "driver-start.json",
+      "publishedPath": "runs/attempt5-v4-workflow/driver-start.json",
+      "bytes": 344,
+      "sha256": "4d7fb46ec5a552210f69292fc855ae838786f227ad84ed4460e8c5f214409811"
+    },
+    {
+      "sourceFixture": "attempt5-v4-workflow",
+      "sourceMember": "driver-owned-identities.json",
+      "publishedPath": "runs/attempt5-v4-workflow/driver-owned-identities.json",
+      "bytes": 648,
+      "sha256": "7223a7bfb782ad237facfb5248c3d884235fa792c536628b4d0d876da7402b82"
+    },
+    {
+      "sourceFixture": "attempt5-v4-workflow",
+      "sourceMember": "driver-managed-scopes.json",
+      "publishedPath": "runs/attempt5-v4-workflow/driver-managed-scopes.json",
+      "bytes": 752,
+      "sha256": "e1df44c7fd343f86796d69cf6eeed321645bfb0a3c05d275fad02f60fe70c8f0"
+    },
+    {
+      "sourceFixture": "attempt5-v4-workflow",
+      "sourceMember": "supervisor/final.json",
+      "publishedPath": "runs/attempt5-v4-workflow/supervisor/final.json",
+      "bytes": 7264,
+      "sha256": "baacb0a9e260dd604ecb2f903e2d0cb44eced292bf453e499cfced7b7dddb5d6"
+    },
+    {
+      "sourceFixture": "attempt5-v4-workflow",
+      "sourceMember": "evidence/1440-restored-definition.png",
+      "publishedPath": "runs/attempt5-v4-workflow/evidence/1440-restored-definition.png",
+      "bytes": 160458,
+      "sha256": "2cead5de5fd70b389a4c21eb7b83e4fd4561cbee7e61bb320271545ba7b809ba"
+    },
+    {
+      "sourceFixture": "attempt5-v4-workflow",
+      "sourceMember": "evidence/1440-team-access-suspended.png",
+      "publishedPath": "runs/attempt5-v4-workflow/evidence/1440-team-access-suspended.png",
+      "bytes": 32191,
+      "sha256": "8feb1882dcea666e1a363bf454ff759ca6af530b87bf129d54d97e267c4b124a"
+    },
+    {
+      "sourceFixture": "attempt5-v4-workflow",
+      "sourceMember": "evidence/390-team-settings-suspended.png",
+      "publishedPath": "runs/attempt5-v4-workflow/evidence/390-team-settings-suspended.png",
+      "bytes": 28778,
+      "sha256": "5a9d150e0db929d0645de197bd09bdfc5e2fa936d6b9bf16ad05f869d57bb721"
+    }
+  ]
+}

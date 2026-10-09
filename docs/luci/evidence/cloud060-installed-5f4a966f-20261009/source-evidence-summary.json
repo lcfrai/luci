@@ -1,0 +1,40 @@
+{
+  "product": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "passed": true,
+  "artifact": "/workspace/.luci-tools/cloud060-v4-publication/source-evidence.tar.gz",
+  "sha256": "95a724c85326a31423f1703e7e7a0d564c3611b76d0f53435fc5813063670192",
+  "bytes": 2062678,
+  "members": 205,
+  "manifestSHA256": "d46b2f29f02dac51adeb3aec7c1602ba74e32e5d3da2fd3f9400c9f38082e7ad",
+  "checks": [
+    {
+      "version": "v1",
+      "helperReceiptMatches": 10
+    },
+    {
+      "version": "v2",
+      "helperReceiptMatches": 12
+    },
+    {
+      "version": "v3",
+      "helperReceiptMatches": 13
+    },
+    {
+      "version": "v4",
+      "helperReceiptMatches": 14
+    },
+    {
+      "controlledCapsule": "controls/purpose",
+      "manifestMatched": 23
+    },
+    {
+      "controlledCapsule": "controls/csp",
+      "manifestMatched": 15
+    },
+    {
+      "immutableGitHelperClosure": 9,
+      "product": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7"
+    }
+  ],
+  "noNewRuntimeOrTests": true
+}

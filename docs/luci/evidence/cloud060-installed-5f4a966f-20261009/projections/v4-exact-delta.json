@@ -1,0 +1,18 @@
+{
+  "scope": "Static exact helper delta review only",
+  "oldScenarioSHA256": "8201ebf898592cb4ddea4583d9f6312131f1503d041ca67f3914d15eae4dbc1c",
+  "newScenarioSHA256": "01dd23023975f8b113f962f485c1b11e0e1de4e1e6618fecf6bc4c320229f43b",
+  "allowedChanges": [
+    "import privileged auditBlockedEntry",
+    "replace inline addScriptTag + unchanged axe run with helper"
+  ],
+  "unchangedScope": ".team-entry",
+  "unchangedTags": [
+    "wcag2a",
+    "wcag2aa",
+    "wcag21aa"
+  ],
+  "unchangedZeroViolationAssertion": true,
+  "unchangedPrivacyFocusDraftMutationGuards": true,
+  "unchangedLaunchCSPBrowserOptionsCleanup": true
+}

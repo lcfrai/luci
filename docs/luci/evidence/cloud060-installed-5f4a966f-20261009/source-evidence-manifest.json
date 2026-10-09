@@ -1,0 +1,2224 @@
+{
+  "version": 1,
+  "product": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "checks": [
+    {
+      "version": "v1",
+      "helperReceiptMatches": 10
+    },
+    {
+      "version": "v2",
+      "helperReceiptMatches": 12
+    },
+    {
+      "version": "v3",
+      "helperReceiptMatches": 13
+    },
+    {
+      "version": "v4",
+      "helperReceiptMatches": 14
+    },
+    {
+      "controlledCapsule": "controls/purpose",
+      "manifestMatched": 23
+    },
+    {
+      "controlledCapsule": "controls/csp",
+      "manifestMatched": 15
+    },
+    {
+      "immutableGitHelperClosure": 9,
+      "product": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7"
+    }
+  ],
+  "sourceCopiesStableAcrossAssembly": true,
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "81a6cf28f7ee8fb97bb35568468f3c94265aade86876d84254a981f9bb96cc89",
+      "bytes": 1897
+    },
+    {
+      "path": "binding-audit/source-binding-audit.json",
+      "sha256": "c4da18632be9ab7e3a55cc873b2d780d3320ce9fd3feed78cdf130cfb2b0312a",
+      "bytes": 2850
+    },
+    {
+      "path": "binding-audit/source-binding-audit.py",
+      "sha256": "09d99b7e90759b4d4c580f769902efdef4878a94bf864e62ce9cd3e79605aef8",
+      "bytes": 8725
+    },
+    {
+      "path": "binding-audit/source-binding-details.json",
+      "sha256": "214b427f8a83fb1d9e20eb4519cfa17932d85ce6598d734afeac95254397e828",
+      "bytes": 666315
+    },
+    {
+      "path": "build-receipts/v1.json",
+      "sha256": "dad96e00fcc9d8ca2e73aec93c73ee3c6114fef5e3751a6857ebac9d2fb1ef2e",
+      "bytes": 406956
+    },
+    {
+      "path": "build-receipts/v2.json",
+      "sha256": "62c33ca1c8d34f00ad98016cb3714c509a85d39f3d203ef326a2e9c2621148a8",
+      "bytes": 407260
+    },
+    {
+      "path": "build-receipts/v3.json",
+      "sha256": "60d120224c65fee21810c6b69aae4870219bd67b1098f74aeba7dfc7c93a6749",
+      "bytes": 407405
+    },
+    {
+      "path": "build-receipts/v4.json",
+      "sha256": "9791aa38b3b8a1265e9a2c3060d486c9ba6ce542530df305e4b0fa74cd65c43a",
+      "bytes": 407556
+    },
+    {
+      "path": "controls/csp/README.md",
+      "sha256": "00bac0841ce9807c6eb0686fdf8025dbd4105eb2b0cb117b9a5a8b13da3fb8f6",
+      "bytes": 2115
+    },
+    {
+      "path": "controls/csp/manifest.json",
+      "sha256": "81ec7c463885f31d050f8fcd3bbfa593f542954f68cc4f20f0e6cebfbd619d76",
+      "bytes": 2293
+    },
+    {
+      "path": "controls/csp/owned-observations.json.gz",
+      "sha256": "897f05e60547dd7c3cfb1d79e497b8a04c038c021ba3266c5c56b46f4808d396",
+      "bytes": 21649
+    },
+    {
+      "path": "controls/csp/preflight.json",
+      "sha256": "cf09932b1c60f6b25a4dd0bc63b0876deef8498a9a48068363bae1e856aff449",
+      "bytes": 1895
+    },
+    {
+      "path": "controls/csp/projection.json",
+      "sha256": "d271af01eebb2a0085da324c09091c5ddf1dd0791a0e1ae321a698994d6266f4",
+      "bytes": 8143
+    },
+    {
+      "path": "controls/csp/report.json",
+      "sha256": "24b367f39c7c03783acc8e020f35ae23ce5bf2a71bdaf5b5aeddfe58c051d35b",
+      "bytes": 5843
+    },
+    {
+      "path": "controls/csp/result.json.gz",
+      "sha256": "7f98b15b5a76f668eb95a10666a507ce3f58f1e24bddbd4d2fd273f58b2722a4",
+      "bytes": 22718
+    },
+    {
+      "path": "controls/csp/source/accessibility.mjs",
+      "sha256": "40c91e67262f81780cb4ccbf25ad1eaadc1c103c8e0a5a2883c5581a318321a5",
+      "bytes": 508
+    },
+    {
+      "path": "controls/csp/source/axe-package.json",
+      "sha256": "d208b100bbee8f00e469bf8093fad40b5e3bdb0565fb4c1d89b6c9a289a06847",
+      "bytes": 7079
+    },
+    {
+      "path": "controls/csp/source/axe.min.js",
+      "sha256": "c24f097bd2f451d4f933e8bc7d8d539f8672a2ebcb5cc9f9f3eec8ca9470a0c1",
+      "bytes": 580491
+    },
+    {
+      "path": "controls/csp/source/fixture.mjs",
+      "sha256": "44fc4369055681b61a12ff85972666543679b0d3ea8776dce5396f7310aad34e",
+      "bytes": 7121
+    },
+    {
+      "path": "controls/csp/source/playwright-core-package.json",
+      "sha256": "f061c58427e47e843e26d201f0a57076c734e57c734ecbbd87d4a23b7a20db9b",
+      "bytes": 876
+    },
+    {
+      "path": "controls/csp/source/run.py",
+      "sha256": "2e8b305ae08860f62bc859b15fe0661f75cc65e319433be0fe67709592453e30",
+      "bytes": 5344
+    },
+    {
+      "path": "controls/csp/source/web.go",
+      "sha256": "33f40467517ca41d7a665a178de65310403892225f2c14f178a0a8998db92695",
+      "bytes": 2611
+    },
+    {
+      "path": "controls/csp/stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/csp/stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/initial-guards/guards-attempt1/before.json",
+      "sha256": "7e6fbe6f470e897afc4e29c82fad81812a31999033209fcd4d1d338b37814c6e",
+      "bytes": 821
+    },
+    {
+      "path": "controls/initial-guards/guards-attempt1/failure.json",
+      "sha256": "a64fc09c5f1f0c67421bde1aefc44bcfaef212e560b45db20ab0804090ba9ab9",
+      "bytes": 197
+    },
+    {
+      "path": "controls/initial-guards/guards-attempt2/before.json",
+      "sha256": "7e6fbe6f470e897afc4e29c82fad81812a31999033209fcd4d1d338b37814c6e",
+      "bytes": 821
+    },
+    {
+      "path": "controls/initial-guards/guards-attempt2/capture.mjs-syntax.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/initial-guards/guards-attempt2/capture.mjs-syntax.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/initial-guards/guards-attempt2/guard-tests.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/initial-guards/guards-attempt2/guard-tests.stdout.log",
+      "sha256": "83f910e1554ec3d79c7d89bf5864cc6b532d4b9ae817dbf4df167667551fd6f5",
+      "bytes": 1322
+    },
+    {
+      "path": "controls/initial-guards/guards-attempt2/guards.mjs-syntax.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/initial-guards/guards-attempt2/guards.mjs-syntax.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/initial-guards/guards-attempt2/guards.test.mjs-syntax.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/initial-guards/guards-attempt2/guards.test.mjs-syntax.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/initial-guards/guards-attempt2/launch.mjs-syntax.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/initial-guards/guards-attempt2/launch.mjs-syntax.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/initial-guards/guards-attempt2/node-version.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/initial-guards/guards-attempt2/node-version.stdout.log",
+      "sha256": "b7677d3ec37ee1897ba07dc2cfe8292fe421c9ac93396cca5bbece486d1a2a41",
+      "bytes": 9
+    },
+    {
+      "path": "controls/initial-guards/guards-attempt2/python-build-syntax.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/initial-guards/guards-attempt2/python-build-syntax.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/initial-guards/guards-attempt2/scenario.mjs-syntax.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/initial-guards/guards-attempt2/scenario.mjs-syntax.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/initial-guards/guards-attempt2/summary.json",
+      "sha256": "d749c2bb2a00fbc436356177f76c9547051a33cf1f14f1b8d62197210ece331b",
+      "bytes": 4424
+    },
+    {
+      "path": "controls/initial-guards/guards-final/before.json",
+      "sha256": "706676d5fe542023daa4d8b2ced16a44b628cfa29719413c37e896c1d2616bf6",
+      "bytes": 821
+    },
+    {
+      "path": "controls/initial-guards/guards-final/capture.mjs-syntax.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/initial-guards/guards-final/capture.mjs-syntax.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/initial-guards/guards-final/guard-tests.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/initial-guards/guards-final/guard-tests.stdout.log",
+      "sha256": "f8d53cbb146d14ac3edb76db23d69b8a1461b5991e40006bb57738ce3baeb100",
+      "bytes": 1318
+    },
+    {
+      "path": "controls/initial-guards/guards-final/guards.mjs-syntax.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/initial-guards/guards-final/guards.mjs-syntax.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/initial-guards/guards-final/guards.test.mjs-syntax.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/initial-guards/guards-final/guards.test.mjs-syntax.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/initial-guards/guards-final/launch.mjs-syntax.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/initial-guards/guards-final/launch.mjs-syntax.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/initial-guards/guards-final/node-version.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/initial-guards/guards-final/node-version.stdout.log",
+      "sha256": "b7677d3ec37ee1897ba07dc2cfe8292fe421c9ac93396cca5bbece486d1a2a41",
+      "bytes": 9
+    },
+    {
+      "path": "controls/initial-guards/guards-final/python-build-syntax.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/initial-guards/guards-final/python-build-syntax.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/initial-guards/guards-final/scenario.mjs-syntax.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/initial-guards/guards-final/scenario.mjs-syntax.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/initial-guards/guards-final/summary.json",
+      "sha256": "9faa05104e47a7f8f8363deb2fa662a673637974d3c4c0f26d9e8ee4b254ffac",
+      "bytes": 4425
+    },
+    {
+      "path": "controls/navigation/attempt1/navigation-tests.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/navigation/attempt1/navigation-tests.stdout.log",
+      "sha256": "19f5c94a0eca6487f8bed2d443b538718e11cf39719da6b91630ac3d58c54aca",
+      "bytes": 1613
+    },
+    {
+      "path": "controls/navigation/attempt1/navigation.test.original.mjs",
+      "sha256": "ccbe2124602260b385e619d5aed21b4ebd7e4af906e3b42e57b6b12b6c9ce41e",
+      "bytes": 7858
+    },
+    {
+      "path": "controls/navigation/attempt1/summary.json",
+      "sha256": "91a36a90df2f9796f842b7538f142d59955b8eb88fbe7cd7865c9564f74d2dcb",
+      "bytes": 4730
+    },
+    {
+      "path": "controls/navigation/attempt1/syntax-helper.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/navigation/attempt1/syntax-helper.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/navigation/attempt1/syntax-scenario.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/navigation/attempt1/syntax-scenario.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/navigation/attempt2/navigation-tests.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/navigation/attempt2/navigation-tests.stdout.log",
+      "sha256": "8aa6c8c2626218ec2781e1f2f1c08ca89c08f03a795425d56f76d9df84730099",
+      "bytes": 1775
+    },
+    {
+      "path": "controls/navigation/attempt2/navigation.mjs",
+      "sha256": "326943a3276a0174cd409d54713237af3fcacaaed979dbda04404be761a0ea28",
+      "bytes": 3382
+    },
+    {
+      "path": "controls/navigation/attempt2/navigation.test.mjs",
+      "sha256": "4f26fc2b50a09e17ea78eee08aa61dc8f8cac98e94fdf3b6bd1eccc902c83cbd",
+      "bytes": 7882
+    },
+    {
+      "path": "controls/navigation/attempt2/scenario.mjs",
+      "sha256": "0307d2dd3d5db842f0587b7ed26c020a99904c819f907b66121fd46e9e341b18",
+      "bytes": 12745
+    },
+    {
+      "path": "controls/navigation/attempt2/summary.json",
+      "sha256": "0b5569720a87bfbdc0a7e3114e9a5a42db65428fea8c5c1c93f4462fb38cabab",
+      "bytes": 5031
+    },
+    {
+      "path": "controls/navigation/attempt2/syntax-helper.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/navigation/attempt2/syntax-helper.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/navigation/attempt2/syntax-scenario.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/navigation/attempt2/syntax-scenario.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/navigation/attempt2/syntax-test.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/navigation/attempt2/syntax-test.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/navigation/final/before-layout-regression.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/navigation/final/before-layout-regression.stdout.log",
+      "sha256": "df237fb84ca325580fa3d63641b56d514fef95920bcb1c7c4efe2067b583892c",
+      "bytes": 1040
+    },
+    {
+      "path": "controls/navigation/final/navigation-tests.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/navigation/final/navigation-tests.stdout.log",
+      "sha256": "ec67c46aa0cd24b22ff200e5e66254f17b7a8df33f83b9e16a77ef17afa55aff",
+      "bytes": 1883
+    },
+    {
+      "path": "controls/navigation/final/summary.json",
+      "sha256": "1c8e478391b11f50ffa9a7ee1a36e14fbdaac15bd86dffe994cc3d2411a5d3e0",
+      "bytes": 6081
+    },
+    {
+      "path": "controls/navigation/final/syntax-helper.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/navigation/final/syntax-helper.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/navigation/final/syntax-scenario.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/navigation/final/syntax-scenario.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/navigation/final/syntax-test.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/navigation/final/syntax-test.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/navigation/handoff.json",
+      "sha256": "2a03a90d8ba257b9246597696048e1889bce65604ce262cf5d11d0a6a5dd736b",
+      "bytes": 2895
+    },
+    {
+      "path": "controls/navigation/railControl-original.mjs",
+      "sha256": "5bf3fbe5de7ec1fcffb54f5656e197d093b67fa4ac0f80a0661afc647a0a222d",
+      "bytes": 264
+    },
+    {
+      "path": "controls/navigation/scenario-original.mjs",
+      "sha256": "62fe43aeb04306589d70dc9638b63784fcec795191d03acb60d738cea4adc1b2",
+      "bytes": 12871
+    },
+    {
+      "path": "controls/navigation/scenario.patch",
+      "sha256": "aacf504837d8deab63e90f8792aa092593075941f509a3e81033b1617de0cf66",
+      "bytes": 3834
+    },
+    {
+      "path": "controls/purpose/README.md",
+      "sha256": "60419fa5f900e266ebf5c4f220e8107525609cfa93d7b95439160f158704853a",
+      "bytes": 2621
+    },
+    {
+      "path": "controls/purpose/assertion-projection.json",
+      "sha256": "b984add583c8346dd24ed017d51646236086b8aab12b84521ffff5bcb63c5841",
+      "bytes": 1209
+    },
+    {
+      "path": "controls/purpose/attempt1/stderr.log",
+      "sha256": "24af6a64177b474cab014f431403512ff9b8b859a181d876ce665a3a9f2d381b",
+      "bytes": 883
+    },
+    {
+      "path": "controls/purpose/attempt1/stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/purpose/attempt1/summary.json",
+      "sha256": "77d04292afb643cf7de5130108a48d83c3634286d12c16d4f00847849c71bac0",
+      "bytes": 6184
+    },
+    {
+      "path": "controls/purpose/attempt1/vitest.config.original.ts",
+      "sha256": "2ee0d4b7e515a3aecee28bc97652aee1245f69529994a37cc1fc2e923faac5ac",
+      "bytes": 730
+    },
+    {
+      "path": "controls/purpose/attempt2/stderr.log",
+      "sha256": "fb372398a6bbe7b407653223df24a37ec229cbdc68a80c6f1bbf97fd8fa753e4",
+      "bytes": 11815
+    },
+    {
+      "path": "controls/purpose/attempt2/stdout.log",
+      "sha256": "e60c313062bf5936cfec94c7e40bd3564721d4c50ccb3534d2acd8564f3da1eb",
+      "bytes": 1276
+    },
+    {
+      "path": "controls/purpose/attempt2/summary.json",
+      "sha256": "a1c13b7e923aed0e1b1bfebc9380802d69558c4fc078f9b1e9ec366916433236",
+      "bytes": 172930
+    },
+    {
+      "path": "controls/purpose/frozen/DefinitionWorkspace.test.tsx",
+      "sha256": "9bd90cabd0aabf3f4cb628a23c1874688fc84049810005bd8d97caf58a3e1961",
+      "bytes": 33098
+    },
+    {
+      "path": "controls/purpose/frozen/DefinitionWorkspace.tsx",
+      "sha256": "fe63aa3dcda3c5896ab13140ff2db74c492eda0e068a415cc560b7ec7777cfc7",
+      "bytes": 31738
+    },
+    {
+      "path": "controls/purpose/frozen/coreBundle.js.gz",
+      "sha256": "b985a61da201e805d07d7067d8c0d9f6af1312a65ee34388bad872e4f5d227f1",
+      "bytes": 674413
+    },
+    {
+      "path": "controls/purpose/frozen/extract-injected.mjs",
+      "sha256": "cb40aa1534e1ed58eb2790a0cb660689ccda9bc9e54e7aef00e204ad69238e71",
+      "bytes": 607
+    },
+    {
+      "path": "controls/purpose/frozen/injected-source.literal.js",
+      "sha256": "1389904ddfc4407e2666578aa426b00fef8c09b9b531a2b34db71d47c54b4102",
+      "bytes": 329572
+    },
+    {
+      "path": "controls/purpose/frozen/pinned-injected.cjs",
+      "sha256": "94103308b4f5791976b53543f5812be61ffb988574f7a51f412f87ab0ad60a85",
+      "bytes": 320783
+    },
+    {
+      "path": "controls/purpose/frozen/playwright-core-package.json",
+      "sha256": "f061c58427e47e843e26d201f0a57076c734e57c734ecbbd87d4a23b7a20db9b",
+      "bytes": 876
+    },
+    {
+      "path": "controls/purpose/frozen/purpose-selector.test.tsx",
+      "sha256": "60c6b789afe3ebc9e5987e7ceda4fd868160c335644c6ddc6f7c25ee6aa69034",
+      "bytes": 8043
+    },
+    {
+      "path": "controls/purpose/frozen/run-validation.py",
+      "sha256": "f11638f3a92852bd9263f393b08e7b5432e3dcb17b235041e1955e80b95b11c1",
+      "bytes": 1685
+    },
+    {
+      "path": "controls/purpose/frozen/v3-purpose.mjs",
+      "sha256": "c35e4aa4a604b8ba3bb2aeeaa9354159a8ce06a9d36a503973e79efcbac84cb7",
+      "bytes": 711
+    },
+    {
+      "path": "controls/purpose/frozen/v3-scenario.mjs",
+      "sha256": "8201ebf898592cb4ddea4583d9f6312131f1503d041ca67f3914d15eae4dbc1c",
+      "bytes": 12790
+    },
+    {
+      "path": "controls/purpose/frozen/vitest.config.ts",
+      "sha256": "a75136448b1bbf5101a9ddb5f1c145bae7953ad37cb59cae2c32cb45434d4692",
+      "bytes": 680
+    },
+    {
+      "path": "controls/purpose/manifest.json",
+      "sha256": "0b6c2c35605d5e4b442db70888eaa983adf00f133f337f614507f278fb3ec926",
+      "bytes": 3686
+    },
+    {
+      "path": "controls/purpose/result.json",
+      "sha256": "4fa3ffe90b8359426b8f226d5082f95bec4cc49b881bbfb25dc8ae7542bfe261",
+      "bytes": 1751
+    },
+    {
+      "path": "controls/purpose/settlement.json",
+      "sha256": "51f04da066c0dd2136d28c6283b1981ee68b294f4dbef62e2e23b07ceb0a28dd",
+      "bytes": 281
+    },
+    {
+      "path": "controls/supervisor/after/outer-run.py",
+      "sha256": "b022160126a92fcf32a045693667e13a13ad84357b353013050ebe0ca20e2181",
+      "bytes": 38513
+    },
+    {
+      "path": "controls/supervisor/after-followup-result/stderr.log",
+      "sha256": "ba3caa99f02cccfc0f74f67cf0c20e45a1ee9527332807b02c32381d55692d34",
+      "bytes": 2152
+    },
+    {
+      "path": "controls/supervisor/after-followup-result/stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/supervisor/after-result/stderr.log",
+      "sha256": "ac5d7a09055d2deffd1c5c74ceb5984f94d77810a00aed38b2d8e512986408eb",
+      "bytes": 2152
+    },
+    {
+      "path": "controls/supervisor/after-result/stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/supervisor/after2/outer-run.py",
+      "sha256": "c21a553cf78a8ae2cf59fbbefcce61196eb19b649dece7ac25a54aad06f54015",
+      "bytes": 38520
+    },
+    {
+      "path": "controls/supervisor/after2-followup-result/stderr.log",
+      "sha256": "b7393d6f627d43677fd7aae9347d31c83dc9fa52dcbafaec8b53307b90e61376",
+      "bytes": 1122
+    },
+    {
+      "path": "controls/supervisor/after2-followup-result/stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/supervisor/before/outer-run.py",
+      "sha256": "a9562861fc41be0a2f6edf14c4300bab2c8f838e28c84a1548dbd7d7f9b629a3",
+      "bytes": 38495
+    },
+    {
+      "path": "controls/supervisor/before-result/stderr.log",
+      "sha256": "bae5b047f8c0820f6b490f6bb1e485cdb19b7b6cc07fd2bd515ee5f50d3759d2",
+      "bytes": 3078
+    },
+    {
+      "path": "controls/supervisor/before-result/stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "controls/supervisor/capture-no-launch.py",
+      "sha256": "c5a2c76b1d2b374fc0a002c20da67f41226c63ba848df5e74f52063949d978c7",
+      "bytes": 3326
+    },
+    {
+      "path": "controls/supervisor/controlled.py",
+      "sha256": "150c33e55db2e6231e06b526fe7e021b425cd8754b506c991abc943130473609",
+      "bytes": 9822
+    },
+    {
+      "path": "controls/supervisor/followup-result.json",
+      "sha256": "5b004ec6a2e86a87acb02c9c5b0f02a4e50b56680cdac537942051c3938381f4",
+      "bytes": 3293
+    },
+    {
+      "path": "controls/supervisor/result.json",
+      "sha256": "1dd4b14468c43537a376f62246b159f036e2f45c731e30821fcb432a9b54bd8a",
+      "bytes": 3456
+    },
+    {
+      "path": "controls/supervisor/retained-no-launch/inert-executable",
+      "sha256": "eb7d843a224e38ce17f8a2ebe0c1875d9930a88e0d734837ff376f61bba5a237",
+      "bytes": 57
+    },
+    {
+      "path": "controls/supervisor/retained-no-launch/parent/c060-run-zzsi0gtw/supervisor/cleanup-entered.json",
+      "sha256": "e78bb07f122fd12d6a632f32f0e9a888b1d04d2b864155324d982d56134d4826",
+      "bytes": 124
+    },
+    {
+      "path": "controls/supervisor/retained-no-launch/parent/c060-run-zzsi0gtw/supervisor/events.jsonl",
+      "sha256": "d535e469211affc553a3371342ece3d87d520445c81303f617f14765d62fe4d0",
+      "bytes": 213
+    },
+    {
+      "path": "controls/supervisor/retained-no-launch/parent/c060-run-zzsi0gtw/supervisor/exception.json",
+      "sha256": "1b8e9c429667705b864f20d2028c9affc7477dcc6d537ca4d2d70c53a3fadbaf",
+      "bytes": 194
+    },
+    {
+      "path": "controls/supervisor/retained-no-launch/parent/c060-run-zzsi0gtw/supervisor/final.json",
+      "sha256": "543335047357d2112ce38cfa29f5eac02b048e03a0e3ac8659912d82754d5d22",
+      "bytes": 1441
+    },
+    {
+      "path": "controls/supervisor/retained-no-launch/parent/c060-run-zzsi0gtw/supervisor/preflight.json",
+      "sha256": "2867af2c29e44faef628aa39d433a1c38193c4b4b0a5feddc26caaacbfde4d03",
+      "bytes": 2034
+    },
+    {
+      "path": "controls/supervisor/retained-no-launch/receipt.json",
+      "sha256": "b4b0f58927b2cf53aa23be6e31154aa01dda6a82e55d1e6001c4b031c18cbc32",
+      "bytes": 2135
+    },
+    {
+      "path": "controls/supervisor/run-controls-followup.py",
+      "sha256": "2b9461d7945ebbd5f481a6d397898b9c40cf9ad52ca23c131e9cbe50bb442b0b",
+      "bytes": 2691
+    },
+    {
+      "path": "controls/supervisor/run-controls.py",
+      "sha256": "edbd8ed754bb701fb16608c4c09cbd2f722788fc526b8042f2961db89751d756",
+      "bytes": 2887
+    },
+    {
+      "path": "helpers/v1/HANDOFF.md",
+      "sha256": "cefe46c2908689123b739866878065711a03aef4e9020230a19f54689c024707",
+      "bytes": 4580
+    },
+    {
+      "path": "helpers/v1/README-supervisor.md",
+      "sha256": "687287f4ee434b59e5fc24a12fca476f3f7bbb8b2fea426d28ddc0c2ef226a45",
+      "bytes": 15262
+    },
+    {
+      "path": "helpers/v1/README.md",
+      "sha256": "69c9a5aba94b67211fb58c16fc4a62f0b0e18292e167ae9fb8b4c8fa1b79481a",
+      "bytes": 9989
+    },
+    {
+      "path": "helpers/v1/build.py",
+      "sha256": "79f2a50ede9b3a4d57b081baba018404852c9130262e9744aea37db216c5f7c4",
+      "bytes": 8445
+    },
+    {
+      "path": "helpers/v1/capture.mjs",
+      "sha256": "18b980891c89162c3336217d85adc544b4ed24547e0f3d3f2602be68c8b8f431",
+      "bytes": 2896
+    },
+    {
+      "path": "helpers/v1/guards.mjs",
+      "sha256": "93da264d136f86bc70970f8d4a9e98316a44c6d6937337fdfedc7043c7dc3be2",
+      "bytes": 4197
+    },
+    {
+      "path": "helpers/v1/guards.test.mjs",
+      "sha256": "a920620f9435894d391ef03e677fe0b8e675c6d7de85d001e21d968751516190",
+      "bytes": 7582
+    },
+    {
+      "path": "helpers/v1/launch.mjs",
+      "sha256": "3d821c97681b24c3d20f60804f58ff19ca3ffc37256b8f3c6c06a769f9a8fbc4",
+      "bytes": 17819
+    },
+    {
+      "path": "helpers/v1/outer-run.py",
+      "sha256": "c21a553cf78a8ae2cf59fbbefcce61196eb19b649dece7ac25a54aad06f54015",
+      "bytes": 38520
+    },
+    {
+      "path": "helpers/v1/scenario.mjs",
+      "sha256": "62fe43aeb04306589d70dc9638b63784fcec795191d03acb60d738cea4adc1b2",
+      "bytes": 12871
+    },
+    {
+      "path": "helpers/v2/HANDOFF.md",
+      "sha256": "31f88ae5520703b06cc441e38cc64298c429c599e754b674d3cbb3e478a281df",
+      "bytes": 3889
+    },
+    {
+      "path": "helpers/v2/README-supervisor.md",
+      "sha256": "687287f4ee434b59e5fc24a12fca476f3f7bbb8b2fea426d28ddc0c2ef226a45",
+      "bytes": 15262
+    },
+    {
+      "path": "helpers/v2/README.md",
+      "sha256": "a72c2ecd2d651d8b2d79a86571e8d5c97a9f9fe5c6190ff8422eff61344c110a",
+      "bytes": 10437
+    },
+    {
+      "path": "helpers/v2/build.py",
+      "sha256": "79f2a50ede9b3a4d57b081baba018404852c9130262e9744aea37db216c5f7c4",
+      "bytes": 8445
+    },
+    {
+      "path": "helpers/v2/capture.mjs",
+      "sha256": "18b980891c89162c3336217d85adc544b4ed24547e0f3d3f2602be68c8b8f431",
+      "bytes": 2896
+    },
+    {
+      "path": "helpers/v2/guards.mjs",
+      "sha256": "93da264d136f86bc70970f8d4a9e98316a44c6d6937337fdfedc7043c7dc3be2",
+      "bytes": 4197
+    },
+    {
+      "path": "helpers/v2/guards.test.mjs",
+      "sha256": "a920620f9435894d391ef03e677fe0b8e675c6d7de85d001e21d968751516190",
+      "bytes": 7582
+    },
+    {
+      "path": "helpers/v2/launch.mjs",
+      "sha256": "3d821c97681b24c3d20f60804f58ff19ca3ffc37256b8f3c6c06a769f9a8fbc4",
+      "bytes": 17819
+    },
+    {
+      "path": "helpers/v2/navigation.mjs",
+      "sha256": "42ecc2e1406c88b2f88e1ec81641ce40a4e2e6a743dbb97b9a0b7d72758f95e0",
+      "bytes": 3538
+    },
+    {
+      "path": "helpers/v2/navigation.test.mjs",
+      "sha256": "dbb20cc7dfd7036651708a86d1303043abd439c017f42b7f2889af2072cd4326",
+      "bytes": 8454
+    },
+    {
+      "path": "helpers/v2/outer-run.py",
+      "sha256": "c21a553cf78a8ae2cf59fbbefcce61196eb19b649dece7ac25a54aad06f54015",
+      "bytes": 38520
+    },
+    {
+      "path": "helpers/v2/scenario.mjs",
+      "sha256": "0307d2dd3d5db842f0587b7ed26c020a99904c819f907b66121fd46e9e341b18",
+      "bytes": 12745
+    },
+    {
+      "path": "helpers/v3/HANDOFF.md",
+      "sha256": "cbae85b557547ec104e2c1ed50b1630e4d82fff24d593aea8db7c04a4e100b07",
+      "bytes": 4149
+    },
+    {
+      "path": "helpers/v3/README-supervisor.md",
+      "sha256": "687287f4ee434b59e5fc24a12fca476f3f7bbb8b2fea426d28ddc0c2ef226a45",
+      "bytes": 15262
+    },
+    {
+      "path": "helpers/v3/README.md",
+      "sha256": "f9eb87bd7ee6637e799f7a573cd56ef36196213444274048b691d5a07a69a56c",
+      "bytes": 10557
+    },
+    {
+      "path": "helpers/v3/build.py",
+      "sha256": "79f2a50ede9b3a4d57b081baba018404852c9130262e9744aea37db216c5f7c4",
+      "bytes": 8445
+    },
+    {
+      "path": "helpers/v3/capture.mjs",
+      "sha256": "18b980891c89162c3336217d85adc544b4ed24547e0f3d3f2602be68c8b8f431",
+      "bytes": 2896
+    },
+    {
+      "path": "helpers/v3/guards.mjs",
+      "sha256": "93da264d136f86bc70970f8d4a9e98316a44c6d6937337fdfedc7043c7dc3be2",
+      "bytes": 4197
+    },
+    {
+      "path": "helpers/v3/guards.test.mjs",
+      "sha256": "a920620f9435894d391ef03e677fe0b8e675c6d7de85d001e21d968751516190",
+      "bytes": 7582
+    },
+    {
+      "path": "helpers/v3/launch.mjs",
+      "sha256": "3d821c97681b24c3d20f60804f58ff19ca3ffc37256b8f3c6c06a769f9a8fbc4",
+      "bytes": 17819
+    },
+    {
+      "path": "helpers/v3/navigation.mjs",
+      "sha256": "42ecc2e1406c88b2f88e1ec81641ce40a4e2e6a743dbb97b9a0b7d72758f95e0",
+      "bytes": 3538
+    },
+    {
+      "path": "helpers/v3/navigation.test.mjs",
+      "sha256": "dbb20cc7dfd7036651708a86d1303043abd439c017f42b7f2889af2072cd4326",
+      "bytes": 8454
+    },
+    {
+      "path": "helpers/v3/outer-run.py",
+      "sha256": "c21a553cf78a8ae2cf59fbbefcce61196eb19b649dece7ac25a54aad06f54015",
+      "bytes": 38520
+    },
+    {
+      "path": "helpers/v3/purpose.mjs",
+      "sha256": "c35e4aa4a604b8ba3bb2aeeaa9354159a8ce06a9d36a503973e79efcbac84cb7",
+      "bytes": 711
+    },
+    {
+      "path": "helpers/v3/scenario.mjs",
+      "sha256": "8201ebf898592cb4ddea4583d9f6312131f1503d041ca67f3914d15eae4dbc1c",
+      "bytes": 12790
+    },
+    {
+      "path": "helpers/v4/HANDOFF.md",
+      "sha256": "ba70233df52542a7487155c826bb8e0fea6c91375db2fa13a82fe7575e13503e",
+      "bytes": 3350
+    },
+    {
+      "path": "helpers/v4/README-supervisor.md",
+      "sha256": "687287f4ee434b59e5fc24a12fca476f3f7bbb8b2fea426d28ddc0c2ef226a45",
+      "bytes": 15262
+    },
+    {
+      "path": "helpers/v4/README.md",
+      "sha256": "9df2c386c50b9bc326b46e60779c808b07ef55f92d2cafc5c1c963fa1830cdef",
+      "bytes": 10746
+    },
+    {
+      "path": "helpers/v4/accessibility.mjs",
+      "sha256": "40c91e67262f81780cb4ccbf25ad1eaadc1c103c8e0a5a2883c5581a318321a5",
+      "bytes": 508
+    },
+    {
+      "path": "helpers/v4/build.py",
+      "sha256": "79f2a50ede9b3a4d57b081baba018404852c9130262e9744aea37db216c5f7c4",
+      "bytes": 8445
+    },
+    {
+      "path": "helpers/v4/capture.mjs",
+      "sha256": "18b980891c89162c3336217d85adc544b4ed24547e0f3d3f2602be68c8b8f431",
+      "bytes": 2896
+    },
+    {
+      "path": "helpers/v4/guards.mjs",
+      "sha256": "93da264d136f86bc70970f8d4a9e98316a44c6d6937337fdfedc7043c7dc3be2",
+      "bytes": 4197
+    },
+    {
+      "path": "helpers/v4/guards.test.mjs",
+      "sha256": "a920620f9435894d391ef03e677fe0b8e675c6d7de85d001e21d968751516190",
+      "bytes": 7582
+    },
+    {
+      "path": "helpers/v4/launch.mjs",
+      "sha256": "3d821c97681b24c3d20f60804f58ff19ca3ffc37256b8f3c6c06a769f9a8fbc4",
+      "bytes": 17819
+    },
+    {
+      "path": "helpers/v4/navigation.mjs",
+      "sha256": "42ecc2e1406c88b2f88e1ec81641ce40a4e2e6a743dbb97b9a0b7d72758f95e0",
+      "bytes": 3538
+    },
+    {
+      "path": "helpers/v4/navigation.test.mjs",
+      "sha256": "dbb20cc7dfd7036651708a86d1303043abd439c017f42b7f2889af2072cd4326",
+      "bytes": 8454
+    },
+    {
+      "path": "helpers/v4/outer-run.py",
+      "sha256": "c21a553cf78a8ae2cf59fbbefcce61196eb19b649dece7ac25a54aad06f54015",
+      "bytes": 38520
+    },
+    {
+      "path": "helpers/v4/purpose.mjs",
+      "sha256": "c35e4aa4a604b8ba3bb2aeeaa9354159a8ce06a9d36a503973e79efcbac84cb7",
+      "bytes": 711
+    },
+    {
+      "path": "helpers/v4/scenario.mjs",
+      "sha256": "01dd23023975f8b113f962f485c1b11e0e1de4e1e6618fecf6bc4c320229f43b",
+      "bytes": 12718
+    },
+    {
+      "path": "package-provenance.json",
+      "sha256": "2e378e550fa41a68af2477f472c92f6c15cd1bbe4048e453c769db2e08dca8be",
+      "bytes": 1039
+    },
+    {
+      "path": "repository-helper-closure/scripts/acceptance/check-create-recovery/check-create-guard.mjs",
+      "sha256": "4c36f0f9253da83bd5d75fd4f5af40363ecd0fd1598db9e00f9c0e10d98507a0",
+      "bytes": 9521
+    },
+    {
+      "path": "repository-helper-closure/scripts/acceptance/check-create-recovery/fixture-guards.mjs",
+      "sha256": "5bb86009d73cdd158637a716c4a3a348edb30337e9e2a8cd93ebef82773e1b35",
+      "bytes": 11868
+    },
+    {
+      "path": "repository-helper-closure/scripts/acceptance/check-create-recovery/installed-recovery.mjs",
+      "sha256": "1f4acfbe56c91daadbc8968ac5c1a8db0fbd75e1a066c0bae50c84d748ad1c81",
+      "bytes": 48594
+    },
+    {
+      "path": "repository-helper-closure/scripts/acceptance/check-create-recovery/provenance.mjs",
+      "sha256": "6b41954f56052d167954018018c79f561722a80497856d135d403904bfd9c08e",
+      "bytes": 4889
+    },
+    {
+      "path": "repository-helper-closure/scripts/acceptance/check-create-recovery/recovery-scenario.mjs",
+      "sha256": "f69a7d5bbf1fd1019106f5a24170f4946e182c78f741d6ad8415b5a90d386e24",
+      "bytes": 17076
+    },
+    {
+      "path": "repository-helper-closure/scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs",
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "bytes": 4176
+    },
+    {
+      "path": "repository-helper-closure/scripts/acceptance/launch-recovery/acceptance-startup.mjs",
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "bytes": 4637
+    },
+    {
+      "path": "repository-helper-closure/scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs",
+      "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+      "bytes": 6670
+    },
+    {
+      "path": "repository-helper-closure/scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs",
+      "sha256": "b965b9a5d03f8a4cbc19b6e065559e1d9b10a2812453bfafb992e3f0041e448f",
+      "bytes": 39518
+    }
+  ],
+  "sourceOrigins": [
+    {
+      "source": "/workspace/.luci-tools/cloud060-package-reuse-5f4a966f/build-receipt.json",
+      "path": "build-receipts/v1.json",
+      "sha256": "dad96e00fcc9d8ca2e73aec93c73ee3c6114fef5e3751a6857ebac9d2fb1ef2e",
+      "bytes": 406956
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/HANDOFF.md",
+      "path": "helpers/v1/HANDOFF.md",
+      "sha256": "cefe46c2908689123b739866878065711a03aef4e9020230a19f54689c024707",
+      "bytes": 4580
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/README-supervisor.md",
+      "path": "helpers/v1/README-supervisor.md",
+      "sha256": "687287f4ee434b59e5fc24a12fca476f3f7bbb8b2fea426d28ddc0c2ef226a45",
+      "bytes": 15262
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/README.md",
+      "path": "helpers/v1/README.md",
+      "sha256": "69c9a5aba94b67211fb58c16fc4a62f0b0e18292e167ae9fb8b4c8fa1b79481a",
+      "bytes": 9989
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/build.py",
+      "path": "helpers/v1/build.py",
+      "sha256": "79f2a50ede9b3a4d57b081baba018404852c9130262e9744aea37db216c5f7c4",
+      "bytes": 8445
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/capture.mjs",
+      "path": "helpers/v1/capture.mjs",
+      "sha256": "18b980891c89162c3336217d85adc544b4ed24547e0f3d3f2602be68c8b8f431",
+      "bytes": 2896
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/guards.mjs",
+      "path": "helpers/v1/guards.mjs",
+      "sha256": "93da264d136f86bc70970f8d4a9e98316a44c6d6937337fdfedc7043c7dc3be2",
+      "bytes": 4197
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/guards.test.mjs",
+      "path": "helpers/v1/guards.test.mjs",
+      "sha256": "a920620f9435894d391ef03e677fe0b8e675c6d7de85d001e21d968751516190",
+      "bytes": 7582
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/launch.mjs",
+      "path": "helpers/v1/launch.mjs",
+      "sha256": "3d821c97681b24c3d20f60804f58ff19ca3ffc37256b8f3c6c06a769f9a8fbc4",
+      "bytes": 17819
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/outer-run.py",
+      "path": "helpers/v1/outer-run.py",
+      "sha256": "c21a553cf78a8ae2cf59fbbefcce61196eb19b649dece7ac25a54aad06f54015",
+      "bytes": 38520
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/scenario.mjs",
+      "path": "helpers/v1/scenario.mjs",
+      "sha256": "62fe43aeb04306589d70dc9638b63784fcec795191d03acb60d738cea4adc1b2",
+      "bytes": 12871
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-package-reuse-v2-5f4a966f/build-receipt.json",
+      "path": "build-receipts/v2.json",
+      "sha256": "62c33ca1c8d34f00ad98016cb3714c509a85d39f3d203ef326a2e9c2621148a8",
+      "bytes": 407260
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/HANDOFF.md",
+      "path": "helpers/v2/HANDOFF.md",
+      "sha256": "31f88ae5520703b06cc441e38cc64298c429c599e754b674d3cbb3e478a281df",
+      "bytes": 3889
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/README-supervisor.md",
+      "path": "helpers/v2/README-supervisor.md",
+      "sha256": "687287f4ee434b59e5fc24a12fca476f3f7bbb8b2fea426d28ddc0c2ef226a45",
+      "bytes": 15262
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/README.md",
+      "path": "helpers/v2/README.md",
+      "sha256": "a72c2ecd2d651d8b2d79a86571e8d5c97a9f9fe5c6190ff8422eff61344c110a",
+      "bytes": 10437
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/build.py",
+      "path": "helpers/v2/build.py",
+      "sha256": "79f2a50ede9b3a4d57b081baba018404852c9130262e9744aea37db216c5f7c4",
+      "bytes": 8445
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/capture.mjs",
+      "path": "helpers/v2/capture.mjs",
+      "sha256": "18b980891c89162c3336217d85adc544b4ed24547e0f3d3f2602be68c8b8f431",
+      "bytes": 2896
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/guards.mjs",
+      "path": "helpers/v2/guards.mjs",
+      "sha256": "93da264d136f86bc70970f8d4a9e98316a44c6d6937337fdfedc7043c7dc3be2",
+      "bytes": 4197
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/guards.test.mjs",
+      "path": "helpers/v2/guards.test.mjs",
+      "sha256": "a920620f9435894d391ef03e677fe0b8e675c6d7de85d001e21d968751516190",
+      "bytes": 7582
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/launch.mjs",
+      "path": "helpers/v2/launch.mjs",
+      "sha256": "3d821c97681b24c3d20f60804f58ff19ca3ffc37256b8f3c6c06a769f9a8fbc4",
+      "bytes": 17819
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/navigation.mjs",
+      "path": "helpers/v2/navigation.mjs",
+      "sha256": "42ecc2e1406c88b2f88e1ec81641ce40a4e2e6a743dbb97b9a0b7d72758f95e0",
+      "bytes": 3538
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/navigation.test.mjs",
+      "path": "helpers/v2/navigation.test.mjs",
+      "sha256": "dbb20cc7dfd7036651708a86d1303043abd439c017f42b7f2889af2072cd4326",
+      "bytes": 8454
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/outer-run.py",
+      "path": "helpers/v2/outer-run.py",
+      "sha256": "c21a553cf78a8ae2cf59fbbefcce61196eb19b649dece7ac25a54aad06f54015",
+      "bytes": 38520
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/scenario.mjs",
+      "path": "helpers/v2/scenario.mjs",
+      "sha256": "0307d2dd3d5db842f0587b7ed26c020a99904c819f907b66121fd46e9e341b18",
+      "bytes": 12745
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-package-reuse-v3-5f4a966f/build-receipt.json",
+      "path": "build-receipts/v3.json",
+      "sha256": "60d120224c65fee21810c6b69aae4870219bd67b1098f74aeba7dfc7c93a6749",
+      "bytes": 407405
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v3/HANDOFF.md",
+      "path": "helpers/v3/HANDOFF.md",
+      "sha256": "cbae85b557547ec104e2c1ed50b1630e4d82fff24d593aea8db7c04a4e100b07",
+      "bytes": 4149
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v3/README-supervisor.md",
+      "path": "helpers/v3/README-supervisor.md",
+      "sha256": "687287f4ee434b59e5fc24a12fca476f3f7bbb8b2fea426d28ddc0c2ef226a45",
+      "bytes": 15262
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v3/README.md",
+      "path": "helpers/v3/README.md",
+      "sha256": "f9eb87bd7ee6637e799f7a573cd56ef36196213444274048b691d5a07a69a56c",
+      "bytes": 10557
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v3/build.py",
+      "path": "helpers/v3/build.py",
+      "sha256": "79f2a50ede9b3a4d57b081baba018404852c9130262e9744aea37db216c5f7c4",
+      "bytes": 8445
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v3/capture.mjs",
+      "path": "helpers/v3/capture.mjs",
+      "sha256": "18b980891c89162c3336217d85adc544b4ed24547e0f3d3f2602be68c8b8f431",
+      "bytes": 2896
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v3/guards.mjs",
+      "path": "helpers/v3/guards.mjs",
+      "sha256": "93da264d136f86bc70970f8d4a9e98316a44c6d6937337fdfedc7043c7dc3be2",
+      "bytes": 4197
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v3/guards.test.mjs",
+      "path": "helpers/v3/guards.test.mjs",
+      "sha256": "a920620f9435894d391ef03e677fe0b8e675c6d7de85d001e21d968751516190",
+      "bytes": 7582
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v3/launch.mjs",
+      "path": "helpers/v3/launch.mjs",
+      "sha256": "3d821c97681b24c3d20f60804f58ff19ca3ffc37256b8f3c6c06a769f9a8fbc4",
+      "bytes": 17819
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v3/navigation.mjs",
+      "path": "helpers/v3/navigation.mjs",
+      "sha256": "42ecc2e1406c88b2f88e1ec81641ce40a4e2e6a743dbb97b9a0b7d72758f95e0",
+      "bytes": 3538
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v3/navigation.test.mjs",
+      "path": "helpers/v3/navigation.test.mjs",
+      "sha256": "dbb20cc7dfd7036651708a86d1303043abd439c017f42b7f2889af2072cd4326",
+      "bytes": 8454
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v3/outer-run.py",
+      "path": "helpers/v3/outer-run.py",
+      "sha256": "c21a553cf78a8ae2cf59fbbefcce61196eb19b649dece7ac25a54aad06f54015",
+      "bytes": 38520
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v3/purpose.mjs",
+      "path": "helpers/v3/purpose.mjs",
+      "sha256": "c35e4aa4a604b8ba3bb2aeeaa9354159a8ce06a9d36a503973e79efcbac84cb7",
+      "bytes": 711
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v3/scenario.mjs",
+      "path": "helpers/v3/scenario.mjs",
+      "sha256": "8201ebf898592cb4ddea4583d9f6312131f1503d041ca67f3914d15eae4dbc1c",
+      "bytes": 12790
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-package-reuse-v4-5f4a966f/build-receipt.json",
+      "path": "build-receipts/v4.json",
+      "sha256": "9791aa38b3b8a1265e9a2c3060d486c9ba6ce542530df305e4b0fa74cd65c43a",
+      "bytes": 407556
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v4/HANDOFF.md",
+      "path": "helpers/v4/HANDOFF.md",
+      "sha256": "ba70233df52542a7487155c826bb8e0fea6c91375db2fa13a82fe7575e13503e",
+      "bytes": 3350
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v4/README-supervisor.md",
+      "path": "helpers/v4/README-supervisor.md",
+      "sha256": "687287f4ee434b59e5fc24a12fca476f3f7bbb8b2fea426d28ddc0c2ef226a45",
+      "bytes": 15262
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v4/README.md",
+      "path": "helpers/v4/README.md",
+      "sha256": "9df2c386c50b9bc326b46e60779c808b07ef55f92d2cafc5c1c963fa1830cdef",
+      "bytes": 10746
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v4/accessibility.mjs",
+      "path": "helpers/v4/accessibility.mjs",
+      "sha256": "40c91e67262f81780cb4ccbf25ad1eaadc1c103c8e0a5a2883c5581a318321a5",
+      "bytes": 508
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v4/build.py",
+      "path": "helpers/v4/build.py",
+      "sha256": "79f2a50ede9b3a4d57b081baba018404852c9130262e9744aea37db216c5f7c4",
+      "bytes": 8445
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v4/capture.mjs",
+      "path": "helpers/v4/capture.mjs",
+      "sha256": "18b980891c89162c3336217d85adc544b4ed24547e0f3d3f2602be68c8b8f431",
+      "bytes": 2896
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v4/guards.mjs",
+      "path": "helpers/v4/guards.mjs",
+      "sha256": "93da264d136f86bc70970f8d4a9e98316a44c6d6937337fdfedc7043c7dc3be2",
+      "bytes": 4197
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v4/guards.test.mjs",
+      "path": "helpers/v4/guards.test.mjs",
+      "sha256": "a920620f9435894d391ef03e677fe0b8e675c6d7de85d001e21d968751516190",
+      "bytes": 7582
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v4/launch.mjs",
+      "path": "helpers/v4/launch.mjs",
+      "sha256": "3d821c97681b24c3d20f60804f58ff19ca3ffc37256b8f3c6c06a769f9a8fbc4",
+      "bytes": 17819
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v4/navigation.mjs",
+      "path": "helpers/v4/navigation.mjs",
+      "sha256": "42ecc2e1406c88b2f88e1ec81641ce40a4e2e6a743dbb97b9a0b7d72758f95e0",
+      "bytes": 3538
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v4/navigation.test.mjs",
+      "path": "helpers/v4/navigation.test.mjs",
+      "sha256": "dbb20cc7dfd7036651708a86d1303043abd439c017f42b7f2889af2072cd4326",
+      "bytes": 8454
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v4/outer-run.py",
+      "path": "helpers/v4/outer-run.py",
+      "sha256": "c21a553cf78a8ae2cf59fbbefcce61196eb19b649dece7ac25a54aad06f54015",
+      "bytes": 38520
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v4/purpose.mjs",
+      "path": "helpers/v4/purpose.mjs",
+      "sha256": "c35e4aa4a604b8ba3bb2aeeaa9354159a8ce06a9d36a503973e79efcbac84cb7",
+      "bytes": 711
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v4/scenario.mjs",
+      "path": "helpers/v4/scenario.mjs",
+      "sha256": "01dd23023975f8b113f962f485c1b11e0e1de4e1e6618fecf6bc4c320229f43b",
+      "bytes": 12718
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-attempt1/before.json",
+      "path": "controls/initial-guards/guards-attempt1/before.json",
+      "sha256": "7e6fbe6f470e897afc4e29c82fad81812a31999033209fcd4d1d338b37814c6e",
+      "bytes": 821
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-attempt1/failure.json",
+      "path": "controls/initial-guards/guards-attempt1/failure.json",
+      "sha256": "a64fc09c5f1f0c67421bde1aefc44bcfaef212e560b45db20ab0804090ba9ab9",
+      "bytes": 197
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-attempt2/before.json",
+      "path": "controls/initial-guards/guards-attempt2/before.json",
+      "sha256": "7e6fbe6f470e897afc4e29c82fad81812a31999033209fcd4d1d338b37814c6e",
+      "bytes": 821
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-attempt2/capture.mjs-syntax.stderr.log",
+      "path": "controls/initial-guards/guards-attempt2/capture.mjs-syntax.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-attempt2/capture.mjs-syntax.stdout.log",
+      "path": "controls/initial-guards/guards-attempt2/capture.mjs-syntax.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-attempt2/guard-tests.stderr.log",
+      "path": "controls/initial-guards/guards-attempt2/guard-tests.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-attempt2/guard-tests.stdout.log",
+      "path": "controls/initial-guards/guards-attempt2/guard-tests.stdout.log",
+      "sha256": "83f910e1554ec3d79c7d89bf5864cc6b532d4b9ae817dbf4df167667551fd6f5",
+      "bytes": 1322
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-attempt2/guards.mjs-syntax.stderr.log",
+      "path": "controls/initial-guards/guards-attempt2/guards.mjs-syntax.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-attempt2/guards.mjs-syntax.stdout.log",
+      "path": "controls/initial-guards/guards-attempt2/guards.mjs-syntax.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-attempt2/guards.test.mjs-syntax.stderr.log",
+      "path": "controls/initial-guards/guards-attempt2/guards.test.mjs-syntax.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-attempt2/guards.test.mjs-syntax.stdout.log",
+      "path": "controls/initial-guards/guards-attempt2/guards.test.mjs-syntax.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-attempt2/launch.mjs-syntax.stderr.log",
+      "path": "controls/initial-guards/guards-attempt2/launch.mjs-syntax.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-attempt2/launch.mjs-syntax.stdout.log",
+      "path": "controls/initial-guards/guards-attempt2/launch.mjs-syntax.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-attempt2/node-version.stderr.log",
+      "path": "controls/initial-guards/guards-attempt2/node-version.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-attempt2/node-version.stdout.log",
+      "path": "controls/initial-guards/guards-attempt2/node-version.stdout.log",
+      "sha256": "b7677d3ec37ee1897ba07dc2cfe8292fe421c9ac93396cca5bbece486d1a2a41",
+      "bytes": 9
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-attempt2/python-build-syntax.stderr.log",
+      "path": "controls/initial-guards/guards-attempt2/python-build-syntax.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-attempt2/python-build-syntax.stdout.log",
+      "path": "controls/initial-guards/guards-attempt2/python-build-syntax.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-attempt2/scenario.mjs-syntax.stderr.log",
+      "path": "controls/initial-guards/guards-attempt2/scenario.mjs-syntax.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-attempt2/scenario.mjs-syntax.stdout.log",
+      "path": "controls/initial-guards/guards-attempt2/scenario.mjs-syntax.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-attempt2/summary.json",
+      "path": "controls/initial-guards/guards-attempt2/summary.json",
+      "sha256": "d749c2bb2a00fbc436356177f76c9547051a33cf1f14f1b8d62197210ece331b",
+      "bytes": 4424
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-final/before.json",
+      "path": "controls/initial-guards/guards-final/before.json",
+      "sha256": "706676d5fe542023daa4d8b2ced16a44b628cfa29719413c37e896c1d2616bf6",
+      "bytes": 821
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-final/capture.mjs-syntax.stderr.log",
+      "path": "controls/initial-guards/guards-final/capture.mjs-syntax.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-final/capture.mjs-syntax.stdout.log",
+      "path": "controls/initial-guards/guards-final/capture.mjs-syntax.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-final/guard-tests.stderr.log",
+      "path": "controls/initial-guards/guards-final/guard-tests.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-final/guard-tests.stdout.log",
+      "path": "controls/initial-guards/guards-final/guard-tests.stdout.log",
+      "sha256": "f8d53cbb146d14ac3edb76db23d69b8a1461b5991e40006bb57738ce3baeb100",
+      "bytes": 1318
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-final/guards.mjs-syntax.stderr.log",
+      "path": "controls/initial-guards/guards-final/guards.mjs-syntax.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-final/guards.mjs-syntax.stdout.log",
+      "path": "controls/initial-guards/guards-final/guards.mjs-syntax.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-final/guards.test.mjs-syntax.stderr.log",
+      "path": "controls/initial-guards/guards-final/guards.test.mjs-syntax.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-final/guards.test.mjs-syntax.stdout.log",
+      "path": "controls/initial-guards/guards-final/guards.test.mjs-syntax.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-final/launch.mjs-syntax.stderr.log",
+      "path": "controls/initial-guards/guards-final/launch.mjs-syntax.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-final/launch.mjs-syntax.stdout.log",
+      "path": "controls/initial-guards/guards-final/launch.mjs-syntax.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-final/node-version.stderr.log",
+      "path": "controls/initial-guards/guards-final/node-version.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-final/node-version.stdout.log",
+      "path": "controls/initial-guards/guards-final/node-version.stdout.log",
+      "sha256": "b7677d3ec37ee1897ba07dc2cfe8292fe421c9ac93396cca5bbece486d1a2a41",
+      "bytes": 9
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-final/python-build-syntax.stderr.log",
+      "path": "controls/initial-guards/guards-final/python-build-syntax.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-final/python-build-syntax.stdout.log",
+      "path": "controls/initial-guards/guards-final/python-build-syntax.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-final/scenario.mjs-syntax.stderr.log",
+      "path": "controls/initial-guards/guards-final/scenario.mjs-syntax.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-final/scenario.mjs-syntax.stdout.log",
+      "path": "controls/initial-guards/guards-final/scenario.mjs-syntax.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-preparation/validation/guards-final/summary.json",
+      "path": "controls/initial-guards/guards-final/summary.json",
+      "sha256": "9faa05104e47a7f8f8363deb2fa662a673637974d3c4c0f26d9e8ee4b254ffac",
+      "bytes": 4425
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-supervisor-validation/after/outer-run.py",
+      "path": "controls/supervisor/after/outer-run.py",
+      "sha256": "b022160126a92fcf32a045693667e13a13ad84357b353013050ebe0ca20e2181",
+      "bytes": 38513
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-supervisor-validation/after-followup-result/stderr.log",
+      "path": "controls/supervisor/after-followup-result/stderr.log",
+      "sha256": "ba3caa99f02cccfc0f74f67cf0c20e45a1ee9527332807b02c32381d55692d34",
+      "bytes": 2152
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-supervisor-validation/after-followup-result/stdout.log",
+      "path": "controls/supervisor/after-followup-result/stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-supervisor-validation/after-result/stderr.log",
+      "path": "controls/supervisor/after-result/stderr.log",
+      "sha256": "ac5d7a09055d2deffd1c5c74ceb5984f94d77810a00aed38b2d8e512986408eb",
+      "bytes": 2152
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-supervisor-validation/after-result/stdout.log",
+      "path": "controls/supervisor/after-result/stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-supervisor-validation/after2/outer-run.py",
+      "path": "controls/supervisor/after2/outer-run.py",
+      "sha256": "c21a553cf78a8ae2cf59fbbefcce61196eb19b649dece7ac25a54aad06f54015",
+      "bytes": 38520
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-supervisor-validation/after2-followup-result/stderr.log",
+      "path": "controls/supervisor/after2-followup-result/stderr.log",
+      "sha256": "b7393d6f627d43677fd7aae9347d31c83dc9fa52dcbafaec8b53307b90e61376",
+      "bytes": 1122
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-supervisor-validation/after2-followup-result/stdout.log",
+      "path": "controls/supervisor/after2-followup-result/stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-supervisor-validation/before/outer-run.py",
+      "path": "controls/supervisor/before/outer-run.py",
+      "sha256": "a9562861fc41be0a2f6edf14c4300bab2c8f838e28c84a1548dbd7d7f9b629a3",
+      "bytes": 38495
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-supervisor-validation/before-result/stderr.log",
+      "path": "controls/supervisor/before-result/stderr.log",
+      "sha256": "bae5b047f8c0820f6b490f6bb1e485cdb19b7b6cc07fd2bd515ee5f50d3759d2",
+      "bytes": 3078
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-supervisor-validation/before-result/stdout.log",
+      "path": "controls/supervisor/before-result/stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-supervisor-validation/capture-no-launch.py",
+      "path": "controls/supervisor/capture-no-launch.py",
+      "sha256": "c5a2c76b1d2b374fc0a002c20da67f41226c63ba848df5e74f52063949d978c7",
+      "bytes": 3326
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-supervisor-validation/controlled.py",
+      "path": "controls/supervisor/controlled.py",
+      "sha256": "150c33e55db2e6231e06b526fe7e021b425cd8754b506c991abc943130473609",
+      "bytes": 9822
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-supervisor-validation/followup-result.json",
+      "path": "controls/supervisor/followup-result.json",
+      "sha256": "5b004ec6a2e86a87acb02c9c5b0f02a4e50b56680cdac537942051c3938381f4",
+      "bytes": 3293
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-supervisor-validation/result.json",
+      "path": "controls/supervisor/result.json",
+      "sha256": "1dd4b14468c43537a376f62246b159f036e2f45c731e30821fcb432a9b54bd8a",
+      "bytes": 3456
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-supervisor-validation/retained-no-launch/inert-executable",
+      "path": "controls/supervisor/retained-no-launch/inert-executable",
+      "sha256": "eb7d843a224e38ce17f8a2ebe0c1875d9930a88e0d734837ff376f61bba5a237",
+      "bytes": 57
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-supervisor-validation/retained-no-launch/parent/c060-run-zzsi0gtw/supervisor/cleanup-entered.json",
+      "path": "controls/supervisor/retained-no-launch/parent/c060-run-zzsi0gtw/supervisor/cleanup-entered.json",
+      "sha256": "e78bb07f122fd12d6a632f32f0e9a888b1d04d2b864155324d982d56134d4826",
+      "bytes": 124
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-supervisor-validation/retained-no-launch/parent/c060-run-zzsi0gtw/supervisor/events.jsonl",
+      "path": "controls/supervisor/retained-no-launch/parent/c060-run-zzsi0gtw/supervisor/events.jsonl",
+      "sha256": "d535e469211affc553a3371342ece3d87d520445c81303f617f14765d62fe4d0",
+      "bytes": 213
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-supervisor-validation/retained-no-launch/parent/c060-run-zzsi0gtw/supervisor/exception.json",
+      "path": "controls/supervisor/retained-no-launch/parent/c060-run-zzsi0gtw/supervisor/exception.json",
+      "sha256": "1b8e9c429667705b864f20d2028c9affc7477dcc6d537ca4d2d70c53a3fadbaf",
+      "bytes": 194
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-supervisor-validation/retained-no-launch/parent/c060-run-zzsi0gtw/supervisor/final.json",
+      "path": "controls/supervisor/retained-no-launch/parent/c060-run-zzsi0gtw/supervisor/final.json",
+      "sha256": "543335047357d2112ce38cfa29f5eac02b048e03a0e3ac8659912d82754d5d22",
+      "bytes": 1441
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-supervisor-validation/retained-no-launch/parent/c060-run-zzsi0gtw/supervisor/preflight.json",
+      "path": "controls/supervisor/retained-no-launch/parent/c060-run-zzsi0gtw/supervisor/preflight.json",
+      "sha256": "2867af2c29e44faef628aa39d433a1c38193c4b4b0a5feddc26caaacbfde4d03",
+      "bytes": 2034
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-supervisor-validation/retained-no-launch/receipt.json",
+      "path": "controls/supervisor/retained-no-launch/receipt.json",
+      "sha256": "b4b0f58927b2cf53aa23be6e31154aa01dda6a82e55d1e6001c4b031c18cbc32",
+      "bytes": 2135
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-supervisor-validation/run-controls-followup.py",
+      "path": "controls/supervisor/run-controls-followup.py",
+      "sha256": "2b9461d7945ebbd5f481a6d397898b9c40cf9ad52ca23c131e9cbe50bb442b0b",
+      "bytes": 2691
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-supervisor-validation/run-controls.py",
+      "path": "controls/supervisor/run-controls.py",
+      "sha256": "edbd8ed754bb701fb16608c4c09cbd2f722788fc526b8042f2961db89751d756",
+      "bytes": 2887
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/attempt1/navigation-tests.stderr.log",
+      "path": "controls/navigation/attempt1/navigation-tests.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/attempt1/navigation-tests.stdout.log",
+      "path": "controls/navigation/attempt1/navigation-tests.stdout.log",
+      "sha256": "19f5c94a0eca6487f8bed2d443b538718e11cf39719da6b91630ac3d58c54aca",
+      "bytes": 1613
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/attempt1/navigation.test.original.mjs",
+      "path": "controls/navigation/attempt1/navigation.test.original.mjs",
+      "sha256": "ccbe2124602260b385e619d5aed21b4ebd7e4af906e3b42e57b6b12b6c9ce41e",
+      "bytes": 7858
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/attempt1/summary.json",
+      "path": "controls/navigation/attempt1/summary.json",
+      "sha256": "91a36a90df2f9796f842b7538f142d59955b8eb88fbe7cd7865c9564f74d2dcb",
+      "bytes": 4730
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/attempt1/syntax-helper.stderr.log",
+      "path": "controls/navigation/attempt1/syntax-helper.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/attempt1/syntax-helper.stdout.log",
+      "path": "controls/navigation/attempt1/syntax-helper.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/attempt1/syntax-scenario.stderr.log",
+      "path": "controls/navigation/attempt1/syntax-scenario.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/attempt1/syntax-scenario.stdout.log",
+      "path": "controls/navigation/attempt1/syntax-scenario.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/attempt2/navigation-tests.stderr.log",
+      "path": "controls/navigation/attempt2/navigation-tests.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/attempt2/navigation-tests.stdout.log",
+      "path": "controls/navigation/attempt2/navigation-tests.stdout.log",
+      "sha256": "8aa6c8c2626218ec2781e1f2f1c08ca89c08f03a795425d56f76d9df84730099",
+      "bytes": 1775
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/attempt2/navigation.mjs",
+      "path": "controls/navigation/attempt2/navigation.mjs",
+      "sha256": "326943a3276a0174cd409d54713237af3fcacaaed979dbda04404be761a0ea28",
+      "bytes": 3382
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/attempt2/navigation.test.mjs",
+      "path": "controls/navigation/attempt2/navigation.test.mjs",
+      "sha256": "4f26fc2b50a09e17ea78eee08aa61dc8f8cac98e94fdf3b6bd1eccc902c83cbd",
+      "bytes": 7882
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/attempt2/scenario.mjs",
+      "path": "controls/navigation/attempt2/scenario.mjs",
+      "sha256": "0307d2dd3d5db842f0587b7ed26c020a99904c819f907b66121fd46e9e341b18",
+      "bytes": 12745
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/attempt2/summary.json",
+      "path": "controls/navigation/attempt2/summary.json",
+      "sha256": "0b5569720a87bfbdc0a7e3114e9a5a42db65428fea8c5c1c93f4462fb38cabab",
+      "bytes": 5031
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/attempt2/syntax-helper.stderr.log",
+      "path": "controls/navigation/attempt2/syntax-helper.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/attempt2/syntax-helper.stdout.log",
+      "path": "controls/navigation/attempt2/syntax-helper.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/attempt2/syntax-scenario.stderr.log",
+      "path": "controls/navigation/attempt2/syntax-scenario.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/attempt2/syntax-scenario.stdout.log",
+      "path": "controls/navigation/attempt2/syntax-scenario.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/attempt2/syntax-test.stderr.log",
+      "path": "controls/navigation/attempt2/syntax-test.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/attempt2/syntax-test.stdout.log",
+      "path": "controls/navigation/attempt2/syntax-test.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/final/before-layout-regression.stderr.log",
+      "path": "controls/navigation/final/before-layout-regression.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/final/before-layout-regression.stdout.log",
+      "path": "controls/navigation/final/before-layout-regression.stdout.log",
+      "sha256": "df237fb84ca325580fa3d63641b56d514fef95920bcb1c7c4efe2067b583892c",
+      "bytes": 1040
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/final/navigation-tests.stderr.log",
+      "path": "controls/navigation/final/navigation-tests.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/final/navigation-tests.stdout.log",
+      "path": "controls/navigation/final/navigation-tests.stdout.log",
+      "sha256": "ec67c46aa0cd24b22ff200e5e66254f17b7a8df33f83b9e16a77ef17afa55aff",
+      "bytes": 1883
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/final/summary.json",
+      "path": "controls/navigation/final/summary.json",
+      "sha256": "1c8e478391b11f50ffa9a7ee1a36e14fbdaac15bd86dffe994cc3d2411a5d3e0",
+      "bytes": 6081
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/final/syntax-helper.stderr.log",
+      "path": "controls/navigation/final/syntax-helper.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/final/syntax-helper.stdout.log",
+      "path": "controls/navigation/final/syntax-helper.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/final/syntax-scenario.stderr.log",
+      "path": "controls/navigation/final/syntax-scenario.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/final/syntax-scenario.stdout.log",
+      "path": "controls/navigation/final/syntax-scenario.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/final/syntax-test.stderr.log",
+      "path": "controls/navigation/final/syntax-test.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/final/syntax-test.stdout.log",
+      "path": "controls/navigation/final/syntax-test.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/handoff.json",
+      "path": "controls/navigation/handoff.json",
+      "sha256": "2a03a90d8ba257b9246597696048e1889bce65604ce262cf5d11d0a6a5dd736b",
+      "bytes": 2895
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/railControl-original.mjs",
+      "path": "controls/navigation/railControl-original.mjs",
+      "sha256": "5bf3fbe5de7ec1fcffb54f5656e197d093b67fa4ac0f80a0661afc647a0a222d",
+      "bytes": 264
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/scenario-original.mjs",
+      "path": "controls/navigation/scenario-original.mjs",
+      "sha256": "62fe43aeb04306589d70dc9638b63784fcec795191d03acb60d738cea4adc1b2",
+      "bytes": 12871
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-real-browser-v2/validation/navigation/scenario.patch",
+      "path": "controls/navigation/scenario.patch",
+      "sha256": "aacf504837d8deab63e90f8792aa092593075941f509a3e81033b1617de0cf66",
+      "bytes": 3834
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud064-purpose-selector/capsule/README.md",
+      "path": "controls/purpose/README.md",
+      "sha256": "60419fa5f900e266ebf5c4f220e8107525609cfa93d7b95439160f158704853a",
+      "bytes": 2621
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud064-purpose-selector/capsule/assertion-projection.json",
+      "path": "controls/purpose/assertion-projection.json",
+      "sha256": "b984add583c8346dd24ed017d51646236086b8aab12b84521ffff5bcb63c5841",
+      "bytes": 1209
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud064-purpose-selector/capsule/attempt1/stderr.log",
+      "path": "controls/purpose/attempt1/stderr.log",
+      "sha256": "24af6a64177b474cab014f431403512ff9b8b859a181d876ce665a3a9f2d381b",
+      "bytes": 883
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud064-purpose-selector/capsule/attempt1/stdout.log",
+      "path": "controls/purpose/attempt1/stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud064-purpose-selector/capsule/attempt1/summary.json",
+      "path": "controls/purpose/attempt1/summary.json",
+      "sha256": "77d04292afb643cf7de5130108a48d83c3634286d12c16d4f00847849c71bac0",
+      "bytes": 6184
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud064-purpose-selector/capsule/attempt1/vitest.config.original.ts",
+      "path": "controls/purpose/attempt1/vitest.config.original.ts",
+      "sha256": "2ee0d4b7e515a3aecee28bc97652aee1245f69529994a37cc1fc2e923faac5ac",
+      "bytes": 730
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud064-purpose-selector/capsule/attempt2/stderr.log",
+      "path": "controls/purpose/attempt2/stderr.log",
+      "sha256": "fb372398a6bbe7b407653223df24a37ec229cbdc68a80c6f1bbf97fd8fa753e4",
+      "bytes": 11815
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud064-purpose-selector/capsule/attempt2/stdout.log",
+      "path": "controls/purpose/attempt2/stdout.log",
+      "sha256": "e60c313062bf5936cfec94c7e40bd3564721d4c50ccb3534d2acd8564f3da1eb",
+      "bytes": 1276
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud064-purpose-selector/capsule/attempt2/summary.json",
+      "path": "controls/purpose/attempt2/summary.json",
+      "sha256": "a1c13b7e923aed0e1b1bfebc9380802d69558c4fc078f9b1e9ec366916433236",
+      "bytes": 172930
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud064-purpose-selector/capsule/frozen/DefinitionWorkspace.test.tsx",
+      "path": "controls/purpose/frozen/DefinitionWorkspace.test.tsx",
+      "sha256": "9bd90cabd0aabf3f4cb628a23c1874688fc84049810005bd8d97caf58a3e1961",
+      "bytes": 33098
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud064-purpose-selector/capsule/frozen/DefinitionWorkspace.tsx",
+      "path": "controls/purpose/frozen/DefinitionWorkspace.tsx",
+      "sha256": "fe63aa3dcda3c5896ab13140ff2db74c492eda0e068a415cc560b7ec7777cfc7",
+      "bytes": 31738
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud064-purpose-selector/capsule/frozen/coreBundle.js.gz",
+      "path": "controls/purpose/frozen/coreBundle.js.gz",
+      "sha256": "b985a61da201e805d07d7067d8c0d9f6af1312a65ee34388bad872e4f5d227f1",
+      "bytes": 674413
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud064-purpose-selector/capsule/frozen/extract-injected.mjs",
+      "path": "controls/purpose/frozen/extract-injected.mjs",
+      "sha256": "cb40aa1534e1ed58eb2790a0cb660689ccda9bc9e54e7aef00e204ad69238e71",
+      "bytes": 607
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud064-purpose-selector/capsule/frozen/injected-source.literal.js",
+      "path": "controls/purpose/frozen/injected-source.literal.js",
+      "sha256": "1389904ddfc4407e2666578aa426b00fef8c09b9b531a2b34db71d47c54b4102",
+      "bytes": 329572
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud064-purpose-selector/capsule/frozen/pinned-injected.cjs",
+      "path": "controls/purpose/frozen/pinned-injected.cjs",
+      "sha256": "94103308b4f5791976b53543f5812be61ffb988574f7a51f412f87ab0ad60a85",
+      "bytes": 320783
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud064-purpose-selector/capsule/frozen/playwright-core-package.json",
+      "path": "controls/purpose/frozen/playwright-core-package.json",
+      "sha256": "f061c58427e47e843e26d201f0a57076c734e57c734ecbbd87d4a23b7a20db9b",
+      "bytes": 876
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud064-purpose-selector/capsule/frozen/purpose-selector.test.tsx",
+      "path": "controls/purpose/frozen/purpose-selector.test.tsx",
+      "sha256": "60c6b789afe3ebc9e5987e7ceda4fd868160c335644c6ddc6f7c25ee6aa69034",
+      "bytes": 8043
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud064-purpose-selector/capsule/frozen/run-validation.py",
+      "path": "controls/purpose/frozen/run-validation.py",
+      "sha256": "f11638f3a92852bd9263f393b08e7b5432e3dcb17b235041e1955e80b95b11c1",
+      "bytes": 1685
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud064-purpose-selector/capsule/frozen/v3-purpose.mjs",
+      "path": "controls/purpose/frozen/v3-purpose.mjs",
+      "sha256": "c35e4aa4a604b8ba3bb2aeeaa9354159a8ce06a9d36a503973e79efcbac84cb7",
+      "bytes": 711
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud064-purpose-selector/capsule/frozen/v3-scenario.mjs",
+      "path": "controls/purpose/frozen/v3-scenario.mjs",
+      "sha256": "8201ebf898592cb4ddea4583d9f6312131f1503d041ca67f3914d15eae4dbc1c",
+      "bytes": 12790
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud064-purpose-selector/capsule/frozen/vitest.config.ts",
+      "path": "controls/purpose/frozen/vitest.config.ts",
+      "sha256": "a75136448b1bbf5101a9ddb5f1c145bae7953ad37cb59cae2c32cb45434d4692",
+      "bytes": 680
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud064-purpose-selector/capsule/manifest.json",
+      "path": "controls/purpose/manifest.json",
+      "sha256": "0b6c2c35605d5e4b442db70888eaa983adf00f133f337f614507f278fb3ec926",
+      "bytes": 3686
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud064-purpose-selector/capsule/result.json",
+      "path": "controls/purpose/result.json",
+      "sha256": "4fa3ffe90b8359426b8f226d5082f95bec4cc49b881bbfb25dc8ae7542bfe261",
+      "bytes": 1751
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud064-purpose-selector/capsule/settlement.json",
+      "path": "controls/purpose/settlement.json",
+      "sha256": "51f04da066c0dd2136d28c6283b1981ee68b294f4dbef62e2e23b07ceb0a28dd",
+      "bytes": 281
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud066-csp-audit/capsule/README.md",
+      "path": "controls/csp/README.md",
+      "sha256": "00bac0841ce9807c6eb0686fdf8025dbd4105eb2b0cb117b9a5a8b13da3fb8f6",
+      "bytes": 2115
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud066-csp-audit/capsule/manifest.json",
+      "path": "controls/csp/manifest.json",
+      "sha256": "81ec7c463885f31d050f8fcd3bbfa593f542954f68cc4f20f0e6cebfbd619d76",
+      "bytes": 2293
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud066-csp-audit/capsule/owned-observations.json.gz",
+      "path": "controls/csp/owned-observations.json.gz",
+      "sha256": "897f05e60547dd7c3cfb1d79e497b8a04c038c021ba3266c5c56b46f4808d396",
+      "bytes": 21649
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud066-csp-audit/capsule/preflight.json",
+      "path": "controls/csp/preflight.json",
+      "sha256": "cf09932b1c60f6b25a4dd0bc63b0876deef8498a9a48068363bae1e856aff449",
+      "bytes": 1895
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud066-csp-audit/capsule/projection.json",
+      "path": "controls/csp/projection.json",
+      "sha256": "d271af01eebb2a0085da324c09091c5ddf1dd0791a0e1ae321a698994d6266f4",
+      "bytes": 8143
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud066-csp-audit/capsule/report.json",
+      "path": "controls/csp/report.json",
+      "sha256": "24b367f39c7c03783acc8e020f35ae23ce5bf2a71bdaf5b5aeddfe58c051d35b",
+      "bytes": 5843
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud066-csp-audit/capsule/result.json.gz",
+      "path": "controls/csp/result.json.gz",
+      "sha256": "7f98b15b5a76f668eb95a10666a507ce3f58f1e24bddbd4d2fd273f58b2722a4",
+      "bytes": 22718
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud066-csp-audit/capsule/source/accessibility.mjs",
+      "path": "controls/csp/source/accessibility.mjs",
+      "sha256": "40c91e67262f81780cb4ccbf25ad1eaadc1c103c8e0a5a2883c5581a318321a5",
+      "bytes": 508
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud066-csp-audit/capsule/source/axe-package.json",
+      "path": "controls/csp/source/axe-package.json",
+      "sha256": "d208b100bbee8f00e469bf8093fad40b5e3bdb0565fb4c1d89b6c9a289a06847",
+      "bytes": 7079
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud066-csp-audit/capsule/source/axe.min.js",
+      "path": "controls/csp/source/axe.min.js",
+      "sha256": "c24f097bd2f451d4f933e8bc7d8d539f8672a2ebcb5cc9f9f3eec8ca9470a0c1",
+      "bytes": 580491
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud066-csp-audit/capsule/source/fixture.mjs",
+      "path": "controls/csp/source/fixture.mjs",
+      "sha256": "44fc4369055681b61a12ff85972666543679b0d3ea8776dce5396f7310aad34e",
+      "bytes": 7121
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud066-csp-audit/capsule/source/playwright-core-package.json",
+      "path": "controls/csp/source/playwright-core-package.json",
+      "sha256": "f061c58427e47e843e26d201f0a57076c734e57c734ecbbd87d4a23b7a20db9b",
+      "bytes": 876
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud066-csp-audit/capsule/source/run.py",
+      "path": "controls/csp/source/run.py",
+      "sha256": "2e8b305ae08860f62bc859b15fe0661f75cc65e319433be0fe67709592453e30",
+      "bytes": 5344
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud066-csp-audit/capsule/source/web.go",
+      "path": "controls/csp/source/web.go",
+      "sha256": "33f40467517ca41d7a665a178de65310403892225f2c14f178a0a8998db92695",
+      "bytes": 2611
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud066-csp-audit/capsule/stderr.log",
+      "path": "controls/csp/stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud066-csp-audit/capsule/stdout.log",
+      "path": "controls/csp/stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-v4-publication/source-binding-audit.json",
+      "path": "binding-audit/source-binding-audit.json",
+      "sha256": "c4da18632be9ab7e3a55cc873b2d780d3320ce9fd3feed78cdf130cfb2b0312a",
+      "bytes": 2850
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-v4-publication/source-binding-details.json",
+      "path": "binding-audit/source-binding-details.json",
+      "sha256": "214b427f8a83fb1d9e20eb4519cfa17932d85ce6598d734afeac95254397e828",
+      "bytes": 666315
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-v4-publication/source-binding-audit.py",
+      "path": "binding-audit/source-binding-audit.py",
+      "sha256": "09d99b7e90759b4d4c580f769902efdef4878a94bf864e62ce9cd3e79605aef8",
+      "bytes": 8725
+    },
+    {
+      "source": "/workspace/luci/artifacts/quality-swarm/candidate-5f4a966f/package/package-provenance.json",
+      "path": "package-provenance.json",
+      "sha256": "2e378e550fa41a68af2477f472c92f6c15cd1bbe4048e453c769db2e08dca8be",
+      "bytes": 1039
+    }
+  ],
+  "excluded": "No actual app state, private fixture failure, credential, installed binary or dependency tree"
+}

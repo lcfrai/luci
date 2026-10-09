@@ -1,0 +1,17 @@
+test_busy_reference_never_allowed_even_for_explicit_identity (test_scoped_coordination.ScopedControls.test_busy_reference_never_allowed_even_for_explicit_identity) ... ERROR
+test_exact_unknown_allowed_new_reused_missing_unstable_refused (test_scoped_coordination.ScopedControls.test_exact_unknown_allowed_new_reused_missing_unstable_refused) ... ok
+test_explicit_expiry_live_owner_and_source_scope_bounded (test_scoped_coordination.ScopedControls.test_explicit_expiry_live_owner_and_source_scope_bounded) ... ok
+
+======================================================================
+ERROR: test_busy_reference_never_allowed_even_for_explicit_identity (test_scoped_coordination.ScopedControls.test_busy_reference_never_allowed_even_for_explicit_identity)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/.luci-tools/cloud054-runtime-operations-v2/test_scoped_coordination.py", line 27, in test_busy_reference_never_allowed_even_for_explicit_identity
+    self.assertEqual(scan['busy'][0]['references'],['argument-path','exe'])
+                     ~~~~~~~~~~~~^^^
+IndexError: list index out of range
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.003s
+
+FAILED (errors=1)

@@ -1,0 +1,27 @@
+{
+  "protectedInputsUnchanged": true,
+  "dependencyAfterPassed": true,
+  "postcheckErrorType": null,
+  "dependencyAfterSHA256": "d0487f67434bf913b638af59e0558fc0c950f01813ef6b5a6f338cab0b8936e2",
+  "startedAt": "2026-10-09T14:01:14.129602+00:00",
+  "finishedAt": "2026-10-09T14:04:32.540442+00:00",
+  "elapsedSeconds": 198.41095850500278,
+  "exitCode": 0,
+  "externalMonitorTimeout": false,
+  "forcedExactDriver": false,
+  "driverIdentity": {
+    "pid": 2443873,
+    "startTicks": 30054336,
+    "state": "R"
+  },
+  "finalDriverObservation": {
+    "pid": 2443873,
+    "state": "absent"
+  },
+  "events": [],
+  "ownedCleanupRequiresFinalReceipt": true,
+  "cleanupUnconfirmedByWrapper": true,
+  "resultExists": true,
+  "rawResultSHA256": "61bd37dfd0267e679344cc0d9a1e276dc92d87a5e1606b35bb10718e2bbfc2d0",
+  "noAutomaticFixtureOrLedgerMutation": true
+}

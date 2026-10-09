@@ -1,0 +1,56 @@
+{
+  "scope": "Inert VM/browser-callback and fake-page controls only; no installed app/browser/Docker or timing run. Expected before failure is a diagnostic coverage gap, not a product bug.",
+  "commands": [
+    {
+      "name": "before-expected-failure",
+      "command": [
+        "node",
+        "--test",
+        "/workspace/.luci-tools/cloud032-navigation-verifier-v1/before-only.test.mjs"
+      ],
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "stdout": "before-expected-failure.stdout",
+      "stderr": "before-expected-failure.stderr"
+    },
+    {
+      "name": "fixed-and-parity",
+      "command": [
+        "node",
+        "--test",
+        "/workspace/.luci-tools/cloud032-navigation-verifier-v1/controlled.test.mjs"
+      ],
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "stdout": "fixed-and-parity.stdout",
+      "stderr": "fixed-and-parity.stderr"
+    },
+    {
+      "name": "driver-syntax",
+      "command": [
+        "node",
+        "--check",
+        "/workspace/.luci-tools/cloud032-navigation-verifier-v1/actual/sustained.mjs"
+      ],
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "stdout": "driver-syntax.stdout",
+      "stderr": "driver-syntax.stderr"
+    },
+    {
+      "name": "followup-command-parity-and-rejection",
+      "command": [
+        "node",
+        "--test",
+        "--test-name-pattern",
+        "original and instrumented|original transport rejection",
+        "/workspace/.luci-tools/cloud032-navigation-verifier-v1/controlled.test.mjs"
+      ],
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "stdout": "followup-parity.stdout",
+      "stderr": "followup-parity.stderr",
+      "scope": "Two newly added cases executed; nine unchanged cases skipped by explicit filter. Eleven unique corrected/parity cases overall."
+    }
+  ]
+}

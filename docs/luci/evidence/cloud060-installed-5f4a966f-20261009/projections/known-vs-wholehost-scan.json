@@ -1,0 +1,458 @@
+{
+  "version": 1,
+  "observedAt": "2026-10-09T13:53:55.862522+00:00",
+  "originalFinalSHA256": "3fb8ee71847b2af62e248fa76ca3e92fbeafdd77e0d92994bc0f2f4dd199009f",
+  "originalTotalScanIssueCount": 6256,
+  "sampleCount": 64,
+  "currentReadOnlyStatObservations": [
+    {
+      "pid": 543,
+      "state": "Z",
+      "startTicks": 1818,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 3084,
+      "state": "Z",
+      "startTicks": 16439,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 3086,
+      "state": "Z",
+      "startTicks": 16442,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 3087,
+      "state": "Z",
+      "startTicks": 16442,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 5440,
+      "state": "Z",
+      "startTicks": 18898,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 7401,
+      "state": "Z",
+      "startTicks": 21606,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 7403,
+      "state": "Z",
+      "startTicks": 21607,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 7404,
+      "state": "Z",
+      "startTicks": 21607,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 8060,
+      "state": "Z",
+      "startTicks": 22542,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 8065,
+      "state": "Z",
+      "startTicks": 22549,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 8066,
+      "state": "Z",
+      "startTicks": 22549,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 16455,
+      "state": "Z",
+      "startTicks": 30110,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 19106,
+      "state": "Z",
+      "startTicks": 32612,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 19136,
+      "state": "Z",
+      "startTicks": 32633,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 19152,
+      "state": "Z",
+      "startTicks": 32641,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 19187,
+      "state": "Z",
+      "startTicks": 32667,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 19233,
+      "state": "Z",
+      "startTicks": 32680,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 19266,
+      "state": "Z",
+      "startTicks": 32693,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 19280,
+      "state": "Z",
+      "startTicks": 32698,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 19352,
+      "state": "Z",
+      "startTicks": 32736,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 19379,
+      "state": "Z",
+      "startTicks": 32743,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 19422,
+      "state": "Z",
+      "startTicks": 32767,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 19472,
+      "state": "Z",
+      "startTicks": 32786,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 19555,
+      "state": "Z",
+      "startTicks": 32822,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 19589,
+      "state": "Z",
+      "startTicks": 32832,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 19713,
+      "state": "Z",
+      "startTicks": 33008,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 19831,
+      "state": "Z",
+      "startTicks": 33082,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 19852,
+      "state": "Z",
+      "startTicks": 33096,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 19861,
+      "state": "Z",
+      "startTicks": 33102,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 19876,
+      "state": "Z",
+      "startTicks": 33110,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 19891,
+      "state": "Z",
+      "startTicks": 33117,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 19926,
+      "state": "Z",
+      "startTicks": 33130,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 19963,
+      "state": "Z",
+      "startTicks": 33161,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 19987,
+      "state": "Z",
+      "startTicks": 33179,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20002,
+      "state": "Z",
+      "startTicks": 33187,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20021,
+      "state": "Z",
+      "startTicks": 33197,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20033,
+      "state": "Z",
+      "startTicks": 33200,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20034,
+      "state": "Z",
+      "startTicks": 33200,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20037,
+      "state": "Z",
+      "startTicks": 33200,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20042,
+      "state": "Z",
+      "startTicks": 33202,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20043,
+      "state": "Z",
+      "startTicks": 33202,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20165,
+      "state": "Z",
+      "startTicks": 33446,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20175,
+      "state": "Z",
+      "startTicks": 33450,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20186,
+      "state": "Z",
+      "startTicks": 33453,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20197,
+      "state": "Z",
+      "startTicks": 33462,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20221,
+      "state": "Z",
+      "startTicks": 33478,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20229,
+      "state": "Z",
+      "startTicks": 33482,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20259,
+      "state": "Z",
+      "startTicks": 33591,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20274,
+      "state": "Z",
+      "startTicks": 33793,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20282,
+      "state": "Z",
+      "startTicks": 33797,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20288,
+      "state": "Z",
+      "startTicks": 33800,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20303,
+      "state": "Z",
+      "startTicks": 33807,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20315,
+      "state": "Z",
+      "startTicks": 33818,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20323,
+      "state": "Z",
+      "startTicks": 33822,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20376,
+      "state": "Z",
+      "startTicks": 34210,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20388,
+      "state": "Z",
+      "startTicks": 34217,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20418,
+      "state": "Z",
+      "startTicks": 34243,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20457,
+      "state": "Z",
+      "startTicks": 34262,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20484,
+      "state": "Z",
+      "startTicks": 34276,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20517,
+      "state": "Z",
+      "startTicks": 34294,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20524,
+      "state": "Z",
+      "startTicks": 34299,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20584,
+      "state": "Z",
+      "startTicks": 34378,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20598,
+      "state": "Z",
+      "startTicks": 34389,
+      "sameUID": true,
+      "predatesFixture": true
+    },
+    {
+      "pid": 20617,
+      "state": "Z",
+      "startTicks": 34426,
+      "sameUID": true,
+      "predatesFixture": true
+    }
+  ],
+  "scope": "Current stat-only observations for64 retained sampled issue PIDs; does not reconstruct historical environment observations or all6256 original issues. Known fixture PID/start settlement is separate from wholehost scan uncertainty. No cleanup rule changed; all original uncertainties and zombies remain."
+}

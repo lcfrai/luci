@@ -1,0 +1,31 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "-B",
+    "/workspace/.luci-tools/cloud054-runtime-operations-v2/relocate_tools.py",
+    "--execute-relocation",
+    "--tool",
+    "rust-1.99.0",
+    "--direction",
+    "return-to-tmp",
+    "--quiescence",
+    "/workspace/.luci-tools/cloud054-runtime-operations-v2/root-rust-1.99.0-return-to-tmp-300167204847105/coordination.json",
+    "--quiescence-sha256",
+    "591d390133d72b18f55fc00d296b9a72b0afba3b318ed494179b314319f0d1da",
+    "--receipt",
+    "/workspace/.luci-tools/cloud054-runtime-operations-v2/operation-rust-1.99.0-return-to-tmp-300167204847105",
+    "--forward-receipt",
+    "/workspace/.luci-tools/cloud054-runtime-operations-v2/operation-rust-1.99.0-to-root-299231442072680/009-finished.json",
+    "--forward-receipt-sha256",
+    "421854422cc6244716beaeafe171bfed2a172672f31cadf9f549ece6219d15e5"
+  ],
+  "coordination": "/workspace/.luci-tools/cloud054-runtime-operations-v2/root-rust-1.99.0-return-to-tmp-300167204847105/coordination.json",
+  "operationReceipt": "/workspace/.luci-tools/cloud054-runtime-operations-v2/operation-rust-1.99.0-return-to-tmp-300167204847105",
+  "status": "finished",
+  "wrapperSHA256": "9b7fbd8bd35173fa30d4fea74479ebaeab7b4b1628f576a54bb9796a701ff697",
+  "hardEnvelopeSeconds": 420,
+  "pid": 2440908,
+  "startTicks": "30016721",
+  "exitCode": 0,
+  "timedOut": false
+}

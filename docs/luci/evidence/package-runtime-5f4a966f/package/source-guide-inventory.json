@@ -1,0 +1,312 @@
+{
+  "sourceCommit": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "scope": "49 selected source Git blobs (not staged/rewritten hashes); the recorded build adds docs/PACKAGE-VALIDATION.md. No guide regeneration or archive read was performed for publication.",
+  "sourceGuideFiles": 49,
+  "recordedStage": {
+    "compact": true,
+    "sourceCommit": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+    "officialSourceAssociation": {
+      "repository": "https://github.com/lcfrai/luci",
+      "trackingCommit": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7"
+    },
+    "retainedReason": null,
+    "files": 50,
+    "rewrittenLinks": 290
+  },
+  "files": [
+    {
+      "path": "DESIGN.md",
+      "gitBlob": "51e58da2f20d2a2b16d691c53fb1017f43c809f3",
+      "gitMode": "100644",
+      "bytes": 5031
+    },
+    {
+      "path": "LICENSE",
+      "gitBlob": "8e9ef1a09913e815836529bfe21b0ddeb9108574",
+      "gitMode": "100644",
+      "bytes": 1077
+    },
+    {
+      "path": "NOTICE",
+      "gitBlob": "24f2314475ccd1d2aa6add985b29417456e7beae",
+      "gitMode": "100644",
+      "bytes": 739
+    },
+    {
+      "path": "README.md",
+      "gitBlob": "d6756e1894d050111a7a7c7292000169121891bb",
+      "gitMode": "100644",
+      "bytes": 7633
+    },
+    {
+      "path": "docs/RUNBOOK.md",
+      "gitBlob": "d0a57ce975c032ce535fef83faf8a0868f62d040",
+      "gitMode": "100644",
+      "bytes": 12959
+    },
+    {
+      "path": "docs/UAT.md",
+      "gitBlob": "ded2b60fb81ad96b4fcf48ce0b1d9c4818c14344",
+      "gitMode": "100644",
+      "bytes": 9570
+    },
+    {
+      "path": "docs/luci/AGENT-HARNESS-COMPARISON.md",
+      "gitBlob": "c171f2a844f2ee881abb08718a42f7976a825916",
+      "gitMode": "100644",
+      "bytes": 19114
+    },
+    {
+      "path": "docs/luci/API.md",
+      "gitBlob": "0b887b66f31b3c02f6380d598dbe77661611838c",
+      "gitMode": "100644",
+      "bytes": 129602
+    },
+    {
+      "path": "docs/luci/ASTRA-READINESS-2026-10-06.md",
+      "gitBlob": "c6c8d26931f9b08488cbe0a2235787d16dfbaa90",
+      "gitMode": "100644",
+      "bytes": 25236
+    },
+    {
+      "path": "docs/luci/CLOUD.md",
+      "gitBlob": "5c6331d5bf05bb0b32ea3624d978b55a190794bd",
+      "gitMode": "100644",
+      "bytes": 8160
+    },
+    {
+      "path": "docs/luci/CONTEXT-STORAGE.md",
+      "gitBlob": "4f872955bf387a04f01b9fa221ce186067f34099",
+      "gitMode": "100644",
+      "bytes": 10186
+    },
+    {
+      "path": "docs/luci/ENTRY-UAT.md",
+      "gitBlob": "1c7c5d7d10fc72b89cf322f4d9dab939cc0b8226",
+      "gitMode": "100644",
+      "bytes": 6671
+    },
+    {
+      "path": "docs/luci/FULL-PRODUCT.md",
+      "gitBlob": "9a4538a9fc37a2203b514fa2439ea1f9ea85c3f0",
+      "gitMode": "100644",
+      "bytes": 190782
+    },
+    {
+      "path": "docs/luci/GOAL.md",
+      "gitBlob": "3745aa18ead18bace3295404ef929c23c87e753c",
+      "gitMode": "100644",
+      "bytes": 24832
+    },
+    {
+      "path": "docs/luci/HANDOFF-2026-10-06-PRODUCTION.md",
+      "gitBlob": "d327a46293ba8c51a0e72f712f9d34e53c90a89b",
+      "gitMode": "100644",
+      "bytes": 43703
+    },
+    {
+      "path": "docs/luci/HANDOFF-2026-10-06.md",
+      "gitBlob": "ed1c091a0252be38a0ba7acc1f27943272fb77e4",
+      "gitMode": "100644",
+      "bytes": 11873
+    },
+    {
+      "path": "docs/luci/INTERRUPTED-LAUNCH-RECOVERY.md",
+      "gitBlob": "43c8aa861df3aee89ae8b6b75bf1bb8005554551",
+      "gitMode": "100644",
+      "bytes": 8548
+    },
+    {
+      "path": "docs/luci/LOCAL-RECOVERY-ACCEPTANCE.md",
+      "gitBlob": "1ce2376dca28b8a7aaf077bfbe1e31803f55bace",
+      "gitMode": "100644",
+      "bytes": 13023
+    },
+    {
+      "path": "docs/luci/LOCAL-TEST-LOOP.md",
+      "gitBlob": "dfc3d88c7dacabd178b1856e1b03aab227622e69",
+      "gitMode": "100644",
+      "bytes": 69448
+    },
+    {
+      "path": "docs/luci/LOCAL-TO-CLOUD-SELF-BUILD.md",
+      "gitBlob": "699e8722d53120954acf38ccb485f052bd097888",
+      "gitMode": "100644",
+      "bytes": 4997
+    },
+    {
+      "path": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "gitBlob": "34c3791aefc12d97fc86b5d5ec7b4119d0c19029",
+      "gitMode": "100644",
+      "bytes": 54655
+    },
+    {
+      "path": "docs/luci/MANAGED-DATA-LIFECYCLE.md",
+      "gitBlob": "7a074ead012d06b14792ef9ef0bac0ad12231ac6",
+      "gitMode": "100644",
+      "bytes": 7896
+    },
+    {
+      "path": "docs/luci/MANAGED-HOST-RECOVERY.md",
+      "gitBlob": "0a9a783f77b97be68af766d831e2a4aed6d19063",
+      "gitMode": "100644",
+      "bytes": 9598
+    },
+    {
+      "path": "docs/luci/MANAGED-SERVICE-PRIVACY-DRAFT.md",
+      "gitBlob": "0b75ac49cf13259371199b636471f120f3e3a228",
+      "gitMode": "100644",
+      "bytes": 10060
+    },
+    {
+      "path": "docs/luci/MANAGED-SERVICE-TERMS-DRAFT.md",
+      "gitBlob": "a01802686f687b56c63a5f8ebd397d87275c5d71",
+      "gitMode": "100644",
+      "bytes": 8872
+    },
+    {
+      "path": "docs/luci/MANAGED-UPGRADE.md",
+      "gitBlob": "3bccbb3d7099a07bb970e2950a004a3392101dee",
+      "gitMode": "100644",
+      "bytes": 7700
+    },
+    {
+      "path": "docs/luci/ORCHESTRATION.md",
+      "gitBlob": "7e12d64932d51dab98eac839da6fea5a5e68d31a",
+      "gitMode": "100644",
+      "bytes": 18423
+    },
+    {
+      "path": "docs/luci/PLAN.md",
+      "gitBlob": "ca08a087c7b029539b762c53fedc0605ced24081",
+      "gitMode": "100644",
+      "bytes": 9197
+    },
+    {
+      "path": "docs/luci/PRODUCT-QUALITY.md",
+      "gitBlob": "3f089b4ac06c33ba68aefcdacd854e92aba7adcb",
+      "gitMode": "100644",
+      "bytes": 8079
+    },
+    {
+      "path": "docs/luci/PRODUCTION-ROADMAP.md",
+      "gitBlob": "0eb0a91dabdcfafdb8782231d0ca311e9d9b47e9",
+      "gitMode": "100644",
+      "bytes": 23701
+    },
+    {
+      "path": "docs/luci/PROJECT-RUN-CONTRACT.md",
+      "gitBlob": "72e84f311957f1f69853f6bc78de6b324ad211fe",
+      "gitMode": "100644",
+      "bytes": 14760
+    },
+    {
+      "path": "docs/luci/PROVIDERS.md",
+      "gitBlob": "afee23035be3cd81b816bd1fed632184826883f5",
+      "gitMode": "100644",
+      "bytes": 9823
+    },
+    {
+      "path": "docs/luci/PUBLIC-HTTPS-INGRESS.md",
+      "gitBlob": "6bc1883f0747f253328cc283775b4d56e593c89b",
+      "gitMode": "100644",
+      "bytes": 6157
+    },
+    {
+      "path": "docs/luci/QUALITY-WORKLIST.md",
+      "gitBlob": "c97ab305c0eb88b5e67aee392ca8d796f402c08c",
+      "gitMode": "100644",
+      "bytes": 232577
+    },
+    {
+      "path": "docs/luci/RELEASE.md",
+      "gitBlob": "6cb76204d4696bfc4ef2c75cb618e441cb9687e5",
+      "gitMode": "100644",
+      "bytes": 26186
+    },
+    {
+      "path": "docs/luci/REUSE.md",
+      "gitBlob": "b873789c2eeb0220db348636f0640a6a927755d3",
+      "gitMode": "100644",
+      "bytes": 21096
+    },
+    {
+      "path": "docs/luci/SOURCE-EXPORT.md",
+      "gitBlob": "75df768b13878262961c9b62b6c11b7c15ee4e2d",
+      "gitMode": "100644",
+      "bytes": 5389
+    },
+    {
+      "path": "docs/luci/STRIPE-BILLING.md",
+      "gitBlob": "607c800a31cff15ad993788bc3f4c432b86966a1",
+      "gitMode": "100644",
+      "bytes": 8222
+    },
+    {
+      "path": "docs/luci/SWARM-CAPACITY-ACCEPTANCE.md",
+      "gitBlob": "534e23792548f9be5308a3a21d9870905629d3a9",
+      "gitMode": "100644",
+      "bytes": 18374
+    },
+    {
+      "path": "docs/luci/TEAM-ACCEPTANCE.md",
+      "gitBlob": "e91767f759d0aff511b2a8e6a0e7d64229dcbbc6",
+      "gitMode": "100644",
+      "bytes": 4553
+    },
+    {
+      "path": "docs/luci/TEAM-SERVICE-OPERATIONS.md",
+      "gitBlob": "af7ec9f84c441f0d25b555de34c2a56a29588979",
+      "gitMode": "100644",
+      "bytes": 10145
+    },
+    {
+      "path": "docs/luci/TEST-CHECKPOINT-0dcafb14.md",
+      "gitBlob": "a7bd5da76c196b0f7c37d9fe2ad6c1c746ddaec0",
+      "gitMode": "100644",
+      "bytes": 9213
+    },
+    {
+      "path": "docs/luci/TEST-CHECKPOINT-4D659507.md",
+      "gitBlob": "b833079137574297f9b495e15b146c8593d01f15",
+      "gitMode": "100644",
+      "bytes": 6099
+    },
+    {
+      "path": "docs/luci/TEST-CHECKPOINT-67A5B7C7.md",
+      "gitBlob": "1c89bef931d78897a9b1b9fc1313cddcf75093d5",
+      "gitMode": "100644",
+      "bytes": 12089
+    },
+    {
+      "path": "docs/luci/TEST-CHECKPOINT-99007404.md",
+      "gitBlob": "303a4ce111c3e2681b1a3bd5c83319976b30586e",
+      "gitMode": "100644",
+      "bytes": 9580
+    },
+    {
+      "path": "docs/luci/TEST-CHECKPOINT-D20EBD29.md",
+      "gitBlob": "1dae4ff7eb0d12cc036c2709561ffeb70b573933",
+      "gitMode": "100644",
+      "bytes": 6195
+    },
+    {
+      "path": "docs/luci/TEST-CHECKPOINT-EDD0CB12.md",
+      "gitBlob": "3bb8de4b0db7a7e2328e59014033fa57e6f57b4c",
+      "gitMode": "100644",
+      "bytes": 3726
+    },
+    {
+      "path": "docs/luci/WINDOWS-DOCKER-STORAGE.md",
+      "gitBlob": "3bfa411d4e188ebc8cd9567e15e1434faed7e1bb",
+      "gitMode": "100644",
+      "bytes": 9196
+    },
+    {
+      "path": "docs/luci/WORKER-DIAGNOSTICS.md",
+      "gitBlob": "88caf28f566007b44553351df35d7873c4616bc0",
+      "gitMode": "100644",
+      "bytes": 1578
+    }
+  ]
+}

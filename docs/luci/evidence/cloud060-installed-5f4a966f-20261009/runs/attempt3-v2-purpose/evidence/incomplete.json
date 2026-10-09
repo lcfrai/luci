@@ -1,0 +1,78 @@
+{
+  "passed": false,
+  "stage": "scenario:workspace-and-definition-draft",
+  "failure": {
+    "name": "TimeoutError",
+    "code": null,
+    "messageSHA256": "27f0f1c055f58bbe3d42d1f4314abffb6dd5a879bbad297e0ec7571f7c04761a",
+    "messageBytes": 123
+  },
+  "known": [
+    {
+      "pid": 2449438,
+      "start": "30080336",
+      "group": 2449438,
+      "status": "S"
+    },
+    {
+      "pid": 2449450,
+      "start": "30080533",
+      "group": 2449450,
+      "status": "S"
+    },
+    {
+      "pid": 2449660,
+      "start": "30081032",
+      "group": 2449660,
+      "status": "S"
+    },
+    {
+      "pid": 2449469,
+      "start": "30080646",
+      "group": 2449469,
+      "status": "S"
+    },
+    {
+      "pid": 2449471,
+      "start": "30080659",
+      "group": 2449470,
+      "status": "S"
+    },
+    {
+      "pid": 2449474,
+      "start": "30080659",
+      "group": 2449472,
+      "status": "S"
+    }
+  ],
+  "startup": [
+    {
+      "name": "controller",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "name": "browser",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "name": "browser-context",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false,
+      "parent": "browser",
+      "closedByParent": false
+    },
+    {
+      "name": "browser-page",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false,
+      "parent": "browser-context",
+      "closedByParent": false
+    }
+  ]
+}

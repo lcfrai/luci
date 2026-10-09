@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 	"unicode/utf8"
@@ -31,7 +32,9 @@ func TestRelaySendsOneCloseFrameBeforeTransportEOF(t *testing.T) {
 	}{
 		{"exit-zero", websocket.StatusNormalClosure, "exit status 0"},
 		{"exit-nonzero", websocket.StatusNormalClosure, "exit status 7"},
+		{"normal-without-exit", websocket.StatusNormalClosure, ""},
 		{"overload", websocket.StatusTryAgainLater, ""},
+		{"exit-then-overload", websocket.StatusTryAgainLater, "exit status 7"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
@@ -46,6 +49,7 @@ func TestRelaySendsOneCloseFrameBeforeTransportEOF(t *testing.T) {
 				upstreamReady <- c
 			}))
 			t.Cleanup(upstream.Close)
+			var exitObserved atomic.Int32
 			relayDone := make(chan error, 1)
 			relay := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				c, err := websocket.Accept(w, r, nil)
@@ -60,7 +64,9 @@ func TestRelaySendsOneCloseFrameBeforeTransportEOF(t *testing.T) {
 					return
 				}
 				defer peer.CloseNow()
-				relayDone <- proxy.RelayHooked(r.Context(), c, peer, proxy.Hooks{})
+				relayDone <- proxy.RelayHooked(r.Context(), c, peer, proxy.Hooks{
+					OnUpstreamExit: func() { exitObserved.Add(1) },
+				})
 			}))
 			t.Cleanup(relay.Close)
 			conn, reader := closeAckDial(t, ctx, relay.URL)
@@ -122,6 +128,13 @@ func TestRelaySendsOneCloseFrameBeforeTransportEOF(t *testing.T) {
 				}
 			case <-ctx.Done():
 				t.Fatal("relay did not settle")
+			}
+			wantExits := int32(0)
+			if tc.exit != "" {
+				wantExits = 1
+			}
+			if got := exitObserved.Load(); got != wantExits {
+				t.Fatalf("exit observations = %d, want %d", got, wantExits)
 			}
 		})
 	}

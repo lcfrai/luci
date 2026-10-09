@@ -1,0 +1,32 @@
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 146B done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/luci/sandbox:provider-base-20261009t134118z-4a347241
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 2B done
+#3 DONE 0.0s
+
+#4 [1/2] FROM docker.io/luci/sandbox:provider-base-20261009t134118z-4a347241
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 9.47MB 0.1s done
+#5 DONE 0.1s
+
+#4 [1/2] FROM docker.io/luci/sandbox:provider-base-20261009t134118z-4a347241
+#4 CACHED
+
+#6 [2/2] COPY --chown=0:0 --chmod=0755 bin/ /usr/local/bin/
+#6 DONE 23.0s
+
+#7 exporting to image
+#7 exporting layers
+#7 exporting layers 0.7s done
+#7 writing image sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8 done
+#7 naming to docker.io/luci/sandbox:verified-candidate-20261009t134118z-4a347241 done
+#7 DONE 0.8s

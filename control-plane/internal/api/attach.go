@@ -188,8 +188,9 @@ func (a *API) attachSandboxReady(w http.ResponseWriter, r *http.Request, log *sl
 	return true
 }
 
-// relayAttached owns everything after the upgrade. Its one job beyond copying
-// bytes is to leave the world exactly as it found it.
+// relayAttached owns everything after the upgrade: byte transport, attachment
+// bookkeeping, and generation-bound process completion. It never destroys an
+// allocation or releases its execution reservation.
 func (a *API) relayAttached(r *http.Request, log *slog.Logger, client *websocket.Conn, sess registry.Session) {
 	// 7. The upstream dial, AFTER the upgrade because §3.16 orders it so. The
 	//    reason is sandboxd's replay frame: a dial that succeeds and is then
@@ -213,7 +214,13 @@ func (a *API) relayAttached(r *http.Request, log *slog.Logger, client *websocket
 
 	// 8. OnClient is deliberately nil. The user typing is not output, and
 	//    idle is defined on output only (§5.4).
-	relayErr := proxy.RelayHooked(r.Context(), client, upstream, proxy.Hooks{OnUpstream: tracker.observe})
+	terminal := a.newAttachedExitObserver(sess)
+	// Joining happens after the explicit socket closes below, before final
+	// registry bookkeeping. The observer is owned by this attach lifecycle.
+	defer terminal.finish()
+	relayErr := proxy.RelayHooked(r.Context(), client, upstream, proxy.Hooks{
+		OnUpstream: tracker.observe, OnUpstreamExit: terminal.observe,
+	})
 	if relayErr != nil {
 		// A dropped desktop is the normal case, not an incident.
 		log.Info("attach relay ended", "err", relayErr)

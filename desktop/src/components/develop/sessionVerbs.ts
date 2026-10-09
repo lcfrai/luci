@@ -11,7 +11,7 @@
 // not work, which is worse than no button.
 import { useSyncExternalStore } from "react";
 import { api } from "../../api";
-import { canReconnectEndedAttach, getAttachState, retryAttach } from "../../api/attachRegistry";
+import { canReconnectEndedAttach, getAttachState, prepareAttachRestart, retryAttach } from "../../api/attachRegistry";
 import { ApiError } from "../../api/client";
 import { classify } from "../../api/problems";
 import { teamScopeGeneration } from "../../api/teamScope";
@@ -533,7 +533,8 @@ function tailVerbs(
       // exit bar — `api.restartSession` keeps the session id, so the transcript and the record
       // survive and nothing is orphaned. Not a create-with-copied-settings.
       label: "Restart",
-      run: act(() =>
+      run: act(() => {
+        const acknowledgeRestart = prepareAttachRestart(id);
         runImmediate({
           sessionId: id,
           apply: () =>
@@ -545,9 +546,13 @@ function tailVerbs(
                 exitReason: "",
               }),
           rollback: restoreSession(session),
-          commit: () => api.restartSession(id),
-        }),
-      ),
+          commit: async () => {
+            const restarted = await api.restartSession(id);
+            acknowledgeRestart(restarted);
+            return restarted;
+          },
+        });
+      }),
     },
     {
       id: "rename",

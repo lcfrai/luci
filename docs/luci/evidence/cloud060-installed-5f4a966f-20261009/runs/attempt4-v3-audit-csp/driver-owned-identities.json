@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "runRoot": "/workspace/.t/c60/c060-run-kr3pvffq",
+  "identities": [
+    {
+      "pid": 2459298,
+      "startTicks": "30143619",
+      "role": "controller"
+    },
+    {
+      "pid": 2459311,
+      "startTicks": "30143838",
+      "role": "controller"
+    },
+    {
+      "pid": 2459438,
+      "startTicks": "30144282",
+      "role": "controller"
+    },
+    {
+      "pid": 2459330,
+      "startTicks": "30143981",
+      "role": "browser"
+    },
+    {
+      "pid": 2459332,
+      "startTicks": "30143995",
+      "role": "browser"
+    },
+    {
+      "pid": 2459335,
+      "startTicks": "30143996",
+      "role": "browser"
+    }
+  ]
+}

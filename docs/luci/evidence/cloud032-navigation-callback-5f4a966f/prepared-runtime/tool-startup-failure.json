@@ -1,0 +1,8 @@
+{
+  "scope": "Preserved orchestration failure before any requested source-read command started; no runtime or diagnostic attempt.",
+  "tool": "exec_command",
+  "error": "CreateProcess: Rejected(Failed to create unified exec process: exec-server transport disconnected)",
+  "commandStarted": false,
+  "exitCode": null,
+  "recovery": "Root authorized one bounded seal retry; no app/browser/test or heavy archive/dependency hashing in terminal window."
+}

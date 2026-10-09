@@ -1,0 +1,78 @@
+{
+  "passed": false,
+  "stage": "scenario:desktop-team-access-revoke",
+  "failure": {
+    "name": "Error",
+    "code": null,
+    "messageSHA256": "bf6830174f583fe40f1792cc15f7cff28e03950a853e85e0a8b16cee66379263",
+    "messageBytes": 333
+  },
+  "known": [
+    {
+      "pid": 2459298,
+      "start": "30143619",
+      "group": 2459298,
+      "status": "S"
+    },
+    {
+      "pid": 2459311,
+      "start": "30143838",
+      "group": 2459311,
+      "status": "S"
+    },
+    {
+      "pid": 2459438,
+      "start": "30144282",
+      "group": 2459438,
+      "status": "S"
+    },
+    {
+      "pid": 2459330,
+      "start": "30143981",
+      "group": 2459330,
+      "status": "S"
+    },
+    {
+      "pid": 2459332,
+      "start": "30143995",
+      "group": 2459331,
+      "status": "S"
+    },
+    {
+      "pid": 2459335,
+      "start": "30143996",
+      "group": 2459334,
+      "status": "S"
+    }
+  ],
+  "startup": [
+    {
+      "name": "controller",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "name": "browser",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "name": "browser-context",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false,
+      "parent": "browser",
+      "closedByParent": false
+    },
+    {
+      "name": "browser-page",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false,
+      "parent": "browser-context",
+      "closedByParent": false
+    }
+  ]
+}

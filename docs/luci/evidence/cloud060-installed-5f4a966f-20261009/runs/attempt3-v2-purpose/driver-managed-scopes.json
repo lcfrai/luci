@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "runRoot": "/workspace/.t/c60/c060-run-qrni203l",
+  "product": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "scopes": [
+    {
+      "kind": "user",
+      "id": "user-sLIH7zcsd9zti5ioo4etwi",
+      "stateDir": "/workspace/.t/c60/c060-run-qrni203l/state/control-plane/users/user-sLIH7zcsd9zti5ioo4etwi/runtime/state"
+    },
+    {
+      "kind": "user",
+      "id": "user-DSUKQliFoMFqHQSDBEd2Kz",
+      "stateDir": "/workspace/.t/c60/c060-run-qrni203l/state/control-plane/users/user-DSUKQliFoMFqHQSDBEd2Kz/runtime/state"
+    },
+    {
+      "kind": "team",
+      "id": "team-j4cX5ImqrR8I8OAVXWDrSm",
+      "stateDir": "/workspace/.t/c60/c060-run-qrni203l/state/control-plane/teams/team-j4cX5ImqrR8I8OAVXWDrSm/runtime/state"
+    }
+  ]
+}

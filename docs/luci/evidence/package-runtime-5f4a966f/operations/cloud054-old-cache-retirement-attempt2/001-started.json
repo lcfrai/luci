@@ -1,0 +1,6 @@
+{
+  "source": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "helperSHA256": "c424ab94a8736491c02d21b9a9efc631e85d6adfde59afafbe7adf95f0fc627e",
+  "status": "preflight",
+  "scope": "Root-exclusive exact task-owned old COPY cache record only. Associated lease/unreferenced storage GC possible. No fixture, ledger, product capacity, runtime or whole-machine-idle claim."
+}

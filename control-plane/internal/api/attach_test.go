@@ -687,8 +687,8 @@ func TestAttachNaturalExitDrainsFramesAndPreservesNormalClose(t *testing.T) {
 		return err == nil && row.AttachCount == 0
 	}, "normal attachment did not release its display counter")
 	row, err := f.store.Get(f.id)
-	if err != nil || row.Status != registry.StatusRunning || f.be.destroyCount() != 0 {
-		t.Fatalf("transport closure mutated lifecycle: %+v, %v", row, err)
+	if err != nil || row.Status != registry.StatusExited || f.be.destroyCount() != 0 {
+		t.Fatalf("typed terminal exit did not publish process completion: %+v, %v", row, err)
 	}
 }
 

@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "at": "2026-10-09T13:33:05.642733+00:00",
+  "scope": "Preparation and inert mocks only; no image/tool/archive/process-scan operation executed",
+  "controls": {
+    "command": "python3 -B -m unittest -v test_operations",
+    "passed": 12,
+    "failed": 0,
+    "initial12Overlap": true,
+    "log": {
+      "sha256": "e0138bcd0852bb9d7f2a50ffcaae577b334af61085aaf6eabc7c594bbcfaee69",
+      "bytes": 1707
+    }
+  },
+  "sourcesAndInputs": {
+    "controlled.stderr": {
+      "sha256": "e0138bcd0852bb9d7f2a50ffcaae577b334af61085aaf6eabc7c594bbcfaee69",
+      "bytes": 1707
+    },
+    "relocate_tools.py": {
+      "sha256": "3c62442e892c64ea6cfd6798ef98c5e1432621c24103a2818b983bbb537a699c",
+      "bytes": 9333
+    },
+    "controlled-initial.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "README.md": {
+      "sha256": "edda2f67b9d9033c5d6de0848f166e11c2da703bcad367fd7302664f5ee755eb",
+      "bytes": 8816
+    },
+    "controlled-initial.stderr": {
+      "sha256": "a5b45e1360c462e25233444ce2571032b986ee60540e9977e00625618bb9fe50",
+      "bytes": 1707
+    },
+    "operation_common.before-failure-binding.py": {
+      "sha256": "73c1522d543bf5c8cdcdfa98dcf18df36dfdcf815df27f1da23682ad52db561d",
+      "bytes": 5832
+    },
+    "controlled.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "retire_old_image.py": {
+      "sha256": "0db33bb072ebc0f43003147a1f41e25c26d3368fbe8e44553e504259ee2482f2",
+      "bytes": 7670
+    },
+    "operation_common.py": {
+      "sha256": "8456ebea141bda844182d2970befc0551d0fee8a939891879c254ffe471dd9aa",
+      "bytes": 6069
+    },
+    "test_operations.py": {
+      "sha256": "857987a53c55511f67208a713904713f0ade74a92b129cb4c03f7c48488f1da3",
+      "bytes": 6027
+    }
+  },
+  "readyForReview": true,
+  "readyForUnattendedExecution": false,
+  "knownBlockingPolicy": "Refuses any unreadable live process; known foreign permission-limited processes may prevent use. Root must review another step or separately scoped policy.",
+  "missingRuntimeInputs": [
+    "Actual new candidate descriptor/hash",
+    "Fresh live exclusive-coordination receipt/hash",
+    "Independent outer operation watchdog"
+  ],
+  "noOperations": [
+    "Docker",
+    "build",
+    "archive/tool hashing",
+    "copy",
+    "move",
+    "delete",
+    "cache-clean",
+    "process-scan"
+  ],
+  "sourceChangesAfterInitialControls": "Added source-after binding to failure receipts; retained original common source and logs, then final12 mocks passed."
+}

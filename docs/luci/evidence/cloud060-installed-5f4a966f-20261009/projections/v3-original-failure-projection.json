@@ -1,0 +1,175 @@
+{
+  "issue": "CLOUD-066",
+  "product": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "helper": "v3",
+  "passed": false,
+  "stage": "scenario:desktop-team-access-revoke",
+  "failure": "Actual application CSP rejected inline axe addScriptTag; no accessibility audit result",
+  "originalErrorMessageSHA256": "bf6830174f583fe40f1792cc15f7cff28e03950a853e85e0a8b16cee66379263",
+  "originalMessageBytes": 333,
+  "bindings": [
+    {
+      "path": "evidence/result.json",
+      "sourceRetainedAt": "/workspace/.t/c60/c060-run-kr3pvffq/evidence/result.json",
+      "sha256": "147662b590ae0d8fbfe098ea16ddd05a94f8cd31f906e9eee2db6a7d235328de",
+      "bytes": 14796,
+      "privateOriginalNotAutoPublished": false
+    },
+    {
+      "path": "evidence/events.jsonl",
+      "sourceRetainedAt": "/workspace/.t/c60/c060-run-kr3pvffq/evidence/events.jsonl",
+      "sha256": "26060129b5a208b9d40303991d1da14468cd43fe291b6d369a98021c83e332e7",
+      "bytes": 8017,
+      "privateOriginalNotAutoPublished": false
+    },
+    {
+      "path": "evidence/private-failure.json",
+      "sourceRetainedAt": "/workspace/.t/c60/c060-run-kr3pvffq/evidence/private-failure.json",
+      "sha256": "1b9fe0ee77aefb2ad4c9191a490f224f979e2acbbbf0cc7c8100d081831a898c",
+      "bytes": 1353,
+      "privateOriginalNotAutoPublished": true
+    },
+    {
+      "path": "evidence/incomplete.json",
+      "sourceRetainedAt": "/workspace/.t/c60/c060-run-kr3pvffq/evidence/incomplete.json",
+      "sha256": "8dd83dd1f0ec325d510bd8d343bad6a838a633545d20b741bab18a38617490dc",
+      "bytes": 1516,
+      "privateOriginalNotAutoPublished": false
+    },
+    {
+      "path": "evidence/failure.png",
+      "sourceRetainedAt": "/workspace/.t/c60/c060-run-kr3pvffq/evidence/failure.png",
+      "sha256": "8feb1882dcea666e1a363bf454ff759ca6af530b87bf129d54d97e267c4b124a",
+      "bytes": 32191,
+      "privateOriginalNotAutoPublished": false
+    },
+    {
+      "path": "supervisor/final.json",
+      "sourceRetainedAt": "/workspace/.t/c60/c060-run-kr3pvffq/supervisor/final.json",
+      "sha256": "5117cef7e584abf018402b86823dfe17950dcc0b2a80e88938caf3ea7924df98",
+      "bytes": 7266,
+      "privateOriginalNotAutoPublished": false
+    },
+    {
+      "path": "driver-owned-identities.json",
+      "sourceRetainedAt": "/workspace/.t/c60/c060-run-kr3pvffq/driver-owned-identities.json",
+      "sha256": "995d5cee7ce17e12fdccff27bbfba276ca263ab6837b862d9ddc5493cf93f8e0",
+      "bytes": 648,
+      "privateOriginalNotAutoPublished": false
+    },
+    {
+      "path": "evidence/1440-team-access-suspended.png",
+      "sourceRetainedAt": "/workspace/.t/c60/c060-run-kr3pvffq/evidence/1440-team-access-suspended.png",
+      "sha256": "8feb1882dcea666e1a363bf454ff759ca6af530b87bf129d54d97e267c4b124a",
+      "bytes": 32191,
+      "privateOriginalNotAutoPublished": false
+    }
+  ],
+  "scopedExecutedAssertions": [
+    {
+      "sequence": 34,
+      "at": "2026-10-09T14:16:15.263Z",
+      "kind": "actual-definition-draft",
+      "projectId": "p-92caa773",
+      "valueSHA256": "74f696a5d1cbd2c171fdaf4dccd6d039410a1d90a266881f17317327ea6b5aff"
+    },
+    {
+      "sequence": 38,
+      "at": "2026-10-09T14:16:15.592Z",
+      "kind": "actual-portal-open",
+      "portal": "access",
+      "title": "Team access",
+      "viewport": {
+        "width": 1440,
+        "height": 1080
+      }
+    },
+    {
+      "sequence": 42,
+      "at": 1791555376279,
+      "kind": "catalogue-response",
+      "path": "/v1/teams/team-IyW__TLvjJnWVPoBfWPZm4/workspace/v1/sessions",
+      "status": 403,
+      "sha256": "1119065fb74e3db10fad70c296b0522e2a4895cc46edcf44adbf0b830eaeee11",
+      "bytes": 149,
+      "code": "team_access_denied"
+    },
+    {
+      "sequence": 43,
+      "at": "2026-10-09T14:16:16.670Z",
+      "kind": "blocked-modal-state",
+      "label": "1440-team-access-suspended",
+      "hostHidden": true,
+      "privateInvisible": true,
+      "noModal": true,
+      "noPointerLock": true,
+      "noScrollLock": true,
+      "entryAccessible": true,
+      "focusOutsidePrivate": true,
+      "overflow": false
+    },
+    {
+      "sequence": 44,
+      "at": "2026-10-09T14:16:16.681Z",
+      "kind": "blocked-keyboard-focus",
+      "label": "1440-team-access-suspended",
+      "visible": true,
+      "hidden": false,
+      "inPrivate": false
+    }
+  ],
+  "unreached": [
+    "accessibility audit",
+    "desktop restore",
+    "phone suspension/restoration",
+    "final saved definition"
+  ],
+  "knownLiveCount": 0,
+  "knownUnknownCount": 0,
+  "zombies": [
+    {
+      "expected": {
+        "firstObservedAt": "2026-10-09T14:16:12.568+00:00",
+        "origin": "driver-owned-identities",
+        "pid": 2459332,
+        "role": "browser",
+        "startTicks": 30143995
+      },
+      "observed": {
+        "parentPid": 1,
+        "pid": 2459332,
+        "startTicks": 30143995,
+        "state": "Z",
+        "status": "zombie",
+        "uid": 1000
+      }
+    },
+    {
+      "expected": {
+        "firstObservedAt": "2026-10-09T14:16:12.569+00:00",
+        "origin": "driver-owned-identities",
+        "pid": 2459335,
+        "role": "browser",
+        "startTicks": 30143996
+      },
+      "observed": {
+        "parentPid": 1,
+        "pid": 2459335,
+        "startTicks": 30143996,
+        "state": "Z",
+        "status": "zombie",
+        "uid": 1000
+      }
+    }
+  ],
+  "inputsStable": true,
+  "scopedProcessClosureProven": false,
+  "scan": {
+    "scanned": 6560,
+    "complete": false,
+    "issueCount": 6305,
+    "otherUIDSkipped": 251
+  },
+  "wholeMachineClosureClaim": false,
+  "originalFixtureUnchanged": true
+}

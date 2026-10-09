@@ -1,0 +1,368 @@
+{
+  "version": 1,
+  "createdAt": "2026-10-09T13:53:55.859315+00:00",
+  "runs": [
+    {
+      "label": "attempt1",
+      "product": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+      "passed": false,
+      "failedStage": "browser",
+      "bindings": [
+        {
+          "path": "evidence/result.json",
+          "bytes": 13142,
+          "sha256": "ce8a32d114c90c0c9a96f0301f7fcf66c25fd01fc5ea080d4c9e51aeed77cbd6",
+          "sourceRetainedAt": "/workspace/.luci-tools/cloud060-runs-5f4a966f/c060-run-512irgca/evidence/result.json",
+          "privateOriginalNotAutoPublished": false
+        },
+        {
+          "path": "evidence/events.jsonl",
+          "bytes": 3052,
+          "sha256": "f869280ef091cfe34bbb0602c90d09ef58303b1f5824bc471a58ed45921e060d",
+          "sourceRetainedAt": "/workspace/.luci-tools/cloud060-runs-5f4a966f/c060-run-512irgca/evidence/events.jsonl",
+          "privateOriginalNotAutoPublished": false
+        },
+        {
+          "path": "evidence/private-failure.json",
+          "bytes": 11568,
+          "sha256": "4a60ca9210ce2850ae284c66e9edd031c29055333705740f61e1338174363313",
+          "sourceRetainedAt": "/workspace/.luci-tools/cloud060-runs-5f4a966f/c060-run-512irgca/evidence/private-failure.json",
+          "privateOriginalNotAutoPublished": true
+        },
+        {
+          "path": "supervisor/final.json",
+          "bytes": 6141,
+          "sha256": "3fb8ee71847b2af62e248fa76ca3e92fbeafdd77e0d92994bc0f2f4dd199009f",
+          "sourceRetainedAt": "/workspace/.luci-tools/cloud060-runs-5f4a966f/c060-run-512irgca/supervisor/final.json",
+          "privateOriginalNotAutoPublished": false
+        },
+        {
+          "path": "driver-managed-scopes.json",
+          "bytes": 864,
+          "sha256": "ad6b2faf86d997e3046ba7038ce4f4c0b7f23ac9f092cb09d7eeb52d6f0706b0",
+          "sourceRetainedAt": "/workspace/.luci-tools/cloud060-runs-5f4a966f/c060-run-512irgca/driver-managed-scopes.json",
+          "privateOriginalNotAutoPublished": false
+        },
+        {
+          "path": "driver-owned-identities.json",
+          "bytes": 309,
+          "sha256": "f5f9a81817bcaf329a5d2dad08cd39d102a40250a3297302861640f1f75a6dd7",
+          "sourceRetainedAt": "/workspace/.luci-tools/cloud060-runs-5f4a966f/c060-run-512irgca/driver-owned-identities.json",
+          "privateOriginalNotAutoPublished": false
+        }
+      ],
+      "scenarioReached": null,
+      "knownOwnedObservations": [
+        {
+          "expected": {
+            "firstObservedAt": "2026-10-09T13:45:24.553+00:00",
+            "origin": "direct-child",
+            "pid": 2438850,
+            "role": "driver",
+            "startTicks": 29959378
+          },
+          "observed": {
+            "pid": 2438850,
+            "status": "absent"
+          }
+        },
+        {
+          "expected": {
+            "firstObservedAt": "2026-10-09T13:45:26.803+00:00",
+            "origin": "driver-owned-identities",
+            "pid": 2438858,
+            "role": "controller",
+            "startTicks": 29959600
+          },
+          "observed": {
+            "pid": 2438858,
+            "status": "absent"
+          }
+        },
+        {
+          "expected": {
+            "firstObservedAt": "2026-10-09T13:45:31.572+00:00",
+            "origin": "driver-owned-identities",
+            "pid": 2438924,
+            "role": "controller",
+            "startTicks": 29959887
+          },
+          "observed": {
+            "pid": 2438924,
+            "status": "absent"
+          }
+        },
+        {
+          "expected": {
+            "firstObservedAt": "2026-10-09T13:45:31.845+00:00",
+            "origin": "exact-run-marker",
+            "pid": 2438943,
+            "role": "scoped-marker",
+            "startTicks": 29960102
+          },
+          "observed": {
+            "pid": 2438943,
+            "status": "absent"
+          }
+        }
+      ],
+      "finalKnownLiveCount": 0,
+      "finalKnownUnknownCount": 0,
+      "ownedZombies": [],
+      "scopedProcessClosureProven": false,
+      "inputsStable": true,
+      "wholeMachineClosureClaim": false,
+      "scan": {
+        "scanned": 6510,
+        "complete": false,
+        "issueCount": 6256,
+        "otherUIDSkipped": 250,
+        "managedScopeLedger": {
+          "rows": 3,
+          "sha256": "ad6b2faf86d997e3046ba7038ce4f4c0b7f23ac9f092cb09d7eeb52d6f0706b0",
+          "status": "read"
+        }
+      },
+      "issue": "CLOUD-061",
+      "failureProjection": {
+        "browserFactory": "failed before page",
+        "error": "Chromium FATAL process_singleton_posix.cc:313 Socket path too long",
+        "exitSignal": "SIGABRT",
+        "actualNoSandboxFlag": true
+      },
+      "scope": "Unix-socket fixture path issue; no portal UI assertions reached; no product UI defect claimed"
+    },
+    {
+      "label": "attempt2",
+      "product": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+      "passed": false,
+      "failedStage": "scenario:workspace-and-definition-draft",
+      "bindings": [
+        {
+          "path": "evidence/result.json",
+          "bytes": 15042,
+          "sha256": "8d7d0e63ca19412058f373a6fb4659c88fc4aae718d9ef321913d1b8c6fa523f",
+          "sourceRetainedAt": "/workspace/.t/c60/c060-run-rwk78w7t/evidence/result.json",
+          "privateOriginalNotAutoPublished": false
+        },
+        {
+          "path": "evidence/events.jsonl",
+          "bytes": 6509,
+          "sha256": "ed2b1fd3da047c0d74db97046fd753fdceef07594abd7bc172acaf5674738649",
+          "sourceRetainedAt": "/workspace/.t/c60/c060-run-rwk78w7t/evidence/events.jsonl",
+          "privateOriginalNotAutoPublished": false
+        },
+        {
+          "path": "evidence/private-failure.json",
+          "bytes": 7712,
+          "sha256": "c0e685994d54893964feea0fc4bf5234041a6f9cf347e328fc7480750364f93d",
+          "sourceRetainedAt": "/workspace/.t/c60/c060-run-rwk78w7t/evidence/private-failure.json",
+          "privateOriginalNotAutoPublished": true
+        },
+        {
+          "path": "supervisor/final.json",
+          "bytes": 7463,
+          "sha256": "1e43f7188dbad9a86efe71f860721a3378931f5df1613ca4698bb54275209d58",
+          "sourceRetainedAt": "/workspace/.t/c60/c060-run-rwk78w7t/supervisor/final.json",
+          "privateOriginalNotAutoPublished": false
+        },
+        {
+          "path": "driver-managed-scopes.json",
+          "bytes": 752,
+          "sha256": "20975cb90f617a7fd6b4e1ec513b5a4960638a2d55710b3c8fc8db3efc8a2361",
+          "sourceRetainedAt": "/workspace/.t/c60/c060-run-rwk78w7t/driver-managed-scopes.json",
+          "privateOriginalNotAutoPublished": false
+        },
+        {
+          "path": "driver-owned-identities.json",
+          "bytes": 739,
+          "sha256": "9bdb34b1759519e89027bc724226d7101b0592112f3c274c0482445431f4bda2",
+          "sourceRetainedAt": "/workspace/.t/c60/c060-run-rwk78w7t/driver-owned-identities.json",
+          "privateOriginalNotAutoPublished": false
+        },
+        {
+          "path": "evidence/failure.png",
+          "bytes": 65562,
+          "sha256": "efd3389e000b8e64d210c1a828cefc23b16db180d31d5b1dad0ad1329c6ef228",
+          "sourceRetainedAt": "/workspace/.t/c60/c060-run-rwk78w7t/evidence/failure.png"
+        }
+      ],
+      "scenarioReached": null,
+      "knownOwnedObservations": [
+        {
+          "expected": {
+            "firstObservedAt": "2026-10-09T13:47:32.932+00:00",
+            "origin": "direct-child",
+            "pid": 2439114,
+            "role": "driver",
+            "startTicks": 29972217
+          },
+          "observed": {
+            "pid": 2439114,
+            "status": "absent"
+          }
+        },
+        {
+          "expected": {
+            "firstObservedAt": "2026-10-09T13:47:35.187+00:00",
+            "origin": "driver-owned-identities",
+            "pid": 2439122,
+            "role": "controller",
+            "startTicks": 29972420
+          },
+          "observed": {
+            "pid": 2439122,
+            "status": "absent"
+          }
+        },
+        {
+          "expected": {
+            "firstObservedAt": "2026-10-09T13:47:37.844+00:00",
+            "origin": "exact-managed-scope",
+            "pid": 2439134,
+            "role": "managed-team-runtime",
+            "startTicks": 29972588
+          },
+          "observed": {
+            "pid": 2439134,
+            "status": "absent"
+          }
+        },
+        {
+          "expected": {
+            "firstObservedAt": "2026-10-09T13:47:39.879+00:00",
+            "origin": "driver-owned-identities",
+            "pid": 2439154,
+            "role": "browser",
+            "startTicks": 29972758
+          },
+          "observed": {
+            "pid": 2439154,
+            "status": "absent"
+          }
+        },
+        {
+          "expected": {
+            "firstObservedAt": "2026-10-09T13:47:39.901+00:00",
+            "origin": "driver-owned-identities",
+            "pid": 2439156,
+            "role": "browser",
+            "startTicks": 29972775
+          },
+          "observed": {
+            "parentPid": 1,
+            "pid": 2439156,
+            "startTicks": 29972775,
+            "state": "Z",
+            "status": "zombie",
+            "uid": 1000
+          }
+        },
+        {
+          "expected": {
+            "firstObservedAt": "2026-10-09T13:47:39.905+00:00",
+            "origin": "driver-owned-identities",
+            "pid": 2439159,
+            "role": "browser",
+            "startTicks": 29972776
+          },
+          "observed": {
+            "parentPid": 1,
+            "pid": 2439159,
+            "startTicks": 29972776,
+            "state": "Z",
+            "status": "zombie",
+            "uid": 1000
+          }
+        },
+        {
+          "expected": {
+            "firstObservedAt": "2026-10-09T13:47:39.922+00:00",
+            "origin": "driver-owned-identities",
+            "pid": 2439198,
+            "role": "browser",
+            "startTicks": 29972837
+          },
+          "observed": {
+            "pid": 2439198,
+            "status": "absent"
+          }
+        },
+        {
+          "expected": {
+            "firstObservedAt": "2026-10-09T13:47:44.410+00:00",
+            "origin": "driver-owned-identities",
+            "pid": 2439261,
+            "role": "controller",
+            "startTicks": 29973184
+          },
+          "observed": {
+            "pid": 2439261,
+            "status": "absent"
+          }
+        }
+      ],
+      "finalKnownLiveCount": 0,
+      "finalKnownUnknownCount": 0,
+      "ownedZombies": [
+        {
+          "expected": {
+            "firstObservedAt": "2026-10-09T13:47:39.901+00:00",
+            "origin": "driver-owned-identities",
+            "pid": 2439156,
+            "role": "browser",
+            "startTicks": 29972775
+          },
+          "observed": {
+            "parentPid": 1,
+            "pid": 2439156,
+            "startTicks": 29972775,
+            "state": "Z",
+            "status": "zombie",
+            "uid": 1000
+          }
+        },
+        {
+          "expected": {
+            "firstObservedAt": "2026-10-09T13:47:39.905+00:00",
+            "origin": "driver-owned-identities",
+            "pid": 2439159,
+            "role": "browser",
+            "startTicks": 29972776
+          },
+          "observed": {
+            "parentPid": 1,
+            "pid": 2439159,
+            "startTicks": 29972776,
+            "state": "Z",
+            "status": "zombie",
+            "uid": 1000
+          }
+        }
+      ],
+      "scopedProcessClosureProven": false,
+      "inputsStable": true,
+      "wholeMachineClosureClaim": false,
+      "scan": {
+        "scanned": 6514,
+        "complete": false,
+        "issueCount": 6260,
+        "otherUIDSkipped": 250,
+        "managedScopeLedger": {
+          "rows": 3,
+          "sha256": "20975cb90f617a7fd6b4e1ec513b5a4960638a2d55710b3c8fc8db3efc8a2361",
+          "status": "read"
+        }
+      },
+      "issue": "CLOUD-062",
+      "failureProjection": {
+        "kind": "locator.click timeout",
+        "locator": "button All projects exact",
+        "observed": "header intercepts pointer events; target reported outside viewport",
+        "initialCollapseCause": "not retained / unknown"
+      },
+      "scope": "Real browser reached authorized fixture project overview, failed navigation before draft/revocation; original helper uses isVisible-only toggle; no C060 acceptance claimed"
+    }
+  ],
+  "scope": "Bound allowlisted monitor projection; private originals remain in exact failed run roots, no mutation or retry of original fixtures."
+}

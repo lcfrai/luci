@@ -1,0 +1,74 @@
+{
+  "source": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "helperSHA256": "cbaef0c7b6630c968f91cb321fa17d67ebbfffcf0b6aeb2a647178524ca37a48",
+  "candidateReceiptSHA256": "46fae0ba7a99bed59551b6e832514d8ab35eb2b37f9983b248dda1191b4730da",
+  "scope": "Root-coordinated exclusive Docker maintenance, exact task-owned tags only; no global process-idle assertion. Known unreadable dockerd/containerd/gpg identities remain unobserved. No fixture/ledger changes or capacity-release claim.",
+  "status": "preflight-passed",
+  "steps": [],
+  "archiveSHA256": "7caf7aab012cd4a5bf2ace5c8a2e12e617b4afbaef20f6b3db64586a24e9fcf3",
+  "archiveBytes": 1013367768,
+  "restoreScope": "Full current compressed hash matches retained prior CRC/manifest/config proof; no fresh Docker load",
+  "inventoryBefore": [
+    [
+      "hello-world",
+      "latest",
+      "sha256:e2ac70e7319a02c5a477f5825259bd118b94e8b02c279c67afa63adab6d8685b"
+    ],
+    [
+      "luci/sandbox",
+      "dev",
+      "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98"
+    ],
+    [
+      "luci/sandbox",
+      "provider-base-20261008t061146z-87b06740",
+      "sha256:9e0fd9f731408c4405c4b9e97308bf807c8088cf521a138c0b1921667a831351"
+    ],
+    [
+      "luci/sandbox",
+      "provider-base-20261008t140025z-a4a2e82b",
+      "sha256:9e0fd9f731408c4405c4b9e97308bf807c8088cf521a138c0b1921667a831351"
+    ],
+    [
+      "luci/sandbox",
+      "provider-base-20261009t134118z-4a347241",
+      "sha256:9e0fd9f731408c4405c4b9e97308bf807c8088cf521a138c0b1921667a831351"
+    ],
+    [
+      "luci/sandbox",
+      "verified-candidate-20261008t140025z-a4a2e82b",
+      "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98"
+    ],
+    [
+      "luci/sandbox",
+      "verified-candidate-20261009t134118z-4a347241",
+      "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8"
+    ],
+    [
+      "nginx",
+      "1.28-alpine",
+      "sha256:dc73b49f5124cf2ee538dfbdfbd121f0b4ccdcb20fea30f3a81bd477c02e2bb5"
+    ],
+    [
+      "node",
+      "22-alpine",
+      "sha256:7c3b093add7c43400ee83b815ab2cda98794a10045bcf76ce9bb2f89b97cbc5c"
+    ],
+    [
+      "postgres",
+      "<none>",
+      "sha256:345c8087a592c68bc6b1c347bb865b43e14cdefec77d741f85195588028f57a4"
+    ]
+  ],
+  "rootFreeBefore": 3412463616,
+  "pendingTag": "luci/sandbox:dev",
+  "command": [
+    "docker",
+    "--host",
+    "unix:///var/run/docker.sock",
+    "image",
+    "rm",
+    "--no-prune",
+    "luci/sandbox:dev"
+  ]
+}

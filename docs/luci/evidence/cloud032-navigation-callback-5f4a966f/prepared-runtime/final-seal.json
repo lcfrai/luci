@@ -1,0 +1,14 @@
+{
+  "scope": "Final source/command seal only; no installed run, archive rehash, dependency rescan or unchanged test rerun.",
+  "allLocalBindingHashesMatch": true,
+  "originalFull400Plus32CohortSourceUnchanged": true,
+  "productAndHelperSource": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "launcherSHA256": "d20362b458f8d6a59755dad9485c15b2ca7f361323203ec827d17d615d0fa2f5",
+  "driverSHA256": "336f10fff8cf9694e5d1f137314879514de407fd52e4179ba7abbcf9fa22dbfe",
+  "metricsSHA256": "1bec6579a3fc27310c88bfbb378321bf3fc764de62900f9be068fffe3626a2cc",
+  "callbackSHA256": "65ab8efa51ac38cbe453f8c4f44cbdd57b0830f379c712b1065c9067b6da78ed",
+  "bindingSHA256": "588050de546ed775f97afa03014dd973d0da5b7e15449a08b4ed08d52877131e",
+  "launchCommandSHA256": "b87679a0456471e0ce2cb4d5ad0611584364f24d0b557ae9b2194ce68b061d60",
+  "originalNavigationCapsuleUnchanged": true,
+  "originalGuardCapsuleUnchanged": true
+}

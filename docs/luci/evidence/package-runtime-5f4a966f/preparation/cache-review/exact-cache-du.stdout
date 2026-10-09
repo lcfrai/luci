@@ -1,0 +1,1 @@
+{"CreatedAt":"2026-10-08 14:01:24.232384903 +0000 UTC","Description":"[2/2] COPY --chown=0:0 --chmod=0755 bin/ /usr/local/bin/","ID":"jxury1xmsdvxr24fm76wfizm5","LastUsedAt":"24 hours ago","Mutable":false,"Parents":["a0z9tfoq25ub9hkicmah62g4c"],"Reclaimable":true,"Shared":false,"Size":"9.457MB","Type":"regular","UsageCount":1}

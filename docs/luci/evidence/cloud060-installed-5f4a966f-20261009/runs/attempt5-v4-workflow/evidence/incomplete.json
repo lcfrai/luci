@@ -1,0 +1,73 @@
+{
+  "passed": false,
+  "stage": "scenario:empty-session-and-final-observer-proof",
+  "failure": null,
+  "known": [
+    {
+      "pid": 2461095,
+      "start": "30205866",
+      "group": 2461095,
+      "status": "S"
+    },
+    {
+      "pid": 2461108,
+      "start": "30206001",
+      "group": 2461108,
+      "status": "S"
+    },
+    {
+      "pid": 2461236,
+      "start": "30206542",
+      "group": 2461236,
+      "status": "S"
+    },
+    {
+      "pid": 2461127,
+      "start": "30206127",
+      "group": 2461127,
+      "status": "S"
+    },
+    {
+      "pid": 2461129,
+      "start": "30206139",
+      "group": 2461128,
+      "status": "S"
+    },
+    {
+      "pid": 2461132,
+      "start": "30206139",
+      "group": 2461131,
+      "status": "S"
+    }
+  ],
+  "startup": [
+    {
+      "name": "controller",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "name": "browser",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "name": "browser-context",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false,
+      "parent": "browser",
+      "closedByParent": false
+    },
+    {
+      "name": "browser-page",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false,
+      "parent": "browser-context",
+      "closedByParent": false
+    }
+  ]
+}

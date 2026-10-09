@@ -1,0 +1,84 @@
+{
+  "version": 2,
+  "at": "2026-10-09T13:38:46.427612+00:00",
+  "scope": "Source-only exact task-tool relocation; no image-policy widening, process scan or operation execution",
+  "sourcePins": {
+    "operation_common.py": "ff414e7be81a069bfb7a08eab0a73f826e4dc731596049324812dbfc70a1aa39",
+    "relocate_tools.py": "a86951497592b707ff2b157cf4c6e193180f18eedf5af42e09f98994242a3f78"
+  },
+  "controls": {
+    "groups": 3,
+    "passed": 3,
+    "failed": 0,
+    "command": "python3 -B -m unittest -v test_scoped_coordination",
+    "originalPartialObservation": {
+      "passed": 2,
+      "error": 1,
+      "cause": "Known busy reference discarded after later unreadable maps, accepted unknown could otherwise bypass it"
+    },
+    "initialThreePassOverlap": true,
+    "sameFinalTestBeforeAndAfter": true,
+    "disappearingObservationFollowup": "Same busy group now also covers FileNotFoundError after matched fields; final three groups pass, prior source/logs retained."
+  },
+  "rootApprovedExceptions": "Only explicitly accepted stable PID/start pairs, maximum declared10minute validity and live source-bound owner; busy always refuses",
+  "files": {
+    "controlled.stderr": {
+      "sha256": "e37c3dbf546cc7b6f15b803860948aacab6b5dd7edcf236299a7aac5ae80a257",
+      "bytes": 607
+    },
+    "before-disappearing-controlled.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "test_scoped_coordination.py": {
+      "sha256": "07c1802ac096499c8b8031434235d055d6159623c65d2cd6fd48e618dfe59cb2",
+      "bytes": 3343
+    },
+    "relocate_tools.py": {
+      "sha256": "a86951497592b707ff2b157cf4c6e193180f18eedf5af42e09f98994242a3f78",
+      "bytes": 9424
+    },
+    "operation_common.before-partial-observation.py": {
+      "sha256": "ff079061bdf6964a440bc86c4d2d6ca7ad9138c6e03b3bbac4b5ad38bdea2d36",
+      "bytes": 8085
+    },
+    "initial-controlled.stderr": {
+      "sha256": "ea72b31d828856978aca2af013c4207daa3d791418b928e619b9e3d2334d06d9",
+      "bytes": 607
+    },
+    "initial-controlled.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "before-partial-observation.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "README.md": {
+      "sha256": "0bce2336245d2a56ab39cb962db31eebe4a4aea7f6dbe7b78a919b8e7ad834ea",
+      "bytes": 5610
+    },
+    "before-partial-observation.stderr": {
+      "sha256": "2efc95fd1fb28c038be61b59bf662971f9795db934ddd85a586d10a5e7b14503",
+      "bytes": 1288
+    },
+    "controlled.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "before-disappearing-controlled.stderr": {
+      "sha256": "ea72b31d828856978aca2af013c4207daa3d791418b928e619b9e3d2334d06d9",
+      "bytes": 607
+    },
+    "operation_common.py": {
+      "sha256": "ff414e7be81a069bfb7a08eab0a73f826e4dc731596049324812dbfc70a1aa39",
+      "bytes": 8289
+    },
+    "operation_common.before-disappearing-observation.py": {
+      "sha256": "9ba913d11cf08e0696b0d47c7da02687ccb0b09ef1aaf1aff185e1c12bc9a77c",
+      "bytes": 8185
+    }
+  },
+  "actualRelocationPerformed": false,
+  "actualProcessScanPerformed": false
+}

@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "/workspace/luci/control-plane/internal/api/cloud063_before_test.go": "/workspace/.luci-tools/cloud063-session-terminal-liveness/before_test.go"
+  }
+}

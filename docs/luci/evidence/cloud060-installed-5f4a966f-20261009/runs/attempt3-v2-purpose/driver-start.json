@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "product": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "runRoot": "/workspace/.t/c60/c060-run-qrni203l",
+  "pid": 2449409,
+  "identity": {
+    "pid": 2449409,
+    "start": "30080214",
+    "group": 2449409,
+    "status": "R"
+  },
+  "buildReceiptSHA256": "62c33ca1c8d34f00ad98016cb3714c509a85d39f3d203ef326a2e9c2621148a8"
+}

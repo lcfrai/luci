@@ -1,0 +1,33 @@
+Name:          default
+Driver:        docker
+Last Activity: 2026-10-09 13:41:27 +0000 UTC
+
+Nodes:
+Name:             default
+Endpoint:         default
+Status:           running
+BuildKit version: v0.24.0
+Platforms:        linux/amd64, linux/amd64/v2, linux/amd64/v3, linux/amd64/v4
+Labels:
+ org.mobyproject.buildkit.worker.moby.host-gateway-ip: 172.17.0.1
+GC Policy rule#0:
+ All:            false
+ Filters:        type==source.local,type==exec.cachemount,type==source.git.checkout
+ Keep Duration:  48h0m0s
+ Max Used Space: 527.1MiB
+GC Policy rule#1:
+ All:            false
+ Keep Duration:  1440h0m0s
+ Reserved Space: 3.725GiB
+ Max Used Space: 953.7MiB
+ Min Free Space: 1.863GiB
+GC Policy rule#2:
+ All:            false
+ Reserved Space: 3.725GiB
+ Max Used Space: 953.7MiB
+ Min Free Space: 1.863GiB
+GC Policy rule#3:
+ All:            true
+ Reserved Space: 3.725GiB
+ Max Used Space: 953.7MiB
+ Min Free Space: 1.863GiB

@@ -1,0 +1,9 @@
+{
+  "scope": "Historical external references only; full private result/trace and complete dependency source snapshot are not publication members. Publication inventory binds only actual included files.",
+  "originalResultSHA256": "61bd37dfd0267e679344cc0d9a1e276dc92d87a5e1606b35bb10718e2bbfc2d0",
+  "originalTraceSHA256": "776bb64c6f8e91039d1de4270bf5c699ddcaee259f3cc40b8bbb17fbbf62c1dc",
+  "preparedRuntimeCapsuleManifestSHA256": "2a09a83466bda692a9ddc13be5b2209519f1dbfcd578b30dfab5bf835deb39f1",
+  "fullDependencyCaptureExternalManifestSHA256": "d6423f5d170f03169305fcedd27464ce3012563352cce52216cc54dc197dd628",
+  "dependencyInventorySHA256": "c49a27bd78518d76caa1ba4d49414cf3034050e074e7be6301b6c341f3caf863",
+  "projectionPrivacy": "No private context text, tokens, original project IDs or exact private fixture directory; ordinal mappings retain original action indices. All432 action rows and108 callback joins preserved."
+}
