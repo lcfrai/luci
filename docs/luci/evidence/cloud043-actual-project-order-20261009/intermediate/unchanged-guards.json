@@ -1,0 +1,18 @@
+{
+  "workerContextGuards": {
+    "bytes": 2234,
+    "sha256": "4b584872465dce859b395431d91b49e80872e0a13eb58d4fb7408274c1a701fe"
+  },
+  "providerContract": {
+    "bytes": 6418,
+    "sha256": "e3fa4e093b501a996ebd0c53ca80f0d467d415329a4c586a959d9f3e3f21ce12"
+  },
+  "taskExerciseAndReview": {
+    "bytes": 1345,
+    "sha256": "bdb9273bc52cda7e44df45186a93e08b2f82cbedf1e95ac7a7fdd469b9dabe13"
+  },
+  "loadedQuotaAndRemainingWorkflow": {
+    "bytes": 11732,
+    "sha256": "f709d6abf11a8496cf9beb66dca64a2380d888e44dca1b96ae35cb13ea1ed7bc"
+  }
+}

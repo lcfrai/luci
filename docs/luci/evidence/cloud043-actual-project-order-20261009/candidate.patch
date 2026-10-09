@@ -1,0 +1,526 @@
+--- a/scripts/acceptance/sustained-four-project/sustained.mjs
++++ b/scripts/acceptance/sustained-four-project/sustained.mjs
+@@ -328,10 +328,37 @@
+  if(state){project=state.owner;projectRoute=state.route;run=state.run;await page.getByRole('button',{name:'Open project '+state.owner.name,exact:true}).click();await page.getByRole('button',{name:'Develop',exact:true}).click();await page.getByRole('region',{name:'Agent team',exact:true}).waitFor();}
+ }
+ function taskRow(task){return page.locator('.project-swarm-tasks > li').filter({has:page.getByRole('heading',{name:titles.get(task),exact:true})});}
+-async function queuedChild(owner,ordinal){
+- const queued=await until('Exactly one queued worker allocated',async()=>{
+-  const queue=await api('GET',owner.route+'/swarm-queue');return queue.items.find(item=>item.taskId===owner.task&&item.childId&&item.state==='running');
++// Cross-project fairness and admission may choose any remaining project;
++// a priority change inside one project does not require it to run next.
++// Select only a single running allocation from this explicit remaining set;
++// no dispatch, cancellation or priority mutation is performed by observation.
++async function allocatedQueuedOwner(candidates){
++ const owners=Array.isArray(candidates)?candidates:[candidates];
++ assert(owners.length>=1&&owners.length<=4,'Bounded remaining project candidates required');
++ assert.equal(new Set(owners.map(owner=>owner.owner.id)).size,owners.length,'Duplicate candidate project');
++ assert.equal(new Set(owners.map(owner=>owner.task)).size,owners.length,'Duplicate candidate task');
++ return until('Exactly one queued worker allocated',async()=>{
++  const snapshots=await Promise.all(owners.map(async owner=>({owner,queue:await api('GET',owner.route+'/swarm-queue')})));
++  const running=[];
++  for(const {owner,queue} of snapshots){
++   assert(Array.isArray(queue.items)&&queue.items.length<=8,'Bounded fixture queue observation required');
++   for(const item of queue.items){
++    assert.equal(item.projectId,owner.owner.id,'Observed queue belongs to another project');
++    if(item.taskId==='cancel-a')assert(!item.childId&&!item.operationId,'Cancelled waiting fixture task must never allocate');
++    if(item.state!=='running')continue;
++    assert(item.childId,'Running queue task requires exact child identity');
++    assert.equal(item.taskId,owner.task,'Unexpected running fixture task');
++    assert.equal(item.runId,owner.run.id,'Running queue belongs to another run');
++    assert(owner.queued.some(expected=>expected.id===item.id&&expected.taskId===item.taskId),'Running queue has no exact fixture enqueue receipt');
++    running.push({owner,queued:item});
++   }
++  }
++  assert(running.length<=1,'One worker ceiling is enforced across candidate projects');
++  return running[0]??null;
+  },150000);
++}
++async function queuedChild(candidates,ordinal){
++ const {owner,queued}=await allocatedQueuedOwner(candidates);
+  const session=await api('GET',workspace+'/v1/sessions/'+queued.childId);ownedSessions.add(session.id);
+  owner.run=(await api('GET',owner.route+'/runs/'+owner.run.id)).run;
+  const operation=owner.run.operations.find(op=>op.taskId===owner.task&&op.childId===session.id);assert(operation);
+@@ -346,6 +373,7 @@
+  for(const name of ['.luci/brief.json','.luci/specification.json','.luci/design.json','.luci/plan.json'])assert.equal(JSON.parse(readFileSync(join(capturedRoot,name),'utf8')).projectId,owner.owner.id,'Mixed-project context: '+name);
+  assert.equal(row(session.id).implementationContext.taskIds.length,1);assert.equal(row(session.id).projectId,owner.owner.id);
+  assert.equal(workerContainers().length,1,'One worker ceiling is enforced');
++ (receipt.allocationOrder??=[]).push({ordinal,task:owner.task,projectID:owner.owner.id,queueID:queued.id,sessionID:session.id,operationID:operation.id,observedAt:new Date().toISOString()});
+  return state;
+ }
+ async function setPaused(paused){
+@@ -403,10 +431,48 @@
+  for(const owner of projectStates){await page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true}).click();await page.getByRole('button',{name:'Define',exact:true}).click();await page.getByRole('button',{name:'Restore draft',exact:true}).click();assert.equal(await page.getByRole('textbox',{name:'The idea',exact:true}).inputValue(),owner.goal+' UNSENT '+owner.owner.id);await page.getByRole('textbox',{name:'The idea',exact:true}).fill(owner.goal);await page.getByRole('button',{name:'All projects',exact:true}).click();if(await page.getByRole('dialog',{name:'Keep your changes?',exact:true}).isVisible())await page.getByRole('button',{name:'Discard edits and continue',exact:true}).click();}
+  for(const owner of projectStates){project=owner.owner;assert.deepEqual(canonical(),owner.canonicalBefore);}check('Four distinct unsent idea drafts restore to their own project without changing approved source context');
+ }
+-async function queueControls(first){
+- setStage('loaded-queue-controls');await openProject(first);const queueRegion=await openQueueControls(page,health);const cancelRow=queueRegion.locator('li').filter({hasText:'Cancel this extra queued task'}),entry=first.queued.find(value=>value.taskId==='cancel-a');assert(entry);const before=effects();await action(first.route+'/swarm-queue/'+entry.id+'/cancel',()=>cancelRow.getByRole('button',{name:'Cancel queued task',exact:true}).click());
+- const queue=await api('GET',first.route+'/swarm-queue'),canceled=queue.items.find(value=>value.id===entry.id);assert.equal(canceled.state,'cancelled');assert(!canceled.childId&&!canceled.operationId);assert.deepEqual(effects(),before);assert(!privateRun(first).operations.some(value=>value.taskId==='cancel-a'));
+- const next=projectStates[1];await openProject(next);const nextQueue=await openQueueControls(page,health);await action(next.route+'/swarm-queue/'+next.queued[0].id+'/priority',()=>nextQueue.getByRole('combobox',{name:'Priority for '+titles.get(next.task),exact:true}).selectOption('high'));const latest=await api('GET',next.route+'/swarm-queue');assert.equal(latest.items.find(value=>value.id===next.queued[0].id).priority,'high');check('Browser cancellation prevents allocation and queued priority changes retain exact project ownership');
++function exactQueueControlEntry(owner,expected,queue){
++ assert(expected,'Exact control enqueue receipt required');
++ assert(Array.isArray(queue.items)&&queue.items.length<=8,'Bounded fixture queue observation required');
++ for(const item of queue.items)assert.equal(item.projectId,owner.owner.id,'Queue controls require own-project entries');
++ const matches=queue.items.filter(value=>value.id===expected.id);assert.equal(matches.length,1,'Exact unique control entry required');
++ const current=matches[0];assert.equal(current.projectId,owner.owner.id);assert.equal(current.runId,owner.run.id);assert.equal(current.taskId,expected.taskId);
++ assert(!current.childId&&!current.operationId,'Queue controls require an unallocated waiting entry');return current;
++}
++async function protectCancellation(){
++ setStage('protect-exact-cancellation-entry');
++ const owner=projectStates.find(value=>value.task==='build-a');assert(owner,'Exact cancellation project required');
++ const entry=owner.queued.find(value=>value.taskId==='cancel-a');
++ const pending=await api('GET',owner.route+'/swarm-queue');assert.equal(pending.dispatchPaused,true,'Protect cancellation before global dispatch resumes');
++ assert.equal(exactQueueControlEntry(owner,entry,pending).state,'queued');
++ await openProject(owner);const region=await openQueueControls(page,health),row=region.locator('li').filter({hasText:'Cancel this extra queued task'}),before=effects();
++ await action(owner.route+'/swarm-queue/'+entry.id+'/pause',()=>row.getByRole('button',{name:'Pause queued task',exact:true}).click());
++ const protectedQueue=await api('GET',owner.route+'/swarm-queue');assert.equal(protectedQueue.dispatchPaused,true);assert.equal(exactQueueControlEntry(owner,entry,protectedQueue).state,'paused');
++ assert.deepEqual(effects(),before);assert(!privateRun(owner).operations.some(value=>value.taskId==='cancel-a'));
++ receipt.queueCancellationGuard={projectID:owner.owner.id,runID:owner.run.id,queueID:entry.id,task:'cancel-a',state:'paused',observedAt:new Date().toISOString()};
++}
++async function queueControls(worker){
++ setStage('loaded-queue-controls');
++ const first=projectStates.find(owner=>owner.task==='build-a');assert(first,'Exact cancellation project required');
++ const entry=first.queued.find(value=>value.taskId==='cancel-a');
++ assert.equal(exactQueueControlEntry(first,entry,await api('GET',first.route+'/swarm-queue')).state,'paused');
++ await openProject(first);const queueRegion=await openQueueControls(page,health);const cancelRow=queueRegion.locator('li').filter({hasText:'Cancel this extra queued task'});
++ const before=effects();await action(first.route+'/swarm-queue/'+entry.id+'/cancel',()=>cancelRow.getByRole('button',{name:'Cancel queued task',exact:true}).click());
++ assert.equal(exactQueueControlEntry(first,entry,await api('GET',first.route+'/swarm-queue')).state,'cancelled');
++ assert.deepEqual(effects(),before);assert(!privateRun(first).operations.some(value=>value.taskId==='cancel-a'));
++ // Observe a different waiting project for the UI priority action. The receipt
++ // proves that exact mutation; it never predicts cross-project dispatch order.
++ let next,nextEntry;
++ for(const candidate of projectStates.filter(owner=>owner.task!==worker.task)){
++  const expected=candidate.queued.find(value=>value.taskId===candidate.task),current=exactQueueControlEntry(candidate,expected,await api('GET',candidate.route+'/swarm-queue'));
++  if(['queued','blocked'].includes(current.state)){next=candidate;nextEntry=expected;break;}
++ }
++ assert(next&&nextEntry,'A different waiting priority project is required');
++ await openProject(next);const nextQueue=await openQueueControls(page,health);
++ await action(next.route+'/swarm-queue/'+nextEntry.id+'/priority',()=>nextQueue.getByRole('combobox',{name:'Priority for '+titles.get(next.task),exact:true}).selectOption('high'));
++ const prioritized=exactQueueControlEntry(next,nextEntry,await api('GET',next.route+'/swarm-queue'));assert(['queued','blocked'].includes(prioritized.state));assert.equal(prioritized.priority,'high');assert.deepEqual(effects(),before);
++ receipt.queueControls={activeTask:worker.task,cancelled:{projectID:first.owner.id,runID:first.run.id,queueID:entry.id,task:'cancel-a'},prioritized:{projectID:next.owner.id,runID:next.run.id,queueID:nextEntry.id,task:next.task,priority:prioritized.priority},observedAt:new Date().toISOString()};
++ check('Browser cancellation prevents allocation and queued priority changes retain exact project ownership');
+ }
+ async function activeRestart(worker){
+  setStage('active-command-restart');const before=effects(),original=live(worker.session.id),beforeRows=taskEvents.get(worker.task)??[];assert(beforeRows.some(row=>row.type==='command-start'&&row.label==='fuzz'));assert(!beforeRows.some(row=>row.type==='command-end'&&row.label==='fuzz'));
+@@ -498,17 +564,18 @@
+  assertWorkflowActive();receipt.browserVersion=browser.version();page.setDefaultTimeout(15000);page.on('pageerror',error=>{receipt.browserErrors.push(scrub(error));stopOnFailure(Error('Browser script error'));});
+  // END SUSTAINED BROWSER WIRING
+  for(const owner of projectStates){setStage('prepare-and-queue-'+owner.task);await prepare(owner);await queueOwner(owner);}
+- assert.equal(effects().create,0);await functionalDrafts();interactions=interactionRunner({page,owners:projectStates,receipt,assertHealthy:health,phase:()=>measuredPhase,observe:passiveTiming});await interactions.warm();
++ await protectCancellation();assert.equal(effects().create,0);await functionalDrafts();interactions=interactionRunner({page,owners:projectStates,receipt,assertHealthy:health,phase:()=>measuredPhase,observe:passiveTiming});await interactions.warm();
+  setStage('idle-baseline');await quietPhase('quiet-app-open-idle');const idle=phaseStart('idle-interactive-calibration');await interactions.calibrate(100);phaseEnd(idle);await passiveTiming('end-idle-calibration');
+  setStage('sustained-work');const loaded=phaseStart('loaded');await setPaused(false);
+- let worker=await queuedChild(projectStates[0],1);await attach(worker.session.id);await queueControls(projectStates[0]);await openProject();await interactions.warm();
++ let worker=await queuedChild(projectStates,1);await attach(worker.session.id);await queueControls(worker);await openProject();await interactions.warm();
+  const completedOwners=[];
+  for(let index=0;index<4;index++){
+-  const owner=projectStates[index];setStage('actual-work-'+owner.task);assert.equal(worker.task,owner.task);await exercise(worker,{restart:index===0});await completeNaturally(worker,owner);completedOwners.push(owner);
++  const owner=projectStates.find(value=>value.task===worker.task);assert(owner,'Observed worker must belong to one prepared project');assert(!completedOwners.includes(owner),'Each prepared project completes once');setStage('actual-work-'+owner.task);await exercise(worker,{restart:index===0});await completeNaturally(worker,owner);completedOwners.push(owner);
+   let successor;
+-  if(index<3){successor=await queuedChild(projectStates[index+1],index+2);await attach(successor.session.id);const beforeReview=(await api('GET',owner.route+'/runs/'+owner.run.id)).run;assert.notEqual(beforeReview.swarm.tasks.find(value=>value.id===owner.task).integration?.state,'integrated');(receipt.preIntegrationProgress??=[]).push({completedTask:owner.task,nextTask:successor.task,nextSessionID:successor.session.id,observedAt:new Date().toISOString()});}
++  if(index<3){const candidates=projectStates.filter(value=>!completedOwners.includes(value));successor=await queuedChild(candidates,index+2);await attach(successor.session.id);const beforeReview=(await api('GET',owner.route+'/runs/'+owner.run.id)).run;assert.notEqual(beforeReview.swarm.tasks.find(value=>value.id===owner.task).integration?.state,'integrated');(receipt.preIntegrationProgress??=[]).push({completedTask:owner.task,nextTask:successor.task,nextSessionID:successor.session.id,observedAt:new Date().toISOString()});}
+   await reviewOwner(owner);await openProject();await interactions.warm();worker=successor;
+  }
++ assert.equal(new Set(completedOwners.map(owner=>owner.owner.id)).size,4,'All four projects must complete once');
+  phaseEnd(loaded);assert(interactionRound>=200,'At least200 loaded project switches and400 inputs must be actually recorded');assert.equal(observations.size,4);
+  const activeSeconds=[...observations.values()].map(value=>value.artifact.commands.find(command=>command.label==='fuzz')?.activeFuzzSeconds??0);assert(activeSeconds.every(seconds=>seconds>=150));assert(activeSeconds.reduce((a,b)=>a+b,0)>=600);receipt.actualFuzzSeconds=activeSeconds;await passiveTiming('end-four-project-loaded-phase');
+  setStage('reviewed-amendment');const prior=projectStates[0],originalWorker=taskData.get('build-a'),oldBundle=initialBundles.get(originalWorker.session.id);assert.deepEqual(bundleSnapshot(originalWorker.session.id),oldBundle);
+--- /dev/null
++++ b/scripts/acceptance/sustained-four-project/queue-selection.test.mjs
+@@ -0,0 +1,149 @@
++// Actual helper selection/loop slices; inert GET and worker/context fixtures.
++// No controller, browser, provider, Docker request or native workload starts.
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import {readFileSync} from 'node:fs';
++import vm from 'node:vm';
++const source=readFileSync(process.env.LUCI_SUSTAINED_TEST_SOURCE??new URL('./sustained.mjs',import.meta.url),'utf8');
++const retained=JSON.parse(readFileSync(new URL('./fixtures/queue-order-retained.json',import.meta.url)));
++function fixture(){return structuredClone(retained.observations).map(row=>{row.owner.queued=structuredClone(row.queue.items);return row;});}
++function selectionContext(rows=fixture(),options={}){
++ const reads=[];
++ const ctx={assert,api:async(method,path)=>{assert.equal(method,'GET','Selection must not mutate dispatch');reads.push(path);const row=rows.find(row=>path===row.owner.route+'/swarm-queue');assert(row,'Unknown project route');return options.queue?options.queue(row):row.queue;},until:async(label,fn,budget)=>{assert.equal(budget,150000);for(let i=0;i<2;i++){const value=await fn();if(value)return value;}throw Error(label+' did not complete within its bounded prerequisite window');}};
++ if(source.includes('async function allocatedQueuedOwner(')){
++  vm.runInNewContext(source.slice(source.indexOf('async function allocatedQueuedOwner('),source.indexOf('async function queuedChild('))+'\nglobalThis.select=allocatedQueuedOwner;',ctx);
++ }else{
++  // Exact original C-only selector, ending before session/bundle inspection.
++  const start=source.indexOf('async function queuedChild('),end=source.indexOf(' const session=await api(',start);assert(start>=0&&end>start);
++  vm.runInNewContext(source.slice(start,end)+'return {owner,queued};}\nglobalThis.select=candidates=>queuedChild(Array.isArray(candidates)?candidates[0]:candidates);',ctx);
++ }
++ return {ctx,rows,reads,select:candidates=>ctx.select(candidates)};
++}
++const remaining=rows=>rows.filter(row=>['build-c','build-d'].includes(row.owner.task)).map(row=>row.owner);
++
++test('retained D-before-C allocation is selected without changing its queue or issuing work',async()=>{
++ const f=selectionContext(),before=JSON.stringify(f.rows);const chosen=await f.select(remaining(f.rows));
++ assert.equal(chosen.owner.task,'build-d');assert.equal(chosen.owner.owner.id,'p-f686c006');assert.equal(chosen.queued.childId,'s-58d19866');assert.equal(chosen.queued.id,'queue-e271747355890121c64156ef');
++ assert.equal(JSON.stringify(f.rows),before);assert.equal(f.reads.length,2);assert(f.reads.every(path=>path.endsWith('/swarm-queue')));
++});
++
++test('empty and ambiguous active candidates refuse instead of choosing or launching a worker',async()=>{
++ const none=selectionContext(fixture(),{queue:row=>({items:row.queue.items.map(item=>({...item,state:'queued',childId:undefined}))})});
++ await assert.rejects(none.select(remaining(none.rows)),/bounded prerequisite window/);assert.equal(none.reads.length,4);
++ const two=selectionContext(fixture(),{queue:row=>({items:row.queue.items.map(item=>({...item,state:'running',childId:item.childId??'controlled-second'}))})});
++ await assert.rejects(two.select(remaining(two.rows)),/One worker ceiling/);
++});
++
++test('foreign task project run enqueue identity and missing child cannot establish an owned allocation',async()=>{
++ for(const change of [item=>({...item,projectId:'other'}),item=>({...item,taskId:'unexpected'}),item=>({...item,runId:'other'}),item=>({...item,id:'other'}),item=>({...item,childId:''})]){
++  const f=selectionContext(fixture(),{queue:row=>({items:row.queue.items.map(item=>item.state==='running'?change(item):item)})});
++  await assert.rejects(f.select(remaining(f.rows)));
++ }
++});
++
++test('cancelled waiting fixture cannot allocate and duplicate candidate sets remain bounded',async()=>{
++ const rows=fixture(),a=rows.find(row=>row.owner.task==='build-a');a.queue.items.find(item=>item.taskId==='cancel-a').childId='must-not-exist';
++ const f=selectionContext(rows);await assert.rejects(f.select(a.owner),/Cancelled waiting fixture task/);
++ await assert.rejects(f.select([]),/Bounded remaining/);await assert.rejects(f.select(Array(5).fill(a.owner)),/Bounded remaining/);
++ await assert.rejects(f.select([a.owner,a.owner]),/Duplicate candidate project/);
++ const duplicate={...a.owner,owner:{id:'different'}};await assert.rejects(f.select([a.owner,duplicate]),/Duplicate candidate task/);
++});
++
++test('high priority within B does not predict its cross-project turn',async()=>{
++ const rows=fixture();const b=rows.find(row=>row.owner.task==='build-b');b.queue.items[0].state='queued';b.queue.items[0].childId=null;
++ assert.equal(b.queue.items[0].priority,'high');const f=selectionContext(rows);
++ const selected=await f.select(rows.filter(row=>row.owner.task!=='build-a').map(row=>row.owner));
++ assert.equal(selected.owner.task,'build-d');assert.equal(b.queue.items[0].priority,'high');assert.equal(f.reads.length,3);
++});
++
++function workerContext(overrides={}){
++ const f=selectionContext(),row=f.rows.find(row=>row.owner.task==='build-d'),owner=row.owner,queued=row.queue.items[0];
++ owner.owner.path='/controlled/primary-d';owner.canonicalLuci=Buffer.from('Exact project D brief');
++ const session={id:queued.childId,projectId:owner.owner.id,implementationContext:{taskIds:[owner.task]}};
++ const operation={id:'op-13e7db55e7a454367ad14551',taskId:owner.task,childId:session.id,worktreeId:'w-d'};
++ const run={id:owner.run.id,projectId:owner.owner.id,operations:[operation]};const bundle={};const checks=[];
++ const originalApi=f.ctx.api;
++ Object.assign(f.ctx,{api:async(method,path)=>{
++  assert.equal(method,'GET');if(path.endsWith('/swarm-queue'))return originalApi(method,path);
++  if(path==='/v1/sessions/'+session.id)return session;
++  if(path===owner.route+'/runs/'+owner.run.id)return {run};
++  if(path==='/v1/projects/'+owner.owner.id+'/worktrees')return {worktrees:[{id:'w-d',path:'/controlled/isolated-d'}]};
++  assert.fail('Unknown request '+path);
++ },workspace:'',ownedSessions:new Set(),taskData:new Map(),initialBundles:new Map(),bundles:new Map([[session.id,'/controlled/context-d']]),receipt:{},taskContextVersion:1,names:[],canonicalNames:[],
++  live:id=>{assert.equal(id,session.id);assert.equal(f.ctx.taskData.get(owner.task).checkout,'/controlled/isolated-d');return {id:'immutable-d',pid:17};},bundleSnapshot:id=>{assert.equal(id,session.id);return bundle;},
++  verifyTaskContext:value=>{checks.push(value);assert.equal(value.session.projectId,owner.owner.id);assert.equal(value.operation,operation);assert.equal(value.run,run);},
++  row:()=>session,readFileSync:path=>path.endsWith('/LUCI.md')?owner.canonicalLuci:JSON.stringify({projectId:owner.owner.id}),join:(...parts)=>parts.join('/'),workerContainers:()=>['immutable-d'],Buffer,...overrides});
++ const start=source.indexOf('async function queuedChild('),end=source.indexOf('async function setPaused(',start);
++ vm.runInNewContext(source.slice(start,end)+'\nglobalThis.child=queuedChild;',f.ctx);
++ return {...f,owner,session,checks,child:()=>f.ctx.child([owner],3)};
++}
++
++test('actual child helper retains owned context and single-container checks after peer selection',async()=>{
++ const f=workerContext();const child=await f.child();assert.equal(child.task,'build-d');assert.equal(child.session.id,'s-58d19866');assert.equal(f.checks.length,1);assert.equal(f.ctx.ownedSessions.size,1);assert.equal(f.ctx.initialBundles.size,1);
++ assert.equal(f.ctx.receipt.allocationOrder[0].ordinal,3);assert.equal(f.ctx.receipt.allocationOrder[0].queueID,'queue-e271747355890121c64156ef');
++ const excess=workerContext({workerContainers:()=>['one','two']});await assert.rejects(excess.child(),/One worker ceiling/);
++ const foreign=workerContext({row:()=>({projectId:'foreign',implementationContext:{taskIds:['build-d']}})});await assert.rejects(foreign.child());
++ for(const taskIds of [[],['build-d','build-d']]){const invalid=workerContext();invalid.session.implementationContext.taskIds=taskIds;await assert.rejects(invalid.child());}
++ const missing=workerContext();delete missing.session.implementationContext;await assert.rejects(missing.child());
++ const wrongDocument=workerContext({readFileSync:path=>path.endsWith('/LUCI.md')?Buffer.from('Exact project D brief'):JSON.stringify({projectId:'foreign'})});await assert.rejects(wrongDocument.child(),/Mixed-project context/);
++});
++
++function permutations(items){return items.length?items.flatMap((item,index)=>permutations(items.filter((_,i)=>i!==index)).map(rest=>[item,...rest])):[[]];}
++async function executeWorkflow(order,{canceledChild=false}={}){
++ const rows=fixture();for(const row of rows)row.owner.run={id:row.owner.run.id};
++ const events=[],completed=[],reviewed=new Set();let active=order[0];
++ const f=selectionContext(rows,{queue:row=>({items:row.queue.items.map(item=>({...item,state:item.taskId==='cancel-a'?'paused':item.taskId===active?'running':completed.includes(item.taskId)?'completed':'queued',childId:item.taskId==='cancel-a'?(canceledChild?'forbidden-child':null):item.taskId===active?'controlled-'+item.taskId:undefined,operationId:undefined}))})});
++ const state=task=>({task,session:{id:'controlled-'+task}});
++ const ctx={assert,projectStates:rows.map(row=>row.owner),receipt:{},
++  setStage:value=>events.push(value),exercise:async(worker,options)=>{assert.equal(worker.task,active);assert.equal(options.restart,completed.length===0);},
++  completeNaturally:async(worker,owner)=>{assert.equal(worker.task,owner.task);assert(!completed.includes(owner.task));completed.push(owner.task);active=order[completed.length];events.push('completed '+owner.task);},
++  queuedChild:async(candidates,ordinal)=>{assert.equal(ordinal,completed.length+1);const chosen=await f.select(candidates);events.push('observed '+chosen.owner.task);return state(chosen.owner.task);},attach:async()=>{},
++  queueControls:async worker=>{assert.equal(worker.task,order[0]);events.push('controls during '+worker.task);},
++  api:async(method,path)=>{assert.equal(method,'GET');const owner=rows.find(row=>path===row.owner.route+'/runs/'+row.owner.run.id)?.owner;assert(owner);return {run:{swarm:{tasks:[{id:owner.task,integration:{state:reviewed.has(owner.task)?'integrated':'pending'}}]}}};},
++  reviewOwner:async owner=>{assert(!reviewed.has(owner.task));reviewed.add(owner.task);events.push('reviewed '+owner.task);},openProject:async()=>{},interactions:{warm:async()=>{}}};
++ const start=source.indexOf(' let worker=await queuedChild('),end=source.indexOf(' phaseEnd(loaded);',start);assert(start>=0&&end>start);
++ await vm.runInNewContext('(async()=>{'+source.slice(start,end)+'globalThis.completedScope=completedOwners;})()',ctx);
++ assert.deepEqual(completed,order);assert.equal(reviewed.size,4);assert.equal(new Set(ctx.completedScope.map(owner=>owner.owner.id)).size,4);
++ assert.equal(ctx.receipt.preIntegrationProgress.length,3);for(let i=0;i<3;i++)assert(events.indexOf('observed '+order[i+1])<events.indexOf('reviewed '+order[i]));
++ assert.equal(events.filter(value=>value.startsWith('observed ')).length,4);assert(!events.some(value=>value.includes('cancel-a')));assert(f.reads.every(path=>path.endsWith('/swarm-queue')));
++}
++for(const order of permutations(['build-a','build-b','build-c','build-d']))test('actual startup and completion loop visits each project once with scheduler order '+order.join(' → '),()=>executeWorkflow(order));
++test('actual initial discovery rejects the canceled child before exercise even when D starts first',async()=>{
++ await assert.rejects(executeWorkflow(['build-d','build-a','build-c','build-b'],{canceledChild:true}),/Cancelled waiting fixture task/);
++});
++
++function controlsContext(active='build-d',options={}){
++ const rows=fixture(),events=[],actions=[],observed=[];let opened=null,loaded=false;
++ for(const row of rows)for(const item of row.queue.items){item.state='queued';item.childId=null;delete item.operationId;item.priority='normal';}
++ const a=rows.find(row=>row.owner.task==='build-a'),cancel=a.queue.items.find(item=>item.taskId==='cancel-a');
++ const locate=(method,name)=>({click:async()=>{assert.equal(method,'button');const task=opened.queue.items.find(item=>item.taskId==='cancel-a');assert(task);if(name==='Pause queued task'){assert.equal(task.state,'queued');task.state='paused';}else{assert.equal(name,'Cancel queued task');assert.equal(task.state,'paused');task.state='cancelled';}events.push(name);},selectOption:async value=>{assert.equal(method,'combobox');assert.equal(name,'Priority for '+opened.owner.task);assert.notEqual(opened.owner.task,active);const item=opened.queue.items.find(item=>item.taskId===opened.owner.task);assert(['queued','blocked'].includes(item.state));assert(!item.childId&&!item.operationId);assert.equal(value,'high');item.priority=value;events.push('priority '+opened.owner.task);}});
++ const ctx={assert,projectStates:rows.map(row=>row.owner),receipt:{},page:{},health:()=>{},titles:new Map(rows.map(row=>[row.owner.task,row.owner.task])),setStage:stage=>events.push(stage),
++  effects:()=>({create:loaded?1:0,start:loaded?1:0}),privateRun:()=>({operations:[]}),check:()=>{},
++  api:async(method,path)=>{assert.equal(method,'GET');const row=rows.find(row=>path===row.owner.route+'/swarm-queue');assert(row);observed.push(row.owner.task);const result=structuredClone(row.queue);delete result.projectId;result.dispatchPaused=!loaded;return options.transform?options.transform(result,row):result;},
++  openProject:async owner=>{opened=rows.find(row=>row.owner===owner);assert(opened);},
++  openQueueControls:async()=>({locator:type=>{assert.equal(type,'li');return {filter:query=>{assert.equal(query.hasText,'Cancel this extra queued task');return {getByRole:(role,{name,exact})=>{assert(exact);return locate(role,name);}};}};},getByRole:(role,{name,exact})=>{assert(exact);return locate(role,name);}}),
++  action:async(path,fn)=>{assert(opened);assert(path.startsWith(opened.owner.route+'/swarm-queue/'));const entry=opened.queue.items.find(item=>path.includes('/'+item.id+'/'));assert(entry);actions.push({path,task:entry.taskId});await fn();},
++ };
++ const start=source.indexOf('function exactQueueControlEntry('),end=source.indexOf('async function activeRestart(',start);assert(start>=0&&end>start,'Correction must expose actual guarded UI control functions');
++ vm.runInNewContext(source.slice(start,end)+'globalThis.protect=protectCancellation;globalThis.controls=queueControls;',ctx);
++ return {ctx,rows,a,cancel,events,actions,observed,protect:()=>ctx.protect(),controls:()=>{loaded=true;const entry=rows.find(row=>row.owner.task===active).queue.items.find(item=>item.taskId===active);entry.state='running';entry.childId='controlled-'+active;return ctx.controls({task:active});}};
++}
++for(const active of ['build-a','build-b','build-c','build-d'])test('actual queue controls protect exact A then cancel under load with '+active+' active',async()=>{
++ const f=controlsContext(active);await f.protect();assert.equal(f.cancel.state,'paused');assert.equal(f.ctx.receipt.queueCancellationGuard.queueID,f.cancel.id);
++ await f.controls();assert.equal(f.cancel.state,'cancelled');assert.equal(f.actions.length,3);assert.deepEqual(f.actions.map(value=>value.path.split('/').at(-1)),['pause','cancel','priority']);
++ assert.deepEqual(f.actions.slice(0,2).map(value=>value.task),['cancel-a','cancel-a']);const priority=f.ctx.receipt.queueControls.prioritized;
++ assert.notEqual(priority.task,active);assert.equal(priority.priority,'high');assert.equal(f.ctx.receipt.queueControls.activeTask,active);
++ assert.equal(f.rows.flatMap(row=>row.queue.items).filter(item=>item.priority==='high').length,1);assert(!f.cancel.childId&&!f.cancel.operationId);
++ const setupStart=source.indexOf(" for(const owner of projectStates){setStage('prepare-and-queue-'"),guard=source.indexOf('await protectCancellation();',setupStart),resume=source.indexOf('await setPaused(false);',setupStart);
++ assert(setupStart>=0&&guard>setupStart&&resume>guard,'The exact cancellation pause must precede global resume');
++});
++test('queue control observations reject wrong scope duplicate identity and allocated targets before action',async()=>{
++ for(const alter of [q=>({...q,items:q.items.map(i=>({...i,projectId:'other'}))}),q=>({...q,items:q.items.map(i=>i.taskId==='cancel-a'?{...i,runId:'other'}:i)}),q=>({...q,items:q.items.map(i=>i.taskId==='cancel-a'?{...i,childId:'unexpected'}:i)}),q=>({...q,items:q.items.map(i=>i.taskId==='cancel-a'?{...i,operationId:'unexpected'}:i)}),q=>({...q,items:[...q.items,...q.items.filter(i=>i.taskId==='cancel-a')]})]){
++  const f=controlsContext('build-d',{transform:(q,row)=>row.owner.task==='build-a'?alter(q):q});await assert.rejects(f.protect());assert.equal(f.actions.length,0);
++ }
++});
++test('queue priority requires another current waiting owner and exact high readback',async()=>{
++ const none=controlsContext('build-d');await none.protect();for(const row of none.rows)for(const item of row.queue.items)if(item.taskId!=='cancel-a'&&item.taskId!=='build-d')item.state='failed';
++ await assert.rejects(none.controls(),/different waiting priority/);assert.equal(none.actions.length,2);
++ let prioritySent=false;const wrong=controlsContext('build-d',{transform:(q)=>prioritySent?({...q,items:q.items.map(i=>({...i,priority:'normal'}))}):q});await wrong.protect();const original=wrong.ctx.action;wrong.ctx.action=async(path,fn)=>{await original(path,fn);if(path.endsWith('/priority'))prioritySent=true;};await assert.rejects(wrong.controls());
++});
+--- /dev/null
++++ b/scripts/acceptance/sustained-four-project/fixtures/queue-order-retained.json
+@@ -0,0 +1,244 @@
++{
++  "issue": "CLOUD-043",
++  "scope": "Read-only allowlisted projections from unchanged failed fixture; no daemon/app calls",
++  "productRevision": "2da1a821b8456c20a858fb86ef87649ea917d9de",
++  "helperRevision": "e2f426bb50267a7cceac1f53eb1e00a0a4cc278e",
++  "originalReportSHA256": "16f8f311d9cb0aca7a8d8b38c3be7eb3e1a8b4806e4b4c9247d8315dccc20ff9",
++  "oldDriverSHA256": "5536748f74f7d34936d547ae403dc22875c8bf7d2ce9fc7bcc76d9e8ea076f86",
++  "privateSchedulerSHA256": "7e6eab7fb45cae69ee38920ed9005734939e21d00422ed8ff0e4a7a296fd2a72",
++  "failedStage": "actual-work-build-b",
++  "providerFailure": "Error: Controller verifies actual task bundle did not complete within its bounded prerequisite window\n    at until (file:///workspace/luci/scripts/acceptance/sustained-four-project/sustained.mjs:178:9)\n    at async Server.<anonymous> (file:///workspace/luci/scripts/acceptance/sustained-four-project/sustained.mjs:310:336)",
++  "verifiedTasks": [
++    "build-a",
++    "build-b"
++  ],
++  "acceptedTaskResults": [
++    "build-a",
++    "build-b"
++  ],
++  "naturalExitTasks": [
++    "build-a",
++    "build-b"
++  ],
++  "observations": [
++    {
++      "owner": {
++        "task": "build-a",
++        "owner": {
++          "id": "p-6698e7f1"
++        },
++        "route": "/v1/product/projects/p-6698e7f1",
++        "run": {
++          "id": "run-e64cc282f8be89ce79304e1b"
++        }
++      },
++      "queue": {
++        "projectId": "p-6698e7f1",
++        "items": [
++          {
++            "id": "queue-6dce257fd1c6f20dda30f1fb",
++            "projectId": "p-6698e7f1",
++            "runId": "run-e64cc282f8be89ce79304e1b",
++            "taskId": "build-a",
++            "childId": "s-a6b14acd",
++            "state": "completed",
++            "priority": "normal",
++            "reason": "The agent stopped. Review its retained changes and verify the result; process exit does not integrate dependencies.",
++            "memoryMiB": null,
++            "cpuMillis": null
++          },
++          {
++            "id": "queue-9b11781e804ba47284673d97",
++            "projectId": "p-6698e7f1",
++            "runId": "run-e64cc282f8be89ce79304e1b",
++            "taskId": "cancel-a",
++            "childId": null,
++            "state": "cancelled",
++            "priority": "normal",
++            "reason": "Future execution was cancelled. Retained attempts and results remain available.",
++            "memoryMiB": null,
++            "cpuMillis": null
++          }
++        ]
++      },
++      "operations": [
++        {
++          "id": "op-a2f37e6ccad0f39804ec7fe1",
++          "taskId": "build-a",
++          "childId": "s-a6b14acd",
++          "status": "review-required"
++        }
++      ],
++      "privateRunSHA256": "01db075473e8215a2e9b08d77aa7781aae0ed99eae2090839e6fc5c258b98da7"
++    },
++    {
++      "owner": {
++        "task": "build-b",
++        "owner": {
++          "id": "p-765de3ed"
++        },
++        "route": "/v1/product/projects/p-765de3ed",
++        "run": {
++          "id": "run-8f9458945886823576907817"
++        }
++      },
++      "queue": {
++        "projectId": "p-765de3ed",
++        "items": [
++          {
++            "id": "queue-6bdcc1e2c0047b502211e440",
++            "projectId": "p-765de3ed",
++            "runId": "run-8f9458945886823576907817",
++            "taskId": "build-b",
++            "childId": "s-aca5a2df",
++            "state": "completed",
++            "priority": "high",
++            "reason": "The agent stopped. Review its retained changes and verify the result; process exit does not integrate dependencies.",
++            "memoryMiB": null,
++            "cpuMillis": null
++          }
++        ]
++      },
++      "operations": [
++        {
++          "id": "op-820720a86bb1fae84a2f7330",
++          "taskId": "build-b",
++          "childId": "s-aca5a2df",
++          "status": "review-required"
++        }
++      ],
++      "privateRunSHA256": "97267365df249746217373c23b8e5158d941ea797efbdaa4566aaa29b7a3794d"
++    },
++    {
++      "owner": {
++        "task": "build-c",
++        "owner": {
++          "id": "p-d0b80659"
++        },
++        "route": "/v1/product/projects/p-d0b80659",
++        "run": {
++          "id": "run-305bdf088384ee74797b9c31"
++        }
++      },
++      "queue": {
++        "projectId": "p-d0b80659",
++        "items": [
++          {
++            "id": "queue-790b2158cf4ae7dc11edffc6",
++            "projectId": "p-d0b80659",
++            "runId": "run-305bdf088384ee74797b9c31",
++            "taskId": "build-c",
++            "childId": null,
++            "state": "queued",
++            "priority": "normal",
++            "reason": "Waiting for the shared or project agent limit. Existing work continues.",
++            "memoryMiB": null,
++            "cpuMillis": null
++          }
++        ]
++      },
++      "operations": [],
++      "privateRunSHA256": "8028e9db87adf6da0cd1ce3537cf799a5ca093df0fd5e839a6550767b77ad309"
++    },
++    {
++      "owner": {
++        "task": "build-d",
++        "owner": {
++          "id": "p-f686c006"
++        },
++        "route": "/v1/product/projects/p-f686c006",
++        "run": {
++          "id": "run-c9bb55572a14e9385b746af4"
++        }
++      },
++      "queue": {
++        "projectId": "p-f686c006",
++        "items": [
++          {
++            "id": "queue-e271747355890121c64156ef",
++            "projectId": "p-f686c006",
++            "runId": "run-c9bb55572a14e9385b746af4",
++            "taskId": "build-d",
++            "childId": "s-58d19866",
++            "state": "running",
++            "priority": "normal",
++            "reason": "The exact reserved agent is running in its isolated checkout.",
++            "memoryMiB": 1024,
++            "cpuMillis": 1000
++          }
++        ]
++      },
++      "operations": [
++        {
++          "id": "op-13e7db55e7a454367ad14551",
++          "taskId": "build-d",
++          "childId": "s-58d19866",
++          "status": "running"
++        }
++      ],
++      "privateRunSHA256": "ac7169dfcc649a0154576669cdbce2e55e96554bfde811de45c41ed0858b15b1"
++    }
++  ],
++  "lastQueueGETs": [
++    {
++      "stage": "actual-work-build-b",
++      "method": "GET",
++      "path": "/v1/product/projects/p-d0b80659/swarm-queue",
++      "status": 200,
++      "at": "2026-10-09T02:50:18.226Z"
++    },
++    {
++      "stage": "actual-work-build-b",
++      "method": "GET",
++      "path": "/v1/product/projects/p-d0b80659/swarm-queue",
++      "status": 200,
++      "at": "2026-10-09T02:50:18.380Z"
++    },
++    {
++      "stage": "actual-work-build-b",
++      "method": "GET",
++      "path": "/v1/product/projects/p-d0b80659/swarm-queue",
++      "status": 200,
++      "at": "2026-10-09T02:50:18.534Z"
++    },
++    {
++      "stage": "actual-work-build-b",
++      "method": "GET",
++      "path": "/v1/product/projects/p-d0b80659/swarm-queue",
++      "status": 200,
++      "at": "2026-10-09T02:50:18.687Z"
++    },
++    {
++      "stage": "actual-work-build-b",
++      "method": "GET",
++      "path": "/v1/product/projects/p-d0b80659/swarm-queue",
++      "status": 200,
++      "at": "2026-10-09T02:50:18.842Z"
++    },
++    {
++      "stage": "actual-work-build-b",
++      "method": "GET",
++      "path": "/v1/product/projects/p-d0b80659/swarm-queue",
++      "status": 200,
++      "at": "2026-10-09T02:50:18.996Z"
++    }
++  ],
++  "openingPrompt": {
++    "taskLine": "build-d: Dependency graph ready frontier",
++    "textSHA256": "793988e8eba18153499f59543f28e15f49a9ba308a269b0aca65ea7205c08b3b",
++    "privateRolloutSHA256": "c75f0a3260cdb35286c3cbe0d7a6002af0979e8eef82d490d6d3a6e7a1187650",
++    "at": "2026-10-09T02:48:18.897Z"
++  },
++  "thirdCreate": {
++    "path": "/v1.51/containers/create",
++    "id": "fdbcbcd92bdb58af66ddcd257e132355bc77613c0a0ecaacbc7b67ad2d1bf4f5",
++    "name": "luci-s-58d19866",
++    "status": 201,
++    "labels": {
++      "luci.instance": "3cd533a6-3c73-45f9-ac38-a5875d4b79b7",
++      "luci.managed": "true",
++      "luci.sandbox-id": "s-58d19866",
++      "luci.session-id": "s-58d19866"
++    }
++  }
++}

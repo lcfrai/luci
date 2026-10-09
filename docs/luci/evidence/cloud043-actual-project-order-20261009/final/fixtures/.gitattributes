@@ -1,0 +1,2 @@
+# Preserve the retained synthetic Go fuzz output byte binding.
+go-fuzz-progress.txt -text

@@ -328,10 +328,37 @@ async function openProject(state) {
  if(state){project=state.owner;projectRoute=state.route;run=state.run;await page.getByRole('button',{name:'Open project '+state.owner.name,exact:true}).click();await page.getByRole('button',{name:'Develop',exact:true}).click();await page.getByRole('region',{name:'Agent team',exact:true}).waitFor();}
 }
 function taskRow(task){return page.locator('.project-swarm-tasks > li').filter({has:page.getByRole('heading',{name:titles.get(task),exact:true})});}
-async function queuedChild(owner,ordinal){
- const queued=await until('Exactly one queued worker allocated',async()=>{
-  const queue=await api('GET',owner.route+'/swarm-queue');return queue.items.find(item=>item.taskId===owner.task&&item.childId&&item.state==='running');
+// Cross-project fairness and admission may choose any remaining project;
+// a priority change inside one project does not require it to run next.
+// Select only a single running allocation from this explicit remaining set;
+// no dispatch, cancellation or priority mutation is performed by observation.
+async function allocatedQueuedOwner(candidates){
+ const owners=Array.isArray(candidates)?candidates:[candidates];
+ assert(owners.length>=1&&owners.length<=4,'Bounded remaining project candidates required');
+ assert.equal(new Set(owners.map(owner=>owner.owner.id)).size,owners.length,'Duplicate candidate project');
+ assert.equal(new Set(owners.map(owner=>owner.task)).size,owners.length,'Duplicate candidate task');
+ return until('Exactly one queued worker allocated',async()=>{
+  const snapshots=await Promise.all(owners.map(async owner=>({owner,queue:await api('GET',owner.route+'/swarm-queue')})));
+  const running=[];
+  for(const {owner,queue} of snapshots){
+   assert(Array.isArray(queue.items)&&queue.items.length<=8,'Bounded fixture queue observation required');
+   for(const item of queue.items){
+    assert.equal(item.projectId,owner.owner.id,'Observed queue belongs to another project');
+    if(item.taskId==='cancel-a')assert(!item.childId&&!item.operationId,'Cancelled waiting fixture task must never allocate');
+    if(item.state!=='running')continue;
+    assert(item.childId,'Running queue task requires exact child identity');
+    assert.equal(item.taskId,owner.task,'Unexpected running fixture task');
+    assert.equal(item.runId,owner.run.id,'Running queue belongs to another run');
+    assert(owner.queued.some(expected=>expected.id===item.id&&expected.taskId===item.taskId),'Running queue has no exact fixture enqueue receipt');
+    running.push({owner,queued:item});
+   }
+  }
+  assert(running.length<=1,'One worker ceiling is enforced across candidate projects');
+  return running[0]??null;
  },150000);
+}
+async function queuedChild(candidates,ordinal){
+ const {owner,queued}=await allocatedQueuedOwner(candidates);
  const session=await api('GET',workspace+'/v1/sessions/'+queued.childId);ownedSessions.add(session.id);
  owner.run=(await api('GET',owner.route+'/runs/'+owner.run.id)).run;
  const operation=owner.run.operations.find(op=>op.taskId===owner.task&&op.childId===session.id);assert(operation);
@@ -346,6 +373,7 @@ async function queuedChild(owner,ordinal){
  for(const name of ['.luci/brief.json','.luci/specification.json','.luci/design.json','.luci/plan.json'])assert.equal(JSON.parse(readFileSync(join(capturedRoot,name),'utf8')).projectId,owner.owner.id,'Mixed-project context: '+name);
  assert.equal(row(session.id).implementationContext.taskIds.length,1);assert.equal(row(session.id).projectId,owner.owner.id);
  assert.equal(workerContainers().length,1,'One worker ceiling is enforced');
+ (receipt.allocationOrder??=[]).push({ordinal,task:owner.task,projectID:owner.owner.id,queueID:queued.id,sessionID:session.id,operationID:operation.id,observedAt:new Date().toISOString()});
  return state;
 }
 async function setPaused(paused){
@@ -403,10 +431,48 @@ async function functionalDrafts(){
  for(const owner of projectStates){await page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true}).click();await page.getByRole('button',{name:'Define',exact:true}).click();await page.getByRole('button',{name:'Restore draft',exact:true}).click();assert.equal(await page.getByRole('textbox',{name:'The idea',exact:true}).inputValue(),owner.goal+' UNSENT '+owner.owner.id);await page.getByRole('textbox',{name:'The idea',exact:true}).fill(owner.goal);await page.getByRole('button',{name:'All projects',exact:true}).click();if(await page.getByRole('dialog',{name:'Keep your changes?',exact:true}).isVisible())await page.getByRole('button',{name:'Discard edits and continue',exact:true}).click();}
  for(const owner of projectStates){project=owner.owner;assert.deepEqual(canonical(),owner.canonicalBefore);}check('Four distinct unsent idea drafts restore to their own project without changing approved source context');
 }
-async function queueControls(first){
- setStage('loaded-queue-controls');await openProject(first);const queueRegion=await openQueueControls(page,health);const cancelRow=queueRegion.locator('li').filter({hasText:'Cancel this extra queued task'}),entry=first.queued.find(value=>value.taskId==='cancel-a');assert(entry);const before=effects();await action(first.route+'/swarm-queue/'+entry.id+'/cancel',()=>cancelRow.getByRole('button',{name:'Cancel queued task',exact:true}).click());
- const queue=await api('GET',first.route+'/swarm-queue'),canceled=queue.items.find(value=>value.id===entry.id);assert.equal(canceled.state,'cancelled');assert(!canceled.childId&&!canceled.operationId);assert.deepEqual(effects(),before);assert(!privateRun(first).operations.some(value=>value.taskId==='cancel-a'));
- const next=projectStates[1];await openProject(next);const nextQueue=await openQueueControls(page,health);await action(next.route+'/swarm-queue/'+next.queued[0].id+'/priority',()=>nextQueue.getByRole('combobox',{name:'Priority for '+titles.get(next.task),exact:true}).selectOption('high'));const latest=await api('GET',next.route+'/swarm-queue');assert.equal(latest.items.find(value=>value.id===next.queued[0].id).priority,'high');check('Browser cancellation prevents allocation and queued priority changes retain exact project ownership');
+function exactQueueControlEntry(owner,expected,queue){
+ assert(expected,'Exact control enqueue receipt required');
+ assert(Array.isArray(queue.items)&&queue.items.length<=8,'Bounded fixture queue observation required');
+ for(const item of queue.items)assert.equal(item.projectId,owner.owner.id,'Queue controls require own-project entries');
+ const matches=queue.items.filter(value=>value.id===expected.id);assert.equal(matches.length,1,'Exact unique control entry required');
+ const current=matches[0];assert.equal(current.projectId,owner.owner.id);assert.equal(current.runId,owner.run.id);assert.equal(current.taskId,expected.taskId);
+ assert(!current.childId&&!current.operationId,'Queue controls require an unallocated waiting entry');return current;
+}
+async function protectCancellation(){
+ setStage('protect-exact-cancellation-entry');
+ const owner=projectStates.find(value=>value.task==='build-a');assert(owner,'Exact cancellation project required');
+ const entry=owner.queued.find(value=>value.taskId==='cancel-a');
+ const pending=await api('GET',owner.route+'/swarm-queue');assert.equal(pending.dispatchPaused,true,'Protect cancellation before global dispatch resumes');
+ assert.equal(exactQueueControlEntry(owner,entry,pending).state,'queued');
+ await openProject(owner);const region=await openQueueControls(page,health),row=region.locator('li').filter({hasText:'Cancel this extra queued task'}),before=effects();
+ await action(owner.route+'/swarm-queue/'+entry.id+'/pause',()=>row.getByRole('button',{name:'Pause queued task',exact:true}).click());
+ const protectedQueue=await api('GET',owner.route+'/swarm-queue');assert.equal(protectedQueue.dispatchPaused,true);assert.equal(exactQueueControlEntry(owner,entry,protectedQueue).state,'paused');
+ assert.deepEqual(effects(),before);assert(!privateRun(owner).operations.some(value=>value.taskId==='cancel-a'));
+ receipt.queueCancellationGuard={projectID:owner.owner.id,runID:owner.run.id,queueID:entry.id,task:'cancel-a',state:'paused',observedAt:new Date().toISOString()};
+}
+async function queueControls(worker){
+ setStage('loaded-queue-controls');
+ const first=projectStates.find(owner=>owner.task==='build-a');assert(first,'Exact cancellation project required');
+ const entry=first.queued.find(value=>value.taskId==='cancel-a');
+ assert.equal(exactQueueControlEntry(first,entry,await api('GET',first.route+'/swarm-queue')).state,'paused');
+ await openProject(first);const queueRegion=await openQueueControls(page,health);const cancelRow=queueRegion.locator('li').filter({hasText:'Cancel this extra queued task'});
+ const before=effects();await action(first.route+'/swarm-queue/'+entry.id+'/cancel',()=>cancelRow.getByRole('button',{name:'Cancel queued task',exact:true}).click());
+ assert.equal(exactQueueControlEntry(first,entry,await api('GET',first.route+'/swarm-queue')).state,'cancelled');
+ assert.deepEqual(effects(),before);assert(!privateRun(first).operations.some(value=>value.taskId==='cancel-a'));
+ // Observe a different waiting project for the UI priority action. The receipt
+ // proves that exact mutation; it never predicts cross-project dispatch order.
+ let next,nextEntry;
+ for(const candidate of projectStates.filter(owner=>owner.task!==worker.task)){
+  const expected=candidate.queued.find(value=>value.taskId===candidate.task),current=exactQueueControlEntry(candidate,expected,await api('GET',candidate.route+'/swarm-queue'));
+  if(['queued','blocked'].includes(current.state)){next=candidate;nextEntry=expected;break;}
+ }
+ assert(next&&nextEntry,'A different waiting priority project is required');
+ await openProject(next);const nextQueue=await openQueueControls(page,health);
+ await action(next.route+'/swarm-queue/'+nextEntry.id+'/priority',()=>nextQueue.getByRole('combobox',{name:'Priority for '+titles.get(next.task),exact:true}).selectOption('high'));
+ const prioritized=exactQueueControlEntry(next,nextEntry,await api('GET',next.route+'/swarm-queue'));assert(['queued','blocked'].includes(prioritized.state));assert.equal(prioritized.priority,'high');assert.deepEqual(effects(),before);
+ receipt.queueControls={activeTask:worker.task,cancelled:{projectID:first.owner.id,runID:first.run.id,queueID:entry.id,task:'cancel-a'},prioritized:{projectID:next.owner.id,runID:next.run.id,queueID:nextEntry.id,task:next.task,priority:prioritized.priority},observedAt:new Date().toISOString()};
+ check('Browser cancellation prevents allocation and queued priority changes retain exact project ownership');
 }
 async function activeRestart(worker){
  setStage('active-command-restart');const before=effects(),original=live(worker.session.id),beforeRows=taskEvents.get(worker.task)??[];assert(beforeRows.some(row=>row.type==='command-start'&&row.label==='fuzz'));assert(!beforeRows.some(row=>row.type==='command-end'&&row.label==='fuzz'));
@@ -498,17 +564,18 @@ try {
  assertWorkflowActive();receipt.browserVersion=browser.version();page.setDefaultTimeout(15000);page.on('pageerror',error=>{receipt.browserErrors.push(scrub(error));stopOnFailure(Error('Browser script error'));});
  // END SUSTAINED BROWSER WIRING
  for(const owner of projectStates){setStage('prepare-and-queue-'+owner.task);await prepare(owner);await queueOwner(owner);}
- assert.equal(effects().create,0);await functionalDrafts();interactions=interactionRunner({page,owners:projectStates,receipt,assertHealthy:health,phase:()=>measuredPhase,observe:passiveTiming});await interactions.warm();
+ await protectCancellation();assert.equal(effects().create,0);await functionalDrafts();interactions=interactionRunner({page,owners:projectStates,receipt,assertHealthy:health,phase:()=>measuredPhase,observe:passiveTiming});await interactions.warm();
  setStage('idle-baseline');await quietPhase('quiet-app-open-idle');const idle=phaseStart('idle-interactive-calibration');await interactions.calibrate(100);phaseEnd(idle);await passiveTiming('end-idle-calibration');
  setStage('sustained-work');const loaded=phaseStart('loaded');await setPaused(false);
- let worker=await queuedChild(projectStates[0],1);await attach(worker.session.id);await queueControls(projectStates[0]);await openProject();await interactions.warm();
+ let worker=await queuedChild(projectStates,1);await attach(worker.session.id);await queueControls(worker);await openProject();await interactions.warm();
  const completedOwners=[];
  for(let index=0;index<4;index++){
-  const owner=projectStates[index];setStage('actual-work-'+owner.task);assert.equal(worker.task,owner.task);await exercise(worker,{restart:index===0});await completeNaturally(worker,owner);completedOwners.push(owner);
+  const owner=projectStates.find(value=>value.task===worker.task);assert(owner,'Observed worker must belong to one prepared project');assert(!completedOwners.includes(owner),'Each prepared project completes once');setStage('actual-work-'+owner.task);await exercise(worker,{restart:index===0});await completeNaturally(worker,owner);completedOwners.push(owner);
   let successor;
-  if(index<3){successor=await queuedChild(projectStates[index+1],index+2);await attach(successor.session.id);const beforeReview=(await api('GET',owner.route+'/runs/'+owner.run.id)).run;assert.notEqual(beforeReview.swarm.tasks.find(value=>value.id===owner.task).integration?.state,'integrated');(receipt.preIntegrationProgress??=[]).push({completedTask:owner.task,nextTask:successor.task,nextSessionID:successor.session.id,observedAt:new Date().toISOString()});}
+  if(index<3){const candidates=projectStates.filter(value=>!completedOwners.includes(value));successor=await queuedChild(candidates,index+2);await attach(successor.session.id);const beforeReview=(await api('GET',owner.route+'/runs/'+owner.run.id)).run;assert.notEqual(beforeReview.swarm.tasks.find(value=>value.id===owner.task).integration?.state,'integrated');(receipt.preIntegrationProgress??=[]).push({completedTask:owner.task,nextTask:successor.task,nextSessionID:successor.session.id,observedAt:new Date().toISOString()});}
   await reviewOwner(owner);await openProject();await interactions.warm();worker=successor;
  }
+ assert.equal(new Set(completedOwners.map(owner=>owner.owner.id)).size,4,'All four projects must complete once');
  phaseEnd(loaded);assert(interactionRound>=200,'At least200 loaded project switches and400 inputs must be actually recorded');assert.equal(observations.size,4);
  const activeSeconds=[...observations.values()].map(value=>value.artifact.commands.find(command=>command.label==='fuzz')?.activeFuzzSeconds??0);assert(activeSeconds.every(seconds=>seconds>=150));assert(activeSeconds.reduce((a,b)=>a+b,0)>=600);receipt.actualFuzzSeconds=activeSeconds;await passiveTiming('end-four-project-loaded-phase');
  setStage('reviewed-amendment');const prior=projectStates[0],originalWorker=taskData.get('build-a'),oldBundle=initialBundles.get(originalWorker.session.id);assert.deepEqual(bundleSnapshot(originalWorker.session.id),oldBundle);

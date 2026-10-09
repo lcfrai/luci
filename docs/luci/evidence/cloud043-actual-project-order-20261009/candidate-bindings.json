@@ -1,0 +1,29 @@
+{
+  "issues": [
+    "CLOUD-043",
+    "LOCAL-021"
+  ],
+  "priority": "P1 acceptance harness",
+  "scope": "External helper-only correction; no installed acceptance claimed",
+  "baseHelperRevision": "e2f426bb50267a7cceac1f53eb1e00a0a4cc278e",
+  "observedRepositoryHEAD": "765fcaadeee7de1cf2ba3a3fb7b295d0af445b70",
+  "files": [
+    {
+      "repositoryPath": "scripts/acceptance/sustained-four-project/sustained.mjs",
+      "sha256": "cb6883d9bdd5387bf8c54829d869780f565de896efc1e56b41bb6eb6e3e7a77a",
+      "bytes": 91804
+    },
+    {
+      "repositoryPath": "scripts/acceptance/sustained-four-project/queue-selection.test.mjs",
+      "sha256": "dc296e901729dd9c200cf2f62f4cab967d265d47251e480acca2713b5cafd384",
+      "bytes": 17418
+    },
+    {
+      "repositoryPath": "scripts/acceptance/sustained-four-project/fixtures/queue-order-retained.json",
+      "sha256": "42cf70a9d9b23f8fd422485635cd4081994fe1bb3e1000b7ddecfa628352fee2",
+      "bytes": 7748
+    }
+  ],
+  "patchSHA256": "6cc407e30e5788654c1cf4ba4297cc4bb72fc37cd4da0b98fd6a82e8f41bcff8",
+  "baseOriginalMatchesGit": true
+}

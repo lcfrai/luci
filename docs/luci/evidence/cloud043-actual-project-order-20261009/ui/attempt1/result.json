@@ -1,0 +1,471 @@
+{
+  "issue": "CLOUD-043 / LOCAL-021",
+  "passed": true,
+  "scope": "Actual SwarmRunQueue and swarmQueueApi mounted with controlled HTTP; exact candidate control functions and original action()",
+  "limitations": [
+    "No Luci backend, installed app, scheduler, provider, model or container execution.",
+    "Controlled effects/private-run adapters do not prove live no-allocation.",
+    "This validates selectors and CAS request bodies, not performance or full AppShell navigation."
+  ],
+  "sourceSHA256": "cb6883d9bdd5387bf8c54829d869780f565de896efc1e56b41bb6eb6e3e7a77a",
+  "runnerSHA256": "58b1d42155bde6090c02eac15722ededdc2bee8edabd42951ded5944fa517fb1",
+  "fixtureSHA256": "64c81a0f99db08eb8fe10a3b7a7edf0a5cf9a381f5588979cdc73498e1d85c5e",
+  "startedAt": "2026-10-09T03:13:03.335Z",
+  "checks": [
+    {
+      "width": 1440,
+      "activeTask": "build-a",
+      "passed": true,
+      "mutations": [
+        {
+          "method": "POST",
+          "pathname": "/v1/product/projects/p-a/swarm-queue/q-cancel-a/pause",
+          "body": {
+            "expectedRevision": 2
+          }
+        },
+        {
+          "method": "POST",
+          "pathname": "/v1/product/projects/p-a/swarm-queue/q-cancel-a/cancel",
+          "body": {
+            "expectedRevision": 3
+          }
+        },
+        {
+          "method": "POST",
+          "pathname": "/v1/product/projects/p-b/swarm-queue/q-build-b/priority",
+          "body": {
+            "expectedRevision": 2,
+            "priority": "high"
+          }
+        }
+      ],
+      "receipt": {
+        "queueCancellationGuard": {
+          "projectID": "p-a",
+          "runID": "run-a",
+          "queueID": "q-cancel-a",
+          "task": "cancel-a",
+          "state": "paused",
+          "observedAt": "2026-10-09T03:13:06.929Z"
+        },
+        "queueControls": {
+          "activeTask": "build-a",
+          "cancelled": {
+            "projectID": "p-a",
+            "runID": "run-a",
+            "queueID": "q-cancel-a",
+            "task": "cancel-a"
+          },
+          "prioritized": {
+            "projectID": "p-b",
+            "runID": "run-b",
+            "queueID": "q-build-b",
+            "task": "build-b",
+            "priority": "high"
+          },
+          "observedAt": "2026-10-09T03:13:07.997Z"
+        }
+      }
+    },
+    {
+      "width": 1440,
+      "activeTask": "build-b",
+      "passed": true,
+      "mutations": [
+        {
+          "method": "POST",
+          "pathname": "/v1/product/projects/p-a/swarm-queue/q-cancel-a/pause",
+          "body": {
+            "expectedRevision": 2
+          }
+        },
+        {
+          "method": "POST",
+          "pathname": "/v1/product/projects/p-a/swarm-queue/q-cancel-a/cancel",
+          "body": {
+            "expectedRevision": 3
+          }
+        },
+        {
+          "method": "POST",
+          "pathname": "/v1/product/projects/p-a/swarm-queue/q-build-a/priority",
+          "body": {
+            "expectedRevision": 2,
+            "priority": "high"
+          }
+        }
+      ],
+      "receipt": {
+        "queueCancellationGuard": {
+          "projectID": "p-a",
+          "runID": "run-a",
+          "queueID": "q-cancel-a",
+          "task": "cancel-a",
+          "state": "paused",
+          "observedAt": "2026-10-09T03:13:08.713Z"
+        },
+        "queueControls": {
+          "activeTask": "build-b",
+          "cancelled": {
+            "projectID": "p-a",
+            "runID": "run-a",
+            "queueID": "q-cancel-a",
+            "task": "cancel-a"
+          },
+          "prioritized": {
+            "projectID": "p-a",
+            "runID": "run-a",
+            "queueID": "q-build-a",
+            "task": "build-a",
+            "priority": "high"
+          },
+          "observedAt": "2026-10-09T03:13:09.607Z"
+        }
+      }
+    },
+    {
+      "width": 1440,
+      "activeTask": "build-c",
+      "passed": true,
+      "mutations": [
+        {
+          "method": "POST",
+          "pathname": "/v1/product/projects/p-a/swarm-queue/q-cancel-a/pause",
+          "body": {
+            "expectedRevision": 2
+          }
+        },
+        {
+          "method": "POST",
+          "pathname": "/v1/product/projects/p-a/swarm-queue/q-cancel-a/cancel",
+          "body": {
+            "expectedRevision": 3
+          }
+        },
+        {
+          "method": "POST",
+          "pathname": "/v1/product/projects/p-a/swarm-queue/q-build-a/priority",
+          "body": {
+            "expectedRevision": 2,
+            "priority": "high"
+          }
+        }
+      ],
+      "receipt": {
+        "queueCancellationGuard": {
+          "projectID": "p-a",
+          "runID": "run-a",
+          "queueID": "q-cancel-a",
+          "task": "cancel-a",
+          "state": "paused",
+          "observedAt": "2026-10-09T03:13:10.222Z"
+        },
+        "queueControls": {
+          "activeTask": "build-c",
+          "cancelled": {
+            "projectID": "p-a",
+            "runID": "run-a",
+            "queueID": "q-cancel-a",
+            "task": "cancel-a"
+          },
+          "prioritized": {
+            "projectID": "p-a",
+            "runID": "run-a",
+            "queueID": "q-build-a",
+            "task": "build-a",
+            "priority": "high"
+          },
+          "observedAt": "2026-10-09T03:13:11.255Z"
+        }
+      }
+    },
+    {
+      "width": 1440,
+      "activeTask": "build-d",
+      "passed": true,
+      "mutations": [
+        {
+          "method": "POST",
+          "pathname": "/v1/product/projects/p-a/swarm-queue/q-cancel-a/pause",
+          "body": {
+            "expectedRevision": 2
+          }
+        },
+        {
+          "method": "POST",
+          "pathname": "/v1/product/projects/p-a/swarm-queue/q-cancel-a/cancel",
+          "body": {
+            "expectedRevision": 3
+          }
+        },
+        {
+          "method": "POST",
+          "pathname": "/v1/product/projects/p-a/swarm-queue/q-build-a/priority",
+          "body": {
+            "expectedRevision": 2,
+            "priority": "high"
+          }
+        }
+      ],
+      "receipt": {
+        "queueCancellationGuard": {
+          "projectID": "p-a",
+          "runID": "run-a",
+          "queueID": "q-cancel-a",
+          "task": "cancel-a",
+          "state": "paused",
+          "observedAt": "2026-10-09T03:13:11.764Z"
+        },
+        "queueControls": {
+          "activeTask": "build-d",
+          "cancelled": {
+            "projectID": "p-a",
+            "runID": "run-a",
+            "queueID": "q-cancel-a",
+            "task": "cancel-a"
+          },
+          "prioritized": {
+            "projectID": "p-a",
+            "runID": "run-a",
+            "queueID": "q-build-a",
+            "task": "build-a",
+            "priority": "high"
+          },
+          "observedAt": "2026-10-09T03:13:12.675Z"
+        }
+      }
+    },
+    {
+      "width": 390,
+      "activeTask": "build-a",
+      "passed": true,
+      "mutations": [
+        {
+          "method": "POST",
+          "pathname": "/v1/product/projects/p-a/swarm-queue/q-cancel-a/pause",
+          "body": {
+            "expectedRevision": 2
+          }
+        },
+        {
+          "method": "POST",
+          "pathname": "/v1/product/projects/p-a/swarm-queue/q-cancel-a/cancel",
+          "body": {
+            "expectedRevision": 3
+          }
+        },
+        {
+          "method": "POST",
+          "pathname": "/v1/product/projects/p-b/swarm-queue/q-build-b/priority",
+          "body": {
+            "expectedRevision": 2,
+            "priority": "high"
+          }
+        }
+      ],
+      "receipt": {
+        "queueCancellationGuard": {
+          "projectID": "p-a",
+          "runID": "run-a",
+          "queueID": "q-cancel-a",
+          "task": "cancel-a",
+          "state": "paused",
+          "observedAt": "2026-10-09T03:13:13.222Z"
+        },
+        "queueControls": {
+          "activeTask": "build-a",
+          "cancelled": {
+            "projectID": "p-a",
+            "runID": "run-a",
+            "queueID": "q-cancel-a",
+            "task": "cancel-a"
+          },
+          "prioritized": {
+            "projectID": "p-b",
+            "runID": "run-b",
+            "queueID": "q-build-b",
+            "task": "build-b",
+            "priority": "high"
+          },
+          "observedAt": "2026-10-09T03:13:14.146Z"
+        }
+      }
+    },
+    {
+      "width": 390,
+      "activeTask": "build-b",
+      "passed": true,
+      "mutations": [
+        {
+          "method": "POST",
+          "pathname": "/v1/product/projects/p-a/swarm-queue/q-cancel-a/pause",
+          "body": {
+            "expectedRevision": 2
+          }
+        },
+        {
+          "method": "POST",
+          "pathname": "/v1/product/projects/p-a/swarm-queue/q-cancel-a/cancel",
+          "body": {
+            "expectedRevision": 3
+          }
+        },
+        {
+          "method": "POST",
+          "pathname": "/v1/product/projects/p-a/swarm-queue/q-build-a/priority",
+          "body": {
+            "expectedRevision": 2,
+            "priority": "high"
+          }
+        }
+      ],
+      "receipt": {
+        "queueCancellationGuard": {
+          "projectID": "p-a",
+          "runID": "run-a",
+          "queueID": "q-cancel-a",
+          "task": "cancel-a",
+          "state": "paused",
+          "observedAt": "2026-10-09T03:13:14.623Z"
+        },
+        "queueControls": {
+          "activeTask": "build-b",
+          "cancelled": {
+            "projectID": "p-a",
+            "runID": "run-a",
+            "queueID": "q-cancel-a",
+            "task": "cancel-a"
+          },
+          "prioritized": {
+            "projectID": "p-a",
+            "runID": "run-a",
+            "queueID": "q-build-a",
+            "task": "build-a",
+            "priority": "high"
+          },
+          "observedAt": "2026-10-09T03:13:15.338Z"
+        }
+      }
+    },
+    {
+      "width": 390,
+      "activeTask": "build-c",
+      "passed": true,
+      "mutations": [
+        {
+          "method": "POST",
+          "pathname": "/v1/product/projects/p-a/swarm-queue/q-cancel-a/pause",
+          "body": {
+            "expectedRevision": 2
+          }
+        },
+        {
+          "method": "POST",
+          "pathname": "/v1/product/projects/p-a/swarm-queue/q-cancel-a/cancel",
+          "body": {
+            "expectedRevision": 3
+          }
+        },
+        {
+          "method": "POST",
+          "pathname": "/v1/product/projects/p-a/swarm-queue/q-build-a/priority",
+          "body": {
+            "expectedRevision": 2,
+            "priority": "high"
+          }
+        }
+      ],
+      "receipt": {
+        "queueCancellationGuard": {
+          "projectID": "p-a",
+          "runID": "run-a",
+          "queueID": "q-cancel-a",
+          "task": "cancel-a",
+          "state": "paused",
+          "observedAt": "2026-10-09T03:13:15.837Z"
+        },
+        "queueControls": {
+          "activeTask": "build-c",
+          "cancelled": {
+            "projectID": "p-a",
+            "runID": "run-a",
+            "queueID": "q-cancel-a",
+            "task": "cancel-a"
+          },
+          "prioritized": {
+            "projectID": "p-a",
+            "runID": "run-a",
+            "queueID": "q-build-a",
+            "task": "build-a",
+            "priority": "high"
+          },
+          "observedAt": "2026-10-09T03:13:16.618Z"
+        }
+      }
+    },
+    {
+      "width": 390,
+      "activeTask": "build-d",
+      "passed": true,
+      "mutations": [
+        {
+          "method": "POST",
+          "pathname": "/v1/product/projects/p-a/swarm-queue/q-cancel-a/pause",
+          "body": {
+            "expectedRevision": 2
+          }
+        },
+        {
+          "method": "POST",
+          "pathname": "/v1/product/projects/p-a/swarm-queue/q-cancel-a/cancel",
+          "body": {
+            "expectedRevision": 3
+          }
+        },
+        {
+          "method": "POST",
+          "pathname": "/v1/product/projects/p-a/swarm-queue/q-build-a/priority",
+          "body": {
+            "expectedRevision": 2,
+            "priority": "high"
+          }
+        }
+      ],
+      "receipt": {
+        "queueCancellationGuard": {
+          "projectID": "p-a",
+          "runID": "run-a",
+          "queueID": "q-cancel-a",
+          "task": "cancel-a",
+          "state": "paused",
+          "observedAt": "2026-10-09T03:13:17.037Z"
+        },
+        "queueControls": {
+          "activeTask": "build-d",
+          "cancelled": {
+            "projectID": "p-a",
+            "runID": "run-a",
+            "queueID": "q-cancel-a",
+            "task": "cancel-a"
+          },
+          "prioritized": {
+            "projectID": "p-a",
+            "runID": "run-a",
+            "queueID": "q-build-a",
+            "task": "build-a",
+            "priority": "high"
+          },
+          "observedAt": "2026-10-09T03:13:17.873Z"
+        }
+      }
+    }
+  ],
+  "errors": [],
+  "cleanup": [
+    "owned browser closed",
+    "owned server closed"
+  ],
+  "browserVersion": "151.0.7922.173",
+  "finishedAt": "2026-10-09T03:13:18.049Z"
+}

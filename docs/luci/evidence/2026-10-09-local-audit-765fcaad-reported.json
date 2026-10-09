@@ -1,0 +1,41 @@
+{
+  "source": "Relayed local tester message; local original report is not present in this checkout",
+  "auditedRevision": "765fcaadeee7de1cf2ba3a3fb7b295d0af445b70",
+  "reportSHA256": "1e4734d6c562f0d15430c6b10a42595d8153452a3b8fdc1ecf30a45d01213d7b",
+  "reportedLocalPath": "E:/Luci-local-acceptance/evidence/765fcaad/receipt-settlement-audit.json",
+  "bindingCounts": {
+    "gitMembers": 49,
+    "manifestEntries": 47,
+    "checksums": 48,
+    "representationMappings": 40,
+    "decodedBindings": 32,
+    "byteExactOriginals": 33,
+    "helpers": 17,
+    "imageInputs": 104,
+    "observerProductInputs": 2,
+    "contextFileBindings": 20,
+    "commandEvents": 24
+  },
+  "CLOUD-041": "verified original transport defect at controlled and matching installed Linux scope",
+  "nativeResults": [
+    "A and B exact compact receipts reconstruct; one dispatch, one final response, zero retries each; native exit-status 0; exact own lease disappearance",
+    "A only reaches reviewed integration"
+  ],
+  "webSocketCloseCodes": [
+    1006,
+    1006
+  ],
+  "limits": [
+    "Native exit success is not clean WebSocket closure",
+    "Private ledger and frame originals remain publisher-held",
+    "LOCAL-021/CLOUD-043 awaits installed correction run",
+    "D queue-e271747355890121c64156ef retains backend-settled 1024 MiB/1000 mCPU; original fixture unchanged",
+    "Full four-project/Windows/live-provider/performance acceptance open",
+    "Latency/resource recomputation will be a separate audit"
+  ],
+  "windows": {
+    "at": "2026-10-09T03:12:00Z",
+    "availableRAMGiB": 0.045,
+    "newApplicationBrowserBuildRuns": 0
+  }
+}

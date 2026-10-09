@@ -1,0 +1,6 @@
+{
+  "scope": "Missing unchanged external-copy dependency added before helper.test followup only",
+  "path": "scripts/acceptance/sustained-four-project/latency-diagnostics.mjs",
+  "sha256": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96",
+  "bytes": 7545
+}

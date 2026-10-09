@@ -1,0 +1,27 @@
+{
+  "issues": [
+    "CLOUD-043",
+    "LOCAL-021"
+  ],
+  "priority": "P1 acceptance harness",
+  "scope": "external helper candidate only",
+  "files": [
+    {
+      "repositoryPath": "scripts/acceptance/sustained-four-project/sustained.mjs",
+      "sha256": "39515a13f1a0da9c85cd4858d83a00971ea100215a97ed011706657cb0f32df1",
+      "bytes": 88582
+    },
+    {
+      "repositoryPath": "scripts/acceptance/sustained-four-project/queue-selection.test.mjs",
+      "sha256": "dd1c9f461574fd8180ad3c6051fc3556edcca40a1203762e9d9bbf02f7095e27",
+      "bytes": 10811
+    },
+    {
+      "repositoryPath": "scripts/acceptance/sustained-four-project/fixtures/queue-order-retained.json",
+      "sha256": "42cf70a9d9b23f8fd422485635cd4081994fe1bb3e1000b7ddecfa628352fee2",
+      "bytes": 7748
+    }
+  ],
+  "patchSHA256": "f9e32783704020cbe7722df82877f9e206c12087025d8fc26103cdae68a93c03",
+  "baseOriginalMatchesGit": true
+}

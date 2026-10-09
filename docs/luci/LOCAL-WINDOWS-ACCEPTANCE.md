@@ -1,31 +1,30 @@
 # Local Windows handoff and acceptance
 
 
-Latest published source checkpoint: `abd2d8c9314d6b73d0c202c82de72f3c3acc0d9a`
-on `codex/luci-production-runs`. This is a focused correction/evidence checkpoint,
-not the final local handoff. Product bytes for the matching Linux recovery and
-idle runs are `2da1a821`; `abd2d8c9` adds the LOCAL-020 acceptance-proxy guard and
-evidence. No new Windows configuration or secret names are required.
+Latest audited source checkpoint: `765fcaadeee7de1cf2ba3a3fb7b295d0af445b70`
+on `codex/luci-production-runs`; the next correction is recorded below and in the
+[current worklist](QUALITY-WORKLIST.md). This is not the final local handoff.
+Product bytes for completed Linux recovery, idle and sustained attempt 5 remain
+`2da1a821`. No new Windows configuration or secret names are required.
 
-The local tester has verified LOCAL-019/CLOUD-040 at the published known-check
-stats/installed Linux recovery scope and LOCAL-020 at controlled HTTP/exact-function
-scope. Those audits do not require repeating unaffected native builds. The actual
-unknown target ends cancelled/unverified, without Start/replay; its exact charge
-releases through explicit reviewed recovery. Original review-before-first-observer
-ordering, simultaneous charged-witness isolation, CLOUD-039's installed refusal
-branch, Windows runtime, live-provider quality and sustained four-project gates
-remain open. The cloud host's VFS disk budget cannot currently exercise the real
-concurrent-witness scenario without weakening guards; Windows copy-on-write storage
-must still meet fresh physical backing-volume and RAM admission.
+CLOUD-043 / LOCAL-021 is source-corrected for all 24 project orders, with 98 affected
+helper tests and eight actual-component HTTP cases. Matching installed retest is
+pending. CLOUD-041's original compact-receipt defect is verified at controlled and
+matching installed Linux scope: A/B have native exit 0 and exact lease release,
+while their WebSocket closures are 1006. Attempt 5 remains failed overall, with
+only two results, one integration and the original D charge retained under LOCAL-016.
 
-Keep the latest sustained attempt separate: product `2da1a821` / helper `abd2d8c9`
-fails after SDK truncation of a scripted completion receipt. Successful nested
-commands do not establish an accepted task or natural native exit. The original
-fixture retains its exact backend-settled charge under LOCAL-016. CLOUD-041 has 51 passing affected controlled helper tests and is ready for its
-matching installed transport retest; CLOUD-032 independently retains failed switching
-latency. See [current worklist](QUALITY-WORKLIST.md) for the next immutable revision.
-At the local tester's latest 02:15:52 UTC observation, 0.349 GiB available RAM kept
-runtime held. Preserve ordinary applications, existing checkouts and Docker data.
+LOCAL-019/CLOUD-040 and LOCAL-020 retain their previously reported scoped passes.
+Original review-before-first-observer ordering, simultaneous charged-witness
+isolation, CLOUD-039's installed refusal branch, Windows runtime, live-provider
+quality and sustained four-project/performance gates remain open. The cloud host's
+VFS disk budget cannot exercise the real concurrent witness without weakening
+guards. Windows still requires fresh physical backing-volume and RAM admission.
+
+At the local tester's 03:12 UTC observation, 0.045 GiB available RAM kept application,
+browser and build workloads held. Preserve ordinary applications, existing checkouts
+and Docker data. Do not run the Linux-exclusive Docker helper against shared Windows
+workloads. Prior failed fixtures and charged ledgers remain unchanged.
 
 
 **Integrated candidate pending; the local milestone is still open.** The native

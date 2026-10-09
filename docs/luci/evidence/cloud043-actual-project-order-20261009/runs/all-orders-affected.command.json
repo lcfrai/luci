@@ -1,0 +1,20 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "/workspace/.luci-tools/cloud043-queue-order/files/helper.test.mjs",
+    "/workspace/.luci-tools/cloud043-queue-order/files/lifecycle.test.mjs",
+    "/workspace/.luci-tools/cloud043-queue-order/files/queue-selection.test.mjs",
+    "/workspace/.luci-tools/cloud043-queue-order/files/receipt-transport.test.mjs",
+    "/workspace/.luci-tools/cloud043-queue-order/files/source-binding.test.mjs",
+    "/workspace/.luci-tools/cloud043-queue-order/files/task-command.test.mjs",
+    "/workspace/.luci-tools/cloud043-queue-order/files/task-context.test.mjs"
+  ],
+  "environmentNames": [
+    "LUCI_ACCEPTANCE_REPO"
+  ],
+  "startedAt": "2026-10-09T03:14:04.700184+00:00",
+  "elapsedSeconds": 0.7272797400073614,
+  "exitCode": 0
+}

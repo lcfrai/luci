@@ -1,0 +1,11 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "/workspace/.luci-tools/cloud043-queue-order/files/queue-selection.test.mjs"
+  ],
+  "startedAt": "2026-10-09T03:12:28.317727+00:00",
+  "elapsedSeconds": 0.5294083769840654,
+  "exitCode": 0
+}

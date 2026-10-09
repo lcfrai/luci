@@ -1,0 +1,14 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "--test-name-pattern=retained D-before-C|actual startup and completion loop",
+    "/workspace/.luci-tools/cloud043-queue-order/files/queue-selection.test.mjs"
+  ],
+  "sourceOverride": "before/sustained.mjs",
+  "scope": "Identical final test file against exact original helper; expected failure is preserved",
+  "testSHA256": "dc296e901729dd9c200cf2f62f4cab967d265d47251e480acca2713b5cafd384",
+  "elapsedSeconds": 0.3635954369965475,
+  "exitCode": 1
+}
