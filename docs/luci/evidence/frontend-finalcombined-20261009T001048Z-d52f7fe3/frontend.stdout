@@ -1,0 +1,383 @@
+
+> @lcfr/luci-desktop@0.5.0 test
+> vitest run --maxWorkers=2 --reporter=default --reporter=json --outputFile.json=/workspace/.luci-tools/frontend-finalcombined-d52/20261009T001048Z/vitest.json
+
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+ ✓ src/components/design/DesignWorkspace.test.tsx (46 tests) 11176ms
+   ✓ retains newly typed handoff notes when the sketch refresh completes late 1324ms
+   ✓ keeps recovery and edits blocked until the saved design reload completes, then merges against its fresh revision 793ms
+   ✓ retains a design draft through a failed saved read and requires successful retry before recovery 553ms
+   ✓ shows actual saved roles and acceptance, then separately saves and approves explicitly authored role behavior 458ms
+   ✓ retains exact invalid width text through blur, tabs, reload and explicit browser draft recovery 399ms
+   ✓ keeps saved design usable after optional prototype history fails and retries without blocking approval 585ms
+   ✓ requires saved design notes and explicit approval before continuing to Develop 300ms
+   ✓ retains the design draft and save action after a revision refusal 324ms
+   ✓ preserves the local isolated prototype gateway and rejects control-origin or credential URLs 343ms
+   ✓ reviews a planned screen against its real source and preserves an unverified observation through amendment and save 743ms
+   ✓ keeps a replaced release's observations bound to the source that was actually opened 737ms
+   ✓ leaves a finished prototype observation through the handoff tab without saving or replaying its browser invitation 478ms
+ ✓ src/components/journey/ProjectChecks.test.tsx (61 tests) 9930ms
+   ✓ runs explicitly selected coverage and attaches eligible results only by a separate action using the fresh exact run revision 1824ms
+   ✓ recovers custom commands, exact unfinished arguments and same-context coverage after remount, without host mode, trust or automatic execution 336ms
+   ✓ clears current private check history on check GET 401, gates controls, and retains unsent setup for an explicit fresh read 309ms
+ ✓ src/components/common/ProjectDraftRecovery.test.tsx (22 tests) 6711ms
+   ✓ recovers a definition only after an explicit restore, keeps its stable requirement IDs, and clears it after a successful save 2286ms
+   ✓ retains conflict edits while comparing the newer saved definition, and requires review before rebasing a manual save 523ms
+   ✓ blocks definition saved-read recovery until the fresh revision is available, then merges and saves explicitly 379ms
+   ✓ keeps definition saved-read recovery blocked after failure and retains the draft for an explicit retry 340ms
+   ✓ makes a merged journey's removed outcome link visible and requires an explicit remedy without dropping the teammate's journey 309ms
+   ✓ isolates drafts when accounts, remote accounts, workspaces, project roots, API endpoints, or projects change 358ms
+ ✓ src/components/orchestrator/OrchestratorPanel.test.tsx (105 tests) 36349ms
+   ✓ reveals the exact current blocking question without replacing an unsent message or its reply target 982ms
+   ✓ retains the exact mounted conversation and unsent composer through compact disclosure changes 716ms
+   ✓ does not hide a focused composer on resize and keeps explicit project-open events working after a manual close 353ms
+   ✓ restores shared history without inference and keeps the same composer across phase changes 482ms
+   ✓ keeps an occupied composer and its recovery copy until a suggested answer is explicitly chosen 779ms
+   ✓ replaces an occupied message only explicitly and retains the selected question until deliberate Send 647ms
+   ✓ does not complete a pending replacement focus handoff after a change to newer focus 338ms
+   ✓ does not complete a pending replacement focus handoff after a change to message 505ms
+   ✓ does not complete a pending replacement focus handoff after a change to read 367ms
+   ✓ does not complete a pending replacement focus handoff after a change to assist 446ms
+   ✓ does not complete a pending replacement focus handoff after a change to scope 391ms
+   ✓ retires a pending suggested replacement across assist loss and regrant without changing the original draft 320ms
+   ✓ retires a pending suggested replacement across read loss and regrant without changing the original draft 389ms
+   ✓ does not carry a suggested replacement into another account or replace its retained draft 330ms
+   ✓ preserves another tab's newer message if storage changes during the replacement choice 375ms
+   ✓ keeps an amendment and returns to its editor after Replace with suggested answer when the question was resolved during the choice 541ms
+   ✓ keeps an amendment and returns to its editor after Keep current message when the question was resolved during the choice 447ms
+   ✓ keeps an amendment and returns to its editor after Escape when the question was resolved during the choice 544ms
+   ✓ binds the actual unresolved question when a person types an answer from Answer the open question 517ms
+   ✓ binds the actual unresolved question when a person types an answer from Work through the decisions 437ms
+   ✓ keeps Change the plan generic after a decision reply was selected 336ms
+   ✓ keeps an occupied answer and its question through generic discussion until intentional Send, with explicit detachment false 2489ms
+   ✓ keeps an occupied answer and its question through generic discussion until intentional Send, with explicit detachment true 847ms
+   ✓ blocks sending/applying over unsaved edits and also preserves edits begun while Apply is in flight 377ms
+   ✓ lets a person ask for help beside an actual unfinished check draft without attaching it or weakening navigation protection 673ms
+   ✓ keeps amendments blocked by a local check draft and shared context still blocks sending when both exist 568ms
+   ✓ defers editor remount for a new local setup created while an amendment is saving 349ms
+   ✓ ignores a late send response after access is revoked and restored 337ms
+   ✓ clears current and earlier private reads on confirmed HTTP 401 while preserving the unsent draft 421ms
+   ✓ clears current and earlier private reads on confirmed HTTP 403 while preserving the unsent draft 434ms
+   ✓ does not replace newer current turns or context with a late historical page 484ms
+   ✓ reports missing provider and uncertain send honestly, keeping text without automatic retries 352ms
+   ✓ refreshes immediately after a real definition save and approval without remounting the editor or losing a newer draft 951ms
+   ✓ queues context refresh behind an in-flight Send without orphaning its response or replaying inference 301ms
+   ✓ offers manual editing without a provider and delivers its exact target after the editor mounts 425ms
+   ✓ collapses compact overview only after an explicit successful plan handoff 1759ms
+   ✓ focuses the requested answer after Keep drafts and continue and after the real draft dialog restores focus 486ms
+   ✓ focuses the requested answer after Discard edits and continue and after the real draft dialog restores focus 471ms
+   ✓ collapses the compact overview and focuses the requested answer after the real draft dialog closes 339ms
+   ✓ retains an unsent scoped message and reply target after the conversation remounts 575ms
+   ✓ retains an uncertain request through remount and refresh, and retries its exact original identity 415ms
+   ✓ keeps unknown outcomes blocked, and an accepted receipt clears the draft without resending 373ms
+   ✓ keeps an unsent message private across actor scope navigation 412ms
+   ✓ keeps an unsent message private across connection scope navigation 460ms
+   ✓ keeps an unsent message private across root scope navigation 411ms
+   ✓ keeps an unsent message private across project scope navigation 1594ms
+   ✓ keeps an unsent message private across team scope navigation 447ms
+ ✓ src/components/definition/DefinitionWorkspace.test.tsx (14 tests) 8357ms
+   ✓ opens the exact question answer after a delayed load and focuses only once without saving or invoking an agent 2091ms
+   ✓ keeps requirement identities while changing acceptance words 724ms
+   ✓ retains a rejected approval as a draft and lets the user correct it 496ms
+   ✓ changes only the intended acceptance when revisiting the interview, preserving titles, IDs, priorities and other answers 723ms
+   ✓ keeps an empty or multiline answer on its own outcome and adds a distinct outcome without recreating existing records 2582ms
+ ✓ src/components/journey/SwarmTaskHandoff.test.tsx (28 tests) 9107ms
+   ✓ allows an editor without Execute to answer once, preserve the draft, and amend the saved answer 2595ms
+   ✓ prevents accidental close/navigation loss of a changed answer and requires explicit discard 360ms
+   ✓ holds a lost answer response for explicit fresh review, preserves text and obtains the next CAS revision 405ms
+   ✓ requires deliberate amendment when another editor changes the answer and preserves both versions 2380ms
+   ✓ recognizes an answer saved before its response was lost without sending it again 417ms
+   ✓ clears prior private report after a confirmed answer denial without automatic retry 304ms
+   ✓ opens the exact parent attempt only on deliberate review, with Edit but no Execute, and closes on lost Read 531ms
+ ✓ src/components/definition/RepositoryAnalysisPanel.test.tsx (36 tests) 5646ms
+   ✓ retains an accepted request across reload and hidden older history until exact polling observes a terminal receipt 2587ms
+ ✓ src/components/auth/AuthProvider.test.tsx (22 tests) 5651ms
+   ✓ mounts project content only after sign-in and gives members account controls without Admin 753ms
+   ✓ lets Super Admins save operating policy and inspect audit without claiming the budget caps provider billing 361ms
+   ✓ explains first-account requirements before submission and protects an in-flight account draft 363ms
+   ✓ offers sign-in after account creation and sign-out rather than repeating bootstrap 417ms
+   ✓ creates a separate owned local account through IPC and never sends ownership credentials through browser HTTP 380ms
+   ✓ recovers only the saved owner through IPC after matching password confirmation 392ms
+   ✓ requires an invitation for browser account creation and keeps an invalid code recoverable 585ms
+   ✓ remembers an invited team for the new account without persisting its code 670ms
+   ✓ recovers if another client completes first setup while the form is open 304ms
+   ✓ preserves local account drafts and offers a capability retry only for native connection failures 375ms
+   ✓ consumes portable owner proof immediately, creates a separate account and never persists or forwards the proof to normal APIs 305ms
+ ✓ src/components/journey/ProjectRuns.test.tsx (62 tests) 7909ms
+   ✓ only reads on mount and refresh, and retains ended or unknown coding as unverified 553ms
+   ✓ joins only a selected existing check ID and preserves a server rejection 1848ms
+   ✓ keeps recorded running coding visible ahead of stale review guidance without dispatch 943ms
+ ✓ src/components/journey/ProjectPlan.test.tsx (26 tests) 7233ms
+   ✓ binds only unfinished saved tasks and canonical handoff revisions after picker review, without changing progress 369ms
+   ✓ keeps new coordination fields through browser recovery and a read-only downgrade without silent edits 1185ms
+   ✓ merges a collaborator's file scope with draft dependencies and explicitly resolves overlapping acceptance 417ms
+   ✓ preserves an editor's task draft through a permission downgrade and only resumes editing after access returns 1858ms
+   ✓ keeps an unadded task title unchanged while another task edit is being saved 365ms
+   ✓ keeps the exact draft locked after a failed reload, then merges and saves against the retried current revision 483ms
+   ✓ does not accept a pending saved read after confirmed read revocation and requires a fresh read after access returns 335ms
+ ✓ src/components/projects/ProjectOverviewBoard.test.tsx (33 tests) 3305ms
+   ✓ keeps shown queue selections across reordering but forgets a removed project before a bulk action 337ms
+ ✓ src/components/projects/ProjectEntry.test.tsx (19 tests) 5610ms
+   ✓ retains a failed import and retries its name with a fresh identity only on request 1900ms
+   ✓ checks a lost response after reload without cloning, then opens a completed import explicitly 380ms
+   ✓ allows editing after definitive pre-admission rejection 409 project_exists 593ms
+ ✓ src/hooks/useKeyboardMap.xterm.test.tsx (75 tests) 3505ms
+   ✓ a chord pressed on a focused real xterm reaches the keyboard map, and not the agent (30)
+     ✓ ⌘3 on the Meta key 411ms
+ ✓ src/components/setup/AgentConnectionManager.test.tsx (10 tests) 4812ms
+   ✓ keeps saved keys private and preserves them on an ordinary connection edit 2301ms
+   ✓ applies one LiteLLM address to the explicitly selected agents and exact model aliases 957ms
+   ✓ preserves custom saved paths when editing without explicitly applying the address preset 304ms
+   ✓ refuses an invalid gateway address without replacing the saved endpoints or sending a request 307ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx (36 tests) 3588ms
+   ✓ reconciles each acknowledged dispatch with a fresh revision before starting the next independent task 307ms
+   ✓ reads back partial retirement once and requires a new explicit finalization action 556ms
+ ✓ src/components/journey/ContextStorage.test.tsx (21 tests) 2542ms
+   ✓ lets a viewer inspect archive history while disabling export repair, private backup export and archive deletion 697ms
+ ✓ src/components/journey/ProjectConfiguration.test.tsx (17 tests) 3599ms
+   ✓ configures the selected deployment project without reading values back and blocks deployment while saving 342ms
+   ✓ does not overwrite a concurrent edit and requires fresh metadata and a re-entered value before retrying 869ms
+ ✓ src/components/journey/SwarmCheckpoint.test.tsx (10 tests) 2765ms
+   ✓ reviews complete retained changes, requires separate consent and prepares without starting or integrating 490ms
+   ✓ returns keyboard focus to the connected opener when keeping the retained attempt 1171ms
+ ✓ src/components/journey/deployment-continuity.test.tsx (26 tests) 3671ms
+   ✓ opens the checked preview destination without starting work and fences the explicit build to its commit 1393ms
+ ✓ src/components/journey/deploy.test.tsx (32 tests) 3158ms
+   ✓ offers an embedded preview only for a verified local release and removes it after stop 513ms
+ ✓ src/seams.test.ts (24 tests) 3652ms
+   ✓ the named seams — docs/SEAMS.md (24)
+     ✓ keeps every tree-wide tripwire 1476ms
+ ✓ src/components/setup/SetupPanel.test.tsx (16 tests) 3557ms
+   ✓ takes an already selected cloud member straight to their assigned projects without choosing a new backing 479ms
+   ✓ saves local configuration, shows the server result and refreshes the project catalogue 806ms
+   ✓ labels an unverified cloud plan honestly and never creates resources while planning 338ms
+   ✓ holds the cloud-plan inputs and section in place until the displayed plan matches the submitted draft 322ms
+   ✓ connects an existing workspace through host verification and its account without cloud purchase or reinstall controls 379ms
+ ✓ src/components/teams/TeamWorkspaceProvider.test.tsx (28 tests) 4959ms
+   ✓ opens the managed team regardless of a personal preference and refuses workspace switching 818ms
+   ✓ asks before switching a workspace with unsaved drafts (retained=false) 1657ms
+ ✓ src/components/auth/AdminPanel.test.tsx (8 tests) 2284ms
+   ✓ defaults to the selected backing, checks its identity first, and sends every admin operation to its bridge 1499ms
+ ✓ src/components/journey/SwarmLaunchRecovery.test.tsx (14 tests) 2208ms
+   ✓ requires separate stopping consent for the exact attempt, retains output and starts no replacement 738ms
+ ✓ src/components/journey/ProjectBackup.test.tsx (17 tests) 2438ms
+   ✓ ignores a detached restore failure and finally while a replacement client's restore is running 1524ms
+ ✓ src/components/journey/requirements.test.tsx (13 tests) 3050ms
+   ✓ saves a task link against the shown approved revision and retains it with the shared dirty guard after a conflict 334ms
+   ✓ adds approved requirements as explicitly linked tasks without making reported Done a verification result 1460ms
+   ✓ preserves an unavailable saved link until the user removes it and refuses silently saving it against a new specification 340ms
+ ✓ src/components/rail/Rail.test.tsx (31 tests) 2944ms
+   ✓ Rail (31)
+     ✓ does not invite a nonadmin team member to create a project from the sidebar 1649ms
+ ✓ src/components/platform/DataWorkspace.test.tsx (13 tests) 1847ms
+   ✓ requires resource acknowledgement and keeps accepted installation pending until its real result 345ms
+   ✓ ignores a late cloud API connection after switching project 320ms
+ ✓ src/components/lens/MergeLens.test.tsx (26 tests) 1342ms
+ ✓ src/components/journey/ProjectWork.test.tsx (26 tests) 2224ms
+ ✓ src/components/journey/SwarmWorkspaceReview.test.tsx (14 tests) 1335ms
+   ✓ inspects an abandoned attempt without a session and reads only deliberately selected files as inert text 354ms
+ ✓ src/components/setup/DockerStorageConfirmation.test.tsx (12 tests) 1551ms
+   ✓ separates guest space and physical minimum, preserves measured zero, and requires exact-path review before confirming 416ms
+   ✓ fences a pending confirmation across access revocation and regrant, clearing private path and old consent 501ms
+ ✓ src/components/platform/StandaloneDatabase.test.tsx (23 tests) 1347ms
+ ✓ src/components/teams/TeamWorkspaceControl.test.tsx (5 tests) 1758ms
+   ✓ adds a collaborator with explicit independent grants and the current team revision 909ms
+   ✓ shows a stale-save error and refreshes the actual role without silently retrying the edit 313ms
+ ✓ src/components/platform/PlatformWorkspace.test.tsx (34 tests) 1833ms
+   ✓ distinguishes permission uncertainty from resolved missing grants without losing a deployment draft 321ms
+ ✓ src/components/setup/WorkspaceSignIn.test.tsx (2 tests) 2617ms
+   ✓ redeems a remote invitation through the existing verified workspace route and offers administrator recovery only 769ms
+   ✓ validates remote confirmation and preserves a failed invitation draft for correction 1846ms
+ ✓ src/components/journey/workflow.test.tsx (6 tests) 2269ms
+   ✓ requires reviewed host trust before running real checks and shows a failing command honestly 362ms
+   ✓ keeps an implementation-task edit on phase navigation and explicitly discards to the chosen project's Files 357ms
+   ✓ guards an unadded task title and refuses a handoff until it is cleared or added 1046ms
+ ✓ src/components/projects/HostCapacity.test.tsx (16 tests) 1921ms
+   ✓ shows scheduling ceilings and unknown execution capacity without promising four running agents 768ms
+   ✓ retains failed setting edits, blocks replay, and explicitly refreshes the compare-and-swap basis 348ms
+ ✓ src/components/setup/LocalTools.test.tsx (4 tests) 1255ms
+   ✓ waits for the saved identity before allowing edits so initial loading cannot overwrite typing 774ms
+ ✓ src/components/platform/DataFunctions.test.tsx (13 tests) 2156ms
+   ✓ prepares source before data installation without publishing or invoking anything 437ms
+   ✓ tests published code with an app session and clears the token even when its outcome is uncertain 556ms
+ ✓ src/components/develop/ReviewedContextInspector.test.tsx (23 tests) 1447ms
+   ✓ reads four original documents only after deliberate actions and renders their content inertly 434ms
+ ✓ src/components/journey/DeploymentWorkspace.test.tsx (3 tests) 2776ms
+   ✓ keeps one private configuration draft across both workspaces and every deployment destination 2181ms
+   ✓ keeps deployment tabs locked until a configuration mutation is acknowledged 324ms
+ ✓ src/components/journey/delivery.test.tsx (11 tests) 2429ms
+   ✓ keeps private repository credential preparation separate from deployment permission 1359ms
+ ✓ src/components/fluid/Fluid.test.tsx (16 tests) 812ms
+ ✓ src/components/journey/DeploymentRecovery.test.tsx (9 tests) 952ms
+   ✓ finds a retained preview on returning to Deploy and opens its exact history row without starting or verifying work 319ms
+ ✓ src/styles/designsystem.test.ts (80 tests) 1003ms
+ ✓ src/components/teams/BillingReturnNavigation.test.tsx (14 tests) 1127ms
+   ✓ opens the matched return return on Service and data with server-owned status only 307ms
+ ✓ src/components/orchestrator/ProjectUnderstanding.test.tsx (32 tests) 2503ms
+   ✓ opens the exact verified publish build from its deployment review step 1245ms
+ ✓ src/components/Terminal.test.tsx (98 tests) 507ms
+ ✓ src/components/journey/ProjectSwarmRefresh.test.tsx (19 tests) 2123ms
+   ✓ does not wait indefinitely for a report from a cancelled launch-retired attempt 912ms
+   ✓ keeps one read in flight, cancels on hidden, and recovers on the first visible interval 310ms
+ ✓ src/components/topbar/SessionPicker.test.tsx (14 tests) 920ms
+ ✓ src/components/setup/SetupPanel.storage.test.tsx (5 tests) 2628ms
+   ✓ refreshes cached storage without running a full readiness check or locking Settings navigation 1773ms
+   ✓ invalidates only storage advice after confirmation and waits for explicit readiness without discarding an unsaved folder 415ms
+ ✓ src/components/setup/SetupProvider.test.tsx (5 tests) 513ms
+ ✓ src/components/common/DraftRecoveryReview.test.tsx (8 tests) 1080ms
+   ✓ structured draft recovery review (8)
+     ✓ presents the combined definition as readable outcomes and context, retaining all meaningful fields 536ms
+ ✓ src/components/AppShell.test.tsx (12 tests) 1825ms
+   ✓ AppShell (12)
+     ✓ starts at Projects home with direct creation and import actions 681ms
+ ✓ src/components/journey/journey.test.tsx (3 tests) 901ms
+   ✓ keeps the edited definition on a revision conflict instead of claiming it was saved 651ms
+ ✓ src/components/journey/ProjectDelivery.test.tsx (26 tests) 1061ms
+ ✓ src/components/platform/DataEmail.test.tsx (14 tests) 1069ms
+   ✓ mount only reads and saving is separate from checking, applying and sending 339ms
+ ✓ src/components/setup/AgentConnections.test.tsx (5 tests) 933ms
+   ✓ saves an explicitly selected local model without adding a paid fallback or exposing credentials 445ms
+ ✓ src/components/topbar/NewSessionButton.test.tsx (12 tests) 1847ms
+   ✓ NewSessionButton (12)
+     ✓ when the create fails (4)
+       ✓ says Docker is down for backend_unavailable, which is a different sentence 1288ms
+ ✓ src/components/journey/SwarmRunQueue.test.tsx (12 tests) 2201ms
+   ✓ only reads on mount and requires explicit consent for independent and dependent tasks together 334ms
+   ✓ closes consent when reviewed input or execution permission changes 957ms
+ ✓ src/components/develop/ColumnsLayout.test.tsx (21 tests) 1947ms
+   ✓ EmptyDevelop (7)
+     ✓ offers the two named actions on a worktree with no sessions, and creates with resolved defaults 973ms
+ ✓ src/components/journey/ProjectPlanLocation.test.tsx (9 tests) 1248ms
+   ✓ lets a fresh project explicitly choose its actual checkout at preparation without requiring the rail or starting coding 452ms
+ ✓ src/components/journey/CheckRecoveryDialog.test.tsx (11 tests) 1415ms
+   ✓ requires exact check consent and makes one recovery request without starting commands 471ms
+ ✓ src/components/platform/deployment-permissions.test.tsx (6 tests) 2487ms
+   ✓ explains denied platform mutations while permitting read refresh {"edit":false,"deploy":false,"secrets":false,"execute":false} 360ms
+   ✓ allows deployment without execution or secrets but does not expose logs or a private browser 1444ms
+ ✓ src/components/teams/TeamInvitations.test.tsx (9 tests) 2728ms
+   ✓ creates explicit team capabilities and exposes a one-time code only until hidden or revoked 518ms
+   ✓ keeps a failed or stale request recoverable and never automatically creates a replacement 1311ms
+ ✓ src/components/develop/SessionPane.test.tsx (31 tests) 1056ms
+ ✓ src/defects.test.tsx (43 tests) 2507ms
+   ✓ the assembled cockpit (28)
+     ✓ loads branches when a project opens, worktrees when a branch is selected 1565ms
+ ✓ src/components/palette/CommandPalette.test.tsx (11 tests) 866ms
+ ✓ src/components/platform/DataPublicDomain.test.tsx (12 tests) 691ms
+   ✓ keeps mount read-only and clears public acknowledgement when the draft changes 312ms
+ ✓ src/components/journey/pages-deploy.test.tsx (6 tests) 1753ms
+   ✓ retries a failed pushed-revision check and requires acknowledgement of the newly checked source 1161ms
+ ✓ src/components/menu/ContextMenu.test.tsx (21 tests) 660ms
+ ✓ src/components/journey/BranchManager.test.tsx (10 tests) 2044ms
+   ✓ creates once from the inspected source and refreshes the branch-scoped workspace 308ms
+   ✓ rejects mismatched provenance before adopting source 1261ms
+ ✓ src/components/auth/TeamService.test.tsx (5 tests) 1903ms
+   ✓ loads service operations deliberately and saves an explicit revision with the selected team 1580ms
+ ✓ src/components/develop/CanvasLayout.test.tsx (38 tests) 1926ms
+   ✓ DevelopLens on canvas (8)
+     ✓ gives a session that arrives while Canvas is open a tile of its own 969ms
+     ✓ keeps a topped-up session unpinned once the user unpins it 330ms
+ ✓ src/components/setup/CloudManager.test.tsx (3 tests) 2093ms
+   ✓ does not trust an inspected SSH host until a selected fingerprint is explicitly confirmed 1516ms
+ ✓ src/test/native-driver.test.ts (19 tests) 516ms
+ ✓ src/components/journey/ProjectSwarmQueue.test.tsx (4 tests) 1130ms
+   ✓ keeps exact queue consent open while a manual task completes, then refreshes after close 595ms
+ ✓ src/components/journey/DesignEditor.test.tsx (8 tests) 573ms
+ ✓ src/components/platform/data-permissions.test.tsx (9 tests) 1058ms
+   ✓ allows a private reader to inspect/download without enabling health or database writes 611ms
+ ✓ src/components/common/WorkflowDialog.test.tsx (4 tests) 603ms
+   ✓ returns focus to the retained navigation control after Escape closes a trigger-less Fluid dialog 317ms
+ ✓ src/components/setup/RuntimePreparation.test.tsx (19 tests) 533ms
+ ✓ src/components/setup/WorkspaceInstaller.test.tsx (3 tests) 1697ms
+   ✓ requires installation consent and preserves the active workspace when verification fails 1420ms
+ ✓ src/components/develop/SessionPermissions.test.tsx (6 tests) 541ms
+   ✓ keeps existing transcript and session metadata visible while disabling restart and start controls 329ms
+ ✓ src/components/teams/TeamDataLifecycle.test.tsx (4 tests) 1764ms
+   ✓ requires explicit acknowledgement, displays a review receipt, and cancels only that exact request 1527ms
+ ✓ src/components/orchestrator/ConversationStorage.test.tsx (4 tests) 463ms
+ ✓ src/components/auth/AdminInvitations.test.tsx (2 tests) 413ms
+   ✓ creates and revokes a one-time invitation on the selected backing and never fetches its code again 308ms
+ ✓ src/components/common/StatusDot.test.tsx (5 tests) 240ms
+ ✓ src/components/journey/ContextHistory.test.tsx (10 tests) 398ms
+ ✓ src/components/setup/DependencySetup.test.tsx (5 tests) 1690ms
+   ✓ loads cached availability and installs only the selected tool after explicit agreement 1582ms
+ ✓ src/components/auth/TeamBilling.test.tsx (4 tests) 515ms
+   ✓ requires current price and terms review, reserves once and exposes a verified Stripe destination without granting access 337ms
+ ✓ src/components/ui/controls.test.tsx (3 tests) 842ms
+   ✓ Radix modal traps focus, closes by Escape and restores its trigger 621ms
+ ✓ src/components/develop/SessionMenu.test.tsx (9 tests) 303ms
+ ✓ src/components/teams/TeamAudit.test.tsx (3 tests) 316ms
+ ✓ src/components/rail/MachineChip.test.tsx (8 tests) 299ms
+ ✓ src/api/teamScope.test.ts (13 tests) 233ms
+ ✓ src/hooks/useKeyboardMap.test.ts (64 tests) 196ms
+ ✓ src/api/client.test.ts (44 tests) 97ms
+ ✓ src/api/attachRegistry.test.ts (80 tests) 145ms
+ ✓ src/components/develop/LinkedWorktreeNote.test.tsx (10 tests) 159ms
+ ✓ src/hooks/useDismissable.test.ts (8 tests) 63ms
+ ✓ src/hooks/useKeyboardMap.seam.test.ts (1 test) 35ms
+ ✓ src/components/develop/sessionVerbs.test.ts (73 tests) 97ms
+ ✓ src/store/store.test.ts (54 tests) 52ms
+ ✓ src/components/platform/DataClientSetup.test.tsx (1 test) 60ms
+ ✓ src/api/billingReturn.test.ts (12 tests) 22ms
+ ✓ src/components/palette/commands.test.ts (15 tests) 45ms
+ ✓ src/store/projectNavigation.test.ts (12 tests) 42ms
+ ✓ src/hooks/heartbeat.test.ts (6 tests) 68ms
+ ✓ src/components/definition/repositoryAnalysisRecovery.test.ts (15 tests) 49ms
+ ✓ src/api/poller.test.ts (13 tests) 19ms
+ ✓ src/api/transfers.test.ts (7 tests) 44ms
+ ✓ src/api/orchestrator.test.ts (33 tests) 24ms
+ ✓ src/api/swarmCheckpoint.test.ts (22 tests) 21ms
+ ✓ src/api/platformBackups.test.ts (4 tests) 22ms
+ ✓ src/lib/immutable.test.ts (18 tests) 12ms
+ ✓ src/api/projectImports.test.ts (37 tests) 32ms
+ ✓ src/api/contextHistory.test.ts (12 tests) 11ms
+ ✓ src/api/projectCheckContracts.test.ts (28 tests) 24ms
+ ✓ src/api/product.test.ts (7 tests) 55ms
+ ✓ src/api/swarmHandoff.test.ts (38 tests) 27ms
+ ✓ src/components/orchestrator/composerRecovery.test.ts (8 tests) 21ms
+ ✓ src/e2eC4Pinned.test.ts (11 tests) 23ms
+ ✓ src/api/authTransport.test.ts (2 tests) 18ms
+ ✓ src/e2eDefect6.test.ts (6 tests) 10ms
+ ✓ src/api/swarmWorkspace.test.ts (10 tests) 16ms
+ ✓ src/preferences/appearance.test.ts (3 tests) 10ms
+ ✓ src/lib/ids.test.ts (6 tests) 9ms
+ ✓ src/api/executionStorage.test.ts (5 tests) 12ms
+ ✓ src/store/defaults.test.ts (31 tests) 15ms
+ ✓ src/store/selectors.test.ts (18 tests) 35ms
+ ✓ src/api/teamDataLifecycle.test.ts (9 tests) 12ms
+ ✓ src/api/swarmScheduler.test.ts (25 tests) 15ms
+ ✓ src/api/projectOverview.test.ts (23 tests) 18ms
+ ✓ src/store/draftRegistration.test.ts (3 tests) 18ms
+ ✓ src/api/definitionRepository.test.ts (2 tests) 10ms
+ ✓ src/components/auth/portableAccess.test.ts (3 tests) 12ms
+ ✓ src/api/projectContextEvents.test.ts (5 tests) 24ms
+ ✓ src/api/teamAudit.test.ts (7 tests) 8ms
+ ✓ src/api/swarmQueue.test.ts (10 tests) 11ms
+ ✓ src/api/projectSwarm.test.ts (7 tests) 12ms
+ ✓ src/lib/time.test.ts (10 tests) 10ms
+ ✓ src/utils/projectDraftMerge.test.ts (19 tests) 16ms
+ ✓ src/api/browserAccess.test.ts (4 tests) 18ms
+ ✓ src/api/projectRuns.test.ts (13 tests) 12ms
+ ✓ src/styles/tokens.test.ts (9 tests) 9ms
+ ✓ src/api/platformBrowser.test.ts (9 tests) 6ms
+ ✓ src/api/dataDownloads.test.ts (4 tests) 7ms
+ ✓ src/store/sourceNavigation.test.ts (4 tests) 9ms
+ ✓ src/api/teamInvitations.test.ts (3 tests) 10ms
+ ✓ src/lib/keyboardPlatform.test.ts (9 tests) 5ms
+ ✓ src/preferences/onboarding.test.ts (1 test) 4ms
+ ✓ src/api/projectContext.test.ts (1 test) 5ms
+ ✓ src/api/dataEmail.test.ts (1 test) 5ms
+ ✓ src/api/dataFunctions.test.ts (1 test) 5ms
+ ✓ src/components/design/PrototypeReview.test.tsx (9 tests) 10ms
+
+ Test Files  157 passed (157)
+      Tests  2750 passed (2750)
+   Start at  00:10:50
+   Duration  276.39s (tests 52%, environment 35%, import 5%, setup 4%, transform 4%)
+
+Environment  jsdom was created 157 times · 178.88s total, 35% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments
+
+JSON report written to /workspace/.luci-tools/frontend-finalcombined-d52/20261009T001048Z/vitest.json

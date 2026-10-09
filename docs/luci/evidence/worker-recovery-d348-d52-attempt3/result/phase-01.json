@@ -1,0 +1,22 @@
+{
+  "phase": "acknowledged-worker-held",
+  "target": {
+    "teamId": "team-Acmt7wZCrUDConazo8jmRH",
+    "projectId": "p-07e556be",
+    "runId": "run-a592fdee61f9bd175db558d9",
+    "operationId": "op-3e1462500fd99cd083484234",
+    "childId": "s-085b5925",
+    "taskId": "build-a",
+    "queueId": "queue-04ce443d8c5a73a7988b3980",
+    "containerId": "a871ddc6c7661e11183c99b34e11b641b68b271d8b802b3ccd98452ab0a9968c",
+    "successorProjectId": "p-2f756a0c",
+    "actor": {
+      "userId": "user-oP4S_7F5dT3lRsyKLHozDI",
+      "teamId": "team-Acmt7wZCrUDConazo8jmRH",
+      "projectId": "p-07e556be"
+    }
+  },
+  "leaseState": "backend-settled",
+  "memoryMiB": 1024,
+  "cpuMillis": 1000
+}

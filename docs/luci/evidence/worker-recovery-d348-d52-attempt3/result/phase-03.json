@@ -1,0 +1,8 @@
+{
+  "phase": "settled-fence-ineligible",
+  "availability": {
+    "supported": false,
+    "reasonCode": "recovery_launch_unconfirmed",
+    "message": "This execution service cannot safely stop this uncertain launch. Output and capacity remain retained."
+  }
+}

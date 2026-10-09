@@ -1,0 +1,9 @@
+{
+  "head": "d52f7fe3d3981342b46391c34ad6517f100ba1be",
+  "files": {
+    "control-plane/internal/api/check_observation.go": "cae1df9ea46ee487a620e7e84133f6cd7441ac39b5595b39e72899521870ab67",
+    "control-plane/internal/api/project_check_observation_review_test.go": "b1da3300ed46bba5033c3e147c30a751b82e42e4f1cebe7cadc45ca172ddcfcf"
+  },
+  "command": "GOMAXPROCS=2 go test -p 1 ./internal/api -run ^TestProjectCheckHTTP(UnconfirmedCreateObservationPreservesReview|InterruptedCreateObservationStillPublishesUnknown)$ -count=1 -v",
+  "phase": "fixed product with unchanged new regression"
+}

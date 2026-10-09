@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "passed": true,
+  "exitCode": 0,
+  "finishedAt": "2026-10-09T00:06:24.815379+00:00",
+  "elapsedSeconds": 125.88136781399953,
+  "driverExitCode": 0,
+  "observerExitCode": 0,
+  "driverIdentity": {
+    "pid": 2081475,
+    "startTicks": 25032896,
+    "parentPid": 2081353,
+    "group": 2081475,
+    "session": 2081475
+  },
+  "observerIdentity": {
+    "pid": 2081476,
+    "startTicks": 25032896,
+    "parentPid": 2081353,
+    "group": 2081476,
+    "session": 2081476
+  },
+  "privateFixtureParent": "[private-fixture]",
+  "sourceBinding": {
+    "productCommit": "d348f0127a920aab05b54a4192baa8ed3800fe54",
+    "helperCommit": "d52f7fe3d3981342b46391c34ad6517f100ba1be",
+    "imageId": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+    "driverSHA256": "b1f9be3c5cc1bc6a865dcca8511b7bebd8752d23a27adb1bb35ebc93e700840b",
+    "samplerSHA256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+    "wrapperSHA256": "c5c8e760f002a350cd34c39d0a8a61d0d82d1de57a5e6b4d2ff89e4b6a8e3473",
+    "observerCostLauncherSHA256": "d90c219b9d6c6ca051d509402aa9680fef51ea1338f1b374a4f36c8d30d2e18d",
+    "packageProvenanceSHA256": "889dfa25933cff6157a237359f166a76eeef4009f775a3ba330976f372671f8e",
+    "imageProvenanceSHA256": "5af726e6670fd6f04c0f67cf3b26b3f6072ed89c1e1e3481c652a631ae6d0a3b",
+    "binarySHA256": "94e59ff60a5ee6a156f55302f0e55000c232a81a90e4d6fa3fd4872947930db3",
+    "webIndexSHA256": "08ec2403d9f3965e5faf407f29dd2e2fbba5b0b4ff53d90af009610b26d814bb",
+    "archiveSHA256": "01512720ca8190b2737fd521b2db39e29329529b211fd830b0ac0a891073d7fd",
+    "imageSourceFiles": 104,
+    "archiveMembers": "Driver independently validates the frozen archive and every installed member before Docker allocation",
+    "observerProductBasis": {
+      "control-plane/internal/resourcebudget/probe_linux.go": "ed0294860d6c721b1fd8f96da8c09a0f4fecb68b991c66c3b8f524cda985c405",
+      "control-plane/internal/resourcebudget/cgroup_linux.go": "1843acdc15db9f9876545a1393bf6c21b93bc01873a64d8651be3adb26b5a4d1"
+    }
+  },
+  "checks": {
+    "driverReceiptPassed": true,
+    "sourceStable": true,
+    "observerComplete": true
+  },
+  "observerCoverage": {
+    "samples": 124,
+    "containerCount": 2,
+    "driverExitObserved": true,
+    "containerIssueCounts": {
+      "exact-owned-instance-not-yet-provided": 6
+    },
+    "controlPlaneCgroupMemory": {
+      "version": 1,
+      "bounds": {
+        "targets": 8,
+        "hierarchyLevels": 128,
+        "nodeRows": 128,
+        "reads": 512,
+        "bytes": 1048576,
+        "seconds": 0.05,
+        "outputBytes": 131072
+      },
+      "productBasisSHA256": {
+        "control-plane/internal/resourcebudget/probe_linux.go": "ed0294860d6c721b1fd8f96da8c09a0f4fecb68b991c66c3b8f524cda985c405",
+        "control-plane/internal/resourcebudget/cgroup_linux.go": "1843acdc15db9f9876545a1393bf6c21b93bc01873a64d8651be3adb26b5a4d1"
+      },
+      "formula": "Independent minima of physical total and finite visible limits; physical available and max(0, limit-current) at every visible ancestor. No memory.stat, RSS, swap, high limit or scheduling reservation subtraction.",
+      "scope": "Same observer/target cgroup and mount namespaces; only already-owned live control-plane role candidates. Raw membership and mount paths are hash-only; missing values stay explicit.",
+      "selfCost": "Additional sampler reads/CPU are included in wrapper RUSAGE_SELF. Shared cgroup usage may include observer work; self-cost is not subtracted from memory counters.",
+      "limitations": [
+        "The 50 ms time budget is cooperative between synchronous reads, not a hard filesystem-read interruption.",
+        "Sequential sampled counters are not atomic and do not reproduce any prior admission decision.",
+        "Visibility ends at the process-visible mount root; hidden ancestors are not inferred.",
+        "Missing limit files are recorded as missing and skipped only to match product semantics; they are not claimed unlimited.",
+        "Role follows existing process-name classification after descendant/PID-start ownership proof, not executable-byte verification."
+      ]
+    },
+    "baseline": "post-start; no pre-run idle baseline observed"
+  },
+  "failures": [],
+  "budgetsSeconds": {
+    "preparation": 120,
+    "workflow": 600,
+    "cleanup": 180,
+    "driverTotal": 900,
+    "driverInterruptGrace": 5,
+    "driverReap": 5,
+    "observerSettlement": 30,
+    "observerTermGrace": 5,
+    "observerReap": 5,
+    "postflight": 15,
+    "outerPlannedMaximum": 965
+  },
+  "forcedExitCleanupUnknown": false,
+  "originalFixtureAccessed": false,
+  "limitations": [
+    "API-only scripted native-worker acceptance; no app-control/browser or model-quality claim",
+    "Driver death is not evidence of controller or Docker cleanup; a forced exit preserves that uncertainty",
+    "Observer starts after driver: no pre-run idle baseline; sampled counters do not reproduce a prior admission snapshot",
+    "Private fixture and raw output are retained on every outcome; publish only reviewed allowlisted evidence"
+  ]
+}

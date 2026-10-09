@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "artifact": "result/failed-stage.png",
+  "originalSHA256": "fb468f7e625f96f43efa3768d32dbeab5a871091d8eb9e14feeda89769c81295",
+  "bytes": 236524,
+  "dimensions": {
+    "width": 1440,
+    "height": 1080
+  },
+  "productCommit": "d348f0127a920aab05b54a4192baa8ed3800fe54",
+  "helperCommit": "d52f7fe3d3981342b46391c34ad6517f100ba1be",
+  "sourceCapture": {
+    "path": "result/accepted-harness/check-create-recovery_installed-recovery.mjs",
+    "helperSourceLine": 349,
+    "mode": "Original failed-stage screenshot in catch handler; no new browser was launched"
+  },
+  "observedVisibleScope": [
+    "Synthetic recovery-target project with Review check recovery dialog open",
+    "Revision 7 and exact target check identity",
+    "Recovery consent checkbox unchecked and recovery action disabled"
+  ],
+  "privacyReview": {
+    "originalImageVisuallyInspected": true,
+    "rawPrivatePathsOrCredentialValuesVisible": false,
+    "pngTextMetadataChunkTypes": [],
+    "imageEdited": false,
+    "exactOriginalBytesPreserved": true
+  },
+  "limitations": [
+    "This source-linked screenshot demonstrates the visible dialog state only.",
+    "It does not retain the exact differing HTTP JSON bodies or demonstrate a completed recovery."
+  ]
+}

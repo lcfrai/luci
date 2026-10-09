@@ -1,0 +1,80 @@
+{
+  "finishedAt": "2026-10-09T00:06:24.678672+00:00",
+  "samples": 124,
+  "durationSeconds": 124.84123035200173,
+  "driverExitObserved": true,
+  "peakObserved": {
+    "summedRSS_test-driver": 93220864,
+    "summedRSS_allOwnedProcesses": 310501376,
+    "summedRSS_other-owned-descendant": 18796544,
+    "summedRSS_control-plane": 229732352,
+    "singleContainerCgroupUsageBytes": 47534080,
+    "singleContainerCgroupUsageBytes_worker": 47534080
+  },
+  "observedCounterDeltas": {
+    "observedProcessCPUSeconds": 22.320000000000004,
+    "observedProcessIO_read_bytes": 36794368.0,
+    "observedProcessIO_write_bytes": 5931008.0,
+    "observedProcessIO_rchar": 842590932.0,
+    "observedProcessIO_wchar": 16699121.0
+  },
+  "processIdentities": [
+    {
+      "pid": 2081475,
+      "startTicks": 25032896,
+      "role": "test-driver"
+    },
+    {
+      "pid": 2081588,
+      "startTicks": 25032985,
+      "role": "other-owned-descendant"
+    },
+    {
+      "pid": 2081679,
+      "startTicks": 25033313,
+      "role": "control-plane"
+    },
+    {
+      "pid": 2081698,
+      "startTicks": 25033356,
+      "role": "control-plane"
+    },
+    {
+      "pid": 2082947,
+      "startTicks": 25037123,
+      "role": "control-plane"
+    },
+    {
+      "pid": 2082967,
+      "startTicks": 25037183,
+      "role": "control-plane"
+    }
+  ],
+  "containerIds": [
+    "a871ddc6c7661e11183c99b34e11b641b68b271d8b802b3ccd98452ab0a9968c",
+    "ecc1587071845687b43456e96c19e24cdcec025b70652d8cc79ba8656f3ad576"
+  ],
+  "containerKinds": {
+    "a871ddc6c7661e11183c99b34e11b641b68b271d8b802b3ccd98452ab0a9968c": "worker",
+    "ecc1587071845687b43456e96c19e24cdcec025b70652d8cc79ba8656f3ad576": "worker"
+  },
+  "containerIssueCounts": {
+    "exact-owned-instance-not-yet-provided": 6
+  },
+  "checkCoverage": {
+    "enabled": true,
+    "identitySamples": 0,
+    "cgroupUsageSamples": 0,
+    "status": "not-observed"
+  },
+  "limitations": [
+    "Sum of process RSS double-counts shared pages; it is not unique physical memory.",
+    "Container cgroup memory is separate and must not be added to container process RSS.",
+    "Docker daemon/shared kernel/VM overhead is unassigned; host memory includes unrelated work.",
+    "Processes starting and exiting between 1 Hz samples may be missed; delta counters cover observed intervals only.",
+    "Post-driver-exit settlement is not an application idle baseline.",
+    "No UI input latency, other-app responsiveness or model reasoning quality is measured."
+  ],
+  "baseline": "post-start; no pre-run idle baseline observed",
+  "instanceIdentitySHA256": "7ac7a5c94248cb753ccbedbc71649df6bee0483dacf67259efafaa50cc018a6f"
+}

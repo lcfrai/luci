@@ -1,0 +1,32 @@
+{
+  "reportedBy": "Windows acceptance thread 01a1199f-7500-7843-b02b-081081e536fa",
+  "revision": "d52f7fe3d3981342b46391c34ad6517f100ba1be",
+  "scope": "Relayed independent local controlled VM and read-only source/evidence audit; not executed in this cloud session.",
+  "local018": {
+    "state": "verified-controlled",
+    "originalFalseSuccessCases": 2,
+    "correctedAffectedPasses": 6,
+    "actualProcessSignals": 0,
+    "installedAndNativeProcessClosure": "separate"
+  },
+  "bindingAudits": {
+    "local018Members": 16,
+    "local018FinalSources": 26,
+    "cloud037Members": 11,
+    "cloud035FollowupMembers": 16,
+    "newCheckPublicationMembers": 38,
+    "newWorkerPublicationMembers": 37,
+    "correctedPriorMembers": 67
+  },
+  "limits": [
+    "CLOUD-037 exact installed ordering and actual count were not retained; deferred readiness is supported mechanism only.",
+    "CLOUD-035 unresolved-name guard excludes 301 other semantic diagnostics and is not a full typecheck.",
+    "Worker attempt2 had zero natural native exit frames and retained a charged backend-settled lease after failed-fixture cleanup.",
+    "Check attempt2 retained its creating charge after exact manual removal.",
+    "Private originals/package bytes excluded from publication remain publisher-attested.",
+    "Earlier Git history retains redacted temporary fixture metadata."
+  ],
+  "failedReceiptAuditSHA256": "e5e8fa306666a7c6aa89150eed77f3c6ee10087362f9e5903ffeb6179a344136",
+  "reportedWindowsAvailableGiB": 1.373,
+  "windowsRuntime": "held; original checkouts and 107 containers/four running workloads preserved"
+}

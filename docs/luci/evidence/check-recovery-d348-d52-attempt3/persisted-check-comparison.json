@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "scope": "Original terminal check receipt compared with later retained persisted check row; not the missing expected/actual HTTP recovery-review bodies",
+  "beforeBinding": {
+    "path": "result/phase-06.json",
+    "originalSHA256": "7c2998b965e04567047d87597a61b7d32384ff9b5be1d8bf7f5edbcd4499b49b"
+  },
+  "afterBinding": {
+    "role": "Original failed fixture persisted target check record; private path and complete contents excluded",
+    "bytes": 2476,
+    "sha256": "57359327e8ba665305543d387269b23aaceae7027f6b9e94481dd53c875be8f7"
+  },
+  "changedFieldPointers": [
+    "/commands/0/message",
+    "/message",
+    "/revision",
+    "/staleReasons/0",
+    "/updatedAt"
+  ],
+  "before": {
+    "id": "check-2fff6e320da536c6a2ed2b4e",
+    "revision": 6,
+    "updatedAt": "2026-10-08T23:55:02.971862862Z",
+    "message": "Docker check creation is unconfirmed. Review this exact attempt before starting another command.",
+    "staleReasons": [
+      "The linked run has no confirmed passing outcome."
+    ],
+    "commandMessages": [
+      "Docker check creation is unconfirmed. Review this exact attempt before starting another command."
+    ],
+    "status": "unknown",
+    "stage": "create",
+    "reasonCode": "check_create_unconfirmed",
+    "resourcesHeld": true,
+    "commandCleanupConfirmed": [
+      false
+    ]
+  },
+  "after": {
+    "id": "check-2fff6e320da536c6a2ed2b4e",
+    "revision": 7,
+    "updatedAt": "2026-10-08T23:55:04.493373586Z",
+    "message": "Docker creation is unconfirmed. Review this exact retained attempt to stop and recover it.",
+    "staleReasons": [
+      "The commands have not finished."
+    ],
+    "commandMessages": [
+      "Docker creation is unconfirmed. Review this exact retained attempt to stop and recover it."
+    ],
+    "status": "unknown",
+    "stage": "create",
+    "reasonCode": "check_create_unconfirmed",
+    "resourcesHeld": true,
+    "commandCleanupConfirmed": [
+      false
+    ]
+  },
+  "exactHTTPExpectedBodyRetained": false,
+  "exactHTTPActualBodyRetained": false,
+  "actualHTTPDifferenceKnown": false,
+  "limitations": [
+    "The source assertion location establishes a failed deepEqual of two HTTP review values.",
+    "This compares a public check DTO with a later persisted record; staleReasons may reflect DTO-derived evidence wording rather than an intervening persisted mutation.",
+    "It is corroborating evidence of differing message/revision observations, not a reconstruction of the exact HTTP operands or a pure before/after persisted-row mutation.",
+    "No product state or assertion was modified to prepare this comparison."
+  ]
+}

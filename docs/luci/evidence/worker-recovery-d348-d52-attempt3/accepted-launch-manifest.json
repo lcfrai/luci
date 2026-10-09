@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "wrapperSHA256": "c5c8e760f002a350cd34c39d0a8a61d0d82d1de57a5e6b4d2ff89e4b6a8e3473",
+  "observerCostLauncherSHA256": "d90c219b9d6c6ca051d509402aa9680fef51ea1338f1b374a4f36c8d30d2e18d",
+  "samplerSHA256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+  "samplerReference": "artifacts/quality-swarm/dependency-4df94ab9-helper-d6949ac1-attempt11/observer/accepted-sampler.py",
+  "costLauncherDerivedFrom": {
+    "path": "scripts/acceptance/check-create-recovery/run-with-observer.py",
+    "sha256": "4ae1172679672ca785a1ed5a310942f764545900f4f376183b74407b0bff1edc",
+    "method": "Exact AST literal SAMPLER_LAUNCHER copied without modification"
+  },
+  "runtimeInvoked": false
+}

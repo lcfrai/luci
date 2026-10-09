@@ -154,7 +154,14 @@ func (a *API) observeCheckCandidate(ctx context.Context, lease checkExecutionLea
 		return err
 	}
 	if lease.State == "creating" || lease.State == "fencing" {
-		out.Status, out.ExitCode, out.Stage, out.ReasonCode, out.Message = "unknown", nil, "create", "check_create_unconfirmed", "Docker creation is unconfirmed. Review this exact retained attempt to stop and recover it."
+		// Keep the exact published diagnosis when this retained attempt is
+		// already unknown. Copy-only changes would invalidate recovery review
+		// without new execution evidence. Use the original held flag; out was
+		// updated from the lease above. Persistence still checks the captured
+		// revision and repairs interrupted run-level publication when needed.
+		if out.Status != "unknown" || out.ExitCode != nil || out.Stage != "create" || out.ReasonCode != "check_create_unconfirmed" || out.CleanupConfirmed || row.ResourcesHeld == nil || !*row.ResourcesHeld {
+			out.Status, out.ExitCode, out.Stage, out.ReasonCode, out.Message = "unknown", nil, "create", "check_create_unconfirmed", "Docker creation is unconfirmed. Review this exact retained attempt to stop and recover it."
+		}
 		return persist(out)
 	}
 	executor, ok := a.deps.Backend.(backend.CheckExecutor)

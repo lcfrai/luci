@@ -1,0 +1,50 @@
+{
+  "workingDirectory": "/workspace/luci/control-plane",
+  "activation": "source /workspace/.luci-tools/activate.sh",
+  "goVersion": "go version go1.26.3 linux/amd64",
+  "baseHead": "d52f7fe3d3981342b46391c34ad6517f100ba1be",
+  "capture": "Each Go command used set -o pipefail and 2>&1 | tee <log>; logs retain combined Go stdout/stderr.",
+  "runs": [
+    {
+      "phase": "before",
+      "command": "GOMAXPROCS=2 go test -p 1 ./internal/api -run '^TestProjectCheckHTTP(UnconfirmedCreateObservationPreservesReview|InterruptedCreateObservationStillPublishesUnknown)$' -count=1 -v",
+      "environment": {
+        "GOCACHE": "/tmp/luci-go-build-cache",
+        "GOMAXPROCS": "2"
+      },
+      "log": "before.log",
+      "exitCode": 1,
+      "inputs": "before-inputs.json"
+    },
+    {
+      "phase": "after",
+      "command": "GOMAXPROCS=2 go test -p 1 ./internal/api -run '^TestProjectCheckHTTP(UnconfirmedCreateObservationPreservesReview|InterruptedCreateObservationStillPublishesUnknown)$' -count=1 -v",
+      "environment": {
+        "GOCACHE": "/tmp/luci-go-build-cache",
+        "GOMAXPROCS": "2"
+      },
+      "log": "after.log",
+      "exitCode": 0,
+      "inputs": "after-inputs.json"
+    },
+    {
+      "phase": "affected-race",
+      "command": "go test -race -p 1 -count=1 -timeout=8m -json ./internal/api -run '^Test(ProjectCheckHTTP|ProjectCheckReservedClaim|ExecutionReservationView|ExecutionAdmissionSerializesIndependentControllersBeforeAnyAllocation|ExecutionStorageSchedulerHTTPPublishesPathFreeHostBound)'",
+      "environment": {
+        "GOCACHE": "/tmp/luci-cloud033-go-cache",
+        "GOMAXPROCS": "2"
+      },
+      "log": "affected-race.jsonl",
+      "exitCode": 0,
+      "inputs": "race-inputs.json.gz",
+      "packageElapsedSeconds": 45.168
+    }
+  ],
+  "initialInvalidAttempt": {
+    "command": "GOMAXPROCS=2 go test -p 1 ./internal/api -run '^TestProjectCheckHTTP(UnconfirmedCreateObservationPreservesReview|InterruptedCreateObservationStillPublishesUnknown)$' -count=1 -v",
+    "exitCode": 0,
+    "log": "invalid-no-test-attempt.log",
+    "scope": "The initial copy used control-plane/internal/api relative to the control-plane working directory and failed. No new test was copied; Go compiled the original package and selected zero tests. This is excluded from all validation counts. Setup error stderr was seen in the tool response but was not part of this Go log."
+  },
+  "reproduction": "Use the existing checkout at the recorded base head in an isolated cloud environment, with the frozen regression. Before uses the original observer; after uses the fixed observer. The workspace-specific activation and cache paths are historical command bindings, not portable Windows setup instructions."
+}

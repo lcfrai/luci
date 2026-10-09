@@ -1,0 +1,26 @@
+=== RUN   TestProjectCheckHTTPUnconfirmedCreateObservationPreservesReview
+=== RUN   TestProjectCheckHTTPUnconfirmedCreateObservationPreservesReview/creating
+    project_check_observation_review_test.go:74: no-op create observation changed published receipt: tick=0 revision=6->7 message="Docker check creation is unconfirmed. Review this exact attempt before starting another command."->"Docker creation is unconfirmed. Review this exact retained attempt to stop and recover it."
+    project_check_observation_review_test.go:77: no-op create observation invalidated exact review: tick=0 revision=6->7
+    project_check_observation_review_test.go:74: no-op create observation changed published receipt: tick=1 revision=6->7 message="Docker check creation is unconfirmed. Review this exact attempt before starting another command."->"Docker creation is unconfirmed. Review this exact retained attempt to stop and recover it."
+    project_check_observation_review_test.go:77: no-op create observation invalidated exact review: tick=1 revision=6->7
+    project_check_observation_review_test.go:74: no-op create observation changed published receipt: tick=2 revision=6->7 message="Docker check creation is unconfirmed. Review this exact attempt before starting another command."->"Docker creation is unconfirmed. Review this exact retained attempt to stop and recover it."
+    project_check_observation_review_test.go:77: no-op create observation invalidated exact review: tick=2 revision=6->7
+    project_check_observation_review_test.go:74: no-op create observation changed published receipt: tick=3 revision=6->7 message="Docker check creation is unconfirmed. Review this exact attempt before starting another command."->"Docker creation is unconfirmed. Review this exact retained attempt to stop and recover it."
+    project_check_observation_review_test.go:77: no-op create observation invalidated exact review: tick=3 revision=6->7
+    project_check_observation_review_test.go:130: recovery result 409 {"error":"check_recovery_conflict","message":"The check changed or still has a current controller. Read its current state before reviewing another recovery."}
+        
+=== RUN   TestProjectCheckHTTPUnconfirmedCreateObservationPreservesReview/fencing
+--- FAIL: TestProjectCheckHTTPUnconfirmedCreateObservationPreservesReview (2.19s)
+    --- FAIL: TestProjectCheckHTTPUnconfirmedCreateObservationPreservesReview/creating (1.75s)
+    --- PASS: TestProjectCheckHTTPUnconfirmedCreateObservationPreservesReview/fencing (0.44s)
+=== RUN   TestProjectCheckHTTPInterruptedCreateObservationStillPublishesUnknown
+=== RUN   TestProjectCheckHTTPInterruptedCreateObservationStillPublishesUnknown/command-publication
+=== RUN   TestProjectCheckHTTPInterruptedCreateObservationStillPublishesUnknown/run-publication
+    project_check_observation_review_test.go:196: run reconciliation rewrote already confirmed command diagnosis
+--- FAIL: TestProjectCheckHTTPInterruptedCreateObservationStillPublishesUnknown (0.46s)
+    --- PASS: TestProjectCheckHTTPInterruptedCreateObservationStillPublishesUnknown/command-publication (0.25s)
+    --- FAIL: TestProjectCheckHTTPInterruptedCreateObservationStillPublishesUnknown/run-publication (0.21s)
+FAIL
+FAIL	github.com/lcfrai/luci/control-plane/internal/api	2.675s
+FAIL

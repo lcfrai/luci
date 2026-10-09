@@ -1,0 +1,11 @@
+# Combined frontend verification — 9 October 2026
+
+One full current desktop Vitest run with **two workers** completed, followed by TypeScript. The raw reporter records **2750 passed**, **0 failed**, **0 pending**, and **0 todo** tests across **157 reported files**. All **157 configured test files** are accounted for; missing files: **0**. Vitest exit code: **0**. TypeScript exit code: **0**. Final validation passed: **True**.
+
+The frontend source includes the current CLOUD-033 cleanup messaging, CLOUD-034 shared-reservation summary, and later definition/team-context render reductions. It is bound to source commit **d52f7fe3d3981342b46391c34ad6517f100ba1be** and explicit before/after file hashes. Frontend/config/lock inputs stayed unchanged: **True**. All captured inputs stayed unchanged: **True**. The checkout included concurrent backend/quality work; this is not represented as a clean whole-checkout revision. Any changed imported Go/document inputs are listed in `result.json`.
+
+The exact commands, working directory, installed tool versions, timestamps, durations and exit codes are in `invocation.json` and `commands.json`. Source snapshots bind all frontend source, tests, scripts, package/config/lock files and the external Go/document/fixture files imported by the frontend contract tests. Stable config/lock bytes are included under `inputs/`. Source bytes are otherwise retrievable by commit plus the recorded status/hashes.
+
+`vitest.json.gz` decompresses to the complete original JSON reporter bytes (SHA-256 **6dccfd8dbb4545ad3f19356fff54aa7972ac56b49b0f04e659eee6cef449e72c**). Original stdout and stderr are preserved, including empty files. React `act` and jsdom canvas warnings, when present, remain in stderr and are not converted into failed assertions. `result.json` keeps command, file and assertion outcomes distinct rather than treating an empty or partial run as success. `SHA256SUMS` and `manifest.json` bind the included artifacts.
+
+No browser, installed application, package build or performance diagnostic was launched. Passing these checks does not establish the original 300 ms switch or 100 ms input p95 targets; the latest measured d348 result still failed them. An optional attached idle-launch note is preparation only and requires the root's clean matching package/helper pin and exclusive runtime window.

@@ -1,0 +1,152 @@
+{
+  "phase": "terminal-check-capacity",
+  "requestedAt": "2026-10-08T23:55:02.977Z",
+  "completedAt": "2026-10-08T23:55:02.981Z",
+  "check": {
+    "revision": 6,
+    "resourcesHeld": true,
+    "stage": "create",
+    "reasonCode": "check_create_unconfirmed",
+    "id": "check-2fff6e320da536c6a2ed2b4e",
+    "projectId": "p-874d964b",
+    "commit": "625d0694eb6ad280fabe245fc995752be4015938",
+    "dirty": false,
+    "execution": "docker",
+    "memoryMiB": 1024,
+    "cpuMillis": 1000,
+    "sourceDigest": "bfb52ad52ba044423171539e6d915c5bef86ded014332ec373d1aca1ad900702",
+    "sourceChanged": false,
+    "status": "unknown",
+    "commands": [
+      {
+        "label": "node",
+        "executable": "node",
+        "args": [
+          "verify.mjs",
+          "final"
+        ],
+        "allocationId": "checkexec-7cc75c06bf6eb0373b563536",
+        "stage": "create",
+        "reasonCode": "check_create_unconfirmed",
+        "message": "Docker check creation is unconfirmed. Review this exact attempt before starting another command.",
+        "cleanupConfirmed": false,
+        "status": "unknown",
+        "output": "",
+        "truncated": false
+      }
+    ],
+    "createdAt": "2026-10-08T23:54:36.979161635Z",
+    "updatedAt": "2026-10-08T23:55:02.971862862Z",
+    "message": "Docker check creation is unconfirmed. Review this exact attempt before starting another command.",
+    "requirementIds": [
+      "AC-recovery"
+    ],
+    "requirementSnapshots": [
+      {
+        "id": "AC-recovery",
+        "title": "Reviewed check recovery",
+        "acceptance": "Retain uncertain check output, verify exact recovery ownership and never replay its command."
+      }
+    ],
+    "specificationRevision": 2,
+    "specificationDigest": "48a8d442f1df04b98f5b3c252513ecfe71ecb5c89358ad22c78088316d508eb5",
+    "designPlanRevision": 2,
+    "designPlanDigest": "a49ff98f9fa0a62b6d815cead0fb3d245b6517f139f12afdad2a4a5b30d423b1",
+    "evidenceStatus": "unverified",
+    "staleReasons": [
+      "The linked run has no confirmed passing outcome."
+    ],
+    "approvalSelection": {
+      "specificationApprovalId": "approval-a4565d1472c737b15bf76127",
+      "specificationRevision": 2,
+      "specificationDigest": "48a8d442f1df04b98f5b3c252513ecfe71ecb5c89358ad22c78088316d508eb5",
+      "designApprovalId": "approval-391484d58d7f6454033f2cc3",
+      "designRevision": 2,
+      "designDigest": "a49ff98f9fa0a62b6d815cead0fb3d245b6517f139f12afdad2a4a5b30d423b1",
+      "briefDigest": "0f1941c4125f6cd8e1c04a92f9b8fc36eac0a97ff6fbd3e12d9edb626f1ff004",
+      "sketchDigest": "32600515fc1086d747fe87dfc0ddf2242b3b8d9ccd2cc6def7526f43ea11258e"
+    }
+  },
+  "resources": {
+    "host": {
+      "observedAt": "2026-10-08T23:55:02.915939725Z",
+      "status": "partial",
+      "platform": "linux",
+      "scope": "control-plane-host",
+      "memory": {
+        "physicalTotalBytes": 35743784960,
+        "physicalAvailableBytes": 20983873536,
+        "effectiveTotalBytes": 34359738368,
+        "effectiveAvailableBytes": 9826119680,
+        "limitSource": "physical-and-control-plane-cgroup-v2",
+        "commitLimitBytes": null,
+        "commitAvailableBytes": null
+      },
+      "cpu": {
+        "logicalProcessors": 5,
+        "effectiveMillis": 4000,
+        "limitSource": "process-affinity-and-control-plane-cgroup-v2",
+        "utilizationPercent": 28.45691382765531,
+        "pressureSomeAvg10": null,
+        "memoryPressureSomeAvg10": null,
+        "ioPressureSomeAvg10": null
+      },
+      "disks": [
+        {
+          "observedAt": "2026-10-08T23:55:02.915867006Z",
+          "basis": "native-host-volume",
+          "role": "projects",
+          "totalBytes": 33770192896,
+          "availableBytes": 1848446976
+        },
+        {
+          "observedAt": "2026-10-08T23:55:02.915871432Z",
+          "basis": "native-host-volume",
+          "role": "state",
+          "totalBytes": 33770192896,
+          "availableBytes": 1848446976
+        }
+      ],
+      "processes": [
+        {
+          "pid": 2077753,
+          "role": "control-plane",
+          "startId": "linux-ticks:24971109",
+          "residentBytes": 182157312,
+          "privateCommitBytes": null
+        }
+      ],
+      "unavailable": [
+        {
+          "metric": "cpu.pressureSomeAvg10",
+          "reason": "Linux pressure observation is unavailable"
+        },
+        {
+          "metric": "memory.pressureSomeAvg10",
+          "reason": "Linux pressure observation is unavailable"
+        },
+        {
+          "metric": "io.pressureSomeAvg10",
+          "reason": "Linux pressure observation is unavailable"
+        }
+      ]
+    },
+    "execution": {
+      "cpuMillis": 5000,
+      "hostStorage": null,
+      "observedAt": "2026-10-08T23:55:02.93848694Z",
+      "scope": "execution-daemon",
+      "status": "ready",
+      "totalMemoryBytes": 35743784960,
+      "unavailable": []
+    },
+    "reservations": {
+      "status": "ready",
+      "observedAt": "2026-10-08T23:55:02.980699955Z",
+      "count": 1,
+      "memoryMiB": 1024,
+      "cpuMillis": 1000
+    }
+  },
+  "rootFreeBytes": 1848406016
+}

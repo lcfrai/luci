@@ -1,0 +1,6 @@
+{
+  "phase": "controller-restart-preserved",
+  "sameContainer": true,
+  "samePID": true,
+  "commandDispatches": 1
+}

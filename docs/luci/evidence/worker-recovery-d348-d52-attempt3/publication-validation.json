@@ -1,0 +1,50 @@
+{
+  "at": "2026-10-09T00:13:52.619688+00:00",
+  "mode": "Read-only post-run inspection and evidence publication; no service, worker, browser, compiler, tests or model workload",
+  "exactPrivateRootsInspectedInMemory": 3,
+  "knownRetainedCredentialFilesInspectedInMemory": 3,
+  "knownRetainedCredentialScalarsChecked": 4,
+  "exactPrivateRootMatchesAfterRedaction": 0,
+  "knownRetainedCredentialMatchesAfterRedaction": 0,
+  "sourceBindingFilesVerifiedAgainstPinnedGit": 13,
+  "beforeAfterSourceBindingsIdentical": true,
+  "redactions": {
+    "wrapper-result.sanitized.json": {
+      "privateOrInstallationPathOccurrences": 1,
+      "credentialOccurrences": 0
+    },
+    "result/result.sanitized.json": {
+      "privateOrInstallationPathOccurrences": 1,
+      "credentialOccurrences": 0
+    },
+    "actual-launcher.sanitized.py": {
+      "privateOrInstallationPathOccurrences": 3,
+      "credentialOccurrences": 0
+    },
+    "invocation.sanitized.json": {
+      "privateOrInstallationPathOccurrences": 3,
+      "credentialOccurrences": 0
+    },
+    "invocation-exit.sanitized.json": {
+      "privateOrInstallationPathOccurrences": 3,
+      "credentialOccurrences": 0
+    },
+    "image-provenance.sanitized.json": {
+      "privateOrInstallationPathOccurrences": 6,
+      "credentialOccurrences": 0
+    }
+  },
+  "limitations": [
+    "Only retained credential material can be checked; ephemeral credentials no longer stored cannot be re-read.",
+    "No universal secret-detection claim.",
+    "Private fixture contents, raw ledger, ownership and instance pointer are excluded."
+  ],
+  "recursiveDocumentsChecked": 199,
+  "recursiveStringFieldsChecked": 47167,
+  "originalInputsUnchanged": true,
+  "exactFixtureInventoryStillUnchanged": true,
+  "finalScanAt": "2026-10-09T00:16:28.442258+00:00",
+  "decodedMembersChecked": 51,
+  "knownInstallationRootsInspectedInMemory": 2,
+  "knownInstallationPathMatchesAfterRedaction": 0
+}

@@ -1,0 +1,20 @@
+stderr | src/components/journey/ProjectPlan.test.tsx > preserves an editor's task draft through a permission downgrade and only resumes editing after access returns
+A component suspended inside an `act` scope, but the `act` call was not awaited. When testing React components that depend on asynchronous data, you must await the result:
+
+await act(() => ...)
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+stderr | src/components/journey/deployment-continuity.test.tsx > does not navigate another workspace when an earlier release attachment finishes
+The current testing environment is not configured to support act(...)
+
+stderr | src/components/journey/deployment-continuity.test.tsx > does not navigate another workspace when an earlier release attachment finishes
+The current testing environment is not configured to support act(...)
+The current testing environment is not configured to support act(...)
+The current testing environment is not configured to support act(...)
+
+stderr | src/components/journey/workflow.test.tsx > keeps an implementation-task edit on phase navigation and explicitly discards to the chosen project's Files
+A component suspended inside an `act` scope, but the `act` call was not awaited. When testing React components that depend on asynchronous data, you must await the result:
+
+await act(() => ...)
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package

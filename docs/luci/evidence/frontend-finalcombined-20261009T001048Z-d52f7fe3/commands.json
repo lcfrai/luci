@@ -1,0 +1,58 @@
+[
+  {
+    "label": "frontend",
+    "command": [
+      "npm",
+      "test",
+      "--",
+      "--maxWorkers=2",
+      "--reporter=default",
+      "--reporter=json",
+      "--outputFile.json=/workspace/.luci-tools/frontend-finalcombined-d52/20261009T001048Z/vitest.json"
+    ],
+    "cwd": "/workspace/luci/desktop",
+    "startedAt": "2026-10-09T00:10:49.579311+00:00",
+    "finishedAt": "2026-10-09T00:15:27.704881+00:00",
+    "elapsedSeconds": 278.12559008499375,
+    "exitCode": 0,
+    "sourceChangedPaths": [],
+    "frontendInputsUnchanged": true,
+    "allCapturedInputsUnchanged": true,
+    "stdout": {
+      "file": "frontend.stdout",
+      "bytes": 32144,
+      "sha256": "6e38f2e8f92c1f6d7e03285ecb90eb64587d7f1791bbf2d7b9afb79334f16c12"
+    },
+    "stderr": {
+      "file": "frontend.stderr",
+      "bytes": 1487,
+      "sha256": "4cabdc46c442dca440a5c61fd2508c84946b87fe4f55f9dabaddbab95b5b1731"
+    }
+  },
+  {
+    "label": "typecheck",
+    "command": [
+      "npm",
+      "run",
+      "typecheck"
+    ],
+    "cwd": "/workspace/luci/desktop",
+    "startedAt": "2026-10-09T00:15:27.835403+00:00",
+    "finishedAt": "2026-10-09T00:15:50.289835+00:00",
+    "elapsedSeconds": 22.45443771398277,
+    "exitCode": 0,
+    "sourceChangedPaths": [],
+    "frontendInputsUnchanged": true,
+    "allCapturedInputsUnchanged": true,
+    "stdout": {
+      "file": "typecheck.stdout",
+      "bytes": 54,
+      "sha256": "6d51e3ec9a9d283eee096e5e9403c5d963c9468e9756fd61f3e9e0d3df1bde71"
+    },
+    "stderr": {
+      "file": "typecheck.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+]

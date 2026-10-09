@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "passed": false,
+  "status": "cleanup-incomplete",
+  "stage": "read-and-dismiss-exact-recovery",
+  "at": "2026-10-08T23:55:04.947Z",
+  "failure": {
+    "errorName": "AssertionError",
+    "errorCode": "ERR_ASSERTION",
+    "locations": [
+      {
+        "file": "installed-recovery.mjs",
+        "line": 175,
+        "column": 77
+      },
+      {
+        "file": "installed-recovery.mjs",
+        "line": 292,
+        "column": 63
+      },
+      {
+        "file": "recovery-scenario.mjs",
+        "line": 182,
+        "column": 3
+      },
+      {
+        "file": "installed-recovery.mjs",
+        "line": 347,
+        "column": 16
+      },
+      {
+        "file": "installed-recovery.mjs",
+        "line": 327,
+        "column": 5
+      },
+      {
+        "file": "installed-recovery.mjs",
+        "line": 371,
+        "column": 79
+      }
+    ]
+  },
+  "originalReceiptComplete": false
+}

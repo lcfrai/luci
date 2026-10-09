@@ -1,0 +1,8 @@
+{
+  "phase": "ordinary-stop-settled",
+  "exitReason": "killed",
+  "operationStatus": "review-required",
+  "queueState": "completed",
+  "capacityReleased": true,
+  "fenceCreated": false
+}

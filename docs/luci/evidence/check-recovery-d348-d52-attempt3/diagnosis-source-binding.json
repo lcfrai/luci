@@ -1,0 +1,21 @@
+{
+  "scope": "Original product paths producing the two observed status wordings; does not reconstruct the missing HTTP comparison operands",
+  "sources": [
+    {
+      "repositoryPath": "control-plane/internal/api/check_execution.go",
+      "sourceCommit": "d348f0127a920aab05b54a4192baa8ed3800fe54",
+      "path": "diagnosis-source/control-plane/internal/api/check_execution.go",
+      "bytes": 14707,
+      "sha256": "8e63303295c66179943c88d29c4c66f10596fbc3de3c8cac601a38b20cb2cf3f",
+      "origin": "Pinned Git blob; never read from current dirty worktree"
+    },
+    {
+      "repositoryPath": "control-plane/internal/api/check_observation.go",
+      "sourceCommit": "d348f0127a920aab05b54a4192baa8ed3800fe54",
+      "path": "diagnosis-source/control-plane/internal/api/check_observation.go",
+      "bytes": 10132,
+      "sha256": "04bc6a02192d0fc244a668a11fd14417fbd69cf1d580deefce5e7c406d9b3870",
+      "origin": "Pinned Git blob; never read from current dirty worktree"
+    }
+  ]
+}

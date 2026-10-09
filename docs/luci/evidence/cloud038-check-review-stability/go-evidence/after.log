@@ -1,0 +1,14 @@
+=== RUN   TestProjectCheckHTTPUnconfirmedCreateObservationPreservesReview
+=== RUN   TestProjectCheckHTTPUnconfirmedCreateObservationPreservesReview/creating
+=== RUN   TestProjectCheckHTTPUnconfirmedCreateObservationPreservesReview/fencing
+--- PASS: TestProjectCheckHTTPUnconfirmedCreateObservationPreservesReview (2.10s)
+    --- PASS: TestProjectCheckHTTPUnconfirmedCreateObservationPreservesReview/creating (1.72s)
+    --- PASS: TestProjectCheckHTTPUnconfirmedCreateObservationPreservesReview/fencing (0.39s)
+=== RUN   TestProjectCheckHTTPInterruptedCreateObservationStillPublishesUnknown
+=== RUN   TestProjectCheckHTTPInterruptedCreateObservationStillPublishesUnknown/command-publication
+=== RUN   TestProjectCheckHTTPInterruptedCreateObservationStillPublishesUnknown/run-publication
+--- PASS: TestProjectCheckHTTPInterruptedCreateObservationStillPublishesUnknown (0.43s)
+    --- PASS: TestProjectCheckHTTPInterruptedCreateObservationStillPublishesUnknown/command-publication (0.22s)
+    --- PASS: TestProjectCheckHTTPInterruptedCreateObservationStillPublishesUnknown/run-publication (0.21s)
+PASS
+ok  	github.com/lcfrai/luci/control-plane/internal/api	2.552s

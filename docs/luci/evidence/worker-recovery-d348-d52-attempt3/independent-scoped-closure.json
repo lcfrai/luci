@@ -1,0 +1,279 @@
+{
+  "version": 1,
+  "observedAt": "2026-10-09T00:11:59.708150+00:00",
+  "mode": "independent read-only exact fixture closure and retained artifact verification",
+  "recordedIdentities": [
+    {
+      "recorded": {
+        "pid": 2081475,
+        "startTicks": 25032896,
+        "parentPid": 2081353,
+        "group": 2081475,
+        "session": 2081475,
+        "role": "driverIdentity"
+      },
+      "current": null,
+      "exactIdentityLive": false
+    },
+    {
+      "recorded": {
+        "pid": 2081588,
+        "startTicks": 25032985,
+        "role": "other-owned-descendant"
+      },
+      "current": null,
+      "exactIdentityLive": false
+    },
+    {
+      "recorded": {
+        "pid": 2081679,
+        "startTicks": 25033313,
+        "role": "control-plane"
+      },
+      "current": null,
+      "exactIdentityLive": false
+    },
+    {
+      "recorded": {
+        "pid": 2081698,
+        "startTicks": 25033356,
+        "role": "control-plane"
+      },
+      "current": null,
+      "exactIdentityLive": false
+    },
+    {
+      "recorded": {
+        "pid": 2082947,
+        "startTicks": 25037123,
+        "role": "control-plane"
+      },
+      "current": null,
+      "exactIdentityLive": false
+    },
+    {
+      "recorded": {
+        "pid": 2082967,
+        "startTicks": 25037183,
+        "role": "control-plane"
+      },
+      "current": null,
+      "exactIdentityLive": false
+    },
+    {
+      "recorded": {
+        "pid": 2081476,
+        "startTicks": 25032896,
+        "parentPid": 2081353,
+        "group": 2081476,
+        "session": 2081476,
+        "role": "observerIdentity"
+      },
+      "current": null,
+      "exactIdentityLive": false
+    }
+  ],
+  "ownedProcesses": [],
+  "unreadableProcessEnvironmentCount": 3,
+  "dockerContainers": [],
+  "dockerVolumes": [],
+  "retained": [
+    {
+      "task": "build-a",
+      "childId": "s-085b5925",
+      "projectId": "p-07e556be",
+      "runId": "run-a592fdee61f9bd175db558d9",
+      "operationId": "op-3e1462500fd99cd083484234",
+      "sessionStatus": "exited",
+      "exitReason": "killed",
+      "operationStatus": "review-required",
+      "runState": "awaiting-checks",
+      "queueId": "queue-04ce443d8c5a73a7988b3980",
+      "queueState": "completed",
+      "queueMemoryMiB": 0,
+      "queueCPUMillis": 0,
+      "checkoutHead": "f1f8833dac0d361e756c06e67bb027b741b6fcf4",
+      "primaryHead": "8eb91e856672dad37faaa7de647c91671621dfd9",
+      "checkoutStatus": "",
+      "primaryStatus": "",
+      "changed": [
+        "build-a-result.txt"
+      ],
+      "outputSHA256": "d010792f3cb603f1bfe74359ea707d8ac4e858a02bdf42cc85c22bb929a0c822",
+      "outputBytes": 26,
+      "outputAbsentFromPrimary": true,
+      "canonical": {
+        ".luci/design-handoff.json": "c45f3f7a5f15aab8684a5e95f28fa73563f10a7d17c6faa06cdf745105213802",
+        ".luci/design-handoff.md": "69064832d974f1eb6adc2b4d793d2a47d95086e21f093eda86cee98021410dcd",
+        ".luci/design.json": "0c94623a857aef58d6c1ac75af8015222a7d6a50ebaaf25575cd18d09d04e469",
+        ".luci/plan.json": "2b4e6ac45a4ad769e084daefdfb014ae046e6ed32e844b089af4984a01212776",
+        ".luci/specification.json": "1d41f8f387f012404330da38ce05e3b580ec5f97f19e50d299e0a5d6f478c8db",
+        ".luci/specification.md": "adb6b1aa9828970e6e66cae845b3483729229a1d13e5e51ea7a1f96abd1cea8b",
+        "LUCI.md": "8ecd653d9954a0eb5e2135339b830ae3ff34d5aa6b2cf9774cf9e1167afa3e5f"
+      },
+      "capturedFiles": {
+        "LUCI.md": {
+          "bytes": 5460,
+          "sha256": "3e6e4cfe9f4927691f867957f382adfbc2fe2ede62babe510b70d6e409666436"
+        },
+        "manifest.json": {
+          "bytes": 1821,
+          "sha256": "3044e1c7f77e8093ca432fdc92fa69b7382560fb3fcd680ce4b81c0c25fff931"
+        },
+        ".luci/brief.json": {
+          "bytes": 540,
+          "sha256": "1b3dae025e3628015c32b3e4b93d65e3a84bd576474281dbcb8703c811bb4df0"
+        },
+        ".luci/plan.json": {
+          "bytes": 625,
+          "sha256": "2b4e6ac45a4ad769e084daefdfb014ae046e6ed32e844b089af4984a01212776"
+        },
+        ".luci/specification.json": {
+          "bytes": 931,
+          "sha256": "1d41f8f387f012404330da38ce05e3b580ec5f97f19e50d299e0a5d6f478c8db"
+        },
+        ".luci/design-handoff.json": {
+          "bytes": 756,
+          "sha256": "c45f3f7a5f15aab8684a5e95f28fa73563f10a7d17c6faa06cdf745105213802"
+        },
+        ".luci/specification.md": {
+          "bytes": 791,
+          "sha256": "adb6b1aa9828970e6e66cae845b3483729229a1d13e5e51ea7a1f96abd1cea8b"
+        },
+        ".luci/design-handoff.md": {
+          "bytes": 553,
+          "sha256": "69064832d974f1eb6adc2b4d793d2a47d95086e21f093eda86cee98021410dcd"
+        },
+        ".luci/task-handoffs.json": {
+          "bytes": 184,
+          "sha256": "a67513f46085d73dd53182603ea338cca4a682663bfcc3c90090a50bfa875734"
+        },
+        ".luci/design.json": {
+          "bytes": 85,
+          "sha256": "0c94623a857aef58d6c1ac75af8015222a7d6a50ebaaf25575cd18d09d04e469"
+        }
+      },
+      "capturedFilesMatchActualCommand": true,
+      "reviewedContext": {
+        "version": 2,
+        "digest": "3044e1c7f77e8093ca432fdc92fa69b7382560fb3fcd680ce4b81c0c25fff931"
+      },
+      "transcripts": [
+        {
+          "pathSHA256": "a7805a236f113d3d327111b25da490351378bdcbcbfe1099615a75fab84a7678",
+          "bytes": 56226,
+          "sha256": "fe9618b75929e1350ca2078f13e88a00e065db30a00adfbb1c96879b5d358dc5",
+          "matchingRecordedObservationOccurrences": 4
+        }
+      ],
+      "runStoreSHA256": "b59b666ae32ea6280bce7784fdf350b0594a8ec245f6a2d89e72fd98a23a3620"
+    },
+    {
+      "task": "build-b",
+      "childId": "s-2acadd19",
+      "projectId": "p-2f756a0c",
+      "runId": "run-649ee758a01c521a99122668",
+      "operationId": "op-efd1eb8fdaf1846186585d55",
+      "sessionStatus": "exited",
+      "exitReason": "process exited",
+      "operationStatus": "review-required",
+      "runState": "awaiting-checks",
+      "queueId": "queue-dd899a2c3aacd734ce3ba560",
+      "queueState": "completed",
+      "queueMemoryMiB": 0,
+      "queueCPUMillis": 0,
+      "checkoutHead": "47aa97af4403ef1f31869ac79a563ac8cd5bca0a",
+      "primaryHead": "196cb4d21c38628d903f641026fce00f8c3eee73",
+      "checkoutStatus": "",
+      "primaryStatus": "",
+      "changed": [
+        "build-b-result.txt"
+      ],
+      "outputSHA256": "f009d9ebd4e4c22374f16f092ef4a8df764866db69c6be9cb977657389390624",
+      "outputBytes": 26,
+      "outputAbsentFromPrimary": true,
+      "canonical": {
+        ".luci/design-handoff.json": "0c99c7537327c4870bfd33c5bb74590969198a6e7007c679c38d88b063cd9d1b",
+        ".luci/design-handoff.md": "6b0bb8f837b74939f230244a6fcf72c4cc268bac5bd1de0a51ac37cd7fe666d7",
+        ".luci/design.json": "88e60dfa734d685152e83db43079e22c385ef74cd7e09b57aad71c4dcb29c534",
+        ".luci/plan.json": "eee48f06748385df25204319b2aa95aa98d15003adf242b17a0cc16dddb9f80c",
+        ".luci/specification.json": "174cca3ed3c440e124363b53a59cf86aab74da75eaad823cae75dbd00112341d",
+        ".luci/specification.md": "56efa083fbd6348d9a93b745e9d357086197c77516c6159d5badd26c5a10363b",
+        "LUCI.md": "88cfcf063dbd6b1cd9749db9075aa5b35da4c3aafd4f034207834cde699e4588"
+      },
+      "capturedFiles": {
+        "LUCI.md": {
+          "bytes": 5460,
+          "sha256": "36336f5f88c560fed36a0ed6d52906b8587c152908377905b8da54c9f028bc1a"
+        },
+        "manifest.json": {
+          "bytes": 1821,
+          "sha256": "2fcbc3303b440864ecca991ea3fbaa03c49eaf934434dd800299a9f621f177cc"
+        },
+        ".luci/brief.json": {
+          "bytes": 541,
+          "sha256": "51845fc7013055b121f5d91b294ff0c3df864626bfa219220a6845e924bc7fb6"
+        },
+        ".luci/plan.json": {
+          "bytes": 626,
+          "sha256": "eee48f06748385df25204319b2aa95aa98d15003adf242b17a0cc16dddb9f80c"
+        },
+        ".luci/specification.json": {
+          "bytes": 932,
+          "sha256": "174cca3ed3c440e124363b53a59cf86aab74da75eaad823cae75dbd00112341d"
+        },
+        ".luci/design-handoff.json": {
+          "bytes": 757,
+          "sha256": "0c99c7537327c4870bfd33c5bb74590969198a6e7007c679c38d88b063cd9d1b"
+        },
+        ".luci/specification.md": {
+          "bytes": 791,
+          "sha256": "56efa083fbd6348d9a93b745e9d357086197c77516c6159d5badd26c5a10363b"
+        },
+        ".luci/design-handoff.md": {
+          "bytes": 553,
+          "sha256": "6b0bb8f837b74939f230244a6fcf72c4cc268bac5bd1de0a51ac37cd7fe666d7"
+        },
+        ".luci/task-handoffs.json": {
+          "bytes": 184,
+          "sha256": "bad4e0ddfd9ddcca84132908e6f4d4a18ca6e19869c937206feeead3e55f8c04"
+        },
+        ".luci/design.json": {
+          "bytes": 85,
+          "sha256": "88e60dfa734d685152e83db43079e22c385ef74cd7e09b57aad71c4dcb29c534"
+        }
+      },
+      "capturedFilesMatchActualCommand": true,
+      "reviewedContext": {
+        "version": 2,
+        "digest": "2fcbc3303b440864ecca991ea3fbaa03c49eaf934434dd800299a9f621f177cc"
+      },
+      "transcripts": [
+        {
+          "pathSHA256": "bde6db27a7bfca6dc07767af6f2c8a215ce3d7a2f304eb7d97cf3d2f9f9cda47",
+          "bytes": 59174,
+          "sha256": "97344fc4afc5f1a2bd9ea75d24385ee7718735788b817135b15c3553fc3859f3",
+          "matchingRecordedObservationOccurrences": 4
+        }
+      ],
+      "runStoreSHA256": "8f339bbe9afd8f63591fa7aa7dadd71f1bffb17508544dafcac9fa12251a8af0"
+    }
+  ],
+  "fixtureUnchanged": true,
+  "originalArtifactInputsUnchanged": true,
+  "noSignalsOrMutationsPerformed": true,
+  "sessionsStoreSHA256": "f7356a2be76b05fea83caac934f9a84e993b2ad05ad53f243a23966a8abac0c3",
+  "schedulerStoreSHA256": "bfa9740541c293f9deb94702b537905ee43a83d505dd84d37d73ae51405c593c",
+  "ledger": {
+    "sha256": "c0022f0995797c072d8097729ea90e74487bcefb911576c91e4af0665403a49e",
+    "version": 1,
+    "leaseCount": 0,
+    "checkFenceCount": 0
+  },
+  "fixtureInventory": {
+    "files": 342,
+    "bytes": 7642050,
+    "sha256": "5da8d0f9ea8e197ad1bf4176c659ca61d657d33c8ef18edb422a92a3b5e87d6f"
+  },
+  "privateReceiptSHA256": "a72ea3bdca5a97315e817c1bcae123173bdf968ba2f3d4fe577ff231d9dfc8e8"
+}
