@@ -1,0 +1,51 @@
+✔ initial admission refusal records exact409 reason before failure without replay (6.841702ms)
+✔ final allocator problem preserves only exact id/stage/reason (7.75557ms)
+✔ gateway session_limit remains separate from conflict reasonCode (2.430173ms)
+✔ oversized message unknown enum/path/token contents are omitted, never exported (11.535907ms)
+✔ invalid JSON binds exact original bytes before failure and leaves mutation uncertain (1.245708ms)
+✔ successful expected response unchanged, no problem event and one request (0.700296ms)
+✔ expected negative response preserves existing non-diagnostic behavior (0.685353ms)
+✔ malformed field types and unsupported details do not become diagnostic values (4.628266ms)
+✖ invalid body excerpt never escapes through thrown error or final failure projection (1.819863ms)
+✖ empty unexpected body binds zero bytes without claiming JSON parsing (1.330846ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 8
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 164.482134
+
+✖ failing tests:
+
+test at .luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:27:1
+✖ invalid body excerpt never escapes through thrown error or final failure projection (1.819863ms)
+  AssertionError [ERR_ASSERTION]: thrown error must not expose parse excerpt
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:27:220)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at .luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:28:1
+✖ empty unexpected body binds zero bytes without claiming JSON parsing (1.330846ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:28:174)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

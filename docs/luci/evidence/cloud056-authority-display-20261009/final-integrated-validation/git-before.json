@@ -1,0 +1,4 @@
+{
+  "head": "8c7bf16aa035b27dbea185b565052495eb60777f",
+  "status": " M desktop/src/api/client.ts\n M desktop/src/api/teamScope.ts\n M desktop/src/components/teams/TeamWorkspaceProvider.tsx\n M docs/luci/QUALITY-WORKLIST.md\n?? control-plane/internal/api/project_check_order_witness_test.go\n?? desktop/src/components/teams/TeamWorkspaceAuthority.test.tsx\n?? docs/luci/evidence/cloud038-ordered-charged-witness-20261009/\n"
+}

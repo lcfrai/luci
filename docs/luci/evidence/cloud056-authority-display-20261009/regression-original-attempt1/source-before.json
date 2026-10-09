@@ -1,0 +1,170 @@
+[
+  {
+    "path": "desktop/src/api/poller.ts",
+    "sha256": "23d5faa83acffd4d8b77899394d97b1606640f01d250a63d7551d5004b71f164"
+  },
+  {
+    "path": "desktop/src/api/client.ts",
+    "sha256": "52de54f1f57b048be9d0f40e7ed8137fe6766893b2b21ed43a22281e14c62a79"
+  },
+  {
+    "path": "desktop/src/api/authSession.ts",
+    "sha256": "a875cd70c1de48cb48e9677e061588eefb23b81f01bf7fa2a7ab0f2c56b9846a"
+  },
+  {
+    "path": "desktop/src/api/teamScope.ts",
+    "sha256": "e2b94561cbfb5239b869c09dfd43711a82fb9f4a1d5142be354eb26e1660d397"
+  },
+  {
+    "path": "desktop/src/api/teams.ts",
+    "sha256": "02abaa062d39a24d21f0ae7a36eaf6036aee59c25285885a5b0b6dc9a0b1f39b"
+  },
+  {
+    "path": "desktop/src/api/product.ts",
+    "sha256": "d6d8bda455d20cdf660976f7ca58d38967048780d6fc385ecdd07c7493329240"
+  },
+  {
+    "path": "desktop/src/api/attachRegistry.ts",
+    "sha256": "1f3e299b787411b3b96f1e8af6866265ebdd372014000a0436d2dd7f4e094c82"
+  },
+  {
+    "path": "desktop/src/components/auth/AuthProvider.tsx",
+    "sha256": "8e94ed934c409bc57ca3d565d41c3f1d2d59f4cc4ab7d620954c94fb9808c8be"
+  },
+  {
+    "path": "desktop/src/components/teams/TeamWorkspaceProvider.tsx",
+    "sha256": "e6a3a98612aa506e9b78a656891dd36e8d2207a5f806fba7f8a65f1da7bf11bb"
+  },
+  {
+    "path": "desktop/src/hooks/useProjectAccess.ts",
+    "sha256": "b2789071009294d4497f7be2039839b0a88f4f0e54edf7c544a279440dce2da4"
+  },
+  {
+    "path": "desktop/src/components/develop/SessionPane.tsx",
+    "sha256": "6953a091fc204c08d60f02fb1be41595e79efa2b952f90daf01b164ec628c7e2"
+  },
+  {
+    "path": "desktop/src/components/develop/SessionPaneHeader.tsx",
+    "sha256": "86435eaca1597abb24057397ee5c7715804ec432de16bd8d36c591625962da9e"
+  },
+  {
+    "path": "desktop/src/components/develop/SessionPaneFooter.tsx",
+    "sha256": "3f48dc7d2f9de3e7041089023ea0fa984669225e8f479c3beb629c03344f2edc"
+  },
+  {
+    "path": "desktop/src/components/develop/DevelopLens.tsx",
+    "sha256": "d0e008f7d190e0fe3f6806cd7498f52fe0cb128b16d2020d63ba4e42fdf5d2bf"
+  },
+  {
+    "path": "desktop/src/components/develop/ColumnsLayout.tsx",
+    "sha256": "261f302348672d09dcc0baf8e20e346fb62f275059d2ae0642ba77f587847bf6"
+  },
+  {
+    "path": "desktop/src/components/develop/ReviewedContextNote.tsx",
+    "sha256": "b88130e7085cb44448dc6ca22c83bb59ae43d89431707c90d9ce00488c77d337"
+  },
+  {
+    "path": "desktop/src/components/Terminal.tsx",
+    "sha256": "51bd9cabecc454dbb9ace6d8fcf2f530102253b14c2448541decc304aed4d213"
+  },
+  {
+    "path": "desktop/src/components/AppShell.tsx",
+    "sha256": "b3aaf4ce4302109c2c10b023ecbff249b96655955f4d29bf0bb4834b4fc8fcd4"
+  },
+  {
+    "path": "desktop/src/App.tsx",
+    "sha256": "88c37c47b3cfae6d40bb2c876ef3fa713da662705302979b2c4d24d120803786"
+  },
+  {
+    "path": "desktop/src/main.tsx",
+    "sha256": "0256e5a508589837df51903a8768f082254a61c129c955100e0ce2cc9914fab7"
+  },
+  {
+    "path": "desktop/src/store/store.ts",
+    "sha256": "e65151cbfc1686b8e4050179f726bf9cd7e3abcc3f6e661cebdb444fec1302c6"
+  },
+  {
+    "path": "desktop/src/store/slices/dataSlice.ts",
+    "sha256": "099d299e9a610fdce275ae0411398d6d2b42f74b3b722692c0333ec5f5a1a711"
+  },
+  {
+    "path": "desktop/src/store/selectors.ts",
+    "sha256": "b98178fa378f19cb486ee2a5dcbf970949bdf6ef3fa730b4a875bc7698cb3e31"
+  },
+  {
+    "path": "desktop/src/test/fakes.ts",
+    "sha256": "c0a4ca549296a6bd530f35c157f8be9520f4acd191b09b36c07c5a019dace1b4"
+  },
+  {
+    "path": "desktop/src/test/fixtures.ts",
+    "sha256": "5f8a1d84422914e034dcfe16958a6aaf3abf79b202698b5a180dae5f2c35fa84"
+  },
+  {
+    "path": "desktop/src/test/setup.ts",
+    "sha256": "6873458c092edb343b856df7c92cae4eeaa55caa397d5a908121184301812a57"
+  },
+  {
+    "path": "desktop/src/api/poller.generation.test.ts",
+    "sha256": "c9b2b37a78df0ea781c507991eecee91aa58bd7a17510cae63f8aa95e61c37f5"
+  },
+  {
+    "path": "desktop/src/components/teams/TeamWorkspaceProvider.test.tsx",
+    "sha256": "a62822f66c88afdfa4f157d9ff995bbf15c9a6573899408460572a24ff097a71"
+  },
+  {
+    "path": "desktop/src/components/Terminal.test.tsx",
+    "sha256": "93d9db5589de167b07a494a701d86660bc2f90a1cddd68081fce47b889ff4994"
+  },
+  {
+    "path": "desktop/src/components/develop/SessionPermissions.test.tsx",
+    "sha256": "f5a525f0a96bfafc7cc1dd01f85dd24d8563fe6e448375bb2343e53ec93653c6"
+  },
+  {
+    "path": "desktop/package.json",
+    "sha256": "2298a2e941314ff0f5dc82813a0b0edca0c66bccb7c766a80e46631fc8aa07b5"
+  },
+  {
+    "path": "desktop/package-lock.json",
+    "sha256": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a"
+  },
+  {
+    "path": "desktop/vitest.config.ts",
+    "sha256": "61fe9ff43762dadeb5666eca997ea6c73ef40d4306996ae30294552e1ca7024f"
+  },
+  {
+    "path": "control-plane/internal/management/team_proxy.go",
+    "sha256": "b8a80d8ac58d9e8ebea99a87cfb5bb773dcbf2564a084628428a8b42243b48cd"
+  },
+  {
+    "path": "control-plane/internal/management/team_authorization.go",
+    "sha256": "e530232d68e467b5465bb753ce27e6541790448c1283140f7a547a27389f9896"
+  },
+  {
+    "path": "control-plane/internal/management/team_runtime.go",
+    "sha256": "38fcb0563e1bbe96c87c6a8dda357720cb04a0f077375fe0ceeeab04a8d32983"
+  },
+  {
+    "path": "control-plane/internal/management/teams.go",
+    "sha256": "1bef2f0694a983085d2ac7d7f1d02a652ebc912adc916db543c5a580c5cd2c18"
+  },
+  {
+    "path": "control-plane/internal/management/team_proxy_test.go",
+    "sha256": "3f3761094b6f7443d1db9d3c39426076d49e7dda65cfef74858f53f3f9a724ca"
+  },
+  {
+    "path": "control-plane/internal/management/team_session_execution_generation_test.go",
+    "sha256": "75f230f9b9336983ef3431875e04931944d390677f42fb30beb67941eda58396"
+  },
+  {
+    "path": "control-plane/internal/management/team_runtime_test.go",
+    "sha256": "23fa0a11733ee252c5275b7c0938d417808d345e357f563cafec2e987a57f069"
+  },
+  {
+    "path": "docs/luci/PRODUCT-QUALITY.md",
+    "sha256": "088fdb8130ad47fe965ef431676582be5c62e55c5b9e8a466fbab7c709adda7a"
+  },
+  {
+    "path": "docs/luci/evidence/cloud054-terminal-close-20261009/DEFERRED-AUTHORITY-REVIEW.md",
+    "sha256": "553504f987db95055760968f6a76d494877c8f78ff9aa3fafe6361c51403e9f1"
+  }
+]

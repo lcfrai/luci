@@ -1,0 +1,20 @@
+{
+  "testedProduct": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "checkedOutRevision": "8c7bf16aa035b27dbea185b565052495eb60777f",
+  "trackedGoModuleSourceEquivalentBetweenPins": true,
+  "authorityForEquivalence": "Read-only git diff --name-only edd0cb121ff6847f681ab6bf41509a497f043d41..8c7bf16aa035b27dbea185b565052495eb60777f -- *.go **/go.mod **/go.sum returned empty; recorded by preparation, not a captured raw command log.",
+  "selectedRepositoryInputs": 992,
+  "externalInputs": 3,
+  "selectedInputsTotal": 995,
+  "beforeAfterInputArraysEqual": true,
+  "headBefore": "8c7bf16aa035b27dbea185b565052495eb60777f",
+  "headAfter": "8c7bf16aa035b27dbea185b565052495eb60777f",
+  "statusBefore": "",
+  "statusAfter": "",
+  "limitations": [
+    "Selected all tracked repository .go and go.mod/go.sum files include uncompiled fixture/evidence copies. This is not exact compiled-scope provenance.",
+    "Installed external module bytes, Go standard library, compiler binary and generated inputs were not comprehensively hashed. go version is a captured command string.",
+    "Only exact root go.work bytes, test draft and overlay are included as external inputs.",
+    "The integration candidate changes only the first three comment lines; its tested code body is byte-identical."
+  ]
+}

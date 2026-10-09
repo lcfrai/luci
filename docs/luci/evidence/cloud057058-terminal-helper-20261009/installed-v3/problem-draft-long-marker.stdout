@@ -1,0 +1,37 @@
+✔ initial admission refusal records exact409 reason before failure without replay (9.405006ms)
+✔ final allocator problem preserves only exact id/stage/reason (7.566795ms)
+✔ gateway session_limit remains separate from conflict reasonCode (2.534681ms)
+✔ oversized message unknown enum/path/token contents are omitted, never exported (31.271283ms)
+✔ invalid JSON binds exact original bytes before failure and leaves mutation uncertain (2.589674ms)
+✔ successful expected response unchanged, no problem event and one request (1.886674ms)
+✔ expected negative response preserves existing non-diagnostic behavior (1.493671ms)
+✔ malformed field types and unsupported details do not become diagnostic values (2.139184ms)
+✔ invalid body excerpt never escapes through thrown error or final failure projection (3.539425ms)
+✖ empty unexpected body binds zero bytes without claiming JSON parsing (2.658958ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 9
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 234.806249
+
+✖ failing tests:
+
+test at .luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:28:1
+✖ empty unexpected body binds zero bytes without claiming JSON parsing (2.658958ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:28:174)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

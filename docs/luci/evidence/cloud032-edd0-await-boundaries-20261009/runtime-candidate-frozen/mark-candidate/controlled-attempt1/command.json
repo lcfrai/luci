@@ -1,0 +1,18 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "/workspace/.luci-tools/cloud032-await-boundary-diagnostic-v1/controlled.test.mjs"
+  ],
+  "startedScope": "Inert Node fake-page contract; no browser/network/app launch. Fake time is not overhead or performance measurement.",
+  "exitCode": 0,
+  "observedAt": "2026-10-09T11:43:09.573758+00:00",
+  "sourceSHA256": {
+    "controlled.test.mjs": "e58cfce5d8db1076ef86d861aef92a4926d05f2d0376fb4cf53f2832083ee7b0",
+    "boundaries.mjs": "b371167244ea3eae7d8b0ab9922d95a18dabed2909c0e816934080932a460583",
+    "original/interaction-metrics.mjs": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502",
+    "original/latency-diagnostics.mjs": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96",
+    "candidate/interaction-metrics.mjs": "437de00f5f82655415ae25ed8a6d09cb4c97b81eaf44d8aca340169dfabab0b4",
+    "candidate/latency-diagnostics.mjs": "4d1c0f75f15c01444c22133f360f10700af58c6dfebd3906700e67dc9407313f"
+  }
+}

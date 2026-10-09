@@ -1,0 +1,150 @@
+{
+  "version": 1,
+  "issue": "CLOUD-058",
+  "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "reviewedAt": "2026-10-09T12:06:56.637647+00:00",
+  "scope": "Read-only exact Git source review. No code changes, tests, app, HTTP, container inspection or runtime. Actual attempt3 observations supplied by parent, not independently reobserved.",
+  "sources": [
+    {
+      "path": "control-plane/internal/api/sessions.go",
+      "bytes": 117140,
+      "sha256": "1eface59027a5ca16b076cfc268025b9849ec4a69e42aaa462aaa514f602f99d"
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/docker.go",
+      "bytes": 31285,
+      "sha256": "b865a8eea8a313ad818686f372724e2a97874ba8532c0041ad6cc5d3b0d0d46c"
+    },
+    {
+      "path": "control-plane/internal/hostpath/hostpath.go",
+      "bytes": 4201,
+      "sha256": "a9f5cac4e630795b665acf4291b3bfe8d011151345442e2fec529aa7532ec0e0"
+    },
+    {
+      "path": "control-plane/internal/api/sessions_shell.go",
+      "bytes": 6750,
+      "sha256": "06b563a41200aef3e275c221b65e5cfa36bdddf94308121433fb091d9c03601e"
+    },
+    {
+      "path": "control-plane/internal/api/sessions_x3_admin_test.go",
+      "bytes": 3240,
+      "sha256": "05aebca03e0931b91a1c6df8414ea2cd67f07580c94ac549a02feb2458160e90"
+    },
+    {
+      "path": "control-plane/internal/api/sessions_x3_admin_pin_test.go",
+      "bytes": 5121,
+      "sha256": "48828db9e40b62a7cc233a116f34f7efee3c13ba571a4696b61617466ba29091"
+    },
+    {
+      "path": "control-plane/internal/api/sessions_sandboxenv_test.go",
+      "bytes": 23565,
+      "sha256": "bf806f28b7ac1562ae8a0f9b44d5d084eb7785654d3f715f79ed20d4688d6621"
+    }
+  ],
+  "productionContract": [
+    {
+      "path": "control-plane/internal/api/sessions.go",
+      "lines": [
+        39,
+        44,
+        342,
+        354
+      ],
+      "contract": "sessionWorkDir=/home/dev/work, sessionWorktreeAdminDir=/home/dev/work/.git/worktrees. Main worktree bind writable by default; nonempty worktreeAdmin adds one ReadOnly mount at exact nested destination."
+    },
+    {
+      "path": "control-plane/internal/api/sessions.go",
+      "lines": [
+        633,
+        647,
+        675,
+        690,
+        705,
+        724
+      ],
+      "contract": "For primary ordinary .git directory, ensure ordinary .git/worktrees exists, reject symlink or irregular/reparse .git and worktrees entries, then Confine admin into worktree. Linked .git regular file returns no admin mount."
+    },
+    {
+      "path": "control-plane/internal/api/sessions.go",
+      "lines": [
+        1340,
+        1400,
+        2159,
+        2180
+      ],
+      "contract": "Create and Restart both call sessionWorktreeAdmin and sessionMounts; primary admin mount is expected on both allocations."
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/docker.go",
+      "lines": [
+        237,
+        245,
+        275
+      ],
+      "contract": "Backend directly renders HostPath:ContainerPath and appends :ro for ReadOnly, then passes binds to Docker HostConfig. It does not independently make arbitrary source-path validation promises."
+    },
+    {
+      "path": "control-plane/internal/hostpath/hostpath.go",
+      "lines": [
+        47,
+        64,
+        74,
+        92
+      ],
+      "contract": "Confine resolves symlinks/canonical paths then tests containment. Caller Lstat is load-bearing for reparse-point refusal, including in-worktree links."
+    },
+    {
+      "path": "control-plane/internal/api/sessions_shell.go",
+      "lines": [
+        50,
+        80,
+        153,
+        155
+      ],
+      "contract": "Shell private home is a distinct state-backed mount; its presence does not justify arbitrary project-descendant binds."
+    }
+  ],
+  "finiteHelperException": {
+    "fixtureScope": "Only this fresh Linux primary-project shell fixture. Primary worktree identity/isPrimary remains established by authoritative API before launch.",
+    "require": [
+      "Exactly one bind with Source exactly join(project.path,.git,worktrees), Destination exactly /home/dev/work/.git/worktrees, RW strictly false",
+      "Require canonical owned project root; Lstat project/.git and project/.git/worktrees as ordinary directories, not symlinks; require realpath equality to expected source",
+      "Exactly one original project root bind at /home/dev/work with RW strictly true remains required",
+      "Require the admin destination only from that exact source, rejecting state-backed impostors too; reject duplicate source or duplicate destination admin mounts",
+      "Keep existing bind-only, no docker.sock, private-state containment, immutable container/instance/session/allocation/image and resource guards unchanged"
+    ],
+    "refuse": [
+      "RW or missing RW flag",
+      "Any other project descendant even read-only",
+      "Any .git or worktrees symlink, including targets within project",
+      "Wrong admin destination or raw aliased/traversal path",
+      "Duplicate/missing admin bind in this known primary fixture",
+      "State path mapped to admin destination"
+    ],
+    "noBroadening": "Do not replace project equality with project-prefix containment."
+  },
+  "sourceTestEvidenceReadOnly": [
+    {
+      "path": "control-plane/internal/api/sessions_x3_admin_test.go",
+      "tests": [
+        "TestARealWorktreeAdminDirectoryIsStillMadeAndMountedReadOnly"
+      ],
+      "scope": "Existing test source asserts exactly one expected read-only admin mount; not rerun."
+    },
+    {
+      "path": "control-plane/internal/api/sessions_x3_admin_pin_test.go",
+      "tests": [
+        "TestAWorktreeAdminSymlinkInsideTheWorktreeStillFailsTheCreate",
+        "TestAWorktreeAdminJunctionFailsTheCreateAndMountsNothing",
+        "TestAWorktreeWhoseGitIsAReparsePointFailsTheCreate"
+      ],
+      "scope": "Existing test sources reject in-project symlink and Windows junction variants before backend.Create; not rerun."
+    }
+  ],
+  "limits": [
+    "Source explicitly documents a residual directory-swap race between validation and Docker mount. Static helper inspection does not prove absence of that production TOCTOU race.",
+    "Linux-specific helper inspection is not Windows junction acceptance.",
+    "Docker inspection proves reported current mount shape, not unique host-file immutability or whole-machine safety.",
+    "No product defect inferred from the helper refusing the legitimate primary admin bind."
+  ]
+}

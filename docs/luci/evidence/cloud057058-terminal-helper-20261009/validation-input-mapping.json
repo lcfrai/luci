@@ -1,0 +1,271 @@
+{
+  "scope": "Exact historical/final declared inputs mapped to their matching retained versions; no claims of new executions",
+  "bindings": [
+    {
+      "validation": "installed-v3/problem-validation.json",
+      "declaredInput": "launch.mjs",
+      "publishedPath": "installed-v3/launch.mjs",
+      "sha256": "1def18abf3121a9a32c4d75fccd2d1eed4298b7e7ccddba4fa32aa68fc8de69f",
+      "bytes": 44255
+    },
+    {
+      "validation": "installed-v3/problem-validation.json",
+      "declaredInput": "launch-before-problem-diagnostic.mjs",
+      "publishedPath": "installed-v3/launch-before-problem-diagnostic.mjs",
+      "sha256": "d09b1f8a7b6042def93ba4cec88cd96c5be977903ad87ae93de535ba0f84cbae",
+      "bytes": 33530
+    },
+    {
+      "validation": "installed-v3/problem-validation.json",
+      "declaredInput": "scenario.mjs",
+      "publishedPath": "installed-v3/scenario.mjs",
+      "sha256": "5b089cbfc8e1886bfd0e2689454a06415e7578557c929229ae69b3f58f8ce62b",
+      "bytes": 17196
+    },
+    {
+      "validation": "installed-v3/problem-validation.json",
+      "declaredInput": "problem-diagnostic.test.mjs",
+      "publishedPath": "installed-v3/problem-diagnostic.test.mjs",
+      "sha256": "c1b6e2d40d74b5771a2b90d499e0c7e8c1859245e7b8521c6778dea4d3abe991",
+      "bytes": 6550
+    },
+    {
+      "validation": "installed-v3/problem-validation.json",
+      "declaredInput": "problem-schema-source-binding.json",
+      "publishedPath": "installed-v3/problem-schema-source-binding.json",
+      "sha256": "997ca4ea1fa4a6ccfcf2c04b421dd996a45a701b48834373a01212f73e507a61",
+      "bytes": 11378
+    },
+    {
+      "validation": "installed-v3/problem-validation.json",
+      "declaredInput": "problem-diagnostic.patch",
+      "publishedPath": "installed-v3/problem-diagnostic.patch",
+      "sha256": "5655b3611aa5275015cb531ae76b30500aa37483720cbda7f8b992817ab3b581",
+      "bytes": 16812
+    },
+    {
+      "validation": "installed-v3/problem-validation.json",
+      "declaredInput": "problem-original-final.stdout",
+      "publishedPath": "installed-v3/problem-original-final.stdout",
+      "sha256": "5678f44fdf1f477a787ddeb4afd0dc1b74b3c3326cb0143ee97eee425fd6dfbe",
+      "bytes": 7660
+    },
+    {
+      "validation": "installed-v3/problem-validation.json",
+      "declaredInput": "problem-original-final.stderr",
+      "publishedPath": "installed-v3/problem-original-final.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "validation": "installed-v3/problem-validation.json",
+      "declaredInput": "problem-draft-final.stdout",
+      "publishedPath": "installed-v3/problem-draft-final.stdout",
+      "sha256": "536a6652bb68f67589803cc106995afc506994412fc6cf37ee657e06f5766192",
+      "bytes": 2444
+    },
+    {
+      "validation": "installed-v3/problem-validation.json",
+      "declaredInput": "problem-draft-final.stderr",
+      "publishedPath": "installed-v3/problem-draft-final.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "validation": "installed-v3/problem-validation.json",
+      "declaredInput": "problem-fixed-final.stdout",
+      "publishedPath": "installed-v3/problem-fixed-final.stdout",
+      "sha256": "e9fff6713ed394c13064a6e173d7f638d84ccb0ad49c1215e30eb3f3f77d334d",
+      "bytes": 1031
+    },
+    {
+      "validation": "installed-v3/problem-validation.json",
+      "declaredInput": "problem-fixed-final.stderr",
+      "publishedPath": "installed-v3/problem-fixed-final.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "validation": "installed-v3/problem-validation.json",
+      "declaredInput": "problem-syntax.stdout",
+      "publishedPath": "installed-v3/problem-syntax.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "validation": "installed-v3/problem-validation.json",
+      "declaredInput": "problem-syntax.stderr",
+      "publishedPath": "installed-v3/problem-syntax.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "validation": "installed-v4/mount-validation.json",
+      "declaredInput": "launch.mjs",
+      "publishedPath": "installed-v4/launch.mjs",
+      "sha256": "78a2aa7c168601f6569f20af153b73728543f0dee6bd78f48a0069fe46ee9a8a",
+      "bytes": 45471
+    },
+    {
+      "validation": "installed-v4/mount-validation.json",
+      "declaredInput": "launch-before-git-guard.mjs",
+      "publishedPath": "installed-v4/launch-before-git-guard.mjs",
+      "sha256": "1def18abf3121a9a32c4d75fccd2d1eed4298b7e7ccddba4fa32aa68fc8de69f",
+      "bytes": 44255
+    },
+    {
+      "validation": "installed-v4/mount-validation.json",
+      "declaredInput": "scenario.mjs",
+      "publishedPath": "installed-v4/scenario.mjs",
+      "sha256": "5b089cbfc8e1886bfd0e2689454a06415e7578557c929229ae69b3f58f8ce62b",
+      "bytes": 17196
+    },
+    {
+      "validation": "installed-v4/mount-validation.json",
+      "declaredInput": "mount-contract.test.mjs",
+      "publishedPath": "installed-v4/mount-contract.test.mjs",
+      "sha256": "217bbba2b2b93a5abfaa4be83be5771e473188de9659c5f0d59c6dec3f36a65a",
+      "bytes": 4856
+    },
+    {
+      "validation": "installed-v4/mount-validation.json",
+      "declaredInput": "mount-original.stdout",
+      "publishedPath": "installed-v4/mount-original.stdout",
+      "sha256": "b1154fa9645f5f97a7787c1ac3910ee845b9e6d44b7cb9b7f2ff2fe85b10e019",
+      "bytes": 5009
+    },
+    {
+      "validation": "installed-v4/mount-validation.json",
+      "declaredInput": "mount-original.stderr",
+      "publishedPath": "installed-v4/mount-original.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "validation": "installed-v4/mount-validation.json",
+      "declaredInput": "mount-fixed.stdout",
+      "publishedPath": "installed-v4/mount-fixed.stdout",
+      "sha256": "bec5912f6695a226ff0b2aef9d55653d1c2a2457c378786b94645fdf53ac0721",
+      "bytes": 1288
+    },
+    {
+      "validation": "installed-v4/mount-validation.json",
+      "declaredInput": "mount-fixed.stderr",
+      "publishedPath": "installed-v4/mount-fixed.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "validation": "installed-v4/mount-validation.json",
+      "declaredInput": "mount-syntax.stdout",
+      "publishedPath": "installed-v4/mount-syntax.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "validation": "installed-v4/mount-validation.json",
+      "declaredInput": "mount-syntax.stderr",
+      "publishedPath": "installed-v4/mount-syntax.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "validation": "installed-v4/mount-validation.json",
+      "declaredInput": "mount-contract.patch",
+      "publishedPath": "installed-v4/mount-contract.patch",
+      "sha256": "0c219fdef1e96753b88bcea212728bc5336041056044102ee3d63e8596fe7d0d",
+      "bytes": 8644
+    },
+    {
+      "validation": "installed-v4/mount-validation.json",
+      "declaredInput": "mount-production-contract-review.json",
+      "publishedPath": "installed-v4/mount-production-contract-review.json",
+      "sha256": "5cfd3b1ba375d3f1001dda2a992c62f7855666655e0d34baf91aadeceb6c03a0",
+      "bytes": 6409
+    },
+    {
+      "validation": "installed-v3/problem-validation-before-error-sanitization.json",
+      "declaredInput": "launch.mjs",
+      "publishedPath": "installed-v3-draft-before-error-sanitization/launch.mjs",
+      "sha256": "9788b51822c8874967f2bc14290967d99b426f533910708e6a1f8a3653113ff8",
+      "bytes": 44170
+    },
+    {
+      "validation": "installed-v3/problem-validation-before-error-sanitization.json",
+      "declaredInput": "launch-before-problem-diagnostic.mjs",
+      "publishedPath": "installed-v3/launch-before-problem-diagnostic.mjs",
+      "sha256": "d09b1f8a7b6042def93ba4cec88cd96c5be977903ad87ae93de535ba0f84cbae",
+      "bytes": 33530
+    },
+    {
+      "validation": "installed-v3/problem-validation-before-error-sanitization.json",
+      "declaredInput": "scenario.mjs",
+      "publishedPath": "installed-v3/scenario.mjs",
+      "sha256": "5b089cbfc8e1886bfd0e2689454a06415e7578557c929229ae69b3f58f8ce62b",
+      "bytes": 17196
+    },
+    {
+      "validation": "installed-v3/problem-validation-before-error-sanitization.json",
+      "declaredInput": "problem-diagnostic.test.mjs",
+      "publishedPath": "installed-v3-draft-before-error-sanitization/problem-diagnostic.test.mjs",
+      "sha256": "72047d0464f8afd84d37b6048ad7e02a65a3ecc40e86d37054996b614bca8120",
+      "bytes": 5783
+    },
+    {
+      "validation": "installed-v3/problem-validation-before-error-sanitization.json",
+      "declaredInput": "problem-schema-source-binding.json",
+      "publishedPath": "installed-v3/problem-schema-source-binding.json",
+      "sha256": "997ca4ea1fa4a6ccfcf2c04b421dd996a45a701b48834373a01212f73e507a61",
+      "bytes": 11378
+    },
+    {
+      "validation": "installed-v3/problem-validation-before-error-sanitization.json",
+      "declaredInput": "problem-original.stdout",
+      "publishedPath": "installed-v3-draft-before-error-sanitization/problem-original.stdout",
+      "sha256": "203884511df77c6c539008bb73d9d582e886fd4559c5d0b6c496f48aaca0923c",
+      "bytes": 5809
+    },
+    {
+      "validation": "installed-v3/problem-validation-before-error-sanitization.json",
+      "declaredInput": "problem-original.stderr",
+      "publishedPath": "installed-v3-draft-before-error-sanitization/problem-original.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "validation": "installed-v3/problem-validation-before-error-sanitization.json",
+      "declaredInput": "problem-fixed.stdout",
+      "publishedPath": "installed-v3-draft-before-error-sanitization/problem-fixed.stdout",
+      "sha256": "595178ce8d42575602eadc9cdbde22ed1ea80e01643028c3af66070e1497811e",
+      "bytes": 841
+    },
+    {
+      "validation": "installed-v3/problem-validation-before-error-sanitization.json",
+      "declaredInput": "problem-fixed.stderr",
+      "publishedPath": "installed-v3-draft-before-error-sanitization/problem-fixed.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "validation": "installed-v3/problem-validation-before-error-sanitization.json",
+      "declaredInput": "problem-syntax.stdout",
+      "publishedPath": "installed-v3/problem-syntax.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "validation": "installed-v3/problem-validation-before-error-sanitization.json",
+      "declaredInput": "problem-syntax.stderr",
+      "publishedPath": "installed-v3/problem-syntax.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "validation": "installed-v3/problem-validation-before-error-sanitization.json",
+      "declaredInput": "problem-diagnostic.patch",
+      "publishedPath": "derived/problem-diagnostic-before-sanitization.patch",
+      "sha256": "2d7203f1b636e05d866d29add1be462a3fd94e9407fcb6f6546651df2eefb41b",
+      "bytes": 16727
+    }
+  ]
+}

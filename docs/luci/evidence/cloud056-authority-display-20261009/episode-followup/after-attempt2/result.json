@@ -1,0 +1,21 @@
+{
+  "mode": "after",
+  "command": [
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--config",
+    "/workspace/.luci-tools/session-authority-review-edd0/episode-followup/config.mts",
+    "--maxWorkers=1",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/session-authority-review-edd0/episode-followup/after-attempt2/report.json"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "elapsedSeconds": 3.512913942337036,
+  "repositoryInputCount": 43,
+  "sourceStable": true,
+  "node": "v24.19.0",
+  "npm": "11.9.0",
+  "ownedRootExited": true
+}

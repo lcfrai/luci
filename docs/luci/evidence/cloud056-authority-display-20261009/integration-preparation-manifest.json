@@ -1,0 +1,27 @@
+{
+  "preparedOnly": true,
+  "commandsExecuted": false,
+  "finalTestChange": "Absolute staging imports were already rewritten in original repo-ready; final removes only the unused default React import. No test logic changed.",
+  "files": [
+    {
+      "path": "repo-ready/desktop/src/components/teams/TeamWorkspaceAuthority.test.tsx",
+      "bytes": 14269,
+      "sha256": "3c2f4c0e0f806fc5e2b61fb07551bafbbfc65397471e775243a6e192574dd118"
+    },
+    {
+      "path": "repo-ready-final/desktop/src/components/teams/TeamWorkspaceAuthority.test.tsx",
+      "bytes": 14262,
+      "sha256": "d9daabc477ce67c296d96472017a9fbf183594e2d4c140d800907e935ed26cee"
+    },
+    {
+      "path": "validate-integrated.py",
+      "bytes": 5869,
+      "sha256": "2459fc74e02543ee6ae6c1d6c608527594dc35921c0385aafbc633126324c5f6"
+    },
+    {
+      "path": "INTEGRATION-VALIDATION.md",
+      "bytes": 2105,
+      "sha256": "41fa6a1accd63fc62ec62e61557f8b6cefbf8cfd9cb2dbff58a72fcabdce1d05"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "scope": "Derived byte-equivalent artifact, not a newly found original file",
+  "artifact": {
+    "path": "derived/problem-diagnostic-before-sanitization.patch",
+    "bytes": 16727,
+    "sha256": "2d7203f1b636e05d866d29add1be462a3fd94e9407fcb6f6546651df2eefb41b"
+  },
+  "matchesHistoricalDeclaration": {
+    "bytes": 16727,
+    "sha256": "2d7203f1b636e05d866d29add1be462a3fd94e9407fcb6f6546651df2eefb41b"
+  },
+  "from": "installed-v2/launch.mjs",
+  "to": "installed-v3-draft-before-error-sanitization/launch.mjs",
+  "method": "Python difflib.unified_diff, original installed-v2/launch.mjs and installed-v3/launch.mjs headers"
+}

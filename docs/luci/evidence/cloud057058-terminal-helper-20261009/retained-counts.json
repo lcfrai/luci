@@ -1,0 +1,150 @@
+{
+  "method": "Recount reporter summary lines from exact copied originals, without execution",
+  "overlap": "Each original/draft/fixed round uses repeated related cases; counts are not additive unique coverage",
+  "rows": [
+    {
+      "path": "installed-v3/problem-draft-final.stdout",
+      "sha256": "536a6652bb68f67589803cc106995afc506994412fc6cf37ee657e06f5766192",
+      "counts": {
+        "tests": 10,
+        "pass": 8,
+        "fail": 2,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "path": "installed-v3/problem-draft-long-marker.stdout",
+      "sha256": "ce54470fe600f5f2afd6f86d8fc4bbfe9b6388cdb0366793f14dbd649634d5e9",
+      "counts": {
+        "tests": 10,
+        "pass": 9,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "path": "installed-v3/problem-fixed-final.stdout",
+      "sha256": "e9fff6713ed394c13064a6e173d7f638d84ccb0ad49c1215e30eb3f3f77d334d",
+      "counts": {
+        "tests": 10,
+        "pass": 10,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "path": "installed-v3/problem-fixed-long-marker.stdout",
+      "sha256": "b1f45e5467ca9d006a38ff26e24606eea6816d75ac393328db78cb24b5dac6ea",
+      "counts": {
+        "tests": 10,
+        "pass": 10,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "path": "installed-v3/problem-fixed.stdout",
+      "sha256": "595178ce8d42575602eadc9cdbde22ed1ea80e01643028c3af66070e1497811e",
+      "counts": {
+        "tests": 8,
+        "pass": 8,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "path": "installed-v3/problem-original-final.stdout",
+      "sha256": "5678f44fdf1f477a787ddeb4afd0dc1b74b3c3326cb0143ee97eee425fd6dfbe",
+      "counts": {
+        "tests": 10,
+        "pass": 2,
+        "fail": 8,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "path": "installed-v3/problem-original-long-marker.stdout",
+      "sha256": "4dafa4c75fc6804fd9aaf98a0002b7352696ecdc8c4e271798b20d2325a2238b",
+      "counts": {
+        "tests": 10,
+        "pass": 2,
+        "fail": 8,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "path": "installed-v3/problem-original.stdout",
+      "sha256": "203884511df77c6c539008bb73d9d582e886fd4559c5d0b6c496f48aaca0923c",
+      "counts": {
+        "tests": 8,
+        "pass": 2,
+        "fail": 6,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "path": "installed-v3-draft-before-error-sanitization/problem-fixed.stdout",
+      "sha256": "595178ce8d42575602eadc9cdbde22ed1ea80e01643028c3af66070e1497811e",
+      "counts": {
+        "tests": 8,
+        "pass": 8,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "path": "installed-v3-draft-before-error-sanitization/problem-original.stdout",
+      "sha256": "203884511df77c6c539008bb73d9d582e886fd4559c5d0b6c496f48aaca0923c",
+      "counts": {
+        "tests": 8,
+        "pass": 2,
+        "fail": 6,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "path": "installed-v4/mount-fixed.stdout",
+      "sha256": "bec5912f6695a226ff0b2aef9d55653d1c2a2457c378786b94645fdf53ac0721",
+      "counts": {
+        "tests": 21,
+        "pass": 21,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "path": "installed-v4/mount-original.stdout",
+      "sha256": "b1154fa9645f5f97a7787c1ac3910ee845b9e6d44b7cb9b7f2ff2fe85b10e019",
+      "counts": {
+        "tests": 21,
+        "pass": 18,
+        "fail": 3,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+# CLOUD-056 denied-episode followup
+
+Apply `combined-followup-final.patch` against the root's already integrated initial C056 correction. It changes only TeamWorkspaceProvider and its new TeamWorkspaceAuthority regression. Production edit coalesces an entire blocked episode, while each repeated denial still replaces the episode identity to fence stale membership/catalogue success. Explicit Retry, window focus and the existing60second membership refresh still run. After successful recovery clears the episode, a subsequent denial triggers its new automatic revalidation.
+
+The final repo test uses a correctly typed `Mock<typeof fetch>`/`vi.fn<typeof fetch>` fixture instead of the overbroad constructable-or-procedure mock union which caused initial integrated TypeScript failure. No cast-any hides incompatibility. Original root TypeScript error remains in `../integrated-validation/`; its383/383 frontend result and successful small Go403 control are unaffected historical outcomes, not a final aggregate pass.
+
+Four meaningful followup cases are appended to the existing fourteen regressions (final18case assembly not yet run). Controlled same-before/after run uses the exact reviewed baseline provider versus the one-block correction. It demonstrates original membership-call counts7vs2,5vs2,and33vs4 across settled refusals; corrected source satisfies these counts and retains Retry, focus, periodic refresh, renewed episodes, historical buffer, and repeated-denial stale-success protection. Final controlled result: **before1pass/3expected failures; after4/4pass**,4.650/3.513seconds,43 selected repository inputs unchanged, singleworker, no timeout.
+
+Initial followup attempt1 is preserved: before0/4 and after4/4. Its fourth original visibility assertion was confounded by the fake's default subsequent successful membership read; that is not a valid stale-response product counterexample. Attempt2 changes only that control's fallback to persist absent membership. The meaningful stale-success control now passes on both versions. All other three original failures persist exactly. Counts overlap, not cumulative.
+
+No repository edits or real browser/app/Docker/provider were performed by this subagent. Parent owns final patch application and combined affected/TypeScript validation. Do not rerun the unaffected Go control merely for this UI episode change. Hidden mounted readers can still perform independent server-guarded reads; the change only coalesces denial-triggered membership refresh, not all network traffic.
+
+Final manifestSHA256 `aa330ec95f6fbf6b7b7ddd6ea7e9e7e8be338b3daba8634fee84417c2fffc891`.

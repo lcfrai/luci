@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "issue": "CLOUD-057",
+  "product": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "scope": "exact extracted request/projection in isolated Node VM with fake fetch; no app, HTTP, Docker or provider",
+  "original": {
+    "exitCode": 1,
+    "tests": 8,
+    "passed": 2,
+    "failed": 6,
+    "env": "C057_ORIGINAL=1"
+  },
+  "fixed": {
+    "exitCode": 0,
+    "tests": 8,
+    "passed": 8,
+    "failed": 0
+  },
+  "commands": [
+    "C057_ORIGINAL=1 node --test --test-concurrency=1 problem-diagnostic.test.mjs",
+    "node --test --test-concurrency=1 problem-diagnostic.test.mjs",
+    "node --check launch.mjs"
+  ],
+  "syntaxExit": 0,
+  "inputs": {
+    "launch.mjs": {
+      "bytes": 44170,
+      "sha256": "9788b51822c8874967f2bc14290967d99b426f533910708e6a1f8a3653113ff8"
+    },
+    "launch-before-problem-diagnostic.mjs": {
+      "bytes": 33530,
+      "sha256": "d09b1f8a7b6042def93ba4cec88cd96c5be977903ad87ae93de535ba0f84cbae"
+    },
+    "scenario.mjs": {
+      "bytes": 17196,
+      "sha256": "5b089cbfc8e1886bfd0e2689454a06415e7578557c929229ae69b3f58f8ce62b"
+    },
+    "problem-diagnostic.test.mjs": {
+      "bytes": 5783,
+      "sha256": "72047d0464f8afd84d37b6048ad7e02a65a3ecc40e86d37054996b614bca8120"
+    },
+    "problem-schema-source-binding.json": {
+      "bytes": 11378,
+      "sha256": "997ca4ea1fa4a6ccfcf2c04b421dd996a45a701b48834373a01212f73e507a61"
+    },
+    "problem-original.stdout": {
+      "bytes": 5809,
+      "sha256": "203884511df77c6c539008bb73d9d582e886fd4559c5d0b6c496f48aaca0923c"
+    },
+    "problem-original.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "problem-fixed.stdout": {
+      "bytes": 841,
+      "sha256": "595178ce8d42575602eadc9cdbde22ed1ea80e01643028c3af66070e1497811e"
+    },
+    "problem-fixed.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "problem-syntax.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "problem-syntax.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "problem-diagnostic.patch": {
+      "bytes": 16727,
+      "sha256": "2d7203f1b636e05d866d29add1be462a3fd94e9407fcb6f6546651df2eefb41b"
+    }
+  },
+  "scenarioUnchanged": true,
+  "originalAttemptBody": "unavailable; no reconstruction or numerical admission inference",
+  "noInstalledRun": true
+}

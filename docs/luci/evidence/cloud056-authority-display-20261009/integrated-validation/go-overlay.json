@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "/workspace/luci/control-plane/internal/management/cloud056_external_denial_contract_test.go": "/workspace/.luci-tools/session-authority-review-edd0/team_session_denial_contract_test.go"
+  }
+}

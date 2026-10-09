@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "sourceProduct": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "checkedOutRevision": "8c7bf16aa035b27dbea185b565052495eb60777f",
+  "scope": "Single controlled production HTTP/ledger ordered recovery plus separately charged workspace; no installed/native/provider or release pass.",
+  "members": [
+    {
+      "path": "CONTROLLED-RESULT.json",
+      "bytes": 3728,
+      "sha256": "939038c6307e28502b14e4a2f247d5b0c121edc610579ecc70f8b6f49c71f6bc"
+    },
+    {
+      "path": "CONTROLLED-RESULT.md",
+      "bytes": 1799,
+      "sha256": "14e9a67820a52ae0ff5702144bef327a100f0b2b6e73f62fe5137fd6c09dc568"
+    },
+    {
+      "path": "README.md",
+      "bytes": 6298,
+      "sha256": "fb6bb662e12918154959185e1b2ffff37c0ebcb23855e321278692d5136565e1"
+    },
+    {
+      "path": "candidate/control-plane/internal/api/project_check_order_witness_test.go",
+      "bytes": 8982,
+      "sha256": "2735ee8490d19997d08c38577ce3b3e3bc3039282a09e865348e24665246fd9d"
+    },
+    {
+      "path": "external-inputs/go.work",
+      "bytes": 76,
+      "sha256": "0ac5f5af6697615a6cad94517240e18a750fe8f0160b22e755e2c9b348c18cd7"
+    },
+    {
+      "path": "run-1/command.json",
+      "bytes": 788,
+      "sha256": "a64be9b426b4c1918fd3444a0a4fcef03a5871c05ba5204787480a60c20e1e96"
+    },
+    {
+      "path": "run-1/formatted-draft.go",
+      "bytes": 8973,
+      "sha256": "11aaf0345d13ea309a7a82e940de8136af60dfb76b611fd53d11087ef9caaf65"
+    },
+    {
+      "path": "run-1/original-draft.go",
+      "bytes": 8912,
+      "sha256": "a4abeb19250cdb5372cf6c26d76e96f37f8f150e1bde39bd14342c0c532e29c6"
+    },
+    {
+      "path": "run-1/overlay.json",
+      "bytes": 190,
+      "sha256": "f3ea6d77607792f6f2405e94d8e6a34058cd71da4f9c83ceefe378cf16926a07"
+    },
+    {
+      "path": "run-1/result.json",
+      "bytes": 2547,
+      "sha256": "cc24dbfdfc9a881e9bb2d82d997799d201e5dfbda72af1c5597c35a5f55ad40f"
+    },
+    {
+      "path": "run-1/run.py",
+      "bytes": 3540,
+      "sha256": "9acad8b92c626eaa72067a1f5ac1877bef2ce38a524924c9241bfcd5b476b1f0"
+    },
+    {
+      "path": "run-1/source-after.json",
+      "bytes": 197512,
+      "sha256": "bb4ec5eff5eb440d3bfd1c22cb64f3e6abb3dd079726b9cc1c069ec3e419a913"
+    },
+    {
+      "path": "run-1/source-before.json",
+      "bytes": 197512,
+      "sha256": "aee3b2e0d1caa5ac7ec66b1f74f2c8b0a593340e6757d8ff58faf634dcbeac33"
+    },
+    {
+      "path": "run-1/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "run-1/test.jsonl",
+      "bytes": 1568,
+      "sha256": "d2e9dff0a47b7d446917d103b6f48d3db07a989693fd6c038a6223fd86d1a362"
+    },
+    {
+      "path": "source-binding-summary.json",
+      "bytes": 1286,
+      "sha256": "ad5845d96bd013c45f4dade6690c389e022199bbc974a9777e47688a0fcc619f"
+    },
+    {
+      "path": "tested-to-integration-comment-only.patch",
+      "bytes": 627,
+      "sha256": "9873c63b787833cf8d73e6745254f5522de1945f5b32f0d2a7c34b4fd4150b91"
+    }
+  ]
+}

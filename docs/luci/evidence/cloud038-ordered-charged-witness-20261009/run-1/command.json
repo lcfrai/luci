@@ -1,0 +1,29 @@
+{
+  "startedAt": "2026-10-09T11:51:12.926340+00:00",
+  "cwd": "/workspace/luci/control-plane",
+  "command": [
+    "go",
+    "test",
+    "-race",
+    "-p",
+    "1",
+    "-count=1",
+    "-timeout=170s",
+    "-json",
+    "-overlay=/workspace/.luci-tools/recovery-order-gate-edd0/run-1/overlay.json",
+    "-run",
+    "^TestProjectCheckOriginalReviewPreservesSeparatePendingWorkspace$",
+    "./internal/api"
+  ],
+  "env": {
+    "GOMAXPROCS": "2",
+    "GOFLAGS": "-mod=readonly",
+    "GOWORK": "/workspace/.luci-tools/go.work",
+    "GOTOOLCHAIN": "local"
+  },
+  "goVersion": "go version go1.26.3 linux/amd64",
+  "outerDeadlineSeconds": 180,
+  "goTestTimeoutSeconds": 170,
+  "scope": "Single controlled fixture regression; no application/browser/Docker/provider execution.",
+  "forced": false
+}

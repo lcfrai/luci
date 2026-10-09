@@ -1,0 +1,42 @@
+[
+  {
+    "path": "before.tsx",
+    "bytes": 14647,
+    "sha256": "11d8dc458ce6063ebfc9a0937fb2408f39bd253bfb258ce9816663a33dc49acc"
+  },
+  {
+    "path": "after.tsx",
+    "bytes": 14932,
+    "sha256": "af1b2e23ec79bc5627595ec163ba6894be9f258485339d1ac6049991b966ac60"
+  },
+  {
+    "path": "authority-test-before.tsx",
+    "bytes": 14262,
+    "sha256": "d9daabc477ce67c296d96472017a9fbf183594e2d4c140d800907e935ed26cee"
+  },
+  {
+    "path": "authority-test-after.tsx",
+    "bytes": 14257,
+    "sha256": "d656b8f9a49d6bca608bef91376c9f6c8783cf243c2c579df6bc08de2bf05c42"
+  },
+  {
+    "path": "episode.test.tsx",
+    "bytes": 9567,
+    "sha256": "5f7706fdfc49973bcd06a5a5c513d173f8dfa78fd45a37ead0cae3664476ec56"
+  },
+  {
+    "path": "config.mts",
+    "bytes": 925,
+    "sha256": "4511422db98d5dd3f1a0ece6320be1ae8b0f80f33aa7ea75fb00cfbe00fdb592"
+  },
+  {
+    "path": "run.py",
+    "bytes": 2440,
+    "sha256": "1b5d75fdfba165a447a7cc181e2ff927180dea122decae1ee47e68cfe22a4ef3"
+  },
+  {
+    "path": "combined-followup.patch",
+    "bytes": 3474,
+    "sha256": "672e8dcff9f00277b64e5edaea392cd6f6ebe13f58158a464bfc85f55e31455a"
+  }
+]

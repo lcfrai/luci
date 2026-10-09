@@ -1,0 +1,12 @@
+--- tested/formatted-draft.go
++++ control-plane/internal/api/project_check_order_witness_test.go
+@@ -1,6 +1,6 @@
+-// UNRUN DRAFT for package api at edd0cb121ff6847f681ab6bf41509a497f043d41.
+-// Not installed evidence and not a replacement for the existing CLOUD-038 test.
+-// Adds a separately HTTP-created charged peer to that test's ordered recovery.
++// Controlled production HTTP/ledger regression, using controlled backend replies.
++// It adds a separately charged workspace to the original ordered recovery test;
++// it does not establish installed Docker, native UI or real-provider acceptance.
+ package api
+ 
+ import (

@@ -1,0 +1,21 @@
+{
+  "command": [
+    "go",
+    "test",
+    "-overlay=/workspace/.luci-tools/session-authority-review-edd0/integrated-validation/go-overlay.json",
+    "-p=1",
+    "-count=1",
+    "-timeout=90s",
+    "-run=^TestCloud056FreshMembershipRemovalReturnsAuthoritativeSessionListDenial$",
+    "-json",
+    "./internal/management"
+  ],
+  "cwd": "/workspace/luci/control-plane",
+  "exitCode": 0,
+  "timedOut": false,
+  "forced": false,
+  "elapsedSeconds": 8.918761014938354,
+  "ownedRootPID": 2413079,
+  "rootWaited": true,
+  "processTreeClosure": "Process-group signals only on timeout; no whole-machine/process census claim"
+}

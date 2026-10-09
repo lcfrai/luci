@@ -1,0 +1,18 @@
+{
+  "command": [
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--config",
+    "/workspace/.luci-tools/session-authority-review-edd0/vitest.config.ts",
+    "--maxWorkers=1",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/session-authority-review-edd0/original-attempt1/report.json"
+  ],
+  "elapsedSeconds": 6.476102113723755,
+  "exitCode": 1,
+  "timedOut": false,
+  "sourceStable": true,
+  "head": "8c7bf16aa035b27dbea185b565052495eb60777f",
+  "sourceCount": 42
+}

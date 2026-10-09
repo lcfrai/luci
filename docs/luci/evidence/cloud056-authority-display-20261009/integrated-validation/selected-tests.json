@@ -1,0 +1,16 @@
+[
+  "src/components/teams/TeamWorkspaceAuthority.test.tsx",
+  "src/components/teams/TeamWorkspaceProvider.test.tsx",
+  "src/api/client.test.ts",
+  "src/api/authTransport.test.ts",
+  "src/api/teamScope.test.ts",
+  "src/api/poller.test.ts",
+  "src/api/poller.generation.test.ts",
+  "src/api/attachRegistry.test.ts",
+  "src/api/attachRegistry.exit.test.ts",
+  "src/api/attachRegistry.overload-generation.test.ts",
+  "src/components/Terminal.test.tsx",
+  "src/components/develop/SessionPane.test.tsx",
+  "src/components/develop/SessionPermissions.test.tsx",
+  "src/components/auth/AuthProvider.test.tsx"
+]

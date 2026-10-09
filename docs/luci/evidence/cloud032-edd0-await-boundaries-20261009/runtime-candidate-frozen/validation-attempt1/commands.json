@@ -1,0 +1,40 @@
+{
+  "scope": "Inert endpoint/static/source checks only; no Docker, app, browser, worker or benchmark launched.",
+  "commands": [
+    {
+      "command": [
+        "python3",
+        "/workspace/.luci-tools/cloud032-await-boundary-edd0-runtime-v1/test_integration.py"
+      ],
+      "exitCode": 0
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "/workspace/.luci-tools/cloud032-await-boundary-edd0-runtime-v1/actual/sustained.mjs"
+      ],
+      "exitCode": 0
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "/workspace/.luci-tools/cloud032-await-boundary-edd0-runtime-v1/mark-candidate/export-boundaries.mjs"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "pythonCompile": [
+    "prepare.py",
+    "launch.py"
+  ],
+  "completedAt": "2026-10-09T11:53:36.295357+00:00",
+  "sourceSHA256": {
+    "prepare.py": "b64464925902e508e4f3ba67becdb7f3c575126d04b13ffac58406673017e30b",
+    "launch.py": "68021687394f93881d4da3061115b17fdc74c970be07e20dad99832d322a4c95",
+    "test_integration.py": "019956b31cd0a3b5ca3f3653a9bd606ca5f0257287f1d23813bccf5a4f22ffff",
+    "actual/sustained.mjs": "b737aef09b0764fc65493f7d140cb5ae8580d9b88b7100baee635dbbea798bd0",
+    "actual/external-source-binding.json": "d2fb6b833c57fca96b56560360aa2e150b4f78b8e4c9eccc0a9e50baccf4c56b"
+  }
+}

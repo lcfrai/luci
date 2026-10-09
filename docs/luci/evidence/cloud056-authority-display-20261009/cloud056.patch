@@ -1,0 +1,167 @@
+--- a/desktop/src/api/client.ts
++++ b/desktop/src/api/client.ts
+@@ -1,4 +1,4 @@
+-import { workspacePath, teamScopePrefix, teamScopeGeneration } from './teamScope';
++import { workspacePath, teamScopePrefix, teamScopeGeneration, reportTeamAccessDenied } from './teamScope';
+ // desktop/src/api/client.ts
+ //
+ // The typed control-plane client — contract §4. One exported function per Go endpoint;
+@@ -375,7 +375,14 @@
+         text: await res.text(),
+       };
+       if (scopeGeneration !== teamScopeGeneration()) throw new ApiError("conflict", "The workspace changed while this response was loading.", 409);
+-      if (!res.ok) throw toProblem(reply);
++      if (!res.ok) {
++        const problem = toProblem(reply);
++        // Only this unfiltered team catalogue's exact membership refusal can
++        // invalidate the workspace display. Both response scope fences above
++        // already passed; origin/host errors and project refusals stay local.
++        if (method === 'GET' && route === '/v1/sessions' && res.status === 403 && String(problem.code) === 'team_access_denied') reportTeamAccessDenied(scopeGeneration);
++        throw problem;
++      }
+       return reply;
+     } catch (cause) {
+       if (cause instanceof ApiError) throw cause;
+--- a/desktop/src/api/teamScope.ts
++++ b/desktop/src/api/teamScope.ts
+@@ -1,6 +1,13 @@
+ // Workspace selection changes request paths, never authentication identity.
+ // The server resolves membership again for every request and socket upgrade.
+ export const TEAM_WORKSPACE_CHANGED = 'luci-team-workspace-changed';
++export const TEAM_WORKSPACE_ACCESS_DENIED = 'luci-team-workspace-access-denied';
++export interface TeamAccessDenial { teamId: string; generation: number }
++/** A confirmed catalogue membership denial, never a generic403 or a new grant. */
++export function reportTeamAccessDenied(requestGeneration: number): void {
++  if (!teamId || requestGeneration !== generation || typeof window === 'undefined') return;
++  window.dispatchEvent(new CustomEvent<TeamAccessDenial>(TEAM_WORKSPACE_ACCESS_DENIED, { detail: { teamId, generation } }));
++}
+ let teamId = '';
+ let generation = 0;
+ export function selectedTeamId() { return teamId; }
+--- a/desktop/src/components/teams/TeamWorkspaceProvider.tsx
++++ b/desktop/src/components/teams/TeamWorkspaceProvider.tsx
+@@ -2,7 +2,9 @@
+ import { teamsApi, noPermissions, personalPermissions, type TeamSummary, type TeamPermissions } from '../../api/teams';
+ import { productApi, errorText } from '../../api/product';
+ import { ApiError } from '../../api/client';
+-import { selectTeamScope, selectedTeamId } from '../../api/teamScope';
++import { selectTeamScope, selectedTeamId, teamScopeGeneration, TEAM_WORKSPACE_ACCESS_DENIED, type TeamAccessDenial } from '../../api/teamScope';
++import { api } from '../../api';
++import { coveredWorktreeIds } from '../../api/poller';
+ import { teamWorkspaceStorageKey } from '../../api/teamWorkspacePreference';
+ import { detachAllTerminals } from '../../api/attachRegistry';
+ import { resetCockpit, useCockpit } from '../../store/store';
+@@ -13,6 +15,8 @@
+ import './teams.css';
+ interface TeamWorkspaceValue {
+   teams: TeamSummary[]; selected: TeamSummary | null; teamId: string; managedTeamId: string; revision: number;
++  /** A reversible display/stream barrier; cached drafts remain mounted. */
++  accessBlocked?: boolean;
+   refresh(): Promise<void>; select(id: string): void;
+ }
+ const TeamWorkspaceContext = createContext<TeamWorkspaceValue | null>(null);
+@@ -42,30 +46,76 @@
+   const [signOutError,setSignOutError] = useState('');
+   const request = useRef(0);
+   const active = useRef('');
++  const deniedScope = useRef<TeamAccessDenial | null>(null);
++  const denialRefresh = useRef(false);
+   const drafts = useCockpit(s=>s.unsavedProjectDrafts);
+   const apply = useCallback((id:string, initial=false) => {
+     detachAllTerminals();
+     let sameStoredScope=false;
+     try { sameStoredScope=localStorage.getItem(storageKey+'.cockpit')===id; } catch { /* Re-fetch without restoring navigation. */ }
+     if(!initial||!sameStoredScope) resetCockpit();
+-    selectTeamScope(id); active.current=id;
++    selectTeamScope(id); active.current=id; deniedScope.current=null; denialRefresh.current=false;
+     setSelected(id); setEpoch(v=>v+1); setError(''); setBlocked(false); setPending(null);
+     try { localStorage.setItem(storageKey,id); localStorage.setItem(storageKey+'.cockpit',id); } catch { /* Selection can remain session-only. */ }
+   },[storageKey]);
+   const refresh = useCallback(async()=>{
+     const attempt=++request.current;
++    const scope=active.current, scopeGeneration=teamScopeGeneration();
++    const denial=deniedScope.current;
++    const current=()=>attempt===request.current && scope===active.current && scopeGeneration===teamScopeGeneration() && denial===deniedScope.current;
+     try {
+       const result=await teamsApi.list();
+-      if(attempt!==request.current)return;
++      if(!current())return;
++      if(result.managedTeamId && result.managedTeamId!==scope) {
++        detachAllTerminals(); setBlocked(true); setError('This service is bound to a different team. Reopen Luci to load its workspace.');
++      } else if(scope && !result.teams.some(row=>row.team.id===scope)) {
++        detachAllTerminals(); setBlocked(true); setError(result.managedTeamId?'You no longer have access to this team. Your saved work remains with the team. Ask a team owner to restore your access.':'You no longer have access to this team. Your saved work remains with the team. Choose another workspace to continue.');
++      } else {
++        if(denial) {
++          // Restoring membership does not restore project grants. Keep the
++          // display closed until fresh, bounded catalogues prove visibility.
++          const baseline=useCockpit.getState().sessions;
++          const [projects,sessions]=await Promise.all([api.listProjects(),api.listSessions()]);
++          if(!current())return;
++          const state=useCockpit.getState();
++          const visible=new Set(sessions.map(row=>row.id));
++          const accepted=sessions.flatMap(row=>{
++            const changed=baseline[row.id]!==state.sessions[row.id];
++            const now=state.sessions[row.id];
++            if(!changed)return [row];
++            // Preserve a newer allocation/mutation only while the fresh
++            // collection still confirms its exact readable session scope.
++            return now && visible.has(now.id) && now.machineId===row.machineId && now.projectId===row.projectId && now.branchId===row.branchId && now.worktreeId===row.worktreeId && now.attachPath===row.attachPath ? [now] : [];
++          });
++          state.setProjects(projects);
++          const remaining=useCockpit.getState();
++          const projectIds=new Set(projects.map(row=>row.id));
++          const readable=accepted.filter(row=>projectIds.has(row.projectId) || row.authOnly && row.projectId==='');
++          remaining.replaceSessions(readable,coveredWorktreeIds(Object.keys(remaining.sessionIdsByWorktree),readable));
++          deniedScope.current=null;
++        }
++        setError('');setBlocked(false);
++      }
++      if(attempt!==request.current || scope!==active.current || scopeGeneration!==teamScopeGeneration())return;
+       setManagedTeamId(result.managedTeamId??'');
+       setTeams(result.teams); setRevision(v=>v+1);
+-      if(result.managedTeamId && result.managedTeamId!==active.current) {
+-        detachAllTerminals(); setBlocked(true); setError('This service is bound to a different team. Reopen Luci to load its workspace.');
+-      } else if(active.current && !result.teams.some(row=>row.team.id===active.current)) {
+-        detachAllTerminals(); setBlocked(true); setError(result.managedTeamId?'You no longer have access to this team. Your saved work remains with the team. Ask a team owner to restore your access.':'You no longer have access to this team. Your saved work remains with the team. Choose another workspace to continue.');
+-      } else { setError('');setBlocked(false); }
+-    } catch(cause) { if(attempt===request.current)setError(errorText(cause)); throw cause; }
++    } catch(cause) { if(current())setError(errorText(cause)); throw cause; }
+   },[]);
++  useEffect(()=>{
++    const denied=(event:Event)=>{
++      const detail=(event as CustomEvent<TeamAccessDenial>).detail;
++      if(!detail || detail.teamId!==active.current || !detail.teamId || detail.generation!==teamScopeGeneration())return;
++      // Object identity fences an older membership/catalogue success even when
++      // a second denial arrives during the coalesced revalidation.
++      deniedScope.current={teamId:detail.teamId,generation:detail.generation};
++      setBlocked(true);setError('Workspace access changed. Refresh current membership and project access to continue.');
++      if(denialRefresh.current)return;
++      denialRefresh.current=true;
++      void refresh().catch(()=>{}).finally(()=>{denialRefresh.current=false;});
++    };
++    window.addEventListener(TEAM_WORKSPACE_ACCESS_DENIED,denied);
++    return()=>window.removeEventListener(TEAM_WORKSPACE_ACCESS_DENIED,denied);
++  },[refresh]);
+   useEffect(()=>{
+     let live=true;
+     setReady(false); setError('');
+@@ -98,7 +148,7 @@
+   },[managedTeamId,apply]);
+   // Draft dialog updates do not change workspace context. Access refreshes still
+   // publish their revision so every project revalidates its current permissions.
+-  const value=useMemo(()=>({teams,selected:teams.find(row=>row.team.id===selected)??null,teamId:selected,managedTeamId,revision,refresh,select}),[teams,selected,managedTeamId,revision,refresh,select]);
++  const value=useMemo(()=>({teams,selected:teams.find(row=>row.team.id===selected)??null,teamId:selected,managedTeamId,revision,accessBlocked:blocked,refresh,select}),[teams,selected,managedTeamId,revision,blocked,refresh,select]);
+   const retained=Object.values(drafts).every(draft=>draft.retained);
+   const localSetup=Object.values(drafts).some(draft=>draft.purpose==='verification-setup');
+   return <TeamWorkspaceContext.Provider value={value}>
+@@ -140,6 +190,10 @@
+     return()=>{live=false;};
+   },[teamId,projectId,scope,key]);
+   if(!teamId)return {permissions:personalPermissions,loading:false,error:''};
++  // The provider hides the whole workspace while retaining mounted editors.
++  // Keep only its prior read projection to preserve drafts. Writes and terminal
++  // execution pause; hidden mounted readers may still perform guarded reads.
++  if(workspace?.accessBlocked)return {permissions:{...noPermissions,read:result?.scope===scope&&result.permissions.read},loading:false,error:'Workspace access must be refreshed before continuing.'};
+   if(!projectId)return {permissions:workspace?.selected?.permissions??noPermissions,loading:false,error:''};
+   if(result?.key===key)return {permissions:result.permissions,loading:false,error:result.error};
+   // Revalidating the same project must not unmount its editors and discard drafts.

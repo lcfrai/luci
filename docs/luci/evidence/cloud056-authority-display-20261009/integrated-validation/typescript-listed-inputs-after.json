@@ -1,0 +1,3402 @@
+[
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es5.d.ts",
+    "bytes": 218972,
+    "sha256": "bcd24271a113971ba9eb71ff8cb01bc6b0f872a85c23fdbe5d93065b375933cd"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2015.d.ts",
+    "bytes": 1202,
+    "sha256": "3f88bedbeb09c6f5a6645cb24c7c55f1aa22d19ae96c8e6959cbd8b85a707bc6"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2016.d.ts",
+    "bytes": 926,
+    "sha256": "7fe93b39b810eadd916be8db880dd7f0f7012a5cc6ffb62de8f62a2117fa6f1f"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2017.d.ts",
+    "bytes": 1123,
+    "sha256": "bb0074cc08b84a2374af33d8bf044b80851ccc9e719a5e202eacf40db2c31600"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2018.d.ts",
+    "bytes": 1049,
+    "sha256": "1a7daebe4f45fb03d9ec53d60008fbf9ac45a697fdc89e4ce218bc94b94f94d6"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2019.d.ts",
+    "bytes": 1032,
+    "sha256": "f94b133a3cb14a288803be545ac2683e0d0ff6661bcd37e31aaaec54fc382aed"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2020.d.ts",
+    "bytes": 1162,
+    "sha256": "f59d0650799f8782fd74cf73c19223730c6d1b9198671b1c5b3a38e1188b5953"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.dom.d.ts",
+    "bytes": 2349483,
+    "sha256": "d6b1eba8496bdd0eed6fc8a685768fe01b2da4a0388b5fe7df558290bffcf32f"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2015.core.d.ts",
+    "bytes": 22824,
+    "sha256": "eadcffda2aa84802c73938e589b9e58248d74c59cb7fcbca6474e3435ac15504"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2015.collection.d.ts",
+    "bytes": 5305,
+    "sha256": "105ba8ff7ba746404fe1a2e189d1d3d2e0eb29a08c18dded791af02f29fb4711"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2015.generator.d.ts",
+    "bytes": 2518,
+    "sha256": "00343ca5b2e3d48fa5df1db6e32ea2a59afab09590274a6cccb1dbae82e60c7c"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2015.iterable.d.ts",
+    "bytes": 18185,
+    "sha256": "ebd9f816d4002697cb2864bea1f0b70a103124e18a8cd9645eeccc09bdf80ab4"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2015.promise.d.ts",
+    "bytes": 3161,
+    "sha256": "2c1afac30a01772cd2a9a298a7ce7706b5892e447bb46bdbeef720f7b5da77ad"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2015.proxy.d.ts",
+    "bytes": 5212,
+    "sha256": "7b0225f483e4fa685625ebe43dd584bb7973bbd84e66a6ba7bbe175ee1048b4f"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2015.reflect.d.ts",
+    "bytes": 6454,
+    "sha256": "c0a4b8ac6ce74679c1da2b3795296f5896e31c38e888469a8e0f99dc3305de60"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2015.symbol.d.ts",
+    "bytes": 1610,
+    "sha256": "3084a7b5f569088e0146533a00830e206565de65cae2239509168b11434cd84f"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+    "bytes": 10971,
+    "sha256": "c5079c53f0f141a0698faa903e76cb41cd664e3efb01cc17a5c46ec2eb0bef42"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2016.array.include.d.ts",
+    "bytes": 5165,
+    "sha256": "32cafbc484dea6b0ab62cf8473182bbcb23020d70845b406f80b7526f38ae862"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2016.intl.d.ts",
+    "bytes": 1445,
+    "sha256": "fca4cdcb6d6c5ef18a869003d02c9f0fd95df8cfaf6eb431cd3376bc034cad36"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2017.arraybuffer.d.ts",
+    "bytes": 876,
+    "sha256": "b93ec88115de9a9dc1b602291b85baf825c85666bf25985cc5f698073892b467"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2017.date.d.ts",
+    "bytes": 1877,
+    "sha256": "f5c06dcc3fe849fcb297c247865a161f995cc29de7aa823afdd75aaaddc1419b"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2017.object.d.ts",
+    "bytes": 2434,
+    "sha256": "b77e16112127a4b169ef0b8c3a4d730edf459c5f25fe52d5e436a6919206c4d7"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2017.sharedmemory.d.ts",
+    "bytes": 7170,
+    "sha256": "fbffd9337146eff822c7c00acbb78b01ea7ea23987f6c961eba689349e744f8c"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2017.string.d.ts",
+    "bytes": 2339,
+    "sha256": "a995c0e49b721312f74fdfb89e4ba29bd9824c770bbb4021d74d2bf560e4c6bd"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2017.intl.d.ts",
+    "bytes": 1410,
+    "sha256": "c7b3542146734342e440a84b213384bfa188835537ddbda50d30766f0593aff9"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2017.typedarrays.d.ts",
+    "bytes": 1503,
+    "sha256": "ce6180fa19b1cccd07ee7f7dbb9a367ac19c0ed160573e4686425060b6df7f57"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2018.asyncgenerator.d.ts",
+    "bytes": 2653,
+    "sha256": "3f02e2476bccb9dbe21280d6090f0df17d2f66b74711489415a8aa4df73c9675"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2018.asynciterable.d.ts",
+    "bytes": 2218,
+    "sha256": "45e3ab34c1c013c8ab2dc1ba4c80c780744b13b5676800ae2e3be27ae862c40c"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2018.intl.d.ts",
+    "bytes": 2982,
+    "sha256": "805c86f6cca8d7702a62a844856dbaa2a3fd2abef0536e65d48732441dde5b5b"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2018.promise.d.ts",
+    "bytes": 1314,
+    "sha256": "e42e397f1a5a77994f0185fd1466520691456c772d06bf843e5084ceb879a0ad"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2018.regexp.d.ts",
+    "bytes": 1193,
+    "sha256": "f4c2b41f90c95b1c532ecc874bd3c111865793b23aebcc1c3cbbabcd5d76ffb0"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2019.array.d.ts",
+    "bytes": 3124,
+    "sha256": "ab26191cfad5b66afa11b8bf935ef1cd88fabfcb28d30b2dfa6fad877d050332"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2019.object.d.ts",
+    "bytes": 1434,
+    "sha256": "2088bc26531e38fb05eedac2951480db5309f6be3fa4a08d2221abb0f5b4200d"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2019.string.d.ts",
+    "bytes": 1489,
+    "sha256": "cb9d366c425fea79716a8fb3af0d78e6b22ebbab3bd64d25063b42dc9f531c1e"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2019.symbol.d.ts",
+    "bytes": 967,
+    "sha256": "500934a8089c26d57ebdb688fc9757389bb6207a3c8f0674d68efa900d2abb34"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2019.intl.d.ts",
+    "bytes": 919,
+    "sha256": "689da16f46e647cef0d64b0def88910e818a5877ca5379ede156ca3afb780ac3"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2020.bigint.d.ts",
+    "bytes": 38258,
+    "sha256": "bc21cc8b6fee4f4c2440d08035b7ea3c06b3511314c8bab6bef7a92de58a2593"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2020.date.d.ts",
+    "bytes": 2917,
+    "sha256": "7ca53d13d2957003abb47922a71866ba7cb2068f8d154877c596d63c359fed25"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2020.promise.d.ts",
+    "bytes": 1764,
+    "sha256": "54725f8c4df3d900cb4dac84b64689ce29548da0b4e9b7c2de61d41c79293611"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2020.sharedmemory.d.ts",
+    "bytes": 5089,
+    "sha256": "e5594bc3076ac29e6c1ebda77939bc4c8833de72f654b6e376862c0473199323"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2020.string.d.ts",
+    "bytes": 2451,
+    "sha256": "2f3eb332c2d73e729f3364fcc0c2b375e72a121e8157d25a82d67a138c83a95c"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2020.symbol.wellknown.d.ts",
+    "bytes": 1566,
+    "sha256": "6f4427f9642ce8d500970e4e69d1397f64072ab73b97e476b4002a646ac743b1"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2020.intl.d.ts",
+    "bytes": 22399,
+    "sha256": "48915f327cd1dea4d7bd358d9dc7732f58f9e1626a29cc0c05c8c692419d9bb7"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.es2020.number.d.ts",
+    "bytes": 1548,
+    "sha256": "b7bf9377723203b5a6a4b920164df22d56a43f593269ba6ae1fdc97774b68855"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.decorators.d.ts",
+    "bytes": 13153,
+    "sha256": "1ce14b81c5cc821994aa8ec1d42b220dd41b27fcc06373bce3958af7421b77d4"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/lib.decorators.legacy.d.ts",
+    "bytes": 1287,
+    "sha256": "b3a048b3e9302ef9a34ef4ebb9aecfb28b66abb3bce577206a79fee559c230da"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@types/react/global.d.ts",
+    "bytes": 7520,
+    "sha256": "7e29f41b158de217f94cb9676bf9cbd0cd9b5a46e1985141ed36e075c52bf6ad"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/csstype/index.d.ts",
+    "bytes": 894969,
+    "sha256": "ac51dd7d31333793807a6abaa5ae168512b6131bd41d9c5b98477fc3b7800f9f"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@types/react/index.d.ts",
+    "bytes": 182820,
+    "sha256": "045c1b395851aa71ef76393398466330fe1eeebc113c8085eefc6d84abea3a88"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@types/react/jsx-runtime.d.ts",
+    "bytes": 532,
+    "sha256": "b838d4c72740eb0afd284bf7575b74c624b105eff2e8c7b4aeead57e7ac320ff"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/teamScope.ts",
+    "bytes": 1519,
+    "sha256": "a82f431fde11d2ce0b2e32044e8a46ac0ebe5c12c764011cb52ede9cd397a7e8"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/authSession.ts",
+    "bytes": 860,
+    "sha256": "a875cd70c1de48cb48e9677e061588eefb23b81f01bf7fa2a7ab0f2c56b9846a"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/store/types.ts",
+    "bytes": 11380,
+    "sha256": "1a22bcb0c91df435c87e6db2eab1b6d14c9a96172ec1a79646fca06b902b1e0b"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/client.ts",
+    "bytes": 24991,
+    "sha256": "e5ca0450d49bef4488401c4401720db315869b7eb04202c8ef5edcb0e4255c4f"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/index.ts",
+    "bytes": 973,
+    "sha256": "22916c88ebc084d0918ce09dc6ded93822f706bdd7ce3421e6305d20f5081981"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/zustand/esm/vanilla.d.mts",
+    "bytes": 1569,
+    "sha256": "4d7d964609a07368d076ce943b07106c5ebee8138c307d3273ba1cf3a0c3c751"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/zustand/esm/react.d.mts",
+    "bytes": 934,
+    "sha256": "0e48c1354203ba2ca366b62a0f22fec9e10c251d9d6420c6d435da1d079e6126"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/zustand/esm/index.d.mts",
+    "bytes": 64,
+    "sha256": "0662a451f0584bb3026340c3661c3a89774182976cd373eca502a1d3b5c7b580"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/zustand/esm/middleware/redux.d.mts",
+    "bytes": 735,
+    "sha256": "68219da40672405b0632a0a544d1319b5bfe3fa0401f1283d4c9854b0cc114ce"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/zustand/esm/middleware/devtools.d.mts",
+    "bytes": 2064,
+    "sha256": "0a4e6b7b53a80d550a015449a2cc48dd43abec0f653b55ae315348a60769869f"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/zustand/esm/middleware/subscribeWithSelector.d.mts",
+    "bytes": 1164,
+    "sha256": "7841bca23a8296afd82fd036fc8d3b1fed3c1e0c82ee614254693ccd47e916fc"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/zustand/esm/middleware/combine.d.mts",
+    "bytes": 398,
+    "sha256": "b09c433ed46538d0dc7e40f49a9bf532712221219761a0f389e60349c59b3932"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/zustand/esm/middleware/persist.d.mts",
+    "bytes": 4186,
+    "sha256": "0ece7a73f176d90d3776e930c392048ddbf56d8f374b47be5438da343e387113"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/zustand/esm/middleware/ssrSafe.d.mts",
+    "bytes": 339,
+    "sha256": "0bb0e644293820a5cc705591150eb1b49ae6b2349636206079aa248333564267"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/zustand/esm/middleware.d.mts",
+    "bytes": 496,
+    "sha256": "4b6a9eda3909125e26a88e76f2906be6735ccff4776a29e68183dd051208273a"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/lib/pendingSessions.ts",
+    "bytes": 2613,
+    "sha256": "1406fb90a378fab6b2a378fab0b69f0e30e8c52d085a5ffe2f98ae9d3eebff0a"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/preferences/projectNavigation.ts",
+    "bytes": 4413,
+    "sha256": "ceef277726d06c850e02bf9fc1f9d167b21f3b03a1c115aca27e2652023ac31b"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/store/slices/dataSlice.ts",
+    "bytes": 15179,
+    "sha256": "099d299e9a610fdce275ae0411398d6d2b42f74b3b722692c0333ec5f5a1a711"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/lib/ids.ts",
+    "bytes": 913,
+    "sha256": "7ac70b6bf6733d816fa331e955690e5c65616f90c62d5760b72401c970ab763a"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/store/slices/uiSlice.ts",
+    "bytes": 17032,
+    "sha256": "4da15890388c23ac657ffe99311b5a1155001b78400f1b40846061372f1a5b0b"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/store/slices/prefsSlice.ts",
+    "bytes": 7169,
+    "sha256": "7a75034baed18b40d0f2821b4b541598dfb825e188426dda086dd38168a2bbba"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/store/store.ts",
+    "bytes": 4709,
+    "sha256": "e65151cbfc1686b8e4050179f726bf9cd7e3abcc3f6e661cebdb444fec1302c6"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/poller.ts",
+    "bytes": 5885,
+    "sha256": "23d5faa83acffd4d8b77899394d97b1606640f01d250a63d7551d5004b71f164"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/zustand/esm/react/shallow.d.mts",
+    "bytes": 86,
+    "sha256": "4781142e27cfd19d75a2c0ee432826153fcdf670bdc52631a6078330c9133e6f"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/store/defaults.ts",
+    "bytes": 6145,
+    "sha256": "2d15715fb0df7c1a69a0b4212f67156ca14f02208df122e2bccb3f4be679f179"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/store/selectors.ts",
+    "bytes": 12230,
+    "sha256": "b98178fa378f19cb486ee2a5dcbf970949bdf6ef3fa730b4a875bc7698cb3e31"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/hooks/heartbeat.ts",
+    "bytes": 3265,
+    "sha256": "4dcf793069f727bf6795d9e2d496269aafa2cc33d64a58ac256b6f63c4f64408"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/common/StatusDot.tsx",
+    "bytes": 2324,
+    "sha256": "99223518364691969575492cc57706be393ce10e1c879697e66d568888efe660"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/hooks/useDismissable.ts",
+    "bytes": 4747,
+    "sha256": "6a31aebc21778d4eceb87679e9320db40590288696b2ec4e576415958a4906c7"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/common/Popover.tsx",
+    "bytes": 1812,
+    "sha256": "2080a2b316f28c286315e8b569b03029012ef48f6ab9688fb322ce4503ac78de"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/projectCheckContracts.ts",
+    "bytes": 4156,
+    "sha256": "a867975812649df56a5d3af2a0726684a90990fe12f8ddf075f88a24e4d85b16"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/product.ts",
+    "bytes": 29328,
+    "sha256": "d6d8bda455d20cdf660976f7ca58d38967048780d6fc385ecdd07c7493329240"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/teamWorkspacePreference.ts",
+    "bytes": 665,
+    "sha256": "c1cc162ef44a93e37a562c1e9687448f42dbc3893c2442b625dbb5a1fc460d79"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/lib/wire.ts",
+    "bytes": 942,
+    "sha256": "6cb4ac0eb7da8866b78726ea4700efefc4cce3e3019f315232c2462c0a04e841"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/attachRegistry.ts",
+    "bytes": 38554,
+    "sha256": "1f3e299b787411b3b96f1e8af6866265ebdd372014000a0436d2dd7f4e094c82"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/auth/AdminInvitations.tsx",
+    "bytes": 8979,
+    "sha256": "651af08b55551a16372624017dc799b0c9667778f8494c42eb23260fe8fe4ae0"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/teamService.ts",
+    "bytes": 894,
+    "sha256": "aff4efad1590cc5f8bb3a769bb42588f95339f483ea69ccee53f9c7c08a19230"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/auth/AdminTeamServices.tsx",
+    "bytes": 4937,
+    "sha256": "10f1a4cedd04432eba5868413391e4aa613b9c3a71e6bcd04141c61acd2158b2"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/auth/AdminPanel.tsx",
+    "bytes": 36935,
+    "sha256": "9a8fd65c36d6c0409299b6f0e5326748b783ae7cf038543cacbc1820cc80fb4a"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/auth/portableAccess.ts",
+    "bytes": 2347,
+    "sha256": "90923c18f251c9b7d6ddd54aadd76d9ebdf0e9b44e3346619ee6cc20e64e3117"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@radix-ui/react-slot/dist/index.d.mts",
+    "bytes": 1114,
+    "sha256": "fbc6095032e74690254e6591fad71b2a424cc063d21af3160879bb3a92d8beac"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/clsx/clsx.d.mts",
+    "bytes": 278,
+    "sha256": "c57b441e0c0a9cbdfa7d850dae1f8a387d6f81cbffbc3cd0465d530084c2417d"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/class-variance-authority/dist/types.d.ts",
+    "bytes": 1079,
+    "sha256": "2fbe402f0ee5aa8ab55367f88030f79d46211c0a0f342becaa9f648bf8534e9d"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/class-variance-authority/dist/index.d.ts",
+    "bytes": 1823,
+    "sha256": "b94258ef37e67474ac5522e9c519489a55dcb3d4a8f645e335fc68ea2215fe88"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/tailwind-merge/dist/types.d.ts",
+    "bytes": 135821,
+    "sha256": "863ebea2d55981fa7f6aa0486bfde68d72d46783c09e265d343b6a4a12de9c9b"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/ui/utils.ts",
+    "bytes": 169,
+    "sha256": "9304a861c8673bee09e0f12de31773abbde503b02e59dfd74763ddec2e37cf05"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/ui/button.tsx",
+    "bytes": 1755,
+    "sha256": "fa975deeed946ff9b2fe9c4ef1e09e04d0287a0fa83dd12b577cb8a7d79b5a5a"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/fluid/lib/icon-context.ts",
+    "bytes": 365,
+    "sha256": "c52c421d25802929e4df4acf82fc860d290f469003f9f0bd4f340445d4a14474"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/fluid/lib/size-context.tsx",
+    "bytes": 6372,
+    "sha256": "f6c4be111a88eb973794f7c7c7dd97de72a358fb1d8b2fa6c00dc54c654df46c"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/fluid/components/button.tsx",
+    "bytes": 3365,
+    "sha256": "c90ee25ef6225f949006d6c6ee19316ece048ebfad25d2f17a52e20b74d2bf87"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/auth/AuthEntry.tsx",
+    "bytes": 15857,
+    "sha256": "f82a51a371a1e2eab96bebb51ad8e0c261ef4b15e43060a47c6825772b601481"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@tauri-apps/api/core.d.ts",
+    "bytes": 15127,
+    "sha256": "5f32c4bd93cd5c24bd3254bf3b505564a2e783ea221f0d678ae15b9c9ab62230"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/auth/AuthProvider.tsx",
+    "bytes": 12171,
+    "sha256": "8e94ed934c409bc57ca3d565d41c3f1d2d59f4cc4ab7d620954c94fb9808c8be"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/teams.ts",
+    "bytes": 3226,
+    "sha256": "02abaa062d39a24d21f0ae7a36eaf6036aee59c25285885a5b0b6dc9a0b1f39b"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/teamInvitations.ts",
+    "bytes": 3709,
+    "sha256": "ad6d31618452184351cb3f2763582f949489d7027ec7e78b0fc390a27ff6b2d1"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/teams/TeamInvitations.tsx",
+    "bytes": 9722,
+    "sha256": "b4121dec22d41395312c1e5f36240b65617ec06e9ada4b27dcad470692217ce0"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@radix-ui/react-dialog/node_modules/@radix-ui/react-context/dist/index.d.mts",
+    "bytes": 2370,
+    "sha256": "64e4057dd49916d73d3c577e0751a6c8f22c6152b295ea019161966051951a74"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@radix-ui/react-dialog/node_modules/@radix-ui/react-primitive/dist/index.d.mts",
+    "bytes": 2739,
+    "sha256": "caf4af98bf464ad3e10c46cf7d340556f89197aab0f87f032c7b84eb8ddb24d9"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@radix-ui/react-dialog/node_modules/@radix-ui/react-dismissable-layer/dist/index.d.mts",
+    "bytes": 2931,
+    "sha256": "0a60daa545b41003e922202c01e47d0cea514b09ba0af1e4684222f5b332841e"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@radix-ui/react-dialog/node_modules/@radix-ui/react-focus-scope/dist/index.d.mts",
+    "bytes": 1163,
+    "sha256": "8dd450de6d756cee0761f277c6dc58b0b5a66b8c274b980949318b8cad26d712"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@radix-ui/react-dialog/node_modules/@radix-ui/react-portal/dist/index.d.mts",
+    "bytes": 616,
+    "sha256": "904d6ad970b6bd825449480488a73d9b98432357ab38cf8d31ffd651ae376ff5"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@radix-ui/react-dialog/dist/index.d.mts",
+    "bytes": 4701,
+    "sha256": "2059b04988eece7f6e992a5c218e9c5361b8fed24cb04caddb7e1cb4339e236b"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/common/NavigationIcon.tsx",
+    "bytes": 1218,
+    "sha256": "160b2ae44d4820922cc44bdde667b354a857b4f306d9f67b6759c8a587e77763"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/ui/dialog.tsx",
+    "bytes": 3992,
+    "sha256": "bc2fae6bfce04fe17a67a6d2fea8f85fffbfb2b141d076923563a6ebb652cb7e"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/fluid/components/dialog.tsx",
+    "bytes": 303,
+    "sha256": "e348ac2ec8f473091d5b97ae654a7e028e27f1391fa48f5e4a1e6a1d80449825"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/common/WorkflowDialog.tsx",
+    "bytes": 1884,
+    "sha256": "be1d8ebb8f56d92d5a8848bc2c1d870c7fdb55c4f8a0a691aa7f252021469978"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/teams/TeamWorkspaceProvider.tsx",
+    "bytes": 14647,
+    "sha256": "11d8dc458ce6063ebfc9a0937fb2408f39bd253bfb258ce9816663a33dc49acc"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/rail/MachineChip.tsx",
+    "bytes": 3108,
+    "sha256": "77c243d88fd96fc6535d5a940890d501569eed3320f3c0164a45ff0dfd47c0ec"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/hooks/useProjectAccess.ts",
+    "bytes": 1073,
+    "sha256": "b2789071009294d4497f7be2039839b0a88f4f0e54edf7c544a279440dce2da4"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/problems.ts",
+    "bytes": 2527,
+    "sha256": "eb99fc545a5a42e4089f1ef938fc766b853b27261a83409eacfe1243ec769622"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/hooks/useCreateSession.ts",
+    "bytes": 8392,
+    "sha256": "a6e4d38debb32f713d3ec79ec0349160e7c54bcbb169921c9129fcc0b971f6de"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/lib/immutable.ts",
+    "bytes": 4131,
+    "sha256": "c6d67127df63a6c459dc3e089d24e4b40d18ed3786e14ee308c0965ee08e739f"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/develop/SessionMenu.tsx",
+    "bytes": 5140,
+    "sha256": "3ac18c9c9ea304cdcfa8691e5fbdda47e3c25067450aaff54b3ddc6604e1bfc9"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/setup/workspace.ts",
+    "bytes": 878,
+    "sha256": "4dffe559a8832e4b649b6545576266560d2d79bf2a98982a9226e9cdbddcdd88"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/setup/WorkspaceSignIn.tsx",
+    "bytes": 12134,
+    "sha256": "917e9106d2de19f5df733352053e67825bfdfba78eddbf5a5f35c4aef9b788a6"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/setup/WorkspaceInstaller.tsx",
+    "bytes": 7368,
+    "sha256": "b9f4931abb51d318f433b8c9ac9a99ad7c6f9f6d6a8c86888d047c4308ee9c35"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/setup/CloudManager.tsx",
+    "bytes": 24147,
+    "sha256": "3a2901bce1839574478ecb3261ab3faf20f3d3b55f018d9af94b7fc865db9839"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/hooks/useAgentConnections.ts",
+    "bytes": 3458,
+    "sha256": "fcbc85a79ddb30e1434c2fd6bd0e0025ae249a656faf3ca88fbd51e1fea3a6b6"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/setup/gatewayPreset.ts",
+    "bytes": 2221,
+    "sha256": "a3405dd8b86ee0195add28264705c293dc2c6f9c92041452cf1ac8a5ecc098b4"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/setup/AgentConnectionManager.tsx",
+    "bytes": 13547,
+    "sha256": "cd9462ea24d102f87eebd234b3a43d4ce7bcecca1227b2447fdde10491342254"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/setup/AgentConnections.tsx",
+    "bytes": 14249,
+    "sha256": "9f693454434aec4e1cc253d45588d001f4721cc6cb138dd0460bb0c71b28dee4"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/setup/LocalTools.tsx",
+    "bytes": 7293,
+    "sha256": "02d1c750c112a5364d6113991f8d5d0044c9e12fbadf697cb100ee9b788da40f"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@tauri-apps/plugin-opener/dist-js/index.d.ts",
+    "bytes": 2016,
+    "sha256": "d5f3c561327ca3737e2282f42ae634a3c740395b2f0d44a94820b5e9dcdff595"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/setup/ProviderSignIn.tsx",
+    "bytes": 3681,
+    "sha256": "ad534324b2bb89164ce49b123819075e4b48dc62868d04c81c61b31e7bb62fa9"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/hooks/useProjectDraft.ts",
+    "bytes": 7167,
+    "sha256": "d9991f749c285641bddb7eb8f565b3c853e61136148a7a32aa98a49f4fb831b2"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/ProjectBackup.tsx",
+    "bytes": 7617,
+    "sha256": "e95252981b7fd404233f401bf76d6077c9fa9ce2bd8b6f08cf8ebccc11c71b60"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/preferences/appearance.ts",
+    "bytes": 2987,
+    "sha256": "24a8dc17cc1138702d68dd2118a28f33c043dc739c5cffe6b070c99a4112342e"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/setup/AppearancePanel.tsx",
+    "bytes": 3036,
+    "sha256": "78a2bbefba82cfe149b20e30fe89e10a3f1c9ba2acace339943fcec5e27ab39c"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/executionStorage.ts",
+    "bytes": 3097,
+    "sha256": "b5aac2176c869854e716c35f916dcff8976e935013e4ffd6e3dbd021ae97902d"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/setup/RuntimePreparation.tsx",
+    "bytes": 11256,
+    "sha256": "642d57d95972b2c280a02238ea7012c0c8be4e993da7e1da7a5d92e13030858c"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/ui/input.tsx",
+    "bytes": 528,
+    "sha256": "c4c73a8130a1444bdac4daae8dc9d908cfcb74d2cd3e62b68110997850454f1a"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/setup/DockerStorageConfirmation.tsx",
+    "bytes": 13261,
+    "sha256": "f6e9e5cc3359ebbada4a6dfe8d800acc7159fb2e55dfc453fa7c5c2f58f6c64c"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/dependencies.ts",
+    "bytes": 1736,
+    "sha256": "081924a711e26a4fa8f9c0d8925254b075aaa4e8c0ee4b4809a712d6c298c0d8"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/setup/DependencySetup.tsx",
+    "bytes": 9487,
+    "sha256": "c0d28b3cd1baebff6182cbd6094048819dbc25e0a678155d0ab5b6efce711042"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/setup/SetupPanel.tsx",
+    "bytes": 46186,
+    "sha256": "7e8c4f2d03a7ee1a7fa408496024d4a18827064e8e38462e0c35c1b1e3850013"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/projectImports.ts",
+    "bytes": 5578,
+    "sha256": "ccd874e44d036fb8e66320893e81d4c054eef6f67bd8eaecf4df569606a32217"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/projects/ProjectEntry.tsx",
+    "bytes": 18009,
+    "sha256": "1cce2b984b00025a0557513cb4dbcf8ebe1ca284bf72299e8f14f1125af6c428"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/teams/TeamSettings.tsx",
+    "bytes": 2952,
+    "sha256": "47e1426cb4acff764196765cbf0ac072ee1e93c05811f8e7763515d3190cb029"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/preferences/onboarding.ts",
+    "bytes": 828,
+    "sha256": "e5590222a0ed350906aaea58371f4096dc14e4be058cdae2c62c60375fbc5d0c"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/setup/SetupProvider.tsx",
+    "bytes": 6910,
+    "sha256": "186a01e20072de1e590a85e763fae581ae1ebb6b802c3253dabf3bc44c72bfc6"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/menu/ContextMenu.tsx",
+    "bytes": 12474,
+    "sha256": "c8b45f15403721544bead7e4e1d99e1b7c7b489a662c54f82f5620db36c7703b"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/develop/sessionVerbs.ts",
+    "bytes": 35365,
+    "sha256": "afc817f0a8d23eb8ceee6c0d8cbcb092cc91d4716c4a6d8c09e134338a443e21"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/rail/SessionRow.tsx",
+    "bytes": 2871,
+    "sha256": "6b302bf950d210d4f1b1d4abb302ed7f14d7e915e7f3d51e036009288371a465"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/rail/WorktreeRow.tsx",
+    "bytes": 4263,
+    "sha256": "c3356922af35fb13df36e6cb603af908cd99d2327c8e95f72c7d7bec5fb9014b"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/rail/BranchRow.tsx",
+    "bytes": 4146,
+    "sha256": "03d0130ba91446c43b66eddec51b88bd6eda4844905882314c5f767ce6320b57"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/rail/ProjectRow.tsx",
+    "bytes": 3009,
+    "sha256": "71dcaf85dfddb4feff179cd1c3f53cd80d647a472fdbc00952395358674257f9"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@radix-ui/react-tabs/node_modules/@radix-ui/react-context/dist/index.d.mts",
+    "bytes": 2370,
+    "sha256": "64e4057dd49916d73d3c577e0751a6c8f22c6152b295ea019161966051951a74"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@radix-ui/react-tabs/node_modules/@radix-ui/react-primitive/dist/index.d.mts",
+    "bytes": 2739,
+    "sha256": "caf4af98bf464ad3e10c46cf7d340556f89197aab0f87f032c7b84eb8ddb24d9"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@radix-ui/react-roving-focus/node_modules/@radix-ui/react-context/dist/index.d.mts",
+    "bytes": 2370,
+    "sha256": "64e4057dd49916d73d3c577e0751a6c8f22c6152b295ea019161966051951a74"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@radix-ui/react-roving-focus/node_modules/@radix-ui/react-primitive/dist/index.d.mts",
+    "bytes": 2739,
+    "sha256": "caf4af98bf464ad3e10c46cf7d340556f89197aab0f87f032c7b84eb8ddb24d9"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@radix-ui/react-roving-focus/dist/index.d.mts",
+    "bytes": 2218,
+    "sha256": "68b6a7501a56babd7bcd840e0d638ee7ec582f1e70b3c36ebf32e5e5836913c8"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@radix-ui/react-tabs/dist/index.d.mts",
+    "bytes": 2860,
+    "sha256": "7a14bf21ae8a29d64c42173c08f026928daf418bed1b97b37ac4bb2aa197b89b"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/motion-utils/dist/index.d.ts",
+    "bytes": 5285,
+    "sha256": "0d186524de429525e691d2664167e640fdab9dd5e169dc7c6ef8325e9617be83"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/motion-dom/dist/index.d.ts",
+    "bytes": 217046,
+    "sha256": "79c303f4b969d61f584aa56a6fd190ca14dfae762d3f2b6420bb2c3da3b30f6c"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/framer-motion/dist/index.d.ts",
+    "bytes": 64841,
+    "sha256": "282fae2228ff53247ad6f592d2968ddfe49fcec441b89495ef51469398a015bf"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/fluid/lib/utils.ts",
+    "bytes": 853,
+    "sha256": "98cf7ca16d03605c6863ed7346b6a9c5ca49a51dd8e725afad75a8f25c1f7d78"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/fluid/lib/springs.ts",
+    "bytes": 1829,
+    "sha256": "4d13feda421fcec7fbca8b0b718e47e0f8a8455111746e2a4e0804dab46b49a7"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/fluid/lib/font-weight.ts",
+    "bytes": 1347,
+    "sha256": "e24ad1081bf07948cd842027b99d8e1d2f5ecb10142a5cd6acba5971d4a20acf"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/fluid/lib/shape-context.tsx",
+    "bytes": 5038,
+    "sha256": "fdf02a4eebce30aa21b35d9efb0250e7f9c4ef12362728160d51124c3d86f4f8"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/fluid/hooks/use-fluid-hover.ts",
+    "bytes": 24835,
+    "sha256": "cd4ed64da1042dcfd035baf5c37d733c827ad2abebede007f7cc8f2d486c2c94"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/fluid/components/tabs-subtle.tsx",
+    "bytes": 18454,
+    "sha256": "fd19cb3679fb2d6eff2d9f94b4f4c8319a477d091b4d66a585d303d9799462c7"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/teamBilling.ts",
+    "bytes": 1521,
+    "sha256": "b30919dc0f7ac4b8d48e94481d061357e3d25cb565783c0bcf4fa2731f47f06d"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/auth/TeamBilling.tsx",
+    "bytes": 7228,
+    "sha256": "17b765a5978bfd6f4ebcd99fbba884a94ce82be0ddb926e60dcf39a6f9bbf77d"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/auth/TeamServiceStatus.tsx",
+    "bytes": 2195,
+    "sha256": "79e50d82c95de8c95fb0b31c52fe39e84496e593f25277280960c04e7bfb17b7"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/teamDataLifecycle.ts",
+    "bytes": 3045,
+    "sha256": "14811896b1520dd13b8668fb0c8a10c2ebb58c869824594991af5b4340220ae6"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/teams/TeamDataLifecycle.tsx",
+    "bytes": 4864,
+    "sha256": "836ee32f2bec3ecc38497796099b61ccf244539a8a47910a49a6435da8ee65cb"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/teamAudit.ts",
+    "bytes": 1407,
+    "sha256": "059a8faa6ba708d28cc268d39b2c569ea82ddf1012ff7e1ed739db1001c7959e"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/teams/TeamAudit.tsx",
+    "bytes": 3575,
+    "sha256": "8ef49fe41a533c8e0c13a7d071dfc5f4e6f6eded42d1cca8f1ef6dadaf1afdcb"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/billingReturn.ts",
+    "bytes": 1194,
+    "sha256": "06a1fe197783e21564178173650b0efe8e825b4c500c2b597a0b929adb733647"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/teams/BillingReturnNavigation.tsx",
+    "bytes": 4195,
+    "sha256": "26413fbdbbc2f82e33a8475bbaaf40cf17c32584563aa964c13af543f3fce8c4"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/teams/TeamWorkspaceControl.tsx",
+    "bytes": 14511,
+    "sha256": "d498a8fbc88bc846daa0bb4c67678aa44cb785638043d0193e4405ccdd615238"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/lib/keyboardPlatform.ts",
+    "bytes": 714,
+    "sha256": "2e5484ee9ec2253b4782200219c0e12b7d9107be5d72affe53ea9c0ea0b2c1d7"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/rail/RailFooter.tsx",
+    "bytes": 2465,
+    "sha256": "766ab1d5045a1ba71ac35419da7bc93ae475c6e6b2ff8107ea8934330d222e8f"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/rail/Rail.tsx",
+    "bytes": 8508,
+    "sha256": "8fb76ca0162eebfe29c3b589b07f5c6e19db8fe55f508a96354f37a79ea6b6e8"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/subrail/SubRail.tsx",
+    "bytes": 2610,
+    "sha256": "ed5e399d86657d09bc2568364c90bdd9b422e7eac870a6d85f7fe0387fca89bd"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/topbar/LayoutToggle.tsx",
+    "bytes": 1060,
+    "sha256": "d10b93b05f1032a4bea7bcdcf26cdf67789362fb769b55f8ec8c871676184141"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/topbar/NewSessionButton.tsx",
+    "bytes": 2359,
+    "sha256": "353196a78344345d5cbce6fc389e1d6ff4f60ec114731d245768813b85a5e773"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/setup/AgentConnectionSelect.tsx",
+    "bytes": 1173,
+    "sha256": "cb0b27b79f8a5f1fcaaf642d0118bbb5384cc5f7bfb9485ac91e07ca3e93d475"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/topbar/SessionPicker.tsx",
+    "bytes": 14767,
+    "sha256": "91738b1d34a98ec51402d758a7dfb3ebd154b62e8b0322220a7a8989dbd2da0b"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/topbar/TopBar.tsx",
+    "bytes": 3340,
+    "sha256": "be050d87d96b76051f9d1836f603645bdd9da8b1116b0008773fccbe10619c7d"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/shared.tsx",
+    "bytes": 1149,
+    "sha256": "7cc942f3bce282d9aeaf3e82b1173d6afe279e26deea1395d1aea816fcbe1fbd"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/projectContextEvents.ts",
+    "bytes": 1744,
+    "sha256": "373fd93bf50e824a4c75d13decc556b27642ca6b7fcdbb613e3a337c5904db58"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/definition.ts",
+    "bytes": 5982,
+    "sha256": "19824453993b27b745049952340f808475c8424ee01bf32b8a6cd696bad3a19c"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/designPlan.ts",
+    "bytes": 1357,
+    "sha256": "f27b58c0ee0bdc44344209ccf58de326d1db86e389a0960c8504dd56e10cdd39"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/hooks/projectDraftValidation.ts",
+    "bytes": 3662,
+    "sha256": "7615bb1a8d86f9bd1b7e034830085bf46312d7a4524a01d8193ef47a7de5108e"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/utils/projectDraftMerge.ts",
+    "bytes": 7551,
+    "sha256": "72d8db3d2228891d0c753fecea7831967bf43954f6e2bb66d94b815061b2c8c1"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/common/DraftDocumentReview.tsx",
+    "bytes": 9761,
+    "sha256": "c2bc1fad4d0c2167af377c45e94ab6b61453738dd712c4e9a88179d19f09b000"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/common/DraftRecovery.tsx",
+    "bytes": 7653,
+    "sha256": "722df78f80260428547296cccdb247c26e8cc934860e9532dec425589ba238a0"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/hooks/useUnsavedProjectDraft.ts",
+    "bytes": 1367,
+    "sha256": "3692176f62e31cca1e862ae24c34d143c0dcb94e3479ef4c389709c7bb57d9a1"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/projectContext.ts",
+    "bytes": 1673,
+    "sha256": "75b16db1764f8f29206c390af0046abbb2fcb71c54a399680c1770f7e8d27e2d"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/contextHistory.ts",
+    "bytes": 2254,
+    "sha256": "b5b3f80ac68834238ce29090fa6e4b03f4fcf65401fc1fcb92b5e1a4a41f5025"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/ContextHistory.tsx",
+    "bytes": 3866,
+    "sha256": "44dd87cf7aa7f1b7eb232bcd2d2fa8ccfad690bcd4c01645a211c2580fdaa398"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/ContextStorage.tsx",
+    "bytes": 14084,
+    "sha256": "6fc91d6862b34dd24b57ec35a6ec9ad25d813c94742e12f2035984b9305c6b63"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/definition/repositoryAnalysisRecovery.ts",
+    "bytes": 9960,
+    "sha256": "1e544f19baa92b104d4d9506f636ad6f304f268eae58aea54f340718f8f63d67"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/definition/RepositoryAnalysisPanel.tsx",
+    "bytes": 29082,
+    "sha256": "80d5524ed378d95640bf55f46a9d19a72475c224343f001ee509afe94912bd7f"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/definition/DefinitionWorkspace.tsx",
+    "bytes": 31738,
+    "sha256": "fe63aa3dcda3c5896ab13140ff2db74c492eda0e068a415cc560b7ec7777cfc7"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/lens/DiscoverLens.tsx",
+    "bytes": 313,
+    "sha256": "5ffbc5f8e9411836118a4e7dbd12589e61e7dbb5ede9ed98cfb390a5d75e8436"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/platform.ts",
+    "bytes": 8259,
+    "sha256": "658ff4e3799891100b9f8f5cb03918c33715f35326f75faa6fe9b37dffb4b462"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/browserAccess.ts",
+    "bytes": 2015,
+    "sha256": "fd6cb99cc646aa2c99db66abdf339900000aefcef0c5ec8c7cd86696fe735ad2"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/design/PrototypeReview.tsx",
+    "bytes": 5814,
+    "sha256": "5f1ba507f3a8bcf58a29112b851ed18f17ab5061cd8b61a5ddab14f127e52fdb"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/constants.d.ts",
+    "bytes": 11428,
+    "sha256": "39efe6a938f9facc419c9db388ca205ec507cbbca49ba6d297eee78d99d17928"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/utility-types.d.ts",
+    "bytes": 1850,
+    "sha256": "9abcd0a00294a2164b8115206cf11cd030edc86e7ea671dadd9113fda1970aee"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/element/types.d.ts",
+    "bytes": 11528,
+    "sha256": "e8d4553c448a3d442aab0e4890e850db0254cf75d64c5c2fe7bf12255ce413b2"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/element/mutateElement.d.ts",
+    "bytes": 856,
+    "sha256": "3055231a24790411b9883cda6eaed194be13d8dfc11eed8af0595d399b8cf82e"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/change.d.ts",
+    "bytes": 8556,
+    "sha256": "90991f3d6223fe253d8ac588263d9373ce14a6cd3240ebe6c55bc62bba1d26e8"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/emitter.d.ts",
+    "bytes": 577,
+    "sha256": "03ecfba102b30f0d4636c51b9cb3e6ec2566f1601bc64b28d88f38d10523c4a2"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/store.d.ts",
+    "bytes": 5569,
+    "sha256": "2b6991ec4762655dc80bb723124557836ad5736e741569315d5ac812340add69"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/actions/types.d.ts",
+    "bytes": 4273,
+    "sha256": "e34de1900126ead0974f409808c067edf62fa4eebb0ddd010a5bb6b9b80e142d"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/roughjs/bin/geometry.d.ts",
+    "bytes": 229,
+    "sha256": "a5dbaad02b1825f9eb1c5a0d90536d614a622c3a11e993b9cabf1836ef243f14"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/roughjs/bin/math.d.ts",
+    "bytes": 147,
+    "sha256": "59e1a506acb27b1a5ba6645c1d05f854004e9b91d47bf2316cb2876bdd464c81"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/roughjs/bin/core.d.ts",
+    "bytes": 2183,
+    "sha256": "a7ed89de760cd06d952fd6d4c0ae5a21b515eb6cb06bbfb7b9237330a67e9bcd"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/element/bounds.d.ts",
+    "bytes": 3665,
+    "sha256": "6145d9404a372d4d5a9fac37caced4b1ce3bf4e58222f09a06c280951201615d"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/scene/Scene.d.ts",
+    "bytes": 4660,
+    "sha256": "2ef891a3bc6acf6705dc18494ea1e2800b438b589ce449e52bb5dd298562db71"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/element/linearElementEditor.d.ts",
+    "bytes": 8367,
+    "sha256": "0b12d613f4aea1cdb5b46d366fdd2d13e387f994bc57fcd213a5370389baac94"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/element/heading.d.ts",
+    "bytes": 1258,
+    "sha256": "0e18bbfebee8ddac813134e7132118735744aeab313e462f8cd7db1e1bf78807"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/element/binding.d.ts",
+    "bytes": 8557,
+    "sha256": "ee2088c63012ae7bea204c7ae236b310e84cfa4c5714a61b91d12c47d3bb7157"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/appState.d.ts",
+    "bytes": 3762,
+    "sha256": "42c1e7164c67247d02f0e960d7a92a6084b449fee65af0ead9256f129442ec45"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/data/types.d.ts",
+    "bytes": 1498,
+    "sha256": "f561eb0740d501c25000764a81bd00efd3d464bf46416d81919bacb9f48c44ac"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/roughjs/bin/generator.d.ts",
+    "bytes": 1205,
+    "sha256": "9b419154fafa52f0be6685ae9421d54d4809d0e5f01d0d368762b6f5d4cfb60e"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/roughjs/bin/canvas.d.ts",
+    "bytes": 1196,
+    "sha256": "99be21ae3a8dfe2af27780eb55b8bacb62dd64f41df2118277676bc1d2f1473d"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/actions/manager.d.ts",
+    "bytes": 1263,
+    "sha256": "7c50c9b815543d88c470b035cd8528b43ec061ba29d10b96fff93a4514184e9c"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/scene/types.d.ts",
+    "bytes": 4253,
+    "sha256": "65c404a2fd86f9262bc1f91dd871d65e3973a7a2243b918650b9be8165de9140"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/data/filesystem.d.ts",
+    "bytes": 910,
+    "sha256": "9cad79402ac63d07b8d1d21a19bf46b31e8750dc5fcd86f5cdf5b45aa3e00d77"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/data/restore.d.ts",
+    "bytes": 1430,
+    "sha256": "bc9b1253bc2cc02c62b08c3488914aa965fd6f04bb0fd796e5acd0e1341fde05"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/data/blob.d.ts",
+    "bytes": 3620,
+    "sha256": "b5088060806893d9f6a673baa6d151e6d48a39fd9cef7cc2567e06da3b8fd57e"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/data/json.d.ts",
+    "bytes": 1141,
+    "sha256": "c014a3d7fdc6083303f29d043cb9b5a27613df1786a52803a8dabb8e2acd1f6c"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/data/index.d.ts",
+    "bytes": 1322,
+    "sha256": "f2f3f439ca45cc4c6887893315187b6eefb319000a47dc0d689dc4591aa8f677"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/history.d.ts",
+    "bytes": 1792,
+    "sha256": "1e30c7b8cb3d3f0afa8c9c7d4c5755baba023fd6c59919dbce6edffb802d2c3c"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/fonts/ExcalidrawFontFace.d.ts",
+    "bytes": 1024,
+    "sha256": "7527f7b02145aec068cb199fa09f8b48f1028af328f810e3f153db6a37f8044e"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/fonts/FontMetadata.d.ts",
+    "bytes": 1334,
+    "sha256": "df48ad267b0cdcec5031f8986d9064621635c0b126d086148fc10e6fee36cbc8"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/fonts/Fonts.d.ts",
+    "bytes": 3142,
+    "sha256": "195970432876bbe9e8c1f58ec41a47bb5aaffc99974a9d9d01af50036f9ab5c7"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/fonts/index.d.ts",
+    "bytes": 25,
+    "sha256": "b8d8306e6db8520053bd90166eed5a1773c94394f1e6d5b68ee39243e3bef0e6"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/scene/Renderer.d.ts",
+    "bytes": 1290,
+    "sha256": "1ee8c7af4c42c7810d4e62dc330295db9191e26a41e6352f4e9b929c85871fdf"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/animation-frame-handler.d.ts",
+    "bytes": 471,
+    "sha256": "7f4ac143cde53e93e76a8b92e9c4e11994d8efbafe93c337886c1bd3d5880d1c"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/laser-pointer/dist/types.d.ts",
+    "bytes": 988,
+    "sha256": "d45897bfc6cb78fa05a505b7c841e6e98157e69d9e344379b3688b4ae7fdcbe0"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/animated-trail.d.ts",
+    "bytes": 1166,
+    "sha256": "e25df1a3b98141132d4fbb568c780c61b6901886b8e6f013f70a7766f2282b70"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/laser-trails.d.ts",
+    "bytes": 725,
+    "sha256": "ce45d6a9034a65530e26f2e4659c50d633c45877a069ce966c3ae17c1e806228"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/element/flowchart.d.ts",
+    "bytes": 1484,
+    "sha256": "8c4685842c48c2c2a72f1e23be68a5473cc86846a3de4b713bb7a03e90a9487b"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/element/transformHandles.d.ts",
+    "bytes": 2255,
+    "sha256": "c49838592913f44cd40bfc3b0a27fd5598a04ed9fc79c4ff6385f4d72f4e7cbe"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/components/App.d.ts",
+    "bytes": 21010,
+    "sha256": "46ce3725828e630e4ea29d86f8991503544b5fadb673755d29f4d3bbbc95959f"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/utils.d.ts",
+    "bytes": 13116,
+    "sha256": "50282bae66345d01462cf3e2083f1e6f7755c55f76e5a2ca1de54dfaa49e2c40"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/charts.d.ts",
+    "bytes": 980,
+    "sha256": "1ea69209400e7a79021ea7d9a2238815803dd73a9401294fade1e5477ce2e11b"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/i18n.d.ts",
+    "bytes": 895,
+    "sha256": "0190f822789717bff74a223359e4c490fd03d29de6abac41af641ab7c7e4191b"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/clipboard.d.ts",
+    "bytes": 2969,
+    "sha256": "2713e9bfcf796e045a42dc035283c63feadd0ebf65bccfce5882298f0b4f6fa2"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/scene/scrollbars.d.ts",
+    "bytes": 661,
+    "sha256": "aa1758d7800d9acea146dfc71669278a9d60b33e59c2fb46255f9eec2dac9369"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/jotai/esm/vanilla/atom.d.mts",
+    "bytes": 2089,
+    "sha256": "6ff7e009607cc83f0991e35fc91c78d2a21c2365ada604a85d17bf3704b287f4"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/data/library.d.ts",
+    "bytes": 4782,
+    "sha256": "b8ec7c5251237d1c16cb0894ef5b3594cc0e5f66d558f474770a809446e9b11f"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/components/ContextMenu.d.ts",
+    "bytes": 723,
+    "sha256": "695d0512b9bf0b5887b66d6b9674537cc30a6b4922c96be065fc217debbbe3e0"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/snapping.d.ts",
+    "bytes": 4667,
+    "sha256": "4bc4131949f3509832778d80e593d076967899dc49e7a0d10fc8753659a879c5"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/types.d.ts",
+    "bytes": 26215,
+    "sha256": "61681bd17da86a0b811242e83cd8e1f6c7f168a14806c8ca587390e24815486a"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/components/footer/FooterCenter.d.ts",
+    "bytes": 223,
+    "sha256": "f3279318c40ab48a32e0fc7cd2f1aedec48d694a5bfc597f199b5d19d68cdeac"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/components/main-menu/DefaultItems.d.ts",
+    "bytes": 1916,
+    "sha256": "b96ca9ceb978ccf98bb73ed397418028ff5e31f00eac572b63a9807f8bd1621c"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/components/main-menu/MainMenu.d.ts",
+    "bytes": 3252,
+    "sha256": "2ae46e21f41882a9447f86b85997215075ea101ec6922c10a981820e29de5146"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/components/welcome-screen/WelcomeScreen.d.ts",
+    "bytes": 3060,
+    "sha256": "5068cf06481ee2af2887c399b55ee7483e8bf0fe8d3015502e079754132c4932"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/components/live-collaboration/LiveCollaborationTrigger.d.ts",
+    "bytes": 403,
+    "sha256": "a4313d89bc5565915851814a4f46fbf04419146e460bf1f1c24278efb81ec3a7"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/element/newElement.d.ts",
+    "bytes": 6489,
+    "sha256": "b75e3058f12bde5a627e898b5632034f49aa3ab6fcf0fa61cae8a83c7fa3c7f1"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/element/resizeTest.d.ts",
+    "bytes": 1377,
+    "sha256": "66807e0c5e59af413caca3141a0dfb2d4d75583cfb87da052c443fc8a17b8d10"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/element/resizeElements.d.ts",
+    "bytes": 2778,
+    "sha256": "af64d04f5a8c9c5425e3cc8342ab525d54eb44ec4f62aa7905957aa1ba08ded9"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/element/dragElements.d.ts",
+    "bytes": 1415,
+    "sha256": "18c2eba72ee8cf75505d18f111be6603c4e8d87f7415b55462b9e5736f0d906b"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/element/typeChecks.d.ts",
+    "bytes": 4289,
+    "sha256": "e06468bd91c2fb85754bd5d880d0ee81e7159d5a215ad2cdc0b216df230bbac2"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/element/textElement.d.ts",
+    "bytes": 3242,
+    "sha256": "53151472056de1bb6f448ac18e2799b5b6db3e6bf859e1c3b8317d21c49e96f9"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/element/sizeHelpers.d.ts",
+    "bytes": 1551,
+    "sha256": "d276d74e91e77a34285467ffa91c586d416a40ffb6d3ed3171daba991e507e4b"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/element/showSelectedShapeActions.d.ts",
+    "bytes": 236,
+    "sha256": "39c7c9f012ff21da63200ceb55ca4ef6217f6071ae563e090e313abbf01a980a"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/element/index.d.ts",
+    "bytes": 2326,
+    "sha256": "7aec3c133a982099372b76526a047d60c26b1b329532ca1114cfad98c4789c98"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/data/reconcile.d.ts",
+    "bytes": 567,
+    "sha256": "41dca85ce66e55c4d10639f925b127d3b1eaa544a4e629b3cc08b281a21074af"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/renderer/renderElement.d.ts",
+    "bytes": 2379,
+    "sha256": "37adbab063cd84d10e6e5eab89df0cf661d0a1d37f1947e67d24d9767a62aaf1"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/components/Sidebar/common.d.ts",
+    "bytes": 1099,
+    "sha256": "d9e5212a5723200f4991faab8b6a0dcef97f85de8d442e6bd7e4f5f2e15af906"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/components/Sidebar/Sidebar.d.ts",
+    "bytes": 3036,
+    "sha256": "cd62e10d6f06ae9e3ff257c99a10fd02ec691fa3c95c736100e777214577fdb3"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/components/Button.d.ts",
+    "bytes": 727,
+    "sha256": "6a6e5509a509f09516d13e8f0b8cda94c324e8aac601b18a014991b91b43a0d5"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/components/Stats/index.d.ts",
+    "bytes": 1572,
+    "sha256": "fb9536090101373edb9b8686ccdd52ad11d18ede6df5ef90bf713885961ff2e9"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/components/DefaultSidebar.d.ts",
+    "bytes": 1163,
+    "sha256": "8d4e812f2eab4b6d83570bd9a09b057e20927c814593a7cc739c970378def078"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/components/TTDDialog/TTDDialog.d.ts",
+    "bytes": 796,
+    "sha256": "2c2f291bc66259068e02059c1b75b558614c833f33b9396d21b09ffe4c880a6f"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/components/TTDDialog/TTDDialogTrigger.d.ts",
+    "bytes": 290,
+    "sha256": "e71d1bc1281f03934524447a57eeec351ffef55895db6d4ad43a7a4150c4f2b0"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/data/url.d.ts",
+    "bytes": 309,
+    "sha256": "17a469b531032a5ac4e5c808a965283431d6e0ff256d34cd6cbb68433e32f768"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/actions/actionCanvas.d.ts",
+    "bytes": 98631,
+    "sha256": "db92e73bf80699233be40017a9ec32da822f11dd174a8172801a7166143aa6fe"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/data/transform.d.ts",
+    "bytes": 3584,
+    "sha256": "7b85785848fb5d63dc8a0d7679d316a4d5821d608c5c62a712b18b0c28667859"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/components/DiagramToCodePlugin/DiagramToCodePlugin.d.ts",
+    "bytes": 159,
+    "sha256": "f4e341692b2211547cac408f7538fe886a0e2390fe6b23253334d6d82659cf78"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/element/elementLink.d.ts",
+    "bytes": 674,
+    "sha256": "d54d36df3f562cdf113400752c4fe9d89edcfa3dfca164264591a7425264ed75"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/element/textMeasurements.d.ts",
+    "bytes": 2216,
+    "sha256": "7ad9becce3d17b809cc62e727ad351803b49edc5638ea1ffb0f6d1af60e942a9"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@excalidraw/excalidraw/dist/types/excalidraw/index.d.ts",
+    "bytes": 2932,
+    "sha256": "90729dab4b90b24477773dd263aa8b51bbd62afa45f003795d084828a1e1e8e6"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/DesignEditor.tsx",
+    "bytes": 13690,
+    "sha256": "277aa3dc0eadc86447e003d5337bc12e09dbe45a6d6139180d8e4cf6f9086b6b"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/design/DesignWorkspace.tsx",
+    "bytes": 41936,
+    "sha256": "d562083891a8a7382ac726bc3789b492a8288d1e4c483f80844362351113983d"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/lens/DesignLens.tsx",
+    "bytes": 825,
+    "sha256": "76444a6dda346d34ea3d5e05bb06e54d8a5d2b5740e66549cc7034ccb445ae5c"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/lens/FilesLens.tsx",
+    "bytes": 3432,
+    "sha256": "223fa1980342c4273b9fc2b557a12de1d29a0ebb0fa3b7d37c6be3b6f5dfb4ca"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/ProjectDelivery.tsx",
+    "bytes": 18866,
+    "sha256": "901a22212fe465f13a306c7f635b4d631e86dcaa0236c9abdfd8c847c1e41211"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/lens/MergeLens.tsx",
+    "bytes": 9638,
+    "sha256": "62f3002f4bff379cd8afb82b3e7b8b714c6c10e4eba00336fb667c2f2496f1e6"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/swarmCheckpoint.ts",
+    "bytes": 5394,
+    "sha256": "3570b08927ff10536368a73a4cc2d1fc990caad0522d863b5ea1c8c2c2153130"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/swarmHandoff.ts",
+    "bytes": 9279,
+    "sha256": "b0d44e6d0c2e5a6496dbc6cd143a0064e2ef296ab1c8466829f45260e2cf707b"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/projectRuns.ts",
+    "bytes": 11372,
+    "sha256": "aef63e2c8f8b3533d82a508ffcd6c173b27a93c1f9f865932a72e0cef5f640c0"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/DeploymentOverview.tsx",
+    "bytes": 4692,
+    "sha256": "501cce28c3a9bc425686229d2ab554ca77a0744329f98a0c40a4c518ed12c0ff"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/useRunDeployment.ts",
+    "bytes": 2557,
+    "sha256": "4b55f3ed33a037c104dde723b05d96b1b2bf0d2a72167f2f08c85eea3a191fc3"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/CloudDeployForm.tsx",
+    "bytes": 12078,
+    "sha256": "cc59b4180ce87f2222fb4978597cdd483dcd7a197c86cfe70cb27336cfcc05d2"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/PagesDeployForm.tsx",
+    "bytes": 3904,
+    "sha256": "25ee506eafa9f98f2916968932dc327168d36e2fe06972c2bcde21b703625665"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/ProjectConfiguration.tsx",
+    "bytes": 11656,
+    "sha256": "e812d9c21c97947e7be4677668b519e54fbf0c894ccad3b8f26d07b9a549910a"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/data.ts",
+    "bytes": 6410,
+    "sha256": "2d60114853cafce151edc334c7dac2179d7d3313f57e5ce151085745b04d3ad8"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/platform/useDataAccess.ts",
+    "bytes": 3056,
+    "sha256": "c4c20a7828bb9006221942a286a145de64fa8d479c1066e7780b81697950464b"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/platform/DataControls.tsx",
+    "bytes": 22864,
+    "sha256": "ff6e4e93495e6d8170abe2431412735f4ca39d679e14e8ad044ab9e311ba07b4"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/dataFunctions.ts",
+    "bytes": 2518,
+    "sha256": "d368fffcd7141126602e93a7e46cf31e3b9bd3afe5bcfd5282700e97f23d983b"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/platform/DataFunctions.tsx",
+    "bytes": 23735,
+    "sha256": "7270e905b2cc9f3b2cb999b1de20ad9c4db1b7c9d21011469576d389065cf04d"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/platform/DataPublicDomain.tsx",
+    "bytes": 12095,
+    "sha256": "ea55171d43ad417420cf5105ea10899667ad3fed2ff6a35e165cee8c5627e0aa"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/dataEmail.ts",
+    "bytes": 1378,
+    "sha256": "bce1e1b8cfbeec9905635d0592b142bd436adab993a91339afe8fe2811120958"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/platform/DataEmail.tsx",
+    "bytes": 12410,
+    "sha256": "11bef22143d8e02008a7e5db4cfc3d51078468748e416e6d9c85f5611b9c74ef"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/platform/DataClientSetup.tsx",
+    "bytes": 3388,
+    "sha256": "856914e8cc98476b6a23c4aeddaabacfc11c483a597fe0504f00c7667d2b396c"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/platform/DataWorkspace.tsx",
+    "bytes": 18160,
+    "sha256": "4afe4134de879d613a72a7c325787ad2a117f9b8f3639689e6a1a4d373bb8e15"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/platform/StandaloneDatabase.tsx",
+    "bytes": 14863,
+    "sha256": "88227af40d6abcdbdf1810a59461592da2eb6f0363f23b02854288199940bf93"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/platform/PlatformWorkspace.tsx",
+    "bytes": 34267,
+    "sha256": "fefcfb9d2f8cf8e7f8150aca3452105411b5a6628c2e05614e0137cd837eac49"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/lens/DeployLens.tsx",
+    "bytes": 31572,
+    "sha256": "8d24e94094b3c2951a606bcb64c36dfe950c74fdfcb3ba44d8ae725292be2913"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@xterm/xterm/typings/xterm.d.ts",
+    "bytes": 65031,
+    "sha256": "99028aeff2d441798b242790750ee385ba621b460db5a7e2341ae1cab7f3e2af"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@xterm/addon-fit/typings/addon-fit.d.ts",
+    "bytes": 1181,
+    "sha256": "aad8b53a1210375cd5f15381958adfb3fa86d095b8bf703b622c58f9a2792e20"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/hooks/useKeyboardMap.ts",
+    "bytes": 15279,
+    "sha256": "edfed378452223f8c4299c1e84b43e96f1b2f9d50239122684d3376984fbda3c"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/Terminal.tsx",
+    "bytes": 11597,
+    "sha256": "51bd9cabecc454dbb9ace6d8fcf2f530102253b14c2448541decc304aed4d213"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/develop/LinkedWorktreeNote.tsx",
+    "bytes": 1813,
+    "sha256": "7121d8d3d4feaf3d0600faa3fdd458787a868e29927b0711fb0a46e40d77d9c4"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/lib/time.ts",
+    "bytes": 2162,
+    "sha256": "a1b39226b670f5bdd092aa3bf688e33dd13e9fe9d8b180a82a7b31ea8281429a"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/develop/SessionPaneFooter.tsx",
+    "bytes": 3375,
+    "sha256": "3f48dc7d2f9de3e7041089023ea0fa984669225e8f479c3beb629c03344f2edc"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/develop/SessionPaneHeader.tsx",
+    "bytes": 2891,
+    "sha256": "86435eaca1597abb24057397ee5c7715804ec432de16bd8d36c591625962da9e"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/develop/ReviewedContextInspector.tsx",
+    "bytes": 7219,
+    "sha256": "b14b3f65791e4cd0a3934d4a2fca0f0b6c893a19bdf435d18b7ac36e646682f6"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/develop/ReviewedContextNote.tsx",
+    "bytes": 2427,
+    "sha256": "b88130e7085cb44448dc6ca22c83bb59ae43d89431707c90d9ce00488c77d337"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/develop/SessionPane.tsx",
+    "bytes": 12862,
+    "sha256": "6953a091fc204c08d60f02fb1be41595e79efa2b952f90daf01b164ec628c7e2"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/develop/CanvasLayout.tsx",
+    "bytes": 19621,
+    "sha256": "bd4e16077dd0e5cb543edba1d8b5d8c5301e324e6ff6e5d142b32e1edef83f5a"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/develop/ColumnsLayout.tsx",
+    "bytes": 6377,
+    "sha256": "261f302348672d09dcc0baf8e20e346fb62f275059d2ae0642ba77f587847bf6"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/develop/EmptyDevelop.tsx",
+    "bytes": 8093,
+    "sha256": "c3404f9cd0ea675efd6eaa039cdcd31f49213417a389c17479f9143502ef1e4d"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/RequirementsEvidence.tsx",
+    "bytes": 4227,
+    "sha256": "3c2a92c046a5e94ab255783412b54d951104f73c66c2ddebd421c0ace950d798"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/swarmTaskCapability.ts",
+    "bytes": 1500,
+    "sha256": "298dde326a0013a37d35a264a600c6048f5bcdea575cfbde101ed28c6f448a59"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/projectSwarm.ts",
+    "bytes": 4965,
+    "sha256": "eaaa4b57147baa52d150d9bbbb303b5b2d36a3cd7148b3a9b3a3b797d3374d63"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/swarmWorkspace.ts",
+    "bytes": 3620,
+    "sha256": "7709a71be7478ff2ae05696790369b8b205ee160db3b50462d316f2db420db13"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/SwarmWorkspaceReview.tsx",
+    "bytes": 9514,
+    "sha256": "ce2ac35fa6ef88558c3d9c19a2b66a2c44d8f3cb0e70bc779f6b643cb5a3cdf0"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/SwarmCheckpointDialog.tsx",
+    "bytes": 5364,
+    "sha256": "f5558f3dd41b1ebc6574108bf456113bca6efd44f7f7c94f76b84526cf9e42d1"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/SwarmTaskHandoff.tsx",
+    "bytes": 20635,
+    "sha256": "50df8112a536cecbc990c5c0cbe044990457752e04c63617df091d4e922f50e5"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/swarmQueue.ts",
+    "bytes": 5127,
+    "sha256": "a28d2a5bb01b779527cd9d9c21a4dad01b1afc9dc3c22dad3de921c0c7db8422"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/SwarmRunQueue.tsx",
+    "bytes": 12166,
+    "sha256": "a742e46e90f2cf386817c149829c0d4f2176f6f36c3aeae2c55f371e9e3d0648"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/SwarmLaunchRecoveryDialog.tsx",
+    "bytes": 5219,
+    "sha256": "36ca3baff34bd972b4450f12c921b49a866695461328c10c1720d2e7f3ae51df"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/ProjectSwarm.tsx",
+    "bytes": 52614,
+    "sha256": "fd3f328b7bc85a43f0dea6b2edf7eb156e17f16b8742824606741a1c2a03a464"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/runAttention.ts",
+    "bytes": 1072,
+    "sha256": "e4e8d9fffd622db46079d6b213170ada0b906579630888679a29b432de44bd2b"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/orchestrator.ts",
+    "bytes": 9519,
+    "sha256": "ca6a50795b585177ba08470de7a0b43ad158f6a01b7b4f66262a23f0382220e6"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/orchestrator/AmendmentReview.tsx",
+    "bytes": 3673,
+    "sha256": "8acf6de329f781a002b665004a4e4351ee578e2ee3da46893a2224406abde5a4"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/common/RecordedRunAttention.tsx",
+    "bytes": 3165,
+    "sha256": "db993cdf693ed9f7af4ae0348da350256639e8a37c8ee6c6605bc00fe85b1c6c"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/orchestrator/ProjectUnderstanding.tsx",
+    "bytes": 14246,
+    "sha256": "5b864a2c5d3d30ad109d72af92378cf2b550dfa0de39051e41e0c9a8e2b2ac79"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/orchestrator/ConversationStorage.tsx",
+    "bytes": 4294,
+    "sha256": "dc266918fd652f84b632298de0223b099c28fb394c8ed1475bccaec90c869b29"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/orchestrator/agentPreference.ts",
+    "bytes": 1792,
+    "sha256": "b11a48efb74731e660fd13ee3ec2741b748e84ca13ca829f51199d8458dcc9ae"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/orchestrator/composerRecovery.ts",
+    "bytes": 7387,
+    "sha256": "211ac937a36a8a462650889afd3a096e99dd1fd7bda3348c2e5a84eb7d5911e8"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/orchestrator/OrchestratorPanel.tsx",
+    "bytes": 53107,
+    "sha256": "a6c174f959daaea7f0c3c38c8a7710602fc2ab2fa718bcc62dbaedeecc28e93a"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/ProjectRuns.tsx",
+    "bytes": 41294,
+    "sha256": "083f6cc2de3d264adf7d7e1062ef5a0e4339b101e57a30232f885d0cb8113ad7"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/PlanTaskGraph.tsx",
+    "bytes": 4887,
+    "sha256": "7f830fe62aa7801a82f705e6344492755e3b9ce7b7c947d4a61e60d36f216fe2"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/TaskScope.tsx",
+    "bytes": 3319,
+    "sha256": "72c87429b2067e75dbd21768e472f31caa822b62ccfac5cccbe93ac6c2d5a492"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/ProjectPlan.tsx",
+    "bytes": 35725,
+    "sha256": "97964eb42a9752343937c3153e042e042f77c633849d0bef12ac2d6bc945a87e"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/CheckRecoveryDialog.tsx",
+    "bytes": 8623,
+    "sha256": "88d5dea885ba8d019548580e096031cbccf5d06516d2a0937960683ba0d8323e"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/ProjectChecks.tsx",
+    "bytes": 41249,
+    "sha256": "efd6677ccf54a4bd1e4d802d4845e6575a964bd335907b0513baa79d7ae7bcb5"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/ProjectWork.tsx",
+    "bytes": 15387,
+    "sha256": "47eab2b040c6a1bb200b9c74cd8433ecc849b434f860437f607c66d57d953182"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/develop/DevelopLens.tsx",
+    "bytes": 2385,
+    "sha256": "d0e008f7d190e0fe3f6806cd7498f52fe0cb128b16d2020d63ba4e42fdf5d2bf"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/common/Toasts.tsx",
+    "bytes": 1459,
+    "sha256": "dea275e185fdae92e1c1e10f85ac1b138675c48383346700880cbacedc6f2bdd"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/palette/commands.ts",
+    "bytes": 11196,
+    "sha256": "89da0631eeafc8e570df582c5a136e7a11608a8ea422df166a9ae8ebbb775a1c"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/palette/CommandPalette.tsx",
+    "bytes": 6197,
+    "sha256": "be1494e96a955694c9362765622395e3ce37557633aaee594b2a5023d2400406"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/projectOverview.ts",
+    "bytes": 4183,
+    "sha256": "3456932d8db2f2e9f634c63af76ee2d7613858d0104eab390845e6cf46e3e736"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/ui/badge.tsx",
+    "bytes": 1007,
+    "sha256": "4d008017820f2edf6d2690b43b761a5dddf31201a4b687ecd2a1300bd567fd3a"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/swarmScheduler.ts",
+    "bytes": 3654,
+    "sha256": "3a86168313b1df8b316231a12d9fb71324eca9e290695264a9d5667a85302e76"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/projects/HostCapacity.tsx",
+    "bytes": 14116,
+    "sha256": "a67deeea0453eeee37cd63ddfa7febf7dcd640e2615b7feff7f631f61d994999"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/projects/ProjectOverviewBoard.tsx",
+    "bytes": 23198,
+    "sha256": "380db2996d677f099da77e2702fabfe5391e4dd226404513db1e58546a59b48f"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/projects/ProjectsHome.tsx",
+    "bytes": 5213,
+    "sha256": "ac22f3cf538ae28e231263aad85c4154c5acc4d4b3d2381d69c4603260669986"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/common/DraftNavigationDialog.tsx",
+    "bytes": 2809,
+    "sha256": "8b15f26f9a21cc33b6978d9f8bbf8e7837689e51d9e296d212201e7e28c2369f"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/projectBranches.ts",
+    "bytes": 1692,
+    "sha256": "3b9df327b7923fea4c94fd23dcd1e80bcdaaff53984e340bc24176f57679497a"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/BranchManager.tsx",
+    "bytes": 11516,
+    "sha256": "577c6679a4ba0c82165fb801fc278e79fafdbe3b0f8510b457a91137b11543e5"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/AppShell.tsx",
+    "bytes": 6381,
+    "sha256": "b3aaf4ce4302109c2c10b023ecbff249b96655955f4d29bf0bb4834b4fc8fcd4"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/App.tsx",
+    "bytes": 13110,
+    "sha256": "88c37c47b3cfae6d40bb2c876ef3fa713da662705302979b2c4d24d120803786"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/vitest/optional-runtime-types.d.ts",
+    "bytes": 164,
+    "sha256": "c76c02846ba7d40b9b3488f0e8d75d02cbdee2f0bc5fcd55dd3bd2e1457646ea"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/tinybench/dist/index.d.ts",
+    "bytes": 36074,
+    "sha256": "883ab61941ae697bd5724f02abc0a4044dc5427e7fb002c95867204918c1a68c"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/vitest/dist/chunks/config.d.CU_b-wJj.d.ts",
+    "bytes": 136567,
+    "sha256": "2493d114a1f01f02d69b4b44265405dfd5bbf135e0f467838808c4137c71ce54"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/vite/types/hmrPayload.d.ts",
+    "bytes": 1873,
+    "sha256": "24c010698f5f7a0f1c216b963994d09ecfef77d7d5b4116b248068287ddb5964"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/vite/dist/node/chunks/moduleRunnerTransport.d.ts",
+    "bytes": 3088,
+    "sha256": "c911b3bd083dade8fdb7775261aa25feae695d562a3b11209650b47be90043fc"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/vite/types/customEvent.d.ts",
+    "bytes": 2142,
+    "sha256": "5ef1bf71c773ca3df07f0c8c126af004a8e7310a7373ba4f049e7d3fb1b21921"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/vite/types/hot.d.ts",
+    "bytes": 1063,
+    "sha256": "4e003c868b0d8f8ad200b96cbc653e18e513fa23e1c19c4fe3cc25d4394efc47"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/vite/dist/node/module-runner.d.ts",
+    "bytes": 11364,
+    "sha256": "93aed5bd196d1a1417d07e5c5b66a96107f0ee7d5c9027c2af12d876ab5e0f5e"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/vitest/dist/chunks/rpc.d.DA9Utv4e.d.ts",
+    "bytes": 3291,
+    "sha256": "fc620fc5a05d1d8499e790626f83b401604634dfd9c4b11042099a63883df8fb"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/vitest/dist/chunks/environment.d.C6xYahWA.d.ts",
+    "bytes": 1134,
+    "sha256": "123b46e873f6ae5902094478c2c58b725b3d92e1d36b53daf85b7732d032dfa8"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/vitest/dist/chunks/worker.d.MLmnzOJE.d.ts",
+    "bytes": 9038,
+    "sha256": "11f54bcce4d6e4271122c6b06329b37f6d297141ad6e918b5181e17572158a10"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/vitest/dist/chunks/browser.d.g5Thl309.d.ts",
+    "bytes": 1890,
+    "sha256": "dd8cb59c27a49fdc4b86eb755ddaaab5de0f30a627767f506fb2607ca4b2ec22"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/vitest/dist/chunks/task-utils.d.BZm4GSQD.d.ts",
+    "bytes": 5011,
+    "sha256": "9500d6fd10c59daeab4a18b1d9aeaf13d790bd4a92a5f864d5f323dba395d4cc"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@vitest/mocker/dist/registry.d-xLx_FoyF.d.ts",
+    "bytes": 4617,
+    "sha256": "8d4ea2431523a42682a9f2efb2ae662aa42a39983c9d40a19257b2445f50450e"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@vitest/mocker/dist/index.d-D4wtotQw.d.ts",
+    "bytes": 862,
+    "sha256": "29738162d88967e51557276cba80552cb8d2a4c823873b7f1531244860f0d178"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@vitest/mocker/dist/index.d.ts",
+    "bytes": 648,
+    "sha256": "fc07122b30042636bbf689305c75a764d6e3c2eeb75cd1033c96a6a7dc9e6e3f"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/vitest/dist/chunks/evaluatedModules.d.BxJ5omdx.d.ts",
+    "bytes": 205,
+    "sha256": "b413fbc6658fe2774f8bf9a15cf4c53e586fc38a2d5256b3b9647da242c14389"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/expect-type/dist/utils.d.ts",
+    "bytes": 8434,
+    "sha256": "dd51e53752b310bd20c9b1a87bbf12b1fe2be7fe40f505b43199496481096275"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/expect-type/dist/overloads.d.ts",
+    "bytes": 23165,
+    "sha256": "a87be4662442b3feeffc331ecafe6b36cafd08727e2d7f2425a5099577e7fd18"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/expect-type/dist/branding.d.ts",
+    "bytes": 6478,
+    "sha256": "cd4cd9220a1ba793bc935e76d8e5481c110a90d9868ae7866a182ee71cdb6abb"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/expect-type/dist/messages.d.ts",
+    "bytes": 5570,
+    "sha256": "0a7fb8619b10bc05fd933ca9ac1c8b2ab2220be7a57b57565c3ac158595494ef"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/expect-type/dist/index.d.ts",
+    "bytes": 37958,
+    "sha256": "c4a5f91feb9c5a6b2a91089d959c38391b79a961db3b9cc73b8877d57ad7dcdc"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@types/deep-eql/index.d.ts",
+    "bytes": 1117,
+    "sha256": "427fe2004642504828c1476d0af4270e6ad4db6de78c0b5da3e4c5ca95052a99"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/assertion-error/index.d.ts",
+    "bytes": 704,
+    "sha256": "2eeffcee5c1661ddca53353929558037b8cf305ffb86a803512982f99bcab50d"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@types/chai/index.d.ts",
+    "bytes": 87485,
+    "sha256": "9afb4cb864d297e4092a79ee2871b5d3143ea14153f62ef0bb04ede25f432030"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/vitest/dist/index.d.ts",
+    "bytes": 45467,
+    "sha256": "3589cb90a45acfb8c2336b34a9e340f036a6aecfdb71742047d37748dfa52816"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@types/react-dom/client.d.ts",
+    "bytes": 3106,
+    "sha256": "bc03c3c352f689e38c0ddd50c39b1e65d59273991bfc8858a9e3c0ebb79c023b"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@types/aria-query/index.d.ts",
+    "bytes": 9546,
+    "sha256": "ae77d81a5541a8abb938a0efedf9ac4bea36fb3a24cc28cfa11c598863aba571"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/dom/types/matches.d.ts",
+    "bytes": 1284,
+    "sha256": "3cfb7c0c642b19fb75132154040bb7cd840f0002f9955b14154e69611b9b3f81"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/dom/types/wait-for.d.ts",
+    "bytes": 293,
+    "sha256": "8387ec1601cf6b8948672537cf8d430431ba0d87b1f9537b4597c1ab8d3ade5b"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/dom/types/query-helpers.d.ts",
+    "bytes": 2000,
+    "sha256": "d16f1c460b1ca9158e030fdf3641e1de11135e0c7169d3e8cf17cc4cc35d5e64"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/dom/types/queries.d.ts",
+    "bytes": 12181,
+    "sha256": "a934063af84f8117b8ce51851c1af2b76efe960aa4c7b48d0343a1b15c01aedf"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/dom/types/get-queries-for-element.d.ts",
+    "bytes": 9561,
+    "sha256": "e3c5ad476eb2fca8505aee5bdfdf9bf11760df5d0f9545db23f12a5c4d72a718"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/pretty-format/build/types.d.ts",
+    "bytes": 2897,
+    "sha256": "462bccdf75fcafc1ae8c30400c9425e1a4681db5d605d1a0edb4f990a54d8094"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/pretty-format/build/index.d.ts",
+    "bytes": 984,
+    "sha256": "5923d8facbac6ecf7c84739a5c701a57af94a6f6648d6229a6c768cf28f0f8cb"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/dom/types/screen.d.ts",
+    "bytes": 710,
+    "sha256": "d0570ce419fb38287e7b39c910b468becb5b2278cf33b1000a3d3e82a46ecae2"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/dom/types/wait-for-element-to-be-removed.d.ts",
+    "bytes": 161,
+    "sha256": "3aca7f4260dad9dcc0a0333654cb3cde6664d34a553ec06c953bce11151764d7"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/dom/types/get-node-text.d.ts",
+    "bytes": 55,
+    "sha256": "a0a6f0095f25f08a7129bc4d7cb8438039ec422dc341218d274e1e5131115988"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/dom/types/events.d.ts",
+    "bytes": 2115,
+    "sha256": "b58f396fe4cfe5a0e4d594996bc8c1bfe25496fbc66cf169d41ac3c139418c77"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/dom/types/pretty-dom.d.ts",
+    "bytes": 593,
+    "sha256": "45785e608b3d380c79e21957a6d1467e1206ac0281644e43e8ed6498808ace72"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/dom/types/role-helpers.d.ts",
+    "bytes": 454,
+    "sha256": "bece27602416508ba946868ad34d09997911016dbd6893fb884633017f74e2c5"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/dom/types/config.d.ts",
+    "bytes": 994,
+    "sha256": "2a90177ebaef25de89351de964c2c601ab54d6e3a157cba60d9cd3eaf5a5ee1a"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/dom/types/suggestions.d.ts",
+    "bytes": 755,
+    "sha256": "82200e963d3c767976a5a9f41ecf8c65eca14a6b33dcbe00214fcbe959698c46"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/dom/types/index.d.ts",
+    "bytes": 666,
+    "sha256": "b4966c503c08bbd9e834037a8ab60e5f53c5fd1092e8873c4a1c344806acdab2"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@types/react-dom/test-utils/index.d.ts",
+    "bytes": 112,
+    "sha256": "3d3208d0f061e4836dd5f144425781c172987c430f7eaee483fadaa3c5780f9f"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/react/types/index.d.ts",
+    "bytes": 10408,
+    "sha256": "34a8a5b4c21e7a6d07d3b6bce72371da300ec1aed58961067e13f1f4dc849712"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/test/fakes.ts",
+    "bytes": 11792,
+    "sha256": "c0a4ca549296a6bd530f35c157f8be9520f4acd191b09b36c07c5a019dace1b4"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/test/fixtures.ts",
+    "bytes": 5391,
+    "sha256": "5f8a1d84422914e034dcfe16958a6aaf3abf79b202698b5a180dae5f2c35fa84"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/defects.test.tsx",
+    "bytes": 58181,
+    "sha256": "65bb167021e602a19043e8914b2d34d1f229eff4a8bf4882873c19046cd7fa22"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/e2eC4Pinned.test.ts",
+    "bytes": 11453,
+    "sha256": "89284f0cf92b34c049927dcaa15582a2c2dd571aa74e17c73dd65ee51f9e7ff5"
+  },
+  {
+    "path": "/workspace/luci/desktop/e2e/defect6.d.mts",
+    "bytes": 554,
+    "sha256": "48c8467acd99f634aabdbc140f40e58979b72b8f704898fd5ff1c1342f2b496d"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/e2eDefect6.test.ts",
+    "bytes": 3233,
+    "sha256": "e99cea4b14d5c3cb2135ded117aa1e4c37967ef9654466dbb7b23918c87f488e"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/designAssets.ts",
+    "bytes": 293,
+    "sha256": "017cf21910ac1eb0511edb57fdefd95fdbf596edb6b89f40beab45f6c1a9b920"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/fluid/FluidProvider.tsx",
+    "bytes": 465,
+    "sha256": "d03360fdadc1adb574e2776fd1a3cd5d75f1b72f19cacec812ab3abc189b195b"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/main.tsx",
+    "bytes": 2972,
+    "sha256": "0256e5a508589837df51903a8768f082254a61c129c955100e0ce2cc9914fab7"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/typescript/lib/typescript.d.ts",
+    "bytes": 588452,
+    "sha256": "c967e03c8dbb4770f7e2f0b71b5d13593de679a41cc2b60266c4b69f1342a263"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/seams.test.ts",
+    "bytes": 83440,
+    "sha256": "4bd2fcb55a43e3e1f22d617bc1899edaec184189e46fdddc102f1627d7072769"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/vite/types/importGlob.d.ts",
+    "bytes": 3477,
+    "sha256": "e50d04d261120f8f9d07e85698735d5b88f3a66bc395c08ce26c3d817d141a73"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/vite/types/importMeta.d.ts",
+    "bytes": 884,
+    "sha256": "72429cda84a47f092a3bf777bbc4ece9dda492fe0f02324aa7f197f3800089c6"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/vite/client.d.ts",
+    "bytes": 5231,
+    "sha256": "74b98be6ab7723114273526706070ff9885fdf990d5c4e722801addca4d264e1"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/vite-env.d.ts",
+    "bytes": 119,
+    "sha256": "c719bfd9a16bb27473f79e7e8c9d3ed22050e686e0a4c8fa40ddd912d3debbcd"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/attachRegistry.exit.test.ts",
+    "bytes": 12091,
+    "sha256": "f54a91f769c5ca702077fafb993bd4606ca12733b579892653788f3be883f7d4"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/attachRegistry.overload-generation.test.ts",
+    "bytes": 2662,
+    "sha256": "6be6f383d83dc669bca26781382328844de4679fd8df3066f6cbc8f9374888f7"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/attachRegistry.test.ts",
+    "bytes": 58055,
+    "sha256": "87c0ef6e6f2114105089dea4df3e00fb0ee11dc9fc104e27e0cfc2324784db2c"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/authTransport.test.ts",
+    "bytes": 2154,
+    "sha256": "8ea3420d3e6dc1428a58d7f1e0e96fedc2886db23a89364eb32c5d4350c190f8"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/billingReturn.test.ts",
+    "bytes": 1745,
+    "sha256": "ef79e64f90663e3693ed8860337fae5c54f0466b4ea6bcad29fa4b35a539ec1a"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/browserAccess.test.ts",
+    "bytes": 2994,
+    "sha256": "b061c824e10b0eb9e71f25ea4097ca83acae9d21adde3613d124c3f3cce6d782"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/client.test.ts",
+    "bytes": 31177,
+    "sha256": "1ec20bf2e48a1878a17553901c6026cf765608bb9fe0f2d28db522b2cf38969b"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/contextHistory.test.ts",
+    "bytes": 2412,
+    "sha256": "f9ea833ae70147c8e1f2dd6de4981c64e41245b736897c5d95e5b26f1a01842a"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/dataDownloads.test.ts",
+    "bytes": 1928,
+    "sha256": "cee1dbe5b340f8232efb5467ab8b2d816300344a8d5e63618642e5a187b88524"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/dataEmail.test.ts",
+    "bytes": 702,
+    "sha256": "86cdda6a367fc937a1d66e4f6aa5e33dd31cff2e67a8fc23d7d2cd10853bd616"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/dataFunctions.test.ts",
+    "bytes": 1667,
+    "sha256": "8703e2915cfd5369ec3e40a4c89793ddb6ebaf7d0d074894ed93850ad6e7921d"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/definitionRepository.test.ts",
+    "bytes": 2471,
+    "sha256": "d5ff8754a4f12280e9cc35bd3b0e0e55e854d6fdaf13a085c219d7fa09300d51"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/orchestrator/fixtures.ts",
+    "bytes": 3577,
+    "sha256": "9340eba210fa806a1511c5b99a03b08bb0ed9b15c342c01b69466e5bbbc78006"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/displayReads.test.ts",
+    "bytes": 4374,
+    "sha256": "5be6bddf3dd2161d9abb7effc466c8d061ee99d8c62c5c3d173e19b552057af6"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/executionStorage.test.ts",
+    "bytes": 4143,
+    "sha256": "c2491568e01e9945fdef4c190fbebf3bf38753498410877240b48c1a57f7cb55"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/orchestrator.test.ts",
+    "bytes": 11058,
+    "sha256": "8de13da860e8808aca3fc7c8a27c36645916a5eec59ecd629a0cb40194c71cac"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/platformBackups.test.ts",
+    "bytes": 4091,
+    "sha256": "9d4766f659e6b92c1c08ceec155ce8cff204ce5514b99a54f13997156ae0f4e2"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/platformBrowser.test.ts",
+    "bytes": 1862,
+    "sha256": "9d5de9bb684b88d15f4ac354676f4d88002fe118a615f196d0e255f57f78cad0"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/poller.generation.test.ts",
+    "bytes": 5426,
+    "sha256": "c9b2b37a78df0ea781c507991eecee91aa58bd7a17510cae63f8aa95e61c37f5"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/poller.test.ts",
+    "bytes": 6678,
+    "sha256": "77b5e0793109c94a7702567614f7de12e5c1dda4efa5b6ce404a4473d97f4f65"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/test/checkFixtures.ts",
+    "bytes": 1094,
+    "sha256": "7531d2736874d2985caf0bbc82df065cc36ce12c4dd6ada325b4571db95d0f42"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/product.test.ts",
+    "bytes": 6056,
+    "sha256": "017d3ece82d991d6c65a2adb0c4766a4bd3f65dbdd1c07fb8d087c529d4deb79"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/projectCheckContracts.test.ts",
+    "bytes": 6082,
+    "sha256": "810f825797c6fd9ba7b6a905dc771a3f30d2659d73d825282c219a550166c505"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/projectContext.test.ts",
+    "bytes": 1062,
+    "sha256": "422cbd3716e89466d180eaa069ae2359b8138036aceace9e108a6616f025a51d"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/projectContextEvents.test.ts",
+    "bytes": 3475,
+    "sha256": "7a355347d9cd675cafaf5b21b66c67bc9440e2a690059e725916421c6f3a7d92"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/projectImports.test.ts",
+    "bytes": 11090,
+    "sha256": "f2b0b38d48759dbb80eab8b1d46f27deca11184234bb091a6644186305c774a4"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/projectOverview.test.ts",
+    "bytes": 5482,
+    "sha256": "2aa0a5c6760fe2ea69e5e80d7e0ef902267600ccd5e4ee666e84985d87c42f6b"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/projectRuns.test.ts",
+    "bytes": 3858,
+    "sha256": "be9320096d631c0b707ae99d7eb5aac88059298b94c5b6e514b0c0583dbb3aa9"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/projectSwarm.test.ts",
+    "bytes": 6335,
+    "sha256": "18a5e89ccad6dd6c44820806d44e3ca8a3c6ecf1d9067b0d9706febc2c340fb5"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/test/swarmFixtures.ts",
+    "bytes": 2738,
+    "sha256": "63a1d8a246fb835fa8578cd0117d91c2662f4d533fc32de002b164a5ca87f59a"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/swarmCheckpoint.test.ts",
+    "bytes": 6395,
+    "sha256": "5c503b403536a3fddabd4ed8250c23acba866df2e3b4068f535f53ea85317a0f"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/test/handoffFixtures.ts",
+    "bytes": 1997,
+    "sha256": "cb120e31c3e17f79029e12606985c6bfdc1590558585fbd1360f2d68e409182d"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/swarmHandoff.test.ts",
+    "bytes": 7652,
+    "sha256": "0d9214ba87ffb0900dfafa7a978b6583c62d99f5ec2095ddb8679aac660105cd"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/swarmQueue.test.ts",
+    "bytes": 4224,
+    "sha256": "e7875800aef4a35de73a70b2d9f61148a01dcef850fb5515f4c7c887136a98ce"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/swarmScheduler.test.ts",
+    "bytes": 3689,
+    "sha256": "98f4ad3cf97255cb93099b523f414539ff5845cdb5f725a2cfae688091e7be92"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/swarmWorkspace.test.ts",
+    "bytes": 3541,
+    "sha256": "9b5f3f929d7a5f0e772baa1050606a73718d6ca0bf784bb6e1f90081f6e7c628"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/teamAudit.test.ts",
+    "bytes": 1406,
+    "sha256": "0b67246e2b2103db76539b72e14c94389f927fb8b4b8239bb6531808155581d4"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/teamDataLifecycle.test.ts",
+    "bytes": 2474,
+    "sha256": "0222ad9008acbc9ac97855e1c6b31488d8b554ea6076b68368aca19d164e48b5"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/teamInvitations.test.ts",
+    "bytes": 3655,
+    "sha256": "67f17a192e3f323ed2339f4402c15c62544ccfb4dce324f4aab96b8cb6a651de"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/teamScope.test.ts",
+    "bytes": 9182,
+    "sha256": "abf47adf9c46b9c19b0c9d8009d43d6a50685946651a7107d2c289b09ec58e7e"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/api/transfers.test.ts",
+    "bytes": 8275,
+    "sha256": "788475fe6ccf2abb07f7575e6053c9c5effca61661d5f9b74249c844b4f40b47"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/event/eventMap.d.ts",
+    "bytes": 7666,
+    "sha256": "da0f84fcd93700b4a5fbf9c6f166a6cc19fc798231bff56dd1e3875bfc6966eb"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/event/types.d.ts",
+    "bytes": 866,
+    "sha256": "634ff08e0143bec98401c737de7bfc6883bfec09200bd3806d2a4cfc79c62aaa"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/event/dispatchEvent.d.ts",
+    "bytes": 499,
+    "sha256": "90a86863e3a57143c50fec5129d844ec12cef8fe44d120e56650ed51a6ce9867"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/event/focus.d.ts",
+    "bytes": 167,
+    "sha256": "472c0a98c5de98b8f5206132c941b052f5cc1ae78860cb8712ac4f1ebf4550ca"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/event/input.d.ts",
+    "bytes": 151,
+    "sha256": "538c4903ef9f8df7d84c6cf2e065d589a2532d152fa44105c7093a606393b814"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/click/isClickableInput.d.ts",
+    "bytes": 448,
+    "sha256": "cfcb6acbb793a78b20899e6537c010bfbbf939c77471abcdc2a41faf9682ca1a"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/dataTransfer/Blob.d.ts",
+    "bytes": 108,
+    "sha256": "a7798e86de8e76844f774f8e0e338149893789cdc08970381f0ae78c86e8667f"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/dataTransfer/DataTransfer.d.ts",
+    "bytes": 238,
+    "sha256": "eebc21bb922816f92302a1f9dcefc938e74d4af8c0a111b2a52519d7e25d4868"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/dataTransfer/FileList.d.ts",
+    "bytes": 101,
+    "sha256": "6b359d3c3138a9f4d3a9c9a8fda24be6fd15bd789e692252b53e68ce99db8edc"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/dataTransfer/Clipboard.d.ts",
+    "bytes": 773,
+    "sha256": "9488b648a6a4146b26c0fd4e85984f617056293092a89861f5259a69be16ca5c"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/edit/timeValue.d.ts",
+    "bytes": 195,
+    "sha256": "e156513655462b5811a8f980e32ccd204c19042f8c9756430fe4e8d6f7c1326e"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/edit/isContentEditable.d.ts",
+    "bytes": 270,
+    "sha256": "5679b694d138b8c4b3d56c9b1210f903c6b0ca2b5e7f1682a2dd41a6c955f094"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/edit/isEditable.d.ts",
+    "bytes": 841,
+    "sha256": "ca8da035b76fb0136d2c1390dda650b7979202dbe0f5dc7eaefcde1c76dee4f4"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/edit/maxLength.d.ts",
+    "bytes": 514,
+    "sha256": "4b1022a607444684abeee6537e4cace97263d1ef047c31b012c41fdc15838a79"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/edit/setFiles.d.ts",
+    "bytes": 280,
+    "sha256": "dd0271250f1e4314e52d7e0da9f3b25a708827f8a43ceff847a2a5e3fd3283e8"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/focus/cursor.d.ts",
+    "bytes": 240,
+    "sha256": "47971d8a8639a2a2dd684091c6e7660ec5909fed540c4479ca24e22ac237194e"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/focus/getActiveElement.d.ts",
+    "bytes": 168,
+    "sha256": "e1075312b07671ef1cbf46409a0fa2eb2b90bb59c6215c94f0e530113013eeda"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/focus/getTabDestination.d.ts",
+    "bytes": 96,
+    "sha256": "1bfd63c3f3749c5dc925bb0c05f229f9a376b8d3f8173d0e01901c08202caf6f"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/focus/isFocusable.d.ts",
+    "bytes": 79,
+    "sha256": "da850b4fdbabdd528f8b9c2784c5ba3b3bedc4e2e1e34dcd08b6407f9ec61a25"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/focus/selection.d.ts",
+    "bytes": 431,
+    "sha256": "e61c918bb5f4a39b795a06e22bc4d44befcefd22f6a5c8a732c9ed0b565a6128"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/focus/selector.d.ts",
+    "bytes": 49,
+    "sha256": "ee56351989b0e6f31fd35c9048e222146ced0aac68c64ce2e034f7c881327d6d"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/keyDef/readNextDescriptor.d.ts",
+    "bytes": 908,
+    "sha256": "f58b2f1c8f4bcf519377d39f9555631b6507977ad2f4d8b73ac04622716dc925"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/misc/cloneEvent.d.ts",
+    "bytes": 66,
+    "sha256": "4c805d3d1228c73877e7550afd8b881d89d9bc0c6b73c88940cffcdd2931b1f6"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/misc/findClosest.d.ts",
+    "bytes": 123,
+    "sha256": "4aa74b4bc57c535815ae004550c59a953c8f8c3c61418ac47a7dcfefba76d1ba"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/misc/getDocumentFromNode.d.ts",
+    "bytes": 72,
+    "sha256": "78b17ceb133d95df989a1e073891259b54c968f71f416cd76185308af4f9a185"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/misc/getTreeDiff.d.ts",
+    "bytes": 119,
+    "sha256": "d76e5d04d111581b97e0aa35de3063022d20d572f22f388d3846a73f6ce0b788"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/misc/getWindow.d.ts",
+    "bytes": 75,
+    "sha256": "0a53bb48eba6e9f5a56e3b85529fbbe786d96e84871579d10593d4f3ae0f9dba"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/misc/isDescendantOrSelf.d.ts",
+    "bytes": 111,
+    "sha256": "d34fb8b0a66f0a406c7ce63a36f16dda7ff4500b11b0bd30a491aa0d59336d1f"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/misc/isElementType.d.ts",
+    "bytes": 303,
+    "sha256": "282b31893b18a06114e5173f775dd085597ca220d183b8bd474d21846c048334"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/misc/isVisible.d.ts",
+    "bytes": 62,
+    "sha256": "ed27d5ce258f069acf0036471d1fbb56b4cb3c16d7401b52a51297eca651db62"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/misc/isDisabled.d.ts",
+    "bytes": 70,
+    "sha256": "ec203a515afd88589bf1d384535024f5b90ebe6b5c416fb3dcca0abd428a8ba4"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/misc/level.d.ts",
+    "bytes": 344,
+    "sha256": "32a2a1374b57f0744d284ca93b477bd97825922513a24dfe262cbf3497377d96"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/misc/wait.d.ts",
+    "bytes": 138,
+    "sha256": "a8b60d24dc1eb26c0e987f9461c893744339a7f48e4496f8077f258a644cffab"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/pointer/cssPointerEvents.d.ts",
+    "bytes": 675,
+    "sha256": "3f9df27a77a23d69088e369b42af5f95bcb3e605e6b5c2395f0bfcd82045e051"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utils/index.d.ts",
+    "bytes": 1091,
+    "sha256": "9fd080a9458c6d6f3eb6d4e2b12a3ec498d7d219863e9dca0646bdee9acce875"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/document/UI.d.ts",
+    "bytes": 2115,
+    "sha256": "062e38860be34b5fd39015b44ce425f56f26d50a432b082cbfae466422499154"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/document/getValueOrTextContent.d.ts",
+    "bytes": 160,
+    "sha256": "9a9ba9f6fd097bb2f57d68da8a39403bbe4dc818b8ccd155a780e4e23fa556f2"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/document/copySelection.d.ts",
+    "bytes": 70,
+    "sha256": "e50c4cd1f5cbce3e74c19a5bbf503c460e6ae86597e6d648a98c7f6c90b596dd"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/document/trackValue.d.ts",
+    "bytes": 629,
+    "sha256": "fa140f881e20591ce163039a7968b54c5e51c11228708b4f9147473d06471cf5"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/document/index.d.ts",
+    "bytes": 313,
+    "sha256": "295eca0c47be1191690fd2fe588195fff9d4dc43852aceb8b4cab2aa634579f0"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/event/selection/getInputRange.d.ts",
+    "bytes": 206,
+    "sha256": "59ee7346e19b0050508a592702871dc943083c6dcb69a47d52e888115d840781"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/event/selection/modifySelection.d.ts",
+    "bytes": 226,
+    "sha256": "067712491fb2094c212c733dd8e2d56e74c309a9ce9dac9e919286b7245a1eb4"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/event/selection/moveSelection.d.ts",
+    "bytes": 109,
+    "sha256": "a5eae58ac55bd30c42359e4b01fb2be5eddac336869d3f04ffb4daa54b58f009"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/event/selection/setSelectionPerMouse.d.ts",
+    "bytes": 288,
+    "sha256": "d12d691ef8933e8db39f2ca81d6973940ff5e37bb421752f5b6e7bc15dea3abf"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/event/selection/modifySelectionPerMouse.d.ts",
+    "bytes": 265,
+    "sha256": "4c5f8bd9b3a1aae4e4fddfee41667e495a045f73ed603993038fa6a8ba92fa14"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/event/selection/selectAll.d.ts",
+    "bytes": 197,
+    "sha256": "dfb274ab0f319cf18ce7152067c25f984c7fd1924fc72b3f66734588444c934a"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/event/selection/setSelectionRange.d.ts",
+    "bytes": 241,
+    "sha256": "108c8c05cbc3fbbbd4ff4fc0779c9bef55655c28528eb0f77829795dc9f0b484"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/event/selection/setSelection.d.ts",
+    "bytes": 251,
+    "sha256": "a7e5444d24cdec45f113f4fb8a687e1c83a5d30c55d2da19a04be71108ad77bd"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/event/selection/updateSelectionOnFocus.d.ts",
+    "bytes": 184,
+    "sha256": "41ec17e218b7358fcff25c719bc419fec8ec98f13e561b9a33b07392d4fec24c"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/event/selection/index.d.ts",
+    "bytes": 683,
+    "sha256": "23c204326746e981e02d7f0a15ab6f8015f9035998cb3766c9ddbf8ea247aea2"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/event/index.d.ts",
+    "bytes": 427,
+    "sha256": "25f994b5d76ce6a3186a3319555bbba79706dac2174019915c39ac6080e98c7e"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/system/pointer/buttons.d.ts",
+    "bytes": 725,
+    "sha256": "dfa4e2c6a612d43851ccbc499598cb006a3a78bc8c7f972c52078f862fa84e47"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/system/pointer/shared.d.ts",
+    "bytes": 609,
+    "sha256": "02c1705fa902f172be6e9020d74bcd92ce5db8d2ef3e1b03aabc2ac8eb46c3db"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/system/pointer/index.d.ts",
+    "bytes": 988,
+    "sha256": "99d2d8a0c7bb3dd77459552269a7b5865fa912cedab69db686d40d2586b551f7"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/system/index.d.ts",
+    "bytes": 334,
+    "sha256": "b47abe58626d76d258472b1d5f76752dd29efe681545f32698db84e7f83517df"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/system/keyboard.d.ts",
+    "bytes": 1549,
+    "sha256": "88bf2d390e1f0f7574994f6b25904e6b9d114ff6561fa7028f35a4d7f9b2ca8e"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/options.d.ts",
+    "bytes": 4090,
+    "sha256": "d54ba81f57b632a3ebd2b9ff0ea9c7c965ec0aa31591430f5b9e759a0d5e460c"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/convenience/click.d.ts",
+    "bytes": 291,
+    "sha256": "3b4195afd41a9215afc7be0820f8083f6bd2e85e5e0b45bb0061fb041944711e"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/convenience/hover.d.ts",
+    "bytes": 204,
+    "sha256": "108df8095f5e25d7189dd0d1433ac2df75ec40c779d8faf7d2670f1485beb643"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/convenience/tab.d.ts",
+    "bytes": 141,
+    "sha256": "ddd3c1d3c9ff67140191a3cf49b09875e20f28f2fc5535ae5ea16e14293a989b"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/convenience/index.d.ts",
+    "bytes": 73,
+    "sha256": "7b496e53d5f7e1737adcb5610516476ee055bf547918797348f245c68e7418fe"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/keyboard/index.d.ts",
+    "bytes": 196,
+    "sha256": "577f44389d7faedd7fc9c0330caf73140e5d0d5f6c968210bff78be569f398a7"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/clipboard/copy.d.ts",
+    "bytes": 123,
+    "sha256": "3046c57724587a59bceefadd30040d418e9df81b9f3cfd680618a3511302ed7a"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/clipboard/cut.d.ts",
+    "bytes": 122,
+    "sha256": "15ccc911ed15397e838471bfe6d476c28deffe976c05cb057e6b1ea7491242c2"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/clipboard/paste.d.ts",
+    "bytes": 143,
+    "sha256": "64b5a5ebdaead77a9a564aa938f4fb7a45e27cda7441d3bee8c9de8a4df5a04f"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/clipboard/index.d.ts",
+    "bytes": 72,
+    "sha256": "a48037f7af5f80df8973db5e562e17566407541de284b8dadf1879ea3aed8a2f"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/pointer/index.d.ts",
+    "bytes": 967,
+    "sha256": "dab97d96ce986857150db03f0d435b44c060d126b4a387c7807f4e9f6c92e531"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utility/clear.d.ts",
+    "bytes": 122,
+    "sha256": "85f39366ea7bc5e34b596fc97de18a7e377856755e789d8e931054f2191d9b8b"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utility/selectOptions.d.ts",
+    "bytes": 332,
+    "sha256": "daf3ea3d49f6e8a2fa70b7ca1f21bd97f1b65021b31fbfccb73dd55f86abb792"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utility/type.d.ts",
+    "bytes": 454,
+    "sha256": "b15bd260805f9dd06cd4b2b741057209994823942c5696fd835e8a04fb4aab6b"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utility/upload.d.ts",
+    "bytes": 215,
+    "sha256": "6635a824edf99ed52dbd3502d5bce35990c3ed5e2ec5cef88229df8ac0c52b06"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/utility/index.d.ts",
+    "bytes": 108,
+    "sha256": "d6577effa37aae713c34363b7cc4c84851cbabe399882c60e2b70bcbb02bfa01"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/setup/api.d.ts",
+    "bytes": 791,
+    "sha256": "8eaf80ad438890fe5880c39a7bbf2c998ce7d29d4c14dd56d82db63bd871eefb"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/setup/directApi.d.ts",
+    "bytes": 1946,
+    "sha256": "9b3e7f776f312c76ac67e1060e5398d7ac2c69d6a3a928a9daaae2eb05b15f56"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/setup/setup.d.ts",
+    "bytes": 1684,
+    "sha256": "202042eccb4789b7dee51ba9ecab0b854834ea5c1d6a3946504bfc733d4468c3"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/setup/index.d.ts",
+    "bytes": 957,
+    "sha256": "2b2ef76a9f36094b07ee6f76a5ac6903f2f65c0a20283201814a8d1e752cb592"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/@testing-library/user-event/dist/types/index.d.ts",
+    "bytes": 306,
+    "sha256": "8882e4e087d0bc8cc713cb3d8090c45d33e373e6f5c83e0f8d00fe6a950ef875"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/AppShell.test.tsx",
+    "bytes": 18210,
+    "sha256": "c2d8aa217b1fd9ebcb8139eaec422de5ee606b54e4cce691e0fd22ded6b9f60b"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/Terminal.test.tsx",
+    "bytes": 24205,
+    "sha256": "93d9db5589de167b07a494a701d86660bc2f90a1cddd68081fce47b889ff4994"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/auth/AdminInvitations.test.tsx",
+    "bytes": 3513,
+    "sha256": "a212b921cefccd55fa6f28ff0aa7fae30dbd88fea28a26c5da64c082eb77c5d5"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/auth/AdminPanel.test.tsx",
+    "bytes": 16526,
+    "sha256": "e31659196b4c278ffb8033350b1cd13d056bf05f8945c4949506953502f57c63"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/auth/AuthProvider.test.tsx",
+    "bytes": 31767,
+    "sha256": "0169430489bf2022419233152a02be87fe7b5c4eb85798a88f250ee3b51121b6"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/auth/TeamBilling.test.tsx",
+    "bytes": 5671,
+    "sha256": "ec7581581a244fb40af22747a66b42919c36744e5a279300a4053aee9770dc5a"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/auth/TeamService.test.tsx",
+    "bytes": 7099,
+    "sha256": "fcf208660c1a0c59c30c883d0585bafcde72bf57c2eb9abca89474c17054ef98"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/auth/portableAccess.test.ts",
+    "bytes": 2268,
+    "sha256": "87eec0a6d433a2918401c6a62a652e6206870cbbe6a62837506de71dde9f2ee0"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/common/DraftRecoveryReview.test.tsx",
+    "bytes": 14255,
+    "sha256": "184aaeac984172a69653e7cff36439c5d6b28b3a6de451bd7dac8ded5624d1a5"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/common/ProjectDraftRecovery.test.tsx",
+    "bytes": 34953,
+    "sha256": "d6561414a417d994fa39488112883600ab6e15f549267a422b1aa4995c3ad16b"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/common/StatusDot.test.tsx",
+    "bytes": 4206,
+    "sha256": "e51145a4f0ff943a3bc9a14886f214a305e0fe19843e9ac5bade6327c3cd1d1a"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/common/WorkflowDialog.test.tsx",
+    "bytes": 3325,
+    "sha256": "ef9b9c68d4037f65da81fcaf971fcecb08e29cbede16a703c6777f6637fbedfc"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/definition/DefinitionWorkspace.test.tsx",
+    "bytes": 33098,
+    "sha256": "9bd90cabd0aabf3f4cb628a23c1874688fc84049810005bd8d97caf58a3e1961"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/definition/RepositoryAnalysisPanel.test.tsx",
+    "bytes": 41449,
+    "sha256": "a252dec0ea210ed352dcacde3db48156c4b996455c77bb1e881a4c4cd711be6c"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/definition/repositoryAnalysisRecovery.test.ts",
+    "bytes": 13414,
+    "sha256": "26b0d83df04f1fd2a3a3245596b2b0cc7d511f98c0f00adf106ca4a0b71ea23d"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/design/DesignWorkspace.test.tsx",
+    "bytes": 63071,
+    "sha256": "30a5641d7a49c92a6a9741fd99c8814c979ea0c993fdddd2b704acda32807a53"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/design/PrototypeReview.test.tsx",
+    "bytes": 639,
+    "sha256": "3cb49ad8eb3e0801130fa2865c400083bbc4d9440732efab002fc61dd1812c06"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/develop/CanvasLayout.test.tsx",
+    "bytes": 32367,
+    "sha256": "85eb04d70ad416971289982021875b1ce08e73e8de490546dffbcf111bcdade9"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/develop/ColumnsLayout.test.tsx",
+    "bytes": 17746,
+    "sha256": "179d6114f86bebe2d8584a9e4f491eb312b82433b1ab323f341b28c99247196e"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/develop/LinkedWorktreeNote.test.tsx",
+    "bytes": 6949,
+    "sha256": "d84916e56123823fbab0dcd8f3c1deb00e58ffbacc4658e0c2f202ae00faa666"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/develop/ReviewedContextInspector.test.tsx",
+    "bytes": 13684,
+    "sha256": "fad7a7bdda59013e35bf9288b84aad94757e2c59f1760e03d63b699f4fb1f8df"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/develop/SessionMenu.test.tsx",
+    "bytes": 8894,
+    "sha256": "e0c0eb80f4865f518c986eb480fdba3acc042a977fec05ed0237a1f37c6689ea"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/develop/SessionPane.test.tsx",
+    "bytes": 32214,
+    "sha256": "50fb89295a6425434a8d836225dac225913f54cca2c97a0c7e0cf551ed57103c"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/develop/SessionPermissions.test.tsx",
+    "bytes": 6745,
+    "sha256": "f5a525f0a96bfafc7cc1dd01f85dd24d8563fe6e448375bb2343e53ec93653c6"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/develop/sessionVerbs.test.ts",
+    "bytes": 53860,
+    "sha256": "e8c0ff7805cfef2b70d3853126111b5a9c51747dcd736611c7280cd12b39b633"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/fluid/Fluid.test.tsx",
+    "bytes": 23823,
+    "sha256": "c439b69456b331e8e656dd277ddedbf277481f0440b6a0a214226040c7fb0c17"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/fluid/lib/surface-classes.ts",
+    "bytes": 2717,
+    "sha256": "26f2a4055c031e414e486e13d81b09cc1e93bd7f39ba5278b1a2c7ebdf28f203"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/fluid/lib/surface-context.tsx",
+    "bytes": 1402,
+    "sha256": "daca8f8b61dd52317ac432367102dcbec5f52aaa7f72ce59a0c1b7560bcc79ec"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/BranchManager.test.tsx",
+    "bytes": 11257,
+    "sha256": "af5ef6773c4bbdfa748a482178fa43c344de57336f942367d61b178253fc31ce"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/CheckRecoveryDialog.test.tsx",
+    "bytes": 9258,
+    "sha256": "266d18ce09b185c4fbf8c1691c6b7083d942a3513b93e32223cc8c6bc0883462"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/ContextHistory.test.tsx",
+    "bytes": 6113,
+    "sha256": "83740230e3aed2b04c5c8fe81a5d1e71bca1d54f31a39b788e846f92f5b7938a"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/ContextStorage.test.tsx",
+    "bytes": 22699,
+    "sha256": "ceb77650a57f0b4e7227207dc7198088b73e0413f30e0b99ca42353fc5a5629e"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/DeploymentRecovery.test.tsx",
+    "bytes": 9528,
+    "sha256": "1847ac3d4c003d6176d7080bc157be4eb5b2cb1ae9b8f8710376736554faac5b"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/DeploymentWorkspace.test.tsx",
+    "bytes": 5454,
+    "sha256": "f2ff98475c3ff526e9bc6ddb268f7923da7fe0f857c25ac35a4d3cd8a0b3290e"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/DesignEditor.test.tsx",
+    "bytes": 15962,
+    "sha256": "3f30e49c7ee203456e951b85d9ad7ef83b2f9859ffa4a085d5f04a0e26b5929c"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/ProjectBackup.test.tsx",
+    "bytes": 10661,
+    "sha256": "aa2a211e7989c2f1ac212ee3036369481e857203bf3579aae6f5c84d4f55fd5c"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/ProjectChecks.test.tsx",
+    "bytes": 59300,
+    "sha256": "b9405b3738238da9c8b251708f4df6b98c95f9c7cc88448d8a3673a4e29a78b0"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/ProjectConfiguration.test.tsx",
+    "bytes": 22171,
+    "sha256": "91d18a0ef56bee7cfa4ba0d4dc58b11d399b4a01477b80bb50efa10aa2e19c87"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/ProjectDelivery.test.tsx",
+    "bytes": 23491,
+    "sha256": "001964537f8b7ce3b5e993c64851e248e7628523a3195699001096821b0f88cc"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/ProjectPlan.test.tsx",
+    "bytes": 43596,
+    "sha256": "60e8f7c98d294a558932db20e1e4abdec5b2b694fa24e89c9b14750b78b36f02"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/ProjectPlanLocation.test.tsx",
+    "bytes": 11961,
+    "sha256": "87d76ee11f51f2b29a750756747d65b06041e6bd3726b2be9a0de18ef06975ea"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/ProjectRuns.test.tsx",
+    "bytes": 73676,
+    "sha256": "7467bcdf03f9f0012c52be74ccea884845de0f012f6d5fdfff21d2a86209eba1"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/test/swarmActions.ts",
+    "bytes": 490,
+    "sha256": "924537c505f35e238dd0703ef66bb206749d9510d354279f09a5b36041c21369"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/ProjectSwarm.test.tsx",
+    "bytes": 35628,
+    "sha256": "ffcba47bc5cde06b65d7e612bd5ba949f75623ca62508281d897a40a2df324e9"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/ProjectSwarmQueue.test.tsx",
+    "bytes": 13287,
+    "sha256": "1e5217a7aa8cd79d505e6d9cb1e72a0a26b1220e1853d5eb5137426ead23ec44"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/ProjectSwarmRefresh.test.tsx",
+    "bytes": 12010,
+    "sha256": "0dffcf866e6f71bdf7a4536fd78b12ec00fd939d93d28ef1acffded41c7c4817"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/ProjectWork.test.tsx",
+    "bytes": 20030,
+    "sha256": "d50864bb695e161c736fdeeaf93cb868e841cfe58d5935d177608cdc0e1bd0d4"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/SwarmCheckpoint.test.tsx",
+    "bytes": 12560,
+    "sha256": "1c0028d809ebb8910e621a0d817eed9ac99af4e141b276c5724268c7c52a9ff7"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/SwarmLaunchRecovery.test.tsx",
+    "bytes": 12651,
+    "sha256": "4bb2ab84c71002ffea6d53804bfedc2b155d53d798471f47ab0577622221fc1f"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/SwarmRunQueue.test.tsx",
+    "bytes": 13597,
+    "sha256": "49b95e52adc2089cd92afea7a58b0d9e60f97fe937a1a7f0b4daf54f2e35f69f"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/SwarmTaskHandoff.test.tsx",
+    "bytes": 20978,
+    "sha256": "f8d30856f056bcda0664c0a8aa128b2e3b3b1af50731da4bc58da9322b8d8426"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/SwarmWorkspaceReview.test.tsx",
+    "bytes": 11539,
+    "sha256": "fb080cd9778776134c29f0144090d4869e21ea21be62695b75a36bc77fd5eaa8"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/delivery.test.tsx",
+    "bytes": 12785,
+    "sha256": "50ec0ddb3280135b3d9cca4ca4a2d7f7bcdb196b8415a94d2e223cc4eac99aa9"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/deploy.test.tsx",
+    "bytes": 12396,
+    "sha256": "00b72205c703fc46704960edde76df9163ad7d7ed23b9192a14c12534771d835"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/deployment-continuity.test.tsx",
+    "bytes": 26172,
+    "sha256": "727d63f0b67818c1ea1105548be93c9c0ff42b3f3fac070a1c6bbdbc83929961"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/journey.test.tsx",
+    "bytes": 4485,
+    "sha256": "d080edde4538f7a45c4c854a8c6106c7d44ef9771ce4f9314dadf98df4432676"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/pages-deploy.test.tsx",
+    "bytes": 5926,
+    "sha256": "2de21c3b4e99a9020510696410464e36359f4975aa5610d35b1da157b5ba1bdf"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/requirements.test.tsx",
+    "bytes": 18090,
+    "sha256": "39ea67242092dbf34e04f544017fc6fe7ae38ef7f3e05d7ab63a13a44892792d"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/journey/workflow.test.tsx",
+    "bytes": 12175,
+    "sha256": "22024e0c4573623868a7a9210f482ce8e435ad3c643977fbc6aaf4f6146d930f"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/lens/LensPlaceholder.tsx",
+    "bytes": 666,
+    "sha256": "019b7ec5b301d67c2297b01dbf6e4f6f240498b007ace590131f7a4aea4821f0"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/lens/MergeLens.test.tsx",
+    "bytes": 16282,
+    "sha256": "279d2d1c205e3f73d87bd6a458988228efea39ba899f0d2bedafec5870d99d56"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/menu/ContextMenu.test.tsx",
+    "bytes": 17008,
+    "sha256": "5baca62c71ec9454579d635f1d5cab37b17cdb2db16024fe710b5f5e966f92a9"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/orchestrator/ConversationStorage.test.tsx",
+    "bytes": 5022,
+    "sha256": "4ad6bf49edb38a08f16df60d4ef1b371282b9e20fa8400ac3d438fb1caf1e747"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/orchestrator/OrchestratorPanel.test.tsx",
+    "bytes": 109869,
+    "sha256": "c946bed098628d74d71566e3b5f94d8537360106bd327abccb53744d0cc1b049"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/orchestrator/ProjectUnderstanding.test.tsx",
+    "bytes": 32100,
+    "sha256": "0720858349f805b816fb2f02bb6234c4f045e118935e80a10102c9f8713b5cac"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/orchestrator/composerRecovery.test.ts",
+    "bytes": 5049,
+    "sha256": "12afe4332eccc82582ecade10af7e29b34e71434ef7099d1daa2efeabc15c159"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/palette/CommandPalette.test.tsx",
+    "bytes": 8088,
+    "sha256": "0e764f561f43241dbcbf65f6d5521bab551df2dd5c9aa1e7cd1ffb3ee94ce142"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/palette/commands.test.ts",
+    "bytes": 11749,
+    "sha256": "6af0679861cb2d4798857c188dabe301796e9ca32edad77410ce1a2e496fa460"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/platform/DataClientSetup.test.tsx",
+    "bytes": 1421,
+    "sha256": "0b1fc5471e835cd5cc20271b24d11f7a597166242432d7d1e720624b6a8fc63e"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/platform/DataEmail.test.tsx",
+    "bytes": 15636,
+    "sha256": "46d3b9d826014527c00093ed6df091cd6d38f6705db07590a92456b2e567d353"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/platform/DataFunctions.test.tsx",
+    "bytes": 16082,
+    "sha256": "b176aac4a64fc91c4fc68e9d1d7cd2feceb1823c4e66455822f48efa3cd1036e"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/platform/DataPublicDomain.test.tsx",
+    "bytes": 13353,
+    "sha256": "0d6d002751ef7cdbfb8a4e383537924c1383cee5026010dfcd08b4a00cb4a6a1"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/platform/DataWorkspace.test.tsx",
+    "bytes": 19327,
+    "sha256": "6ac6ef2151a8ceb59276ee06978a903b17cfb6460c3300be19a4f0bf3fd2c682"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/platform/PlatformWorkspace.test.tsx",
+    "bytes": 36810,
+    "sha256": "4654e0251ac38499435a9c1d9abb87c7068a3ff42d25bf589a17c59e32a8b32f"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/platform/StandaloneDatabase.test.tsx",
+    "bytes": 23732,
+    "sha256": "81c998aa6dfa7a89b09003194b1ba7cac4f724bf09e48f3da2e26afb71280781"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/platform/data-permissions.test.tsx",
+    "bytes": 10305,
+    "sha256": "152f2040a38b8eb9f12beec8bf5370a356d08e12ab90ae0b77c717de5f58eb43"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/platform/deployment-permissions.test.tsx",
+    "bytes": 7351,
+    "sha256": "bd926c73bd2ffee8b2ae82bcd16224527159bdfffa71f015934bee4446fb0026"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/projects/HostCapacity.test.tsx",
+    "bytes": 10084,
+    "sha256": "7b91eba5472dfcc31476ee7f7be60bd2884e1f0eb9ace26341ec0cb2332a4494"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/projects/ProjectEntry.test.tsx",
+    "bytes": 17918,
+    "sha256": "b0a079d7e37c52dc1ecb8143a080b41ed119bc7313770206bf222f6152244860"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/projects/ProjectOverviewBoard.test.tsx",
+    "bytes": 42110,
+    "sha256": "4ee7e9c28eb35dedbff28004212578f81e76e29098a44b2afd03175454400f2f"
+  },
+  {
+    "path": "/workspace/luci/desktop/node_modules/axe-core/axe.d.ts",
+    "bytes": 20226,
+    "sha256": "3e9c4cb66f55d27fdf9662bb97338c121fa242034a2708b59b18d7335f495892"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/rail/MachineChip.test.tsx",
+    "bytes": 4174,
+    "sha256": "ad1342c2b04f8d20a3f151994f512a73b5a86066f7f0522d0cf861267fe47167"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/rail/Rail.test.tsx",
+    "bytes": 20205,
+    "sha256": "94299de248b6de223e92eb607e62c80c11cd8242ed4e079cfd446d7c7abfdf7c"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/setup/AgentConnectionManager.test.tsx",
+    "bytes": 15627,
+    "sha256": "15ec1b705b64994c6e5d2f4aab56bdff62a40c7f9da2ec933d8ba80ee4ab2f8c"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/setup/AgentConnections.test.tsx",
+    "bytes": 9290,
+    "sha256": "fd1b1f72349b79473b806723387c7935639e63c51c7166437e7d37f4cf4862c2"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/setup/CloudManager.test.tsx",
+    "bytes": 5700,
+    "sha256": "f06f8300202e19f8c0a8e259903eaae442088b8981b230662ebd791adadfb8de"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/setup/DependencySetup.test.tsx",
+    "bytes": 5220,
+    "sha256": "b0c3f97391582d967f307b6257992d6fa786fed021b17eafbda3f604f5c32ee4"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/setup/DockerStorageConfirmation.test.tsx",
+    "bytes": 11536,
+    "sha256": "8b3bb5914305d74c13525ab403f7d16e4fb84d641cb65008322d22c49c87eb5a"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/setup/LocalTools.test.tsx",
+    "bytes": 8150,
+    "sha256": "3bba7e029cb6d2a8d0b297bec0ee8aed0a73533e5ddda2b0f9bf1df120fc5017"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/setup/RuntimePreparation.test.tsx",
+    "bytes": 21433,
+    "sha256": "9930a5e2999bab4316cbd8eb9398ea2b4e448a6190a6f3fe57970f367f82880d"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/setup/SetupPanel.storage.test.tsx",
+    "bytes": 10145,
+    "sha256": "a28a107abe5242d02f5368d11b457bfed339dd782a1f1aed90a2949c9a28f655"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/setup/SetupPanel.test.tsx",
+    "bytes": 30640,
+    "sha256": "7c3e78228c764f4af29cc0042038c2f9deb9f881cdc8dd140de265b3bfd22214"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/setup/SetupProvider.test.tsx",
+    "bytes": 5447,
+    "sha256": "69ac9322297909925a09174257ace0f6320261353c01716b8a4293347c1d8d8f"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/setup/WorkspaceInstaller.test.tsx",
+    "bytes": 6575,
+    "sha256": "dc7f50807f1354ef48abab3ee4008386004e8bbffdee287376f9708a12ab84be"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/setup/WorkspaceSignIn.test.tsx",
+    "bytes": 5541,
+    "sha256": "c3bb0ea2052ef808606f45bd421b602c9881aaf26164fe3f4c2c982b2b8f12f2"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/teams/BillingReturnNavigation.test.tsx",
+    "bytes": 10866,
+    "sha256": "3408905942e4cd93bfc74f97e8224aa80a481fdaeb0a729f51269d5cacc5fef3"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/teams/TeamAudit.test.tsx",
+    "bytes": 2600,
+    "sha256": "24cd405963591b25b213d90619fc172d05eafc2e5bbbbf5da7d76a2f645c7f6d"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/teams/TeamDataLifecycle.test.tsx",
+    "bytes": 5318,
+    "sha256": "2303f011039e7d8c7bc893e8dad7a1975d51ed6a991d2ed0c87edf610cf8e505"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/teams/TeamInvitations.test.tsx",
+    "bytes": 9454,
+    "sha256": "960f75e74d6320410aaa6817a7644c08f310671b3c869287bebefe56dc2e86e6"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/teams/TeamWorkspaceAuthority.test.tsx",
+    "bytes": 14262,
+    "sha256": "d9daabc477ce67c296d96472017a9fbf183594e2d4c140d800907e935ed26cee"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/teams/TeamWorkspaceControl.test.tsx",
+    "bytes": 5728,
+    "sha256": "90bd1b57b254f5defda689cd75ad5d9fbc0653d8188a820244a33e779d27240f"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/teams/TeamWorkspaceProvider.test.tsx",
+    "bytes": 31587,
+    "sha256": "a62822f66c88afdfa4f157d9ff995bbf15c9a6573899408460572a24ff097a71"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/topbar/NewSessionButton.test.tsx",
+    "bytes": 9948,
+    "sha256": "a2c800271ec19343d6c775e6ad500d24661def8fd3e4aa4bcb325d434b2f35fb"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/topbar/SessionPicker.test.tsx",
+    "bytes": 16016,
+    "sha256": "64d336ed8d0da4621d82fece164dcfe792a879150bab5f881dd3e64dda9df998"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/ui/controls.test.tsx",
+    "bytes": 2907,
+    "sha256": "cc6f18ab2182abdf3d1cb814e5ed49beb1f0d125b27cd16ac0777747f861ddd5"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/components/ui/textarea.tsx",
+    "bytes": 535,
+    "sha256": "f155c937792974e215d130c7861034abe43fd8b41d172b4ea014cc69cd774aff"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/hooks/heartbeat.test.ts",
+    "bytes": 3531,
+    "sha256": "8843262e6aed3263a80bfd3dfe877538b843715f8d06b3d86186373284347270"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/hooks/useDismissable.test.ts",
+    "bytes": 8201,
+    "sha256": "cfbfdeb5dcf554eb6c435fe797269e420f1adb78e01e4c5aa15ce5007efdb070"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/hooks/useKeyboardMap.seam.test.ts",
+    "bytes": 2946,
+    "sha256": "4a2011ae8826435575aa5e7d070f934b949f0a07dc6305aac3ae9bd1497fcb16"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/hooks/useKeyboardMap.test.ts",
+    "bytes": 28347,
+    "sha256": "1449bb7c40fddb7b208dd2236123476ca48219a3d4791831391bd2138ade3337"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/hooks/useKeyboardMap.xterm.test.tsx",
+    "bytes": 16466,
+    "sha256": "fb7805e5fcf2d54f30d0ac154962eadcf72a811662caff9910e492c93479d663"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/lib/ids.test.ts",
+    "bytes": 1602,
+    "sha256": "43b88484e9f8e8054ca741d5421bca93f953a4279369836c2076b9a8298d7813"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/lib/immutable.test.ts",
+    "bytes": 5551,
+    "sha256": "d93116f66e0c3226aa623411a696fcad8c2b7aea5d95581d6becda878a821e03"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/lib/keyboardPlatform.test.ts",
+    "bytes": 1292,
+    "sha256": "48bf0cf95ea3ff063665eea3d8b85273b63e62c877784427d8de5df6b5f25bb1"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/lib/time.test.ts",
+    "bytes": 2838,
+    "sha256": "64ed38041594b4e55f72b3245ef432ce913ae6d38e808f1930206c2c3ea857c8"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/preferences/appearance.test.ts",
+    "bytes": 1763,
+    "sha256": "ad937c70569d4d54eb791abaab21017dd3e0a8f79257413bfe9b463cc957de04"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/preferences/onboarding.test.ts",
+    "bytes": 872,
+    "sha256": "49e42fd9b0ac795bbc833b1391af19598b602c923c3883cb1f9b892b38881b19"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/store/defaults.test.ts",
+    "bytes": 14750,
+    "sha256": "52cc38742f1cb800c69e59cb56d19999449694402fa188c79cf3f7ace7f4e4b2"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/store/draftRegistration.test.ts",
+    "bytes": 3787,
+    "sha256": "d1ba63c56d68e357246ab3b10b8d11508eef95c622646f648c19f37829a2a7d9"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/store/projectNavigation.test.ts",
+    "bytes": 10103,
+    "sha256": "71d89957456703dde2c6be98394d8c1ecafb5d2b161871bc4ff177b0c90c163e"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/store/selectors.test.ts",
+    "bytes": 12954,
+    "sha256": "31839e50348b9378de8a718d8a37af04b6418c6f7dcd103d418bbbdf4228f18a"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/store/sourceNavigation.test.ts",
+    "bytes": 4743,
+    "sha256": "853827764a6aa2f439bd85120e74085cc56f526352d366c0ca223befe0181e5a"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/store/store.test.ts",
+    "bytes": 32931,
+    "sha256": "09d006b5b88821d8be881823539d58c2190a340b63a35b646d7d0e6366b4c879"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/styles/designsystem.test.ts",
+    "bytes": 48386,
+    "sha256": "cbbd6626691dd752e23c46aa7bd644dc3039787d1fec105bee3754b65f438731"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/styles/tokens.test.ts",
+    "bytes": 6869,
+    "sha256": "adc89590206b172b427c71acfcf2f105779da6170c291890931455355fdd13ae"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/test/native-driver.test.ts",
+    "bytes": 14000,
+    "sha256": "fef44d8fd067821067d6a9eed452cd7a871b671e37aea0ed878dc88ab6d0292f"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/test/setup.ts",
+    "bytes": 1173,
+    "sha256": "6873458c092edb343b856df7c92cae4eeaa55caa397d5a908121184301812a57"
+  },
+  {
+    "path": "/workspace/luci/desktop/src/utils/projectDraftMerge.test.ts",
+    "bytes": 12699,
+    "sha256": "484d95e1cddafad14cbeb95e9c4b29eb1dde52aec758ed09a6052448f6be29fe"
+  }
+]

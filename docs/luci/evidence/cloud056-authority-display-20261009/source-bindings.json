@@ -1,0 +1,261 @@
+{
+  "schema": 1,
+  "issue": "CLOUD-056",
+  "sourceRevision": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "scope": "Selected review/test dependencies, not full compiled-input closure",
+  "testsExecuted": false,
+  "files": [
+    {
+      "path": "desktop/src/api/poller.ts",
+      "bytes": 5885,
+      "sha256": "23d5faa83acffd4d8b77899394d97b1606640f01d250a63d7551d5004b71f164",
+      "gitBlob": "6da2572823dac525caa796cbbdf6d87d6750e571"
+    },
+    {
+      "path": "desktop/src/api/client.ts",
+      "bytes": 24511,
+      "sha256": "52de54f1f57b048be9d0f40e7ed8137fe6766893b2b21ed43a22281e14c62a79",
+      "gitBlob": "b658094ca489bad4c3a1bfc10c33b7c3164c8c7b"
+    },
+    {
+      "path": "desktop/src/api/authSession.ts",
+      "bytes": 860,
+      "sha256": "a875cd70c1de48cb48e9677e061588eefb23b81f01bf7fa2a7ab0f2c56b9846a",
+      "gitBlob": "37334a56074feba30e1b9ab3643fe75c1ea7b462"
+    },
+    {
+      "path": "desktop/src/api/teamScope.ts",
+      "bytes": 989,
+      "sha256": "e2b94561cbfb5239b869c09dfd43711a82fb9f4a1d5142be354eb26e1660d397",
+      "gitBlob": "2634c17b74a1614d8f2315d16d8c5f64ac74d556"
+    },
+    {
+      "path": "desktop/src/api/teams.ts",
+      "bytes": 3226,
+      "sha256": "02abaa062d39a24d21f0ae7a36eaf6036aee59c25285885a5b0b6dc9a0b1f39b",
+      "gitBlob": "f6fbcf3e024b2e83a06703926ed9f31a3b4d5941"
+    },
+    {
+      "path": "desktop/src/api/product.ts",
+      "bytes": 29328,
+      "sha256": "d6d8bda455d20cdf660976f7ca58d38967048780d6fc385ecdd07c7493329240",
+      "gitBlob": "7a1ee88a9007a8a795913cdf183c65bda4468b21"
+    },
+    {
+      "path": "desktop/src/api/attachRegistry.ts",
+      "bytes": 38554,
+      "sha256": "1f3e299b787411b3b96f1e8af6866265ebdd372014000a0436d2dd7f4e094c82",
+      "gitBlob": "b6d01f2f5c249bf829f665a7b2c98f9208324cf9"
+    },
+    {
+      "path": "desktop/src/components/auth/AuthProvider.tsx",
+      "bytes": 12171,
+      "sha256": "8e94ed934c409bc57ca3d565d41c3f1d2d59f4cc4ab7d620954c94fb9808c8be",
+      "gitBlob": "5aa02be2fc574cb5a51103abf0a9de0da1fd8256"
+    },
+    {
+      "path": "desktop/src/components/teams/TeamWorkspaceProvider.tsx",
+      "bytes": 11035,
+      "sha256": "e6a3a98612aa506e9b78a656891dd36e8d2207a5f806fba7f8a65f1da7bf11bb",
+      "gitBlob": "29aec4f2407455eb6a38e538fa72fcecb41de449"
+    },
+    {
+      "path": "desktop/src/hooks/useProjectAccess.ts",
+      "bytes": 1073,
+      "sha256": "b2789071009294d4497f7be2039839b0a88f4f0e54edf7c544a279440dce2da4",
+      "gitBlob": "7e5863a8f810142a17e0aaded774606eb8deb8f1"
+    },
+    {
+      "path": "desktop/src/components/develop/SessionPane.tsx",
+      "bytes": 12862,
+      "sha256": "6953a091fc204c08d60f02fb1be41595e79efa2b952f90daf01b164ec628c7e2",
+      "gitBlob": "d5f55c90ce1e19170d6bb9cedc3bfba7982637bb"
+    },
+    {
+      "path": "desktop/src/components/develop/SessionPaneHeader.tsx",
+      "bytes": 2891,
+      "sha256": "86435eaca1597abb24057397ee5c7715804ec432de16bd8d36c591625962da9e",
+      "gitBlob": "ac2d10de45f3abafdb341b1a7eb6875d300922b6"
+    },
+    {
+      "path": "desktop/src/components/develop/SessionPaneFooter.tsx",
+      "bytes": 3375,
+      "sha256": "3f48dc7d2f9de3e7041089023ea0fa984669225e8f479c3beb629c03344f2edc",
+      "gitBlob": "82a5d134cddfb273539c644954171e15581d9d29"
+    },
+    {
+      "path": "desktop/src/components/develop/DevelopLens.tsx",
+      "bytes": 2385,
+      "sha256": "d0e008f7d190e0fe3f6806cd7498f52fe0cb128b16d2020d63ba4e42fdf5d2bf",
+      "gitBlob": "2727038448f2c9028fa8328eba3953a7db35e2c4"
+    },
+    {
+      "path": "desktop/src/components/develop/ColumnsLayout.tsx",
+      "bytes": 6377,
+      "sha256": "261f302348672d09dcc0baf8e20e346fb62f275059d2ae0642ba77f587847bf6",
+      "gitBlob": "918837f3064ac9dd3affdeec9bd8b59c7d9f27e8"
+    },
+    {
+      "path": "desktop/src/components/develop/ReviewedContextNote.tsx",
+      "bytes": 2427,
+      "sha256": "b88130e7085cb44448dc6ca22c83bb59ae43d89431707c90d9ce00488c77d337",
+      "gitBlob": "cbaee2089d52d4cac70bf87684c233ff1b1f3929"
+    },
+    {
+      "path": "desktop/src/components/Terminal.tsx",
+      "bytes": 11597,
+      "sha256": "51bd9cabecc454dbb9ace6d8fcf2f530102253b14c2448541decc304aed4d213",
+      "gitBlob": "5ff696aed913d955c74f4d232bf8192fa29f0c27"
+    },
+    {
+      "path": "desktop/src/components/AppShell.tsx",
+      "bytes": 6381,
+      "sha256": "b3aaf4ce4302109c2c10b023ecbff249b96655955f4d29bf0bb4834b4fc8fcd4",
+      "gitBlob": "7c6b0da0f7f4f95f10fc42d4967c4f065301f7ae"
+    },
+    {
+      "path": "desktop/src/App.tsx",
+      "bytes": 13110,
+      "sha256": "88c37c47b3cfae6d40bb2c876ef3fa713da662705302979b2c4d24d120803786",
+      "gitBlob": "4a18de8b3cdd5133c02c0f6c3fe3b4f4260952d5"
+    },
+    {
+      "path": "desktop/src/main.tsx",
+      "bytes": 2972,
+      "sha256": "0256e5a508589837df51903a8768f082254a61c129c955100e0ce2cc9914fab7",
+      "gitBlob": "5a6d0dcd6288fcf16bcf8643a91ab91031cab0ac"
+    },
+    {
+      "path": "desktop/src/store/store.ts",
+      "bytes": 4709,
+      "sha256": "e65151cbfc1686b8e4050179f726bf9cd7e3abcc3f6e661cebdb444fec1302c6",
+      "gitBlob": "b54de27d1943be4140f5a0230c559461260d411f"
+    },
+    {
+      "path": "desktop/src/store/slices/dataSlice.ts",
+      "bytes": 15179,
+      "sha256": "099d299e9a610fdce275ae0411398d6d2b42f74b3b722692c0333ec5f5a1a711",
+      "gitBlob": "d15f15e4accf5a65258fb2f705af80ebcd312563"
+    },
+    {
+      "path": "desktop/src/store/selectors.ts",
+      "bytes": 12230,
+      "sha256": "b98178fa378f19cb486ee2a5dcbf970949bdf6ef3fa730b4a875bc7698cb3e31",
+      "gitBlob": "8e1e5b28a2ee0cff79f9a123a1357c536f11b00d"
+    },
+    {
+      "path": "desktop/src/test/fakes.ts",
+      "bytes": 11792,
+      "sha256": "c0a4ca549296a6bd530f35c157f8be9520f4acd191b09b36c07c5a019dace1b4",
+      "gitBlob": "73ff917536d1f97bf1b23c1f45d917ff0704d0ef"
+    },
+    {
+      "path": "desktop/src/test/fixtures.ts",
+      "bytes": 5391,
+      "sha256": "5f8a1d84422914e034dcfe16958a6aaf3abf79b202698b5a180dae5f2c35fa84",
+      "gitBlob": "e9ce5978acd0467985fd3a7337c2b431e2146aa9"
+    },
+    {
+      "path": "desktop/src/test/setup.ts",
+      "bytes": 1173,
+      "sha256": "6873458c092edb343b856df7c92cae4eeaa55caa397d5a908121184301812a57",
+      "gitBlob": "eebbb4e185314b38fddc1b31d4e2a1cec9a86ca4"
+    },
+    {
+      "path": "desktop/src/api/poller.generation.test.ts",
+      "bytes": 5426,
+      "sha256": "c9b2b37a78df0ea781c507991eecee91aa58bd7a17510cae63f8aa95e61c37f5",
+      "gitBlob": "d329604a18664dd30195af3a1c5268121fdf833e"
+    },
+    {
+      "path": "desktop/src/components/teams/TeamWorkspaceProvider.test.tsx",
+      "bytes": 31587,
+      "sha256": "a62822f66c88afdfa4f157d9ff995bbf15c9a6573899408460572a24ff097a71",
+      "gitBlob": "09ed38c5a3ab9d1d3c846174db35551870db1e2b"
+    },
+    {
+      "path": "desktop/src/components/Terminal.test.tsx",
+      "bytes": 24205,
+      "sha256": "93d9db5589de167b07a494a701d86660bc2f90a1cddd68081fce47b889ff4994",
+      "gitBlob": "fe2388aa4b9f5b9de4f2ad4db3e61e01421658ca"
+    },
+    {
+      "path": "desktop/src/components/develop/SessionPermissions.test.tsx",
+      "bytes": 6745,
+      "sha256": "f5a525f0a96bfafc7cc1dd01f85dd24d8563fe6e448375bb2343e53ec93653c6",
+      "gitBlob": "a9023825c2acfe1c4a1820f8cf064c79f8b486d4"
+    },
+    {
+      "path": "desktop/package.json",
+      "bytes": 1965,
+      "sha256": "2298a2e941314ff0f5dc82813a0b0edca0c66bccb7c766a80e46631fc8aa07b5",
+      "gitBlob": "00e1f702baa3ad2275949c865813d4704bebb31a"
+    },
+    {
+      "path": "desktop/package-lock.json",
+      "bytes": 247150,
+      "sha256": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a",
+      "gitBlob": "6e7fcd90ac97d69353ae72781b231fd103760c5f"
+    },
+    {
+      "path": "desktop/vitest.config.ts",
+      "bytes": 2265,
+      "sha256": "61fe9ff43762dadeb5666eca997ea6c73ef40d4306996ae30294552e1ca7024f",
+      "gitBlob": "d1378fdf32fb90d8905428fc81d1912a8a02c690"
+    },
+    {
+      "path": "control-plane/internal/management/team_proxy.go",
+      "bytes": 17757,
+      "sha256": "b8a80d8ac58d9e8ebea99a87cfb5bb773dcbf2564a084628428a8b42243b48cd",
+      "gitBlob": "5a23aaab0233000eeb3060e5dc5ee3447cd8aac9"
+    },
+    {
+      "path": "control-plane/internal/management/team_authorization.go",
+      "bytes": 17353,
+      "sha256": "e530232d68e467b5465bb753ce27e6541790448c1283140f7a547a27389f9896",
+      "gitBlob": "bedcaa0d00d3767251c24fb9eee05837e77409c5"
+    },
+    {
+      "path": "control-plane/internal/management/team_runtime.go",
+      "bytes": 8447,
+      "sha256": "38fcb0563e1bbe96c87c6a8dda357720cb04a0f077375fe0ceeeab04a8d32983",
+      "gitBlob": "0139e712d5a67e14ad7477f968ccbdf6aeac6600"
+    },
+    {
+      "path": "control-plane/internal/management/teams.go",
+      "bytes": 20994,
+      "sha256": "1bef2f0694a983085d2ac7d7f1d02a652ebc912adc916db543c5a580c5cd2c18",
+      "gitBlob": "62ba08f9e8529369def7f520f5d2659cd364a937"
+    },
+    {
+      "path": "control-plane/internal/management/team_proxy_test.go",
+      "bytes": 25599,
+      "sha256": "3f3761094b6f7443d1db9d3c39426076d49e7dda65cfef74858f53f3f9a724ca",
+      "gitBlob": "cc708775842b7c8534f61c4a1f11261aaa865108"
+    },
+    {
+      "path": "control-plane/internal/management/team_session_execution_generation_test.go",
+      "bytes": 2656,
+      "sha256": "75f230f9b9336983ef3431875e04931944d390677f42fb30beb67941eda58396",
+      "gitBlob": "c4b50f76254ef500db33f67eeb6f0a8aefba4f80"
+    },
+    {
+      "path": "control-plane/internal/management/team_runtime_test.go",
+      "bytes": 10946,
+      "sha256": "23fa0a11733ee252c5275b7c0938d417808d345e357f563cafec2e987a57f069",
+      "gitBlob": "b5cbd02b186ad5c744ddc056b1805fdb5e65481f"
+    },
+    {
+      "path": "docs/luci/PRODUCT-QUALITY.md",
+      "bytes": 8079,
+      "sha256": "088fdb8130ad47fe965ef431676582be5c62e55c5b9e8a466fbab7c709adda7a",
+      "gitBlob": "3f089b4ac06c33ba68aefcdacd854e92aba7adcb"
+    },
+    {
+      "path": "docs/luci/evidence/cloud054-terminal-close-20261009/DEFERRED-AUTHORITY-REVIEW.md",
+      "bytes": 1550,
+      "sha256": "553504f987db95055760968f6a76d494877c8f78ff9aa3fafe6361c51403e9f1",
+      "gitBlob": "8baa53aedb99b98bcf94c3c247a24e02f58d4ccb"
+    }
+  ]
+}

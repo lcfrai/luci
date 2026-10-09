@@ -1,0 +1,29 @@
+{
+  "issue": "CLOUD-056",
+  "purpose": "Coalesce settled denial episodes, keeping explicit/current authority refresh and stale-success fences",
+  "preparedOnly": true,
+  "testsExecuted": false,
+  "before": "Reviewed integrated three-file C056 source, following retained original9/5 and fixed14/14",
+  "files": [
+    {
+      "path": "before.tsx",
+      "bytes": 14647,
+      "sha256": "11d8dc458ce6063ebfc9a0937fb2408f39bd253bfb258ce9816663a33dc49acc"
+    },
+    {
+      "path": "after.tsx",
+      "bytes": 14932,
+      "sha256": "af1b2e23ec79bc5627595ec163ba6894be9f258485339d1ac6049991b966ac60"
+    },
+    {
+      "path": "episode.patch",
+      "bytes": 1111,
+      "sha256": "bb2c4357fad465a60ac1c947b3beb5bc669fc7939896c8e758c0348accbf3938"
+    },
+    {
+      "path": "episode.test.tsx",
+      "bytes": 9576,
+      "sha256": "aa1c65f9ae5a9c3e9f845b70b9213f271d8fc112aa32775d21e9043db7db4c12"
+    }
+  ]
+}

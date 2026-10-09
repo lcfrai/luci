@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "at": "2026-10-09T11:55:34.611941+00:00",
+  "scope": "Independent narrow read-only v2-to-v3 source review; no fixture rerun, app or runtime",
+  "bindings": [
+    {
+      "path": "/workspace/.luci-tools/cloud054-terminal-close/installed-v2/launch.mjs",
+      "sha256": "d09b1f8a7b6042def93ba4cec88cd96c5be977903ad87ae93de535ba0f84cbae",
+      "bytes": 33530
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud054-terminal-close/installed-v3/launch.mjs",
+      "sha256": "1def18abf3121a9a32c4d75fccd2d1eed4298b7e7ccddba4fa32aa68fc8de69f",
+      "bytes": 44255
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs",
+      "sha256": "bd35fcaae7e1feaf16d9ad7fccaad803ecb43dd6a374866b6028607a533c7478",
+      "bytes": 6570
+    }
+  ],
+  "reviewedPositiveScope": [
+    "Unexpected response writes bounded allowlisted projection before failing status assertion.",
+    "One fetch and unchanged timeout; no retry or added admission/preflight request.",
+    "Expected successful/expected-negative responses preserve previous behavior.",
+    "Numeric POST admission operands remain unavailable; arbitrary detail strings are not converted.",
+    "Finite source-derived static message matches are accepted; arbitrary messages/details/headers/body text are excluded from the projection.",
+    "Malformed JSON retains pending mutation uncertainty.",
+    "Source byte hash/length distinguishes transformed diagnostic from retained original bytes."
+  ],
+  "findings": [
+    {
+      "id": "CLOUD-057-review-parse-error-privacy",
+      "priority": "blocking-helper-privacy",
+      "reportedToParent": true,
+      "description": "Throwing the original JSON.parse SyntaxError can carry a raw body excerpt through outer safeError into final receipt; projection-only tests do not cover escaped error. Use fixed message/code after checkpoint, retain pending mutation uncertainty.",
+      "originalUnsafeThrowStillPresentAtCapture": false
+    },
+    {
+      "id": "CLOUD-057-review-empty-body-label",
+      "priority": "diagnostic-accuracy",
+      "reportedToParent": true,
+      "description": "Zero-byte unexpected body is substituted with {} and currently labelled parsedJSON:true. Derive parsedJSON from nonempty actual successful JSON parsing without altering success-path semantics.",
+      "originalProjectionFlagStillPresentAtCapture": false
+    }
+  ],
+  "limits": [
+    "Original attempt1 parsed body remains unavailable; no cause inferred.",
+    "Raw test outcomes were reported by parent; reviewer did not execute fixtures.",
+    "Final source correction requires separate confirmation; this is not installed acceptance."
+  ]
+}

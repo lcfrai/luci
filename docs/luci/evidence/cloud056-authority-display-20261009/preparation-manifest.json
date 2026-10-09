@@ -1,0 +1,32 @@
+{
+  "sourceRevision": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "preparedOnly": true,
+  "testsExecuted": false,
+  "files": [
+    {
+      "path": "authority-window.test.tsx",
+      "bytes": 10829,
+      "sha256": "183fcbaa7cee3df435abe083b71f2d6561ee237855c277c39030abb02c7bbe78"
+    },
+    {
+      "path": "team_session_denial_contract_test.go",
+      "bytes": 2028,
+      "sha256": "e98eb3d2bbc3624d3324b420ef373cd517ed6ec3e21dcf0521eeb53bc859d855"
+    },
+    {
+      "path": "vitest.config.ts",
+      "bytes": 649,
+      "sha256": "9ce1d0ea77195bcc5ee0138c9ffae2f5554558b85f3b94b9fa7afc02e00c8539"
+    },
+    {
+      "path": "README.md",
+      "bytes": 7062,
+      "sha256": "439d91fd48d77765bad35177e937b51745fee21a3f5b5c0cb32db8c7fcc03de1"
+    },
+    {
+      "path": "source-bindings.json",
+      "bytes": 10133,
+      "sha256": "fff0c12353e058ad4256c3c88ff37ffbef0b7877f7d093f7796c11771c29e2fb"
+    }
+  ]
+}

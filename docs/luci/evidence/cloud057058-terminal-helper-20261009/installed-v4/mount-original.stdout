@@ -1,0 +1,95 @@
+✖ exact primary RW + Git guard RO + private conversation binds are accepted (12.619519ms)
+✔ foreign source refused (4.803308ms)
+✔ arbitrary project descendant refused (2.50872ms)
+✔ nested admin source refused (3.37157ms)
+✔ wrong guard destination refused (5.115928ms)
+✔ writable guard refused (3.923432ms)
+✔ nonboolean read-only property refused (4.51928ms)
+✖ state-backed guard destination impostor refused (2.491053ms)
+✔ alias source resolving to guard refused (3.314023ms)
+✔ git symlink refused even if resolution stays inside project (2.18374ms)
+✔ admin symlink refused even if resolution stays inside project (0.786675ms)
+✔ git regular file refused for this primary-only fixture (2.041696ms)
+✔ unreadable guard refuses observation (3.076115ms)
+✔ canonical mismatch without symlink flag refused (3.262736ms)
+✔ duplicate guard refused (3.731703ms)
+✖ missing primary guard refused (3.070937ms)
+✔ non-bind guard refused (4.509505ms)
+✔ primary root must remain RW (19.487372ms)
+✔ immutable image identity remains required (5.51519ms)
+✔ foreign instance remains refused (5.275889ms)
+✔ host resource limits remain exact (3.768829ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 18
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 380.965543
+
+✖ failing tests:
+
+test at .luci-tools/cloud054-terminal-close/installed-v4/mount-contract.test.mjs:18:1
+✖ exact primary RW + Git guard RO + private conversation binds are accepted (12.619519ms)
+  AssertionError [ERR_ASSERTION]: ifError got unwanted exception: Unowned mount
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v4/mount-contract.test.mjs:18:112)
+      at inspectOwned (evalmachine.<anonymous>:2:922)
+      at fixture (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v4/mount-contract.test.mjs:15:88)
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v4/mount-contract.test.mjs:18:95)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: AssertionError [ERR_ASSERTION]: Unowned mount
+        at inspectOwned (evalmachine.<anonymous>:2:922)
+        at fixture (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v4/mount-contract.test.mjs:15:88)
+        at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v4/mount-contract.test.mjs:18:95)
+        at Test.runInAsyncScope (node:async_hooks:227:14)
+        at Test.run (node:internal/test_runner/test:1382:25)
+        at Test.start (node:internal/test_runner/test:1242:17)
+        at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17),
+    expected: null,
+    operator: 'ifError',
+    diff: 'simple'
+  }
+
+test at .luci-tools/cloud054-terminal-close/installed-v4/mount-contract.test.mjs:25:1
+✖ state-backed guard destination impostor refused (2.491053ms)
+  AssertionError [ERR_ASSERTION]: unsafe inspected mount must fail
+      at reject (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v4/mount-contract.test.mjs:17:61)
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v4/mount-contract.test.mjs:25:60)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at .luci-tools/cloud054-terminal-close/installed-v4/mount-contract.test.mjs:33:1
+✖ missing primary guard refused (3.070937ms)
+  AssertionError [ERR_ASSERTION]: unsafe inspected mount must fail
+      at reject (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v4/mount-contract.test.mjs:17:61)
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v4/mount-contract.test.mjs:33:42)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

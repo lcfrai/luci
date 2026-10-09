@@ -1,0 +1,35 @@
+--- original/interaction-metrics.mjs
++++ candidate/interaction-metrics.mjs
+@@ -63,17 +63,17 @@
+   assert(receipt.interactions.length<6000,'Bounded interaction measurement count');
+   const item={phase:phase(),kind,projectID:owner.owner.id,at:new Date().toISOString(),success:false};
+   const start=performance.now(),diagnostic=nodeStageRecorder(item,start);
+-  let timeout;try {await Promise.race([(async()=>{diagnostic.mark('action-start');await action(diagnostic.mark);diagnostic.mark('action-end');diagnostic.mark('verify-start');await verify();diagnostic.mark('verify-end');diagnostic.mark('frames-start');diagnostic.frames(await frames());diagnostic.mark('frames-end');})(),new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Error('Interaction deadline exceeded after15seconds')),15000);})]);item.success=true;}
++  let timeout;try {await Promise.race([(async()=>{diagnostic.mark('action-start');await action(diagnostic.mark);diagnostic.mark('action-end');diagnostic.mark('verify-start');await verify(diagnostic.mark);diagnostic.mark('verify-end');diagnostic.mark('frames-start');diagnostic.frames(await frames());diagnostic.mark('frames-end');})(),new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Error('Interaction deadline exceeded after15seconds')),15000);})]);item.success=true;}
+   catch(error){item.error=String(error.message).slice(0,300);throw error;}
+   finally{clearTimeout(timeout);item.elapsedMs=performance.now()-start;diagnostic.close();receipt.interactions.push(item);}
+  }
+  async function switchTo(owner){
+   assertHealthy();
+-  await measured('project-switch',owner,async mark=>{await page.getByRole('button',{name:'All projects',exact:true}).click();mark('all-projects-click-end');await page.getByRole('heading',{name:'Across your projects',exact:true}).waitFor();mark('overview-heading-ready');await page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true}).click();mark('open-project-click-end');},async()=>{
++  await measured('project-switch',owner,async mark=>{await page.getByRole('button',{name:'All projects',exact:true}).click();mark('all-projects-click-end');await page.getByRole('heading',{name:'Across your projects',exact:true}).waitFor();mark('overview-heading-ready');mark('open-project-click-start');await page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true}).click();mark('open-project-click-end');},async mark=>{
+    // The calibrated lens is Define. Its actual loaded value is the witness,
+    // rather than a title that could render before stale content is replaced.
+-   const field=page.getByRole('textbox',{name:'The idea',exact:true});await field.waitFor();
+-   await field.evaluate((el,value)=>new Promise((done,reject)=>{const until=performance.now()+10000;const sample=()=>{if(el.isConnected&&el.value===value){window.__luciAcceptanceLatency.markExpectedDOM('project-switch');return done();}if(performance.now()>=until)return reject(Error('Expected project context did not render'));requestAnimationFrame(sample);};sample();}),values.get(owner.owner.id));
++   const field=page.getByRole('textbox',{name:'The idea',exact:true});await field.waitFor();mark('idea-field-wait-end');
++   await field.evaluate((el,value)=>new Promise((done,reject)=>{const until=performance.now()+10000;const sample=()=>{if(el.isConnected&&el.value===value){window.__luciAcceptanceLatency.markExpectedDOM('project-switch');return done();}if(performance.now()>=until)return reject(Error('Expected project context did not render'));requestAnimationFrame(sample);};sample();}),values.get(owner.owner.id));mark('idea-context-evaluate-end');
+    assert.equal(await field.inputValue(),values.get(owner.owner.id));
+   });current=owner;
+  }
+--- original/latency-diagnostics.mjs
++++ candidate/latency-diagnostics.mjs
+@@ -65,7 +65,7 @@
+  const stages=[];let closed=false;
+  item.diagnostics={version:1,nodeStages:stages,nodeClockReads:0,browserFrames:null,limitations:['Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead.']};
+  return {
+-  mark(stage){if(closed)return;assert(['action-start','action-end','verify-start','verify-end','frames-start','frames-end','all-projects-click-end','overview-heading-ready','open-project-click-end'].includes(stage));assert(stages.length<12);item.diagnostics.nodeClockReads++;stages.push({stage,offsetMs:clock()-start});},
++  mark(stage){if(closed)return;assert(['action-start','action-end','verify-start','verify-end','frames-start','frames-end','all-projects-click-end','overview-heading-ready','open-project-click-end','open-project-click-start','idea-field-wait-end','idea-context-evaluate-end'].includes(stage));assert(stages.length<12);item.diagnostics.nodeClockReads++;stages.push({stage,offsetMs:clock()-start});},
+   frames(value){if(!closed)item.diagnostics.browserFrames=value;},
+   close(){closed=true;},
+  };

@@ -1,0 +1,18 @@
+{
+  "command": [
+    "node",
+    "node_modules/typescript/bin/tsc",
+    "--noEmit",
+    "--pretty",
+    "false",
+    "--listFiles"
+  ],
+  "cwd": "/workspace/luci/desktop",
+  "exitCode": 2,
+  "timedOut": false,
+  "forced": false,
+  "elapsedSeconds": 21.65557098388672,
+  "ownedRootPID": 2413046,
+  "rootWaited": true,
+  "processTreeClosure": "Process-group signals only on timeout; no whole-machine/process census claim"
+}

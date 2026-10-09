@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "/workspace/luci/control-plane/internal/api/project_check_order_witness_draft_test.go": "/workspace/.luci-tools/recovery-order-gate-edd0/run-1/formatted-draft.go"
+  }
+}

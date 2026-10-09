@@ -1,0 +1,203 @@
+{
+  "version": 1,
+  "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "scope": "Read-only exact Git source contract review. Original installed attempt1 refusal body remains unavailable; no retrospective reason/operand reconstruction. No product edits, runtime, retry or new preflight action.",
+  "wireContract": {
+    "httpStatus": "Response status integer; not a body field",
+    "body": {
+      "error": "string",
+      "message": "string; omit from diagnostic",
+      "details": "optional object of string values; omit unknown keys"
+    },
+    "initialAdmissionRefusal": {
+      "httpStatus": 409,
+      "error": "conflict",
+      "details": [
+        "reasonCode"
+      ],
+      "source": "sessions.go:1307-1309"
+    },
+    "finalAllocatorRefusal": {
+      "httpStatus": 409,
+      "error": "conflict",
+      "details": [
+        "id",
+        "stage",
+        "reasonCode"
+      ],
+      "source": "session_allocation.go:148-150"
+    },
+    "gatewaySessionLimit": {
+      "httpStatus": 409,
+      "error": "session_limit",
+      "details": null,
+      "source": "management/policy.go:258-260"
+    },
+    "numericOperandsInPostError": false
+  },
+  "recommendedProjection": {
+    "maximumSerializedBytes": 4096,
+    "metadata": [
+      "method from actual request",
+      "known endpoint route, never arbitrary query",
+      "HTTP status",
+      "request-start / response-completed timestamps, explicitly observation times",
+      "complete original body SHA256 and byte length only when the existing bounded reader actually completes",
+      "projection validity and omitted-field count, never unknown field contents"
+    ],
+    "allowedErrorCodes": [
+      "backend_unavailable",
+      "bad_request",
+      "conflict",
+      "forbidden_host",
+      "forbidden_origin",
+      "harness_disabled",
+      "harness_unavailable",
+      "internal",
+      "invalid_json",
+      "invalid_request",
+      "managed_team_required",
+      "non_loopback_publish",
+      "permission_denied",
+      "project_not_found",
+      "runtime_unavailable",
+      "sandbox_not_running",
+      "session_limit",
+      "session_not_found",
+      "session_state_unavailable",
+      "sign_in_required",
+      "task_permission_requires_interactive",
+      "team_access_changed",
+      "team_permission_denied",
+      "unknown_harness",
+      "unsupported_option",
+      "upgrade_required",
+      "worktree_not_found"
+    ],
+    "allowedDetails": {
+      "id": "string matching ^s-[a-f0-9]{8}$ only; correlate with this fresh fixture before any separate observation",
+      "stage": [
+        "provider-reservation",
+        "run-revalidation",
+        "lifecycle-lock",
+        "launch-journal",
+        "admission"
+      ],
+      "reasonCode": [
+        "account_session_limit",
+        "admission_unavailable",
+        "cpu_capacity",
+        "cpu_pressure",
+        "disk_observation_unavailable",
+        "disk_pressure",
+        "dispatch_paused",
+        "dispatch_policy_unavailable",
+        "execution_authority_changed",
+        "execution_disk_estimate_unavailable",
+        "execution_disk_pressure",
+        "execution_disk_unavailable",
+        "execution_launch_unconfirmed",
+        "execution_limits_unknown",
+        "global_slot_limit",
+        "host_storage_confirmation_required",
+        "host_storage_insufficient_capacity",
+        "host_storage_unavailable",
+        "launch_record_unavailable",
+        "lifecycle_unavailable",
+        "memory_pressure",
+        "project_slot_limit",
+        "provider_limit",
+        "provider_reservation_failed",
+        "resource_limits_unsupported",
+        "resource_observation_unavailable",
+        "resource_policy_changed",
+        "resource_policy_unavailable",
+        "reviewed_run_changed"
+      ]
+    },
+    "unknownValues": "Store null/unrecognized plus validity indicators. Do not accept arbitrary lowercase strings as codes; raw messages, unknown details, headers, body text, paths, tokens and prompts are omitted. Keep status/hash/length even when projection fails.",
+    "numericOperands": "not_in_POST_response_contract at edd0; do not synthesize numbers, borrow advisory snapshots or convert numeric-looking arbitrary detail strings."
+  },
+  "optionalSingleSessionGetContract": {
+    "separateAction": "Only if separately kept within parent scope; not a recommendation to add a request or retry to v3. POST response code/id projection is sufficient for current narrow helper fix.",
+    "source": "session_admission_evidence.go:11-29",
+    "authorization": "Current host-resource inspection authority, enabled actor, exited exact row with no sandboxRef and ValidFor(startFailure). Lists/create/restart DTOs cannot expose this telemetry.",
+    "field": "startAdmissionEvidence",
+    "fields": {
+      "metric": [
+        "host_cpu_utilization_percent",
+        "host_available_memory",
+        "execution_total_memory"
+      ],
+      "observedAt": "nonzero RFC3339 timestamp",
+      "decidedAt": "nonzero RFC3339 timestamp; observedAt <= decidedAt and age <=5s at decision, not age relative to current time",
+      "observedPercent": "finite JSON number0..100; CPU only, strictly >maximumPercent",
+      "maximumPercent": "finite JSON number0..100; CPU only",
+      "observedBytes": "nonnegative integer; retain as Number only if safe integer, else explicitly unavailable, never round",
+      "requiredBytes": "positive safe integer; memory only, observedBytes <requiredBytes"
+    },
+    "reasonBinding": {
+      "host_cpu_utilization_percent": "admission/cpu_pressure with byte fields0",
+      "host_available_memory": "admission/memory_pressure with percent fields0",
+      "execution_total_memory": "admission/memory_pressure with percent fields0"
+    },
+    "scope": "Optional captured actual final refusal operands only. Missing telemetry remains unavailable. It is not Create/retry/absence/release authority."
+  },
+  "sourceBindings": [
+    {
+      "path": "control-plane/internal/httpx/problem.go",
+      "sha256": "40c09559b8e5772558c5dd5a12c7bf7123b6d61f4f180892cfc8625d5d221b80",
+      "bytes": 10530
+    },
+    {
+      "path": "control-plane/internal/api/sessions.go",
+      "sha256": "1eface59027a5ca16b076cfc268025b9849ec4a69e42aaa462aaa514f602f99d",
+      "bytes": 117140
+    },
+    {
+      "path": "control-plane/internal/api/session_allocation.go",
+      "sha256": "ae51c9e1b61d7a5827f9045b319cfbcfa83797e9f5bcbb17611db1e9418e35dd",
+      "bytes": 7024
+    },
+    {
+      "path": "control-plane/internal/api/session_start_failure.go",
+      "sha256": "5c1875f041534e59a807a687e021c13ee46703c18af6c4235b41ef6dacf82dc6",
+      "bytes": 3599
+    },
+    {
+      "path": "control-plane/internal/api/session_admission_evidence.go",
+      "sha256": "68d36b2a2cf5fe1a2bfea17696e0a5525c26f3e5a30158190849574c6ad017a0",
+      "bytes": 977
+    },
+    {
+      "path": "control-plane/internal/api/execution_leases.go",
+      "sha256": "539dff31c1c9c06f4f0c6250d392ac5f72a0e52d34bad69bb5e73221ef9f7a3d",
+      "bytes": 28162
+    },
+    {
+      "path": "control-plane/internal/api/execution_capacity.go",
+      "sha256": "87d19bc9adcf0146ff68665d6e98b9746af0d8da7e00af1fba23eddfc822592a",
+      "bytes": 7966
+    },
+    {
+      "path": "control-plane/internal/registry/start_failure.go",
+      "sha256": "800de52329bdc98221a05fe04f38e989c406511b41f52cf59c0f6c92aba5e20a",
+      "bytes": 4402
+    },
+    {
+      "path": "control-plane/internal/registry/admission_evidence.go",
+      "sha256": "27dd184f16a89f46ff50f9b20c791fbd29d6f240aaa022cf7e9584251c1d3b27",
+      "bytes": 1909
+    },
+    {
+      "path": "control-plane/internal/management/policy.go",
+      "sha256": "990c650e0819628c15503b54d6753aad7228a20fd728c427eb2b63a5c389a7a6",
+      "bytes": 10468
+    },
+    {
+      "path": "control-plane/internal/management/management.go",
+      "sha256": "ebc33dbb061d32f0d30f162b76eb89f1996986aab43faa85cbd350664585ce68",
+      "bytes": 18394
+    }
+  ]
+}

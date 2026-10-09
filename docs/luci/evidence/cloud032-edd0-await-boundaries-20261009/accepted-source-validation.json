@@ -1,0 +1,130 @@
+{
+  "scope": "Every accepted helper source compared directly to complete pre-run frozen runtime source. Current repository HEAD is intentionally not used.",
+  "capturedProduct": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "capturedHelper": "8c7bf16aa035b27dbea185b565052495eb60777f",
+  "runtimeManifestSHA256": "5c1dc89cff6e18b799d87e7e5458683a378dd222cd5cb26cc901336083bb3fab",
+  "members": 20,
+  "allMatch": true,
+  "files": [
+    {
+      "name": "autonomous-readiness.mjs",
+      "acceptedSHA256": "7f534431a37a0bd599c2de48870d3c9e8badfd1e33b2d48e47078782aa74467b",
+      "frozenSHA256": "7f534431a37a0bd599c2de48870d3c9e8badfd1e33b2d48e47078782aa74467b",
+      "matches": true
+    },
+    {
+      "name": "external-source-binding.json",
+      "acceptedSHA256": "d2fb6b833c57fca96b56560360aa2e150b4f78b8e4c9eccc0a9e50baccf4c56b",
+      "frozenSHA256": "d2fb6b833c57fca96b56560360aa2e150b4f78b8e4c9eccc0a9e50baccf4c56b",
+      "matches": true
+    },
+    {
+      "name": "four-project-queue_native-terminal-diagnostics.mjs",
+      "acceptedSHA256": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+      "frozenSHA256": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+      "matches": true
+    },
+    {
+      "name": "four-project-queue_sample-linux-owned.py",
+      "acceptedSHA256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+      "frozenSHA256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+      "matches": true
+    },
+    {
+      "name": "interaction-metrics.mjs",
+      "acceptedSHA256": "437de00f5f82655415ae25ed8a6d09cb4c97b81eaf44d8aca340169dfabab0b4",
+      "frozenSHA256": "437de00f5f82655415ae25ed8a6d09cb4c97b81eaf44d8aca340169dfabab0b4",
+      "matches": true
+    },
+    {
+      "name": "latency-diagnostics.mjs",
+      "acceptedSHA256": "4d1c0f75f15c01444c22133f360f10700af58c6dfebd3906700e67dc9407313f",
+      "frozenSHA256": "4d1c0f75f15c01444c22133f360f10700af58c6dfebd3906700e67dc9407313f",
+      "matches": true
+    },
+    {
+      "name": "launch-recovery_acceptance-lifecycle.mjs",
+      "acceptedSHA256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "frozenSHA256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "matches": true
+    },
+    {
+      "name": "launch-recovery_acceptance-startup.mjs",
+      "acceptedSHA256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "frozenSHA256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "matches": true
+    },
+    {
+      "name": "launch-recovery_durable-acceptance-journal.mjs",
+      "acceptedSHA256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+      "frozenSHA256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+      "matches": true
+    },
+    {
+      "name": "launch-recovery_fenced-docker-proxy.mjs",
+      "acceptedSHA256": "b965b9a5d03f8a4cbc19b6e065559e1d9b10a2812453bfafb992e3f0041e448f",
+      "frozenSHA256": "b965b9a5d03f8a4cbc19b6e065559e1d9b10a2812453bfafb992e3f0041e448f",
+      "matches": true
+    },
+    {
+      "name": "launch-recovery_worker-create-guard.mjs",
+      "acceptedSHA256": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+      "frozenSHA256": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+      "matches": true
+    },
+    {
+      "name": "queue-controls.mjs",
+      "acceptedSHA256": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0",
+      "frozenSHA256": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0",
+      "matches": true
+    },
+    {
+      "name": "readiness-ledger.mjs",
+      "acceptedSHA256": "0a6db6505273c685d1281d039fd50f05c42e44d5312309ac4267f57ae05fd1ff",
+      "frozenSHA256": "0a6db6505273c685d1281d039fd50f05c42e44d5312309ac4267f57ae05fd1ff",
+      "matches": true
+    },
+    {
+      "name": "receipt-transport.mjs",
+      "acceptedSHA256": "6a676eefc02c4be569e65f6c3a16da50f750be67acaf4f1380a86739791c34a1",
+      "frozenSHA256": "6a676eefc02c4be569e65f6c3a16da50f750be67acaf4f1380a86739791c34a1",
+      "matches": true
+    },
+    {
+      "name": "run-with-observer.py",
+      "acceptedSHA256": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a",
+      "frozenSHA256": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a",
+      "matches": true
+    },
+    {
+      "name": "source-binding.mjs",
+      "acceptedSHA256": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796",
+      "frozenSHA256": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796",
+      "matches": true
+    },
+    {
+      "name": "sustained.mjs",
+      "acceptedSHA256": "b737aef09b0764fc65493f7d140cb5ae8580d9b88b7100baee635dbbea798bd0",
+      "frozenSHA256": "b737aef09b0764fc65493f7d140cb5ae8580d9b88b7100baee635dbbea798bd0",
+      "matches": true
+    },
+    {
+      "name": "task-command.mjs",
+      "acceptedSHA256": "7557cc863201e136a6ea0f4d039472d6e225a8efb0fb2afe267b9d65e01a541f",
+      "frozenSHA256": "7557cc863201e136a6ea0f4d039472d6e225a8efb0fb2afe267b9d65e01a541f",
+      "matches": true
+    },
+    {
+      "name": "task-context.mjs",
+      "acceptedSHA256": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2",
+      "frozenSHA256": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2",
+      "matches": true
+    },
+    {
+      "name": "workloads.mjs",
+      "acceptedSHA256": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306",
+      "frozenSHA256": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306",
+      "matches": true
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "scope": "Record of completed read-only analysis commands and observed tool-returned summaries. Not a new execution or invented raw command log. Controlled helper-validation raw stdout/stderr is retained verbatim under runtime-candidate-frozen.",
+  "operations": [
+    {
+      "command": [
+        "python3",
+        "/workspace/.luci-tools/cloud032-await-boundary-edd0-analysis-v1/analyze.py",
+        "/workspace/luci/artifacts/quality-swarm/idle-edd0cb12-await-boundary-attempt1/driver/result.json",
+        "/workspace/.luci-tools/cloud032-await-boundary-edd0-analysis-v1/actual"
+      ],
+      "exitCode": 0,
+      "observedRows": 432,
+      "observedJoinedSwitches": 100,
+      "observedIssues": 0,
+      "originalUnchanged": true
+    },
+    {
+      "command": [
+        "node",
+        "/workspace/.luci-tools/cloud032-await-boundary-edd0-analysis-v1/export-boundaries.mjs",
+        "/workspace/luci/artifacts/quality-swarm/idle-edd0cb12-await-boundary-attempt1/driver/result.json",
+        "/workspace/.luci-tools/cloud032-await-boundary-edd0-analysis-v1/actual/boundaries.projection.json"
+      ],
+      "exitCode": 0,
+      "observedRows": 432,
+      "observedIssues": 0,
+      "originalUnchanged": true
+    },
+    {
+      "command": [
+        "python3",
+        "/workspace/.luci-tools/cloud032-await-boundary-edd0-analysis-v1/closure.py",
+        "/workspace/luci/artifacts/quality-swarm/idle-edd0cb12-await-boundary-attempt1",
+        "/workspace/.luci-tools/cloud032-await-boundary-edd0-analysis-v1/independent-closure.json"
+      ],
+      "exitCode": 0,
+      "observedIdentities": [
+        [
+          2407939,
+          "absent"
+        ],
+        [
+          2408148,
+          "absent"
+        ]
+      ],
+      "observedContainers": 0,
+      "observedVolumes": 0,
+      "originalsStable": true
+    },
+    {
+      "command": [
+        "python3",
+        "/workspace/.luci-tools/cloud032-await-boundary-edd0-analysis-v1/analyze-boundaries.py"
+      ],
+      "exitCode": 0,
+      "observedRows": 432,
+      "successfulSwitchesWith12ExpectedMarks": 108,
+      "otherActionsWith6ExpectedMarks": 324
+    }
+  ]
+}

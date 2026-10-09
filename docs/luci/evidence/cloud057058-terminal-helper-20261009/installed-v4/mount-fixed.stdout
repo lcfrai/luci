@@ -1,0 +1,29 @@
+✔ exact primary RW + Git guard RO + private conversation binds are accepted (3.70335ms)
+✔ foreign source refused (2.02417ms)
+✔ arbitrary project descendant refused (0.817001ms)
+✔ nested admin source refused (0.79633ms)
+✔ wrong guard destination refused (0.757812ms)
+✔ writable guard refused (2.441638ms)
+✔ nonboolean read-only property refused (0.859405ms)
+✔ state-backed guard destination impostor refused (0.868339ms)
+✔ alias source resolving to guard refused (1.112826ms)
+✔ git symlink refused even if resolution stays inside project (1.102562ms)
+✔ admin symlink refused even if resolution stays inside project (1.060528ms)
+✔ git regular file refused for this primary-only fixture (0.854037ms)
+✔ unreadable guard refuses observation (0.590029ms)
+✔ canonical mismatch without symlink flag refused (1.308121ms)
+✔ duplicate guard refused (0.760766ms)
+✔ missing primary guard refused (0.620926ms)
+✔ non-bind guard refused (0.82963ms)
+✔ primary root must remain RW (6.280844ms)
+✔ immutable image identity remains required (1.23445ms)
+✔ foreign instance remains refused (0.717541ms)
+✔ host resource limits remain exact (0.783421ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 122.999681

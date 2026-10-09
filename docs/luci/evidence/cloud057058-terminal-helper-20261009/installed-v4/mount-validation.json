@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "issue": "CLOUD-058",
+  "product": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "scope": "actual inspectOwned extracted into inert Node VM with fake Docker inspection/filesystem callbacks; no actual Docker/app/provider/signals",
+  "original": {
+    "exitCode": 1,
+    "tests": 21,
+    "passed": 18,
+    "failed": 3,
+    "env": "C058_ORIGINAL=1",
+    "failures": [
+      "legitimate read-only primary Git guard rejected",
+      "state-backed admin-destination impostor accepted",
+      "missing primary guard accepted"
+    ]
+  },
+  "fixed": {
+    "exitCode": 0,
+    "tests": 21,
+    "passed": 21,
+    "failed": 0
+  },
+  "syntaxExit": 0,
+  "commands": [
+    "C058_ORIGINAL=1 node --test --test-concurrency=1 mount-contract.test.mjs",
+    "node --test --test-concurrency=1 mount-contract.test.mjs",
+    "node --check launch.mjs"
+  ],
+  "inputs": {
+    "launch.mjs": {
+      "sha256": "78a2aa7c168601f6569f20af153b73728543f0dee6bd78f48a0069fe46ee9a8a",
+      "bytes": 45471
+    },
+    "launch-before-git-guard.mjs": {
+      "sha256": "1def18abf3121a9a32c4d75fccd2d1eed4298b7e7ccddba4fa32aa68fc8de69f",
+      "bytes": 44255
+    },
+    "scenario.mjs": {
+      "sha256": "5b089cbfc8e1886bfd0e2689454a06415e7578557c929229ae69b3f58f8ce62b",
+      "bytes": 17196
+    },
+    "mount-contract.test.mjs": {
+      "sha256": "217bbba2b2b93a5abfaa4be83be5771e473188de9659c5f0d59c6dec3f36a65a",
+      "bytes": 4856
+    },
+    "mount-original.stdout": {
+      "sha256": "b1154fa9645f5f97a7787c1ac3910ee845b9e6d44b7cb9b7f2ff2fe85b10e019",
+      "bytes": 5009
+    },
+    "mount-original.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "mount-fixed.stdout": {
+      "sha256": "bec5912f6695a226ff0b2aef9d55653d1c2a2457c378786b94645fdf53ac0721",
+      "bytes": 1288
+    },
+    "mount-fixed.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "mount-syntax.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "mount-syntax.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "mount-contract.patch": {
+      "sha256": "0c219fdef1e96753b88bcea212728bc5336041056044102ee3d63e8596fe7d0d",
+      "bytes": 8644
+    },
+    "mount-production-contract-review.json": {
+      "sha256": "5cfd3b1ba375d3f1001dda2a992c62f7855666655e0d34baf91aadeceb6c03a0",
+      "bytes": 6409
+    }
+  },
+  "diagnosticRequestBytesUnchanged": true,
+  "requestSHA256": "719234fd0bd8c0b8ae8bd46ebc0279221daa727f057b061160f70ba089cc63e2",
+  "scenarioUnchanged": true,
+  "sourceEditScope": "external helper only; no product mutation or retained fixture cleanup",
+  "noInstalledRun": true
+}

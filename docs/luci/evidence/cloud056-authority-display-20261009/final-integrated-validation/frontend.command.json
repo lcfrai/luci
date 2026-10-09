@@ -1,0 +1,20 @@
+{
+  "command": [
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "src/components/teams/TeamWorkspaceAuthority.test.tsx",
+    "src/components/teams/TeamWorkspaceProvider.test.tsx",
+    "--maxWorkers=1",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/session-authority-review-edd0/final-integrated-validation/frontend-report.json"
+  ],
+  "cwd": "/workspace/luci/desktop",
+  "exitCode": 0,
+  "timedOut": false,
+  "forced": false,
+  "elapsedSeconds": 9.6809561252594,
+  "ownedRootPID": 2414297,
+  "rootWaited": true,
+  "processTreeClosure": "Process-group signals only on timeout; no whole-machine/process census claim"
+}

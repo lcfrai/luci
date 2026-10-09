@@ -1,0 +1,17 @@
+--- a/desktop/src/components/teams/TeamWorkspaceProvider.tsx
++++ b/desktop/src/components/teams/TeamWorkspaceProvider.tsx
+@@ -107,9 +107,13 @@
+       if(!detail || detail.teamId!==active.current || !detail.teamId || detail.generation!==teamScopeGeneration())return;
+       // Object identity fences an older membership/catalogue success even when
+       // a second denial arrives during the coalesced revalidation.
++      const repeated=deniedScope.current!==null;
+       deniedScope.current={teamId:detail.teamId,generation:detail.generation};
++      // A blocked episode keeps Retry, focus and the periodic refresh. Further
++      // polling denials fence older results but do not add membership traffic
++      // or replace the more useful settled failure explanation.
++      if(repeated || denialRefresh.current)return;
+       setBlocked(true);setError('Workspace access changed. Refresh current membership and project access to continue.');
+-      if(denialRefresh.current)return;
+       denialRefresh.current=true;
+       void refresh().catch(()=>{}).finally(()=>{denialRefresh.current=false;});
+     };

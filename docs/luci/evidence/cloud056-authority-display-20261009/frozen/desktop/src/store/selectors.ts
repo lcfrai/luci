@@ -1,0 +1,247 @@
+// desktop/src/store/selectors.ts
+//
+// Contract §3.7. EVERY derived read lives here — shared-shape §4. A component that
+// inlines a `.filter()` inside useCockpit(...) returns a new array on every store write and
+// re-renders on every 2 s poll, which is the layout shift docs/AGENTIC-UX.md §10 rule 7 bans.
+
+import { resolveDefaults } from "./defaults";
+import type {
+  Branch,
+  BranchId,
+  Harness,
+  HarnessId,
+  Machine,
+  Project,
+  ProjectId,
+  Session,
+  SessionDefaults,
+  SessionId,
+  SessionStatus,
+  Worktree,
+  WorktreeId,
+} from "./types";
+import type { CockpitState } from "./store";
+
+/** Frozen module-level constants, so the absent case is referentially stable and costs no
+ *  re-render. Frozen because a caller that mutated one would poison every other absent read. */
+const NO_BRANCHES = Object.freeze([]) as unknown as Branch[];
+const NO_WORKTREES = Object.freeze([]) as unknown as Worktree[];
+const NO_IDS = Object.freeze([]) as unknown as SessionId[];
+
+/** The machine flagged `default`, else the first. Undefined only before the first fetch. */
+export const selectDefaultMachine = (s: CockpitState): Machine | undefined =>
+  s.machines.find((m) => m.default) ?? s.machines[0];
+
+export const selectBranches =
+  (projectId: ProjectId | null) =>
+  (s: CockpitState): Branch[] =>
+    (projectId === null ? undefined : s.branchesByProject[projectId]) ?? NO_BRANCHES;
+
+export const selectWorktrees =
+  (branchId: BranchId | null) =>
+  (s: CockpitState): Worktree[] =>
+    (branchId === null ? undefined : s.worktreesByBranch[branchId]) ?? NO_WORKTREES;
+
+/** Ids, not objects: an id array is referentially stable across a poll that changed nothing,
+ *  because dataSlice.replaceSessions keeps the previous array when the ids match. */
+export const selectSessionIdsForWorktree =
+  (worktreeId: WorktreeId | null, branchId?: BranchId) =>
+  (s: CockpitState): SessionId[] => {
+    const ids = (worktreeId === null ? undefined : s.sessionIdsByWorktree[worktreeId]) ?? NO_IDS;
+    if (!branchId || ids.length === 0) return ids;
+    const scoped = ids.filter(id => s.sessions[id]?.branchId === branchId);
+    return scoped.length ? scoped : NO_IDS;
+  };
+
+export const selectSession =
+  (id: SessionId | null) =>
+  (s: CockpitState): Session | undefined =>
+    id === null ? undefined : s.sessions[id];
+
+/** ProjectPlan's persisted implementation history, restricted to this project's own sessions.
+ *  Consume with useShallow; the response snapshot is never reconstructed from current plans. */
+export const selectImplementationSessions =
+  (projectId: ProjectId) =>
+  (s: CockpitState): Session[] =>
+    Object.values(s.sessions)
+      .filter(session => session.projectId === projectId && session.implementationContext?.projectId === projectId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id));
+
+export const selectHarness =
+  (id: HarnessId | null) =>
+  (s: CockpitState): Harness | undefined =>
+    id === null ? undefined : s.harnesses.find((h) => h.id === id);
+
+export const selectFocusedSessionId = (s: CockpitState): SessionId | null =>
+  s.selection.sessionId;
+
+/** THE Columns order, and the one true ordering: the worktrees of the selected branch in
+ *  server order, and within each, its sessions in server order. ⌘1-9, the palette and
+ *  ColumnsLayout all index this and nothing else. An exited session stays in it — a killed
+ *  session keeps its record and stays listed, because the transcript is the artifact.
+ *
+ *  Builds a fresh array, so consume it with useShallow:
+ *      const ids = useCockpit(useShallow(selectPaneSessionIds)); */
+export const selectPaneSessionIds = (s: CockpitState): SessionId[] => {
+  const branchId = s.selection.branchId;
+  if (branchId === null) return NO_IDS;
+  const worktrees = s.worktreesByBranch[branchId];
+  if (worktrees === undefined || worktrees.length === 0) return NO_IDS;
+  const out: SessionId[] = [];
+  for (const w of worktrees) {
+    const ids = s.sessionIdsByWorktree[w.id];
+    if (ids !== undefined) out.push(...ids.filter(id => s.sessions[id]?.branchId === branchId));
+  }
+  return out.length === 0 ? NO_IDS : out;
+};
+
+/** `pinned` filtered to sessions that still exist AND sit on the SELECTED BRANCH, in pin order.
+ *  A pin whose session has been forgotten is dropped here rather than in prefsSlice, so an
+ *  in-flight poll cannot blank a tile the user is looking at. Consume with useShallow.
+ *
+ *  EDITED BY TASK 21's FIX ROUND 2, as a declared departure — this is task 17's file, and §4
+ *  is why the intersection lives here rather than inline in CanvasLayout: a derived read in a
+ *  selector is testable, and two components deriving it separately is how they come to disagree.
+ *
+ *  WHY the branch filter. `pinned` is one flat global list (§3.4) while Canvas renders one
+ *  branch, so without this the second branch you visit shows the first branch's tiles. The fix
+ *  is a filter rather than a re-keyed store: session ids are globally unique and each belongs
+ *  to exactly one branch, so a global persisted set filtered for display is correct per branch
+ *  AND keeps each branch's arrangement across a switch — with no persisted-shape change and no
+ *  migration at schema version 1.
+ *
+ *  Both filters are kept, not just the intersection. `selectPaneSessionIds` reads
+ *  `sessionIdsByWorktree`, which can name an id that `sessions` does not yet hold mid-poll; the
+ *  existence check is what stops that rendering a tile for a session with no record. */
+export const selectCanvasSessionIds = (s: CockpitState): SessionId[] => {
+  const scope = selectPaneSessionIds(s);
+  const out = s.pinned.filter((id) => s.sessions[id] !== undefined && scope.includes(id));
+  return out.length === 0 ? NO_IDS : out;
+};
+
+/** The inheritance chain, resolved against the current selection and the live catalogue.
+ *  Returns a FRESHLY BUILT object, so consume it with useShallow — an addition to §3.7,
+ *  which names useShallow only for the two array selectors:
+ *      const d = useCockpit(useShallow(selectResolvedDefaults)); */
+export const selectResolvedDefaults = (s: CockpitState): SessionDefaults =>
+  resolveDefaults(
+    s.defaults,
+    s.selection.projectId === null ? undefined : s.projectDefaults[s.selection.projectId],
+    s.selection.branchId === null ? undefined : s.branchDefaults[s.selection.branchId],
+    s.harnesses,
+  );
+
+// TASK 18 adds its selectors here, and there is no fifth. See its step 10.
+//
+//   selectBranchAttentionSessionId(branchId) => (s) => SessionId | null
+//     the highest-attention status among a branch's sessions, and the id of the first
+//     session carrying it, so the branch row's dot and its click target come from one read
+//   selectProjectById(id)  => (s) => Project | undefined
+//   selectBranchById(id)   => (s) => Branch | undefined
+//   selectWorktreeById(id) => (s) => Worktree | undefined
+//     by-id reads §3.7 has for a session and a harness but not for the three catalogue
+//     levels, which ContextMenu needs because openContextMenu hands it only an id and a kind
+
+/** The project, branch or worktree a surface is about, by id.
+ *
+ *  ADDED BY TASK 18 — not in contract §3.7, which has selectSession and selectHarness but no
+ *  by-id read for the three catalogue levels. `ContextMenu` needs all three: openContextMenu
+ *  hands it an id and a kind and nothing else. The branch and worktree forms are DERIVATIONS,
+ *  not lookups — both indexes are Records of arrays — which is why shared-shape rule 4 puts
+ *  them here rather than inline in the component. Each returns the store's own object, so the
+ *  reference is stable across a poll that changed nothing and no useShallow is needed. */
+export const selectProjectById =
+  (id: ProjectId) =>
+  (s: CockpitState): Project | undefined =>
+    s.projects.find((p) => p.id === id);
+
+export const selectBranchById =
+  (id: BranchId) =>
+  (s: CockpitState): Branch | undefined => {
+    for (const branches of Object.values(s.branchesByProject)) {
+      const found = branches.find((b) => b.id === id);
+      if (found !== undefined) return found;
+    }
+    return undefined;
+  };
+
+export const selectWorktreeById =
+  (id: WorktreeId) =>
+  (s: CockpitState): Worktree | undefined => {
+    for (const worktrees of Object.values(s.worktreesByBranch)) {
+      const found = worktrees.find((w) => w.id === id);
+      if (found !== undefined) return found;
+    }
+    return undefined;
+  };
+
+/** Precedence from contract §6.2. Lower is more attention-worthy. */
+const STATUS_RANK: Record<SessionStatus, number> = {
+  running: 0,
+  starting: 1,
+  idle: 2,
+  exited: 3,
+};
+
+/** The session a branch row's dot is about, or null when the branch has none.
+ *
+ *  ADDED BY TASK 18 — not in contract §3.7. The rail needs it (§6.2): the dot shows the
+ *  highest-attention status among the branch's sessions, and clicking it navigates to the
+ *  first session carrying that status. Returning the id rather than the status gives the row
+ *  both facts from one read, and a string is referentially stable where a { status, id }
+ *  object would re-render every rail row on every 2 s poll.
+ *
+ *  Worktrees and sessions are walked in server order and the comparison is strict, so "first"
+ *  means first in that order — the client never re-sorts (§3.2). */
+export const selectBranchAttentionSessionId =
+  (branchId: BranchId) =>
+  (s: CockpitState): SessionId | null => {
+    let best: SessionId | null = null;
+    let bestRank = Number.POSITIVE_INFINITY;
+    for (const worktree of s.worktreesByBranch[branchId] ?? []) {
+      for (const id of s.sessionIdsByWorktree[worktree.id] ?? []) {
+        const session = s.sessions[id];
+        if (session === undefined || session.branchId !== branchId) continue;
+        const rank = STATUS_RANK[session.status];
+        if (rank < bestRank) {
+          bestRank = rank;
+          best = id;
+        }
+      }
+    }
+    return best;
+  };
+
+/** The Branch named by `selection.branchId`. Needed by DevelopLens, which owes EmptyDevelop
+ *  a `Branch | undefined` (§6.5). Returns the stored object, so its identity is stable
+ *  across a session poll (the poller refetches sessions only).
+ *
+ *  ADDED BY TASK 20 — an addition to contract §3.7, per Group D shared-shape §4. It adds no
+ *  worktree-by-id read: `selectWorktreeById` above is task 18's and is exactly the
+ *  flatten-then-find this task would otherwise have duplicated, and the obvious second name,
+ *  `selectWorktree`, is already the uiSlice ACTION of §3.3, which navigates rather than reads. */
+export const selectSelectedBranch = (s: CockpitState): Branch | undefined => {
+  const { projectId, branchId } = s.selection;
+  // MEASURED EQUIVALENCE on the `|| branchId === null` half, and when it expires. Dropping it
+  // survives the suite, and it survives correctly rather than for want of a test: the `.find`
+  // below would then compare `b.id === null`, which no branch can satisfy, so the result is
+  // `undefined` either way. The clause is a short-circuit, not a guard.
+  // It stops being equivalent the moment a branch can carry a null or undefined id — a server
+  // field going optional, or a fixture growing a partial Branch — because `.find` would then
+  // MATCH on the null and return a branch for "no branch selected".
+  if (projectId === null || branchId === null) return undefined;
+  return (s.branchesByProject[projectId] ?? []).find((b) => b.id === branchId);
+};
+
+/** The worktree a new session should land on: the explicitly selected one, else the selected
+ *  branch's FIRST worktree in server order, else null. Contract §6.9 states that fallback as
+ *  the ⌘⏎ guard, and the palette's "New session…" row needs the same answer — two inline
+ *  copies would drift the day one of them starts preferring the primary worktree.
+ *  Addition to contract §3.7 by task 23, per Group D shared-shape §4. */
+export const selectTargetWorktreeId = (s: CockpitState): WorktreeId | null => {
+  const { branchId, worktreeId } = s.selection;
+  if (worktreeId !== null) return worktreeId;
+  if (branchId === null) return null;
+  const worktrees = s.worktreesByBranch[branchId] ?? [];
+  return worktrees.length === 0 ? null : worktrees[0].id;
+};

@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "issue": "CLOUD-058",
+  "scope": "Independent narrow read-only source review of final installed-v4 versus frozen installed-v3; no tests/runtime/Docker/app execution",
+  "reviewedAt": "2026-10-09T12:08:10.959029+00:00",
+  "result": "No concrete blocker found in reviewed mount-contract correction",
+  "bindings": [
+    {
+      "path": "/workspace/.luci-tools/cloud054-terminal-close/installed-v3/launch.mjs",
+      "bytes": 44255,
+      "sha256": "1def18abf3121a9a32c4d75fccd2d1eed4298b7e7ccddba4fa32aa68fc8de69f"
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud054-terminal-close/installed-v4/launch.mjs",
+      "bytes": 45471,
+      "sha256": "78a2aa7c168601f6569f20af153b73728543f0dee6bd78f48a0069fe46ee9a8a"
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud054-terminal-close/installed-v4/mount-contract.test.mjs",
+      "bytes": 4856,
+      "sha256": "217bbba2b2b93a5abfaa4be83be5771e473188de9659c5f0d59c6dec3f36a65a"
+    }
+  ],
+  "productionContractReview": {
+    "path": "/workspace/.luci-tools/cloud054-terminal-close/cloud058-mount-contract-review.json",
+    "sha256": "5cfd3b1ba375d3f1001dda2a992c62f7855666655e0d34baf91aadeceb6c03a0",
+    "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41"
+  },
+  "verifiedSourceProperties": [
+    "Only new assertPrimaryGitAdminMount helper and inspectOwned mount-validation region differ; exact removal/substitution restores v3 bytes",
+    "Exactly one admin destination required for this explicitly primary fixture",
+    "Exact source <project>/.git/worktrees, exact destination /home/dev/work/.git/worktrees, Type bind and RW false",
+    "Canonical project and ordinary nonlinked .git/admin directories plus realpath equality",
+    "Reserved source and destination both trigger strict helper; state-backed impostor and alternate-destination source cannot escape through old generic rule",
+    "Arbitrary project descendants remain refused; no project-prefix allowance added",
+    "Existing primary writable mount and identity/image/resource/instance/registry/source/endpoint/cleanup guards unchanged",
+    "No retry, allocation, mutation, admission or cleanup behavior added"
+  ],
+  "testScope": "Read 21 fixture declarations/VM extraction. Parent reports original3fail18pass and final21pass. No independent execution or log recount in this review.",
+  "limits": [
+    "Fresh Linux primary shell fixture only, not general linked-worktree or Windows support",
+    "Does not close documented production filesystem swap race between source validation and Docker mount",
+    "Installed natural exits, restart ordering and cleanup require separate actual run evidence",
+    "Existing root writable-mount check is truthiness/canonical equality as in v3; this correction does not claim broader validation changes"
+  ]
+}

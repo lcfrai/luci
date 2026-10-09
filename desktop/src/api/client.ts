@@ -1,4 +1,4 @@
-import { workspacePath, teamScopePrefix, teamScopeGeneration } from './teamScope';
+import { workspacePath, teamScopePrefix, teamScopeGeneration, reportTeamAccessDenied } from './teamScope';
 // desktop/src/api/client.ts
 //
 // The typed control-plane client — contract §4. One exported function per Go endpoint;
@@ -375,7 +375,14 @@ export function createClient(opts?: ClientOptions): CockpitClient {
         text: await res.text(),
       };
       if (scopeGeneration !== teamScopeGeneration()) throw new ApiError("conflict", "The workspace changed while this response was loading.", 409);
-      if (!res.ok) throw toProblem(reply);
+      if (!res.ok) {
+        const problem = toProblem(reply);
+        // Only this unfiltered team catalogue's exact membership refusal can
+        // invalidate the workspace display. Both response scope fences above
+        // already passed; origin/host errors and project refusals stay local.
+        if (method === 'GET' && route === '/v1/sessions' && res.status === 403 && String(problem.code) === 'team_access_denied') reportTeamAccessDenied(scopeGeneration);
+        throw problem;
+      }
       return reply;
     } catch (cause) {
       if (cause instanceof ApiError) throw cause;

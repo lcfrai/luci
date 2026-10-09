@@ -1,0 +1,132 @@
+{
+  "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "scope": "Selected schema, mount implementation and existing test sources only; not complete compiled inputs or a new test/build",
+  "sources": [
+    {
+      "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+      "repositoryPath": "control-plane/internal/api/execution_capacity.go",
+      "publishedPath": "product-source/control-plane/internal/api/execution_capacity.go",
+      "bytes": 7966,
+      "sha256": "87d19bc9adcf0146ff68665d6e98b9746af0d8da7e00af1fba23eddfc822592a"
+    },
+    {
+      "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+      "repositoryPath": "control-plane/internal/api/execution_leases.go",
+      "publishedPath": "product-source/control-plane/internal/api/execution_leases.go",
+      "bytes": 28162,
+      "sha256": "539dff31c1c9c06f4f0c6250d392ac5f72a0e52d34bad69bb5e73221ef9f7a3d"
+    },
+    {
+      "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+      "repositoryPath": "control-plane/internal/api/session_admission_evidence.go",
+      "publishedPath": "product-source/control-plane/internal/api/session_admission_evidence.go",
+      "bytes": 977,
+      "sha256": "68d36b2a2cf5fe1a2bfea17696e0a5525c26f3e5a30158190849574c6ad017a0"
+    },
+    {
+      "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+      "repositoryPath": "control-plane/internal/api/session_allocation.go",
+      "publishedPath": "product-source/control-plane/internal/api/session_allocation.go",
+      "bytes": 7024,
+      "sha256": "ae51c9e1b61d7a5827f9045b319cfbcfa83797e9f5bcbb17611db1e9418e35dd"
+    },
+    {
+      "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+      "repositoryPath": "control-plane/internal/api/session_start_failure.go",
+      "publishedPath": "product-source/control-plane/internal/api/session_start_failure.go",
+      "bytes": 3599,
+      "sha256": "5c1875f041534e59a807a687e021c13ee46703c18af6c4235b41ef6dacf82dc6"
+    },
+    {
+      "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+      "repositoryPath": "control-plane/internal/api/sessions.go",
+      "publishedPath": "product-source/control-plane/internal/api/sessions.go",
+      "bytes": 117140,
+      "sha256": "1eface59027a5ca16b076cfc268025b9849ec4a69e42aaa462aaa514f602f99d"
+    },
+    {
+      "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+      "repositoryPath": "control-plane/internal/api/sessions_sandboxenv_test.go",
+      "publishedPath": "product-source/control-plane/internal/api/sessions_sandboxenv_test.go",
+      "bytes": 23565,
+      "sha256": "bf806f28b7ac1562ae8a0f9b44d5d084eb7785654d3f715f79ed20d4688d6621"
+    },
+    {
+      "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+      "repositoryPath": "control-plane/internal/api/sessions_shell.go",
+      "publishedPath": "product-source/control-plane/internal/api/sessions_shell.go",
+      "bytes": 6750,
+      "sha256": "06b563a41200aef3e275c221b65e5cfa36bdddf94308121433fb091d9c03601e"
+    },
+    {
+      "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+      "repositoryPath": "control-plane/internal/api/sessions_x3_admin_pin_test.go",
+      "publishedPath": "product-source/control-plane/internal/api/sessions_x3_admin_pin_test.go",
+      "bytes": 5121,
+      "sha256": "48828db9e40b62a7cc233a116f34f7efee3c13ba571a4696b61617466ba29091"
+    },
+    {
+      "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+      "repositoryPath": "control-plane/internal/api/sessions_x3_admin_test.go",
+      "publishedPath": "product-source/control-plane/internal/api/sessions_x3_admin_test.go",
+      "bytes": 3240,
+      "sha256": "05aebca03e0931b91a1c6df8414ea2cd67f07580c94ac549a02feb2458160e90"
+    },
+    {
+      "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+      "repositoryPath": "control-plane/internal/backend/dockerbe/docker.go",
+      "publishedPath": "product-source/control-plane/internal/backend/dockerbe/docker.go",
+      "bytes": 31285,
+      "sha256": "b865a8eea8a313ad818686f372724e2a97874ba8532c0041ad6cc5d3b0d0d46c"
+    },
+    {
+      "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+      "repositoryPath": "control-plane/internal/hostpath/hostpath.go",
+      "publishedPath": "product-source/control-plane/internal/hostpath/hostpath.go",
+      "bytes": 4201,
+      "sha256": "a9f5cac4e630795b665acf4291b3bfe8d011151345442e2fec529aa7532ec0e0"
+    },
+    {
+      "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+      "repositoryPath": "control-plane/internal/httpx/problem.go",
+      "publishedPath": "product-source/control-plane/internal/httpx/problem.go",
+      "bytes": 10530,
+      "sha256": "40c09559b8e5772558c5dd5a12c7bf7123b6d61f4f180892cfc8625d5d221b80"
+    },
+    {
+      "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+      "repositoryPath": "control-plane/internal/management/management.go",
+      "publishedPath": "product-source/control-plane/internal/management/management.go",
+      "bytes": 18394,
+      "sha256": "ebc33dbb061d32f0d30f162b76eb89f1996986aab43faa85cbd350664585ce68"
+    },
+    {
+      "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+      "repositoryPath": "control-plane/internal/management/policy.go",
+      "publishedPath": "product-source/control-plane/internal/management/policy.go",
+      "bytes": 10468,
+      "sha256": "990c650e0819628c15503b54d6753aad7228a20fd728c427eb2b63a5c389a7a6"
+    },
+    {
+      "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+      "repositoryPath": "control-plane/internal/registry/admission_evidence.go",
+      "publishedPath": "product-source/control-plane/internal/registry/admission_evidence.go",
+      "bytes": 1909,
+      "sha256": "27dd184f16a89f46ff50f9b20c791fbd29d6f240aaa022cf7e9584251c1d3b27"
+    },
+    {
+      "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+      "repositoryPath": "control-plane/internal/registry/start_failure.go",
+      "publishedPath": "product-source/control-plane/internal/registry/start_failure.go",
+      "bytes": 4402,
+      "sha256": "800de52329bdc98221a05fe04f38e989c406511b41f52cf59c0f6c92aba5e20a"
+    },
+    {
+      "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+      "repositoryPath": "control-plane/internal/resourcebudget/local_storage.go",
+      "publishedPath": "product-source/control-plane/internal/resourcebudget/local_storage.go",
+      "bytes": 12147,
+      "sha256": "94d8d267569778a6a9fa28e0bf918310628538fb14f29762c7b3bb00087d0ae3"
+    }
+  ]
+}

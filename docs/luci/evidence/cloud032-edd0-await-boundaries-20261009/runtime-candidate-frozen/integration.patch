@@ -1,0 +1,107 @@
+--- sealed-v2/sustained.mjs
++++ edd0-await/sustained.mjs
+@@ -64,6 +64,7 @@
+ for(const [name,expected] of Object.entries(externalBinding.localSources)) assert.equal(sha(readFileSync(join(here,name))),expected,'External diagnostic source changed: '+name);
+ for(const [name,expected] of Object.entries(externalBinding.repositoryDependencies)) assert.equal(sha(readFileSync(join(repo,name))),expected,'Captured repository dependency changed: '+name);
+ const sourceBindingOptions=parseSourceBindingOptions(args);
++assert.equal(sourceBindingOptions.expectedProduct,externalBinding.prospectiveProduct);assert.equal(sourceBindingOptions.expectedHelper,externalBinding.prospectiveHelper);assert.equal(provenance.sourceCommit,externalBinding.prospectiveProduct);
+ function verifySourceBinding(){return validateSourceBinding({provenance,...sourceBindingOptions,helperCommit:execFileSync('git',['rev-parse','HEAD'],{cwd:repo,encoding:'utf8',timeout:Math.ceil(commandBudget(15000))}).trim(),helperDirty:!!execFileSync('git',['status','--porcelain'],{cwd:repo,encoding:'utf8',timeout:Math.ceil(commandBudget(15000))}).trim()});}
+ const harnessCheckout=verifySourceBinding();
+ for(const [path,expected] of Object.entries(imageEvidence.sourcesBefore??{})){
+@@ -97,7 +98,8 @@
+ assert.equal(realpathSync(web), realpathSync(join(dirname(binary), 'web')));
+ const rootFree = () => { const volume = statfsSync('/'); return Number(volume.bavail) * Number(volume.bsize); };
+ const initialRootFree = rootFree(); assert(initialRootFree >= 6 * 1024 ** 3, 'This fixture needs six GiB root free, including a conservative one GiB working reserve');
+-const docker = (...values) => execFileSync('docker', values, { encoding: 'utf8', timeout: Math.ceil(commandBudget(30_000)) }).trim();
++const dockerEndpoint=process.env.DOCKER_HOST;assert(typeof dockerEndpoint==='string'&&dockerEndpoint.startsWith('unix:///')&&dockerEndpoint.length>8&&!/[\x00-\x20\x7f?#]/.test(dockerEndpoint));assert.equal(process.env.DOCKER_CONTEXT,undefined);
++const docker = (...values) => execFileSync('docker', ['--host',dockerEndpoint,...values], { encoding: 'utf8', timeout: Math.ceil(commandBudget(30_000)) }).trim();
+ assert.equal(docker('ps', '-aq'), '', 'Exclusive runtime admission requires zero existing containers');
+ assert.equal(docker('volume', 'ls', '-q'), '', 'Exclusive runtime admission requires zero existing volumes');
+ const imageInfo = JSON.parse(docker('image', 'inspect', image))[0], releaseImageInfo = JSON.parse(docker('image', 'inspect', releaseImage))[0];
+@@ -133,7 +135,7 @@
+ };
+ 
+ Object.assign(receipt,{
+- mode:'installed-four-project-autonomous-readiness-v2-diagnostic',diagnosticOnly:true,fullSustainedAcceptance:false,
++ mode:'installed-four-project-await-boundary-edd0-diagnostic',diagnosticOnly:true,fullSustainedAcceptance:false,
+  scope:'Fresh installed package, exact original four saved contexts and paused queues, original draft/warm setup and idle100 switches/200 inputs. No task execution or sustained completion claim.',
+  resourceScope:'One owned browser and installed app. Docker readiness/image inventory reads are required. Explicit guards reject every Create/Start before forwarding. No full Linux resource sampler; browser diagnostic collection is identical to the static control.',
+  limitations:[...receipt.limitations,'Diagnostic subset only; original sustained failure remains unchanged. No resource-cost subtraction.','No independent Linux observer in either prepared control arm; this is not a matched replay of the old observer load.'],
+@@ -597,7 +599,7 @@
+ }
+ // BEGIN SUSTAINED STARTUP WIRING: exercised with controlled factories only.
+ async function startSustainedServices(){
+- const upstream=process.env.DOCKER_HOST||'unix:///var/run/docker.sock';assert(upstream.startsWith('unix://'));
++ const upstream=dockerEndpoint;
+  return startAcceptanceServices({scope:startupScope,assertActive:assertWorkflowActive,
+   startProvider:async()=>{startProvider();await new Promise((done,reject)=>provider.once('error',reject).listen(0,bridge,done));return provider;},
+   adoptProvider:handle=>{provider=handle;},closeProvider:async handle=>{try{handle.closeAllConnections();}finally{if(handle.listening)await new Promise(done=>handle.close(done));}},
+--- sealed-v2/launch.py
++++ edd0-await/launch.py
+@@ -17,9 +17,22 @@
+     except (PermissionError,OSError,ValueError,IndexError) as e:return {'pid':pid,'state':'unknown','errorType':type(e).__name__}
+ def same(current,expected): return current.get('startTicks')==expected.get('startTicks') and current['state'] not in ['absent','unknown']
+ 
++def controlled_environment(inherited, endpoint):
++    assert isinstance(endpoint,str) and re.fullmatch(r'unix:///[^\x00-\x20\x7f?#]+', endpoint), 'Explicit absolute local Unix Docker endpoint required'
++    result=dict(inherited)
++    for key in ('DOCKER_CONTEXT','DOCKER_TLS_VERIFY','DOCKER_CERT_PATH','DOCKER_TLS','DOCKER_API_VERSION'):
++        result.pop(key,None)
++    result.update(DOCKER_HOST=endpoint,LUCI_ACCEPTANCE_REPO=str(REPO))
++    return result
++
++def docker_command(values,env):
++    return command(['docker','--host',env['DOCKER_HOST'],*values],env=env)
++
+ def main():
+     parser=argparse.ArgumentParser(description=__doc__)
+     parser.add_argument('--source',required=True)
++    parser.add_argument('--docker-host',required=True)
++    parser.add_argument('--window-granted',action='store_true')
+     parser.add_argument('--helper-source')
+     parser.add_argument('--package',type=Path,required=True)
+     parser.add_argument('--provenance',type=Path,required=True)
+@@ -30,7 +43,17 @@
+     parser.add_argument('--fixture-root',type=Path,default=Path('/workspace/.c32'))
+     parser.add_argument('--trace-after',choices=['yes','no'],default='yes')
+     args=parser.parse_args();helper=args.helper_source or args.source
+-    assert args.source=='d20ebd292f3f1de04d6726bab0998c210987bcb5','Frozen prospective product is d20; no silent package rebase'
++    assert args.window_granted,'Parent-coordinated exclusive runtime window required'
++    runtime_env=controlled_environment(os.environ,args.docker_host)
++    docker=lambda values:docker_command(values,runtime_env)
++    assert args.source=='edd0cb121ff6847f681ab6bf41509a497f043d41' and helper=='8c7bf16aa035b27dbea185b565052495eb60777f','Frozen edd0 product / 8c7 helper binding required'
++    assert args.trace_after=='yes','Original complete 400 + 32 action counts required'
++    assert args.package.resolve()==Path('/tmp/luci-retained-tools/package-0.5.0-edd0cb12').resolve()
++    assert args.provenance.resolve()==Path('/workspace/luci/artifacts/quality-swarm/candidate-edd0cb12/package/package-provenance.json').resolve()
++    assert sha(args.provenance)=='5ea084d505e292d418b7ab9b2d3fa97d83a0510158fbb3ef8ef66096603aa5f6','Original edd0 provenance bytes required'
++    assert args.expected_image_id=='sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98' and args.image==args.expected_image_id
++    assert args.image_provenance.resolve()==Path('/workspace/.luci-tools/sandbox-candidate-20261008T140025Z-a4a2e82b/receipt.json').resolve()
++    assert sha(args.image_provenance)=='5af726e6670fd6f04c0f67cf3b26b3f6072ed89c1e1e3481c652a631ae6d0a3b','Exact retained image evidence required'
+     assert re.fullmatch('[0-9a-f]{40}',args.source) and re.fullmatch('[0-9a-f]{40}',helper),'Exact immutable source revisions required'
+     assert re.fullmatch('sha256:[0-9a-f]{64}',args.expected_image_id)
+     assert os.getuid()!=0 and sys.platform=='linux'
+@@ -49,18 +72,18 @@
+     assert provenance['sourceCommit']==args.source and provenance['sourceDirty'] is False
+     package=args.package.resolve();assert sha(package/'luci')==provenance['binarySHA256'] and sha(package/'web/index.html')==provenance['webIndexSHA256']
+     # Driver also verifies the entire archive/extracted package before launching.
+-    assert command(['docker','ps','-aq'])=='','Exclusive Docker must be empty; never run on shared Windows Docker'
+-    assert command(['docker','volume','ls','-q'])==''
+-    assert json.loads(command(['docker','image','inspect',args.image]))[0]['Id']==args.expected_image_id
+-    engine=command(['docker','info','--format','{{.ID}}']);assert engine
++    assert docker(['ps','-aq'])=='','Exclusive Docker must be empty; never run on shared Windows Docker'
++    assert docker(['volume','ls','-q'])==''
++    assert json.loads(docker(['image','inspect',args.image]))[0]['Id']==args.expected_image_id
++    engine=docker(['info','--format','{{.ID}}']);assert engine
+     volume=os.statvfs('/');free=volume.f_bavail*volume.f_frsize;assert free>=6*1024**3,'Unchanged six GiB root floor'
+     output=args.output.resolve();assert not output.exists(),'Fresh output directory required; failed evidence must remain'
+     output.mkdir(mode=0o700,parents=True)
+     result_dir=output/'driver';result=result_dir/'result.json'
+     cmd=['node',str(HERE/'actual/sustained.mjs'),'--task-context-version','2','--binary',str(package/'luci'),'--web',str(package/'web'),'--provenance',str(args.provenance.resolve()),'--expected-source',args.source,'--expected-helper-source',helper,'--image',args.image,'--expected-image-id',args.expected_image_id,'--image-provenance',str(args.image_provenance.resolve()),'--fixture-root',str(args.fixture_root.resolve()),'--report',str(result),'--trace-after',args.trace_after]
+-    invocation={'version':1,'preparedAt':now(),'command':cmd,'productSource':args.source,'helperSource':helper,'sourceBinding':capture,'driverSHA256':sha(HERE/'actual/sustained.mjs'),'bindingSHA256':sha(HERE/'actual/external-source-binding.json'),'launcherSHA256':sha(Path(__file__)),'provenanceSHA256':sha(args.provenance),'environment':{'LUCI_ACCEPTANCE_REPO':str(REPO)},'scope':'Fresh installed idle diagnostic only; no runtime allocation, no full sustained pass, no model quality or Windows acceptance.','fixedScope':{'quietSeconds':60,'primarySwitches':100,'primaryInputs':200,'primaryResets':100,'extraTraceRounds':8 if args.trace_after=='yes' else 0,'switchP95Ms':300,'inputP95Ms':100,'p99StrictlyBelowMs':1000,'allowedCreates':0,'allowedStarts':0,'preparationSeconds':60,'workflowSeconds':210,'cleanupSeconds':120,'outerDriverWaitSeconds':450,'outerTermGraceSeconds':30,'outerKillWaitSeconds':10,'linuxSampler':False},'engineIdentitySHA256':hashlib.sha256(engine.encode()).hexdigest(),'rootFreeBytes':free,'rawEvidence':'Retain result interactions and node/browser spans verbatim. Raw trace/private fixture may contain context; publish only separately bound allowlisted projections.'}
++    invocation={'version':1,'preparedAt':now(),'command':cmd,'productSource':args.source,'helperSource':helper,'sourceBinding':capture,'driverSHA256':sha(HERE/'actual/sustained.mjs'),'bindingSHA256':sha(HERE/'actual/external-source-binding.json'),'launcherSHA256':sha(Path(__file__)),'provenanceSHA256':sha(args.provenance),'environment':{'LUCI_ACCEPTANCE_REPO':str(REPO),'DOCKER_HOST':args.docker_host,'DockerContextTLSOverridesRemoved':True,'DockerCLIHostExplicit':True},'scope':'Fresh installed idle diagnostic only; no runtime allocation, no full sustained pass, no model quality or Windows acceptance.','fixedScope':{'quietSeconds':60,'primarySwitches':100,'primaryInputs':200,'primaryResets':100,'extraTraceRounds':8 if args.trace_after=='yes' else 0,'switchP95Ms':300,'inputP95Ms':100,'p99StrictlyBelowMs':1000,'allowedCreates':0,'allowedStarts':0,'preparationSeconds':60,'workflowSeconds':210,'cleanupSeconds':120,'outerDriverWaitSeconds':450,'outerTermGraceSeconds':30,'outerKillWaitSeconds':10,'linuxSampler':False},'engineIdentitySHA256':hashlib.sha256(engine.encode()).hexdigest(),'rootFreeBytes':free,'rawEvidence':'Retain result interactions and node/browser spans verbatim. Raw trace/private fixture may contain context; publish only separately bound allowlisted projections.'}
+     write(output/'invocation.json',invocation)
+-    env=dict(os.environ,LUCI_ACCEPTANCE_REPO=str(REPO));start=time.monotonic();started=now();timeout=False;forced=False;events=[]
++    env=runtime_env;start=time.monotonic();started=now();timeout=False;forced=False;events=[]
+     with (output/'driver.stdout.log').open('w') as stdout,(output/'driver.stderr.log').open('w') as stderr:
+         child=subprocess.Popen(cmd,cwd=REPO,env=env,stdout=stdout,stderr=stderr,start_new_session=True)
+         driver=identity(child.pid);assert 'startTicks' in driver,'Owned driver identity unavailable'

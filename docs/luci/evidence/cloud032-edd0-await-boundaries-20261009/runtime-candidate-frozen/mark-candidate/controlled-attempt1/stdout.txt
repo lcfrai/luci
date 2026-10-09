@@ -1,0 +1,16 @@
+✔ same original method order/count, actions, outcomes and full spans; 12 marks delimit all three awaits (12.560791ms)
+✔ same failure and completed prefix: click:Open project Synthetic project (1.645273ms)
+✔ same failure and completed prefix: wait:The idea (1.399789ms)
+✔ same failure and completed prefix: evaluate:The idea (4.009605ms)
+✔ same failure and completed prefix: inputValue:The idea (0.660836ms)
+✔ original overflow, unknown label and closed callback guards remain strict (9.882307ms)
+✔ projection rejects excess rows/stages and refuses duplicate/missing/reordered/nonfinite evidence without context leakage (1.113337ms)
+✔ candidate differs from frozen modules only by explicit mark plumbing and allowlist; no bounds/actions changed (12.664833ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 257.833136

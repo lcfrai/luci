@@ -1,0 +1,80 @@
+{
+  "sourceStable": true,
+  "repositoryInputCount": 432,
+  "typescriptListedInputCount": 680,
+  "results": {
+    "frontend": {
+      "command": [
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "src/components/teams/TeamWorkspaceAuthority.test.tsx",
+        "src/components/teams/TeamWorkspaceProvider.test.tsx",
+        "src/api/client.test.ts",
+        "src/api/authTransport.test.ts",
+        "src/api/teamScope.test.ts",
+        "src/api/poller.test.ts",
+        "src/api/poller.generation.test.ts",
+        "src/api/attachRegistry.test.ts",
+        "src/api/attachRegistry.exit.test.ts",
+        "src/api/attachRegistry.overload-generation.test.ts",
+        "src/components/Terminal.test.tsx",
+        "src/components/develop/SessionPane.test.tsx",
+        "src/components/develop/SessionPermissions.test.tsx",
+        "src/components/auth/AuthProvider.test.tsx",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile=/workspace/.luci-tools/session-authority-review-edd0/integrated-validation/frontend-report.json"
+      ],
+      "cwd": "/workspace/luci/desktop",
+      "exitCode": 0,
+      "timedOut": false,
+      "forced": false,
+      "elapsedSeconds": 41.9478759765625,
+      "ownedRootPID": 2412661,
+      "rootWaited": true,
+      "processTreeClosure": "Process-group signals only on timeout; no whole-machine/process census claim"
+    },
+    "typescript": {
+      "command": [
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "--noEmit",
+        "--pretty",
+        "false",
+        "--listFiles"
+      ],
+      "cwd": "/workspace/luci/desktop",
+      "exitCode": 2,
+      "timedOut": false,
+      "forced": false,
+      "elapsedSeconds": 21.65557098388672,
+      "ownedRootPID": 2413046,
+      "rootWaited": true,
+      "processTreeClosure": "Process-group signals only on timeout; no whole-machine/process census claim"
+    },
+    "go-control": {
+      "command": [
+        "go",
+        "test",
+        "-overlay=/workspace/.luci-tools/session-authority-review-edd0/integrated-validation/go-overlay.json",
+        "-p=1",
+        "-count=1",
+        "-timeout=90s",
+        "-run=^TestCloud056FreshMembershipRemovalReturnsAuthoritativeSessionListDenial$",
+        "-json",
+        "./internal/management"
+      ],
+      "cwd": "/workspace/luci/control-plane",
+      "exitCode": 0,
+      "timedOut": false,
+      "forced": false,
+      "elapsedSeconds": 8.918761014938354,
+      "ownedRootPID": 2413079,
+      "rootWaited": true,
+      "processTreeClosure": "Process-group signals only on timeout; no whole-machine/process census claim"
+    }
+  },
+  "allCommandsExitZero": false,
+  "scope": "Selected controlled frontend suites plus TypeScript; optional controlled registrar fixture, no installed/native/browser/Docker/provider claim"
+}

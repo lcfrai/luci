@@ -1,0 +1,5 @@
+{
+  "path": "desktop/node_modules/.package-lock.json",
+  "sha256": "7426772e49589aaa6326920af535bb130ab61a7436c8a54569df5d320b817c10",
+  "scope": "Observed existing install lock; no npm ci/reinstall performed by this validation"
+}

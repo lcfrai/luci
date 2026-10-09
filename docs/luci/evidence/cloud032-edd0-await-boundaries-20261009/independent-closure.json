@@ -1,0 +1,492 @@
+{
+  "observedAt": "2026-10-09T12:18:52.846647+00:00",
+  "scope": "Independent read-only exact journal-bound driver/controller identity states, explicit recorded daemon endpoint, sequence-checked journal and unchanged files. No process environment scan, signals, cleanup changes or private fixture access. Browser historical PID/startTicks not recorded: independent browser identity closure unavailable.",
+  "runProductSource": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "runHelperSource": "8c7bf16aa035b27dbea185b565052495eb60777f",
+  "originalResultSHA256": "b37392da16cdae01ea9096f9486148f7ac765412ec71e9d41f9dd507324fcf19",
+  "originalArtifacts": {
+    "driver/accepted-harness/autonomous-readiness.mjs": "7f534431a37a0bd599c2de48870d3c9e8badfd1e33b2d48e47078782aa74467b",
+    "driver/accepted-harness/external-source-binding.json": "d2fb6b833c57fca96b56560360aa2e150b4f78b8e4c9eccc0a9e50baccf4c56b",
+    "driver/accepted-harness/four-project-queue_native-terminal-diagnostics.mjs": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+    "driver/accepted-harness/four-project-queue_sample-linux-owned.py": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+    "driver/accepted-harness/interaction-metrics.mjs": "437de00f5f82655415ae25ed8a6d09cb4c97b81eaf44d8aca340169dfabab0b4",
+    "driver/accepted-harness/latency-diagnostics.mjs": "4d1c0f75f15c01444c22133f360f10700af58c6dfebd3906700e67dc9407313f",
+    "driver/accepted-harness/launch-recovery_acceptance-lifecycle.mjs": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+    "driver/accepted-harness/launch-recovery_acceptance-startup.mjs": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+    "driver/accepted-harness/launch-recovery_durable-acceptance-journal.mjs": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+    "driver/accepted-harness/launch-recovery_fenced-docker-proxy.mjs": "b965b9a5d03f8a4cbc19b6e065559e1d9b10a2812453bfafb992e3f0041e448f",
+    "driver/accepted-harness/launch-recovery_worker-create-guard.mjs": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+    "driver/accepted-harness/queue-controls.mjs": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0",
+    "driver/accepted-harness/readiness-ledger.mjs": "0a6db6505273c685d1281d039fd50f05c42e44d5312309ac4267f57ae05fd1ff",
+    "driver/accepted-harness/receipt-transport.mjs": "6a676eefc02c4be569e65f6c3a16da50f750be67acaf4f1380a86739791c34a1",
+    "driver/accepted-harness/run-with-observer.py": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a",
+    "driver/accepted-harness/source-binding.mjs": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796",
+    "driver/accepted-harness/sustained.mjs": "b737aef09b0764fc65493f7d140cb5ae8580d9b88b7100baee635dbbea798bd0",
+    "driver/accepted-harness/task-command.mjs": "7557cc863201e136a6ea0f4d039472d6e225a8efb0fb2afe267b9d65e01a541f",
+    "driver/accepted-harness/task-context.mjs": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2",
+    "driver/accepted-harness/workloads.mjs": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306",
+    "driver/action-only-trace.zip": "6840240d341c348a9901faa4061bc98510f5c34e67dcaa06b184755bea886c39",
+    "driver/diagnostic-journal.jsonl": "ea61c0ec15b6a54791400f2798f5e19735cdee8f9fced9b67a24cc75cd1af7a6",
+    "driver/image-provenance.json": "5af726e6670fd6f04c0f67cf3b26b3f6072ed89c1e1e3481c652a631ae6d0a3b",
+    "driver/package-provenance.json": "5ea084d505e292d418b7ab9b2d3fa97d83a0510158fbb3ef8ef66096603aa5f6",
+    "driver/result.json": "b37392da16cdae01ea9096f9486148f7ac765412ec71e9d41f9dd507324fcf19",
+    "driver/result.json.incomplete.json": "a49f5401931bf245029fb91ba3dd322eeecf72eadbd12dc17c186bfe37bd01a0",
+    "driver-identity.json": "093e92d3d6fc35e16b7997499c2f421bbf06f313ad78950ad5d6dec7e03552b4",
+    "driver.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "driver.stdout.log": "64e40193166994a7b8f5942dbba382334b8776b06d578222bdfcc735264ddf6a",
+    "invocation.json": "4f7c2c2abef39b04446478dc24170d8854dff7b433581cc25c0553c2290318b7",
+    "wrapper-result.json": "9f6c315619fcb947b287f043fcb651332f0617ba5c3d492ec18b9112f5f56154"
+  },
+  "allOriginalArtifactsStable": true,
+  "identities": [
+    {
+      "expected": {
+        "pid": 2407939,
+        "startTicks": 29400623
+      },
+      "observation": "absent"
+    },
+    {
+      "expected": {
+        "pid": 2408148,
+        "startTicks": 29401149
+      },
+      "observation": "absent"
+    }
+  ],
+  "journal": {
+    "rows": 43,
+    "contiguousSequence": true,
+    "events": [
+      {
+        "version": 1,
+        "sequence": 1,
+        "event": "driver-start",
+        "at": "2026-10-09T12:12:17.120Z",
+        "elapsedMs": 1.348902,
+        "pid": 2407939,
+        "parentPid": 2407847,
+        "startTicks": 29400623,
+        "group": 2407939,
+        "deadlineMs": 390000
+      },
+      {
+        "version": 1,
+        "sequence": 2,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:12:22.048Z",
+        "elapsedMs": 4928.238287
+      },
+      {
+        "version": 1,
+        "sequence": 3,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:12:22.222Z",
+        "elapsedMs": 5102.793727
+      },
+      {
+        "version": 1,
+        "sequence": 4,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:12:22.232Z",
+        "elapsedMs": 5112.567657
+      },
+      {
+        "version": 1,
+        "sequence": 5,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:12:22.236Z",
+        "elapsedMs": 5116.529768
+      },
+      {
+        "version": 1,
+        "sequence": 6,
+        "event": "proxy-start",
+        "at": "2026-10-09T12:12:22.250Z",
+        "elapsedMs": 5130.473808
+      },
+      {
+        "version": 1,
+        "sequence": 7,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:12:22.251Z",
+        "elapsedMs": 5131.497887
+      },
+      {
+        "version": 1,
+        "sequence": 8,
+        "event": "controller-start",
+        "at": "2026-10-09T12:12:22.258Z",
+        "elapsedMs": 5138.479429,
+        "pid": 2408148,
+        "parentPid": 2407939,
+        "startTicks": 29401149,
+        "group": 2408148
+      },
+      {
+        "version": 1,
+        "sequence": 9,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:12:25.001Z",
+        "elapsedMs": 7881.263985
+      },
+      {
+        "version": 1,
+        "sequence": 10,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:12:25.772Z",
+        "elapsedMs": 8652.45085
+      },
+      {
+        "version": 1,
+        "sequence": 11,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:12:25.774Z",
+        "elapsedMs": 8654.678848
+      },
+      {
+        "version": 1,
+        "sequence": 12,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:12:25.797Z",
+        "elapsedMs": 8677.812413
+      },
+      {
+        "version": 1,
+        "sequence": 13,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:12:25.802Z",
+        "elapsedMs": 8682.170411
+      },
+      {
+        "version": 1,
+        "sequence": 14,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:12:26.001Z",
+        "elapsedMs": 8881.635857
+      },
+      {
+        "version": 1,
+        "sequence": 15,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:12:26.002Z",
+        "elapsedMs": 8882.722214
+      },
+      {
+        "version": 1,
+        "sequence": 16,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:12:29.004Z",
+        "elapsedMs": 11884.144866
+      },
+      {
+        "version": 1,
+        "sequence": 17,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:12:31.202Z",
+        "elapsedMs": 14082.356893
+      },
+      {
+        "version": 1,
+        "sequence": 18,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:12:33.258Z",
+        "elapsedMs": 16138.463238
+      },
+      {
+        "version": 1,
+        "sequence": 19,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:12:35.339Z",
+        "elapsedMs": 18219.838865
+      },
+      {
+        "version": 1,
+        "sequence": 20,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:12:36.412Z",
+        "elapsedMs": 19292.776105
+      },
+      {
+        "version": 1,
+        "sequence": 21,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:12:41.281Z",
+        "elapsedMs": 24161.834346
+      },
+      {
+        "version": 1,
+        "sequence": 22,
+        "event": "driver-cleanup-start",
+        "at": "2026-10-09T12:15:08.416Z",
+        "elapsedMs": 171296.771208,
+        "deadlineMs": 119997
+      },
+      {
+        "version": 1,
+        "sequence": 23,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:15:08.418Z",
+        "elapsedMs": 171298.727978
+      },
+      {
+        "version": 1,
+        "sequence": 24,
+        "event": "controller-exit",
+        "at": "2026-10-09T12:15:08.703Z",
+        "elapsedMs": 171583.60734,
+        "pid": 2408148,
+        "exitCode": 0
+      },
+      {
+        "version": 1,
+        "sequence": 25,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:15:08.990Z",
+        "elapsedMs": 171870.923219
+      },
+      {
+        "version": 1,
+        "sequence": 26,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:15:08.991Z",
+        "elapsedMs": 171871.681582
+      },
+      {
+        "version": 1,
+        "sequence": 27,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:15:08.992Z",
+        "elapsedMs": 171872.421027
+      },
+      {
+        "version": 1,
+        "sequence": 28,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:15:09.099Z",
+        "elapsedMs": 171979.789073
+      },
+      {
+        "version": 1,
+        "sequence": 29,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:15:09.100Z",
+        "elapsedMs": 171980.609219
+      },
+      {
+        "version": 1,
+        "sequence": 30,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:15:09.100Z",
+        "elapsedMs": 171980.946477
+      },
+      {
+        "version": 1,
+        "sequence": 31,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:15:09.253Z",
+        "elapsedMs": 172133.702092
+      },
+      {
+        "version": 1,
+        "sequence": 32,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:15:09.254Z",
+        "elapsedMs": 172134.693987
+      },
+      {
+        "version": 1,
+        "sequence": 33,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:15:09.255Z",
+        "elapsedMs": 172135.403076
+      },
+      {
+        "version": 1,
+        "sequence": 34,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:15:09.256Z",
+        "elapsedMs": 172136.271615
+      },
+      {
+        "version": 1,
+        "sequence": 35,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:15:09.256Z",
+        "elapsedMs": 172136.668874
+      },
+      {
+        "version": 1,
+        "sequence": 36,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:15:09.256Z",
+        "elapsedMs": 172136.967294
+      },
+      {
+        "version": 1,
+        "sequence": 37,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:15:09.257Z",
+        "elapsedMs": 172137.426375
+      },
+      {
+        "version": 1,
+        "sequence": 38,
+        "event": "proxy-close-start",
+        "at": "2026-10-09T12:15:09.257Z",
+        "elapsedMs": 172137.94055
+      },
+      {
+        "version": 1,
+        "sequence": 39,
+        "event": "proxy-drained",
+        "at": "2026-10-09T12:15:09.259Z",
+        "elapsedMs": 172139.176733,
+        "pendingRequests": 0,
+        "activeHandlers": 0,
+        "pendingBodyBytes": 0,
+        "uncertainMutation": false,
+        "drained": true
+      },
+      {
+        "version": 1,
+        "sequence": 40,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:15:09.259Z",
+        "elapsedMs": 172139.65192
+      },
+      {
+        "version": 1,
+        "sequence": 41,
+        "event": "driver-stage",
+        "at": "2026-10-09T12:15:09.260Z",
+        "elapsedMs": 172140.001997
+      },
+      {
+        "version": 1,
+        "sequence": 42,
+        "event": "driver-receipt-prepared",
+        "at": "2026-10-09T12:15:10.892Z",
+        "elapsedMs": 173772.42043,
+        "passed": true
+      },
+      {
+        "version": 1,
+        "sequence": 43,
+        "event": "driver-exit",
+        "at": "2026-10-09T12:15:11.105Z",
+        "elapsedMs": 173985.588996,
+        "exitCode": 0
+      }
+    ]
+  },
+  "browserIdentityClosure": {
+    "available": false,
+    "reason": "No historical browser PID/startTicks in retained journal/result; cannot retrospectively identify browser zombies, unreadable identities or their absence.",
+    "driverStartupResource": {
+      "name": "browser",
+      "state": "closed",
+      "late": false,
+      "closeTimedOut": false
+    }
+  },
+  "dockerEndpoint": "unix:///var/run/docker.sock",
+  "docker": {
+    "containers": {
+      "command": [
+        "docker",
+        "--host",
+        "unix:///var/run/docker.sock",
+        "ps",
+        "-aq",
+        "--no-trunc"
+      ],
+      "exitCode": 0,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "count": 0,
+      "empty": true
+    },
+    "volumes": {
+      "command": [
+        "docker",
+        "--host",
+        "unix:///var/run/docker.sock",
+        "volume",
+        "ls",
+        "-q"
+      ],
+      "exitCode": 0,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "count": 0,
+      "empty": true
+    },
+    "engine": {
+      "command": [
+        "docker",
+        "--host",
+        "unix:///var/run/docker.sock",
+        "info",
+        "--format",
+        "{{.ID}}"
+      ],
+      "exitCode": 0,
+      "stdoutSHA256": "333d407c8c1c1009557aac00cebe68a7deee7e65bdff6df8d4f62fd4b2c25001",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "identitySHA256": "9ccbe65e5da6fcbddb4f24a682abf7d4e4ddf8dff3a453fca0c0dbd34de76de5",
+      "matchesInvocation": true
+    },
+    "image": {
+      "command": [
+        "docker",
+        "--host",
+        "unix:///var/run/docker.sock",
+        "image",
+        "inspect",
+        "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+        "--format",
+        "{{.Id}}"
+      ],
+      "exitCode": 0,
+      "stdoutSHA256": "e47563a9176771549a9b314ca55ae7542e59c8e0beb3b568a88f64b30f139ce4",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "expectedID": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+      "matches": true
+    }
+  },
+  "wrapper": {
+    "exitCode": 0,
+    "externalMonitorTimeout": false,
+    "forcedExactDriver": false,
+    "cleanupUnconfirmedByWrapper": true
+  },
+  "driverAssertions": {
+    "controllersStopped": true,
+    "dockerRequestsDrained": true,
+    "dockerMutationStateCertain": true,
+    "fixtureRemoved": true
+  },
+  "driverCleanupCount": 0,
+  "driverResourceAssertions": {
+    "containers": 0,
+    "volumes": 0,
+    "ownedServiceProcesses": 0,
+    "ownedBrowserProcesses": 0,
+    "protectedImagePackageAndHelpersUnchanged": true,
+    "rootFreeBytes": 7011704832
+  },
+  "observerAssertions": {
+    "status": "closed",
+    "closed": true,
+    "activeGeneration": null,
+    "overflow": false,
+    "lateCallbacks": 0
+  },
+  "limits": [
+    "Current repository is not used as run identity; root may integrate new source after the run.",
+    "Only exact journal-recorded driver/controller processes were independently inspected. No browser PID census, whole-machine absence or historical zombie attribution.",
+    "Browser and private fixture removal remain retained driver assertions, not independent private-path inspection.",
+    "Container/volume emptiness and engine/image identity describe this read-only instant. No package/archive/image payload rehash here."
+  ]
+}

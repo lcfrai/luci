@@ -1,0 +1,8 @@
+{"Time":"2026-10-09T12:17:02.780598481Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/management"}
+{"Time":"2026-10-09T12:17:02.816794756Z","Action":"run","Package":"github.com/lcfrai/luci/control-plane/internal/management","Test":"TestCloud056FreshMembershipRemovalReturnsAuthoritativeSessionListDenial"}
+{"Time":"2026-10-09T12:17:02.816932093Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/management","Test":"TestCloud056FreshMembershipRemovalReturnsAuthoritativeSessionListDenial","Output":"=== RUN   TestCloud056FreshMembershipRemovalReturnsAuthoritativeSessionListDenial\n"}
+{"Time":"2026-10-09T12:17:03.586828859Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/management","Test":"TestCloud056FreshMembershipRemovalReturnsAuthoritativeSessionListDenial","Output":"--- PASS: TestCloud056FreshMembershipRemovalReturnsAuthoritativeSessionListDenial (0.77s)\n"}
+{"Time":"2026-10-09T12:17:03.586882419Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/management","Test":"TestCloud056FreshMembershipRemovalReturnsAuthoritativeSessionListDenial","Elapsed":0.77}
+{"Time":"2026-10-09T12:17:03.587010312Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/management","Output":"PASS\n"}
+{"Time":"2026-10-09T12:17:03.60169184Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/management","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/management\t0.815s\n"}
+{"Time":"2026-10-09T12:17:03.601743879Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/management","Elapsed":0.821}

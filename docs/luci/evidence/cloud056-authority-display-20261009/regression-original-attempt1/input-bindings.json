@@ -1,0 +1,32 @@
+[
+  {
+    "path": "authority-regression.test.tsx",
+    "bytes": 14599,
+    "sha256": "251969a3f1d9115881aeecb41ea0f7a533a46b8a259297b0956c7eb03e85f6f3"
+  },
+  {
+    "path": "regression.config.mts",
+    "bytes": 1022,
+    "sha256": "25b57cabfe9a01f8c9c4b6ba1c1aaa3d4e43abbe996bf0db6f70fb68a1b792a4"
+  },
+  {
+    "path": "run-regression.py",
+    "bytes": 2477,
+    "sha256": "47d4c612a37709a571bc0dbc840c6bb6b80f21045ac2edebea89a6d8679b1ffa"
+  },
+  {
+    "path": "after/desktop/src/api/client.ts",
+    "bytes": 24991,
+    "sha256": "e5ca0450d49bef4488401c4401720db315869b7eb04202c8ef5edcb0e4255c4f"
+  },
+  {
+    "path": "after/desktop/src/api/teamScope.ts",
+    "bytes": 1519,
+    "sha256": "a82f431fde11d2ce0b2e32044e8a46ac0ebe5c12c764011cb52ede9cd397a7e8"
+  },
+  {
+    "path": "after/desktop/src/components/teams/TeamWorkspaceProvider.tsx",
+    "bytes": 14646,
+    "sha256": "f93d8b90be17324ec84bc3a36ab32f2f9c7ee14e577ec2e03505ec337846c138"
+  }
+]

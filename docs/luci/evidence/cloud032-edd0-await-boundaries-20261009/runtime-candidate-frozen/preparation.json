@@ -1,0 +1,16 @@
+{
+  "productSource": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "helperSource": "8c7bf16aa035b27dbea185b565052495eb60777f",
+  "cleanHelper": true,
+  "sourceInputCount": 17,
+  "installedRun": false,
+  "packageProvenanceSHA256": "5ea084d505e292d418b7ab9b2d3fa97d83a0510158fbb3ef8ef66096603aa5f6",
+  "packageArchiveSHA256": "477d48fb6e6ce58f0acb801fbf6ba9046e8721a1f6fff9c1b5bc20a40b80d2c8",
+  "packageBytesNotRehashedInPreparation": true,
+  "driverSHA256": "b737aef09b0764fc65493f7d140cb5ae8580d9b88b7100baee635dbbea798bd0",
+  "bindingSHA256": "d2fb6b833c57fca96b56560360aa2e150b4f78b8e4c9eccc0a9e50baccf4c56b",
+  "launcherSHA256": "68021687394f93881d4da3061115b17fdc74c970be07e20dad99832d322a4c95",
+  "sameV2Observer": true,
+  "fullPrimaryAndTraceActionsUnchanged": true,
+  "all17RepositoryInputsUnchanged": true
+}

@@ -1,0 +1,164 @@
+✖ initial admission refusal records exact409 reason before failure without replay (6.300376ms)
+✖ final allocator problem preserves only exact id/stage/reason (5.275382ms)
+✖ gateway session_limit remains separate from conflict reasonCode (2.017802ms)
+✖ oversized message unknown enum/path/token contents are omitted, never exported (24.773039ms)
+✖ invalid JSON binds exact original bytes before failure and leaves mutation uncertain (1.549996ms)
+✔ successful expected response unchanged, no problem event and one request (1.752071ms)
+✔ expected negative response preserves existing non-diagnostic behavior (2.123731ms)
+✖ malformed field types and unsupported details do not become diagnostic values (2.030841ms)
+✖ invalid body excerpt never escapes through thrown error or final failure projection (2.334769ms)
+✖ empty unexpected body binds zero bytes without claiming JSON parsing (2.073195ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 2
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 238.463277
+
+✖ failing tests:
+
+test at .luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:18:1
+✖ initial admission refusal records exact409 reason before failure without replay (6.300376ms)
+  AssertionError [ERR_ASSERTION]: diagnostic must be durable before assertion
+  
+  0 !== 1
+  
+      at diagnostic (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:17:147)
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:18:261)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:19:1
+✖ final allocator problem preserves only exact id/stage/reason (5.275382ms)
+  AssertionError [ERR_ASSERTION]: diagnostic must be durable before assertion
+  
+  0 !== 1
+  
+      at diagnostic (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:17:147)
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:19:296)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:20:1
+✖ gateway session_limit remains separate from conflict reasonCode (2.017802ms)
+  AssertionError [ERR_ASSERTION]: diagnostic must be durable before assertion
+  
+  0 !== 1
+  
+      at diagnostic (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:17:147)
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:20:90)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:21:1
+✖ oversized message unknown enum/path/token contents are omitted, never exported (24.773039ms)
+  AssertionError [ERR_ASSERTION]: diagnostic must be durable before assertion
+  
+  0 !== 1
+  
+      at diagnostic (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:17:147)
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:21:148)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:22:1
+✖ invalid JSON binds exact original bytes before failure and leaves mutation uncertain (1.549996ms)
+  AssertionError [ERR_ASSERTION]: diagnostic must be durable before assertion
+  
+  0 !== 1
+  
+      at diagnostic (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:17:147)
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:22:196)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:25:1
+✖ malformed field types and unsupported details do not become diagnostic values (2.030841ms)
+  AssertionError [ERR_ASSERTION]: diagnostic must be durable before assertion
+  
+  0 !== 1
+  
+      at diagnostic (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:17:147)
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:25:104)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:27:1
+✖ invalid body excerpt never escapes through thrown error or final failure projection (2.334769ms)
+  AssertionError [ERR_ASSERTION]: diagnostic must be durable before assertion
+  
+  0 !== 1
+  
+      at diagnostic (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:17:147)
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:27:202)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:28:1
+✖ empty unexpected body binds zero bytes without claiming JSON parsing (2.073195ms)
+  AssertionError [ERR_ASSERTION]: diagnostic must be durable before assertion
+  
+  0 !== 1
+  
+      at diagnostic (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:17:147)
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v3/problem-diagnostic.test.mjs:28:149)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

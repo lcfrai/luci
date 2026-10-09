@@ -1,0 +1,18 @@
+✔ initial admission refusal records exact409 reason before failure without replay (7.451847ms)
+✔ final allocator problem preserves only exact id/stage/reason (1.988978ms)
+✔ gateway session_limit remains separate from conflict reasonCode (1.431648ms)
+✔ oversized message unknown enum/path/token contents are omitted, never exported (12.653803ms)
+✔ invalid JSON binds exact original bytes before failure and leaves mutation uncertain (2.145634ms)
+✔ successful expected response unchanged, no problem event and one request (2.394138ms)
+✔ expected negative response preserves existing non-diagnostic behavior (1.201731ms)
+✔ malformed field types and unsupported details do not become diagnostic values (1.472138ms)
+✔ invalid body excerpt never escapes through thrown error or final failure projection (2.738698ms)
+✔ empty unexpected body binds zero bytes without claiming JSON parsing (2.192064ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 116.816712

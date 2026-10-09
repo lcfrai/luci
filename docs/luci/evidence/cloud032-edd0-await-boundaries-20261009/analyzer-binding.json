@@ -1,0 +1,11 @@
+{
+  "scope": "V2 analyzer algorithm reused. Only expected frozen helper directory and explicit three-label Node allowlist added; full metrics, join/censor rules, 12-mark cap and targets unchanged. New boundary segments exported separately by unchanged frozen candidate exporter.",
+  "beforeSHA256": "6af3feceb97fd579aad6f51fe7667e1949f09bab75a3a06f5f3b5ee2c8625f1b",
+  "afterSHA256": "af6c2b5d3aedde5a1e032974ecbb098209dc0d0d8d9750579dd8d3308dd61240",
+  "runtimeManifestSHA256": "5c1dc89cff6e18b799d87e7e5458683a378dd222cd5cb26cc901336083bb3fab",
+  "newLabels": [
+    "open-project-click-start",
+    "idea-field-wait-end",
+    "idea-context-evaluate-end"
+  ]
+}

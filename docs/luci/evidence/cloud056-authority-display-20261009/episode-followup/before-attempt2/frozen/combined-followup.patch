@@ -1,0 +1,46 @@
+--- a/desktop/src/components/teams/TeamWorkspaceProvider.tsx
++++ b/desktop/src/components/teams/TeamWorkspaceProvider.tsx
+@@ -107,9 +107,13 @@
+       if(!detail || detail.teamId!==active.current || !detail.teamId || detail.generation!==teamScopeGeneration())return;
+       // Object identity fences an older membership/catalogue success even when
+       // a second denial arrives during the coalesced revalidation.
++      const repeated=deniedScope.current!==null;
+       deniedScope.current={teamId:detail.teamId,generation:detail.generation};
++      // A blocked episode keeps Retry, focus and the periodic refresh. Further
++      // polling denials fence older results but do not add membership traffic
++      // or replace the more useful settled failure explanation.
++      if(repeated || denialRefresh.current)return;
+       setBlocked(true);setError('Workspace access changed. Refresh current membership and project access to continue.');
+-      if(denialRefresh.current)return;
+       denialRefresh.current=true;
+       void refresh().catch(()=>{}).finally(()=>{denialRefresh.current=false;});
+     };
+--- a/desktop/src/components/teams/TeamWorkspaceAuthority.test.tsx
++++ b/desktop/src/components/teams/TeamWorkspaceAuthority.test.tsx
+@@ -1,7 +1,7 @@
+ // UNEXECUTED at preparation. Controlled React/transport reproduction; no real gateway,
+ // browser, xterm renderer, worker, Docker or provider is started by this test.
+ import { useEffect } from 'react';
+-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
++import { afterEach, beforeEach, expect, it, vi, type Mock } from 'vitest';
+ import { act, cleanup, render, screen } from '@testing-library/react';
+ import { TeamWorkspaceProvider, useTeamWorkspace } from '../../components/teams/TeamWorkspaceProvider';
+ import { teamsApi, personalPermissions, type TeamSummary } from '../../api/teams';
+@@ -48,7 +48,7 @@
+ const session = aSession({ id: 's-authority', projectId: 'p-authority', branchId: 'b-authority',
+   worktreeId: 'w-authority', harness: 'shell', title, status: 'running',
+   attachPath: `/v1/teams/${teamId}/workspace/v1/sessions/s-authority/attach` });
+-let transport: ReturnType<typeof vi.fn>;
++let transport: Mock<typeof fetch>;
+ let client: ReturnType<typeof createClient>;
+ let mounted: ReturnType<typeof render>;
+ const response = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
+@@ -86,7 +86,7 @@
+   vi.useFakeTimers(); auth.userId = 'authority-alice'; localStorage.clear();
+   selectTeamScope(''); resetCockpit(); __resetAttachRegistry(); FakeWebSocket.reset();
+   Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+-  transport = vi.fn(async (url: string | URL | Request) => String(url).includes(teamId) ? success() : response({ sessions: [] })); client = createClient({ fetch: transport });
++  transport = vi.fn<typeof fetch>(async (url) => String(url).includes(teamId) ? success() : response({ sessions: [] })); client = createClient({ fetch: transport });
+   vi.spyOn(teamsApi, 'list').mockResolvedValue({ teams: [summary] });
+   vi.spyOn(teamsApi, 'projectAccess').mockResolvedValue({ team: summary.team, projectId: session.projectId, permissions: personalPermissions, grants: [] });
+   vi.spyOn(api, 'listProjects').mockResolvedValue([{ id: session.projectId, name: 'Private project', path: '/controlled/project', machineId: 'local' } as never]);

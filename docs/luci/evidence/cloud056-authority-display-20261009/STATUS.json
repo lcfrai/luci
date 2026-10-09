@@ -1,0 +1,110 @@
+{
+  "issue": "CLOUD-056",
+  "baseProductRevision": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "executedWorkingHEAD": "8c7bf16aa035b27dbea185b565052495eb60777f",
+  "candidateRevision": null,
+  "workingTreeCaveat": "Three production overlays plus new test were integrated atop the recorded documentation HEAD; recorded Git status contains other root work. This is not a clean whole-checkout edd0 claim.",
+  "finalSourceBindings": [
+    {
+      "repositoryPath": "desktop/src/api/client.ts",
+      "capsulePath": "final-source/desktop/src/api/client.ts",
+      "bytes": 24991,
+      "sha256": "e5ca0450d49bef4488401c4401720db315869b7eb04202c8ef5edcb0e4255c4f"
+    },
+    {
+      "repositoryPath": "desktop/src/api/teamScope.ts",
+      "capsulePath": "final-source/desktop/src/api/teamScope.ts",
+      "bytes": 1519,
+      "sha256": "a82f431fde11d2ce0b2e32044e8a46ac0ebe5c12c764011cb52ede9cd397a7e8"
+    },
+    {
+      "repositoryPath": "desktop/src/components/teams/TeamWorkspaceProvider.tsx",
+      "capsulePath": "final-source/desktop/src/components/teams/TeamWorkspaceProvider.tsx",
+      "bytes": 14932,
+      "sha256": "af1b2e23ec79bc5627595ec163ba6894be9f258485339d1ac6049991b966ac60"
+    },
+    {
+      "repositoryPath": "desktop/src/components/teams/TeamWorkspaceAuthority.test.tsx",
+      "capsulePath": "final-source/desktop/src/components/teams/TeamWorkspaceAuthority.test.tsx",
+      "bytes": 17370,
+      "sha256": "8438371cbc404efe1be4dff095164b5d1501ae5b9be873674c7fb583fceb97ef"
+    }
+  ],
+  "runs": [
+    {
+      "path": "original-attempt1",
+      "pass": 9,
+      "fail": 1,
+      "scope": "Initial fresh denial counterexample and controls"
+    },
+    {
+      "path": "regression-original-attempt1",
+      "pass": 9,
+      "fail": 5,
+      "scope": "Stable original fourteen-case regression"
+    },
+    {
+      "path": "regression-fixed-attempt1",
+      "pass": 14,
+      "fail": 0,
+      "scope": "Same fourteen cases; initial three-source overlay"
+    },
+    {
+      "path": "integrated-validation",
+      "pass": 383,
+      "fail": 0,
+      "files": 14,
+      "typescriptExit": 2,
+      "goControlExit": 0,
+      "scope": "Initial integrated frontend passes; independent production registrar fixture passes; TypeScript fails on overbroad fetch mock type"
+    },
+    {
+      "path": "episode-followup/before-attempt1",
+      "pass": 0,
+      "fail": 4,
+      "scope": "Three valid call-count failures; fourth visibility assertion was fixture-confounded by a subsequent fresh successful membership response"
+    },
+    {
+      "path": "episode-followup/after-attempt1",
+      "pass": 4,
+      "fail": 0,
+      "scope": "Preserved first corrected-source run against the earlier fixture"
+    },
+    {
+      "path": "episode-followup/before-attempt2",
+      "pass": 1,
+      "fail": 3,
+      "scope": "Corrected fixture: three call-count failures, stale-success control passes"
+    },
+    {
+      "path": "episode-followup/after-attempt2",
+      "pass": 4,
+      "fail": 0,
+      "scope": "Same corrected four cases; whole denied episode coalesces"
+    },
+    {
+      "path": "final-integrated-validation",
+      "pass": 46,
+      "fail": 0,
+      "files": 2,
+      "typescriptExit": 0,
+      "scope": "Final 18 authority regressions plus 28 provider tests; final three sources/test exactly match captured inputs"
+    }
+  ],
+  "overlap": "All prior, corrected and focused counts overlap. Do not sum into a unique-test total or call this a full frontend suite.",
+  "finalRepositoryInputs": 432,
+  "finalSourceStable": true,
+  "typescriptListedInputs": 680,
+  "typescriptExternalScope": "Actual listed inputs hashed after compiler exit; external declarations were not independently installed or prehashed. Existing node_modules lock observed; no npm ci in this validation.",
+  "goScope": "One controlled production management registrar test with external test-only overlay; not all compiled Go input provenance or live service/Docker behavior.",
+  "behavior": "Fresh current-scope authoritative member denial hides cached admitted UI. Reopening requires fresh current membership and projects/sessions visibility; repeated denials coalesce membership refresh but still fence old recovery. Retry/focus/periodic recovery remain.",
+  "limits": [
+    "Cached-display correction, not a backend authority bypass or new private-data delivery claim.",
+    "Hidden mounted readers may still issue independent server-guarded reads; no blanket network suspension or erasure claim.",
+    "Transient failure preserves draft/buffer bytes; confirmed membership absence retains existing disposal behavior.",
+    "Controlled React/Vitest fake HTTP, WebSocket and terminal renderer; structural visibility, not browser paint or complete AppShell runtime.",
+    "No installed/native/Windows/provider acceptance or responsiveness measurement.",
+    "Owned test roots exited normally; no whole-machine/descendant process census claim."
+  ],
+  "historicalNotes": "PREPARATION-README.md, episode-followup/final-manifest.json and HANDOFF.md retain their earlier unexecuted-final wording. Final execution is established by final-integrated-validation and this status without rewriting old captures."
+}

@@ -1,0 +1,67 @@
+{
+  "issue": "CLOUD-056",
+  "priority": "P2",
+  "sourceRevision": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "status": "source-confirmed; original controlled reproduction prepared, unexecuted",
+  "observedEffect": "A fresh authoritative team_access_denied session-catalogue403 updates lastError but leaves admitted private UI cached and visible until an independent successful membership refresh hides it.",
+  "serverBoundary": "Existing registered sockets/requests are revoked server-side; fresh reads/attach remain refused. No backend/new-data authorization bypass claimed.",
+  "controls": {
+    "membershipRefresh": "Provider hides existing children and disposes terminals once current team absence is confirmed.",
+    "projectGrant": "Still-valid membership receives filtered200 collection and the poller removes hidden session rows.",
+    "authentication": "401 expires auth, detaches terminals, resets store.",
+    "scope": "Client/team and poller/catalogue epochs fence prior workspace/account responses.",
+    "nonAuthority": "Generic origin/host403 or network failures are not proof of lost membership."
+  },
+  "timing": "Focus or60second membership refresh is an independent trigger, not a guaranteed maximum stale interval: failed refresh extends it.",
+  "sourceAnchors": {
+    "control-plane/internal/management/team_proxy.go": [
+      "routeTeamWorkspace resolves membership before dispatch; err returns403 team_access_denied",
+      "collection filtering returns200 with only current project-readable rows"
+    ],
+    "control-plane/internal/management/team_runtime.go": [
+      "revokeTeamAccessLocked cancels registered requests and closes team sockets"
+    ],
+    "desktop/src/api/client.ts": [
+      "send captures/checks teamScopeGeneration",
+      "only status401 calls expireAuth; toProblem retains runtime error code"
+    ],
+    "desktop/src/api/poller.ts": [
+      "catch sets lastError only",
+      "onGoodTick only after successful list response"
+    ],
+    "desktop/src/App.tsx": [
+      "startCatalogue caches arrived roots",
+      "catalogue retry attached only to successful session ticks"
+    ],
+    "desktop/src/components/teams/TeamWorkspaceProvider.tsx": [
+      "refresh membership updates blocked only on its own response",
+      "window focus/60000ms interval trigger refresh",
+      "admitted children remain mounted but are hidden only when blocked"
+    ],
+    "desktop/src/components/develop/DevelopLens.tsx": [
+      "Session layouts have no project read guard around them"
+    ],
+    "desktop/src/components/develop/SessionPane.tsx": [
+      "canRead gates ReviewedContextNote but Terminal and header remain rendered when cached session exists"
+    ],
+    "desktop/src/components/Terminal.tsx": [
+      "confirmed execution denial pauses stream but retains cached terminal element"
+    ],
+    "desktop/src/api/attachRegistry.ts": [
+      "setAttachPermission closes socket while retaining terminal/scrollback"
+    ]
+  },
+  "preparedFiles": [
+    "authority-window.test.tsx",
+    "team_session_denial_contract_test.go",
+    "vitest.config.ts",
+    "README.md",
+    "source-bindings.json",
+    "preparation-manifest.json"
+  ],
+  "testsExecuted": false,
+  "appProcessesLaunched": false,
+  "repoFilesChanged": false,
+  "sourceManifestSHA256": "fff0c12353e058ad4256c3c88ff37ffbef0b7877f7d093f7796c11771c29e2fb",
+  "preparationManifestSHA256": "36d852d1df6a48e11dd7a9a88820f9a901d74c6835dd8dcbade02eb63f1d7b6e"
+}

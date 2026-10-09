@@ -1,0 +1,91 @@
+{
+  "startedAt": "2026-10-09T11:51:12.926340+00:00",
+  "cwd": "/workspace/luci/control-plane",
+  "command": [
+    "go",
+    "test",
+    "-race",
+    "-p",
+    "1",
+    "-count=1",
+    "-timeout=170s",
+    "-json",
+    "-overlay=/workspace/.luci-tools/recovery-order-gate-edd0/run-1/overlay.json",
+    "-run",
+    "^TestProjectCheckOriginalReviewPreservesSeparatePendingWorkspace$",
+    "./internal/api"
+  ],
+  "env": {
+    "GOMAXPROCS": "2",
+    "GOFLAGS": "-mod=readonly",
+    "GOWORK": "/workspace/.luci-tools/go.work",
+    "GOTOOLCHAIN": "local"
+  },
+  "goVersion": "go version go1.26.3 linux/amd64",
+  "outerDeadlineSeconds": 180,
+  "goTestTimeoutSeconds": 170,
+  "scope": "Single controlled fixture regression; no application/browser/Docker/provider execution.",
+  "forced": false,
+  "pid": 2403083,
+  "exitCode": 0,
+  "finishedAt": "2026-10-09T11:51:31.473549+00:00",
+  "elapsedSeconds": 18.485607560025528,
+  "sourceInputsUnchanged": true,
+  "headUnchanged": true,
+  "workingTreeCleanAfter": true,
+  "testOutcomes": [
+    {
+      "Action": "pass",
+      "Test": "TestProjectCheckOriginalReviewPreservesSeparatePendingWorkspace",
+      "Elapsed": 0.96
+    }
+  ],
+  "inputsCount": 995,
+  "artifacts": [
+    {
+      "path": "command.json",
+      "sha256": "a64be9b426b4c1918fd3444a0a4fcef03a5871c05ba5204787480a60c20e1e96",
+      "bytes": 788
+    },
+    {
+      "path": "formatted-draft.go",
+      "sha256": "11aaf0345d13ea309a7a82e940de8136af60dfb76b611fd53d11087ef9caaf65",
+      "bytes": 8973
+    },
+    {
+      "path": "original-draft.go",
+      "sha256": "a4abeb19250cdb5372cf6c26d76e96f37f8f150e1bde39bd14342c0c532e29c6",
+      "bytes": 8912
+    },
+    {
+      "path": "overlay.json",
+      "sha256": "f3ea6d77607792f6f2405e94d8e6a34058cd71da4f9c83ceefe378cf16926a07",
+      "bytes": 190
+    },
+    {
+      "path": "run.py",
+      "sha256": "9acad8b92c626eaa72067a1f5ac1877bef2ce38a524924c9241bfcd5b476b1f0",
+      "bytes": 3540
+    },
+    {
+      "path": "source-after.json",
+      "sha256": "bb4ec5eff5eb440d3bfd1c22cb64f3e6abb3dd079726b9cc1c069ec3e419a913",
+      "bytes": 197512
+    },
+    {
+      "path": "source-before.json",
+      "sha256": "aee3b2e0d1caa5ac7ec66b1f74f2c8b0a593340e6757d8ff58faf634dcbeac33",
+      "bytes": 197512
+    },
+    {
+      "path": "stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "test.jsonl",
+      "sha256": "d2e9dff0a47b7d446917d103b6f48d3db07a989693fd6c038a6223fd86d1a362",
+      "bytes": 1568
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{"Time":"2026-10-09T11:51:29.315293452Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/api"}
+{"Time":"2026-10-09T11:51:29.372399043Z","Action":"run","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestProjectCheckOriginalReviewPreservesSeparatePendingWorkspace"}
+{"Time":"2026-10-09T11:51:29.372435878Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestProjectCheckOriginalReviewPreservesSeparatePendingWorkspace","Output":"=== RUN   TestProjectCheckOriginalReviewPreservesSeparatePendingWorkspace\n"}
+{"Time":"2026-10-09T11:51:30.328388592Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestProjectCheckOriginalReviewPreservesSeparatePendingWorkspace","Output":"--- PASS: TestProjectCheckOriginalReviewPreservesSeparatePendingWorkspace (0.96s)\n"}
+{"Time":"2026-10-09T11:51:30.328437786Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestProjectCheckOriginalReviewPreservesSeparatePendingWorkspace","Elapsed":0.96}
+{"Time":"2026-10-09T11:51:30.328691379Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Output":"PASS\n"}
+{"Time":"2026-10-09T11:51:31.363547771Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/api\t2.040s\n"}
+{"Time":"2026-10-09T11:51:31.370450244Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/api","Elapsed":2.055}

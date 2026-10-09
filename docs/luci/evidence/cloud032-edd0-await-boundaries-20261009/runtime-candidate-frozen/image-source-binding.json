@@ -1,0 +1,11 @@
+{
+  "scope": "Exact unchanged retained image receipt plus already completed edd0 source review. No Docker inspection/rebuild/load/export performed in preparation. Driver repeats source/input/current-daemon checks at launch.",
+  "receiptSHA256": "5af726e6670fd6f04c0f67cf3b26b3f6072ed89c1e1e3481c652a631ae6d0a3b",
+  "receiptBytes": 33716,
+  "candidateImage": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+  "sourceCount": 104,
+  "sourceReviewSHA256": "c184792469d9368cff3e5357845e8192764051964c5b42f9d8e13e750c5dc67b",
+  "targetSource": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "all104Match": true,
+  "historicalExportVerification": "passed"
+}
