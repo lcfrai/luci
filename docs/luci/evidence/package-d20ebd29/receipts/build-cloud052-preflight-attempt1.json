@@ -1,0 +1,7 @@
+{
+  "sourceCommit": "d20ebd292f3f1de04d6726bab0998c210987bcb5",
+  "status": "failed-before-build",
+  "reason": "git fetch origin branch updated FETCH_HEAD but configured narrow refspec did not update an origin tracking ref containing the new commit; wrapper correctly refused before output creation or package mutation.",
+  "correction": "Fetch the exact published remote branch into its actual origin tracking ref, then repeat unchanged build wrapper.",
+  "wrapperSHA256": "500c870986a75c05c12fb62436433d57e384058d9a2be5fad6daa28c37055385"
+}

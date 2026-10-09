@@ -1,12 +1,13 @@
 # Local Windows handoff and acceptance
 
 
-Latest integrated test checkpoint: [`67a5b7c75ca6354d43085f5bb81ec53ee4291f34`](TEST-CHECKPOINT-67A5B7C7.md)
-on `codex/luci-production-runs`, with a matching clean Linux package. The Windows
-tester has byte-verified that checkpoint document through authenticated access;
-new source/package evidence and runtime checks remain pending locally. Later
-`d5901cd542ac5125cc325b7b019251f16c1467b9` publishes evidence/docs only. Use an
-immutable revision between test batches; do not silently adopt a moving tip.
+Latest integrated test checkpoint: [`d20ebd292f3f1de04d6726bab0998c210987bcb5`](TEST-CHECKPOINT-D20EBD29.md)
+on `codex/luci-production-runs`, with a matching clean Linux package and no new
+configuration names. The Windows tester has byte-verified the preceding 67a5
+checkpoint document through authenticated access; newer source/package evidence
+and runtime checks remain pending locally. The d20 guide supplies the precise
+revision override and CLOUD-052 delta. Use an immutable revision between test
+batches; do not silently adopt a moving tip.
 
 CLOUD-048–051 are ready for their focused Windows cases: explicit retry review,
 real compact Projects drawer navigation, editor bodies deferred only until first
