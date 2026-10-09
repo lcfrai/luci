@@ -1,0 +1,41 @@
+{
+  "sources": [
+    {
+      "path": "/workspace/.luci-tools/cloud071-browser-restart-diagnostic/warm/launch.mjs",
+      "sha256": "626e741119bc9d3bfd07b1ce30b170365d1b5bbc9b7ca775960cffa229c3fd84",
+      "bytes": 69571,
+      "unchanged": true
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud071-browser-restart-diagnostic/warm/scenario.mjs",
+      "sha256": "bee434c538872680e4abd652022041b2516b63c4dddb79e9910efe16a3fa0742",
+      "bytes": 39222,
+      "unchanged": true
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud071-browser-restart-diagnostic/warm/outer-run.py",
+      "sha256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49",
+      "bytes": 22954,
+      "unchanged": true
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud071-browser-restart-diagnostic/cold/launch.mjs",
+      "sha256": "1d6e0005e0ca4719677a514fa5a9b3a120716910e0d8874fe9aa70c816092cf9",
+      "bytes": 70543,
+      "unchanged": true
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud071-browser-restart-diagnostic/cold/scenario.mjs",
+      "sha256": "e96058d031f8d46b9ab4c4fcb4e14c485bacc939044bf1592a8ec24497a7d7f7",
+      "bytes": 43452,
+      "unchanged": true
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud071-browser-restart-diagnostic/cold/outer-run.py",
+      "sha256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49",
+      "bytes": 22954,
+      "unchanged": true
+    }
+  ],
+  "scope": "Six selected original helper files byte-identical to preserved C071 sources. Original actual cold fixture and its private files were not read or modified by C072."
+}

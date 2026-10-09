@@ -1,0 +1,73 @@
+--- before/cold/launch.mjs
++++ cold/launch.mjs
+@@ -192,6 +192,35 @@
+ function identity(pid){try{const raw=readFileSync(`/proc/${pid}/stat`,'utf8'),f=raw.slice(raw.lastIndexOf(')')+2).trim().split(/\s+/);return {pid:Number(pid),start:f[19],parent:Number(f[1]),status:f[0]};}catch(e){if(['ENOENT','ESRCH'].includes(e.code))return null;throw e;}}
+ const live=id=>{const now=identity(id.pid);return now&&now.start===id.start&&now.status!=='Z';};
+ async function responseBytes(response,max=2*1024**2){const reader=response.body?.getReader();if(!reader)return Buffer.alloc(0);const parts=[];let size=0;try{for(;;){const {done,value}=await reader.read();if(done)break;size+=value.length;assert(size<=max,'HTTP response limit');parts.push(value);}}finally{reader.releaseLock();}return Buffer.concat(parts);}
++// CLOUD-072: first failure only; raw message/stack stay in one exclusive private file.
++export function createFinalFailureObservation({retain}){
++ let first=null;
++ const stageNames=new Set(['preflight','controller-start','shell-create','browser-start','terminal-scenario','product-settlement']);
++ const phaseNames=new Set(['workflow','main-catch','response-drain','cleanup']);
++ const errorNames=new Set(['Error','AssertionError','TypeError','RangeError','AbortError','TimeoutError']);
++ const labels=new Map([['Workflow closing','workflow-closing'],['Owned controller exited','owned-controller-exited'],['Browser page error','browser-page-error']]);
++ function observe(error,{origin,stage,phase}){
++  if(first)return;
++  first={origin:origin==='main-catch'?'main-catch':'callback',stage:stageNames.has(stage)?stage:'unknown',phase:phaseNames.has(phase)?phase:'unknown',observedAt:new Date().toISOString(),monotonicMs:performance.now(),reportingFailed:false,privateRecord:{file:'private-first-failure.json',retention:'not-attempted'}};
++  try{
++   const read=key=>{try{return error?.[key];}catch{return undefined;}};
++   const messageValue=read('message'),stackValue=read('stack'),nameValue=read('name');
++   const message=typeof messageValue==='string'?messageValue:typeof error==='string'?error:'';
++   const stack=typeof stackValue==='string'?stackValue:'';
++   const record={message:message.slice(0,2048),stack:stack.slice(0,8192)};
++   const bytes=Buffer.from(JSON.stringify(record,null,2)+'\n');
++   if(bytes.length>64*1024)throw Error('Private failure record bound');
++   first.errorName=errorNames.has(nameValue)?nameValue:'unknown';
++   first.sourceLabel=labels.get(message)??null;
++   first.messageCodeUnits=message.length;first.stackCodeUnits=stack.length;
++   first.privateRecord={file:'private-first-failure.json',bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex'),maxBytes:64*1024,truncated:message.length>record.message.length||stack.length>record.stack.length,retention:'unconfirmed'};
++   retain(record);
++   first.privateRecord.retention='durable';
++  }catch{first.reportingFailed=true;}
++ }
++ return {observe,snapshot(failurePresent){return {version:1,afterCleanup:true,snapshotAt:new Date().toISOString(),failurePresent:!!failurePresent,first:first?structuredClone(first):null};}};
++}
++
+ export async function main(args=process.argv.slice(2)){
+  const values=new Set(['--repo','--binary','--web','--provenance','--image-provenance','--expected-source','--helper-source','--expected-image-id','--report','--fixture-root','--chromium','--expected-launcher-sha256','--expected-scenario-sha256']),flags=new Set(['--window-granted','--exclusive-daemon','--help']),parsed={};
+  for(let i=0;i<args.length;i++){const key=args[i];assert(values.has(key)||flags.has(key),'Unknown argument');assert(!(key in parsed),'Duplicate argument');if(flags.has(key))parsed[key]=true;else{assert(args[i+1]&&!args[i+1].startsWith('--'),'Missing argument');parsed[key]=args[++i];}}
+@@ -220,7 +249,10 @@
+  const safeError=e=>({name:String(e?.name??'Error').slice(0,50),code:typeof e?.code==='string'?e.code.slice(0,100):null,message:secrets.reduce((s,v)=>s.replaceAll(v,'[redacted]'),String(e?.message??e)).replaceAll(fixture,'[private-fixture]').replace(/(?:https?|wss?):\/\/[^\s]+/g,'[url]').slice(0,1200)});
+  const checked=value=>{const s=JSON.stringify(value);assert(s.length<=4*1024**2);for(const secret of secrets)assert(!s.includes(secret),'Private credential in receipt');return value;};
+  const record=row=>{assert(receipt.phases.length<128,'Phase limit');row=checked({...row,observedAt:new Date().toISOString()});receipt.phases.push(row);durable(join(evidence,'phase-'+String(receipt.phases.length).padStart(3,'0')+'.json'),row);};
+- const fail=e=>{failure??=e;workflow?.fail(e);};
++ let failurePhase='workflow';
++ const finalFailure=createFinalFailureObservation({retain:value=>durable(join(evidence,'private-first-failure.json'),value)});
++ const rememberFailure=(e,origin)=>{const first=failure==null;failure??=e;if(first)try{finalFailure.observe(e,{origin,stage,phase:failurePhase});}catch{}};
++ const fail=e=>{rememberFailure(e,'callback');workflow?.fail(e);};
+  const health=()=>{if(closing)throw Error('Workflow closing');workflow?.assertActive();if(failure)throw failure;if(service&&(service.exitCode!==null||service.signalCode!==null))throw Error('Owned controller exited');};
+  const stageTo=s=>{health();stage=s;record({kind:'stage',stage});};
+  const remaining=ms=>{const left=closing?cleanupDeadline-Date.now():WORKFLOW_MS;assert(left>0,'Cleanup hard budget exhausted');return Math.max(1,Math.min(ms,left));};
+@@ -305,10 +337,12 @@
+    }});
+    stageTo('product-settlement');await until('Product removes exact exited allocations and releases charge',async()=>{const view=await request('GET','/v1/sessions/'+session.id);const current=inventory(),ledger=readLedger();return view.status==='exited'&&current.length===0&&ledger.leases.length===0&&ledger.checks.length===0;},35000);record({kind:'product-settled',knownAllocations:[...containers.values()],ledger:readLedger(),containers:inventory()});
+   });
+- }catch(e){failure??=e;receipt.failedStage=stage;receipt.failure=safeError(e);if(page)try{await boundedAttempt(()=>page.screenshot({path:join(evidence,'failure.png'),fullPage:true}),3000,'failure-screenshot-timeout');}catch{}}
++ }catch(e){failurePhase='main-catch';rememberFailure(e,'main-catch');receipt.failedStage=stage;receipt.failure=safeError(e);if(page)try{await boundedAttempt(()=>page.screenshot({path:join(evidence,'failure.png'),fullPage:true}),3000,'failure-screenshot-timeout');}catch{}}
+  finally{
++  failurePhase='response-drain';
+   acceptRestartResponses=false;
+   try{await boundedAttempt(()=>Promise.allSettled([...browserResponseObservations]),5500,'browser-restart-observation-drain-deadline');}catch(e){receipt.cleanup.push(safeError(e));}
++  failurePhase='cleanup';
+   closing=true;workflow?.close();clearInterval(timer);for(const [s,h]of signals)process.off(s,h);cleanupDeadline=Date.now()+80000;
+   receipt.cleanupPhases=await runBoundedCleanup({checkpoint:()=>durable(report+'.incomplete.json',checked({version:1,passed:false,status:'cleanup-incomplete',stage,failure:receipt.failure??null,pendingMutations:[...pendingMutations.values()],knownController:serviceIdentity??null,knownContainers:[...containers.values()]})),onFailure:e=>receipt.cleanup.push(safeError(e)),phases:[
+    {name:'browser',timeoutMs:12000,run:async()=>{if(monitor)try{await boundedAttempt(()=>monitor.dispose(),2000,'transport-observer-dispose-timeout');}catch(e){receipt.cleanup.push(safeError(e));}if(startup.has('browser'))try{await startup.close('browser',5000);}catch(e){receipt.cleanup.push(safeError(e));}return stopFamily('browser');}},
+@@ -317,7 +351,7 @@
+    {name:'private-controller-log',timeoutMs:3000,run:async()=>{const privateErrors=privateTransportErrors?.close();if(privateErrors){receipt.privateTransportErrors=privateErrors;record({kind:'private-transport-errors-settled',observation:privateErrors});if(!privateErrors.passed)fail(Error('Private transport error capture incomplete'));}if(!controllerLog)return {skipped:true};const log=await controllerLog.settle(2000);receipt.controllerLog=log;record({kind:'controller-log-settled',log});assert(log.passed,'Private controller log observation incomplete');return log;}},
+    {name:'exact-container-leftovers',timeoutMs:12000,run:async()=>{if(!engine||!instance||!project||!worktree)return {skipped:true};assert(!serviceIdentity||!live(serviceIdentity),'Refuse cleanup while controller lives');assert.equal(pendingMutations.size,0,'Remote mutation settlement unknown; retain allocation');const rows=inventory();for(const row of rows){inspectOwned(row.id);receipt.cleanup.push({kind:'failed-fixture-exact-removal',id:row.id,notProductRelease:true});docker('stop','--time','2',row.id);inspectOwned(row.id);docker('rm',row.id);}return {containers:inventory(),ledger:readLedger()};}},
+    {name:'final-source-and-inventory',timeoutMs:12000,run:async()=>{for(const row of sourceBindings)assert.equal(sha(stableFile(join(frozen,row.path.replace('scripts/acceptance/','')))),row.sha256,'Frozen helper changed');assert.equal(sha(stableFile(join(frozen,'scenario.mjs'))),sha(scenarioBytes));assert.equal(sha(stableFile(join(frozen,'launch.mjs'))),sha(ownBytes));assert.equal(sha(stableFile(fileURLToPath(import.meta.url))),sha(ownBytes),'Launcher source changed');assert.equal(sha(stableFile(scenarioPath)),sha(scenarioBytes),'Scenario source changed');assert.equal(pendingMutations.size,0,'Pending mutation remains');const processes={controller:scan('controller'),browser:scan('browser')};assert(![...processes.controller,...processes.browser].some(x=>x.status!=='Z'),'Owned live process remains');const final={processes,knownProcessIdentities:{controller:[...known.controller.values()],browser:[...known.browser.values()]},unreadableEnvironmentObservations:unknownScan,startup:startup.snapshot(),containers:engine?ids():null,volumes:engine?docker('volume','ls','-q'):null,ledger:readLedger()};if(engine){assert.deepEqual(final.containers,[],'Unexpected/retained container');assert.equal(final.volumes,'');}assert.equal(final.ledger.leases.length,0,'Retained charge');assert.equal(final.ledger.checks.length,0,'Retained check charge');assert.equal(final.ledger.fences.length,0,'Unexpected launch fence');assert.equal(final.ledger.checkFences?.length??0,0,'Unexpected check fence');receipt.final=final;return final;}}
+-  ]});receipt.endedAt=new Date().toISOString();receipt.pendingMutations=[...pendingMutations.values()];receipt.passed=!failure&&receipt.scenario?.passed===true&&receipt.cleanup.length===0&&receipt.cleanupPhases.every(x=>x.status==='completed');durable(report,checked(receipt));console.log(JSON.stringify({passed:receipt.passed,report,sourceCommit:product,failedStage:receipt.failedStage??null}));if(!receipt.passed)process.exitCode=1;
++  ]});receipt.failureObservation=finalFailure.snapshot(!!failure);receipt.endedAt=new Date().toISOString();receipt.pendingMutations=[...pendingMutations.values()];receipt.passed=!failure&&receipt.scenario?.passed===true&&receipt.cleanup.length===0&&receipt.cleanupPhases.every(x=>x.status==='completed');durable(report,checked(receipt));console.log(JSON.stringify({passed:receipt.passed,report,sourceCommit:product,failedStage:receipt.failedStage??null}));if(!receipt.passed)process.exitCode=1;
+  }
+  return receipt;
+ }

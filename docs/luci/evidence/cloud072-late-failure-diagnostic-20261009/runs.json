@@ -1,0 +1,180 @@
+[
+  {
+    "name": "warm-before",
+    "node": "v24.19.0",
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "--test-name-pattern=late route callback after main catch is bypassed",
+      "/workspace/.luci-tools/cloud072-late-failure-diagnostic/failure.test.mjs"
+    ],
+    "sourceRoot": "/workspace/.luci-tools/cloud072-late-failure-diagnostic/before",
+    "variant": "warm",
+    "elapsedSeconds": 0.3075997829437256,
+    "exitCode": 1,
+    "expectedExitCode": 1,
+    "sourceBefore": {
+      "/workspace/.luci-tools/cloud072-late-failure-diagnostic/before/warm/launch.mjs": {
+        "bytes": 69571,
+        "sha256": "626e741119bc9d3bfd07b1ce30b170365d1b5bbc9b7ca775960cffa229c3fd84"
+      },
+      "/workspace/.luci-tools/cloud072-late-failure-diagnostic/failure.test.mjs": {
+        "bytes": 12240,
+        "sha256": "449dc16f745a7797e95032a7fd068b271f977671bc5e32142eaab7a7d1b105aa"
+      }
+    },
+    "sourceAfter": {
+      "/workspace/.luci-tools/cloud072-late-failure-diagnostic/before/warm/launch.mjs": {
+        "bytes": 69571,
+        "sha256": "626e741119bc9d3bfd07b1ce30b170365d1b5bbc9b7ca775960cffa229c3fd84"
+      },
+      "/workspace/.luci-tools/cloud072-late-failure-diagnostic/failure.test.mjs": {
+        "bytes": 12240,
+        "sha256": "449dc16f745a7797e95032a7fd068b271f977671bc5e32142eaab7a7d1b105aa"
+      }
+    },
+    "stdout": {
+      "bytes": 959,
+      "sha256": "d6b2190f1a68d52167ed9238cef4ad1404790df96cf31388db486f6312b6c497"
+    },
+    "stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "scope": "Inert Node callbacks and temporary private-writer fixture only. No browser, Docker, product server, or compiler."
+  },
+  {
+    "name": "warm-after",
+    "node": "v24.19.0",
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "/workspace/.luci-tools/cloud072-late-failure-diagnostic/failure.test.mjs"
+    ],
+    "sourceRoot": "/workspace/.luci-tools/cloud072-late-failure-diagnostic",
+    "variant": "warm",
+    "elapsedSeconds": 0.2918825149536133,
+    "exitCode": 0,
+    "expectedExitCode": 0,
+    "sourceBefore": {
+      "/workspace/.luci-tools/cloud072-late-failure-diagnostic/warm/launch.mjs": {
+        "bytes": 72373,
+        "sha256": "205f99a26e4c5d0692f91bed0a1e1eeba10bc666571d3cdb86ef5fcf31980c79"
+      },
+      "/workspace/.luci-tools/cloud072-late-failure-diagnostic/failure.test.mjs": {
+        "bytes": 12240,
+        "sha256": "449dc16f745a7797e95032a7fd068b271f977671bc5e32142eaab7a7d1b105aa"
+      }
+    },
+    "sourceAfter": {
+      "/workspace/.luci-tools/cloud072-late-failure-diagnostic/warm/launch.mjs": {
+        "bytes": 72373,
+        "sha256": "205f99a26e4c5d0692f91bed0a1e1eeba10bc666571d3cdb86ef5fcf31980c79"
+      },
+      "/workspace/.luci-tools/cloud072-late-failure-diagnostic/failure.test.mjs": {
+        "bytes": 12240,
+        "sha256": "449dc16f745a7797e95032a7fd068b271f977671bc5e32142eaab7a7d1b105aa"
+      }
+    },
+    "stdout": {
+      "bytes": 3131,
+      "sha256": "70c7f7eefe01916b6c34911561ba7ca229a2b775f5998401511aed26b8ee1715"
+    },
+    "stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "scope": "Inert Node callbacks and temporary private-writer fixture only. No browser, Docker, product server, or compiler."
+  },
+  {
+    "name": "cold-before",
+    "node": "v24.19.0",
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "--test-name-pattern=late route callback after main catch is bypassed",
+      "/workspace/.luci-tools/cloud072-late-failure-diagnostic/failure.test.mjs"
+    ],
+    "sourceRoot": "/workspace/.luci-tools/cloud072-late-failure-diagnostic/before",
+    "variant": "cold",
+    "elapsedSeconds": 0.1767902374267578,
+    "exitCode": 1,
+    "expectedExitCode": 1,
+    "sourceBefore": {
+      "/workspace/.luci-tools/cloud072-late-failure-diagnostic/before/cold/launch.mjs": {
+        "bytes": 70543,
+        "sha256": "1d6e0005e0ca4719677a514fa5a9b3a120716910e0d8874fe9aa70c816092cf9"
+      },
+      "/workspace/.luci-tools/cloud072-late-failure-diagnostic/failure.test.mjs": {
+        "bytes": 12240,
+        "sha256": "449dc16f745a7797e95032a7fd068b271f977671bc5e32142eaab7a7d1b105aa"
+      }
+    },
+    "sourceAfter": {
+      "/workspace/.luci-tools/cloud072-late-failure-diagnostic/before/cold/launch.mjs": {
+        "bytes": 70543,
+        "sha256": "1d6e0005e0ca4719677a514fa5a9b3a120716910e0d8874fe9aa70c816092cf9"
+      },
+      "/workspace/.luci-tools/cloud072-late-failure-diagnostic/failure.test.mjs": {
+        "bytes": 12240,
+        "sha256": "449dc16f745a7797e95032a7fd068b271f977671bc5e32142eaab7a7d1b105aa"
+      }
+    },
+    "stdout": {
+      "bytes": 959,
+      "sha256": "5cb5f35e2c1f2a3ea513d5f84f71869546c109a0c799f181da031c50a0f68169"
+    },
+    "stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "scope": "Inert Node callbacks and temporary private-writer fixture only. No browser, Docker, product server, or compiler."
+  },
+  {
+    "name": "cold-after",
+    "node": "v24.19.0",
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "/workspace/.luci-tools/cloud072-late-failure-diagnostic/failure.test.mjs"
+    ],
+    "sourceRoot": "/workspace/.luci-tools/cloud072-late-failure-diagnostic",
+    "variant": "cold",
+    "elapsedSeconds": 0.2355327606201172,
+    "exitCode": 0,
+    "expectedExitCode": 0,
+    "sourceBefore": {
+      "/workspace/.luci-tools/cloud072-late-failure-diagnostic/cold/launch.mjs": {
+        "bytes": 73345,
+        "sha256": "7789d0f5e89fdd643cf433dc8786f44fba16a3e24884c12aad738ab4935b75cc"
+      },
+      "/workspace/.luci-tools/cloud072-late-failure-diagnostic/failure.test.mjs": {
+        "bytes": 12240,
+        "sha256": "449dc16f745a7797e95032a7fd068b271f977671bc5e32142eaab7a7d1b105aa"
+      }
+    },
+    "sourceAfter": {
+      "/workspace/.luci-tools/cloud072-late-failure-diagnostic/cold/launch.mjs": {
+        "bytes": 73345,
+        "sha256": "7789d0f5e89fdd643cf433dc8786f44fba16a3e24884c12aad738ab4935b75cc"
+      },
+      "/workspace/.luci-tools/cloud072-late-failure-diagnostic/failure.test.mjs": {
+        "bytes": 12240,
+        "sha256": "449dc16f745a7797e95032a7fd068b271f977671bc5e32142eaab7a7d1b105aa"
+      }
+    },
+    "stdout": {
+      "bytes": 3133,
+      "sha256": "625386609cca5376ac937ba334061b849e7e319dd518b545841407c59acc8399"
+    },
+    "stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "scope": "Inert Node callbacks and temporary private-writer fixture only. No browser, Docker, product server, or compiler."
+  }
+]

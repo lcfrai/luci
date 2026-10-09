@@ -1,0 +1,9 @@
+{
+  "exactPrivateRootAbsent": true,
+  "boundedPatternFindings": [],
+  "screenshotsManuallyReviewed": [
+    "cold-exited-before-restart.png",
+    "cold-restarted-nonzero-ended.png"
+  ],
+  "scope": "Common credential pattern scan and visual screenshot review, not exhaustive detection. No private raw logs, private first-error record or fixture contents read."
+}

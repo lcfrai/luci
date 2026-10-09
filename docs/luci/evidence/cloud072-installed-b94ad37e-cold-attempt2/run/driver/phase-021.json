@@ -1,0 +1,40 @@
+{
+  "kind": "initial-settlement-observation",
+  "pin": {
+    "allocation": {
+      "id": "1aee9a43101b1d4e574c9c6b1aa4975f3ce5d37866c77ddc126f92c4b416b917",
+      "sandboxId": "s-0ff0e554",
+      "sessionId": "s-0ff0e554",
+      "instanceId": "9f1cbaeb-31db-461e-a406-9673c26d70fd",
+      "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+      "name": "/luci-s-0ff0e554"
+    },
+    "lease": {
+      "id": "manual-021e9d31",
+      "sessionId": "s-0ff0e554",
+      "projectId": "p-d8a69a70",
+      "sandboxId": "s-0ff0e554",
+      "state": "backend-settled",
+      "resources": {
+        "CPUMillis": 1000,
+        "MemoryMiB": 1024
+      }
+    }
+  },
+  "observation": {
+    "at": "2026-10-09T16:47:42.795Z",
+    "elapsedMs": 34027.629193999994,
+    "containers": [],
+    "ledger": {
+      "present": true,
+      "sha256": "c0022f0995797c072d8097729ea90e74487bcefb911576c91e4af0665403a49e",
+      "bytes": 25,
+      "leases": [],
+      "checks": [],
+      "fences": [],
+      "checkFences": []
+    },
+    "rootFreeBytes": 7005663232
+  },
+  "observedAt": "2026-10-09T16:47:42.795Z"
+}

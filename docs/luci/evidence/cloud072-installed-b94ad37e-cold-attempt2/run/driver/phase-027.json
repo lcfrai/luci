@@ -1,0 +1,5 @@
+{
+  "kind": "cold-restart-step",
+  "step": "single-acknowledgement-gated-ui-restart",
+  "observedAt": "2026-10-09T16:47:47.580Z"
+}

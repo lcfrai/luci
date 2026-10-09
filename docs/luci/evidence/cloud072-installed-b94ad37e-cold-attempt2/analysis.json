@@ -1,0 +1,105 @@
+{
+  "productSource": "b94ad37e53181e360ac8910ee980570de622728c",
+  "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+  "launcherSHA256": "7789d0f5e89fdd643cf433dc8786f44fba16a3e24884c12aad738ab4935b75cc",
+  "scenarioSHA256": "e96058d031f8d46b9ab4c4fcb4e14c485bacc939044bf1592a8ec24497a7d7f7",
+  "scenarioPassed": true,
+  "overallPassed": false,
+  "launcherExitCode": 1,
+  "recordedMainCatchFailure": null,
+  "recordedFailedStage": null,
+  "failureObservation": {
+    "version": 1,
+    "afterCleanup": true,
+    "snapshotAt": "2026-10-09T16:48:49.500Z",
+    "failurePresent": true,
+    "first": {
+      "origin": "callback",
+      "stage": "product-settlement",
+      "phase": "cleanup",
+      "observedAt": "2026-10-09T16:48:43.843Z",
+      "monotonicMs": 128593.390311,
+      "reportingFailed": false,
+      "privateRecord": {
+        "file": "private-first-failure.json",
+        "bytes": 1119,
+        "sha256": "ae4ade04b15237ab5cc2bacaf6e6e668164e4abd60f91a126161edf874eb6f49",
+        "maxBytes": 65536,
+        "truncated": false,
+        "retention": "durable"
+      },
+      "errorName": "Error",
+      "sourceLabel": "workflow-closing",
+      "messageCodeUnits": 16,
+      "stackCodeUnits": 1058
+    }
+  },
+  "cleanupErrorCodes": [
+    "transport-observer-dispose-timeout"
+  ],
+  "diagnosticConclusion": "C072 retained a callback-origin first failure during product-settlement cleanup, labeled workflow-closing. This diagnoses this attempt only. Request method/path were not retained. A separate observer-disposal timeout remains unexplained; no causal relationship is asserted.",
+  "originalResult": {
+    "bytes": 195467,
+    "sha256": "b4e737097c6cd7a21c591109cbc970c36e1419244b9807ef707b51863fba8b20"
+  },
+  "originalWrapper": {
+    "bytes": 5026,
+    "sha256": "b27be09090768161fee6c7b4411d3e521799e299e281c883bfd86fd5a3b616b7"
+  },
+  "firstTerminal": {
+    "exitCode": 0,
+    "outputExitCloseSequence": [
+      76,
+      77,
+      78
+    ],
+    "browserCloseCode": 1000,
+    "clean": true
+  },
+  "secondTerminal": {
+    "exitCode": 7,
+    "outputExitCloseSequence": [
+      78,
+      79,
+      80
+    ],
+    "browserCloseCode": 1000,
+    "clean": true
+  },
+  "firstNaturalRelease": {
+    "phase": 22,
+    "elapsedMs": 34041.14773899999,
+    "polls": 52
+  },
+  "secondNaturalRelease": {
+    "phase": 44,
+    "observedAt": "2026-10-09T16:48:40.963Z"
+  },
+  "browserRestartCount": 1,
+  "apiRestartCount": 0,
+  "stopOrDeleteCount": 0,
+  "pendingMutationCount": 0,
+  "coldExecutionFingerprintOmitted": true,
+  "realNewGenerationPollBeforeAcknowledgement": true,
+  "identicalParsedSessionJSON": false,
+  "noReplacementAttachBeforeAcknowledgement": true,
+  "acknowledgementAt": "2026-10-09T16:48:23.345Z",
+  "replacementSocketCreatedAt": "2026-10-09T16:48:23.367Z",
+  "installedRestartStatus": 200,
+  "installed409DiagnosticExercised": false,
+  "closure": {
+    "originalSHA256": "5b842fd44feeca33f2cdd4f04be018d8b857c9a2a8951056d45874fb85c6c7a8",
+    "absentIdentities": 3,
+    "pid1Zombies": 2,
+    "containers": 0,
+    "volumes": 0,
+    "ledgerCounts": {
+      "leases": 0,
+      "checks": 0,
+      "fences": 0,
+      "checkFences": 0
+    },
+    "fixtureFilesUnchanged": 31
+  },
+  "scope": "Read-only retained local Linux Docker/browser shell evidence. No runtime launch, cleanup mutation, private raw log or private first-error read, admission-capacity benchmark, model/provider validation, Windows certification, raw Close-frame direction/count, or overall acceptance."
+}

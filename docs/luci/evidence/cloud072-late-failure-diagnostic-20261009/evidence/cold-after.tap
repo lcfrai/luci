@@ -1,0 +1,94 @@
+TAP version 13
+# Subtest: late route callback after main catch is bypassed retains first failure after cleanup
+ok 1 - late route callback after main catch is bypassed retains first failure after cleanup
+  ---
+  duration_ms: 7.114444
+  type: 'test'
+  ...
+# Subtest: failure accepted during response drain precedes closing
+ok 2 - failure accepted during response drain precedes closing
+  ---
+  duration_ms: 2.059064
+  type: 'test'
+  ...
+# Subtest: main catch retains its original first failure stage
+ok 3 - main catch retains its original first failure stage
+  ---
+  duration_ms: 2.588512
+  type: 'test'
+  ...
+# Subtest: first callback survives later main-catch and cleanup errors without overwriting
+ok 4 - first callback survives later main-catch and cleanup errors without overwriting
+  ---
+  duration_ms: 2.457194
+  type: 'test'
+  ...
+# Subtest: private retention failure is explicit and never skips bounded cleanup or final receipt
+ok 5 - private retention failure is explicit and never skips bounded cleanup or final receipt
+  ---
+  duration_ms: 1.938842
+  type: 'test'
+  ...
+# Subtest: cleanup failure remains failure without inferring an underlying first callback
+ok 6 - cleanup failure remains failure without inferring an underlying first callback
+  ---
+  duration_ms: 1.802717
+  type: 'test'
+  ...
+# Subtest: success still requires original guards and creates no failure file
+ok 7 - success still requires original guards and creates no failure file
+  ---
+  duration_ms: 1.747564
+  type: 'test'
+  ...
+# Subtest: late failure does not settle or discard pending mutation
+ok 8 - late failure does not settle or discard pending mutation
+  ---
+  duration_ms: 3.100033
+  type: 'test'
+  ...
+# Subtest: failure from awaited cleanup barrier is captured before durable result
+ok 9 - failure from awaited cleanup barrier is captured before durable result
+  ---
+  duration_ms: 3.518834
+  type: 'test'
+  ...
+# Subtest: private raw error and stack stay out of bounded public projection
+ok 10 - private raw error and stack stay out of bounded public projection
+  ---
+  duration_ms: 0.771693
+  type: 'test'
+  ...
+# Subtest: oversized control and unicode errors have bounded private retention with explicit truncation
+ok 11 - oversized control and unicode errors have bounded private retention with explicit truncation
+  ---
+  duration_ms: 4.224297
+  type: 'test'
+  ...
+# Subtest: throwing error properties cannot throw past the observer
+ok 12 - throwing error properties cannot throw past the observer
+  ---
+  duration_ms: 0.877042
+  type: 'test'
+  ...
+# Subtest: actual exclusive durable writer creates0600 bounded private file and refuses overwrite
+ok 13 - actual exclusive durable writer creates0600 bounded private file and refuses overwrite
+  ---
+  duration_ms: 4.112349
+  type: 'test'
+  ...
+# Subtest: final success condition and restart response handler remain byte-identical to C071
+ok 14 - final success condition and restart response handler remain byte-identical to C071
+  ---
+  duration_ms: 1.662386
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 176.510226

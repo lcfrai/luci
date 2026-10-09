@@ -1,0 +1,26 @@
+[
+  {
+    "variant": "warm",
+    "originalSource": "/workspace/.luci-tools/cloud071-browser-restart-diagnostic/warm/launch.mjs",
+    "original": {
+      "sha256": "626e741119bc9d3bfd07b1ce30b170365d1b5bbc9b7ca775960cffa229c3fd84",
+      "bytes": 69571
+    },
+    "fixed": {
+      "sha256": "205f99a26e4c5d0692f91bed0a1e1eeba10bc666571d3cdb86ef5fcf31980c79",
+      "bytes": 72373
+    }
+  },
+  {
+    "variant": "cold",
+    "originalSource": "/workspace/.luci-tools/cloud071-browser-restart-diagnostic/cold/launch.mjs",
+    "original": {
+      "sha256": "1d6e0005e0ca4719677a514fa5a9b3a120716910e0d8874fe9aa70c816092cf9",
+      "bytes": 70543
+    },
+    "fixed": {
+      "sha256": "7789d0f5e89fdd643cf433dc8786f44fba16a3e24884c12aad738ab4935b75cc",
+      "bytes": 73345
+    }
+  }
+]

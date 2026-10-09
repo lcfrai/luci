@@ -4,6 +4,9 @@ Exact source: [`b94ad37e53181e360ac8910ee980570de622728c`](https://github.com/lc
 
 **Latest installed result: cold attempt 1 passes its terminal/Restart scenario; the overall run remains false for an unrecorded final failure reason (CLOUD-072).** The first shell exits 0; a full browser-document reopen begins without the old execution fingerprint; one explicit Restart stays unattached until its authentic acknowledgement despite a real new-generation poll; the replacement exits 7. Both wire closures are clean 1000, and both exact allocations/charges settle naturally. Warm attempts 1 and 2 remain separate failures, including warm attempt 2's unrecovered 409 body and original pending mutation. No model, performance or Windows pass is inferred.
 
+
+Latest diagnostic publication: [CLOUD-072 source and checks](evidence/cloud072-late-failure-diagnostic-20261009/README.md) and [fresh installed cold-attempt2](evidence/cloud072-installed-b94ad37e-cold-attempt2/README.md) preserve the same scoped terminal positives and an overall failure. The first observed failure is a cleanup callback labeled `workflow-closing`; actual request method/path were not recorded. A separate transport-observer disposal timeout remains unexplained. Independent closure reports three known identities absent, two PID-1 Chromium zombies and empty selected Docker/ledger. These observations do not retroactively identify cold-attempt1's unrecorded cause. Product/package and Windows commands below are unchanged; full acceptance stays open.
+
 ## Exact package and runtime identities
 
 | Artifact | Verified identity and scope |

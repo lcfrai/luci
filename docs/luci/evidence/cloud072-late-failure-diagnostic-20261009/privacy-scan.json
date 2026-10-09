@@ -1,0 +1,5 @@
+{
+  "boundedPatternFindings": [],
+  "rawPrivateFailureFileAbsent": true,
+  "scope": "Controlled helper/test source and TAP only. Synthetic private-writer fixtures removed by their test; no real private logs/errors/auth/request bodies read or included."
+}

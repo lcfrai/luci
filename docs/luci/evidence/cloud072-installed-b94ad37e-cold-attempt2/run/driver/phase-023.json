@@ -1,0 +1,94 @@
+{
+  "kind": "cold-restart-product-cleaned-before-reopen",
+  "session": {
+    "id": "s-0ff0e554",
+    "projectId": "p-d8a69a70",
+    "status": "exited",
+    "executionGenerationOmitted": true
+  },
+  "proof": {
+    "pin": {
+      "allocation": {
+        "id": "1aee9a43101b1d4e574c9c6b1aa4975f3ce5d37866c77ddc126f92c4b416b917",
+        "sandboxId": "s-0ff0e554",
+        "sessionId": "s-0ff0e554",
+        "instanceId": "9f1cbaeb-31db-461e-a406-9673c26d70fd",
+        "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+        "name": "/luci-s-0ff0e554"
+      },
+      "lease": {
+        "id": "manual-021e9d31",
+        "sessionId": "s-0ff0e554",
+        "projectId": "p-d8a69a70",
+        "sandboxId": "s-0ff0e554",
+        "state": "backend-settled",
+        "resources": {
+          "CPUMillis": 1000,
+          "MemoryMiB": 1024
+        }
+      }
+    },
+    "polls": 52,
+    "elapsedMs": 34041.14773899999,
+    "first": {
+      "at": "2026-10-09T16:47:08.974Z",
+      "elapsedMs": 206.44258699999773,
+      "containers": [
+        {
+          "id": "1aee9a43101b1d4e574c9c6b1aa4975f3ce5d37866c77ddc126f92c4b416b917",
+          "sandboxId": "s-0ff0e554",
+          "sessionId": "s-0ff0e554",
+          "instanceId": "9f1cbaeb-31db-461e-a406-9673c26d70fd",
+          "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+          "name": "/luci-s-0ff0e554",
+          "status": "running",
+          "pid": 2538011,
+          "created": "2026-10-09T16:46:38.560256018Z",
+          "startedAt": "2026-10-09T16:47:03.609438221Z",
+          "memoryBytes": 1073741824,
+          "cpuNano": 1000000000,
+          "pidsLimit": 256
+        }
+      ],
+      "ledger": {
+        "present": true,
+        "sha256": "685a7163cd2aeb182f017487bdde460cae5744254d91219a4d386e7e9b4df7dc",
+        "bytes": 498,
+        "leases": [
+          {
+            "id": "manual-021e9d31",
+            "sessionId": "s-0ff0e554",
+            "sandboxId": "s-0ff0e554",
+            "projectId": "p-d8a69a70",
+            "state": "backend-settled",
+            "resources": {
+              "CPUMillis": 1000,
+              "MemoryMiB": 1024
+            }
+          }
+        ],
+        "checks": [],
+        "fences": [],
+        "checkFences": []
+      },
+      "rootFreeBytes": 2270498816
+    },
+    "last": {
+      "at": "2026-10-09T16:47:42.795Z",
+      "elapsedMs": 34027.629193999994,
+      "containers": [],
+      "ledger": {
+        "present": true,
+        "sha256": "c0022f0995797c072d8097729ea90e74487bcefb911576c91e4af0665403a49e",
+        "bytes": 25,
+        "leases": [],
+        "checks": [],
+        "fences": [],
+        "checkFences": []
+      },
+      "rootFreeBytes": 7005663232
+    },
+    "scope": "Observed exact natural allocation absence and charge release only. Actual Restart admission and six GiB root floor remain authoritative."
+  },
+  "observedAt": "2026-10-09T16:47:42.813Z"
+}

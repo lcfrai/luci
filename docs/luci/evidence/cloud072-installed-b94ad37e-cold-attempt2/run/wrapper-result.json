@@ -1,0 +1,162 @@
+{
+  "version": 1,
+  "passed": false,
+  "startedAt": "2026-10-09T16:46:35.233695+00:00",
+  "budgets": {
+    "preparationSeconds": 120,
+    "workflowSeconds": 480,
+    "cooperativeCommandOverhangSeconds": 60,
+    "cleanupSeconds": 80,
+    "launcherSeconds": 740,
+    "termGraceSeconds": 20,
+    "killSettlementSeconds": 5,
+    "finalObservationSeconds": 5,
+    "nominalMaximumSeconds": 770,
+    "note": "Monotonic supervisor; synchronous kernel/file reads are cooperative, not preempted. No signal is sent to controllers, browsers, process groups or Docker."
+  },
+  "sourceBefore": {
+    "/workspace/.luci-tools/cloud072-late-failure-diagnostic/cold/outer-run.py": {
+      "bytes": 22954,
+      "sha256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49"
+    },
+    "/workspace/.luci-tools/cloud072-late-failure-diagnostic/cold/launch.mjs": {
+      "bytes": 73345,
+      "sha256": "7789d0f5e89fdd643cf433dc8786f44fba16a3e24884c12aad738ab4935b75cc"
+    },
+    "/workspace/.luci-tools/cloud072-late-failure-diagnostic/cold/scenario.mjs": {
+      "bytes": 43452,
+      "sha256": "e96058d031f8d46b9ab4c4fcb4e14c485bacc939044bf1592a8ec24497a7d7f7"
+    }
+  },
+  "limitations": [
+    "This wrapper observes exact fixture process identities only, not memory/CPU/performance or whole-machine closure.",
+    "Driver receipt may attest Docker/ledger closure; this wrapper does not independently query Docker or repair retained charges.",
+    "Only the exact launcher PID is signalled through its pidfd. Surviving controller/browser identities remain open for independent reviewed cleanup.",
+    "Absent unobserved ephemeral processes cannot be inferred; unreadable environment scans and zombies stay explicit."
+  ],
+  "driverReport": {
+    "sha256": "b4e737097c6cd7a21c591109cbc970c36e1419244b9807ef707b51863fba8b20",
+    "bytes": 195467,
+    "passed": false
+  },
+  "launcherExitCode": 1,
+  "failure": null,
+  "signals": [],
+  "wrapperSignals": [],
+  "identities": [
+    {
+      "expected": {
+        "status": "observed",
+        "pid": 2537472,
+        "startTicks": "31046447",
+        "parentPid": 2537467,
+        "state": "R",
+        "family": "launcher",
+        "source": "owned-Popen",
+        "firstObservedAt": "2026-10-09T16:46:35.234883+00:00"
+      },
+      "current": {
+        "status": "absent",
+        "pid": 2537472
+      }
+    },
+    {
+      "expected": {
+        "status": "observed",
+        "pid": 2537649,
+        "startTicks": "31046714",
+        "parentPid": 2537472,
+        "state": "S",
+        "family": "controller",
+        "firstObservedAt": "2026-10-09T16:46:38.745793+00:00",
+        "source": "outer-environment"
+      },
+      "current": {
+        "status": "absent",
+        "pid": 2537649
+      }
+    },
+    {
+      "expected": {
+        "status": "observed",
+        "pid": 2538194,
+        "startTicks": "31049420",
+        "parentPid": 2537472,
+        "state": "S",
+        "family": "browser",
+        "firstObservedAt": "2026-10-09T16:47:06.215287+00:00",
+        "source": "outer-environment"
+      },
+      "current": {
+        "status": "absent",
+        "pid": 2538194
+      }
+    },
+    {
+      "expected": {
+        "status": "observed",
+        "pid": 2538209,
+        "startTicks": "31049430",
+        "parentPid": 1,
+        "state": "S",
+        "family": "browser",
+        "firstObservedAt": "2026-10-09T16:47:06.215322+00:00",
+        "source": "outer-environment"
+      },
+      "current": {
+        "status": "observed",
+        "pid": 2538209,
+        "startTicks": "31049430",
+        "parentPid": 1,
+        "state": "Z"
+      }
+    },
+    {
+      "expected": {
+        "status": "observed",
+        "pid": 2538212,
+        "startTicks": "31049431",
+        "parentPid": 1,
+        "state": "S",
+        "family": "browser",
+        "firstObservedAt": "2026-10-09T16:47:06.215356+00:00",
+        "source": "outer-environment"
+      },
+      "current": {
+        "status": "observed",
+        "pid": 2538212,
+        "startTicks": "31049431",
+        "parentPid": 1,
+        "state": "Z"
+      }
+    }
+  ],
+  "sourceAfter": {
+    "/workspace/.luci-tools/cloud072-late-failure-diagnostic/cold/outer-run.py": {
+      "bytes": 22954,
+      "sha256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49"
+    },
+    "/workspace/.luci-tools/cloud072-late-failure-diagnostic/cold/launch.mjs": {
+      "bytes": 73345,
+      "sha256": "7789d0f5e89fdd643cf433dc8786f44fba16a3e24884c12aad738ab4935b75cc"
+    },
+    "/workspace/.luci-tools/cloud072-late-failure-diagnostic/cold/scenario.mjs": {
+      "bytes": 43452,
+      "sha256": "e96058d031f8d46b9ab4c4fcb4e14c485bacc939044bf1592a8ec24497a7d7f7"
+    }
+  },
+  "samples": 103,
+  "unreadableEnvironmentObservations": 678216,
+  "outputBytesObserved": {
+    "stdout": 198,
+    "stderr": 0
+  },
+  "outputTruncated": {
+    "stdout": false,
+    "stderr": false
+  },
+  "settlementErrors": [],
+  "finishedAt": "2026-10-09T16:48:49.867734+00:00",
+  "elapsedSeconds": 134.6341368080466,
+  "receiptDurable": true
+}

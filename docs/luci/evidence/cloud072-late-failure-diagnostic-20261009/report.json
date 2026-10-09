@@ -1,0 +1,60 @@
+{
+  "stableID": "CLOUD-072",
+  "priority": "P2",
+  "scope": "External installed-acceptance helper diagnostic only",
+  "originalInstalledCause": "Unknown; no zombie causal claim",
+  "productSource": "b94ad37e53181e360ac8910ee980570de622728c",
+  "sourceBindings": [
+    {
+      "variant": "warm",
+      "originalSource": "/workspace/.luci-tools/cloud071-browser-restart-diagnostic/warm/launch.mjs",
+      "original": {
+        "sha256": "626e741119bc9d3bfd07b1ce30b170365d1b5bbc9b7ca775960cffa229c3fd84",
+        "bytes": 69571
+      },
+      "fixed": {
+        "sha256": "205f99a26e4c5d0692f91bed0a1e1eeba10bc666571d3cdb86ef5fcf31980c79",
+        "bytes": 72373
+      }
+    },
+    {
+      "variant": "cold",
+      "originalSource": "/workspace/.luci-tools/cloud071-browser-restart-diagnostic/cold/launch.mjs",
+      "original": {
+        "sha256": "1d6e0005e0ca4719677a514fa5a9b3a120716910e0d8874fe9aa70c816092cf9",
+        "bytes": 70543
+      },
+      "fixed": {
+        "sha256": "7789d0f5e89fdd643cf433dc8786f44fba16a3e24884c12aad738ab4935b75cc",
+        "bytes": 73345
+      }
+    }
+  ],
+  "testBodySHA256": "449dc16f745a7797e95032a7fd068b271f977671bc5e32142eaab7a7d1b105aa",
+  "patchSHA256": "2666dcdf3039fce5dcd325debef03e882c3c35a2ac2cbf66529fd8dc1d160f87",
+  "controlledTests": {
+    "warmOriginal": {
+      "pass": 0,
+      "fail": 1,
+      "expectedFailure": true
+    },
+    "coldOriginal": {
+      "pass": 0,
+      "fail": 1,
+      "expectedFailure": true
+    },
+    "warmFinal": {
+      "pass": 14,
+      "fail": 0
+    },
+    "coldFinal": {
+      "pass": 14,
+      "fail": 0
+    }
+  },
+  "newPrivateFile": "private-first-failure.json",
+  "privateRawContentsPublishable": false,
+  "runtimeActions": false,
+  "productChanges": false,
+  "worklistRow": "CLOUD-072 | P2 | Helper late-failure diagnostic gap | C071 installed b94 cold scenario passed but overall failed without retained failure provenance; cause remains unknown. External correction captures first failure stage/time/phase after cleanup and retains bounded private message/stack with public hashes/status. Same controlled late-callback test fails original warm/cold; final14/14 each. Future installed validation pending; no success promotion or zombie causal attribution."
+}

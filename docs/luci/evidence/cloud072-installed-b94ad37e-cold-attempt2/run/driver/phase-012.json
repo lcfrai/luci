@@ -1,0 +1,5 @@
+{
+  "kind": "cold-restart-step",
+  "step": "authoritative-cleaned-record",
+  "observedAt": "2026-10-09T16:47:08.762Z"
+}
