@@ -1,0 +1,16 @@
+test_fixture_guard_refuses_non_owned_repository (__main__.PublicationTests.test_fixture_guard_refuses_non_owned_repository) ... ok
+test_ignored_logs_missing_index_and_old_commit_then_forced_add_pass (__main__.PublicationTests.test_ignored_logs_missing_index_and_old_commit_then_forced_add_pass) ... ok
+test_inherited_git_redirection_cannot_select_other_index (__main__.PublicationTests.test_inherited_git_redirection_cannot_select_other_index) ... ok
+test_manifest_comes_from_index_not_working_tree (__main__.PublicationTests.test_manifest_comes_from_index_not_working_tree) ... ok
+test_missing_duplicate_empty_and_self_manifest_refused (__main__.PublicationTests.test_missing_duplicate_empty_and_self_manifest_refused) ... ok
+test_only_zero_byte_log_omitted_is_still_failure (__main__.PublicationTests.test_only_zero_byte_log_omitted_is_still_failure) ... ok
+test_partial_clone_missing_objects_do_not_fetch_or_change_object_store (__main__.PublicationTests.test_partial_clone_missing_objects_do_not_fetch_or_change_object_store) ... ok
+test_selected_root_and_space_names_are_literal (__main__.PublicationTests.test_selected_root_and_space_names_are_literal) ... ok
+test_symlink_mode_and_unlisted_entries_refused (__main__.PublicationTests.test_symlink_mode_and_unlisted_entries_refused) ... ok
+test_unsafe_checksum_paths_fail (__main__.PublicationTests.test_unsafe_checksum_paths_fail) ... ok
+test_wrong_staged_bytes_fail_even_when_working_file_is_correct (__main__.PublicationTests.test_wrong_staged_bytes_fail_even_when_working_file_is_correct) ... ok
+
+----------------------------------------------------------------------
+Ran 11 tests in 4.220s
+
+OK

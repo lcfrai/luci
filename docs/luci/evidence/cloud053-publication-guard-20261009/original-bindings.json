@@ -1,0 +1,137 @@
+{
+  "copies": [
+    {
+      "member": "sources/verify-publication.py",
+      "originalPath": "/workspace/.luci-tools/cloud053-publication-guard/scripts/acceptance/verify-publication.py",
+      "sha256": "bcfeef76d9595bc2732f8c4966d30b551e1a5e470e534e4568fa718f03fb31c8",
+      "bytes": 8552
+    },
+    {
+      "member": "sources/test_verify_publication.py",
+      "originalPath": "/workspace/.luci-tools/cloud053-publication-guard/scripts/acceptance/test_verify_publication.py",
+      "sha256": "4f98ba1fab5429f9ee74c915e451ad075ad12d94b1921364de1a69e69781dcc0",
+      "bytes": 11862
+    },
+    {
+      "member": "README.md",
+      "originalPath": "/workspace/.luci-tools/cloud053-publication-guard/README.md",
+      "sha256": "2c782d12cc4672964e9958e7a10e35b4df987c5a7509635d3cc21c11bc87597c",
+      "bytes": 4914
+    },
+    {
+      "member": "tests-result.json",
+      "originalPath": "/workspace/.luci-tools/cloud053-publication-guard/tests-result.json",
+      "sha256": "e37840e1a2b497a7e8a23dfa6e6d61aa21c821675d1e6a2eeb82a4ae1b3e013e",
+      "bytes": 958
+    },
+    {
+      "member": "tests.stdout.log",
+      "originalPath": "/workspace/.luci-tools/cloud053-publication-guard/tests.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "member": "tests.stderr.log",
+      "originalPath": "/workspace/.luci-tools/cloud053-publication-guard/tests.stderr.log",
+      "sha256": "5bd7c791fbcf6e9146798e92d9a63a7ee1b5d33edfb2a7a32cb8df5401c005fd",
+      "bytes": 1654
+    },
+    {
+      "member": "controlled-demonstration.json",
+      "originalPath": "/workspace/.luci-tools/cloud053-publication-guard/controlled-demonstration.json",
+      "sha256": "f1c7bf3a59aca895617ad27da4417dc04704fde8d21741c5adc51d92a2b3d6e1",
+      "bytes": 2916
+    },
+    {
+      "member": "demonstrate.py",
+      "originalPath": "/workspace/.luci-tools/cloud053-publication-guard/demonstrate.py",
+      "sha256": "e3d209c4dfd3e52501dc5dcb136002e830e62632b428c2287ef6f95e163c0033",
+      "bytes": 1816
+    },
+    {
+      "member": "lazy-fetch-before.json",
+      "originalPath": "/workspace/.luci-tools/cloud053-publication-guard/lazy-fetch-before.json",
+      "sha256": "fa446279022b65cabd1707c00dcf77ecbc947273ad66e7de1d039a761fc6406f",
+      "bytes": 600
+    },
+    {
+      "member": "lazy-fetch-before.stdout.log",
+      "originalPath": "/workspace/.luci-tools/cloud053-publication-guard/lazy-fetch-before.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "member": "lazy-fetch-before.stderr.log",
+      "originalPath": "/workspace/.luci-tools/cloud053-publication-guard/lazy-fetch-before.stderr.log",
+      "sha256": "95f45b9d4d593a76a01d1d615027f1b5c8cec88a75851de4c3179364ae025bf9",
+      "bytes": 1016
+    },
+    {
+      "member": "initial/test_verify_publication.py",
+      "originalPath": "/workspace/.luci-tools/cloud053-publication-guard/initial/test_verify_publication.py",
+      "sha256": "0485433689cbe9a47acab0998bbd4a571333625f7ddf29050464d95d6b606329",
+      "bytes": 10124
+    },
+    {
+      "member": "initial/tests-result.json",
+      "originalPath": "/workspace/.luci-tools/cloud053-publication-guard/initial/tests-result.json",
+      "sha256": "63812b728b24eec3d376f3835e01de61bafc33c8d85bc6a08a6a1845263ebd79",
+      "bytes": 909
+    },
+    {
+      "member": "initial/tests.stderr.log",
+      "originalPath": "/workspace/.luci-tools/cloud053-publication-guard/initial/tests.stderr.log",
+      "sha256": "1ba96f8cccc610e40f3bfc9fe50215c98bf29e548c71ac7a463d7a1d9df3493f",
+      "bytes": 1477
+    },
+    {
+      "member": "initial/tests.stdout.log",
+      "originalPath": "/workspace/.luci-tools/cloud053-publication-guard/initial/tests.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "member": "initial/verify-publication.py",
+      "originalPath": "/workspace/.luci-tools/cloud053-publication-guard/initial/verify-publication.py",
+      "sha256": "d20406a0d1360b3fb8729939a9d956a4a3395cc33b9430bcfa34d9cd8d5d0853",
+      "bytes": 8529
+    },
+    {
+      "member": "root-reproduction/counter-original.stderr.log",
+      "originalPath": "/workspace/.luci-tools/cloud053-root-publication-checks/counter-original.stderr.log",
+      "sha256": "6ecf5784596533a968386c5faa98a85930a6e2bdbdda2e8463f8bee5f8d5938a",
+      "bytes": 157
+    },
+    {
+      "member": "root-reproduction/counter-original.stdout.log",
+      "originalPath": "/workspace/.luci-tools/cloud053-root-publication-checks/counter-original.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "member": "root-reproduction/idle-original.stderr.log",
+      "originalPath": "/workspace/.luci-tools/cloud053-root-publication-checks/idle-original.stderr.log",
+      "sha256": "5fa6480dab058562d041560f56e47ca1857898be407aaff1470547f0a5a98e73",
+      "bytes": 126
+    },
+    {
+      "member": "root-reproduction/idle-original.stdout.log",
+      "originalPath": "/workspace/.luci-tools/cloud053-root-publication-checks/idle-original.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "member": "root-reproduction/original-result.json",
+      "originalPath": "/workspace/.luci-tools/cloud053-root-publication-checks/original-result.json",
+      "sha256": "39b8679bd876148e0280c0106b8f1a059715c5cded61ef1a5b6e9c32e67151df",
+      "bytes": 1345
+    },
+    {
+      "member": "publish.py",
+      "originalPath": "/workspace/.luci-tools/cloud053-publication-guard/publish.py",
+      "sha256": "f389013af7b9a861b9a25342d81a1cf81f2aee5062dd6469804990e9eb2f9043",
+      "bytes": 2588
+    }
+  ],
+  "transformations": "none"
+}

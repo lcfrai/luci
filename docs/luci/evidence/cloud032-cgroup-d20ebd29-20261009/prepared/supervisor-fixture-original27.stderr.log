@@ -1,0 +1,32 @@
+test_ambiguous_output_arguments_refused (test_supervisor.Managed.test_ambiguous_output_arguments_refused) ... ok
+test_existing_output_starts_nothing (test_supervisor.Managed.test_existing_output_starts_nothing) ... ok
+test_exit_zero_without_footer_fails (test_supervisor.Managed.test_exit_zero_without_footer_fails) ... ok
+test_fake_complete_capture_and_own_gate (test_supervisor.Managed.test_fake_complete_capture_and_own_gate) ... ok
+test_pidfd_failure_closes_gate_without_observer_exec (test_supervisor.Managed.test_pidfd_failure_closes_gate_without_observer_exec) ... ok
+test_unsupported_pidfd_starts_nothing (test_supervisor.Managed.test_unsupported_pidfd_starts_nothing) ... ok
+test_watcher_start_failure_settles_pinned_child (test_supervisor.Managed.test_watcher_start_failure_settles_pinned_child) ... ok
+test_wrong_header_identity_cannot_acknowledge_observer_start (test_supervisor.Managed.test_wrong_header_identity_cannot_acknowledge_observer_start) ... ok
+test_byte_limit (test_supervisor.Serialization.test_byte_limit) ... ok
+test_duplicate_json_key_rejected (test_supervisor.Serialization.test_duplicate_json_key_rejected) ... ok
+test_existing_private_receipt_never_overwritten (test_supervisor.Serialization.test_existing_private_receipt_never_overwritten) ... ok
+test_mismatched_footer_rejected (test_supervisor.Serialization.test_mismatched_footer_rejected) ... ok
+test_missing_footer_rejected (test_supervisor.Serialization.test_missing_footer_rejected) ... ok
+test_partial_json_line_rejected (test_supervisor.Serialization.test_partial_json_line_rejected) ... ok
+test_row_limit (test_supervisor.Serialization.test_row_limit) ... ok
+test_symlink_and_permissive_file_refused (test_supervisor.Serialization.test_symlink_and_permissive_file_refused) ... ok
+test_valid_bounded_footer_not_coverage_pass (test_supervisor.Serialization.test_valid_bounded_footer_not_coverage_pass) ... ok
+test_exited_at_stop_never_signalled (test_supervisor.Settlement.test_exited_at_stop_never_signalled) ... ok
+test_invalid_limits_refused (test_supervisor.Settlement.test_invalid_limits_refused) ... ok
+test_kill_settlement_never_success (test_supervisor.Settlement.test_kill_settlement_never_success) ... ok
+test_never_settles_bounded_unknown (test_supervisor.Settlement.test_never_settles_bounded_unknown) ... ok
+test_normal_exact_child_exit_no_signal (test_supervisor.Settlement.test_normal_exact_child_exit_no_signal) ... ok
+test_numeric_pid_change_cannot_redirect_signal (test_supervisor.Settlement.test_numeric_pid_change_cannot_redirect_signal) ... ok
+test_ordinary_owner_stop_may_exit_normally (test_supervisor.Settlement.test_ordinary_owner_stop_may_exit_normally) ... ok
+test_owner_error_stays_partial (test_supervisor.Settlement.test_owner_error_stays_partial) ... ok
+test_signalling_denied_retains_uncertainty (test_supervisor.Settlement.test_signalling_denied_retains_uncertainty) ... ok
+test_wall_timeout_is_partial_even_when_term_exits_zero (test_supervisor.Settlement.test_wall_timeout_is_partial_even_when_term_exits_zero) ... ok
+
+----------------------------------------------------------------------
+Ran 27 tests in 0.062s
+
+OK

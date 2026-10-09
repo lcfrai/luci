@@ -1,0 +1,25 @@
+test_byte_bound_reserves_footer_and_does_not_read_unretained_sample (test_observer.Fixture.test_byte_bound_reserves_footer_and_does_not_read_unretained_sample) ... ok
+test_counter_decrease_and_field_changes_never_clamp (test_observer.Fixture.test_counter_decrease_and_field_changes_never_clamp) ... ok
+test_exact_cadence_and_stop_at_duration (test_observer.Fixture.test_exact_cadence_and_stop_at_duration) ... ok
+test_four_thousand_row_bound_includes_metadata_and_footer (test_observer.Fixture.test_four_thousand_row_bound_includes_metadata_and_footer) ... ok
+test_kernel_reader_missing_denied_symlink_and_nonregular_are_unknown (test_observer.Fixture.test_kernel_reader_missing_denied_symlink_and_nonregular_are_unknown) ... ok
+test_limits_reject_unbounded_and_nonstandard_sampling (test_observer.Fixture.test_limits_reject_unbounded_and_nonstandard_sampling) ... ok
+test_malformed_missing_duplicate_negative_and_oversize (test_observer.Fixture.test_malformed_missing_duplicate_negative_and_oversize) ... ok
+test_maximum_bounded_record_size_fits_sample_reserve (test_observer.Fixture.test_maximum_bounded_record_size_fits_sample_reserve) ... ok
+test_metadata_change_preserves_values_and_invalidates_stable_scope (test_observer.Fixture.test_metadata_change_preserves_values_and_invalidates_stable_scope) ... ok
+test_missing_fields_prevent_no_throttle_conclusion (test_observer.Fixture.test_missing_fields_prevent_no_throttle_conclusion) ... ok
+test_no_catch_up_after_slow_read (test_observer.Fixture.test_no_catch_up_after_slow_read) ... ok
+test_nonprivate_parent_refused (test_observer.Fixture.test_nonprivate_parent_refused) ... ok
+test_owner_stop_only_changes_observer_flow (test_observer.Fixture.test_owner_stop_only_changes_observer_flow) ... ok
+test_parse_required_optional_and_unknown_numeric_fields (test_observer.Fixture.test_parse_required_optional_and_unknown_numeric_fields) ... ok
+test_partial_write_error_preserves_failure_without_footer (test_observer.Fixture.test_partial_write_error_preserves_failure_without_footer) ... ok
+test_positive_throttling_only_when_valid_counter_delta_positive (test_observer.Fixture.test_positive_throttling_only_when_valid_counter_delta_positive) ... ok
+test_private_append_only_fresh_output_and_symlink_refusal (test_observer.Fixture.test_private_append_only_fresh_output_and_symlink_refusal) ... ok
+test_small_row_bound_stops_before_unretained_read (test_observer.Fixture.test_small_row_bound_stops_before_unretained_read) ... ok
+test_unknown_gap_then_delta_retains_gap_and_no_zero_claim (test_observer.Fixture.test_unknown_gap_then_delta_retains_gap_and_no_zero_claim) ... ok
+test_wall_clock_jump_does_not_change_monotonic_cadence (test_observer.Fixture.test_wall_clock_jump_does_not_change_monotonic_cadence) ... ok
+
+----------------------------------------------------------------------
+Ran 20 tests in 0.208s
+
+OK

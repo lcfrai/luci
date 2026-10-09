@@ -1,0 +1,19 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "/workspace/.luci-tools/cloud053-publication-guard/scripts/acceptance/test_verify_publication.py"
+  ],
+  "startedAt": "2026-10-09T10:53:59.558697+00:00",
+  "finishedAt": "2026-10-09T10:54:03.894228+00:00",
+  "exitCode": 0,
+  "sourceBefore": {
+    "verify-publication.py": "bcfeef76d9595bc2732f8c4966d30b551e1a5e470e534e4568fa718f03fb31c8",
+    "test_verify_publication.py": "4f98ba1fab5429f9ee74c915e451ad075ad12d94b1921364de1a69e69781dcc0"
+  },
+  "sourceAfter": {
+    "verify-publication.py": "bcfeef76d9595bc2732f8c4966d30b551e1a5e470e534e4568fa718f03fb31c8",
+    "test_verify_publication.py": "4f98ba1fab5429f9ee74c915e451ad075ad12d94b1921364de1a69e69781dcc0"
+  },
+  "sourceStable": true,
+  "scope": "Actual Git commands only in marked owned temporary repositories, including one file:// partial clone; no network. Production source/index untouched."
+}

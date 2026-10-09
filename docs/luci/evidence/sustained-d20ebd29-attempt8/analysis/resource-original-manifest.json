@@ -1,0 +1,38 @@
+{
+  "scope": "Frozen sustained8 offline retained resource analysis only; raw input stream is published once by the main capsule. No app/benchmark/test run.",
+  "productSource": "d20ebd292f3f1de04d6726bab0998c210987bcb5",
+  "helperSource": "5f318d5178210e95cd2b773f07686d88936d603e",
+  "members": [
+    {
+      "path": "README.md",
+      "bytes": 6610,
+      "sha256": "b81d78cfa3c3b64811afb1209c16aa147eb9d17601a4db42b56bd08033fdec77"
+    },
+    {
+      "path": "analysis-invocation.json",
+      "bytes": 1493,
+      "sha256": "5a5e2fda68a4fc5257e17da100fa35a7a13b2ae2c7a246af89f3b365a3b4b70d"
+    },
+    {
+      "path": "independent-resource-audit.json",
+      "bytes": 29926,
+      "sha256": "131b3c0c0dcef0e0d18ab7566f4f9ba8e046bfec8c58306f53be4a8735f52a75"
+    },
+    {
+      "path": "independent-resource-audit.py",
+      "bytes": 16872,
+      "sha256": "af0adeb29251642f2c07076b620a4d6580bdfaf49df68206a621aba0564c3a90"
+    },
+    {
+      "path": "resource-analysis.json",
+      "bytes": 41971,
+      "sha256": "b4c4b0e50f8f1027f36bdad3e478464fe7327fb22e60d3d84cc946ac48e061fb"
+    },
+    {
+      "path": "resource-analyze.py",
+      "bytes": 23972,
+      "sha256": "3453f31a86d91de22d4bea0493116371879e482df4e988271857a58f28736f45"
+    }
+  ],
+  "manifestConvention": "Members exclude this manifest and SHA256SUMS. Sums also bind the manifest."
+}

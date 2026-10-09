@@ -1,0 +1,48 @@
+{
+  "at": "2026-10-09T10:57:40.249025+00:00",
+  "command": [
+    "python3",
+    "scripts/acceptance/verify-publication.py",
+    "--repo",
+    "/workspace/luci",
+    "--index",
+    "--require-complete",
+    "docs/luci/evidence/cloud032-idle-d20ebd29-20261009",
+    "docs/luci/evidence/cloud032-cgroup-d20ebd29-20261009",
+    "docs/luci/evidence/sustained-d20ebd29-attempt8",
+    "docs/luci/evidence/cloud053-publication-guard-20261009"
+  ],
+  "exitCode": 0,
+  "guardSHA256": "bcfeef76d9595bc2732f8c4966d30b551e1a5e470e534e4568fa718f03fb31c8",
+  "result": {
+    "passed": true,
+    "mode": "index",
+    "commit": null,
+    "capsules": [
+      {
+        "root": "docs/luci/evidence/cloud032-idle-d20ebd29-20261009",
+        "verifiedBlobs": 67,
+        "manifestSHA256": "5990feedeb55ec25d806cfe989635f2ae97aa24d996dd6bb448dbc35e492bb52"
+      },
+      {
+        "root": "docs/luci/evidence/cloud032-cgroup-d20ebd29-20261009",
+        "verifiedBlobs": 33,
+        "manifestSHA256": "e66d86d3d0d31e9758e74515f36dc5b4657d1ac26924d668433a342f8b3c661f"
+      },
+      {
+        "root": "docs/luci/evidence/sustained-d20ebd29-attempt8",
+        "verifiedBlobs": 59,
+        "manifestSHA256": "55986178536058920f5da0fb68d3ca949ca9f5c1a73d7dbef6a8ccb234101a3c"
+      },
+      {
+        "root": "docs/luci/evidence/cloud053-publication-guard-20261009",
+        "verifiedBlobs": 24,
+        "manifestSHA256": "2066273c66e580184c6d4613acf0451944b200f4105073b4e573ae336233691c"
+      }
+    ],
+    "completeTrackedCoverage": true,
+    "selectedGitEntriesSHA256": "805211b27885c965a8b98babc16a855c1cf8bff07b84a5ceeb55f20059bfd856",
+    "scope": "Exact selected Git blobs; no working-tree, provenance, semantic or runtime acceptance claim."
+  },
+  "scope": "Read-only staged Git blob verification, after exact original12 omitted logs were explicitly staged. Not evidence-quality/runtime/native acceptance."
+}

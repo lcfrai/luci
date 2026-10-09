@@ -1,0 +1,11 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "/workspace/.luci-tools/cloud053-publication-guard/scripts/acceptance/test_verify_publication.py",
+    "PublicationTests.test_partial_clone_missing_objects_do_not_fetch_or_change_object_store"
+  ],
+  "exitCode": 1,
+  "verifierSHA256": "d20406a0d1360b3fb8729939a9d956a4a3395cc33b9430bcfa34d9cd8d5d0853",
+  "regressionSHA256": "4f98ba1fab5429f9ee74c915e451ad075ad12d94b1921364de1a69e69781dcc0",
+  "scope": "Actual local-file partial clone, expected regression failure before disabling lazy fetch."
+}

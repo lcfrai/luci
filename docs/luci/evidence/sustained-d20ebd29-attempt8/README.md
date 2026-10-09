@@ -1,0 +1,38 @@
+# Installed sustained attempt 8: workflow passed; latency failed
+
+Exact product: `d20ebd292f3f1de04d6726bab0998c210987bcb5`. Exact executed helper: `5f318d5178210e95cd2b773f07686d88936d603e`. Accepted helper snapshots match their immutable Git blobs; later working-tree changes are not substituted.
+
+**Overall failed, wrapper exit 1; `functionalPassed=true`, `latencyTargetsMet=false`.** This was actual Linux/Docker/native-Codex execution with a **SCRIPTED provider**: 108 provider calls, zero external model calls. Five accepted task receipts, five observed natural exit-zero completions and five reviewed integrations cover A/B/C/D plus the A amendment. Those counts describe the same five tasks, not fifteen results. Four initial fuzz phases each record 150 active seconds, totaling 600 seconds. One worker ran at a time; this is not parallel-speed or real-model-quality evidence.
+
+All four distinct drafts and task contexts, queued cancellation/priority, active-command controller restart without replay, current reviews/integrations, and the reviewed amendment checks reached their existing functional assertions. The final **390px phone navigation passed**: the actual Projects drawer opened, All projects led to the overview, all four project buttons were present, and the document did not horizontally overflow. CLOUD-049 therefore has this matching installed helper scope. It does not establish every phone keyboard/focus interaction or native Windows behavior. Original `failedStage=settle` and `workflowOperationUnsettled=true` remain unchanged; the final error is the declared latency assertion at `sustained.mjs:681`, after functional completion. The earlier attempt 7 phone failure remains separate.
+
+## Every timing cohort retained
+
+All **2,116 measured actions** succeeded. Every original duration, reset, node/browser span, tail and maximum is retained; nearest-rank recomputation matches all original summaries.
+
+| Phase | Switch/input/reset counts | Switch p95 ms | Input p95 ms | Switch p99 ms |
+| --- | --- | ---: | ---: | ---: |
+| Idle calibration | 100 / 200 / 100 | 521.028035 | 77.962217 | 662.848804 |
+| Loaded | 318 / 636 / 318 | 660.634847 | 102.843657 | 847.494687 |
+| Amendment (separate, small cohort) | 11 / 22 / 11 | 941.436049 | 66.381155 | 941.436049 |
+| Settled calibration | 100 / 200 / 100 | 415.248046 | 71.302285 | 613.137636 |
+
+All three primary switch cohorts fail the unchanged 300ms p95 target; loaded input also fails 100ms. Primary switch/input p99 values are below the unchanged strict 1000ms limit. Reset tails remain included despite having no independent p95 gate: loaded reset p99 is 862.551296ms with a 1383.868204ms maximum; amendment reset p99 is 1018.460704ms. Loaded 200-switch/400-input quotas are exceeded, not weakened. The separate amendment cohort does not change the original gate. No observer cost is subtracted; end-to-end automation timing is not physical display/input latency, isolated backend time, or causal React profiling. No causal gain from CLOUD-052 or another change is established.
+
+## Resource and workflow limits
+
+The complete JSONL stream and bounded streaming analysis are retained: **1,573 samples / 1,548 observed effective-memory rows / 25 not observed**, zero formula mismatches. Effective available minimum is **5,828,194,304 bytes**, versus physical available minimum **17,314,258,944 bytes**. These are sequential observations, not atomic production admission operands.
+
+Summed owned-process RSS peak is **1,508,913,152 bytes**, including browser/driver and possible shared-page duplication. Sampled CPU deltas total **1178.95 seconds** for observed process identities. Process RSS and container memory overlap and must not be added as a physical total. Five worker identity/usage coverages are 247/219, 319/297, 238/226, 231/228 and 53/40 rows. Check-resource opt-in was disabled; absent check attribution is not proof of no checks. All 43 sample gaps above 1.5s remain represented (maximum interval 3.2926s). Host pressure counters were unavailable, not zero. Observer interpreter cost is about 0.231818 core and excludes helper children/daemon work. Detailed availability, CPU/I/O and per-role coverage remain in `analysis/resource-analysis.json`; this run alone does not establish Windows, whole-computer responsiveness, low-memory safety or bounded long-term growth.
+
+`analysis/workflow-analysis.json.gz` binds exact task artifacts, source/context/integration identities and the active-command restart. Observed exit-to-lease-absence intervals are A 30.545s, B 25.804s, C 15.286s, D 6.101s and amendment 15.979s. They include observation/tick delays and are not instantaneous event latencies. Missing worker handoff reports remain explicit in all five review objects. This is a fixture coverage limitation, separate from the exact output artifacts/native exits/integrations; it supplies no CLOUD-017/018 captured-report verification. In particular, zero recorded questions does not certify no unanswered questions. Five reviewed integrations do not establish independent whole-build acceptance. Scripted code choices do not establish real-model planning or output quality.
+
+## Closure, provenance and reproduction
+
+Root's independent read-only closure records an empty exact fixture execution ledger and empty Docker/container-volume inventories. Of 15 known identities, **13 are absent and two are exited PID-1 Chromium zombies**; three unrelated process environments remain unreadable. All **999 fixture files** and original artifact inputs are unchanged. This is scoped closure, not whole-machine zero processes. The five closed startup handles and empty driver cleanup errors remain the driver's assertions, separately corroborated only where the independent receipt observes them. Original `workflowOperationUnsettled=true` is not overwritten by later closure. No older failed or charged fixture was read or changed.
+
+`publication.json` binds original bytes and every public representation. JSON/JSONL files are gzip-compressed with explicitly counted private-path substitutions only; resource rows are processed by streaming. Original result SHA256 is `c9a6ec78461a982f9e0f09a5e043601a7bd96cbd3a6ebe91c11e9034de93df4e` (38,248,930 bytes). Full timing/resource rows, package/image provenance, accepted helper source and original stdout/stderr are retained. `analysis/interaction-analyze.py`, `analysis/resource-analyze.py` and `analysis/workflow-analyze.py` make derivations retrievable; `recompute-interactions.py` verifies public quantiles offline. Original private state/inventory remain external. Known current-fixture credential scalars are read into memory only for recursive text/gzip/base64 absence checks, never published; this is not a universal secret scan. The three screenshots were inspected and contain only synthetic acceptance-project UI.
+
+Use `invocation.json.gz`, the accepted `run-with-observer.py`, and exact package/image bindings for reproduction in a **fresh exclusive disposable Linux Docker environment** with normal resource admission. Replace redacted private paths with new owned locations; do not reuse the retained fixture or run this exclusive helper on a personal/shared Docker daemon. Preserve workload, latency, authority, cleanup and observer bounds. Binary/archive/image integrity is the recorded run's verification, not a new artifact retrieval by this publisher.
+
+This is offline publication only: no product/helper source, fixture or original artifact edited, and no app, provider, browser, test suite or benchmark launched. Full local acceptance, CLOUD-032, native Windows and live-provider gates remain open. Functional progress is preserved without calling this failed overall run a finished product.

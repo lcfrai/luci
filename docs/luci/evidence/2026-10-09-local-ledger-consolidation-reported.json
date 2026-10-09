@@ -1,0 +1,18 @@
+{
+  "sourceThread": "01a1199f-7500-7843-b02b-081081e536fa",
+  "scope": "Relayed Windows administrative ledger consolidation only; not independently executed in this cloud session.",
+  "availableRAMBytes": 324304896,
+  "mainLedgerFindings": 68,
+  "runtimeTestedRevisions": 19,
+  "newRuntimeTests": 0,
+  "newSourceCheckouts": 0,
+  "ledgerSHA256": "b82bfbaa0f4fbb427a3df12e09d6216d43e390fce058f31ff2e678bc1e99b721",
+  "backupSHA256": "1b1bd824b6e69c86cb7ac9d6eac2973c712ba6fcf2c31f3a7bdb4ea6b60c2cba",
+  "localReceipt": "E:/Luci-local-acceptance/evidence/a31e1ac4/ledger-consolidation-receipt.json",
+  "states": "CLOUD-046 through CLOUD-052 ready_to_retest only within their recorded publication/source-review scopes; unreviewed CLOUD-048 through CLOUD-052 source/evidence is not verified. CLOUD-032/full acceptance remain open.",
+  "newlyCalculated990SourceReviewReportHashes": {
+    "backend": "3ddc065ad200cc01eb5ffd92149ffa04b18a35ec6fb53f9bcee5ccc9a9227314",
+    "helper": "5b825a6be3edb6074d28f821d235e4e69ab171dd6f1a218fdaff012bc979e702"
+  },
+  "limitations": "These are local report hashes only. Original receipt/TAP/full source-binding checks remain deferred. No app/build/browser/worker/container workload started; source/native gates still unmet and user work preserved."
+}

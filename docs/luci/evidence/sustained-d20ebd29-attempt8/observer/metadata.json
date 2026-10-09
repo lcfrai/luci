@@ -1,0 +1,47 @@
+{
+  "controlPlaneCgroupMemory": {
+    "version": 1,
+    "bounds": {
+      "targets": 8,
+      "hierarchyLevels": 128,
+      "nodeRows": 128,
+      "reads": 512,
+      "bytes": 1048576,
+      "seconds": 0.05,
+      "outputBytes": 131072
+    },
+    "productBasisSHA256": {
+      "control-plane/internal/resourcebudget/probe_linux.go": "ed0294860d6c721b1fd8f96da8c09a0f4fecb68b991c66c3b8f524cda985c405",
+      "control-plane/internal/resourcebudget/cgroup_linux.go": "1843acdc15db9f9876545a1393bf6c21b93bc01873a64d8651be3adb26b5a4d1"
+    },
+    "formula": "Independent minima of physical total and finite visible limits; physical available and max(0, limit-current) at every visible ancestor. No memory.stat, RSS, swap, high limit or scheduling reservation subtraction.",
+    "scope": "Same observer/target cgroup and mount namespaces; only already-owned live control-plane role candidates. Raw membership and mount paths are hash-only; missing values stay explicit.",
+    "selfCost": "Additional sampler reads/CPU are included in wrapper RUSAGE_SELF. Shared cgroup usage may include observer work; self-cost is not subtracted from memory counters.",
+    "limitations": [
+      "The 50 ms time budget is cooperative between synchronous reads, not a hard filesystem-read interruption.",
+      "Sequential sampled counters are not atomic and do not reproduce any prior admission decision.",
+      "Visibility ends at the process-visible mount root; hidden ancestors are not inferred.",
+      "Missing limit files are recorded as missing and skipped only to match product semantics; they are not claimed unlimited.",
+      "Role follows existing process-name classification after descendant/PID-start ownership proof, not executable-byte verification."
+    ]
+  },
+  "startedAt": "2026-10-09T10:12:45.038445+00:00",
+  "driver": {
+    "pid": 2337285,
+    "startTicks": 28683414
+  },
+  "intervalSeconds": 1,
+  "baseline": "post-start; no pre-run idle baseline observed",
+  "imageId": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+  "instanceIdentitySHA256": null,
+  "scope": "Exact driver descendants by PID/starttime, plus exact instance/managed/image-verified Docker containers. No command lines, environments, mount paths or provider payloads recorded.",
+  "limitations": [
+    "Sum of process RSS double-counts shared pages; it is not unique physical memory.",
+    "Container cgroup memory is separate and must not be added to container process RSS.",
+    "Docker daemon/shared kernel/VM overhead is unassigned; host memory includes unrelated work.",
+    "Processes starting and exiting between 1 Hz samples may be missed; delta counters cover observed intervals only.",
+    "Post-driver-exit settlement is not an application idle baseline.",
+    "No UI input latency, other-app responsiveness or model reasoning quality is measured."
+  ],
+  "helperSHA256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d"
+}

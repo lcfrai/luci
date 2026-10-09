@@ -1,0 +1,38 @@
+{
+  "at": "2026-10-09T10:51:32.350948+00:00",
+  "guardSHA256": "d20406a0d1360b3fb8729939a9d956a4a3395cc33b9430bcfa34d9cd8d5d0853",
+  "expectedFailures": [
+    {
+      "label": "idle",
+      "command": [
+        "python3",
+        "/workspace/.luci-tools/cloud053-publication-guard/scripts/acceptance/verify-publication.py",
+        "--repo",
+        "/workspace/luci",
+        "--ref",
+        "5f318d5178210e95cd2b773f07686d88936d603e",
+        "--require-complete",
+        "docs/luci/evidence/cloud032-idle-d20ebd29-20261009"
+      ],
+      "exitCode": 1,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "5fa6480dab058562d041560f56e47ca1857898be407aaff1470547f0a5a98e73"
+    },
+    {
+      "label": "counter",
+      "command": [
+        "python3",
+        "/workspace/.luci-tools/cloud053-publication-guard/scripts/acceptance/verify-publication.py",
+        "--repo",
+        "/workspace/luci",
+        "--ref",
+        "5f318d5178210e95cd2b773f07686d88936d603e",
+        "--require-complete",
+        "docs/luci/evidence/cloud032-cgroup-d20ebd29-20261009"
+      ],
+      "exitCode": 1,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "6ecf5784596533a968386c5faa98a85930a6e2bdbdda2e8463f8bee5f8d5938a"
+    }
+  ]
+}

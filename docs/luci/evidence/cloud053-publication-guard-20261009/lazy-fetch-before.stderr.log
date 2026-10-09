@@ -1,0 +1,14 @@
+test_partial_clone_missing_objects_do_not_fetch_or_change_object_store (__main__.PublicationTests.test_partial_clone_missing_objects_do_not_fetch_or_change_object_store) ... FAIL
+
+======================================================================
+FAIL: test_partial_clone_missing_objects_do_not_fetch_or_change_object_store (__main__.PublicationTests.test_partial_clone_missing_objects_do_not_fetch_or_change_object_store)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/.luci-tools/cloud053-publication-guard/scripts/acceptance/test_verify_publication.py", line 213, in test_partial_clone_missing_objects_do_not_fetch_or_change_object_store
+    self.assertEqual(result.returncode, 1, "Missing promisor objects must fail without lazy fetch")
+AssertionError: 0 != 1 : Missing promisor objects must fail without lazy fetch
+
+----------------------------------------------------------------------
+Ran 1 test in 0.560s
+
+FAILED (failures=1)

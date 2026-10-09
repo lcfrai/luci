@@ -1,0 +1,15 @@
+# Sustained attempt 8: scripted functional workflow passed; performance failed
+
+Exact product `d20ebd292f3f1de04d6726bab0998c210987bcb5`, helper `5f318d5178210e95cd2b773f07686d88936d603e`. [Original evidence and reproducible analyses](sustained-d20ebd29-attempt8/README.md) retain every result, timing/resource sample, helper binding and scoped closure observation.
+
+Five actual tasks across four projects, including a reviewed amendment, each have an exact output receipt, natural exit-zero completion, exact reservation disappearance and reviewed integration. The same five tasks contribute these overlapping observations. Four 150-second fuzz phases total 600 seconds through actual Docker/native Codex, **108 scripted provider calls and zero external model calls**, one worker at a time. Draft/context retention, queue cancellation/priority and an active-command restart without replay have scoped positive evidence. Missing handoff reports are a fixture coverage limit, not CLOUD-017/018 captured-report verification or proof that no questions exist. Independent whole-build acceptance remains separate.
+
+**`functionalPassed=true`; overall exit 1 and `latencyTargetsMet=false`.** The final 390px Projects-drawer/All-projects navigation now passes, all four project controls are visible, and the document has no horizontal overflow. This supplies CLOUD-049's matching installed scope. Original `workflowOperationUnsettled=true` remains retained after the final latency assertion; later closure does not rewrite it.
+
+All **2,116 measured actions succeed**, including 318 loaded switches/636 inputs, meeting unchanged quotas. Switch p95 still fails 300ms in idle **521.028035**, loaded **660.634847**, and settled **415.248046 ms**. Input p95 is **77.962217 / 102.843657 / 71.302285 ms** respectively; loaded input fails 100ms. Resets, amendment cohorts, p99 tails and maxima remain complete. There is no overhead subtraction or causal speedup claim.
+
+Resource analysis retains all **1,573 samples**, including **1,548 observed effective-memory rows** and 25 not observed, with zero formula discrepancies. Minimum effective available memory is **5,828,194,304 bytes**, distinct from physical minimum **17,314,258,944 bytes**. Summed observed process RSS peaks at **1,508,913,152 bytes**; container and RSS measures overlap. Sampling gaps, unavailable pressure readings and observer costs remain explicit. These are sequential observations, not admission operands, Windows measurements or a whole-computer budget pass.
+
+Independent closure records an empty exact ledger and Docker/volume inventories, **13 absent known identities plus two exited PID-1 Chromium zombies**, with three unrelated unreadable environments. All **999 fixture files** and original artifacts remain unchanged. Older failed/charged fixtures were not changed. Native Windows, live-provider quality, responsiveness and full local acceptance remain open.
+
+Original result SHA256: `c9a6ec78461a982f9e0f09a5e043601a7bd96cbd3a6ebe91c11e9034de93df4e`; capsule manifest SHA256: `04d330e991e688bc9daf1648a1e51cbc558579284f89982d5aa93ac786287f25`.

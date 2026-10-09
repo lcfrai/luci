@@ -246,11 +246,11 @@
     },
     {
       "originalPath": "/workspace/.luci-tools/publish-d20-cgroup.py",
-      "originalSHA256": "e3601612bf4c584d9e44f8a56fddd29da7a691242065949afb8db4837c0f7df1",
-      "originalBytes": 14032,
+      "originalSHA256": "4622c1ea16ae872c3c8bde9767129acb1b24104d593357b4d9a978a251f46dc7",
+      "originalBytes": 14068,
       "publishedPath": "publish.py",
-      "publishedSHA256": "e3601612bf4c584d9e44f8a56fddd29da7a691242065949afb8db4837c0f7df1",
-      "publishedBytes": 14032,
+      "publishedSHA256": "4622c1ea16ae872c3c8bde9767129acb1b24104d593357b4d9a978a251f46dc7",
+      "publishedBytes": 14068,
       "representation": "exact original bytes"
     },
     {

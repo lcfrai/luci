@@ -1,0 +1,4 @@
+AssertionError [ERR_ASSERTION]: Measured UI latency exceeded the declared candidate targets; retain actual timings without relabeling functional success as full acceptance
+    at file:///workspace/luci/scripts/acceptance/sustained-four-project/sustained.mjs:681:174
+    at async Object.run (file:///workspace/luci/scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs:29:19)
+    at async file:///workspace/luci/scripts/acceptance/sustained-four-project/sustained.mjs:617:2

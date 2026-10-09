@@ -1,0 +1,8 @@
+{"driverPID": 2337285, "startTicks": "28683414", "samplerPID": 2337286, "observationDirectory": "<PRIVATE_RUN_EVIDENCE_DIRECTORY>/observer", "observerSelfCost": "<PRIVATE_RUN_EVIDENCE_DIRECTORY>/observer-observer-self-cost.json"}
+PASS Four distinct unsent idea drafts restore to their own project without changing approved source context
+PASS Browser cancellation prevents allocation and queued priority changes retain exact project ownership
+PASS Service restart preserves a real active fuzz command and exact worker/context without replay
+PASS Reviewed amendment passes new real tests while original task context and source snapshot remain exact
+PASS Five actual native task commands across four projects finish naturally, with600seconds real fuzz work and browser-reviewed amendment
+FAIL <PRIVATE_RUN_EVIDENCE_DIRECTORY>/result/result.json
+{"samples": 1573, "durationSeconds": 1581.393111568992, "containerCount": 5, "driverExitObserved": true}

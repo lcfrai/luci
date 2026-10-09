@@ -1,0 +1,24 @@
+{
+  "sourceThread": "01a1199f-7500-7843-b02b-081081e536fa",
+  "scope": "Relayed authenticated Git commit metadata only, not a byte verification of source/package/timing payloads.",
+  "observations": [
+    {
+      "commit": "c625ef0b7842748f4ce74cd3ffc08979d571bddf",
+      "parent": "d20ebd292f3f1de04d6726bab0998c210987bcb5",
+      "returnedPaths": 29,
+      "allDocs": true
+    },
+    {
+      "commit": "5f318d5178210e95cd2b773f07686d88936d603e",
+      "parent": "c625ef0b7842748f4ce74cd3ffc08979d571bddf",
+      "returnedPaths": 95,
+      "allDocs": true
+    }
+  ],
+  "localMetadataAudit": "E:/Luci-local-acceptance/evidence/d20ebd29/publication-metadata-audit.json",
+  "availableRAMBytesAtMetadataAdmission": 635760640,
+  "availableRAMBytesAtDocumentGuard": 107253760,
+  "documentGuardOutcome": "Refused before network/write. No app/test/build/browser/container workload started.",
+  "coverage": "68 findings/19 runtime-tested revisions remain unchanged. New full d20 functional outcome and failed660.63/102.84 loaded timing are recorded as reported Linux fixture results pending immutable receipt audit; no verification upgrade.",
+  "laterCloudFinding": "CLOUD-053 separately confirms12manifest-bound logs missing in5f Git. This does not alter the metadata-only local observation."
+}

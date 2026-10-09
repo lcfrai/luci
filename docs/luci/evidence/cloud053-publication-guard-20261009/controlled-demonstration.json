@@ -1,0 +1,93 @@
+{
+  "scope": "Real disposable Git demonstration; no writes to Luci repository/index. Expected negative findings retained.",
+  "cases": [
+    {
+      "case": "original-ignored-logs-omitted",
+      "arguments": [
+        "--index",
+        "--require-complete"
+      ],
+      "exitCode": 1,
+      "result": {
+        "passed": false,
+        "error": "Missing Git blob: docs/evidence/capsule/stdout.log"
+      }
+    },
+    {
+      "case": "exact-originals-force-added",
+      "arguments": [
+        "--index",
+        "--require-complete"
+      ],
+      "exitCode": 0,
+      "result": {
+        "passed": true,
+        "mode": "index",
+        "commit": null,
+        "capsules": [
+          {
+            "root": "docs/evidence/capsule",
+            "verifiedBlobs": 3,
+            "manifestSHA256": "d25f82d12c9db4274fb5ceda9d5ab31f6b41c93b37457537e5642f0df95dd73e"
+          }
+        ],
+        "completeTrackedCoverage": true,
+        "selectedGitEntriesSHA256": "e7c0424169c00d0fc12a09b4c93634efe073c270987b83c4e75121b22a8bbf43",
+        "scope": "Exact selected Git blobs; no working-tree, provenance, semantic or runtime acceptance claim."
+      }
+    },
+    {
+      "case": "old-immutable-publication-still-missing",
+      "arguments": [
+        "--ref",
+        "4d18815b0099fb624204d3c68bba83584f7f47b5"
+      ],
+      "exitCode": 1,
+      "result": {
+        "passed": false,
+        "error": "Missing Git blob: docs/evidence/capsule/stdout.log"
+      }
+    },
+    {
+      "case": "new-immutable-publication-complete",
+      "arguments": [
+        "--ref",
+        "9f0fe99ad377f3ac33b940b32a313d5e7d9f7442",
+        "--require-complete"
+      ],
+      "exitCode": 0,
+      "result": {
+        "passed": true,
+        "mode": "ref",
+        "commit": "9f0fe99ad377f3ac33b940b32a313d5e7d9f7442",
+        "capsules": [
+          {
+            "root": "docs/evidence/capsule",
+            "verifiedBlobs": 3,
+            "manifestSHA256": "d25f82d12c9db4274fb5ceda9d5ab31f6b41c93b37457537e5642f0df95dd73e"
+          }
+        ],
+        "completeTrackedCoverage": true,
+        "selectedGitEntriesSHA256": "e7c0424169c00d0fc12a09b4c93634efe073c270987b83c4e75121b22a8bbf43",
+        "scope": "Exact selected Git blobs; no working-tree, provenance, semantic or runtime acceptance claim."
+      }
+    },
+    {
+      "case": "working-copy-correct-but-staged-content-wrong",
+      "arguments": [
+        "--index"
+      ],
+      "exitCode": 1,
+      "result": {
+        "passed": false,
+        "error": "SHA256 mismatch: docs/evidence/capsule/stdout.log"
+      }
+    }
+  ],
+  "ownedFixtureRemoved": true,
+  "inputs": {
+    "verify-publication.py": "d20406a0d1360b3fb8729939a9d956a4a3395cc33b9430bcfa34d9cd8d5d0853",
+    "test_verify_publication.py": "0485433689cbe9a47acab0998bbd4a571333625f7ddf29050464d95d6b606329",
+    "demonstrate.py": "e3d209c4dfd3e52501dc5dcb136002e830e62632b428c2287ef6f95e163c0033"
+  }
+}

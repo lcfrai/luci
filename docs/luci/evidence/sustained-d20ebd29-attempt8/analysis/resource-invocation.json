@@ -1,0 +1,44 @@
+{
+  "command": [
+    "python3",
+    "<PRIVATE_TOOLING_DIRECTORY>/sustained8-resource-analysis/resource-analyze.py"
+  ],
+  "exitCode": 0,
+  "sourceBeforeAfter": {
+    "bytes": 23972,
+    "sha256": "3453f31a86d91de22d4bea0493116371879e482df4e988271857a58f28736f45"
+  },
+  "output": {
+    "bytes": 41971,
+    "sha256": "b4c4b0e50f8f1027f36bdad3e478464fe7327fb22e60d3d84cc946ac48e061fb"
+  },
+  "outputProducedAt": "2026-10-09T10:40:24.455177+00:00",
+  "scope": "Offline retained observer stream only. This receipt records the completed command; it is not a workload rerun. Exact original inputs are the five bindings in resource-analysis.json.",
+  "originalInputs": {
+    "observer/metadata.json": {
+      "bytes": 2951,
+      "sha256": "670f18a11451ab06a812d86333495c6c6a7c3c7164f646901645fd6fd0e2fb5b"
+    },
+    "observer/summary.json": {
+      "bytes": 3050,
+      "sha256": "35489c066d32e3ba7401a00836ca7f6077a0425fa6411d1d7b437c12e008be19"
+    },
+    "observer-observer-self-cost.json": {
+      "bytes": 936,
+      "sha256": "bb71c7522f80594b1828c0f0a7730db2268e10ec82b440dad397027ae923a950"
+    },
+    "observer/accepted-sampler.py": {
+      "bytes": 35379,
+      "sha256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d"
+    },
+    "observer/samples.jsonl": {
+      "bytes": 10260910,
+      "sha256": "f3ec77d61caf7afa4dc22e5eea9695559457d709ccc6445419a0d5c872c34287"
+    }
+  },
+  "assertions": {
+    "samples": 1573,
+    "formulaMismatches": 0,
+    "discrepancies": 0
+  }
+}

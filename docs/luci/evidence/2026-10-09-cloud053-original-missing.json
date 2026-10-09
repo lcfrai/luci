@@ -1,0 +1,70 @@
+{
+  "issue": "CLOUD-053",
+  "severity": "P2",
+  "affectedPublication": "5f318d5178210e95cd2b773f07686d88936d603e",
+  "finding": "Manifest-bound log files existed locally but Git ignored them during initial add. Git blob reads at the immutable publication fail for these exact12 paths. No runtime-result change; originals match retained capsule bindings.",
+  "missing": [
+    {
+      "path": "docs/luci/evidence/cloud032-idle-d20ebd29-20261009/driver.stderr.original.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/luci/evidence/cloud032-idle-d20ebd29-20261009/driver.stdout.original.log",
+      "bytes": 303,
+      "sha256": "c1097a09919326c27db496ab73e6a03066df8b950a5b74a7b006373d461cc5dc"
+    },
+    {
+      "path": "docs/luci/evidence/cloud032-cgroup-d20ebd29-20261009/prepared/supervisor-fixture.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/luci/evidence/cloud032-cgroup-d20ebd29-20261009/prepared/supervisor-fixture.stderr.log",
+      "bytes": 3646,
+      "sha256": "3370224ae064110ace560d29707c1734b5746108e7ab465673c52205ca311d54"
+    },
+    {
+      "path": "docs/luci/evidence/cloud032-cgroup-d20ebd29-20261009/prepared/supervisor-fixture-attempt31-umask.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/luci/evidence/cloud032-cgroup-d20ebd29-20261009/prepared/supervisor-fixture-original27.stderr.log",
+      "bytes": 3142,
+      "sha256": "021fbd6812743c1022b15293b5b44914ec51de9822e52c4a5256df2a07a19a76"
+    },
+    {
+      "path": "docs/luci/evidence/cloud032-cgroup-d20ebd29-20261009/prepared/supervisor-fixture-original26.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/luci/evidence/cloud032-cgroup-d20ebd29-20261009/prepared/supervisor-fixture-original27.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/luci/evidence/cloud032-cgroup-d20ebd29-20261009/prepared/supervisor-fixture-attempt31-umask.stderr.log",
+      "bytes": 4254,
+      "sha256": "e3d28a15c7cb874eaa62f841268ee9b700e50e00d89064371aec5f0ff2281dae"
+    },
+    {
+      "path": "docs/luci/evidence/cloud032-cgroup-d20ebd29-20261009/prepared/supervisor-fixture-original26.stderr.log",
+      "bytes": 2987,
+      "sha256": "fabee1dd52e847a90b9d9c73fd1d73473a52d669dabc062a2df6149af238700b"
+    },
+    {
+      "path": "docs/luci/evidence/cloud032-cgroup-d20ebd29-20261009/prepared/evidence/observer-fixtures-attempt1/stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/luci/evidence/cloud032-cgroup-d20ebd29-20261009/prepared/evidence/observer-fixtures-attempt1/stderr.log",
+      "bytes": 2865,
+      "sha256": "6c6d577f5e8d121d2eae41512eac254f9494d7ed9a1b66f4b78d36227f609db9"
+    }
+  ],
+  "resolution": "Publish original exact bytes with explicit selected-path forced add; verify staged and committed manifest members. The separate counter wording clarification does not change these original log bytes.",
+  "relationship": "New publication defect; analogous to earlier LOCAL-017 at its original separate scope."
+}

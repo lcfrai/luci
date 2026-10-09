@@ -1,0 +1,19 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "/workspace/.luci-tools/cloud053-publication-guard/scripts/acceptance/test_verify_publication.py"
+  ],
+  "startedAt": "2026-10-09T10:50:21.036367+00:00",
+  "finishedAt": "2026-10-09T10:50:23.600029+00:00",
+  "exitCode": 0,
+  "sourceBefore": {
+    "verify-publication.py": "d20406a0d1360b3fb8729939a9d956a4a3395cc33b9430bcfa34d9cd8d5d0853",
+    "test_verify_publication.py": "0485433689cbe9a47acab0998bbd4a571333625f7ddf29050464d95d6b606329"
+  },
+  "sourceAfter": {
+    "verify-publication.py": "d20406a0d1360b3fb8729939a9d956a4a3395cc33b9430bcfa34d9cd8d5d0853",
+    "test_verify_publication.py": "0485433689cbe9a47acab0998bbd4a571333625f7ddf29050464d95d6b606329"
+  },
+  "sourceStable": true,
+  "scope": "Actual Git commands only in marked owned temporary repositories; production source/index untouched."
+}
