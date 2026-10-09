@@ -1,0 +1,6 @@
+Error: Exactly one queued worker allocated did not complete within its bounded prerequisite window
+    at until (file:///workspace/luci/scripts/acceptance/sustained-four-project/sustained.mjs:178:9)
+    at async queuedChild (file:///workspace/luci/scripts/acceptance/sustained-four-project/sustained.mjs:361:23)
+    at async file:///workspace/luci/scripts/acceptance/sustained-four-project/sustained.mjs:575:104
+    at async Object.run (file:///workspace/luci/scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs:29:19)
+    at async file:///workspace/luci/scripts/acceptance/sustained-four-project/sustained.mjs:538:2

@@ -1,0 +1,147 @@
+{
+  "sourceCommit": "0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f",
+  "sourceDirty": false,
+  "scope": "Clean Linux packaging and recorded verification only. Sustained attempt6 owner-reported failed; Windows native/runtime, live provider and full local acceptance remain open. No binaries/archives copied into Git or rehashed by publication task.",
+  "portableArchive": {
+    "bytes": 69000975,
+    "sha256": "501a29e3c920173b99041797f794564b433e9d9b6c45036509165a4092a00b25"
+  },
+  "cloudArchive": {
+    "bytes": 34595815,
+    "sha256": "0fd56b73af03bcf074de420c631068f2e1519757bb6d9fced499df0f49a200c6"
+  },
+  "packageIdentity": "78fab8a4b401432ab3ebfdf3c9d4b4cc3258ec766b5818c8a8c7f3435ee9cb79",
+  "verifiedPackageFiles": 953,
+  "licenseComponents": 347,
+  "verifiedGuideFiles": 44,
+  "newHostedURLsBoundToExactGitObjects": 203,
+  "stagingReproduction": "same exact committed helper, not independent Markdown rewrite proof",
+  "helpers": [
+    {
+      "path": "helpers/verify-local-package.py",
+      "sha256": "b7985ac8f7687a3da9e232a20319c49f900bd8c8015c4bdc41a005f467ed4a8c"
+    },
+    {
+      "path": "helpers/verify-compact-local-package.py",
+      "sha256": "71336af992d082854d4e87062a6996400ef3f8a51ba1abb0780fc88f9c40e6bc"
+    }
+  ],
+  "companionReport": {
+    "name": "2026-10-09-cloud042-package-0dcafb14.md",
+    "bytes": 1472,
+    "sha256": "44bdfc607e282ed954fe45584a0c1545b43724c11d2f6aab7bd8b4daceaa9c8f"
+  },
+  "members": [
+    {
+      "path": "README.md",
+      "bytes": 5603,
+      "sha256": "8cc2da16ace2f0efe21febe842533d2817ee7e905842549a3305519540141f72"
+    },
+    {
+      "path": "REPRODUCE.md",
+      "bytes": 5527,
+      "sha256": "06283522207d4b564c3502ebcc2e3f24350af0be17898d194c00424da2d24d27"
+    },
+    {
+      "path": "helpers/verify-compact-local-package.py",
+      "bytes": 16170,
+      "sha256": "71336af992d082854d4e87062a6996400ef3f8a51ba1abb0780fc88f9c40e6bc"
+    },
+    {
+      "path": "helpers/verify-local-package.py",
+      "bytes": 2246,
+      "sha256": "b7985ac8f7687a3da9e232a20319c49f900bd8c8015c4bdc41a005f467ed4a8c"
+    },
+    {
+      "path": "original-bindings.json",
+      "bytes": 8228,
+      "sha256": "a0e72f7beec9d08bc6308c1d63752f358be7711b570d53196950d93e99eb93c6"
+    },
+    {
+      "path": "privacy-scan.json",
+      "bytes": 547,
+      "sha256": "a49eabca936327e5aec7afed35a63cc7edc6e9531f0901e5dbcd79ca3e9c55ec"
+    },
+    {
+      "path": "receipts/archive-relocation.json",
+      "bytes": 1067,
+      "sha256": "f0b7296a8349518c69e61206ddef03aece0a4d5689e0170932f0638f8849dd3e"
+    },
+    {
+      "path": "receipts/build-invocation.json",
+      "bytes": 420,
+      "sha256": "badcdb8062d30e00827f6284805b6deddf6eaba6a50485a2ad05c1159c0ce428"
+    },
+    {
+      "path": "receipts/build-result.json",
+      "bytes": 591,
+      "sha256": "4dfe4e1adbf09d7d6b04d8a91fa61a8ebd563fc1c6bb7d4cd9efeba46a60311b"
+    },
+    {
+      "path": "receipts/build.log",
+      "bytes": 18758,
+      "sha256": "583329c4c4c1c1ea553e410d6f74fb2ec3e8265c2c2cb0368ee4b275d7aef190"
+    },
+    {
+      "path": "receipts/compact-doc-verification.json",
+      "bytes": 1980,
+      "sha256": "1dd19dd76a39cc858298ca7dbbd523b55567c890bc6fc76c7699a67bda53fcef"
+    },
+    {
+      "path": "receipts/package-integrity.json",
+      "bytes": 788,
+      "sha256": "0002457352bdb26dca5c731acfe09eae5c0b3cb5076e055251139a63fe1d2c57"
+    },
+    {
+      "path": "receipts/package-provenance.json",
+      "bytes": 1039,
+      "sha256": "d272f8bfcb955ecabafd1f674a628360074acb8fd591192cfe2d6f6699fc17a7"
+    },
+    {
+      "path": "receipts/previous-release-preservation.json",
+      "bytes": 1277,
+      "sha256": "cdad290c24b09d3132ec7740838c09b19ea78075fe557847d7218f50674461af"
+    },
+    {
+      "path": "receipts/redundant-dist-retirement.json",
+      "bytes": 83460,
+      "sha256": "4e40c76e064c0283e8e8c9c7aa0a5b4da7f867d831ab5bae984cef09c73d4557"
+    },
+    {
+      "path": "release/SHA256SUMS",
+      "bytes": 186,
+      "sha256": "a6bfc902cf2089528925f401538a009078bf2eb8fd83dd6b45d81597d1cf6eec"
+    },
+    {
+      "path": "release/release-manifest.json",
+      "bytes": 696,
+      "sha256": "ecad76f6759e29c2f9e14f2427202ab827a607dd0fbbe0bb00914244b86742b6"
+    },
+    {
+      "path": "source/scripts/build-release.sh",
+      "bytes": 6029,
+      "sha256": "20c6cb96e475066d5fb9a8ac934eb1262c3f324e4ac78ccda42fbd137d9e080d"
+    },
+    {
+      "path": "source/scripts/collect-licenses.py",
+      "bytes": 14817,
+      "sha256": "4a07489e31c417f8072cd94a3b1b596137a1faa78403311b74c48990c53110be"
+    },
+    {
+      "path": "source/scripts/launch-unix.sh",
+      "bytes": 5579,
+      "sha256": "e73094527f35dce3d10fe9fb72ea321df8e8890aaabb175c0816f292bdf32e53"
+    },
+    {
+      "path": "source/scripts/package.py",
+      "bytes": 2649,
+      "sha256": "9c3785eea32c597947395968a41f59ed973b05c0b955fea1067d3c0315fea9e5"
+    },
+    {
+      "path": "source/scripts/stage-release-docs.py",
+      "bytes": 20959,
+      "sha256": "cd520022c86ff25695faaaeed5aad512147b91f37342963e1cea2cc3252b8e26"
+    }
+  ],
+  "manifestConvention": "Members exclude publication.json and SHA256SUMS; SHA256SUMS additionally binds publication.json. Companion report bound separately."
+}

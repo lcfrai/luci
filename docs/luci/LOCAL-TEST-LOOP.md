@@ -6,15 +6,23 @@ cloud implementation task and local thread
 Windows; the cloud thread implements and validates corrections. Neither waits
 unnecessarily for the other to finish a whole suite.
 
-Current measured product is `2da1a821b8456c20a858fb86ef87649ea917d9de`.
-The complete matching scripted unknown-Create recovery scenario passes, while
-its idle switch p95 369.714279 ms still fails the unchanged 300 ms target.
-The earlier dependency/conflict/join/actual-check positive and worker Stop/restart
-positive retain their own source pins and scopes in QUALITY-WORKLIST.md.
-Original failures, charged fixtures and untested first-observer/concurrent-charge
-recovery cases remain explicit. Windows runtime is currently RAM-held; no user
-workloads are stopped. The complete sustained four-project and live-provider
-gates remain open. These results do not constitute LOCAL TEST HANDOFF READY.
+Current measured product/helper is `0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f`.
+Sustained attempt 6 has three natural A/C/D completions with exact charge release
+and two reviewed integrations; B is terminally refused for CPU pressure before
+Docker allocation. The helper times out instead of reporting that refusal
+(CLOUD-045). All loaded sample counts are met, but switching p95 still fails
+300 ms: idle 485.371075 ms and loaded 551.556830 ms. Typing passes 100 ms.
+There is no fourth-project, amendment, settled-phase or full sustained pass.
+The exact capsule is [sustained attempt 6](evidence/sustained-0dcafb14-attempt6/README.md).
+
+The prior scripted unknown-Create recovery, dependency/conflict/join/check and
+worker Stop/restart positives retain their separate source pins and scopes in
+QUALITY-WORKLIST.md. Original failures, charged fixtures and untested
+first-observer/concurrent-charge recovery cases remain explicit. This latest
+failed fixture has an empty ledger; it does not clear earlier fixtures.
+Windows runtime is currently RAM-held (latest relayed 1.284 GiB available);
+no user workloads are stopped. Native/live-provider and full-product gates
+remain open. These results do not constitute LOCAL TEST HANDOFF READY.
 
 ## Handoff and pinned revisions
 

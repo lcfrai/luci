@@ -1,0 +1,54 @@
+{
+  "source": "Relayed reports from local Windows tester; local original files not copied here",
+  "revision": "0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f",
+  "frontend": {
+    "sha256": "eec34cf2648a32e33d8c4141bcb7cf8a4c9b9f9e67e1ec7a2bb044417dbe3c21",
+    "repositoryBindings": 1181,
+    "tests": 2776,
+    "files": 158,
+    "typecheckExit": 0,
+    "scope": "Source/evidence verified. Installed dependency byte stability remains publisher metadata; cancellation does not prove server preemption or latency improvement."
+  },
+  "packaging": {
+    "sha256": "b0ac593f197456c3117ad761239870da59493f4202b6332c8c365a75c59a5115",
+    "members": 51,
+    "checksums": 50,
+    "publicationBindings": 49,
+    "finalPaths": 8,
+    "stagingTests": 22,
+    "exportTests": 20,
+    "scope": "Source/evidence reviewed; clean final package and native build not independently tested locally. Historical payload is not new archive savings."
+  },
+  "diagnostics": {
+    "sha256": "3ff4b163ce322cea0f38b42a5b64c29a8f4b231e79d0d9d1778e05909ed0e2a3",
+    "files": 197,
+    "checksums": 194,
+    "acceptedCopies": 52,
+    "primaryRows": 1200,
+    "quantileGroups": 9,
+    "slowCohortsPerCorrectedAnalysis": 20,
+    "switchP95Ms": [
+      406.196951,
+      349.842204,
+      363.614553
+    ],
+    "inputP95Ms": [
+      87.063964,
+      78.436254,
+      64.931624
+    ],
+    "scope": "All switch values fail300ms. Failed trace-cap/logger runs and complete marker capture remain distinct. CPU weights invalid; negative counts are publisher observations, private profiles not fetched. No overhead subtraction or gain claim."
+  },
+  "windows": {
+    "availableRAMGiB": 1.284,
+    "workloadLaunched": false,
+    "sourceGateGiB": 2,
+    "nativeBrowserGateGiB": 2.5
+  },
+  "states": {
+    "CLOUD-032": "fixing",
+    "CLOUD-042": "ready for package verification at this audit scope",
+    "LOCAL-021/CLOUD-043": "verified controlled; matching installed gate open"
+  },
+  "noNewActionableDefectReported": true
+}

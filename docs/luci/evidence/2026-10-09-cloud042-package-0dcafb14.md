@@ -1,0 +1,7 @@
+# CLOUD-042: clean Linux package verified at 0dcafb14
+
+Exact source `0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f` produced a clean Linux archive of **69,000,975 bytes**, SHA256 `501a29e3c920173b99041797f794564b433e9d9b6c45036509165a4092a00b25`. The recorded verifiers matched **953 package files**, **347 licence components with none missing**, **104 runtime source files**, **44 guides** and **203 new hosted URLs** against the exact revision. Guide regeneration uses the same committed helper; separate inventory, hash and URL-object checks are distinguished in the receipt.
+
+[The package capsule](cloud042-package-0dcafb14/README.md) preserves the original build log/result, manifest/checksums, verifier sources, compact-guide proof and old/new archive relocation maps. No large binary or archive is copied into Git. The previous 2da portable archive was 134,313,689 bytes; this measured cross-revision reduction is not a RAM/latency result or an isolated causal benchmark.
+
+This is **not an integrated acceptance handoff**: the run owner reports sustained attempt 6 failed while waiting for project B after three natural completions and two integrations; the full workload receipt is separate. Native Windows 0dc packaging/runtime, real-provider quality and the remaining local-release gates stay open. [Pinned source retrieval and safe Windows build instructions](cloud042-package-0dcafb14/REPRODUCE.md) do not instruct installing or launching over existing user state.

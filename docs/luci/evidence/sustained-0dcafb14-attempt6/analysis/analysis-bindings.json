@@ -1,0 +1,30 @@
+{
+  "at": "2026-10-09T04:06:07.363065+00:00",
+  "scope": "Offline retained-file computation and source binding only; no runtime, tests, compiler, original fixture/receipt or checkout mutation.",
+  "files": {
+    "resource-analysis.json": {
+      "sha256": "4dbe5c42883d84ecea34f8f388f39096e9f10e1442931c00750bde8158b79e8b",
+      "bytes": 35642
+    },
+    "resource-analyze.py": {
+      "sha256": "f05f313defc5252ec9967c74c6d7fa8a0280a452cea4a6aa369493033a392405",
+      "bytes": 8096
+    },
+    "interaction-analysis.json": {
+      "sha256": "dd13ad55fa9935803773bef48f35c5dab6ecd4d0575501ba1255e3b329411509",
+      "bytes": 3050266
+    },
+    "interaction-analyze.py": {
+      "sha256": "88fba1e292c108fa0c8c5d1d1c5869ebbae5088159091d7bc21ea3f76a362884",
+      "bytes": 5013
+    },
+    "interaction-summary.json": {
+      "sha256": "44661e964f659b7d1c42681da35a52aa9bc861dc799f37ec493d8357e236127f",
+      "bytes": 3226
+    },
+    "source-review.md": {
+      "sha256": "17486d35157d7194b7bb4b944a149a55af8bf19ed90a061457ccb2a3c776c908",
+      "bytes": 7536
+    }
+  }
+}

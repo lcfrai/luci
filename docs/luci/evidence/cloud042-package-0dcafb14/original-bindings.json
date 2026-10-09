@@ -1,0 +1,167 @@
+{
+  "scope": "Package-only receipts, exact verifier sources and selected exact committed packaging inputs. Task source/artifact paths are retained for exact provenance and relocation mapping; no application state or credential paths/contents were read. No archive/binary payload copied or rehashed by this publication task.",
+  "files": [
+    {
+      "member": "receipts/archive-relocation.json",
+      "originalSource": "artifacts/quality-swarm/candidate-0dcafb14/package/archive-relocation.json",
+      "originalBytes": 1067,
+      "originalSHA256": "f0b7296a8349518c69e61206ddef03aece0a4d5689e0170932f0638f8849dd3e",
+      "storedBytes": 1067,
+      "storedSHA256": "f0b7296a8349518c69e61206ddef03aece0a4d5689e0170932f0638f8849dd3e",
+      "transformation": "exact-original"
+    },
+    {
+      "member": "receipts/build-invocation.json",
+      "originalSource": "artifacts/quality-swarm/candidate-0dcafb14/package/build-invocation.json",
+      "originalBytes": 420,
+      "originalSHA256": "badcdb8062d30e00827f6284805b6deddf6eaba6a50485a2ad05c1159c0ce428",
+      "storedBytes": 420,
+      "storedSHA256": "badcdb8062d30e00827f6284805b6deddf6eaba6a50485a2ad05c1159c0ce428",
+      "transformation": "exact-original"
+    },
+    {
+      "member": "receipts/build-result.json",
+      "originalSource": "artifacts/quality-swarm/candidate-0dcafb14/package/build-result.json",
+      "originalBytes": 591,
+      "originalSHA256": "4dfe4e1adbf09d7d6b04d8a91fa61a8ebd563fc1c6bb7d4cd9efeba46a60311b",
+      "storedBytes": 591,
+      "storedSHA256": "4dfe4e1adbf09d7d6b04d8a91fa61a8ebd563fc1c6bb7d4cd9efeba46a60311b",
+      "transformation": "exact-original"
+    },
+    {
+      "member": "receipts/build.log",
+      "originalSource": "artifacts/quality-swarm/candidate-0dcafb14/package/build.log",
+      "originalBytes": 18758,
+      "originalSHA256": "583329c4c4c1c1ea553e410d6f74fb2ec3e8265c2c2cb0368ee4b275d7aef190",
+      "storedBytes": 18758,
+      "storedSHA256": "583329c4c4c1c1ea553e410d6f74fb2ec3e8265c2c2cb0368ee4b275d7aef190",
+      "transformation": "exact-original"
+    },
+    {
+      "member": "receipts/compact-doc-verification.json",
+      "originalSource": "artifacts/quality-swarm/candidate-0dcafb14/package/compact-doc-verification.json",
+      "originalBytes": 1980,
+      "originalSHA256": "1dd19dd76a39cc858298ca7dbbd523b55567c890bc6fc76c7699a67bda53fcef",
+      "storedBytes": 1980,
+      "storedSHA256": "1dd19dd76a39cc858298ca7dbbd523b55567c890bc6fc76c7699a67bda53fcef",
+      "transformation": "exact-original"
+    },
+    {
+      "member": "receipts/package-integrity.json",
+      "originalSource": "artifacts/quality-swarm/candidate-0dcafb14/package/package-integrity.json",
+      "originalBytes": 788,
+      "originalSHA256": "0002457352bdb26dca5c731acfe09eae5c0b3cb5076e055251139a63fe1d2c57",
+      "storedBytes": 788,
+      "storedSHA256": "0002457352bdb26dca5c731acfe09eae5c0b3cb5076e055251139a63fe1d2c57",
+      "transformation": "exact-original"
+    },
+    {
+      "member": "receipts/package-provenance.json",
+      "originalSource": "artifacts/quality-swarm/candidate-0dcafb14/package/package-provenance.json",
+      "originalBytes": 1039,
+      "originalSHA256": "d272f8bfcb955ecabafd1f674a628360074acb8fd591192cfe2d6f6699fc17a7",
+      "storedBytes": 1039,
+      "storedSHA256": "d272f8bfcb955ecabafd1f674a628360074acb8fd591192cfe2d6f6699fc17a7",
+      "transformation": "exact-original"
+    },
+    {
+      "member": "receipts/previous-release-preservation.json",
+      "originalSource": "artifacts/quality-swarm/candidate-0dcafb14/package/previous-release-preservation.json",
+      "originalBytes": 1277,
+      "originalSHA256": "cdad290c24b09d3132ec7740838c09b19ea78075fe557847d7218f50674461af",
+      "storedBytes": 1277,
+      "storedSHA256": "cdad290c24b09d3132ec7740838c09b19ea78075fe557847d7218f50674461af",
+      "transformation": "exact-original"
+    },
+    {
+      "member": "receipts/redundant-dist-retirement.json",
+      "originalSource": "artifacts/quality-swarm/candidate-0dcafb14/package/redundant-dist-retirement.json",
+      "originalBytes": 83460,
+      "originalSHA256": "4e40c76e064c0283e8e8c9c7aa0a5b4da7f867d831ab5bae984cef09c73d4557",
+      "storedBytes": 83460,
+      "storedSHA256": "4e40c76e064c0283e8e8c9c7aa0a5b4da7f867d831ab5bae984cef09c73d4557",
+      "transformation": "exact-original"
+    },
+    {
+      "member": "release/release-manifest.json",
+      "originalSource": "artifacts/releases/0.5.0/release-manifest.json",
+      "originalBytes": 696,
+      "originalSHA256": "ecad76f6759e29c2f9e14f2427202ab827a607dd0fbbe0bb00914244b86742b6",
+      "storedBytes": 696,
+      "storedSHA256": "ecad76f6759e29c2f9e14f2427202ab827a607dd0fbbe0bb00914244b86742b6",
+      "transformation": "exact-original"
+    },
+    {
+      "member": "release/SHA256SUMS",
+      "originalSource": "artifacts/releases/0.5.0/SHA256SUMS",
+      "originalBytes": 186,
+      "originalSHA256": "a6bfc902cf2089528925f401538a009078bf2eb8fd83dd6b45d81597d1cf6eec",
+      "storedBytes": 186,
+      "storedSHA256": "a6bfc902cf2089528925f401538a009078bf2eb8fd83dd6b45d81597d1cf6eec",
+      "transformation": "exact-original"
+    },
+    {
+      "member": "helpers/verify-local-package.py",
+      "originalSource": "external-verifier/verify-local-package.py",
+      "originalBytes": 2246,
+      "originalSHA256": "b7985ac8f7687a3da9e232a20319c49f900bd8c8015c4bdc41a005f467ed4a8c",
+      "storedBytes": 2246,
+      "storedSHA256": "b7985ac8f7687a3da9e232a20319c49f900bd8c8015c4bdc41a005f467ed4a8c",
+      "transformation": "exact-original"
+    },
+    {
+      "member": "helpers/verify-compact-local-package.py",
+      "originalSource": "external-verifier/verify-compact-local-package.py",
+      "originalBytes": 16170,
+      "originalSHA256": "71336af992d082854d4e87062a6996400ef3f8a51ba1abb0780fc88f9c40e6bc",
+      "storedBytes": 16170,
+      "storedSHA256": "71336af992d082854d4e87062a6996400ef3f8a51ba1abb0780fc88f9c40e6bc",
+      "transformation": "exact-original"
+    },
+    {
+      "member": "source/scripts/build-release.sh",
+      "originalSource": "0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f:scripts/build-release.sh",
+      "originalBytes": 6029,
+      "originalSHA256": "20c6cb96e475066d5fb9a8ac934eb1262c3f324e4ac78ccda42fbd137d9e080d",
+      "storedBytes": 6029,
+      "storedSHA256": "20c6cb96e475066d5fb9a8ac934eb1262c3f324e4ac78ccda42fbd137d9e080d",
+      "transformation": "exact-committed-source"
+    },
+    {
+      "member": "source/scripts/stage-release-docs.py",
+      "originalSource": "0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f:scripts/stage-release-docs.py",
+      "originalBytes": 20959,
+      "originalSHA256": "cd520022c86ff25695faaaeed5aad512147b91f37342963e1cea2cc3252b8e26",
+      "storedBytes": 20959,
+      "storedSHA256": "cd520022c86ff25695faaaeed5aad512147b91f37342963e1cea2cc3252b8e26",
+      "transformation": "exact-committed-source"
+    },
+    {
+      "member": "source/scripts/package.py",
+      "originalSource": "0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f:scripts/package.py",
+      "originalBytes": 2649,
+      "originalSHA256": "9c3785eea32c597947395968a41f59ed973b05c0b955fea1067d3c0315fea9e5",
+      "storedBytes": 2649,
+      "storedSHA256": "9c3785eea32c597947395968a41f59ed973b05c0b955fea1067d3c0315fea9e5",
+      "transformation": "exact-committed-source"
+    },
+    {
+      "member": "source/scripts/collect-licenses.py",
+      "originalSource": "0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f:scripts/collect-licenses.py",
+      "originalBytes": 14817,
+      "originalSHA256": "4a07489e31c417f8072cd94a3b1b596137a1faa78403311b74c48990c53110be",
+      "storedBytes": 14817,
+      "storedSHA256": "4a07489e31c417f8072cd94a3b1b596137a1faa78403311b74c48990c53110be",
+      "transformation": "exact-committed-source"
+    },
+    {
+      "member": "source/scripts/launch-unix.sh",
+      "originalSource": "0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f:scripts/launch-unix.sh",
+      "originalBytes": 5579,
+      "originalSHA256": "e73094527f35dce3d10fe9fb72ea321df8e8890aaabb175c0816f292bdf32e53",
+      "storedBytes": 5579,
+      "storedSHA256": "e73094527f35dce3d10fe9fb72ea321df8e8890aaabb175c0816f292bdf32e53",
+      "transformation": "exact-committed-source"
+    }
+  ]
+}

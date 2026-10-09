@@ -1,0 +1,51 @@
+{
+  "source": "Relayed local Windows tester reports; original local files not copied here",
+  "revision": "9f9cc09d3ff14ed1635c3d72fac876ab7789247d",
+  "issue": "LOCAL-021 / CLOUD-043",
+  "state": "verified controlled correction; ready for matching installed retest",
+  "sourceAuditSHA256": "9f9bcb13f3089cb769d42a4215d97c3da6ebbb69aa04bffdefd41d6d11cae699",
+  "controlledRetestSHA256": "cbd7353e2f323c9767d0de377cb303d02a031cf8f12880767edb9af30f035967",
+  "originalReproduction": {
+    "selectedCases": 1,
+    "expectedExit": 1,
+    "fixture": "retained D-before-C",
+    "timeMeaning": "mocked bounded polling; not 150 seconds real runtime"
+  },
+  "corrected": {
+    "passes": 37,
+    "failures": 0,
+    "allProjectOrders": 24,
+    "Node": "24.19.0",
+    "heapMiB": 64,
+    "testConcurrency": 1,
+    "mode": "Node built-ins and inert API/UI/worker/context VM slices"
+  },
+  "unchangedSpansBytes": {
+    "workerContext": 2233,
+    "provider": 5104,
+    "exerciseReview": 1345,
+    "remainingWorkload": 5001
+  },
+  "limits": [
+    "No product app/browser/controller/Docker/provider run",
+    "A Git child startup failed 0xC0000142 without stderr; preserved, cause unconfirmed; later bounded commands succeeded",
+    "Full native, four-project, performance, recovery ordering/concurrent witness/refusal and live-provider gates remain open",
+    "Publication audit finalized without discrepancy; original private16f8/publicab7f mapping remains distinct",
+    "No Windows app/browser/controller/Docker/provider execution; original charged fixture preserved"
+  ],
+  "windows": {
+    "observedAt": "2026-10-09T03:30:37Z",
+    "availablePhysicalGiB": 0.897,
+    "availableCommitGiB": 1.505,
+    "applicationBrowserLaunchHeld": true
+  },
+  "publicationAudit": {
+    "sha256": "6645ec4ae164595acd03bd7c8e4c35c5a8a33b7a58f0e5f9ca4c73e7f39e5e58",
+    "capsuleMembers": 79,
+    "manifestMembers": 77,
+    "checksums": 78,
+    "bindingComparisons": 662,
+    "finalPasses": 98,
+    "overlap": "37 local cases overlap98 recorded outcomes; do not add"
+  }
+}

@@ -1,0 +1,269 @@
+{
+  "scope": "Exact selected retained-receipt proof fields, with private-path substitutions only if present. Three accepted A/C/D task receipts, three observed natural completions and two reviewed integrations do not establish four-project completion or explain the failure waiting for B. Queue/allocation and cleanup fields are retained exactly; successful independent closure does not turn the failed workflow into a pass.",
+  "originalResult": {
+    "sha256": "9b26b0f3fff80e37f61b07dbf6a740b38c2e1f52cff16f6466104904e140feea",
+    "bytes": 23445411
+  },
+  "fields": {
+    "taskReceiptSettlements": [
+      {
+        "task": "build-a",
+        "operation": "op-6a9e7d3239b81c9e704b47f4",
+        "callId": "call_swarm_build-a_op-6a9e7d3239b81c9e704b47f4_22",
+        "commandId": 60140,
+        "commandExitCode": 0,
+        "receiptSHA256": "eb05bae5d473fff87fcbed59479f445b7c194d903bb67786a55fd22e4c0b3b39",
+        "wireBytes": 2647,
+        "decodedBytes": 8178
+      },
+      {
+        "task": "build-c",
+        "operation": "op-16fdc2d7756b629ed076bf8c",
+        "callId": "call_swarm_build-c_op-16fdc2d7756b629ed076bf8c_22",
+        "commandId": 45114,
+        "commandExitCode": 0,
+        "receiptSHA256": "cf4a79243da0d90bb353049ea14fd999456dc79e862ab63cd1bede30450d60cf",
+        "wireBytes": 2655,
+        "decodedBytes": 8184
+      },
+      {
+        "task": "build-d",
+        "operation": "op-9bb81ff516d251a287e726bc",
+        "callId": "call_swarm_build-d_op-9bb81ff516d251a287e726bc_22",
+        "commandId": 33816,
+        "commandExitCode": 0,
+        "receiptSHA256": "c676621e5f3d4beac7665093d3d7c41b7ecccd2c84f584c08a350a82bfc22a0d",
+        "wireBytes": 2647,
+        "decodedBytes": 8174
+      }
+    ],
+    "naturalCompletions": [
+      {
+        "task": "build-a",
+        "sessionID": "s-e8cbc76c",
+        "sessionStatus": "exited",
+        "recordedExitReason": "process exited",
+        "cleanNativeExitFrame": true,
+        "exitFrameObservedAt": "2026-10-09T03:46:04.319Z",
+        "stoppedAndAbsentObservedAt": "2026-10-09T03:46:35.940Z",
+        "queueCompletedObservedAt": "2026-10-09T03:46:37.038Z",
+        "leaseObservation": {
+          "scope": "Exact task session and sandbox in the fixture-owned private execution ledger",
+          "firstPresentAt": "2026-10-09T03:46:01.088Z",
+          "lastPresentAt": "2026-10-09T03:46:36.515Z",
+          "firstAbsentAt": "2026-10-09T03:46:37.038Z",
+          "samples": 243,
+          "unavailableSamples": 0
+        },
+        "queueState": "completed",
+        "codingDispatches": 1,
+        "finalResponseRequests": 1,
+        "finalResponseAborts": 0,
+        "finalResponseRetries": 0,
+        "integratedBeforeExit": false
+      },
+      {
+        "task": "build-c",
+        "sessionID": "s-d6a22e36",
+        "sessionStatus": "exited",
+        "recordedExitReason": "process exited",
+        "cleanNativeExitFrame": true,
+        "exitFrameObservedAt": "2026-10-09T03:50:45.918Z",
+        "stoppedAndAbsentObservedAt": "2026-10-09T03:51:06.179Z",
+        "queueCompletedObservedAt": "2026-10-09T03:51:08.557Z",
+        "leaseObservation": {
+          "scope": "Exact task session and sandbox in the fixture-owned private execution ledger",
+          "firstPresentAt": "2026-10-09T03:50:41.670Z",
+          "lastPresentAt": "2026-10-09T03:51:08.056Z",
+          "firstAbsentAt": "2026-10-09T03:51:08.557Z",
+          "samples": 163,
+          "unavailableSamples": 0
+        },
+        "queueState": "completed",
+        "codingDispatches": 1,
+        "finalResponseRequests": 1,
+        "finalResponseAborts": 0,
+        "finalResponseRetries": 0,
+        "integratedBeforeExit": false
+      },
+      {
+        "task": "build-d",
+        "sessionID": "s-31ecd247",
+        "sessionStatus": "exited",
+        "recordedExitReason": "process exited",
+        "cleanNativeExitFrame": true,
+        "exitFrameObservedAt": "2026-10-09T03:55:18.713Z",
+        "stoppedAndAbsentObservedAt": "2026-10-09T03:55:36.015Z",
+        "queueCompletedObservedAt": "2026-10-09T03:55:38.547Z",
+        "leaseObservation": {
+          "scope": "Exact task session and sandbox in the fixture-owned private execution ledger",
+          "firstPresentAt": "2026-10-09T03:55:15.430Z",
+          "lastPresentAt": "2026-10-09T03:55:37.579Z",
+          "firstAbsentAt": "2026-10-09T03:55:38.547Z",
+          "samples": 141,
+          "unavailableSamples": 0
+        },
+        "queueState": "completed",
+        "codingDispatches": 1,
+        "finalResponseRequests": 1,
+        "finalResponseAborts": 0,
+        "finalResponseRetries": 0,
+        "integratedBeforeExit": false
+      }
+    ],
+    "integrations": [
+      {
+        "task": "build-a",
+        "review": {
+          "taskId": "build-a",
+          "operationId": "op-6a9e7d3239b81c9e704b47f4",
+          "sourceCommit": "948d9c119c592548285531e249760d15f4664c08",
+          "targetCommit": "1b136efd672dd2f2d3cc961ab4ece53c41fd913b",
+          "reviewDigest": "5037a42d07a984a3481a699838a06927c0b93f56d3b379ad7f74613960d9d09e",
+          "paths": [
+            "build-a-result.json",
+            "engine.go"
+          ],
+          "patch": "diff --git a/build-a-result.json b/build-a-result.json\nnew file mode 100644\nindex 0000000000000000000000000000000000000000..4323f109aa139e55cdc5183f9446982923141835\n--- /dev/null\n+++ b/build-a-result.json\n@@ -0,0 +1,124 @@\n+{\n+  \"task\": \"build-a\",\n+  \"operation\": \"op-6a9e7d3239b81c9e704b47f4\",\n+  \"projectId\": \"p-cefd3d8a\",\n+  \"implementationSHA256\": \"07f85fcf8496645e391e0e53edde402cc38c8264bfcf76275974b58cd96dee42\",\n+  \"expectedOutputSHA256\": \"16402d587067ced3f44ad930655ce9e02b0e85608aea8e3d12dd4ef4e4cfd842\",\n+  \"binarySHA256\": \"bc72853dd8a6de4fbaa49586035f9c1440945374ef4d828c7e00c40ff544ff83\",\n+  \"commands\": [\n+    {\n+      \"label\": \"toolchain\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"version\"\n+      ],\n+      \"startedAt\": \"2026-10-09T03:42:30.799Z\",\n+      \"finishedAt\": \"2026-10-09T03:42:30.811Z\",\n+      \"elapsedMs\": 12.426873,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 32,\n+      \"outputSHA256\": \"7e35a947feee25f89c2649aa041942db786be35c3d6c484ab2ba2da849e3dc00\"\n+    },\n+    {\n+      \"label\": \"expected-red\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"test\",\n+        \"-run\",\n+        \"^TestApprovedRequirement$\",\n+        \"-count=1\",\n+        \"./...\"\n+      ],\n+      \"startedAt\": \"2026-10-09T03:42:30.812Z\",\n+      \"finishedAt\": \"2026-10-09T03:42:58.312Z\",\n+      \"elapsedMs\": 27500.519543,\n+      \"code\": 1,\n+      \"signal\": null,\n+      \"outputBytes\": 333,\n+      \"outputSHA256\": \"99828919b1a9f2ac1a34154cdcec41dbd1db771653b5b1750f36b7d5f7829bdc\"\n+    },\n+    {\n+      \"label\": \"build\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"build\",\n+        \"-trimpath\",\n+        \"-buildvcs=false\",\n+        \"-o\",\n+        \"/tmp/luci-mixed-WLB5xk/app\",\n+        \"./cmd/app\"\n+      ],\n+      \"startedAt\": \"2026-10-09T03:42:58.314Z\",\n+      \"finishedAt\": \"2026-10-09T03:42:58.665Z\",\n+      \"elapsedMs\": 351.613936,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 0,\n+      \"outputSHA256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n+    },\n+    {\n+      \"label\": \"fixed-tests\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"test\",\n+        \"-json\",\n+        \"-count=1\",\n+        \"./...\"\n+      ],\n+      \"startedAt\": \"2026-10-09T03:42:58.666Z\",\n+      \"finishedAt\": \"2026-10-09T03:42:59.139Z\",\n+      \"elapsedMs\": 473.24298,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 4666,\n+      \"outputSHA256\": \"86bd74095b80a0584d83831cf65b22dc42b049ed5f45ed6d0f359f900739df0d\",\n+      \"testsPassed\": [\n+        \"TestApprovedRequirement\",\n+        \"TestDeterministicRendering\",\n+        \"FuzzApprovedInvariant/seed#0\",\n+        \"FuzzApprovedInvariant/seed#1\",\n+        \"FuzzApprovedInvariant/seed#2\",\n+        \"FuzzApprovedInvariant\"\n+      ]\n+    },\n+    {\n+      \"label\": \"artifact-behavior\",\n+      \"executable\": \"/tmp/luci-mixed-WLB5xk/app\",\n+      \"args\": [],\n+      \"startedAt\": \"2026-10-09T03:42:59.139Z\",\n+      \"finishedAt\": \"2026-10-09T03:42:59.142Z\",\n+      \"elapsedMs\": 2.498762,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 98,\n+      \"outputSHA256\": \"16402d587067ced3f44ad930655ce9e02b0e85608aea8e3d12dd4ef4e4cfd842\"\n+    },\n+    {\n+      \"label\": \"fuzz\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"test\",\n+        \"-run\",\n+        \"^$\",\n+        \"-fuzz\",\n+        \"^FuzzApprovedInvariant$\",\n+        \"-fuzztime=150s\",\n+        \"-parallel=1\",\n+        \"-test.fuzzcachedir=/tmp/luci-mixed-WLB5xk/corpus\"\n+      ],\n+      \"startedAt\": \"2026-10-09T03:42:59.142Z\",\n+      \"finishedAt\": \"2026-10-09T03:45:58.577Z\",\n+      \"elapsedMs\": 179434.382423,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 4310,\n+      \"outputSHA256\": \"bbb56ea55ab06e1e1d3002a75f6fd22026bedcd030aabae6e6d103587e2d03a3\",\n+      \"activeFuzzSeconds\": 150,\n+      \"fuzzExecutions\": 7638576\n+    }\n+  ],\n+  \"cachePeakBytes\": 181359241,\n+  \"corpusPeakBytes\": 6155,\n+  \"toolchain\": \"go version go1.26.8 linux/amd64\"\n+}\ndiff --git a/engine.go b/engine.go\nindex cb76c2a8efe7b02fef09b81da001643121532cdd..e249764465c138c839a0e160df751d71f8e2c6bc 100644\n--- a/engine.go\n+++ b/engine.go\n@@ -1,2 +1,11 @@\n package workload\n-func Render(title string,items []string)string{return \"\"}\n+import (\"html\"; \"strings\")\n+// Render escapes every caller-controlled text node and preserves item order.\n+func Render(title string, items []string) string {\n+ var b strings.Builder\n+ b.WriteString(\"<section><h1>\"); b.WriteString(html.EscapeString(title)); b.WriteString(\"</h1><ul>\")\n+ for _, item := range items { b.WriteString(\"<li>\"); b.WriteString(html.EscapeString(item)); b.WriteString(\"</li>\") }\n+ b.WriteString(\"</ul>\"); \n+ b.WriteString(\"</section>\\n\")\n+ return b.String()\n+}\n",
+          "canIntegrate": true,
+          "reason": "Review this complete task diff. Integration combines these exact commits; run checks on the combined result before accepting it.",
+          "handoff": {
+            "digest": "09fb24c3d1c4663beba4a3637139d8f25dd47f2552e7f4e514bf3a714d3af05f",
+            "status": "missing",
+            "summary": "",
+            "questions": 0,
+            "unanswered": 0,
+            "capturedAt": "2026-10-09T03:46:36.9262963Z"
+          }
+        },
+        "commit": "954b8b7ff036ecb7173241ab7e15b6ab3491a241"
+      },
+      {
+        "task": "build-c",
+        "review": {
+          "taskId": "build-c",
+          "operationId": "op-16fdc2d7756b629ed076bf8c",
+          "sourceCommit": "fa033c5b469217adc23322bfa373ba4c9fe0e509",
+          "targetCommit": "42b606b6c0bb308b9b3bd6a78351edf8c11f0251",
+          "reviewDigest": "baf56e1d077d5e37fdb74aa5e603cbd281dfacad96fd78158330635c2b96f254",
+          "paths": [
+            "build-c-result.json",
+            "engine.go"
+          ],
+          "patch": "diff --git a/build-c-result.json b/build-c-result.json\nnew file mode 100644\nindex 0000000000000000000000000000000000000000..94d537f6da46ef345c1fb0c3b533aef947eb1075\n--- /dev/null\n+++ b/build-c-result.json\n@@ -0,0 +1,124 @@\n+{\n+  \"task\": \"build-c\",\n+  \"operation\": \"op-16fdc2d7756b629ed076bf8c\",\n+  \"projectId\": \"p-0d6a6feb\",\n+  \"implementationSHA256\": \"9e68815c1908230596eccad2261693eaf55c6badf4061490b46fc145927cf4eb\",\n+  \"expectedOutputSHA256\": \"4ce9bf3c01a5a99d73c84e3a2880581e00e4f97f676aa01522cca945824c9193\",\n+  \"binarySHA256\": \"8f4fbb08d2bad6d507aba4a1a782ee67cdc7cf879432635762e47685f9e2cdb3\",\n+  \"commands\": [\n+    {\n+      \"label\": \"toolchain\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"version\"\n+      ],\n+      \"startedAt\": \"2026-10-09T03:47:10.642Z\",\n+      \"finishedAt\": \"2026-10-09T03:47:10.678Z\",\n+      \"elapsedMs\": 36.703498,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 32,\n+      \"outputSHA256\": \"7e35a947feee25f89c2649aa041942db786be35c3d6c484ab2ba2da849e3dc00\"\n+    },\n+    {\n+      \"label\": \"expected-red\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"test\",\n+        \"-run\",\n+        \"^TestApprovedRequirement$\",\n+        \"-count=1\",\n+        \"./...\"\n+      ],\n+      \"startedAt\": \"2026-10-09T03:47:10.679Z\",\n+      \"finishedAt\": \"2026-10-09T03:47:38.577Z\",\n+      \"elapsedMs\": 27898.216348,\n+      \"code\": 1,\n+      \"signal\": null,\n+      \"outputBytes\": 249,\n+      \"outputSHA256\": \"a98b98371620ec922f7e47e33903781e279761be2cd8ec8023fcd20a8659466f\"\n+    },\n+    {\n+      \"label\": \"build\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"build\",\n+        \"-trimpath\",\n+        \"-buildvcs=false\",\n+        \"-o\",\n+        \"/tmp/luci-mixed-4XOB0F/app\",\n+        \"./cmd/app\"\n+      ],\n+      \"startedAt\": \"2026-10-09T03:47:38.579Z\",\n+      \"finishedAt\": \"2026-10-09T03:47:38.807Z\",\n+      \"elapsedMs\": 228.405768,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 0,\n+      \"outputSHA256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n+    },\n+    {\n+      \"label\": \"fixed-tests\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"test\",\n+        \"-json\",\n+        \"-count=1\",\n+        \"./...\"\n+      ],\n+      \"startedAt\": \"2026-10-09T03:47:38.808Z\",\n+      \"finishedAt\": \"2026-10-09T03:47:40.242Z\",\n+      \"elapsedMs\": 1434.671899,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 4677,\n+      \"outputSHA256\": \"fb7cb7ffb467b61f93a3973d69724b111b0b790f40400551a4a59061a72523df\",\n+      \"testsPassed\": [\n+        \"TestApprovedRequirement\",\n+        \"TestMalformedInputIsRejected\",\n+        \"FuzzApprovedInvariant/seed#0\",\n+        \"FuzzApprovedInvariant/seed#1\",\n+        \"FuzzApprovedInvariant/seed#2\",\n+        \"FuzzApprovedInvariant\"\n+      ]\n+    },\n+    {\n+      \"label\": \"artifact-behavior\",\n+      \"executable\": \"/tmp/luci-mixed-4XOB0F/app\",\n+      \"args\": [],\n+      \"startedAt\": \"2026-10-09T03:47:40.245Z\",\n+      \"finishedAt\": \"2026-10-09T03:47:40.249Z\",\n+      \"elapsedMs\": 4.144772,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 13,\n+      \"outputSHA256\": \"4ce9bf3c01a5a99d73c84e3a2880581e00e4f97f676aa01522cca945824c9193\"\n+    },\n+    {\n+      \"label\": \"fuzz\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"test\",\n+        \"-run\",\n+        \"^$\",\n+        \"-fuzz\",\n+        \"^FuzzApprovedInvariant$\",\n+        \"-fuzztime=150s\",\n+        \"-parallel=1\",\n+        \"-test.fuzzcachedir=/tmp/luci-mixed-4XOB0F/corpus\"\n+      ],\n+      \"startedAt\": \"2026-10-09T03:47:40.249Z\",\n+      \"finishedAt\": \"2026-10-09T03:50:40.571Z\",\n+      \"elapsedMs\": 180321.351501,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 4306,\n+      \"outputSHA256\": \"2392244055cafd885f310910b6a8e01cfbd6d578f602652ff69dae2e8960d0b9\",\n+      \"activeFuzzSeconds\": 150,\n+      \"fuzzExecutions\": 3188330\n+    }\n+  ],\n+  \"cachePeakBytes\": 181200337,\n+  \"corpusPeakBytes\": 1217,\n+  \"toolchain\": \"go version go1.26.8 linux/amd64\"\n+}\ndiff --git a/engine.go b/engine.go\nindex 71f073cf945ea7ec8b65dd634843cf8ce4cebd22..f42b184f31b24bef02b108ef2243190e1426ae25 100644\n--- a/engine.go\n+++ b/engine.go\n@@ -1,3 +1,18 @@\n package workload\n-import \"errors\"\n-func AggregateCSV(input string)(string,error){return \"\",errors.New(\"unimplemented\")}\n+import (\"bytes\"; \"encoding/csv\"; \"errors\"; \"sort\"; \"strconv\"; \"strings\")\n+// AggregateCSV validates rows, keeps the first occurrence of each event ID,\n+// and emits group totals in lexical order. All accepted amounts fit the bound.\n+func AggregateCSV(input string)(string,error){\n+ reader:=csv.NewReader(strings.NewReader(input));reader.FieldsPerRecord=3\n+ rows,err:=reader.ReadAll();if err!=nil {return \"\",err}\n+ seen:=map[string]bool{};totals:=map[string]int64{}\n+ for _,row:=range rows {\n+  if row[0]==\"\"||row[1]==\"\" {return \"\",errors.New(\"missing event identity\")}\n+  amount,err:=strconv.ParseInt(row[2],10,64);if err!=nil||amount< -1000000||amount>1000000 {return \"\",errors.New(\"invalid amount\")}\n+  if seen[row[0]] {continue};seen[row[0]]=true;totals[row[1]]+=amount\n+ }\n+ groups:=make([]string,0,len(totals));for group:=range totals {groups=append(groups,group)};sort.Strings(groups)\n+ var out bytes.Buffer;writer:=csv.NewWriter(&out)\n+ for _,group:=range groups {if err:=writer.Write([]string{group,strconv.FormatInt(totals[group],10)});err!=nil{return \"\",err}}\n+ writer.Flush();if err:=writer.Error();err!=nil{return \"\",err};return out.String(),nil\n+}\n",
+          "canIntegrate": true,
+          "reason": "Review this complete task diff. Integration combines these exact commits; run checks on the combined result before accepting it.",
+          "handoff": {
+            "digest": "22c1d37334c368173ca1846a241f64fb803f34db76e32569efc341b391f1a353",
+            "status": "missing",
+            "summary": "",
+            "questions": 0,
+            "unanswered": 0,
+            "capturedAt": "2026-10-09T03:51:08.511243714Z"
+          }
+        },
+        "commit": "4fcc12954fee246f8bf4f041259f29a98fda3c07"
+      }
+    ],
+    "preIntegrationProgress": [
+      {
+        "completedTask": "build-a",
+        "nextTask": "build-c",
+        "nextSessionID": "s-d6a22e36",
+        "observedAt": "2026-10-09T03:47:10.541Z"
+      },
+      {
+        "completedTask": "build-c",
+        "nextTask": "build-d",
+        "nextSessionID": "s-31ecd247",
+        "observedAt": "2026-10-09T03:51:40.216Z"
+      }
+    ],
+    "activeRestarts": [
+      {
+        "task": "build-a",
+        "startedAt": "2026-10-09T03:43:03.946Z",
+        "finishedAt": "2026-10-09T03:43:06.679Z",
+        "sameContainer": true,
+        "samePID": true,
+        "sameContext": true,
+        "oneCommandDispatch": true
+      }
+    ],
+    "allocationOrder": [
+      {
+        "ordinal": 1,
+        "task": "build-a",
+        "projectID": "p-cefd3d8a",
+        "queueID": "queue-aa256fe71c3682754bee1d8e",
+        "sessionID": "s-e8cbc76c",
+        "operationID": "op-6a9e7d3239b81c9e704b47f4",
+        "observedAt": "2026-10-09T03:42:30.652Z"
+      },
+      {
+        "ordinal": 2,
+        "task": "build-c",
+        "projectID": "p-0d6a6feb",
+        "queueID": "queue-9cc206af4336a8901c0594f2",
+        "sessionID": "s-d6a22e36",
+        "operationID": "op-16fdc2d7756b629ed076bf8c",
+        "observedAt": "2026-10-09T03:47:10.521Z"
+      },
+      {
+        "ordinal": 3,
+        "task": "build-d",
+        "projectID": "p-328878f7",
+        "queueID": "queue-b823a4ceb0a7569e31882e4a",
+        "sessionID": "s-31ecd247",
+        "operationID": "op-9bb81ff516d251a287e726bc",
+        "observedAt": "2026-10-09T03:51:40.194Z"
+      }
+    ],
+    "queueControls": {
+      "activeTask": "build-a",
+      "cancelled": {
+        "projectID": "p-cefd3d8a",
+        "runID": "run-36d55ef2db2032ba3408f695",
+        "queueID": "queue-9dac4a7149369826d7cf663d",
+        "task": "cancel-a"
+      },
+      "prioritized": {
+        "projectID": "p-5bc2cc76",
+        "runID": "run-2b76fee9af3cb50441cdc133",
+        "queueID": "queue-86b8db96f7c1911003538d9e",
+        "task": "build-b",
+        "priority": "high"
+      },
+      "observedAt": "2026-10-09T03:42:32.804Z"
+    },
+    "queueCancellationGuard": {
+      "projectID": "p-cefd3d8a",
+      "runID": "run-36d55ef2db2032ba3408f695",
+      "queueID": "queue-9dac4a7149369826d7cf663d",
+      "task": "cancel-a",
+      "state": "paused",
+      "observedAt": "2026-10-09T03:39:52.512Z"
+    },
+    "cleanup": [],
+    "runtimeCleanup": {
+      "containers": 0,
+      "volumes": 0,
+      "ownedServiceProcesses": 0,
+      "ownedBrowserProcesses": 0,
+      "protectedImagePackageAndHelpersUnchanged": true,
+      "rootFreeBytes": 6492033024
+    }
+  },
+  "fieldPresence": {
+    "taskReceiptSettlements": true,
+    "naturalCompletions": true,
+    "integrations": true,
+    "preIntegrationProgress": true,
+    "activeRestarts": true,
+    "allocationOrder": true,
+    "queueControls": true,
+    "queueCancellationGuard": true,
+    "cleanup": true,
+    "runtimeCleanup": true
+  }
+}

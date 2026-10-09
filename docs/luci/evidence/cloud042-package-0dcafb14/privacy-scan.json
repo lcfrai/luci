@@ -1,0 +1,8 @@
+{
+  "scope": "Selected credential-token/private-key-header pattern scan over package-only receipts, logs and source helpers; no binary/compressed members and no application state or credential-file reads. Standard source/artifact workspace paths are intentionally retained for exact hashes and relocation mapping. Not a universal secret absence claim.",
+  "matches": 0,
+  "allOriginalBindingsMatched": true,
+  "stageHelperMatchesReceipt": true,
+  "originalProvenanceMatchesAdditiveReceipt": true,
+  "releaseManifestMatchesAdditiveReceipt": true
+}

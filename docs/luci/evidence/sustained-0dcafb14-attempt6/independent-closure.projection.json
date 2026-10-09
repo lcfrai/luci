@@ -1,0 +1,199 @@
+{
+  "at": "2026-10-09T04:03:51.505374+00:00",
+  "scope": "Independent read-only closure after failed sustained run. Docker and this fixture execution ledger are empty. The workflow still failed waiting for project B; process closure is limited to recorded identities and readable ownership observations, not whole-machine absence.",
+  "recordedIdentities": [
+    {
+      "recorded": {
+        "pid": 2210085,
+        "startTicks": 26324174,
+        "role": "test-driver"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2210211,
+        "startTicks": 26324417,
+        "role": "other-owned-descendant"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2210289,
+        "startTicks": 26324620,
+        "role": "control-plane"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2210798,
+        "startTicks": 26324847,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2210817,
+        "startTicks": 26324854,
+        "role": "browser"
+      },
+      "current": {
+        "pid": 2210817,
+        "startTicks": 26324854,
+        "state": "Z",
+        "ppid": 1
+      },
+      "observation": "exited-zombie"
+    },
+    {
+      "recorded": {
+        "pid": 2210819,
+        "startTicks": 26324854,
+        "role": "browser"
+      },
+      "current": {
+        "pid": 2210819,
+        "startTicks": 26324854,
+        "state": "Z",
+        "ppid": 1
+      },
+      "observation": "exited-zombie"
+    },
+    {
+      "recorded": {
+        "pid": 2210840,
+        "startTicks": 26324861,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2210855,
+        "startTicks": 26324901,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2210856,
+        "startTicks": 26324907,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2210885,
+        "startTicks": 26324920,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2210894,
+        "startTicks": 26324925,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2210896,
+        "startTicks": 26324925,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2216824,
+        "startTicks": 26345401,
+        "role": "control-plane"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2210086,
+        "startTicks": 26324174,
+        "role": "observer"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2210084,
+        "startTicks": 26324170,
+        "role": "wrapper"
+      },
+      "current": null,
+      "observation": "absent"
+    }
+  ],
+  "ownedActiveProcesses": [],
+  "unreadableProcessEnvironments": [
+    {
+      "pid": 203,
+      "startTicks": 1521,
+      "state": "S",
+      "ppid": 1
+    },
+    {
+      "pid": 254,
+      "startTicks": 1534,
+      "state": "S",
+      "ppid": 203
+    },
+    {
+      "pid": 260700,
+      "startTicks": 2331192,
+      "state": "S",
+      "ppid": 1
+    }
+  ],
+  "dockerContainers": [],
+  "dockerVolumes": [],
+  "ledgerSHA256": "c0022f0995797c072d8097729ea90e74487bcefb911576c91e4af0665403a49e",
+  "activeLeaseCount": 0,
+  "fixtureUnchanged": true,
+  "originalArtifactInputsUnchanged": true,
+  "noSignalsOrMutationsPerformed": true,
+  "fixture": "<PRIVATE_FAILED_FIXTURE>",
+  "fixtureInventoryBefore": {
+    "files": 703,
+    "bytes": 5062848,
+    "sha256": "ce0deff007660dff2bf141c8ffb793bf9b0c2b188f53619dc489d903d0d77e55"
+  },
+  "fixtureInventoryAfter": {
+    "files": 703,
+    "bytes": 5062848,
+    "sha256": "ce0deff007660dff2bf141c8ffb793bf9b0c2b188f53619dc489d903d0d77e55"
+  },
+  "publication": {
+    "representation": "allowlisted independent read-only closure; private fixture root and inventory rows omitted",
+    "original": {
+      "sha256": "9e94b2753cd9b598bd73202979d96d14afd198e6ceb6eb7398d0ecd0c54f4245",
+      "bytes": 312837
+    },
+    "privateInventoryOriginalsRemainExternal": true,
+    "originalArtifactInputsVerifiedUnchangedByRoot": true
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "source": "Extracted unchanged from final result; targets evaluated separately, partial run remains failed",
+  "summary": {
+    "idle-interactive-calibration:project-switch": {
+      "count": 100,
+      "successful": 100,
+      "failed": 0,
+      "p50Ms": 216.74722200000542,
+      "p95Ms": 485.37107500000275,
+      "p99Ms": 660.5748520000052,
+      "maxMs": 775.6744730000064,
+      "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+      "timeouts": []
+    },
+    "idle-interactive-calibration:input": {
+      "count": 200,
+      "successful": 200,
+      "failed": 0,
+      "p50Ms": 48.252894000004744,
+      "p95Ms": 64.61364600001252,
+      "p99Ms": 119.20168600001489,
+      "maxMs": 774.0993489999964,
+      "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+      "timeouts": []
+    },
+    "idle-interactive-calibration:draft-reset": {
+      "count": 100,
+      "successful": 100,
+      "failed": 0,
+      "p50Ms": 250.3821820000012,
+      "p95Ms": 501.31022299999313,
+      "p99Ms": 600.5179970000027,
+      "maxMs": 667.0893199999991,
+      "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+      "timeouts": []
+    },
+    "loaded:project-switch": {
+      "count": 223,
+      "successful": 223,
+      "failed": 0,
+      "p50Ms": 280.6018499999773,
+      "p95Ms": 551.5568299999577,
+      "p99Ms": 973.3800239999837,
+      "maxMs": 1351.2425029999577,
+      "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+      "timeouts": []
+    },
+    "loaded:input": {
+      "count": 446,
+      "successful": 446,
+      "failed": 0,
+      "p50Ms": 49.01989699999103,
+      "p95Ms": 72.25154600001406,
+      "p99Ms": 258.32729000004474,
+      "maxMs": 426.71577499993145,
+      "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+      "timeouts": []
+    },
+    "loaded:draft-reset": {
+      "count": 223,
+      "successful": 223,
+      "failed": 0,
+      "p50Ms": 270.45765100000426,
+      "p95Ms": 504.3065720000304,
+      "p99Ms": 688.5230010000523,
+      "maxMs": 1019.4843940000283,
+      "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+      "timeouts": []
+    }
+  },
+  "predeclaredTargets": {
+    "switchP95Ms": 300,
+    "inputP95Ms": 100,
+    "allMeasuredActionP99Ms": 1000
+  },
+  "basis": "Automation command through expected DOM content at two animation frames. Includes RPC/DOM/waits; not physical input-to-display latency.",
+  "completeSustainedAcceptance": false,
+  "sourceResultSHA256": "9b26b0f3fff80e37f61b07dbf6a740b38c2e1f52cff16f6466104904e140feea"
+}

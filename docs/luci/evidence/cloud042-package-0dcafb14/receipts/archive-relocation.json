@@ -1,0 +1,21 @@
+{
+  "at": "2026-10-09T03:38:57.714393+00:00",
+  "sourceCommit": "0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f",
+  "archives": [
+    {
+      "name": "luci-cloud-linux-amd64.tar.gz",
+      "bytes": 34595815,
+      "sha256": "0fd56b73af03bcf074de420c631068f2e1519757bb6d9fced499df0f49a200c6",
+      "retainedPath": "/tmp/luci-retained-tools/release-payloads-0dcafb14/luci-cloud-linux-amd64.tar.gz",
+      "unchangedProvenancePath": "/workspace/luci/artifacts/releases/0.5.0/luci-cloud-linux-amd64.tar.gz"
+    },
+    {
+      "name": "luci-linux-amd64.tar.gz",
+      "bytes": 69000975,
+      "sha256": "501a29e3c920173b99041797f794564b433e9d9b6c45036509165a4092a00b25",
+      "retainedPath": "/tmp/luci-retained-tools/release-payloads-0dcafb14/luci-linux-amd64.tar.gz",
+      "unchangedProvenancePath": "/workspace/luci/artifacts/releases/0.5.0/luci-linux-amd64.tar.gz"
+    }
+  ],
+  "scope": "Verified byte-preserving relocation of new generated archive files to retained task storage; old2da artifacts and all failed fixtures unchanged; no added physical capacity assumed"
+}

@@ -1,0 +1,19 @@
+# Failed installed sustained attempt 6
+
+Exact product and helper: `0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f`.
+
+This capsule preserves an actual Linux/Docker/native-Codex run with a **SCRIPTED provider**, not a live-model result. It failed while waiting for the remaining B allocation. Three command receipts and three natural exit-zero completions were observed for A/C/D, each with exact reservation disappearance; A and C were integrated through review. D was not integrated. Full four-project completion, the reviewed amendment and settled idle phase were not reached.
+
+The original error is `Exactly one queued worker allocated did not complete within its bounded prerequisite window`; the retained stage name is `actual-work-build-d`. That label does not mean D failed its command. The cause of B's failure to advance is not inferred from missing allocation or retrospective samples. The original failure and all previous attempts remain separate.
+
+All 1,292 action observations are published. Idle 100-switch/200-input p95 is 485.371075 / 64.613646 ms. Loaded 223-switch/446-input p95 is 551.556830 / 72.251546 ms; loaded switch p99 is 973.380024 ms. Loaded count quotas were reached, but both switch p95 values fail the unchanged 300 ms target. Input p95 is below 100 ms. Every reset, tail and maximum is retained; no cost was subtracted and no performance or causal improvement is claimed.
+
+The complete resource stream has 1,132 samples and 1,107 valid control-plane observations with zero effective-memory formula mismatches. Sequential samples are not admission snapshots. The workflow lacks settled memory growth and complete throughput evidence. `analysis/source-review.md` records detailed counts, all cohorts, stage examples, resource caveats and exact closure scope. The full result/resource stream and original numeric spans remain available alongside the focused projections.
+
+Independent closure reports an empty execution ledger and empty Docker/volume inventories. It records 13 absent known identities plus two PID-1 Chromium zombies, with three unrelated environments unreadable. This run has no retained charge; it does not resolve earlier fixtures. All 703 recorded fixture files and original artifacts are unchanged. No whole-machine zero-process, automatic workflow success, Windows or live-provider acceptance follows from these observations.
+
+`publication.json` binds originals and every public representation. Exact accepted helper source snapshots match the immutable helper Git blobs; package and image integrity remain the original run's recorded verification, not a new artifact retrieval or build. Full JSON/JSONL originals are gzip-compressed with only declared private-path substitutions. Other projections explicitly identify omissions. Raw private state/credential inventories remain external, and known owned-fixture credential scalars are checked only in memory; this bounded check is not a universal secret-scan guarantee.
+
+The original command and wrapper are preserved in `invocation.json.gz`, wrapper receipts and the accepted `run-with-observer.py`. Reproduction requires the exact package/image/toolchain bindings, a fresh private state/output directory, sufficient resource headroom and the declared **exclusive disposable Linux Docker** environment. Do not reuse the retained failed fixture or run this exclusive harness against personal shared workloads. Keep original timing/workload/cleanup budgets, source guards and scripted-provider scope. `recompute-interactions.py` verifies the public projected quantiles offline without launching Luci.
+
+This is offline publication only. No repository, product/helper source, retained fixture or original artifact was edited. No browser, app, compiler, test suite, provider or new benchmark was launched. Completion counts and cleanup evidence are scoped positives within a failed full workflow, not local release acceptance.
