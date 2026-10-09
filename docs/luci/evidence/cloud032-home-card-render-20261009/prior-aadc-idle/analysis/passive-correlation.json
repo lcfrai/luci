@@ -1,0 +1,7146 @@
+{
+  "scope": "All100 switch rows retained; temporal browser EventTiming matching only, not React/function causal attribution.0.2ms quantization tolerance; click uses same nonzero interactionID and start within100ms of pointerdown. Thresholded events absent are not zero.",
+  "resultSHA256": "61fe4f48f685af6c4a4402f14ee8cc40d3ee4d0cb052daf2eafdad59482fdc61",
+  "rows": [
+    {
+      "index": 0,
+      "elapsedMs": 318.34521099999256,
+      "allToOpenBrowserMs": 93.80000001192093,
+      "openToExpectedDOMMs": 124.2999999821186,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.6977519999927608
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 95.60273400000005
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 117.30221199999505
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 178.08049899998878
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 178.08725899999263
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 178.08958200000052
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 285.9555459999974
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 285.96222599998873
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 318.332362000001
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 2.699999988079071,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 80,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.300000011920929,
+        "handlerMs": 20.099999994039536,
+        "durationMs": 80
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.0999999940395355,
+        "handlerMs": 0.5,
+        "durationMs": 72,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.199999988079071,
+        "handlerMs": 7.699999988079071,
+        "durationMs": 72
+      }
+    },
+    {
+      "index": 1,
+      "elapsedMs": 245.39215699999477,
+      "allToOpenBrowserMs": 99.69999998807907,
+      "openToExpectedDOMMs": 70.5,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.040340999999898486
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 76.52260599999863
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 89.18110200000228
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 180.13324399999692
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 180.13807200000156
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 180.13852200000838
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 223.56669999999576
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 223.567882000003
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 245.38137099999585
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.7000000178813934,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.699999988079071,
+        "handlerMs": 16.80000001192093,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.5,
+        "handlerMs": 0.20000001788139343,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 0.800000011920929,
+        "handlerMs": 9.099999994039536,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 2,
+      "elapsedMs": 244.17664000000514,
+      "allToOpenBrowserMs": 85.2999999821186,
+      "openToExpectedDOMMs": 72.59999999403954,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.01795700000366196
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 71.36592100000416
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 78.5910739999963
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 153.00673500000266
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 153.01279399999476
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 153.0135650000011
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 211.30952899999102
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 211.3110319999978
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 244.15847199999553
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.5,
+        "handlerMs": 0.19999998807907104,
+        "durationMs": 40,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.199999988079071,
+        "handlerMs": 7.600000023841858,
+        "durationMs": 40
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 2.2999999821186066,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 3.199999988079071,
+        "handlerMs": 9.5,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 3,
+      "elapsedMs": 183.7210080000077,
+      "allToOpenBrowserMs": 69.19999998807907,
+      "openToExpectedDOMMs": 53.900000005960464,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.007912000000942498
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 55.75622100000328
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 62.57278300001053
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 129.51146400001016
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 129.51563100000203
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 129.5160109999997
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 163.83089900000778
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 163.8319610000035
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 183.71484900001087
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 0.9000000059604645,
+        "handlerMs": 0.3999999761581421,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.5999999940395355,
+        "handlerMs": 10.200000017881393,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.4000000059604645,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.2000000178813934,
+        "handlerMs": 6.5999999940395355,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 4,
+      "elapsedMs": 214.4206700000068,
+      "allToOpenBrowserMs": 67.2999999821186,
+      "openToExpectedDOMMs": 71.80000001192093,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.010146000000531785
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 73.61329400000977
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 84.42385900000227
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 137.5583570000017
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 137.56225300001097
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 137.56274400000984
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 194.87714399999822
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 194.87900600000285
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 214.4141099999979
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.2000000178813934,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.0,
+        "handlerMs": 12.099999994039536,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.7999999821186066,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.5999999940395355,
+        "handlerMs": 8.300000011920929,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 5,
+      "elapsedMs": 203.00547999999253,
+      "allToOpenBrowserMs": 64.40000000596046,
+      "openToExpectedDOMMs": 57.0,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.009654999987105839
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 65.33142199998838
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 72.0095319999964
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 125.99011499999324
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 125.99371999999858
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 125.99407099999371
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 167.55902299999434
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 167.5602949999884
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 202.9989399999904
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.5999999940395355,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.7000000178813934,
+        "handlerMs": 14.399999976158142,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.300000011920929,
+        "handlerMs": 0.5,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.0999999940395355,
+        "handlerMs": 6.299999982118607,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 6,
+      "elapsedMs": 223.83012400000007,
+      "allToOpenBrowserMs": 83.40000000596046,
+      "openToExpectedDOMMs": 67.7999999821186,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.009393999993335456
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 62.24363599999924
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 74.7074089999951
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 147.18243800000346
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 147.1866949999967
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 147.18728500000725
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 196.03221999999369
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 196.03349099999468
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 223.82171099999687
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.4000000059604645,
+        "handlerMs": 0.3999999761581421,
+        "durationMs": 64,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.0999999940395355,
+        "handlerMs": 13.600000023841858,
+        "durationMs": 64
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.399999976158142,
+        "handlerMs": 0.7000000178813934,
+        "durationMs": 64,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.5,
+        "handlerMs": 8.599999994039536,
+        "durationMs": 64
+      }
+    },
+    {
+      "index": 7,
+      "elapsedMs": 220.40460300000268,
+      "allToOpenBrowserMs": 85.5,
+      "openToExpectedDOMMs": 57.900000005960464,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.009063999998033978
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 65.0524560000049
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 78.65253099999973
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 143.16914899999392
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 143.17231399999582
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 143.17264399999112
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 187.38884499999403
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 187.39029700000538
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 220.39566999999806
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.0999999940395355,
+        "handlerMs": 0.20000001788139343,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.800000011920929,
+        "handlerMs": 11.699999988079071,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.699999988079071,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.4000000059604645,
+        "handlerMs": 6.200000017881393,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 8,
+      "elapsedMs": 196.68552600000112,
+      "allToOpenBrowserMs": 72.7999999821186,
+      "openToExpectedDOMMs": 51.5,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.010905999995884486
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 57.0490540000028
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 62.018175999997766
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 131.15465899999253
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 131.17296700000588
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 131.17427899999893
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 164.6552340000053
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 164.6570769999962
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 196.67766400000255
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.100000023841858,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.7999999821186066,
+        "handlerMs": 13.700000017881393,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.5,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.300000011920929,
+        "handlerMs": 6.699999988079071,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 9,
+      "elapsedMs": 211.27778300001228,
+      "allToOpenBrowserMs": 69.40000000596046,
+      "openToExpectedDOMMs": 57.89999997615814,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.009104000011575408
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 67.77221100000315
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 73.97853900000337
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 134.70353500000783
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 134.70765100000426
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 134.70801200000278
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 179.1515960000106
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 179.15250700000615
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 211.26991100001032
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.0999999940395355,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.800000011920929,
+        "handlerMs": 11.799999982118607,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.5,
+        "handlerMs": 0.19999998807907104,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.9000000059604645,
+        "handlerMs": 7.199999988079071,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 10,
+      "elapsedMs": 206.9900520000083,
+      "allToOpenBrowserMs": 64.89999997615814,
+      "openToExpectedDOMMs": 57.0,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.01037499999802094
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 63.04579499999818
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 68.5981310000061
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 126.46327000000747
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 126.4666750000033
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 126.46707600000082
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 171.7247420000058
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 171.72624400000495
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 206.98354200000176
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.0999999940395355,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.0,
+        "handlerMs": 9.800000011920929,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.199999988079071,
+        "handlerMs": 0.20000001788139343,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.5999999940395355,
+        "handlerMs": 6.5,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 11,
+      "elapsedMs": 595.146121999991,
+      "allToOpenBrowserMs": 188.09999999403954,
+      "openToExpectedDOMMs": 92.19999998807907,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.3380689999903552
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 384.031415999998
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 407.40203699999256
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 504.16785299999174
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 504.22051299999293
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 504.22104299999774
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 568.3186299999943
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 568.3201520000002
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 595.1378499999992
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 11.0,
+        "handlerMs": 2.0,
+        "durationMs": 144,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 14.600000023841858,
+        "handlerMs": 74.59999999403954,
+        "durationMs": 144
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.9000000059604645,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 72,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.5999999940395355,
+        "handlerMs": 12.5,
+        "durationMs": 72
+      }
+    },
+    {
+      "index": 12,
+      "elapsedMs": 237.13673600000038,
+      "allToOpenBrowserMs": 85.39999997615814,
+      "openToExpectedDOMMs": 64.90000000596046,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.009864999999990687
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 86.52075900000636
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 98.78553100000136
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 175.18694200000027
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 175.19061800000782
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 175.19095899999957
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 213.05074600000808
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 213.05219800000486
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 237.13006500000483
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.0999999940395355,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.600000023841858,
+        "handlerMs": 13.0,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 2.4000000059604645,
+        "handlerMs": 0.5,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 3.5999999940395355,
+        "handlerMs": 8.099999994039536,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 13,
+      "elapsedMs": 214.19982300000265,
+      "allToOpenBrowserMs": 65.09999999403954,
+      "openToExpectedDOMMs": 62.900000005960464,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.010224999990896322
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 73.42637599998852
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 78.06346799999301
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 136.28139399999054
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 136.28500999999233
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 136.28552999999374
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 184.96580599999288
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 184.96704799999134
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 214.19208199999412
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.300000011920929,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.800000011920929,
+        "handlerMs": 11.5,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.199999988079071,
+        "handlerMs": 0.20000001788139343,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.699999988079071,
+        "handlerMs": 7.800000011920929,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 14,
+      "elapsedMs": 541.2099570000137,
+      "allToOpenBrowserMs": 113.09999999403954,
+      "openToExpectedDOMMs": 62.80000001192093,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.013340000004973263
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 361.9306790000119
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 379.48906200000783
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 454.07567800000834
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 454.1391730000032
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 454.13976400000683
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 508.13645600000746
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 508.13785800000187
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 541.1530010000133
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 2.800000011920929,
+        "handlerMs": 0.5,
+        "durationMs": 88,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.300000011920929,
+        "handlerMs": 20.400000005960464,
+        "durationMs": 88
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.199999988079071,
+        "handlerMs": 0.20000001788139343,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.5999999940395355,
+        "handlerMs": 7.300000011920929,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 15,
+      "elapsedMs": 196.8602450000035,
+      "allToOpenBrowserMs": 68.2999999821186,
+      "openToExpectedDOMMs": 64.60000002384186,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.009704000010970049
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 52.06854900000326
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 59.44202600000426
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 118.98890100000426
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 118.99277700000675
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 118.99342800000159
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 169.94341600000917
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 169.94427700000233
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 196.85244300001068
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.0999999940395355,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 32,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.7999999821186066,
+        "handlerMs": 11.0,
+        "durationMs": 32
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.199999988079071,
+        "handlerMs": 0.20000001788139343,
+        "durationMs": 32,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.7000000178813934,
+        "handlerMs": 7.299999982118607,
+        "durationMs": 32
+      }
+    },
+    {
+      "index": 16,
+      "elapsedMs": 230.44022899999982,
+      "allToOpenBrowserMs": 83.0,
+      "openToExpectedDOMMs": 57.30000001192093,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.010545999990426935
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 82.53018200000224
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 94.98057899999549
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 156.73404599999776
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 156.7371909999929
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 156.73776199998974
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 199.08729699999094
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 199.0894399999961
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 230.4331680000032
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 2.0999999940395355,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 40,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.600000023841858,
+        "handlerMs": 11.099999994039536,
+        "durationMs": 40
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 32,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.5,
+        "handlerMs": 6.600000023841858,
+        "durationMs": 32
+      }
+    },
+    {
+      "index": 17,
+      "elapsedMs": 515.9262540000054,
+      "allToOpenBrowserMs": 322.80000001192093,
+      "openToExpectedDOMMs": 101.09999999403954,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.009725000010803342
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 270.2941900000005
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 306.5891249999986
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 409.8407290000032
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 409.9513450000086
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 409.95232700000633
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 481.8311660000036
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 481.8323880000098
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 515.8164990000078
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 5.299999982118607,
+        "handlerMs": 0.7000000178813934,
+        "durationMs": 248,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 7.0999999940395355,
+        "handlerMs": 46.19999998807907,
+        "durationMs": 248
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 3.0,
+        "handlerMs": 0.5,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 3.9000000059604645,
+        "handlerMs": 13.5,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 18,
+      "elapsedMs": 208.42723200000182,
+      "allToOpenBrowserMs": 67.09999999403954,
+      "openToExpectedDOMMs": 59.400000005960464,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.045098000002326444
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 62.65757099998882
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 72.50109199999133
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 134.256893999991
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 134.26219199999468
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 134.26317299999937
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 178.03753299999516
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 178.03930499999842
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 208.41977100000076
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 0.9000000059604645,
+        "handlerMs": 0.19999998807907104,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.5,
+        "handlerMs": 9.700000017881393,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.0999999940395355,
+        "handlerMs": 0.20000001788139343,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.5999999940395355,
+        "handlerMs": 7.4000000059604645,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 19,
+      "elapsedMs": 192.97479300000123,
+      "allToOpenBrowserMs": 66.40000000596046,
+      "openToExpectedDOMMs": 40.89999997615814,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.008893000005627982
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 66.39967199999955
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 73.69439099999727
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 135.97031600000628
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 135.97269900000538
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 135.97299999999814
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 164.03497999999672
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 164.03540000000794
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 192.96696099999826
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 0.9000000059604645,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.5999999940395355,
+        "handlerMs": 9.599999994039536,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.100000023841858,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.800000011920929,
+        "handlerMs": 6.199999988079071,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 20,
+      "elapsedMs": 197.8216160000011,
+      "allToOpenBrowserMs": 79.59999999403954,
+      "openToExpectedDOMMs": 51.0,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.009745000003022142
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 59.62069700000575
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 66.98003299999982
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 142.5507579999976
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 142.55336200000602
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 142.5538130000059
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 172.95498399999633
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 172.9554349999962
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 197.8146459999989
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.0999999940395355,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 40,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.7999999821186066,
+        "handlerMs": 12.100000023841858,
+        "durationMs": 40
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.300000011920929,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.0,
+        "handlerMs": 7.899999976158142,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 21,
+      "elapsedMs": 287.6692020000046,
+      "allToOpenBrowserMs": 152.59999999403954,
+      "openToExpectedDOMMs": 59.70000001788139,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.007029999993392266
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 79.7875170000043
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 141.11382100000628
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 212.2786480000068
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 212.280872000003
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 212.28112200000032
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 258.2343669999973
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 258.23494799999753
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 287.61234599999443
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.5999999940395355,
+        "handlerMs": 0.5,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.7999999821186066,
+        "handlerMs": 13.100000023841858,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.5,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.300000011920929,
+        "handlerMs": 6.5999999940395355,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 22,
+      "elapsedMs": 215.83827100000053,
+      "allToOpenBrowserMs": 84.0,
+      "openToExpectedDOMMs": 66.30000001192093,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.008291999998618849
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 69.02660800000012
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 74.66006199999538
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 141.56391499999154
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 141.5665289999888
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 141.56690900000103
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 190.40146899998945
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 190.40200000000186
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 215.83110999999917
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.199999988079071,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.7000000178813934,
+        "handlerMs": 24.0,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.199999988079071,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.0,
+        "handlerMs": 8.099999994039536,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 23,
+      "elapsedMs": 208.12219199999527,
+      "allToOpenBrowserMs": 70.40000000596046,
+      "openToExpectedDOMMs": 55.29999998211861,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.00810300000011921
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 65.47053199999209
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 72.62152400000195
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 133.66204599999764
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 133.66456999999355
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 133.6649599999946
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 172.47387399998843
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 172.47435499999847
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 208.11598299999605
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.0999999940395355,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.7999999821186066,
+        "handlerMs": 8.700000017881393,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.4000000059604645,
+        "handlerMs": 0.3999999761581421,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.9000000059604645,
+        "handlerMs": 7.4000000059604645,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 24,
+      "elapsedMs": 220.31251200000406,
+      "allToOpenBrowserMs": 86.7999999821186,
+      "openToExpectedDOMMs": 63.80000001192093,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.009485000002314337
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 62.66509700000461
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 76.22521699999925
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 156.7585390000022
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 156.76158399999258
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 156.76189500000328
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 192.07577900000615
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 192.07636999999522
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 220.3025970000017
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.800000011920929,
+        "handlerMs": 0.5,
+        "durationMs": 64,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 3.0999999940395355,
+        "handlerMs": 15.0,
+        "durationMs": 64
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.5,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 64,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.2000000178813934,
+        "handlerMs": 8.799999982118607,
+        "durationMs": 64
+      }
+    },
+    {
+      "index": 25,
+      "elapsedMs": 267.44232600000396,
+      "allToOpenBrowserMs": 79.59999999403954,
+      "openToExpectedDOMMs": 70.2000000178814,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.011878000004799105
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 90.16429300000891
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 97.22156400000677
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 166.02154500001052
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 166.02466000001004
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 166.02490000000398
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 222.68804300000193
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 222.6894650000031
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 267.4262110000127
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 2.0999999940395355,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 56,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.800000011920929,
+        "handlerMs": 16.899999976158142,
+        "durationMs": 56
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 3.0,
+        "handlerMs": 0.5,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 3.699999988079071,
+        "handlerMs": 7.5,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 26,
+      "elapsedMs": 207.3729319999984,
+      "allToOpenBrowserMs": 66.7000000178814,
+      "openToExpectedDOMMs": 69.09999999403954,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.0369160000118427
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 67.20750100001169
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 73.27361699999892
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 144.21005000000878
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 144.21267400000943
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 144.21322400000645
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 186.20248300000094
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 186.20297300000675
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 207.36578100000042
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.199999988079071,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.0,
+        "handlerMs": 13.399999976158142,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 2.0,
+        "handlerMs": 0.7999999821186066,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 3.2999999821186066,
+        "handlerMs": 11.5,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 27,
+      "elapsedMs": 227.72764599999937,
+      "allToOpenBrowserMs": 83.69999998807907,
+      "openToExpectedDOMMs": 57.20000001788139,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.008992999995825812
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 68.89093799999682
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 84.22859899999457
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 152.69231299999228
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 152.6953280000016
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 152.69551799999317
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 193.78914599999553
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 193.78974700000254
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 227.72020500000508
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.0999999940395355,
+        "handlerMs": 0.19999998807907104,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.4000000059604645,
+        "handlerMs": 9.799999982118607,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.199999988079071,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.7999999821186066,
+        "handlerMs": 7.700000017881393,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 28,
+      "elapsedMs": 628.3951799999923,
+      "allToOpenBrowserMs": 434.19999998807907,
+      "openToExpectedDOMMs": 118.80000001192093,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.008061999993515201
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 375.06540700000187
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 422.8249999999971
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 500.2337969999935
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 500.23732200000086
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 500.2376019999938
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 592.5781869999919
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 592.579018000004
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 628.3855650000041
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.0999999940395355,
+        "handlerMs": 2.699999988079071,
+        "durationMs": 352,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 4.5999999940395355,
+        "handlerMs": 33.29999998211861,
+        "durationMs": 352
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 2.0999999940395355,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 32,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.7000000178813934,
+        "handlerMs": 12.400000005960464,
+        "durationMs": 32
+      }
+    },
+    {
+      "index": 29,
+      "elapsedMs": 199.25859699999273,
+      "allToOpenBrowserMs": 67.09999999403954,
+      "openToExpectedDOMMs": 71.40000000596046,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.010284999996656552
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 57.3118850000028
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 63.055554999999
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 121.08966499999224
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 121.09219899999152
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 121.09241899999324
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 178.6236910000007
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 178.6244619999925
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 199.2506049999938
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.300000011920929,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.5999999940395355,
+        "handlerMs": 11.800000011920929,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.300000011920929,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.9000000059604645,
+        "handlerMs": 7.0,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 30,
+      "elapsedMs": 215.59998600000108,
+      "allToOpenBrowserMs": 82.09999999403954,
+      "openToExpectedDOMMs": 57.599999994039536,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.008984000000054948
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 56.177748000001884
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 69.36192799999844
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 134.91682199999923
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 134.91916499999934
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 134.91961599999922
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 182.38162899999588
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 182.38242999999784
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 215.59217399999034
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.9000000059604645,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.5,
+        "handlerMs": 11.199999988079071,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.4000000059604645,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.199999988079071,
+        "handlerMs": 6.199999988079071,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 31,
+      "elapsedMs": 262.3091330000025,
+      "allToOpenBrowserMs": 96.69999998807907,
+      "openToExpectedDOMMs": 96.09999999403954,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.00914300000295043
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 52.88282500000787
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 67.51206800001091
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 169.78960100001132
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 169.79221500000858
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 169.79256500001065
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 228.76038900000276
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 228.76095000001078
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 262.2975260000094
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.0,
+        "handlerMs": 0.19999998807907104,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.699999988079071,
+        "handlerMs": 10.300000011920929,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 4.199999988079071,
+        "handlerMs": 1.5,
+        "durationMs": 40,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 6.0999999940395355,
+        "handlerMs": 14.799999982118607,
+        "durationMs": 40
+      }
+    },
+    {
+      "index": 32,
+      "elapsedMs": 211.7971519999992,
+      "allToOpenBrowserMs": 71.80000001192093,
+      "openToExpectedDOMMs": 67.59999999403954,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.009814999997615814
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 65.02838999999221
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 70.62642800000322
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 139.15650699999242
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 139.16044300000067
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 139.16091399999277
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 190.34687599999597
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 190.34762699999555
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 211.78908999999112
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.5,
+        "handlerMs": 9.700000017881393,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 2.9000000059604645,
+        "handlerMs": 0.19999998807907104,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 3.300000011920929,
+        "handlerMs": 8.299999982118607,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 33,
+      "elapsedMs": 216.2524490000069,
+      "allToOpenBrowserMs": 84.5,
+      "openToExpectedDOMMs": 60.5,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.008643000008305535
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 60.131859000000986
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 70.78421700000763
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 140.76091600001382
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 140.76505200000247
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 140.76556300000811
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 186.0495690000098
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 186.0502000000124
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 216.24531800000113
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.5,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.5,
+        "handlerMs": 12.0,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.0999999940395355,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.0,
+        "handlerMs": 7.5999999940395355,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 34,
+      "elapsedMs": 196.37118800000462,
+      "allToOpenBrowserMs": 72.59999999403954,
+      "openToExpectedDOMMs": 60.099999994039536,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.013060000012046658
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 54.26968100000522
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 60.67973400000483
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 125.94701900001382
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 125.94973300000129
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 125.94999400000961
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 169.55462200001057
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 169.5553130000044
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 196.36396700001205
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.100000023841858,
+        "handlerMs": 0.5,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.2000000178813934,
+        "handlerMs": 12.799999982118607,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.5999999940395355,
+        "handlerMs": 0.6000000238418579,
+        "durationMs": 40,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.5999999940395355,
+        "handlerMs": 6.700000017881393,
+        "durationMs": 40
+      }
+    },
+    {
+      "index": 35,
+      "elapsedMs": 254.46999199999846,
+      "allToOpenBrowserMs": 83.39999997615814,
+      "openToExpectedDOMMs": 88.0,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.06788299999607261
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 73.66271599999163
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 83.30769599998894
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 165.8603529999964
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 165.86367799999425
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 165.8638789999968
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 225.86247599999479
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 225.86324700000114
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 254.46014699999068
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.5,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.2999999821186066,
+        "handlerMs": 16.200000017881393,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 2.0,
+        "handlerMs": 0.6000000238418579,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 3.0999999940395355,
+        "handlerMs": 16.099999994039536,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 36,
+      "elapsedMs": 209.39160000000265,
+      "allToOpenBrowserMs": 65.7999999821186,
+      "openToExpectedDOMMs": 58.0,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.011306999993394129
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 64.16870500000368
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 68.72508499999822
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 131.03358000000298
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 131.03626399999484
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 131.03651499999978
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 174.51285099999222
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 174.51326199999312
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 209.38496999999916
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.2000000178813934,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.699999988079071,
+        "handlerMs": 8.900000005960464,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.5,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.300000011920929,
+        "handlerMs": 6.5999999940395355,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 37,
+      "elapsedMs": 196.04905800000415,
+      "allToOpenBrowserMs": 70.60000002384186,
+      "openToExpectedDOMMs": 61.5,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.008282000009785406
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 52.676793000006
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 59.85415500000818
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 122.81819900000119
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 122.82036200001312
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 122.82102300001134
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 168.29231800000707
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 168.2929790000053
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 196.04187700001057
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.399999976158142,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 0.699999988079071,
+        "handlerMs": 10.400000005960464,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.300000011920929,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.9000000059604645,
+        "handlerMs": 6.4000000059604645,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 38,
+      "elapsedMs": 260.7668219999905,
+      "allToOpenBrowserMs": 94.80000001192093,
+      "openToExpectedDOMMs": 56.5,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.01056599999719765
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 101.68120999999519
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 112.32213899999624
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 184.974635999999
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 184.97805099999823
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 184.97842200000014
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 224.21454499999527
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 224.21581700000388
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 260.7584990000032
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.300000011920929,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 40,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.0,
+        "handlerMs": 20.599999994039536,
+        "durationMs": 40
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.300000011920929,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.0999999940395355,
+        "handlerMs": 6.4000000059604645,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 39,
+      "elapsedMs": 245.70006999999168,
+      "allToOpenBrowserMs": 101.30000001192093,
+      "openToExpectedDOMMs": 65.7999999821186,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.010325999988708645
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 82.48814699999639
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 101.3280029999878
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 172.2889889999933
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 172.2915929999872
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 172.29199399999925
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 220.79354800000146
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 220.7941279999941
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 245.68690999998944
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.0,
+        "handlerMs": 0.20000001788139343,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.2999999821186066,
+        "handlerMs": 18.200000017881393,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.4000000059604645,
+        "handlerMs": 0.19999998807907104,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.0999999940395355,
+        "handlerMs": 6.800000011920929,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 40,
+      "elapsedMs": 233.44135700000334,
+      "allToOpenBrowserMs": 82.5,
+      "openToExpectedDOMMs": 67.7000000178814,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.014171000002534129
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 79.45217499999853
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 91.61445300000196
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 158.83896000000823
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 158.84307600000466
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 158.84359699999914
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 208.29952000000048
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 208.3001110000041
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 233.43547900000704
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.2999999821186066,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.7999999821186066,
+        "handlerMs": 11.0,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.4000000059604645,
+        "handlerMs": 0.5,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.0999999940395355,
+        "handlerMs": 7.5999999940395355,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 41,
+      "elapsedMs": 279.14004399999976,
+      "allToOpenBrowserMs": 136.19999998807907,
+      "openToExpectedDOMMs": 65.5,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.010265000004437752
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 117.44950000000244
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 122.84464399999706
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 193.73871000000509
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 193.7425660000008
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 193.74295699999493
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 243.71486600000935
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 243.71558699999878
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 279.13198200000625
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.9000000059604645,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 96,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 3.0,
+        "handlerMs": 70.40000000596046,
+        "durationMs": 96
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.4000000059604645,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 40,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.9000000059604645,
+        "handlerMs": 7.200000017881393,
+        "durationMs": 40
+      }
+    },
+    {
+      "index": 42,
+      "elapsedMs": 245.6501350000035,
+      "allToOpenBrowserMs": 101.30000001192093,
+      "openToExpectedDOMMs": 72.69999998807907,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.11224899999797344
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 71.79246100000455
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 86.83841500000563
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 170.64334199999576
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 170.64614700000675
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 170.64635700000508
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 224.394610000003
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 224.39530099999683
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 245.6422029999958
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.699999988079071,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 32,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.5999999940395355,
+        "handlerMs": 13.700000017881393,
+        "durationMs": 32
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.9000000059604645,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 3.2000000178813934,
+        "handlerMs": 8.199999988079071,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 43,
+      "elapsedMs": 208.08557199999632,
+      "allToOpenBrowserMs": 68.60000002384186,
+      "openToExpectedDOMMs": 57.89999997615814,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.01019500000984408
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 67.95752500000526
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 76.40924700000323
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 133.63740700000199
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 133.64107199999853
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 133.64166300000215
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 177.0731470000028
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 177.0741180000041
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 208.0775500000018
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.699999988079071,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.5999999940395355,
+        "handlerMs": 14.0,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.7999999821186066,
+        "handlerMs": 0.5,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.800000011920929,
+        "handlerMs": 6.299999982118607,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 44,
+      "elapsedMs": 208.65196699999797,
+      "allToOpenBrowserMs": 71.60000002384186,
+      "openToExpectedDOMMs": 63.0,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.010907000003498979
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 65.023451999994
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 71.14347399999679
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 134.9624599999952
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 134.9654040000023
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 134.96570499999507
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 185.06299299999955
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 185.0873900000006
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 208.6436640000029
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.5999999940395355,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.300000011920929,
+        "handlerMs": 9.800000011920929,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 4.0999999940395355,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 4.800000011920929,
+        "handlerMs": 6.0999999940395355,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 45,
+      "elapsedMs": 228.05213399999775,
+      "allToOpenBrowserMs": 84.19999998807907,
+      "openToExpectedDOMMs": 67.40000000596046,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.009453999999095686
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 76.2278229999938
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 90.58448799999314
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 154.07633599999826
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 154.08025199999975
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 154.08074200000556
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 203.0796249999985
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 203.08000499999616
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 228.04596499999752
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.0,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.699999988079071,
+        "handlerMs": 13.0,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.0999999940395355,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.9000000059604645,
+        "handlerMs": 10.0,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 46,
+      "elapsedMs": 197.3893420000095,
+      "allToOpenBrowserMs": 65.40000000596046,
+      "openToExpectedDOMMs": 56.19999998807907,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.00911400000040885
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 73.19972899999993
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 80.24052900000243
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 133.4862090000097
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 133.4904150000075
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 133.49062599999888
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 174.90293999999994
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 174.9038120000041
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 197.38218100000813
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.0999999940395355,
+        "handlerMs": 0.7000000178813934,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.5,
+        "handlerMs": 10.900000005960464,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.300000011920929,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.0,
+        "handlerMs": 5.800000011920929,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 47,
+      "elapsedMs": 213.56359600000724,
+      "allToOpenBrowserMs": 65.5,
+      "openToExpectedDOMMs": 59.19999998807907,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.04005100000358652
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 71.77186600001005
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 81.43097800000396
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 135.50555800000438
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 135.5162740000087
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 135.5164950000035
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 178.441485000003
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 178.44184500000847
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 213.55523399999947
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.300000011920929,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.0999999940395355,
+        "handlerMs": 11.599999994039536,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.2000000178813934,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.7999999821186066,
+        "handlerMs": 5.700000017881393,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 48,
+      "elapsedMs": 408.76863500000036,
+      "allToOpenBrowserMs": 68.2999999821186,
+      "openToExpectedDOMMs": 268.30000001192093,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.011226999995415099
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 62.07741500000702
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 71.08220099999744
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 263.79424099999596
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 263.9670119999937
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 263.9677229999943
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 385.3911150000058
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 385.39202600000135
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 408.48744100000476
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 0.9000000059604645,
+        "handlerMs": 0.09999999403953552,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.4000000059604645,
+        "handlerMs": 8.799999982118607,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.199999988079071,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 160,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.7000000178813934,
+        "handlerMs": 12.699999988079071,
+        "durationMs": 160
+      }
+    },
+    {
+      "index": 49,
+      "elapsedMs": 225.19224800000666,
+      "allToOpenBrowserMs": 86.0,
+      "openToExpectedDOMMs": 56.0,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.009394000007887371
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 70.14351100000204
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 81.06435600000259
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 159.9949340000021
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 159.99818900000537
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 159.99848900000507
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 198.11746900000435
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 198.11826000000292
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 225.18298399999912
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.5,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.300000011920929,
+        "handlerMs": 13.699999988079071,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 2.399999976158142,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 3.0999999940395355,
+        "handlerMs": 10.199999988079071,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 50,
+      "elapsedMs": 208.16304899999523,
+      "allToOpenBrowserMs": 65.0,
+      "openToExpectedDOMMs": 61.20000001788139,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.009143999996013008
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 68.69666000000143
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 80.14403299998958
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 133.07783299998846
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 133.08057700000063
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 133.08078699999896
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 180.59920299999067
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 180.60000399999262
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 208.15578799998912
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.5,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.300000011920929,
+        "handlerMs": 11,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.2999999821186066,
+        "handlerMs": 0.09999999403953552,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.699999988079071,
+        "handlerMs": 6.5999999940395355,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 51,
+      "elapsedMs": 459.3487310000055,
+      "allToOpenBrowserMs": 83.7000000178814,
+      "openToExpectedDOMMs": 255.7999999821186,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.011687999998684973
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 84.49215400000685
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 96.36133800000243
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 171.21524600000703
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 171.22009300001082
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 171.22095400000399
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 429.97787100001005
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 429.9794230000116
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 458.7213650000049
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 2.0,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.800000011920929,
+        "handlerMs": 12.699999988079071,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.5,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.100000023841858,
+        "handlerMs": 8.099999994039536,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 52,
+      "elapsedMs": 218.7908369999932,
+      "allToOpenBrowserMs": 82.5,
+      "openToExpectedDOMMs": 65.2000000178814,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.010675999990780838
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 62.72497699999076
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 80.59353800000099
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 143.09960000000137
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 143.102264000001
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 143.1026439999987
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 192.4926290000003
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 192.49334999998973
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 218.78280499999528
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.5,
+        "handlerMs": 0.20000001788139343,
+        "durationMs": 40,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.100000023841858,
+        "handlerMs": 11.599999994039536,
+        "durationMs": 40
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.699999988079071,
+        "handlerMs": 0.5,
+        "durationMs": 32,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 3.0,
+        "handlerMs": 7.300000011920929,
+        "durationMs": 32
+      }
+    },
+    {
+      "index": 53,
+      "elapsedMs": 199.48797699999704,
+      "allToOpenBrowserMs": 69.5,
+      "openToExpectedDOMMs": 57.599999994039536,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.007090999992215075
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 54.91554999999062
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 61.79781099999673
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 124.92754999999306
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 124.93134499998996
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 124.93168599999626
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 168.16653499999666
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 168.16725600000063
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 199.47763199999463
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.100000023841858,
+        "handlerMs": 0.09999999403953552,
+        "durationMs": 32,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.5,
+        "handlerMs": 9.899999976158142,
+        "durationMs": 32
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.2999999821186066,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 32,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.9000000059604645,
+        "handlerMs": 7.9000000059604645,
+        "durationMs": 32
+      }
+    },
+    {
+      "index": 54,
+      "elapsedMs": 334.93250300000363,
+      "allToOpenBrowserMs": 66.09999999403954,
+      "openToExpectedDOMMs": 77.40000000596046,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.008493000001180917
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 57.68246600001294
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 63.21109100000467
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 123.67547200000263
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 123.67777500000375
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 123.67800600000191
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 188.2320020000043
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 188.23257200000808
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 334.34051100000215
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.300000011920929,
+        "handlerMs": 1.5,
+        "durationMs": 32,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 3.4000000059604645,
+        "handlerMs": 10.099999994039536,
+        "durationMs": 32
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.300000011920929,
+        "handlerMs": 0.5,
+        "durationMs": 32,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.2000000178813934,
+        "handlerMs": 7.0,
+        "durationMs": 32
+      }
+    },
+    {
+      "index": 55,
+      "elapsedMs": 179.64743899999303,
+      "allToOpenBrowserMs": 67.5,
+      "openToExpectedDOMMs": 54.099999994039536,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.007450999997672625
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 51.055328999995254
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 61.94534299999941
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 118.4202740000037
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 118.42361899999378
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 118.42392899999686
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 156.8029569999926
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 156.80348800000502
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 179.63976799999364
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 0.9000000059604645,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.5999999940395355,
+        "handlerMs": 11.700000017881393,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.199999988079071,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.699999988079071,
+        "handlerMs": 6.800000011920929,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 56,
+      "elapsedMs": 178.60736100000213,
+      "allToOpenBrowserMs": 62.599999994039536,
+      "openToExpectedDOMMs": 58.599999994039536,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.03421199999866076
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 53.14640299999155
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 57.36981000000378
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 116.16321099999186
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 116.16583499999251
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 116.16605600000184
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 159.6085369999928
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 159.60898799999268
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 178.59807700000238
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.300000011920929,
+        "handlerMs": 0.19999998807907104,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.9000000059604645,
+        "handlerMs": 10.599999994039536,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.0999999940395355,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.800000011920929,
+        "handlerMs": 6.0,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 57,
+      "elapsedMs": 242.36935300000187,
+      "allToOpenBrowserMs": 93.30000001192093,
+      "openToExpectedDOMMs": 64.09999999403954,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.010145000007469207
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 78.07306400001107
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 87.26392000001215
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 160.01838000000862
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 160.02126500000304
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 160.02151500000036
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 207.11875700000382
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 207.11960800000816
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 242.3614809999999
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.5999999940395355,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 32,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.300000011920929,
+        "handlerMs": 13.800000011920929,
+        "durationMs": 32
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 2.800000011920929,
+        "handlerMs": 0.19999998807907104,
+        "durationMs": 40,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 3.699999988079071,
+        "handlerMs": 9.599999994039536,
+        "durationMs": 40
+      }
+    },
+    {
+      "index": 58,
+      "elapsedMs": 731.1877820000082,
+      "allToOpenBrowserMs": 227.30000001192093,
+      "openToExpectedDOMMs": 107.5,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.0097749999986263
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 488.9137320000009
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 518.9967170000018
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 635.8375800000067
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 635.8951669999951
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 635.895617000002
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 707.929375000007
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 707.9305770000065
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 730.8372729999974
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 12.799999982118607,
+        "handlerMs": 1.9000000059604645,
+        "durationMs": 192,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 16.5,
+        "handlerMs": 85.80000001192093,
+        "durationMs": 192
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 2.0,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 72,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.7000000178813934,
+        "handlerMs": 24.599999994039536,
+        "durationMs": 72
+      }
+    },
+    {
+      "index": 59,
+      "elapsedMs": 237.1147259999998,
+      "allToOpenBrowserMs": 88.90000000596046,
+      "openToExpectedDOMMs": 63.5,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.009464000002481043
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 65.95721100000083
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 77.67309500000556
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 163.79624599999806
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 163.79905000000144
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 163.799291000003
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 203.8431830000045
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 203.84390400000848
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 237.1024380000017
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.7000000178813934,
+        "handlerMs": 0.19999998807907104,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.5,
+        "handlerMs": 15.200000017881393,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 2.2000000178813934,
+        "handlerMs": 0.5,
+        "durationMs": 40,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 3.4000000059604645,
+        "handlerMs": 8.5,
+        "durationMs": 40
+      }
+    },
+    {
+      "index": 60,
+      "elapsedMs": 244.03089900000487,
+      "allToOpenBrowserMs": 86.59999999403954,
+      "openToExpectedDOMMs": 70.40000000596046,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.011557000005268492
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 72.26261800000793
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 78.21870800000033
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 153.31404700000712
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 153.31826400000136
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 153.31858400000783
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 210.36155600000347
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 210.36245699999563
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 244.02355800000078
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.2000000178813934,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.0,
+        "handlerMs": 12.5,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.5,
+        "handlerMs": 0.19999998807907104,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.300000011920929,
+        "handlerMs": 6.0999999940395355,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 61,
+      "elapsedMs": 608.9362620000029,
+      "allToOpenBrowserMs": 219.59999999403954,
+      "openToExpectedDOMMs": 82.7999999821186,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.010116000004927628
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 395.19512499999837
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 427.2452510000003
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 510.8187370000087
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 510.8746119999996
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 510.8749320000061
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 574.4648650000017
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 574.4656860000105
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 608.7542270000122
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 17.600000023841858,
+        "handlerMs": 2.0999999940395355,
+        "durationMs": 184,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 22.69999998807907,
+        "handlerMs": 84.69999998807907,
+        "durationMs": 184
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.7000000178813934,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 40,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.199999988079071,
+        "handlerMs": 9.199999988079071,
+        "durationMs": 40
+      }
+    },
+    {
+      "index": 62,
+      "elapsedMs": 245.89481799998612,
+      "allToOpenBrowserMs": 86.40000000596046,
+      "openToExpectedDOMMs": 75.0,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.02209299999231007
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 77.25402799999574
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 85.22377399999823
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 160.53006599999208
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 160.5330099999992
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 160.53319099999499
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 218.6386449999991
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 218.63982699999178
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 245.88730699999724
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.699999988079071,
+        "handlerMs": 0.9000000059604645,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.800000011920929,
+        "handlerMs": 16.69999998807907,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.4000000059604645,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.300000011920929,
+        "handlerMs": 6.5,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 63,
+      "elapsedMs": 293.2700449999975,
+      "allToOpenBrowserMs": 136.69999998807907,
+      "openToExpectedDOMMs": 82.69999998807907,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.011427999997977167
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 89.21234099999128
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 119.72708299999067
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 217.58671699999832
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 217.59080299999914
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 217.59132399999362
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 272.47531799999706
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 272.4758989999973
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 293.2605509999994
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.399999976158142,
+        "handlerMs": 1.300000011920929,
+        "durationMs": 56,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.699999988079071,
+        "handlerMs": 17.599999994039536,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 2.199999988079071,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 40,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 4.5,
+        "handlerMs": 10.5,
+        "durationMs": 40
+      }
+    },
+    {
+      "index": 64,
+      "elapsedMs": 671.1429519999947,
+      "allToOpenBrowserMs": 421.09999999403954,
+      "openToExpectedDOMMs": 173.0,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.009785000002011657
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 100.95060899999226
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 366.3159519999899
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 529.7848899999954
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 529.8276139999944
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 529.8278949999949
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 646.2925350000005
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 646.2931160000007
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 670.9817489999987
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 2.0999999940395355,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 56,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.5999999940395355,
+        "handlerMs": 19.900000005960464,
+        "durationMs": 56
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 3.600000023841858,
+        "handlerMs": 0.7999999821186066,
+        "durationMs": 80,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 5.199999988079071,
+        "handlerMs": 19.700000017881393,
+        "durationMs": 80
+      }
+    },
+    {
+      "index": 65,
+      "elapsedMs": 231.7727659999946,
+      "allToOpenBrowserMs": 83.59999999403954,
+      "openToExpectedDOMMs": 67.7000000178814,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.00862300000153482
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 74.23361300000397
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 88.23638499999652
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 169.9431190000032
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 169.94734600000083
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 169.94765600000392
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 205.64503300000797
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 205.64558399999805
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 231.76360200000636
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.5,
+        "handlerMs": 0.699999988079071,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.5,
+        "handlerMs": 11.100000023841858,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.4000000059604645,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.300000011920929,
+        "handlerMs": 11.5,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 66,
+      "elapsedMs": 210.40153399998962,
+      "allToOpenBrowserMs": 66.60000002384186,
+      "openToExpectedDOMMs": 59.69999998807907,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.008311999990837649
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 69.57600999998976
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 79.56494999999995
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 132.47645999999077
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 132.4788639999897
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 132.47931499998958
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 180.10603699999047
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 180.1072889999923
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 210.39164899999741
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.2999999821186066,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.0,
+        "handlerMs": 10.699999988079071,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.4000000059604645,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.2999999821186066,
+        "handlerMs": 6.800000011920929,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 67,
+      "elapsedMs": 250.2600439999951,
+      "allToOpenBrowserMs": 82.40000000596046,
+      "openToExpectedDOMMs": 59.19999998807907,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.007801999992807396
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 96.19704199999978
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 105.7991839999886
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 178.2551509999903
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 178.2586059999885
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 178.25914699998975
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 219.6364820000017
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 219.63714299999992
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 250.2516309999919
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.9000000059604645,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.5,
+        "handlerMs": 11.600000023841858,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.2000000178813934,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.7999999821186066,
+        "handlerMs": 6.9000000059604645,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 68,
+      "elapsedMs": 180.62141999999585,
+      "allToOpenBrowserMs": 66.90000000596046,
+      "openToExpectedDOMMs": 56.0,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.008533000000170432
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 54.75089900000603
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 59.94307700000354
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 119.81849599999259
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 119.82210200000554
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 119.82255199999781
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 160.17164699999557
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 160.1722379999992
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 180.61375799999223
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.300000011920929,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.9000000059604645,
+        "handlerMs": 11.099999994039536,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.300000011920929,
+        "handlerMs": 0.3999999761581421,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.0,
+        "handlerMs": 6.4000000059604645,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 69,
+      "elapsedMs": 200.05086800000572,
+      "allToOpenBrowserMs": 67.80000001192093,
+      "openToExpectedDOMMs": 65.09999999403954,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.009134000007179566
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 58.904581000009784
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 72.11486800000421
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 124.03339100000449
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 124.0366159999976
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 124.0368460000027
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 176.8323010000022
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 176.83315299999958
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 200.04239600000437
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.0999999940395355,
+        "handlerMs": 0.20000001788139343,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.5999999940395355,
+        "handlerMs": 9.300000011920929,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.5,
+        "handlerMs": 0.19999998807907104,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.199999988079071,
+        "handlerMs": 6.5,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 70,
+      "elapsedMs": 211.13190500001656,
+      "allToOpenBrowserMs": 63.0,
+      "openToExpectedDOMMs": 58.599999994039536,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.009565000014845282
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 70.35625700000674
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 79.45012799999677
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 134.8941909999994
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 134.89788699999917
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 134.89827800000785
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 177.83519400001387
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 177.83605499999248
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 211.1241040000168
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.0,
+        "handlerMs": 0.5,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.300000011920929,
+        "handlerMs": 10.900000005960464,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.2999999821186066,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.9000000059604645,
+        "handlerMs": 6.0999999940395355,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 71,
+      "elapsedMs": 236.0978559999785,
+      "allToOpenBrowserMs": 85.5,
+      "openToExpectedDOMMs": 63.80000001192093,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.07034599999315105
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 80.99265299999388
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 94.95331099999021
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 170.92610099999
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 170.92968599998858
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 170.9299769999925
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 212.87329999997746
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 212.87421199999517
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 236.0899539999955
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.2000000178813934,
+        "handlerMs": 0.5,
+        "durationMs": 32,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.0,
+        "handlerMs": 13.5,
+        "durationMs": 32
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.300000011920929,
+        "handlerMs": 0.5,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.4000000059604645,
+        "handlerMs": 9.700000017881393,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 72,
+      "elapsedMs": 191.8289170000062,
+      "allToOpenBrowserMs": 66.2999999821186,
+      "openToExpectedDOMMs": 55.80000001192093,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.0109060000104364
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 63.91745800001081
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 69.15701799999806
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 132.95544300001347
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 132.9583879999991
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 132.95896799999173
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 167.76069900000584
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 167.7617409999948
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 191.81977400000324
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.300000011920929,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.0,
+        "handlerMs": 13.200000017881393,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.0999999940395355,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 56,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.800000011920929,
+        "handlerMs": 6.299999982118607,
+        "durationMs": 56
+      }
+    },
+    {
+      "index": 73,
+      "elapsedMs": 212.6190770000103,
+      "allToOpenBrowserMs": 75.0,
+      "openToExpectedDOMMs": 56.900000005960464,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.01007500002742745
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 64.10609300000942
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 72.43970800001989
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 136.04303800000343
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 136.04623300000094
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 136.04649300000165
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 182.19693900001585
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 182.19794100002036
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 212.61024400001043
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.5999999940395355,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 40,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.5,
+        "handlerMs": 10.300000011920929,
+        "durationMs": 40
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.4000000059604645,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.2000000178813934,
+        "handlerMs": 6.699999988079071,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 74,
+      "elapsedMs": 315.3368699999992,
+      "allToOpenBrowserMs": 128.7000000178814,
+      "openToExpectedDOMMs": 72.39999997615814,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.2680140000011306
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 136.96336300001713
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 142.3222180000157
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 235.76252499999828
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 235.76614100000006
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 235.76668100000825
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 289.0678520000074
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 289.0690140000079
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 315.329528000002
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 3.5,
+        "handlerMs": 0.699999988079071,
+        "durationMs": 96,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 4.700000017881393,
+        "handlerMs": 40.29999998211861,
+        "durationMs": 96
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 2.699999988079071,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 64,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 3.5999999940395355,
+        "handlerMs": 8.5,
+        "durationMs": 64
+      }
+    },
+    {
+      "index": 75,
+      "elapsedMs": 199.49187800000072,
+      "allToOpenBrowserMs": 70.2999999821186,
+      "openToExpectedDOMMs": 63.400000005960464,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.010084999987157062
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 56.15525899999193
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 65.4152110000141
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 129.7773150000139
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 129.78036900001462
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 129.7807899999898
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 174.1328429999994
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 174.1401940000069
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 199.48446700000204
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.300000011920929,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.0999999940395355,
+        "handlerMs": 10.0,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.0999999940395355,
+        "handlerMs": 0.5,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2,
+        "handlerMs": 6.0999999940395355,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 76,
+      "elapsedMs": 179.26839099999052,
+      "allToOpenBrowserMs": 67.7000000178814,
+      "openToExpectedDOMMs": 54.79999998211861,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.019148999999742955
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 51.66137299998081
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 62.48213799999212
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 118.29405999998562
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 118.31990899998345
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 118.3201490000065
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 160.34551899999497
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 160.3464999999851
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 179.25981799999136
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.0,
+        "handlerMs": 0.20000001788139343,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.800000011920929,
+        "handlerMs": 11,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.2000000178813934,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.7000000178813934,
+        "handlerMs": 5.199999988079071,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 77,
+      "elapsedMs": 484.1692970000149,
+      "allToOpenBrowserMs": 336.2000000178814,
+      "openToExpectedDOMMs": 84.7999999821186,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.008361999993212521
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 286.52517500001704
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 310.7415880000044
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 399.28659800000605
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 399.380238999991
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 399.3806099999929
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 463.23136800000793
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 463.2319790000038
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 483.8976280000061
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.2999999821186066,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 248,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2,
+        "handlerMs": 181.19999998807907,
+        "durationMs": 248
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 2.0,
+        "handlerMs": 0.5,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.800000011920929,
+        "handlerMs": 10.599999994039536,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 78,
+      "elapsedMs": 218.22864899999695,
+      "allToOpenBrowserMs": 62.599999994039536,
+      "openToExpectedDOMMs": 70.60000002384186,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.009224000008543953
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 79.14673599999514
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 85.33617799999774
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 152.90145100001246
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 152.90433499999926
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 152.90487599998596
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 196.15262800001074
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 196.15319899999304
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 218.21983600000385
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 2.699999988079071,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 3.5999999940395355,
+        "handlerMs": 11.400000005960464,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.5999999940395355,
+        "handlerMs": 0.20000001788139343,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.5,
+        "handlerMs": 13.399999976158142,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 79,
+      "elapsedMs": 253.23853100000997,
+      "allToOpenBrowserMs": 85.69999998807907,
+      "openToExpectedDOMMs": 70.40000000596046,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.011366999999154359
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 86.06920300002093
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 95.18070100000477
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 165.52398300002096
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 165.52676700000302
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 165.5269870000193
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 222.14598000000115
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 222.14703200000804
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 253.23088899999857
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.4000000059604645,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 3.0,
+        "handlerMs": 16.799999982118607,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.199999988079071,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.199999988079071,
+        "handlerMs": 7.4000000059604645,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 80,
+      "elapsedMs": 286.7927030000137,
+      "allToOpenBrowserMs": 100.5,
+      "openToExpectedDOMMs": 67.90000000596046,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.20144299999810755
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 130.13423299998976
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 143.04284599999664
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 218.16338600000017
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 218.16829299999517
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 218.16868400000385
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 264.55328200000804
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 264.5542429999914
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 286.7851619999856
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.5,
+        "handlerMs": 0.5999999940395355,
+        "durationMs": 56,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.7000000178813934,
+        "handlerMs": 16.099999994039536,
+        "durationMs": 56
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.300000011920929,
+        "handlerMs": 0.5,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.0999999940395355,
+        "handlerMs": 6.4000000059604645,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 81,
+      "elapsedMs": 236.73585900000762,
+      "allToOpenBrowserMs": 87.59999999403954,
+      "openToExpectedDOMMs": 77.09999999403954,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.01297000001068227
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 59.292365000001155
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 75.59446400002344
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 143.3085270000156
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 143.31261300001643
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 143.31290400002035
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 205.52557600001455
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 205.5267279999971
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 236.72337000002153
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.300000011920929,
+        "handlerMs": 2,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 3.699999988079071,
+        "handlerMs": 12.099999994039536,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.5999999940395355,
+        "handlerMs": 0.5,
+        "durationMs": 40,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.5999999940395355,
+        "handlerMs": 8.099999994039536,
+        "durationMs": 40
+      }
+    },
+    {
+      "index": 82,
+      "elapsedMs": 212.28530700001284,
+      "allToOpenBrowserMs": 67.59999999403954,
+      "openToExpectedDOMMs": 66.10000002384186,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.018948000011732802
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 66.2686570000078
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 74.04862800001865
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 138.95255800001905
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 138.95481100000325
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 138.9550809999928
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 185.65058800001862
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 185.6510680000065
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 212.27496100001736
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.0999999940395355,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.800000011920929,
+        "handlerMs": 10.400000005960464,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.0,
+        "handlerMs": 0.20000001788139343,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.5,
+        "handlerMs": 6.199999988079071,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 83,
+      "elapsedMs": 182.43192000000272,
+      "allToOpenBrowserMs": 69.09999999403954,
+      "openToExpectedDOMMs": 54.099999994039536,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.008293000020785257
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 56.11670100002084
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 61.571071000013035
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 121.40498099999968
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 121.40830599999754
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 121.40871700001298
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 161.49737100000493
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 161.49879300000612
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 182.42461899999762
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.300000011920929,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.300000011920929,
+        "handlerMs": 11.900000005960464,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.300000011920929,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.0999999940395355,
+        "handlerMs": 5.5999999940395355,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 84,
+      "elapsedMs": 228.7960069999972,
+      "allToOpenBrowserMs": 84.09999999403954,
+      "openToExpectedDOMMs": 57.400000005960464,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.15866899999673478
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 77.83943900000304
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 86.69976799999131
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 153.0434790000145
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 153.04694500000915
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 153.04722499998752
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 197.7839629999944
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 197.7849639999913
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 228.7887359999877
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.199999988079071,
+        "handlerMs": 0.5,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.0999999940395355,
+        "handlerMs": 16.80000001192093,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.5999999940395355,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.4000000059604645,
+        "handlerMs": 6.800000011920929,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 85,
+      "elapsedMs": 208.48744699999224,
+      "allToOpenBrowserMs": 65.40000000596046,
+      "openToExpectedDOMMs": 56.900000005960464,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.009674999979324639
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 81.54689399999916
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 85.0687340000004
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 146.6416479999898
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 146.6448419999797
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 146.64506300000357
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 187.4425559999945
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 187.44339699999546
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 208.48029599999427
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.0,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.4000000059604645,
+        "handlerMs": 12.200000017881393,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.300000011920929,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.899999976158142,
+        "handlerMs": 6.800000011920929,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 86,
+      "elapsedMs": 180.45410800000536,
+      "allToOpenBrowserMs": 66.7000000178814,
+      "openToExpectedDOMMs": 53.099999994039536,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.10126199998194352
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 57.210083999991184
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 66.64649199999985
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 125.02224500000011
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 125.02529999997932
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 125.0255499999912
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 157.88433599998825
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 157.8849169999885
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 180.4468169999891
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 0.8999999761581421,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.699999988079071,
+        "handlerMs": 10.599999994039536,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.300000011920929,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.199999988079071,
+        "handlerMs": 7.100000023841858,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 87,
+      "elapsedMs": 488.0000529999961,
+      "allToOpenBrowserMs": 275.2999999821186,
+      "openToExpectedDOMMs": 135.7000000178814,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.008753000001888722
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 58.769046000001254
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 78.467868000007
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 377.4004760000098
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 377.4510219999938
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 377.4514330000093
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 459.2426379999961
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 459.2432189999963
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 487.7841170000029
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.2999999821186066,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 176,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.199999988079071,
+        "handlerMs": 10.800000011920929,
+        "durationMs": 176
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 3.5,
+        "handlerMs": 0.699999988079071,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 4.5999999940395355,
+        "handlerMs": 21.69999998807907,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 88,
+      "elapsedMs": 202.998236000014,
+      "allToOpenBrowserMs": 74.69999998807907,
+      "openToExpectedDOMMs": 38.900000005960464,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.00910300001851283
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 77.45684800000163
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 90.51419200000237
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 139.66393400001107
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 139.66801100000157
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 139.6684210000094
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 166.49422700001742
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 166.49557900000946
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 202.9903340000019
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.4000000059604645,
+        "handlerMs": 0.19999998807907104,
+        "durationMs": 24,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.0999999940395355,
+        "handlerMs": 13.700000017881393,
+        "durationMs": 24
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.199999988079071,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 32,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.800000011920929,
+        "handlerMs": 5.799999982118607,
+        "durationMs": 32
+      }
+    },
+    {
+      "index": 89,
+      "elapsedMs": 218.3553280000051,
+      "allToOpenBrowserMs": 67.0,
+      "openToExpectedDOMMs": 60.20000001788139,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.010345000016968697
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 72.717364000011
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 78.90668899999582
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 139.64834600000177
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 139.65100000001257
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 139.65129999999772
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 187.81306700001005
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 187.81436899999972
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 218.34806700001354
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.0999999940395355,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 32,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.800000011920929,
+        "handlerMs": 9.299999982118607,
+        "durationMs": 32
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.2999999821186066,
+        "handlerMs": 0.20000001788139343,
+        "durationMs": 32,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.399999976158142,
+        "handlerMs": 6.100000023841858,
+        "durationMs": 32
+      }
+    },
+    {
+      "index": 90,
+      "elapsedMs": 207.1959419999912,
+      "allToOpenBrowserMs": 65.90000000596046,
+      "openToExpectedDOMMs": 56.80000001192093,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.00929399998858571
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 57.00504499999806
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 61.860570999997435
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 123.89791800000239
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 123.90095300000394
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 123.90135400000145
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 164.97174799998174
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 164.9726789999986
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 207.07681199998478
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.2999999821186066,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 32,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.0999999940395355,
+        "handlerMs": 10.400000005960464,
+        "durationMs": 32
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.199999988079071,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 32,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.699999988079071,
+        "handlerMs": 5.800000011920929,
+        "durationMs": 32
+      }
+    },
+    {
+      "index": 91,
+      "elapsedMs": 206.8454539999948,
+      "allToOpenBrowserMs": 84.89999997615814,
+      "openToExpectedDOMMs": 50.70000001788139,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.008732999995118007
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 65.36633200000506
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 78.16616100000101
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 151.01136400000541
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 151.0146090000053
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 151.014869000006
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 187.74076799998875
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 187.74158899998292
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 206.83842300000833
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.5,
+        "handlerMs": 0.6000000238418579,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.7000000178813934,
+        "handlerMs": 12.599999994039536,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.5999999940395355,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.5999999940395355,
+        "handlerMs": 7.0,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 92,
+      "elapsedMs": 200.71934800001327,
+      "allToOpenBrowserMs": 70.5,
+      "openToExpectedDOMMs": 56.900000005960464,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.008572999999159947
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 52.95163900000625
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 62.50345099999686
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 143.03970100000151
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 143.04294499999378
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 143.04330600000685
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 175.80879899999127
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 175.8111220000137
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 200.66366399999242
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.0,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.9000000059604645,
+        "handlerMs": 10.699999988079071,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.4000000059604645,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.0999999940395355,
+        "handlerMs": 7.5,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 93,
+      "elapsedMs": 227.52870399999665,
+      "allToOpenBrowserMs": 82.10000002384186,
+      "openToExpectedDOMMs": 58.599999994039536,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.00967500000842847
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 74.07355100000859
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 86.01852100001997
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 147.40096600001561
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 147.40435100000468
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 147.40462200000184
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 195.7254879999964
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 195.7268299999996
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 227.52055200000177
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.5,
+        "handlerMs": 0.20000001788139343,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.199999988079071,
+        "handlerMs": 11.400000005960464,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.600000023841858,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.199999988079071,
+        "handlerMs": 6.0999999940395355,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 94,
+      "elapsedMs": 615.1809519999952,
+      "allToOpenBrowserMs": 418.09999999403954,
+      "openToExpectedDOMMs": 124.40000000596046,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.009033999987877905
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 60.28792000000249
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 68.92306999998982
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 519.8824749999912
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 519.8873420000018
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 519.8875719999778
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 582.7768849999993
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 582.7779259999807
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 615.0335599999817
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.100000023841858,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.899999976158142,
+        "handlerMs": 10.600000023841858,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 21.599999994039536,
+        "handlerMs": 0.9000000059604645,
+        "durationMs": 88,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 22.899999976158142,
+        "handlerMs": 34.0,
+        "durationMs": 88
+      }
+    },
+    {
+      "index": 95,
+      "elapsedMs": 213.760941000015,
+      "allToOpenBrowserMs": 71.0,
+      "openToExpectedDOMMs": 63.5,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.0097550000064075
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 53.53056600000127
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 59.31296499999007
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 124.40286000000197
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 124.40735699998913
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 124.4077770000149
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 178.6952300000121
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 178.69661199999973
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 213.75460099999327
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.0,
+        "handlerMs": 0.19999998807907104,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.5,
+        "handlerMs": 10.5,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.9000000059604645,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.800000011920929,
+        "handlerMs": 7.199999988079071,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 96,
+      "elapsedMs": 195.42415299999993,
+      "allToOpenBrowserMs": 68.5,
+      "openToExpectedDOMMs": 56.400000005960464,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.00921399999060668
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 51.4198439999891
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 59.98747699998785
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 118.67361199998413
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 118.67701700000907
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 118.67739799999981
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 161.47737999999663
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 161.47799099999247
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 195.41571100000874
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.2000000178813934,
+        "handlerMs": 0.4000000059604645,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.899999976158142,
+        "handlerMs": 9.800000011920929,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.5999999940395355,
+        "handlerMs": 0.19999998807907104,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.2999999821186066,
+        "handlerMs": 7.200000017881393,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 97,
+      "elapsedMs": 202.22046599999885,
+      "allToOpenBrowserMs": 68.0,
+      "openToExpectedDOMMs": 62.29999998211861,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.00882299998193048
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 63.26734199997736
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 74.35524499998428
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 126.93980100000044
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 126.94313599998713
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 126.94342599998345
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 175.04569299999275
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 175.04642400000012
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 202.2125839999935
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.2000000178813934,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 1.9000000059604645,
+        "handlerMs": 9.5,
+        "durationMs": 48
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.0999999940395355,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 48,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.0999999940395355,
+        "handlerMs": 6.0,
+        "durationMs": 48
+      }
+    },
+    {
+      "index": 98,
+      "elapsedMs": 214.8930339999788,
+      "allToOpenBrowserMs": 77.90000000596046,
+      "openToExpectedDOMMs": 60.5,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.0990590000001248
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 69.66943999999785
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 78.43200399997295
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 141.15426799998386
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 141.1583039999823
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 141.15874499999336
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 187.1045499999891
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 187.10582199998316
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 214.8851319999958
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.300000011920929,
+        "handlerMs": 0.5999999940395355,
+        "durationMs": 24,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.300000011920929,
+        "handlerMs": 12.400000005960464,
+        "durationMs": 24
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.9000000059604645,
+        "handlerMs": 0.29999998211860657,
+        "durationMs": 32,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 2.4000000059604645,
+        "handlerMs": 6.699999988079071,
+        "durationMs": 32
+      }
+    },
+    {
+      "index": 99,
+      "elapsedMs": 195.78516100000707,
+      "allToOpenBrowserMs": 71.19999998807907,
+      "openToExpectedDOMMs": 57.900000005960464,
+      "nodeMarks": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.00987500001792796
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 64.57028099999297
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 73.14101600000868
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 134.86951099999715
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 134.87230499999714
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 134.87255500000902
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 176.22166000001016
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 176.2222699999984
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 195.7732229999965
+        }
+      ],
+      "allPointerMatches": 1,
+      "allPointer": {
+        "queueMs": 1.5,
+        "handlerMs": 0.3999999761581421,
+        "durationMs": 24,
+        "clickMatches": 1
+      },
+      "allClick": {
+        "queueMs": 2.300000011920929,
+        "handlerMs": 10.899999976158142,
+        "durationMs": 24
+      },
+      "openPointerMatches": 1,
+      "openPointer": {
+        "queueMs": 1.199999988079071,
+        "handlerMs": 0.30000001192092896,
+        "durationMs": 32,
+        "clickMatches": 1
+      },
+      "openClick": {
+        "queueMs": 1.7999999821186066,
+        "handlerMs": 6.800000011920929,
+        "durationMs": 32
+      }
+    }
+  ],
+  "groups": {
+    "all": {
+      "count": 100,
+      "elapsedMs": {
+        "count": 100,
+        "p50": 216.2524490000069,
+        "p95": 595.146121999991,
+        "max": 731.1877820000082
+      },
+      "allToOpenBrowserMs": {
+        "count": 100,
+        "p50": 79.59999999403954,
+        "p95": 275.2999999821186,
+        "max": 434.19999998807907
+      },
+      "openToExpectedDOMMs": {
+        "count": 100,
+        "p50": 62.900000005960464,
+        "p95": 124.2999999821186,
+        "max": 268.30000001192093
+      },
+      "allPointerqueueMs": {
+        "count": 100,
+        "p50": 1.300000011920929,
+        "p95": 2.800000011920929,
+        "max": 17.600000023841858
+      },
+      "allPointerhandlerMs": {
+        "count": 100,
+        "p50": 0.30000001192092896,
+        "p95": 1.5,
+        "max": 2.699999988079071
+      },
+      "allPointerdurationMs": {
+        "count": 100,
+        "p50": 48,
+        "p95": 176,
+        "max": 352
+      },
+      "allClickqueueMs": {
+        "count": 100,
+        "p50": 2.0999999940395355,
+        "p95": 4.5999999940395355,
+        "max": 22.69999998807907
+      },
+      "allClickhandlerMs": {
+        "count": 100,
+        "p50": 11.799999982118607,
+        "p95": 46.19999998807907,
+        "max": 181.19999998807907
+      },
+      "allClickdurationMs": {
+        "count": 100,
+        "p50": 48,
+        "p95": 176,
+        "max": 352
+      },
+      "openPointerqueueMs": {
+        "count": 100,
+        "p50": 1.4000000059604645,
+        "p95": 3.0,
+        "max": 21.599999994039536
+      },
+      "openPointerhandlerMs": {
+        "count": 100,
+        "p50": 0.30000001192092896,
+        "p95": 0.699999988079071,
+        "max": 1.5
+      },
+      "openPointerdurationMs": {
+        "count": 100,
+        "p50": 48,
+        "p95": 72,
+        "max": 160
+      },
+      "openClickqueueMs": {
+        "count": 100,
+        "p50": 2.199999988079071,
+        "p95": 4.5,
+        "max": 22.899999976158142
+      },
+      "openClickhandlerMs": {
+        "count": 100,
+        "p50": 7.199999988079071,
+        "p95": 14.799999982118607,
+        "max": 34.0
+      },
+      "openClickdurationMs": {
+        "count": 100,
+        "p50": 48,
+        "p95": 72,
+        "max": 160
+      }
+    },
+    "over300": {
+      "count": 15,
+      "elapsedMs": {
+        "count": 15,
+        "p50": 515.9262540000054,
+        "p95": 731.1877820000082,
+        "max": 731.1877820000082
+      },
+      "allToOpenBrowserMs": {
+        "count": 15,
+        "p50": 219.59999999403954,
+        "p95": 434.19999998807907,
+        "max": 434.19999998807907
+      },
+      "openToExpectedDOMMs": {
+        "count": 15,
+        "p50": 107.5,
+        "p95": 268.30000001192093,
+        "max": 268.30000001192093
+      },
+      "allPointerqueueMs": {
+        "count": 15,
+        "p50": 2.0999999940395355,
+        "p95": 17.600000023841858,
+        "max": 17.600000023841858
+      },
+      "allPointerhandlerMs": {
+        "count": 15,
+        "p50": 0.5,
+        "p95": 2.699999988079071,
+        "max": 2.699999988079071
+      },
+      "allPointerdurationMs": {
+        "count": 15,
+        "p50": 96,
+        "p95": 352,
+        "max": 352
+      },
+      "allClickqueueMs": {
+        "count": 15,
+        "p50": 2.800000011920929,
+        "p95": 22.69999998807907,
+        "max": 22.69999998807907
+      },
+      "allClickhandlerMs": {
+        "count": 15,
+        "p50": 20.400000005960464,
+        "p95": 181.19999998807907,
+        "max": 181.19999998807907
+      },
+      "allClickdurationMs": {
+        "count": 15,
+        "p50": 96,
+        "p95": 352,
+        "max": 352
+      },
+      "openPointerqueueMs": {
+        "count": 15,
+        "p50": 2.0,
+        "p95": 21.599999994039536,
+        "max": 21.599999994039536
+      },
+      "openPointerhandlerMs": {
+        "count": 15,
+        "p50": 0.4000000059604645,
+        "p95": 0.9000000059604645,
+        "max": 0.9000000059604645
+      },
+      "openPointerdurationMs": {
+        "count": 15,
+        "p50": 48,
+        "p95": 160,
+        "max": 160
+      },
+      "openClickqueueMs": {
+        "count": 15,
+        "p50": 2.7000000178813934,
+        "p95": 22.899999976158142,
+        "max": 22.899999976158142
+      },
+      "openClickhandlerMs": {
+        "count": 15,
+        "p50": 12.400000005960464,
+        "p95": 34.0,
+        "max": 34.0
+      },
+      "openClickdurationMs": {
+        "count": 15,
+        "p50": 48,
+        "p95": 160,
+        "max": 160
+      }
+    },
+    "within300": {
+      "count": 85,
+      "elapsedMs": {
+        "count": 85,
+        "p50": 213.56359600000724,
+        "p95": 267.44232600000396,
+        "max": 293.2700449999975
+      },
+      "allToOpenBrowserMs": {
+        "count": 85,
+        "p50": 72.59999999403954,
+        "p95": 101.30000001192093,
+        "max": 152.59999999403954
+      },
+      "openToExpectedDOMMs": {
+        "count": 85,
+        "p50": 60.20000001788139,
+        "p95": 75.0,
+        "max": 96.09999999403954
+      },
+      "allPointerqueueMs": {
+        "count": 85,
+        "p50": 1.300000011920929,
+        "p95": 1.9000000059604645,
+        "max": 2.699999988079071
+      },
+      "allPointerhandlerMs": {
+        "count": 85,
+        "p50": 0.30000001192092896,
+        "p95": 0.699999988079071,
+        "max": 2
+      },
+      "allPointerdurationMs": {
+        "count": 85,
+        "p50": 48,
+        "p95": 56,
+        "max": 96
+      },
+      "allClickqueueMs": {
+        "count": 85,
+        "p50": 2.0,
+        "p95": 3.0,
+        "max": 3.699999988079071
+      },
+      "allClickhandlerMs": {
+        "count": 85,
+        "p50": 11.600000023841858,
+        "p95": 17.599999994039536,
+        "max": 70.40000000596046
+      },
+      "allClickdurationMs": {
+        "count": 85,
+        "p50": 48,
+        "p95": 56,
+        "max": 96
+      },
+      "openPointerqueueMs": {
+        "count": 85,
+        "p50": 1.4000000059604645,
+        "p95": 2.800000011920929,
+        "max": 4.199999988079071
+      },
+      "openPointerhandlerMs": {
+        "count": 85,
+        "p50": 0.30000001192092896,
+        "p95": 0.6000000238418579,
+        "max": 1.5
+      },
+      "openPointerdurationMs": {
+        "count": 85,
+        "p50": 48,
+        "p95": 48,
+        "max": 64
+      },
+      "openClickqueueMs": {
+        "count": 85,
+        "p50": 2.0999999940395355,
+        "p95": 3.699999988079071,
+        "max": 6.0999999940395355
+      },
+      "openClickhandlerMs": {
+        "count": 85,
+        "p50": 6.800000011920929,
+        "p95": 11.5,
+        "max": 16.099999994039536
+      },
+      "openClickdurationMs": {
+        "count": 85,
+        "p50": 48,
+        "p95": 48,
+        "max": 64
+      }
+    }
+  },
+  "thresholdComparison": {
+    "d348": {
+      "project-switch": {
+        "count": 100,
+        "successful": 100,
+        "failed": 0,
+        "p50Ms": 228.19098299999314,
+        "p95Ms": 400.4607449999894,
+        "p99Ms": 547.5955450000038,
+        "maxMs": 607.2558600000048,
+        "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+        "timeouts": [],
+        "withinReference": false
+      },
+      "input": {
+        "count": 200,
+        "successful": 200,
+        "failed": 0,
+        "p50Ms": 50.084262000003946,
+        "p95Ms": 132.94279400000232,
+        "p99Ms": 201.71118799998658,
+        "maxMs": 240.09865900001023,
+        "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+        "timeouts": [],
+        "withinReference": false
+      }
+    },
+    "aadc": {
+      "project-switch": {
+        "count": 100,
+        "successful": 100,
+        "failed": 0,
+        "p50Ms": 216.2524490000069,
+        "p95Ms": 595.146121999991,
+        "p99Ms": 671.1429519999947,
+        "maxMs": 731.1877820000082,
+        "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+        "timeouts": [],
+        "withinReference": false
+      },
+      "input": {
+        "count": 200,
+        "successful": 200,
+        "failed": 0,
+        "p50Ms": 48.24836199999845,
+        "p95Ms": 65.97081299999263,
+        "p99Ms": 239.90034999999625,
+        "maxMs": 341.08556799999496,
+        "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+        "timeouts": [],
+        "withinReference": true
+      }
+    }
+  },
+  "limits": [
+    "Sequential single arms; changes cannot be causally attributed.",
+    "No clock-domain subtraction or filtering of primary metric rows.",
+    "Separate8-round trace does not contain primary slow events; zero retries there does not prove primary has no retries."
+  ]
+}

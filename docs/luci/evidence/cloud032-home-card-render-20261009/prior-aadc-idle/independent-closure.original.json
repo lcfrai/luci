@@ -1,0 +1,23 @@
+{
+  "at": "2026-10-09T00:27:37.736027+00:00",
+  "sourceCommit": "aadc1c281aef28aee04046a5c5e58da5fe7094e4",
+  "sourceClean": true,
+  "containers": 0,
+  "volumes": 0,
+  "imageId": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+  "driverRecordedIdentity": {
+    "pid": 2101410,
+    "startTicks": 25151257
+  },
+  "recordedDriverAbsent": true,
+  "resultSHA256": "61fe4f48f685af6c4a4402f14ee8cc40d3ee4d0cb052daf2eafdad59482fdc61",
+  "reportedOwnedProcessClosure": {
+    "containers": 0,
+    "volumes": 0,
+    "ownedServiceProcesses": 0,
+    "ownedBrowserProcesses": 0,
+    "protectedImagePackageAndHelpersUnchanged": true,
+    "rootFreeBytes": 6526812160
+  },
+  "scope": "Independent daemon/source/known driver absence; complete app/browser identity closure also relies on retained driver receipt. No measurement or fixture mutations."
+}

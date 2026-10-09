@@ -1,0 +1,417 @@
+{
+  "version": 1,
+  "kind": "derived-read-only-resource-observations",
+  "attempt": "check-recovery-aadc-attempt4",
+  "sourceInputs": {
+    "sourceBinding": {
+      "sha256": "c5a69dc6da3b952fcdbd2b9b75e079032f2642a5e6593e00e410f0dafbbac59d",
+      "bytes": 6687
+    },
+    "packageIntegrity": {
+      "sha256": "ef95a428c8bcfbb6e60d6882244eefc39bf42965f23f17cd346a5edf1fd9c255",
+      "bytes": 1040
+    },
+    "phase02": {
+      "sha256": "ee91e8f5e309122e0c83daa0be170f771af479631e15aaf7ca86c21fc9a5381b",
+      "bytes": 2722
+    },
+    "phase01": {
+      "sha256": "054a0707f5a8a258ac880482654c954198c3ac8900817faa08c25c2692605b6b",
+      "bytes": 2759
+    },
+    "runResult": {
+      "sha256": "8f73006bb6410f77bce1e5a796e384c39879b73f4fec4c84d7701c28f2ac2c34",
+      "bytes": 140126
+    },
+    "phase03": {
+      "sha256": "fe1510ca50da49ff869fbba13048f9f2fd064199f028d72c67470620f1bccb3f",
+      "bytes": 5008
+    },
+    "observerSummary": {
+      "sha256": "28ba3d0e95d7d971967ebaa8756bccbcef3cc2f826fae25952f7fb64c4c8087f",
+      "bytes": 3027
+    },
+    "observerMetadata": {
+      "sha256": "5df35cbd35595cf3f82cc5671067f224f455e3962ea12128db55bd62e3e329ae",
+      "bytes": 2996
+    },
+    "observerSamples": {
+      "sha256": "2a1292dc2d8bd0fc838cd9ffed402fd632099c3782745e1889692e4fbf912484",
+      "bytes": 251704
+    }
+  },
+  "bindings": {
+    "sourceCommit": "aadc1c281aef28aee04046a5c5e58da5fe7094e4",
+    "helperSourceCommit": "aadc1c281aef28aee04046a5c5e58da5fe7094e4",
+    "historicalHelperBaseCommit": "5d306b6dae3cc9d0a4d9cbf95f8142c37958964f",
+    "observerHelperSHA256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+    "package": {
+      "sourceCommit": "aadc1c281aef28aee04046a5c5e58da5fe7094e4",
+      "sourceDirty": false,
+      "archiveSHA256": "e73f44b5dd59d7f8205661f821d556cfcaeb43b0f765755ae7e6b5c81d20d38d",
+      "binarySHA256": "5d70f3d2fe83d49ac9daabd207a0251fffde5fdb181f9249ed28b92278f90763",
+      "webIndexSHA256": "8422a4798d2d2eb6197064907108f7be66c30322c2f541eb78998d57246d3bc8"
+    },
+    "packageRecordedIntegrity": {
+      "verifiedMembers": 3126,
+      "allMembersMatch": true
+    }
+  },
+  "runScope": {
+    "startedAt": "2026-10-09T00:29:16.605Z",
+    "finishedAt": "2026-10-09T00:29:45.981Z",
+    "passed": false,
+    "failedStage": "consent-check-1",
+    "transportCounts": {
+      "total": 191,
+      "create": 1,
+      "worker": 0,
+      "fence": 0,
+      "start": 0,
+      "check": 1
+    },
+    "externalModelCalls": 0,
+    "actualTaskCount": 0,
+    "reached": "first historical check Create; blocked before Start",
+    "targetOrRecoveryReached": false
+  },
+  "phaseSnapshots": [
+    {
+      "phaseNumber": 1,
+      "phase": "fresh-create-admission",
+      "capture": {
+        "at": "2026-10-09T00:29:21.968Z"
+      },
+      "host": {
+        "observedAt": "2026-10-09T00:29:21.661494586Z",
+        "status": "partial",
+        "scope": "control-plane-host",
+        "memory": {
+          "physicalTotalBytes": 35743784960,
+          "physicalAvailableBytes": 19290828800,
+          "effectiveTotalBytes": 34359738368,
+          "effectiveAvailableBytes": 12731179008,
+          "limitSource": "physical-and-control-plane-cgroup-v2",
+          "commitLimitBytes": null,
+          "commitAvailableBytes": null
+        },
+        "cpu": {
+          "logicalProcessors": 5,
+          "effectiveMillis": 4000,
+          "limitSource": "process-affinity-and-control-plane-cgroup-v2",
+          "utilizationPercent": 49.5069033530572,
+          "pressureSomeAvg10": null,
+          "memoryPressureSomeAvg10": null,
+          "ioPressureSomeAvg10": null
+        }
+      },
+      "execution": {
+        "observedAt": "2026-10-09T00:29:21.685027305Z",
+        "scope": "execution-daemon",
+        "status": "ready",
+        "totalMemoryBytes": 35743784960,
+        "cpuMillis": 5000,
+        "hostStorage": null,
+        "unavailable": []
+      },
+      "reservations": {
+        "status": "ready",
+        "observedAt": "2026-10-09T00:29:21.965562192Z",
+        "count": 1,
+        "memoryMiB": 1024,
+        "cpuMillis": 1000
+      },
+      "rootFreeBytes": 6518513664
+    },
+    {
+      "phaseNumber": 2,
+      "phase": "actual-create-ack-held-before-product-start",
+      "capture": {
+        "requestedAt": "2026-10-09T00:29:43.399Z",
+        "completedAt": "2026-10-09T00:29:43.402Z"
+      },
+      "host": {
+        "observedAt": "2026-10-09T00:29:42.660834616Z",
+        "status": "partial",
+        "scope": "control-plane-host",
+        "memory": {
+          "physicalTotalBytes": 35743784960,
+          "physicalAvailableBytes": 19307147264,
+          "effectiveTotalBytes": 34359738368,
+          "effectiveAvailableBytes": 8077209600,
+          "limitSource": "physical-and-control-plane-cgroup-v2",
+          "commitLimitBytes": null,
+          "commitAvailableBytes": null
+        },
+        "cpu": {
+          "logicalProcessors": 5,
+          "effectiveMillis": 4000,
+          "limitSource": "process-affinity-and-control-plane-cgroup-v2",
+          "utilizationPercent": 29.258517034068138,
+          "pressureSomeAvg10": null,
+          "memoryPressureSomeAvg10": null,
+          "ioPressureSomeAvg10": null
+        }
+      },
+      "execution": {
+        "observedAt": "2026-10-09T00:29:42.683109099Z",
+        "scope": "execution-daemon",
+        "status": "ready",
+        "totalMemoryBytes": 35743784960,
+        "cpuMillis": 5000,
+        "hostStorage": null,
+        "unavailable": []
+      },
+      "reservations": {
+        "status": "ready",
+        "observedAt": "2026-10-09T00:29:43.401824106Z",
+        "count": 1,
+        "memoryMiB": 1024,
+        "cpuMillis": 1000
+      },
+      "rootFreeBytes": 1782943744
+    },
+    {
+      "phaseNumber": 3,
+      "phase": "terminal-check-capacity",
+      "capture": {
+        "requestedAt": "2026-10-09T00:29:44.476Z",
+        "completedAt": "2026-10-09T00:29:44.479Z"
+      },
+      "host": {
+        "observedAt": "2026-10-09T00:29:43.661607216Z",
+        "status": "partial",
+        "scope": "control-plane-host",
+        "memory": {
+          "physicalTotalBytes": 35743784960,
+          "physicalAvailableBytes": 19271032832,
+          "effectiveTotalBytes": 34359738368,
+          "effectiveAvailableBytes": 9178939392,
+          "limitSource": "physical-and-control-plane-cgroup-v2",
+          "commitLimitBytes": null,
+          "commitAvailableBytes": null
+        },
+        "cpu": {
+          "logicalProcessors": 5,
+          "effectiveMillis": 4000,
+          "limitSource": "process-affinity-and-control-plane-cgroup-v2",
+          "utilizationPercent": 31.2,
+          "pressureSomeAvg10": null,
+          "memoryPressureSomeAvg10": null,
+          "ioPressureSomeAvg10": null
+        }
+      },
+      "execution": {
+        "observedAt": "2026-10-09T00:29:43.679018676Z",
+        "scope": "execution-daemon",
+        "status": "ready",
+        "totalMemoryBytes": 35743784960,
+        "cpuMillis": 5000,
+        "hostStorage": null,
+        "unavailable": []
+      },
+      "reservations": {
+        "status": "ready",
+        "observedAt": "2026-10-09T00:29:44.479270716Z",
+        "count": 0,
+        "memoryMiB": 0,
+        "cpuMillis": 0
+      },
+      "rootFreeBytes": 6518030336,
+      "terminalCheck": {
+        "revision": 7,
+        "resourcesHeld": false,
+        "stage": "admission",
+        "reasonCode": "memory_pressure",
+        "memoryMiB": 1024,
+        "cpuMillis": 1000,
+        "sourceChanged": false,
+        "status": "blocked",
+        "createdAt": "2026-10-09T00:29:21.546637874Z",
+        "updatedAt": "2026-10-09T00:29:44.319394335Z",
+        "message": "Available memory cannot preserve the configured headroom for another worker.",
+        "evidenceStatus": "unverified"
+      }
+    }
+  ],
+  "observerCoverage": {
+    "startedAt": "2026-10-09T00:29:13.085358+00:00",
+    "finishedAt": "2026-10-09T00:30:03.201242+00:00",
+    "firstSampleAt": "2026-10-09T00:29:13.268220+00:00",
+    "lastSampleAt": "2026-10-09T00:30:03.201085+00:00",
+    "sampleCount": 50,
+    "declaredIntervalSeconds": 1,
+    "durationSeconds": 50.115909776010085,
+    "samplePhaseCounts": {
+      "post-start-running": 33,
+      "post-driver-exit-settle": 17
+    },
+    "baseline": "post-start; no pre-run idle baseline observed",
+    "checkCoverage": {
+      "enabled": true,
+      "identitySamples": 1,
+      "cgroupUsageSamples": 0,
+      "status": "identity-only"
+    },
+    "containerMeasurementStatusCounts": {
+      "partial": 5,
+      "observed": 45
+    },
+    "containerIssueCounts": {
+      "exact-owned-instance-not-yet-provided": 5
+    },
+    "controlPlaneCgroup": {
+      "sampleStatusCounts": {
+        "not-observed": 22,
+        "observed": 28
+      },
+      "samplesWithObservations": 28,
+      "observationCount": 56,
+      "processIdentityCount": 2,
+      "firstObservedAt": "2026-10-09T00:29:17.252619+00:00",
+      "lastObservedAt": "2026-10-09T00:29:44.249594+00:00",
+      "stableIdentityAndTopologyCount": 56,
+      "visibleNodeLocationCount": 1,
+      "nodeRowCount": 56,
+      "nodeStatusCounts": {
+        "version": {
+          "2": 56
+        },
+        "depth": {
+          "0": 56
+        },
+        "mountRoot": {
+          "True": 56
+        },
+        "limitStatus": {
+          "finite": 56
+        },
+        "currentStatus": {
+          "observed": 56
+        },
+        "statStatus": {
+          "observed": 56
+        }
+      },
+      "outerIssueCount": 0,
+      "observationIssueCount": 0,
+      "memoryByteRanges": {
+        "physicalTotalBytes": {
+          "minimum": 35743784960,
+          "maximum": 35743784960
+        },
+        "physicalAvailableBytes": {
+          "minimum": 19197599744,
+          "maximum": 19840933888
+        },
+        "productComparableEffectiveTotalBytes": {
+          "minimum": 34359738368,
+          "maximum": 34359738368
+        },
+        "productComparableEffectiveAvailableBytes": {
+          "minimum": 7605325824,
+          "maximum": 13254774784
+        }
+      },
+      "nodeByteRanges": {
+        "limitBytes": {
+          "minimum": 34359738368,
+          "maximum": 34359738368
+        },
+        "currentBytes": {
+          "minimum": 21104963584,
+          "maximum": 26754412544
+        },
+        "limitMinusCurrentBytes": {
+          "minimum": 7605325824,
+          "maximum": 13254774784
+        }
+      },
+      "formula": "Independent minima of physical total and finite visible limits; physical available and max(0, limit-current) at every visible ancestor. No memory.stat, RSS, swap, high limit or scheduling reservation subtraction.",
+      "nearbySamples": [
+        {
+          "observedAt": "2026-10-09T00:29:21.261449+00:00",
+          "scope": "independent sequential observer sample; two process identities share one visible cgroup location",
+          "observations": [
+            {
+              "physicalAvailableBytes": 19294941184,
+              "effectiveAvailableBytes": 12739833856,
+              "cgroupLimitBytes": 34359738368,
+              "cgroupCurrentBytes": 21619904512
+            },
+            {
+              "physicalAvailableBytes": 19294941184,
+              "effectiveAvailableBytes": 12739833856,
+              "cgroupLimitBytes": 34359738368,
+              "cgroupCurrentBytes": 21619904512
+            }
+          ]
+        },
+        {
+          "observedAt": "2026-10-09T00:29:42.227656+00:00",
+          "scope": "independent sequential observer sample; two process identities share one visible cgroup location",
+          "observations": [
+            {
+              "physicalAvailableBytes": 19311407104,
+              "effectiveAvailableBytes": 8238178304,
+              "cgroupLimitBytes": 34359738368,
+              "cgroupCurrentBytes": 26121560064
+            },
+            {
+              "physicalAvailableBytes": 19311407104,
+              "effectiveAvailableBytes": 8238178304,
+              "cgroupLimitBytes": 34359738368,
+              "cgroupCurrentBytes": 26121560064
+            }
+          ]
+        },
+        {
+          "observedAt": "2026-10-09T00:29:43.254484+00:00",
+          "scope": "independent sequential observer sample; two process identities share one visible cgroup location",
+          "observations": [
+            {
+              "physicalAvailableBytes": 19302043648,
+              "effectiveAvailableBytes": 7605325824,
+              "cgroupLimitBytes": 34359738368,
+              "cgroupCurrentBytes": 26754412544
+            },
+            {
+              "physicalAvailableBytes": 19302043648,
+              "effectiveAvailableBytes": 7605325824,
+              "cgroupLimitBytes": 34359738368,
+              "cgroupCurrentBytes": 26754412544
+            }
+          ]
+        },
+        {
+          "observedAt": "2026-10-09T00:29:44.249594+00:00",
+          "scope": "independent sequential observer sample; two process identities share one visible cgroup location",
+          "observations": [
+            {
+              "physicalAvailableBytes": 19197599744,
+              "effectiveAvailableBytes": 12455641088,
+              "cgroupLimitBytes": 34359738368,
+              "cgroupCurrentBytes": 21904097280
+            },
+            {
+              "physicalAvailableBytes": 19197599744,
+              "effectiveAvailableBytes": 12462002176,
+              "cgroupLimitBytes": 34359738368,
+              "cgroupCurrentBytes": 21897736192
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "limitations": [
+    "These product endpoint snapshots and independent observer counters are timestamped observations, not the exact atomic input of the preStart admission decision.",
+    "The recorded terminal reason is memory_pressure. These artifacts do not establish a causal diagnosis or explain refusals in older attempts.",
+    "The two observed control-plane process identities share one visible cgroup location. Their cgroup values must not be added.",
+    "Observer reads are sequential. Visibility ends at the process-visible mount root; hidden ancestors are not inferred.",
+    "Effective memory uses independent minima of physical memory and finite visible cgroup bounds; sampled memory.stat does not replace the recorded limit-minus-current input.",
+    "Check-container coverage is identity-only: one identity sample and zero cgroup-usage samples.",
+    "Sampling began after driver start and includes 17 post-driver-exit settlement samples; this is not a pre-run idle baseline.",
+    "No target run or recovery was reached, and no release, application-readiness, model-quality or responsiveness claim follows from this resource summary."
+  ]
+}

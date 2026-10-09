@@ -1,0 +1,12 @@
+{
+  "command": [
+    "npm",
+    "run",
+    "typecheck"
+  ],
+  "cwd": "/workspace/luci/desktop",
+  "activation": "source /workspace/.luci-tools/activate.sh",
+  "startedAt": "2026-10-09T00:46:05.767563+00:00",
+  "label": "after-typecheck",
+  "scope": "Controlled frontend verification only; no browser/app/runtime. No full frontend suite."
+}

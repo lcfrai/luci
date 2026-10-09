@@ -1,0 +1,123 @@
+[
+  {
+    "label": "before-bound-regression",
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=spec",
+      "--test-timeout=30000",
+      "--test-name-pattern=actual scenario promptly reports submitted CPU refusal",
+      "scripts/acceptance/check-create-recovery/scenario-flow.test.mjs"
+    ],
+    "cwd": "isolated temporary copy; only recovery-scenario.mjs replaced with exact aadc original",
+    "startedAtUTC": "2026-10-09T01:05:06.094946+00:00",
+    "durationSeconds": 0.23191661198507063,
+    "exitCode": 1,
+    "expectedExitCode": 1,
+    "stdoutSHA256": "d9d6c7dd0b0262e39073caccb9d6478c3a2b065e9f9212379674868ac1ec0091",
+    "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "label": "final-controlled",
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=spec",
+      "--test-timeout=30000",
+      "--test-concurrency=2",
+      "scripts/acceptance/check-create-recovery/check-guard.test.mjs",
+      "scripts/acceptance/check-create-recovery/check-readiness.test.mjs",
+      "scripts/acceptance/check-create-recovery/cleanup.test.mjs",
+      "scripts/acceptance/check-create-recovery/controller-stop.test.mjs",
+      "scripts/acceptance/check-create-recovery/inspect-guards.test.mjs",
+      "scripts/acceptance/check-create-recovery/known-controller.test.mjs",
+      "scripts/acceptance/check-create-recovery/provenance-binding.test.mjs",
+      "scripts/acceptance/check-create-recovery/proxy-recovery.test.mjs",
+      "scripts/acceptance/check-create-recovery/recovery-proofs.test.mjs",
+      "scripts/acceptance/check-create-recovery/review-readiness.test.mjs",
+      "scripts/acceptance/check-create-recovery/scenario-flow.test.mjs"
+    ],
+    "cwd": "repository root",
+    "startedAtUTC": "2026-10-09T01:05:06.328282+00:00",
+    "durationSeconds": 1.7483403449878097,
+    "exitCode": 0,
+    "expectedExitCode": 0,
+    "stdoutSHA256": "da89db8f1f62b43f6012e2bf7fa6313bac820591de99de619c70c25f8fdc2eb4",
+    "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "label": "syntax-fixture-guards.mjs",
+    "command": [
+      "node",
+      "--check",
+      "scripts/acceptance/check-create-recovery/fixture-guards.mjs"
+    ],
+    "cwd": "repository root",
+    "startedAtUTC": "2026-10-09T01:05:08.076722+00:00",
+    "durationSeconds": 0.034715226996922866,
+    "exitCode": 0,
+    "expectedExitCode": 0,
+    "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "label": "syntax-installed-recovery.mjs",
+    "command": [
+      "node",
+      "--check",
+      "scripts/acceptance/check-create-recovery/installed-recovery.mjs"
+    ],
+    "cwd": "repository root",
+    "startedAtUTC": "2026-10-09T01:05:08.111503+00:00",
+    "durationSeconds": 0.03945943800499663,
+    "exitCode": 0,
+    "expectedExitCode": 0,
+    "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "label": "syntax-recovery-scenario.mjs",
+    "command": [
+      "node",
+      "--check",
+      "scripts/acceptance/check-create-recovery/recovery-scenario.mjs"
+    ],
+    "cwd": "repository root",
+    "startedAtUTC": "2026-10-09T01:05:08.151048+00:00",
+    "durationSeconds": 0.038456075999420136,
+    "exitCode": 0,
+    "expectedExitCode": 0,
+    "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "label": "syntax-scenario-flow.test.mjs",
+    "command": [
+      "node",
+      "--check",
+      "scripts/acceptance/check-create-recovery/scenario-flow.test.mjs"
+    ],
+    "cwd": "repository root",
+    "startedAtUTC": "2026-10-09T01:05:08.189538+00:00",
+    "durationSeconds": 0.028894838993437588,
+    "exitCode": 0,
+    "expectedExitCode": 0,
+    "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "label": "syntax-check-readiness.test.mjs",
+    "command": [
+      "node",
+      "--check",
+      "scripts/acceptance/check-create-recovery/check-readiness.test.mjs"
+    ],
+    "cwd": "repository root",
+    "startedAtUTC": "2026-10-09T01:05:08.218481+00:00",
+    "durationSeconds": 0.03774693197919987,
+    "exitCode": 0,
+    "expectedExitCode": 0,
+    "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

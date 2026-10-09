@@ -15,7 +15,7 @@ import {createAcceptanceJournal,diagnosticError,journalProcessIdentity} from '..
 import {startFencedDockerProxy} from '../launch-recovery/fenced-docker-proxy.mjs';
 import {runInstalledRecoveryScenario,pins,bounds,command} from './recovery-scenario.mjs';
 import {validateCheckCreate} from './check-create-guard.mjs';
-import {sha,validateFence,identityLabels,assertCapacity,assertComputeEnvelope,assertOriginalInspect,assertPublicReservationTotals} from './fixture-guards.mjs';
+import {sha,validateFence,identityLabels,assertCapacity,assertComputeEnvelope,assertOriginalInspect,assertPublicReservationTotals,assessCheckPreflight,summarizeCheckLedger} from './fixture-guards.mjs';
 import {verifyPackage,verifyHelperSourceBinding} from './provenance.mjs';
 
 const here=dirname(fileURLToPath(import.meta.url));
@@ -48,6 +48,52 @@ export async function stopControllerTree({identity,readIdentity,listOwned,signal
   const final=now()+forceMs;while(now()<final&&observedOwned().length)await wait(100);
   assert.equal(observedOwned().length,0,'Owned controller cleanup did not settle');
   assert.equal(left.length,0,'Owned controller required forced shutdown');return true;
+}
+const readinessError=code=>Object.assign(new Error(code),{code});
+// Observe a submitted check without replaying it. Gate capture is checked both
+// before and after GET: a real lost ACK may itself make that check terminal.
+export async function waitSubmittedCheckGate({proxy,projectId,checkId,gateId,phase,readCheck,recordTerminal,deadline,health=()=>{},now=Date.now,wait=delay}){
+  const remaining=()=>{health();const ms=deadline-now();if(ms<=0)throw readinessError('check-create-readiness-deadline');return ms;};
+  const captured=()=>{
+    const rows=proxy.observations.gates.filter(row=>row.id===gateId);assert.equal(rows.length,1,'Expected exact check gate');const gate=rows[0];
+    assert.equal(gate.phase,phase);if(gate.state==='armed')return null;
+    assert(['holding','lost'].includes(gate.state),'Expected check gate is no longer available');
+    const request=gate.request;assert.equal(request.kind,'check');assert.equal(request.method,'POST');assert(/\/containers\/create$/.test(request.path));
+    assert.equal(request.labels['luci.check-project'],projectId);assert.equal(request.labels['luci.check-id'],checkId);
+    if(phase==='after-response'){assert.equal(request.status,201);assert.match(request.id,/^[a-f0-9]{64}$/);}
+    return gate;
+  };
+  const acknowledge=async()=>{const gate=await proxy.waitForGate(gateId,{timeoutMs:remaining()});health();return gate;};
+  for(;;){
+    remaining();if(captured())return acknowledge();
+    const requestedAt=new Date(now()).toISOString(),check=await readCheck(Math.min(5000,remaining()));health();
+    assert.equal(check.id,checkId);assert.equal(check.projectId,projectId);
+    if(captured())return acknowledge();
+    if(!['queued','running'].includes(check.status)){
+      await recordTerminal({gateId,projectId,checkId,checkRequestedAt:requestedAt,checkObservedAt:new Date(now()).toISOString(),check},Math.max(0,Math.min(5000,deadline-now())));
+      throw readinessError('check-terminal-before-create-gate');
+    }
+    await wait(Math.min(250,remaining()));
+  }
+}
+// Advisory only: the unchanged installed admission remains authoritative after
+// the single browser POST. Unavailable/stale reads never become ready capacity.
+export async function waitCheckPreflight({read,record,deadline,health=()=>{},now=Date.now,wait=delay}){
+  let attempts=0,last;
+  const active=()=>{try{health();}catch(error){record({phase:'check-preflight-refused',at:new Date(now()).toISOString(),attempts,last,reasonCode:error.code??'workflow-unavailable'});throw error;}};
+  for(;;){
+    active();if(now()>=deadline){record({phase:'check-preflight-refused',at:new Date(now()).toISOString(),attempts,last});throw readinessError('check-preflight-deadline');}
+    const requestedAt=new Date(now()).toISOString();
+    try{
+      const sample=await read(Math.min(5000,deadline-now()));
+      last={requestedAt,observedAt:new Date(now()).toISOString(),policy:sample.view?.policy,resources:sample.view?.resources,ledgerSummary:summarizeCheckLedger(sample.options.ledger),rootFreeBytes:sample.options.rootFreeBytes,
+        assessment:assessCheckPreflight(sample.view,{...sample.options,now:now()})};
+    }catch(error){last={requestedAt,observedAt:new Date(now()).toISOString(),assessment:{ready:false,reasonCode:'resource_observation_unavailable'},readError:{name:error.name,code:error.code??null}};}
+    attempts++;active();
+    if(now()>=deadline)continue;
+    if(last.assessment.ready){record({phase:'check-preflight-ready',at:new Date(now()).toISOString(),attempts,...last});return last;}
+    await wait(Math.min(1000,deadline-now()));
+  }
 }
 export async function main(args=process.argv.slice(2)){
   const valueOptions=new Set(['--repo','--binary','--web','--provenance','--image-provenance','--report','--fixture-root','--chromium','--observer-instance-pointer','--expected-image-id','--helper-commit','--source-binding','--expected-source']);
@@ -90,7 +136,7 @@ export async function main(args=process.argv.slice(2)){
   for(const row of sourceBinding.executedFiles)writeFileSync(join(evidence,'accepted-harness',row.path.replaceAll('/','_')),readFileSync(join(sourceRoot,row.path)),{flag:'wx',mode:0o600});
   const journal=createAcceptanceJournal(join(evidence,'diagnostic-journal.jsonl'));
   journal.record('driver-start',{...journalProcessIdentity(),deadlineMs:bounds.scenarioMs});
-  let closing=false,stage='startup',failure,service,serviceIdentity,proxy,browser,page,base,env,ownerToken,ownerID,team,teamPrefix,teamRoot,editorToken,editorID,workflow,timer,pendingConsent;
+  let closing=false,stage='startup',failure,service,serviceIdentity,proxy,browser,page,base,env,ownerToken,ownerID,team,teamPrefix,teamRoot,editorToken,editorID,workflow,workflowDeadline,timer,pendingConsent;
   const password=randomUUID()+randomUUID(),editorPassword=randomUUID()+randomUUID(),lifecycle=randomUUID()+randomUUID();
   const secrets=[password,editorPassword,lifecycle];
   const projects=[],authorizedChecks=new Map(),createIdentities=new Map(),signalHandlers=[];
@@ -224,6 +270,14 @@ export async function main(args=process.argv.slice(2)){
   }
   const ctx={pins:runtimePins,expectedSource,bounds,windowGranted:true,freshFixture:true,externalModelCalls:0,projects,chargedWitness:args.includes('--charged-witness'),
     expectedOutput:'RECOVERY_CHECK_OK\n',get proxy(){return proxy;},record,
+    waitForCheckGate(p,id,gateId,phase){return waitSubmittedCheckGate({proxy,projectId:p.id,checkId:id,gateId,phase,health,
+      deadline:Math.min(workflowDeadline,Date.now()+bounds.requestMs),readCheck:timeout=>api('GET',route(p)+'/checks/'+id,undefined,200,ownerToken,timeout),
+      recordTerminal:async(details,timeout)=>{
+        const outcome={phase:'check-terminal-before-create-gate',...details,resourceRequestedAt:new Date().toISOString()};receipt.submittedCheckTerminal=outcome;
+        try{if(timeout<=0)throw readinessError('resource-observation-budget-exhausted');const view=await api('GET','/v1/product/swarm-scheduler',undefined,200,ownerToken,timeout);outcome.policy=view.policy;outcome.resources=view.resources;}
+        catch(error){outcome.resourceObservationError=safeError(error);}
+        outcome.resourceObservedAt=new Date().toISOString();record(outcome);
+      }});},
     async startCheckInBrowser(p,cmd){
       setStage('consent-check-'+(authorizedChecks.size+1));await openProject(p);
       const history=authorizedChecks.size===0;
@@ -238,22 +292,22 @@ export async function main(args=process.argv.slice(2)){
       await region.getByRole('checkbox',{name:"I trust this project's code and these Docker commands to write project files and use the network.",exact:true}).check();
       const coverage=(await api('GET',route(p)+'/checks')).coverage;assert.equal(coverage.source.available,true);assert.equal(coverage.source.dirty,false);
       assert.equal(coverage.specification.status,'approved');assert.equal(coverage.design.status,'approved');
+      await waitCheckPreflight({deadline:Math.min(workflowDeadline,Date.now()+30000),health,record:row=>record({...row,projectId:p.id}),read:async timeout=>({
+        view:await api('GET','/v1/product/swarm-scheduler',undefined,200,ownerToken,timeout),
+        options:{ledger:ledger(),engine,rootFreeBytes:free(),imageSize:image.Size}})});
+      health();
       pendingConsent={projectId:p.id,commit:coverage.source.commit,sourceDigest:coverage.source.sourceDigest,at:new Date().toISOString(),consentID:randomUUID()};
       const sent=await action(route(p)+'/checks',()=>region.getByRole('button',{name:'Run selected requirement checks',exact:true}).click(),202);
       assert.deepEqual(sent.request,{commands:[cmd],execution:'docker',acknowledgeHostExecution:true,requirementIds:['AC-recovery'],expectedSpecificationRevision:coverage.specification.revision,expectedDesignPlanRevision:coverage.design.revision});
       if(authorizedChecks.has(sent.row.id))assert.equal(authorizedChecks.get(sent.row.id).consentID,pendingConsent.consentID);
       else authorizedChecks.set(sent.row.id,{...pendingConsent});pendingConsent=null;
+      receipt.checkConsents??=[];receipt.checkConsents.push({checkId:sent.row.id,projectId:p.id,request:sent.request});
       if(history){
-        const ready=await until('history-create-or-terminal',async()=>{
-          const gate=proxy.observations.gates.find(row=>row.id==='history-pre-start-capacity');if(gate?.request?.status===201)return {gate};
-          const check=await readCheck(p,sent.row.id);return ['queued','running'].includes(check.status)?null:{check};
-        });
-        if(ready.check){await capacityReceipt('history-refused-before-create',{check:ready.check});assert.fail('Historical check did not reach actual Create acknowledgement');}
-        await proxy.waitForGate('history-pre-start-capacity',{timeoutMs:120000});
-        await capacityReceipt('actual-create-ack-held-before-product-start',{checkId:sent.row.id,containerId:ready.gate.request.id});
+        const gate=await ctx.waitForCheckGate(p,sent.row.id,'history-pre-start-capacity','after-response');
+        await capacityReceipt('actual-create-ack-held-before-product-start',{checkId:sent.row.id,containerId:gate.request.id});
         await proxy.releaseGate('history-pre-start-capacity');
       }
-      receipt.checkConsents??=[];receipt.checkConsents.push({checkId:sent.row.id,projectId:p.id,request:sent.request});return sent.row;
+      return sent.row;
     },
     async waitCheckTerminal(p,id){const row=await until('check-terminal',async()=>{const check=await readCheck(p,id);return ['queued','running'].includes(check.status)?null:check;});await capacityReceipt('terminal-check-capacity',{check:row});return row;},
     readCheck,readRecovery:(p,id)=>api('GET',route(p)+'/checks/'+id+'/recovery'),
@@ -322,7 +376,7 @@ export async function main(args=process.argv.slice(2)){
   };
   let scenario;
   try{
-    workflow=createWorkflowDeadline({timeoutMs:bounds.scenarioMs,onFailure:fail});
+    workflowDeadline=Date.now()+bounds.scenarioMs;workflow=createWorkflowDeadline({timeoutMs:bounds.scenarioMs,onFailure:fail});
     for(const signal of ['SIGINT','SIGTERM']){const handler=()=>fail(Object.assign(Error('interrupted'),{code:'fixture-interrupted'}));process.on(signal,handler);signalHandlers.push([signal,handler]);}
     await workflow.run(async()=>{
       timer=setInterval(()=>{try{if(free()<1024**3)fail(Error('working-reserve-breached'));}catch(e){fail(e);}},1000);

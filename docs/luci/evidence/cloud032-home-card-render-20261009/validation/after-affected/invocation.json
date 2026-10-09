@@ -1,0 +1,30 @@
+{
+  "command": [
+    "npm",
+    "test",
+    "--",
+    "--maxWorkers=2",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile.json=/workspace/.luci-tools/cloud032-home-render-staging/validation/after-affected/vitest.json",
+    "src/components/projects/ProjectOverviewBoard.test.tsx",
+    "src/components/projects/HostCapacity.test.tsx",
+    "src/components/projects/ProjectEntry.test.tsx",
+    "src/components/AppShell.test.tsx",
+    "src/components/rail/Rail.test.tsx",
+    "src/components/topbar/SessionPicker.test.tsx",
+    "src/components/topbar/NewSessionButton.test.tsx",
+    "src/components/teams/TeamWorkspaceProvider.test.tsx",
+    "src/store/defaults.test.ts",
+    "src/store/draftRegistration.test.ts",
+    "src/store/store.test.ts",
+    "src/store/selectors.test.ts",
+    "src/store/projectNavigation.test.ts",
+    "src/store/sourceNavigation.test.ts"
+  ],
+  "cwd": "/workspace/luci/desktop",
+  "activation": "source /workspace/.luci-tools/activate.sh",
+  "startedAt": "2026-10-09T00:44:05.589672+00:00",
+  "label": "after-affected",
+  "scope": "Controlled frontend verification only; no browser/app/runtime. No full frontend suite."
+}

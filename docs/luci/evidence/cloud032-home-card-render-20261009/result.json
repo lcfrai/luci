@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "baseProductCommit": "aadc1c281aef28aee04046a5c5e58da5fe7094e4",
+  "scope": "Applied narrow Home card memoization and stable callbacks; component semantics verified, postpatch installed latency unmeasured.",
+  "sourceFiles": {
+    "desktop/src/components/projects/ProjectOverviewBoard.tsx": {
+      "beforeSHA256": "d3505e9b899804d210d9dfc1f3ff4c91424045b41dd723e4564e7241b63afab9",
+      "afterSHA256": "939c2ffe6980e9ac8b685f983e4aedddfac05728f2053d11722b5a3c7198c4d4"
+    },
+    "desktop/src/components/projects/ProjectOverviewBoard.test.tsx": {
+      "beforeSHA256": "20c58a3c57b5b805f31cee088b33050fdf0742ecdb2738dab898b0d6a7052684",
+      "afterSHA256": "074c193236f4f033ebe95012392ae3f886e415fbe8c55c75721ae99b0993e750"
+    }
+  },
+  "checks": {
+    "before-regressions": {
+      "command": [
+        "npm",
+        "test",
+        "--",
+        "--maxWorkers=2",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/workspace/.luci-tools/cloud032-home-render-staging/validation/before-regressions/vitest.json",
+        "src/components/projects/ProjectOverviewBoard.test.tsx",
+        "--testNamePattern=renders only the changed project summary|removes memoized summaries immediately"
+      ],
+      "exitCode": 1,
+      "sourceInputsUnchanged": true,
+      "rawReceipt": "validation/before-regressions/result.json",
+      "reporter": {
+        "numTotalTests": 35,
+        "numPassedTests": 1,
+        "numFailedTests": 1,
+        "numPendingTests": 33,
+        "numTodoTests": 0,
+        "success": false
+      },
+      "files": 1,
+      "assertionStatuses": {
+        "failed": 1,
+        "passed": 1,
+        "skipped": 33
+      },
+      "originalJSONSHA256": "747e1c7e4864650b805e0c5c1422b66ac9378de4a7945b34591caa13069b0306"
+    },
+    "after-affected": {
+      "command": [
+        "npm",
+        "test",
+        "--",
+        "--maxWorkers=2",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=/workspace/.luci-tools/cloud032-home-render-staging/validation/after-affected/vitest.json",
+        "src/components/projects/ProjectOverviewBoard.test.tsx",
+        "src/components/projects/HostCapacity.test.tsx",
+        "src/components/projects/ProjectEntry.test.tsx",
+        "src/components/AppShell.test.tsx",
+        "src/components/rail/Rail.test.tsx",
+        "src/components/topbar/SessionPicker.test.tsx",
+        "src/components/topbar/NewSessionButton.test.tsx",
+        "src/components/teams/TeamWorkspaceProvider.test.tsx",
+        "src/store/defaults.test.ts",
+        "src/store/draftRegistration.test.ts",
+        "src/store/store.test.ts",
+        "src/store/selectors.test.ts",
+        "src/store/projectNavigation.test.ts",
+        "src/store/sourceNavigation.test.ts"
+      ],
+      "exitCode": 0,
+      "sourceInputsUnchanged": true,
+      "rawReceipt": "validation/after-affected/result.json",
+      "reporter": {
+        "numTotalTests": 289,
+        "numPassedTests": 289,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": true
+      },
+      "files": 14,
+      "assertionStatuses": {
+        "passed": 289
+      },
+      "originalJSONSHA256": "f5357d8779c03fc7371f415d30c7c02460b19454a57fc6b2f2e3bbc056ae0e0f"
+    },
+    "after-typecheck": {
+      "command": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "exitCode": 0,
+      "sourceInputsUnchanged": true,
+      "rawReceipt": "validation/after-typecheck/result.json"
+    }
+  },
+  "afterCoverage": {
+    "requestedTestFiles": 14,
+    "reportedTestFiles": 14,
+    "missing": [],
+    "unexpected": []
+  },
+  "baseline": "Only proposed2 tests selected against unchanged aadc product source. Render isolation failed as predicted; authority/abort/403 guard passed.33 other overview tests intentionally skipped by name filter. Not a successful baseline suite.",
+  "after": "All289 tests in14 affected files passed, no skipped/pending/todo; tsc passed. No full suite repeated.",
+  "priorLatency": {
+    "productSource": "aadc1c281aef28aee04046a5c5e58da5fe7094e4",
+    "switchP95Ms": 595.146121999991,
+    "switchTargetMs": 300,
+    "switchPass": false,
+    "inputP95Ms": 65.97081299999263,
+    "inputTargetMs": 100,
+    "inputPass": true,
+    "primaryActions": 400,
+    "traceFollowupActions": 32,
+    "postpatchLatencyMeasured": false
+  },
+  "privacy": "Original aadc raw receipt retained externally; included sanitized allowlisted projections are SHA-bound and explicitly not exact-raw originals. Exact path-free wrapper and closure retained. No raw trace/private runtime paths copied.",
+  "noCommitByAgent": true
+}

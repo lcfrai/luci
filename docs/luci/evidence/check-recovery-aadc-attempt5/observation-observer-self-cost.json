@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "status": "completed",
+  "exitCode": 0,
+  "pid": 2108712,
+  "signalNumber": null,
+  "finishedAt": "2026-10-09T00:39:29.183307+00:00",
+  "scope": "Observer interpreter RUSAGE_SELF, including interpreter imports and launcher; excludes spawned Docker CLI/helpers and all Docker daemon work.",
+  "wallSeconds": 175.44212701299693,
+  "launcherWallSeconds": 175.3999590589956,
+  "processStartClockTicks": 25226298,
+  "clockTicksPerSecond": 100,
+  "userCPUSeconds": 17.940107,
+  "systemCPUSeconds": 12.569464,
+  "cpuSecondsPerWallSecond": 0.17390105511967385,
+  "maxRSSBytes": 19013632,
+  "inputBlockOperations": 0,
+  "outputBlockOperations": 2592,
+  "voluntaryContextSwitches": 336,
+  "involuntaryContextSwitches": 4460,
+  "units": "Linux ru_maxrss KiB converted to bytes; block counts are I/O operations, not bytes. Lifetime wall uses CLOCK_BOOTTIME minus /proc creation ticks, with tick-resolution uncertainty."
+}

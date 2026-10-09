@@ -1,0 +1,28 @@
+{
+  "command": [
+    "npm",
+    "test",
+    "--",
+    "--maxWorkers=2",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile.json=/workspace/.luci-tools/cloud032-home-render-staging/validation/before-regressions/vitest.json",
+    "src/components/projects/ProjectOverviewBoard.test.tsx",
+    "--testNamePattern=renders only the changed project summary|removes memoized summaries immediately"
+  ],
+  "cwd": "/workspace/luci/desktop",
+  "startedAt": "2026-10-09T00:43:02.618194+00:00",
+  "finishedAt": "2026-10-09T00:43:06.966055+00:00",
+  "durationSeconds": 4.3478544219979085,
+  "exitCode": 1,
+  "sourceInputsUnchanged": true,
+  "changedPaths": [],
+  "stdout": {
+    "bytes": 3933,
+    "sha256": "47c2f9ac0436a8c93332ad276991497776d5a3f96f60c0071a9d73263ea45ea9"
+  },
+  "stderr": {
+    "bytes": 927,
+    "sha256": "c3d5e1b3c0f611071cf143d56c6a6276738a3f84a2efd4338ca642508d4d3461"
+  }
+}

@@ -1,0 +1,50 @@
+
+> @lcfr/luci-desktop@0.5.0 test
+> vitest run --maxWorkers=2 --reporter=default --reporter=json --outputFile.json=/workspace/.luci-tools/cloud032-home-render-staging/validation/before-regressions/vitest.json src/components/projects/ProjectOverviewBoard.test.tsx --testNamePattern=renders only the changed project summary|removes memoized summaries immediately
+
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+ ❯ src/components/projects/ProjectOverviewBoard.test.tsx (35 tests | 1 failed | 33 skipped) 315ms
+   × renders only the changed project summary while preserving fresh independent overview reads 122ms
+   ✓ removes memoized summaries immediately on authority change and rejects the old in-flight reply 190ms
+   ↓ reads compact summaries only until the operator opens a queue, and navigates atomically
+   ↓ opens the exact overview run in its project scope instead of a previous inspection
+   ↓ shows a terminal failed entry without waiting controls and opens its exact run behind the draft guard
+   ↓ keeps failed-entry inspection unavailable while its project context is stale or denied
+   ↓ shows older review work beside zero queue activity and opens its exact run without a mutation
+   ↓ keeps an older review target behind the normal unsaved-draft guard
+   ↓ exposes unresolved reported questions on an accepted build and opens that exact older run
+   ↓ avoids duplicating the visible exact-run review action while preserving a different next destination
+   ↓ labels retained review work as historical during source preparation and clears it on permission failure
+   ↓ clears review identities immediately when the account changes and rejects a late old-scope summary
+   ↓ keeps exact-run navigation behind the draft guard and discards it on cancellation
+   ↓ does not create a run intent after a removed project rejects navigation
+   ↓ preserves an in-progress queue click while its project summary arrives
+   ↓ keeps unavailable counters and incomplete question history distinct from zero
+   ↓ retains explicitly recorded context during source preparation while keeping queue intervention available
+   ↓ clears retained private context when a later read fails with status 403
+   ↓ clears retained private context when a later read fails with status 500
+   ↓ bounds concurrent summaries to four and never starts the fifth while four are pending
+   ↓ drops a late summary when the account scope changes
+   ↓ forgets removed project summaries before that project can be shown again
+   ↓ keeps shown queue selections across reordering but forgets a removed project before a bulk action
+   ↓ reports a cross-project partial failure using individual item revisions
+   ↓ keeps an interrupted mutation unconfirmed and never retries it during a refresh
+   ↓ requires an explicit list review before cancelling and does not mutate on dialog dismissal
+   ↓ stops the remaining bulk dispatches on a scope change during an in-flight control
+   ↓ keeps queue selection disabled for a viewer even with an execution grant
+   ↓ allows an editor without execution access to pause waiting work
+   ↓ allows an editor without execution access to cancel waiting work
+   ↓ allows an editor without execution access to priority waiting work
+   ↓ allows paused-task selection for an editor but does not offer resume without execution access
+   ↓ checks fresh editing access before intervening in a previously selected task
+   ↓ resumes only projects with fresh execution access and preserves partial outcomes
+   ↓ labels a legacy unknown failure count without claiming no failures
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 passed | 33 skipped (35)
+   Start at  00:43:03
+   Duration  3.40s (environment 59%, transform 19%, tests 10%, setup 6%, import 5%)
+
+JSON report written to /workspace/.luci-tools/cloud032-home-render-staging/validation/before-regressions/vitest.json

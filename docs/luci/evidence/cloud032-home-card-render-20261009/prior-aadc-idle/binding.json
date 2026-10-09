@@ -1,0 +1,211 @@
+{
+  "schemaVersion": 1,
+  "scope": "Offline evidence preparation only; no repository edits, test/compiler/browser/runtime commands or raw trace reads.",
+  "originalArtifacts": {
+    "result": {
+      "sha256": "61fe4f48f685af6c4a4402f14ee8cc40d3ee4d0cb052daf2eafdad59482fdc61",
+      "bytes": 7327214
+    },
+    "invocation": {
+      "sha256": "0f60888f14f2fbdcec5c46758a0ac783410b12ec5fc946c8f6465527156d5348",
+      "bytes": 2713
+    },
+    "wrapper": {
+      "sha256": "2d01824bed7ef35d7638251fe02f920e52e34050e33d67217c8bc5133b58a94a",
+      "bytes": 316
+    },
+    "closure": {
+      "sha256": "8f8eeaa7ef3674c563e127ad93c26cea4d888d74cb03191cd94245ae8b717e58",
+      "bytes": 861
+    },
+    "sourceBinding": {
+      "sha256": "c243c493997575a1fb995ab45e86173fc0e33f960b981bc35d307337d9f948dc",
+      "bytes": 6464
+    },
+    "packageProvenance": {
+      "sha256": "ef95a428c8bcfbb6e60d6882244eefc39bf42965f23f17cd346a5edf1fd9c255",
+      "bytes": 1040
+    },
+    "imageProvenance": {
+      "sha256": "5af726e6670fd6f04c0f67cf3b26b3f6072ed89c1e1e3481c652a631ae6d0a3b",
+      "bytes": 33716
+    },
+    "launcher": {
+      "sha256": "33e40531883e91a5746e380bbc684737b8c060ca2943a1002d6514288f5514fe",
+      "bytes": 2603
+    },
+    "preparationScript": {
+      "sha256": "f3562a2440076553693ddd4b285884b052026d2dabcc26ef7436fa42cbf3c519",
+      "bytes": 12326
+    },
+    "idleExtractionPatch": {
+      "sha256": "dbdb75f33e94de9b7f20b85dc832669498ea4b7cdc7a60ee0dd554d7a0bf71fa",
+      "bytes": 24832
+    },
+    "currentProxyPatch": {
+      "sha256": "6a28b06357e173419f276383adf93b80a78f21bf4d5b9abde358e5c25ecb4aa7",
+      "bytes": 7560
+    },
+    "comparisonAnalysis": {
+      "sha256": "ae1e822d0fcd0c20e94a8de09d2ddcf9d5ad54d4137a6c4835f0da66162dee67",
+      "bytes": 79295
+    },
+    "passiveCorrelationAnalysis": {
+      "sha256": "bc9d2ca6dbfa3224b12f7ba2d339c6a7846085ef3d3971e5e4c064cd428818dd",
+      "bytes": 181222
+    }
+  },
+  "productSource": "aadc1c281aef28aee04046a5c5e58da5fe7094e4",
+  "helperSource": "aadc1c281aef28aee04046a5c5e58da5fe7094e4",
+  "originalInteractionSource": "5d306b6dae3cc9d0a4d9cbf95f8142c37958964f",
+  "packageIntegrity": {
+    "archiveSHA256": "e73f44b5dd59d7f8205661f821d556cfcaeb43b0f765755ae7e6b5c81d20d38d",
+    "verifiedMembers": 3126,
+    "allMembersMatch": true
+  },
+  "binarySHA256": "5d70f3d2fe83d49ac9daabd207a0251fffde5fdb181f9249ed28b92278f90763",
+  "webIndexSHA256": "8422a4798d2d2eb6197064907108f7be66c30322c2f541eb78998d57246d3bc8",
+  "image": {
+    "reference": "luci/sandbox:verified-candidate-20261008t140025z-a4a2e82b",
+    "id": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98"
+  },
+  "frozenDriverSHA256": "d7fb7586e5b4a2639da9abb6c2e1c6a1296d2161ea7cf2ec393a8f1d3ab1b016",
+  "frozenInteractionCollectorSHA256": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502",
+  "resultProjectionUncompressedSHA256": "1ddf25453cbde2b7119f0dcf2ea9d2529de27b9f77dbb7fc8ce5586136a4b5df",
+  "resultProjectionUncompressedBytes": 84450,
+  "identityAndMetricsChecks": {
+    "prepared:sustained.mjs": true,
+    "retained:sustained.mjs": true,
+    "prepared:task-command.mjs": true,
+    "retained:task-command.mjs": true,
+    "prepared:workloads.mjs": true,
+    "retained:workloads.mjs": true,
+    "prepared:interaction-metrics.mjs": true,
+    "retained:interaction-metrics.mjs": true,
+    "prepared:latency-diagnostics.mjs": true,
+    "retained:latency-diagnostics.mjs": true,
+    "prepared:task-context.mjs": true,
+    "retained:task-context.mjs": true,
+    "prepared:source-binding.mjs": true,
+    "retained:source-binding.mjs": true,
+    "prepared:queue-controls.mjs": true,
+    "retained:queue-controls.mjs": true,
+    "prepared:run-with-observer.py": true,
+    "retained:run-with-observer.py": true,
+    "prepared:scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs": true,
+    "retained:scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs": true,
+    "prepared:scripts/acceptance/four-project-queue/sample-linux-owned.py": true,
+    "retained:scripts/acceptance/four-project-queue/sample-linux-owned.py": true,
+    "prepared:scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs": true,
+    "retained:scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs": true,
+    "prepared:scripts/acceptance/launch-recovery/worker-create-guard.mjs": true,
+    "retained:scripts/acceptance/launch-recovery/worker-create-guard.mjs": true,
+    "prepared:scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs": true,
+    "retained:scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs": true,
+    "prepared:scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs": true,
+    "retained:scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs": true,
+    "prepared:scripts/acceptance/launch-recovery/acceptance-startup.mjs": true,
+    "retained:scripts/acceptance/launch-recovery/acceptance-startup.mjs": true,
+    "launcher": true,
+    "resultEmbeddedBinding": true,
+    "retainedBinding": true,
+    "rows:idle-interactive-calibration:project-switch": true,
+    "rows:idle-interactive-calibration:input": true,
+    "rows:idle-interactive-calibration:draft-reset": true,
+    "rows:idle-actionability-trace-followup:project-switch": true,
+    "rows:idle-actionability-trace-followup:input": true,
+    "rows:idle-actionability-trace-followup:draft-reset": true
+  },
+  "receiptBindings": {
+    "originalResultMatchesClosureSHA256": true,
+    "closureAndWrapperDriverIdentitiesMatch": true,
+    "sourceIdentitiesMatch": true,
+    "packageRecordedHashesMatch": true
+  },
+  "currentSourceOrPackageRevalidationPerformed": false,
+  "includedArtifacts": {
+    "README.md": {
+      "sha256": "8b1296fd12092d51371df0bbc928659de3d4e423ef4a22c75968bb08f53a3967",
+      "bytes": 5507,
+      "representation": "derived sanitized projection or explanation"
+    },
+    "external-source-binding.sanitized.json": {
+      "sha256": "0e664a6d8df6fcfefec749b842ec4e7d62f77aacc955d8c7f7e1076a0dfca31c",
+      "bytes": 6772,
+      "representation": "derived sanitized projection or explanation"
+    },
+    "independent-closure.original.json": {
+      "sha256": "8f8eeaa7ef3674c563e127ad93c26cea4d888d74cb03191cd94245ae8b717e58",
+      "bytes": 861,
+      "representation": "byte-for-byte original"
+    },
+    "invocation.sanitized.json": {
+      "sha256": "27663b1fafb8446550db6ddde5150b87de9e120e39c89bba5989c61497098fc7",
+      "bytes": 2768,
+      "representation": "derived sanitized projection or explanation"
+    },
+    "package-provenance.sanitized.json": {
+      "sha256": "64e0e74c84f994628d024e1f704209de1ae88e11a6bd84ad3fcbaf6fad4e5f2d",
+      "bytes": 1136,
+      "representation": "derived sanitized projection or explanation"
+    },
+    "passive-summary.projection.json": {
+      "sha256": "8569a75ebf9b80c9e995f1ff78dca248d570970a4fbab7a6ff07b8f568aebac4",
+      "bytes": 9578,
+      "representation": "derived sanitized projection or explanation"
+    },
+    "result.projection.json.gz": {
+      "sha256": "26092fea4167bc7123fc2a5eef92026822474b6e7e44ca3d99b11d0f503d0657",
+      "bytes": 9763,
+      "representation": "derived sanitized projection or explanation"
+    },
+    "wrapper-result.original.json": {
+      "sha256": "2d01824bed7ef35d7638251fe02f920e52e34050e33d67217c8bc5133b58a94a",
+      "bytes": 316,
+      "representation": "byte-for-byte original"
+    }
+  },
+  "privacy": {
+    "originalResultContainsPrivatePath": true,
+    "originalResultIncluded": false,
+    "rawTraceIncluded": false,
+    "rawTraceOpenedDuringPreparation": false,
+    "allNumericInteractionRowsRetained": 432,
+    "primaryRows": 400,
+    "separateFollowupRows": 32,
+    "privatePathsIncluded": false,
+    "omittedResultFields": [
+      "actualTaskResults",
+      "apiActions",
+      "browserErrors",
+      "browserEventWindows",
+      "browserMutations",
+      "browserTimingLedger",
+      "cleanup",
+      "diskSamples",
+      "dockerTransportNotStarted",
+      "dockerTransportObservations",
+      "engineIdentitySHA256",
+      "externalSourceBinding",
+      "initialRootFreeBytes",
+      "latencyDiagnostics",
+      "lifecycle",
+      "phases",
+      "predeclaredTimingReason",
+      "setupScaffolding",
+      "startupResources",
+      "taskChildren",
+      "taskEvents",
+      "terminalObservations",
+      "traceScope",
+      "workloadSources"
+    ],
+    "interactionFieldsIncluded": [
+      "index",
+      "phase",
+      "kind",
+      "success",
+      "elapsedMs"
+    ]
+  }
+}

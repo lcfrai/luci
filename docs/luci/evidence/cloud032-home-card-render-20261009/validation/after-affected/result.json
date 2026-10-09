@@ -1,0 +1,40 @@
+{
+  "command": [
+    "npm",
+    "test",
+    "--",
+    "--maxWorkers=2",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile.json=/workspace/.luci-tools/cloud032-home-render-staging/validation/after-affected/vitest.json",
+    "src/components/projects/ProjectOverviewBoard.test.tsx",
+    "src/components/projects/HostCapacity.test.tsx",
+    "src/components/projects/ProjectEntry.test.tsx",
+    "src/components/AppShell.test.tsx",
+    "src/components/rail/Rail.test.tsx",
+    "src/components/topbar/SessionPicker.test.tsx",
+    "src/components/topbar/NewSessionButton.test.tsx",
+    "src/components/teams/TeamWorkspaceProvider.test.tsx",
+    "src/store/defaults.test.ts",
+    "src/store/draftRegistration.test.ts",
+    "src/store/store.test.ts",
+    "src/store/selectors.test.ts",
+    "src/store/projectNavigation.test.ts",
+    "src/store/sourceNavigation.test.ts"
+  ],
+  "cwd": "/workspace/luci/desktop",
+  "startedAt": "2026-10-09T00:44:05.589672+00:00",
+  "finishedAt": "2026-10-09T00:44:29.172385+00:00",
+  "durationSeconds": 23.582746426021913,
+  "exitCode": 0,
+  "sourceInputsUnchanged": true,
+  "changedPaths": [],
+  "stdout": {
+    "bytes": 3139,
+    "sha256": "d7c5eead25c668db54568bcd2afcc42c2b26396f36e9248a06b5b087d12e361a"
+  },
+  "stderr": {
+    "bytes": 100,
+    "sha256": "bea4d402b62e1c6a0478c814fdabeceb6672c11b69a8df11ef49183b5aca9e58"
+  }
+}

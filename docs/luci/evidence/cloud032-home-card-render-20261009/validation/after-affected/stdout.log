@@ -1,0 +1,43 @@
+
+> @lcfr/luci-desktop@0.5.0 test
+> vitest run --maxWorkers=2 --reporter=default --reporter=json --outputFile.json=/workspace/.luci-tools/cloud032-home-render-staging/validation/after-affected/vitest.json src/components/projects/ProjectOverviewBoard.test.tsx src/components/projects/HostCapacity.test.tsx src/components/projects/ProjectEntry.test.tsx src/components/AppShell.test.tsx src/components/rail/Rail.test.tsx src/components/topbar/SessionPicker.test.tsx src/components/topbar/NewSessionButton.test.tsx src/components/teams/TeamWorkspaceProvider.test.tsx src/store/defaults.test.ts src/store/draftRegistration.test.ts src/store/store.test.ts src/store/selectors.test.ts src/store/projectNavigation.test.ts src/store/sourceNavigation.test.ts
+
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+ ✓ src/components/projects/ProjectOverviewBoard.test.tsx (35 tests) 3269ms
+   ✓ renders only the changed project summary while preserving fresh independent overview reads 330ms
+ ✓ src/components/projects/ProjectEntry.test.tsx (19 tests) 3883ms
+   ✓ keeps the project name after a failure and opens only the successfully created project 350ms
+   ✓ requires a trusted HTTPS repository and forwards it through the real project import API 387ms
+   ✓ retains a failed import and retries its name with a fresh identity only on request 302ms
+   ✓ checks a lost response after reload without cloning, then opens a completed import explicitly 428ms
+ ✓ src/components/teams/TeamWorkspaceProvider.test.tsx (28 tests) 3213ms
+   ✓ clears an entered invitation and fences late acceptance when the account changes 534ms
+ ✓ src/components/rail/Rail.test.tsx (31 tests) 1645ms
+   ✓ Rail (31)
+     ✓ does not invite a nonadmin team member to create a project from the sidebar 317ms
+ ✓ src/components/topbar/NewSessionButton.test.tsx (12 tests) 677ms
+ ✓ src/components/projects/HostCapacity.test.tsx (16 tests) 1608ms
+   ✓ does not revive a late write after administrator access is revoked and granted again 336ms
+ ✓ src/components/topbar/SessionPicker.test.tsx (14 tests) 1344ms
+   ✓ SessionPicker (14)
+     ✓ uses an exact saved gateway model and connection when starting Develop 301ms
+ ✓ src/store/store.test.ts (54 tests) 78ms
+ ✓ src/components/AppShell.test.tsx (12 tests) 1326ms
+ ✓ src/store/selectors.test.ts (18 tests) 18ms
+ ✓ src/store/projectNavigation.test.ts (12 tests) 46ms
+ ✓ src/store/draftRegistration.test.ts (3 tests) 12ms
+ ✓ src/store/defaults.test.ts (31 tests) 13ms
+ ✓ src/store/sourceNavigation.test.ts (4 tests) 11ms
+
+ Test Files  14 passed (14)
+      Tests  289 passed (289)
+   Start at  00:44:06
+   Duration  22.54s (tests 42%, environment 33%, transform 13%, import 8%, setup 4%)
+
+Environment  jsdom was created 14 times · 13.74s total, 33% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments
+
+JSON report written to /workspace/.luci-tools/cloud032-home-render-staging/validation/after-affected/vitest.json

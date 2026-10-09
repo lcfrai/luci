@@ -1,0 +1,400 @@
+{
+  "version": 1,
+  "kind": "derived-read-only-resource-observations",
+  "attempt": "check-recovery-aadc-attempt5",
+  "sourceInputs": {
+    "sourceBinding": {
+      "sha256": "c5a69dc6da3b952fcdbd2b9b75e079032f2642a5e6593e00e410f0dafbbac59d",
+      "bytes": 6687
+    },
+    "packageIntegrity": {
+      "sha256": "ef95a428c8bcfbb6e60d6882244eefc39bf42965f23f17cd346a5edf1fd9c255",
+      "bytes": 1040
+    },
+    "phase02": {
+      "sha256": "20382c8fdbfd8808833d7f0977e092eb5fb2f43aaa4a78a3621b0f86145cd84b",
+      "bytes": 2723
+    },
+    "phase01": {
+      "sha256": "e55facad507cf214b5333e1ecbe03899b80eba5e9b97886dfea52c61a77ba541",
+      "bytes": 2761
+    },
+    "phase04": {
+      "sha256": "d776377b8c60bbf53b4b08691c9231c8cf1c128edd938b1698d0f0c357c960c9",
+      "bytes": 207
+    },
+    "runResult": {
+      "sha256": "dc1eaac9251838f813bd2ce3bd5f1d4408c0f2b187dad36cefdeb6f948bd09e0",
+      "bytes": 456268
+    },
+    "phase03": {
+      "sha256": "37fbad90c6600eefaa0ace25224993932aa1bfb3d1d598e1f87fa5aa60eb68cf",
+      "bytes": 4978
+    },
+    "observerSummary": {
+      "sha256": "ac6fdc144ee5401ec0b35238a601568d0af7de9ba50ae4dae5a7b1ccd5af1a96",
+      "bytes": 3029
+    },
+    "observerMetadata": {
+      "sha256": "2b62ea3f8ebc2c261894e64a2d6ca5128a61045f891405159928d5f94486d39d",
+      "bytes": 2996
+    },
+    "observerSamples": {
+      "sha256": "796f1387145541b2cc2bba65c88e5d5aa7b42f25802ece552148793d5192c3a0",
+      "bytes": 1244261
+    }
+  },
+  "bindings": {
+    "sourceCommit": "aadc1c281aef28aee04046a5c5e58da5fe7094e4",
+    "helperSourceCommit": "aadc1c281aef28aee04046a5c5e58da5fe7094e4",
+    "historicalHelperBaseCommit": "5d306b6dae3cc9d0a4d9cbf95f8142c37958964f",
+    "observerHelperSHA256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+    "package": {
+      "sourceCommit": "aadc1c281aef28aee04046a5c5e58da5fe7094e4",
+      "sourceDirty": false,
+      "archiveSHA256": "e73f44b5dd59d7f8205661f821d556cfcaeb43b0f765755ae7e6b5c81d20d38d",
+      "binarySHA256": "5d70f3d2fe83d49ac9daabd207a0251fffde5fdb181f9249ed28b92278f90763",
+      "webIndexSHA256": "8422a4798d2d2eb6197064907108f7be66c30322c2f541eb78998d57246d3bc8"
+    },
+    "packageRecordedIntegrity": {
+      "verifiedMembers": 3126,
+      "allMembersMatch": true
+    }
+  },
+  "runScope": {
+    "startedAt": "2026-10-09T00:36:38.981Z",
+    "finishedAt": "2026-10-09T00:39:13.719Z",
+    "passed": false,
+    "failedStage": "consent-check-2",
+    "helperFailure": {
+      "errorName": "Error",
+      "errorCode": "gate-wait-timeout"
+    },
+    "transportCounts": {
+      "total": 973,
+      "create": 1,
+      "worker": 0,
+      "fence": 0,
+      "start": 1,
+      "check": 1
+    },
+    "historicalCheck": {
+      "status": "passed",
+      "createCount": 1,
+      "startCount": 1,
+      "resourcesHeld": false
+    },
+    "targetCreateCount": 0,
+    "recoveryReached": false,
+    "exactNumericTargetAdmissionInputPresent": false,
+    "externalModelCalls": 0,
+    "actualTaskCount": 0,
+    "gateSummary": [
+      {
+        "id": "history-pre-start-capacity",
+        "state": "released",
+        "armedAt": "2026-10-09T00:36:44.764Z",
+        "capturedAt": "2026-10-09T00:37:06.946Z",
+        "releasedAt": "2026-10-09T00:37:06.994Z"
+      },
+      {
+        "id": "target-create-ack-lost",
+        "state": "cancelled",
+        "armedAt": "2026-10-09T00:37:08.768Z"
+      }
+    ]
+  },
+  "independentlyStoredTargetContext": {
+    "basis": "Independent stored target observation supplied by the coordinating agent; not read from live state and not present in these phase resource snapshots.",
+    "status": "blocked",
+    "stage": "admission",
+    "reasonCode": "cpu_pressure",
+    "resourcesHeld": false,
+    "beforeAnyTargetCreate": true,
+    "exactCPUUtilizationInput": null,
+    "exactPolicyThreshold": null
+  },
+  "phaseSnapshots": [
+    {
+      "phaseNumber": 1,
+      "phase": "fresh-create-admission",
+      "capture": {
+        "at": "2026-10-09T00:36:45.758Z"
+      },
+      "scope": "first historical check",
+      "resourceSnapshotPresent": true,
+      "host": {
+        "observedAt": "2026-10-09T00:36:45.105341962Z",
+        "status": "partial",
+        "scope": "control-plane-host",
+        "memory": {
+          "physicalTotalBytes": 35743784960,
+          "physicalAvailableBytes": 21925429248,
+          "effectiveTotalBytes": 34359738368,
+          "effectiveAvailableBytes": 15820845056,
+          "limitSource": "physical-and-control-plane-cgroup-v2",
+          "commitLimitBytes": null,
+          "commitAvailableBytes": null
+        },
+        "cpu": {
+          "logicalProcessors": 5,
+          "effectiveMillis": 4000,
+          "limitSource": "process-affinity-and-control-plane-cgroup-v2",
+          "utilizationPercent": 45.833333333333336,
+          "pressureSomeAvg10": null,
+          "memoryPressureSomeAvg10": null,
+          "ioPressureSomeAvg10": null
+        }
+      },
+      "execution": {
+        "observedAt": "2026-10-09T00:36:45.126610725Z",
+        "scope": "execution-daemon",
+        "status": "ready",
+        "totalMemoryBytes": 35743784960,
+        "cpuMillis": 5000,
+        "hostStorage": null,
+        "unavailable": []
+      },
+      "reservations": {
+        "status": "ready",
+        "observedAt": "2026-10-09T00:36:45.757308454Z",
+        "count": 1,
+        "memoryMiB": 1024,
+        "cpuMillis": 1000
+      },
+      "rootFreeBytes": 6515994624
+    },
+    {
+      "phaseNumber": 2,
+      "phase": "actual-create-ack-held-before-product-start",
+      "capture": {
+        "requestedAt": "2026-10-09T00:37:06.966Z",
+        "completedAt": "2026-10-09T00:37:06.978Z"
+      },
+      "scope": "first historical check",
+      "resourceSnapshotPresent": true,
+      "host": {
+        "observedAt": "2026-10-09T00:37:06.105080213Z",
+        "status": "partial",
+        "scope": "control-plane-host",
+        "memory": {
+          "physicalTotalBytes": 35743784960,
+          "physicalAvailableBytes": 21901025280,
+          "effectiveTotalBytes": 34359738368,
+          "effectiveAvailableBytes": 10999037952,
+          "limitSource": "physical-and-control-plane-cgroup-v2",
+          "commitLimitBytes": null,
+          "commitAvailableBytes": null
+        },
+        "cpu": {
+          "logicalProcessors": 5,
+          "effectiveMillis": 4000,
+          "limitSource": "process-affinity-and-control-plane-cgroup-v2",
+          "utilizationPercent": 31.411530815109344,
+          "pressureSomeAvg10": null,
+          "memoryPressureSomeAvg10": null,
+          "ioPressureSomeAvg10": null
+        }
+      },
+      "execution": {
+        "observedAt": "2026-10-09T00:37:06.117394845Z",
+        "scope": "execution-daemon",
+        "status": "ready",
+        "totalMemoryBytes": 35743784960,
+        "cpuMillis": 5000,
+        "hostStorage": null,
+        "unavailable": []
+      },
+      "reservations": {
+        "status": "ready",
+        "observedAt": "2026-10-09T00:37:06.977388203Z",
+        "count": 1,
+        "memoryMiB": 1024,
+        "cpuMillis": 1000
+      },
+      "rootFreeBytes": 1780396032
+    },
+    {
+      "phaseNumber": 3,
+      "phase": "terminal-check-capacity",
+      "capture": {
+        "requestedAt": "2026-10-09T00:37:08.764Z",
+        "completedAt": "2026-10-09T00:37:08.767Z"
+      },
+      "scope": "first historical check",
+      "resourceSnapshotPresent": true,
+      "host": {
+        "observedAt": "2026-10-09T00:37:08.104746425Z",
+        "status": "partial",
+        "scope": "control-plane-host",
+        "memory": {
+          "physicalTotalBytes": 35743784960,
+          "physicalAvailableBytes": 21773770752,
+          "effectiveTotalBytes": 34359738368,
+          "effectiveAvailableBytes": 12239822848,
+          "limitSource": "physical-and-control-plane-cgroup-v2",
+          "commitLimitBytes": null,
+          "commitAvailableBytes": null
+        },
+        "cpu": {
+          "logicalProcessors": 5,
+          "effectiveMillis": 4000,
+          "limitSource": "process-affinity-and-control-plane-cgroup-v2",
+          "utilizationPercent": 22.77227722772277,
+          "pressureSomeAvg10": null,
+          "memoryPressureSomeAvg10": null,
+          "ioPressureSomeAvg10": null
+        }
+      },
+      "execution": {
+        "observedAt": "2026-10-09T00:37:08.119361811Z",
+        "scope": "execution-daemon",
+        "status": "ready",
+        "totalMemoryBytes": 35743784960,
+        "cpuMillis": 5000,
+        "hostStorage": null,
+        "unavailable": []
+      },
+      "reservations": {
+        "status": "ready",
+        "observedAt": "2026-10-09T00:37:08.766670611Z",
+        "count": 0,
+        "memoryMiB": 0,
+        "cpuMillis": 0
+      },
+      "rootFreeBytes": 6515507200,
+      "terminalCheck": {
+        "revision": 7,
+        "resourcesHeld": false,
+        "stage": "cleanup",
+        "memoryMiB": 1024,
+        "cpuMillis": 1000,
+        "sourceChanged": false,
+        "status": "passed",
+        "createdAt": "2026-10-09T00:36:45.319690691Z",
+        "updatedAt": "2026-10-09T00:37:08.749997248Z",
+        "message": "Commands finished with recorded exit codes and confirmed cleanup. This does not automatically verify completion criteria.",
+        "evidenceStatus": "linked-test-evidence"
+      }
+    },
+    {
+      "phaseNumber": 4,
+      "phase": "real-history-created",
+      "capture": {
+        "at": "2026-10-09T00:37:08.768Z"
+      },
+      "scope": "first historical check",
+      "resourceSnapshotPresent": false,
+      "outputSHA256": "3b5878b74a0d0ad59f2da50e882d9686e971761717a53a34a1a5cd3ff21e85a5"
+    }
+  ],
+  "observerCoverage": {
+    "startedAt": "2026-10-09T00:36:33.854657+00:00",
+    "finishedAt": "2026-10-09T00:39:29.182021+00:00",
+    "firstSampleAt": "2026-10-09T00:36:34.049250+00:00",
+    "lastSampleAt": "2026-10-09T00:39:29.181926+00:00",
+    "sampleCount": 175,
+    "declaredIntervalSeconds": 1,
+    "durationSeconds": 175.32738383801188,
+    "samplePhaseCounts": {
+      "post-start-running": 159,
+      "post-driver-exit-settle": 16
+    },
+    "baseline": "post-start; no pre-run idle baseline observed",
+    "checkCoverage": {
+      "enabled": true,
+      "identitySamples": 2,
+      "cgroupUsageSamples": 0,
+      "status": "identity-only"
+    },
+    "containerMeasurementStatusCounts": {
+      "partial": 8,
+      "observed": 167
+    },
+    "containerIssueCounts": {
+      "exact-owned-instance-not-yet-provided": 8
+    },
+    "controlPlaneCgroup": {
+      "sampleStatusCounts": {
+        "not-observed": 23,
+        "observed": 152
+      },
+      "samplesWithObservations": 152,
+      "observationCount": 304,
+      "processIdentityCount": 2,
+      "firstObservedAt": "2026-10-09T00:36:40.034462+00:00",
+      "lastObservedAt": "2026-10-09T00:39:12.078582+00:00",
+      "stableIdentityAndTopologyCount": 304,
+      "visibleNodeLocationCount": 1,
+      "nodeRowCount": 304,
+      "nodeStatusCounts": {
+        "version": {
+          "2": 304
+        },
+        "depth": {
+          "0": 304
+        },
+        "mountRoot": {
+          "True": 304
+        },
+        "limitStatus": {
+          "finite": 304
+        },
+        "currentStatus": {
+          "observed": 304
+        },
+        "statStatus": {
+          "observed": 304
+        }
+      },
+      "outerIssueCount": 0,
+      "observationIssueCount": 0,
+      "memoryByteRanges": {
+        "physicalTotalBytes": {
+          "minimum": 35743784960,
+          "maximum": 35743784960
+        },
+        "physicalAvailableBytes": {
+          "minimum": 21736587264,
+          "maximum": 22434066432
+        },
+        "productComparableEffectiveTotalBytes": {
+          "minimum": 34359738368,
+          "maximum": 34359738368
+        },
+        "productComparableEffectiveAvailableBytes": {
+          "minimum": 10544451584,
+          "maximum": 16328658944
+        }
+      },
+      "nodeByteRanges": {
+        "limitBytes": {
+          "minimum": 34359738368,
+          "maximum": 34359738368
+        },
+        "currentBytes": {
+          "minimum": 18031079424,
+          "maximum": 23815286784
+        },
+        "limitMinusCurrentBytes": {
+          "minimum": 10544451584,
+          "maximum": 16328658944
+        }
+      },
+      "formula": "Independent minima of physical total and finite visible limits; physical available and max(0, limit-current) at every visible ancestor. No memory.stat, RSS, swap, high limit or scheduling reservation subtraction."
+    }
+  },
+  "limitations": [
+    "The four recorded phases concern the first historical check. Phase04 records history creation and its output hash; it contains no resource snapshot.",
+    "The exact numeric target admission input and policy threshold are absent. Neither the target CPU utilization input nor its policy threshold is inferred from neighboring product or observer samples.",
+    "The product endpoint snapshots and independent observer counters are timestamped observations, not atomic admission inputs or a causal diagnosis. They do not explain older refusals.",
+    "The helper gate-wait-timeout is distinct from the independently stored target cpu_pressure admission refusal.",
+    "The two observed control-plane process identities share one visible cgroup location. Their cgroup values must not be added.",
+    "Observer reads are sequential. Visibility ends at the process-visible mount root; hidden ancestors are not inferred.",
+    "Effective memory uses independent minima of physical memory and finite visible cgroup bounds; memory.stat does not replace limit-minus-current.",
+    "Check-container coverage is identity-only: two identity samples and zero cgroup-usage samples.",
+    "Sampling began after driver start and includes 16 post-driver-exit settlement samples; this is not a pre-run idle baseline.",
+    "There were zero target Creates and no recovery. Historical check success does not establish target recovery, overall application readiness, model quality or responsiveness.",
+    "This is a derived summary. Its observer input SHA256 binds the original raw observer data; it does not replace that data."
+  ]
+}

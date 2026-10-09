@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { projectOverviewApi, type ProjectOverview } from '../../api/projectOverview';
 import { errorText } from '../../api/product';
 import { ApiError } from '../../api/client';
@@ -86,13 +86,13 @@ function ScopedOverview({ projects }: { projects: Project[] }) {
     setPicked(previous => Object.values(previous).every(row => shown.has(row.project.id)) ? previous : Object.fromEntries(Object.entries(previous).filter(([, row]) => shown.has(row.project.id))));
   }, [ids]);
 
-  function select(project: Project, item: SwarmQueueItem, selected: boolean, canExecute: boolean) {
+  const select = useCallback((project: Project, item: SwarmQueueItem, selected: boolean, canExecute: boolean) => {
     if (pending) return;
     setPicked(previous => { const next = { ...previous }; if (selected) next[itemKey(item)] = { project, item, canExecute }; else delete next[itemKey(item)]; return next; });
-  }
-  function forgetProject(projectId: string) {
+  }, [pending]);
+  const forgetProject = useCallback((projectId: string) => {
     setPicked(previous => Object.fromEntries(Object.entries(previous).filter(([, value]) => value.project.id !== projectId)));
-  }
+  }, []);
   async function apply(action: QueueAction) {
     if (pending || !Object.keys(picked).length) return;
     setPending(true); setCancelReview(false); setOutcomes([]);
@@ -145,7 +145,7 @@ function ScopedOverview({ projects }: { projects: Project[] }) {
   </div>;
 }
 
-function ProjectCard({ project, summary, refresh, picked, pending, onSelect, onForget }: {
+const ProjectCard = memo(function ProjectCard({ project, summary, refresh, picked, pending, onSelect, onForget }: {
   project: Project; summary?: Summary; refresh: number; picked: Record<string, Picked>; pending: boolean;
   onSelect(project: Project, item: SwarmQueueItem, selected: boolean, canExecute: boolean): void; onForget(projectId: string): void;
 }) {
@@ -197,7 +197,7 @@ function ProjectCard({ project, summary, refresh, picked, pending, onSelect, onF
 
     {showQueue && <ProjectQueue project={project} refresh={refresh} picked={picked} pending={pending} onSelect={onSelect} onInspect={value && !summary?.sourceBusy && scope ? runId => openDestination('develop', runId) : undefined} />}
   </li>;
-}
+});
 
 function ProjectQueue({ project, refresh, picked, pending, onSelect, onInspect }: { project: Project; refresh: number; picked: Record<string, Picked>; pending: boolean; onSelect(project: Project, item: SwarmQueueItem, selected: boolean, canExecute: boolean): void; onInspect?(runId: string): void }) {
   const access = useTeamProjectPermissions(project.id);

@@ -7,10 +7,11 @@ import { swarmQueueApi, type ProjectSwarmQueue, type SwarmQueueItem } from '../.
 import { ApiError, type ProblemCode } from '../../api/client';
 import { personalPermissions, teamsApi, type ProjectAccess } from '../../api/teams';
 import { resetCockpit, useCockpit } from '../../store/store';
+import { useProjectDraftScope } from '../../hooks/useProjectDraft';
 
-const environment = vi.hoisted(() => ({ scope: 'account-one', teamId: '', edit: true, execute: true }));
-vi.mock('../../hooks/useProjectDraft', () => ({ useProjectDraftScope: (projectId: string) => `${environment.scope}:${projectId}` }));
-vi.mock('../teams/TeamWorkspaceProvider', () => ({ useTeamWorkspace: () => environment.teamId ? { teamId: environment.teamId, selected: null } : null, useTeamProjectPermissions: () => ({ permissions: { read: true, edit: environment.edit, execute: environment.execute }, loading: false }) }));
+const environment = vi.hoisted(() => ({ scope: 'account-one', teamId: '', edit: true, execute: true, revision: 0, teamPermissions: null as { read: boolean; edit: boolean; execute: boolean } | null }));
+vi.mock('../../hooks/useProjectDraft', () => ({ useProjectDraftScope: vi.fn((projectId: string) => `${environment.scope}:${projectId}`) }));
+vi.mock('../teams/TeamWorkspaceProvider', () => ({ useTeamWorkspace: () => environment.teamId ? { teamId: environment.teamId, revision: environment.revision, selected: environment.teamPermissions ? { permissions: environment.teamPermissions } : null } : null, useTeamProjectPermissions: () => ({ permissions: { read: true, edit: environment.edit, execute: environment.execute }, loading: false }) }));
 vi.mock('../auth/AuthProvider', () => ({ useAuth: () => ({ profile: { user: { role: 'member' } } }) }));
 const projects = [{ id: 'p1', name: 'Notes', path: '/private/notes' }, { id: 'p2', name: 'Shop', path: '/private/shop' }];
 function overview(projectId: string): ProjectOverview {
@@ -21,10 +22,69 @@ function queue(projectId: string): ProjectSwarmQueue { return { revision: 7, obs
 beforeEach(() => {
   vi.restoreAllMocks(); resetCockpit(); useCockpit.getState().setProjects(projects);
   environment.scope = 'account-one'; environment.teamId = ''; environment.edit = true; environment.execute = true;
+  environment.revision = 0; environment.teamPermissions = null; vi.mocked(useProjectDraftScope).mockClear();
   vi.spyOn(projectOverviewApi, 'get').mockImplementation(async id => overview(id)); vi.spyOn(swarmQueueApi, 'get').mockImplementation(async id => queue(id)); vi.spyOn(swarmQueueApi, 'control').mockImplementation(async id => queue(id));
   vi.spyOn(teamsApi, 'projectAccess').mockImplementation(async (_teamId, projectId) => ({ projectId, permissions: { ...personalPermissions, edit: environment.edit, execute: environment.execute } } as ProjectAccess));
 });
 afterEach(cleanup);
+
+it('renders only the changed project summary while preserving fresh independent overview reads', async () => {
+  const pending = new Map<string, (value: ProjectOverview) => void>();
+  vi.mocked(projectOverviewApi.get).mockImplementation(id => new Promise(resolve => { pending.set(id, resolve); }));
+  render(<ProjectOverviewBoard projects={projects} />);
+  expect(projectOverviewApi.get).toHaveBeenCalledTimes(2);
+  await act(async () => pending.get('p1')!(overview('p1')));
+  expect(screen.getByText('Build p1')).toBeTruthy();
+  expect(screen.getByText('Loading project context…')).toBeTruthy();
+  // The existing scope hook is called in each card render; no render-only
+  // product prop or component export is needed to observe the sibling boundary.
+  vi.mocked(useProjectDraftScope).mockClear();
+  await act(async () => pending.get('p2')!(overview('p2')));
+  expect(screen.getByText('Build p2')).toBeTruthy();
+  expect(vi.mocked(useProjectDraftScope).mock.calls.filter(([id]) => id === 'p1')).toHaveLength(0);
+  expect(vi.mocked(useProjectDraftScope).mock.calls.some(([id]) => id === 'p2')).toBe(true);
+  expect(projectOverviewApi.get).toHaveBeenCalledTimes(2);
+
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh overview' }));
+  expect(projectOverviewApi.get).toHaveBeenCalledTimes(4);
+  vi.mocked(useProjectDraftScope).mockClear();
+  const revised = overview('p1'); revised.goal!.text = 'Updated Notes outcome';
+  await act(async () => pending.get('p1')!(revised));
+  expect(screen.getByText('Updated Notes outcome')).toBeTruthy();
+  expect(screen.queryByText('Build p1')).toBeNull();
+  expect(screen.getByText('Build p2')).toBeTruthy();
+  expect(vi.mocked(useProjectDraftScope).mock.calls.filter(([id]) => id === 'p2')).toHaveLength(0);
+  expect(vi.mocked(useProjectDraftScope).mock.calls.some(([id]) => id === 'p1')).toBe(true);
+  await act(async () => pending.get('p2')!(overview('p2')));
+  expect(swarmQueueApi.control).not.toHaveBeenCalled();
+});
+
+it('removes memoized summaries immediately on authority change and rejects the old in-flight reply', async () => {
+  environment.teamId = 'team-one'; environment.teamPermissions = { read: true, edit: true, execute: true };
+  const shown = [projects[0]];
+  const view = render(<ProjectOverviewBoard projects={shown} />);
+  await screen.findByText('Build p1');
+  let resolveOld!: (value: ProjectOverview) => void;
+  let oldSignal: AbortSignal | undefined;
+  vi.mocked(projectOverviewApi.get).mockImplementationOnce((_id, signal) => { oldSignal = signal; return new Promise(resolve => { resolveOld = resolve; }); });
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh overview' }));
+  expect(oldSignal?.aborted).toBe(false);
+  let rejectCurrent!: (cause: Error) => void;
+  vi.mocked(projectOverviewApi.get).mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectCurrent = reject; }));
+  environment.teamPermissions = { read: false, edit: false, execute: false }; environment.revision++;
+  view.rerender(<ProjectOverviewBoard projects={shown} />);
+  expect(oldSignal?.aborted).toBe(true);
+  expect(screen.queryByText('Build p1')).toBeNull();
+  expect(screen.getByText('Loading project context…')).toBeTruthy();
+  const stale = overview('p1'); stale.goal!.text = 'Old authority outcome';
+  await act(async () => resolveOld(stale));
+  expect(screen.queryByText('Old authority outcome')).toBeNull();
+  await act(async () => rejectCurrent(new ApiError('permission_denied' as ProblemCode, 'Access revoked', 403)));
+  expect(screen.getByText('Summary unavailable. Access revoked')).toBeTruthy();
+  expect(screen.queryByText('Build p1')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Review the plan' })).toBeNull();
+  expect(swarmQueueApi.control).not.toHaveBeenCalled();
+});
 
 it('reads compact summaries only until the operator opens a queue, and navigates atomically', async () => {
   const user = userEvent.setup(); render(<ProjectOverviewBoard projects={projects} />);

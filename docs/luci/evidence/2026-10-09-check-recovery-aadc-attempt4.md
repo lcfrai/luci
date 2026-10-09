@@ -1,0 +1,7 @@
+# 9 October 2026 — check recovery attempt 4 blocked by memory admission
+
+The [capsule](check-recovery-aadc-attempt4/README.md) records matching product/helper `aadc1c281aef28aee04046a5c5e58da5fe7094e4`, 3,126 matching package members and zero external model calls. The first historical check created one container but never started it: the product returned `blocked / admission / memory_pressure`, deleted the exact container, confirmed cleanup and released its charge. The target and recovery stages were not reached; wrapper exit was 1.
+
+Timestamped phase snapshots show effective available memory of 12,731,179,008 bytes before Create and 8,077,209,600 bytes near the held ACK, while physical availability remained about 19.3 GB. These are separate, non-atomic observations, not the exact admission input or proof of a cache/process cause or any older refusal. Admission rules stayed intact; all observer samples are retained.
+
+Independent read-only checks found empty Docker/volume inventories and a parsed empty ledger matching the final receipt. Of 14 observed process identities, 12 were absent and two were exited zombies; none was active. Environment scanning had unreadable entries, so universal process absence is not claimed. All 108 fixture files were unchanged. The capsule preserves the failure and private-state exclusions; no retry, cleanup mutation, build or tests were performed for publication.

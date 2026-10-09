@@ -1,0 +1,25 @@
+{
+  "head": "aadc1c281aef28aee04046a5c5e58da5fe7094e4",
+  "files": [
+    {
+      "path": "scripts/acceptance/check-create-recovery/installed-recovery.mjs",
+      "sha256": "7ff156dd21d9ebdd724ecd9a3ee43eda3cfc4ea0146cf43986370ec8027e7761",
+      "bytes": 44154
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/recovery-scenario.mjs",
+      "sha256": "a810c9443562e4325e5a1b902c83446ad6fba3231a5f8a1fba226d58af4d1e1c",
+      "bytes": 17022
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/fixture-guards.mjs",
+      "sha256": "991267b3d4b37ddfdce94d169a4e8cd4a8a4387179e3c166f141f84ad945e0a8",
+      "bytes": 9809
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/scenario-flow.test.mjs",
+      "sha256": "b5e9edecc5d70eccc74f71fd0ad869cbb5326a598237dd6ca56dfa1a317f48a3",
+      "bytes": 17978
+    }
+  ]
+}

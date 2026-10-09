@@ -113,3 +113,25 @@ export function assertPublicReservationTotals(reservations,expected,{now=Date.no
   }
   return {status:'ready',observedAt:reservations.observedAt,count:reservations.count,memoryMiB:reservations.memoryMiB,cpuMillis:reservations.cpuMillis};
 }
+
+// Same fixture policy and existing guards, plus the prospective single check.
+// The utilization ceiling follows production evaluateExecutionCapacity's policy.
+export function assessCheckPreflight(view,options){
+  try{
+    const charge=assertCapacity(view,{...options,requireCreate:true,requireReservationMatch:false});
+    const cpuCeilingPercent=100-view.policy.headroomPercent,utilization=view.resources.host.cpu.utilizationPercent;
+    if(!Number.isFinite(utilization)||utilization<0||utilization>100)return {ready:false,reasonCode:'cpu_observation_unavailable',cpuCeilingPercent};
+    if(utilization>cpuCeilingPercent)return {ready:false,reasonCode:'cpu_pressure',cpuCeilingPercent,utilizationPercent:utilization};
+    const demand={memoryMiB:charge.memoryMiB+1024,cpuMillis:charge.cpuMillis+1000};assertComputeEnvelope(view,demand);
+    const active=(options.ledger.checks??[]).filter(row=>row.state!=='finished'),disk=active.reduce((n,row)=>n+row.createDiskBytes,0)+options.imageSize*(options.engine.Driver==='vfs'?2:1);
+    assert(options.rootFreeBytes>=disk+view.policy.diskReserveMiB*1024**2);
+    return {ready:true,charge,prospective:demand,cpuCeilingPercent,utilizationPercent:utilization};
+  }catch(error){if(error.code!=='ERR_ASSERTION'&&!(error instanceof TypeError))throw error;return {ready:false,reasonCode:'capacity_unavailable_or_insufficient'};}
+}
+
+export function summarizeCheckLedger(ledger){
+  const ordered=value=>Array.isArray(value)?value.map(ordered):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,ordered(value[key])])):value;
+  return {sha256:sha(JSON.stringify(ordered(ledger))),digestEncoding:'SHA-256 of parsed JSON with recursively sorted object keys and preserved array order; not raw file bytes',
+    version:ledger?.version??null,activeCheckCount:ledger?.version===1&&(ledger.checks===undefined||Array.isArray(ledger.checks))?(ledger.checks??[]).filter(row=>row.state!=='finished').length:null,
+    workerLeaseCount:Array.isArray(ledger?.leases)?ledger.leases.length:null};
+}

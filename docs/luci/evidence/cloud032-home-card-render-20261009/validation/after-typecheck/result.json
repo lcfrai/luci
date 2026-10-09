@@ -1,0 +1,22 @@
+{
+  "command": [
+    "npm",
+    "run",
+    "typecheck"
+  ],
+  "cwd": "/workspace/luci/desktop",
+  "startedAt": "2026-10-09T00:46:05.767563+00:00",
+  "finishedAt": "2026-10-09T00:46:24.120849+00:00",
+  "durationSeconds": 18.353200857003685,
+  "exitCode": 0,
+  "sourceInputsUnchanged": true,
+  "changedPaths": [],
+  "stdout": {
+    "bytes": 54,
+    "sha256": "6d51e3ec9a9d283eee096e5e9403c5d963c9468e9756fd61f3e9e0d3df1bde71"
+  },
+  "stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

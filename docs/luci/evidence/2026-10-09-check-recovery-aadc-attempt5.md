@@ -1,0 +1,7 @@
+# 9 October 2026 — check recovery attempt 5 blocked by CPU admission
+
+The [capsule](check-recovery-aadc-attempt5/README.md) preserves matching product/helper `aadc1c281aef28aee04046a5c5e58da5fe7094e4`, 3,126 matching package members and zero external model calls. The historical check passed with confirmed cleanup. The target was submitted but never created a Docker container; the helper later failed with `gate-wait-timeout` while waiting for that Create.
+
+The exact retained target record establishes **`blocked / admission / cpu_pressure`**, revision 5 and `resourcesHeld=false`. The pinned source maps that reason to CPU utilization exceeding the configured ceiling; the exact numeric admission input and external-load cause were not retained. This was a CPU refusal, distinct from attempt 4's memory refusal. Original assertions, admission rules and failed outcomes remain unchanged.
+
+All startup handles closed, and independent read-only checks found empty Docker/volume inventories and a parsed empty ledger. Fourteen known process identities were 12 absent plus two exited zombies, with none active; unreadable process environments limit broader absence claims. All 109 fixture files and the exact target record remained unchanged. No target unknown-Create or recovery pass, hidden retry, cleanup mutation, build or tests are claimed. Full raw observer evidence and sanitized original-bound diagnosis/closure are retained.

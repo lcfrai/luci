@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "passed": false,
+  "status": "cleanup-incomplete",
+  "stage": "consent-check-2",
+  "at": "2026-10-09T00:39:12.593Z",
+  "failure": {
+    "errorName": "Error",
+    "errorCode": "gate-wait-timeout",
+    "locations": []
+  },
+  "originalReceiptComplete": false
+}

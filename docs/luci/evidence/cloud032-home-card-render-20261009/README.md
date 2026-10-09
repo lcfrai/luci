@@ -1,0 +1,17 @@
+# Home card render reduction and prior aadc idle result
+
+Independent overview responses now rerender only cards whose props changed. The correction uses default React memoization and stable selection callbacks. Fresh summary requests, polling, aborts, authority-key remounts, source-busy/denied behavior, queue actions and markup are unchanged. This removes observed duplicate sibling rendering; it does not remove initial Home mount work.
+
+**Before:** the two proposed regressions ran against unchanged aadc product source with only the new tests installed. The sibling-render regression failed (one unrelated p1 render on p2 completion, expected zero); the authority-remount/old-reply-abort/403 guard passed. The other 33 overview tests were deliberately excluded by the test-name filter. Original failure output and exit 1 are retained.
+
+**After:** all **289 tests in 14 affected files passed**, with zero failed/skipped/pending/todo, followed by a passing TypeScript check. Every requested test file is present in the raw result. Source/config/lock hashes stayed unchanged during each command. Vitest used at most two workers. Raw stdout/stderr, including empty TypeScript stderr, are retained; the jsdom canvas warning remains distinguishable from assertion outcomes.
+
+Affected coverage comprises ProjectOverviewBoard, HostCapacity, ProjectEntry, AppShell, Rail, SessionPicker, NewSessionButton, TeamWorkspaceProvider and six store suites. This checkout has no separately named ProjectsHome or MainHeader test file; AppShell and navigation/header suites cover those composition paths. No full frontend suite was repeated.
+
+The before/after source files and patch are included. Source snapshots for each command distinguish the baseline product from the final product and bind the proposed test file in both runs. The base commit is aadc1c281aef28aee04046a5c5e58da5fe7094e4. Authority behavior is protected by the new current-permission-key regression and the existing complete overview/team/store suites. No cached project document or permission is introduced.
+
+**Installed latency remains unmeasured after this change.** The prior clean aadc package completed all 400 primary actions, but switch p95 was **595.146122 ms**, failing the unchanged 300 ms target; input p95 was **65.970813 ms**, passing the unchanged 100 ms target. The prior run cannot validate this later source patch. Its sanitized projection, original-artifact hashes, exact helper/package identities and closure receipts are under `prior-aadc-idle/`. All 432 timing rows remain represented: 400 primary and 32 separately labeled trace-followup actions. No raw trace is included. Original receipts containing private runtime paths remain preserved externally; projections are explicitly labeled rather than described as byte-exact originals.
+
+The measured Home transition motivates this narrow change, but temporal correlation does not prove a particular component caused the latency tail or that this change will meet the gate. No memory/cache cleanup is claimed as a product speedup. A future matching installed package and the unchanged frozen collector/thresholds are required to measure the result.
+
+No browser, application runtime or performance diagnostic was launched for this code validation. No commit or worklist change was made by this agent. `result.json`, `manifest.json` and `SHA256SUMS` make command outcomes and source/evidence bindings reviewable.

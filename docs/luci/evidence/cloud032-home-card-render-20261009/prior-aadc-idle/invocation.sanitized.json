@@ -1,0 +1,71 @@
+{
+  "representation": "sanitized invocation; private location arguments replaced by role placeholders",
+  "originalSHA256": "0f60888f14f2fbdcec5c46758a0ac783410b12ec5fc946c8f6465527156d5348",
+  "invocation": {
+    "version": 1,
+    "preparedAt": "2026-10-09T00:24:03.319007+00:00",
+    "status": "launching",
+    "command": [
+      "node",
+      "<FROZEN_EXTERNAL_DRIVER>",
+      "--task-context-version",
+      "2",
+      "--binary",
+      "<INSTALLED_BINARY>",
+      "--web",
+      "<INSTALLED_WEB>",
+      "--provenance",
+      "<PACKAGE_PROVENANCE>",
+      "--expected-source",
+      "aadc1c281aef28aee04046a5c5e58da5fe7094e4",
+      "--expected-helper-source",
+      "aadc1c281aef28aee04046a5c5e58da5fe7094e4",
+      "--image",
+      "luci/sandbox:verified-candidate-20261008t140025z-a4a2e82b",
+      "--expected-image-id",
+      "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+      "--image-provenance",
+      "<IMAGE_PROVENANCE>",
+      "--fixture-root",
+      "<PRIVATE_FRESH_FIXTURE>",
+      "--report",
+      "<PRIVATE_REPORT>",
+      "--trace-after",
+      "yes"
+    ],
+    "environment": {
+      "LUCI_ACCEPTANCE_REPO": "<EXACT_HELPER_CHECKOUT>"
+    },
+    "productSource": "aadc1c281aef28aee04046a5c5e58da5fe7094e4",
+    "helperSource": "aadc1c281aef28aee04046a5c5e58da5fe7094e4",
+    "originalInteractionSource": "5d306b6dae3cc9d0a4d9cbf95f8142c37958964f",
+    "driverSHA256": "d7fb7586e5b4a2639da9abb6c2e1c6a1296d2161ea7cf2ec393a8f1d3ab1b016",
+    "bindingSHA256": "c243c493997575a1fb995ab45e86173fc0e33f960b981bc35d307337d9f948dc",
+    "dependencyDifferences": {
+      "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs": {
+        "templateSHA256": "48e97d6d5c915cf80c99f0c79a8fb16261eb219616f878fa1ce103ee2c59303d",
+        "currentSHA256": "7315bcd8ecd230bf33de8eb4d06d900e4fdc380b52ed901875b12bf536672dae",
+        "reason": "Root-authorized current opt-in proxy diagnostics; zero Create/Start forwarding remains mandatory."
+      }
+    },
+    "comparisonBaseline": "d348 400.460745/132.942794 ms switch/input p95; unchanged targets300/100",
+    "fixedScope": {
+      "quietSeconds": 60,
+      "primarySwitches": 100,
+      "primaryInputs": 200,
+      "primaryResets": 100,
+      "extraTraceRounds": 8,
+      "switchP95Ms": 300,
+      "inputP95Ms": 100,
+      "p99StrictlyBelowMs": 1000,
+      "linuxSampler": false,
+      "allowedCreates": 0,
+      "allowedStarts": 0,
+      "preparationSeconds": 60,
+      "workflowSeconds": 210,
+      "cleanupSeconds": 120
+    },
+    "privacy": "Actual raw actionability trace remains private; publish only allowlisted derivation. Fresh state/auth/fixtures required; no reuse.",
+    "launcherSHA256": "33e40531883e91a5746e380bbc684737b8c060ca2943a1002d6514288f5514fe"
+  }
+}

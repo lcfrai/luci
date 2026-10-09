@@ -1,0 +1,26 @@
+{
+  "at": "2026-10-09T00:33:46.444300+00:00",
+  "mode": "Read-only artifact publication plus independent Docker inventory/process/ledger checks; no new worker, browser, build or test",
+  "exactPrivateRootsInspectedInMemory": 2,
+  "recursiveJSONDocumentsChecked": 102,
+  "recursiveStringFieldsChecked": 19768,
+  "exactPrivateRootMatches": 0,
+  "knownRetainedCredentialFilesInspectedInMemory": 1,
+  "knownRetainedCredentialScalarsChecked": 2,
+  "knownRetainedCredentialMatches": 0,
+  "privateFileInventoriesPublished": false,
+  "originalInputHashesUnchanged": true,
+  "limitations": [
+    "Ephemeral credentials no longer retained cannot be re-read.",
+    "A scope-limited private-material check does not claim universal secret detection."
+  ],
+  "finalArtifactScan": {
+    "at": "2026-10-09T00:47:00.161943+00:00",
+    "recursiveStringFieldsChecked": 20201,
+    "allDecodedTextMembersChecked": true,
+    "knownRetainedCredentialScalarsChecked": 2,
+    "exactPrivateRootMatches": 0,
+    "knownRetainedCredentialMatches": 0,
+    "noFurtherDockerOrProcessScanPerformed": true
+  }
+}

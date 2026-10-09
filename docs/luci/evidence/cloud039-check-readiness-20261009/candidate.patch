@@ -1,0 +1,277 @@
+diff --git a/scripts/acceptance/check-create-recovery/README.md b/scripts/acceptance/check-create-recovery/README.md
+index 30ef1549..7e9a8cc6 100644
+--- a/scripts/acceptance/check-create-recovery/README.md
++++ b/scripts/acceptance/check-create-recovery/README.md
+@@ -26,6 +26,10 @@ Explicit `--charged-witness` adds one real unrelated reservation, held before Cr
+ 
+ Workflow budget is 600 seconds, cleanup 180 seconds. Wrapper adds 120 seconds preparation and enforces one 900-second driver budget. Forced or uncertain termination fails. The source-bound shared cgroup observer follows only the driver's exact team-instance pointer. Measurement provenance is separate from recovery success. An image-free retained marker may yield explicit identity/label diagnostics in the frozen observer; do not present those as runnable-check samples or silently discard them.
+ 
++Before each single consented checks POST, the adapter waits up to 30 seconds, also bounded by the remaining 600-second workflow budget, for fresh host/execution observations and enough capacity for the complete private ledger plus the prospective 1 GiB/1,000 mCPU check. Existing 25%/minimum 2 GiB headroom, 6 GiB Create floor and 1 GiB working reserve remain unchanged. The CPU utilization ceiling follows `100 - policy.headroomPercent` (75% with this fixture's required policy). These read-only observations are advisory: installed admission still decides after the POST, and a later refusal never causes resubmission. Public readiness diagnostics include a canonical parsed-ledger hash and counts, not its private records; that hash is explicitly distinct from a raw ledger-file hash.
++
++After submission, all historical/target/optional-witness gate waits observe the exact check alongside the real proxy gate. A terminal check before gate capture fails promptly with `check-terminal-before-create-gate`, retaining its revision/reason and a separately timestamped current resource/policy observation (or its unavailable error). Gate capture is checked again after the check GET so a genuine lost-ACK gate can win the race with the resulting unknown receipt. Acknowledgement still comes from the actual matching proxy gate, including exact project/check labels and daemon 201/immutable identity for after-response gates. Neither a terminal receipt nor a resource sample fabricates a daemon acknowledgement. Gate waits retain the 120-second bound and the remaining overall workflow deadline.
++
+ Exact charge/release proof comes from the complete private shared ledger. The baseline 4df owner's public scheduler summary is a process-local cache and can miss a team child's changes. Default mode preserves it only as diagnostic evidence. For a matching product containing the CLOUD-034 correction, add `--require-public-reservations`: each quiescent charged/released checkpoint requires the current owner's public `ready` observation to be at most 5 seconds old and match the complete ledger's count/memory/CPU. Explicit `unavailable` responses retry only that GET within a 10-second checkpoint budget, then fail; absent/legacy/malformed/stale/incorrect ready totals fail. This visibility assertion never replaces exact allocation ownership, absence/fence or release proof. No installed CLOUD-034 visibility result is claimed by controlled tests.
+ 
+ Credentials remain in memory/fresh private fixture. Bounded phase/final JSON rejects known credential literals; no raw Create body or auth header is exported. Screenshots and proposed public artifacts require later secret review. Publication is not part of preparation.
+diff --git a/scripts/acceptance/check-create-recovery/fixture-guards.mjs b/scripts/acceptance/check-create-recovery/fixture-guards.mjs
+index f809697c..d9a783bf 100644
+--- a/scripts/acceptance/check-create-recovery/fixture-guards.mjs
++++ b/scripts/acceptance/check-create-recovery/fixture-guards.mjs
+@@ -113,3 +113,25 @@ export function assertPublicReservationTotals(reservations,expected,{now=Date.no
+   }
+   return {status:'ready',observedAt:reservations.observedAt,count:reservations.count,memoryMiB:reservations.memoryMiB,cpuMillis:reservations.cpuMillis};
+ }
++
++// Same fixture policy and existing guards, plus the prospective single check.
++// The utilization ceiling follows production evaluateExecutionCapacity's policy.
++export function assessCheckPreflight(view,options){
++  try{
++    const charge=assertCapacity(view,{...options,requireCreate:true,requireReservationMatch:false});
++    const cpuCeilingPercent=100-view.policy.headroomPercent,utilization=view.resources.host.cpu.utilizationPercent;
++    if(!Number.isFinite(utilization)||utilization<0||utilization>100)return {ready:false,reasonCode:'cpu_observation_unavailable',cpuCeilingPercent};
++    if(utilization>cpuCeilingPercent)return {ready:false,reasonCode:'cpu_pressure',cpuCeilingPercent,utilizationPercent:utilization};
++    const demand={memoryMiB:charge.memoryMiB+1024,cpuMillis:charge.cpuMillis+1000};assertComputeEnvelope(view,demand);
++    const active=(options.ledger.checks??[]).filter(row=>row.state!=='finished'),disk=active.reduce((n,row)=>n+row.createDiskBytes,0)+options.imageSize*(options.engine.Driver==='vfs'?2:1);
++    assert(options.rootFreeBytes>=disk+view.policy.diskReserveMiB*1024**2);
++    return {ready:true,charge,prospective:demand,cpuCeilingPercent,utilizationPercent:utilization};
++  }catch(error){if(error.code!=='ERR_ASSERTION'&&!(error instanceof TypeError))throw error;return {ready:false,reasonCode:'capacity_unavailable_or_insufficient'};}
++}
++
++export function summarizeCheckLedger(ledger){
++  const ordered=value=>Array.isArray(value)?value.map(ordered):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,ordered(value[key])])):value;
++  return {sha256:sha(JSON.stringify(ordered(ledger))),digestEncoding:'SHA-256 of parsed JSON with recursively sorted object keys and preserved array order; not raw file bytes',
++    version:ledger?.version??null,activeCheckCount:ledger?.version===1&&(ledger.checks===undefined||Array.isArray(ledger.checks))?(ledger.checks??[]).filter(row=>row.state!=='finished').length:null,
++    workerLeaseCount:Array.isArray(ledger?.leases)?ledger.leases.length:null};
++}
+diff --git a/scripts/acceptance/check-create-recovery/installed-recovery.mjs b/scripts/acceptance/check-create-recovery/installed-recovery.mjs
+index d5794df4..fe1bfbaf 100644
+--- a/scripts/acceptance/check-create-recovery/installed-recovery.mjs
++++ b/scripts/acceptance/check-create-recovery/installed-recovery.mjs
+@@ -15,7 +15,7 @@ import {createAcceptanceJournal,diagnosticError,journalProcessIdentity} from '..
+ import {startFencedDockerProxy} from '../launch-recovery/fenced-docker-proxy.mjs';
+ import {runInstalledRecoveryScenario,pins,bounds,command} from './recovery-scenario.mjs';
+ import {validateCheckCreate} from './check-create-guard.mjs';
+-import {sha,validateFence,identityLabels,assertCapacity,assertComputeEnvelope,assertOriginalInspect,assertPublicReservationTotals} from './fixture-guards.mjs';
++import {sha,validateFence,identityLabels,assertCapacity,assertComputeEnvelope,assertOriginalInspect,assertPublicReservationTotals,assessCheckPreflight,summarizeCheckLedger} from './fixture-guards.mjs';
+ import {verifyPackage,verifyHelperSourceBinding} from './provenance.mjs';
+ 
+ const here=dirname(fileURLToPath(import.meta.url));
+@@ -49,6 +49,52 @@ export async function stopControllerTree({identity,readIdentity,listOwned,signal
+   assert.equal(observedOwned().length,0,'Owned controller cleanup did not settle');
+   assert.equal(left.length,0,'Owned controller required forced shutdown');return true;
+ }
++const readinessError=code=>Object.assign(new Error(code),{code});
++// Observe a submitted check without replaying it. Gate capture is checked both
++// before and after GET: a real lost ACK may itself make that check terminal.
++export async function waitSubmittedCheckGate({proxy,projectId,checkId,gateId,phase,readCheck,recordTerminal,deadline,health=()=>{},now=Date.now,wait=delay}){
++  const remaining=()=>{health();const ms=deadline-now();if(ms<=0)throw readinessError('check-create-readiness-deadline');return ms;};
++  const captured=()=>{
++    const rows=proxy.observations.gates.filter(row=>row.id===gateId);assert.equal(rows.length,1,'Expected exact check gate');const gate=rows[0];
++    assert.equal(gate.phase,phase);if(gate.state==='armed')return null;
++    assert(['holding','lost'].includes(gate.state),'Expected check gate is no longer available');
++    const request=gate.request;assert.equal(request.kind,'check');assert.equal(request.method,'POST');assert(/\/containers\/create$/.test(request.path));
++    assert.equal(request.labels['luci.check-project'],projectId);assert.equal(request.labels['luci.check-id'],checkId);
++    if(phase==='after-response'){assert.equal(request.status,201);assert.match(request.id,/^[a-f0-9]{64}$/);}
++    return gate;
++  };
++  const acknowledge=async()=>{const gate=await proxy.waitForGate(gateId,{timeoutMs:remaining()});health();return gate;};
++  for(;;){
++    remaining();if(captured())return acknowledge();
++    const requestedAt=new Date(now()).toISOString(),check=await readCheck(Math.min(5000,remaining()));health();
++    assert.equal(check.id,checkId);assert.equal(check.projectId,projectId);
++    if(captured())return acknowledge();
++    if(!['queued','running'].includes(check.status)){
++      await recordTerminal({gateId,projectId,checkId,checkRequestedAt:requestedAt,checkObservedAt:new Date(now()).toISOString(),check},Math.max(0,Math.min(5000,deadline-now())));
++      throw readinessError('check-terminal-before-create-gate');
++    }
++    await wait(Math.min(250,remaining()));
++  }
++}
++// Advisory only: the unchanged installed admission remains authoritative after
++// the single browser POST. Unavailable/stale reads never become ready capacity.
++export async function waitCheckPreflight({read,record,deadline,health=()=>{},now=Date.now,wait=delay}){
++  let attempts=0,last;
++  const active=()=>{try{health();}catch(error){record({phase:'check-preflight-refused',at:new Date(now()).toISOString(),attempts,last,reasonCode:error.code??'workflow-unavailable'});throw error;}};
++  for(;;){
++    active();if(now()>=deadline){record({phase:'check-preflight-refused',at:new Date(now()).toISOString(),attempts,last});throw readinessError('check-preflight-deadline');}
++    const requestedAt=new Date(now()).toISOString();
++    try{
++      const sample=await read(Math.min(5000,deadline-now()));
++      last={requestedAt,observedAt:new Date(now()).toISOString(),policy:sample.view?.policy,resources:sample.view?.resources,ledgerSummary:summarizeCheckLedger(sample.options.ledger),rootFreeBytes:sample.options.rootFreeBytes,
++        assessment:assessCheckPreflight(sample.view,{...sample.options,now:now()})};
++    }catch(error){last={requestedAt,observedAt:new Date(now()).toISOString(),assessment:{ready:false,reasonCode:'resource_observation_unavailable'},readError:{name:error.name,code:error.code??null}};}
++    attempts++;active();
++    if(now()>=deadline)continue;
++    if(last.assessment.ready){record({phase:'check-preflight-ready',at:new Date(now()).toISOString(),attempts,...last});return last;}
++    await wait(Math.min(1000,deadline-now()));
++  }
++}
+ export async function main(args=process.argv.slice(2)){
+   const valueOptions=new Set(['--repo','--binary','--web','--provenance','--image-provenance','--report','--fixture-root','--chromium','--observer-instance-pointer','--expected-image-id','--helper-commit','--source-binding','--expected-source']);
+   const flagOptions=new Set(['--help','--window-granted','--charged-witness','--require-public-reservations']),seenOptions=new Set();
+@@ -90,7 +136,7 @@ export async function main(args=process.argv.slice(2)){
+   for(const row of sourceBinding.executedFiles)writeFileSync(join(evidence,'accepted-harness',row.path.replaceAll('/','_')),readFileSync(join(sourceRoot,row.path)),{flag:'wx',mode:0o600});
+   const journal=createAcceptanceJournal(join(evidence,'diagnostic-journal.jsonl'));
+   journal.record('driver-start',{...journalProcessIdentity(),deadlineMs:bounds.scenarioMs});
+-  let closing=false,stage='startup',failure,service,serviceIdentity,proxy,browser,page,base,env,ownerToken,ownerID,team,teamPrefix,teamRoot,editorToken,editorID,workflow,timer,pendingConsent;
++  let closing=false,stage='startup',failure,service,serviceIdentity,proxy,browser,page,base,env,ownerToken,ownerID,team,teamPrefix,teamRoot,editorToken,editorID,workflow,workflowDeadline,timer,pendingConsent;
+   const password=randomUUID()+randomUUID(),editorPassword=randomUUID()+randomUUID(),lifecycle=randomUUID()+randomUUID();
+   const secrets=[password,editorPassword,lifecycle];
+   const projects=[],authorizedChecks=new Map(),createIdentities=new Map(),signalHandlers=[];
+@@ -224,6 +270,14 @@ export async function main(args=process.argv.slice(2)){
+   }
+   const ctx={pins:runtimePins,expectedSource,bounds,windowGranted:true,freshFixture:true,externalModelCalls:0,projects,chargedWitness:args.includes('--charged-witness'),
+     expectedOutput:'RECOVERY_CHECK_OK\n',get proxy(){return proxy;},record,
++    waitForCheckGate(p,id,gateId,phase){return waitSubmittedCheckGate({proxy,projectId:p.id,checkId:id,gateId,phase,health,
++      deadline:Math.min(workflowDeadline,Date.now()+bounds.requestMs),readCheck:timeout=>api('GET',route(p)+'/checks/'+id,undefined,200,ownerToken,timeout),
++      recordTerminal:async(details,timeout)=>{
++        const outcome={phase:'check-terminal-before-create-gate',...details,resourceRequestedAt:new Date().toISOString()};receipt.submittedCheckTerminal=outcome;
++        try{if(timeout<=0)throw readinessError('resource-observation-budget-exhausted');const view=await api('GET','/v1/product/swarm-scheduler',undefined,200,ownerToken,timeout);outcome.policy=view.policy;outcome.resources=view.resources;}
++        catch(error){outcome.resourceObservationError=safeError(error);}
++        outcome.resourceObservedAt=new Date().toISOString();record(outcome);
++      }});},
+     async startCheckInBrowser(p,cmd){
+       setStage('consent-check-'+(authorizedChecks.size+1));await openProject(p);
+       const history=authorizedChecks.size===0;
+@@ -238,22 +292,22 @@ export async function main(args=process.argv.slice(2)){
+       await region.getByRole('checkbox',{name:"I trust this project's code and these Docker commands to write project files and use the network.",exact:true}).check();
+       const coverage=(await api('GET',route(p)+'/checks')).coverage;assert.equal(coverage.source.available,true);assert.equal(coverage.source.dirty,false);
+       assert.equal(coverage.specification.status,'approved');assert.equal(coverage.design.status,'approved');
++      await waitCheckPreflight({deadline:Math.min(workflowDeadline,Date.now()+30000),health,record:row=>record({...row,projectId:p.id}),read:async timeout=>({
++        view:await api('GET','/v1/product/swarm-scheduler',undefined,200,ownerToken,timeout),
++        options:{ledger:ledger(),engine,rootFreeBytes:free(),imageSize:image.Size}})});
++      health();
+       pendingConsent={projectId:p.id,commit:coverage.source.commit,sourceDigest:coverage.source.sourceDigest,at:new Date().toISOString(),consentID:randomUUID()};
+       const sent=await action(route(p)+'/checks',()=>region.getByRole('button',{name:'Run selected requirement checks',exact:true}).click(),202);
+       assert.deepEqual(sent.request,{commands:[cmd],execution:'docker',acknowledgeHostExecution:true,requirementIds:['AC-recovery'],expectedSpecificationRevision:coverage.specification.revision,expectedDesignPlanRevision:coverage.design.revision});
+       if(authorizedChecks.has(sent.row.id))assert.equal(authorizedChecks.get(sent.row.id).consentID,pendingConsent.consentID);
+       else authorizedChecks.set(sent.row.id,{...pendingConsent});pendingConsent=null;
++      receipt.checkConsents??=[];receipt.checkConsents.push({checkId:sent.row.id,projectId:p.id,request:sent.request});
+       if(history){
+-        const ready=await until('history-create-or-terminal',async()=>{
+-          const gate=proxy.observations.gates.find(row=>row.id==='history-pre-start-capacity');if(gate?.request?.status===201)return {gate};
+-          const check=await readCheck(p,sent.row.id);return ['queued','running'].includes(check.status)?null:{check};
+-        });
+-        if(ready.check){await capacityReceipt('history-refused-before-create',{check:ready.check});assert.fail('Historical check did not reach actual Create acknowledgement');}
+-        await proxy.waitForGate('history-pre-start-capacity',{timeoutMs:120000});
+-        await capacityReceipt('actual-create-ack-held-before-product-start',{checkId:sent.row.id,containerId:ready.gate.request.id});
++        const gate=await ctx.waitForCheckGate(p,sent.row.id,'history-pre-start-capacity','after-response');
++        await capacityReceipt('actual-create-ack-held-before-product-start',{checkId:sent.row.id,containerId:gate.request.id});
+         await proxy.releaseGate('history-pre-start-capacity');
+       }
+-      receipt.checkConsents??=[];receipt.checkConsents.push({checkId:sent.row.id,projectId:p.id,request:sent.request});return sent.row;
++      return sent.row;
+     },
+     async waitCheckTerminal(p,id){const row=await until('check-terminal',async()=>{const check=await readCheck(p,id);return ['queued','running'].includes(check.status)?null:check;});await capacityReceipt('terminal-check-capacity',{check:row});return row;},
+     readCheck,readRecovery:(p,id)=>api('GET',route(p)+'/checks/'+id+'/recovery'),
+@@ -322,7 +376,7 @@ export async function main(args=process.argv.slice(2)){
+   };
+   let scenario;
+   try{
+-    workflow=createWorkflowDeadline({timeoutMs:bounds.scenarioMs,onFailure:fail});
++    workflowDeadline=Date.now()+bounds.scenarioMs;workflow=createWorkflowDeadline({timeoutMs:bounds.scenarioMs,onFailure:fail});
+     for(const signal of ['SIGINT','SIGTERM']){const handler=()=>fail(Object.assign(Error('interrupted'),{code:'fixture-interrupted'}));process.on(signal,handler);signalHandlers.push([signal,handler]);}
+     await workflow.run(async()=>{
+       timer=setInterval(()=>{try{if(free()<1024**3)fail(Error('working-reserve-breached'));}catch(e){fail(e);}},1000);
+diff --git a/scripts/acceptance/check-create-recovery/recovery-scenario.mjs b/scripts/acceptance/check-create-recovery/recovery-scenario.mjs
+index e6d907e8..ad0c89d9 100644
+--- a/scripts/acceptance/check-create-recovery/recovery-scenario.mjs
++++ b/scripts/acceptance/check-create-recovery/recovery-scenario.mjs
+@@ -141,7 +141,7 @@ export async function runInstalledRecoveryScenario(ctx) {
+     pathPattern: /\/containers\/create$/, decision: 'lose-response',
+     match: row => row.kind === 'check' && row.labels['luci.check-project'] === targetProject.id});
+   const targetStarted = await ctx.startCheckInBrowser(targetProject, command);
+-  const lost = await ctx.proxy.waitForGate('target-create-ack-lost', {timeoutMs: 120000});
++  const lost = await ctx.waitForCheckGate(targetProject,targetStarted.id,'target-create-ack-lost','after-response');
+   assert.equal(lost.request.status, 201); assert.match(lost.request.id, /^[a-f0-9]{64}$/);
+   let target = await ctx.waitCheckTerminal(targetProject, targetStarted.id);
+   const targetLease = exactLease(await ctx.readLedger(), target); assertUnknown(target, targetLease);
+@@ -159,7 +159,7 @@ export async function runInstalledRecoveryScenario(ctx) {
+       pathPattern: /\/containers\/create$/, decision: 'hold',
+       match: row => row.kind === 'check' && row.labels['luci.check-project'] === witnessProject.id});
+     const witnessStarted = await ctx.startCheckInBrowser(witnessProject, command);
+-    await ctx.proxy.waitForGate('unrelated-create-held', {timeoutMs: 120000});
++    await ctx.waitForCheckGate(witnessProject,witnessStarted.id,'unrelated-create-held','before-forward');
+     witness = await ctx.readCheck(witnessProject, witnessStarted.id);
+   }
+   target = await ctx.readCheck(targetProject, target.id); // settle post-failure observation before exact review
+diff --git a/scripts/acceptance/check-create-recovery/scenario-flow.test.mjs b/scripts/acceptance/check-create-recovery/scenario-flow.test.mjs
+index 02c3bee1..ed1e81c2 100644
+--- a/scripts/acceptance/check-create-recovery/scenario-flow.test.mjs
++++ b/scripts/acceptance/check-create-recovery/scenario-flow.test.mjs
+@@ -4,6 +4,7 @@
+ import test from 'node:test';
+ import assert from 'node:assert/strict';
+ import {runInstalledRecoveryScenario, pins, command} from './recovery-scenario.mjs';
++import {waitSubmittedCheckGate} from './installed-recovery.mjs';
+ 
+ const clone = structuredClone;
+ const output = 'RECOVERY_CHECK_OK\n';
+@@ -42,7 +43,7 @@ function controlledContext({chargedWitness = false, hooks = {}} = {}) {
+     recovered: false, released: false, fenceVerified: false, markerPresent: true};
+   const note = name => state.calls.push(name);
+   const hook = async name => {note(name); if (hooks[name]) await hooks[name](state, ctx);};
+-  const observations = {counts: {create: 0, start: 0, check: 0, fence: 0, worker: 0}, requests: [], dropped: 0, failures: []};
++  const observations = {counts: {create: 0, start: 0, check: 0, fence: 0, worker: 0}, requests: [], gates: [], dropped: 0, failures: []};
+   const request = (method, path, details = {}) => {
+     const row = {method, path, requestSequence: observations.requests.length + 1, ...details};
+     observations.requests.push(row); return row;
+@@ -66,13 +67,14 @@ function controlledContext({chargedWitness = false, hooks = {}} = {}) {
+         } else {
+           assert.equal(gate.id, 'unrelated-create-held'); assert.equal(gate.phase, 'before-forward'); assert.equal(gate.decision, 'hold');
+         }
+-        state.gates.set(gate.id, gate);
++        Object.assign(gate,{state:'armed'});state.gates.set(gate.id, gate);observations.gates.push(gate);
+       },
+       async waitForGate(name, options) {
+-        note('wait:' + name); assert.equal(options.timeoutMs, 120000); assert(state.gates.has(name));
++        note('wait:' + name); assert(Number.isSafeInteger(options.timeoutMs)&&options.timeoutMs>0&&options.timeoutMs<=120000); assert(state.gates.has(name));
+         const id = name === 'target-create-ack-lost' ? ids.target : ids.witness;
+         const row = observations.requests.find(row => row.labels?.['luci.check-id'] === id.checkId);
+-        assert(row); assert(state.gates.get(name).match(row)); return {request: clone(row)};
++        if(!row)throw Object.assign(Error('gate-wait-timeout'),{code:'gate-wait-timeout'});
++        assert(state.gates.get(name).match(row)); return {request: clone(row)};
+       },
+       async releaseGate(name) {
+         note('release:' + name); assert.equal(name, 'unrelated-create-held');
+@@ -91,12 +93,16 @@ function controlledContext({chargedWitness = false, hooks = {}} = {}) {
+       if (role === 'witness') assert(state.gates.has('unrelated-create-held'));
+       const row = role === 'history' ? passing(check(id, 'passed')) : check(id, role === 'target' ? 'unknown' : 'running');
+       state.checks.set(row.id, row); state.ledger.checks.push(lease(id, role === 'history' ? 'finished' : 'creating'));
+-      checkCreate(id, role === 'target' ? originalID : role === 'history' ? 'c'.repeat(64) : 'e'.repeat(64));
++      const created=checkCreate(id, role === 'target' ? originalID : role === 'history' ? 'c'.repeat(64) : 'e'.repeat(64));
++      if(role!=='history'){const gate=state.gates.get(role==='target'?'target-create-ack-lost':'unrelated-create-held');Object.assign(gate,{state:role==='target'?'lost':'holding',request:clone(created)});}
+       if (role === 'history') start('c'.repeat(64));
+       await hook('afterStart:' + role); return {id: row.id};
+     },
+     async waitCheckTerminal(project, checkId) {note('terminal:' + checkId); return read(checkId);},
+     async readCheck(project, checkId) {return read(checkId);},
++    waitForCheckGate(project,checkId,gateId,phase){return waitSubmittedCheckGate({proxy:ctx.proxy,projectId:project.id,checkId,gateId,phase,
++      deadline:Date.now()+120000,readCheck:()=>ctx.readCheck(project,checkId),
++      recordTerminal:async details=>state.records.push({phase:'check-terminal-before-create-gate',...clone(details),resourceObservedAt:new Date().toISOString(),resources:{host:{cpu:{utilizationPercent:89}},policy:{headroomPercent:25}}})});},
+     async readLedger() {return clone(state.ledger);},
+     async snapshotProjectFiles() {return clone(state.files);},
+     async assertRealOriginalCreatedAndNeverStarted(row, allocation) {
+@@ -174,6 +180,22 @@ test('synthetic default flow proves preserved completed history and one-to-zero
+   assert.equal(state.calls.filter(call => call === 'marker-still-present').length, 1);
+ });
+ 
++test('actual scenario promptly reports submitted CPU refusal without waiting for an impossible gate or replaying POST',async()=>{
++  const {ctx,state}=controlledContext({hooks:{'afterStart:target':state=>{
++    const id=state.ids.target.checkId,row=state.checks.get(id);Object.assign(row,{revision:5,status:'blocked',stage:'admission',reasonCode:'cpu_pressure',resourcesHeld:false});
++    Object.assign(row.commands[0],{status:'blocked',stage:'admission',reasonCode:'cpu_pressure',cleanupConfirmed:true});
++    state.ledger.checks=state.ledger.checks.filter(lease=>lease.identity.checkId!==id);
++    ctx.proxy.observations.requests=ctx.proxy.observations.requests.filter(request=>request.labels?.['luci.check-id']!==id);
++    ctx.proxy.observations.counts.create--;ctx.proxy.observations.counts.check--;
++    const gate=state.gates.get('target-create-ack-lost');gate.state='armed';delete gate.request;
++  }}});
++  await assert.rejects(runInstalledRecoveryScenario(ctx),error=>error.code==='check-terminal-before-create-gate');
++  const refusal=state.records.find(row=>row.phase==='check-terminal-before-create-gate');assert(refusal);
++  assert.equal(refusal.check.id,state.ids.target.checkId);assert.equal(refusal.check.revision,5);assert.equal(refusal.check.reasonCode,'cpu_pressure');assert.equal(refusal.check.resourcesHeld,false);assert(refusal.checkObservedAt);assert(refusal.resourceObservedAt);
++  assert.equal(state.calls.filter(value=>value==='start:target').length,1);assert(!state.calls.includes('wait:target-create-ack-lost'));assert(!state.calls.includes('recover'));
++  assert(!ctx.proxy.observations.requests.some(row=>row.labels?.['luci.check-id']===state.ids.target.checkId));assert(!state.ledger.checks.some(row=>row.identity.checkId===state.ids.target.checkId));
++});
++
+ test('synthetic charged-witness flow holds the unrelated request through exact target retirement and releases it once', async () => {
+   const {ctx, state} = controlledContext({chargedWitness: true});
+   const result = await runInstalledRecoveryScenario(ctx);

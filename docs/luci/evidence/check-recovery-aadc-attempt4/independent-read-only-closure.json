@@ -1,0 +1,191 @@
+{
+  "schemaVersion": 1,
+  "at": "2026-10-09T00:32:45.978421+00:00",
+  "finishedAt": "2026-10-09T00:32:46.215446+00:00",
+  "scope": "Independent read-only original failed fixture closure; no cleanup, recovery, Docker mutation or ledger repair",
+  "originalPrivateReceipt": {
+    "role": "Independent closure private inventory; raw fixture path, per-file inventory and ledger excluded",
+    "bytes": 58805,
+    "sha256": "27b37369a2cb38bdcbad3732eb4ec099b1c6ef7f9aee31b7060227d2cc033242"
+  },
+  "knownProcessChecks": [
+    {
+      "pid": 2106062,
+      "expectedStartTicks": 25182217,
+      "roles": [
+        "driver-metadata",
+        "test-driver"
+      ],
+      "status": "absent",
+      "observed": null
+    },
+    {
+      "pid": 2106063,
+      "expectedStartTicks": 25182217,
+      "roles": [
+        "observer"
+      ],
+      "status": "absent",
+      "observed": null
+    },
+    {
+      "pid": 2106186,
+      "expectedStartTicks": 25182334,
+      "roles": [
+        "other-owned-descendant"
+      ],
+      "status": "absent",
+      "observed": null
+    },
+    {
+      "pid": 2106249,
+      "expectedStartTicks": 25182586,
+      "roles": [
+        "control-plane"
+      ],
+      "status": "absent",
+      "observed": null
+    },
+    {
+      "pid": 2106268,
+      "expectedStartTicks": 25182632,
+      "roles": [
+        "control-plane"
+      ],
+      "status": "absent",
+      "observed": null
+    },
+    {
+      "pid": 2106491,
+      "expectedStartTicks": 25182779,
+      "roles": [
+        "browser"
+      ],
+      "status": "absent",
+      "observed": null
+    },
+    {
+      "pid": 2106511,
+      "expectedStartTicks": 25182790,
+      "roles": [
+        "browser"
+      ],
+      "status": "exited-zombie",
+      "observed": {
+        "pid": 2106511,
+        "state": "Z",
+        "startTicks": 25182790
+      }
+    },
+    {
+      "pid": 2106518,
+      "expectedStartTicks": 25182790,
+      "roles": [
+        "browser"
+      ],
+      "status": "exited-zombie",
+      "observed": {
+        "pid": 2106518,
+        "state": "Z",
+        "startTicks": 25182790
+      }
+    },
+    {
+      "pid": 2106540,
+      "expectedStartTicks": 25182801,
+      "roles": [
+        "browser"
+      ],
+      "status": "absent",
+      "observed": null
+    },
+    {
+      "pid": 2106555,
+      "expectedStartTicks": 25182838,
+      "roles": [
+        "browser"
+      ],
+      "status": "absent",
+      "observed": null
+    },
+    {
+      "pid": 2106563,
+      "expectedStartTicks": 25182842,
+      "roles": [
+        "browser"
+      ],
+      "status": "absent",
+      "observed": null
+    },
+    {
+      "pid": 2106594,
+      "expectedStartTicks": 25182853,
+      "roles": [
+        "browser"
+      ],
+      "status": "absent",
+      "observed": null
+    },
+    {
+      "pid": 2106603,
+      "expectedStartTicks": 25182857,
+      "roles": [
+        "browser"
+      ],
+      "status": "absent",
+      "observed": null
+    },
+    {
+      "pid": 2106604,
+      "expectedStartTicks": 25182857,
+      "roles": [
+        "browser"
+      ],
+      "status": "absent",
+      "observed": null
+    }
+  ],
+  "exactFixtureEnvironmentMatches": [],
+  "unreadableProcessEnvironments": 5846,
+  "containers": [],
+  "volumes": [],
+  "originalCreatedContainerId": "e9dd280cc0a6b2178570fe5afd7d466ba8f8542eb58f6a05cb099449bc0aaef3",
+  "originalCreatedContainerAbsent": true,
+  "ledger": {
+    "version": 1,
+    "queueLeaseCollectionPresent": true,
+    "queueLeaseCount": 0,
+    "checkLeaseCollectionPresent": false,
+    "checkLeaseCount": 0,
+    "sha256": "c0022f0995797c072d8097729ea90e74487bcefb911576c91e4af0665403a49e",
+    "matchesOriginalFinalReport": true
+  },
+  "fixtureByteComparison": {
+    "regularFiles": 108,
+    "symlinks": 0,
+    "allRecordedBytesUnchanged": true,
+    "perFileInventoryPublished": false
+  },
+  "containerAndLeaseClosureObserved": true,
+  "recoveryScenarioPassed": false,
+  "limitations": [
+    "Read-only observations at the recorded times; no process was stopped and no Docker object or fixture state was changed.",
+    "PID/start checks cover retained observed identities; environment matching covers readable process environments and is not universal descendant-history proof.",
+    "The check was blocked before Start and cleaned up; target unknown-Create recovery was not reached."
+  ],
+  "readOnlyDockerCommands": [
+    [
+      "docker",
+      "ps",
+      "-aq",
+      "--no-trunc"
+    ],
+    [
+      "docker",
+      "volume",
+      "ls",
+      "-q"
+    ]
+  ],
+  "processVerificationMethod": "Retained PID/start identities plus exact fixture-state/browser environment matches among readable environments; no environment values exported."
+}

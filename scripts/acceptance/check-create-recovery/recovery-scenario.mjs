@@ -141,7 +141,7 @@ export async function runInstalledRecoveryScenario(ctx) {
     pathPattern: /\/containers\/create$/, decision: 'lose-response',
     match: row => row.kind === 'check' && row.labels['luci.check-project'] === targetProject.id});
   const targetStarted = await ctx.startCheckInBrowser(targetProject, command);
-  const lost = await ctx.proxy.waitForGate('target-create-ack-lost', {timeoutMs: 120000});
+  const lost = await ctx.waitForCheckGate(targetProject,targetStarted.id,'target-create-ack-lost','after-response');
   assert.equal(lost.request.status, 201); assert.match(lost.request.id, /^[a-f0-9]{64}$/);
   let target = await ctx.waitCheckTerminal(targetProject, targetStarted.id);
   const targetLease = exactLease(await ctx.readLedger(), target); assertUnknown(target, targetLease);
@@ -159,7 +159,7 @@ export async function runInstalledRecoveryScenario(ctx) {
       pathPattern: /\/containers\/create$/, decision: 'hold',
       match: row => row.kind === 'check' && row.labels['luci.check-project'] === witnessProject.id});
     const witnessStarted = await ctx.startCheckInBrowser(witnessProject, command);
-    await ctx.proxy.waitForGate('unrelated-create-held', {timeoutMs: 120000});
+    await ctx.waitForCheckGate(witnessProject,witnessStarted.id,'unrelated-create-held','before-forward');
     witness = await ctx.readCheck(witnessProject, witnessStarted.id);
   }
   target = await ctx.readCheck(targetProject, target.id); // settle post-failure observation before exact review

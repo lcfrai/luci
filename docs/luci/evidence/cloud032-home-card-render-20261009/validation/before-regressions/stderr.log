@@ -1,0 +1,22 @@
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/projects/ProjectOverviewBoard.test.tsx > renders only the changed project summary while preserving fresh independent overview reads
+AssertionError: expected [ [ 'p1' ] ] to have a length of +0 but got 1
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ src/components/projects/ProjectOverviewBoard.test.tsx:44:84
+     42|   await act(async () => pending.get('p2')!(overview('p2')));
+     43|   expect(screen.getByText('Build p2')).toBeTruthy();
+     44|   expect(vi.mocked(useProjectDraftScope).mock.calls.filter(([id]) => i…
+       |                                                                                    ^
+     45|   expect(vi.mocked(useProjectDraftScope).mock.calls.some(([id]) => id …
+     46|   expect(projectOverviewApi.get).toHaveBeenCalledTimes(2);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

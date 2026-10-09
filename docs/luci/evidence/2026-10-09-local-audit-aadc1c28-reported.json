@@ -1,0 +1,16 @@
+{
+  "reportedRevision": "aadc1c281aef28aee04046a5c5e58da5fe7094e4",
+  "reportingThread": "01a1199f-7500-7843-b02b-081081e536fa",
+  "scope": "Relayed independent Windows read-only audit; no local runtime launch",
+  "local016": "Published installed Linux API witness independently supported; A killed/review-required, B native exit0/review-required, no integration or model quality. Original failed fixture unchanged.",
+  "cloud038": "Source ready to retest; same regression failure/correction confirmed. 2323 recorded input hashes stable;464 repository match aadc;1859 external not independently retrieved;7 go-list module paths absent from hash manifest.",
+  "frontend": "2750 assertions/157 configured files/typecheck0;1186 inputs stable and match aadc; two backend overlays at recorded d52 are explicit.",
+  "failedCheck3": "Lost ACK creating charge persists after manual removal; exact HTTP operands missing; final samples retain two Chromium zombies.",
+  "windowsAvailableGiB": 0.859,
+  "auditSHA256": {
+    "worker": "b724fa0cb7d76ea76ede7796dffe1b7819c742ecb7047d614144d885d1e0ae34",
+    "observer": "b93340dc57b37df8cd0959a2b5fd8fe111ba491f9bfe65c4aa1ba52f0628b291",
+    "failedCheck": "a315f927040e30edcf2c50fc756ea133fd24594dc774a36a8020c45bffe5a3c3",
+    "frontend": "73b0a380b62aaaefe42c5a56fc16caddf801bdbff2ff0091ba215ca3343f47b6"
+  }
+}

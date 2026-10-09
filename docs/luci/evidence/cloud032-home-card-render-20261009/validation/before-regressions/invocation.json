@@ -1,0 +1,18 @@
+{
+  "command": [
+    "npm",
+    "test",
+    "--",
+    "--maxWorkers=2",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile.json=/workspace/.luci-tools/cloud032-home-render-staging/validation/before-regressions/vitest.json",
+    "src/components/projects/ProjectOverviewBoard.test.tsx",
+    "--testNamePattern=renders only the changed project summary|removes memoized summaries immediately"
+  ],
+  "cwd": "/workspace/luci/desktop",
+  "activation": "source /workspace/.luci-tools/activate.sh",
+  "startedAt": "2026-10-09T00:43:02.618194+00:00",
+  "label": "before-regressions",
+  "scope": "Controlled frontend verification only; no browser/app/runtime. No full frontend suite."
+}

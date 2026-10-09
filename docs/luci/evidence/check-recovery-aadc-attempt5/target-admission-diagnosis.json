@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "scope": "Exact retained target check status plus pinned capacity evaluator; not reconstruction of an unretained CPU sample",
+  "target": {
+    "id": "check-91c2af0e6716ba0572f54b4e",
+    "projectId": "p-d3416195",
+    "revision": 5,
+    "status": "blocked",
+    "stage": "admission",
+    "reasonCode": "cpu_pressure",
+    "message": "Current CPU pressure needs to fall before another worker starts.",
+    "resourcesHeld": false,
+    "createdAt": "2026-10-09T00:37:12.364133405Z",
+    "updatedAt": "2026-10-09T00:37:12.485169317Z"
+  },
+  "commands": [
+    {
+      "status": "blocked",
+      "stage": "admission",
+      "reasonCode": "cpu_pressure",
+      "message": "Current CPU pressure needs to fall before another worker starts.",
+      "allocationId": "checkexec-b16f563603d4e8347e6f669b",
+      "cleanupConfirmed": false,
+      "exitCode": null,
+      "output": ""
+    }
+  ],
+  "originalPrivateRecord": {
+    "role": "Retained target project-check record; private path and complete contents excluded",
+    "bytes": 2407,
+    "sha256": "279e36459d87a2be2b64f646616779392e8846429f4cbe18469576a2cac0dd47",
+    "matchesIndependentClosureInventory": true
+  },
+  "transportTargetCreateCount": 0,
+  "originalReportSHA256": "dc1eaac9251838f813bd2ce3bd5f1d4408c0f2b187dad36cefdeb6f948bd09e0",
+  "helperFailure": {
+    "stage": "consent-check-2",
+    "code": "gate-wait-timeout"
+  },
+  "sourceDiagnosis": {
+    "commit": "aadc1c281aef28aee04046a5c5e58da5fe7094e4",
+    "repositoryPath": "control-plane/internal/api/execution_capacity.go",
+    "capturedPath": "diagnosis-source/control-plane/internal/api/execution_capacity.go",
+    "sha256": "a97113455a9da43a0d2402fde940cc07d357a85b4228fa552208b7c239d0b217",
+    "line": 50,
+    "predicate": "Host.CPU.UtilizationPercent is present and exceeds 100 - policy.HeadroomPercent",
+    "reason": "cpu_pressure",
+    "scope": "Fresh source branch checked after memory admission; distinct from cpu_capacity hard-allocation demand branch"
+  },
+  "exactTargetAdmissionCPUUtilizationRetained": false,
+  "exactTargetAdmissionPolicyInputRetained": false,
+  "causeOfCPUUtilizationEstablished": false,
+  "limitations": [
+    "The helper waited for a target Create acknowledgement; the target was already blocked before Create.",
+    "The precise admission snapshot and an external-load cause were not retained by the target check record or diagnostic journal.",
+    "Command cleanupConfirmed=false is retained literally; no target container was allocated and resourcesHeld is false.",
+    "No assertion, admission threshold, original fixture or ledger was changed."
+  ]
+}

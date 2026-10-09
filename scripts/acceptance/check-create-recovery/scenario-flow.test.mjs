@@ -4,6 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {runInstalledRecoveryScenario, pins, command} from './recovery-scenario.mjs';
+import {waitSubmittedCheckGate} from './installed-recovery.mjs';
 
 const clone = structuredClone;
 const output = 'RECOVERY_CHECK_OK\n';
@@ -42,7 +43,7 @@ function controlledContext({chargedWitness = false, hooks = {}} = {}) {
     recovered: false, released: false, fenceVerified: false, markerPresent: true};
   const note = name => state.calls.push(name);
   const hook = async name => {note(name); if (hooks[name]) await hooks[name](state, ctx);};
-  const observations = {counts: {create: 0, start: 0, check: 0, fence: 0, worker: 0}, requests: [], dropped: 0, failures: []};
+  const observations = {counts: {create: 0, start: 0, check: 0, fence: 0, worker: 0}, requests: [], gates: [], dropped: 0, failures: []};
   const request = (method, path, details = {}) => {
     const row = {method, path, requestSequence: observations.requests.length + 1, ...details};
     observations.requests.push(row); return row;
@@ -66,13 +67,14 @@ function controlledContext({chargedWitness = false, hooks = {}} = {}) {
         } else {
           assert.equal(gate.id, 'unrelated-create-held'); assert.equal(gate.phase, 'before-forward'); assert.equal(gate.decision, 'hold');
         }
-        state.gates.set(gate.id, gate);
+        Object.assign(gate,{state:'armed'});state.gates.set(gate.id, gate);observations.gates.push(gate);
       },
       async waitForGate(name, options) {
-        note('wait:' + name); assert.equal(options.timeoutMs, 120000); assert(state.gates.has(name));
+        note('wait:' + name); assert(Number.isSafeInteger(options.timeoutMs)&&options.timeoutMs>0&&options.timeoutMs<=120000); assert(state.gates.has(name));
         const id = name === 'target-create-ack-lost' ? ids.target : ids.witness;
         const row = observations.requests.find(row => row.labels?.['luci.check-id'] === id.checkId);
-        assert(row); assert(state.gates.get(name).match(row)); return {request: clone(row)};
+        if(!row)throw Object.assign(Error('gate-wait-timeout'),{code:'gate-wait-timeout'});
+        assert(state.gates.get(name).match(row)); return {request: clone(row)};
       },
       async releaseGate(name) {
         note('release:' + name); assert.equal(name, 'unrelated-create-held');
@@ -91,12 +93,16 @@ function controlledContext({chargedWitness = false, hooks = {}} = {}) {
       if (role === 'witness') assert(state.gates.has('unrelated-create-held'));
       const row = role === 'history' ? passing(check(id, 'passed')) : check(id, role === 'target' ? 'unknown' : 'running');
       state.checks.set(row.id, row); state.ledger.checks.push(lease(id, role === 'history' ? 'finished' : 'creating'));
-      checkCreate(id, role === 'target' ? originalID : role === 'history' ? 'c'.repeat(64) : 'e'.repeat(64));
+      const created=checkCreate(id, role === 'target' ? originalID : role === 'history' ? 'c'.repeat(64) : 'e'.repeat(64));
+      if(role!=='history'){const gate=state.gates.get(role==='target'?'target-create-ack-lost':'unrelated-create-held');Object.assign(gate,{state:role==='target'?'lost':'holding',request:clone(created)});}
       if (role === 'history') start('c'.repeat(64));
       await hook('afterStart:' + role); return {id: row.id};
     },
     async waitCheckTerminal(project, checkId) {note('terminal:' + checkId); return read(checkId);},
     async readCheck(project, checkId) {return read(checkId);},
+    waitForCheckGate(project,checkId,gateId,phase){return waitSubmittedCheckGate({proxy:ctx.proxy,projectId:project.id,checkId,gateId,phase,
+      deadline:Date.now()+120000,readCheck:()=>ctx.readCheck(project,checkId),
+      recordTerminal:async details=>state.records.push({phase:'check-terminal-before-create-gate',...clone(details),resourceObservedAt:new Date().toISOString(),resources:{host:{cpu:{utilizationPercent:89}},policy:{headroomPercent:25}}})});},
     async readLedger() {return clone(state.ledger);},
     async snapshotProjectFiles() {return clone(state.files);},
     async assertRealOriginalCreatedAndNeverStarted(row, allocation) {
@@ -172,6 +178,22 @@ test('synthetic default flow proves preserved completed history and one-to-zero 
   assert.equal(state.calls.filter(call => call === 'recover').length, 1);
   assert.equal(state.calls.filter(call => call === 'verify-fence').length, 1);
   assert.equal(state.calls.filter(call => call === 'marker-still-present').length, 1);
+});
+
+test('actual scenario promptly reports submitted CPU refusal without waiting for an impossible gate or replaying POST',async()=>{
+  const {ctx,state}=controlledContext({hooks:{'afterStart:target':state=>{
+    const id=state.ids.target.checkId,row=state.checks.get(id);Object.assign(row,{revision:5,status:'blocked',stage:'admission',reasonCode:'cpu_pressure',resourcesHeld:false});
+    Object.assign(row.commands[0],{status:'blocked',stage:'admission',reasonCode:'cpu_pressure',cleanupConfirmed:true});
+    state.ledger.checks=state.ledger.checks.filter(lease=>lease.identity.checkId!==id);
+    ctx.proxy.observations.requests=ctx.proxy.observations.requests.filter(request=>request.labels?.['luci.check-id']!==id);
+    ctx.proxy.observations.counts.create--;ctx.proxy.observations.counts.check--;
+    const gate=state.gates.get('target-create-ack-lost');gate.state='armed';delete gate.request;
+  }}});
+  await assert.rejects(runInstalledRecoveryScenario(ctx),error=>error.code==='check-terminal-before-create-gate');
+  const refusal=state.records.find(row=>row.phase==='check-terminal-before-create-gate');assert(refusal);
+  assert.equal(refusal.check.id,state.ids.target.checkId);assert.equal(refusal.check.revision,5);assert.equal(refusal.check.reasonCode,'cpu_pressure');assert.equal(refusal.check.resourcesHeld,false);assert(refusal.checkObservedAt);assert(refusal.resourceObservedAt);
+  assert.equal(state.calls.filter(value=>value==='start:target').length,1);assert(!state.calls.includes('wait:target-create-ack-lost'));assert(!state.calls.includes('recover'));
+  assert(!ctx.proxy.observations.requests.some(row=>row.labels?.['luci.check-id']===state.ids.target.checkId));assert(!state.ledger.checks.some(row=>row.identity.checkId===state.ids.target.checkId));
 });
 
 test('synthetic charged-witness flow holds the unrelated request through exact target retirement and releases it once', async () => {

@@ -1,0 +1,35 @@
+✖ actual scenario promptly reports submitted CPU refusal without waiting for an impossible gate or replaying POST (8.49602ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 229.236626
+
+✖ failing tests:
+
+test at scripts/acceptance/check-create-recovery/scenario-flow.test.mjs:183:1
+✖ actual scenario promptly reports submitted CPU refusal without waiting for an impossible gate or replaying POST (8.49602ms)
+  AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+  
+  Caught error:
+  
+  Error: gate-wait-timeout
+      at async TestContext.<anonymous> (file:///workspace/luci/scripts/acceptance/check-create-recovery/scenario-flow.test.mjs:192:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: gate-wait-timeout
+        at Object.waitForGate (file:///workspace/luci/scripts/acceptance/check-create-recovery/scenario-flow.test.mjs:76:37)
+        at runInstalledRecoveryScenario (file:///workspace/luci/scripts/acceptance/check-create-recovery/recovery-scenario.mjs:144:32)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (file:///workspace/luci/scripts/acceptance/check-create-recovery/scenario-flow.test.mjs:192:3)
+        at async Test.run (node:internal/test_runner/test:1389:7)
+        at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3),
+    operator: 'rejects',
+    diff: 'simple'
+  }
