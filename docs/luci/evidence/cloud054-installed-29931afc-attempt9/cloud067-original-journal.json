@@ -1,0 +1,108 @@
+{
+  "at": "2026-10-09T14:52:30.333242+00:00",
+  "sourceCommit": "29931afc5b31ae9b9bd7b8973a7e3fdb840609a3",
+  "issue": "CLOUD-067",
+  "state": "fixing",
+  "priority": "P2",
+  "scope": "Acceptance sequence reaches prompt exited/Restart then unchanged sixGiB preRestart floor before natural container reclamation.",
+  "overallPassed": false,
+  "failure": {
+    "name": "AssertionError",
+    "code": "ERR_ASSERTION",
+    "message": "Six GiB fixture root floor"
+  },
+  "apiRestartCount": 0,
+  "browserForwardedRestartCount": 0,
+  "originalPhases": [
+    {
+      "kind": "scenario-step",
+      "step": "initial-authoritative-running",
+      "observedAt": "2026-10-09T14:50:48.742Z"
+    },
+    {
+      "kind": "scenario-step",
+      "step": "ready-command",
+      "observedAt": "2026-10-09T14:50:49.009Z"
+    },
+    {
+      "kind": "scenario-step",
+      "step": "text-exit-lookalike",
+      "observedAt": "2026-10-09T14:50:49.311Z"
+    },
+    {
+      "kind": "scenario-step",
+      "step": "first-running-poll-hold",
+      "observedAt": "2026-10-09T14:50:49.593Z"
+    },
+    {
+      "kind": "scenario-step",
+      "step": "first-exit-command",
+      "observedAt": "2026-10-09T14:50:49.849Z"
+    },
+    {
+      "kind": "scenario-step",
+      "step": "first-wire-close",
+      "observedAt": "2026-10-09T14:50:50.028Z"
+    },
+    {
+      "kind": "scenario-step",
+      "step": "first-wire-assertions",
+      "observedAt": "2026-10-09T14:50:50.041Z"
+    },
+    {
+      "kind": "scenario-step",
+      "step": "ended-before-poll",
+      "observedAt": "2026-10-09T14:50:50.050Z"
+    },
+    {
+      "kind": "scenario-step",
+      "step": "ended-stdin-and-reconnect-guard",
+      "observedAt": "2026-10-09T14:50:50.073Z"
+    },
+    {
+      "kind": "typed-exit-before-poll",
+      "observedAt": "2026-10-09T14:50:52.768Z"
+    },
+    {
+      "kind": "scenario-step",
+      "step": "first-poll-release",
+      "observedAt": "2026-10-09T14:50:52.771Z"
+    },
+    {
+      "kind": "poll-released",
+      "at": "2026-10-09T14:50:49.831Z",
+      "observedAt": "2026-10-09T14:50:52.776Z"
+    },
+    {
+      "kind": "scenario-step",
+      "step": "second-old-poll-hold",
+      "observedAt": "2026-10-09T14:50:53.887Z"
+    },
+    {
+      "kind": "scenario-step",
+      "step": "single-ui-restart",
+      "observedAt": "2026-10-09T14:50:55.936Z"
+    },
+    {
+      "kind": "scenario-failure",
+      "step": "single-ui-restart",
+      "observedAt": "2026-10-09T14:50:56.430Z"
+    }
+  ],
+  "cleanup": [
+    {
+      "kind": "failed-scenario-supported-stop",
+      "sessionId": "s-0fb4da90"
+    },
+    {
+      "kind": "failed-fixture-exact-removal",
+      "id": "a6c7fa8fc0f5913ac3b19cc74adde25525542647cae6799d9600850ac57d2da8",
+      "notProductRelease": true
+    }
+  ],
+  "limits": [
+    "No actual product Restart result; helper refuses forwarding.",
+    "Raw atomic free-space operands at refusal not retained by failing assert. No reconstruction.",
+    "First wire normalClose and prompt status are scoped positives, not full terminal or cold restart acceptance."
+  ]
+}

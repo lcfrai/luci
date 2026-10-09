@@ -1,0 +1,10 @@
+{
+  "startedAt": "2026-10-09T15:35:33.298298+00:00",
+  "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+  "scriptSHA256": "21cf1a024057fde3966f8e5582f6f8df9692ed00c114a202013b4d98221c356f",
+  "scope": "Restore tag from actual archive into existing daemon with same image/layers still retained under an independent candidate tag. Not a fresh-daemon or snapshot restoration.",
+  "finishedAt": "2026-10-09T15:35:53.078941+00:00",
+  "exitCode": 0,
+  "passed": true,
+  "restoredImage": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8"
+}

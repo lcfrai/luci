@@ -1,0 +1,20 @@
+{
+  "at": "2026-10-09T14:37:27.496390+00:00",
+  "sourceSHA256": "b50fdde1a24745da33b72c970bf0cc606065b095994a17c710acbbc3acfa39a4",
+  "proofSHA256": "cbab4651da95badd8f04ea40153587ae92790d3b2ac831a8a197de2b0903bce4",
+  "budgetSeconds": 180,
+  "rootCoordinationAssertion": true,
+  "freeBefore": {
+    "/workspace": 6360612864,
+    "/tmp": 2387849216
+  },
+  "onlyPayloadRoots": [
+    "/workspace/.luci-tools/cloud060-package-reuse-5f4a966f/luci",
+    "/workspace/.luci-tools/cloud060-package-reuse-5f4a966f/web",
+    "/workspace/.luci-tools/cloud060-package-reuse-v2-5f4a966f/luci",
+    "/workspace/.luci-tools/cloud060-package-reuse-v2-5f4a966f/web",
+    "/workspace/.luci-tools/cloud060-package-reuse-v3-5f4a966f/luci",
+    "/workspace/.luci-tools/cloud060-package-reuse-v3-5f4a966f/web"
+  ],
+  "exclusions": "All receipt/cache/home/tmp/fixture/evidence paths, v4, reference package/archive and unrelated paths remain untouched. Generated duplicate physical inodes retire; exact bytes remain reference/archive-backed."
+}

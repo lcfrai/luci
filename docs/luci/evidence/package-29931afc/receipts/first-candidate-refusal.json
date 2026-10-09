@@ -1,0 +1,9 @@
+{
+  "at": "2026-10-09T14:41:59.271386+00:00",
+  "sourceCommit": "29931afc5b31ae9b9bd7b8973a7e3fdb840609a3",
+  "exitCode": 1,
+  "observedFailure": "AssertionError: Source must be retrievable from origin",
+  "cause": "Remote ls-remote already confirms exact pushed commit; local refs/remotes/origin not refreshed by this push configuration.",
+  "stage": "Before output directory creation or release rename/build",
+  "scriptSHA256": "8771e5c661745b4cb4bfefc9aea0839f947dec534d3a438459bda0ecc409e418"
+}

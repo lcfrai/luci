@@ -1,0 +1,198 @@
+{
+  "version": 1,
+  "scope": "External preparation only. Root owns actual tool/archive moves/export/publication. Tiny controls do not prove actual execution.",
+  "members": [
+    {
+      "path": "PLAN.md",
+      "bytes": 10451,
+      "sha256": "35031bb8790ae494dec1fea9041cacb12e1e1e6f164f8238f8d475d6a7f5a0d6"
+    },
+    {
+      "path": "archive760.before-watchdog.py",
+      "bytes": 12703,
+      "sha256": "493a217dc0cf0ab12d96bca34546ffc5a35d99d28b3aa8363a2e43c22cd1dd2c"
+    },
+    {
+      "path": "archive760.py",
+      "bytes": 13725,
+      "sha256": "c328da3bd8b4148cceba74ce35bbc6726195da49add6777a3372943c49c4d986"
+    },
+    {
+      "path": "budget.py",
+      "bytes": 1606,
+      "sha256": "d700dcd37fca027c6f277842dc0d36eebec3748ec148b1ccf87e61d18df7e570"
+    },
+    {
+      "path": "control-attempt1/controls-result.json",
+      "bytes": 132,
+      "sha256": "3661d42aa9fc7f5a846a17d41c4f28f0b47a4f4e1813d33cb64272f8d33ff1e6"
+    },
+    {
+      "path": "control-attempt1/controls.stderr.log",
+      "bytes": 3905,
+      "sha256": "3840c5c6f528c82888bd103dcb4292e8aaad9f02f8db7f6860de3ef8f77a8927"
+    },
+    {
+      "path": "control-attempt1/controls.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "control-attempt1/test_controls.py",
+      "bytes": 4583,
+      "sha256": "7f922d76ec0a414ea677e366955965e959a840c048e4e3e1c9a853176b802efb"
+    },
+    {
+      "path": "control-attempt2/controls-result.json",
+      "bytes": 207,
+      "sha256": "185d7ba6f33aeba8f26f8d61974eb6b06e3c4cf5d8a07640873d3c42223140ce"
+    },
+    {
+      "path": "control-attempt2/controls.stderr.log",
+      "bytes": 1001,
+      "sha256": "b72cd677d5d6121b190242e6cf2a6a78c4b4f4769b38c76d3153808fb00418e3"
+    },
+    {
+      "path": "control-attempt2/controls.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "control-attempt2/watchdog-controls-result.json",
+      "bytes": 136,
+      "sha256": "854e98ddc4206634027a19bf0d40972d38230f8b0445c1d8d9cde43d7cf71ca8"
+    },
+    {
+      "path": "control-attempt2/watchdog-controls.stderr.log",
+      "bytes": 616,
+      "sha256": "9fbb0695dfd11067bb9c6395ae5cc70dc040a5691d450ba8c886d1c53aaa0bb9"
+    },
+    {
+      "path": "control-attempt2/watchdog-controls.stdout.log",
+      "bytes": 109,
+      "sha256": "0bcf39838025e0ade4e2f77255e308dc144562b0a6e49c6da3aaaf5ff6d42aa2"
+    },
+    {
+      "path": "controls-result.json",
+      "bytes": 207,
+      "sha256": "185d7ba6f33aeba8f26f8d61974eb6b06e3c4cf5d8a07640873d3c42223140ce"
+    },
+    {
+      "path": "controls.stderr.log",
+      "bytes": 1001,
+      "sha256": "b72cd677d5d6121b190242e6cf2a6a78c4b4f4769b38c76d3153808fb00418e3"
+    },
+    {
+      "path": "controls.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "final-controls-result.json",
+      "bytes": 200,
+      "sha256": "3834f02321d5e894d1ec5eb3dd94f4f63105d96fc103227d45e09e3fd8bf1498"
+    },
+    {
+      "path": "final-controls.stderr.log",
+      "bytes": 1614,
+      "sha256": "d49d77eec7d10b2821fe4bf81179f2d88321c170a765e8e83c9b4442ac8e2e0a"
+    },
+    {
+      "path": "final-controls.stdout.log",
+      "bytes": 109,
+      "sha256": "72d9f407e51d49d48f49d0f11c5c3f85a455ee92c30ebc1d79ae5c7aafb04494"
+    },
+    {
+      "path": "forecast.json",
+      "bytes": 516,
+      "sha256": "0de46a57e9c312eff9ed9174b64d873b71a25bdd89d9c2290de5d1c6677c6eaf"
+    },
+    {
+      "path": "place_archives.py",
+      "bytes": 9382,
+      "sha256": "bae67ba8f1d6907e0347d62bdd44b9d201c8d781d402bace72efe9904df81ec0"
+    },
+    {
+      "path": "run_archive.before-state-clarification.py",
+      "bytes": 5120,
+      "sha256": "385ba6405fb3afd081750c93c9f39963ab7f50074c7a6a818e6beda06d1ff191"
+    },
+    {
+      "path": "run_archive.py",
+      "bytes": 5527,
+      "sha256": "d92d065966d142033f37fb1a3aeaeb7631d4f701a98772cf450ddc64d1f22689"
+    },
+    {
+      "path": "run_place.py",
+      "bytes": 2749,
+      "sha256": "15ab061069acdc384b3a1fd9c6a11f99552e9e41e6e88ddd8d8582d27fb1bc4a"
+    },
+    {
+      "path": "start.template.md",
+      "bytes": 12781,
+      "sha256": "08a97a78dc51b2ee18013f44d725bc3bf5b37e96dcdc1f6c938e4eeb6c517249"
+    },
+    {
+      "path": "test_controls.py",
+      "bytes": 4949,
+      "sha256": "03b002e50fdc3c7ec0eba1e777ac74fee2e9981a9177152528a1e652b5c54822"
+    },
+    {
+      "path": "test_watchdog.py",
+      "bytes": 2496,
+      "sha256": "305aa68a8e914beb3ed4969e73bc53b41ee6e06217f69f01bc27d161a1055693"
+    },
+    {
+      "path": "watchdog-controls-result.json",
+      "bytes": 136,
+      "sha256": "854e98ddc4206634027a19bf0d40972d38230f8b0445c1d8d9cde43d7cf71ca8"
+    },
+    {
+      "path": "watchdog-controls.stderr.log",
+      "bytes": 616,
+      "sha256": "9fbb0695dfd11067bb9c6395ae5cc70dc040a5691d450ba8c886d1c53aaa0bb9"
+    },
+    {
+      "path": "watchdog-controls.stdout.log",
+      "bytes": 109,
+      "sha256": "0bcf39838025e0ade4e2f77255e308dc144562b0a6e49c6da3aaaf5ff6d42aa2"
+    }
+  ],
+  "externalBindings": [
+    {
+      "path": "/workspace/.luci-tools/runtime760-bootstrap-v1-source-review-initial.json",
+      "bytes": 4068,
+      "sha256": "55bde51ed6f9bc7715c440f00024f70dc518b844a884b5b9ce2662284c4ce189"
+    },
+    {
+      "path": "/workspace/.luci-tools/runtime760-bootstrap-v1-source-review-followup.json",
+      "bytes": 4901,
+      "sha256": "767721f9ceff639f8acf2f8b7f1876bb29b43739b731fb60564ebaf156ac9b50"
+    },
+    {
+      "path": "/workspace/.luci-tools/onboarding299-draft-source/install.sh",
+      "bytes": 11170,
+      "sha256": "a2b856a4458060f003a6332fb31f4b2da3b6631644c6c66af71b93504c83dc4c"
+    },
+    {
+      "path": "/workspace/.luci-tools/onboarding299-draft-source/start.md",
+      "bytes": 20526,
+      "sha256": "74f9585b500da6f1e68a0a74f73c38f845aafa3de1f17970d81770fded5d5b27"
+    }
+  ],
+  "counts": {
+    "finalControls": 13,
+    "originalFixtureAttempt": {
+      "passes": 7,
+      "fixtureErrors": 1
+    },
+    "earlier8and4": "overlap final13"
+  },
+  "resolvedReviewNotes": [
+    "Outer own-client watchdog covers inherited monitor join at process level; OS I/O scheduling/daemon drain remain limits.",
+    "Unexpected inner settlement errors preserve primary failure.",
+    "Known Z/X is non-live, not PID absence; missing leader identity stays explicit."
+  ],
+  "clarification": "The initial manifest remains preserved; it inadvertently included three contemporaneous root operation wrapper files. This source-only manifest excludes all actual operation sinks and does not reinterpret or alter their outcomes.",
+  "initialManifestSHA256": "5b57297bf79bd8f40b6bafcf9eea3dd2d70e38ffc936a3a2891aef3c592a4268"
+}

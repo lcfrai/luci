@@ -1,0 +1,226 @@
+✖ owned removing stays pending through absent-but-charged and succeeds only after exact absence plus release (5.461602ms)
+✖ persistent exact owned removing and charge time out without settlement or mutation (0.607926ms)
+✖ persistent exact owned dead and charge time out without settlement or mutation (0.389737ms)
+✔ existing exited path remains pending before exact release (1.799622ms)
+✔ absent container with its charge never means success (10.689898ms)
+✔ foreign identity refuses without settlement (2.232285ms)
+✔ new allocation refuses without settlement (1.210615ms)
+✖ missing charge refuses without settlement (0.674788ms)
+✖ changed lease scope refuses without settlement (1.259328ms)
+✖ unavailable ledger refuses without settlement (1.129343ms)
+✖ missing fence knowledge refuses without settlement (1.358167ms)
+✖ unknown raw status is refused after bounded hash-only diagnosis (14.031089ms)
+✖ recognized but unaccepted paused state is diagnosed and refused (0.521326ms)
+✖ caller remaining budget is consumed without restarting the35s allowance (0.525653ms)
+✖ expired caller budget refuses before observation (0.372782ms)
+✔ waiter contains no command, Docker or registry write capability (0.480444ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 5
+ℹ fail 11
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 307.852383
+
+✖ failing tests:
+
+test at .luci-tools/cloud069-terminal-cleanup-v11/settlement.test.mjs:15:1
+✖ owned removing stays pending through absent-but-charged and succeeds only after exact absence plus release (5.461602ms)
+  AssertionError [ERR_ASSERTION]: ifError got unwanted exception: Allocation state unconfirmed
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud069-terminal-cleanup-v11/settlement.test.mjs:15:201)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+      at waitForOwnedTerminalSettlement (file:///workspace/.luci-tools/cloud069-terminal-cleanup-v11/upstream-warm/scenario.mjs:206:161)
+      at run (file:///workspace/.luci-tools/cloud069-terminal-cleanup-v11/settlement.test.mjs:14:230)
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud069-terminal-cleanup-v11/settlement.test.mjs:15:139)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: AssertionError [ERR_ASSERTION]: Allocation state unconfirmed
+        at waitForOwnedTerminalSettlement (file:///workspace/.luci-tools/cloud069-terminal-cleanup-v11/upstream-warm/scenario.mjs:206:161)
+        at run (file:///workspace/.luci-tools/cloud069-terminal-cleanup-v11/settlement.test.mjs:14:230)
+        at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud069-terminal-cleanup-v11/settlement.test.mjs:15:139)
+        at Test.runInAsyncScope (node:async_hooks:227:14)
+        at Test.run (node:internal/test_runner/test:1382:25)
+        at Test.start (node:internal/test_runner/test:1242:17)
+        at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17),
+    expected: null,
+    operator: 'ifError',
+    diff: 'simple'
+  }
+
+test at .luci-tools/cloud069-terminal-cleanup-v11/settlement.test.mjs:16:41
+✖ persistent exact owned removing and charge time out without settlement or mutation (0.607926ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /cleanup remains unconfirmed/. Input:
+  
+  'Allocation state unconfirmed'
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud069-terminal-cleanup-v11/settlement.test.mjs:16:185)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Allocation state unconfirmed',
+    expected: /cleanup remains unconfirmed/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at .luci-tools/cloud069-terminal-cleanup-v11/settlement.test.mjs:16:41
+✖ persistent exact owned dead and charge time out without settlement or mutation (0.389737ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /cleanup remains unconfirmed/. Input:
+  
+  'Allocation state unconfirmed'
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud069-terminal-cleanup-v11/settlement.test.mjs:16:185)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Allocation state unconfirmed',
+    expected: /cleanup remains unconfirmed/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at .luci-tools/cloud069-terminal-cleanup-v11/settlement.test.mjs:26:4
+✖ missing charge refuses without settlement (0.674788ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /expected charge/. Input:
+  
+  'Allocation state unconfirmed'
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud069-terminal-cleanup-v11/settlement.test.mjs:26:120)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Allocation state unconfirmed',
+    expected: /expected charge/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at .luci-tools/cloud069-terminal-cleanup-v11/settlement.test.mjs:26:4
+✖ changed lease scope refuses without settlement (1.259328ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Unrelated or changed charge/. Input:
+  
+  'Allocation state unconfirmed'
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud069-terminal-cleanup-v11/settlement.test.mjs:26:120)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Allocation state unconfirmed',
+    expected: /Unrelated or changed charge/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at .luci-tools/cloud069-terminal-cleanup-v11/settlement.test.mjs:26:4
+✖ unavailable ledger refuses without settlement (1.129343ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Ledger unavailable/. Input:
+  
+  'Allocation state unconfirmed'
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud069-terminal-cleanup-v11/settlement.test.mjs:26:120)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Allocation state unconfirmed',
+    expected: /Ledger unavailable/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at .luci-tools/cloud069-terminal-cleanup-v11/settlement.test.mjs:26:4
+✖ missing fence knowledge refuses without settlement (1.358167ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Incomplete held-resource/. Input:
+  
+  'Allocation state unconfirmed'
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud069-terminal-cleanup-v11/settlement.test.mjs:26:120)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Allocation state unconfirmed',
+    expected: /Incomplete held-resource/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at .luci-tools/cloud069-terminal-cleanup-v11/settlement.test.mjs:27:1
+✖ unknown raw status is refused after bounded hash-only diagnosis (14.031089ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert(row)
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud069-terminal-cleanup-v11/settlement.test.mjs:27:316)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at .luci-tools/cloud069-terminal-cleanup-v11/settlement.test.mjs:28:1
+✖ recognized but unaccepted paused state is diagnosed and refused (0.521326ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'paused'
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud069-terminal-cleanup-v11/settlement.test.mjs:28:192)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'paused',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .luci-tools/cloud069-terminal-cleanup-v11/settlement.test.mjs:29:1
+✖ caller remaining budget is consumed without restarting the35s allowance (0.525653ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /cleanup remains unconfirmed/. Input:
+  
+  'Allocation state unconfirmed'
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud069-terminal-cleanup-v11/settlement.test.mjs:29:152)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Allocation state unconfirmed',
+    expected: /cleanup remains unconfirmed/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at .luci-tools/cloud069-terminal-cleanup-v11/settlement.test.mjs:30:1
+✖ expired caller budget refuses before observation (0.372782ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /budget exhausted/. Input:
+  
+  ''
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud069-terminal-cleanup-v11/settlement.test.mjs:30:126)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: /budget exhausted/,
+    operator: 'match',
+    diff: 'simple'
+  }

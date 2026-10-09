@@ -1,0 +1,246 @@
+{
+  "originals": [
+    {
+      "source": "/workspace/luci/artifacts/quality-swarm/candidate-29931afc/package/build-result.json",
+      "publishedPath": "receipts/build-result.json",
+      "sha256": "bdf50dc1fcec76a43ad020a0619a959f51f18f356cccbfea45ffe847a7ba9525",
+      "bytes": 752
+    },
+    {
+      "source": "/workspace/luci/artifacts/quality-swarm/candidate-29931afc/package/build-invocation.json",
+      "publishedPath": "receipts/build-invocation.json",
+      "sha256": "c93b404a86500300267b8c78ee480f54d6a8c2a412e47d8cc534f76c509707bb",
+      "bytes": 579
+    },
+    {
+      "source": "/workspace/luci/artifacts/quality-swarm/candidate-29931afc/package/build.log",
+      "publishedPath": "receipts/build.log",
+      "sha256": "470f5717f3949248a92e7fcfb3dc96f9b735a4920cd19bbecc851deda3286190",
+      "bytes": 18758
+    },
+    {
+      "source": "/workspace/luci/artifacts/quality-swarm/candidate-29931afc/package/previous-release-preservation.json",
+      "publishedPath": "receipts/previous-release-preservation.json",
+      "sha256": "8e2c24df955572bef60bf1e72d2f6eecef06a139aee428aa3075c1013683c978",
+      "bytes": 1183
+    },
+    {
+      "source": "/workspace/luci/artifacts/quality-swarm/candidate-29931afc/package/package-integrity.json",
+      "publishedPath": "receipts/package-integrity.json",
+      "sha256": "9fe92738860ec748c6c031c867b91272c109c140aa2daeb4155cda4355a850ff",
+      "bytes": 788
+    },
+    {
+      "source": "/workspace/luci/artifacts/quality-swarm/candidate-29931afc/package/package-provenance.json",
+      "publishedPath": "receipts/package-provenance.json",
+      "sha256": "5c2870a873d49177863f9a16e0cf366fba41bae80684ceb3c4ddd9732ff6068a",
+      "bytes": 1039
+    },
+    {
+      "source": "/workspace/.luci-tools/build-package-next-v1/README.md",
+      "publishedPath": "helpers/build-package-next-v1/README.md",
+      "sha256": "72004c3b121d534f4a307e9c6369bb1374d92b34495d766e1d7f7fb61a0e0d2f",
+      "bytes": 2609
+    },
+    {
+      "source": "/workspace/.luci-tools/build-package-next-v1/build-package.original.py",
+      "publishedPath": "helpers/build-package-next-v1/build-package.original.py",
+      "sha256": "150b7e999d7238eb765f3025e9e42f904001828e37defdde39e780a937d463f1",
+      "bytes": 5334
+    },
+    {
+      "source": "/workspace/.luci-tools/build-package-next-v1/build-package.py",
+      "publishedPath": "helpers/build-package-next-v1/build-package.py",
+      "sha256": "8771e5c661745b4cb4bfefc9aea0839f947dec534d3a438459bda0ecc409e418",
+      "bytes": 5804
+    },
+    {
+      "source": "/workspace/.luci-tools/build-package-next-v1/controls-result.json",
+      "publishedPath": "helpers/build-package-next-v1/controls-result.json",
+      "sha256": "b47738bfeb15fee55f618baea52cf75d1c4e73bc8e6b226cdebd55808cd65c37",
+      "bytes": 1183
+    },
+    {
+      "source": "/workspace/.luci-tools/build-package-next-v1/controls.py",
+      "publishedPath": "helpers/build-package-next-v1/controls.py",
+      "sha256": "e81f991bee124bfbf68a294101cffbae2f4ca27d0efe101749ca6900d8b68104",
+      "bytes": 4765
+    },
+    {
+      "source": "/workspace/.luci-tools/build-package-next-v1/parameterization.patch",
+      "publishedPath": "helpers/build-package-next-v1/parameterization.patch",
+      "sha256": "ca795219a2595c3f960b32a90ac378313969c082f9d01810a5b41886e2bd64eb",
+      "bytes": 5689
+    },
+    {
+      "source": "/workspace/.luci-tools/build-package-next-v1/unchanged-build-inputs.json",
+      "publishedPath": "helpers/build-package-next-v1/unchanged-build-inputs.json",
+      "sha256": "57772ba53f2f0b0ae2092b1ced1d3ef488e0da89b15edc14bc098b99107d1e35",
+      "bytes": 752
+    },
+    {
+      "source": "/workspace/.luci-tools/build-package-next-v1/manifest.json",
+      "publishedPath": "helpers/build-package-next-v1/manifest.json",
+      "sha256": "44a82b98855e8c3d7c82d4b2055dda5fdfe5918d8abbdae18cafd5e659cd2a8f",
+      "bytes": 1161
+    },
+    {
+      "source": "/workspace/.luci-tools/relocate-historical425-v1/README.md",
+      "publishedPath": "helpers/relocate-historical425-v1/README.md",
+      "sha256": "c9fb747491c6073f9552b28d167a3fcb0d13ab4c987f8a1aca89413bad2ef649",
+      "bytes": 3749
+    },
+    {
+      "source": "/workspace/.luci-tools/relocate-historical425-v1/controls-result.json",
+      "publishedPath": "helpers/relocate-historical425-v1/controls-result.json",
+      "sha256": "5cbf5a837a0855d406bfbc1cf7919d0e786f0dc1d51136ce99bdebb7a53cd72f",
+      "bytes": 701
+    },
+    {
+      "source": "/workspace/.luci-tools/relocate-historical425-v1/controls-syntax-attempt1.json",
+      "publishedPath": "helpers/relocate-historical425-v1/controls-syntax-attempt1.json",
+      "sha256": "9781fbb1d8d5f95292c636e4f8f63a5ea066d93b566725a08b15a14f0350ddb2",
+      "bytes": 261
+    },
+    {
+      "source": "/workspace/.luci-tools/relocate-historical425-v1/controls.original-syntax.py",
+      "publishedPath": "helpers/relocate-historical425-v1/controls.original-syntax.py",
+      "sha256": "46a65bc136f1903ba2b80ba401acab3c0ed654bc208c19b35eacfed38098bfb6",
+      "bytes": 3507
+    },
+    {
+      "source": "/workspace/.luci-tools/relocate-historical425-v1/controls.py",
+      "publishedPath": "helpers/relocate-historical425-v1/controls.py",
+      "sha256": "19c29fc4a27733f2e06af6842bea6357440d52fe68fbf0c0ed8c17c323e960b9",
+      "bytes": 3508
+    },
+    {
+      "source": "/workspace/.luci-tools/relocate-historical425-v1/relocate.py",
+      "publishedPath": "helpers/relocate-historical425-v1/relocate.py",
+      "sha256": "5a5335c6d980c4744fbc2c134cef282d4c2c594a771eb5ca170e63d72d8c7f18",
+      "bytes": 7531
+    },
+    {
+      "source": "/workspace/.luci-tools/relocate-historical425-v1/source-review.json",
+      "publishedPath": "helpers/relocate-historical425-v1/source-review.json",
+      "sha256": "e999025e741a375fa108623a7b3858cbe53a6688dc90cef9769d7b0c5a8fff2c",
+      "bytes": 2961
+    },
+    {
+      "source": "/workspace/.luci-tools/relocate-historical425-v1/manifest.json",
+      "publishedPath": "helpers/relocate-historical425-v1/manifest.json",
+      "sha256": "23550b36faefaaa0aa0b7a39452da67520655794517e3371f84a324c94afb70a",
+      "bytes": 1163
+    },
+    {
+      "source": "/workspace/.luci-tools/build-package-next-v1/first-candidate-refusal.json",
+      "publishedPath": "receipts/first-candidate-refusal.json",
+      "sha256": "5778f10f1558411ed84c70ca7ec41a51799fdf611f9c8be6a4efffe6a29d0137",
+      "bytes": 499
+    },
+    {
+      "source": "/workspace/.luci-tools/post-29931-package-cache-clean.json",
+      "publishedPath": "storage/post-package-cache-clean.json",
+      "sha256": "e57f0fa607dfd4871fa3ccf868bfa51a2aa63459394d61f91e2e60428c204a98",
+      "bytes": 533
+    },
+    {
+      "source": "/workspace/.luci-tools/historical425-relocation-operation-20261009-root1/001-intent.json",
+      "publishedPath": "storage/older425-operation/001-intent.json",
+      "sha256": "e1ef79856af7b272353babef2276d4c6a4757408ff1942511efbffd806920709",
+      "bytes": 2136
+    },
+    {
+      "source": "/workspace/.luci-tools/historical425-relocation-operation-20261009-root1/002-copy-verified.json",
+      "publishedPath": "storage/older425-operation/002-copy-verified.json",
+      "sha256": "9e0b130f8048d7ed5c15b69c81b6b9799f5812f887629c6cbd959139cfeb81ea",
+      "bytes": 549
+    },
+    {
+      "source": "/workspace/.luci-tools/historical425-relocation-operation-20261009-root1/003-link-intent.json",
+      "publishedPath": "storage/older425-operation/003-link-intent.json",
+      "sha256": "1766d05c5e65646cd9dbdee8ca0be3bfe9a637efce723339abe8f1dc2b28fe13",
+      "bytes": 419
+    },
+    {
+      "source": "/workspace/.luci-tools/historical425-relocation-operation-20261009-root1/004-linked.json",
+      "publishedPath": "storage/older425-operation/004-linked.json",
+      "sha256": "9a0d6124b90d2f4f0f75b99db9d47a805385497ec04f7d6933b6ef317b33c5df",
+      "bytes": 229
+    },
+    {
+      "source": "/workspace/.luci-tools/historical425-relocation-operation-20261009-root1/005-link-intent.json",
+      "publishedPath": "storage/older425-operation/005-link-intent.json",
+      "sha256": "0ce8ec3a8bbdfc8dde8b2ca0a69ba3bae9dca2270b4c19464952dcb742573b1c",
+      "bytes": 409
+    },
+    {
+      "source": "/workspace/.luci-tools/historical425-relocation-operation-20261009-root1/006-linked.json",
+      "publishedPath": "storage/older425-operation/006-linked.json",
+      "sha256": "1206baed847c539e6625455e6c91beec8c67994d413e3446791a82f906d1e61f",
+      "bytes": 224
+    },
+    {
+      "source": "/workspace/.luci-tools/historical425-relocation-operation-20261009-root1/007-final.json",
+      "publishedPath": "storage/older425-operation/007-final.json",
+      "sha256": "41fbd7ebea346d495795fd1b7fdd7b49f1f37871edc52025363e6fcd22698f0a",
+      "bytes": 1188
+    },
+    {
+      "source": "/workspace/.luci-tools/runtime-archive-7e1b1f608cfa/receipt.json",
+      "publishedPath": "storage/historical-archive-references/runtime-archive-7e1b1f608cfa.json",
+      "sha256": "1cb69860e6d206238565220164d3e2f1e19412814de4453b9b307c3e04143c93",
+      "bytes": 5081
+    },
+    {
+      "source": "/workspace/.luci-tools/runtime-archive-1f845cfd2b45/receipt.json",
+      "publishedPath": "storage/historical-archive-references/runtime-archive-1f845cfd2b45.json",
+      "sha256": "a8e164024cf84d8bfcb90f8693964ba8ee5b53dddb8f02bc857ede707a6d5860",
+      "bytes": 5724
+    },
+    {
+      "source": "/workspace/luci/artifacts/releases/0.5.0/release-manifest.json",
+      "publishedPath": "release/release-manifest.json",
+      "sha256": "fa68f997a3f1db984b1fd6e6284e3e0d36c11e7ee9148eb977c99cfb095e7b77",
+      "bytes": 696
+    },
+    {
+      "source": "/workspace/luci/artifacts/releases/0.5.0/SHA256SUMS",
+      "publishedPath": "release/SHA256SUMS",
+      "sha256": "d760db7caf3fa21ad8991a5771aa42f68b53defe8d3482048a3be146219dc1d8",
+      "bytes": 186
+    },
+    {
+      "source": "/workspace/.luci-tools/verify-local-package.py",
+      "publishedPath": "helpers/verify-local-package.py",
+      "sha256": "b7985ac8f7687a3da9e232a20319c49f900bd8c8015c4bdc41a005f467ed4a8c",
+      "bytes": 2246
+    },
+    {
+      "source": "/workspace/.luci-tools/publish-package-29931afc/README.prepared.md",
+      "publishedPath": "README.md",
+      "sha256": "07f62be1014fc96bf4828311dfae97cceb28eb309b82e261badc3f3e02589061",
+      "bytes": 4050
+    },
+    {
+      "source": "/workspace/.luci-tools/publish-package-29931afc/REPRODUCE.prepared.md",
+      "publishedPath": "REPRODUCE.md",
+      "sha256": "891a1c6b9f22dfece46eb90fe8fa7839c5c927293c5baf4fb9ac54da5c6f3c91",
+      "bytes": 1797
+    },
+    {
+      "source": "/workspace/.luci-tools/publish-package-29931afc/assemble.py",
+      "publishedPath": "assemble.py",
+      "sha256": "a2e199fd96247ecea4bb546825ec7572cb9da8db713d4592c5a78feb6ae8f859",
+      "bytes": 5868
+    }
+  ],
+  "representation": "Exact retained source/report bytes, without private fixture/state/controller logs or archive payloads",
+  "largeObjectsNotReadOrCopied": [
+    "portable/cloud binary archives",
+    "old425/333 runtime archives",
+    "extracted package payload",
+    "Docker/image state"
+  ],
+  "historicalMetadata": "Absolute task-local artifact paths remain in source/receipts as provenance; no raw credential/env dump included."
+}

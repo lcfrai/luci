@@ -1,0 +1,23 @@
+{
+  "wireMonitorAndOriginalReadGatePrefix": {
+    "bytes": 19297,
+    "sha256": "ebd43dff2a8d67b4ca5ff611b10ef761879f85d391e3b9a4aad16c6605d652c2",
+    "byteIdentical": true
+  },
+  "original20SecondStatusSpan": {
+    "bytes": 175,
+    "sha256": "753e20996906ce4b9ae30aa7c87add45d387ddc00d331279e1b0fda38dc63d83",
+    "byteIdentical": true
+  },
+  "admissionFunction": {
+    "bytes": 428,
+    "sha256": "929183ce4149c706e7632dfe36ab50c03dd80365581b890e94f352bec29ee8a0",
+    "byteIdentical": true
+  },
+  "workflowMilliseconds": 480000,
+  "cleanupMilliseconds": 80000,
+  "oldReadGateMilliseconds": 8000,
+  "settlementBudgetMilliseconds": 35000,
+  "newDockerTimeout": "min(existing10000,remaining settlement observation deadline); unchanged when outside wait",
+  "scope": "Source equality and controlled-time observation; synchronous OS/exec reads remain cooperative, not an absolute process preemption claim"
+}

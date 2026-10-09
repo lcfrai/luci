@@ -1,0 +1,6 @@
+{
+  "stage": "compatibility-replacement-pending",
+  "at": "2026-10-09T15:38:10.281016+00:00",
+  "path": "/workspace/.luci-tools/runtime-archive-1f845cfd2b45/old-luci-sandbox-dev.tar.gz",
+  "expectedNlink": 1
+}

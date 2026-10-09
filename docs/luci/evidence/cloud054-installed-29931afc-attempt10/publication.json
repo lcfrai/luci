@@ -1,0 +1,252 @@
+{
+  "version": 1,
+  "productSource": "29931afc5b31ae9b9bd7b8973a7e3fdb840609a3",
+  "overallPassed": false,
+  "scope": "First exit and fresh Restart readiness positives; failed at initial-natural-settlement before any Restart forwarding. Rejected Docker state not retained; one manual reservation persists.",
+  "files": {
+    ".gitattributes": {
+      "sha256": "92c9af22788b7c0f57174d8de461c9e0884938d601b189b8f54c81dbbcaaeea7",
+      "bytes": 104
+    },
+    ".gitignore": {
+      "sha256": "bb7878fdec9fb00a1fd72b236d71f81b8abf2a077e5ceb48ffaf852aa30c73d1",
+      "bytes": 61
+    },
+    "README.md": {
+      "sha256": "35aa22fee5c9f237723b049b96ed6cf3273c125b9882f74ff7f2feecc275617f",
+      "bytes": 6682
+    },
+    "analysis.json": {
+      "sha256": "23e4597a32df4c273e1bcce470cd1885e6ae863e1b763866867ac14d0b26e11e",
+      "bytes": 4454
+    },
+    "assemble.py": {
+      "sha256": "27aa772c4f74544ff216b3ba0e21dffd56486af1ef8965c6e09e139e08fcde51",
+      "bytes": 18225
+    },
+    "closure/independent-closure.json": {
+      "sha256": "c33f3914afec08dccbf3bdf82e854bbf099a9102f413b1d55d2c9b6df5636883",
+      "bytes": 3880
+    },
+    "closure/retained-lease-projection.json": {
+      "sha256": "9e6f41b79787cb827024a45c19b0ef488c1232d01094997c6628239b2e9e31da",
+      "bytes": 892
+    },
+    "original-bindings.json": {
+      "sha256": "c101e21127a353f4e9d7140d91661a19dbeb9c94c2e3e63073e59ae0ed0a22d1",
+      "bytes": 28840
+    },
+    "original-immutability.json": {
+      "sha256": "8d3eb5ee038c6e55bc8842603c9a4c8b7fdf20ecd7c4d45a1ebbfb58c5092317",
+      "bytes": 266
+    },
+    "output-observation-bindings.json": {
+      "sha256": "403679e3d77ed91f14d0396afaebc7ee9c7566cc687a9c31f6a941515b22297c",
+      "bytes": 2104
+    },
+    "privacy-scan.json": {
+      "sha256": "360ca8e2d1294503cf4588ddc1a828cbd013ba1793d1893810c6306fb68c7503",
+      "bytes": 427
+    },
+    "private-state-source-bindings.json": {
+      "sha256": "6b037dc4ca11adde49275f1a5ce03a16ba3aa10aa7de587ee585e008f2cff7aa",
+      "bytes": 1541
+    },
+    "run/before-launch.json": {
+      "sha256": "c613c775e2489c89e14aa89ee53bbce8fd45d9c9a8351dd14db0e99fd731839d",
+      "bytes": 2663
+    },
+    "run/driver/failure.png": {
+      "sha256": "d5df3341a325ea21ba34444dd9f8b4b61863bd409667683b8558a3e7fa4a3c84",
+      "bytes": 181782
+    },
+    "run/driver/first-ended-poll-held.png": {
+      "sha256": "016541807a2dda9a2e3a3c7ffcc64a6f2ad7e4ccb7cd070b10c17dfd4ab25bfe",
+      "bytes": 179568
+    },
+    "run/driver/image-provenance.json": {
+      "sha256": "a6fb7d93c1ce81b726923a155e44a5adbd53ed6da1198bafb76e4a82da009331",
+      "bytes": 35099
+    },
+    "run/driver/package-provenance.json": {
+      "sha256": "5c2870a873d49177863f9a16e0cf366fba41bae80684ceb3c4ddd9732ff6068a",
+      "bytes": 1039
+    },
+    "run/driver/phase-001.json": {
+      "sha256": "beb4af0bd779e3da6d2d5b725df322f3df464a72fb5c5f8b592b98f0f2fd0aff",
+      "bytes": 97
+    },
+    "run/driver/phase-002.json": {
+      "sha256": "652972d602a89aaaf65360d766ff85dc331666d071568f1e9703bf8a6605d23f",
+      "bytes": 93
+    },
+    "run/driver/phase-003.json": {
+      "sha256": "9404cbd7d56c4a72695e6a9ccd12760f109f13495838e76dcc55254aedd58907",
+      "bytes": 2813
+    },
+    "run/driver/phase-004.json": {
+      "sha256": "07a7a9d7983b8d6308ee94c8c45f39efae005c99732eeb30738a5c386d776f04",
+      "bytes": 1344
+    },
+    "run/driver/phase-005.json": {
+      "sha256": "5e5a0419b537ebbe7088f84fd5efb969d6f82bcb2c82ca0a1877f2a2088d474a",
+      "bytes": 206
+    },
+    "run/driver/phase-006.json": {
+      "sha256": "cc7735a258a7c594547e44c508ca676cbf963cce0f8aa09c1d5c460ff74bf361",
+      "bytes": 94
+    },
+    "run/driver/phase-007.json": {
+      "sha256": "8c4dafe9f90392bbca4ea240eff93e63179d570a4fd16c17acf0b87f7938921c",
+      "bytes": 409
+    },
+    "run/driver/phase-008.json": {
+      "sha256": "416308391975982f9f60ac582d1c845a40d7e4d0a5c7ad72bb18d19ac25282ef",
+      "bytes": 98
+    },
+    "run/driver/phase-009.json": {
+      "sha256": "a9460f5f4d2d7019e27b692b91a2e9e06e5646134d0b765c7c084fb06a07d049",
+      "bytes": 117
+    },
+    "run/driver/phase-010.json": {
+      "sha256": "77d055eed1b95f657808daa94e5b566facf9e86b42de9ab04c74b6e7847ee619",
+      "bytes": 405
+    },
+    "run/driver/phase-011.json": {
+      "sha256": "c42a804d0416077605f21795f3d430ebcf92f87cc08d772076b572a3837d8f4c",
+      "bytes": 101
+    },
+    "run/driver/phase-012.json": {
+      "sha256": "312f6e143f5267db6550ca69b4fe27bd9685e028db8313a25bbbe94d16dbcfb3",
+      "bytes": 107
+    },
+    "run/driver/phase-013.json": {
+      "sha256": "7a48718e88bc996232a376f4092a60c41878d6f66761e1d3fb22a4da03515332",
+      "bytes": 111
+    },
+    "run/driver/phase-014.json": {
+      "sha256": "42ca8da4331a1a8d10535fe574331c3dcb8f1d0dad696a62c6abff8e892340e3",
+      "bytes": 202
+    },
+    "run/driver/phase-015.json": {
+      "sha256": "18bb77aef7a39c312a9c72b98359a4a9c1d9c792b8addfdc37c2a1d24ec114a1",
+      "bytes": 797
+    },
+    "run/driver/phase-016.json": {
+      "sha256": "f2931665ec4c67ae489c5b66cd74abbceeaf2b6ef1f88283ed67b7a457cfbc7c",
+      "bytes": 106
+    },
+    "run/driver/phase-017.json": {
+      "sha256": "8b00aca3284f326e185a490a2c7404a8d4d59463d69c80966d22b0f441020a40",
+      "bytes": 104
+    },
+    "run/driver/phase-018.json": {
+      "sha256": "e8fb10e62cad22a4a93a81424f1462539df24133a0de73c156685ccb6465c987",
+      "bytes": 854
+    },
+    "run/driver/phase-019.json": {
+      "sha256": "6b2224a2562ec51eb466ada90135605b22a42571f8719886a62909c6792b4f3d",
+      "bytes": 109
+    },
+    "run/driver/phase-020.json": {
+      "sha256": "0e21a1df2b6299b4b6ab708712787fa7336d718ab833efe360fc60514cfe682e",
+      "bytes": 105
+    },
+    "run/driver/phase-021.json": {
+      "sha256": "c6dd331aa1ccfa670c4aef9d8e920f842acb3f58481a74edf486f4a7ef49165d",
+      "bytes": 119
+    },
+    "run/driver/phase-022.json": {
+      "sha256": "9f390cd7ee3138d5dd75bf303089cd540bf0d454075f689b7ec5b27d2634bf97",
+      "bytes": 53337
+    },
+    "run/driver/phase-023.json": {
+      "sha256": "bad3ef3da30220f26e6ba677ddbd3e36b2228be5569395a0c342dce6648969c3",
+      "bytes": 106
+    },
+    "run/driver/phase-024.json": {
+      "sha256": "705a3d1b30e5bb8d89b46f20342039acb466add61389f010cbc0c4a57d9e0df8",
+      "bytes": 866
+    },
+    "run/driver/phase-025.json": {
+      "sha256": "4b5079297634bb0e2af55081afdf939aceba384f6b4bbf39f705b8024e20f686",
+      "bytes": 114
+    },
+    "run/driver/phase-026.json": {
+      "sha256": "2afc6ea9fae6721bf9a283d3b0b51c41b3d4d5168686b5d133b72ce1c4484684",
+      "bytes": 2037
+    },
+    "run/driver/phase-027.json": {
+      "sha256": "8f217a8a038a867d69a56481c817faecd07b79914f0aee9bc03aba3ac263fa10",
+      "bytes": 1282
+    },
+    "run/driver/phase-028.json": {
+      "sha256": "3d68adf18784ff3300eb136b1638cf4e4f28ae230e490f484188db649643d955",
+      "bytes": 53401
+    },
+    "run/driver/phase-029.json": {
+      "sha256": "e17d5aa12e95e6fcc8b44ab485d01a24eea8142f2a4c3a25d1cd5381aa161386",
+      "bytes": 682
+    },
+    "run/driver/phase-030.json": {
+      "sha256": "945be1135a4380f350229f0b339ef33eda56e8cc6f81f5bd83636d9259ce0f42",
+      "bytes": 2054
+    },
+    "run/driver/result.json": {
+      "sha256": "c2a84773b2fc8a608262c2b7eceac0269153220751db635e5d7d7907f6f0d7e5",
+      "bytes": 153463
+    },
+    "run/driver/result.json.incomplete.json": {
+      "sha256": "195e04dd6428d8f77ff0f6e190747142a2afe4475cbe9d2608d414ab55486331",
+      "bytes": 973
+    },
+    "run/identities.jsonl": {
+      "sha256": "e5c181bb5bea58f1fc3c6cd1c187cd37dff72b2810f4d4ba74f1bb5618166e74",
+      "bytes": 81973
+    },
+    "run/launcher.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "run/launcher.stdout": {
+      "sha256": "078f139263d70f0d7ebb58aee2ef0796b19e543bc2703672338c0d5ee3b37c6b",
+      "bytes": 221
+    },
+    "run/wrapper-result.json": {
+      "sha256": "8657d5a5304a8c95167821990471401d69554d14ae5e8a6ad10e9bf2783b31a6",
+      "bytes": 4975
+    },
+    "runtime-source-bindings.json": {
+      "sha256": "19e5c393e651446fc39f96236b27f99f029e679a6addd21f4e906af4340bf00c",
+      "bytes": 19907
+    },
+    "sources/accepted-harness/check-create-recovery/fixture-guards.mjs": {
+      "sha256": "5bb86009d73cdd158637a716c4a3a348edb30337e9e2a8cd93ebef82773e1b35",
+      "bytes": 11868
+    },
+    "sources/accepted-harness/check-create-recovery/provenance.mjs": {
+      "sha256": "6b41954f56052d167954018018c79f561722a80497856d135d403904bfd9c08e",
+      "bytes": 4889
+    },
+    "sources/accepted-harness/launch-recovery/acceptance-lifecycle.mjs": {
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "bytes": 4176
+    },
+    "sources/accepted-harness/launch-recovery/acceptance-startup.mjs": {
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "bytes": 4637
+    },
+    "sources/accepted-harness/launch.mjs": {
+      "sha256": "b83db056209c27bdc0dac5df9805cdb4c87dee817f0bda5130644261cbad02e5",
+      "bytes": 66718
+    },
+    "sources/accepted-harness/scenario.mjs": {
+      "sha256": "614ec711ba3b69598cbab2724ce90774f65bb1c0772ea66f69021f36eaed4f01",
+      "bytes": 37883
+    },
+    "sources/outer-run.py": {
+      "sha256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49",
+      "bytes": 22954
+    }
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "sharedWaiterBytesIdentical": true,
+  "sharedWaiterSHA256": "69d992208c40db27bf847ab928bd24a5af0aa92ab7d72c90d7cbb0e5087129d4",
+  "coldResponseGateUnchanged": true,
+  "coldResponseGateSHA256": "1577cc88e1601cab735ed5e84567b70afe47f13be09622bfb301adfd7a5ee5e2",
+  "warmLauncherUnchanged": true,
+  "allOuterWrappersUnchanged": true,
+  "historicalRejectedMessageSHA256": "9e7d85ad8bf4a0ac8c37597aff9000a8bce07e8ed8de38d52a9c4e145ae8d9d0",
+  "historicalRejectedDockerState": "unknown; not retained by original receipt",
+  "workloadBudgetsUnchanged": {
+    "warmReadGateMs": 8000,
+    "warmStatusMs": 20000,
+    "naturalSettlementMs": 35000,
+    "workflowMs": 480000,
+    "cleanupMs": 80000
+  },
+  "summary": [
+    {
+      "name": "warm-before",
+      "format": "Node spec reporter raw output (filename suffix .tap retained)",
+      "counts": {
+        "tests": 16,
+        "pass": 5,
+        "fail": 11,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "name": "warm-after",
+      "format": "Node spec reporter raw output (filename suffix .tap retained)",
+      "counts": {
+        "tests": 16,
+        "pass": 16,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "name": "cold-observer-before",
+      "format": "Node spec reporter raw output (filename suffix .tap retained)",
+      "counts": {
+        "tests": 5,
+        "pass": 2,
+        "fail": 3,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "name": "cold-observer-after",
+      "format": "Node spec reporter raw output (filename suffix .tap retained)",
+      "counts": {
+        "tests": 5,
+        "pass": 5,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    }
+  ]
+}

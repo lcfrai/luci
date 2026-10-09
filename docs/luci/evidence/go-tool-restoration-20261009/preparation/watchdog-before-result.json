@@ -1,0 +1,6 @@
+{
+  "exitCode": 1,
+  "expectedFailure": true,
+  "cases": 3,
+  "scope": "Fake child/signals only"
+}

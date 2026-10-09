@@ -1,0 +1,14 @@
+{
+  "Replace": {
+    "/workspace/luci/control-plane/internal/backend/allocation_observation.go": "/workspace/.luci-tools/cloud070-manual-lease-observation/tree/control-plane/internal/backend/allocation_observation.go",
+    "/workspace/luci/control-plane/internal/api/execution_lifecycle_lock.go": "/workspace/.luci-tools/cloud070-manual-lease-observation/tree/control-plane/internal/api/execution_lifecycle_lock.go",
+    "/workspace/luci/control-plane/internal/api/manual_lease_observation.go": "/workspace/.luci-tools/cloud070-manual-lease-observation/tree/control-plane/internal/api/manual_lease_observation.go",
+    "/workspace/luci/control-plane/internal/api/manual_lease_observation_test.go": "/workspace/.luci-tools/cloud070-manual-lease-observation/tree/control-plane/internal/api/manual_lease_observation_test.go",
+    "/workspace/luci/control-plane/internal/api/api.go": "/workspace/.luci-tools/cloud070-manual-lease-observation/tree/control-plane/internal/api/api.go",
+    "/workspace/luci/control-plane/internal/api/manual_lease_liveness_test.go": "/workspace/.luci-tools/cloud070-manual-lease-observation/tree/control-plane/internal/api/manual_lease_liveness_test.go",
+    "/workspace/luci/control-plane/internal/api/sessions.go": "/workspace/.luci-tools/cloud070-manual-lease-observation/tree/control-plane/internal/api/sessions.go",
+    "/workspace/luci/control-plane/internal/api/execution_leases.go": "/workspace/.luci-tools/cloud070-manual-lease-observation/tree/control-plane/internal/api/execution_leases.go",
+    "/workspace/luci/control-plane/internal/backend/dockerbe/allocation_observation.go": "/workspace/.luci-tools/cloud070-manual-lease-observation/tree/control-plane/internal/backend/dockerbe/allocation_observation.go",
+    "/workspace/luci/control-plane/internal/backend/dockerbe/manual_absence_contract_test.go": "/workspace/.luci-tools/cloud070-manual-lease-observation/tree/control-plane/internal/backend/dockerbe/manual_absence_contract_test.go"
+  }
+}

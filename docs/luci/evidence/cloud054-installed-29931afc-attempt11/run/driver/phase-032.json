@@ -1,0 +1,43 @@
+{
+  "kind": "scenario-failure",
+  "step": "initial-natural-settlement",
+  "error": {
+    "name": "Error",
+    "code": null,
+    "messageSHA256": "8fcc3522142fe9c6949f4fe201a94c997e5e1e37463abb4db1c10a3d60d437ec",
+    "messageBytes": 26,
+    "messageRetained": false,
+    "kind": "other"
+  },
+  "gates": [
+    {
+      "entry": {
+        "at": "2026-10-09T15:24:37.503Z",
+        "monotonicMs": 40480.706356,
+        "deadlineMonotonicMs": 48480.706356,
+        "budgetMs": 8000
+      },
+      "at": "2026-10-09T15:24:37.503Z",
+      "monotonicMs": 40480.706356,
+      "deadlineMonotonicMs": 48480.706356,
+      "budgetMs": 8000,
+      "bodyObservedMonotonicMs": 40500.834929,
+      "bodySHA256": "5a54ce3e35513768639485ad2a03a35c949ba5762f282b4808983276a43f9239",
+      "bodyBytes": 642,
+      "session": {
+        "id": "s-0cf36a75",
+        "status": "running",
+        "executionGeneration": "d2dca8630a32ab9f3d5bba6e7437dd907ff522fe06a6776ffb4daf29cbecfc06"
+      },
+      "released": "2026-10-09T15:24:40.588Z",
+      "expired": false,
+      "releasedMonotonicMs": 43565.408985,
+      "settlement": {
+        "attempted": "fulfill",
+        "acknowledged": true,
+        "requestFailed": false
+      }
+    }
+  ],
+  "observedAt": "2026-10-09T15:25:16.579Z"
+}

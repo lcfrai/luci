@@ -1,0 +1,29 @@
+{
+  "closureObservedAt": "2026-10-09T15:17:27.484078+00:00",
+  "independentClosureSHA256": "c33f3914afec08dccbf3bdf82e854bbf099a9102f413b1d55d2c9b6df5636883",
+  "originalPrivateLedger": {
+    "sha256": "785d64d7f24a188779a0ab8fd14147b3b4801e70e213cb2d039fb81e1336935f",
+    "bytes": 498
+  },
+  "lease": {
+    "id": "manual-511299a6",
+    "sessionId": "s-40608ceb",
+    "sandboxId": "s-40608ceb",
+    "projectId": "p-e899c315",
+    "state": "backend-settled",
+    "resources": {
+      "CPUMillis": 1000,
+      "MemoryMiB": 1024
+    }
+  },
+  "counts": {
+    "leases": 1,
+    "checks": 0,
+    "fences": 0,
+    "checkFences": 0
+  },
+  "containerAndVolumeInventoryEmpty": true,
+  "source": "Safe row projection from supported-session-stop phase; exact original ledger hash agrees with independent closure and publication-time bounded hash.",
+  "released": false,
+  "originalStateMutated": false
+}

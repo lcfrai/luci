@@ -1,0 +1,104 @@
+{
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 3589,
+      "sha256": "2e3c59d7090cc068c61a98bd406e2dac41c82f777a923c542671551a5ea12b89"
+    },
+    {
+      "path": "after-attempt1.tap",
+      "bytes": 573,
+      "sha256": "3f6477f8a6aeb0801a29c717ed16f9a82dcdbdac5936107977d7850285b91966"
+    },
+    {
+      "path": "after-final.tap",
+      "bytes": 584,
+      "sha256": "ee116a44318126cabb1a629bb33f45a564de02cb015ffe844f2433235334e627"
+    },
+    {
+      "path": "after.tap",
+      "bytes": 573,
+      "sha256": "3f6477f8a6aeb0801a29c717ed16f9a82dcdbdac5936107977d7850285b91966"
+    },
+    {
+      "path": "before-attempt1.tap",
+      "bytes": 5553,
+      "sha256": "f0ee57209e304685824d8e817b972b8d81cd8ea254d98ce9614e1ba3bdaad0f0"
+    },
+    {
+      "path": "before-final.tap",
+      "bytes": 5370,
+      "sha256": "2aed5f32cd4d7492348dbc29168cf8015617e42f9f7c7bef6da0b0eafa730032"
+    },
+    {
+      "path": "before.tap",
+      "bytes": 5553,
+      "sha256": "f0ee57209e304685824d8e817b972b8d81cd8ea254d98ce9614e1ba3bdaad0f0"
+    },
+    {
+      "path": "constraint-attempt1.test.mjs",
+      "bytes": 7078,
+      "sha256": "de942cc35e578c1313bcc8d0f85bd8a2b3eee818abcdc708ce51b428e5e94dff"
+    },
+    {
+      "path": "constraint.test.mjs",
+      "bytes": 7694,
+      "sha256": "05adb8f4a151bbd8477b7f2a8573c9d6f726dc845b60755b0ce4a8f8af01e4e2"
+    },
+    {
+      "path": "contract-source/control-plane/internal/api/sessions.go",
+      "bytes": 117140,
+      "sha256": "1eface59027a5ca16b076cfc268025b9849ec4a69e42aaa462aaa514f602f99d"
+    },
+    {
+      "path": "contract-source/desktop/src/api/client.ts",
+      "bytes": 24991,
+      "sha256": "e5ca0450d49bef4488401c4401720db315869b7eb04202c8ef5edcb0e4255c4f"
+    },
+    {
+      "path": "launch.mjs",
+      "bytes": 66718,
+      "sha256": "b83db056209c27bdc0dac5df9805cdb4c87dee817f0bda5130644261cbad02e5"
+    },
+    {
+      "path": "outer-run.py",
+      "bytes": 22954,
+      "sha256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49"
+    },
+    {
+      "path": "report.json",
+      "bytes": 909,
+      "sha256": "cfb295b1ba325ecf20e9b090a258e7b0ae38e903d21c8eceb4ed800fe3384382"
+    },
+    {
+      "path": "scenario.mjs",
+      "bytes": 37883,
+      "sha256": "614ec711ba3b69598cbab2724ce90774f65bb1c0772ea66f69021f36eaed4f01"
+    },
+    {
+      "path": "scenario.mjs.diff",
+      "bytes": 9568,
+      "sha256": "aadb61e7680397cd522c0cbe18a1583668579432d9dd36beec760a9f1b97e568"
+    },
+    {
+      "path": "second-release.txt",
+      "bytes": 2648,
+      "sha256": "8f47b77ff709a51ef56e6c7bd602fae8fa98ce66344c417a0df87b8c4d1fc339"
+    },
+    {
+      "path": "source-bindings.json",
+      "bytes": 1098,
+      "sha256": "b6eea94bbf513adf2803ac19db75b3f63dab17de54d905541307ed7be38af46d"
+    },
+    {
+      "path": "upstream/launch.mjs",
+      "bytes": 66718,
+      "sha256": "b83db056209c27bdc0dac5df9805cdb4c87dee817f0bda5130644261cbad02e5"
+    },
+    {
+      "path": "upstream/scenario.mjs",
+      "bytes": 34645,
+      "sha256": "6d46604ccbf1759bf675178b45028d05d242154c75d13aef8e501e78075454ec"
+    }
+  ]
+}

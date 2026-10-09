@@ -1,0 +1,30 @@
+// The client read budget is10s while acknowledged Restart may legitimately wait
+// for a150s Create. Preserve the original8s read gate: settle early when Create
+// is slow and explicitly leave the after-ack ordering gate unexercised.
+export function createBoundedSecondPollRelease({gate,record,health,now=()=>performance.now(),setTimer=setTimeout,clearTimer=clearTimeout}) {
+  const snapshot=gate.snapshot(),deadline=snapshot.deadlineMonotonicMs;
+  assert(Number.isFinite(deadline)&&deadline>now(),'Second read gate has no remaining budget');
+  let releasePromise,releaseReason,releaseRequestedAt,acknowledgedAt=null,attachedAt=null,failure,timer;
+  const releaseOnce=reason=>{
+    if(releasePromise)return releasePromise;
+    releaseReason=reason;releaseRequestedAt=now();clearTimer(timer);
+    releasePromise=(async()=>{try{record({kind:'second-poll-release-requested',reason,releaseRequestedMonotonicMs:releaseRequestedAt,acknowledgedMonotonicMs:acknowledgedAt,attachedMonotonicMs:attachedAt,originalDeadlineMonotonicMs:deadline});health();await gate.release();}catch(error){failure=error;throw error;}})();
+    releasePromise.catch(()=>{});return releasePromise;
+  };
+  // Leave2s within the original8s gate for its existing transport settlement.
+  timer=setTimer(()=>{void releaseOnce('bounded-before-attachment').catch(()=>{});},Math.max(0,deadline-now()-2000));
+  return {
+    acknowledged:()=>{health();if(failure)throw failure;acknowledgedAt=now();},
+    releaseAfterAttachment:async()=>{
+      health();if(failure)throw failure;assert(acknowledgedAt!==null,'Restart acknowledgement required');attachedAt=now();
+      await releaseOnce('after-acknowledged-attachment');if(failure)throw failure;
+      const value=gate.snapshot();assert(value.releasedMonotonicMs!==undefined&&value.expired===false,'Second read settlement unavailable');
+      const exercised=releaseReason==='after-acknowledged-attachment';
+      if(exercised){assert(releaseRequestedAt>=attachedAt);assert(value.releasedMonotonicMs>=acknowledgedAt);}
+      const result={exercised,reason:exercised?'old-response-after-acknowledged-attachment':'slow-or-late-restart-within-longer-create-budget',releaseRequestedMonotonicMs:releaseRequestedAt,releasedMonotonicMs:value.releasedMonotonicMs,acknowledgedMonotonicMs:acknowledgedAt,attachedMonotonicMs:attachedAt,originalDeadlineMonotonicMs:deadline,clientReadBudgetMs:10000,originalGateBudgetMs:8000,transportReserveMs:2000};
+      record({kind:'second-poll-ordering-coverage',...result});return result;
+    },
+    dispose:async()=>{clearTimer(timer);await releaseOnce('scenario-teardown');if(failure)throw failure;},
+  };
+}
+

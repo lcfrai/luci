@@ -1,0 +1,49 @@
+{
+  "sourceSHA256": "8771e5c661745b4cb4bfefc9aea0839f947dec534d3a438459bda0ecc409e418",
+  "originalSHA256": "150b7e999d7238eb765f3025e9e42f904001828e37defdde39e780a937d463f1",
+  "passed": true,
+  "cases": 10,
+  "results": [
+    {
+      "name": "original-fixed-edd0-wrapper-refuses-current5f-before-rename",
+      "passed": true
+    },
+    {
+      "name": "exact5f-to-new-preserves-all-manifest-artifacts-and-source",
+      "passed": true
+    },
+    {
+      "name": "wrong-prior",
+      "passed": true
+    },
+    {
+      "name": "dirty-prior",
+      "passed": true
+    },
+    {
+      "name": "hash-mismatch",
+      "passed": true
+    },
+    {
+      "name": "destination-collision",
+      "passed": true
+    },
+    {
+      "name": "invalid-prior",
+      "passed": true
+    },
+    {
+      "name": "same-source",
+      "passed": true
+    },
+    {
+      "name": "linked-release",
+      "passed": true
+    },
+    {
+      "name": "dirty-current-source-refuses-before-output-or-build",
+      "passed": true
+    }
+  ],
+  "scope": "Disposable fake package/source directories and fake subprocess responses only. No actual package build, release rename, Git mutation, runtime or Docker call."
+}

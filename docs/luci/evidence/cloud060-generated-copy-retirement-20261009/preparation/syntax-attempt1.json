@@ -1,0 +1,7 @@
+{
+  "passed": false,
+  "stage": "AST parse only",
+  "sourceSHA256": "8970a1242275e8f5452b8af5c05a5d2bb4bd3a334208118b89907cb270442cc6",
+  "error": "SyntaxError: expected else after if expression; token else424",
+  "mutations": "None; main never executed"
+}

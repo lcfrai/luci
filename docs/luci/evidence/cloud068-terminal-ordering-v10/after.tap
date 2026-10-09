@@ -1,0 +1,12 @@
+✔ a36s synchronous Create completes warm sequencing while the old-after-ACK ordering remains explicitly open (16.319293ms)
+✔ a fast acknowledged Restart still exercises the strict old-response-after-ACK ordering (4.046271ms)
+✔ a145s Create inside the150s mutation budget does not extend the8s read gate (2.438767ms)
+✔ the full scenario cannot report blanket success while the ordering is open, and completes natural exit before returning (0.64958ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 195.672828

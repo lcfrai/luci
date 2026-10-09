@@ -1,0 +1,83 @@
+✖ a36s synchronous Create completes warm sequencing while the old-after-ACK ordering remains explicitly open (32.631002ms)
+✔ a fast acknowledged Restart still exercises the strict old-response-after-ACK ordering (9.172869ms)
+✖ a145s Create inside the150s mutation budget does not extend the8s read gate (1.881408ms)
+✖ the full scenario and launcher cannot report blanket success while the ordering is open, and complete natural exit before returning (2.467151ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 1
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 360.780893
+
+✖ failing tests:
+
+test at constraint.test.mjs:49:1
+✖ a36s synchronous Create completes warm sequencing while the old-after-ACK ordering remains explicitly open (32.631002ms)
+  AssertionError [ERR_ASSERTION]: ifError got unwanted exception: Absolute read-only gate budget expired: ordering unexercised
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud068-terminal-ordering-v10/constraint.test.mjs:51:9)
+      at Object.expire [as fn] (eval at exercise (file:///workspace/.luci-tools/cloud068-terminal-ordering-v10/constraint.test.mjs:40:20), <anonymous>:14:90)
+      at Clock.next (file:///workspace/.luci-tools/cloud068-terminal-ordering-v10/constraint.test.mjs:15:153)
+      at exercise (file:///workspace/.luci-tools/cloud068-terminal-ordering-v10/constraint.test.mjs:45:81)
+      at async TestContext.<anonymous> (file:///workspace/.luci-tools/cloud068-terminal-ordering-v10/constraint.test.mjs:50:15)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: Error: Absolute read-only gate budget expired: ordering unexercised
+        at Object.expire [as fn] (eval at exercise (file:///workspace/.luci-tools/cloud068-terminal-ordering-v10/constraint.test.mjs:40:20), <anonymous>:14:90)
+        at Clock.next (file:///workspace/.luci-tools/cloud068-terminal-ordering-v10/constraint.test.mjs:15:153)
+        at exercise (file:///workspace/.luci-tools/cloud068-terminal-ordering-v10/constraint.test.mjs:45:81)
+        at async TestContext.<anonymous> (file:///workspace/.luci-tools/cloud068-terminal-ordering-v10/constraint.test.mjs:50:15)
+        at async Test.run (node:internal/test_runner/test:1389:7)
+        at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3),
+    expected: null,
+    operator: 'ifError',
+    diff: 'simple'
+  }
+
+test at constraint.test.mjs:62:1
+✖ a145s Create inside the150s mutation budget does not extend the8s read gate (1.881408ms)
+  AssertionError [ERR_ASSERTION]: ifError got unwanted exception: Absolute read-only gate budget expired: ordering unexercised
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud068-terminal-ordering-v10/constraint.test.mjs:63:45)
+      at Object.expire [as fn] (eval at exercise (file:///workspace/.luci-tools/cloud068-terminal-ordering-v10/constraint.test.mjs:40:20), <anonymous>:14:90)
+      at Clock.next (file:///workspace/.luci-tools/cloud068-terminal-ordering-v10/constraint.test.mjs:15:153)
+      at exercise (file:///workspace/.luci-tools/cloud068-terminal-ordering-v10/constraint.test.mjs:45:81)
+      at async TestContext.<anonymous> (file:///workspace/.luci-tools/cloud068-terminal-ordering-v10/constraint.test.mjs:63:15)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: Error: Absolute read-only gate budget expired: ordering unexercised
+        at Object.expire [as fn] (eval at exercise (file:///workspace/.luci-tools/cloud068-terminal-ordering-v10/constraint.test.mjs:40:20), <anonymous>:14:90)
+        at Clock.next (file:///workspace/.luci-tools/cloud068-terminal-ordering-v10/constraint.test.mjs:15:153)
+        at exercise (file:///workspace/.luci-tools/cloud068-terminal-ordering-v10/constraint.test.mjs:45:81)
+        at async TestContext.<anonymous> (file:///workspace/.luci-tools/cloud068-terminal-ordering-v10/constraint.test.mjs:63:15)
+        at async Test.run (node:internal/test_runner/test:1389:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:960:7),
+    expected: null,
+    operator: 'ifError',
+    diff: 'simple'
+  }
+
+test at constraint.test.mjs:67:1
+✖ the full scenario and launcher cannot report blanket success while the ordering is open, and complete natural exit before returning (2.467151ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud068-terminal-ordering-v10/constraint.test.mjs:71:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

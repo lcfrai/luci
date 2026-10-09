@@ -1,0 +1,5 @@
+{
+  "exitCode": 0,
+  "expectedTests": 4,
+  "scope": "Fake child/signal/write controls only; no app, Docker, archive or actual signal"
+}

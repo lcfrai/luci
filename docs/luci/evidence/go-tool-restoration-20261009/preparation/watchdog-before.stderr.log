@@ -1,0 +1,56 @@
+test_failed_checkpoint_force_path_is_bounded (test_watchdog.Watchdog.test_failed_checkpoint_force_path_is_bounded) ... FAIL
+test_initial_child_checkpoint_failure_still_settles (test_watchdog.Watchdog.test_initial_child_checkpoint_failure_still_settles) ... FAIL
+test_timeout_checkpoint_failure_still_settles (test_watchdog.Watchdog.test_timeout_checkpoint_failure_still_settles) ... FAIL
+
+======================================================================
+FAIL: test_failed_checkpoint_force_path_is_bounded (test_watchdog.Watchdog.test_failed_checkpoint_force_path_is_bounded)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/.luci-tools/go-tool-restore-v1/test_watchdog.py", line 35, in test_failed_checkpoint_force_path_is_bounded
+    proc,writes,signals=self.exercise(3,force=True);self.assertEqual(signals,[(987654,15),(987654,9)]);self.assertEqual(proc.waits,[10,10]);self.assertIsNotNone(proc.returncode)
+                                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: [] != [(987654, 15), (987654, 9)]
+
+Second list contains 2 additional elements.
+First extra element 0:
+(987654, 15)
+
+- []
++ [(987654, 15), (987654, 9)]
+
+======================================================================
+FAIL: test_initial_child_checkpoint_failure_still_settles (test_watchdog.Watchdog.test_initial_child_checkpoint_failure_still_settles)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/.luci-tools/go-tool-restore-v1/test_watchdog.py", line 31, in test_initial_child_checkpoint_failure_still_settles
+    proc,writes,signals=self.exercise(3);self.assertEqual(signals,[(987654,15)]);self.assertEqual(proc.waits,[10]);self.assertIsNotNone(proc.returncode)
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: [] != [(987654, 15)]
+
+Second list contains 1 additional elements.
+First extra element 0:
+(987654, 15)
+
+- []
++ [(987654, 15)]
+
+======================================================================
+FAIL: test_timeout_checkpoint_failure_still_settles (test_watchdog.Watchdog.test_timeout_checkpoint_failure_still_settles)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/.luci-tools/go-tool-restore-v1/test_watchdog.py", line 33, in test_timeout_checkpoint_failure_still_settles
+    proc,writes,signals=self.exercise(4);self.assertEqual(signals,[(987654,15)]);self.assertEqual(proc.waits,[400,10]);self.assertIsNotNone(proc.returncode)
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: [] != [(987654, 15)]
+
+Second list contains 1 additional elements.
+First extra element 0:
+(987654, 15)
+
+- []
++ [(987654, 15)]
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.011s
+
+FAILED (failures=3)

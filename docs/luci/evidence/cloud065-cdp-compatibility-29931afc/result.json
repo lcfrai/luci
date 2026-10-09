@@ -1,0 +1,309 @@
+{
+  "started": "2026-10-09T15:15:07.350Z",
+  "scope": "Disposable loopback HTTP plus actual Chromium CDP compatibility only; no Luci, Docker, provider or product acceptance.",
+  "browser": "/usr/bin/chromium",
+  "scenarioSHA256": "fa316a25f91f223ea5cba6fe5cb424c67139062af4f52ff4e2516ce57004f4b1",
+  "checks": [
+    {
+      "name": "release: authentic body held after one guarded forward",
+      "passed": true,
+      "at": "2026-10-09T15:15:08.295Z"
+    },
+    {
+      "name": "release: independent GET proceeds while POST response held",
+      "passed": true,
+      "at": "2026-10-09T15:15:08.317Z"
+    },
+    {
+      "name": "release: exact response delivered once and gate detached",
+      "passed": true,
+      "at": "2026-10-09T15:15:08.394Z"
+    },
+    {
+      "name": "dispose-held: authentic body held after one guarded forward",
+      "passed": true,
+      "at": "2026-10-09T15:15:08.573Z"
+    },
+    {
+      "name": "dispose-held: independent GET proceeds while POST response held",
+      "passed": true,
+      "at": "2026-10-09T15:15:08.598Z"
+    },
+    {
+      "name": "dispose-held: exact response delivered once and gate detached",
+      "passed": true,
+      "at": "2026-10-09T15:15:08.615Z"
+    }
+  ],
+  "events": [
+    {
+      "mode": "release",
+      "kind": "restart-response-gate-entered",
+      "observation": {
+        "kind": "restart-response-gate",
+        "mode": "real-CDP-response-stage",
+        "budgetMs": 8000,
+        "entered": {
+          "wall": "2026-10-09T15:15:08.286Z",
+          "monotonicMs": 1746.910697,
+          "deadlineMonotonicMs": 9746.910697
+        },
+        "body": null,
+        "settlement": {
+          "attempted": null,
+          "acknowledged": false
+        },
+        "disposed": false
+      },
+      "failure": null
+    },
+    {
+      "mode": "release",
+      "kind": "restart-response-authentic-body-held",
+      "observation": {
+        "kind": "restart-response-gate",
+        "mode": "real-CDP-response-stage",
+        "budgetMs": 8000,
+        "entered": {
+          "wall": "2026-10-09T15:15:08.286Z",
+          "monotonicMs": 1746.910697,
+          "deadlineMonotonicMs": 9746.910697
+        },
+        "body": {
+          "status": 200,
+          "bytes": 170,
+          "sha256": "b00614177c6203f47197fd9c88ae65f42c6c2805067a536725a6929abcce3736",
+          "sessionJSONSHA256": "b00614177c6203f47197fd9c88ae65f42c6c2805067a536725a6929abcce3736",
+          "session": {
+            "id": "s-1234abcd",
+            "projectId": "p-5678abcd",
+            "status": "running",
+            "executionGeneration": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        },
+        "settlement": {
+          "attempted": null,
+          "acknowledged": false
+        },
+        "disposed": false
+      },
+      "failure": null
+    },
+    {
+      "mode": "release",
+      "kind": "restart-response-gate-settled",
+      "observation": {
+        "kind": "restart-response-gate",
+        "mode": "real-CDP-response-stage",
+        "budgetMs": 8000,
+        "entered": {
+          "wall": "2026-10-09T15:15:08.286Z",
+          "monotonicMs": 1746.910697,
+          "deadlineMonotonicMs": 9746.910697
+        },
+        "body": {
+          "status": 200,
+          "bytes": 170,
+          "sha256": "b00614177c6203f47197fd9c88ae65f42c6c2805067a536725a6929abcce3736",
+          "sessionJSONSHA256": "b00614177c6203f47197fd9c88ae65f42c6c2805067a536725a6929abcce3736",
+          "session": {
+            "id": "s-1234abcd",
+            "projectId": "p-5678abcd",
+            "status": "running",
+            "executionGeneration": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        },
+        "settlement": {
+          "attempted": "Fetch.continueResponse",
+          "acknowledged": true
+        },
+        "disposed": false
+      },
+      "failure": null
+    },
+    {
+      "mode": "release",
+      "kind": "restart-response-gate-disposed",
+      "observation": {
+        "kind": "restart-response-gate",
+        "mode": "real-CDP-response-stage",
+        "budgetMs": 8000,
+        "entered": {
+          "wall": "2026-10-09T15:15:08.286Z",
+          "monotonicMs": 1746.910697,
+          "deadlineMonotonicMs": 9746.910697
+        },
+        "body": {
+          "status": 200,
+          "bytes": 170,
+          "sha256": "b00614177c6203f47197fd9c88ae65f42c6c2805067a536725a6929abcce3736",
+          "sessionJSONSHA256": "b00614177c6203f47197fd9c88ae65f42c6c2805067a536725a6929abcce3736",
+          "session": {
+            "id": "s-1234abcd",
+            "projectId": "p-5678abcd",
+            "status": "running",
+            "executionGeneration": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        },
+        "settlement": {
+          "attempted": "Fetch.continueResponse",
+          "acknowledged": true
+        },
+        "disposed": true
+      },
+      "failure": null
+    },
+    {
+      "mode": "dispose-held",
+      "kind": "restart-response-gate-entered",
+      "observation": {
+        "kind": "restart-response-gate",
+        "mode": "real-CDP-response-stage",
+        "budgetMs": 8000,
+        "entered": {
+          "wall": "2026-10-09T15:15:08.560Z",
+          "monotonicMs": 2020.223058,
+          "deadlineMonotonicMs": 10020.223058
+        },
+        "body": null,
+        "settlement": {
+          "attempted": null,
+          "acknowledged": false
+        },
+        "disposed": false
+      },
+      "failure": null
+    },
+    {
+      "mode": "dispose-held",
+      "kind": "restart-response-authentic-body-held",
+      "observation": {
+        "kind": "restart-response-gate",
+        "mode": "real-CDP-response-stage",
+        "budgetMs": 8000,
+        "entered": {
+          "wall": "2026-10-09T15:15:08.560Z",
+          "monotonicMs": 2020.223058,
+          "deadlineMonotonicMs": 10020.223058
+        },
+        "body": {
+          "status": 200,
+          "bytes": 170,
+          "sha256": "b00614177c6203f47197fd9c88ae65f42c6c2805067a536725a6929abcce3736",
+          "sessionJSONSHA256": "b00614177c6203f47197fd9c88ae65f42c6c2805067a536725a6929abcce3736",
+          "session": {
+            "id": "s-1234abcd",
+            "projectId": "p-5678abcd",
+            "status": "running",
+            "executionGeneration": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        },
+        "settlement": {
+          "attempted": null,
+          "acknowledged": false
+        },
+        "disposed": false
+      },
+      "failure": null
+    },
+    {
+      "mode": "dispose-held",
+      "kind": "restart-response-gate-settled",
+      "observation": {
+        "kind": "restart-response-gate",
+        "mode": "real-CDP-response-stage",
+        "budgetMs": 8000,
+        "entered": {
+          "wall": "2026-10-09T15:15:08.560Z",
+          "monotonicMs": 2020.223058,
+          "deadlineMonotonicMs": 10020.223058
+        },
+        "body": {
+          "status": 200,
+          "bytes": 170,
+          "sha256": "b00614177c6203f47197fd9c88ae65f42c6c2805067a536725a6929abcce3736",
+          "sessionJSONSHA256": "b00614177c6203f47197fd9c88ae65f42c6c2805067a536725a6929abcce3736",
+          "session": {
+            "id": "s-1234abcd",
+            "projectId": "p-5678abcd",
+            "status": "running",
+            "executionGeneration": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        },
+        "settlement": {
+          "attempted": "Fetch.continueResponse",
+          "acknowledged": true
+        },
+        "disposed": false
+      },
+      "failure": null
+    },
+    {
+      "mode": "dispose-held",
+      "kind": "restart-response-gate-disposed",
+      "observation": {
+        "kind": "restart-response-gate",
+        "mode": "real-CDP-response-stage",
+        "budgetMs": 8000,
+        "entered": {
+          "wall": "2026-10-09T15:15:08.560Z",
+          "monotonicMs": 2020.223058,
+          "deadlineMonotonicMs": 10020.223058
+        },
+        "body": {
+          "status": 200,
+          "bytes": 170,
+          "sha256": "b00614177c6203f47197fd9c88ae65f42c6c2805067a536725a6929abcce3736",
+          "sessionJSONSHA256": "b00614177c6203f47197fd9c88ae65f42c6c2805067a536725a6929abcce3736",
+          "session": {
+            "id": "s-1234abcd",
+            "projectId": "p-5678abcd",
+            "status": "running",
+            "executionGeneration": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        },
+        "settlement": {
+          "attempted": "Fetch.continueResponse",
+          "acknowledged": true
+        },
+        "disposed": true
+      },
+      "failure": null
+    }
+  ],
+  "cleanup": {
+    "browserCloseAcknowledged": true,
+    "httpClosed": true,
+    "forcedExactTerm": [],
+    "knownProcesses": [
+      {
+        "pid": 2478510,
+        "startTicks": "30497661",
+        "state": "S",
+        "final": "absent",
+        "finalState": null
+      },
+      {
+        "pid": 2478526,
+        "startTicks": "30497675",
+        "state": "S",
+        "final": "zombie",
+        "finalState": "Z"
+      },
+      {
+        "pid": 2478528,
+        "startTicks": "30497675",
+        "state": "S",
+        "final": "zombie",
+        "finalState": "Z"
+      }
+    ],
+    "live": 0,
+    "zombies": 2
+  },
+  "passed": true,
+  "posts": 2,
+  "guardedForwards": 2,
+  "finished": "2026-10-09T15:15:09.284Z",
+  "elapsedMs": 1934
+}

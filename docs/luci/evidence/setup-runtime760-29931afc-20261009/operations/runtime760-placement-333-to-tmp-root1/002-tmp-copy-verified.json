@@ -1,0 +1,17 @@
+{
+  "stage": "tmp-copy-verified",
+  "at": "2026-10-09T15:39:03.492280+00:00",
+  "originalMetadata": {
+    "dev": 27,
+    "ino": 545278,
+    "mode": 384,
+    "uid": 1000,
+    "gid": 1000,
+    "bytes": 1013367768,
+    "blocksBytes": 1013374976,
+    "nlink": 2,
+    "mtimeNs": 1791479257875448347
+  },
+  "copy": "/tmp/luci-retained-tools/.copy-historical-runtime-333eff-7caf7aab.tar.gz-runtime760-placement-333-to-tmp-root1",
+  "sha256": "7caf7aab012cd4a5bf2ace5c8a2e12e617b4afbaef20f6b3db64586a24e9fcf3"
+}

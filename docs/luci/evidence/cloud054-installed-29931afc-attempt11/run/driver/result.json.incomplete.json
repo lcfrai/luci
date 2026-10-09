@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "passed": false,
+  "status": "cleanup-incomplete",
+  "stage": "terminal-scenario",
+  "failure": {
+    "name": "Error",
+    "code": "ETIMEDOUT",
+    "message": "spawnSync docker ETIMEDOUT"
+  },
+  "pendingMutations": [],
+  "knownController": {
+    "pid": 2481680,
+    "start": "30551128",
+    "parent": 2481494,
+    "status": "R"
+  },
+  "knownContainers": [
+    {
+      "id": "e8dd6c0f38af35a5f8c0e8b22756e5434c85aae1fe00e3bf55e7e4814e24d556",
+      "sandboxId": "s-0cf36a75",
+      "sessionId": "s-0cf36a75",
+      "instanceId": "315b2837-d357-4067-b345-e6c4f2ba49eb",
+      "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+      "name": "/luci-s-0cf36a75",
+      "status": "removing",
+      "pid": 0,
+      "created": "2026-10-09T15:24:02.99960762Z",
+      "startedAt": "2026-10-09T15:24:31.784533847Z",
+      "memoryBytes": 1073741824,
+      "cpuNano": 1000000000,
+      "pidsLimit": 256
+    }
+  ]
+}

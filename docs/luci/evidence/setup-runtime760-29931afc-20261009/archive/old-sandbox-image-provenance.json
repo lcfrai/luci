@@ -1,0 +1,69 @@
+{
+  "retainedImage": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+  "tag": "luci/sandbox:dev",
+  "sourceCommit": "c4400f11736e923617a93e8e86803f15d7187bef",
+  "entrypointSHA256": "c3d925a1b08874079c44820cbc70e50fa370c4af26ecddfbb656687a04eebe3a",
+  "sandboxdSHA256": "5c850eea4b3c5b8f13e71a0d142ce69e1b9aff5faae09974a0ba20027a1b2298",
+  "entrypointMode": "0755",
+  "config": {
+    "Cmd": null,
+    "Entrypoint": [
+      "/usr/local/bin/entrypoint.sh"
+    ],
+    "Env": [
+      "PATH=/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+      "NODE_VERSION=24.21.0",
+      "YARN_VERSION=1.22.22"
+    ],
+    "ExposedPorts": {
+      "8080/tcp": {}
+    },
+    "Labels": null,
+    "OnBuild": null,
+    "User": "dev",
+    "Volumes": null,
+    "WorkingDir": "/home/dev"
+  },
+  "archive": "/workspace/.luci-tools/luci-sandbox-dev.tar.gz",
+  "archiveSHA256": "7caf7aab012cd4a5bf2ace5c8a2e12e617b4afbaef20f6b3db64586a24e9fcf3",
+  "gzipVerified": true,
+  "dockerLoadVerified": false,
+  "scope": "Exact clean c440 installed two-worker scripted continuation: native exits, automatic report/review visibility, retained-source checkpoint, restart, reviewed integration and independent fixture check. No live-model, sustained performance, Windows, full-product or fresh-daemon restoration claim. Full upstream Dockerfile rebuild and docker load of this new archive are not exercised.",
+  "runtimeEvidence": "/workspace/luci/artifacts/quality-swarm/continuation-c4400f11-attempt3/result/result.json",
+  "verifiedAt": "2026-10-08T17:08:17.772333+00:00",
+  "providerBaseProvenance": {
+    "sourceImage": "sha256:252a9d4085d02797f2edb95390ab6135542c65306ec7c2c8f69a34e9d783954c",
+    "flatImage": "sha256:9e0fd9f731408c4405c4b9e97308bf807c8088cf521a138c0b1921667a831351",
+    "configPreserved": true,
+    "config": {
+      "Cmd": null,
+      "Entrypoint": [
+        "/usr/local/bin/entrypoint.sh"
+      ],
+      "Env": [
+        "PATH=/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "NODE_VERSION=24.21.0",
+        "YARN_VERSION=1.22.22"
+      ],
+      "ExposedPorts": {
+        "8080/tcp": {}
+      },
+      "Labels": null,
+      "OnBuild": null,
+      "User": "dev",
+      "Volumes": null,
+      "WorkingDir": "/home/dev"
+    },
+    "filesystemExportSHA256": "d6b024dc076b491eb43e58c3e02fd5a9bfc6158e53f89c8d6e94d17bc52a5045",
+    "entrypointSHA256": "4e3650aa74b6f91ce8543b5418c2be9a32aad51434652fba8fb1bbddf7b7bcc9",
+    "entrypointModeBefore": "0711",
+    "entrypointModeAfter": "0755",
+    "filesystemChange": "Only entrypoint mode changed; bytes preserved. Export/import removes layer history.",
+    "originalArchiveSHA256": "84dbd6326002cc38dc2013562fa8febb3a7a1fcd22f5c171c629b64b06fb9551",
+    "flatArchiveSHA256": "b2c00bff3ef3623ce7ad83bc596ca400028293003c93c4963e4fe8fe67bd7f96",
+    "flatSandboxProbePassed": true
+  },
+  "archiveManifestVerified": true,
+  "candidateEvidence": "/workspace/.luci-tools/sandbox-candidate-20261008T140025Z-a4a2e82b/receipt.json",
+  "previousProvenance": "/workspace/.luci-tools/runtime-archive-1f845cfd2b45/old-sandbox-image-provenance.json"
+}

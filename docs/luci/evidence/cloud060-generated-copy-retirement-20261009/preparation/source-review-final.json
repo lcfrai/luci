@@ -1,0 +1,51 @@
+{
+  "status": "no_blocking_residual_found_in_requested_scope",
+  "scope": "Narrow source-only recheck of two reported fixes and unchanged deletion boundaries. No tests or operation executed by this reviewer.",
+  "sourceSHA256": "b50fdde1a24745da33b72c970bf0cc606065b095994a17c710acbbc3acfa39a4",
+  "proofSHA256": "cbab4651da95badd8f04ea40153587ae92790d3b2ac831a8a197de2b0903bce4",
+  "originalReviewSHA256": "b49cb20988064389c4773e0041bdf259db11bb615436d33f850be2ff86af34e6",
+  "corrections": [
+    {
+      "id": "RETIRE-REVIEW-001",
+      "scope": "stage registration precedes link transition; rename and both directory syncs are inside try; restore_link handles either holding+own-link or already-restored original, refuses foreign replacement, and outer rollback retains failures.",
+      "reviewed": "addressed"
+    },
+    {
+      "id": "RETIRE-REVIEW-002",
+      "scope": "cmdline/exe/cwd sampled separately; successful values retained despite later permission/disappearance failures; hits are refused before the exact-unknown allowlist.",
+      "reviewed": "addressed"
+    }
+  ],
+  "retainedControls": [
+    {
+      "path": "failure-controls-original.json",
+      "sha256": "41f416e5ce5618a8e5ac561b0124cae40b8969bc5c3d2f9acccf700710b273ff",
+      "sourceSHA256": "e7d82dac50c82a57d4e243348866a910f4d0a478acd1c02969592ce21fd1cb5b",
+      "cases": 3,
+      "passed": 0,
+      "failed": 3
+    },
+    {
+      "path": "failure-controls-fixed.json",
+      "sha256": "8fbbe28f27b1544105eacb5816498c3a015e13cec93de6147f6aa1d6ef610e3f",
+      "sourceSHA256": "b50fdde1a24745da33b72c970bf0cc606065b095994a17c710acbbc3acfa39a4",
+      "cases": 3,
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "path": "controls-result.json",
+      "sha256": "f1a4feff0b7a055df3ae58eb64808bb6bc800f45607dc4919d8bcacc51ac57bb",
+      "sourceSHA256": "b50fdde1a24745da33b72c970bf0cc606065b095994a17c710acbbc3acfa39a4",
+      "passed": true,
+      "cases": 7
+    }
+  ],
+  "preservedBoundary": "Three pinned v1/v2/v3 luci+web payloads only; v4/reference/archive/receipts/caches/home/tmp/fixtures/evidence excluded. No changed unlink or global deletion scope found.",
+  "limitations": [
+    "180 seconds remains cooperative between filesystem calls, not preemption of blocking I/O.",
+    "Root-controlled no-launch coordination and separately known-run closure remain required; process observation is cmdline/exe/cwd only, with exact known unreadable identities, not whole-machine inactivity proof.",
+    "Any failure after unlink_started remains explicitly partial/uncertain; no automatic original-inode restoration claim.",
+    "Controlled failure receipts establish their listed tiny scenarios only. Real retirement/result, physical reclamation and post-operation verification remain unexecuted in this review."
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "at": "2026-10-09T14:49:27.672594+00:00",
+  "source": "/workspace/.luci-tools/runtime-archive-7e1b1f608cfa/verified-luci-sandbox-dev.tar.gz",
+  "temporary": "/workspace/.luci-tools/runtime-archive-7e1b1f608cfa/verified-luci-sandbox-dev.tar.gz.linking-historical425-relocation-operation-20261009-root1",
+  "target": "/tmp/luci-retained-tools/historical-runtime-42597a-c593f37e.tar.gz",
+  "expectedCurrentNlink": 2
+}

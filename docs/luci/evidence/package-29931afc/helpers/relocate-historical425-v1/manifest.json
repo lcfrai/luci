@@ -1,0 +1,41 @@
+{
+  "preparationOnly": true,
+  "realArchiveHashOrRelocationExecuted": false,
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "c9fb747491c6073f9552b28d167a3fcb0d13ab4c987f8a1aca89413bad2ef649",
+      "bytes": 3749
+    },
+    {
+      "path": "controls-result.json",
+      "sha256": "5cbf5a837a0855d406bfbc1cf7919d0e786f0dc1d51136ce99bdebb7a53cd72f",
+      "bytes": 701
+    },
+    {
+      "path": "controls-syntax-attempt1.json",
+      "sha256": "9781fbb1d8d5f95292c636e4f8f63a5ea066d93b566725a08b15a14f0350ddb2",
+      "bytes": 261
+    },
+    {
+      "path": "controls.original-syntax.py",
+      "sha256": "46a65bc136f1903ba2b80ba401acab3c0ed654bc208c19b35eacfed38098bfb6",
+      "bytes": 3507
+    },
+    {
+      "path": "controls.py",
+      "sha256": "19c29fc4a27733f2e06af6842bea6357440d52fe68fbf0c0ed8c17c323e960b9",
+      "bytes": 3508
+    },
+    {
+      "path": "relocate.py",
+      "sha256": "5a5335c6d980c4744fbc2c134cef282d4c2c594a771eb5ca170e63d72d8c7f18",
+      "bytes": 7531
+    },
+    {
+      "path": "source-review.json",
+      "sha256": "e999025e741a375fa108623a7b3858cbe53a6688dc90cef9769d7b0c5a8fff2c",
+      "bytes": 2961
+    }
+  ]
+}

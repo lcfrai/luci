@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "scope": "Prepared Go restoration and disposable controls; no actual restoration executed.",
+  "preservedOriginalWatchdog": {
+    "path": "/workspace/.luci-tools/go-tool-restore-review-preserved/run-pre-settlement.py",
+    "sha256": "92576b750bd59f69efe67d8aef4df2f923ce1d2c4b09f6181b487dbda082dc43"
+  },
+  "members": [
+    {
+      "path": "README.md",
+      "bytes": 4430,
+      "sha256": "dac3d8b4c1c00b6048b160155ada51bf4fbd78718eb2ea2e6db7e8f3c78a1e56"
+    },
+    {
+      "path": "controlled-result.json",
+      "bytes": 162,
+      "sha256": "22bfa133cef30b408659275bd4662c21e4405da735b615284eb2194cdffd00e0"
+    },
+    {
+      "path": "controlled.stderr.log",
+      "bytes": 1313,
+      "sha256": "8faa7b6f2ed8f89b8e73b44579ed234486aef8648550500cb556da306a2c6023"
+    },
+    {
+      "path": "controlled.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "operation_common.py",
+      "bytes": 8291,
+      "sha256": "1863d7908931bfd4463b73139a550930a3f3092ce0408a707411c2726956478c"
+    },
+    {
+      "path": "restore_go.py",
+      "bytes": 5761,
+      "sha256": "993c530c77a53bbe13d1cab9b3e9210a8f2aeac3d35d7ea83be7b3663d03aec3"
+    },
+    {
+      "path": "run.py",
+      "bytes": 5924,
+      "sha256": "f606da6f6674d30cbd492c6de487fc8d3e3ae23b92c2d180bbf6eef264fb23f1"
+    },
+    {
+      "path": "test_restore.py",
+      "bytes": 6012,
+      "sha256": "7b3c97cc71f2bdeb8fd71603de94fd2ee35ddeb8859e9131111b6c832e53a323"
+    },
+    {
+      "path": "test_watchdog.py",
+      "bytes": 2620,
+      "sha256": "83c2ccc3fdb7f65e28d91a59202e31adcb5da65bff8da869d3f8d84d7104fac9"
+    },
+    {
+      "path": "tree_support.py",
+      "bytes": 9424,
+      "sha256": "a86951497592b707ff2b157cf4c6e193180f18eedf5af42e09f98994242a3f78"
+    },
+    {
+      "path": "watchdog-before-result.json",
+      "bytes": 99,
+      "sha256": "f08fc50e37feb167aba1b61a967ba95a86164e1dd74f27f6c8693aab5a5e2d78"
+    },
+    {
+      "path": "watchdog-before.stderr.log",
+      "bytes": 3046,
+      "sha256": "a39781cb5aa88df8112325a91e6cc0479b7224a97fda9a9d776e67d79c0a570b"
+    },
+    {
+      "path": "watchdog-before.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "watchdog-fixed-result.json",
+      "bytes": 100,
+      "sha256": "38381364b78c823d32720845cd6d5ebf8dde42194719eda0038af6f7ea472e2e"
+    },
+    {
+      "path": "watchdog-fixed.stderr.log",
+      "bytes": 480,
+      "sha256": "4490c09f8f2b39c205d585fb87b655da5e915e0145ec43d53de9871859077f6d"
+    },
+    {
+      "path": "watchdog-fixed.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

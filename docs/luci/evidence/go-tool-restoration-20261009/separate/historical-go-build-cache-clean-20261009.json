@@ -1,0 +1,19 @@
+{
+  "at": "2026-10-09T14:56:59.748820+00:00",
+  "command": [
+    "go",
+    "clean",
+    "-cache"
+  ],
+  "GOCACHE": "/tmp/luci-retained-tools/go-build",
+  "exitCode": 0,
+  "freeBefore": {
+    "/workspace": 7637749760,
+    "/tmp": 1401249792
+  },
+  "freeAfter": {
+    "/workspace": 7637749760,
+    "/tmp": 1985839104
+  },
+  "scope": "Separately verified standard task build-cache path; not module/toolchain/fixture/evidence/fuzz corpus or active current cache. No live Go/compiler observed."
+}

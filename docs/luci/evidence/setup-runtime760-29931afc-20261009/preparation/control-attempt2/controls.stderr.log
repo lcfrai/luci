@@ -1,0 +1,13 @@
+test_final_floor_math_requires_old333_step (test_controls.Bounds.test_final_floor_math_requires_old333_step) ... ok
+test_output_cap_refuses_before_extra_bytes (test_controls.Bounds.test_output_cap_refuses_before_extra_bytes) ... ok
+test_same_export_guard_plus_output (test_controls.Bounds.test_same_export_guard_plus_output) ... ok
+test_settlement_waits_are_bounded (test_controls.Bounds.test_settlement_waits_are_bounded) ... ok
+test_unexpected_settlement_error_is_explicit (test_controls.Bounds.test_unexpected_settlement_error_is_explicit) ... ok
+test_333_refuses_before_publication_identity (test_controls.Placement.test_333_refuses_before_publication_identity) ... ok
+test_425_roundtrip_exact_bytes_aliases_protected (test_controls.Placement.test_425_roundtrip_exact_bytes_aliases_protected) ... ok
+test_wrong_original_bytes_refuse (test_controls.Placement.test_wrong_original_bytes_refuse) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.029s
+
+OK

@@ -1,0 +1,15 @@
+{
+  "status": "changes_required",
+  "scope": "Read-only initial watchdog review; no runtime, signals, control tests or Go-tree hashes. Underlying restore source review remains separately scoped.",
+  "source": "/workspace/.luci-tools/go-tool-restore-v1/run.py",
+  "sourceSHA256": "92576b750bd59f69efe67d8aef4df2f923ce1d2c4b09f6181b487dbda082dc43",
+  "finding": {
+    "id": "GO-RESTORE-WATCHDOG-001",
+    "severity": "blocker",
+    "trigger": "Post-Popen or timeout checkpoint journal write/fsync raises while restoration child still runs.",
+    "actual": "Exception handler only attempts another save then rethrows; no finally/exception child settlement.",
+    "expected": "Bounded own-child/group settlement independent of checkpoint persistence success; forced/incomplete/error remains failed and retained.",
+    "whyRelevant": "The helper performs storage mutations; a receipt-I/O failure must not abandon those mutations without the prepared wall watchdog."
+  },
+  "additionalScope": "Leader wait is not an independent descendant census. A timed/forced path must not claim complete tree cleanup from only leader settlement; preserve explicit uncertainty if unavailable."
+}

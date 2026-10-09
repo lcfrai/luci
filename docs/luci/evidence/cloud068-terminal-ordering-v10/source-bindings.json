@@ -1,0 +1,28 @@
+{
+  "contractInputs": [
+    {
+      "path": "control-plane/internal/api/sessions.go",
+      "commit": "29931afc5b31ae9b9bd7b8973a7e3fdb840609a3",
+      "sha256": "1eface59027a5ca16b076cfc268025b9849ec4a69e42aaa462aaa514f602f99d",
+      "bytes": 117140
+    },
+    {
+      "path": "desktop/src/api/client.ts",
+      "commit": "29931afc5b31ae9b9bd7b8973a7e3fdb840609a3",
+      "sha256": "e5ca0450d49bef4488401c4401720db315869b7eb04202c8ef5edcb0e4255c4f",
+      "bytes": 24991
+    }
+  ],
+  "firstGateThrough20sStatusAndC067SettlementUnchanged": {
+    "sha256": "08e51e34bfb0ad7237db7276a0a80d6b27db0928ec5e59192da7fef51d6b44b2",
+    "bytes": 3544
+  },
+  "exactReadGate8sSourceUnchanged": {
+    "sha256": "122bc57ed75dc138322931621285d2b8c8ba1ad501bb670706cd3450178a991c",
+    "bytes": 5282
+  },
+  "launcherByteIdenticalC067v9": true,
+  "launcherSHA256": "b83db056209c27bdc0dac5df9805cdb4c87dee817f0bda5130644261cbad02e5",
+  "wrapperSHA256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49",
+  "finalFixtureSHA256": "05adb8f4a151bbd8477b7f2a8573c9d6f726dc845b60755b0ce4a8f8af01e4e2"
+}

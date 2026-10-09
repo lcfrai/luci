@@ -1,0 +1,250 @@
+✖ unchanged status check precedes exact natural cleanup, then old-poll gate and unchanged six-GiB admission (6.455809ms)
+✔ the unchanged disk floor still refuses after fully proven cleanup if unrelated space remains low (1.009281ms)
+✖ foreign immutable container refuses before creating the stale-read gate or forwarding Restart (1.431828ms)
+✖ changed image refuses before creating the stale-read gate or forwarding Restart (0.600866ms)
+✖ changed instance refuses before creating the stale-read gate or forwarding Restart (0.428656ms)
+✖ unknown daemon state refuses before creating the stale-read gate or forwarding Restart (0.515958ms)
+✖ unavailable ledger refuses before creating the stale-read gate or forwarding Restart (0.891193ms)
+✖ missing held-state arrays refuses before creating the stale-read gate or forwarding Restart (2.865789ms)
+✖ foreign held lease refuses before creating the stale-read gate or forwarding Restart (1.305217ms)
+✖ unsettled launch fence refuses before creating the stale-read gate or forwarding Restart (0.863641ms)
+✖ missing charge while container remains refuses before creating the stale-read gate or forwarding Restart (0.654596ms)
+✖ changed registry allocation refuses before creating the stale-read gate or forwarding Restart (0.777722ms)
+✖ exact owned charge without container stays pending and bounded; never released or bypassed by helper (0.720817ms)
+✖ exact stopped container and charge stay pending until bounded refusal without force cleanup (0.767386ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 1
+ℹ fail 13
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 338.267045
+
+✖ failing tests:
+
+test at sequence.test.mjs:35:1
+✖ unchanged status check precedes exact natural cleanup, then old-poll gate and unchanged six-GiB admission (6.455809ms)
+  AssertionError [ERR_ASSERTION]: ifError got unwanted exception: Six GiB fixture root floor
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud067-terminal-settlement-v9/sequence.test.mjs:37:9)
+      at admission (eval at run (file:///workspace/.luci-tools/cloud067-terminal-settlement-v9/sequence.test.mjs:28:18), <anonymous>:3:50)
+      at run (file:///workspace/.luci-tools/cloud067-terminal-settlement-v9/sequence.test.mjs:30:50)
+      at async TestContext.<anonymous> (file:///workspace/.luci-tools/cloud067-terminal-settlement-v9/sequence.test.mjs:36:15)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: AssertionError [ERR_ASSERTION]: Six GiB fixture root floor
+        at admission (eval at run (file:///workspace/.luci-tools/cloud067-terminal-settlement-v9/sequence.test.mjs:28:18), <anonymous>:3:50)
+        at run (file:///workspace/.luci-tools/cloud067-terminal-settlement-v9/sequence.test.mjs:30:50)
+        at async TestContext.<anonymous> (file:///workspace/.luci-tools/cloud067-terminal-settlement-v9/sequence.test.mjs:36:15)
+        at async Test.run (node:internal/test_runner/test:1389:7)
+        at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3),
+    expected: null,
+    operator: 'ifError',
+    diff: 'simple'
+  }
+
+test at sequence.test.mjs:59:4
+✖ foreign immutable container refuses before creating the stale-read gate or forwarding Restart (1.431828ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /ownership changed/. Input:
+  
+  ''
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud067-terminal-settlement-v9/sequence.test.mjs:61:41)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: /ownership changed/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at sequence.test.mjs:59:4
+✖ changed image refuses before creating the stale-read gate or forwarding Restart (0.600866ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /ownership changed/. Input:
+  
+  ''
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud067-terminal-settlement-v9/sequence.test.mjs:61:41)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: /ownership changed/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at sequence.test.mjs:59:4
+✖ changed instance refuses before creating the stale-read gate or forwarding Restart (0.428656ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /ownership changed/. Input:
+  
+  ''
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud067-terminal-settlement-v9/sequence.test.mjs:61:41)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: /ownership changed/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at sequence.test.mjs:59:4
+✖ unknown daemon state refuses before creating the stale-read gate or forwarding Restart (0.515958ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /state unconfirmed/. Input:
+  
+  ''
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud067-terminal-settlement-v9/sequence.test.mjs:61:41)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: /state unconfirmed/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at sequence.test.mjs:59:4
+✖ unavailable ledger refuses before creating the stale-read gate or forwarding Restart (0.891193ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Ledger unavailable/. Input:
+  
+  ''
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud067-terminal-settlement-v9/sequence.test.mjs:61:41)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: /Ledger unavailable/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at sequence.test.mjs:59:4
+✖ missing held-state arrays refuses before creating the stale-read gate or forwarding Restart (2.865789ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Incomplete held-resource/. Input:
+  
+  ''
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud067-terminal-settlement-v9/sequence.test.mjs:61:41)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: /Incomplete held-resource/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at sequence.test.mjs:59:4
+✖ foreign held lease refuses before creating the stale-read gate or forwarding Restart (1.305217ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Unrelated or changed charge/. Input:
+  
+  ''
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud067-terminal-settlement-v9/sequence.test.mjs:61:41)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: /Unrelated or changed charge/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at sequence.test.mjs:59:4
+✖ unsettled launch fence refuses before creating the stale-read gate or forwarding Restart (0.863641ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Unsettled launch fence/. Input:
+  
+  ''
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud067-terminal-settlement-v9/sequence.test.mjs:61:41)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: /Unsettled launch fence/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at sequence.test.mjs:59:4
+✖ missing charge while container remains refuses before creating the stale-read gate or forwarding Restart (0.654596ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /expected charge/. Input:
+  
+  ''
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud067-terminal-settlement-v9/sequence.test.mjs:61:41)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: /expected charge/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at sequence.test.mjs:59:4
+✖ changed registry allocation refuses before creating the stale-read gate or forwarding Restart (0.777722ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Expected values to be strictly equal/. Input:
+  
+  ''
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud067-terminal-settlement-v9/sequence.test.mjs:61:41)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: /Expected values to be strictly equal/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at sequence.test.mjs:64:1
+✖ exact owned charge without container stays pending and bounded; never released or bypassed by helper (0.720817ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /cleanup remains unconfirmed/. Input:
+  
+  ''
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud067-terminal-settlement-v9/sequence.test.mjs:66:41)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: /cleanup remains unconfirmed/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at sequence.test.mjs:69:1
+✖ exact stopped container and charge stay pending until bounded refusal without force cleanup (0.767386ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /cleanup remains unconfirmed/. Input:
+  
+  ''
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud067-terminal-settlement-v9/sequence.test.mjs:71:41)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: /cleanup remains unconfirmed/,
+    operator: 'match',
+    diff: 'simple'
+  }

@@ -1,0 +1,22 @@
+✔ unchanged status check precedes exact natural cleanup, then old-poll gate and unchanged six-GiB admission (13.312073ms)
+✔ the unchanged disk floor still refuses after fully proven cleanup if unrelated space remains low (2.22273ms)
+✔ foreign immutable container refuses before creating the stale-read gate or forwarding Restart (1.587953ms)
+✔ changed image refuses before creating the stale-read gate or forwarding Restart (1.367211ms)
+✔ changed instance refuses before creating the stale-read gate or forwarding Restart (0.47732ms)
+✔ unknown daemon state refuses before creating the stale-read gate or forwarding Restart (0.691011ms)
+✔ unavailable ledger refuses before creating the stale-read gate or forwarding Restart (1.605239ms)
+✔ missing held-state arrays refuses before creating the stale-read gate or forwarding Restart (0.746164ms)
+✔ foreign held lease refuses before creating the stale-read gate or forwarding Restart (2.217062ms)
+✔ unsettled launch fence refuses before creating the stale-read gate or forwarding Restart (1.350335ms)
+✔ missing charge while container remains refuses before creating the stale-read gate or forwarding Restart (0.949581ms)
+✔ changed registry allocation refuses before creating the stale-read gate or forwarding Restart (0.585282ms)
+✔ exact owned charge without container stays pending and bounded; never released or bypassed by helper (16.290863ms)
+✔ exact stopped container and charge stay pending until bounded refusal without force cleanup (11.015862ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 820.7998

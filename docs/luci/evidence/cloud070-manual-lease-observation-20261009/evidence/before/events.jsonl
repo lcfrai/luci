@@ -1,0 +1,9 @@
+{"Time":"2026-10-09T15:48:55.740233641Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/api"}
+{"Time":"2026-10-09T15:48:55.80133121Z","Action":"run","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestManualLeaseBackgroundReopenRetiresConfirmedAbsenceWithoutAdmission"}
+{"Time":"2026-10-09T15:48:55.801377329Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestManualLeaseBackgroundReopenRetiresConfirmedAbsenceWithoutAdmission","Output":"=== RUN   TestManualLeaseBackgroundReopenRetiresConfirmedAbsenceWithoutAdmission\n"}
+{"Time":"2026-10-09T15:49:01.833606429Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestManualLeaseBackgroundReopenRetiresConfirmedAbsenceWithoutAdmission","Output":"    manual_lease_liveness_test.go:133: confirmed-absent manual reservation stayed charged without a new admission\n"}
+{"Time":"2026-10-09T15:49:01.838401066Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestManualLeaseBackgroundReopenRetiresConfirmedAbsenceWithoutAdmission","Output":"--- FAIL: TestManualLeaseBackgroundReopenRetiresConfirmedAbsenceWithoutAdmission (6.04s)\n"}
+{"Time":"2026-10-09T15:49:01.839753219Z","Action":"fail","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestManualLeaseBackgroundReopenRetiresConfirmedAbsenceWithoutAdmission","Elapsed":6.04}
+{"Time":"2026-10-09T15:49:01.844094678Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Output":"FAIL\n"}
+{"Time":"2026-10-09T15:49:01.852049718Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Output":"FAIL\tgithub.com/lcfrai/luci/control-plane/internal/api\t6.111s\n"}
+{"Time":"2026-10-09T15:49:01.852167856Z","Action":"fail","Package":"github.com/lcfrai/luci/control-plane/internal/api","Elapsed":6.112}

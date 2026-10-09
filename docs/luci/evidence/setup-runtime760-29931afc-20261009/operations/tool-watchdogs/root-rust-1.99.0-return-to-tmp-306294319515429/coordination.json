@@ -1,0 +1,30 @@
+{
+  "version": 2,
+  "scope": "cloud054-exclusive-tools",
+  "exclusive": true,
+  "activeOperations": [],
+  "bootID": "7842f7cb-c15d-43b4-bffc-65ba7e3140f2",
+  "monotonicNS": 306294325131716,
+  "expiresMonotonicNS": 306894325131716,
+  "ownerPID": 2488386,
+  "ownerStartTicks": "30629417",
+  "acceptedUnknownProcesses": [
+    {
+      "pid": 203,
+      "startTicks": "1521"
+    },
+    {
+      "pid": 254,
+      "startTicks": "1534"
+    },
+    {
+      "pid": 260700,
+      "startTicks": "2331192"
+    }
+  ],
+  "operationSources": {
+    "operation_common.py": "ff414e7be81a069bfb7a08eab0a73f826e4dc731596049324812dbfc70a1aa39",
+    "relocate_tools.py": "a86951497592b707ff2b157cf4c6e193180f18eedf5af42e09f98994242a3f78"
+  },
+  "limits": "Operator tool window; exact unreadable dockerd/containerd/gpg identities remain unobserved. No universal inactivity or right to inspect their environments/signal them. All known task compilers/tool users are stopped."
+}

@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "operation": "relocate-exact-task-tool",
+  "passed": false,
+  "startedAt": "2026-10-09T15:28:41.079828+00:00",
+  "sourceBefore": {
+    "/workspace/.luci-tools/cloud054-runtime-operations-v2/relocate_tools.py": "a86951497592b707ff2b157cf4c6e193180f18eedf5af42e09f98994242a3f78",
+    "/workspace/.luci-tools/cloud054-runtime-operations-v2/operation_common.py": "ff414e7be81a069bfb7a08eab0a73f826e4dc731596049324812dbfc70a1aa39"
+  },
+  "steps": [
+    {
+      "number": 1,
+      "stage": "created",
+      "at": "2026-10-09T15:28:41.080136+00:00"
+    }
+  ],
+  "stage": "created"
+}

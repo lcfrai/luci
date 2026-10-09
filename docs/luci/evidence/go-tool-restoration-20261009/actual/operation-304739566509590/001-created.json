@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "operation": "restore-exact-go-to-real-workspace",
+  "passed": false,
+  "startedAt": "2026-10-09T15:11:10.412093+00:00",
+  "sourceBefore": {
+    "/workspace/.luci-tools/go-tool-restore-v1/operation_common.py": "1863d7908931bfd4463b73139a550930a3f3092ce0408a707411c2726956478c",
+    "/workspace/.luci-tools/go-tool-restore-v1/restore_go.py": "993c530c77a53bbe13d1cab9b3e9210a8f2aeac3d35d7ea83be7b3663d03aec3",
+    "/workspace/.luci-tools/go-tool-restore-v1/tree_support.py": "a86951497592b707ff2b157cf4c6e193180f18eedf5af42e09f98994242a3f78"
+  },
+  "steps": [
+    {
+      "number": 1,
+      "stage": "created",
+      "at": "2026-10-09T15:11:10.412769+00:00"
+    }
+  ],
+  "stage": "created"
+}

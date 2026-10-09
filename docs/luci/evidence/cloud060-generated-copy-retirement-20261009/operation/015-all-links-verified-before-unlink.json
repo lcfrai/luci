@@ -1,0 +1,7 @@
+{
+  "at": "2026-10-09T14:37:30.928454+00:00",
+  "count": 6,
+  "physicalOriginalsStillPresent": true,
+  "referenceAndArchiveAlreadyByteVerified": true,
+  "warning": "After unlink, original generated copy inode/metadata objects cease to exist; bytes reconstructible from immutable retained package/archive and original metadata retained in proof."
+}

@@ -1,0 +1,11 @@
+{
+  "path": "/workspace/.luci-tools/tool-relocation-20261009T1158/go1.26.3/tree-before.json",
+  "sha256": "50b4a84d580c4b072378c2cea371854fa750c29ef512c634b0282c365a57f242",
+  "entries": 16688,
+  "logicalBytes": 232365810,
+  "observedEqualsPinnedManifest": true,
+  "statBytes": 4334445,
+  "included": false,
+  "independentlyRehashedForPublication": false,
+  "scope": "Original historical manifest SHA and metadata are retained in exact operation receipts and pinned source. This publication did not read/hash the full manifest or Go tree."
+}

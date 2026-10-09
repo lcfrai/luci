@@ -1,0 +1,39 @@
+{
+  "status": "no_blocking_issue_found_in_requested_source_scope",
+  "scope": "Preparation-only source review of three modules, no Go-tree hashing/manifest execution, process scan, test, compiler, app or host relocation. Watchdog and new control receipts not yet part of this source snapshot.",
+  "sources": [
+    {
+      "path": "/workspace/.luci-tools/go-tool-restore-v1/restore_go.py",
+      "sha256": "993c530c77a53bbe13d1cab9b3e9210a8f2aeac3d35d7ea83be7b3663d03aec3",
+      "bytes": 5761
+    },
+    {
+      "path": "/workspace/.luci-tools/go-tool-restore-v1/operation_common.py",
+      "sha256": "1863d7908931bfd4463b73139a550930a3f3092ce0408a707411c2726956478c",
+      "bytes": 8291
+    },
+    {
+      "path": "/workspace/.luci-tools/go-tool-restore-v1/tree_support.py",
+      "sha256": "a86951497592b707ff2b157cf4c6e193180f18eedf5af42e09f98994242a3f78",
+      "bytes": 9424
+    }
+  ],
+  "knownOptionTypo": "Corrected to --quiescence-sha256 in the final reviewed snapshot.",
+  "confirmed": [
+    "Fixed exact original TMP/final real workspace/stage/scratch paths; no generic CLI arguments select arbitrary trees in restore_go.",
+    "Historical manifest SHA and16688-entry/232365810-byte contract required; byte/mode/uid/gid/mtime match, ordinary single-link file/directory restrictions, and source-tree/copy verification precede exchanges.",
+    "Atomic renameat2 exchange under exact same-parent WORK first makes FINAL real; TMP exchange then preserves original compatibility path. Verified copied bytes remain available throughout documented phases.",
+    "Only exact old TMP scratch duplicate is deleted after another pinned manifest and root identity check plus fresh scoped coordination/process observation; descriptor-safe rmtree required.",
+    "Live root owner boot/PID/start, explicit bounded10-minute receipt, exact three-source hashes and exact unknown PID/start allowlist are checked at preflight and subsequent mutation phases. Prior observed busy references win over unreadable fields; no process signals or environment reads.",
+    "Journal source hashes are captured and verified at successful finish; durable copy/exchange/deletion stage receipts precede those operations. Failure retains partial paths and passed=false without implicit rollback.",
+    "Canonical owned fixed paths, fresh private journal directory and exclusive stage/scratch checks prevent overwriting unexpected destination contents."
+  ],
+  "limits": [
+    "Required root runtime floor is6736759858 bytes. Initial check adds logical232365810 bytes plus64MiB; postcopy requires floor+64MiB. Final success requires floor alone, so the working guard can be consumed by later operations. This is stated scope, not perpetual floor+guard proof.",
+    "Copy timeout bounds the cp subprocess only. Manifest hashing, process scans, fsync and deletion are synchronous and need the separately reviewed outer watchdog for a hard elapsed bound.",
+    "Root no-launch/consumer coordination remains essential. Exact accepted unreadable identities do not prove global inactivity, and a snapshot cannot exclude later launch.",
+    "Cross-filesystem inode/ctime/atime are not preserved; tree supports exact bytes/mode/owner/mtime for the pinned ordinary tree. No execution validation of restored Go occurs here.",
+    "tree_support.py retains inherited Rust/PowerShell constants and a direct-execution CLI; restore_go imports selected functions and does not execute that CLI. Only restore_go.py is reviewed as the intended operation entry point.",
+    "Source/manifest guards do not prove current available capacity, actual relocation success, snapshot persistence, saved-runtime export readiness or later Create admission."
+  ]
+}

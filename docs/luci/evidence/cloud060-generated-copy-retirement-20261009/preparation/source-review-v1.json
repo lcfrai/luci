@@ -1,0 +1,52 @@
+{
+  "scope": "Source/proof review only; no retirement/process scan/archive or payload hashing/execution. Root reports known v4 live identities absent; this review does not independently establish process inactivity.",
+  "source": {
+    "path": "/workspace/.luci-tools/cloud060-copy-retirement-plan/retire.py",
+    "sha256": "e7d82dac50c82a57d4e243348866a910f4d0a478acd1c02969592ce21fd1cb5b"
+  },
+  "proof": {
+    "path": "/workspace/.luci-tools/cloud060-copy-retirement-plan/proof.json",
+    "sha256": "cbab4651da95badd8f04ea40153587ae92790d3b2ac831a8a197de2b0903bce4"
+  },
+  "status": "changes_required",
+  "findings": [
+    {
+      "id": "RETIRE-REVIEW-001",
+      "severity": "blocker",
+      "line": 73,
+      "finding": "A partial link transition can fail before the current payload is registered in staged, so outer pre-unlink rollback omits it.",
+      "cases": [
+        "rename succeeds then initial fsyncdir fails",
+        "symlink succeeds then fsyncdir fails; internal catch leaves existing symlink and outer staged lacks entry"
+      ],
+      "required": "Track the current transition before rename and reconcile exact identity/phase on rollback, or fully roll back inside link_payload before propagation. Preserve failed rollback as explicit incomplete rather than claiming restoration."
+    },
+    {
+      "id": "RETIRE-REVIEW-002",
+      "severity": "blocker",
+      "line": 62,
+      "finding": "Previously readable busy references are discarded on a later PermissionError before matched is computed; an explicitly accepted unknown can consequently hide a known reference.",
+      "required": "Accumulate matches immediately after each successful observation; preserve them on later permission/disappearance errors; always refuse busy even for accepted unknown identities."
+    }
+  ],
+  "confirmedBoundaries": {
+    "roots": [
+      "cloud060-package-reuse-5f4a966f",
+      "cloud060-package-reuse-v2-5f4a966f",
+      "cloud060-package-reuse-v3-5f4a966f"
+    ],
+    "payloadOnly": [
+      "luci",
+      "web"
+    ],
+    "deletion": "Manifest-listed ordinary files and known empty directories only; no recursive delete.",
+    "intent": "Durable link/unlink intention before corresponding mutation; failure after unlink_started retains uncertainty and avoids hidden partial repair.",
+    "preservation": "v4 absent from NAMES; proof is hash-pinned and copied roots exact. Receipt/cache/home/tmp/fixture paths not targeted.",
+    "verification": "Reference, candidate and archive bytes are verified before unlink; source-review did not execute verification."
+  },
+  "limits": [
+    "The 180-second budget is cooperative between filesystem reads/operations; blocking open/read/fsync is not preempted by bound().",
+    "Root-coordinated no-launch window remains a prerequisite; cmdline/exe/cwd snapshot is not FD/maps or whole-machine inactivity proof.",
+    "Source assertions do not prove actual operation result or recovered storage bytes."
+  ]
+}

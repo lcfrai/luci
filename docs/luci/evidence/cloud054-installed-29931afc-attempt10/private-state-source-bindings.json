@@ -1,0 +1,37 @@
+{
+  "capturedAt": "2026-10-09T15:24:31.499481+00:00",
+  "fixtureRootSHA256": "5df9b3ffaae036d1418e4fca6c424a0e3fb1dce150ccc786c32491b46d1b679d",
+  "sources": [
+    {
+      "kind": "execution-ledger",
+      "relativePathRepresentation": "state/control-plane/execution/leases.json",
+      "relativePathSHA256": "c410de5a6d3dd1c70a62946d3a8f56dc7ed65e1404aa68310cc7d5834e391acf",
+      "original": {
+        "sha256": "785d64d7f24a188779a0ab8fd14147b3b4801e70e213cb2d039fb81e1336935f",
+        "bytes": 498
+      },
+      "contentExported": false
+    },
+    {
+      "kind": "session-registry",
+      "relativePathRepresentation": "state/sessions/sessions.json",
+      "relativePathSHA256": "bb3ac4a6facc3d94ce9eb2e346981f90558d3325f5d9441ce023e49bd53d1621",
+      "original": {
+        "sha256": "467850391c1508b1514d0e132eb19e11e47689c281ec00dcd04b887e32f1a2d8",
+        "bytes": 1133
+      },
+      "contentExported": false
+    },
+    {
+      "kind": "shell-history",
+      "relativePathRepresentation": "state/conversations/h/[OWNED_SHELL_HOME]/.bash_history",
+      "relativePathSHA256": "eae919b91a946ff65c98f6c91fc6caf24ad9074c3b877a5f5b4236751b4915a0",
+      "original": {
+        "sha256": "092b24ff5ccf9bb11eda3f9cf8e7f1d690c63bc70e336ff55059c78f5fed1a16",
+        "bytes": 205
+      },
+      "contentExported": false
+    }
+  ],
+  "scope": "Three explicitly scoped files hashed after closure, without exporting contents. Ledger hash equals independent closure; no separate output file or unrecorded historical hash time is claimed."
+}

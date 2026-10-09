@@ -1,0 +1,141 @@
+{"Time":"2026-10-09T15:53:51.019644532Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/cmd/api"}
+{"Time":"2026-10-09T15:53:51.117096995Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/cmd/api","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-09T15:53:51.11741503Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/cmd/api","Output":"PASS\n"}
+{"Time":"2026-10-09T15:53:51.732004439Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/api"}
+{"Time":"2026-10-09T15:53:51.791618867Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-09T15:53:51.791689453Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Output":"PASS\n"}
+{"Time":"2026-10-09T15:53:52.121025953Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/cmd/api","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/cmd/api\t1.100s [no tests to run]\n"}
+{"Time":"2026-10-09T15:53:52.121082628Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/cmd/api","Elapsed":1.101}
+{"Time":"2026-10-09T15:53:52.636405441Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/assistance"}
+{"Time":"2026-10-09T15:53:52.650554322Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/assistance","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-09T15:53:52.650616566Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/assistance","Output":"PASS\n"}
+{"Time":"2026-10-09T15:53:52.795388261Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/api\t1.063s [no tests to run]\n"}
+{"Time":"2026-10-09T15:53:52.795441892Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/api","Elapsed":1.064}
+{"Time":"2026-10-09T15:53:53.679311663Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/assistance","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/assistance\t1.040s [no tests to run]\n"}
+{"Time":"2026-10-09T15:53:53.692681025Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/assistance","Elapsed":1.055}
+{"Time":"2026-10-09T15:53:59.131100705Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/backend"}
+{"Time":"2026-10-09T15:53:59.145217636Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/backend","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-09T15:53:59.145467383Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/backend","Output":"PASS\n"}
+{"Time":"2026-10-09T15:53:59.156470472Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/backend/dockerbe"}
+{"Time":"2026-10-09T15:53:59.177851053Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/backend/dockerbe","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-09T15:53:59.178002381Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/backend/dockerbe","Output":"PASS\n"}
+{"Time":"2026-10-09T15:54:00.150168737Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/backend","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/backend\t1.019s [no tests to run]\n"}
+{"Time":"2026-10-09T15:54:00.150729853Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/backend","Elapsed":1.02}
+{"Time":"2026-10-09T15:54:00.184282779Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/backend/dockerbe","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/backend/dockerbe\t1.027s [no tests to run]\n"}
+{"Time":"2026-10-09T15:54:00.18474145Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/backend/dockerbe","Elapsed":1.028}
+{"Time":"2026-10-09T15:54:08.586367163Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/backend/katabe"}
+{"Time":"2026-10-09T15:54:08.647533654Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/backend/katabe","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-09T15:54:08.647675408Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/backend/katabe","Output":"PASS\n"}
+{"Time":"2026-10-09T15:54:08.704482238Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/conversationpath"}
+{"Time":"2026-10-09T15:54:08.735646349Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/conversationpath","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-09T15:54:08.735934613Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/conversationpath","Output":"PASS\n"}
+{"Time":"2026-10-09T15:54:09.654000203Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/backend/katabe","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/backend/katabe\t1.068s [no tests to run]\n"}
+{"Time":"2026-10-09T15:54:09.654114796Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/backend/katabe","Elapsed":1.068}
+{"Time":"2026-10-09T15:54:09.744792891Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/conversationpath","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/conversationpath\t1.040s [no tests to run]\n"}
+{"Time":"2026-10-09T15:54:09.74484492Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/conversationpath","Elapsed":1.04}
+{"Time":"2026-10-09T15:54:10.020544909Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/diagnostics"}
+{"Time":"2026-10-09T15:54:10.03077984Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/diagnostics","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-09T15:54:10.030851598Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/diagnostics","Output":"PASS\n"}
+{"Time":"2026-10-09T15:54:10.17275117Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/gitcommand"}
+{"Time":"2026-10-09T15:54:10.172789388Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/gitcommand","Output":"?   \tgithub.com/lcfrai/luci/control-plane/internal/gitcommand\t[no test files]\n"}
+{"Time":"2026-10-09T15:54:10.172798612Z","Action":"skip","Package":"github.com/lcfrai/luci/control-plane/internal/gitcommand","Elapsed":0}
+{"Time":"2026-10-09T15:54:10.196583851Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/gitfixture"}
+{"Time":"2026-10-09T15:54:10.206749964Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/gitfixture","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-09T15:54:10.206807731Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/gitfixture","Output":"PASS\n"}
+{"Time":"2026-10-09T15:54:11.032879776Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/diagnostics","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/diagnostics\t1.012s [no tests to run]\n"}
+{"Time":"2026-10-09T15:54:11.033022451Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/diagnostics","Elapsed":1.012}
+{"Time":"2026-10-09T15:54:11.213356193Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/gitfixture","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/gitfixture\t1.017s [no tests to run]\n"}
+{"Time":"2026-10-09T15:54:11.213428712Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/gitfixture","Elapsed":1.017}
+{"Time":"2026-10-09T15:54:11.669087962Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/harness"}
+{"Time":"2026-10-09T15:54:11.699069275Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/harness","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-09T15:54:11.699359823Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/harness","Output":"PASS\n"}
+{"Time":"2026-10-09T15:54:11.860621408Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/hostpath"}
+{"Time":"2026-10-09T15:54:12.153787031Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/hostpath","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-09T15:54:12.154868962Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/hostpath","Output":"PASS\n"}
+{"Time":"2026-10-09T15:54:12.710244079Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/harness","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/harness\t1.040s [no tests to run]\n"}
+{"Time":"2026-10-09T15:54:12.711290066Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/harness","Elapsed":1.042}
+{"Time":"2026-10-09T15:54:13.160474091Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/hostpath","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/hostpath\t1.292s [no tests to run]\n"}
+{"Time":"2026-10-09T15:54:13.160531017Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/hostpath","Elapsed":1.301}
+{"Time":"2026-10-09T15:54:13.819089244Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/httpx"}
+{"Time":"2026-10-09T15:54:13.833751158Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/httpx","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-09T15:54:13.833817117Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/httpx","Output":"PASS\n"}
+{"Time":"2026-10-09T15:54:14.43484543Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/ids"}
+{"Time":"2026-10-09T15:54:14.48897875Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/ids","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-09T15:54:14.489061535Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/ids","Output":"PASS\n"}
+{"Time":"2026-10-09T15:54:14.836563524Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/httpx","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/httpx\t1.017s [no tests to run]\n"}
+{"Time":"2026-10-09T15:54:14.836622343Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/httpx","Elapsed":1.018}
+{"Time":"2026-10-09T15:54:14.878968097Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/instance"}
+{"Time":"2026-10-09T15:54:14.915581286Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/instance","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-09T15:54:14.915650951Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/instance","Output":"PASS\n"}
+{"Time":"2026-10-09T15:54:15.490658995Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/ids","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/ids\t1.055s [no tests to run]\n"}
+{"Time":"2026-10-09T15:54:15.49083492Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/ids","Elapsed":1.056}
+{"Time":"2026-10-09T15:54:15.918155007Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/instance","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/instance\t1.039s [no tests to run]\n"}
+{"Time":"2026-10-09T15:54:15.918214677Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/instance","Elapsed":1.039}
+{"Time":"2026-10-09T15:54:23.645344787Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/management"}
+{"Time":"2026-10-09T15:54:23.669373332Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/management","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-09T15:54:23.669514736Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/management","Output":"PASS\n"}
+{"Time":"2026-10-09T15:54:24.054321942Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/platform"}
+{"Time":"2026-10-09T15:54:24.093424738Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/platform","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-09T15:54:24.093548525Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/platform","Output":"PASS\n"}
+{"Time":"2026-10-09T15:54:24.675527209Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/management","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/management\t1.029s [no tests to run]\n"}
+{"Time":"2026-10-09T15:54:24.676206222Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/management","Elapsed":1.031}
+{"Time":"2026-10-09T15:54:25.113008572Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/platform","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/platform\t1.056s [no tests to run]\n"}
+{"Time":"2026-10-09T15:54:25.118515732Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/platform","Elapsed":1.064}
+{"Time":"2026-10-09T15:54:25.346969858Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/previewgateway"}
+{"Time":"2026-10-09T15:54:25.488918108Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/previewgateway","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-09T15:54:25.4908174Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/previewgateway","Output":"PASS\n"}
+{"Time":"2026-10-09T15:54:26.496116942Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/previewgateway","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/previewgateway\t1.148s [no tests to run]\n"}
+{"Time":"2026-10-09T15:54:26.496169521Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/previewgateway","Elapsed":1.149}
+{"Time":"2026-10-09T15:54:46.228665421Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/product"}
+{"Time":"2026-10-09T15:54:46.230305803Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/project"}
+{"Time":"2026-10-09T15:54:46.296538127Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/project","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-09T15:54:46.297107235Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/project","Output":"PASS\n"}
+{"Time":"2026-10-09T15:54:46.37626455Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/product","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-09T15:54:46.376333384Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/product","Output":"PASS\n"}
+{"Time":"2026-10-09T15:54:47.298851152Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/project","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/project\t1.068s [no tests to run]\n"}
+{"Time":"2026-10-09T15:54:47.298998895Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/project","Elapsed":1.069}
+{"Time":"2026-10-09T15:54:47.304212092Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/proxy"}
+{"Time":"2026-10-09T15:54:47.355534195Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/proxy","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-09T15:54:47.355607375Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/proxy","Output":"PASS\n"}
+{"Time":"2026-10-09T15:54:47.382185204Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/product","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/product\t1.151s [no tests to run]\n"}
+{"Time":"2026-10-09T15:54:47.382246666Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/product","Elapsed":1.154}
+{"Time":"2026-10-09T15:54:47.388531108Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/reaper"}
+{"Time":"2026-10-09T15:54:47.41057584Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/reaper","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-09T15:54:47.410736502Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/reaper","Output":"PASS\n"}
+{"Time":"2026-10-09T15:54:48.380784265Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/proxy","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/proxy\t1.073s [no tests to run]\n"}
+{"Time":"2026-10-09T15:54:48.387602161Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/proxy","Elapsed":1.083}
+{"Time":"2026-10-09T15:54:48.409569981Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/registry"}
+{"Time":"2026-10-09T15:54:48.419263677Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/reaper","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/reaper\t1.030s [no tests to run]\n"}
+{"Time":"2026-10-09T15:54:48.420939352Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/reaper","Elapsed":1.032}
+{"Time":"2026-10-09T15:54:48.428208028Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/registry/registrytest"}
+{"Time":"2026-10-09T15:54:48.428390713Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/registry/registrytest","Output":"?   \tgithub.com/lcfrai/luci/control-plane/internal/registry/registrytest\t[no test files]\n"}
+{"Time":"2026-10-09T15:54:48.428521059Z","Action":"skip","Package":"github.com/lcfrai/luci/control-plane/internal/registry/registrytest","Elapsed":0}
+{"Time":"2026-10-09T15:54:48.429508888Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/resourcebudget"}
+{"Time":"2026-10-09T15:54:48.634090315Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/registry","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-09T15:54:48.634773715Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/registry","Output":"PASS\n"}
+{"Time":"2026-10-09T15:54:48.665616521Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/resourcebudget","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-09T15:54:48.665975042Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/resourcebudget","Output":"PASS\n"}
+{"Time":"2026-10-09T15:54:49.634374928Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/registry","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/registry\t1.216s [no tests to run]\n"}
+{"Time":"2026-10-09T15:54:49.634579856Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/registry","Elapsed":1.226}
+{"Time":"2026-10-09T15:54:49.636080293Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/sandbox"}
+{"Time":"2026-10-09T15:54:49.677339343Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/resourcebudget","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/resourcebudget\t1.247s [no tests to run]\n"}
+{"Time":"2026-10-09T15:54:49.677417651Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/resourcebudget","Elapsed":1.248}
+{"Time":"2026-10-09T15:54:49.679269553Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/statelease"}
+{"Time":"2026-10-09T15:54:49.770316219Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/statelease","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-09T15:54:49.770743593Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/statelease","Output":"PASS\n"}
+{"Time":"2026-10-09T15:54:49.847733808Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/sandbox","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-09T15:54:49.847988942Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/sandbox","Output":"PASS\n"}
+{"Time":"2026-10-09T15:54:50.799885739Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/statelease","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/statelease\t1.117s [no tests to run]\n"}
+{"Time":"2026-10-09T15:54:50.806790276Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/statelease","Elapsed":1.1280000000000001}
+{"Time":"2026-10-09T15:54:50.826194677Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/statepath"}
+{"Time":"2026-10-09T15:54:50.859117939Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/sandbox","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/sandbox\t1.222s [no tests to run]\n"}
+{"Time":"2026-10-09T15:54:50.859531923Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/sandbox","Elapsed":1.224}
+{"Time":"2026-10-09T15:54:50.890834537Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/worktree"}
+{"Time":"2026-10-09T15:54:50.926401965Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/statepath","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-09T15:54:50.92731432Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/statepath","Output":"PASS\n"}
+{"Time":"2026-10-09T15:54:51.122232251Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/worktree","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-09T15:54:51.1225835Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/worktree","Output":"PASS\n"}
+{"Time":"2026-10-09T15:54:51.929655892Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/statepath","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/statepath\t1.098s [no tests to run]\n"}
+{"Time":"2026-10-09T15:54:51.929745357Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/statepath","Elapsed":1.104}
+{"Time":"2026-10-09T15:54:52.124879404Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/worktree","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/worktree\t1.232s [no tests to run]\n"}
+{"Time":"2026-10-09T15:54:52.12501584Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/worktree","Elapsed":1.2349999999999999}

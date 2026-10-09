@@ -1,0 +1,30 @@
+{
+  "argv": [
+    "/workspace/.luci-tools/go1.26.3/bin/go",
+    "test",
+    "-c",
+    "-race",
+    "-p",
+    "2",
+    "-overlay=/workspace/.luci-tools/cloud070-manual-lease-observation/overlay.json",
+    "-o",
+    "/workspace/.luci-tools/cloud070-manual-lease-observation/evidence/compiled",
+    "./internal/api",
+    "./internal/backend/dockerbe"
+  ],
+  "cwd": "/workspace/luci/control-plane",
+  "sourceCommit": "29931afc5b31ae9b9bd7b8973a7e3fdb840609a3",
+  "environment": {
+    "GOMAXPROCS": "2",
+    "GOMODCACHE": "/tmp/luci-retained-tools/go-mod",
+    "GOPATH": "/tmp/luci-gopath",
+    "GOCACHE": "/workspace/.luci-tools/c070-go-build-cache",
+    "GOTMPDIR": "/workspace/.t",
+    "TMPDIR": "/workspace/.t",
+    "GOTOOLCHAIN": "local",
+    "GOWORK": "/workspace/.luci-tools/go.work",
+    "GOFLAGS": "-mod=readonly"
+  },
+  "startedAt": 1791561345.969206,
+  "purpose": "Retained compile-only binaries for exact source parity; no test functions executed."
+}

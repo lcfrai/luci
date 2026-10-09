@@ -1,0 +1,9 @@
+test_checkpoint_write_failure_still_settles_known_leader (test_watchdog.Controls.test_checkpoint_write_failure_still_settles_known_leader) ... ok
+test_forced_settlement_has_fixed_wait_budget (test_watchdog.Controls.test_forced_settlement_has_fixed_wait_budget) ... ok
+test_reused_identity_never_signalled (test_watchdog.Controls.test_reused_identity_never_signalled) ... ok
+test_unreadable_identity_remains_unknown_without_signal (test_watchdog.Controls.test_unreadable_identity_remains_unknown_without_signal) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.017s
+
+OK

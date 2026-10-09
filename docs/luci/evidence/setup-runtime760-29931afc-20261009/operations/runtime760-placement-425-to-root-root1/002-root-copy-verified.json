@@ -1,0 +1,17 @@
+{
+  "stage": "root-copy-verified",
+  "at": "2026-10-09T15:30:08.492611+00:00",
+  "originalMetadata": {
+    "dev": 34,
+    "ino": 2909127,
+    "mode": 384,
+    "uid": 1000,
+    "gid": 1000,
+    "bytes": 1013359941,
+    "blocksBytes": 1013362688,
+    "nlink": 1,
+    "mtimeNs": 1791451193648334394
+  },
+  "copy": "/workspace/.luci-tools/runtime-archive-7e1b1f608cfa/.restore425-runtime760-placement-425-to-root-root1",
+  "sha256": "c593f37eaa3795358aa1b76dd355828ddaadfcf503b9a5e3a1aea6976c947c91"
+}

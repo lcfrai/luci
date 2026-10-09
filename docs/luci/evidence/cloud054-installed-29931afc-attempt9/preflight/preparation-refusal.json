@@ -1,0 +1,7 @@
+{
+  "at": "2026-10-09T14:50:01.701294+00:00",
+  "exitCode": 1,
+  "failure": "Missing ordinary private output parent evidence; wrapper private_dir refused before child launch.",
+  "correction": "Create exact parent mode0700; no helper/assertion/budget/product change.",
+  "stage": "outer argument validation; no output directory or owned child created"
+}

@@ -1,0 +1,22 @@
+{
+  "productSource": "29931afc5b31ae9b9bd7b8973a7e3fdb840609a3",
+  "path": "control-plane/internal/api/execution_leases.go",
+  "originalBlob": {
+    "sha256": "539dff31c1c9c06f4f0c6250d392ac5f72a0e52d34bad69bb5e73221ef9f7a3d",
+    "bytes": 28162
+  },
+  "excerpts": [
+    {
+      "firstLine": 238,
+      "lastLine": 286,
+      "text": "func (g *executionAdmission) reconcileOwned(ctx context.Context, ledger *executionLeaseLedger) error {\n\t// One shared bound prevents a backlog of unavailable task backends from\n\t// multiplying network deadlines while admission holds the host ledger.\n\tobserveCtx, cancel := context.WithTimeout(ctx, 2*time.Second)\n\tdefer cancel()\n\tkept := ledger.Leases[:0]\n\tfor _, lease := range ledger.Leases {\n\t\tif lease.Scope == g.scope && lease.SessionID != \"\" {\n\t\t\trow, err := g.api.deps.Store.Get(lease.SessionID)\n\t\t\tif err != nil && !errors.Is(err, registry.ErrNotFound) {\n\t\t\t\treturn err\n\t\t\t}\n\t\t\tif err == nil && row.Status == registry.StatusExited && row.ID == lease.SessionID && row.ProjectID == lease.ProjectID && row.SandboxID == lease.SandboxID && executionLaunchSettled(lease) {\n\t\t\t\trequiresAbsence, ownershipErr := g.api.executionRequiresBackendAbsence(row)\n\t\t\t\tif ownershipErr != nil || requiresAbsence {\n\t\t\t\t\t// Resource inventory covers active workloads, not stopped Docker\n\t\t\t\t\t// objects. Manual tasks have no scheduler Release callback, so\n\t\t\t\t\t// their next admission must also confirm exact removal here.\n\t\t\t\t\tif ownershipErr == nil {\n\t\t\t\t\t\tabsent, err := g.api.exactBackendTerminal(observeCtx, row.SandboxID, true)\n\t\t\t\t\t\tif err == nil && absent {\n\t\t\t\t\t\t\tcontinue\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t\t// Unknown, timed-out and stopped-but-present allocations keep\n\t\t\t\t\t// both capacity and the durable proof for cleanup retries.\n\t\t\t\t\tkept = append(kept, lease)\n\t\t\t\t\tcontinue\n\t\t\t\t}\n\t\t\t\t// Only a fresh backend observation after our last transition can prove\n\t\t\t\t// an exited record has released its actual allocation.\n\t\t\t\tif g.api.deps.ResourceSnapshot != nil {\n\t\t\t\t\tsnap := g.api.deps.ResourceSnapshot()\n\t\t\t\t\tpresent := false\n\t\t\t\t\tfor _, container := range snap.Execution.Containers {\n\t\t\t\t\t\tif container.SandboxID == lease.sandboxID() || container.SandboxID == row.SandboxID {\n\t\t\t\t\t\t\tpresent = true\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t\tif snap.Execution.Fresh(time.Now(), 5*time.Second) && snap.Execution.InventoryComplete && snap.Execution.ObservedAt.After(lease.UpdatedAt) && !present {\n\t\t\t\t\t\tcontinue\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t\tkept = append(kept, lease)\n\t}\n\tledger.Leases = kept\n\treturn nil\n"
+    },
+    {
+      "firstLine": 308,
+      "lastLine": 323,
+      "text": "func (g *executionAdmission) reserveWorker(ctx context.Context, id, projectID, provider string, providerLimit int, actor management.ExecutionActorRef, authority management.ExecutionAuthority, policy product.SwarmSchedulerPolicy, replacement *registry.Session) (executionDecision, error) {\n\tdecision := executionDecision{State: \"waiting\", Code: \"resource_observation_unavailable\", Message: \"Current machine capacity is not available. The task remains queued.\"}\n\tresources := g.api.sessionResources(ctx)\n\tif actor.UserID != \"\" {\n\t\tresources = clampSessionResources(resources, authority.Policy)\n\t}\n\tdecision.Resources = resources\n\tif resources.MemoryMiB < 128 || resources.MemoryMiB > 32768 || resources.CPUMillis < 100 || resources.CPUMillis > 16000 || providerLimit < 1 || providerLimit > 16 || actor.ProjectID != projectID || id == \"\" || len(id) > 200 || len(provider) > 200 || provider == \"\" {\n\t\treturn decision, errors.New(\"worker resource or ownership policy is outside supported execution bounds\")\n\t}\n\tif g.api.deps.ResourceSnapshot == nil {\n\t\treturn decision, nil\n\t}\n\terr := g.mutate(ctx, func(ledger *executionLeaseLedger) error {\n\t\tif err := g.reconcileOwned(ctx, ledger); err != nil {\n\t\t\treturn err\n"
+    }
+  ],
+  "contract": "A later eligible worker admission invokes bounded reconciliation that can remove a same-scope, settled, exited worker lease when the required absence proof is available.",
+  "scope": "Immutable source contract only. A charge held at closure alone does not establish a permanent leak; subsequent admission and release were not observed or performed."
+}

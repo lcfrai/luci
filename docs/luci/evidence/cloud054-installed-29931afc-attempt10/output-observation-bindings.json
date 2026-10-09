@@ -1,0 +1,75 @@
+{
+  "originalResult": {
+    "sha256": "c2a84773b2fc8a608262c2b7eceac0269153220751db635e5d7d7907f6f0d7e5",
+    "bytes": 153463
+  },
+  "typedPhaseObservedAt": "2026-10-09T15:16:28.672Z",
+  "wire": {
+    "stdoutFrames": 69,
+    "stdoutBytes": 411,
+    "markers": {
+      "ready": {
+        "wall": "2026-10-09T15:16:23.734Z",
+        "monotonicMs": 3507.600000023842,
+        "sequence": 68
+      },
+      "body": {
+        "wall": "2026-10-09T15:16:24.029Z",
+        "monotonicMs": 3802.400000035763,
+        "sequence": 69
+      },
+      "first": {
+        "wall": "2026-10-09T15:16:25.820Z",
+        "monotonicMs": 5594.100000023842,
+        "sequence": 70
+      }
+    },
+    "exit": [
+      {
+        "reason": {
+          "kind": "exit-status",
+          "code": 0
+        },
+        "payload": {
+          "bytes": 13,
+          "sha256": "7146fc872b9a9dba5098f80e211bc7a8af3d9b2fbf8a3e5d9447db130fcaa3b2",
+          "knownStaticRepresentation": "exit status 0",
+          "unclassifiedTextRetained": false
+        },
+        "wall": "2026-10-09T15:16:25.821Z",
+        "monotonicMs": 5594.400000035763,
+        "sequence": 71
+      }
+    ],
+    "closed": {
+      "code": 1000,
+      "wasClean": true,
+      "wall": "2026-10-09T15:16:25.830Z",
+      "monotonicMs": 5603.900000035763
+    }
+  },
+  "finalPassiveUI": {
+    "label": "c054-terminal-fixture \u2014 exited",
+    "footer": "/bin/bash \u00b7 0m \u00b7 ended",
+    "overlay": null,
+    "termPresent": true,
+    "restartCount": 1
+  },
+  "screenshots": [
+    {
+      "publishedPath": "run/driver/first-ended-poll-held.png",
+      "original": {
+        "sha256": "016541807a2dda9a2e3a3c7ffcc64a6f2ad7e4ccb7cd070b10c17dfd4ab25bfe",
+        "bytes": 179568
+      }
+    },
+    {
+      "publishedPath": "run/driver/failure.png",
+      "original": {
+        "sha256": "d5df3341a325ea21ba34444dd9f8b4b61863bd409667683b8558a3e7fa4a3c84",
+        "bytes": 181782
+      }
+    }
+  ],
+  "scope": "Bindings to existing output observations/markers/wire and screenshots only; no separate output file claimed. Private shell-history/session contents excluded."
+}

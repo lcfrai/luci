@@ -1,0 +1,15 @@
+test_busy_before_retirement_keeps_duplicate_bytes (test_restore.Restoration.test_busy_before_retirement_keeps_duplicate_bytes) ... ok
+test_busy_reference_even_accepted_unknown_refuses (test_restore.Restoration.test_busy_reference_even_accepted_unknown_refuses) ... ok
+test_changed_byte_refuses_before_copy (test_restore.Restoration.test_changed_byte_refuses_before_copy) ... ok
+test_existing_stage_refuses_without_removal (test_restore.Restoration.test_existing_stage_refuses_without_removal) ... ok
+test_failure_between_exchanges_retains_both_complete_trees (test_restore.Restoration.test_failure_between_exchanges_retains_both_complete_trees) ... ok
+test_hardlink_surprise_refuses (test_restore.Restoration.test_hardlink_surprise_refuses) ... ok
+test_insufficient_root_refuses_before_copy (test_restore.Restoration.test_insufficient_root_refuses_before_copy) ... ok
+test_promotes_real_tree_preserves_tmp_alias_bytes_and_modes (test_restore.Restoration.test_promotes_real_tree_preserves_tmp_alias_bytes_and_modes) ... ok
+test_symlink_surprise_refuses (test_restore.Restoration.test_symlink_surprise_refuses) ... ok
+test_unaccepted_unknown_refuses (test_restore.Restoration.test_unaccepted_unknown_refuses) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 0.072s
+
+OK

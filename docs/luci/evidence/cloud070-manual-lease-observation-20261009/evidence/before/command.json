@@ -1,0 +1,45 @@
+{
+  "argv": [
+    "/workspace/.luci-tools/go1.26.3/bin/go",
+    "test",
+    "-race",
+    "-p",
+    "2",
+    "-count=1",
+    "-timeout=90s",
+    "-json",
+    "-overlay=/workspace/.luci-tools/cloud070-manual-lease-observation/original-overlay.json",
+    "-run",
+    "^TestManualLeaseBackgroundReopenRetiresConfirmedAbsenceWithoutAdmission$",
+    "./internal/api"
+  ],
+  "cwd": "/workspace/luci/control-plane",
+  "sourceCommit": "29931afc5b31ae9b9bd7b8973a7e3fdb840609a3",
+  "startedAt": 1791560835.1455054,
+  "environment": {
+    "GOMAXPROCS": "2",
+    "GOMODCACHE": "/tmp/luci-retained-tools/go-mod",
+    "GOPATH": "/tmp/luci-gopath",
+    "GOCACHE": "/workspace/.luci-tools/c070-go-build-cache",
+    "GOTMPDIR": "/workspace/.t",
+    "TMPDIR": "/workspace/.t",
+    "GOTOOLCHAIN": "local",
+    "GOWORK": "/workspace/.luci-tools/go.work",
+    "GOFLAGS": "-mod=readonly"
+  },
+  "beforeSHA256": {
+    "overlay.json": "970c32868c537c3bea69547086178d784cccae33c62f7790196b9829f957c9ca",
+    "original-overlay.json": "7c474c341e0ed017a1d085e7398a4e1ae67d569713ff82e4ef1531dca158e314",
+    "CLOUD-070.patch": "eff58dfc79fa163956668fbff7bad5b6dc4f877c859d743ea6b5e7c3b8f5bbcf",
+    "tree/control-plane/internal/api/api.go": "32a4d9f8ec00962d5f1f8872de5c1ac56b980ba5e78bd511e66ecbab54f5f79a",
+    "tree/control-plane/internal/api/execution_leases.go": "f1fd3754c57257fe10793523db366e18318b68aba3d0ae9aff93e099cf411487",
+    "tree/control-plane/internal/api/execution_lifecycle_lock.go": "e0c957ecc7ba8aa9002c10663f5c26a8da903e8aaa6849447557479f5405fca2",
+    "tree/control-plane/internal/api/manual_lease_liveness_test.go": "315e4b9849c3560145c8b8f0601a67de77780347c7cb8181943fd1f6ad63af3c",
+    "tree/control-plane/internal/api/manual_lease_observation.go": "9f3e32dc44a80deb8ffda7cad1dbc94533b0d5ccade3747f6ecf88f4c2340c6b",
+    "tree/control-plane/internal/api/manual_lease_observation_test.go": "8912ca6a3224f6ac13394d2b0a6313d2ed78fc8e5f36e2b21dd2fb20929321be",
+    "tree/control-plane/internal/api/sessions.go": "04762d680f6aa03eeff196e027d1a5d58b57a25ab6ffab6e02cb5c9e1aa1c489",
+    "tree/control-plane/internal/backend/allocation_observation.go": "5d55222fb0d6dfc75e986b36cf81006ff43c1e64bb491dfc496346313301d42b",
+    "tree/control-plane/internal/backend/dockerbe/allocation_observation.go": "dc600861675447483b802b4420788b3b06b838c467f2fe2d5de2bf4f105c6f0e",
+    "tree/control-plane/internal/backend/dockerbe/manual_absence_contract_test.go": "ff9dbe916edf7a078fc4e992114dbf994e38f182ea2d6ce28d1dc7146e21fc7d"
+  }
+}

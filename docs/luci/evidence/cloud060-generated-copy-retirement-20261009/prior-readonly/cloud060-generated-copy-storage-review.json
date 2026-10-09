@@ -1,0 +1,121 @@
+{
+  "scope": "Read-only receipt and file metadata. No payload hashes, process/open-reference census, private state/log reads or mutation. Output equivalence is recorded manifest equality, not fresh content verification. st_blocks is accounting, not a reclamation guarantee.",
+  "product": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "retainedReference": "/tmp/luci-retained-tools/package-0.5.0-5f4a966f",
+  "copies": [
+    {
+      "root": "/workspace/.luci-tools/cloud060-package-reuse-5f4a966f",
+      "receiptProduct": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+      "reuse": {
+        "mode": "verified-existing-package",
+        "provenanceSHA256": "2e378e550fa41a68af2477f472c92f6c15cd1bbe4048e453c769db2e08dca8be",
+        "archiveSHA256": "bc7d8b76b76d3c291c651c3f46423f75f7e63f31f49ddde59372fe6de97e6290",
+        "sourceCommit": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+        "sourceDirty": false,
+        "selectedMemberCount": 425,
+        "buildOrigin": "Publisher clean-build statement; exact archive/extracted/copy binary+web bytes independently checked here; no new build executed"
+      },
+      "sameOutputManifestAsV1": true,
+      "commands": [],
+      "sourceStable": true,
+      "payloadRegularFiles": 425,
+      "payloadLogicalBytes": 85812216,
+      "payloadAllocatedBytes": 86740992,
+      "nonregularOrSizeMismatch": [],
+      "hardlinkedFiles": [],
+      "matchesReferenceInode": 0,
+      "extraWebEntries": [],
+      "luciRootMetadata": {
+        "dev": 27,
+        "inode": 534502,
+        "nlink": 1,
+        "mode": "0o700",
+        "symlink": false
+      },
+      "webRootMetadata": {
+        "dev": 27,
+        "inode": 534503,
+        "nlink": 4,
+        "mode": "0o700",
+        "symlink": false
+      }
+    },
+    {
+      "root": "/workspace/.luci-tools/cloud060-package-reuse-v2-5f4a966f",
+      "receiptProduct": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+      "reuse": {
+        "mode": "verified-existing-package",
+        "provenanceSHA256": "2e378e550fa41a68af2477f472c92f6c15cd1bbe4048e453c769db2e08dca8be",
+        "archiveSHA256": "bc7d8b76b76d3c291c651c3f46423f75f7e63f31f49ddde59372fe6de97e6290",
+        "sourceCommit": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+        "sourceDirty": false,
+        "selectedMemberCount": 425,
+        "buildOrigin": "Publisher clean-build statement; exact archive/extracted/copy binary+web bytes independently checked here; no new build executed"
+      },
+      "sameOutputManifestAsV1": true,
+      "commands": [],
+      "sourceStable": true,
+      "payloadRegularFiles": 425,
+      "payloadLogicalBytes": 85812216,
+      "payloadAllocatedBytes": 86740992,
+      "nonregularOrSizeMismatch": [],
+      "hardlinkedFiles": [],
+      "matchesReferenceInode": 0,
+      "extraWebEntries": [],
+      "luciRootMetadata": {
+        "dev": 27,
+        "inode": 535316,
+        "nlink": 1,
+        "mode": "0o700",
+        "symlink": false
+      },
+      "webRootMetadata": {
+        "dev": 27,
+        "inode": 535317,
+        "nlink": 4,
+        "mode": "0o700",
+        "symlink": false
+      }
+    },
+    {
+      "root": "/workspace/.luci-tools/cloud060-package-reuse-v3-5f4a966f",
+      "receiptProduct": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+      "reuse": {
+        "mode": "verified-existing-package",
+        "provenanceSHA256": "2e378e550fa41a68af2477f472c92f6c15cd1bbe4048e453c769db2e08dca8be",
+        "archiveSHA256": "bc7d8b76b76d3c291c651c3f46423f75f7e63f31f49ddde59372fe6de97e6290",
+        "sourceCommit": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+        "sourceDirty": false,
+        "selectedMemberCount": 425,
+        "buildOrigin": "Publisher clean-build statement; exact archive/extracted/copy binary+web bytes independently checked here; no new build executed"
+      },
+      "sameOutputManifestAsV1": true,
+      "commands": [],
+      "sourceStable": true,
+      "payloadRegularFiles": 425,
+      "payloadLogicalBytes": 85812216,
+      "payloadAllocatedBytes": 86745088,
+      "nonregularOrSizeMismatch": [],
+      "hardlinkedFiles": [],
+      "matchesReferenceInode": 0,
+      "extraWebEntries": [],
+      "luciRootMetadata": {
+        "dev": 27,
+        "inode": 536059,
+        "nlink": 1,
+        "mode": "0o700",
+        "symlink": false
+      },
+      "webRootMetadata": {
+        "dev": 27,
+        "inode": 536060,
+        "nlink": 4,
+        "mode": "0o700",
+        "symlink": false
+      }
+    }
+  ],
+  "sharedPayloadInodesAmongCopies": [],
+  "v4Excluded": "/workspace/.luci-tools/cloud060-package-reuse-v4-5f4a966f",
+  "v4ExistsAtMetadataRead": false
+}

@@ -1,0 +1,48 @@
+{
+  "status": "passed",
+  "checks": 199,
+  "errors": [],
+  "scope": "Independent small-file source/provenance/checksum and selected privacy-field review. No archive/binary read/hash, test execution, compiler/build, runtime or storage action. Published verifier/operation results remain original run-owner evidence.",
+  "publicationSHA256": "d55b0fea126ee3e1fcc43b0f853b651f7e6da41634bbaa1918c8615922d993db",
+  "files": 50,
+  "bytes": 182539,
+  "members": 48,
+  "sumEntries": 49,
+  "originalBindings": 39,
+  "selectedGitSources": 5,
+  "recordedPackageFiles": 962,
+  "recordedLicenceComponents": 347,
+  "recordedDistinctPackageControls": 10,
+  "recordedDistinctRelocationControls": 6,
+  "imageEnvironmentFields": [
+    {
+      "path": "storage/historical-archive-references/runtime-archive-1f845cfd2b45.json",
+      "allowedStaticKeys": [
+        "PATH",
+        "NODE_VERSION",
+        "YARN_VERSION"
+      ],
+      "valuesNotPrinted": true
+    },
+    {
+      "path": "storage/historical-archive-references/runtime-archive-7e1b1f608cfa.json",
+      "allowedStaticKeys": [
+        "PATH",
+        "NODE_VERSION",
+        "YARN_VERSION"
+      ],
+      "valuesNotPrinted": true
+    }
+  ],
+  "privacyFormatMatches": [],
+  "privateFilenameMatches": [],
+  "privacyLimit": "Finite static Env/name/format check, not a universal secret scan. Source contains variable names/templates, not evaluated user environment.",
+  "remainingLimits": [
+    "No downloadable binaries, new runtime build/export, installed terminal or Windows acceptance supplied by this capsule.",
+    "Helper prep manifests retain historical not-executed status; actual operation/build receipts are later distinct evidence.",
+    "TMP/archive persistence and original hardlink topology limits retained; protected333 is metadata-only.",
+    "No original failed fixture, capacity charge, live-provider or response-time gate closed.",
+    "Export3,905,250,841B per-volume threshold and separate6,736,759,858B root Create floor stay unchanged; later free space needs a fresh observation."
+  ],
+  "checkerSHA256": "6eec471ced84ecde1aa749672503264858de8daa6e2cfd688b3b0894af3d0d27"
+}

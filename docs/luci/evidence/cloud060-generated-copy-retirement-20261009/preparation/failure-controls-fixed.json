@@ -1,0 +1,21 @@
+{
+  "sourceSHA256": "b50fdde1a24745da33b72c970bf0cc606065b095994a17c710acbbc3acfa39a4",
+  "cases": 3,
+  "passed": 3,
+  "failed": 0,
+  "results": [
+    {
+      "case": "fsync-after-rename-restores-current-payload",
+      "passed": true
+    },
+    {
+      "case": "fsync-after-link-restores-current-payload",
+      "passed": true
+    },
+    {
+      "case": "readable-busy-reference-wins-over-known-unknown-cwd",
+      "passed": true
+    }
+  ],
+  "scope": "Disposable tiny file objects and fake proc fields only; no package/path retirement or real process signals."
+}

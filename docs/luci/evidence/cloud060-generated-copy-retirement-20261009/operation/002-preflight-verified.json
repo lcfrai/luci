@@ -1,0 +1,30 @@
+{
+  "at": "2026-10-09T14:37:30.149173+00:00",
+  "copies": 3,
+  "selectedMembersPerCopy": 425,
+  "archiveSHA256": "bc7d8b76b76d3c291c651c3f46423f75f7e63f31f49ddde59372fe6de97e6290",
+  "referenceSHA256": "2e378e550fa41a68af2477f472c92f6c15cd1bbe4048e453c769db2e08dca8be",
+  "processObservation": {
+    "matchedReadableNonZombie": [],
+    "acceptedUnknownIdentities": [
+      {
+        "pid": 203,
+        "startTicks": 1521
+      },
+      {
+        "pid": 254,
+        "startTicks": 1534
+      },
+      {
+        "pid": 260700,
+        "startTicks": 2331192
+      }
+    ],
+    "scope": "Single cmdline/exe/cwd observation plus root coordination; no environment/fd/maps census, no global or future-launch exclusion."
+  },
+  "candidateAllocatedBytes": 260227072,
+  "free": {
+    "/workspace": 6360211456,
+    "/tmp": 2387329024
+  }
+}

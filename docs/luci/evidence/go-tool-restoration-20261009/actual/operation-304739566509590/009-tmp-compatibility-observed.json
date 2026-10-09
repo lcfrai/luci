@@ -1,0 +1,135 @@
+{
+  "version": 1,
+  "operation": "restore-exact-go-to-real-workspace",
+  "passed": false,
+  "startedAt": "2026-10-09T15:11:10.412093+00:00",
+  "sourceBefore": {
+    "/workspace/.luci-tools/go-tool-restore-v1/operation_common.py": "1863d7908931bfd4463b73139a550930a3f3092ce0408a707411c2726956478c",
+    "/workspace/.luci-tools/go-tool-restore-v1/restore_go.py": "993c530c77a53bbe13d1cab9b3e9210a8f2aeac3d35d7ea83be7b3663d03aec3",
+    "/workspace/.luci-tools/go-tool-restore-v1/tree_support.py": "a86951497592b707ff2b157cf4c6e193180f18eedf5af42e09f98994242a3f78"
+  },
+  "steps": [
+    {
+      "number": 1,
+      "stage": "created",
+      "at": "2026-10-09T15:11:10.412769+00:00"
+    },
+    {
+      "number": 2,
+      "stage": "preflight-observations",
+      "at": "2026-10-09T15:11:10.843988+00:00"
+    },
+    {
+      "number": 3,
+      "stage": "copy-pending",
+      "at": "2026-10-09T15:11:13.313992+00:00"
+    },
+    {
+      "number": 4,
+      "stage": "copy-verified",
+      "at": "2026-10-09T15:11:29.113473+00:00"
+    },
+    {
+      "number": 5,
+      "stage": "workspace-switch-preflight",
+      "at": "2026-10-09T15:11:29.300745+00:00"
+    },
+    {
+      "number": 6,
+      "stage": "workspace-exchange-pending",
+      "at": "2026-10-09T15:11:32.433571+00:00"
+    },
+    {
+      "number": 7,
+      "stage": "workspace-real-tree-observed",
+      "at": "2026-10-09T15:11:35.660988+00:00"
+    },
+    {
+      "number": 8,
+      "stage": "tmp-exchange-pending",
+      "at": "2026-10-09T15:11:35.665102+00:00"
+    },
+    {
+      "number": 9,
+      "stage": "tmp-compatibility-observed",
+      "at": "2026-10-09T15:11:38.652312+00:00"
+    }
+  ],
+  "stage": "tmp-compatibility-observed",
+  "paths": {
+    "originalTMP": "/tmp/luci-retained-tools/go1.26.3",
+    "finalRealWorkspace": "/workspace/.luci-tools/go1.26.3",
+    "stage": "/workspace/.luci-tools/.go1.26.3-workspace-restore-stage",
+    "scratch": "/tmp/luci-retained-tools/.go1.26.3-retired-original"
+  },
+  "manifestSHA256": "50b4a84d580c4b072378c2cea371854fa750c29ef512c634b0282c365a57f242",
+  "coordination": {
+    "version": 2,
+    "scope": "cloud054-exclusive-tools",
+    "exclusive": true,
+    "activeOperations": [],
+    "bootID": "7842f7cb-c15d-43b4-bffc-65ba7e3140f2",
+    "monotonicNS": 304739566676912,
+    "expiresMonotonicNS": 305339566676912,
+    "ownerPID": 2477957,
+    "ownerStartTicks": "30473947",
+    "acceptedUnknownProcesses": [
+      {
+        "pid": 203,
+        "startTicks": "1521"
+      },
+      {
+        "pid": 254,
+        "startTicks": "1534"
+      },
+      {
+        "pid": 260700,
+        "startTicks": "2331192"
+      }
+    ],
+    "operationSources": {
+      "operation_common.py": "1863d7908931bfd4463b73139a550930a3f3092ce0408a707411c2726956478c",
+      "restore_go.py": "993c530c77a53bbe13d1cab9b3e9210a8f2aeac3d35d7ea83be7b3663d03aec3",
+      "tree_support.py": "a86951497592b707ff2b157cf4c6e193180f18eedf5af42e09f98994242a3f78"
+    },
+    "limits": "Root asserts this bounded tool window. Exact unreadable dockerd/containerd/gpg-agent identities remain unobserved; no global idle claim, no environ reads or signals to them. Known active tool references always refuse."
+  },
+  "processObservation": {
+    "observed": 7,
+    "busy": [],
+    "unknown": [
+      {
+        "pid": 203,
+        "startTicks": "1521",
+        "identityStable": true,
+        "reason": "observation-unavailable-or-changed"
+      },
+      {
+        "pid": 254,
+        "startTicks": "1534",
+        "identityStable": true,
+        "reason": "observation-unavailable-or-changed"
+      },
+      {
+        "pid": 260700,
+        "startTicks": "2331192",
+        "identityStable": true,
+        "reason": "observation-unavailable-or-changed"
+      }
+    ],
+    "scope": "Readable exact executable/cwd/argv/maps/fd observations; no future-launch exclusion or universal daemon-operation proof"
+  },
+  "beforeManifestBinding": {
+    "path": "/workspace/.luci-tools/tool-relocation-20261009T1158/go1.26.3/tree-before.json",
+    "sha256": "50b4a84d580c4b072378c2cea371854fa750c29ef512c634b0282c365a57f242",
+    "entries": 16688,
+    "logicalBytes": 232365810,
+    "observedEqualsPinnedManifest": true
+  },
+  "freeBefore": {
+    "/workspace": 7634825216,
+    "/tmp": 1985839104
+  },
+  "workspaceFloorBytes": 6736759858,
+  "workingGuardBytes": 67108864
+}

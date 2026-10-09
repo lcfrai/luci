@@ -1,0 +1,9 @@
+{
+  "boundedPatternFindings": [],
+  "exactPrivateRootAbsent": true,
+  "screenshotsManuallyReviewed": [
+    "run/driver/first-ended-poll-held.png",
+    "run/driver/failure.png"
+  ],
+  "scope": "Bounded common credential-signature scan, safe field review and visual screenshot review; not exhaustive detection. Private raw diagnostic sinks/state were not reread or exported."
+}

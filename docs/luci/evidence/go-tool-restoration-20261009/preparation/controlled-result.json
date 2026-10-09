@@ -1,0 +1,5 @@
+{
+  "exitCode": 0,
+  "scope": "Tiny disposable same-code trees only; no actual Go tool path, proc scan, app, build or Docker operation.",
+  "expectedTests": 10
+}

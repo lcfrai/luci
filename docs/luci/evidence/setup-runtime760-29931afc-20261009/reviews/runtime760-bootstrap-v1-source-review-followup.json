@@ -1,0 +1,72 @@
+{
+  "status": "prior_blockers_addressed_receipt_state_clarification_requested",
+  "scope": "Read-only narrow follow-up of corrected archive settlement, independent wrapper, finite archive placement and setup pin templating. No tests, operations, Docker, process census or archive/tree hash executed.",
+  "sources": [
+    {
+      "path": "/workspace/.luci-tools/runtime760-bootstrap-v1/archive760.py",
+      "bytes": 13725,
+      "sha256": "c328da3bd8b4148cceba74ce35bbc6726195da49add6777a3372943c49c4d986"
+    },
+    {
+      "path": "/workspace/.luci-tools/runtime760-bootstrap-v1/budget.py",
+      "bytes": 1606,
+      "sha256": "d700dcd37fca027c6f277842dc0d36eebec3748ec148b1ccf87e61d18df7e570"
+    },
+    {
+      "path": "/workspace/.luci-tools/runtime760-bootstrap-v1/run_archive.py",
+      "bytes": 5120,
+      "sha256": "385ba6405fb3afd081750c93c9f39963ab7f50074c7a6a818e6beda06d1ff191"
+    },
+    {
+      "path": "/workspace/.luci-tools/runtime760-bootstrap-v1/place_archives.py",
+      "bytes": 8489,
+      "sha256": "efd95d6fa305286048ef3824b596e9042071e6938d0b939da7cbd60ad299e2ea"
+    },
+    {
+      "path": "/workspace/.luci-tools/runtime760-bootstrap-v1/start.template.md",
+      "bytes": 12781,
+      "sha256": "08a97a78dc51b2ee18013f44d725bc3bf5b37e96dcdc1f6c938e4eeb6c517249"
+    }
+  ],
+  "priorFindings": [
+    {
+      "id": "ARCHIVE760-BOUND-001",
+      "status": "addressed_by_independent_outer_wrapper_at_source_scope",
+      "details": "900s wait is independent of inner Monitor thread. Failed/timeout path attempts settlement of exact saved leader and client PID/start identities with at most two 10s waits each. OS I/O/scheduling is explicitly not preemptively bounded; no daemon drain or descendant census."
+    },
+    {
+      "id": "ARCHIVE760-SETTLEMENT-002",
+      "status": "addressed_at_source_scope",
+      "details": "Unexpected signal/wait errors become settlementErrorType/leaderSettlementUnknown in stop_owned; they no longer replace the initial archive export exception at those reviewed calls."
+    }
+  ],
+  "receiptClarifications": [
+    {
+      "path": "run_archive.py:start/settle",
+      "finding": "Z/X state currently raises ProcessLookupError and is converted to leaderAbsent=true. That establishes non-live identity, not absence of the PID.",
+      "requested": "Explicit exited-or-zombie/non-live state or separate missing-versus-non-live classification; do not claim zero PIDs."
+    },
+    {
+      "path": "run_archive.py:main",
+      "finding": "If obtaining leader start ticks immediately after Popen fails, failed=true prevents success but the leader settlement list can be empty.",
+      "requested": "Make missing leader identity/settlement uncertainty explicit, without signaling an unverified/reused process."
+    }
+  ],
+  "confirmed": [
+    "Hard compressed/raw caps still refuse and retain partial bytes before setup publication.",
+    "Wrapper source pins include archive source, budget and startup template. Inner source also pins legacy primitives, runtime helper, original candidate and saved setup/draft inputs.",
+    "Required archive and saved pins change only after verified archive and before/after source/evidence guards; no automatic retry or rollback is added.",
+    "425-to-root requires exact known TMP file and both old aliases, verified copy before replacing either alias, verified new hardlink pair before retiring TMP original into a compatibility link.",
+    "425-to-TMP and333-to-TMP require exact owned0600 size/hash/nlink2 pair and verify TMP copy before replacing either old hardlink with a link.",
+    "333 mode additionally requires exact root-selected publication receipt hash with published status/760 candidate/archive verification plus equality of current required archive/new setup pins. The current required760 archive remains protected by metadata across historical placement.",
+    "Finite placement modes have no Docker mutation, fixture access, broad delete or operation replay; original receipts remain hash-checked and all partial stages remain on failure.",
+    "Cohesive startup template preserves separate product/package/runtime identities and explicit Windows/performance/provider/export limits; it does not claim completed full acceptance."
+  ],
+  "limits": [
+    "No actual archive export/publication/placement or control outcomes independently executed here.",
+    "The placement helper180s budget is cooperative between read/copy operations, not OS-I/O preemption.",
+    "Control claims require the parent final logs and frozen source binding; this review did not re-audit controls or the full startup/install behavior.",
+    "Historical archives in TMP are byte-preserved compatibility evidence, not guaranteed snapshot retention.",
+    "Opaque record/source pins and root exclusive-window coordination do not independently establish whole-machine inactivity or a future no-launch guarantee."
+  ]
+}

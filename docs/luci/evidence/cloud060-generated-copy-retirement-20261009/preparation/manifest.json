@@ -1,0 +1,87 @@
+{
+  "preparationOnly": true,
+  "realRetirementExecuted": false,
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "5a9c19d4788e1e568ac827ee155609705bde56568a686bd5f53664167c84168a",
+      "bytes": 5239
+    },
+    {
+      "path": "controls-result.json",
+      "sha256": "f1a4feff0b7a055df3ae58eb64808bb6bc800f45607dc4919d8bcacc51ac57bb",
+      "bytes": 935
+    },
+    {
+      "path": "controls.py",
+      "sha256": "1533e41e5ba372838a65417d0250ea0cd122fc0d57642be030e14014497ff03b",
+      "bytes": 3957
+    },
+    {
+      "path": "failure-controls-fixed.json",
+      "sha256": "8fbbe28f27b1544105eacb5816498c3a015e13cec93de6147f6aa1d6ef610e3f",
+      "bytes": 565
+    },
+    {
+      "path": "failure-controls-original.json",
+      "sha256": "41f416e5ce5618a8e5ac561b0124cae40b8969bc5c3d2f9acccf700710b273ff",
+      "bytes": 800
+    },
+    {
+      "path": "failure-controls.py",
+      "sha256": "af26a5a1e971aecc450da712fb159995d047b53cac58cc802f5d8f6711d50e43",
+      "bytes": 2681
+    },
+    {
+      "path": "proof.json",
+      "sha256": "cbab4651da95badd8f04ea40153587ae92790d3b2ac831a8a197de2b0903bce4",
+      "bytes": 958802
+    },
+    {
+      "path": "retire.original-syntax.py",
+      "sha256": "8970a1242275e8f5452b8af5c05a5d2bb4bd3a334208118b89907cb270442cc6",
+      "bytes": 11537
+    },
+    {
+      "path": "retire.py",
+      "sha256": "b50fdde1a24745da33b72c970bf0cc606065b095994a17c710acbbc3acfa39a4",
+      "bytes": 12480
+    },
+    {
+      "path": "source-review-final.json",
+      "sha256": "1621b00a8816d591e12fbd5c30afa60663077ee78f44d30740d82dcce04d613b",
+      "bytes": 2803
+    },
+    {
+      "path": "source-review-v1.json",
+      "sha256": "b49cb20988064389c4773e0041bdf259db11bb615436d33f850be2ff86af34e6",
+      "bytes": 2963
+    },
+    {
+      "path": "source-v1/controls-result.json",
+      "sha256": "86f8aa47448d98fadb958baf295da57c29dbcaeb83607692bd714aada5e33122",
+      "bytes": 935
+    },
+    {
+      "path": "source-v1/controls.py",
+      "sha256": "1533e41e5ba372838a65417d0250ea0cd122fc0d57642be030e14014497ff03b",
+      "bytes": 3957
+    },
+    {
+      "path": "source-v1/retire.py",
+      "sha256": "e7d82dac50c82a57d4e243348866a910f4d0a478acd1c02969592ce21fd1cb5b",
+      "bytes": 11538
+    },
+    {
+      "path": "syntax-attempt1.json",
+      "sha256": "30ef3689f9f88e8726d3bd5d123bfff0394280cd08c8e9f9433f3f360fd2ed92",
+      "bytes": 257
+    },
+    {
+      "path": "verify.py",
+      "sha256": "7b4b9d9f39db03a91cf9fb72a7067010b0d1ade55258433f881807f58948f351",
+      "bytes": 6665
+    }
+  ],
+  "scope": "Exact generated-copy retirement preparation, proofs, original failures and corrected tiny controls. Root alone may execute after coordination."
+}

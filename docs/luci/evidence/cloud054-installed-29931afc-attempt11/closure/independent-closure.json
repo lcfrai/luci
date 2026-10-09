@@ -1,0 +1,115 @@
+{
+  "at": "2026-10-09T15:27:11.900786+00:00",
+  "sourceCommit": "29931afc5b31ae9b9bd7b8973a7e3fdb840609a3",
+  "expectedImageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+  "passedWorkflow": false,
+  "originalFailedStage": "terminal-scenario",
+  "originalResultSHA256": "7c14889e49b42a83040a75aa45d7a923461121049853bf9a06abec62196e1910",
+  "originalWrapperSHA256": "50d532722144468a81adf108bf7c7217d4b1b7fe82a2743040f04237d136c267",
+  "identities": [
+    {
+      "pid": 2481494,
+      "expectedStartTicks": "30550623",
+      "family": "launcher",
+      "now": {
+        "status": "absent"
+      }
+    },
+    {
+      "pid": 2481680,
+      "expectedStartTicks": "30551128",
+      "family": "controller",
+      "now": {
+        "status": "absent"
+      }
+    },
+    {
+      "pid": 2482340,
+      "expectedStartTicks": "30554243",
+      "family": "browser",
+      "now": {
+        "status": "absent"
+      }
+    },
+    {
+      "pid": 2482355,
+      "expectedStartTicks": "30554254",
+      "family": "browser",
+      "now": {
+        "status": "observed",
+        "startTicks": "30554254",
+        "state": "Z",
+        "parentPID": 1
+      }
+    },
+    {
+      "pid": 2482358,
+      "expectedStartTicks": "30554254",
+      "family": "browser",
+      "now": {
+        "status": "observed",
+        "startTicks": "30554254",
+        "state": "Z",
+        "parentPID": 1
+      }
+    }
+  ],
+  "knownLiveProcessCount": 0,
+  "knownZombieCount": 2,
+  "knownUnavailableProcessCount": 0,
+  "unreadableEnvironmentObservations": {
+    "wrapper": 427752,
+    "driver": null,
+    "freshEnvironmentCensusPerformed": false,
+    "wholeMachineClosureEstablished": false
+  },
+  "containers": [],
+  "knownContainers": [
+    {
+      "id": "e8dd6c0f38af35a5f8c0e8b22756e5434c85aae1fe00e3bf55e7e4814e24d556",
+      "status": "confirmed-absent-at-observation",
+      "exitCode": 1
+    }
+  ],
+  "volumes": [],
+  "sameEngine": true,
+  "immutableImageVerified": {
+    "id": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+    "os": "linux",
+    "architecture": "amd64"
+  },
+  "ledger": {
+    "sha256": "560daf59fa75755f943608d04ec4fc76db228365c9ae0debfbaf5d726f018953",
+    "bytes": 498,
+    "counts": {
+      "leases": 1,
+      "checks": 0,
+      "fences": 0,
+      "checkFences": 0
+    },
+    "matchesDriverFinal": false
+  },
+  "fixtureFilesCount": 31,
+  "fixtureManifestSHA256": "b814f6ff42fb1cd092bdedac7f14d4d45d4f0a768b994fc8e4d7fea04c9c592e",
+  "fixtureLinks": [],
+  "originalFilesUnchanged": true,
+  "originalManifestSHA256": "9e3a1be23a3aba2dbb92362c5ff078af493463c3e2d42a2e6996132802cee347",
+  "fixtureFilesUnchanged": true,
+  "sourceBindingsUnchanged": true,
+  "sourceBindings": {
+    "/workspace/.luci-tools/cloud054-terminal-close/outer-v2/run.py": {
+      "bytes": 22954,
+      "sha256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49"
+    },
+    "/workspace/.luci-tools/cloud069-terminal-cleanup-v11/warm/launch.mjs": {
+      "bytes": 66718,
+      "sha256": "b83db056209c27bdc0dac5df9805cdb4c87dee817f0bda5130644261cbad02e5"
+    },
+    "/workspace/.luci-tools/cloud069-terminal-cleanup-v11/warm/scenario.mjs": {
+      "bytes": 39222,
+      "sha256": "bee434c538872680e4abd652022041b2516b63c4dddb79e9910efe16a3fa0742"
+    }
+  },
+  "scriptSHA256": "3060ae1fd85302765fe7acb1379f2f0f7cd6a24271c54e021996eb4004037e21",
+  "scope": "Read-only completed-attempt observation of exact recorded PID/start identities, immutable container IDs, selected daemon inventories and parsed private ledger counts. No signals, cleanup, runtime mutation, process-environment values, whole-machine census, historical charge release, admission reconstruction or Docker wire counts. Zombies and prior unreadable-environment observations remain explicit. Invariance covers the observation interval; prior run source binding is separately retained."
+}

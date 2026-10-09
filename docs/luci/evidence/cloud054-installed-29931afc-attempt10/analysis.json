@@ -1,0 +1,144 @@
+{
+  "productSource": "29931afc5b31ae9b9bd7b8973a7e3fdb840609a3",
+  "helper": "CLOUD-068 external v10",
+  "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+  "overallPassed": false,
+  "originalResult": {
+    "sha256": "c2a84773b2fc8a608262c2b7eceac0269153220751db635e5d7d7907f6f0d7e5",
+    "bytes": 153463
+  },
+  "originalWrapper": {
+    "sha256": "8657d5a5304a8c95167821990471401d69554d14ae5e8a6ad10e9bf2783b31a6",
+    "bytes": 4975
+  },
+  "failure": {
+    "driver": {
+      "name": "AssertionError",
+      "code": "ERR_ASSERTION",
+      "message": "Allocation state unconfirmed"
+    },
+    "scenarioProjection": {
+      "name": "AssertionError",
+      "code": "ERR_ASSERTION",
+      "messageSHA256": "9e7d85ad8bf4a0ac8c37597aff9000a8bce07e8ed8de38d52a9c4e145ae8d9d0",
+      "messageBytes": 28,
+      "messageRetained": false,
+      "kind": "other"
+    },
+    "step": "initial-natural-settlement",
+    "rejectedDockerStatusRetained": false,
+    "removingStateInferred": false,
+    "productDefectClassified": false
+  },
+  "counts": {
+    "phaseRecords": 30,
+    "apiRestart": 0,
+    "browserForwardedRestart": 0,
+    "recordedSessionDELETE": 0,
+    "firstSocketTypedExit": 1,
+    "replacementAllocationObserved": false,
+    "secondExitObserved": false,
+    "providerInvoked": false
+  },
+  "firstTerminal": {
+    "uiWhilePollHeld": {
+      "label": "c054-terminal-fixture \u2014 running",
+      "footer": "/bin/bash \u00b7 0m \u00b7 ended",
+      "overlay": null,
+      "termPresent": true,
+      "restartCount": 0
+    },
+    "exit": {
+      "reason": {
+        "kind": "exit-status",
+        "code": 0
+      },
+      "payload": {
+        "bytes": 13,
+        "sha256": "7146fc872b9a9dba5098f80e211bc7a8af3d9b2fbf8a3e5d9447db130fcaa3b2",
+        "knownStaticRepresentation": "exit status 0",
+        "unclassifiedTextRetained": false
+      },
+      "wall": "2026-10-09T15:16:25.821Z",
+      "monotonicMs": 5594.400000035763,
+      "sequence": 71
+    },
+    "close": {
+      "code": 1000,
+      "wasClean": true,
+      "wall": "2026-10-09T15:16:25.830Z",
+      "monotonicMs": 5603.900000035763
+    },
+    "socketError": false,
+    "outputExitCloseSequence": [
+      70,
+      71,
+      72
+    ],
+    "lastPassiveUI": {
+      "label": "c054-terminal-fixture \u2014 exited",
+      "footer": "/bin/bash \u00b7 0m \u00b7 ended",
+      "overlay": null,
+      "termPresent": true,
+      "restartCount": 1
+    }
+  },
+  "statusTiming": {
+    "pollRelease": "2026-10-09T15:16:28.682Z",
+    "nextMilestone": "2026-10-09T15:16:29.712Z",
+    "nextMilestoneKind": "initial-natural-settlement",
+    "restartPresenceConfirmedByMilestone": true,
+    "afterPollReleaseUpperBoundMs": 1030,
+    "afterTypedExitReceiptUpperBoundMs": 3891,
+    "typedExitReceiptToCloseMonotonicMs": 9.5,
+    "exactRestartAppearanceTimestampRetained": false,
+    "firstFreshStatusResponseTimestampRetained": false,
+    "derivation": "Accepted scenario awaits Restart count 1 after first gate release/dispose and before initial-natural-settlement milestone; not exact appearance latency."
+  },
+  "cleanup": {
+    "errors": [
+      {
+        "name": "AssertionError",
+        "code": "ERR_ASSERTION",
+        "message": "Retained charge\n\n1 !== 0\n"
+      }
+    ],
+    "driverFinalPresent": false,
+    "retainedLease": {
+      "id": "manual-511299a6",
+      "sessionId": "s-40608ceb",
+      "sandboxId": "s-40608ceb",
+      "projectId": "p-e899c315",
+      "state": "backend-settled",
+      "resources": {
+        "CPUMillis": 1000,
+        "MemoryMiB": 1024
+      }
+    },
+    "manualReleasePerformed": false
+  },
+  "closure": {
+    "knownLive": 0,
+    "knownZombies": 2,
+    "ledgerCounts": {
+      "leases": 1,
+      "checks": 0,
+      "fences": 0,
+      "checkFences": 0
+    },
+    "originalSHA256": "c33f3914afec08dccbf3bdf82e854bbf099a9102f413b1d55d2c9b6df5636883"
+  },
+  "sourceChecks": {
+    "utilityGitHelpers": 4,
+    "acceptedExternalHelpers": 2,
+    "currentRuntimeInputs": 106,
+    "sourceBeforeAfterEqual": true
+  },
+  "limits": [
+    "Failed before Restart: no warm/cold recovery acceptance.",
+    "Actual rejected Docker status not retained; no removing-state or product-defect inference.",
+    "Container absence does not release retained capacity.",
+    "Private state/history only hashed; no contents exported or hand release.",
+    "Known identities and selected inventory only; no whole-machine/model/Windows/performance acceptance."
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "status": "no_blocking_issue_found_in_requested_source_scope",
+  "source": "/workspace/.luci-tools/relocate-historical425-v1/relocate.py",
+  "sourceSHA256": "5a5335c6d980c4744fbc2c134cef282d4c2c594a771eb5ca170e63d72d8c7f18",
+  "scope": "Read-only source review before root decision. No archive payload hash/decompression, process scan, test, app, Docker or relocation executed.",
+  "checked": [
+    "Only fixed historical42597a/c593 source pair is replaced; current333/7caf paths have metadata-only protection and are not write targets; no current760/fixture mutation path.",
+    "Original pair requires same complete metadata/dev/inode, nlink2, current UID, mode0600, and exact size; both historical receipt identities and expected full archive SHA must agree.",
+    "TMP initially requires entire copy size plus500MiB floor+64MiB guard; guard remains during copy and each replacement/final validation.",
+    "Initial durable intent precedes copying; source hash/pair checks and full copy+readback hash precede publication/replacement; mode,mtime,uid,gid preserved for retained copy.",
+    "Each source replacement has durable intent and temporary link; link target has already been verified and original pair retained until then.",
+    "Failures retain partial artifacts and journal, do not hide rollback/deletion, and explicitly require exact source-link inspection after interrupted replace/fsync. A recorded replacement list may lag an actual atomic replace, which is not claimed complete.",
+    "Final target hash/size, protected333 metadata and original receipt hashes are checked before passed=true."
+  ],
+  "limits": [
+    "Root-controlled build-settled/no-use window is an asserted operational prerequisite, not independently observed by this script/reviewer.",
+    "180-second bound is cooperative between reads/operations; synchronous I/O/fsync requires the separate outer bound if a hard limit is intended.",
+    "Protected333 parity covers metadata only, not new content hashing. No direct current760 metadata receipt or global state census is provided; those paths are outside mutation scope.",
+    "Free space is sampled sequentially, may change concurrently, and is not a future admission guarantee. At most one copy block is written between guard samples, inside the separate64MiB guard.",
+    "Target on TMP preserves exact bytes and compatibility paths at this operation, not guaranteed environment snapshot persistence or original inode/hardlink topology.",
+    "This review does not validate actual copy/operation outcome or claim root free-space gain."
+  ],
+  "suggestedTinyControls": [
+    "Pair identity/nlink mismatch refuses before replacement",
+    "Wrong copy hash or existing target leaves both original hardlinks intact",
+    "Failure after first atomic replacement leaves verified target plus remaining original and an explicit incomplete record",
+    "Post-copy mode/metadata and low-TMP guard checks remain enforced"
+  ]
+}

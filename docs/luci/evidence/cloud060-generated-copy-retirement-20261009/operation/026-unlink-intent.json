@@ -1,0 +1,7 @@
+{
+  "at": "2026-10-09T14:37:31.028840+00:00",
+  "holding": "/workspace/.luci-tools/cloud060-package-reuse-v3-5f4a966f/.generated-payload-retiring-20261009-root1-web",
+  "kind": "web",
+  "target": "/tmp/luci-retained-tools/package-0.5.0-5f4a966f/web",
+  "manifestSHA256": "cbab4651da95badd8f04ea40153587ae92790d3b2ac831a8a197de2b0903bce4"
+}

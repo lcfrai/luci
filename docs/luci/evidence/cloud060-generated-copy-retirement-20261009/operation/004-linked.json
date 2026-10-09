@@ -1,0 +1,6 @@
+{
+  "at": "2026-10-09T14:37:30.156342+00:00",
+  "original": "/workspace/.luci-tools/cloud060-package-reuse-5f4a966f/luci",
+  "holding": "/workspace/.luci-tools/cloud060-package-reuse-5f4a966f/.generated-payload-retiring-20261009-root1-luci",
+  "target": "/tmp/luci-retained-tools/package-0.5.0-5f4a966f/luci"
+}

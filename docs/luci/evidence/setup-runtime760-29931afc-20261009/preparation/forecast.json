@@ -1,0 +1,23 @@
+{
+  "input": {
+    "root": 7352782848,
+    "tmp": 2260738048
+  },
+  "optionalToRoot": {
+    "root": 5526856706,
+    "tmp": 4086664190
+  },
+  "afterGzipAtBound": {
+    "root": 4238366518,
+    "tmp": 4086664190
+  },
+  "optionalReturned": {
+    "root": 6064292660,
+    "tmp": 2260738048
+  },
+  "old333HistoricalToTMP": {
+    "root": 7077660428,
+    "tmp": 1247370280
+  },
+  "basis": "Logical bytes only, excludes filesystem allocation, receipts, growth and concurrent usage. Actual stage observations always govern."
+}

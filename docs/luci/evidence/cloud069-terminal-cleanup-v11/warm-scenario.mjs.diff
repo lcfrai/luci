@@ -1,0 +1,39 @@
+--- upstream-warm/scenario.mjs
++++ warm/scenario.mjs
+@@ -182,9 +182,9 @@
+ 
+ // Wait for natural cleanup only. This observes the exact initial allocation and
+ // charge; it has no Stop/Destroy/write/retry-authority capability.
+-export async function waitForOwnedTerminalSettlement({sessionId,projectId,initialExecutionGeneration,observe,health,record,now=()=>performance.now(),sleep=delay}) {
+-  assert.equal(typeof observe,'function');assert.match(initialExecutionGeneration,/^[a-f0-9]{64}$/);
+-  const started=now(),deadline=started+35000;let polls=0,pin,last,first,changes=0,lastShape;
++export async function waitForOwnedTerminalSettlement({sessionId,projectId,initialExecutionGeneration,observe,health,record,now=()=>performance.now(),sleep=delay,budgetMs=35000}) {
++  assert.equal(typeof observe,'function');assert.match(initialExecutionGeneration,/^[a-f0-9]{64}$/);assert(Number.isInteger(budgetMs)&&budgetMs>0&&budgetMs<=35000,'Original cleanup observation budget exhausted');
++  const started=now(),deadline=started+budgetMs;let polls=0,pin,last,first,changes=0,lastShape,statusChanges=0,lastStatusShape;
+   for(;;){
+     health();assert(now()<deadline,'Exact initial allocation cleanup remains unconfirmed');
+     const value=observe({budgetMs:Math.max(1,Math.floor(deadline-now()))});
+@@ -203,7 +203,7 @@
+     if(!pin)pin=structuredClone(identity);else assert.deepEqual(identity,pin,'Initial ownership pin changed');
+     assert.equal(current.session?.id,sessionId);assert.equal(current.session.projectId,projectId);assert.equal(current.session.status,'exited');assert.equal(current.session.sandboxId,pin.allocation.sandboxId);assert.equal(current.session.sandboxRef,pin.allocation.id);assert.equal(current.session.credentialsCleared,true);
+     assert(Array.isArray(current.containers)&&current.containers.length<=1,'Unknown or additional allocation');
+-    for(const row of current.containers){for(const key of Object.keys(pin.allocation))assert.equal(row[key],pin.allocation[key],'Allocation ownership changed');assert(['running','exited'].includes(row.status),'Allocation state unconfirmed');}
++    for(const row of current.containers)for(const key of Object.keys(pin.allocation))assert.equal(row[key],pin.allocation[key],'Allocation ownership changed');
+     assert(current.ledger?.present===true,'Ledger unavailable; absence is not settlement');
+     assert.match(current.ledger.sha256,/^[a-f0-9]{64}$/);
+     for(const key of ['leases','checks','fences','checkFences'])assert(Array.isArray(current.ledger[key]),'Incomplete held-resource observation');
+@@ -211,6 +211,14 @@
+     assert(current.ledger.leases.length<=1,'Unknown additional lease');
+     if(current.ledger.leases.length)assert.deepEqual(current.ledger.leases[0],pin.lease,'Unrelated or changed charge');
+     if(current.containers.length)assert.equal(current.ledger.leases.length,1,'Owned allocation remains without its expected charge');
++    // Lifecycle is recorded only after identity and exact held-charge guards.
++    // Unknown text is hashed, never echoed. A recognized state is not proof of
++    // settlement: even removing/dead remain pending until absence AND release.
++    const knownStates=['created','running','paused','restarting','removing','exited','dead'];
++    const statuses=current.containers.map(row=>({status:knownStates.includes(row.status)?row.status:null,type:typeof row.status,bytes:typeof row.status==='string'?Buffer.byteLength(row.status):null,sha256:typeof row.status==='string'?createHash('sha256').update(row.status).digest('hex'):null}));
++    const statusShape=JSON.stringify(statuses);
++    if(statusShape!==lastStatusShape){record({kind:'initial-settlement-lifecycle',elapsedMs:now()-started,statuses,containerCount:current.containers.length,heldLeaseCount:current.ledger.leases.length,ledgerSHA256:current.ledger.sha256,scope:'Exact identity and held-charge checked; lifecycle classification and settlement remain unconfirmed.'});assert(++statusChanges<=8,'Unexpected settlement lifecycle churn');lastStatusShape=statusShape;}
++    for(const row of current.containers)assert(['running','exited','removing','dead'].includes(row.status),'Allocation state unconfirmed');
+     assert(Number.isSafeInteger(current.rootFreeBytes)&&current.rootFreeBytes>=0,'Filesystem observation unavailable');
+     const observation={at:new Date().toISOString(),elapsedMs:now()-started,containers:current.containers,ledger:current.ledger,rootFreeBytes:current.rootFreeBytes};
+     first??=observation;last=observation;

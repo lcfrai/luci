@@ -78,7 +78,8 @@ type Enumerator interface {
 // because the reaper derives idle on its sweep and this package never computes
 // it.
 type Deps struct {
-	// ObserveTaskCompletions enables the trusted runtime background observer.
+	// ObserveTaskCompletions enables trusted task/check completion observation
+	// and confirmed-absent manual capacity reconciliation.
 	// Tests and embedded consumers may drive ObserveTaskSessionsOnce explicitly.
 	ObserveTaskCompletions bool
 
@@ -438,7 +439,7 @@ func New(d Deps) (*API, error) {
 		d.Product.SetProjectRunSessionObserver(a.ObserveProjectRunSessions)
 		var observeTasks func(context.Context) error
 		if d.ObserveTaskCompletions {
-			observeTasks = a.ObserveTaskSessionsOnce
+			observeTasks = a.observeExecutionCompletions
 		}
 		d.Product.SetSwarmSchedulerRuntime(product.SwarmSchedulerRuntime{ObserveTasks: observeTasks, CaptureActor: a.captureQueuedActor, Admit: a.admitQueuedSwarm, Dispatch: a.dispatchQueuedSwarm, Release: a.execution.release, Resources: a.queuedResourceView})
 		d.Product.SetProjectSwarmWorktreeObserver(a.observeSwarmWorktree)

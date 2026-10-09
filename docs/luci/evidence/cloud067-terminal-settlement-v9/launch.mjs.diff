@@ -1,0 +1,38 @@
+--- v8/launch.mjs
++++ v9/launch.mjs
+@@ -225,7 +225,8 @@
+  const stageTo=s=>{health();stage=s;record({kind:'stage',stage});};
+  const remaining=ms=>{const left=closing?cleanupDeadline-Date.now():WORKFLOW_MS;assert(left>0,'Cleanup hard budget exhausted');return Math.max(1,Math.min(ms,left));};
+  const dockerTransport=isolatedDockerTransport({endpoint:process.env.DOCKER_HOST??'unix:///var/run/docker.sock',fixture,inherited:process.env});
+- const docker=(...a)=>execFileSync('docker',[...dockerTransport.prefix,...a],{env:dockerTransport.env,encoding:'utf8',timeout:remaining(10000),maxBuffer:2*1024**2}).trim();
++ let settlementObservationDeadline=Infinity;
++ const docker=(...a)=>{const budget=Math.min(remaining(10000),Math.floor(settlementObservationDeadline-Date.now()));assert(budget>0,'Owned settlement Docker observation budget exhausted');return execFileSync('docker',[...dockerTransport.prefix,...a],{env:dockerTransport.env,encoding:'utf8',timeout:budget,maxBuffer:2*1024**2}).trim();};
+  const ids=()=>docker('ps','-aq','--no-trunc').split(/\s+/).filter(Boolean);
+  const free=()=>{const s=statfsSync('/');return Number(s.bavail)*Number(s.bsize);};
+  function readRegistry(){if(!existsSync(registryPath))return [];const rows=JSON.parse(stableFile(registryPath)).sessions;assert(Array.isArray(rows)&&rows.length<=1,'Fresh fixture must have at most its one shell');for(const row of rows){assert.equal(row.projectId,project.id);assert.equal(row.worktreeId,worktree.id);assert.equal(row.harness,'shell');assert.equal(row.title,'C054 installed shell');assert.match(row.id,/^s-[a-f0-9]{8}$/);if(session)assert.equal(row.id,session.id);}return rows;}
+@@ -263,7 +264,24 @@
+    page.setDefaultTimeout(15000);page.on('pageerror',()=>fail(Error('Browser page error')));page.on('response',r=>{const key=browserPending.get(r.request());if(key){void(async()=>{assert.equal(r.status(),200,'Restart response was not successful');const raw=await r.body();assert(raw.length<=2*1024**2);const value=JSON.parse(raw);assert.equal(value.id,session.id);assert.equal(value.projectId,project.id);assert.equal(value.harness,'shell');assert(['starting','running'].includes(value.status),'Unexpected acknowledged Restart lifecycle status');assert.match(value.executionGeneration,/^[a-f0-9]{64}$/);pendingMutations.delete(key);browserPending.delete(r.request());record({kind:'restart-http-response',status:r.status(),returnedSessionStatus:value.status,sessionId:value.id,executionGeneration:value.executionGeneration});})().catch(fail);}});receipt.browserVersion=browser.version();const browserProcesses=scan('browser');assert(known.browser.size>0,'Owned browser identity observation unavailable');record({kind:'browser-identities',processes:browserProcesses});const markers=fixtureMarkers();monitor=await installTerminalMonitor(page,{base,attachPath:session.attachPath,markers,retainTransportError:row=>privateTransportErrors.record(row)});health();
+    await page.goto(base,{waitUntil:'domcontentloaded',timeout:20000});const username=page.getByLabel('Username',{exact:true});await username.waitFor();await username.fill('terminalowner');await page.getByLabel('Password',{exact:true}).fill(password);const login=page.waitForResponse(r=>new URL(r.url()).pathname==='/v1/auth/login'&&r.request().method()==='POST',{timeout:15000});await page.getByRole('button',{name:'Sign in',exact:true}).click();assert.equal((await login).status(),200);
+    const enter=page.getByRole('button',{name:'Continue to projects',exact:true}),all=page.getByRole('button',{name:'All projects',exact:true});await until('Project entry',async()=>await enter.isVisible()||await all.isVisible());if(await enter.isVisible())await enter.click();await all.click();await page.getByRole('button',{name:'Open project '+project.name,exact:true}).click();await page.getByRole('button',{name:'Develop',exact:true}).click();const projectRow=page.locator('[role="treeitem"][data-kind="project"][data-id="'+project.id+'"]');await projectRow.waitFor();if(await projectRow.getAttribute('aria-expanded')!=='true')await projectRow.getByRole('button',{name:'Expand '+project.name,exact:true}).click();await page.locator('[role="treeitem"][data-kind="branch"][data-id="'+branches[0].id+'"]').click();await page.locator('section.pane[data-session-id="'+session.id+'"]').waitFor({state:'visible'});
+-   stageTo('terminal-scenario');receipt.scenario=await runTerminalScenario({page,base,workspace:'',sessionId:session.id,projectId:project.id,request,record,health,monitor,markers,evidenceDir:evidence});
++   stageTo('terminal-scenario');receipt.scenario=await runTerminalScenario({page,base,workspace:'',sessionId:session.id,projectId:project.id,request,record,health,monitor,markers,evidenceDir:evidence,observeSettlement:({budgetMs})=>{
++    health();assert(Number.isInteger(budgetMs)&&budgetMs>0&&budgetMs<=35000);const previousDeadline=settlementObservationDeadline;settlementObservationDeadline=Math.min(previousDeadline,Date.now()+budgetMs);
++    try{
++     const initial=receipt.phases.filter(row=>row.kind==='initial-allocation');assert.equal(initial.length,1,'Exact original allocation receipt required');assert.equal(initial[0].containers.length,1);const originalID=initial[0].containers[0].id;
++     const rows=readRegistry();assert.equal(rows.length,1,'Exact terminal registry record required');const row=rows[0];
++     // Ledger first: natural removal after this read remains conservatively
++     // charged until the next observation, never a fabricated uncharged worker.
++     const ledger=readLedger();let containers;
++     try{containers=inventory();}catch(error){
++      const stderr=Buffer.isBuffer(error?.stderr)?error.stderr.toString('utf8'):String(error?.stderr??'');
++      if(error?.status!==1||!['Error: No such object: '+originalID,'Error response from daemon: No such container: '+originalID].includes(stderr.trim()))throw error;
++      assert.equal(JSON.parse(docker('info','--format','{{json .}}')).ID,engine.ID,'Daemon changed during exact disappearance observation');assert.deepEqual(ids(),[],'Other allocation remains after exact inspect disappearance');assert.equal(docker('volume','ls','-q'),'','Unexpected volume');containers=[];
++      record({kind:'initial-allocation-disappeared-during-inspection',id:originalID,scope:'Bounded read-only confirmation of exact natural absence; no removal or lease mutation.'});
++     }
++     return {initial:initial[0],current:{session:{id:row.id,projectId:row.projectId,status:row.status,sandboxId:row.sandboxId,sandboxRef:row.sandboxRef,credentialsCleared:row.endpoint===''&&row.attachToken===''},containers,ledger,rootFreeBytes:free()}};
++    }finally{settlementObservationDeadline=previousDeadline;}
++
++   }});
+    stageTo('product-settlement');await until('Product removes exact exited allocations and releases charge',async()=>{const view=await request('GET','/v1/sessions/'+session.id);const current=inventory(),ledger=readLedger();return view.status==='exited'&&current.length===0&&ledger.leases.length===0&&ledger.checks.length===0;},35000);record({kind:'product-settled',knownAllocations:[...containers.values()],ledger:readLedger(),containers:inventory()});
+   });
+  }catch(e){failure??=e;receipt.failedStage=stage;receipt.failure=safeError(e);if(page)try{await boundedAttempt(()=>page.screenshot({path:join(evidence,'failure.png'),fullPage:true}),3000,'failure-screenshot-timeout');}catch{}}

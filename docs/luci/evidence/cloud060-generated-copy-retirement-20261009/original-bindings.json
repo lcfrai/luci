@@ -1,0 +1,437 @@
+{
+  "scope": "Exact copies only; no redaction or reconstruction. Original task paths are retained. No private state/log or binary/archive payload copied.",
+  "files": [
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-plan/README.md",
+      "publishedPath": "preparation/README.md",
+      "sourceSHA256": "5a9c19d4788e1e568ac827ee155609705bde56568a686bd5f53664167c84168a",
+      "sourceBytes": 5239,
+      "sha256": "5a9c19d4788e1e568ac827ee155609705bde56568a686bd5f53664167c84168a",
+      "bytes": 5239,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-plan/controls-result.json",
+      "publishedPath": "preparation/controls-result.json",
+      "sourceSHA256": "f1a4feff0b7a055df3ae58eb64808bb6bc800f45607dc4919d8bcacc51ac57bb",
+      "sourceBytes": 935,
+      "sha256": "f1a4feff0b7a055df3ae58eb64808bb6bc800f45607dc4919d8bcacc51ac57bb",
+      "bytes": 935,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-plan/controls.py",
+      "publishedPath": "preparation/controls.py",
+      "sourceSHA256": "1533e41e5ba372838a65417d0250ea0cd122fc0d57642be030e14014497ff03b",
+      "sourceBytes": 3957,
+      "sha256": "1533e41e5ba372838a65417d0250ea0cd122fc0d57642be030e14014497ff03b",
+      "bytes": 3957,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-plan/failure-controls-fixed.json",
+      "publishedPath": "preparation/failure-controls-fixed.json",
+      "sourceSHA256": "8fbbe28f27b1544105eacb5816498c3a015e13cec93de6147f6aa1d6ef610e3f",
+      "sourceBytes": 565,
+      "sha256": "8fbbe28f27b1544105eacb5816498c3a015e13cec93de6147f6aa1d6ef610e3f",
+      "bytes": 565,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-plan/failure-controls-original.json",
+      "publishedPath": "preparation/failure-controls-original.json",
+      "sourceSHA256": "41f416e5ce5618a8e5ac561b0124cae40b8969bc5c3d2f9acccf700710b273ff",
+      "sourceBytes": 800,
+      "sha256": "41f416e5ce5618a8e5ac561b0124cae40b8969bc5c3d2f9acccf700710b273ff",
+      "bytes": 800,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-plan/failure-controls.py",
+      "publishedPath": "preparation/failure-controls.py",
+      "sourceSHA256": "af26a5a1e971aecc450da712fb159995d047b53cac58cc802f5d8f6711d50e43",
+      "sourceBytes": 2681,
+      "sha256": "af26a5a1e971aecc450da712fb159995d047b53cac58cc802f5d8f6711d50e43",
+      "bytes": 2681,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-plan/proof.json",
+      "publishedPath": "preparation/proof.json",
+      "sourceSHA256": "cbab4651da95badd8f04ea40153587ae92790d3b2ac831a8a197de2b0903bce4",
+      "sourceBytes": 958802,
+      "sha256": "cbab4651da95badd8f04ea40153587ae92790d3b2ac831a8a197de2b0903bce4",
+      "bytes": 958802,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-plan/retire.original-syntax.py",
+      "publishedPath": "preparation/retire.original-syntax.py",
+      "sourceSHA256": "8970a1242275e8f5452b8af5c05a5d2bb4bd3a334208118b89907cb270442cc6",
+      "sourceBytes": 11537,
+      "sha256": "8970a1242275e8f5452b8af5c05a5d2bb4bd3a334208118b89907cb270442cc6",
+      "bytes": 11537,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-plan/retire.py",
+      "publishedPath": "preparation/retire.py",
+      "sourceSHA256": "b50fdde1a24745da33b72c970bf0cc606065b095994a17c710acbbc3acfa39a4",
+      "sourceBytes": 12480,
+      "sha256": "b50fdde1a24745da33b72c970bf0cc606065b095994a17c710acbbc3acfa39a4",
+      "bytes": 12480,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-plan/source-review-final.json",
+      "publishedPath": "preparation/source-review-final.json",
+      "sourceSHA256": "1621b00a8816d591e12fbd5c30afa60663077ee78f44d30740d82dcce04d613b",
+      "sourceBytes": 2803,
+      "sha256": "1621b00a8816d591e12fbd5c30afa60663077ee78f44d30740d82dcce04d613b",
+      "bytes": 2803,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-plan/source-review-v1.json",
+      "publishedPath": "preparation/source-review-v1.json",
+      "sourceSHA256": "b49cb20988064389c4773e0041bdf259db11bb615436d33f850be2ff86af34e6",
+      "sourceBytes": 2963,
+      "sha256": "b49cb20988064389c4773e0041bdf259db11bb615436d33f850be2ff86af34e6",
+      "bytes": 2963,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-plan/source-v1/controls-result.json",
+      "publishedPath": "preparation/source-v1/controls-result.json",
+      "sourceSHA256": "86f8aa47448d98fadb958baf295da57c29dbcaeb83607692bd714aada5e33122",
+      "sourceBytes": 935,
+      "sha256": "86f8aa47448d98fadb958baf295da57c29dbcaeb83607692bd714aada5e33122",
+      "bytes": 935,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-plan/source-v1/controls.py",
+      "publishedPath": "preparation/source-v1/controls.py",
+      "sourceSHA256": "1533e41e5ba372838a65417d0250ea0cd122fc0d57642be030e14014497ff03b",
+      "sourceBytes": 3957,
+      "sha256": "1533e41e5ba372838a65417d0250ea0cd122fc0d57642be030e14014497ff03b",
+      "bytes": 3957,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-plan/source-v1/retire.py",
+      "publishedPath": "preparation/source-v1/retire.py",
+      "sourceSHA256": "e7d82dac50c82a57d4e243348866a910f4d0a478acd1c02969592ce21fd1cb5b",
+      "sourceBytes": 11538,
+      "sha256": "e7d82dac50c82a57d4e243348866a910f4d0a478acd1c02969592ce21fd1cb5b",
+      "bytes": 11538,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-plan/syntax-attempt1.json",
+      "publishedPath": "preparation/syntax-attempt1.json",
+      "sourceSHA256": "30ef3689f9f88e8726d3bd5d123bfff0394280cd08c8e9f9433f3f360fd2ed92",
+      "sourceBytes": 257,
+      "sha256": "30ef3689f9f88e8726d3bd5d123bfff0394280cd08c8e9f9433f3f360fd2ed92",
+      "bytes": 257,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-plan/verify.py",
+      "publishedPath": "preparation/verify.py",
+      "sourceSHA256": "7b4b9d9f39db03a91cf9fb72a7067010b0d1ade55258433f881807f58948f351",
+      "sourceBytes": 6665,
+      "sha256": "7b4b9d9f39db03a91cf9fb72a7067010b0d1ade55258433f881807f58948f351",
+      "bytes": 6665,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-plan/manifest.json",
+      "publishedPath": "preparation/manifest.json",
+      "sourceSHA256": "d60f4c115bcb396298d94c3bf24d55a75b4c6ae1e4be1167e5d6905a0c72cecc",
+      "sourceBytes": 2703,
+      "sha256": "d60f4c115bcb396298d94c3bf24d55a75b4c6ae1e4be1167e5d6905a0c72cecc",
+      "bytes": 2703,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-operation-20261009-root1/001-intent.json",
+      "publishedPath": "operation/001-intent.json",
+      "sourceSHA256": "69e0f13143d041adfb14e9f3a31c0b2c92eac5fe8793195f4b1a8bd4f4b21bed",
+      "sourceBytes": 1021,
+      "sha256": "69e0f13143d041adfb14e9f3a31c0b2c92eac5fe8793195f4b1a8bd4f4b21bed",
+      "bytes": 1021,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-operation-20261009-root1/002-preflight-verified.json",
+      "publishedPath": "operation/002-preflight-verified.json",
+      "sourceSHA256": "0b038228437ca7b3e9a056820746f584a83457e7f7ee97a57ebc88155c68eabb",
+      "sourceBytes": 830,
+      "sha256": "0b038228437ca7b3e9a056820746f584a83457e7f7ee97a57ebc88155c68eabb",
+      "bytes": 830,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-operation-20261009-root1/003-link-intent.json",
+      "publishedPath": "operation/003-link-intent.json",
+      "sourceSHA256": "ff53ec336dbf421f02fcc22ce012d732344acab96375d530eb400b742dcc429e",
+      "sourceBytes": 333,
+      "sha256": "ff53ec336dbf421f02fcc22ce012d732344acab96375d530eb400b742dcc429e",
+      "bytes": 333,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-operation-20261009-root1/004-linked.json",
+      "publishedPath": "operation/004-linked.json",
+      "sourceSHA256": "b1f0a17e30bce62375906c690ba16edf1666752cfbbcc033864d3e1823129332",
+      "sourceBytes": 311,
+      "sha256": "b1f0a17e30bce62375906c690ba16edf1666752cfbbcc033864d3e1823129332",
+      "bytes": 311,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-operation-20261009-root1/005-link-intent.json",
+      "publishedPath": "operation/005-link-intent.json",
+      "sourceSHA256": "e7fd05aa7a436d5be699df6dbcbb39ec216376835b946cc1d2239003e186b846",
+      "sourceBytes": 332,
+      "sha256": "e7fd05aa7a436d5be699df6dbcbb39ec216376835b946cc1d2239003e186b846",
+      "bytes": 332,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-operation-20261009-root1/006-linked.json",
+      "publishedPath": "operation/006-linked.json",
+      "sourceSHA256": "3af2cdc90b6eca9003b8bb7adf0fac4671c475b10c6432a3f25d0ce870659afe",
+      "sourceBytes": 308,
+      "sha256": "3af2cdc90b6eca9003b8bb7adf0fac4671c475b10c6432a3f25d0ce870659afe",
+      "bytes": 308,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-operation-20261009-root1/007-link-intent.json",
+      "publishedPath": "operation/007-link-intent.json",
+      "sourceSHA256": "bab964c64a654cbb1753643a529a31cfbce596b6c3baa44e54ce1baf264a07b0",
+      "sourceBytes": 339,
+      "sha256": "bab964c64a654cbb1753643a529a31cfbce596b6c3baa44e54ce1baf264a07b0",
+      "bytes": 339,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-operation-20261009-root1/008-linked.json",
+      "publishedPath": "operation/008-linked.json",
+      "sourceSHA256": "7622da62122aaed3f3a9ec477ff6e588693730b27f502a986763bad9b41c1d65",
+      "sourceBytes": 317,
+      "sha256": "7622da62122aaed3f3a9ec477ff6e588693730b27f502a986763bad9b41c1d65",
+      "bytes": 317,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-operation-20261009-root1/009-link-intent.json",
+      "publishedPath": "operation/009-link-intent.json",
+      "sourceSHA256": "7d1bd0767d64d359d6332b5e0832dabfb07511b2244745c161b6ba380ac049b6",
+      "sourceBytes": 338,
+      "sha256": "7d1bd0767d64d359d6332b5e0832dabfb07511b2244745c161b6ba380ac049b6",
+      "bytes": 338,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-operation-20261009-root1/010-linked.json",
+      "publishedPath": "operation/010-linked.json",
+      "sourceSHA256": "ad8aa851afbaf081064dbce59ece6dd635f36e4a78801a6b51d0af9f04e0f030",
+      "sourceBytes": 314,
+      "sha256": "ad8aa851afbaf081064dbce59ece6dd635f36e4a78801a6b51d0af9f04e0f030",
+      "bytes": 314,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-operation-20261009-root1/011-link-intent.json",
+      "publishedPath": "operation/011-link-intent.json",
+      "sourceSHA256": "1060adf72dec6acd580f025f16739c0cf369b742592cb43aee29a203a7110849",
+      "sourceBytes": 339,
+      "sha256": "1060adf72dec6acd580f025f16739c0cf369b742592cb43aee29a203a7110849",
+      "bytes": 339,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-operation-20261009-root1/012-linked.json",
+      "publishedPath": "operation/012-linked.json",
+      "sourceSHA256": "114a395578cc96ccdadf544d669827e36efbe5e683c8a7afd82e98541f225492",
+      "sourceBytes": 317,
+      "sha256": "114a395578cc96ccdadf544d669827e36efbe5e683c8a7afd82e98541f225492",
+      "bytes": 317,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-operation-20261009-root1/013-link-intent.json",
+      "publishedPath": "operation/013-link-intent.json",
+      "sourceSHA256": "291c32b84bea54b8f16af01ca2a4c3985686c9cadce1e70c868294b16e0b4d22",
+      "sourceBytes": 338,
+      "sha256": "291c32b84bea54b8f16af01ca2a4c3985686c9cadce1e70c868294b16e0b4d22",
+      "bytes": 338,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-operation-20261009-root1/014-linked.json",
+      "publishedPath": "operation/014-linked.json",
+      "sourceSHA256": "d1a590f8eaebff5c8107740e32d2e2846b08705114eb494ac46690816278e746",
+      "sourceBytes": 314,
+      "sha256": "d1a590f8eaebff5c8107740e32d2e2846b08705114eb494ac46690816278e746",
+      "bytes": 314,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-operation-20261009-root1/015-all-links-verified-before-unlink.json",
+      "publishedPath": "operation/015-all-links-verified-before-unlink.json",
+      "sourceSHA256": "18c7ed711699fbc90a37ee093a97ea1c9e9fce46861f0d979609787c16bebd5f",
+      "sourceBytes": 348,
+      "sha256": "18c7ed711699fbc90a37ee093a97ea1c9e9fce46861f0d979609787c16bebd5f",
+      "bytes": 348,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-operation-20261009-root1/016-unlink-intent.json",
+      "publishedPath": "operation/016-unlink-intent.json",
+      "sourceSHA256": "2b4b10e26fadfbaa7a7fd688135c6affe9cbf0538ece33b2c435d3d17a0dd2e6",
+      "sourceBytes": 340,
+      "sha256": "2b4b10e26fadfbaa7a7fd688135c6affe9cbf0538ece33b2c435d3d17a0dd2e6",
+      "bytes": 340,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-operation-20261009-root1/017-unlinked.json",
+      "publishedPath": "operation/017-unlinked.json",
+      "sourceSHA256": "065844654dbc5707ab4aa7970e97a8c55535322169160e861614789a93eb0b93",
+      "sourceBytes": 185,
+      "sha256": "065844654dbc5707ab4aa7970e97a8c55535322169160e861614789a93eb0b93",
+      "bytes": 185,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-operation-20261009-root1/018-unlink-intent.json",
+      "publishedPath": "operation/018-unlink-intent.json",
+      "sourceSHA256": "ecec36bf645ed55b78f6db88fb3457007a526583c7c345f27db89aa0dbd0c00f",
+      "sourceBytes": 337,
+      "sha256": "ecec36bf645ed55b78f6db88fb3457007a526583c7c345f27db89aa0dbd0c00f",
+      "bytes": 337,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-operation-20261009-root1/019-unlinked.json",
+      "publishedPath": "operation/019-unlinked.json",
+      "sourceSHA256": "b12ea317baa47b59f9be1fa9ca0810c279c0001032cdaf825769ca6a5a766e3c",
+      "sourceBytes": 184,
+      "sha256": "b12ea317baa47b59f9be1fa9ca0810c279c0001032cdaf825769ca6a5a766e3c",
+      "bytes": 184,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-operation-20261009-root1/020-unlink-intent.json",
+      "publishedPath": "operation/020-unlink-intent.json",
+      "sourceSHA256": "bfc81151ae115918e5c9ab161316bd673fd7b6ae8ec67f18472f7827c573f62f",
+      "sourceBytes": 343,
+      "sha256": "bfc81151ae115918e5c9ab161316bd673fd7b6ae8ec67f18472f7827c573f62f",
+      "bytes": 343,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-operation-20261009-root1/021-unlinked.json",
+      "publishedPath": "operation/021-unlinked.json",
+      "sourceSHA256": "822e7d74570483aa0fa1e2373485e02efc8ad4c8361dbc2ce3c79a5b7107f9e6",
+      "sourceBytes": 188,
+      "sha256": "822e7d74570483aa0fa1e2373485e02efc8ad4c8361dbc2ce3c79a5b7107f9e6",
+      "bytes": 188,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-operation-20261009-root1/022-unlink-intent.json",
+      "publishedPath": "operation/022-unlink-intent.json",
+      "sourceSHA256": "b1f64cbe7d12816bde1b2359db0e08948c3a214efa0b28d555ac088c4b0daa33",
+      "sourceBytes": 340,
+      "sha256": "b1f64cbe7d12816bde1b2359db0e08948c3a214efa0b28d555ac088c4b0daa33",
+      "bytes": 340,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-operation-20261009-root1/023-unlinked.json",
+      "publishedPath": "operation/023-unlinked.json",
+      "sourceSHA256": "325c797c37d3a501aae02909ff7f50979b07195aa5a523ce3b7fb8da506744a3",
+      "sourceBytes": 187,
+      "sha256": "325c797c37d3a501aae02909ff7f50979b07195aa5a523ce3b7fb8da506744a3",
+      "bytes": 187,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-operation-20261009-root1/024-unlink-intent.json",
+      "publishedPath": "operation/024-unlink-intent.json",
+      "sourceSHA256": "db16d61935c6b2b6bddb0d86bb63a18a112a4936f794b6a705a761164fe5d010",
+      "sourceBytes": 343,
+      "sha256": "db16d61935c6b2b6bddb0d86bb63a18a112a4936f794b6a705a761164fe5d010",
+      "bytes": 343,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-operation-20261009-root1/025-unlinked.json",
+      "publishedPath": "operation/025-unlinked.json",
+      "sourceSHA256": "f585c77f8aa8685cd550b40dae10d7d1bbb495f42646b38fe3ad6249422c7463",
+      "sourceBytes": 188,
+      "sha256": "f585c77f8aa8685cd550b40dae10d7d1bbb495f42646b38fe3ad6249422c7463",
+      "bytes": 188,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-operation-20261009-root1/026-unlink-intent.json",
+      "publishedPath": "operation/026-unlink-intent.json",
+      "sourceSHA256": "2d26e5d283556b019a26c8d0034d86b285b7b6ce5c45c7db4f31dc690fedad59",
+      "sourceBytes": 340,
+      "sha256": "2d26e5d283556b019a26c8d0034d86b285b7b6ce5c45c7db4f31dc690fedad59",
+      "bytes": 340,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-operation-20261009-root1/027-unlinked.json",
+      "publishedPath": "operation/027-unlinked.json",
+      "sourceSHA256": "633677313a30f15b05f64d3b629cb42ed5187ac888f524a1ed8e0e71ff29976c",
+      "sourceBytes": 187,
+      "sha256": "633677313a30f15b05f64d3b629cb42ed5187ac888f524a1ed8e0e71ff29976c",
+      "bytes": 187,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-copy-retirement-operation-20261009-root1/028-final.json",
+      "publishedPath": "operation/028-final.json",
+      "sourceSHA256": "ea4894e0d70fde71460284a5273200fb6da83b96d2db6e88b88c196276b5c79a",
+      "sourceBytes": 1681,
+      "sha256": "ea4894e0d70fde71460284a5273200fb6da83b96d2db6e88b88c196276b5c79a",
+      "bytes": 1681,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-generated-copy-storage-review.json",
+      "publishedPath": "prior-readonly/cloud060-generated-copy-storage-review.json",
+      "sourceSHA256": "4e1bf30f68760144cd4398f9edf35b0c960994920abe3e4f968fee21130e47e9",
+      "sourceBytes": 4583,
+      "sha256": "4e1bf30f68760144cd4398f9edf35b0c960994920abe3e4f968fee21130e47e9",
+      "bytes": 4583,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud060-generated-copy-storage-review.md",
+      "publishedPath": "prior-readonly/cloud060-generated-copy-storage-review.md",
+      "sourceSHA256": "07dd9cdb6fab5ca05b98ff7a9861be1d536ffa9886724a676101a43a7e588837",
+      "sourceBytes": 2940,
+      "sha256": "07dd9cdb6fab5ca05b98ff7a9861be1d536ffa9886724a676101a43a7e588837",
+      "bytes": 2940,
+      "transformation": "none"
+    },
+    {
+      "source": "/workspace/.luci-tools/publish-cloud060-copy-retirement/assemble.py",
+      "publishedPath": "repro/assemble.py",
+      "sourceSHA256": "27d74f94fdf8bcc3885acea6d08a72c1c67d40e7987aa4c76939ca5bb9cd08d0",
+      "sourceBytes": 16800,
+      "sha256": "27d74f94fdf8bcc3885acea6d08a72c1c67d40e7987aa4c76939ca5bb9cd08d0",
+      "bytes": 16800,
+      "transformation": "none"
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "argv": [
+    "/workspace/.luci-tools/go1.26.3/bin/go",
+    "test",
+    "-c",
+    "-race",
+    "-p",
+    "2",
+    "-overlay=/workspace/.luci-tools/cloud070-manual-lease-observation/overlay.json",
+    "-o",
+    "/workspace/.luci-tools/cloud070-manual-lease-observation/evidence/compiled",
+    "./internal/api",
+    "./internal/backend/dockerbe"
+  ],
+  "cwd": "/workspace/luci/control-plane",
+  "sourceCommit": "29931afc5b31ae9b9bd7b8973a7e3fdb840609a3",
+  "environment": {
+    "GOMAXPROCS": "2",
+    "GOMODCACHE": "/tmp/luci-retained-tools/go-mod",
+    "GOPATH": "/tmp/luci-gopath",
+    "GOCACHE": "/workspace/.luci-tools/c070-go-build-cache",
+    "GOTMPDIR": "/workspace/.t",
+    "TMPDIR": "/workspace/.t",
+    "GOTOOLCHAIN": "local",
+    "GOWORK": "/workspace/.luci-tools/go.work",
+    "GOFLAGS": "-mod=readonly"
+  },
+  "startedAt": 1791561345.969206,
+  "purpose": "Retained compile-only binaries for exact source parity; no test functions executed.",
+  "exitCode": 0,
+  "endedAt": 1791561349.6644683,
+  "binaries": {
+    "api.test": {
+      "sha256": "cbb66d238b48e62ff33717f2d77d8e873eb14367fb9f94d3508d7e270a2fdc77",
+      "bytes": 53374507
+    },
+    "dockerbe.test": {
+      "sha256": "cb1e5b20f31a41f3f8e86bdd419dafd22a4684627f345904958817ece292cd67",
+      "bytes": 17975243
+    }
+  }
+}

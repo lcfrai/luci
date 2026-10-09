@@ -1,0 +1,18 @@
+{
+  "kind": "poll-unroute-failed",
+  "error": {
+    "name": "Error",
+    "code": null,
+    "messageSHA256": "6543295676a53571f22b6b49d9066f73391b05c3e9c955fbba1125102677b9d8",
+    "messageBytes": 61,
+    "messageRetained": false,
+    "kind": "other"
+  },
+  "entry": {
+    "at": "2026-10-09T14:50:55.883Z",
+    "monotonicMs": 54049.790489,
+    "deadlineMonotonicMs": 62049.790489,
+    "budgetMs": 8000
+  },
+  "observedAt": "2026-10-09T14:50:56.444Z"
+}

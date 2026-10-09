@@ -1,0 +1,34 @@
+test_final_floor_math_requires_old333_step (test_controls.Bounds.test_final_floor_math_requires_old333_step) ... ok
+test_output_cap_refuses_before_extra_bytes (test_controls.Bounds.test_output_cap_refuses_before_extra_bytes) ... ok
+test_same_export_guard_plus_output (test_controls.Bounds.test_same_export_guard_plus_output) ... ok
+test_settlement_waits_are_bounded (test_controls.Bounds.test_settlement_waits_are_bounded) ... ok
+test_unexpected_settlement_error_is_explicit (test_controls.Bounds.test_unexpected_settlement_error_is_explicit) ... ok
+test_333_refuses_before_publication_identity (test_controls.Placement.test_333_refuses_before_publication_identity) ... ok
+test_425_roundtrip_exact_bytes_aliases_protected (test_controls.Placement.test_425_roundtrip_exact_bytes_aliases_protected) ... ERROR
+test_wrong_original_bytes_refuse (test_controls.Placement.test_wrong_original_bytes_refuse) ... ok
+
+======================================================================
+ERROR: test_425_roundtrip_exact_bytes_aliases_protected (test_controls.Placement.test_425_roundtrip_exact_bytes_aliases_protected)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/.luci-tools/runtime760-bootstrap-v1/test_controls.py", line 50, in test_425_roundtrip_exact_bytes_aliases_protected
+    before=self.protected.read_bytes();self.go('425-to-root');self.assertFalse(self.pair[0].is_symlink());self.assertEqual(self.pair[0].stat().st_nlink,2);self.assertEqual(self.pair[0].stat().st_ino,self.pair[1].stat().st_ino);self.assertEqual(os.readlink(self.f),str(self.pair[0]));self.go('425-to-tmp');self.assertFalse(self.f.is_symlink());self.assertEqual(m.digest(self.f),self.pin)
+                                       ^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/.luci-tools/runtime760-bootstrap-v1/test_controls.py", line 48, in go
+    self.n+=1;m.main(['--window-granted','--mode',mode,'--output',str(self.root/f'runtime760-placement-test{self.n}')])
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/.luci-tools/runtime760-bootstrap-v1/place_archives.py", line 46, in main
+    need(target.stat().st_nlink==1,'single-original-tmp-file-required');scratch=pair[0].with_name('.restore425-'+a.output.name);before=copy(m,target,scratch,size,pin,3905250841);record('root-copy-verified',originalMetadata=before,copy=str(scratch),sha256=pin)
+                                                                                                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/.luci-tools/runtime760-bootstrap-v1/place_archives.py", line 24, in copy
+    need(not os.path.lexists(destination),'copy-destination-occupied');before=m.met(source);need(not source.is_symlink()and stat.S_ISREG(source.lstat().st_mode)and before['bytes']==size and before['mode']==0o600 and before['uid']==os.getuid(),'owned-exact-file-required');need(m.sha(source)==pin,'original-byte-pin-mismatch');need(m.free(destination.parent)>=size+minimum+GUARD,'destination-copy-budget-refused')
+                                                                                                                                                                                                                                                                                                                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/.luci-tools/runtime760-bootstrap-v1/place_archives.py", line 13, in need
+    if not ok:raise RuntimeError(text)
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: destination-copy-budget-refused
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.035s
+
+FAILED (errors=1)

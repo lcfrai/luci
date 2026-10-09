@@ -2026,6 +2026,21 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	// Managed restarts share the exact child's durable lifecycle fence with
+	// trusted capacity observation. Read the current row again under that fence
+	// before reserving or replacing any generation.
+	if a.execution != nil && a.deps.ResourceSnapshot != nil {
+		unlock, err := a.execution.lockChildLifecycle(r.Context(), id)
+		if err != nil {
+			httpx.WriteProblem(w, http.StatusConflict, httpx.CodeConflict, "This session's current allocation is being observed or changed. Retry after its current operation.", nil)
+			return
+		}
+		defer unlock()
+		sess, ok = a.sessionByID(w, r)
+		if !ok {
+			return
+		}
+	}
 	if sess.ProjectRunID != "" || sess.ProjectRunOperationID != "" {
 		httpx.WriteProblem(w, http.StatusConflict, httpx.CodeConflict, "Reserve a new coding operation in the project run before retrying. The original attempt remains in the run history.", nil)
 		return

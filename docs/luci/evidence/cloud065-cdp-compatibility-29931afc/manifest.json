@@ -1,0 +1,30 @@
+{
+  "scope": "Tiny real Chromium CDP compatibility, six checks; no product acceptance.",
+  "members": [
+    {
+      "path": "README.md",
+      "bytes": 2073,
+      "sha256": "6a616bb3f73fd6849f94745cb06ec0c0acc620c9ca1afb4b5d14f3b371e7749b"
+    },
+    {
+      "path": "fixture.mjs",
+      "bytes": 6753,
+      "sha256": "0e13836a67dd848b18b56c4284a3cb6b5fb9c66529e61f11073925d74792a585"
+    },
+    {
+      "path": "inputs.json",
+      "bytes": 1512,
+      "sha256": "769792e153d93f6daf3b5af3de29b377559b7a3e9fbdde621a0f891d938f77e3"
+    },
+    {
+      "path": "result.json",
+      "bytes": 9429,
+      "sha256": "486e6374dd39735290b81bf420aac5673be046ecb7b1e177a74f2475171723b7"
+    },
+    {
+      "path": "scenario.frozen.mjs",
+      "bytes": 36846,
+      "sha256": "fa316a25f91f223ea5cba6fe5cb424c67139062af4f52ff4e2516ce57004f4b1"
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "scope": "Publication-side small-file consistency audit; same publication author, not an independent live operation verifier.",
+  "actualRestoration": {
+    "startedAt": "2026-10-09T15:11:10.412093+00:00",
+    "finishedAt": "2026-10-09T15:11:42.018216+00:00",
+    "passed": true,
+    "wrapperExitCode": 0,
+    "timedOut": false,
+    "forced": false,
+    "journalCount": 11,
+    "sourceBeforeAfterEqual": true,
+    "pinnedPreparationCount": 16,
+    "beforeManifest": {
+      "path": "/workspace/.luci-tools/tool-relocation-20261009T1158/go1.26.3/tree-before.json",
+      "sha256": "50b4a84d580c4b072378c2cea371854fa750c29ef512c634b0282c365a57f242",
+      "entries": 16688,
+      "logicalBytes": 232365810,
+      "observedEqualsPinnedManifest": true
+    },
+    "freeBefore": {
+      "/workspace": 7634825216,
+      "/tmp": 1985839104
+    },
+    "freeAfter": {
+      "/workspace": 7352782848,
+      "/tmp": 2260738048
+    },
+    "freeDelta": {
+      "/workspace": -282042368,
+      "/tmp": 274898944
+    },
+    "logicalBytes": 232365810,
+    "finalWorkspaceRealDirectory": true,
+    "tmpCompatibilityTarget": "/workspace/.luci-tools/go1.26.3"
+  },
+  "separateEarlierCacheClean": {
+    "at": "2026-10-09T14:56:59.748820+00:00",
+    "path": "/tmp/luci-retained-tools/go-build",
+    "exitCode": 0,
+    "freeBefore": {
+      "/workspace": 7637749760,
+      "/tmp": 1401249792
+    },
+    "freeAfter": {
+      "/workspace": 7637749760,
+      "/tmp": 1985839104
+    },
+    "freeDelta": {
+      "/workspace": 0,
+      "/tmp": 584589312
+    }
+  },
+  "laterOwnerReportedObservation": {
+    "/workspace": 7352774656,
+    "/tmp": 2260738048,
+    "scope": "Parent coordination message only; exact timestamp and separate machine receipt were not supplied. Never substituted for original final-operation observation."
+  },
+  "limits": [
+    "No application, compiler, Docker, tool mutation or operation/control rerun by publication.",
+    "16,688 Go entries and bytes/mode/uid/gid/mtime equality are operation-recorded; historical 4,334,445-byte manifest and Go payload are excluded.",
+    "Exact accepted unknown process identities remain unknown; readable snapshots plus bounded live-root coordination are not whole-machine inactivity or future-launch exclusion.",
+    "420 seconds bounds process waits, not synchronous OS I/O; own leader exit is not a descendant census.",
+    "Root final floor 6,736,759,858 bytes was met in the receipt; future admission is not certified. TMP 2,260,738,048 bytes is below the separate 3,905,250,841-byte export floor.",
+    "No saved-runtime export, fresh environment, Windows, live provider or product acceptance follows."
+  ]
+}

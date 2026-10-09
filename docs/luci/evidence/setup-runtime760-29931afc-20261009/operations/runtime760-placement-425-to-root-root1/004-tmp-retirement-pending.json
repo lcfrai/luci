@@ -1,0 +1,33 @@
+{
+  "stage": "tmp-retirement-pending",
+  "at": "2026-10-09T15:30:10.116689+00:00",
+  "replaced": [
+    "/workspace/.luci-tools/runtime-archive-7e1b1f608cfa/verified-luci-sandbox-dev.tar.gz",
+    "/workspace/.luci-tools/runtime-archive-1f845cfd2b45/old-luci-sandbox-dev.tar.gz"
+  ],
+  "processObservation": {
+    "observed": 7,
+    "busy": [],
+    "unknown": [
+      {
+        "pid": 203,
+        "startTicks": "1521",
+        "identityStable": true,
+        "reason": "observation-unavailable-or-changed"
+      },
+      {
+        "pid": 254,
+        "startTicks": "1534",
+        "identityStable": true,
+        "reason": "observation-unavailable-or-changed"
+      },
+      {
+        "pid": 260700,
+        "startTicks": "2331192",
+        "identityStable": true,
+        "reason": "observation-unavailable-or-changed"
+      }
+    ],
+    "scope": "Readable exact executable/cwd/argv/maps/fd observations; no future-launch exclusion or universal daemon-operation proof"
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "exitCode": 1,
+  "expectedTests": 8,
+  "scope": "Tiny inert/disposable controls; no Docker or actual archive/tool operations"
+}

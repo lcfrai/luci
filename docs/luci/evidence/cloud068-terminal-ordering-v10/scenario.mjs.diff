@@ -1,0 +1,77 @@
+--- C067-v9/scenario.mjs
++++ C068-v10/scenario.mjs
+@@ -225,10 +225,40 @@
+   }
+ }
+ 
++// The client read budget is10s while acknowledged Restart may legitimately wait
++// for a150s Create. Preserve the original8s read gate: settle early when Create
++// is slow and explicitly leave the after-ack ordering gate unexercised.
++export function createBoundedSecondPollRelease({gate,record,health,now=()=>performance.now(),setTimer=setTimeout,clearTimer=clearTimeout}) {
++  const snapshot=gate.snapshot(),deadline=snapshot.deadlineMonotonicMs;
++  assert(Number.isFinite(deadline)&&deadline>now(),'Second read gate has no remaining budget');
++  let releasePromise,releaseReason,releaseRequestedAt,acknowledgedAt=null,attachedAt=null,failure,timer;
++  const releaseOnce=reason=>{
++    if(releasePromise)return releasePromise;
++    releaseReason=reason;releaseRequestedAt=now();clearTimer(timer);
++    releasePromise=(async()=>{try{record({kind:'second-poll-release-requested',reason,releaseRequestedMonotonicMs:releaseRequestedAt,acknowledgedMonotonicMs:acknowledgedAt,attachedMonotonicMs:attachedAt,originalDeadlineMonotonicMs:deadline});health();await gate.release();}catch(error){failure=error;throw error;}})();
++    releasePromise.catch(()=>{});return releasePromise;
++  };
++  // Leave2s within the original8s gate for its existing transport settlement.
++  timer=setTimer(()=>{void releaseOnce('bounded-before-attachment').catch(()=>{});},Math.max(0,deadline-now()-2000));
++  return {
++    acknowledged:()=>{health();if(failure)throw failure;acknowledgedAt=now();},
++    releaseAfterAttachment:async()=>{
++      health();if(failure)throw failure;assert(acknowledgedAt!==null,'Restart acknowledgement required');attachedAt=now();
++      await releaseOnce('after-acknowledged-attachment');if(failure)throw failure;
++      const value=gate.snapshot();assert(value.releasedMonotonicMs!==undefined&&value.expired===false,'Second read settlement unavailable');
++      const exercised=releaseReason==='after-acknowledged-attachment';
++      if(exercised){assert(releaseRequestedAt>=attachedAt);assert(value.releasedMonotonicMs>=acknowledgedAt);}
++      const result={exercised,reason:exercised?'old-response-after-acknowledged-attachment':'slow-or-late-restart-within-longer-create-budget',releaseRequestedMonotonicMs:releaseRequestedAt,releasedMonotonicMs:value.releasedMonotonicMs,acknowledgedMonotonicMs:acknowledgedAt,attachedMonotonicMs:attachedAt,originalDeadlineMonotonicMs:deadline,clientReadBudgetMs:10000,originalGateBudgetMs:8000,transportReserveMs:2000};
++      record({kind:'second-poll-ordering-coverage',...result});return result;
++    },
++    dispose:async()=>{clearTimer(timer);await releaseOnce('scenario-teardown');if(failure)throw failure;},
++  };
++}
++
+ export async function runTerminalScenario({page,base,workspace,sessionId,projectId,request,record,health,monitor,markers,evidenceDir,observeSettlement}) {
+   assert.match(sessionId,/^s-[a-f0-9]{8}$/);assert.match(projectId,/^p-[a-f0-9]+$/);
+   const path=workspace+'/v1/sessions/'+sessionId, pane=page.locator('section.pane[data-session-id="'+sessionId+'"]');
+-  const gates=[];let primaryFailure,step='pane-visible';
++  const gates=[];let primaryFailure,secondRelease,step='pane-visible';
+   const stepTo=value=>{step=value;record({kind:'scenario-step',step});};
+   const until=async(label,fn,ms=15000)=>{const end=Date.now()+ms;while(Date.now()<end){health();const value=await fn();if(value)return value;await delay(50);}throw Error(label+' timed out');};
+   const snapshot=async()=>{const value=await monitor.snapshot();assert.equal(value.observerFailure,null);assert.deepEqual(value.browser.failures,[]);return value;};
+@@ -260,10 +290,11 @@
+     stepTo('initial-natural-settlement');await waitForOwnedTerminalSettlement({sessionId,projectId,initialExecutionGeneration:before.executionGeneration,observe:observeSettlement,health,record});
+     stepTo('second-old-poll-hold');const secondGate=await holdNextSessionList(page,{base,workspace,sessionId,health,record});gates.push(secondGate);
+     await Promise.race([secondGate.ready,delay(7000).then(()=>{throw Error('Second list gate not reached');})]);
++    secondRelease=createBoundedSecondPollRelease({gate:secondGate,health,record});
+     stepTo('single-ui-restart');const responsePromise=page.waitForResponse(response=>new URL(response.url()).pathname===path+'/restart'&&response.request().method()==='POST',{timeout:150000});
+-    await pane.getByRole('button',{name:'Restart',exact:true}).click();const restartResponse=await responsePromise;assert.equal(restartResponse.status(),200);const restarted=await restartResponse.json();assert.equal(restarted.id,sessionId);assert.match(restarted.executionGeneration,/^[a-f0-9]{64}$/);assert.notEqual(restarted.executionGeneration,before.executionGeneration);
++    await pane.getByRole('button',{name:'Restart',exact:true}).click();const restartResponse=await responsePromise;assert.equal(restartResponse.status(),200);const restarted=await restartResponse.json();assert.equal(restarted.id,sessionId);assert.match(restarted.executionGeneration,/^[a-f0-9]{64}$/);assert.notEqual(restarted.executionGeneration,before.executionGeneration);secondRelease.acknowledged();
+     stepTo('replacement-socket');await until('Replacement browser socket attached',async()=>{const s=await snapshot();return s.browser.rows.length===2&&s.browser.rows[1].open&&(await state()).footer.includes('attached');},6000);
+-    stepTo('old-poll-release-after-restart');await secondGate.release();await secondGate.dispose();await delay(250);health();
++    stepTo('old-poll-release-after-restart');const oldReadOrdering=await secondRelease.releaseAfterAttachment();await secondGate.dispose();await delay(250);health();
+     assert.equal((await snapshot()).browser.rows.length,2);assert.match((await state()).footer,/attached/);assert.equal((await state()).restartCount,0);
+     assert.equal(await pane.locator('.xterm').evaluate(element=>element===globalThis.__c054OriginalTerminal),true,'Terminal DOM retained through same-ID restart');
+     const current=await until('Replacement authoritative running row',async()=>{const row=await fresh();assert.equal(row.executionGeneration,restarted.executionGeneration);assert(['starting','running'].includes(row.status));return row.status==='running'?row:null;},15000);assert.equal(current.status,'running');
+@@ -273,8 +304,8 @@
+     stepTo('second-wire-assertions');const final=await snapshot(),second=final.browser.rows[1];assert.equal(final.browser.rows.length,2);assert.equal(second.error,false);assert.equal(second.closed.code,1000);assert.equal(second.closed.wasClean,true);assert.deepEqual(second.exit.map(value=>value.reason),[{kind:'exit-status',code:7}]);assert(second.markers.second.sequence<second.exit[0].sequence);
+     await until('Nonzero completion says ended',async()=>(await state()).footer.includes('ended'));await delay(2300);health();assert.equal((await snapshot()).browser.rows.length,2);assert.equal((await state()).overlay,null);
+     await page.screenshot({path:evidenceDir+'/second-nonzero-ended.png',fullPage:true});
+-    record({kind:'scenario-complete',passed:true,ui:await state(),wire:await snapshot(),limitations:['Actual interactive shell transport, not model-provider output quality','No 1013 overflow induced; separately controlled regression applies','Screenshots preserve actual terminal rendering for manual review; wire marker receipt is not OCR','Current scope verifies terminal-ended stdin suppression, not project-permission revocation','A same-ID UI restart is exercised; external-actor restart and late old-socket callbacks remain controlled-source scope','No responsiveness/throughput/whole-computer claim']});
+-    return {passed:true,sessionId,initialExecutionGeneration:before.executionGeneration,restartedExecutionGeneration:restarted.executionGeneration};
++    record({kind:'scenario-complete',passed:oldReadOrdering.exercised,warmRestartPassed:true,oldReadOrdering,ui:await state(),wire:await snapshot(),limitations:['Actual interactive shell transport, not model-provider output quality','No 1013 overflow induced; separately controlled regression applies','Screenshots preserve actual terminal rendering for manual review; wire marker receipt is not OCR','Current scope verifies terminal-ended stdin suppression, not project-permission revocation','A same-ID UI restart is exercised; external-actor restart and late old-socket callbacks remain controlled-source scope','No responsiveness/throughput/whole-computer claim']});
++    return {passed:oldReadOrdering.exercised,warmRestartPassed:true,oldReadOrdering,requiredAcceptanceIncomplete:oldReadOrdering.exercised?[]:['installed-old-response-after-restart-acknowledgement'],sessionId,initialExecutionGeneration:before.executionGeneration,restartedExecutionGeneration:restarted.executionGeneration};
+   }catch(error){
+     primaryFailure=error;
+     // Preserve the primary failure before route disposal can fail, then make a
+@@ -285,6 +316,7 @@
+     throw error;
+   }finally{
+     let cleanupFailure;
++    if(secondRelease)try{await secondRelease.dispose();}catch(error){cleanupFailure=error;try{record({kind:'second-poll-release-cleanup-failure',step,error:scenarioError(error)});}catch{}}
+     for(const [index,gate]of gates.entries())try{await gate.dispose();}catch(error){cleanupFailure??=error;try{record({kind:'scenario-gate-cleanup-failure',step,index,error:scenarioError(error),gate:gate.snapshot()});}catch{}}
+     if(cleanupFailure&&!primaryFailure)throw cleanupFailure;
+   }

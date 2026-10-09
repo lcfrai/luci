@@ -1,0 +1,24 @@
+{
+  "sourceCommit": "29931afc5b31ae9b9bd7b8973a7e3fdb840609a3",
+  "resultSHA256": "a8054f70b05642528cf1041eef87be1e8f7cf55643b39ef94bb91fc00991be50",
+  "failure": {
+    "name": "AssertionError",
+    "code": "ERR_ASSERTION",
+    "message": "Six GiB fixture root floor"
+  },
+  "failedStage": "terminal-scenario",
+  "restartPOSTsRecorded": 0,
+  "recordedRootFreeBytes": [
+    7640137728
+  ],
+  "refusalTimeRootFreeBytes": null,
+  "observerKinds": {
+    "final-known-identities": 1,
+    "identity-observation": 51,
+    "launcher-gate-released": 1,
+    "launcher-started": 1,
+    "fixture-observed": 1
+  },
+  "observerContainsDiskSamples": false,
+  "scope": "Read-only original result/process-identity observer audit. No refusal-time free-space amount or causal memory/storage attribution inferred. Original fixture and failed bytes untouched."
+}

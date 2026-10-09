@@ -1,0 +1,58 @@
+{
+  "at": "2026-10-09T14:49:12.419403+00:00",
+  "sourceSHA256": "5a5335c6d980c4744fbc2c134cef282d4c2c594a771eb5ca170e63d72d8c7f18",
+  "sources": [
+    "/workspace/.luci-tools/runtime-archive-7e1b1f608cfa/verified-luci-sandbox-dev.tar.gz",
+    "/workspace/.luci-tools/runtime-archive-1f845cfd2b45/old-luci-sandbox-dev.tar.gz"
+  ],
+  "target": "/tmp/luci-retained-tools/historical-runtime-42597a-c593f37e.tar.gz",
+  "originalMetadata": {
+    "dev": 27,
+    "ino": 541546,
+    "mode": 384,
+    "uid": 1000,
+    "gid": 1000,
+    "bytes": 1013359941,
+    "blocksBytes": 1013366784,
+    "nlink": 2,
+    "mtimeNs": 1791451193648334394
+  },
+  "expectedSHA256": "c593f37eaa3795358aa1b76dd355828ddaadfcf503b9a5e3a1aea6976c947c91",
+  "expectedBytes": 1013359941,
+  "freeBefore": {
+    "/workspace": 6627237888,
+    "/tmp": 2414612480
+  },
+  "tmpMinimumBytes": 524288000,
+  "tmpWorkingGuardBytes": 67108864,
+  "protected333Metadata": {
+    "/workspace/.luci-tools/luci-sandbox-dev.tar.gz": {
+      "dev": 27,
+      "ino": 545278,
+      "mode": 384,
+      "uid": 1000,
+      "gid": 1000,
+      "bytes": 1013367768,
+      "blocksBytes": 1013374976,
+      "nlink": 2,
+      "mtimeNs": 1791479257875448347
+    },
+    "/workspace/.luci-tools/runtime-archive-1f845cfd2b45/verified-luci-sandbox-dev.tar.gz": {
+      "dev": 27,
+      "ino": 545278,
+      "mode": 384,
+      "uid": 1000,
+      "gid": 1000,
+      "bytes": 1013367768,
+      "blocksBytes": 1013374976,
+      "nlink": 2,
+      "mtimeNs": 1791479257875448347
+    }
+  },
+  "receiptHashes": {
+    "/workspace/.luci-tools/runtime-archive-7e1b1f608cfa/receipt.json": "1cb69860e6d206238565220164d3e2f1e19412814de4453b9b307c3e04143c93",
+    "/workspace/.luci-tools/runtime-archive-1f845cfd2b45/receipt.json": "a8e164024cf84d8bfcb90f8693964ba8ee5b53dddb8f02bc857ede707a6d5860"
+  },
+  "coordination": "Root confirms current build has settled and no task will use/change these exact archive paths. No global process-idle claim.",
+  "retention": "TMP is not guaranteed snapshot retention. Original inode/hardlink topology will change; exact archive bytes and both compatibility paths remain retained."
+}

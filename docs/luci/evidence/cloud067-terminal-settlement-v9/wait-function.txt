@@ -1,0 +1,45 @@
+// Wait for natural cleanup only. This observes the exact initial allocation and
+// charge; it has no Stop/Destroy/write/retry-authority capability.
+export async function waitForOwnedTerminalSettlement({sessionId,projectId,initialExecutionGeneration,observe,health,record,now=()=>performance.now(),sleep=delay}) {
+  assert.equal(typeof observe,'function');assert.match(initialExecutionGeneration,/^[a-f0-9]{64}$/);
+  const started=now(),deadline=started+35000;let polls=0,pin,last,first,changes=0,lastShape;
+  for(;;){
+    health();assert(now()<deadline,'Exact initial allocation cleanup remains unconfirmed');
+    const value=observe({budgetMs:Math.max(1,Math.floor(deadline-now()))});
+    assert(!value||typeof value.then!=='function','Asynchronous settlement observation unavailable');health();assert(now()<deadline,'Exact initial allocation cleanup observation exceeded its budget');polls++;
+    assert(value&&value.initial&&value.current,'Owned settlement observation unavailable');
+    const initial=value.initial,current=value.current;
+    assert.equal(initial.sessionId,sessionId);assert.equal(initial.executionGeneration,initialExecutionGeneration);
+    assert(Array.isArray(initial.containers)&&initial.containers.length===1,'Exactly one recorded initial allocation required');
+    assert(initial.ledger?.present===true&&Array.isArray(initial.ledger.leases)&&initial.ledger.leases.length===1,'Exactly one recorded initial charged lease required');
+    const allocation=initial.containers[0],lease=initial.ledger.leases[0];
+    assert.match(allocation.id,/^[a-f0-9]{64}$/);assert.equal(allocation.sessionId,sessionId);assert.equal(lease.sessionId,sessionId);assert.equal(lease.projectId,projectId);assert.equal(lease.sandboxId,allocation.sandboxId);
+    assert.equal(lease.state,'backend-settled');assert.deepEqual(lease.resources,{CPUMillis:1000,MemoryMiB:1024});
+    assert.equal(allocation.memoryBytes,1024*1024**2);assert.equal(allocation.cpuNano,1_000_000_000);assert.match(allocation.imageID,/^sha256:[a-f0-9]{64}$/);assert.equal(typeof allocation.instanceId,'string');assert(allocation.instanceId.length>0);
+    const identity={allocation:{id:allocation.id,sandboxId:allocation.sandboxId,sessionId,instanceId:allocation.instanceId,imageID:allocation.imageID,name:allocation.name},lease:{id:lease.id,sessionId,projectId,sandboxId:lease.sandboxId,state:lease.state,resources:lease.resources}};
+    assert.equal(typeof lease.id,'string');assert(lease.id.length>0);
+    if(!pin)pin=structuredClone(identity);else assert.deepEqual(identity,pin,'Initial ownership pin changed');
+    assert.equal(current.session?.id,sessionId);assert.equal(current.session.projectId,projectId);assert.equal(current.session.status,'exited');assert.equal(current.session.sandboxId,pin.allocation.sandboxId);assert.equal(current.session.sandboxRef,pin.allocation.id);assert.equal(current.session.credentialsCleared,true);
+    assert(Array.isArray(current.containers)&&current.containers.length<=1,'Unknown or additional allocation');
+    for(const row of current.containers){for(const key of Object.keys(pin.allocation))assert.equal(row[key],pin.allocation[key],'Allocation ownership changed');assert(['running','exited'].includes(row.status),'Allocation state unconfirmed');}
+    assert(current.ledger?.present===true,'Ledger unavailable; absence is not settlement');
+    assert.match(current.ledger.sha256,/^[a-f0-9]{64}$/);
+    for(const key of ['leases','checks','fences','checkFences'])assert(Array.isArray(current.ledger[key]),'Incomplete held-resource observation');
+    assert.equal(current.ledger.checks.length,0,'Unexpected check charge');assert.equal(current.ledger.fences.length,0,'Unsettled launch fence');assert.equal(current.ledger.checkFences.length,0,'Unsettled check fence');
+    assert(current.ledger.leases.length<=1,'Unknown additional lease');
+    if(current.ledger.leases.length)assert.deepEqual(current.ledger.leases[0],pin.lease,'Unrelated or changed charge');
+    if(current.containers.length)assert.equal(current.ledger.leases.length,1,'Owned allocation remains without its expected charge');
+    assert(Number.isSafeInteger(current.rootFreeBytes)&&current.rootFreeBytes>=0,'Filesystem observation unavailable');
+    const observation={at:new Date().toISOString(),elapsedMs:now()-started,containers:current.containers,ledger:current.ledger,rootFreeBytes:current.rootFreeBytes};
+    first??=observation;last=observation;
+    const shape=JSON.stringify({containers:current.containers.map(row=>({id:row.id,status:row.status})),leases:current.ledger.leases,fences:current.ledger.fences,checks:current.ledger.checks,checkFences:current.ledger.checkFences});
+    if(shape!==lastShape){assert(++changes<=8,'Unexpected settlement churn');record({kind:'initial-settlement-observation',pin,observation});lastShape=shape;}
+    if(current.containers.length===0&&current.ledger.leases.length===0){
+      const receipt={pin,polls,elapsedMs:now()-started,first,last,scope:'Observed exact natural allocation absence and charge release only. Actual Restart admission and six GiB root floor remain authoritative.'};
+      record({kind:'initial-settlement-confirmed',...receipt});return receipt;
+    }
+    assert(now()+350<deadline,'Exact initial allocation cleanup remains unconfirmed');
+    await sleep(350);health();
+  }
+}
+

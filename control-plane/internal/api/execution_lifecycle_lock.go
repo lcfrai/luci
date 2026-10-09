@@ -25,14 +25,8 @@ func (g *executionAdmission) lockChildLifecycle(ctx context.Context, childID str
 	if childID == "" || len(childID) > 200 {
 		return nil, errors.New("execution child identity is invalid")
 	}
-	parent := filepath.Dir(g.path)
-	if !filepath.IsAbs(parent) {
-		return nil, errors.New("execution lifecycle directory is not absolute")
-	}
-	if err := codexRegularPath(filepath.VolumeName(parent)+string(filepath.Separator), parent); err != nil {
-		return nil, err
-	}
-	if _, err := hostpath.ResolveOutside(g.api.projectsDir(), parent); err != nil {
+	parent, err := g.prepareExecutionDirectory()
+	if err != nil {
 		return nil, err
 	}
 	dir := filepath.Join(parent, "children")

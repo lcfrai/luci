@@ -1,0 +1,4 @@
+go version go1.26.3 linux/amd64
+/workspace/.luci-tools/luci-sandbox-dev.tar.gz: OK
+Loaded image: luci/sandbox:dev
+Prepared Luci sandbox sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8

@@ -1,0 +1,4 @@
+# Preserve captured evidence bytes across platforms.
+** -text
+*.stdout -whitespace
+*.stderr -whitespace

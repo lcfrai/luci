@@ -1,0 +1,145 @@
+{
+  "status": "published",
+  "startedAt": "2026-10-08T17:05:13.705416+00:00",
+  "stage": "/workspace/.luci-tools/runtime-archive-1f845cfd2b45",
+  "candidateImage": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+  "candidate": {
+    "Id": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+    "Config": {
+      "Cmd": null,
+      "Entrypoint": [
+        "/usr/local/bin/entrypoint.sh"
+      ],
+      "Env": [
+        "PATH=/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "NODE_VERSION=24.21.0",
+        "YARN_VERSION=1.22.22"
+      ],
+      "ExposedPorts": {
+        "8080/tcp": {}
+      },
+      "Labels": null,
+      "OnBuild": null,
+      "User": "dev",
+      "Volumes": null,
+      "WorkingDir": "/home/dev"
+    },
+    "RootFS": {
+      "Type": "layers",
+      "Layers": [
+        "sha256:d6b024dc076b491eb43e58c3e02fd5a9bfc6158e53f89c8d6e94d17bc52a5045",
+        "sha256:f835d6e052706be7cd2ca12ad01f31cce9e3c5b5dae375e8a9422a632e1a170d"
+      ]
+    },
+    "Size": 2294629077,
+    "Architecture": "amd64",
+    "Os": "linux"
+  },
+  "candidateReceipt": "/workspace/.luci-tools/sandbox-candidate-20261008T140025Z-a4a2e82b/receipt.json",
+  "candidateReceiptSHA256": "5af726e6670fd6f04c0f67cf3b26b3f6072ed89c1e1e3481c652a631ae6d0a3b",
+  "runtimeReceipt": "/workspace/luci/artifacts/quality-swarm/continuation-c4400f11-attempt3/result/result.json",
+  "runtimeReceiptSHA256": "e44aaecc7ec2d16784c61b860eea8fed3981d89b108cf4001eb7f62efe60f57b",
+  "verifierSHA256": "bb58be6474e68749ff09e30bf7b9cf1463355b57cfeaef7333a182cef42cfd2e",
+  "budget": {
+    "rawLimitBytes": 2563064533,
+    "gzipLimitBytes": 2566676173,
+    "workspaceRequiredBytes": 6539026850,
+    "tmpRequiredBytes": 3972350677,
+    "hardFloorBytes": 1073741824,
+    "cancelAtFreeBytes": 1342177280
+  },
+  "preservedBefore": {
+    "archiveSHA256": "c593f37eaa3795358aa1b76dd355828ddaadfcf503b9a5e3a1aea6976c947c91",
+    "archiveBytes": 1013359941,
+    "provenanceSHA256": "c1a93c6e51838e9fd1cb1792f7eaeb3bd3862790dc2a88cdc84f55d91280ae0c",
+    "installSHA256": "aca81698b9abc12cde3e8553fb33385dd9921c484fc17d1197addd1841f73c26",
+    "startupSHA256": "4ced2177db189c1f26b3a413cb54ee91318bb90c7fb4d014de7e5a14345b266c"
+  },
+  "oldPins": {
+    "sandbox-image-provenance.json": "c1a93c6e51838e9fd1cb1792f7eaeb3bd3862790dc2a88cdc84f55d91280ae0c",
+    "install.sh": "aca81698b9abc12cde3e8553fb33385dd9921c484fc17d1197addd1841f73c26",
+    "start.md": "4ced2177db189c1f26b3a413cb54ee91318bb90c7fb4d014de7e5a14345b266c"
+  },
+  "inputFiles": {
+    "sandboxd": {
+      "sha256": "5c850eea4b3c5b8f13e71a0d142ce69e1b9aff5faae09974a0ba20027a1b2298",
+      "bytes": 9454883,
+      "mode": "0755",
+      "uid": 0,
+      "gid": 0
+    },
+    "entrypoint.sh": {
+      "sha256": "c3d925a1b08874079c44820cbc70e50fa370c4af26ecddfbb656687a04eebe3a",
+      "bytes": 2228,
+      "mode": "0755",
+      "uid": 0,
+      "gid": 0
+    }
+  },
+  "packageProvenance": "/workspace/luci/artifacts/quality-swarm/continuation-c4400f11-attempt3/result/package-provenance.json",
+  "packageProvenanceSHA256": "c1294b2643fbac9655c3be96670ebefe2fd9dc08776bfb7063058e01423f5c38",
+  "originalCandidateVerifierSHA256": "5018084eca4e49bb6bb22d304a46a973390d6ec2b34af1ca5cb1dedec249636e",
+  "runtimeScope": "Exact clean c440 installed two-worker scripted continuation: native exits, automatic report/review visibility, retained-source checkpoint, restart, reviewed integration and independent fixture check. No live-model, sustained performance, Windows, full-product or fresh-daemon restoration claim.",
+  "archiveVerification": {
+    "status": "passed",
+    "gzipCRCVerified": true,
+    "archiveSHA256": "7caf7aab012cd4a5bf2ace5c8a2e12e617b4afbaef20f6b3db64586a24e9fcf3",
+    "archiveBytes": 1013367768,
+    "candidateImage": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+    "restoredTags": [
+      "luci/sandbox:dev"
+    ],
+    "configComparison": {
+      "acceptedMissingToNull": [
+        "Cmd",
+        "Labels",
+        "OnBuild",
+        "Volumes"
+      ],
+      "differences": []
+    },
+    "layerDiffIDs": [
+      "sha256:d6b024dc076b491eb43e58c3e02fd5a9bfc6158e53f89c8d6e94d17bc52a5045",
+      "sha256:f835d6e052706be7cd2ca12ad01f31cce9e3c5b5dae375e8a9422a632e1a170d"
+    ],
+    "verifiedFiles": {
+      "usr/local/bin/entrypoint.sh": {
+        "sha256": "c3d925a1b08874079c44820cbc70e50fa370c4af26ecddfbb656687a04eebe3a",
+        "bytes": 2228,
+        "mode": "0755",
+        "uid": 0,
+        "gid": 0
+      },
+      "usr/local/bin/sandboxd": {
+        "sha256": "5c850eea4b3c5b8f13e71a0d142ce69e1b9aff5faae09974a0ba20027a1b2298",
+        "bytes": 9454883,
+        "mode": "0755",
+        "uid": 0,
+        "gid": 0
+      }
+    },
+    "diagnostics": "/workspace/.luci-tools/runtime-archive-1f845cfd2b45/diagnostics.json"
+  },
+  "stagedArchive": "/workspace/.luci-tools/runtime-archive-1f845cfd2b45/verified-luci-sandbox-dev.tar.gz",
+  "newPins": {
+    "sandbox-image-provenance.json": "12f976de654e63d7fefd1e851e00b05b079508d0d6fc105b2a18cfba6f8ba4d5",
+    "install.sh": "7686a8d3108b63a0994bfab135dcd75e4c9d6a00b6cb88c997f636f620bc43ca",
+    "start.md": "11d06ab5b3585a7909bca2405cc7f6a4694f9bc097f6be82370fc515065333ee"
+  },
+  "finishedAt": "2026-10-08T17:08:17.776157+00:00",
+  "replacementOrder": [
+    "archive",
+    "sandbox-image-provenance.json",
+    "install.sh",
+    "start.md"
+  ],
+  "completedReplacements": [
+    "archive",
+    "sandbox-image-provenance.json",
+    "install.sh",
+    "start.md"
+  ],
+  "publishedAt": "2026-10-08T17:10:36.257359+00:00",
+  "rollbackDirectory": "/workspace/.luci-tools/runtime-archive-1f845cfd2b45",
+  "dockerLoadVerified": false
+}

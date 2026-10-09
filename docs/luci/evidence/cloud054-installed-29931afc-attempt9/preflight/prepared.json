@@ -1,0 +1,8 @@
+{
+  "sourceCommit": "29931afc5b31ae9b9bd7b8973a7e3fdb840609a3",
+  "commandSHA256": "70e73b8b878651ee4e2ea0ea400595caf8714a46474ff3d64a7b869a555ca044",
+  "basedOn": "/workspace/.luci-tools/cloud054-terminal-close/actual-5f4a966f/RUN-attempt8.sh",
+  "onlyCommandChanges": "Fresh source/package pin, run root and attempt9. Frozen launcher/scenario/wrapper hashes and runtime760 remain unchanged.",
+  "runtimeImage": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+  "status": "prepared, not executed"
+}

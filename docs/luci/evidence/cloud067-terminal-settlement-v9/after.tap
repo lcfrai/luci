@@ -1,0 +1,129 @@
+✔ unchanged status check precedes exact natural cleanup, then old-poll gate and unchanged six-GiB admission (5.576965ms)
+✔ the unchanged disk floor still refuses after fully proven cleanup if unrelated space remains low (1.659692ms)
+✔ foreign immutable container refuses before creating the stale-read gate or forwarding Restart (1.57912ms)
+✔ changed image refuses before creating the stale-read gate or forwarding Restart (0.718643ms)
+✔ changed instance refuses before creating the stale-read gate or forwarding Restart (0.49771ms)
+✔ unknown daemon state refuses before creating the stale-read gate or forwarding Restart (0.445762ms)
+✔ unavailable ledger refuses before creating the stale-read gate or forwarding Restart (0.838254ms)
+✔ missing held-state arrays refuses before creating the stale-read gate or forwarding Restart (0.672985ms)
+✖ foreign held lease refuses before creating the stale-read gate or forwarding Restart (1.379459ms)
+✖ unsettled launch fence refuses before creating the stale-read gate or forwarding Restart (1.571303ms)
+✖ missing charge while container remains refuses before creating the stale-read gate or forwarding Restart (1.626762ms)
+✔ changed registry allocation refuses before creating the stale-read gate or forwarding Restart (0.804463ms)
+✖ exact owned charge without container stays pending and bounded; never released or bypassed by helper (0.511952ms)
+✖ exact stopped container and charge stay pending until bounded refusal without force cleanup (0.682299ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 9
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 210.263185
+
+✖ failing tests:
+
+test at sequence.test.mjs:59:4
+✖ foreign held lease refuses before creating the stale-read gate or forwarding Restart (1.379459ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Unrelated or changed charge/. Input:
+  
+  'Expected values to be strictly equal:\n' +
+    '+ actual - expected\n' +
+    '\n' +
+    "+ 'other-project'\n" +
+    "- 'p-5678abcd'\n"
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud067-terminal-settlement-v9/sequence.test.mjs:61:41)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'other-project'\n- 'p-5678abcd'\n",
+    expected: /Unrelated or changed charge/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at sequence.test.mjs:59:4
+✖ unsettled launch fence refuses before creating the stale-read gate or forwarding Restart (1.571303ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Unsettled launch fence/. Input:
+  
+  'Expected values to be strictly equal:\n' +
+    '+ actual - expected\n' +
+    '\n' +
+    "+ 'other-project'\n" +
+    "- 'p-5678abcd'\n"
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud067-terminal-settlement-v9/sequence.test.mjs:61:41)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'other-project'\n- 'p-5678abcd'\n",
+    expected: /Unsettled launch fence/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at sequence.test.mjs:59:4
+✖ missing charge while container remains refuses before creating the stale-read gate or forwarding Restart (1.626762ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /expected charge/. Input:
+  
+  'Expected values to be strictly equal:\n' +
+    '+ actual - expected\n' +
+    '\n' +
+    "+ 'other-project'\n" +
+    "- 'p-5678abcd'\n"
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud067-terminal-settlement-v9/sequence.test.mjs:61:41)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'other-project'\n- 'p-5678abcd'\n",
+    expected: /expected charge/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at sequence.test.mjs:64:1
+✖ exact owned charge without container stays pending and bounded; never released or bypassed by helper (0.511952ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /cleanup remains unconfirmed/. Input:
+  
+  'Expected values to be strictly equal:\n' +
+    '+ actual - expected\n' +
+    '\n' +
+    "+ 'other-project'\n" +
+    "- 'p-5678abcd'\n"
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud067-terminal-settlement-v9/sequence.test.mjs:66:41)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'other-project'\n- 'p-5678abcd'\n",
+    expected: /cleanup remains unconfirmed/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at sequence.test.mjs:69:1
+✖ exact stopped container and charge stay pending until bounded refusal without force cleanup (0.682299ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /cleanup remains unconfirmed/. Input:
+  
+  'Expected values to be strictly equal:\n' +
+    '+ actual - expected\n' +
+    '\n' +
+    "+ 'other-project'\n" +
+    "- 'p-5678abcd'\n"
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud067-terminal-settlement-v9/sequence.test.mjs:71:41)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'other-project'\n- 'p-5678abcd'\n",
+    expected: /cleanup remains unconfirmed/,
+    operator: 'match',
+    diff: 'simple'
+  }

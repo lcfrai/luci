@@ -1,0 +1,5 @@
+{
+  "exitCode": 0,
+  "expectedTests": 8,
+  "scope": "Tiny inert/disposable controls; no Docker or actual archive/tool operations; disposable placement fixture substitutes20GiB available-space observation"
+}

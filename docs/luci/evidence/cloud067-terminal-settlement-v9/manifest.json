@@ -1,0 +1,99 @@
+{
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 3117,
+      "sha256": "b8033e726bae46d530fb59700b90a77669b9460ae77abce54fbfbb7034a9f77d"
+    },
+    {
+      "path": "after-bounded.tap",
+      "bytes": 1644,
+      "sha256": "972bfb0546d1d26e56ed26edc8a7f2e98916150523ebb60536a798e98a8c729f"
+    },
+    {
+      "path": "after-final.tap",
+      "bytes": 1647,
+      "sha256": "da993a7083245f8aea5466cff043d92078ed73081f7529e988a8cc61c35eae94"
+    },
+    {
+      "path": "after.tap",
+      "bytes": 6300,
+      "sha256": "0a7739b88386018303955e741650a750488568e1f9b5d7c4a68cbc6d87e697f3"
+    },
+    {
+      "path": "attempt9-readonly-scope.json",
+      "bytes": 842,
+      "sha256": "3c70d497f4341aeb5be44bca164462b84bb59a59eaf93d042f94041765130f47"
+    },
+    {
+      "path": "before-final.tap",
+      "bytes": 11558,
+      "sha256": "45fa4902a00351db52ca5a9a0d98e164c35c224d3595a50546fb6be958a3f680"
+    },
+    {
+      "path": "before.tap",
+      "bytes": 11554,
+      "sha256": "ad409da58dee53698aab5d1f3397409305e47001956bce197775ed70cf50c1e8"
+    },
+    {
+      "path": "invariants.json",
+      "bytes": 908,
+      "sha256": "dd3388047838b38e6a521b04f02c864cb418ee92d9e9f0fde21498ece73f2278"
+    },
+    {
+      "path": "launch.mjs",
+      "bytes": 66718,
+      "sha256": "b83db056209c27bdc0dac5df9805cdb4c87dee817f0bda5130644261cbad02e5"
+    },
+    {
+      "path": "launch.mjs.diff",
+      "bytes": 7409,
+      "sha256": "10e0ffa02f06691c22a2f35688163cc677ca110bde51a6eb807a777a5164b603"
+    },
+    {
+      "path": "outer-run.py",
+      "bytes": 22954,
+      "sha256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49"
+    },
+    {
+      "path": "report.json",
+      "bytes": 618,
+      "sha256": "1906cc348bb1cf1133b276a3c1160aebbf67c948f9fffa8e741165c1750d6a42"
+    },
+    {
+      "path": "scenario.mjs",
+      "bytes": 34645,
+      "sha256": "6d46604ccbf1759bf675178b45028d05d242154c75d13aef8e501e78075454ec"
+    },
+    {
+      "path": "scenario.mjs.diff",
+      "bytes": 7405,
+      "sha256": "4692fa050b1c31d45e0df27e5bd03f964d5a03be932697fa6e03077fdfa42f09"
+    },
+    {
+      "path": "sequence-attempt1.test.mjs",
+      "bytes": 7138,
+      "sha256": "0de849092207c05e8a6baaad70f95351fad29b8b26ea0207a0ccdc2be39d6c08"
+    },
+    {
+      "path": "sequence.test.mjs",
+      "bytes": 7162,
+      "sha256": "1b27b36a4ba44d87363bf90be4626ff8f2f066df75789a9ec392488ef8290ab0"
+    },
+    {
+      "path": "upstream/launch.mjs",
+      "bytes": 64548,
+      "sha256": "1e24175a110c67652a9dcf2d54899760d06fc9d76b414e41689cf52f2a836bf0"
+    },
+    {
+      "path": "upstream/scenario.mjs",
+      "bytes": 29106,
+      "sha256": "3e5acc9fbd2a568e7e27137743d32aa42ae6b774db7cc801feed9f3753f35219"
+    },
+    {
+      "path": "wait-function.txt",
+      "bytes": 5325,
+      "sha256": "b7400ad6881b140d6575fbb1075f4052d81bdfcd8a3d640e3b25c4f7b21aa335"
+    }
+  ]
+}

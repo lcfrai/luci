@@ -1,0 +1,70 @@
+[
+  {
+    "name": "warm-before",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "--test",
+      "--test-concurrency=1",
+      "/workspace/.luci-tools/cloud069-terminal-cleanup-v11/settlement.test.mjs"
+    ],
+    "environmentOverrides": {
+      "C069_SOURCE_ROOT": "/workspace/.luci-tools/cloud069-terminal-cleanup-v11/before",
+      "C069_VARIANT": "warm"
+    },
+    "started": "2026-10-09T15:21:40.727566+00:00",
+    "exitCode": 1,
+    "stdoutSHA256": "026c0b573b8e710c7904e0a54ce7249d31cf35c86846f58bdc45e003053ad3f4",
+    "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "warm-after",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "--test",
+      "--test-concurrency=1",
+      "/workspace/.luci-tools/cloud069-terminal-cleanup-v11/settlement.test.mjs"
+    ],
+    "environmentOverrides": {
+      "C069_SOURCE_ROOT": "/workspace/.luci-tools/cloud069-terminal-cleanup-v11",
+      "C069_VARIANT": "warm"
+    },
+    "started": "2026-10-09T15:21:41.151596+00:00",
+    "exitCode": 0,
+    "stdoutSHA256": "1626616d20a663abdbe9ab185b492f426cfb447394fbde2b4468719e2b13f291",
+    "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "cold-observer-before",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "--test",
+      "--test-concurrency=1",
+      "/workspace/.luci-tools/cloud069-terminal-cleanup-v11/cold-observer.test.mjs"
+    ],
+    "environmentOverrides": {
+      "C069_SOURCE_ROOT": "/workspace/.luci-tools/cloud069-terminal-cleanup-v11/before",
+      "C069_VARIANT": "warm"
+    },
+    "started": "2026-10-09T15:21:41.496661+00:00",
+    "exitCode": 1,
+    "stdoutSHA256": "5acafda60f65f670e5525c7fdb526d591aacafa4b731a16a4f9bcb966c0fab59",
+    "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "cold-observer-after",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "--test",
+      "--test-concurrency=1",
+      "/workspace/.luci-tools/cloud069-terminal-cleanup-v11/cold-observer.test.mjs"
+    ],
+    "environmentOverrides": {
+      "C069_SOURCE_ROOT": "/workspace/.luci-tools/cloud069-terminal-cleanup-v11",
+      "C069_VARIANT": "warm"
+    },
+    "started": "2026-10-09T15:21:41.636094+00:00",
+    "exitCode": 0,
+    "stdoutSHA256": "886c3ddc14073811cfcdb4b60045ccb7b08377c5b30d9595f2a40aa8b26a6512",
+    "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

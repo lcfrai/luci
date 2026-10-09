@@ -1,0 +1,599 @@
+{
+  "at": "2026-10-09T14:54:23.657482+00:00",
+  "checks": 145,
+  "failed": 0,
+  "files": 50,
+  "bytes": 182539,
+  "publicationSHA256": "d55b0fea126ee3e1fcc43b0f853b651f7e6da41634bbaa1918c8615922d993db",
+  "privacyScope": {
+    "nonemptySensitiveFields": [],
+    "environmentNames": [
+      "NODE_VERSION",
+      "PATH",
+      "YARN_VERSION"
+    ]
+  },
+  "scope": "Small-file byte bindings/arithmetic/field-name audit only. No binary/archive/image rehash, runtime test or universal secrets-absence guarantee.",
+  "results": [
+    {
+      "check": "member:README.md",
+      "passed": true
+    },
+    {
+      "check": "member:REPRODUCE.md",
+      "passed": true
+    },
+    {
+      "check": "member:assemble.py",
+      "passed": true
+    },
+    {
+      "check": "member:helpers/build-package-next-v1/README.md",
+      "passed": true
+    },
+    {
+      "check": "member:helpers/build-package-next-v1/build-package.original.py",
+      "passed": true
+    },
+    {
+      "check": "member:helpers/build-package-next-v1/build-package.py",
+      "passed": true
+    },
+    {
+      "check": "member:helpers/build-package-next-v1/controls-result.json",
+      "passed": true
+    },
+    {
+      "check": "member:helpers/build-package-next-v1/controls.py",
+      "passed": true
+    },
+    {
+      "check": "member:helpers/build-package-next-v1/manifest.json",
+      "passed": true
+    },
+    {
+      "check": "member:helpers/build-package-next-v1/parameterization.patch",
+      "passed": true
+    },
+    {
+      "check": "member:helpers/build-package-next-v1/unchanged-build-inputs.json",
+      "passed": true
+    },
+    {
+      "check": "member:helpers/relocate-historical425-v1/README.md",
+      "passed": true
+    },
+    {
+      "check": "member:helpers/relocate-historical425-v1/controls-result.json",
+      "passed": true
+    },
+    {
+      "check": "member:helpers/relocate-historical425-v1/controls-syntax-attempt1.json",
+      "passed": true
+    },
+    {
+      "check": "member:helpers/relocate-historical425-v1/controls.original-syntax.py",
+      "passed": true
+    },
+    {
+      "check": "member:helpers/relocate-historical425-v1/controls.py",
+      "passed": true
+    },
+    {
+      "check": "member:helpers/relocate-historical425-v1/manifest.json",
+      "passed": true
+    },
+    {
+      "check": "member:helpers/relocate-historical425-v1/relocate.py",
+      "passed": true
+    },
+    {
+      "check": "member:helpers/relocate-historical425-v1/source-review.json",
+      "passed": true
+    },
+    {
+      "check": "member:helpers/verify-local-package.py",
+      "passed": true
+    },
+    {
+      "check": "member:original-bindings.json",
+      "passed": true
+    },
+    {
+      "check": "member:original-immutability.json",
+      "passed": true
+    },
+    {
+      "check": "member:receipts/build-invocation.json",
+      "passed": true
+    },
+    {
+      "check": "member:receipts/build-result.json",
+      "passed": true
+    },
+    {
+      "check": "member:receipts/build.log",
+      "passed": true
+    },
+    {
+      "check": "member:receipts/first-candidate-refusal.json",
+      "passed": true
+    },
+    {
+      "check": "member:receipts/package-integrity.json",
+      "passed": true
+    },
+    {
+      "check": "member:receipts/package-provenance.json",
+      "passed": true
+    },
+    {
+      "check": "member:receipts/previous-release-preservation.json",
+      "passed": true
+    },
+    {
+      "check": "member:release/SHA256SUMS",
+      "passed": true
+    },
+    {
+      "check": "member:release/release-manifest.json",
+      "passed": true
+    },
+    {
+      "check": "member:scope.json",
+      "passed": true
+    },
+    {
+      "check": "member:selected-source/scripts/build-release.sh",
+      "passed": true
+    },
+    {
+      "check": "member:selected-source/scripts/collect-licenses.py",
+      "passed": true
+    },
+    {
+      "check": "member:selected-source/scripts/launch-unix.sh",
+      "passed": true
+    },
+    {
+      "check": "member:selected-source/scripts/package.py",
+      "passed": true
+    },
+    {
+      "check": "member:selected-source/scripts/stage-release-docs.py",
+      "passed": true
+    },
+    {
+      "check": "member:source-bindings.json",
+      "passed": true
+    },
+    {
+      "check": "member:storage/historical-archive-references/runtime-archive-1f845cfd2b45.json",
+      "passed": true
+    },
+    {
+      "check": "member:storage/historical-archive-references/runtime-archive-7e1b1f608cfa.json",
+      "passed": true
+    },
+    {
+      "check": "member:storage/older425-operation/001-intent.json",
+      "passed": true
+    },
+    {
+      "check": "member:storage/older425-operation/002-copy-verified.json",
+      "passed": true
+    },
+    {
+      "check": "member:storage/older425-operation/003-link-intent.json",
+      "passed": true
+    },
+    {
+      "check": "member:storage/older425-operation/004-linked.json",
+      "passed": true
+    },
+    {
+      "check": "member:storage/older425-operation/005-link-intent.json",
+      "passed": true
+    },
+    {
+      "check": "member:storage/older425-operation/006-linked.json",
+      "passed": true
+    },
+    {
+      "check": "member:storage/older425-operation/007-final.json",
+      "passed": true
+    },
+    {
+      "check": "member:storage/post-package-cache-clean.json",
+      "passed": true
+    },
+    {
+      "check": "sum:README.md",
+      "passed": true
+    },
+    {
+      "check": "sum:REPRODUCE.md",
+      "passed": true
+    },
+    {
+      "check": "sum:assemble.py",
+      "passed": true
+    },
+    {
+      "check": "sum:helpers/build-package-next-v1/README.md",
+      "passed": true
+    },
+    {
+      "check": "sum:helpers/build-package-next-v1/build-package.original.py",
+      "passed": true
+    },
+    {
+      "check": "sum:helpers/build-package-next-v1/build-package.py",
+      "passed": true
+    },
+    {
+      "check": "sum:helpers/build-package-next-v1/controls-result.json",
+      "passed": true
+    },
+    {
+      "check": "sum:helpers/build-package-next-v1/controls.py",
+      "passed": true
+    },
+    {
+      "check": "sum:helpers/build-package-next-v1/manifest.json",
+      "passed": true
+    },
+    {
+      "check": "sum:helpers/build-package-next-v1/parameterization.patch",
+      "passed": true
+    },
+    {
+      "check": "sum:helpers/build-package-next-v1/unchanged-build-inputs.json",
+      "passed": true
+    },
+    {
+      "check": "sum:helpers/relocate-historical425-v1/README.md",
+      "passed": true
+    },
+    {
+      "check": "sum:helpers/relocate-historical425-v1/controls-result.json",
+      "passed": true
+    },
+    {
+      "check": "sum:helpers/relocate-historical425-v1/controls-syntax-attempt1.json",
+      "passed": true
+    },
+    {
+      "check": "sum:helpers/relocate-historical425-v1/controls.original-syntax.py",
+      "passed": true
+    },
+    {
+      "check": "sum:helpers/relocate-historical425-v1/controls.py",
+      "passed": true
+    },
+    {
+      "check": "sum:helpers/relocate-historical425-v1/manifest.json",
+      "passed": true
+    },
+    {
+      "check": "sum:helpers/relocate-historical425-v1/relocate.py",
+      "passed": true
+    },
+    {
+      "check": "sum:helpers/relocate-historical425-v1/source-review.json",
+      "passed": true
+    },
+    {
+      "check": "sum:helpers/verify-local-package.py",
+      "passed": true
+    },
+    {
+      "check": "sum:original-bindings.json",
+      "passed": true
+    },
+    {
+      "check": "sum:original-immutability.json",
+      "passed": true
+    },
+    {
+      "check": "sum:receipts/build-invocation.json",
+      "passed": true
+    },
+    {
+      "check": "sum:receipts/build-result.json",
+      "passed": true
+    },
+    {
+      "check": "sum:receipts/build.log",
+      "passed": true
+    },
+    {
+      "check": "sum:receipts/first-candidate-refusal.json",
+      "passed": true
+    },
+    {
+      "check": "sum:receipts/package-integrity.json",
+      "passed": true
+    },
+    {
+      "check": "sum:receipts/package-provenance.json",
+      "passed": true
+    },
+    {
+      "check": "sum:receipts/previous-release-preservation.json",
+      "passed": true
+    },
+    {
+      "check": "sum:release/SHA256SUMS",
+      "passed": true
+    },
+    {
+      "check": "sum:release/release-manifest.json",
+      "passed": true
+    },
+    {
+      "check": "sum:scope.json",
+      "passed": true
+    },
+    {
+      "check": "sum:selected-source/scripts/build-release.sh",
+      "passed": true
+    },
+    {
+      "check": "sum:selected-source/scripts/collect-licenses.py",
+      "passed": true
+    },
+    {
+      "check": "sum:selected-source/scripts/launch-unix.sh",
+      "passed": true
+    },
+    {
+      "check": "sum:selected-source/scripts/package.py",
+      "passed": true
+    },
+    {
+      "check": "sum:selected-source/scripts/stage-release-docs.py",
+      "passed": true
+    },
+    {
+      "check": "sum:source-bindings.json",
+      "passed": true
+    },
+    {
+      "check": "sum:storage/historical-archive-references/runtime-archive-1f845cfd2b45.json",
+      "passed": true
+    },
+    {
+      "check": "sum:storage/historical-archive-references/runtime-archive-7e1b1f608cfa.json",
+      "passed": true
+    },
+    {
+      "check": "sum:storage/older425-operation/001-intent.json",
+      "passed": true
+    },
+    {
+      "check": "sum:storage/older425-operation/002-copy-verified.json",
+      "passed": true
+    },
+    {
+      "check": "sum:storage/older425-operation/003-link-intent.json",
+      "passed": true
+    },
+    {
+      "check": "sum:storage/older425-operation/004-linked.json",
+      "passed": true
+    },
+    {
+      "check": "sum:storage/older425-operation/005-link-intent.json",
+      "passed": true
+    },
+    {
+      "check": "sum:storage/older425-operation/006-linked.json",
+      "passed": true
+    },
+    {
+      "check": "sum:storage/older425-operation/007-final.json",
+      "passed": true
+    },
+    {
+      "check": "sum:storage/post-package-cache-clean.json",
+      "passed": true
+    },
+    {
+      "check": "sum:publication.json",
+      "passed": true
+    },
+    {
+      "check": "inventory",
+      "passed": true
+    },
+    {
+      "check": "original:receipts/build-result.json",
+      "passed": true
+    },
+    {
+      "check": "original:receipts/build-invocation.json",
+      "passed": true
+    },
+    {
+      "check": "original:receipts/build.log",
+      "passed": true
+    },
+    {
+      "check": "original:receipts/previous-release-preservation.json",
+      "passed": true
+    },
+    {
+      "check": "original:receipts/package-integrity.json",
+      "passed": true
+    },
+    {
+      "check": "original:receipts/package-provenance.json",
+      "passed": true
+    },
+    {
+      "check": "original:helpers/build-package-next-v1/README.md",
+      "passed": true
+    },
+    {
+      "check": "original:helpers/build-package-next-v1/build-package.original.py",
+      "passed": true
+    },
+    {
+      "check": "original:helpers/build-package-next-v1/build-package.py",
+      "passed": true
+    },
+    {
+      "check": "original:helpers/build-package-next-v1/controls-result.json",
+      "passed": true
+    },
+    {
+      "check": "original:helpers/build-package-next-v1/controls.py",
+      "passed": true
+    },
+    {
+      "check": "original:helpers/build-package-next-v1/parameterization.patch",
+      "passed": true
+    },
+    {
+      "check": "original:helpers/build-package-next-v1/unchanged-build-inputs.json",
+      "passed": true
+    },
+    {
+      "check": "original:helpers/build-package-next-v1/manifest.json",
+      "passed": true
+    },
+    {
+      "check": "original:helpers/relocate-historical425-v1/README.md",
+      "passed": true
+    },
+    {
+      "check": "original:helpers/relocate-historical425-v1/controls-result.json",
+      "passed": true
+    },
+    {
+      "check": "original:helpers/relocate-historical425-v1/controls-syntax-attempt1.json",
+      "passed": true
+    },
+    {
+      "check": "original:helpers/relocate-historical425-v1/controls.original-syntax.py",
+      "passed": true
+    },
+    {
+      "check": "original:helpers/relocate-historical425-v1/controls.py",
+      "passed": true
+    },
+    {
+      "check": "original:helpers/relocate-historical425-v1/relocate.py",
+      "passed": true
+    },
+    {
+      "check": "original:helpers/relocate-historical425-v1/source-review.json",
+      "passed": true
+    },
+    {
+      "check": "original:helpers/relocate-historical425-v1/manifest.json",
+      "passed": true
+    },
+    {
+      "check": "original:receipts/first-candidate-refusal.json",
+      "passed": true
+    },
+    {
+      "check": "original:storage/post-package-cache-clean.json",
+      "passed": true
+    },
+    {
+      "check": "original:storage/older425-operation/001-intent.json",
+      "passed": true
+    },
+    {
+      "check": "original:storage/older425-operation/002-copy-verified.json",
+      "passed": true
+    },
+    {
+      "check": "original:storage/older425-operation/003-link-intent.json",
+      "passed": true
+    },
+    {
+      "check": "original:storage/older425-operation/004-linked.json",
+      "passed": true
+    },
+    {
+      "check": "original:storage/older425-operation/005-link-intent.json",
+      "passed": true
+    },
+    {
+      "check": "original:storage/older425-operation/006-linked.json",
+      "passed": true
+    },
+    {
+      "check": "original:storage/older425-operation/007-final.json",
+      "passed": true
+    },
+    {
+      "check": "original:storage/historical-archive-references/runtime-archive-7e1b1f608cfa.json",
+      "passed": true
+    },
+    {
+      "check": "original:storage/historical-archive-references/runtime-archive-1f845cfd2b45.json",
+      "passed": true
+    },
+    {
+      "check": "original:release/release-manifest.json",
+      "passed": true
+    },
+    {
+      "check": "original:release/SHA256SUMS",
+      "passed": true
+    },
+    {
+      "check": "original:helpers/verify-local-package.py",
+      "passed": true
+    },
+    {
+      "check": "original:README.md",
+      "passed": true
+    },
+    {
+      "check": "original:REPRODUCE.md",
+      "passed": true
+    },
+    {
+      "check": "original:assemble.py",
+      "passed": true
+    },
+    {
+      "check": "clean-build",
+      "passed": true
+    },
+    {
+      "check": "exact-source",
+      "passed": true
+    },
+    {
+      "check": "archive-verifier",
+      "passed": true
+    },
+    {
+      "check": "separate-relocation-space",
+      "passed": true
+    },
+    {
+      "check": "unchanged-unmet-exportfloor",
+      "passed": true
+    },
+    {
+      "check": "cache-observation-delta",
+      "passed": true
+    },
+    {
+      "check": "no-large-payload",
+      "passed": true
+    },
+    {
+      "check": "narrow-private-fields",
+      "passed": true
+    }
+  ]
+}

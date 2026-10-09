@@ -1,0 +1,112 @@
+{
+  "id": "CLOUD-070",
+  "priority": "P2",
+  "baseCommit": "29931afc5b31ae9b9bd7b8973a7e3fdb840609a3",
+  "patchSHA256": "eff58dfc79fa163956668fbff7bad5b6dc4f877c859d743ea6b5e7c3b8f5bbcf",
+  "status": "Implemented in frozen external patch; controlled Linux validation passed; root integration and matching installed-runtime verification remain separate.",
+  "actualFinding": "Installed299 attempt11 retained 1024 MiB/1000 mCPU after Docker removal throughout the 35-second helper deadline. Existing production reconciles ordinary leases on the next admission; no claim of permanent leakage or incorrect CPU admission. Original failed fixture is unchanged.",
+  "validation": {
+    "before": {
+      "exitCode": 1,
+      "testActions": {
+        "fail": 1
+      },
+      "packageActions": {
+        "pass": 0,
+        "fail": 1,
+        "skip": 0
+      },
+      "sourceStable": true,
+      "minimumFreeBytes": {
+        "root": 6711349248,
+        "tmp": 1247367168
+      },
+      "stderrBytes": 0,
+      "elapsedSeconds": 107.3
+    },
+    "after": {
+      "exitCode": 0,
+      "testActions": {
+        "pass": 61
+      },
+      "packageActions": {
+        "pass": 2,
+        "fail": 0,
+        "skip": 0
+      },
+      "sourceStable": true,
+      "minimumFreeBytes": {
+        "root": 6829813760,
+        "tmp": 1247367168
+      },
+      "stderrBytes": 0,
+      "elapsedSeconds": 32.054
+    },
+    "related": {
+      "exitCode": 0,
+      "testActions": {
+        "pass": 38,
+        "skip": 1
+      },
+      "packageActions": {
+        "pass": 1,
+        "fail": 0,
+        "skip": 0
+      },
+      "sourceStable": true,
+      "minimumFreeBytes": {
+        "root": 6914027520,
+        "tmp": 1247367168
+      },
+      "stderrBytes": 0,
+      "elapsedSeconds": 36.093
+    },
+    "compile": {
+      "exitCode": 0,
+      "testActions": {},
+      "packageActions": {
+        "pass": 27,
+        "fail": 0,
+        "skip": 2
+      },
+      "sourceStable": true,
+      "minimumFreeBytes": {
+        "root": 5546205184,
+        "tmp": 1247367168
+      },
+      "stderrBytes": 0,
+      "elapsedSeconds": 154.732
+    }
+  },
+  "expectedOriginalCounterexample": true,
+  "relatedSkip": {
+    "test": "TestExecutionLifecycleLockChildProcess",
+    "reason": "Standalone helper intentionally skips without its subprocess-only environment. The actual cross-process parent test TestExecutionLifecycleLockExcludesLiveControllerAndReleasesAfterProcessDeath passed."
+  },
+  "compileOnlySkips": [
+    "internal/gitcommand (no test files)",
+    "internal/registry/registrytest (no test files)"
+  ],
+  "sourceCoverage": {
+    "originalFiles": 939,
+    "fixedFiles": 944,
+    "scope": "All tracked Go/native source, module manifests and go:embed assets in the two active workspace modules, plus overlay additions. Counts are manifests, not independent test counts."
+  },
+  "compiledBindingLimit": "Original executed API test binary hash was captured. Fixed, related and all-package compile-only transient executable hashes were not captured. Later retained -c API/dockerbe binaries bind the same unchanged effective source and compiler flags; they are later matching compile artifacts, not proof of the exact earlier executed binaries.",
+  "laterCompiledArtifacts": {
+    "api.test": {
+      "sha256": "cbb66d238b48e62ff33717f2d77d8e873eb14367fb9f94d3508d7e270a2fdc77",
+      "bytes": 53374507
+    },
+    "dockerbe.test": {
+      "sha256": "cb1e5b20f31a41f3f8e86bdd419dafd22a4684627f345904958817ece292cd67",
+      "bytes": 17975243
+    }
+  },
+  "gaps": [
+    "No matching installed C070 controller run performed by this worker. C054 overall closure is not claimed.",
+    "Controlled tests ran on Linux; no native Windows execution.",
+    "External module-cache file bytes are not individually hashed; dependency versions are bound through module manifests."
+  ],
+  "worklistRow": "CLOUD-070 | P2 | Prompt ordinary manual capacity reconciliation after confirmed Docker cleanup | Implemented; controlled Linux pass, matching installed runtime pending | Original 29931afc same-body no-admission regression fails as expected; fixed 61 pass actions; related 38 pass/1 intentional helper skip; 27-package compile-only pass/2 no-test-file packages. Requires settled exact own lease + current exited generation + both logical-name and immutable-ref absence; retains foreign/unknown/removing/restarted allocations, preserves task/check contracts. No typed-Exit release, Destroy, allocation, source integration, or reused user authority."
+}

@@ -1,0 +1,21 @@
+{
+  "stage": "finished",
+  "at": "2026-10-09T15:39:04.652536+00:00",
+  "passed": true,
+  "mode": "333-to-tmp",
+  "archiveSHA256": "7caf7aab012cd4a5bf2ace5c8a2e12e617b4afbaef20f6b3db64586a24e9fcf3",
+  "archiveBytes": 1013367768,
+  "replaced": [
+    "/workspace/.luci-tools/runtime-archive-1f845cfd2b45/verified-luci-sandbox-dev.tar.gz",
+    "/workspace/.luci-tools/runtime-archive-760-9a42e556fa22/old-luci-sandbox-dev.tar.gz"
+  ],
+  "freeBefore": {
+    "/workspace": 6326378496,
+    "/tmp": 2260738048
+  },
+  "freeAfter": {
+    "/workspace": 7339724800,
+    "/tmp": 1247367168
+  },
+  "scope": "Placement only, no Docker load/export/admission proof. Original archive bytes and original receipts preserved. Historical TMP retention not guaranteed."
+}

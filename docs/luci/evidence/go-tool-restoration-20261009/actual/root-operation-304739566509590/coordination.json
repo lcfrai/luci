@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "scope": "cloud054-exclusive-tools",
+  "exclusive": true,
+  "activeOperations": [],
+  "bootID": "7842f7cb-c15d-43b4-bffc-65ba7e3140f2",
+  "monotonicNS": 304739566676912,
+  "expiresMonotonicNS": 305339566676912,
+  "ownerPID": 2477957,
+  "ownerStartTicks": "30473947",
+  "acceptedUnknownProcesses": [
+    {
+      "pid": 203,
+      "startTicks": "1521"
+    },
+    {
+      "pid": 254,
+      "startTicks": "1534"
+    },
+    {
+      "pid": 260700,
+      "startTicks": "2331192"
+    }
+  ],
+  "operationSources": {
+    "operation_common.py": "1863d7908931bfd4463b73139a550930a3f3092ce0408a707411c2726956478c",
+    "restore_go.py": "993c530c77a53bbe13d1cab9b3e9210a8f2aeac3d35d7ea83be7b3663d03aec3",
+    "tree_support.py": "a86951497592b707ff2b157cf4c6e193180f18eedf5af42e09f98994242a3f78"
+  },
+  "limits": "Root asserts this bounded tool window. Exact unreadable dockerd/containerd/gpg-agent identities remain unobserved; no global idle claim, no environ reads or signals to them. Known active tool references always refuse."
+}

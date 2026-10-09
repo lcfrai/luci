@@ -1,0 +1,13 @@
+✔ cold observer snapshots charge first and confirms only the exact disappearing allocation with bounded reads (13.852394ms)
+✔ foreign disappearance never becomes absence proof (2.410684ms)
+✔ new allocation never becomes absence proof (3.174635ms)
+✔ unknown inspection failure never becomes absence proof (0.838073ms)
+✔ cold API readiness and natural settlement share one original35s budget before reopen (27.770147ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 246.643929

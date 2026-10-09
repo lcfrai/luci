@@ -1,0 +1,1107 @@
+--- a/control-plane/internal/api/api.go
++++ b/control-plane/internal/api/api.go
+@@ -78,7 +78,8 @@
+ // because the reaper derives idle on its sweep and this package never computes
+ // it.
+ type Deps struct {
+-	// ObserveTaskCompletions enables the trusted runtime background observer.
++	// ObserveTaskCompletions enables trusted task/check completion observation
++	// and confirmed-absent manual capacity reconciliation.
+ 	// Tests and embedded consumers may drive ObserveTaskSessionsOnce explicitly.
+ 	ObserveTaskCompletions bool
+ 
+@@ -438,7 +439,7 @@
+ 		d.Product.SetProjectRunSessionObserver(a.ObserveProjectRunSessions)
+ 		var observeTasks func(context.Context) error
+ 		if d.ObserveTaskCompletions {
+-			observeTasks = a.ObserveTaskSessionsOnce
++			observeTasks = a.observeExecutionCompletions
+ 		}
+ 		d.Product.SetSwarmSchedulerRuntime(product.SwarmSchedulerRuntime{ObserveTasks: observeTasks, CaptureActor: a.captureQueuedActor, Admit: a.admitQueuedSwarm, Dispatch: a.dispatchQueuedSwarm, Release: a.execution.release, Resources: a.queuedResourceView})
+ 		d.Product.SetProjectSwarmWorktreeObserver(a.observeSwarmWorktree)
+--- a/control-plane/internal/api/execution_leases.go
++++ b/control-plane/internal/api/execution_leases.go
+@@ -52,12 +52,13 @@
+ 	CheckFences []checkExecutionFenceRecord `json:"checkFences,omitempty"`
+ }
+ type executionAdmission struct {
+-	api           *API
+-	mu            sync.Mutex
+-	path, scope   string
+-	snapshot      atomic.Pointer[executionReservationView]
+-	fenceGuards   sync.Map
+-	checkObserver checkExecutionObservations
++	api            *API
++	mu             sync.Mutex
++	path, scope    string
++	snapshot       atomic.Pointer[executionReservationView]
++	fenceGuards    sync.Map
++	checkObserver  checkExecutionObservations
++	manualObserver manualLeaseObservations
+ }
+ type executionReservationView struct {
+ 	ObservedAt time.Time `json:"observedAt"`
+@@ -80,12 +81,12 @@
+ 	return &executionAdmission{api: a, path: filepath.Join(root, "leases.json"), scope: hex.EncodeToString(scope[:])}
+ }
+ 
+-func (g *executionAdmission) mutate(ctx context.Context, fn func(*executionLeaseLedger) error) error {
+-	g.mu.Lock()
+-	defer g.mu.Unlock()
++// Reuse admission's path validation before either a capacity write or a child
++// lifecycle lock, including restored sessions with no ledger directory yet.
++func (g *executionAdmission) prepareExecutionDirectory() (string, error) {
+ 	root := filepath.Dir(g.path)
+ 	if !filepath.IsAbs(root) {
+-		return errors.New("execution state path must be absolute")
++		return "", errors.New("execution state path must be absolute")
+ 	}
+ 	// Queue admission precedes the first conversation. Check the nearest
+ 	// existing ancestor before creating missing private state directories.
+@@ -96,27 +97,45 @@
+ 			break
+ 		}
+ 		if !errors.Is(err, os.ErrNotExist) {
+-			return err
++			return "", err
+ 		}
+ 		parent := filepath.Dir(ancestor)
+ 		if parent == ancestor {
+-			return errors.New("execution state has no existing ancestor")
++			return "", errors.New("execution state has no existing ancestor")
+ 		}
+ 		ancestor = parent
+ 	}
+ 	if err := codexRegularPath(filepath.VolumeName(root)+string(filepath.Separator), ancestor); err != nil {
+-		return err
++		return "", err
+ 	}
+ 	if _, err := hostpath.ResolveOutside(g.api.projectsDir(), ancestor); err != nil {
+-		return err
++		return "", err
+ 	}
+ 	if err := os.MkdirAll(root, 0700); err != nil {
+-		return err
++		return "", err
+ 	}
+ 	if _, err := hostpath.ResolveOutside(g.api.projectsDir(), root); err != nil {
+-		return err
++		return "", err
+ 	}
+ 	if err := codexPrivateDir(root); err != nil {
++		return "", err
++	}
++	return root, nil
++}
++
++func (g *executionAdmission) mutate(ctx context.Context, fn func(*executionLeaseLedger) error) error {
++	g.mu.Lock()
++	defer g.mu.Unlock()
++	return g.mutateLocked(ctx, fn)
++}
++
++// Caller owns the local mutex; the shared durable lock still fences every write.
++func (g *executionAdmission) mutateLocked(ctx context.Context, fn func(*executionLeaseLedger) error) error {
++	if err := ctx.Err(); err != nil {
++		return err
++	}
++	root, err := g.prepareExecutionDirectory()
++	if err != nil {
+ 		return err
+ 	}
+ 	lockPath := filepath.Join(root, "leases.lock")
+--- a/control-plane/internal/api/execution_lifecycle_lock.go
++++ b/control-plane/internal/api/execution_lifecycle_lock.go
+@@ -25,14 +25,8 @@
+ 	if childID == "" || len(childID) > 200 {
+ 		return nil, errors.New("execution child identity is invalid")
+ 	}
+-	parent := filepath.Dir(g.path)
+-	if !filepath.IsAbs(parent) {
+-		return nil, errors.New("execution lifecycle directory is not absolute")
+-	}
+-	if err := codexRegularPath(filepath.VolumeName(parent)+string(filepath.Separator), parent); err != nil {
+-		return nil, err
+-	}
+-	if _, err := hostpath.ResolveOutside(g.api.projectsDir(), parent); err != nil {
++	parent, err := g.prepareExecutionDirectory()
++	if err != nil {
+ 		return nil, err
+ 	}
+ 	dir := filepath.Join(parent, "children")
+--- a/control-plane/internal/api/manual_lease_liveness_test.go
++++ b/control-plane/internal/api/manual_lease_liveness_test.go
+@@ -0,0 +1,151 @@
++package api
++
++import (
++	"bytes"
++	"context"
++	"os"
++	"path/filepath"
++	"sync/atomic"
++	"testing"
++	"time"
++
++	"github.com/lcfrai/luci/control-plane/internal/backend"
++	"github.com/lcfrai/luci/control-plane/internal/management"
++	"github.com/lcfrai/luci/control-plane/internal/product"
++	"github.com/lcfrai/luci/control-plane/internal/registry"
++)
++
++// Structural optional capability keeps this exact regression source compatible
++// with original production, which does not call AllocationAbsent yet.
++type manualAbsenceBackend struct {
++	backend.Backend
++	get func(context.Context, string) (backend.Sandbox, error)
++}
++
++func (b manualAbsenceBackend) AllocationAbsent(ctx context.Context, id, ref string) (bool, error) {
++	if ref == "" {
++		return false, backend.ErrUnsupported
++	}
++	_, err := b.get(ctx, id)
++	if err == nil {
++		return false, nil
++	}
++	if unambiguousBackendNotFound(err) {
++		return true, nil
++	}
++	return false, err
++}
++
++// Durable controlled manual allocation: no real process or Docker resources.
++// The same fixture/test body runs against both original and fixed production.
++func manualLeaseFixture(t *testing.T) (*sessionsEnv, registry.Session, executionLease) {
++	t.Helper()
++	root := t.TempDir()
++	store, err := registry.NewFileStore(filepath.Join(root, "sessions.json"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	options := product.Options{StateDir: t.TempDir(), ProjectsDir: t.TempDir()}
++	pd, err := product.New(options)
++	if err != nil {
++		t.Fatal(err)
++	}
++	t.Cleanup(func() { pd.Close() })
++	env := sessionsNewEnvOverWith(t, root, store, store, func(d *Deps) {
++		d.Product, d.ProjectsDir = pd, options.ProjectsDir
++		d.ResourceSnapshot = executionFixtureSnapshot
++		d.ReadyTimeout = 5 * time.Second
++		d.Resources = backend.Resources{MemoryMiB: 1024, CPUMillis: 1000}
++	})
++	row := sessionsFullRecord()
++	row.Harness, row.Command, row.Args = "shell", "/bin/bash", []string{"-l"}
++	row.Status, row.Endpoint, row.AttachToken, row.AttachCount = registry.StatusExited, "", "", 0
++	row = sessionsSeed(t, store, row)
++	g := env.api.execution
++	now := time.Now().UTC()
++	lease := executionLease{ID: "manual-c070", Scope: g.scope, Actor: management.ExecutionActorRef{Local: true, ProjectID: row.ProjectID}, ProjectID: row.ProjectID, Provider: "harness:shell", ProviderLimit: 4, SessionID: row.ID, SandboxID: row.SandboxID, State: "backend-settled", LaunchGuard: 1, Resources: backend.Resources{MemoryMiB: 1024, CPUMillis: 1000}, CreatedAt: now, UpdatedAt: now}
++	if err := g.mutate(context.Background(), func(l *executionLeaseLedger) error { l.Leases = append(l.Leases, lease); return nil }); err != nil {
++		t.Fatal(err)
++	}
++	return env, row, lease
++}
++
++func manualLeaseBytes(t *testing.T, a *API) []byte {
++	t.Helper()
++	data, err := os.ReadFile(a.execution.path)
++	if err != nil {
++		t.Fatal(err)
++	}
++	return data
++}
++
++// Regression: a service restart with an empty scheduler queue must settle
++// confirmed-absent manual capacity without another admission, Stop, or Forget.
++// This does not claim the original admission-triggered reconciliation leaked.
++func TestManualLeaseBackgroundReopenRetiresConfirmedAbsenceWithoutAdmission(t *testing.T) {
++	env, row, own := manualLeaseFixture(t)
++	a := env.api
++	foreign := own
++	foreign.ID, foreign.Scope, foreign.SessionID, foreign.SandboxID = "manual-foreign", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "s-foreign", "s-foreign"
++	if err := a.execution.mutate(context.Background(), func(l *executionLeaseLedger) error { l.Leases = append(l.Leases, foreign); return nil }); err != nil {
++		t.Fatal(err)
++	}
++	var reads, authority atomic.Int64
++	a.deps.Backend = manualAbsenceBackend{Backend: env.be, get: func(ctx context.Context, id string) (backend.Sandbox, error) {
++		reads.Add(1)
++		if id != row.SandboxID {
++			t.Error("observer read a foreign allocation")
++		}
++		return backend.Sandbox{}, backend.ErrNotFound
++	}}
++	a.deps.AuthorizeExecution = func(context.Context, management.ExecutionActorRef, string, bool) (management.ExecutionAuthority, error) {
++		authority.Add(1)
++		return management.ExecutionAuthority{}, management.ErrExecutionAuthority
++	}
++	a.deps.AuthorizeExecutionControl = func(context.Context, management.ExecutionActorRef) error {
++		authority.Add(1)
++		return management.ErrExecutionAuthority
++	}
++	d := a.deps
++	store, err := registry.NewFileStore(filepath.Join(filepath.Dir(env.dir), "sessions.json"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	d.Store, d.Flags, d.ObserveTaskCompletions = store, store, true
++	reopened, err := New(d)
++	if err != nil {
++		t.Fatal(err)
++	}
++	deadline := time.NewTimer(6 * time.Second)
++	defer deadline.Stop()
++	poll := time.NewTicker(10 * time.Millisecond)
++	defer poll.Stop()
++	for {
++		ledger, err := reopened.execution.readFenceLedger()
++		if err != nil {
++			t.Fatal(err)
++		}
++		if len(ledger.Leases) == 1 && ledger.Leases[0] == foreign {
++			break
++		}
++		select {
++		case <-deadline.C:
++			t.Fatal("confirmed-absent manual reservation stayed charged without a new admission")
++		case <-poll.C:
++		}
++	}
++	view := reopened.execution.reservationObservation(context.Background())
++	if view.Status != "ready" || view.Count != 1 || view.MemoryMiB != 1024 || view.CPUMillis != 1000 {
++		t.Fatal("reservation view did not preserve only foreign demand", view)
++	}
++	if reads.Load() != 1 || authority.Load() != 0 || len(env.be.specs) != 0 || len(env.be.destroys) != 0 {
++		t.Fatal("observation allocated, destroyed, reused authority or repeated a retired lookup")
++	}
++	after := manualLeaseBytes(t, reopened)
++	if err := d.Product.RunSwarmSchedulerOnce(context.Background()); err != nil {
++		t.Fatal(err)
++	}
++	if !bytes.Equal(after, manualLeaseBytes(t, reopened)) {
++		t.Fatal("idle repeated turn rewrote durable ledger")
++	}
++}
+--- a/control-plane/internal/api/manual_lease_observation.go
++++ b/control-plane/internal/api/manual_lease_observation.go
+@@ -0,0 +1,195 @@
++package api
++
++import (
++	"context"
++	"errors"
++	"os"
++	"sync"
++	"time"
++
++	"github.com/lcfrai/luci/control-plane/internal/backend"
++	"github.com/lcfrai/luci/control-plane/internal/registry"
++)
++
++type manualLeaseObservations struct {
++	mu      sync.Mutex
++	cursor  int
++	pending []executionLease
++	failed  bool
++}
++
++// Manual cleanup observation has its own budget; slow backend absence must not
++// consume the task report observer's existing budget. Both finish before the
++// service-owned scheduler turn returns, including parent cancellation.
++func (a *API) observeExecutionCompletions(ctx context.Context) error {
++	manual := make(chan error, 1)
++	go func() { manual <- a.ObserveManualLeasesOnce(ctx) }()
++	tasks := a.ObserveTaskSessionsOnce(ctx)
++	return errors.Join(tasks, <-manual)
++}
++
++var errManualLeaseUnchanged = errors.New("manual allocation remains reserved")
++
++// ObserveManualLeasesOnce retires only settled ordinary-session reservations
++// whose exact backend allocation is now absent. It never destroys, allocates,
++// replays work, supplies user authority, or infers an exit outcome. Typed Exit
++// and absence from an active-only resource inventory are insufficient proofs.
++// Task/check leases keep their separate completion and cleanup contracts.
++func (a *API) ObserveManualLeasesOnce(ctx context.Context) (result error) {
++	g := a.execution
++	if g == nil || a.deps.Backend == nil || a.deps.Backend.Kind() != backend.KindDocker {
++		return nil
++	}
++	if _, supported := a.deps.Backend.(backend.AllocationAbsenceObserver); !supported {
++		return nil
++	}
++	state := &g.manualObserver
++	if !state.mu.TryLock() {
++		return nil
++	}
++	defer state.mu.Unlock()
++	defer func() {
++		if result != nil && !state.failed {
++			a.sessionLog().Warn("manual capacity observation remains pending; exact ownership will be retried")
++		}
++		state.failed = result != nil
++	}()
++	ctx, cancel := context.WithTimeout(ctx, time.Second)
++	defer cancel()
++	if err := ctx.Err(); err != nil {
++		return err
++	}
++	if len(state.pending) == 0 {
++		ledger, err := g.readFenceLedger()
++		if errors.Is(err, os.ErrNotExist) {
++			return nil
++		}
++		if err != nil {
++			return err
++		}
++		if state.cursor >= len(ledger.Leases) {
++			state.cursor = 0
++		}
++		for visited := 0; visited < len(ledger.Leases) && visited < 128 && len(state.pending) < 8; visited++ {
++			lease := ledger.Leases[state.cursor]
++			state.cursor = (state.cursor + 1) % len(ledger.Leases)
++			if lease.Scope == g.scope && lease.SessionID != "" && lease.SandboxID != "" && lease.LaunchGuard == 1 && lease.State == "backend-settled" {
++				state.pending = append(state.pending, lease)
++			}
++		}
++	}
++	var failures []error
++	for len(state.pending) > 0 {
++		if ctx.Err() != nil {
++			return errors.Join(append(failures, ctx.Err())...)
++		}
++		// Consume only an attempted candidate. Unattempted peers survive a slow
++		// first lookup, so later ticks cannot repeatedly starve the same page.
++		lease := state.pending[0]
++		state.pending[0] = executionLease{}
++		state.pending = state.pending[1:]
++		if err := a.observeManualLease(ctx, lease); err != nil {
++			failures = append(failures, err)
++		}
++	}
++	return errors.Join(failures...)
++}
++
++func exactManualLease(ledger executionLeaseLedger, expected executionLease) bool {
++	matches, exact := 0, false
++	for _, current := range ledger.Leases {
++		if current.SandboxID == expected.SandboxID || current.Scope == expected.Scope && current.SessionID == expected.SessionID {
++			matches++
++			exact = exact || current == expected
++		}
++	}
++	return matches == 1 && exact
++}
++
++func manualLeaseRow(row registry.Session, lease executionLease, kind backend.Kind) bool {
++	return row.ID == lease.SessionID && row.ProjectID == lease.ProjectID && row.SandboxID == lease.SandboxID &&
++		row.Status == registry.StatusExited && row.Backend == string(kind) && row.SandboxRef != "" &&
++		row.ProjectRunID == "" && row.ProjectRunOperationID == "" && row.StartFailure.IsZero() && lease.FenceProtocol == 0
++}
++
++func sameManualLeaseGeneration(current, observed registry.Session) bool {
++	return current.ID == observed.ID && current.Status == registry.StatusExited &&
++		current.Backend == observed.Backend && current.SandboxID == observed.SandboxID && current.SandboxRef == observed.SandboxRef &&
++		current.ProjectID == observed.ProjectID && current.WorktreeID == observed.WorktreeID && current.BranchID == observed.BranchID &&
++		current.ProjectRunID == "" && current.ProjectRunOperationID == "" && current.StartFailure.IsZero() &&
++		current.AttachToken == observed.AttachToken && current.CreatedAt.Equal(observed.CreatedAt) && current.UpdatedAt.Equal(observed.UpdatedAt)
++}
++
++func (a *API) observeManualLease(ctx context.Context, lease executionLease) error {
++	g := a.execution
++	// Match start/stop/restart's lock order. The process guard is nonblocking;
++	// the durable child lock protects another controller's managed restart.
++	if !sessionRestarts.acquire(lease.SessionID) {
++		return nil
++	}
++	defer sessionRestarts.release(lease.SessionID)
++	unlock, err := g.lockChildLifecycle(ctx, lease.SessionID)
++	if err != nil {
++		return err
++	}
++	defer unlock()
++	ledger, err := g.readFenceLedger()
++	if err != nil {
++		return err
++	}
++	if !exactManualLease(ledger, lease) {
++		return nil
++	}
++	row, err := a.deps.Store.Get(lease.SessionID)
++	if errors.Is(err, registry.ErrNotFound) {
++		return nil
++	}
++	if err != nil {
++		return err
++	}
++	if !manualLeaseRow(row, lease, a.deps.Backend.Kind()) {
++		return nil
++	}
++	// Both the reusable name and recorded immutable reference must be absent.
++	// Every present/foreign/removing object and every ambiguous error retains.
++	// Backend I/O never holds the host-wide admission ledger lock.
++	absent, err := a.deps.Backend.(backend.AllocationAbsenceObserver).AllocationAbsent(ctx, lease.SandboxID, row.SandboxRef)
++	if ctx.Err() != nil {
++		return ctx.Err()
++	}
++	if err != nil {
++		return errManualLeaseUnchanged
++	}
++	if !absent {
++		return nil
++	}
++	// A background turn never queues behind an uncancellable local mutex.
++	// The existing shared-file lock remains context bounded inside mutateLocked.
++	if !g.mu.TryLock() {
++		return nil
++	}
++	defer g.mu.Unlock()
++	err = g.mutateLocked(ctx, func(current *executionLeaseLedger) error {
++		if !exactManualLease(*current, lease) {
++			return errManualLeaseUnchanged
++		}
++		fresh, err := a.deps.Store.Get(lease.SessionID)
++		if err != nil || !sameManualLeaseGeneration(fresh, row) {
++			return errManualLeaseUnchanged
++		}
++		if err := ctx.Err(); err != nil {
++			return err
++		}
++		for i, item := range current.Leases {
++			if item == lease {
++				current.Leases = append(current.Leases[:i], current.Leases[i+1:]...)
++				return nil
++			}
++		}
++		return errManualLeaseUnchanged
++	})
++	if errors.Is(err, errManualLeaseUnchanged) {
++		return nil
++	}
++	return err
++}
+--- a/control-plane/internal/api/manual_lease_observation_test.go
++++ b/control-plane/internal/api/manual_lease_observation_test.go
+@@ -0,0 +1,435 @@
++package api
++
++import (
++	"bytes"
++	"context"
++	"encoding/json"
++	"errors"
++	"fmt"
++	"net/http/httptest"
++	"os"
++	"path/filepath"
++	"strings"
++	"sync/atomic"
++	"testing"
++	"time"
++
++	"github.com/lcfrai/luci/control-plane/internal/backend"
++	"github.com/lcfrai/luci/control-plane/internal/project"
++	"github.com/lcfrai/luci/control-plane/internal/registry"
++)
++
++func TestManualLeaseObserverRetainsPresentUnknownAndUnowned(t *testing.T) {
++	for _, scenario := range []string{"stopped", "removing", "running", "gone", "foreign object", "unavailable", "joined absent", "cancelled", "foreign scope", "missing row", "wrong project", "wrong sandbox", "wrong backend", "missing ref", "task row", "partial task row", "legacy guard", "reserved", "allocating", "replacing", "backend-dispatching", "duplicate", "corrupt ledger", "unsupported backend"} {
++		t.Run(scenario, func(t *testing.T) {
++			env, row, _ := manualLeaseFixture(t)
++			a := env.api
++			var reads atomic.Int64
++			backendError := error(backend.ErrNotFound)
++			sandbox := backend.Sandbox{}
++			changeRow := func(fn func(*registry.Session)) {
++				_, err := a.deps.Store.Update(row.ID, func(current *registry.Session) error { fn(current); return nil })
++				if err != nil {
++					t.Fatal(err)
++				}
++			}
++			changeLease := func(fn func(*executionLeaseLedger)) {
++				if err := a.execution.mutate(context.Background(), func(l *executionLeaseLedger) error { fn(l); return nil }); err != nil {
++					t.Fatal(err)
++				}
++			}
++			switch scenario {
++			case "stopped", "removing", "running", "gone", "foreign object":
++				backendError = nil
++				sandbox = backend.Sandbox{ID: row.SandboxID, Ref: row.SandboxRef, State: backend.StateStopped}
++				if scenario == "removing" {
++					sandbox.State = backend.State("removing")
++				}
++				if scenario == "running" {
++					sandbox.State = backend.StateRunning
++				}
++				if scenario == "gone" {
++					sandbox.State = backend.StateGone
++				}
++				if scenario == "foreign object" {
++					sandbox.ID, sandbox.Ref, sandbox.Instance = "s-other", "other-ref", "foreign"
++				}
++			case "unavailable":
++				backendError = backend.ErrUnavailable
++			case "joined absent":
++				backendError = errors.Join(backend.ErrNotFound, backend.ErrUnavailable)
++			case "cancelled":
++				backendError = context.Canceled
++			case "foreign scope":
++				changeLease(func(l *executionLeaseLedger) { l.Leases[0].Scope = strings.Repeat("b", 64) })
++			case "missing row":
++				if err := a.deps.Store.Delete(row.ID); err != nil {
++					t.Fatal(err)
++				}
++			case "wrong project":
++				changeRow(func(s *registry.Session) { s.ProjectID = "p-other" })
++			case "wrong sandbox":
++				changeRow(func(s *registry.Session) { s.SandboxID = "s-other" })
++			case "wrong backend":
++				changeRow(func(s *registry.Session) { s.Backend = "kubernetes" })
++			case "missing ref":
++				changeRow(func(s *registry.Session) { s.SandboxRef = "" })
++			case "task row":
++				changeRow(func(s *registry.Session) { s.ProjectRunID = "run-other"; s.ProjectRunOperationID = "op-other" })
++			case "partial task row":
++				changeRow(func(s *registry.Session) { s.ProjectRunID = "run-other" })
++			case "legacy guard":
++				changeLease(func(l *executionLeaseLedger) { l.Leases[0].LaunchGuard = 0 })
++			case "reserved":
++				changeLease(func(l *executionLeaseLedger) {
++					l.Leases[0].State = "reserved"
++					l.Leases[0].SessionID = ""
++					l.Leases[0].SandboxID = ""
++				})
++			case "allocating", "replacing", "backend-dispatching":
++				changeLease(func(l *executionLeaseLedger) { l.Leases[0].State = scenario })
++			case "duplicate":
++				changeLease(func(l *executionLeaseLedger) {
++					duplicate := l.Leases[0]
++					duplicate.ID = "manual-duplicate"
++					l.Leases = append(l.Leases, duplicate)
++				})
++			case "corrupt ledger":
++				if err := writeExecutionLedger(a.execution.path, []byte(`{"version":1,"leases":[],"unrecognized":true}`)); err != nil {
++					t.Fatal(err)
++				}
++			}
++			a.deps.Backend = manualAbsenceBackend{Backend: env.be, get: func(context.Context, string) (backend.Sandbox, error) { reads.Add(1); return sandbox, backendError }}
++			if scenario == "unsupported backend" {
++				a.deps.Backend = swarmObserverBackend{Backend: env.be, get: func(context.Context, string) (backend.Sandbox, error) {
++					reads.Add(1)
++					return backend.Sandbox{}, backend.ErrNotFound
++				}}
++			}
++			before := manualLeaseBytes(t, a)
++			info, _ := os.Stat(a.execution.path)
++			_ = a.ObserveManualLeasesOnce(context.Background())
++			after, _ := os.Stat(a.execution.path)
++			if !bytes.Equal(before, manualLeaseBytes(t, a)) || !os.SameFile(info, after) {
++				t.Fatal("uncertain observation rewrote or released the reservation")
++			}
++			if (scenario == "corrupt ledger" || scenario == "unsupported backend") && reads.Load() != 0 {
++				t.Fatal("corrupt global ledger allowed a backend lookup")
++			}
++		})
++	}
++}
++
++func TestManualLeaseObserverRejectsGenerationAndReceiptChangesDuringAbsence(t *testing.T) {
++	for _, change := range []string{"row generation", "row scope", "lease generation", "new replacement", "global corruption"} {
++		t.Run(change, func(t *testing.T) {
++			env, row, _ := manualLeaseFixture(t)
++			a := env.api
++			a.deps.Backend = manualAbsenceBackend{Backend: env.be, get: func(context.Context, string) (backend.Sandbox, error) {
++				switch change {
++				case "row generation", "row scope":
++					_, err := a.deps.Store.Update(row.ID, func(s *registry.Session) error {
++						if change == "row generation" {
++							s.SandboxRef = "new-generation-ref"
++						} else {
++							s.WorktreeID = "w-new-scope"
++						}
++						return nil
++					})
++					if err != nil {
++						t.Error(err)
++					}
++				case "lease generation", "new replacement":
++					err := a.execution.mutate(context.Background(), func(l *executionLeaseLedger) error {
++						if change == "lease generation" {
++							l.Leases[0].UpdatedAt = l.Leases[0].UpdatedAt.Add(time.Second)
++						} else {
++							v := l.Leases[0]
++							v.ID = "restart-next"
++							v.State = "replacing"
++							l.Leases = append(l.Leases, v)
++						}
++						return nil
++					})
++					if err != nil {
++						t.Error(err)
++					}
++				case "global corruption":
++					if err := writeExecutionLedger(a.execution.path, []byte(`{"broken":true}`)); err != nil {
++						t.Error(err)
++					}
++				}
++				return backend.Sandbox{}, backend.ErrNotFound
++			}}
++			_ = a.ObserveManualLeasesOnce(context.Background())
++			if change == "global corruption" {
++				if string(manualLeaseBytes(t, a)) != `{"broken":true}` {
++					t.Fatal("corrupt ledger rewritten")
++				}
++				return
++			}
++			l, err := a.execution.readFenceLedger()
++			if err != nil || len(l.Leases) == 0 {
++				t.Fatal("stale absence dropped current generation", err)
++			}
++			if change == "new replacement" && len(l.Leases) != 2 {
++				t.Fatal("replacement reservation was changed")
++			}
++		})
++	}
++}
++
++func TestManualLeaseObserverFairBoundedPagesAndSlowPeer(t *testing.T) {
++	env, row, lease := manualLeaseFixture(t)
++	a := env.api
++	// A full first page is foreign. A slow first owned allocation must then
++	// leave its unattempted peer queued for the next turn.
++	if err := a.execution.mutate(context.Background(), func(l *executionLeaseLedger) error {
++		l.Leases = nil
++		for i := 0; i < 128; i++ {
++			v := lease
++			v.ID = fmt.Sprintf("foreign-%d", i)
++			v.Scope = strings.Repeat("c", 64)
++			v.SessionID = fmt.Sprintf("s-foreign-%d", i)
++			v.SandboxID = v.SessionID
++			l.Leases = append(l.Leases, v)
++		}
++		l.Leases = append(l.Leases, lease)
++		v := lease
++		v.ID = "manual-peer"
++		v.SessionID = "s-peer"
++		v.SandboxID = v.SessionID
++		l.Leases = append(l.Leases, v)
++		return nil
++	}); err != nil {
++		t.Fatal(err)
++	}
++	peer := row
++	peer.ID, peer.SandboxID, peer.SandboxRef = "s-peer", "s-peer", "peer-ref"
++	sessionsSeed(t, a.deps.Store, peer)
++	var reads atomic.Int64
++	a.deps.Backend = manualAbsenceBackend{Backend: env.be, get: func(ctx context.Context, id string) (backend.Sandbox, error) {
++		reads.Add(1)
++		if id == row.SandboxID {
++			<-ctx.Done()
++			return backend.Sandbox{}, ctx.Err()
++		}
++		return backend.Sandbox{}, backend.ErrNotFound
++	}}
++	if err := a.ObserveManualLeasesOnce(context.Background()); err != nil || reads.Load() != 0 {
++		t.Fatal("observer exceeded first scan page", err)
++	}
++	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
++	defer cancel()
++	if err := a.ObserveManualLeasesOnce(ctx); err == nil {
++		t.Fatal("slow observation had no deadline")
++	}
++	if err := a.ObserveManualLeasesOnce(context.Background()); err != nil {
++		t.Fatal(err)
++	}
++	l, err := a.execution.readFenceLedger()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if len(l.Leases) != 129 || reads.Load() != 2 {
++		t.Fatal("slow peer or page boundary starved the healthy allocation", len(l.Leases), reads.Load())
++	}
++	for _, v := range l.Leases {
++		if v.ID == "manual-peer" {
++			t.Fatal("healthy peer retained")
++		}
++	}
++}
++
++func TestManualLeaseObserverCancelsWithoutWaitingForLocalOrSharedLedger(t *testing.T) {
++	for _, which := range []string{"local mutex", "shared lock", "child lock", "parent cancelled"} {
++		t.Run(which, func(t *testing.T) {
++			env, row, _ := manualLeaseFixture(t)
++			a := env.api
++			a.deps.Backend = manualAbsenceBackend{Backend: env.be, get: func(context.Context, string) (backend.Sandbox, error) { return backend.Sandbox{}, backend.ErrNotFound }}
++			before := manualLeaseBytes(t, a)
++			switch which {
++			case "local mutex":
++				a.execution.mu.Lock()
++				defer a.execution.mu.Unlock()
++			case "shared lock":
++				file, err := os.OpenFile(filepath.Join(filepath.Dir(a.execution.path), "leases.lock"), os.O_RDWR, 0600)
++				if err != nil {
++					t.Fatal(err)
++				}
++				defer file.Close()
++				unlock, err := lockExecutionLedger(context.Background(), file)
++				if err != nil {
++					t.Fatal(err)
++				}
++				defer unlock()
++			case "child lock":
++				unlock, err := a.execution.lockChildLifecycle(context.Background(), row.ID)
++				if err != nil {
++					t.Fatal(err)
++				}
++				defer unlock()
++			}
++			ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
++			defer cancel()
++			if which == "parent cancelled" {
++				cancel()
++			}
++			done := make(chan struct{})
++			go func() { _ = a.ObserveManualLeasesOnce(ctx); close(done) }()
++			select {
++			case <-done:
++			case <-time.After(2 * time.Second):
++				t.Fatal("observer exceeded cancellation budget")
++			}
++			if !bytes.Equal(before, manualLeaseBytes(t, a)) {
++				t.Fatal("cancelled or contended turn wrote capacity")
++			}
++		})
++	}
++}
++
++func TestManualLeaseObserverAndManagedRestartShareLifecycleFence(t *testing.T) {
++	env, row, _ := manualLeaseFixture(t)
++	a := env.api
++	// The durable lock is independently held, as by another controller. The
++	// actual restart route must refuse before admission, Destroy, or Create.
++	unlock, err := a.execution.lockChildLifecycle(context.Background(), row.ID)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer unlock()
++	before := manualLeaseBytes(t, a)
++	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
++	defer cancel()
++	req := httptest.NewRequest("POST", sessionsTarget("/v1/sessions/"+row.ID+"/restart"), nil).WithContext(ctx)
++	w := httptest.NewRecorder()
++	env.mux.ServeHTTP(w, req)
++	if w.Code != 409 || !strings.Contains(w.Body.String(), "current allocation is being observed or changed") {
++		t.Fatal("managed restart did not share observation fence", w.Code)
++	}
++	if !bytes.Equal(before, manualLeaseBytes(t, a)) || len(env.be.specs) != 0 || len(env.be.destroys) != 0 {
++		t.Fatal("fenced restart changed allocation or capacity")
++	}
++}
++
++func TestManualLeaseObserverHoldsRestartGuardDuringBackendObservation(t *testing.T) {
++	env, row, _ := manualLeaseFixture(t)
++	a := env.api
++	entered, proceed := make(chan struct{}), make(chan struct{})
++	a.deps.Backend = manualAbsenceBackend{Backend: env.be, get: func(ctx context.Context, _ string) (backend.Sandbox, error) {
++		close(entered)
++		select {
++		case <-proceed:
++			return backend.Sandbox{}, backend.ErrNotFound
++		case <-ctx.Done():
++			return backend.Sandbox{}, ctx.Err()
++		}
++	}}
++	done := make(chan error, 1)
++	go func() { done <- a.ObserveManualLeasesOnce(context.Background()) }()
++	select {
++	case <-entered:
++	case <-time.After(2 * time.Second):
++		t.Fatal("observer did not reach backend")
++	}
++	w := env.do(t, "POST", "/v1/sessions/"+row.ID+"/restart", "")
++	if w.Code != 409 || !strings.Contains(w.Body.String(), "already starting or restarting") {
++		t.Error("restart entered an active absence observation", w.Code)
++	}
++	close(proceed)
++	if err := <-done; err != nil {
++		t.Fatal(err)
++	}
++	l, err := a.execution.readFenceLedger()
++	if err != nil || len(l.Leases) != 0 {
++		t.Fatal("original absent generation not retired", err)
++	}
++}
++
++type manualTaskPageProbe struct {
++	registry.Store
++	visited chan struct{}
++}
++
++func (p manualTaskPageProbe) TaskObservationPage(int, int, int) ([]registry.TaskObservationCandidate, int, error) {
++	close(p.visited)
++	return nil, 0, nil
++}
++
++func TestManualLeaseObservationJoinsCancellationWithoutBlockingTaskObserver(t *testing.T) {
++	env, _, _ := manualLeaseFixture(t)
++	a := env.api
++	taskVisited, backendEntered, backendDone := make(chan struct{}), make(chan struct{}), make(chan struct{})
++	a.deps.Store = manualTaskPageProbe{Store: a.deps.Store, visited: taskVisited}
++	a.deps.Backend = manualAbsenceBackend{Backend: env.be, get: func(ctx context.Context, _ string) (backend.Sandbox, error) {
++		if !a.execution.mu.TryLock() {
++			t.Error("backend lookup held global ledger mutex")
++		} else {
++			a.execution.mu.Unlock()
++		}
++		close(backendEntered)
++		<-ctx.Done()
++		close(backendDone)
++		return backend.Sandbox{}, ctx.Err()
++	}}
++	ctx, cancel := context.WithCancel(context.Background())
++	defer cancel()
++	done := make(chan error, 1)
++	go func() { done <- a.observeExecutionCompletions(ctx) }()
++	select {
++	case <-backendEntered:
++	case <-time.After(2 * time.Second):
++		t.Fatal("manual observer did not start")
++	}
++	select {
++	case <-taskVisited:
++	case <-time.After(2 * time.Second):
++		t.Fatal("manual lookup prevented task observation")
++	}
++	cancel()
++	select {
++	case err := <-done:
++		if !errors.Is(err, context.Canceled) {
++			t.Fatal("parent cancellation lost", err)
++		}
++	case <-time.After(2 * time.Second):
++		t.Fatal("fanout did not join parent cancellation")
++	}
++	select {
++	case <-backendDone:
++	default:
++		t.Fatal("fanout returned before backend observation settled")
++	}
++}
++
++func TestManualLeaseManagedRestartInitializesAbsentPrivateDirectory(t *testing.T) {
++	f := newSwarmSessionFixtureTasks(t)
++	f.env.api.deps.ReadyTimeout = 5 * time.Second
++	sessionsStubReady(t, nil)
++	watch := sessionsWatchDone(t)
++	body, _ := json.Marshal(map[string]any{"worktreeId": project.WorktreeID(f.owner.Path), "harness": "shell"})
++	created := sessionsDecodeOne(t, f.env.do(t, "POST", "/v1/sessions", string(body)), 201)
++	sessionsAwaitWatch(t, watch)
++	a := f.env.api
++	a.deps.ExecutionStateDir = filepath.Join(t.TempDir(), "new-capacity")
++	a.deps.ResourceSnapshot = executionFixtureSnapshot
++	a.execution = newExecutionAdmission(a)
++	if _, err := os.Stat(filepath.Dir(a.execution.path)); !errors.Is(err, os.ErrNotExist) {
++		t.Fatal("fixture directory already exists")
++	}
++	watch = sessionsWatchDone(t)
++	response := f.env.do(t, "POST", "/v1/sessions/"+created.ID+"/restart", "")
++	if response.Code != 200 {
++		t.Fatal("managed restart with no earlier ledger directory was refused", response.Code)
++	}
++	sessionsAwaitWatch(t, watch)
++	row, err := f.store.Get(created.ID)
++	if err != nil {
++		t.Fatal(err)
++	}
++	ledger, err := a.execution.readFenceLedger()
++	if err != nil || len(ledger.Leases) != 1 || ledger.Leases[0].SandboxID != row.SandboxID || ledger.Leases[0].State != "backend-settled" {
++		t.Fatal("new restart did not preserve exact settled replacement charge", err)
++	}
++}
+--- a/control-plane/internal/api/sessions.go
++++ b/control-plane/internal/api/sessions.go
+@@ -2026,6 +2026,21 @@
+ 	if !ok {
+ 		return
+ 	}
++	// Managed restarts share the exact child's durable lifecycle fence with
++	// trusted capacity observation. Read the current row again under that fence
++	// before reserving or replacing any generation.
++	if a.execution != nil && a.deps.ResourceSnapshot != nil {
++		unlock, err := a.execution.lockChildLifecycle(r.Context(), id)
++		if err != nil {
++			httpx.WriteProblem(w, http.StatusConflict, httpx.CodeConflict, "This session's current allocation is being observed or changed. Retry after its current operation.", nil)
++			return
++		}
++		defer unlock()
++		sess, ok = a.sessionByID(w, r)
++		if !ok {
++			return
++		}
++	}
+ 	if sess.ProjectRunID != "" || sess.ProjectRunOperationID != "" {
+ 		httpx.WriteProblem(w, http.StatusConflict, httpx.CodeConflict, "Reserve a new coding operation in the project run before retrying. The original attempt remains in the run history.", nil)
+ 		return
+--- a/control-plane/internal/backend/allocation_observation.go
++++ b/control-plane/internal/backend/allocation_observation.go
+@@ -0,0 +1,13 @@
++package backend
++
++import "context"
++
++// AllocationAbsenceObserver is an optional read-only maintenance capability.
++// True proves both the reusable logical name and the recorded immutable object
++// are absent. Present, foreign, renamed, removing, or uncertain objects cannot
++// be projected as absence. The caller fences concurrent allocation and checks
++// the same settled registry generation and capacity receipt before retirement.
++// Backends without this proof retain the existing on-demand release behavior.
++type AllocationAbsenceObserver interface {
++	AllocationAbsent(ctx context.Context, id, immutableRef string) (bool, error)
++}
+--- a/control-plane/internal/backend/dockerbe/allocation_observation.go
++++ b/control-plane/internal/backend/dockerbe/allocation_observation.go
+@@ -0,0 +1,41 @@
++package dockerbe
++
++import (
++	"context"
++	"fmt"
++
++	"github.com/lcfrai/luci/control-plane/internal/backend"
++)
++
++var _ backend.AllocationAbsenceObserver = (*Backend)(nil)
++
++// AllocationAbsent performs no ownership filtering: even a foreign object at
++// the logical name retains the old charge. An original container renamed away
++// from that name is still present at its immutable reference and also retains.
++func (b *Backend) AllocationAbsent(ctx context.Context, id, immutableRef string) (bool, error) {
++	if err := ctx.Err(); err != nil {
++		return false, err
++	}
++	if !fenceLogicalID(id) || !fenceHex(immutableRef, 32) {
++		return false, backend.ErrUnsupported
++	}
++	if _, creating := b.creates.Load(id); creating {
++		return false, nil
++	}
++	for _, target := range []string{namePrefix + id, immutableRef} {
++		_, err := b.api.ContainerInspect(ctx, target)
++		if ctx.Err() != nil {
++			return false, ctx.Err()
++		}
++		if err == nil {
++			return false, nil
++		}
++		if !stoppedCleanupNotFound(err) {
++			return false, fmt.Errorf("dockerbe: exact allocation absence is unconfirmed: %w", backend.ErrUnavailable)
++		}
++	}
++	if _, creating := b.creates.Load(id); creating {
++		return false, nil
++	}
++	return true, nil
++}
+--- a/control-plane/internal/backend/dockerbe/manual_absence_contract_test.go
++++ b/control-plane/internal/backend/dockerbe/manual_absence_contract_test.go
+@@ -0,0 +1,99 @@
++package dockerbe_test
++
++import (
++	"context"
++	"errors"
++	"strings"
++	"testing"
++
++	"github.com/lcfrai/luci/control-plane/internal/backend"
++)
++
++// Get is not List's ownership-filtered inventory. A foreign object occupying a
++// manual worker's reusable name must remain visible, with its actual immutable
++// ref, so trusted lease observation cannot treat it as confirmed absence.
++func TestGetManualAbsenceNeverFiltersForeignStoppedOrRemovingObject(t *testing.T) {
++	for _, state := range []string{"running", "exited", "removing"} {
++		t.Run(state, func(t *testing.T) {
++			labels := labelsFor("s-other", "session-other")
++			labels[backend.LabelInstance] = "foreign-instance"
++			f := &fakeDocker{inspects: []inspectResult{{resp: inspectOf("foreign-immutable-ref", state, "", "", labels)}}}
++			b := newBackend(t, f)
++			got, err := b.Get(context.Background(), "s-manual")
++			if err != nil || errors.Is(err, backend.ErrNotFound) || got.Ref != "foreign-immutable-ref" || got.Instance != "foreign-instance" {
++				t.Fatal("foreign present object was projected as absence")
++			}
++			if len(f.inspectNames) != 1 || f.inspectNames[0] != "luci-s-manual" || len(f.snapshotRemoves()) != 0 || len(f.creates) != 0 {
++				t.Fatal("exact lookup performed effects or inspected another allocation")
++			}
++		})
++	}
++}
++
++func TestAllocationAbsentRequiresBothNameAndImmutableReferenceAbsent(t *testing.T) {
++	ref := strings.Repeat("a", 64)
++	missing := inspectResult{err: notFoundErr{"controlled-absent"}}
++	present := inspectResult{resp: inspectOf(ref, "exited", "", "", labelsFor("s-manual", "s-manual"))}
++	foreignLabels := labelsFor("s-foreign", "s-foreign")
++	foreignLabels[backend.LabelInstance] = "foreign-instance"
++	foreign := inspectResult{resp: inspectOf(strings.Repeat("b", 64), "removing", "", "", foreignLabels)}
++	for _, tc := range []struct {
++		name    string
++		results []inspectResult
++		absent  bool
++		failure bool
++		calls   int
++	}{
++		{"both absent", []inspectResult{missing, missing}, true, false, 2},
++		{"name absent original renamed", []inspectResult{missing, present}, false, false, 2},
++		{"reference absent name foreign", []inspectResult{foreign, missing}, false, false, 1},
++		{"original removing", []inspectResult{missing, foreign}, false, false, 2},
++		{"name transport failure", []inspectResult{{err: errors.New("controlled transport failure")}}, false, true, 1},
++		{"reference transport failure", []inspectResult{missing, {err: errors.New("controlled transport failure")}}, false, true, 2},
++		{"joined name absence", []inspectResult{{err: errors.Join(notFoundErr{"controlled"}, backend.ErrUnavailable)}}, false, true, 1},
++		{"joined reference absence", []inspectResult{missing, {err: errors.Join(notFoundErr{"controlled"}, context.Canceled)}}, false, true, 2},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			f := &fakeDocker{inspects: tc.results}
++			b := newBackend(t, f)
++			absent, err := b.AllocationAbsent(context.Background(), "s-manual", ref)
++			if absent != tc.absent || (err != nil) != tc.failure || len(f.inspectNames) != tc.calls {
++				t.Fatal("incorrect exact absence result", absent, err, len(f.inspectNames))
++			}
++			if len(f.inspectNames) > 0 && f.inspectNames[0] != "luci-s-manual" || len(f.inspectNames) > 1 && f.inspectNames[1] != ref {
++				t.Fatal("absence did not bind name and immutable reference")
++			}
++			if len(f.snapshotRemoves()) != 0 || len(f.creates) != 0 || len(f.starts) != 0 {
++				t.Fatal("read-only absence observation mutated Docker")
++			}
++		})
++	}
++}
++
++func TestAllocationAbsentRejectsUnverifiableReferenceAndCancellation(t *testing.T) {
++	for _, scenario := range []string{"empty ref", "short ref", "nonhex ref", "invalid id", "cancelled"} {
++		t.Run(scenario, func(t *testing.T) {
++			id, ref := "s-manual", strings.Repeat("a", 64)
++			ctx, cancel := context.WithCancel(context.Background())
++			defer cancel()
++			switch scenario {
++			case "empty ref":
++				ref = ""
++			case "short ref":
++				ref = "abc123"
++			case "nonhex ref":
++				ref = strings.Repeat("x", 64)
++			case "invalid id":
++				id = "../foreign"
++			case "cancelled":
++				cancel()
++			}
++			f := &fakeDocker{}
++			b := newBackend(t, f)
++			absent, err := b.AllocationAbsent(ctx, id, ref)
++			if absent || err == nil || len(f.inspectNames) != 0 {
++				t.Fatal("invalid proof triggered lookup or absence")
++			}
++		})
++	}
++}

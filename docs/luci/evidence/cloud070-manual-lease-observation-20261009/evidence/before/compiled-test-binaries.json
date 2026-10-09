@@ -1,0 +1,8 @@
+{
+  "/workspace/.t/go-build2288635591/b001/api.test": {
+    "sha256": "5e98554f2bc66a78f305e2bf287ae5e37465bd23efa838c0bbaf4519ea80baef",
+    "observedAt": 1791560936.144833,
+    "pid": 2497144,
+    "testRun": "^TestManualLeaseBackgroundReopenRetiresConfirmedAbsenceWithoutAdmission$"
+  }
+}

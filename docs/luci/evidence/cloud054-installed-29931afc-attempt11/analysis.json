@@ -1,0 +1,173 @@
+{
+  "productSource": "29931afc5b31ae9b9bd7b8973a7e3fdb840609a3",
+  "helper": "CLOUD-069 external v11 warm",
+  "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+  "overallPassed": false,
+  "originalResult": {
+    "sha256": "7c14889e49b42a83040a75aa45d7a923461121049853bf9a06abec62196e1910",
+    "bytes": 159150
+  },
+  "originalWrapper": {
+    "sha256": "50d532722144468a81adf108bf7c7217d4b1b7fe82a2743040f04237d136c267",
+    "bytes": 4991
+  },
+  "failure": {
+    "driver": {
+      "name": "Error",
+      "code": "ETIMEDOUT",
+      "message": "spawnSync docker ETIMEDOUT"
+    },
+    "scenarioProjection": {
+      "name": "Error",
+      "code": null,
+      "messageSHA256": "8fcc3522142fe9c6949f4fe201a94c997e5e1e37463abb4db1c10a3d60d437ec",
+      "messageBytes": 26,
+      "messageRetained": false,
+      "kind": "other"
+    },
+    "step": "initial-natural-settlement",
+    "observedLifecycleStates": [
+      "exited",
+      "removing",
+      "absent"
+    ],
+    "actualDockerTimeoutRecorded": true,
+    "permanentLeakInferred": false,
+    "productDefectClassified": false
+  },
+  "counts": {
+    "phaseRecords": 35,
+    "apiRestart": 0,
+    "browserForwardedRestart": 0,
+    "recordedSessionDELETE": 0,
+    "firstSocketTypedExit": 1,
+    "replacementAllocationObserved": false,
+    "secondExitObserved": false,
+    "providerInvoked": false
+  },
+  "firstTerminal": {
+    "uiWhilePollHeld": {
+      "label": "c054-terminal-fixture \u2014 running",
+      "footer": "/bin/bash \u00b7 0m \u00b7 ended",
+      "overlay": null,
+      "termPresent": true,
+      "restartCount": 0
+    },
+    "exit": {
+      "reason": {
+        "kind": "exit-status",
+        "code": 0
+      },
+      "payload": {
+        "bytes": 13,
+        "sha256": "7146fc872b9a9dba5098f80e211bc7a8af3d9b2fbf8a3e5d9447db130fcaa3b2",
+        "knownStaticRepresentation": "exit status 0",
+        "unclassifiedTextRetained": false
+      },
+      "wall": "2026-10-09T15:24:37.694Z",
+      "monotonicMs": 3152.099999964237,
+      "sequence": 71
+    },
+    "close": {
+      "code": 1000,
+      "wasClean": true,
+      "wall": "2026-10-09T15:24:37.697Z",
+      "monotonicMs": 3154.5
+    },
+    "socketError": false,
+    "outputExitCloseSequence": [
+      70,
+      71,
+      72
+    ],
+    "lastPassiveUI": {
+      "label": "c054-terminal-fixture \u2014 exited",
+      "footer": "/bin/bash \u00b7 1m \u00b7 ended",
+      "overlay": null,
+      "termPresent": true,
+      "restartCount": 1
+    }
+  },
+  "statusTiming": {
+    "pollRelease": "2026-10-09T15:24:40.588Z",
+    "nextMilestone": "2026-10-09T15:24:41.572Z",
+    "nextMilestoneKind": "initial-natural-settlement",
+    "restartPresenceConfirmedByMilestone": true,
+    "afterPollReleaseUpperBoundMs": 984,
+    "afterTypedExitReceiptUpperBoundMs": 3878,
+    "typedExitReceiptToCloseMonotonicMs": 2.400000035762787,
+    "exactRestartAppearanceTimestampRetained": false,
+    "firstFreshStatusResponseTimestampRetained": false,
+    "derivation": "Accepted scenario awaits Restart count 1 after first gate release/dispose and before initial-natural-settlement milestone; not exact appearance latency."
+  },
+  "cleanup": {
+    "errors": [
+      {
+        "name": "AssertionError",
+        "code": "ERR_ASSERTION",
+        "message": "Retained charge\n\n1 !== 0\n"
+      }
+    ],
+    "driverFinalPresent": false,
+    "retainedLease": {
+      "id": "manual-4c302090",
+      "sessionId": "s-0cf36a75",
+      "sandboxId": "s-0cf36a75",
+      "projectId": "p-eccf393f",
+      "state": "backend-settled",
+      "resources": {
+        "CPUMillis": 1000,
+        "MemoryMiB": 1024
+      }
+    },
+    "manualReleasePerformed": false
+  },
+  "closure": {
+    "knownLive": 0,
+    "knownZombies": 2,
+    "zombieIdentities": [
+      {
+        "pid": 2482355,
+        "expectedStartTicks": "30554254",
+        "family": "browser",
+        "now": {
+          "status": "observed",
+          "startTicks": "30554254",
+          "state": "Z",
+          "parentPID": 1
+        }
+      },
+      {
+        "pid": 2482358,
+        "expectedStartTicks": "30554254",
+        "family": "browser",
+        "now": {
+          "status": "observed",
+          "startTicks": "30554254",
+          "state": "Z",
+          "parentPID": 1
+        }
+      }
+    ],
+    "ledgerCounts": {
+      "leases": 1,
+      "checks": 0,
+      "fences": 0,
+      "checkFences": 0
+    },
+    "originalSHA256": "0b37cbc99eead1c620aaeb04920bbf9b2da3148fe47a1bc1b3caa47758f904c0"
+  },
+  "sourceChecks": {
+    "utilityGitHelpers": 4,
+    "acceptedExternalHelpers": 2,
+    "currentRuntimeInputs": 106,
+    "sourceBeforeAfterEqual": true
+  },
+  "limits": [
+    "Failed before Restart: no warm/cold recovery acceptance.",
+    "Observed exited/removing/absent states precede actual Docker timeout; no permanent-leak or product-defect inference.",
+    "Container absence does not release retained capacity.",
+    "Private state/history only hashed; no contents exported or hand release.",
+    "Known identities and selected inventory only; no whole-machine/model/Windows/performance acceptance."
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "stage": "intent",
+  "at": "2026-10-09T15:38:54.823765+00:00",
+  "processObservation": {
+    "observed": 7,
+    "busy": [],
+    "unknown": [
+      {
+        "pid": 203,
+        "startTicks": "1521",
+        "identityStable": true,
+        "reason": "observation-unavailable-or-changed"
+      },
+      {
+        "pid": 254,
+        "startTicks": "1534",
+        "identityStable": true,
+        "reason": "observation-unavailable-or-changed"
+      },
+      {
+        "pid": 260700,
+        "startTicks": "2331192",
+        "identityStable": true,
+        "reason": "observation-unavailable-or-changed"
+      }
+    ],
+    "scope": "Readable exact executable/cwd/argv/maps/fd observations; no future-launch exclusion or universal daemon-operation proof"
+  },
+  "mode": "333-to-tmp",
+  "sourceSHA256": "bae67ba8f1d6907e0347d62bdd44b9d201c8d781d402bace72efe9904df81ec0",
+  "pair": [
+    "/workspace/.luci-tools/runtime-archive-1f845cfd2b45/verified-luci-sandbox-dev.tar.gz",
+    "/workspace/.luci-tools/runtime-archive-760-9a42e556fa22/old-luci-sandbox-dev.tar.gz"
+  ],
+  "tmpPath": "/tmp/luci-retained-tools/historical-runtime-333eff-7caf7aab.tar.gz",
+  "archiveSHA256": "7caf7aab012cd4a5bf2ace5c8a2e12e617b4afbaef20f6b3db64586a24e9fcf3",
+  "archiveBytes": 1013367768,
+  "freeBefore": {
+    "/workspace": 6326378496,
+    "/tmp": 2260738048
+  },
+  "protectedRequiredArchiveMetadata": {
+    "dev": 27,
+    "ino": 585803,
+    "mode": 384,
+    "uid": 1000,
+    "gid": 1000,
+    "bytes": 1013403794,
+    "blocksBytes": 1013411840,
+    "nlink": 2,
+    "mtimeNs": 1791560024773524095
+  },
+  "originalReceiptHashes": {
+    "/workspace/.luci-tools/runtime-archive-7e1b1f608cfa/receipt.json": "1cb69860e6d206238565220164d3e2f1e19412814de4453b9b307c3e04143c93",
+    "/workspace/.luci-tools/runtime-archive-1f845cfd2b45/receipt.json": "a8e164024cf84d8bfcb90f8693964ba8ee5b53dddb8f02bc857ede707a6d5860"
+  },
+  "coordination": "Root grants bounded tool/archive-only window; no Docker access, no process signals/environ reads, no global idle proof.",
+  "retention": "Historical TMP is not guaranteed snapshot retention. Exact bytes and compatibility paths preserved; hardlink/inode topology changes are explicit."
+}

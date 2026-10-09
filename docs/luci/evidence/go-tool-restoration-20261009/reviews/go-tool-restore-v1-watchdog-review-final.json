@@ -1,0 +1,77 @@
+{
+  "status": "no_remaining_blocker_in_requested_source_scope",
+  "issue": "GO-RESTORE-WATCHDOG-001",
+  "scope": "Read-only narrow corrected watchdog and retained fake-control receipt review. No tests, process scans, signals, runtime, tool relocation or Go-tree hashing executed by this reviewer.",
+  "bindings": [
+    {
+      "path": "/workspace/.luci-tools/go-tool-restore-v1/run.py",
+      "bytes": 5924,
+      "sha256": "f606da6f6674d30cbd492c6de487fc8d3e3ae23b92c2d180bbf6eef264fb23f1"
+    },
+    {
+      "path": "/workspace/.luci-tools/go-tool-restore-v1/test_watchdog.py",
+      "bytes": 2620,
+      "sha256": "83c2ccc3fdb7f65e28d91a59202e31adcb5da65bff8da869d3f8d84d7104fac9"
+    },
+    {
+      "path": "/workspace/.luci-tools/go-tool-restore-v1/manifest.json",
+      "bytes": 2803,
+      "sha256": "e1789442e5a84e2e068de8c91c1feaa797337faf428bf466eb4da2016cb5301d"
+    },
+    {
+      "path": "/workspace/.luci-tools/go-tool-restore-v1/watchdog-before-result.json",
+      "bytes": 99,
+      "sha256": "f08fc50e37feb167aba1b61a967ba95a86164e1dd74f27f6c8693aab5a5e2d78"
+    },
+    {
+      "path": "/workspace/.luci-tools/go-tool-restore-v1/watchdog-before.stderr.log",
+      "bytes": 3046,
+      "sha256": "a39781cb5aa88df8112325a91e6cc0479b7224a97fda9a9d776e67d79c0a570b"
+    },
+    {
+      "path": "/workspace/.luci-tools/go-tool-restore-v1/watchdog-fixed-result.json",
+      "bytes": 100,
+      "sha256": "38381364b78c823d32720845cd6d5ebf8dde42194719eda0038af6f7ea472e2e"
+    },
+    {
+      "path": "/workspace/.luci-tools/go-tool-restore-v1/watchdog-fixed.stderr.log",
+      "bytes": 480,
+      "sha256": "4490c09f8f2b39c205d585fb87b655da5e915e0145ec43d53de9871859077f6d"
+    },
+    {
+      "path": "/workspace/.luci-tools/go-tool-restore-review-preserved/run-pre-settlement.py",
+      "bytes": 4681,
+      "sha256": "92576b750bd59f69efe67d8aef4df2f923ce1d2c4b09f6181b487dbda082dc43"
+    }
+  ],
+  "findings": [
+    "Post-spawn checkpoint failure enters the outer exception handler and settles the known owned child before attempting another receipt save.",
+    "Timeout checkpoint save is enclosed in a finally that invokes settlement, so receipt persistence failure cannot skip the bounded TERM/KILL waits.",
+    "Settlement does not write checkpoints; a failed failure-receipt save falls back to a static failure projection and does not undo settlement.",
+    "Live-leader PID/startTicks checks precede each group signal; an exited leader does not trigger a group signal. Group/descendant settlement remains explicitly unobserved.",
+    "Timed, forced, exception or unknown settlement cannot produce a successful wrapper result."
+  ],
+  "recordedControls": {
+    "original": {
+      "cases": 3,
+      "exitCode": 1,
+      "failures": 3
+    },
+    "corrected": {
+      "cases": 3,
+      "exitCode": 0,
+      "passes": 3,
+      "seconds": 0.009
+    },
+    "sameFixture": true,
+    "fakeChildAndSignalsOnly": true,
+    "independentlyRerun": false
+  },
+  "limits": [
+    "420 seconds bounds the declared process waits only: Python/OS scheduling and synchronous filesystem/stdout/stderr operations are not preemptively bounded.",
+    "Leader exit is not a descendant census; explicit groupSettlementUnobserved must not be restated as zero owned descendants.",
+    "This review does not authorize or certify the actual restoration, current free space, live source/manifest parity or process quiescence. Those are operation-time checks."
+  ],
+  "priorReview": "/workspace/.luci-tools/go-tool-restore-v1-watchdog-review-initial.json",
+  "underlyingRestoreReview": "/workspace/.luci-tools/go-tool-restore-v1-source-review.json"
+}

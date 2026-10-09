@@ -1,0 +1,32 @@
+{
+  "sourceSHA256": "5a5335c6d980c4744fbc2c134cef282d4c2c594a771eb5ca170e63d72d8c7f18",
+  "passed": true,
+  "cases": 6,
+  "results": [
+    {
+      "name": "success",
+      "passed": true
+    },
+    {
+      "name": "bad-hash",
+      "passed": true
+    },
+    {
+      "name": "distinct-inode",
+      "passed": true
+    },
+    {
+      "name": "low-space",
+      "passed": true
+    },
+    {
+      "name": "first-link-fsync",
+      "passed": true
+    },
+    {
+      "name": "second-link-fsync",
+      "passed": true
+    }
+  ],
+  "scope": "Exact helper with tiny disposable roots/bytes and inert low-space or fsync failures; no actual archive read/hash/copy, runtime, Docker or production path mutation."
+}

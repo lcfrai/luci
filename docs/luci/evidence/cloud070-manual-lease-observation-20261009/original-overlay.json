@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "/workspace/luci/control-plane/internal/api/manual_lease_liveness_test.go": "/workspace/.luci-tools/cloud070-manual-lease-observation/tree/control-plane/internal/api/manual_lease_liveness_test.go"
+  }
+}

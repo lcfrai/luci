@@ -52,12 +52,13 @@ type executionLeaseLedger struct {
 	CheckFences []checkExecutionFenceRecord `json:"checkFences,omitempty"`
 }
 type executionAdmission struct {
-	api           *API
-	mu            sync.Mutex
-	path, scope   string
-	snapshot      atomic.Pointer[executionReservationView]
-	fenceGuards   sync.Map
-	checkObserver checkExecutionObservations
+	api            *API
+	mu             sync.Mutex
+	path, scope    string
+	snapshot       atomic.Pointer[executionReservationView]
+	fenceGuards    sync.Map
+	checkObserver  checkExecutionObservations
+	manualObserver manualLeaseObservations
 }
 type executionReservationView struct {
 	ObservedAt time.Time `json:"observedAt"`
@@ -80,12 +81,12 @@ func newExecutionAdmission(a *API) *executionAdmission {
 	return &executionAdmission{api: a, path: filepath.Join(root, "leases.json"), scope: hex.EncodeToString(scope[:])}
 }
 
-func (g *executionAdmission) mutate(ctx context.Context, fn func(*executionLeaseLedger) error) error {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+// Reuse admission's path validation before either a capacity write or a child
+// lifecycle lock, including restored sessions with no ledger directory yet.
+func (g *executionAdmission) prepareExecutionDirectory() (string, error) {
 	root := filepath.Dir(g.path)
 	if !filepath.IsAbs(root) {
-		return errors.New("execution state path must be absolute")
+		return "", errors.New("execution state path must be absolute")
 	}
 	// Queue admission precedes the first conversation. Check the nearest
 	// existing ancestor before creating missing private state directories.
@@ -96,27 +97,45 @@ func (g *executionAdmission) mutate(ctx context.Context, fn func(*executionLease
 			break
 		}
 		if !errors.Is(err, os.ErrNotExist) {
-			return err
+			return "", err
 		}
 		parent := filepath.Dir(ancestor)
 		if parent == ancestor {
-			return errors.New("execution state has no existing ancestor")
+			return "", errors.New("execution state has no existing ancestor")
 		}
 		ancestor = parent
 	}
 	if err := codexRegularPath(filepath.VolumeName(root)+string(filepath.Separator), ancestor); err != nil {
-		return err
+		return "", err
 	}
 	if _, err := hostpath.ResolveOutside(g.api.projectsDir(), ancestor); err != nil {
-		return err
+		return "", err
 	}
 	if err := os.MkdirAll(root, 0700); err != nil {
-		return err
+		return "", err
 	}
 	if _, err := hostpath.ResolveOutside(g.api.projectsDir(), root); err != nil {
-		return err
+		return "", err
 	}
 	if err := codexPrivateDir(root); err != nil {
+		return "", err
+	}
+	return root, nil
+}
+
+func (g *executionAdmission) mutate(ctx context.Context, fn func(*executionLeaseLedger) error) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.mutateLocked(ctx, fn)
+}
+
+// Caller owns the local mutex; the shared durable lock still fences every write.
+func (g *executionAdmission) mutateLocked(ctx context.Context, fn func(*executionLeaseLedger) error) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	root, err := g.prepareExecutionDirectory()
+	if err != nil {
 		return err
 	}
 	lockPath := filepath.Join(root, "leases.lock")

@@ -1,0 +1,26 @@
+{
+  "status": "saved",
+  "requires_publish": true,
+  "observedToolReceiptSHA256": "81fbc3e82ad5d08e876306f472505ccda1f2c1a7b9a632e6fcdd8f822178b9ed",
+  "requestFields": [
+    "install_script",
+    "start_skill"
+  ],
+  "beforeRevision": 40,
+  "preservedRepositories": [
+    {
+      "repository_id": "lcfrai/luci",
+      "ref": "29931afc5b31ae9b9bd7b8973a7e3fdb840609a3",
+      "mount_path": "luci",
+      "depth": null
+    }
+  ],
+  "repoMembershipChangeRequested": false,
+  "networkSecretEnvironmentChangeRequested": false,
+  "scripts": {
+    "install.sh": "21cf1a024057fde3966f8e5582f6f8df9692ed00c114a202013b4d98221c356f",
+    "start.md": "fe180823d60f117040c591aac90564ab0455c4f8d203a41380cda09bcee1bfa9"
+  },
+  "scope": "Serialization of observed tool response; not raw HTTP transport. Save does not publish, apply scripts or verify a new snapshot.",
+  "opaqueDraftIdentityOmitted": true
+}

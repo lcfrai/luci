@@ -1,0 +1,20 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "-B",
+    "/workspace/.luci-tools/runtime760-bootstrap-v1/place_archives.py",
+    "--window-granted",
+    "--mode",
+    "425-to-tmp",
+    "--output",
+    "/workspace/.luci-tools/runtime760-placement-425-to-tmp-root1"
+  ],
+  "wrapperSHA256": "15ab061069acdc384b3a1fd9c6a11f99552e9e41e6e88ddd8d8582d27fb1bc4a",
+  "processWaitSeconds": 300,
+  "maximumSettlementWaitSeconds": 20,
+  "scope": "Only exact spawned Python/group; no Docker subprocess. OS I/O not preemptively bounded. Forced or unknown result fails; retain partial topology.",
+  "pid": 2488447,
+  "startTicks": "30634921",
+  "exitCode": 0,
+  "passed": true
+}

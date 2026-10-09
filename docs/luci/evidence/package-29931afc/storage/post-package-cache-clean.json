@@ -1,0 +1,21 @@
+{
+  "at": "2026-10-09T14:47:29.803817+00:00",
+  "command": [
+    "go",
+    "clean",
+    "-cache"
+  ],
+  "GOCACHE": "/tmp/luci-go-build-cache",
+  "exitCode": 0,
+  "seconds": 0.2142469882965088,
+  "freeBefore": {
+    "/workspace": 6627311616,
+    "/tmp": 1424072704
+  },
+  "freeAfter": {
+    "/workspace": 6627311616,
+    "/tmp": 2414612480
+  },
+  "noObservedLiveGoCompiler": true,
+  "scope": "Task-owned disposable build cache only; package/source/module/fixture/ledger unchanged; fresh compile cost is not performance acceptance."
+}

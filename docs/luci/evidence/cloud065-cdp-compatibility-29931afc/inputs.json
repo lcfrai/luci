@@ -1,0 +1,40 @@
+{
+  "scope": "Selected exact diagnostic/helper/runtime inputs; not full product source or browser transitive library provenance. No Luci app launched.",
+  "inputs": [
+    {
+      "path": "/workspace/.luci-tools/cloud065-installed-cold-restart-29931afc-v1/scenario.mjs",
+      "bytes": 36846,
+      "sha256": "fa316a25f91f223ea5cba6fe5cb424c67139062af4f52ff4e2516ce57004f4b1"
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud065-cdp-compatibility-29931afc/fixture.mjs",
+      "bytes": 6753,
+      "sha256": "0e13836a67dd848b18b56c4284a3cb6b5fb9c66529e61f11073925d74792a585"
+    },
+    {
+      "path": "/workspace/luci/desktop/node_modules/playwright/package.json",
+      "bytes": 1359,
+      "sha256": "8bc2ddebe8d9b051b9ecb87d62c6c63877e59d08617f32c3215681ca8bb70998"
+    },
+    {
+      "path": "/workspace/luci/desktop/node_modules/playwright-core/package.json",
+      "bytes": 876,
+      "sha256": "f061c58427e47e843e26d201f0a57076c734e57c734ecbbd87d4a23b7a20db9b"
+    },
+    {
+      "path": "/usr/bin/chromium",
+      "bytes": 5064,
+      "sha256": "2c8d32d29dc6781c35ae196ea83299d507ac88fc339301abe74672feda299779"
+    },
+    {
+      "path": "/usr/lib/chromium/chromium",
+      "bytes": 321686360,
+      "sha256": "d387400aaf740ccb75e5e996a34aa0940e6e97683a4eabd6ae34c1eed6804723"
+    },
+    {
+      "path": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "bytes": 125989464,
+      "sha256": "bc17c508ffeed0ec622934f9b7fa72f8e78da65350e63c3eceb56fa688aa5e12"
+    }
+  ]
+}

@@ -1,0 +1,126 @@
+{
+  "productSource": "29931afc5b31ae9b9bd7b8973a7e3fdb840609a3",
+  "helperVersion": 8,
+  "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+  "overallPassed": false,
+  "originalResult": {
+    "sha256": "a8054f70b05642528cf1041eef87be1e8f7cf55643b39ef94bb91fc00991be50",
+    "bytes": 100199
+  },
+  "originalWrapper": {
+    "sha256": "6bb877a1af863b24507ee4392d7db6589ecb804087a51a715eb53cf530ebf8dc",
+    "bytes": 4999
+  },
+  "failure": {
+    "driver": {
+      "name": "AssertionError",
+      "code": "ERR_ASSERTION",
+      "message": "Six GiB fixture root floor"
+    },
+    "scenarioProjection": {
+      "name": "Error",
+      "code": null,
+      "messageSHA256": "e0321848837cfb364c1913a99527f327ce5887abe681aaec1bcc1feb69cdc9e5",
+      "messageBytes": 69,
+      "messageRetained": false,
+      "kind": "other"
+    },
+    "step": "single-ui-restart",
+    "freeBytesAtFailingAssertionRecorded": false
+  },
+  "counts": {
+    "phaseRecords": 35,
+    "apiRestart": 0,
+    "browserForwardedRestart": 0,
+    "firstSocketTypedExit": 1,
+    "replacementAllocationObserved": false,
+    "secondExitObserved": false,
+    "providerInvoked": false
+  },
+  "firstTerminal": {
+    "uiWhilePollHeld": {
+      "label": "c054-terminal-fixture \u2014 running",
+      "footer": "/bin/bash \u00b7 0m \u00b7 ended",
+      "overlay": null,
+      "termPresent": true,
+      "restartCount": 0
+    },
+    "exit": {
+      "reason": {
+        "kind": "exit-status",
+        "code": 0
+      },
+      "payload": {
+        "bytes": 13,
+        "sha256": "7146fc872b9a9dba5098f80e211bc7a8af3d9b2fbf8a3e5d9447db130fcaa3b2",
+        "knownStaticRepresentation": "exit status 0",
+        "unclassifiedTextRetained": false
+      },
+      "wall": "2026-10-09T14:50:50.026Z",
+      "monotonicMs": 3325.900000035763,
+      "sequence": 73
+    },
+    "close": {
+      "code": 1000,
+      "wasClean": true,
+      "wall": "2026-10-09T14:50:50.028Z",
+      "monotonicMs": 3327.800000011921
+    },
+    "socketError": false,
+    "outputExitCloseSequence": [
+      72,
+      73,
+      74
+    ]
+  },
+  "statusTiming": {
+    "pollRelease": "2026-10-09T14:50:52.776Z",
+    "nextMilestone": "2026-10-09T14:50:53.887Z",
+    "nextMilestoneKind": "second-old-poll-hold",
+    "restartPresenceConfirmedByMilestone": true,
+    "afterPollReleaseUpperBoundMs": 1111,
+    "afterTypedExitReceiptUpperBoundMs": 3861,
+    "typedExitReceiptToCloseMonotonicMs": 1.899999976158142,
+    "exactRestartAppearanceTimestampRetained": false,
+    "firstFreshStatusResponseTimestampRetained": false,
+    "derivation": "Accepted scenario.mjs awaits Restart count 1 after gate release/dispose and before recording second-old-poll-hold; the timestamp is an upper bound, not exact appearance latency."
+  },
+  "cleanup": [
+    {
+      "kind": "failed-scenario-supported-stop",
+      "sessionId": "s-0fb4da90"
+    },
+    {
+      "kind": "failed-fixture-exact-removal",
+      "id": "a6c7fa8fc0f5913ac3b19cc74adde25525542647cae6799d9600850ac57d2da8",
+      "notProductRelease": true
+    }
+  ],
+  "closure": {
+    "knownLive": 0,
+    "knownZombies": 2,
+    "ledgerCounts": {
+      "leases": 0,
+      "checks": 0,
+      "fences": 0,
+      "checkFences": 0
+    },
+    "originalSHA256": "a09eb5a493d835b39980fd4ec7b32897b172cd847bc241fe6fa5285122891437"
+  },
+  "preflight": {
+    "missingParentFailure": "outer argument validation; no owned child",
+    "separateFromExecutedAttempt": true
+  },
+  "sourceChecks": {
+    "utilityGitHelpers": 4,
+    "acceptedExternalHelpers": 2,
+    "currentRuntimeInputs": 106,
+    "sourceBeforeAfterEqual": true
+  },
+  "limits": [
+    "Overall failed. No product Restart response/replacement socket/second exit7.",
+    "No failure-time atomic free-byte operand retained.",
+    "No runtime action or private fixture census performed by publication.",
+    "Known identities and selected inventory only; no whole-machine closure, model, Windows or performance acceptance."
+  ]
+}

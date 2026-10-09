@@ -1,0 +1,23 @@
+{
+  "baseCommit": "29931afc5b31ae9b9bd7b8973a7e3fdb840609a3",
+  "baseFiles": {
+    "control-plane/internal/api/execution_lifecycle_lock.go": "9c1e1df8890ec6544bca6440fb01be4dce6e9f975c89ea3a08e5bccf54395a41",
+    "control-plane/internal/api/api.go": "40ec330e52d1f3151713c6a4e85fd9c753bfc230ecc5571fd49661a656e09bab",
+    "control-plane/internal/api/sessions.go": "1eface59027a5ca16b076cfc268025b9849ec4a69e42aaa462aaa514f602f99d",
+    "control-plane/internal/api/execution_leases.go": "539dff31c1c9c06f4f0c6250d392ac5f72a0e52d34bad69bb5e73221ef9f7a3d"
+  },
+  "stagedFiles": {
+    "control-plane/internal/backend/allocation_observation.go": "5d55222fb0d6dfc75e986b36cf81006ff43c1e64bb491dfc496346313301d42b",
+    "control-plane/internal/api/execution_lifecycle_lock.go": "e0c957ecc7ba8aa9002c10663f5c26a8da903e8aaa6849447557479f5405fca2",
+    "control-plane/internal/api/manual_lease_observation.go": "9f3e32dc44a80deb8ffda7cad1dbc94533b0d5ccade3747f6ecf88f4c2340c6b",
+    "control-plane/internal/api/manual_lease_observation_test.go": "8912ca6a3224f6ac13394d2b0a6313d2ed78fc8e5f36e2b21dd2fb20929321be",
+    "control-plane/internal/api/api.go": "32a4d9f8ec00962d5f1f8872de5c1ac56b980ba5e78bd511e66ecbab54f5f79a",
+    "control-plane/internal/api/manual_lease_liveness_test.go": "315e4b9849c3560145c8b8f0601a67de77780347c7cb8181943fd1f6ad63af3c",
+    "control-plane/internal/api/sessions.go": "04762d680f6aa03eeff196e027d1a5d58b57a25ab6ffab6e02cb5c9e1aa1c489",
+    "control-plane/internal/api/execution_leases.go": "f1fd3754c57257fe10793523db366e18318b68aba3d0ae9aff93e099cf411487",
+    "control-plane/internal/backend/dockerbe/allocation_observation.go": "dc600861675447483b802b4420788b3b06b838c467f2fe2d5de2bf4f105c6f0e",
+    "control-plane/internal/backend/dockerbe/manual_absence_contract_test.go": "ff9dbe916edf7a078fc4e992114dbf994e38f182ea2d6ce28d1dc7146e21fc7d"
+  },
+  "patchSHA256": "eff58dfc79fa163956668fbff7bad5b6dc4f877c859d743ea6b5e7c3b8f5bbcf",
+  "scope": "External draft/test overlay. Original installed299 attempt11 fixture remains unchanged; no claim of permanent leak or incorrect admission."
+}

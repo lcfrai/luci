@@ -1,0 +1,8 @@
+test_failed_checkpoint_force_path_is_bounded (test_watchdog.Watchdog.test_failed_checkpoint_force_path_is_bounded) ... ok
+test_initial_child_checkpoint_failure_still_settles (test_watchdog.Watchdog.test_initial_child_checkpoint_failure_still_settles) ... ok
+test_timeout_checkpoint_failure_still_settles (test_watchdog.Watchdog.test_timeout_checkpoint_failure_still_settles) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.009s
+
+OK

@@ -1,0 +1,29 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "-B",
+    "/workspace/.luci-tools/runtime760-bootstrap-v1/archive760.py",
+    "--watchdog-record",
+    "/workspace/.luci-tools/runtime760-bootstrap-v1/watchdog-305910714162296/docker-client.json",
+    "--window-granted",
+    "--expected-source",
+    "29931afc5b31ae9b9bd7b8973a7e3fdb840609a3",
+    "--expected-engine",
+    "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+    "stage",
+    "--reviewed-runtime-receipt",
+    "/workspace/.luci-tools/sandbox-candidate-20261009T134118Z-4a347241/receipt.json",
+    "--reviewed-runtime-sha256",
+    "a6fb7d93c1ce81b726923a155e44a5adbd53ed6da1198bafb76e4a82da009331"
+  ],
+  "wrapperSHA256": "d92d065966d142033f37fb1a3aeaeb7631d4f701a98772cf450ddc64d1f22689",
+  "processWaitSeconds": 900,
+  "maximumSettlementWaitSeconds": 40,
+  "startedAt": 1791559841.4767888,
+  "scope": "Synchronous OS I/O is not preemptively bounded; no daemon or descendant drain proof. Forced/unknown operation fails and original partial bytes remain.",
+  "pid": 2487065,
+  "startTicks": "30591072",
+  "exitCode": 0,
+  "passed": true,
+  "finishedAt": 1791560060.9275079
+}

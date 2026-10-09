@@ -1,0 +1,32 @@
+{
+  "issue": "CLOUD-068",
+  "target": "29931afc5b31ae9b9bd7b8973a7e3fdb840609a3",
+  "preparedAt": "2026-10-09T15:11:18.205793+00:00",
+  "before": {
+    "tests": 4,
+    "passed": 1,
+    "failed": 3,
+    "exitCode": 1,
+    "file": "before-final.tap"
+  },
+  "after": {
+    "tests": 4,
+    "passed": 4,
+    "failed": 0,
+    "exitCode": 0,
+    "file": "after-final.tap"
+  },
+  "syntaxChecks": [
+    "scenario.mjs",
+    "launch.mjs"
+  ],
+  "installedExecuted": false,
+  "browserExecuted": false,
+  "dockerExecuted": false,
+  "remainingGate": "Actual installed old read response after acknowledged Restart remains required; slow-path lifecycle success is separately named and overall result false.",
+  "staticReview": {
+    "agent": "/root/check_cleanup_copy/cold_restart_review",
+    "result": "No blocking timing, double-release, settlement or false-pass finding",
+    "scope": "Read-only, no tests/runtime"
+  }
+}

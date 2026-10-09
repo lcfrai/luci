@@ -1,0 +1,24 @@
+{
+  "kind": "poll-gate-error",
+  "error": {
+    "name": "Error",
+    "code": null,
+    "messageSHA256": "5e5ffb2e0c08cff4dff53e4394d21f176da08c0eac3a6c554eeb8b0f15f019f7",
+    "messageBytes": 16,
+    "messageRetained": false,
+    "kind": "other"
+  },
+  "entry": {
+    "at": "2026-10-09T14:50:55.883Z",
+    "monotonicMs": 54049.790489,
+    "deadlineMonotonicMs": 62049.790489,
+    "budgetMs": 8000
+  },
+  "expired": false,
+  "settlement": {
+    "attempted": null,
+    "acknowledged": false,
+    "requestFailed": false
+  },
+  "observedAt": "2026-10-09T14:50:56.442Z"
+}

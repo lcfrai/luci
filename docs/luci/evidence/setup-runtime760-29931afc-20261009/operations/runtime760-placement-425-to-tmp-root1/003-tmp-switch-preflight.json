@@ -1,0 +1,29 @@
+{
+  "stage": "tmp-switch-preflight",
+  "at": "2026-10-09T15:38:10.271291+00:00",
+  "processObservation": {
+    "observed": 7,
+    "busy": [],
+    "unknown": [
+      {
+        "pid": 203,
+        "startTicks": "1521",
+        "identityStable": true,
+        "reason": "observation-unavailable-or-changed"
+      },
+      {
+        "pid": 254,
+        "startTicks": "1534",
+        "identityStable": true,
+        "reason": "observation-unavailable-or-changed"
+      },
+      {
+        "pid": 260700,
+        "startTicks": "2331192",
+        "identityStable": true,
+        "reason": "observation-unavailable-or-changed"
+      }
+    ],
+    "scope": "Readable exact executable/cwd/argv/maps/fd observations; no future-launch exclusion or universal daemon-operation proof"
+  }
+}

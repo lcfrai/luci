@@ -1,0 +1,59 @@
+{
+  "status": "draft_changes_or_explicit_outer_supervision_required",
+  "scope": "Small source-only review during exclusive runtime window. No operation, process scan, Docker, test, archive/tree hash or configuration change.",
+  "sources": [
+    {
+      "path": "/workspace/.luci-tools/runtime760-bootstrap-v1/archive760.py",
+      "bytes": 12703,
+      "sha256": "493a217dc0cf0ab12d96bca34546ffc5a35d99d28b3aa8363a2e43c22cd1dd2c"
+    },
+    {
+      "path": "/workspace/.luci-tools/runtime760-bootstrap-v1/budget.py",
+      "bytes": 1606,
+      "sha256": "d700dcd37fca027c6f277842dc0d36eebec3748ec148b1ccf87e61d18df7e570"
+    },
+    {
+      "path": "/workspace/.luci-tools/refresh-runtime-archive-333eff.py",
+      "bytes": 27244,
+      "sha256": "bb58be6474e68749ff09e30bf7b9cf1463355b57cfeaef7333a182cef42cfd2e"
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud054-runtime-helper/prepare-runtime.py",
+      "bytes": 33298,
+      "sha256": "85fccb3b256ee373f795b4a6c00e4b108610227545c3b889cf1fdec4d08171dc"
+    }
+  ],
+  "findings": [
+    {
+      "id": "ARCHIVE760-BOUND-001",
+      "paths": [
+        "archive760.py:64-73",
+        "prepare-runtime.py:205-207"
+      ],
+      "finding": "Imported Monitor.__exit__ unconditionally joins its thread before outer own-client settlement is reached. Synchronous disk/log I/O blocking that thread can therefore hold the operation before stop_owned. Later archive verification and full-file hashing are also synchronous.",
+      "required": "Use separate reviewed own-child/group watchdog for elapsed failure/settlement, retaining I/O scheduling and daemon-drain uncertainty. Do not present monitor timeout=600 as a hard wall bound for the whole archive procedure."
+    },
+    {
+      "id": "ARCHIVE760-SETTLEMENT-002",
+      "paths": [
+        "archive760.py:21-33",
+        "archive760.py:71-79"
+      ],
+      "finding": "stop_owned catches only ProcessLookupError. Other signal or wait exceptions can escape both inner and outer cleanup calls and prevent the stage failed receipt, masking the original export error.",
+      "required": "Settlement should return explicit failure/unknown observation without escaping; failure receipt must retain original failure even when settlement itself fails. Do not infer daemon drain or descendant absence from child exit."
+    }
+  ],
+  "confirmed": [
+    "Exact760 image config, rootfs layer diffIDs, runtime file bytes/modes/ownership and gzip CRC are checked by the reused archive verifier before complete archive/pins are staged.",
+    "LimitedWriter rejects an over-bound compressed write before forwarding it. The compressed limit is 1288490188 bytes; failure retains the partial path and does not update saved setup. Raw exported bytes are also bounded.",
+    "Initial admission requires unchanged 3905250841-byte export floor on both known filesystems, plus the compressed output cap on root; this arithmetic does not assume compression will fit.",
+    "Exact historical333 archive plus old setup are retained before export; publication checks archive hash and saved source/pin identities before any per-file replacement.",
+    "Publication declares individual atomic replacements rather than a multi-file transaction, preserves original/new files and publication-interrupted state, and has no automatic retry/rollback.",
+    "Docker client uses explicit Unix endpoint with fresh constrained environment and exact engine ID, and refuses a nonempty daemon."
+  ],
+  "scopeLimits": [
+    "Imported active monitor uses STOP_RESERVE=1342177280 bytes on root and TMP, not the 3905250841 initial admission floor. Preserve admission-floor versus cancellation-reserve distinction; no claim of continuous 3.905GB free space.",
+    "The draft does not establish future Docker admission, daemon request drain, fresh docker load, runtime behavior, Windows, performance or full product acceptance.",
+    "No broad filesystem attacker model or independent proof of current private directory contents was evaluated. Source/evidence checks at actual execution remain required."
+  ]
+}

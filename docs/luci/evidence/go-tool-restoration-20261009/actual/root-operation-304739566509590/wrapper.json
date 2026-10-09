@@ -1,0 +1,28 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "-B",
+    "/workspace/.luci-tools/go-tool-restore-v1/restore_go.py",
+    "--execute-restoration",
+    "--quiescence",
+    "/workspace/.luci-tools/go-tool-restore-v1/root-operation-304739566509590/coordination.json",
+    "--quiescence-sha256",
+    "a673025f866569cfb10c980e892d4b2718f685c2da35ddba5d56000aa55a6115",
+    "--receipt",
+    "/workspace/.luci-tools/go-tool-restore-v1/operation-304739566509590"
+  ],
+  "operationReceipt": "/workspace/.luci-tools/go-tool-restore-v1/operation-304739566509590",
+  "status": "finished",
+  "wrapperSHA256": "f606da6f6674d30cbd492c6de487fc8d3e3ae23b92c2d180bbf6eef264fb23f1",
+  "workSeconds": 400,
+  "termGraceSeconds": 10,
+  "killSettlementSeconds": 10,
+  "maximumProcessWaitSeconds": 420,
+  "scope": "420s bounds process waits; Python/OS scheduling and synchronous receipt I/O are not preemptively bounded. Partial operations never auto-retry or auto-rollback.",
+  "pid": 2477960,
+  "startTicks": "30473957",
+  "exitCode": 0,
+  "timedOut": false,
+  "forced": false,
+  "passed": true
+}

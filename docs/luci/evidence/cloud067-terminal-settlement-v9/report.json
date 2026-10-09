@@ -1,0 +1,27 @@
+{
+  "issue": "CLOUD-067",
+  "preparedAt": "2026-10-09T15:00:59.443498+00:00",
+  "target": "29931afc5b31ae9b9bd7b8973a7e3fdb840609a3",
+  "before": {
+    "tests": 14,
+    "passed": 1,
+    "failed": 13,
+    "exitCode": 1,
+    "report": "before-final.tap"
+  },
+  "after": {
+    "tests": 14,
+    "passed": 14,
+    "failed": 0,
+    "exitCode": 0,
+    "report": "after-bounded.tap"
+  },
+  "syntaxChecks": [
+    "launch.mjs",
+    "scenario.mjs"
+  ],
+  "installedExecuted": false,
+  "browserExecuted": false,
+  "dockerExecuted": false,
+  "testSourceSHA256": "1b27b36a4ba44d87363bf90be4626ff8f2f066df75789a9ec392488ef8290ab0"
+}

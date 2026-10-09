@@ -1,0 +1,36 @@
+{
+  "sourceSHA256": "e7d82dac50c82a57d4e243348866a910f4d0a478acd1c02969592ce21fd1cb5b",
+  "passed": true,
+  "cases": 7,
+  "results": [
+    {
+      "name": "exact-web-retirement-preserves-reference-and-binary",
+      "passed": true
+    },
+    {
+      "name": "exact-binary-retirement-preserves-reference-and-web",
+      "passed": true
+    },
+    {
+      "name": "symlink-creation-failure-rolls-original-back",
+      "passed": true
+    },
+    {
+      "name": "unexpected-file-refuses-before-file-unlink",
+      "passed": true
+    },
+    {
+      "name": "changed-binary-metadata-refuses-unlink",
+      "passed": true
+    },
+    {
+      "name": "symlink-child-refuses-inventory",
+      "passed": true
+    },
+    {
+      "name": "elapsed-budget-refuses",
+      "passed": true
+    }
+  ],
+  "scope": "Tiny disposable filesystem controls only; no candidate package, fixture, runtime, Docker, process signalling or real retirement executed."
+}

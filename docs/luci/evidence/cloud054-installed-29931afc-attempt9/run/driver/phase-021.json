@@ -1,0 +1,5 @@
+{
+  "kind": "scenario-step",
+  "step": "ended-stdin-and-reconnect-guard",
+  "observedAt": "2026-10-09T14:50:50.073Z"
+}

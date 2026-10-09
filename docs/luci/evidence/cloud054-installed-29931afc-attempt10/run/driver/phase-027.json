@@ -1,0 +1,43 @@
+{
+  "kind": "scenario-failure",
+  "step": "initial-natural-settlement",
+  "error": {
+    "name": "AssertionError",
+    "code": "ERR_ASSERTION",
+    "messageSHA256": "9e7d85ad8bf4a0ac8c37597aff9000a8bce07e8ed8de38d52a9c4e145ae8d9d0",
+    "messageBytes": 28,
+    "messageRetained": false,
+    "kind": "other"
+  },
+  "gates": [
+    {
+      "entry": {
+        "at": "2026-10-09T15:16:25.600Z",
+        "monotonicMs": 57942.432241,
+        "deadlineMonotonicMs": 65942.432241,
+        "budgetMs": 8000
+      },
+      "at": "2026-10-09T15:16:25.600Z",
+      "monotonicMs": 57942.432241,
+      "deadlineMonotonicMs": 65942.432241,
+      "budgetMs": 8000,
+      "bodyObservedMonotonicMs": 57972.853851,
+      "bodySHA256": "7d51cecd5f127b7aa9f84025c3c45bec377e71dd6e0675612dd5db2a6b2c1a2f",
+      "bodyBytes": 642,
+      "session": {
+        "id": "s-40608ceb",
+        "status": "running",
+        "executionGeneration": "118b6da0f9efa9c2a558a2a3748981c8f7febdfab927bdcc415e7cf5c5f3ed24"
+      },
+      "released": "2026-10-09T15:16:28.682Z",
+      "expired": false,
+      "releasedMonotonicMs": 61024.473811,
+      "settlement": {
+        "attempted": "fulfill",
+        "acknowledged": true,
+        "requestFailed": false
+      }
+    }
+  ],
+  "observedAt": "2026-10-09T15:16:33.870Z"
+}

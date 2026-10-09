@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "passed": false,
+  "status": "cleanup-incomplete",
+  "stage": "terminal-scenario",
+  "failure": {
+    "name": "AssertionError",
+    "code": "ERR_ASSERTION",
+    "message": "Six GiB fixture root floor"
+  },
+  "pendingMutations": [],
+  "knownController": {
+    "pid": 2471869,
+    "start": "30347589",
+    "parent": 2471689,
+    "status": "R"
+  },
+  "knownContainers": [
+    {
+      "id": "a6c7fa8fc0f5913ac3b19cc74adde25525542647cae6799d9600850ac57d2da8",
+      "sandboxId": "s-0fb4da90",
+      "sessionId": "s-0fb4da90",
+      "instanceId": "e2122e4e-97ff-48c6-bf01-000077cb8172",
+      "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+      "name": "/luci-s-0fb4da90",
+      "status": "running",
+      "pid": 2472307,
+      "created": "2026-10-09T14:50:08.294678873Z",
+      "startedAt": "2026-10-09T14:50:43.588834425Z",
+      "memoryBytes": 1073741824,
+      "cpuNano": 1000000000,
+      "pidsLimit": 256
+    }
+  ]
+}
