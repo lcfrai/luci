@@ -1,0 +1,57 @@
+{
+  "baseCommit": "e2f426bb50267a7cceac1f53eb1e00a0a4cc278e",
+  "paths": [
+    {
+      "path": "scripts/build-release.sh",
+      "beforeSHA256": "5e66730a225110b2859c644c263e911aecb2c6999bc419f4bdcb2a25f11866b0",
+      "afterSHA256": "20c6cb96e475066d5fb9a8ac934eb1262c3f324e4ac78ccda42fbd137d9e080d"
+    },
+    {
+      "path": "scripts/build-release.ps1",
+      "beforeSHA256": "147d1e62aba8d3eb78b566cc9bc29be17fab434e9afb486cea3261050885e13c",
+      "afterSHA256": "42c7f005d6644881bc34fed76d42860d4b701bf4d169bf5657b59cf43c280c16"
+    },
+    {
+      "path": "scripts/export-public-source.py",
+      "beforeSHA256": "943922763883025398c9401b049b4f6978dc66da3b69daee3b1e1f9569e32e67",
+      "afterSHA256": "28ae6a6bc97f5d298a3a655fbae858a5d863c5a85c731424e4b0fac17d626fb1"
+    },
+    {
+      "path": "desktop/src-tauri/tauri.conf.json",
+      "beforeSHA256": "fd851d4d924bbebf6b1a91462fc17346e7ec04a7ee5e38849eabe94fe4da6897",
+      "afterSHA256": "ec23a0e26209879b135d26ef29707fe18c5316c983320721581628717653e6bd"
+    },
+    {
+      "path": "desktop/src-tauri/.gitignore",
+      "beforeSHA256": "cb797283dfa5c2149ce16e16f04660f1adc7b1642175db619bceca4bdd6776ed",
+      "afterSHA256": "6ff36be6ce83c65b2e0d415ab696e3f167038633e46a7c1c99eb591a89853cb6"
+    },
+    {
+      "path": "desktop/README.md",
+      "beforeSHA256": "16c8a9589a344177dafcc1442a864347f9cb7d4d7659858503d42fd71f49a793",
+      "afterSHA256": "823fdda7c0f4809fce2d051e262ad65aba2071b82042027a68a627bbd487c0e9"
+    },
+    {
+      "path": "scripts/stage-release-docs.py",
+      "beforeSHA256": null,
+      "afterSHA256": "cd520022c86ff25695faaaeed5aad512147b91f37342963e1cea2cc3252b8e26"
+    },
+    {
+      "path": "scripts/test_stage_release_docs.py",
+      "beforeSHA256": null,
+      "afterSHA256": "3a423507e48ebed82267563a54d780fac99838afaae7886bb6ccf73a4f8cf2ed"
+    }
+  ],
+  "unchangedTestInputs": [
+    {
+      "path": "desktop/src-tauri/build.rs",
+      "sha256": "487059eaf8a947b80f20a9aacac038a5047b2ad69d2401b827376c67d6fe847f"
+    }
+  ],
+  "scope": "Final outside-checkout candidate. 22 pure fixture tests pass; no package/native build. Intermediate actual staging at 765 predates final publication/parser guards and is retained separately; final integrated clean-source staging still required.",
+  "testLog": "tests-attempt6.log",
+  "tests": 22,
+  "fixtureSkips": 0,
+  "patchSHA256": "7d07adf36a86a79110af371471393bd8c1de400d15ac23383d130636f3e1714b",
+  "testLogSHA256": "5bf689c38fc994bac72e736de45bd49da66687f278b8fa53800fbd7ba7965656"
+}

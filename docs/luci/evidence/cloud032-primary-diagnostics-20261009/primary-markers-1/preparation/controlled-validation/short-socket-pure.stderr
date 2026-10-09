@@ -1,0 +1,11 @@
+test_exact_boundary_private_path (__main__.SocketTemplateTests.test_exact_boundary_private_path) ... ok
+test_exact_short_templates (__main__.SocketTemplateTests.test_exact_short_templates) ... ok
+test_matches_frozen_node_call_sites (__main__.SocketTemplateTests.test_matches_frozen_node_call_sites) ... ok
+test_original_long_parent_refused (__main__.SocketTemplateTests.test_original_long_parent_refused) ... ok
+test_relative_and_nul_refused (__main__.SocketTemplateTests.test_relative_and_nul_refused) ... ok
+test_unicode_is_counted_as_bytes (__main__.SocketTemplateTests.test_unicode_is_counted_as_bytes) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.002s
+
+OK

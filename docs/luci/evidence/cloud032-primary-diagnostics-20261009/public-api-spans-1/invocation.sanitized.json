@@ -1,0 +1,77 @@
+{
+  "representation": "sanitized original JSON; exact private-location substitutions only",
+  "original": {
+    "bytes": 2763,
+    "sha256": "132604b3be2017053dfe967bf65aed5a6941b3bddb9f1a5342c7142dd60d1ee4"
+  },
+  "value": {
+    "version": 1,
+    "preparedAt": "2026-10-09T03:07:57.306667+00:00",
+    "scope": "CDP-only instrumented PRIMARY400 diagnostic, no acceptance or causal improvement claim",
+    "productSource": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+    "cleanHelperCheckout": "765fcaadeee7de1cf2ba3a3fb7b295d0af445b70",
+    "frozenRuntimeOriginalSource": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+    "command": [
+      "node",
+      "<DIAGNOSTIC_PREPARATION>/candidate/sustained.mjs",
+      "--task-context-version",
+      "2",
+      "--binary",
+      "/tmp/luci-retained-tools/package-0.5.0-2da1a821/luci",
+      "--web",
+      "/tmp/luci-retained-tools/package-0.5.0-2da1a821/web",
+      "--provenance",
+      "/workspace/luci/artifacts/quality-swarm/candidate-2da1a821/package/package-provenance.json",
+      "--expected-source",
+      "2da1a821b8456c20a858fb86ef87649ea917d9de",
+      "--expected-helper-source",
+      "765fcaadeee7de1cf2ba3a3fb7b295d0af445b70",
+      "--image",
+      "luci/sandbox:verified-candidate-20261008t140025z-a4a2e82b",
+      "--expected-image-id",
+      "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+      "--image-provenance",
+      "/workspace/.luci-tools/sandbox-candidate-20261008T140025Z-a4a2e82b/receipt.json",
+      "--fixture-root",
+      "<PRIVATE_FIXTURE_PARENT>",
+      "--report",
+      "<PRIVATE_DIAGNOSTIC_RUN>/result/report.json",
+      "--trace-after",
+      "no"
+    ],
+    "fixtureParentIdentity": {
+      "path": "<PRIVATE_FIXTURE_PARENT>",
+      "device": 27,
+      "inode": 948378,
+      "uid": 1000,
+      "modeOctal": "0o700",
+      "freshMkdtemp": true,
+      "createdAt": "2026-10-09T03:07:57.306286+00:00",
+      "socketPathBounds": {
+        "templates": {
+          "public": "<PRIVATE_FIXTURE_PARENT>/luci-sustained-XXXXXX/docker-proxy.sock",
+          "private": "<PRIVATE_FIXTURE_PARENT>/luci-sustained-XXXXXX/.luci-fence-proxy-XXXXXX/docker.sock"
+        },
+        "utf8Bytes": {
+          "public": 63,
+          "private": 82
+        },
+        "exclusiveLimitBytes": 108,
+        "fixtureSuffixCharacters": 6,
+        "proxySuffixCharacters": 6
+      },
+      "cleanupPolicy": "Parent retained for explicit owned-fixture closure review; never reuse as a new fixture"
+    },
+    "environmentOverrideNames": [
+      "LUCI_ACCEPTANCE_REPO"
+    ],
+    "bindings": {
+      "launcher": "923bc496271d213cc58de15300548a1862ac4ad9a34ecd2c448b869762aa5147",
+      "candidateBinding": "06a89e236e204230ec7038dca85e7eed4fa6ceacaeeabbf5ee3071fd6e73688e",
+      "sourceInvocation": "186356803e6ae148ad24553da132a322890fc102491e82a256f1c5c83525492f",
+      "provenance": "5b6ba87386b908ad4145e1f676de7fdad8958ec511757bdaf533e352f45a9810"
+    },
+    "wrapperDeadlineSeconds": 450,
+    "originalDriverDeadlinesUnchanged": true
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "startedAt": "2026-10-09T03:07:57.306835+00:00",
+  "finishedAt": "2026-10-09T03:10:27.385121+00:00",
+  "elapsedSeconds": 150.07830981499865,
+  "exitCode": 1,
+  "externalMonitorTimeout": false,
+  "driverIdentity": {
+    "pid": 2191977,
+    "startTicks": 26134654
+  },
+  "closureRequiresOriginalReceiptAndIndependentOwnedIdentityCheck": true,
+  "automaticSignalsFromWrapper": false,
+  "bindings": {
+    "launcher": "923bc496271d213cc58de15300548a1862ac4ad9a34ecd2c448b869762aa5147",
+    "candidateBinding": "06a89e236e204230ec7038dca85e7eed4fa6ceacaeeabbf5ee3071fd6e73688e",
+    "sourceInvocation": "186356803e6ae148ad24553da132a322890fc102491e82a256f1c5c83525492f",
+    "provenance": "5b6ba87386b908ad4145e1f676de7fdad8958ec511757bdaf533e352f45a9810"
+  }
+}

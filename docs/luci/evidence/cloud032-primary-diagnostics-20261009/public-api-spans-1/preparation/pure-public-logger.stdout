@@ -1,0 +1,18 @@
+✔ exact400 primary sequences produce only bounded allowlisted scalar rows (32.447059ms)
+✔ inactive window and between-action startup calls are not logged (0.659745ms)
+✔ args/hints/error contents are never read (0.491761ms)
+✔ unknown APIs, formatting, selectors, values and direction are refused (0.368245ms)
+✔ missing callbacks remain incomplete rather than false no-wait evidence (0.313612ms)
+✔ entry and byte caps retain only bounded data and report overflow (0.342366ms)
+✔ pending and overlapping callbacks cannot certify complete sequence (0.165219ms)
+✔ failed calls and changed ordinals preserve explicit failure (0.553264ms)
+✔ nonmonotonic/nonfinite clock and malformed logger channel are refused (0.472032ms)
+✔ a backward callback clock is not accepted as a negative call duration (0.725654ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 121.795647

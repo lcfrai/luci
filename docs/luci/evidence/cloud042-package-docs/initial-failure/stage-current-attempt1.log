@@ -1,0 +1,19 @@
+Traceback (most recent call last):
+  File "<candidate-stage>/after/scripts/stage-release-docs.py", line 333, in <module>
+    print(stage(args.root, args.output, args.source_commit, args.source_dirty))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<candidate-stage>/after/scripts/stage-release-docs.py", line 287, in stage
+    kinds = exact_objects(root, commit, targets)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<candidate-stage>/after/scripts/stage-release-docs.py", line 250, in exact_objects
+    ordinary(path)
+  File "<candidate-stage>/after/scripts/stage-release-docs.py", line 184, in ordinary
+    info = path.lstat()
+           ^^^^^^^^^^^^
+  File "<python-standard-library>/pathlib.py", line 847, in lstat
+    return self.stat(follow_symlinks=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<python-standard-library>/pathlib.py", line 840, in stat
+    return os.stat(self, follow_symlinks=follow_symlinks)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '<source-checkout>/docs/luci/evidence/check6-terminal-retirement-20261009/README.md'

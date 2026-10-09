@@ -37,5 +37,64 @@
     "at": "2026-10-09T03:12:00Z",
     "availableRAMGiB": 0.045,
     "newApplicationBrowserBuildRuns": 0
+  },
+  "latencyResourceAudit": {
+    "sha256": "2c9fa9b1c41671ed57f80e954361032eed727590ad593615ee193785f6bea5cf",
+    "underlyingLatencySHA256": "3d38b606b2a106fcb9b8258d25f722dcbe314f2d002bdfebab488a613d94bd82",
+    "reportedLocalPath": "E:/Luci-local-acceptance/evidence/765fcaad/latency-resource-audit.json",
+    "actions": 1092,
+    "nodeSpansAndAssociations": 4095,
+    "cohorts": 6,
+    "idleSwitchInputP95Ms": [
+      326.012745,
+      99.275165
+    ],
+    "loadedSwitchInputP95Ms": [
+      626.344344,
+      85.14111
+    ],
+    "loadedSwitchResetP99Ms": [
+      1847.985361,
+      1000.039766
+    ],
+    "loadedSwitchInputCounts": [
+      173,
+      346
+    ],
+    "requiredCounts": [
+      200,
+      400
+    ],
+    "settledPhaseReached": false,
+    "resourceSamples": 923,
+    "validCgroupSamples": 897,
+    "formulaMismatches": 0,
+    "notObserved": 25,
+    "timeBoundPartial": 1,
+    "effectiveAvailableMinimumBytes": 10006720512,
+    "physicalAvailableMinimumBytes": 21323038720,
+    "ownedCPUSeconds": 581.99,
+    "summedOwnedRSSPeakBytes": 1397080064,
+    "browserRSSPeakBytes": 1058123776,
+    "containerIdentityUsageCounts": [
+      [
+        255,
+        225
+      ],
+      [
+        294,
+        289
+      ],
+      [
+        123,
+        122
+      ]
+    ],
+    "samplerP95MaxSeconds": [
+      0.448728,
+      2.893865
+    ],
+    "observerSelfCore": 0.202021,
+    "scope": "Local independent parsing of published transformed evidence; private original result not fetched; sequential samples not atomic admission or whole-computer/Windows acceptance; no causal attribution or discarded timings; third container does not prove accepted D work"
   }
 }

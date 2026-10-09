@@ -1,0 +1,34 @@
+{
+  "scope": "Exact retained raw CPU and marker trace bytes rehashed for identity. CPU timing arrays independently validated; raw timeline not parsed. No raw profile bytes included.",
+  "profileStatus": {
+    "bytes": 3532,
+    "sha256": "29210d3215cf08a7b3631a302becabafef665336bd1d8f173960fe4a4a0968b9"
+  },
+  "artifacts": {
+    "browser-cpu.cpuprofile": {
+      "bytes": 701428,
+      "sha256": "5f925f41f6b9a080f590d98a5168786ccbbc7d2d03da0eb0934941f154e89f79",
+      "private": true
+    },
+    "browser-timeline.json": {
+      "bytes": 1032413,
+      "sha256": "c0de6a0d19f2f14b07b25f882465e27e6039a5c556ed9514aeb585c147bec573",
+      "complete": true,
+      "private": true
+    }
+  },
+  "captureComplete": true,
+  "traceDataLoss": false,
+  "cpuTiming": {
+    "samples": 14755,
+    "timeDeltas": 14755,
+    "negativeCount": 1288,
+    "negativeSumUs": -3219079,
+    "minimumDeltaUs": -8739,
+    "signedDeltaSumUs": 63567291,
+    "endpointSpanUs": 63569417,
+    "weightedAttributionAllowed": false,
+    "reason": "Negative deltas retained, not repaired; all CPU weighted attribution withheld."
+  },
+  "causeClaims": false
+}

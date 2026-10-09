@@ -1,0 +1,35 @@
+{
+  "sourceCommit": "765fcaadeee7de1cf2ba3a3fb7b295d0af445b70",
+  "previousFailedSourceCommit": "e2f426bb50267a7cceac1f53eb1e00a0a4cc278e",
+  "command": [
+    "python3",
+    "<candidate-stage>/after/scripts/stage-release-docs.py",
+    "<source-checkout>",
+    "<candidate-stage>/staged-765fcaad-guides",
+    "--source-commit=765fcaadeee7de1cf2ba3a3fb7b295d0af445b70",
+    "--source-dirty=false"
+  ],
+  "startedAt": "2026-10-09T03:06:52.635966+00:00",
+  "elapsedSeconds": 1.3516741220082622,
+  "exitCode": 0,
+  "passed": true,
+  "scope": "Actual documentation-only staging with candidate helper, outside checkout. Not package/archive/native/runtime acceptance. Logical bytes only. Anchors preserved, not validated.",
+  "helperSHA256": "cd06dc154dc088404909a720f5443c55f8f662f60ee5b2b63d72c12d4ab432b9",
+  "helperUnchanged": true,
+  "sourceInputCount": 43,
+  "sourceInputsUnchanged": true,
+  "headBefore": "765fcaadeee7de1cf2ba3a3fb7b295d0af445b70",
+  "headAfter": "765fcaadeee7de1cf2ba3a3fb7b295d0af445b70",
+  "statusBefore": "",
+  "statusAfter": "",
+  "stagedFiles": 44,
+  "stagedLogicalBytes": 1083178,
+  "excludedEvidenceDirectoryAbsent": true,
+  "stdout": "{'compact': True, 'sourceCommit': '765fcaadeee7de1cf2ba3a3fb7b295d0af445b70', 'files': 44, 'rewrittenLinks': 196}\n",
+  "stderr": "",
+  "manifests": {
+    "input-before.json": "f90b1db796c158f65772befcbdfa5487666ca1ac7ffe3af64d1b6f7d07f4ba2b",
+    "input-after.json": "f90b1db796c158f65772befcbdfa5487666ca1ac7ffe3af64d1b6f7d07f4ba2b",
+    "staged-files.json": "1c897e38242b2ab71be92a254ca41562864704be106b3ac06ef5b9f741f07089"
+  }
+}

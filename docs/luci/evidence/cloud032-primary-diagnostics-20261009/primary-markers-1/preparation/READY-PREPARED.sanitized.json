@@ -1,0 +1,28 @@
+{
+  "representation": "sanitized original JSON; exact private-location substitutions only",
+  "original": {
+    "bytes": 1590,
+    "sha256": "7ef5c7f22cb54b64c0d2e40ddea872b69b17c5b5face54454c1b00f5ccdc9a62"
+  },
+  "value": {
+    "status": "prepared-not-executed",
+    "pureChecksStatus": "staged-not-run-during-sustained5",
+    "bindings": {
+      "candidate/external-source-binding.json": "6efa2bffae8fd8022d3179b10cca14286788202a0c9fafa451e4576cd64999d9",
+      "candidate/primary-profiler.mjs": "14e2b43b52c3e8820de46050f0ff7d355aa2f464cd82313f38dc0a1f6440c0ef",
+      "candidate/latency-diagnostics.mjs": "9b0476b1f8da095bd9b086a86d9c88b85b43db84d70f82a628352b8f635dab63",
+      "candidate/sustained.mjs": "bc815ec8ae3fc28117d000cf56b24dc3a23907083a2b2c8b7ecdab76e9be84b7",
+      "launch.py": "ad58897ea57eb2660823ef344276b7dc960bc2b866dedeb66d195db049427494",
+      "analyze.py": "0ed785168accfbef401aa1e9e78e696cde3d3b1783cc137daca0c926569fdeec",
+      "passive-observer.test.mjs": "9c00c3170b698c9f81ff58ccde1752cc6e3f17829e38f68359f803515cf37b60",
+      "test_analyzer.py": "2965c97450bf9616f234a57bdc1ef03155470500f7eff9b6c129568e7a0d8709",
+      "primary-profiler.test.mjs": "0616d78e4d850e96cbbe75b1a4ba47274ad475413e16960cc1d773082ff0997a",
+      "narrowing.patch": "d0a33e2114c0dbaeae22dd698633fddb8eb9b1971d4e15e6f86e3b293d99993b",
+      "failed-prefix-analysis.json": "275d83cc4bd313ba35605a538f334f830f266935a7efca5b5bccda08597c22c2",
+      "README.md": "ab1e05643c301da85972fb6dc6b3c779c988933c13cff7607bebc528dece105b"
+    },
+    "runtimeLaunches": 0,
+    "originalFailedRunModified": false,
+    "runAfterExclusiveWindow": "source /workspace/.luci-tools/activate.sh then python3 <DIAGNOSTIC_PREPARATION>/launch.py --helper-source EXACT_CLEAN_40_HEX_COMMIT --run-name primary-markers-1 --execute"
+  }
+}

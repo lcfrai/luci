@@ -1,0 +1,58 @@
+--- failed-capture-candidate/latency-diagnostics.mjs
++++ marker-only-candidate/latency-diagnostics.mjs
+@@ -32,6 +32,29 @@
+  const snapshot=()=>({...data,rows:data.rows.splice(0),visibility:document.visibilityState});
+  const references=()=>({timeOrigin:data.timeOrigin,input:lastInput,pointer:lastPointer,expectedDOM:lastExpected});
+  Object.defineProperty(window,'__luciAcceptanceLatency',{value:{snapshot,references,markExpectedDOM},configurable:false});
++ // Optional low-frequency browser performance observations replace broad trace
++ // categories. Only numeric timing fields are retained; no script URL/name,
++ // attribution container, DOM state or response bytes. They cover >50ms tasks
++ // or animation frames only; absence does not establish absence of renderer work.
++ for(const [type,flag] of [['longtask','longTaskUnsupported'],['long-animation-frame','longAnimationFrameUnsupported']]){
++  data[flag]=true;
++  try{
++   if(!PerformanceObserver.supportedEntryTypes.includes(type))continue;
++   const observer=new PerformanceObserver(list=>{
++    if(!window.__luciPrimaryProfileActive)return;
++    timed(()=>{for(const entry of list.getEntries()){
++     if(entry.startTime<window.__luciPrimaryProfileStartedAt)continue;
++     const numeric=value=>Number.isFinite(value)&&value>=0?value:null;
++     if(type==='longtask')emit({kind:'long-task',at:entry.startTime,duration:numeric(entry.duration)});
++     else{
++      const scripts=Array.from(entry.scripts??[]),selected=scripts.slice(0,64);
++      const sums=field=>selected.reduce((n,x)=>n+(numeric(x[field])??0),0);
++      emit({kind:'long-animation-frame',at:entry.startTime,duration:numeric(entry.duration),blockingDuration:numeric(entry.blockingDuration),renderStart:numeric(entry.renderStart),styleAndLayoutStart:numeric(entry.styleAndLayoutStart),firstUIEventTimestamp:numeric(entry.firstUIEventTimestamp),scriptCount:scripts.length,observedScripts:selected.length,scriptObservationTruncated:scripts.length>64,scriptDurationMs:sums('duration'),forcedStyleAndLayoutDurationMs:sums('forcedStyleAndLayoutDuration'),scriptPauseDurationMs:sums('pauseDuration')});
++     }
++    }});
++   });observer.observe({type,buffered:false});data[flag]=false;
++  }catch{}
++ }
+  // Only same-origin, known API route CLASSES are retained. No raw paths, names,
+  // queries, identifiers, headers, body bytes, key strings or input values.
+  const classify=name=>{
+--- failed-capture-candidate/primary-profiler.mjs
++++ marker-only-candidate/primary-profiler.mjs
+@@ -13,7 +13,7 @@
+ // timeout is uncertainty; it never establishes that the browser stopped.
+ export function createPrimaryProfiler({page,directory,assertActive=()=>{},limits=LIMITS}){
+  mkdirSync(directory,{mode:0o700});
+- const status={version:1,scope:'Instrumented PRIMARY400 diagnostic; not acceptance, speedup or causal proof',mode:'CDP only; Playwright tracing disabled',limits,complete:false,phase:'prepared',failures:[],steps:[],artifacts:{},captureTimerFired:false,traceDataLoss:null,traceBufferPeak:0,pendingCommands:0,transportDetached:false,clockPolicy:'Node and browser clocks remain separate. Join exact browser marker names to primary frame witnesses; browser user-timing marks bridge browser performance and trace timestamps. CPU profile is whole-window only until its clock alignment is independently checked.'};
++ const status={version:1,scope:'Instrumented PRIMARY400 diagnostic; not acceptance, speedup or causal proof',mode:'CDP user-timing markers only plus whole-window CPU; Playwright tracing disabled',limits,complete:false,phase:'prepared',failures:[],steps:[],artifacts:{},captureTimerFired:false,traceDataLoss:null,traceBufferPeak:0,pendingCommands:0,transportDetached:false,clockPolicy:'Node and browser clocks remain separate. Join exact browser marker names to primary frame witnesses; browser user-timing marks bridge browser performance and trace timestamps. CPU profile is whole-window only until its clock alignment is independently checked.'};
+  const file=join(directory,'profiling-status.json');
+  const save=()=>writeFileSync(file,JSON.stringify(status,null,2)+'\n',{mode:0o600});
+  const error=(stage,e)=>{status.failures.push({stage,error:String(e?.message??e).slice(0,240)});save();};
+@@ -45,12 +45,12 @@
+    // Buffer fills stop recording; no silent ring-buffer replacement of early cohorts.
+    // No screenshots, network payload, DOM snapshot or JS source category is requested.
+    traceRunning=true;
+-   await step('Tracing.start',{transferMode:'ReturnAsStream',streamFormat:'json',streamCompression:'none',bufferUsageReportingInterval:1000,traceConfig:{recordMode:'recordUntilFull',traceBufferSizeInKb:limits.traceBufferKiB,includedCategories:['devtools.timeline','v8','blink.user_timing','disabled-by-default-v8.gc']}});
++   await step('Tracing.start',{transferMode:'ReturnAsStream',streamFormat:'json',streamCompression:'none',bufferUsageReportingInterval:1000,traceConfig:{recordMode:'recordUntilFull',traceBufferSizeInKb:limits.traceBufferKiB,includedCategories:['blink.user_timing']}});
+    assertActive();if(closed)throw Error('Profiling closed');cpuRunning=true;await step('Profiler.start');
+    assertActive();if(closed)throw Error('Profiling closed');
+    // Setup-only RPC before the primary measured phase. Later marks are emitted
+    // inside existing passive callbacks and the existing two-frame RPC.
+-   status.browserStart=await bounded(()=>page.evaluate(()=>{window.__luciPrimaryProfileActive=true;performance.mark('luci-primary-window:start');return{timeOrigin:performance.timeOrigin,now:performance.now()};}),limits.commandMs,'browser profiling start');
++   status.browserStart=await bounded(()=>page.evaluate(()=>{window.__luciPrimaryProfileStartedAt=performance.now();window.__luciPrimaryProfileActive=true;performance.mark('luci-primary-window:start');return{timeOrigin:performance.timeOrigin,now:performance.now()};}),limits.commandMs,'browser profiling start');
+    assertActive();if(closed)throw Error('Profiling closed');status.phase='recording';status.recordingStartNodeMs=performance.now();save();
+    timer=setTimeout(()=>{status.captureTimerFired=true;error('capture','Declared primary profiling window expired');void finish('capture-deadline');},limits.captureMs);
+   }catch(e){error('start',e);throw e;}

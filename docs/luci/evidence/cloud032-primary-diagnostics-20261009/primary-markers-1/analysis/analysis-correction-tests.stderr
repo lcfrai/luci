@@ -1,0 +1,13 @@
+test_all400_join_and_excluded_categories_are_not_zero_measurements (__main__.AnalyzerTests.test_all400_join_and_excluded_categories_are_not_zero_measurements) ... ok
+test_different_document_clock_is_not_mixed_into_overlap (__main__.AnalyzerTests.test_different_document_clock_is_not_mixed_into_overlap) ... ok
+test_duplicate_marker_refuses_ambiguous_clock_join (__main__.AnalyzerTests.test_duplicate_marker_refuses_ambiguous_clock_join) ... ok
+test_incomplete_primary_cohort_refused (__main__.AnalyzerTests.test_incomplete_primary_cohort_refused) ... ok
+test_marker_overflow_refuses_join (__main__.AnalyzerTests.test_marker_overflow_refuses_join) ... ok
+test_missing_marker_refuses_complete_analysis (__main__.AnalyzerTests.test_missing_marker_refuses_complete_analysis) ... ok
+test_negative_cpu_delta_preserved_without_weighted_attribution (__main__.AnalyzerTests.test_negative_cpu_delta_preserved_without_weighted_attribution) ... ok
+test_unknown_cpu_sample_identity_withholds_attribution (__main__.AnalyzerTests.test_unknown_cpu_sample_identity_withholds_attribution) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.855s
+
+OK

@@ -1,0 +1,4 @@
+AssertionError [ERR_ASSERTION]: Public Logger coverage incomplete; no retry-absence or duration attribution claim
+    at file://<DIAGNOSTIC_PREPARATION>/candidate/sustained.mjs:527:2
+    at async Object.run (file://<DIAGNOSTIC_PREPARATION>/candidate/acceptance-lifecycle.mjs:29:19)
+    at async file://<DIAGNOSTIC_PREPARATION>/candidate/sustained.mjs:490:2

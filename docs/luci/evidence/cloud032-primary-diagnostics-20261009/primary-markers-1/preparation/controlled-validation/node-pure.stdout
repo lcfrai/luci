@@ -1,0 +1,25 @@
+✔ unsupported long observers are explicit (5.854646ms)
+✔ pre-primary and pre-start buffered long tasks are omitted (4.313623ms)
+✔ long frame retains numeric summaries only and exposes script cap (3.824376ms)
+✔ existing passive bound still refuses silent overflow (16.697742ms)
+✔ existing frame RPC retains exact ordinal markers without another RPC (3.681971ms)
+✔ narrow trace categories and caps are explicit (0.962131ms)
+✔ complete fake primary capture preserves two private exact artifacts (17.313471ms)
+✔ cleanup is idempotent and does not claim completion for failed workflow (7.4022ms)
+✔ never-resolving session startup is bounded; a late handle is detached (30.278656ms)
+✔ nonsettling end does not prevent bounded independent detach (129.798909ms)
+✔ reported trace data loss refuses completeness (12.369923ms)
+✔ a full record-until-full buffer is not treated as a full cohort (7.120008ms)
+✔ oversize trace retains partial receipt and still closes transport (9.437718ms)
+✔ oversize CPU response is rejected independently of trace drain (5.39325ms)
+✔ empty never-ending trace chunks cannot grow unbounded command metadata (5.016953ms)
+✔ capture deadline settles diagnostics without claiming a successful cohort (12.643415ms)
+✔ late unresolved commands remain uncertain rather than being counted closed (28.830719ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 489.575682

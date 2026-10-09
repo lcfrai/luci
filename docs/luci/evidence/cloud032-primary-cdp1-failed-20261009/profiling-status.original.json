@@ -1,0 +1,1004 @@
+{
+  "version": 1,
+  "scope": "Instrumented PRIMARY400 diagnostic; not acceptance, speedup or causal proof",
+  "mode": "CDP only; Playwright tracing disabled",
+  "limits": {
+    "captureMs": 150000,
+    "commandMs": 2000,
+    "finishMs": 9000,
+    "traceBytes": 33554432,
+    "cpuBytes": 12582912,
+    "traceBufferKiB": 16384,
+    "readChunk": 262144,
+    "maxReadChunks": 256,
+    "cpuIntervalUs": 5000
+  },
+  "complete": false,
+  "phase": "finished",
+  "failures": [
+    {
+      "stage": "trace-drain",
+      "error": "Trace stream exceeds declared bound"
+    }
+  ],
+  "steps": [
+    {
+      "method": "Profiler.enable",
+      "startedNodeMs": 82105.338106,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 82106.985304
+    },
+    {
+      "method": "Profiler.setSamplingInterval",
+      "startedNodeMs": 82107.821354,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 82110.771745
+    },
+    {
+      "method": "Tracing.start",
+      "startedNodeMs": 82111.102384,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 82138.782663
+    },
+    {
+      "method": "Profiler.start",
+      "startedNodeMs": 82139.069555,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 82482.5511
+    },
+    {
+      "method": "Tracing.end",
+      "startedNodeMs": 151572.72948,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 151573.643919
+    },
+    {
+      "method": "Profiler.stop",
+      "startedNodeMs": 151573.823179,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 151639.220803
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153669.974319,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153674.695755
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153675.867353,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153679.063065
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153680.117937,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153682.887568
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153684.023352,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153686.700142
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153688.108808,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153691.011298
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153692.044868,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153694.779305
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153695.873657,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153699.067366
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153700.164923,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153703.547338
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153705.032349,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153708.442566
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153709.640684,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153712.593761
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153713.666801,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153716.660188
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153717.87404,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153721.971624
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153723.118014,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153725.975537
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153727.53433,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153730.618535
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153731.975573,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153734.754497
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153736.013757,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153739.699851
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153740.856456,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153744.095174
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153745.297268,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153748.437067
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153749.605811,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153753.34231
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153754.993031,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153758.731183
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153760.133169,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153763.283183
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153764.545518,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153767.315498
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153769.058439,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153772.856161
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153774.308553,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153777.911811
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153779.821233,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153783.387165
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153784.864434,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153788.140769
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153789.396013,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153792.58087
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153793.990918,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153797.781198
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153798.853847,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153802.162291
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153803.335321,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153806.955084
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153809.781419,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153813.381312
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153815.001838,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153820.034058
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153821.436124,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153828.624448
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153830.649324,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153836.91876
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153838.353736,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153846.136452
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153847.984892,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153854.143316
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153856.433603,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153861.782265
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153863.879901,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153871.705351
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153873.81812,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153880.312161
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153881.96135,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153885.384857
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153886.617538,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153899.376238
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153901.079719,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153914.330337
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153916.92985,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153927.892726
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153929.923201,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153945.895256
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153947.149128,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153950.950546
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153952.331109,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153955.51182
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153956.608134,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153959.553709
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153960.66041,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153963.637563
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153964.968041,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153967.745262
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153969.091584,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153972.067526
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153973.149819,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153976.246773
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153977.255996,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153980.013888
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153981.045776,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153984.187558
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153985.242109,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153988.364431
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153989.564302,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153992.738483
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153993.79025,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 153997.088849
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 153998.215118,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154001.315477
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154002.37081,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154011.696225
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154013.321748,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154017.442567
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154018.621797,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154023.863107
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154026.546417,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154037.638758
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154038.903857,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154052.280135
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154053.798687,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154076.06021
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154077.437678,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154080.429634
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154081.813192,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154084.706589
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154085.978518,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154089.267132
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154090.454464,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154093.434726
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154094.487626,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154097.308468
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154098.703874,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154102.378049
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154104.190114,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154109.70013
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154111.433155,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154115.451059
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154117.129382,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154121.594621
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154123.054154,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154128.410428
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154129.845153,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154135.135958
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154136.364142,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154141.539833
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154142.887878,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154147.321409
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154148.690776,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154151.951276
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154153.160171,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154157.299017
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154158.601333,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154161.789024
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154164.026591,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154168.225989
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154169.659071,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154173.411845
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154174.623724,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154178.149525
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154179.273402,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154182.331016
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154184.146576,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154187.354188
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154188.468219,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154191.56293
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154192.745765,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154195.885393
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154196.952073,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154200.15737
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154201.418684,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154205.175254
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154206.460493,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154209.557878
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154210.751159,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154213.559718
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154214.770144,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154217.671353
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154218.864884,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154222.409278
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154223.622129,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154227.749458
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154229.168239,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154232.763396
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154233.813951,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154238.834278
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154240.001179,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154243.418316
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154244.503434,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154247.996886
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154249.041042,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154252.818904
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154253.880456,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154257.367028
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154258.354748,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154261.894005
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154262.876287,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154266.596853
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154267.599296,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154270.933999
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154272.055922,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154275.399363
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154276.487265,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154280.775867
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154281.787844,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154286.267906
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154287.931086,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154294.278782
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154296.965336,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154304.850616
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154306.726477,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154314.428212
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154316.655413,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154323.085788
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154325.249784,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154332.647318
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154334.679535,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154341.623175
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154343.959551,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154350.904392
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154352.948788,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154359.865196
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154362.269856,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154373.023555
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154375.223215,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154384.347035
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154386.939457,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154396.000933
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154398.297799,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154406.84537
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154408.890787,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154417.067227
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154419.406037,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154427.243205
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154429.362073,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154436.230298
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154438.332491,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154444.053806
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154446.069668,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154452.507534
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154454.588074,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154462.38362
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154464.518221,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154493.063848
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154497.596854,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154509.56699
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154513.729512,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154527.126381
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154529.64325,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154536.684677
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154538.870345,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154545.656637
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 154547.253978,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154555.923593
+    },
+    {
+      "method": "IO.close",
+      "startedNodeMs": 154559.236242,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 154560.914425
+    }
+  ],
+  "artifacts": {
+    "browser-cpu.cpuprofile": {
+      "bytes": 1097185,
+      "sha256": "265646ccaf4ef0742369958494d4c6656369283e8e5988eb331e0a9d0def3fe3",
+      "private": true
+    },
+    "browser-timeline.json": {
+      "bytes": 33554432,
+      "sha256": "87881413924fa94f254a8c56d78827ba56da3bdb3eaa6f29f7bbb9be6b8d08b0",
+      "complete": false,
+      "private": true
+    }
+  },
+  "captureTimerFired": false,
+  "traceDataLoss": true,
+  "traceBufferPeak": 0.9925480484962463,
+  "pendingCommands": 0,
+  "transportDetached": true,
+  "clockPolicy": "Node and browser clocks remain separate. Join exact browser marker names to primary frame witnesses; browser user-timing marks bridge browser performance and trace timestamps. CPU profile is whole-window only until its clock alignment is independently checked.",
+  "browserStart": {
+    "timeOrigin": 1791512882564.7,
+    "now": 66084.09999999404
+  },
+  "recordingStartNodeMs": 82489.819695,
+  "finishReason": "primary-complete",
+  "finishDeadlineNodeMs": 160572.410329
+}

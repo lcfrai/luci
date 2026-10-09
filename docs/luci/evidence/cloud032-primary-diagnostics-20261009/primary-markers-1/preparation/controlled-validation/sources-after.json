@@ -1,0 +1,34 @@
+{
+  "representation": "sanitized original JSON; exact private-location substitutions only",
+  "original": {
+    "bytes": 2540,
+    "sha256": "4ddc1e814fd7125dfd6ac291ed0cb115cc23e47b82cd5464b97dfe8a9eec24e0"
+  },
+  "value": {
+    "candidate/sustained.mjs": "bc815ec8ae3fc28117d000cf56b24dc3a23907083a2b2c8b7ecdab76e9be84b7",
+    "candidate/task-command.mjs": "414015af6ea915ccd3c838c3a316b7f08e079b70cc5de299a7991bb0b5f9f6fe",
+    "candidate/workloads.mjs": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306",
+    "candidate/interaction-metrics.mjs": "9df7c325211757369a8ac68a92d5e351606ad5c5bf9fda3bbb8fd6e71daf576e",
+    "candidate/latency-diagnostics.mjs": "9b0476b1f8da095bd9b086a86d9c88b85b43db84d70f82a628352b8f635dab63",
+    "candidate/task-context.mjs": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2",
+    "candidate/source-binding.mjs": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796",
+    "candidate/queue-controls.mjs": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0",
+    "candidate/run-with-observer.py": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a",
+    "candidate/primary-profiler.mjs": "14e2b43b52c3e8820de46050f0ff7d355aa2f464cd82313f38dc0a1f6440c0ef",
+    "candidate/native-terminal-diagnostics.mjs": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+    "candidate/sample-linux-owned.py": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+    "candidate/fenced-docker-proxy.mjs": "2b6887af0bad7975c74bac42c8ed7988813e3c72ba615281c727c0ac268b1606",
+    "candidate/worker-create-guard.mjs": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+    "candidate/durable-acceptance-journal.mjs": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+    "candidate/acceptance-lifecycle.mjs": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+    "candidate/acceptance-startup.mjs": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+    "candidate/external-source-binding.json": "6efa2bffae8fd8022d3179b10cca14286788202a0c9fafa451e4576cd64999d9",
+    "primary-profiler.mjs": "14e2b43b52c3e8820de46050f0ff7d355aa2f464cd82313f38dc0a1f6440c0ef",
+    "primary-profiler.test.mjs": "0616d78e4d850e96cbbe75b1a4ba47274ad475413e16960cc1d773082ff0997a",
+    "passive-observer.test.mjs": "9c00c3170b698c9f81ff58ccde1752cc6e3f17829e38f68359f803515cf37b60",
+    "test_short_socket.py": "3d5be0e56625a30b3c671f4b9871f9d9c5a78d17616c448c1b8c717e394be032",
+    "test_analyzer.py": "2965c97450bf9616f234a57bdc1ef03155470500f7eff9b6c129568e7a0d8709",
+    "analyze.py": "0ed785168accfbef401aa1e9e78e696cde3d3b1783cc137daca0c926569fdeec",
+    "launch.py": "ad58897ea57eb2660823ef344276b7dc960bc2b866dedeb66d195db049427494"
+  }
+}

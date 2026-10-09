@@ -1,0 +1,1314 @@
+{
+  "scope": "Read-only candidate link inventory, simple inline-link matcher; not a complete Markdown parser or full link-validation pass. No source edits.",
+  "matches": [
+    {
+      "document": "docs/luci/AGENT-HARNESS-COMPARISON.md",
+      "line": 143,
+      "target": "../../scripts/acceptance/context-quality/README.md",
+      "resolved": "scripts/acceptance/context-quality/README.md",
+      "category": "already-absent"
+    },
+    {
+      "document": "docs/luci/LOCAL-TEST-LOOP.md",
+      "line": 13,
+      "target": "evidence/cloud013-installed-4e7d5fe4-interrupted/README.md",
+      "resolved": "docs/luci/evidence/cloud013-installed-4e7d5fe4-interrupted/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-TEST-LOOP.md",
+      "line": 198,
+      "target": "evidence/2026-10-08-2819ce9e-native-fixes-reported.json",
+      "resolved": "docs/luci/evidence/2026-10-08-2819ce9e-native-fixes-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-TEST-LOOP.md",
+      "line": 211,
+      "target": "evidence/2026-10-08-2819ce9e-native-browser-reported.json",
+      "resolved": "docs/luci/evidence/2026-10-08-2819ce9e-native-browser-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-TEST-LOOP.md",
+      "line": 314,
+      "target": "evidence/2026-10-08-local004-state-selection.json",
+      "resolved": "docs/luci/evidence/2026-10-08-local004-state-selection.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-TEST-LOOP.md",
+      "line": 350,
+      "target": "evidence/2026-10-08-native-storage-confirmation-reported.json",
+      "resolved": "docs/luci/evidence/2026-10-08-native-storage-confirmation-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-TEST-LOOP.md",
+      "line": 372,
+      "target": "evidence/2026-10-08-local004-windows-parent-correction.json",
+      "resolved": "docs/luci/evidence/2026-10-08-local004-windows-parent-correction.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-TEST-LOOP.md",
+      "line": 393,
+      "target": "evidence/2026-10-08-local006-marker-validation.json",
+      "resolved": "docs/luci/evidence/2026-10-08-local006-marker-validation.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-TEST-LOOP.md",
+      "line": 506,
+      "target": "evidence/2026-10-08-cloud009-source-verification.json",
+      "resolved": "docs/luci/evidence/2026-10-08-cloud009-source-verification.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-TEST-LOOP.md",
+      "line": 523,
+      "target": "evidence/2026-10-08-native-package-2dcf245d-reported.json",
+      "resolved": "docs/luci/evidence/2026-10-08-native-package-2dcf245d-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-TEST-LOOP.md",
+      "line": 554,
+      "target": "evidence/2026-10-08-native-lifecycle-2dcf245d-reported.md",
+      "resolved": "docs/luci/evidence/2026-10-08-native-lifecycle-2dcf245d-reported.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-TEST-LOOP.md",
+      "line": 599,
+      "target": "evidence/2026-10-08-native-919cffe0-reported.json",
+      "resolved": "docs/luci/evidence/2026-10-08-native-919cffe0-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-TEST-LOOP.md",
+      "line": 628,
+      "target": "evidence/2026-10-08-native-navigation-675ed402-reported.json",
+      "resolved": "docs/luci/evidence/2026-10-08-native-navigation-675ed402-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-TEST-LOOP.md",
+      "line": 644,
+      "target": "evidence/2026-10-08-cloud010-015-source-verification.md",
+      "resolved": "docs/luci/evidence/2026-10-08-cloud010-015-source-verification.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-TEST-LOOP.md",
+      "line": 723,
+      "target": "evidence/2026-10-08-native-29be4018-source-reported.json",
+      "resolved": "docs/luci/evidence/2026-10-08-native-29be4018-source-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-TEST-LOOP.md",
+      "line": 814,
+      "target": "evidence/local009-observation-fairness/README.md",
+      "resolved": "docs/luci/evidence/local009-observation-fairness/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-TEST-LOOP.md",
+      "line": 823,
+      "target": "../../scripts/acceptance/task-continuation/evidence/context-delivery-correction.json",
+      "resolved": "scripts/acceptance/task-continuation/evidence/context-delivery-correction.json",
+      "category": "already-absent"
+    },
+    {
+      "document": "docs/luci/LOCAL-TEST-LOOP.md",
+      "line": 828,
+      "target": "evidence/cloud012-installed-c4400f11/README.md",
+      "resolved": "docs/luci/evidence/cloud012-installed-c4400f11/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-TEST-LOOP.md",
+      "line": 857,
+      "target": "../../scripts/acceptance/task-dependencies/evidence/c4400f11-attempt1.json",
+      "resolved": "scripts/acceptance/task-dependencies/evidence/c4400f11-attempt1.json",
+      "category": "already-absent"
+    },
+    {
+      "document": "docs/luci/LOCAL-TEST-LOOP.md",
+      "line": 862,
+      "target": "evidence/local009-observation-fairness/native-source-audit-reported.json",
+      "resolved": "docs/luci/evidence/local009-observation-fairness/native-source-audit-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-TEST-LOOP.md",
+      "line": 869,
+      "target": "evidence/task-review-polish/README.md",
+      "resolved": "docs/luci/evidence/task-review-polish/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-TEST-LOOP.md",
+      "line": 885,
+      "target": "evidence/task-review-polish/native-source-audit-reported.json",
+      "resolved": "docs/luci/evidence/task-review-polish/native-source-audit-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-TEST-LOOP.md",
+      "line": 896,
+      "target": "evidence/cloud019-source/README.md",
+      "resolved": "docs/luci/evidence/cloud019-source/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-TEST-LOOP.md",
+      "line": 903,
+      "target": "evidence/local010-ui/README.md",
+      "resolved": "docs/luci/evidence/local010-ui/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-TEST-LOOP.md",
+      "line": 955,
+      "target": "evidence/local012-scheduler-cleanup/README.md",
+      "resolved": "docs/luci/evidence/local012-scheduler-cleanup/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-TEST-LOOP.md",
+      "line": 959,
+      "target": "../../scripts/acceptance/task-dependencies/evidence/product-check-preparation.json",
+      "resolved": "scripts/acceptance/task-dependencies/evidence/product-check-preparation.json",
+      "category": "already-absent"
+    },
+    {
+      "document": "docs/luci/LOCAL-TEST-LOOP.md",
+      "line": 1008,
+      "target": "evidence/cloud021-source-admission/README.md",
+      "resolved": "docs/luci/evidence/cloud021-source-admission/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "line": 20,
+      "target": "evidence/2026-10-09-cloud033-cleanup-message.md",
+      "resolved": "docs/luci/evidence/2026-10-09-cloud033-cleanup-message.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "line": 22,
+      "target": "evidence/cloud034-shared-reservation-summary/README.md",
+      "resolved": "docs/luci/evidence/cloud034-shared-reservation-summary/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "line": 33,
+      "target": "evidence/cloud021-source-admission/README.md",
+      "resolved": "docs/luci/evidence/cloud021-source-admission/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "line": 39,
+      "target": "evidence/local012-scheduler-cleanup/README.md",
+      "resolved": "docs/luci/evidence/local012-scheduler-cleanup/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "line": 67,
+      "target": "evidence/cloud019-source/README.md",
+      "resolved": "docs/luci/evidence/cloud019-source/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "line": 70,
+      "target": "evidence/local010-ui/README.md",
+      "resolved": "docs/luci/evidence/local010-ui/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "line": 73,
+      "target": "../../scripts/acceptance/task-review-polish/README.md",
+      "resolved": "scripts/acceptance/task-review-polish/README.md",
+      "category": "already-absent"
+    },
+    {
+      "document": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "line": 86,
+      "target": "evidence/2026-10-08-native-919cffe0-reported.json",
+      "resolved": "docs/luci/evidence/2026-10-08-native-919cffe0-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "line": 87,
+      "target": "evidence/2026-10-08-native-navigation-675ed402-reported.json",
+      "resolved": "docs/luci/evidence/2026-10-08-native-navigation-675ed402-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "line": 88,
+      "target": "evidence/2026-10-08-native-package-2dcf245d-reported.json",
+      "resolved": "docs/luci/evidence/2026-10-08-native-package-2dcf245d-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "line": 98,
+      "target": "evidence/2026-10-08-cloud009-installed-recovery.md",
+      "resolved": "docs/luci/evidence/2026-10-08-cloud009-installed-recovery.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "line": 105,
+      "target": "evidence/cloud029-installed-4df94ab9-attempt11/README.md",
+      "resolved": "docs/luci/evidence/cloud029-installed-4df94ab9-attempt11/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "line": 107,
+      "target": "evidence/2026-10-08-local-audit-9121b5ba-reported.json",
+      "resolved": "docs/luci/evidence/2026-10-08-local-audit-9121b5ba-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "line": 109,
+      "target": "evidence/cloud030-installed-4df94ab9-attempt10/README.md",
+      "resolved": "docs/luci/evidence/cloud030-installed-4df94ab9-attempt10/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "line": 120,
+      "target": "evidence/cloud012-installed-c4400f11/README.md",
+      "resolved": "docs/luci/evidence/cloud012-installed-c4400f11/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "line": 138,
+      "target": "../../scripts/acceptance/task-dependencies/evidence/c4400f11-attempt1.json",
+      "resolved": "scripts/acceptance/task-dependencies/evidence/c4400f11-attempt1.json",
+      "category": "already-absent"
+    },
+    {
+      "document": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "line": 142,
+      "target": "evidence/local009-observation-fairness/native-source-audit-reported.json",
+      "resolved": "docs/luci/evidence/local009-observation-fairness/native-source-audit-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "line": 151,
+      "target": "evidence/task-review-polish/README.md",
+      "resolved": "docs/luci/evidence/task-review-polish/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "line": 231,
+      "target": "evidence/2026-10-08-native-919cffe0-reported.json",
+      "resolved": "docs/luci/evidence/2026-10-08-native-919cffe0-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "line": 232,
+      "target": "evidence/2026-10-08-native-navigation-675ed402-reported.json",
+      "resolved": "docs/luci/evidence/2026-10-08-native-navigation-675ed402-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "line": 233,
+      "target": "../../scripts/acceptance/four-project-queue/RESOURCE-MEASUREMENT.md",
+      "resolved": "scripts/acceptance/four-project-queue/RESOURCE-MEASUREMENT.md",
+      "category": "already-absent"
+    },
+    {
+      "document": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "line": 234,
+      "target": "../../scripts/acceptance/launch-recovery/README.md",
+      "resolved": "scripts/acceptance/launch-recovery/README.md",
+      "category": "already-absent"
+    },
+    {
+      "document": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "line": 235,
+      "target": "../../scripts/acceptance/task-dependencies/README.md",
+      "resolved": "scripts/acceptance/task-dependencies/README.md",
+      "category": "already-absent"
+    },
+    {
+      "document": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "line": 236,
+      "target": "../../scripts/acceptance/task-continuation/README.md",
+      "resolved": "scripts/acceptance/task-continuation/README.md",
+      "category": "already-absent"
+    },
+    {
+      "document": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "line": 237,
+      "target": "../../scripts/acceptance/context-quality/README.md",
+      "resolved": "scripts/acceptance/context-quality/README.md",
+      "category": "already-absent"
+    },
+    {
+      "document": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "line": 284,
+      "target": "$run.apiAddress.Split(':'",
+      "resolved": "docs/luci/$run.apiAddress.Split(':'",
+      "category": "already-absent"
+    },
+    {
+      "document": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "line": 471,
+      "target": "../../scripts/acceptance/four-project-queue/RESOURCE-MEASUREMENT.md#native-windows-sampler-short-native-check-reported",
+      "resolved": "scripts/acceptance/four-project-queue/RESOURCE-MEASUREMENT.md",
+      "category": "already-absent"
+    },
+    {
+      "document": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "line": 503,
+      "target": "../../scripts/acceptance/context-quality/PROTOCOL.md",
+      "resolved": "scripts/acceptance/context-quality/PROTOCOL.md",
+      "category": "already-absent"
+    },
+    {
+      "document": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "line": 527,
+      "target": "evidence/2026-10-08-cloud010-015-source-verification.md",
+      "resolved": "docs/luci/evidence/2026-10-08-cloud010-015-source-verification.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/MANAGED-UPGRADE.md",
+      "line": 38,
+      "target": "../../scripts/managed-host-backup.py",
+      "resolved": "scripts/managed-host-backup.py",
+      "category": "already-absent"
+    },
+    {
+      "document": "docs/luci/PUBLIC-HTTPS-INGRESS.md",
+      "line": 22,
+      "target": "../../distribution/ingress/nginx.conf.template",
+      "resolved": "distribution/ingress/nginx.conf.template",
+      "category": "already-absent"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 19,
+      "target": "evidence/cloud032-discussion-mount-20261009/README.md",
+      "resolved": "docs/luci/evidence/cloud032-discussion-mount-20261009/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 21,
+      "target": "evidence/cloud032-da8-idle/README.md",
+      "resolved": "docs/luci/evidence/cloud032-da8-idle/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 23,
+      "target": "evidence/cloud040-sdk-check-stats-20261009/README.md",
+      "resolved": "docs/luci/evidence/cloud040-sdk-check-stats-20261009/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 23,
+      "target": "evidence/cloud040-local019-query-followup-20261009/README.md",
+      "resolved": "docs/luci/evidence/cloud040-local019-query-followup-20261009/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 23,
+      "target": "evidence/check-recovery-da8-attempt6/README.md",
+      "resolved": "docs/luci/evidence/check-recovery-da8-attempt6/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 25,
+      "target": "evidence/2026-10-09-local-audit-da8a6ff2-reported.json",
+      "resolved": "docs/luci/evidence/2026-10-09-local-audit-da8a6ff2-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 27,
+      "target": "evidence/cloud032-home-card-render-20261009/README.md",
+      "resolved": "docs/luci/evidence/cloud032-home-card-render-20261009/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 31,
+      "target": "evidence/cloud039-check-readiness-20261009/README.md",
+      "resolved": "docs/luci/evidence/cloud039-check-readiness-20261009/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 31,
+      "target": "evidence/check-recovery-aadc-attempt4/README.md",
+      "resolved": "docs/luci/evidence/check-recovery-aadc-attempt4/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 31,
+      "target": "evidence/check-recovery-aadc-attempt5/README.md",
+      "resolved": "docs/luci/evidence/check-recovery-aadc-attempt5/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 33,
+      "target": "evidence/2026-10-09-local-audit-aadc1c28-reported.json",
+      "resolved": "docs/luci/evidence/2026-10-09-local-audit-aadc1c28-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 35,
+      "target": "evidence/frontend-finalcombined-20261009T001048Z-d52f7fe3/README.md",
+      "resolved": "docs/luci/evidence/frontend-finalcombined-20261009T001048Z-d52f7fe3/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 37,
+      "target": "evidence/2026-10-09-local-audit-d52f7fe3-reported.json",
+      "resolved": "docs/luci/evidence/2026-10-09-local-audit-d52f7fe3-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 39,
+      "target": "evidence/worker-recovery-d348-d52-attempt3/README.md",
+      "resolved": "docs/luci/evidence/worker-recovery-d348-d52-attempt3/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 41,
+      "target": "evidence/cloud038-check-review-stability/README.md",
+      "resolved": "docs/luci/evidence/cloud038-check-review-stability/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 41,
+      "target": "evidence/check-recovery-d348-d52-attempt3/README.md",
+      "resolved": "docs/luci/evidence/check-recovery-d348-d52-attempt3/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 45,
+      "target": "evidence/cloud035-retained-followup/README.md",
+      "resolved": "docs/luci/evidence/cloud035-retained-followup/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 45,
+      "target": "evidence/worker-recovery-d348-c322-attempt2/README.md",
+      "resolved": "docs/luci/evidence/worker-recovery-d348-c322-attempt2/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 47,
+      "target": "evidence/local018-known-controller/README.md",
+      "resolved": "docs/luci/evidence/local018-known-controller/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 50,
+      "target": "evidence/check-recovery-d348-fdde-attempt2/README.md",
+      "resolved": "docs/luci/evidence/check-recovery-d348-fdde-attempt2/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 60,
+      "target": "evidence/cloud032-d348-idle-and-render/README.md",
+      "resolved": "docs/luci/evidence/cloud032-d348-idle-and-render/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 62,
+      "target": "evidence/recovery-d348f012-attempt1/README.md",
+      "resolved": "docs/luci/evidence/recovery-d348f012-attempt1/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 66,
+      "target": "evidence/2026-10-08-local-audit-9121b5ba-reported.json",
+      "resolved": "docs/luci/evidence/2026-10-08-local-audit-9121b5ba-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 70,
+      "target": "evidence/cloud029-installed-4df94ab9-attempt11/README.md",
+      "resolved": "docs/luci/evidence/cloud029-installed-4df94ab9-attempt11/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 72,
+      "target": "evidence/cloud030-installed-4df94ab9-attempt10/README.md",
+      "resolved": "docs/luci/evidence/cloud030-installed-4df94ab9-attempt10/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 74,
+      "target": "../../scripts/acceptance/worker-recovery/README.md",
+      "resolved": "scripts/acceptance/worker-recovery/README.md",
+      "category": "already-absent"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 74,
+      "target": "evidence/local016-worker-recovery/README.md",
+      "resolved": "docs/luci/evidence/local016-worker-recovery/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 74,
+      "target": "../../scripts/acceptance/check-create-recovery/README.md",
+      "resolved": "scripts/acceptance/check-create-recovery/README.md",
+      "category": "already-absent"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 74,
+      "target": "evidence/cloud020-check-create-recovery-controlled/README.md",
+      "resolved": "docs/luci/evidence/cloud020-check-create-recovery-controlled/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 76,
+      "target": "evidence/integrated-cleanup-ui-20261008T2242Z/README.md",
+      "resolved": "docs/luci/evidence/integrated-cleanup-ui-20261008T2242Z/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 76,
+      "target": "evidence/cloud032-switch-latency-followup/README.md",
+      "resolved": "docs/luci/evidence/cloud032-switch-latency-followup/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 78,
+      "target": "evidence/2026-10-09-cloud033-cleanup-message.md",
+      "resolved": "docs/luci/evidence/2026-10-09-cloud033-cleanup-message.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 82,
+      "target": "evidence/cloud031-sustained-4df94ab9-attempt3/README.md",
+      "resolved": "docs/luci/evidence/cloud031-sustained-4df94ab9-attempt3/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 84,
+      "target": "evidence/cloud032-switch-latency/README.md",
+      "resolved": "docs/luci/evidence/cloud032-switch-latency/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 90,
+      "target": "evidence/cloud029-installed-4df94ab9-attempt9/README.md",
+      "resolved": "docs/luci/evidence/cloud029-installed-4df94ab9-attempt9/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 94,
+      "target": "evidence/cloud030-cgroup-memory-observer/README.md",
+      "resolved": "docs/luci/evidence/cloud030-cgroup-memory-observer/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 98,
+      "target": "evidence/cloud027-installed-d6eaa540-attempt8/README.md",
+      "resolved": "docs/luci/evidence/cloud027-installed-d6eaa540-attempt8/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 100,
+      "target": "evidence/cloud029-check-created-disk/README.md",
+      "resolved": "docs/luci/evidence/cloud029-check-created-disk/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 100,
+      "target": "evidence/cloud028-queue-disclosure/README.md",
+      "resolved": "docs/luci/evidence/cloud028-queue-disclosure/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 104,
+      "target": "evidence/cloud027-wire-contract/README.md",
+      "resolved": "docs/luci/evidence/cloud027-wire-contract/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 104,
+      "target": "evidence/cloud027-check-create-guard/README.md",
+      "resolved": "docs/luci/evidence/cloud027-check-create-guard/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 104,
+      "target": "evidence/cloud027-installed-d6eaa540-attempt7/README.md",
+      "resolved": "docs/luci/evidence/cloud027-installed-d6eaa540-attempt7/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 110,
+      "target": "evidence/cloud026-installed-d6eaa540-failed/README.md",
+      "resolved": "docs/luci/evidence/cloud026-installed-d6eaa540-failed/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 112,
+      "target": "evidence/cloud013-installed-6002b2ee-failed/README.md",
+      "resolved": "docs/luci/evidence/cloud013-installed-6002b2ee-failed/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 114,
+      "target": "evidence/local013-late-startup/followup/README.md",
+      "resolved": "docs/luci/evidence/local013-late-startup/followup/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 114,
+      "target": "evidence/local013-late-startup/README.md",
+      "resolved": "docs/luci/evidence/local013-late-startup/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 114,
+      "target": "evidence/local013-sustained-lifecycle/README.md",
+      "resolved": "docs/luci/evidence/local013-sustained-lifecycle/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 114,
+      "target": "evidence/local013-merged-helpers/README.md",
+      "resolved": "docs/luci/evidence/local013-merged-helpers/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 116,
+      "target": "evidence/local014-check-history/README.md",
+      "resolved": "docs/luci/evidence/local014-check-history/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 116,
+      "target": "evidence/local015-check-start-uncertainty/README.md",
+      "resolved": "docs/luci/evidence/local015-check-start-uncertainty/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 118,
+      "target": "evidence/cloud020-shared-check-admission/README.md",
+      "resolved": "docs/luci/evidence/cloud020-shared-check-admission/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 118,
+      "target": "evidence/cloud022-state-single-writer/README.md",
+      "resolved": "docs/luci/evidence/cloud022-state-single-writer/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 118,
+      "target": "evidence/cloud020-check-recovery-ui/README.md",
+      "resolved": "docs/luci/evidence/cloud020-check-recovery-ui/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 118,
+      "target": "evidence/local013-bounded-acceptance/README.md",
+      "resolved": "docs/luci/evidence/local013-bounded-acceptance/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 129,
+      "target": "evidence/cloud013-installed-4e7d5fe4-interrupted/README.md",
+      "resolved": "docs/luci/evidence/cloud013-installed-4e7d5fe4-interrupted/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 138,
+      "target": "evidence/local012-scheduler-cleanup/README.md",
+      "resolved": "docs/luci/evidence/local012-scheduler-cleanup/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 141,
+      "target": "evidence/2026-10-08-b1d5aeaa-package.json",
+      "resolved": "docs/luci/evidence/2026-10-08-b1d5aeaa-package.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 148,
+      "target": "evidence/cloud019-source/README.md",
+      "resolved": "docs/luci/evidence/cloud019-source/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 158,
+      "target": "evidence/local010-ui/README.md",
+      "resolved": "docs/luci/evidence/local010-ui/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 161,
+      "target": "../../scripts/acceptance/task-review-polish/README.md",
+      "resolved": "scripts/acceptance/task-review-polish/README.md",
+      "category": "already-absent"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 178,
+      "target": "evidence/cloud012-installed-c4400f11/README.md",
+      "resolved": "docs/luci/evidence/cloud012-installed-c4400f11/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 191,
+      "target": "evidence/task-review-polish/README.md",
+      "resolved": "docs/luci/evidence/task-review-polish/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 201,
+      "target": "../../scripts/acceptance/task-dependencies/evidence/c4400f11-attempt1.json",
+      "resolved": "scripts/acceptance/task-dependencies/evidence/c4400f11-attempt1.json",
+      "category": "already-absent"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 220,
+      "target": "evidence/local009-observation-fairness/native-source-audit-reported.json",
+      "resolved": "docs/luci/evidence/local009-observation-fairness/native-source-audit-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 230,
+      "target": "evidence/2026-10-08-native-29be4018-source-reported.json",
+      "resolved": "docs/luci/evidence/2026-10-08-native-29be4018-source-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 241,
+      "target": "evidence/2026-10-08-native-919cffe0-reported.json",
+      "resolved": "docs/luci/evidence/2026-10-08-native-919cffe0-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 255,
+      "target": "evidence/2026-10-08-cloud009-installed-recovery.md",
+      "resolved": "docs/luci/evidence/2026-10-08-cloud009-installed-recovery.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 274,
+      "target": "evidence/2026-10-08-cloud010-015-source-verification.md",
+      "resolved": "docs/luci/evidence/2026-10-08-cloud010-015-source-verification.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 298,
+      "target": "evidence/2026-10-08-2819ce9e-installed-swarm.md",
+      "resolved": "docs/luci/evidence/2026-10-08-2819ce9e-installed-swarm.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 316,
+      "target": "evidence/2026-10-08-cloud009-installed-recovery.md",
+      "resolved": "docs/luci/evidence/2026-10-08-cloud009-installed-recovery.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 317,
+      "target": "evidence/cloud012-installed-c4400f11/README.md",
+      "resolved": "docs/luci/evidence/cloud012-installed-c4400f11/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 318,
+      "target": "evidence/cloud012-installed-c4400f11/README.md",
+      "resolved": "docs/luci/evidence/cloud012-installed-c4400f11/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 319,
+      "target": "evidence/cloud012-installed-c4400f11/README.md",
+      "resolved": "docs/luci/evidence/cloud012-installed-c4400f11/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 320,
+      "target": "../../scripts/acceptance/task-dependencies/evidence/c4400f11-attempt1.json",
+      "resolved": "scripts/acceptance/task-dependencies/evidence/c4400f11-attempt1.json",
+      "category": "already-absent"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 321,
+      "target": "evidence/2026-10-08-cloud014-context-quality-preparation.md",
+      "resolved": "docs/luci/evidence/2026-10-08-cloud014-context-quality-preparation.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 324,
+      "target": "evidence/cloud017-source/README.md",
+      "resolved": "docs/luci/evidence/cloud017-source/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 324,
+      "target": "evidence/cloud012-installed-c4400f11/README.md",
+      "resolved": "docs/luci/evidence/cloud012-installed-c4400f11/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 325,
+      "target": "evidence/cloud018-source/README.md",
+      "resolved": "docs/luci/evidence/cloud018-source/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 325,
+      "target": "evidence/cloud018-source/ui/README.md",
+      "resolved": "docs/luci/evidence/cloud018-source/ui/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 325,
+      "target": "evidence/cloud012-installed-c4400f11/README.md",
+      "resolved": "docs/luci/evidence/cloud012-installed-c4400f11/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 327,
+      "target": "evidence/cloud020-shared-check-admission/README.md",
+      "resolved": "docs/luci/evidence/cloud020-shared-check-admission/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 327,
+      "target": "evidence/cloud029-installed-4df94ab9-attempt11/README.md",
+      "resolved": "docs/luci/evidence/cloud029-installed-4df94ab9-attempt11/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 328,
+      "target": "evidence/cloud021-source-admission/README.md",
+      "resolved": "docs/luci/evidence/cloud021-source-admission/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 329,
+      "target": "evidence/cloud022-state-single-writer/README.md",
+      "resolved": "docs/luci/evidence/cloud022-state-single-writer/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 330,
+      "target": "evidence/cloud020-check-recovery-ui/README.md",
+      "resolved": "docs/luci/evidence/cloud020-check-recovery-ui/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 331,
+      "target": "evidence/cloud024-check-observation-order/README.md",
+      "resolved": "docs/luci/evidence/cloud024-check-observation-order/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 332,
+      "target": "evidence/cloud025-stale-review-diagnostic/README.md",
+      "resolved": "docs/luci/evidence/cloud025-stale-review-diagnostic/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 333,
+      "target": "evidence/cloud026-read-cohort/README.md",
+      "resolved": "docs/luci/evidence/cloud026-read-cohort/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 333,
+      "target": "evidence/cloud026-read-cohort/README.md",
+      "resolved": "docs/luci/evidence/cloud026-read-cohort/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 334,
+      "target": "evidence/cloud027-check-create-guard/README.md",
+      "resolved": "docs/luci/evidence/cloud027-check-create-guard/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 335,
+      "target": "evidence/cloud028-queue-disclosure/README.md",
+      "resolved": "docs/luci/evidence/cloud028-queue-disclosure/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 336,
+      "target": "evidence/cloud029-check-created-disk/README.md",
+      "resolved": "docs/luci/evidence/cloud029-check-created-disk/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 337,
+      "target": "evidence/cloud030-cgroup-memory-observer/README.md",
+      "resolved": "docs/luci/evidence/cloud030-cgroup-memory-observer/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 337,
+      "target": "evidence/2026-10-08-local-audit-9121b5ba-reported.json",
+      "resolved": "docs/luci/evidence/2026-10-08-local-audit-9121b5ba-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 338,
+      "target": "evidence/cloud031-fuzz-duration/README.md",
+      "resolved": "docs/luci/evidence/cloud031-fuzz-duration/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 339,
+      "target": "evidence/cloud032-home-card-render-20261009/README.md",
+      "resolved": "docs/luci/evidence/cloud032-home-card-render-20261009/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 340,
+      "target": "evidence/2026-10-09-cloud033-cleanup-message.md",
+      "resolved": "docs/luci/evidence/2026-10-09-cloud033-cleanup-message.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 341,
+      "target": "evidence/cloud034-shared-reservation-summary/README.md",
+      "resolved": "docs/luci/evidence/cloud034-shared-reservation-summary/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 342,
+      "target": "evidence/cloud035-worker-context/README.md",
+      "resolved": "docs/luci/evidence/cloud035-worker-context/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 342,
+      "target": "evidence/cloud035-retained-followup/README.md",
+      "resolved": "docs/luci/evidence/cloud035-retained-followup/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 343,
+      "target": "evidence/cloud036-recovery-inspection/README.md",
+      "resolved": "docs/luci/evidence/cloud036-recovery-inspection/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 344,
+      "target": "evidence/cloud037-review-readiness/README.md",
+      "resolved": "docs/luci/evidence/cloud037-review-readiness/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 350,
+      "target": "evidence/2026-10-08-native-919cffe0-reported.json",
+      "resolved": "docs/luci/evidence/2026-10-08-native-919cffe0-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 352,
+      "target": "evidence/2026-10-08-local006-marker-validation.json",
+      "resolved": "docs/luci/evidence/2026-10-08-local006-marker-validation.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 353,
+      "target": "evidence/2026-10-08-local007-navigation.md",
+      "resolved": "docs/luci/evidence/2026-10-08-local007-navigation.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 355,
+      "target": "evidence/local009-observation-fairness/README.md",
+      "resolved": "docs/luci/evidence/local009-observation-fairness/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 355,
+      "target": "evidence/local009-observation-fairness/native-source-audit-reported.json",
+      "resolved": "docs/luci/evidence/local009-observation-fairness/native-source-audit-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 358,
+      "target": "evidence/local012-scheduler-cleanup/README.md",
+      "resolved": "docs/luci/evidence/local012-scheduler-cleanup/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 358,
+      "target": "evidence/cloud020-shared-check-admission/README.md",
+      "resolved": "docs/luci/evidence/cloud020-shared-check-admission/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 359,
+      "target": "evidence/local013-late-startup/README.md",
+      "resolved": "docs/luci/evidence/local013-late-startup/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 359,
+      "target": "evidence/local013-sustained-lifecycle/README.md",
+      "resolved": "docs/luci/evidence/local013-sustained-lifecycle/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 359,
+      "target": "evidence/local013-merged-helpers/README.md",
+      "resolved": "docs/luci/evidence/local013-merged-helpers/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 360,
+      "target": "evidence/local014-check-history/README.md",
+      "resolved": "docs/luci/evidence/local014-check-history/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 361,
+      "target": "evidence/local015-check-start-uncertainty/README.md",
+      "resolved": "docs/luci/evidence/local015-check-start-uncertainty/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 362,
+      "target": "evidence/worker-recovery-d348-d52-attempt3/README.md",
+      "resolved": "docs/luci/evidence/worker-recovery-d348-d52-attempt3/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 363,
+      "target": "evidence/integrated-cleanup-ui-20261008T2242Z/capture-bindings.json",
+      "resolved": "docs/luci/evidence/integrated-cleanup-ui-20261008T2242Z/capture-bindings.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 364,
+      "target": "evidence/local018-known-controller/README.md",
+      "resolved": "docs/luci/evidence/local018-known-controller/README.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 374,
+      "target": "evidence/2026-10-08-2819ce9e-native-browser-reported.json",
+      "resolved": "docs/luci/evidence/2026-10-08-2819ce9e-native-browser-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 689,
+      "target": "evidence/2026-10-08-local007-navigation.md",
+      "resolved": "docs/luci/evidence/2026-10-08-local007-navigation.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 695,
+      "target": "evidence/2026-10-08-native-navigation-675ed402-reported.json",
+      "resolved": "docs/luci/evidence/2026-10-08-native-navigation-675ed402-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/SWARM-CAPACITY-ACCEPTANCE.md",
+      "line": 92,
+      "target": "evidence/2026-10-08-2819ce9e-installed-swarm.md",
+      "resolved": "docs/luci/evidence/2026-10-08-2819ce9e-installed-swarm.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/SWARM-CAPACITY-ACCEPTANCE.md",
+      "line": 100,
+      "target": "evidence/2026-10-08-2819ce9e-installed-swarm-resources.md",
+      "resolved": "docs/luci/evidence/2026-10-08-2819ce9e-installed-swarm-resources.md",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/SWARM-CAPACITY-ACCEPTANCE.md",
+      "line": 118,
+      "target": "evidence/2026-10-08-2819ce9e-native-browser-reported.json",
+      "resolved": "docs/luci/evidence/2026-10-08-2819ce9e-native-browser-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/SWARM-CAPACITY-ACCEPTANCE.md",
+      "line": 119,
+      "target": "evidence/2026-10-08-2819ce9e-native-fixes-reported.json",
+      "resolved": "docs/luci/evidence/2026-10-08-2819ce9e-native-fixes-reported.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/SWARM-CAPACITY-ACCEPTANCE.md",
+      "line": 186,
+      "target": "../../scripts/acceptance/four-project-queue/RESOURCE-MEASUREMENT.md#native-windows-sampler-short-native-check-reported",
+      "resolved": "scripts/acceptance/four-project-queue/RESOURCE-MEASUREMENT.md",
+      "category": "already-absent"
+    },
+    {
+      "document": "docs/luci/WINDOWS-DOCKER-STORAGE.md",
+      "line": 41,
+      "target": "evidence/2026-10-08-windows-storage-controlled.json",
+      "resolved": "docs/luci/evidence/2026-10-08-windows-storage-controlled.json",
+      "category": "evidence"
+    },
+    {
+      "document": "docs/luci/WINDOWS-DOCKER-STORAGE.md",
+      "line": 52,
+      "target": "evidence/2026-10-08-windows-storage-multiprocess.json",
+      "resolved": "docs/luci/evidence/2026-10-08-windows-storage-multiprocess.json",
+      "category": "evidence"
+    },
+    {
+      "document": "README.md",
+      "line": 7,
+      "target": "distribution/docker/README.md",
+      "resolved": "distribution/docker/README.md",
+      "category": "already-absent"
+    },
+    {
+      "document": "docs/RUNBOOK.md",
+      "line": 3,
+      "target": "verification/phase-1-operator-runbook.md",
+      "resolved": "docs/verification/phase-1-operator-runbook.md",
+      "category": "already-absent"
+    }
+  ]
+}

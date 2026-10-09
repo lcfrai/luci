@@ -1,3 +1,4 @@
+import { StrictMode } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
@@ -64,7 +65,7 @@ it.each(["recovered", "pending"])("defers unopened discussion presentation while
   vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [turn()] }));
   render(<OrchestratorPanel projectId="p-1" />);
   await screen.findByRole("button", { name: "Review design" });
-  expect(orchestratorApi.get).toHaveBeenCalledWith("p-1");
+  expect(orchestratorApi.get).toHaveBeenCalledWith("p-1", undefined, expect.any(AbortSignal));
   expect(screen.getByRole("region", { name: "Current project understanding" })).not.toBeNull();
   // A hidden subtree is still allocated. The untouched discussion must have no
   // composer, history or provider presentation, while its parent keeps context.
@@ -115,7 +116,7 @@ it("keeps an opened discussion node and draft across closing but resets its pres
   expect(composer.value).toBe("Only project one");
   const retained = readComposerRecovery(decisionScope());
   mounted.rerender(<OrchestratorPanel projectId="p-2" />);
-  await waitFor(() => expect(orchestratorApi.get).toHaveBeenCalledWith("p-2"));
+  await waitFor(() => expect(orchestratorApi.get).toHaveBeenCalledWith("p-2", undefined, expect.any(AbortSignal)));
   expect(composer.isConnected).toBe(false);
   expect(screen.queryByLabelText("Message Luci")).toBeNull();
   await userEvent.click(screen.getByText("Discuss or request a change"));
@@ -1393,4 +1394,91 @@ it("does not resend stale text after another tab clears the saved draft", async 
   await userEvent.click(screen.getByRole("button", { name: "Reload saved message" }));
   expect((screen.getByLabelText("Message Luci") as HTMLTextAreaElement).value).toBe("");
   expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
+
+it("aborts only the abandoned project's display refresh and fences its late private result", async () => {
+  const reads: { id: string; signal: AbortSignal; finish(value: OrchestratorView): void }[] = [];
+  vi.mocked(orchestratorApi.get).mockImplementation((id, before, signal) => new Promise(finish => {
+    expect(before).toBeUndefined(); expect(signal).toBeInstanceOf(AbortSignal); reads.push({ id, signal: signal!, finish });
+  }));
+  const mounted = render(<OrchestratorPanel projectId="p-1" />);
+  mounted.rerender(<OrchestratorPanel projectId="p-2" />);
+  expect(reads).toHaveLength(2); expect(reads[0].signal.aborted).toBe(true); expect(reads[1].signal.aborted).toBe(false);
+  await act(async () => reads[0].finish(view({ turns: [turn()] })));
+  expect(screen.queryByText("Support guest checkout")).toBeNull();
+  const current = context("p-2"); current.specification.purpose = "Project B current purpose";
+  await act(async () => reads[1].finish(view({ projectId: "p-2", context: current })));
+  expect(screen.getByText("Project B current purpose")).not.toBeNull();
+  mounted.rerender(<OrchestratorPanel projectId="p-1" />);
+  expect(reads).toHaveLength(3); expect(reads[2].signal.aborted).toBe(false);
+  mounted.unmount(); expect(reads[2].signal.aborted).toBe(true);
+  expect(orchestratorApi.cancel).not.toHaveBeenCalled(); expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
+it("aborts a superseded display refresh without letting its finally clear the newer request", async () => {
+  const reads: { signal: AbortSignal; fail(cause: unknown): void }[] = [];
+  vi.mocked(orchestratorApi.get).mockImplementation((_id, _before, signal) => new Promise((_resolve, fail) => reads.push({ signal: signal!, fail })));
+  const mounted = render(<OrchestratorPanel projectId="p-1" />);
+  act(() => notifyProjectContextChanged(decisionScope(), "p-1"));
+  expect(reads).toHaveLength(2); expect(reads[0].signal.aborted).toBe(true); expect(reads[1].signal.aborted).toBe(false);
+  await act(async () => reads[0].fail(new Error("Late canceled read failure")));
+  expect(screen.queryByText("Late canceled read failure")).toBeNull();
+  mounted.unmount(); expect(reads[1].signal.aborted).toBe(true);
+  await act(async () => reads[1].fail(reads[1].signal.reason));
+});
+
+it("uses a fresh display controller after StrictMode cleanup without accepting canceled context", async () => {
+  const reads: { signal: AbortSignal; finish(value: OrchestratorView): void }[] = [];
+  vi.mocked(orchestratorApi.get).mockImplementation((_id, _before, signal) => new Promise(finish => reads.push({ signal: signal!, finish })));
+  const mounted = render(<StrictMode><OrchestratorPanel projectId="p-1" /></StrictMode>);
+  expect(reads).toHaveLength(2); expect(reads[0].signal.aborted).toBe(true); expect(reads[1].signal.aborted).toBe(false);
+  await act(async () => reads[0].finish(view({ turns: [turn()] })));
+  expect(screen.queryByText("Support guest checkout")).toBeNull();
+  await act(async () => reads[1].finish(view()));
+  await screen.findByRole("button", { name: "Review design" }); mounted.unmount();
+});
+
+it("preserves unsent recovery and does not abort display reads for Edit-only churn but does for Read loss", async () => {
+  const reads: { signal: AbortSignal; finish(value: OrchestratorView): void }[] = [];
+  saveComposerDraft(decisionScope(), null, "Keep this draft", ""); const before = readComposerRecovery(decisionScope());
+  vi.mocked(orchestratorApi.get).mockImplementation((_id, _sequence, signal) => new Promise(finish => reads.push({ signal: signal!, finish })));
+  const mounted = render(<OrchestratorPanel projectId="p-1" />);
+  identity.edit = false; mounted.rerender(<OrchestratorPanel projectId="p-1" />);
+  expect(reads).toHaveLength(1); expect(reads[0].signal.aborted).toBe(false);
+  identity.read = false; mounted.rerender(<OrchestratorPanel projectId="p-1" />);
+  expect(reads[0].signal.aborted).toBe(true); expect(readComposerRecovery(decisionScope())).toEqual(before);
+  identity.read = true; mounted.rerender(<OrchestratorPanel projectId="p-1" />);
+  expect(reads).toHaveLength(2); expect(reads[1].signal.aborted).toBe(false);
+  await act(async () => reads[0].finish(view({ turns: [turn()] })));
+  expect(screen.queryByText("Support guest checkout")).toBeNull();
+  await act(async () => reads[1].finish(view()));
+  expect(readComposerRecovery(decisionScope())).toEqual(before);
+});
+
+it("display cleanup does not cancel or replay an acknowledged-late send or clear its durable identity early", async () => {
+  let finish!: (value: OrchestratorJob) => void;
+  vi.mocked(orchestratorApi.send).mockReturnValue(new Promise(resolve => { finish = resolve; }));
+  const mounted = render(<OrchestratorPanel projectId="p-1" />); await ready();
+  await userEvent.type(screen.getByLabelText("Message Luci"), "Retain the exact pending request");
+  await userEvent.click(screen.getByRole("button", { name: "Send to Luci" }));
+  const pending = readComposerRecovery(decisionScope()); expect(pending.pending).toHaveLength(1);
+  expect(vi.mocked(orchestratorApi.send).mock.calls[0]).toHaveLength(2);
+  mounted.unmount(); expect(readComposerRecovery(decisionScope())).toEqual(pending);
+  await act(async () => finish(job()));
+  expect(readComposerRecovery(decisionScope()).pending).toHaveLength(0);
+  expect(orchestratorApi.send).toHaveBeenCalledOnce(); expect(orchestratorApi.cancel).not.toHaveBeenCalled();
+});
+
+it("keeps post-send readback outside display cancellation ownership", async () => {
+  const mounted = render(<OrchestratorPanel projectId="p-1" />); await ready();
+  let finish!: (value: OrchestratorView) => void;
+  vi.mocked(orchestratorApi.get).mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+  await userEvent.type(screen.getByLabelText("Message Luci"), "Accepted request with a delayed readback");
+  await userEvent.click(screen.getByRole("button", { name: "Send to Luci" }));
+  const calls = vi.mocked(orchestratorApi.get).mock.calls;
+  expect(calls[calls.length - 1]).toEqual(["p-1"]);
+  expect(readComposerRecovery(decisionScope()).pending).toHaveLength(0);
+  mounted.unmount(); await act(async () => finish(view()));
+  expect(orchestratorApi.send).toHaveBeenCalledOnce(); expect(orchestratorApi.cancel).not.toHaveBeenCalled();
 });

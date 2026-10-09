@@ -1,0 +1,471 @@
+{
+  "scope": "Preserved FAILED primary-cdp-1; prefix parser reads complete events only. This is not a complete trace or proof absent events did not occur. CPU and primary400 are separate retained artifacts.",
+  "trace": {
+    "bytes": 33554432,
+    "sha256": "87881413924fa94f254a8c56d78827ba56da3bdb3eaa6f29f7bbb9be6b8d08b0",
+    "completeEventsInPrefix": 140324,
+    "decodedPrefixBytes": 33554325,
+    "trailingUnparsedBytes": 107,
+    "dataLossOccurred": true,
+    "categoryCounts": {
+      "__metadata": 8,
+      "v8": 29589,
+      "devtools.timeline,disabled-by-default-v8.gc": 19195,
+      "blink.user_timing": 985,
+      "blink,devtools.timeline": 6585,
+      "devtools.timeline": 77142,
+      "loading,rail,devtools.timeline": 249,
+      "devtools.timeline,v8": 49,
+      "disabled-by-default-v8.gc": 4935,
+      "v8,devtools.timeline,disabled-by-default-v8.compile": 6,
+      "v8,devtools.timeline": 2,
+      "blink.animations,devtools.timeline,benchmark,rail": 1579
+    },
+    "categoryEncodedBytes": {
+      "__metadata": 958,
+      "v8": 4028445,
+      "devtools.timeline,disabled-by-default-v8.gc": 3477734,
+      "blink.user_timing": 365010,
+      "blink,devtools.timeline": 1529890,
+      "devtools.timeline": 22264338,
+      "loading,rail,devtools.timeline": 98200,
+      "devtools.timeline,v8": 12149,
+      "disabled-by-default-v8.gc": 1136507,
+      "v8,devtools.timeline,disabled-by-default-v8.compile": 1558,
+      "v8,devtools.timeline": 521,
+      "blink.animations,devtools.timeline,benchmark,rail": 358350
+    },
+    "topEventNames": [
+      [
+        "v8.callFunction",
+        27666
+      ],
+      [
+        "FunctionCall",
+        25955
+      ],
+      [
+        "EventTiming",
+        10732
+      ],
+      [
+        "EventDispatch",
+        8983
+      ],
+      [
+        "AnimationFrame",
+        6015
+      ],
+      [
+        "Major concurrent marking rescheduled",
+        4852
+      ],
+      [
+        "V8.GC_MC_INCREMENTAL",
+        4821
+      ],
+      [
+        "PrePaint",
+        4474
+      ],
+      [
+        "UpdateLayoutTree",
+        4125
+      ],
+      [
+        "AnimationFrame::Render",
+        2847
+      ],
+      [
+        "AnimationFrame::StyleAndLayout",
+        2846
+      ],
+      [
+        "HitTest",
+        2459
+      ],
+      [
+        "RequestAnimationFrame",
+        2275
+      ],
+      [
+        "Paint",
+        1939
+      ],
+      [
+        "V8.GCIncrementalMarking",
+        1607
+      ],
+      [
+        "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+        1607
+      ],
+      [
+        "Layerize",
+        1585
+      ],
+      [
+        "Animation",
+        1579
+      ],
+      [
+        "AnimationFrame::Presentation",
+        1421
+      ],
+      [
+        "Layout",
+        1391
+      ],
+      [
+        "FireAnimationFrame",
+        1385
+      ],
+      [
+        "CancelAnimationFrame",
+        887
+      ],
+      [
+        "TimerRemove",
+        847
+      ],
+      [
+        "ClearStringTableJob started",
+        736
+      ],
+      [
+        "TimerInstall",
+        734
+      ],
+      [
+        "RememberedSetUpdatingItem::Process",
+        722
+      ],
+      [
+        "V8.GCReachTransitiveClosureWithEmbedder",
+        651
+      ],
+      [
+        "V8.GC_MC_MARK_EMBEDDER_TRACING",
+        651
+      ],
+      [
+        "V8.GCMarkTransitiveClosureFixpoint",
+        620
+      ],
+      [
+        "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+        620
+      ]
+    ],
+    "minObservedTraceTs": 0,
+    "maxObservedTraceTs": 259046728620,
+    "primaryMarkers": 453,
+    "primaryActionIDs": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63,
+      64,
+      65,
+      66,
+      67,
+      68,
+      69,
+      70,
+      71,
+      72,
+      73,
+      74,
+      75,
+      76,
+      77,
+      78,
+      79,
+      80,
+      81,
+      82,
+      83,
+      84,
+      85,
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95,
+      96,
+      97,
+      98,
+      99,
+      100,
+      101,
+      102,
+      103,
+      104,
+      105,
+      106,
+      107,
+      108,
+      109,
+      110,
+      111,
+      112,
+      113,
+      114,
+      115,
+      116,
+      117,
+      118,
+      119,
+      120,
+      121,
+      122,
+      123,
+      124,
+      125,
+      126,
+      127,
+      128,
+      129,
+      130,
+      131,
+      132,
+      133,
+      134,
+      135,
+      136,
+      137,
+      138,
+      139,
+      140,
+      141,
+      142,
+      143,
+      144,
+      145,
+      146,
+      147,
+      148,
+      149,
+      150,
+      151
+    ],
+    "latencyMarkers": 531
+  },
+  "cpu": {
+    "sha256": "265646ccaf4ef0742369958494d4c6656369283e8e5988eb331e0a9d0def3fe3",
+    "bytes": 1097185,
+    "nodes": 3289,
+    "samples": 84480,
+    "deltas": 84480,
+    "sampleClassesUs": {
+      "(program)": 48265027,
+      "javascript-or-other": 7797735,
+      "(idle)": 12480447,
+      "(garbage collector)": 886490
+    },
+    "wholeWindowUs": 69433693,
+    "topFrames": [
+      {
+        "functionNameSHA256": "ab00344a2303215cc8071ecd6b191216bc6a10f2b0bdea027c12f5327384f698",
+        "urlSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "line": -1,
+        "column": -1,
+        "sampleWeightUs": 48265027,
+        "specialFrame": "(program)"
+      },
+      {
+        "functionNameSHA256": "c6509f06a5b986392944df4c3788e71951507bdf1712398ede1db3addc76a7ab",
+        "urlSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "line": -1,
+        "column": -1,
+        "sampleWeightUs": 12480447,
+        "specialFrame": "(idle)"
+      },
+      {
+        "functionNameSHA256": "6201eb4dccc956cc4fa3a78dca0c2888177ec52efd48f125df214f046eb43138",
+        "urlSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "line": -1,
+        "column": -1,
+        "sampleWeightUs": 2107210,
+        "specialFrame": null
+      },
+      {
+        "functionNameSHA256": "1adaffc1450b7587cf345d4c01813f0de56d056b10a10787caa2ee01fc9c2ba2",
+        "urlSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "line": 3545,
+        "column": 31,
+        "sampleWeightUs": 1057872,
+        "specialFrame": null
+      },
+      {
+        "functionNameSHA256": "037d8fe220735d6d21d5f428d7231ddf7a6953d8a964b72c29898c2448cb197e",
+        "urlSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "line": -1,
+        "column": -1,
+        "sampleWeightUs": 886490,
+        "specialFrame": "(garbage collector)"
+      },
+      {
+        "functionNameSHA256": "c51faa148557a08cbf790156578b7a82b41f22dd01227f7dde057e34c18a365f",
+        "urlSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "line": -1,
+        "column": -1,
+        "sampleWeightUs": 630331,
+        "specialFrame": null
+      },
+      {
+        "functionNameSHA256": "de48d62d651eb744894f165902b453766b2b3e22e1ef0200d8d9e0d278793020",
+        "urlSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "line": -1,
+        "column": -1,
+        "sampleWeightUs": 282809,
+        "specialFrame": null
+      },
+      {
+        "functionNameSHA256": "e7d3799ecc09f5cbc446aa0a79bb1fb9d0126395fa19a5903b7425f42e5e92e7",
+        "urlSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "line": -1,
+        "column": -1,
+        "sampleWeightUs": 222372,
+        "specialFrame": null
+      },
+      {
+        "functionNameSHA256": "54719198f338d6347be5523a3166bf9cb6e484c8cb52a5cfea0aa6257c0967d7",
+        "urlSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "line": 3617,
+        "column": 22,
+        "sampleWeightUs": 128885,
+        "specialFrame": null
+      },
+      {
+        "functionNameSHA256": "f79ccfdc51cd247165f4d4296b0e48ccb1951684605288be3cb02ab0350012f6",
+        "urlSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "line": -1,
+        "column": -1,
+        "sampleWeightUs": 103946,
+        "specialFrame": null
+      },
+      {
+        "functionNameSHA256": "f72f0aac7f1d460b541690b1235bf821288c86c5bf0ef68024bd02cfe81a9790",
+        "urlSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "line": -1,
+        "column": -1,
+        "sampleWeightUs": 91930,
+        "specialFrame": null
+      },
+      {
+        "functionNameSHA256": "e8abced781a9f846ee8663bbb6512127debf17a588cd0bcf3e5a6ea72f558f17",
+        "urlSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "line": 3513,
+        "column": 28,
+        "sampleWeightUs": 82867,
+        "specialFrame": null
+      },
+      {
+        "functionNameSHA256": "fa51fd49abf67705d6a35d18218c115ff5633aec1f9ebfdc9d5d4956416f57f6",
+        "urlSHA256": "bc786a683903b468b777b3c317a65e0421ea5bf708412c85364c1bbf5cea7104",
+        "line": 8,
+        "column": 49077,
+        "sampleWeightUs": 81424,
+        "specialFrame": null
+      },
+      {
+        "functionNameSHA256": "a8b771920b8319e47251d1360f5e880bc18e8d329b0f0d003ea3c7e615558947",
+        "urlSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "line": 5412,
+        "column": 16,
+        "sampleWeightUs": 80091,
+        "specialFrame": null
+      },
+      {
+        "functionNameSHA256": "dd1b77c659639846e9666171bf8d98c7fd8180c389a0457a2c179447772b7ee7",
+        "urlSHA256": "23623a39366b586c05c8e23202696cf953ff54c9ae3cf298d8920f3d08eef6e2",
+        "line": 60,
+        "column": 134281,
+        "sampleWeightUs": 76113,
+        "specialFrame": null
+      }
+    ]
+  },
+  "primary": {
+    "project-switch": {
+      "count": 100,
+      "p95Ms": 406.1969510000199,
+      "maxMs": 549.2987970000104
+    },
+    "input": {
+      "count": 200,
+      "p95Ms": 87.06396400000085,
+      "maxMs": 153.72101400000975
+    },
+    "draft-reset": {
+      "count": 100,
+      "p95Ms": 384.94999199997983,
+      "maxMs": 599.9904859999951
+    }
+  }
+}

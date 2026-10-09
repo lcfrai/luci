@@ -1,0 +1,30 @@
+{
+  "scope": "Original recorded profile hashes and historical byte-length checks, followed by exact CPU-only rehash/timing validation. Raw CPU/timeline are private and NOT included. Timeline was not reread.",
+  "profileStatus": {
+    "bytes": 23798,
+    "sha256": "356a53a2a582706ece398961d428d7283d2d7545a7d92384b9c470f305230457"
+  },
+  "artifacts": {
+    "browser-cpu.cpuprofile": {
+      "bytes": 1097185,
+      "sha256": "265646ccaf4ef0742369958494d4c6656369283e8e5988eb331e0a9d0def3fe3",
+      "private": true
+    },
+    "browser-timeline.json": {
+      "bytes": 33554432,
+      "sha256": "87881413924fa94f254a8c56d78827ba56da3bdb3eaa6f29f7bbb9be6b8d08b0",
+      "complete": false,
+      "private": true
+    }
+  },
+  "complete": false,
+  "traceDataLoss": true,
+  "causeClaims": false,
+  "followupCPUTimingValidation": {
+    "member": "analysis/cpu-timing-correction.json",
+    "status": "invalid",
+    "cpuIndependentlyRehashed": true,
+    "timelineIndependentlyRehashed": false,
+    "weightedAttribution": "withheld-invalid-timing"
+  }
+}

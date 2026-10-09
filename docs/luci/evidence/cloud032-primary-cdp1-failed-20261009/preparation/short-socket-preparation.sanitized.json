@@ -1,0 +1,36 @@
+{
+  "representation": "sanitized original JSON; exact private-location substitutions only",
+  "original": {
+    "bytes": 1184,
+    "sha256": "dc68fccb8cc8989e6f196ca5409c912c9571585a12a991c62c56a1185076fd30"
+  },
+  "value": {
+    "status": "short-fixture-path-corrected-no-runtime",
+    "oldLauncherSHA256": "937c1dda017934c27c642487c96ef1e7d50b58b5595ab3a1fd15af0df58c1f59",
+    "launcherSHA256": "ad58897ea57eb2660823ef344276b7dc960bc2b866dedeb66d195db049427494",
+    "candidateBindingUnchangedSHA256": "2ff6e2876a946d08e27913039edc8301817d6365b2484eba423e06a65a6a5018",
+    "sourceGuardPreserved": true,
+    "originalTooLongParentRefused": true,
+    "tests": {
+      "purePassed": 6,
+      "runtimeFixtureAllocations": 0,
+      "socketCalls": 0,
+      "stderrSHA256": "7b47eb88bbf6a5ba45460bb561cb7eaef5a76c9b1b019407e58a956d04b00856",
+      "testSourceSHA256": "3d5be0e56625a30b3c671f4b9871f9d9c5a78d17616c448c1b8c717e394be032"
+    },
+    "exactTemplateExample": {
+      "templates": {
+        "public": "/workspace/.lp-abcdefgh/luci-sustained-XXXXXX/docker-proxy.sock",
+        "private": "/workspace/.lp-abcdefgh/luci-sustained-XXXXXX/.luci-fence-proxy-XXXXXX/docker.sock"
+      },
+      "utf8Bytes": {
+        "public": 63,
+        "private": 82
+      },
+      "exclusiveLimitBytes": 108,
+      "fixtureSuffixCharacters": 6,
+      "proxySuffixCharacters": 6
+    },
+    "README_SHA256": "f2989411ff7d46e256dbbd596904e0756ed6ae0b5fdd87f35e087dc0887d82c3"
+  }
+}

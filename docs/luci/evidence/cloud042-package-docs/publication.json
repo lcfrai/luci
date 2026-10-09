@@ -1,0 +1,279 @@
+{
+  "issue": "CLOUD-042",
+  "scope": "Frozen final source candidate and scoped validation; no final clean integrated compact staging, archive savings, Windows native packaging or application performance claim.",
+  "finalHelperSHA256": "cd520022c86ff25695faaaeed5aad512147b91f37342963e1cea2cc3252b8e26",
+  "patchSHA256": "7d07adf36a86a79110af371471393bd8c1de400d15ac23383d130636f3e1714b",
+  "candidateSourceBase": "e2f426bb50267a7cceac1f53eb1e00a0a4cc278e",
+  "payloadAuditProduct": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+  "intermediateDocsStagingSource": "765fcaadeee7de1cf2ba3a3fb7b295d0af445b70",
+  "intermediateIsNotFinalHelperPass": true,
+  "finalFocusedTests": {
+    "passed": 22,
+    "skipped": 0,
+    "log": "controlled/tests-attempt6.log"
+  },
+  "separateIntegratedSourceExport": {
+    "passed": 20,
+    "inputsStable": 30,
+    "result": "integrated-source-export/result.json"
+  },
+  "separatePowerShellParse": {
+    "platform": "Linux",
+    "version": "7.5.5",
+    "errors": 0,
+    "result": "integrated-source-export/powershell-parse.json"
+  },
+  "companionReport": {
+    "name": "2026-10-09-cloud042-package-docs.md",
+    "bytes": 1283,
+    "sha256": "d0b5de0d97ac5b55142d0353113bb5d52c2fea9ee470e7b5e8aa2d3e37479987"
+  },
+  "members": [
+    {
+      "path": "README.md",
+      "bytes": 6131,
+      "sha256": "c8a1b66dcf3646772c34d4fba5f2ecfbcb3072853a793ef2c5692bb0058201fe"
+    },
+    {
+      "path": "REPRODUCE.md",
+      "bytes": 2939,
+      "sha256": "c9c7a40646e99297618ed68b8bc9ec501f66b07e07952aeba3e3fddbdf17a7f5"
+    },
+    {
+      "path": "candidate-handoff.md",
+      "bytes": 6739,
+      "sha256": "e97f6060a8ea466f002f0e6d5ba6b3f7909d99d875ce2216b9ee3f27f41b13c8"
+    },
+    {
+      "path": "candidate.json",
+      "bytes": 2522,
+      "sha256": "de1006424a7170c641b3fe451b89793bcfd2554a6e75ac014d329ea5d17df14e"
+    },
+    {
+      "path": "candidate.patch",
+      "bytes": 50072,
+      "sha256": "7d07adf36a86a79110af371471393bd8c1de400d15ac23383d130636f3e1714b"
+    },
+    {
+      "path": "controlled/tests-attempt1.log",
+      "bytes": 1858,
+      "sha256": "0618c26b829907448d24a58b8c3599b8b969e527c5da0d3678fc31667d18f531"
+    },
+    {
+      "path": "controlled/tests-attempt2.log",
+      "bytes": 2186,
+      "sha256": "4d797df0533a703182ad2c0d9bae4fdf2bb325cb29c9cb0018a4a2e70c68e663"
+    },
+    {
+      "path": "controlled/tests-attempt3.log",
+      "bytes": 2385,
+      "sha256": "d4120efbec63230f6223e3fbd94720d5aacecb8c7b2d7d914a43a96230cc21aa"
+    },
+    {
+      "path": "controlled/tests-attempt4.log",
+      "bytes": 3075,
+      "sha256": "fd0fc1a40ee6a4d2dc5b61b72f5f1dcf2568777182caac8b8616dbee5cfdbea3"
+    },
+    {
+      "path": "controlled/tests-attempt5.log",
+      "bytes": 3270,
+      "sha256": "6951a6fc38e9998e52b92ebf6e17addb6014e2f410f89d2cc4b8c3cba6be86fa"
+    },
+    {
+      "path": "controlled/tests-attempt6.log",
+      "bytes": 3815,
+      "sha256": "5bf689c38fc994bac72e736de45bd49da66687f278b8fa53800fbd7ba7965656"
+    },
+    {
+      "path": "initial-failure/current-missing-links.json",
+      "bytes": 713,
+      "sha256": "6b45192be46b4c44e7d7c6f57ba0d9e639f7015952eb88d741b0206ea4e4d6f1"
+    },
+    {
+      "path": "initial-failure/stage-current-attempt1.log",
+      "bytes": 1181,
+      "sha256": "6afbcb6b54fbe0fdee90901c2b604444e3a56020ab7446c71a1fa6e725e1bdbc"
+    },
+    {
+      "path": "integrated-source-export/final-candidate-comparison.json",
+      "bytes": 1436,
+      "sha256": "b87e7a47a3b0ff8129f5b9520ff8de0d80b754ee8c3a292b6ade9f282f0775b1"
+    },
+    {
+      "path": "integrated-source-export/parse-release.ps1",
+      "bytes": 956,
+      "sha256": "420eaa4406074e7e5b07b855472690130f17f0470969f987d5e62d1aa4cdaa64"
+    },
+    {
+      "path": "integrated-source-export/powershell-parse.json",
+      "bytes": 317,
+      "sha256": "1ec1bcbd8e01602495c1c1172943917971b2edec1e49c5baa2075f0558f13ef0"
+    },
+    {
+      "path": "integrated-source-export/result.json",
+      "bytes": 277,
+      "sha256": "42ff935ca87edf382592899f693528052b141c75dd384bbf53dcac010b001b82"
+    },
+    {
+      "path": "integrated-source-export/source-after.json",
+      "bytes": 3136,
+      "sha256": "cc77fef54c7c42a46c999a757a95d8d72042630a35a8083c29b9492bac6649cd"
+    },
+    {
+      "path": "integrated-source-export/source-before.json",
+      "bytes": 3136,
+      "sha256": "cc77fef54c7c42a46c999a757a95d8d72042630a35a8083c29b9492bac6649cd"
+    },
+    {
+      "path": "integrated-source-export/stderr.log",
+      "bytes": 3341,
+      "sha256": "96a74da8b0889955b2f7d4ac8aab4ac31bc52f59046fb36a6f5263bc43504c69"
+    },
+    {
+      "path": "integrated-source-export/stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "intermediate-765-staging/input-after.json",
+      "bytes": 6571,
+      "sha256": "f90b1db796c158f65772befcbdfa5487666ca1ac7ffe3af64d1b6f7d07f4ba2b"
+    },
+    {
+      "path": "intermediate-765-staging/input-before.json",
+      "bytes": 6571,
+      "sha256": "f90b1db796c158f65772befcbdfa5487666ca1ac7ffe3af64d1b6f7d07f4ba2b"
+    },
+    {
+      "path": "intermediate-765-staging/receipt.json",
+      "bytes": 1594,
+      "sha256": "3e10224bf4b98b4d154024dc4b20a5e11d62afd1cdc2fe5ad8ca3b36dc7fc38e"
+    },
+    {
+      "path": "intermediate-765-staging/source/stage-release-docs.py",
+      "bytes": 16435,
+      "sha256": "cd06dc154dc088404909a720f5443c55f8f662f60ee5b2b63d72c12d4ab432b9"
+    },
+    {
+      "path": "intermediate-765-staging/staged-files.json",
+      "bytes": 6721,
+      "sha256": "1c897e38242b2ab71be92a254ca41562864704be106b3ac06ef5b9f741f07089"
+    },
+    {
+      "path": "intermediate-765-staging/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "intermediate-765-staging/stdout.log",
+      "bytes": 114,
+      "sha256": "c0de81acec14c48ea0ef7e5182f9c008cee6674857b4c7f5f7bc3d32a78e1944"
+    },
+    {
+      "path": "intermediate-candidate.json",
+      "bytes": 2346,
+      "sha256": "0f55fe223f05a58603438f81009dc0a53e1bdc6d155ee2dc382602bf3d27bb6a"
+    },
+    {
+      "path": "original-bindings.json",
+      "bytes": 18715,
+      "sha256": "e890f3d94129841f26e3afa4a18b4609ef7c4c92be9b3ddb39688b9c8750dd89"
+    },
+    {
+      "path": "payload-audit-2da/REPORT.md",
+      "bytes": 8620,
+      "sha256": "d5a0e76539b42781f0deef62b9fd0a49c4b1aaf57f9634c78762292492f5cbd9"
+    },
+    {
+      "path": "payload-audit-2da/link-candidates.json",
+      "bytes": 49754,
+      "sha256": "81182b8819e58bb11e9b8e466c734468322840bd7a4d11872b764db6e0ca2535"
+    },
+    {
+      "path": "payload-audit-2da/metadata.json",
+      "bytes": 20790,
+      "sha256": "45a97f670874c817e5c3a7ea35e4c56ec029dd13bfcb32eec2a689a2ba09fab6"
+    },
+    {
+      "path": "privacy-scan.json",
+      "bytes": 609,
+      "sha256": "a48c0b3ca8912e37bb133e7bbfde0659c0b765daa301ccd5baa0c95b3e367ee6"
+    },
+    {
+      "path": "source/after/desktop/README.md",
+      "bytes": 2375,
+      "sha256": "823fdda7c0f4809fce2d051e262ad65aba2071b82042027a68a627bbd487c0e9"
+    },
+    {
+      "path": "source/after/desktop/src-tauri/.gitignore",
+      "bytes": 225,
+      "sha256": "6ff36be6ce83c65b2e0d415ab696e3f167038633e46a7c1c99eb591a89853cb6"
+    },
+    {
+      "path": "source/after/desktop/src-tauri/build.rs",
+      "bytes": 39,
+      "sha256": "487059eaf8a947b80f20a9aacac038a5047b2ad69d2401b827376c67d6fe847f"
+    },
+    {
+      "path": "source/after/desktop/src-tauri/tauri.conf.json",
+      "bytes": 1711,
+      "sha256": "ec23a0e26209879b135d26ef29707fe18c5316c983320721581628717653e6bd"
+    },
+    {
+      "path": "source/after/scripts/build-release.ps1",
+      "bytes": 17249,
+      "sha256": "42c7f005d6644881bc34fed76d42860d4b701bf4d169bf5657b59cf43c280c16"
+    },
+    {
+      "path": "source/after/scripts/build-release.sh",
+      "bytes": 6029,
+      "sha256": "20c6cb96e475066d5fb9a8ac934eb1262c3f324e4ac78ccda42fbd137d9e080d"
+    },
+    {
+      "path": "source/after/scripts/export-public-source.py",
+      "bytes": 28647,
+      "sha256": "28ae6a6bc97f5d298a3a655fbae858a5d863c5a85c731424e4b0fac17d626fb1"
+    },
+    {
+      "path": "source/after/scripts/stage-release-docs.py",
+      "bytes": 20959,
+      "sha256": "cd520022c86ff25695faaaeed5aad512147b91f37342963e1cea2cc3252b8e26"
+    },
+    {
+      "path": "source/after/scripts/test_stage_release_docs.py",
+      "bytes": 19256,
+      "sha256": "3a423507e48ebed82267563a54d780fac99838afaae7886bb6ccf73a4f8cf2ed"
+    },
+    {
+      "path": "source/before/desktop/README.md",
+      "bytes": 1777,
+      "sha256": "16c8a9589a344177dafcc1442a864347f9cb7d4d7659858503d42fd71f49a793"
+    },
+    {
+      "path": "source/before/desktop/src-tauri/.gitignore",
+      "bytes": 216,
+      "sha256": "cb797283dfa5c2149ce16e16f04660f1adc7b1642175db619bceca4bdd6776ed"
+    },
+    {
+      "path": "source/before/desktop/src-tauri/tauri.conf.json",
+      "bytes": 1742,
+      "sha256": "fd851d4d924bbebf6b1a91462fc17346e7ec04a7ee5e38849eabe94fe4da6897"
+    },
+    {
+      "path": "source/before/scripts/build-release.ps1",
+      "bytes": 17133,
+      "sha256": "147d1e62aba8d3eb78b566cc9bc29be17fab434e9afb486cea3261050885e13c"
+    },
+    {
+      "path": "source/before/scripts/build-release.sh",
+      "bytes": 6027,
+      "sha256": "5e66730a225110b2859c644c263e911aecb2c6999bc419f4bdcb2a25f11866b0"
+    },
+    {
+      "path": "source/before/scripts/export-public-source.py",
+      "bytes": 28581,
+      "sha256": "943922763883025398c9401b049b4f6978dc66da3b69daee3b1e1f9569e32e67"
+    }
+  ],
+  "manifestConvention": "Members exclude publication.json and SHA256SUMS to avoid self-reference; SHA256SUMS additionally binds publication.json. Companion report is bound separately above."
+}

@@ -1,0 +1,4 @@
+AssertionError [ERR_ASSERTION]: Primary profiling incomplete; preserve original actions and diagnostics
+    at file://<DIAGNOSTIC_PREPARATION>/candidate/sustained.mjs:524:2
+    at async Object.run (file://<DIAGNOSTIC_PREPARATION>/candidate/acceptance-lifecycle.mjs:29:19)
+    at async file://<DIAGNOSTIC_PREPARATION>/candidate/sustained.mjs:488:2

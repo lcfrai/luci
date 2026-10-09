@@ -1,0 +1,32 @@
+{
+  "representation": "sanitized original JSON; exact private-location substitutions only",
+  "original": {
+    "bytes": 1491,
+    "sha256": "7283a09717fbc94f616917d16877e90eaabd87d479faaa4a59c5d37847ae485b"
+  },
+  "value": {
+    "status": "pure-validated-runtime-unlaunched",
+    "candidateBindingSHA256": "06a89e236e204230ec7038dca85e7eed4fa6ceacaeeabbf5ee3071fd6e73688e",
+    "sourceInputs": 18,
+    "publicLoggerPureCases": 10,
+    "initial9CasesOverlap": true,
+    "sourceTooling": {
+      "coreBundleSHA256": "549070af3acabb3efcc4f55bfe6210f9f7c2fcf633cf7eaa59bfe60719969171",
+      "typesSHA256": "2806f6d7810fba0306066d500cd716a6d1128d90af2c3cf71723e3ea0a8904c4",
+      "publicAPIExists": true,
+      "deprecatedIncomplete": true
+    },
+    "bindings": {
+      "launch.py": "923bc496271d213cc58de15300548a1862ac4ad9a34ecd2c448b869762aa5147",
+      "candidate/sustained.mjs": "03df05f049d8b43981d7c80944437e14a02b141ea52461b03393867e86956151",
+      "candidate/interaction-metrics.mjs": "7428f5197acfc36ec48e1c40dca0262f0bbf5e1878a15dd370c2cbb120c0b030",
+      "public-api-spans.mjs": "994468a342b44b4bb41294242ccfcad1281331d5f59229e1cd0f05bc9e5a09f9",
+      "public-api-spans.test.mjs": "99157fabf2d6b1fe605cba84e28630620a44823b0c9279a13e29a5c287a572e2",
+      "pure-public-logger.stdout": "fd7fdf568dc949cabcea0cd6864ca1b95578902393db21c3dd6db58016c1c629",
+      "analyze.py": "c796940a3c7dc21a1a84472548bb154393e7b0ab2531f0a492bc9ab5eb5f8030",
+      "analyze-api-spans.py": "4162588893ed05c2ba71946af1d7f969b7c35c972d3598b40ae0b2cf2dee41ad",
+      "README.md": "fecddf114252bfda1abb12985c4cbd7eef888e3e95f0310ba387a211874cadd1"
+    },
+    "scope": "No browser/app/Docker/provider/worker launched; strict observed callback coverage still unverified"
+  }
+}

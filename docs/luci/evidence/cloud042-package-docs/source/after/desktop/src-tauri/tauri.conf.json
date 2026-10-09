@@ -1,0 +1,59 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Luci",
+  "version": "0.5.0",
+  "identifier": "ai.lcfr.luci",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Luci",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 760,
+        "minHeight": 560
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data: blob:; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:*; worker-src 'self' blob:; frame-src http://127.0.0.1:* http://localhost:* https:; object-src 'none'; base-uri 'self'; form-action 'self'",
+      "devCsp": null
+    }
+  },
+  "bundle": {
+    "copyright": "Copyright (c) 2026 lcfr.ai contributors",
+    "license": "MIT",
+    "licenseFile": "../../LICENSE",
+    "windows": {
+      "nsis": {
+        "installerHooks": "./windows/hooks.nsh"
+      }
+    },
+    "resources": {
+      "runtime/": "runtime/",
+      "licenses/": "licenses/",
+      "cloud/": "cloud/",
+      "guides/docs/": "docs/",
+      "guides/DESIGN.md": "DESIGN.md",
+      "guides/README.md": "README.md",
+      "guides/LICENSE": "LICENSE",
+      "guides/NOTICE": "NOTICE"
+    },
+    "externalBin": [
+      "binaries/luci-api"
+    ],
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}

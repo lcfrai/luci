@@ -1,0 +1,15 @@
+{
+  "command": [
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--maxWorkers=2",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/project-read-cancellation-candidate/full-validation/full.json"
+  ],
+  "startedAt": "2026-10-09T03:24:51.435458+00:00",
+  "elapsedSeconds": 254.2304353180225,
+  "exitCode": 0,
+  "nodeVersion": "v24.19.0",
+  "repoHEADAtEnd": "9f9cc09d3ff14ed1635c3d72fac876ab7789247d"
+}

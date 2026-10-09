@@ -1,0 +1,968 @@
+{
+  "scope": "Single metadata-only walk of extracted candidate; no payload hashes or archive decoding; logical bytes, not RAM or compressed contribution.",
+  "root": "<extracted-2da-candidate>",
+  "files": 3587,
+  "directories": 1010,
+  "logicalBytes": 223470105,
+  "symlinks": [],
+  "topLevel": {
+    "docs": {
+      "files": 2674,
+      "bytes": 68880780
+    },
+    "cloud": {
+      "files": 1,
+      "bytes": 67254189
+    },
+    "(root files)": {
+      "files": 7,
+      "bytes": 62779198
+    },
+    "web": {
+      "files": 424,
+      "bytes": 23014574
+    },
+    "licenses": {
+      "files": 377,
+      "bytes": 1294233
+    },
+    "runtime": {
+      "files": 104,
+      "bytes": 247131
+    }
+  },
+  "docsCategories": {
+    "luci/evidence": {
+      "files": 2635,
+      "bytes": 67844220
+    },
+    "luci/other": {
+      "files": 37,
+      "bytes": 1014031
+    },
+    "other": {
+      "files": 2,
+      "bytes": 22529
+    }
+  },
+  "evidenceSuffixes": {
+    ".json": {
+      "files": 1006,
+      "bytes": 29690305
+    },
+    ".png": {
+      "files": 128,
+      "bytes": 17976152
+    },
+    ".mjs": {
+      "files": 394,
+      "bytes": 6429460
+    },
+    ".json.gz": {
+      "files": 43,
+      "bytes": 3275926
+    },
+    ".py": {
+      "files": 111,
+      "bytes": 1954926
+    },
+    ".jsonl.gz": {
+      "files": 61,
+      "bytes": 1425945
+    },
+    ".test.mjs": {
+      "files": 99,
+      "bytes": 1120852
+    },
+    ".test.tsx": {
+      "files": 15,
+      "bytes": 709774
+    },
+    ".md": {
+      "files": 123,
+      "bytes": 663876
+    },
+    ".tsx": {
+      "files": 36,
+      "bytes": 648487
+    },
+    ".go": {
+      "files": 60,
+      "bytes": 640337
+    },
+    ".jsonl": {
+      "files": 13,
+      "bytes": 534795
+    },
+    ".patch": {
+      "files": 27,
+      "bytes": 446946
+    },
+    ".log": {
+      "files": 115,
+      "bytes": 433585
+    },
+    ".before.mjs": {
+      "files": 3,
+      "bytes": 272465
+    },
+    ".tap": {
+      "files": 17,
+      "bytes": 264922
+    },
+    ".stdout.log": {
+      "files": 31,
+      "bytes": 251252
+    },
+    "": {
+      "files": 86,
+      "bytes": 136880
+    },
+    ".mjs.gz": {
+      "files": 28,
+      "bytes": 130638
+    },
+    ".ts": {
+      "files": 10,
+      "bytes": 102616
+    },
+    ".test.py": {
+      "files": 6,
+      "bytes": 97063
+    },
+    ".mjs.txt": {
+      "files": 1,
+      "bytes": 91141
+    },
+    ".sanitized.json": {
+      "files": 23,
+      "bytes": 79774
+    },
+    ".stdout.jsonl": {
+      "files": 4,
+      "bytes": 66896
+    },
+    ".stdout": {
+      "files": 28,
+      "bytes": 52109
+    },
+    ".projection.json": {
+      "files": 3,
+      "bytes": 46197
+    },
+    ".mjs.inc": {
+      "files": 2,
+      "bytes": 32584
+    },
+    ".py.gz": {
+      "files": 4,
+      "bytes": 32318
+    },
+    ".zip": {
+      "files": 1,
+      "bytes": 31274
+    },
+    ".inc": {
+      "files": 2,
+      "bytes": 27147
+    },
+    ".css": {
+      "files": 3,
+      "bytes": 24332
+    },
+    ".txt": {
+      "files": 17,
+      "bytes": 22814
+    },
+    ".go.before": {
+      "files": 1,
+      "bytes": 22131
+    },
+    ".sum": {
+      "files": 2,
+      "bytes": 19458
+    },
+    ".sanitized.py": {
+      "files": 4,
+      "bytes": 18282
+    },
+    ".incomplete.json": {
+      "files": 17,
+      "bytes": 16666
+    },
+    ".result.json": {
+      "files": 4,
+      "bytes": 13097
+    },
+    ".test.ts": {
+      "files": 3,
+      "bytes": 11263
+    },
+    ".stderr": {
+      "files": 52,
+      "bytes": 6565
+    },
+    ".config.ts": {
+      "files": 3,
+      "bytes": 6240
+    },
+    ".mod": {
+      "files": 2,
+      "bytes": 3263
+    },
+    ".work.sum": {
+      "files": 1,
+      "bytes": 2499
+    },
+    ".html": {
+      "files": 1,
+      "bytes": 2286
+    },
+    ".original.json": {
+      "files": 4,
+      "bytes": 2139
+    },
+    ".recomputed.json": {
+      "files": 1,
+      "bytes": 1876
+    },
+    ".sha256": {
+      "files": 1,
+      "bytes": 1734
+    },
+    ".patch.gz": {
+      "files": 1,
+      "bytes": 1525
+    },
+    ".stderr.log": {
+      "files": 36,
+      "bytes": 1127
+    },
+    ".node.json": {
+      "files": 1,
+      "bytes": 233
+    },
+    ".work": {
+      "files": 1,
+      "bytes": 48
+    }
+  },
+  "evidenceCapsules": {
+    "cloud020-check-recovery-ui": {
+      "files": 107,
+      "bytes": 9419026
+    },
+    "cloud033-cleanup-message": {
+      "files": 70,
+      "bytes": 3466889
+    },
+    "cloud010-015-source": {
+      "files": 36,
+      "bytes": 2628692
+    },
+    "cloud029-installed-4df94ab9-attempt11": {
+      "files": 62,
+      "bytes": 2137735
+    },
+    "cloud027-installed-d6eaa540-attempt8": {
+      "files": 68,
+      "bytes": 2048923
+    },
+    "cloud029-installed-4df94ab9-attempt9": {
+      "files": 68,
+      "bytes": 2023928
+    },
+    "cloud030-installed-4df94ab9-attempt10": {
+      "files": 60,
+      "bytes": 2014425
+    },
+    "cloud032-switch-latency": {
+      "files": 99,
+      "bytes": 1977447
+    },
+    "cloud012-installed-c4400f11": {
+      "files": 14,
+      "bytes": 1937852
+    },
+    "cloud027-installed-d6eaa540-attempt7": {
+      "files": 57,
+      "bytes": 1936298
+    },
+    "windows-storage-ui": {
+      "files": 26,
+      "bytes": 1897751
+    },
+    "task-review-polish": {
+      "files": 14,
+      "bytes": 1816597
+    },
+    "local015-check-start-uncertainty": {
+      "files": 43,
+      "bytes": 1488637
+    },
+    "cloud031-sustained-4df94ab9-attempt3": {
+      "files": 47,
+      "bytes": 1447165
+    },
+    "frontend-finalcombined-20261009T001048Z-d52f7fe3": {
+      "files": 25,
+      "bytes": 1266105
+    },
+    "cloud020-shared-check-admission": {
+      "files": 80,
+      "bytes": 1245054
+    },
+    "check-recovery-da8-attempt6": {
+      "files": 64,
+      "bytes": 1231288
+    },
+    "storage-cleanup": {
+      "files": 9,
+      "bytes": 1184282
+    },
+    "cloud032-d348-idle-and-render": {
+      "files": 33,
+      "bytes": 1181992
+    },
+    "local010-ui": {
+      "files": 16,
+      "bytes": 1148151
+    },
+    "cloud034-shared-reservation-summary": {
+      "files": 84,
+      "bytes": 1101776
+    },
+    "cloud013-installed-6002b2ee-failed": {
+      "files": 43,
+      "bytes": 1064763
+    },
+    "cloud026-installed-d6eaa540-failed": {
+      "files": 46,
+      "bytes": 1023891
+    },
+    "cloud032-discussion-mount-20261009": {
+      "files": 31,
+      "bytes": 974309
+    },
+    "cloud032-home-card-render-20261009": {
+      "files": 41,
+      "bytes": 908817
+    },
+    "cloud028-queue-disclosure": {
+      "files": 28,
+      "bytes": 852382
+    },
+    "cloud009-recovery-ui": {
+      "files": 16,
+      "bytes": 832065
+    },
+    "cloud039-check-readiness-20261009": {
+      "files": 65,
+      "bytes": 792274
+    },
+    "cloud040-sdk-check-stats-20261009": {
+      "files": 74,
+      "bytes": 744438
+    },
+    "check-recovery-d348-d52-attempt3": {
+      "files": 46,
+      "bytes": 627620
+    },
+    "local013-sustained-lifecycle": {
+      "files": 46,
+      "bytes": 608266
+    },
+    "local014-check-history": {
+      "files": 29,
+      "bytes": 586353
+    },
+    "recovery-d348f012-attempt1": {
+      "files": 69,
+      "bytes": 576266
+    },
+    "cloud020-check-create-recovery-controlled": {
+      "files": 49,
+      "bytes": 558941
+    },
+    "cloud040-local019-query-followup-20261009": {
+      "files": 49,
+      "bytes": 521567
+    },
+    "cloud032-switch-latency-followup": {
+      "files": 40,
+      "bytes": 520493
+    },
+    "cloud024-check-observation-order": {
+      "files": 24,
+      "bytes": 517033
+    },
+    "cloud018-source": {
+      "files": 12,
+      "bytes": 484043
+    },
+    "cloud009-source": {
+      "files": 10,
+      "bytes": 465817
+    },
+    "cloud013-installed-4e7d5fe4-interrupted": {
+      "files": 14,
+      "bytes": 462703
+    },
+    "cloud038-check-review-stability": {
+      "files": 18,
+      "bytes": 459198
+    },
+    "local005-storage-refresh-ui": {
+      "files": 24,
+      "bytes": 448878
+    },
+    "local016-worker-recovery": {
+      "files": 51,
+      "bytes": 448016
+    },
+    "check-recovery-aadc-attempt5": {
+      "files": 39,
+      "bytes": 414820
+    },
+    "worker-recovery-d348-d52-attempt3": {
+      "files": 51,
+      "bytes": 397692
+    },
+    "cloud022-state-single-writer": {
+      "files": 16,
+      "bytes": 359866
+    },
+    "cloud032-da8-idle": {
+      "files": 57,
+      "bytes": 358335
+    },
+    "check-recovery-d348-fdde-attempt2": {
+      "files": 40,
+      "bytes": 356050
+    },
+    "cloud027-check-create-guard": {
+      "files": 25,
+      "bytes": 348405
+    },
+    "2026-10-08-2819ce9e-installed-swarm-resources.json": {
+      "files": 1,
+      "bytes": 339711
+    },
+    "check-recovery-aadc-attempt4": {
+      "files": 36,
+      "bytes": 338581
+    },
+    "2819ce9e": {
+      "files": 5,
+      "bytes": 298623
+    },
+    "8f78804f": {
+      "files": 3,
+      "bytes": 295771
+    },
+    "worker-recovery-d348-c322-attempt2": {
+      "files": 39,
+      "bytes": 289450
+    },
+    "cloud019-installed-failure": {
+      "files": 6,
+      "bytes": 278915
+    },
+    "cloud019-source": {
+      "files": 9,
+      "bytes": 275539
+    },
+    "cloud026-read-cohort": {
+      "files": 19,
+      "bytes": 271155
+    },
+    "cloud030-cgroup-memory-observer": {
+      "files": 28,
+      "bytes": 253735
+    },
+    "9898cf5d": {
+      "files": 14,
+      "bytes": 252812
+    },
+    "e81b5860": {
+      "files": 14,
+      "bytes": 247496
+    },
+    "native-lifecycle-correction": {
+      "files": 10,
+      "bytes": 240453
+    },
+    "cloud036-recovery-inspection": {
+      "files": 23,
+      "bytes": 235848
+    },
+    "integrated-cleanup-ui-20261008T2242Z": {
+      "files": 12,
+      "bytes": 230694
+    },
+    "cloud025-stale-review-diagnostic": {
+      "files": 17,
+      "bytes": 228160
+    },
+    "local009-observation-fairness": {
+      "files": 7,
+      "bytes": 210036
+    },
+    "local012-scheduler-cleanup": {
+      "files": 8,
+      "bytes": 208934
+    },
+    "2026-10-08-8f78804f-installed-swarm-resources.json": {
+      "files": 1,
+      "bytes": 208566
+    },
+    "local018-known-controller": {
+      "files": 17,
+      "bytes": 185902
+    },
+    "cloud035-worker-context": {
+      "files": 17,
+      "bytes": 161194
+    },
+    "cloud035-retained-followup": {
+      "files": 17,
+      "bytes": 161018
+    },
+    "local013-late-startup": {
+      "files": 29,
+      "bytes": 152479
+    },
+    "cloud031-fuzz-duration": {
+      "files": 21,
+      "bytes": 120788
+    },
+    "cloud029-check-created-disk": {
+      "files": 18,
+      "bytes": 116295
+    },
+    "cloud037-review-readiness": {
+      "files": 12,
+      "bytes": 107427
+    },
+    "2026-10-08-e81b5860-partial-owned-resources.json": {
+      "files": 1,
+      "bytes": 101032
+    },
+    "cloud021-source-admission": {
+      "files": 4,
+      "bytes": 97325
+    },
+    "cloud017-source": {
+      "files": 3,
+      "bytes": 59812
+    },
+    "2026-10-08-local007-navigation.json": {
+      "files": 1,
+      "bytes": 57863
+    },
+    "cloud027-wire-contract": {
+      "files": 18,
+      "bytes": 50567
+    },
+    "local013-bounded-acceptance": {
+      "files": 9,
+      "bytes": 50058
+    },
+    "2026-10-08-9898cf5d-home-controls.json": {
+      "files": 1,
+      "bytes": 41585
+    },
+    "2026-10-08-cloud009-installed-recovery.json": {
+      "files": 1,
+      "bytes": 38673
+    },
+    "local013-merged-helpers": {
+      "files": 7,
+      "bytes": 35475
+    },
+    "2026-10-08-2819ce9e-installed-swarm.json": {
+      "files": 1,
+      "bytes": 25392
+    },
+    "2026-10-08-8f78804f-installed-swarm.json": {
+      "files": 1,
+      "bytes": 24246
+    },
+    "2026-10-08-windows-storage-multiprocess.json": {
+      "files": 1,
+      "bytes": 12152
+    },
+    "2026-10-08-8f78804f-swarm-turnover.json": {
+      "files": 1,
+      "bytes": 11342
+    },
+    "README.md": {
+      "files": 1,
+      "bytes": 7042
+    },
+    "2026-10-08-8f78804f-installed-swarm.md": {
+      "files": 1,
+      "bytes": 6739
+    },
+    "2026-10-08-windows-storage-controlled.json": {
+      "files": 1,
+      "bytes": 6186
+    },
+    "2026-10-08-cloud009-installed-recovery.md": {
+      "files": 1,
+      "bytes": 6094
+    },
+    "2026-10-08-2819ce9e-installed-swarm.md": {
+      "files": 1,
+      "bytes": 5806
+    },
+    "9a84e740": {
+      "files": 2,
+      "bytes": 5709
+    },
+    "2026-10-08-919cffe0-sustained-attempt2.json": {
+      "files": 1,
+      "bytes": 5622
+    },
+    "2026-10-08-8f78804f-installed-swarm-resources.md": {
+      "files": 1,
+      "bytes": 5554
+    },
+    "2026-10-08-cloud014-context-quality-preparation.json": {
+      "files": 1,
+      "bytes": 5350
+    },
+    "2026-10-08-cloud009-helper-wire-capabilities.json": {
+      "files": 1,
+      "bytes": 5328
+    },
+    "2026-10-08-local-audit-9121b5ba-reported.json": {
+      "files": 1,
+      "bytes": 5183
+    },
+    "2026-10-08-cloud014-context-quality-followup.json": {
+      "files": 1,
+      "bytes": 5159
+    },
+    "task-worker-cli.md": {
+      "files": 1,
+      "bytes": 5103
+    },
+    "2026-10-08-local005-storage-refresh-ui.json": {
+      "files": 1,
+      "bytes": 5015
+    },
+    "2026-10-08-cloud010-015-source-verification.md": {
+      "files": 1,
+      "bytes": 5003
+    },
+    "git-fixture-helper-isolation.json": {
+      "files": 1,
+      "bytes": 4968
+    },
+    "2026-10-08-windows-storage-ui.md": {
+      "files": 1,
+      "bytes": 4941
+    },
+    "2026-10-08-native-8f78804f.md": {
+      "files": 1,
+      "bytes": 4858
+    },
+    "2026-10-08-cloud009-recovery-ui.json": {
+      "files": 1,
+      "bytes": 4819
+    },
+    "2026-10-08-9898cf5d-home-controls.md": {
+      "files": 1,
+      "bytes": 4816
+    },
+    "2026-10-08-sustained-selector-correction.json": {
+      "files": 1,
+      "bytes": 4500
+    },
+    "2026-10-08-cloud010-015-source-verification.json": {
+      "files": 1,
+      "bytes": 4255
+    },
+    "2026-10-08-local005-storage-refresh-ui.md": {
+      "files": 1,
+      "bytes": 4216
+    },
+    "2026-10-09-cloud033-cleanup-message.md": {
+      "files": 1,
+      "bytes": 4155
+    },
+    "2026-10-08-e81b5860-partial-owned-resources.md": {
+      "files": 1,
+      "bytes": 3779
+    },
+    "2026-10-08-native-lifecycle-2dcf245d-reported.json": {
+      "files": 1,
+      "bytes": 3294
+    },
+    "2026-10-08-sustained-recorder-v2-preparation.json": {
+      "files": 1,
+      "bytes": 3202
+    },
+    "2026-10-08-cloud009-recovery-ui.md": {
+      "files": 1,
+      "bytes": 3185
+    },
+    "2026-10-08-native-919cffe0-reported.json": {
+      "files": 1,
+      "bytes": 3084
+    },
+    "2026-10-08-native-navigation-675ed402-reported.json": {
+      "files": 1,
+      "bytes": 3069
+    },
+    "2026-10-08-2819ce9e-installed-swarm-resources.md": {
+      "files": 1,
+      "bytes": 3064
+    },
+    "2026-10-08-sustained-latency-preparation.json": {
+      "files": 1,
+      "bytes": 3062
+    },
+    "2026-10-08-cloud014-context-quality-preparation.md": {
+      "files": 1,
+      "bytes": 3033
+    },
+    "2026-10-08-native-29be4018-source-reported.json": {
+      "files": 1,
+      "bytes": 2897
+    },
+    "2026-10-08-windows-owned-observer-native-reported.json": {
+      "files": 1,
+      "bytes": 2813
+    },
+    "2026-10-08-windows-storage-ui.json": {
+      "files": 1,
+      "bytes": 2799
+    },
+    "2026-10-08-docker-scratch-compatibility.json": {
+      "files": 1,
+      "bytes": 2774
+    },
+    "2026-10-08-native-lifecycle-2dcf245d-reported.md": {
+      "files": 1,
+      "bytes": 2627
+    },
+    "2026-10-08-2819ce9e-native-fixes-reported.json": {
+      "files": 1,
+      "bytes": 2476
+    },
+    "2026-10-08-2819ce9e-native-browser-reported.json": {
+      "files": 1,
+      "bytes": 2436
+    },
+    "2026-10-08-native-storage-confirmation-reported.json": {
+      "files": 1,
+      "bytes": 2214
+    },
+    "2026-10-09-check-recovery-da8-attempt6.md": {
+      "files": 1,
+      "bytes": 2094
+    },
+    "2026-10-09-recovery-d348f012-attempt1.md": {
+      "files": 1,
+      "bytes": 1994
+    },
+    "2026-10-08-b1d5aeaa-package.json": {
+      "files": 1,
+      "bytes": 1952
+    },
+    "2026-10-08-cloud009-source-verification.json": {
+      "files": 1,
+      "bytes": 1872
+    },
+    "2026-10-08-cloud009-source-verification.md": {
+      "files": 1,
+      "bytes": 1816
+    },
+    "2026-10-08-cloud009-helper-metadata-mount.json": {
+      "files": 1,
+      "bytes": 1784
+    },
+    "2026-10-08-windows-owned-observer-native-reported.md": {
+      "files": 1,
+      "bytes": 1758
+    },
+    "2026-10-09-check-recovery-d348-d52-attempt3.md": {
+      "files": 1,
+      "bytes": 1743
+    },
+    "2026-10-08-native-state-selection-reported.json": {
+      "files": 1,
+      "bytes": 1680
+    },
+    "2026-10-08-b1d5aeaa-native-source-audit-reported.json": {
+      "files": 1,
+      "bytes": 1670
+    },
+    "2026-10-09-worker-recovery-d348-c322-attempt2.md": {
+      "files": 1,
+      "bytes": 1625
+    },
+    "2026-10-09-local-audit-d52f7fe3-reported.json": {
+      "files": 1,
+      "bytes": 1602
+    },
+    "2026-10-08-local007-navigation.md": {
+      "files": 1,
+      "bytes": 1589
+    },
+    "2026-10-08-windows-owned-observer-controlled.json": {
+      "files": 1,
+      "bytes": 1555
+    },
+    "2026-10-08-9de6c800-package.json": {
+      "files": 1,
+      "bytes": 1535
+    },
+    "2026-10-09-check-recovery-d348-fdde-attempt2.md": {
+      "files": 1,
+      "bytes": 1531
+    },
+    "2026-10-09-check-recovery-aadc-attempt5.md": {
+      "files": 1,
+      "bytes": 1435
+    },
+    "2026-10-09-local-audit-da8a6ff2-reported.json": {
+      "files": 1,
+      "bytes": 1418
+    },
+    "2026-10-09-check-recovery-aadc-attempt4.md": {
+      "files": 1,
+      "bytes": 1417
+    },
+    "2026-10-09-local-audit-aadc1c28-reported.json": {
+      "files": 1,
+      "bytes": 1350
+    },
+    "2026-10-08-local004-windows-parent-correction.json": {
+      "files": 1,
+      "bytes": 1343
+    },
+    "2026-10-08-local004-state-selection.json": {
+      "files": 1,
+      "bytes": 1250
+    },
+    "2026-10-08-local006-marker-validation.json": {
+      "files": 1,
+      "bytes": 1249
+    },
+    "2026-10-08-native-package-2dcf245d-reported.json": {
+      "files": 1,
+      "bytes": 1006
+    },
+    "2026-10-08-acceptance-helper-formatting.json": {
+      "files": 1,
+      "bytes": 945
+    },
+    "2026-10-08-sustained-selector-browser.json": {
+      "files": 1,
+      "bytes": 360
+    }
+  },
+  "runtimeCategories": {
+    "sandboxd/vendor": {
+      "files": 81,
+      "bytes": 163019
+    },
+    "sandboxd/tests": {
+      "files": 10,
+      "bytes": 48028
+    },
+    "sandboxd/other": {
+      "files": 11,
+      "bytes": 31942
+    },
+    "images/other": {
+      "files": 2,
+      "bytes": 4142
+    }
+  },
+  "largestFiles": [
+    {
+      "path": "cloud/luci-cloud-linux-amd64.tar.gz",
+      "bytes": 67254189
+    },
+    {
+      "path": "luci",
+      "bytes": 62759074
+    },
+    {
+      "path": "web/assets/chunk-EIO257PC-DQycGmz-.js",
+      "bytes": 1821037
+    },
+    {
+      "path": "web/assets/App-CK4S-_fF.js",
+      "bytes": 1250858
+    },
+    {
+      "path": "docs/luci/evidence/cloud020-check-recovery-ui/full-frontend-baseline/tests.json",
+      "bytes": 1181978
+    },
+    {
+      "path": "docs/luci/evidence/task-review-polish/full-frontend.json",
+      "bytes": 1153950
+    },
+    {
+      "path": "docs/luci/evidence/windows-storage-ui/full-frontend/vitest-raw.json",
+      "bytes": 1086219
+    },
+    {
+      "path": "web/assets/DesignEditor-DfCdoNxy.js",
+      "bytes": 1084747
+    },
+    {
+      "path": "docs/luci/evidence/cloud029-installed-4df94ab9-attempt11/result/result.json",
+      "bytes": 912030
+    },
+    {
+      "path": "docs/luci/evidence/cloud027-installed-d6eaa540-attempt8/result/result.json",
+      "bytes": 884427
+    },
+    {
+      "path": "docs/luci/evidence/cloud029-installed-4df94ab9-attempt9/result/result.json",
+      "bytes": 877548
+    },
+    {
+      "path": "docs/luci/evidence/cloud030-installed-4df94ab9-attempt10/result/result.json",
+      "bytes": 804914
+    },
+    {
+      "path": "docs/luci/evidence/cloud027-installed-d6eaa540-attempt7/result/result.json",
+      "bytes": 804390
+    },
+    {
+      "path": "docs/luci/evidence/cloud010-015-source/full-go-outcomes.json",
+      "bytes": 767605
+    },
+    {
+      "path": "docs/luci/evidence/cloud010-015-source/full-frontend-outcomes.json",
+      "bytes": 745869
+    },
+    {
+      "path": "docs/luci/evidence/storage-cleanup/full-go-outcomes.json",
+      "bytes": 718822
+    },
+    {
+      "path": "web/assets/chunk-FOHPRMQF-DzxwRta7.js",
+      "bytes": 662109
+    },
+    {
+      "path": "docs/luci/evidence/cloud031-sustained-4df94ab9-attempt3/result/result.json.gz",
+      "bytes": 648227
+    },
+    {
+      "path": "docs/luci/evidence/cloud032-d348-idle-and-render/analysis/critical-stage-evidence.json",
+      "bytes": 467113
+    },
+    {
+      "path": "web/assets/cytoscape.esm-Yq6u8L66.js",
+      "bytes": 434855
+    }
+  ]
+}

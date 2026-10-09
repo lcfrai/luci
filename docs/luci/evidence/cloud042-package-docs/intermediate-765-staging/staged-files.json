@@ -1,0 +1,222 @@
+[
+  {
+    "path": "DESIGN.md",
+    "bytes": 5031,
+    "sha256": "62f5a32664c33a1da02935115a0430c71c4c927884bf4c3cdeef3ed348dc150f"
+  },
+  {
+    "path": "LICENSE",
+    "bytes": 1077,
+    "sha256": "fae23c36603a7c5195674d27b6df739bce9bf02824791e0d091d3ef2420c0b9a"
+  },
+  {
+    "path": "NOTICE",
+    "bytes": 739,
+    "sha256": "0d9ef8b5723ba812ab06e157a307a573c98f4f50c7ea790ccc97f7d20a86524f"
+  },
+  {
+    "path": "README.md",
+    "bytes": 7809,
+    "sha256": "29bef91f669586494261c315b8d644470a5304efa2654ff7da4277815c29abed"
+  },
+  {
+    "path": "docs/PACKAGE-VALIDATION.md",
+    "bytes": 572,
+    "sha256": "16e38b087623b52a7c282b4d182461ce14bf0bcfe8aff8efb3ed0fdfbd7bd2ba"
+  },
+  {
+    "path": "docs/RUNBOOK.md",
+    "bytes": 13041,
+    "sha256": "f57f1b014983fd8d19a6b9d58fbb36eebebd7ccd0ea1498e233f43317866a17c"
+  },
+  {
+    "path": "docs/UAT.md",
+    "bytes": 9570,
+    "sha256": "c6b091fb533f24aa1c707696b8e1c50773be50f07ad8f63ed49f52ac63d69267"
+  },
+  {
+    "path": "docs/luci/AGENT-HARNESS-COMPARISON.md",
+    "bytes": 19185,
+    "sha256": "1e2044dae68d015d3fb8b57b6c99b1d0846035cd67a7fa95e147bb7edfa2ef6e"
+  },
+  {
+    "path": "docs/luci/API.md",
+    "bytes": 128395,
+    "sha256": "35797244632feb8ea6168db3448ebc51cb4da54fee1f8dd08a96f4028abb9136"
+  },
+  {
+    "path": "docs/luci/ASTRA-READINESS-2026-10-06.md",
+    "bytes": 25236,
+    "sha256": "5f61dc866c28255ea1ae06aa24e7b6c18a7ba2ef2f58f3600cfb28bf1874fee1"
+  },
+  {
+    "path": "docs/luci/CLOUD.md",
+    "bytes": 8160,
+    "sha256": "56f13bb190e83045ebc7c4b9aab86c234f5cfda4e537ed0f99b04ce5aeb6ae0d"
+  },
+  {
+    "path": "docs/luci/CONTEXT-STORAGE.md",
+    "bytes": 10186,
+    "sha256": "1e265031dc9a0018c91da0e1124fee3047132c4f200b4dedf01061ab54a91e3d"
+  },
+  {
+    "path": "docs/luci/ENTRY-UAT.md",
+    "bytes": 6671,
+    "sha256": "1f20d63fb5720b9444e9e4fda25b080e1ebc7077ca598ad4b28217e566ce87f9"
+  },
+  {
+    "path": "docs/luci/FULL-PRODUCT.md",
+    "bytes": 190782,
+    "sha256": "c769a993786761d141ea55b10bb5a360462653c2470456723f734552e30176ee"
+  },
+  {
+    "path": "docs/luci/GOAL.md",
+    "bytes": 24832,
+    "sha256": "b91509308fb2a60f62e54a3e94c89ccf9a9c6ea8d55e66530659c9ea3dd49047"
+  },
+  {
+    "path": "docs/luci/HANDOFF-2026-10-06-PRODUCTION.md",
+    "bytes": 43703,
+    "sha256": "147733eca597d006a20b12d39c8d0a5134e61ecebe733ec5c3108adc450b1dc1"
+  },
+  {
+    "path": "docs/luci/HANDOFF-2026-10-06.md",
+    "bytes": 11873,
+    "sha256": "bc7cc10cb84fc7f8b449857152c1e744f1d5af948fa3b662b388accdc4e177de"
+  },
+  {
+    "path": "docs/luci/INTERRUPTED-LAUNCH-RECOVERY.md",
+    "bytes": 8548,
+    "sha256": "41369bac32fa6f9b6b0718bd16dfdba07d069d057f8be3b1caabc260189f7bb9"
+  },
+  {
+    "path": "docs/luci/LOCAL-RECOVERY-ACCEPTANCE.md",
+    "bytes": 13023,
+    "sha256": "0e4aa094f2d876bc91dfcf13d87258d628b0e7620be22728a72cd725b970ecbf"
+  },
+  {
+    "path": "docs/luci/LOCAL-TEST-LOOP.md",
+    "bytes": 67146,
+    "sha256": "8fa70affc4672815dcaa94cbb47e870f1016667d20050dcb3c8472b651477a21"
+  },
+  {
+    "path": "docs/luci/LOCAL-TO-CLOUD-SELF-BUILD.md",
+    "bytes": 4997,
+    "sha256": "7d1a745a23a6b67685f94dbf8b43b8db472d40b11a44878d2f66364be2432663"
+  },
+  {
+    "path": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+    "bytes": 56521,
+    "sha256": "bfce1a0fc22d91bdbfa08468a3a1c8c55199749703013549b7be132fe84b9edf"
+  },
+  {
+    "path": "docs/luci/MANAGED-DATA-LIFECYCLE.md",
+    "bytes": 7896,
+    "sha256": "d44a8d24abca7651b71e75785d938e58a7cc77340dc17d212a93b456bbf6ccc0"
+  },
+  {
+    "path": "docs/luci/MANAGED-HOST-RECOVERY.md",
+    "bytes": 9598,
+    "sha256": "e3f48a855835a1a5c82714a67c76d0f742b09bf6fd2ac6448f1069eaadf032eb"
+  },
+  {
+    "path": "docs/luci/MANAGED-SERVICE-PRIVACY-DRAFT.md",
+    "bytes": 10060,
+    "sha256": "5fdb3ccbf2010cc848edd2f5f37c6091d1a6103d46d7a9862a70de520aa940f6"
+  },
+  {
+    "path": "docs/luci/MANAGED-SERVICE-TERMS-DRAFT.md",
+    "bytes": 8872,
+    "sha256": "9ec29c601d6e449b6c389263cd1a8a7e5b99255e2ba1d7a690901c092958c61a"
+  },
+  {
+    "path": "docs/luci/MANAGED-UPGRADE.md",
+    "bytes": 7771,
+    "sha256": "106515a001d08c2f8bc9f38d1effa28cda66cba32dbbf86cc80c91929cc272e7"
+  },
+  {
+    "path": "docs/luci/ORCHESTRATION.md",
+    "bytes": 18423,
+    "sha256": "57f1ef49c4e660662f5064d15b8c575d774f26dd0583c3789c7f8b61198db0b6"
+  },
+  {
+    "path": "docs/luci/PLAN.md",
+    "bytes": 9197,
+    "sha256": "1244d05dbdedb18bf98f24a3296a9461b049bf7e542c84309490dfb06ed0038c"
+  },
+  {
+    "path": "docs/luci/PRODUCT-QUALITY.md",
+    "bytes": 8079,
+    "sha256": "088fdb8130ad47fe965ef431676582be5c62e55c5b9e8a466fbab7c709adda7a"
+  },
+  {
+    "path": "docs/luci/PRODUCTION-ROADMAP.md",
+    "bytes": 23701,
+    "sha256": "357273089adcc3d8547558cbd36fb9fd72d9eb87212f5cd442f700acc88e5db0"
+  },
+  {
+    "path": "docs/luci/PROJECT-RUN-CONTRACT.md",
+    "bytes": 14760,
+    "sha256": "edd3981b80ec8c59e6a1b6328bbec84319d6119d337ed2c79287fc37b5a9428d"
+  },
+  {
+    "path": "docs/luci/PROVIDERS.md",
+    "bytes": 9823,
+    "sha256": "fe8806efe6d647f457d3fb937e7b492a78a1774de101e7f0a18b7f400feeb99b"
+  },
+  {
+    "path": "docs/luci/PUBLIC-HTTPS-INGRESS.md",
+    "bytes": 6228,
+    "sha256": "5646e0257b51e17ce953e73f22f31f76f2ddf43e092c31f8780fb0d9dfb89361"
+  },
+  {
+    "path": "docs/luci/QUALITY-WORKLIST.md",
+    "bytes": 186341,
+    "sha256": "44f918ae3a00448911d915ed20e18af628e7582a5741ccb7c5be587b4356c77c"
+  },
+  {
+    "path": "docs/luci/RELEASE.md",
+    "bytes": 26186,
+    "sha256": "40a7088cce757db06f61c45be5e78e687a76adbe310b850ab740fd62ebb57495"
+  },
+  {
+    "path": "docs/luci/REUSE.md",
+    "bytes": 21096,
+    "sha256": "765a9dcdb2d85c88476a50dec956fc1c05f6b22edcab6f007dd4e1025aaf8f47"
+  },
+  {
+    "path": "docs/luci/SOURCE-EXPORT.md",
+    "bytes": 5389,
+    "sha256": "44f4c003e45b636dc92c726ce70d3276906a383be12657bf09b6351598c432f1"
+  },
+  {
+    "path": "docs/luci/STRIPE-BILLING.md",
+    "bytes": 8222,
+    "sha256": "6c52da578ea3b8bd2893176d309053b35d947fad5d56e80b9a385ad316449ed9"
+  },
+  {
+    "path": "docs/luci/SWARM-CAPACITY-ACCEPTANCE.md",
+    "bytes": 18793,
+    "sha256": "15a500e487617e1dda29889880831b7e8c1882d5ea6b0b300c5a948458d2fe8d"
+  },
+  {
+    "path": "docs/luci/TEAM-ACCEPTANCE.md",
+    "bytes": 4553,
+    "sha256": "d867537029506f5b0466c8fc39523b79343b07e33336d390066ca2af7cd90235"
+  },
+  {
+    "path": "docs/luci/TEAM-SERVICE-OPERATIONS.md",
+    "bytes": 10145,
+    "sha256": "4c0200ea91f7f65c35d5bc92dcbe2535534d67bc1a63628af7a5f15918609ffd"
+  },
+  {
+    "path": "docs/luci/WINDOWS-DOCKER-STORAGE.md",
+    "bytes": 9370,
+    "sha256": "37c260605d9066d41d649e15304973c16533ae12774f8cf6968028c9aa9665c7"
+  },
+  {
+    "path": "docs/luci/WORKER-DIAGNOSTICS.md",
+    "bytes": 1578,
+    "sha256": "01986f999e75593e9e301345b3674e64d888dbbb9a8bfa7a984bfe3a89f499c5"
+  }
+]

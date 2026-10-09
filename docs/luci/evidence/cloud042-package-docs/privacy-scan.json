@@ -1,0 +1,10 @@
+{
+  "scope": "Selected task-local absolute-path, credential-token-shape and private-key-header byte patterns across all prepared capsule text members. No binary/compressed objects are included. No application state or credential files read. This is a bounded publication check, not universal secret absence proof.",
+  "selectedCategories": [
+    "task-local absolute paths",
+    "credential token shapes",
+    "private key headers"
+  ],
+  "matches": 0,
+  "transformations": "Only recorded task-local-path redactions; source before/after files and test logs are exact originals. See original-bindings.json."
+}

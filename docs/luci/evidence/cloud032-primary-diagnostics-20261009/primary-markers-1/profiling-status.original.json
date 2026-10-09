@@ -1,0 +1,131 @@
+{
+  "version": 1,
+  "scope": "Instrumented PRIMARY400 diagnostic; not acceptance, speedup or causal proof",
+  "mode": "CDP user-timing markers only plus whole-window CPU; Playwright tracing disabled",
+  "limits": {
+    "captureMs": 150000,
+    "commandMs": 2000,
+    "finishMs": 9000,
+    "traceBytes": 33554432,
+    "cpuBytes": 12582912,
+    "traceBufferKiB": 16384,
+    "readChunk": 262144,
+    "maxReadChunks": 256,
+    "cpuIntervalUs": 5000
+  },
+  "complete": true,
+  "phase": "finished",
+  "failures": [],
+  "steps": [
+    {
+      "method": "Profiler.enable",
+      "startedNodeMs": 81872.999469,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 81874.629553
+    },
+    {
+      "method": "Profiler.setSamplingInterval",
+      "startedNodeMs": 81875.063436,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 81876.349072
+    },
+    {
+      "method": "Tracing.start",
+      "startedNodeMs": 81876.597706,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 81903.953085
+    },
+    {
+      "method": "Profiler.start",
+      "startedNodeMs": 81904.231124,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 82199.96551
+    },
+    {
+      "method": "Tracing.end",
+      "startedNodeMs": 145472.46486,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 145473.474771
+    },
+    {
+      "method": "Profiler.stop",
+      "startedNodeMs": 145473.650195,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 145527.368776
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 145564.9986,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 145571.527196
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 145572.945852,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 145575.342762
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 145576.4904,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 145578.71533
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 145579.822488,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 145582.375011
+    },
+    {
+      "method": "IO.read",
+      "startedNodeMs": 145583.617022,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 145584.024776
+    },
+    {
+      "method": "IO.close",
+      "startedNodeMs": 145584.30001,
+      "settled": true,
+      "resolved": true,
+      "returnedNodeMs": 145584.614283
+    }
+  ],
+  "artifacts": {
+    "browser-cpu.cpuprofile": {
+      "bytes": 701428,
+      "sha256": "5f925f41f6b9a080f590d98a5168786ccbbc7d2d03da0eb0934941f154e89f79",
+      "private": true
+    },
+    "browser-timeline.json": {
+      "bytes": 1032413,
+      "sha256": "c0de6a0d19f2f14b07b25f882465e27e6039a5c556ed9514aeb585c147bec573",
+      "complete": true,
+      "private": true
+    }
+  },
+  "captureTimerFired": false,
+  "traceDataLoss": false,
+  "traceBufferPeak": 0.058894217014312744,
+  "pendingCommands": 0,
+  "transportDetached": true,
+  "clockPolicy": "Node and browser clocks remain separate. Join exact browser marker names to primary frame witnesses; browser user-timing marks bridge browser performance and trace timestamps. CPU profile is whole-window only until its clock alignment is independently checked.",
+  "browserStart": {
+    "timeOrigin": 1791514503996.3,
+    "now": 65423
+  },
+  "recordingStartNodeMs": 82207.854168,
+  "finishReason": "primary-complete",
+  "finishDeadlineNodeMs": 154471.457273
+}

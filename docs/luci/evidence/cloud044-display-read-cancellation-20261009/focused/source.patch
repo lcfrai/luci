@@ -1,0 +1,448 @@
+--- a/desktop/src/api/definition.ts
++++ b/desktop/src/api/definition.ts
+@@ -50,7 +50,9 @@
+   return value;
+ }
+ export const definitionApi = {
+-  get: (id: string) => productApi.request<ProjectSpecification>(`${path(id)}/specification`),
++  get: (id: string, signal?: AbortSignal) => signal
++    ? productApi.request<ProjectSpecification>(`${path(id)}/specification`, undefined, "GET", 120_000, signal)
++    : productApi.request<ProjectSpecification>(`${path(id)}/specification`),
+   save: (id: string, specification: ProjectSpecification, expectedRevision: number, expectedBriefRevision: number) =>
+     productApi.request<ProjectSpecification>(`${path(id)}/specification`, { expectedRevision, expectedBriefRevision, specification }),
+   approve: (id: string, revision: number, briefRevision: number) =>
+--- /dev/null
++++ b/desktop/src/api/displayReads.test.ts
+@@ -0,0 +1,67 @@
++import { afterEach, expect, it, vi } from "vitest";
++import { definitionApi } from "./definition";
++import { orchestratorApi } from "./orchestrator";
++import { createProductClient, productApi } from "./product";
++import { context, view } from "../components/orchestrator/fixtures";
++
++afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
++const displayRead = (kind: "definition" | "orchestrator", signal: AbortSignal) => kind === "definition"
++  ? definitionApi.get("project/space", signal)
++  : orchestratorApi.get("project/space", 21, signal);
++
++it("forwards display cancellation without changing the definition route or the optional legacy request shape", async () => {
++  const request = vi.spyOn(productApi, "request").mockResolvedValue(context("project/space").specification);
++  const controller = new AbortController();
++  await definitionApi.get("project/space", controller.signal);
++  await definitionApi.get("project/space");
++  expect(request.mock.calls).toEqual([
++    ["/v1/product/projects/project%2Fspace/specification", undefined, "GET", 120_000, controller.signal],
++    ["/v1/product/projects/project%2Fspace/specification"],
++  ]);
++});
++
++it("preserves orchestrator pagination and project validation when an optional display signal is supplied", async () => {
++  const request = vi.spyOn(productApi, "request").mockResolvedValue(view({ projectId: "project/space", context: context("project/space") }));
++  const controller = new AbortController();
++  await orchestratorApi.get("project/space", 21, controller.signal);
++  expect(request).toHaveBeenCalledExactlyOnceWith("/v1/product/projects/project%2Fspace/orchestrator?before=21", undefined, "GET", 120_000, controller.signal);
++  request.mockResolvedValue(view());
++  await expect(orchestratorApi.get("project/space", undefined, controller.signal)).rejects.toThrow("could not be verified");
++});
++
++it.each(["definition", "orchestrator"] as const)("cancels the actual %s transport after headers while its body is stalled", async kind => {
++  let observed!: AbortSignal; let body!: ReadableStream<Uint8Array>;
++  const fetcher = vi.fn((_url: RequestInfo | URL, init?: RequestInit) => {
++    observed = init!.signal!;
++    body = new ReadableStream<Uint8Array>({ start(stream) {
++      observed.addEventListener("abort", () => stream.error(observed.reason), { once: true });
++    } });
++    return Promise.resolve(new Response(body, { status: 200 }));
++  });
++  vi.spyOn(productApi, "request").mockImplementation(createProductClient("http://localhost", fetcher).request);
++  const controller = new AbortController(); const remove = vi.spyOn(controller.signal, "removeEventListener");
++  const pending = displayRead(kind, controller.signal); const outcome = pending.catch((cause: unknown) => cause);
++  await Promise.resolve(); expect(body.locked).toBe(true);
++  controller.abort(); expect(await outcome).toBe(controller.signal.reason);
++  expect(observed.aborted).toBe(true); expect(fetcher).toHaveBeenCalledOnce(); expect(remove).toHaveBeenCalledOnce();
++});
++
++it.each(["definition", "orchestrator"] as const)("does not start an already abandoned %s read", async kind => {
++  const fetcher = vi.fn();
++  vi.spyOn(productApi, "request").mockImplementation(createProductClient("http://localhost", fetcher).request);
++  const controller = new AbortController(); controller.abort();
++  await expect(displayRead(kind, controller.signal)).rejects.toBe(controller.signal.reason);
++  expect(fetcher).not.toHaveBeenCalled();
++});
++
++it.each(["definition", "orchestrator"] as const)("keeps the original 120-second %s timeout independent from caller cancellation", async kind => {
++  vi.useFakeTimers();
++  const fetcher = vi.fn((_url: RequestInfo | URL, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
++    init!.signal!.addEventListener("abort", () => reject(init!.signal!.reason), { once: true });
++  }));
++  vi.spyOn(productApi, "request").mockImplementation(createProductClient("http://localhost", fetcher).request);
++  const controller = new AbortController(); const remove = vi.spyOn(controller.signal, "removeEventListener");
++  const pending = expect(displayRead(kind, controller.signal)).rejects.toMatchObject({ code: "timeout", status: 0 });
++  await vi.advanceTimersByTimeAsync(120_000); await pending;
++  expect(controller.signal.aborted).toBe(false); expect(remove).toHaveBeenCalledOnce(); expect(vi.getTimerCount()).toBe(0);
++});
+--- a/desktop/src/api/orchestrator.ts
++++ b/desktop/src/api/orchestrator.ts
+@@ -101,8 +101,12 @@
+   return value;
+ }
+ export const orchestratorApi = {
+-  async get(projectId: string, before?: number) {
+-    return verifiedView(await productApi.request<OrchestratorView>(`${route(projectId)}/orchestrator${before === undefined ? "" : `?before=${encodeURIComponent(before)}`}`), projectId);
++  async get(projectId: string, before?: number, signal?: AbortSignal) {
++    const path = `${route(projectId)}/orchestrator${before === undefined ? "" : `?before=${encodeURIComponent(before)}`}`;
++    const value = await (signal
++      ? productApi.request<OrchestratorView>(path, undefined, "GET", 120_000, signal)
++      : productApi.request<OrchestratorView>(path));
++    return verifiedView(value, projectId);
+   },
+   async send(projectId: string, input: OrchestratorRequest) {
+     return verifiedJob(await productApi.request<OrchestratorJob>(`${route(projectId)}/assist/orchestrator`, input), projectId);
+--- a/desktop/src/components/definition/DefinitionWorkspace.test.tsx
++++ b/desktop/src/components/definition/DefinitionWorkspace.test.tsx
+@@ -1,3 +1,4 @@
++import { StrictMode } from "react";
+ import { afterEach, beforeEach, expect, it, vi } from "vitest";
+ import { act, render, screen, waitFor, cleanup, within } from "@testing-library/react";
+ import userEvent from "@testing-library/user-event";
+@@ -246,3 +247,99 @@
+   expect(rows[2]).toMatchObject({ title: "Customer cancellation", acceptance: "Cancel a booking.\nThe slot becomes available.", priority: "must" });
+   expect(new Set(rows.map(row => row.id)).size).toBe(3);
+ });
++
++
++it("aborts an abandoned definition GET while fencing late ignored-abort content and reading a fresh baseline on return", async () => {
++  const reads: { id: string; signal: AbortSignal; finish(value: ProjectSpecification): void }[] = [];
++  vi.spyOn(definitionApi, "get").mockImplementation((id, signal) => new Promise(finish => {
++    expect(signal).toBeInstanceOf(AbortSignal); reads.push({ id, signal: signal!, finish });
++  }));
++  const mounted = render(<DefinitionWorkspace projectId="p-1" />);
++  expect(reads).toHaveLength(1);
++  mounted.rerender(<DefinitionWorkspace projectId="p-2" />);
++  expect(reads[0].signal.aborted).toBe(true); expect(reads[1].signal.aborted).toBe(false);
++  expect(reads[1].signal).not.toBe(reads[0].signal);
++  await act(async () => reads[0].finish({ ...fixture(), purpose: "Late private A" }));
++  expect(screen.queryByDisplayValue("Late private A")).toBeNull();
++  await act(async () => reads[1].finish({ ...fixture(), projectId: "p-2", purpose: "Fresh project B" }));
++  expect((screen.getByLabelText("The idea") as HTMLTextAreaElement).value).toBe("Fresh project B");
++  mounted.rerender(<DefinitionWorkspace projectId="p-1" />);
++  expect(reads).toHaveLength(3); expect(screen.queryByLabelText("The idea")).toBeNull();
++  expect(reads[2].signal.aborted).toBe(false);
++  mounted.unmount(); expect(reads[2].signal.aborted).toBe(true);
++});
++
++it("gives StrictMode's live definition read a new controller and ignores the canceled first effect", async () => {
++  const reads: { signal: AbortSignal; finish(value: ProjectSpecification): void }[] = [];
++  vi.spyOn(definitionApi, "get").mockImplementation((_id, signal) => new Promise(finish => reads.push({ signal: signal!, finish })));
++  const mounted = render(<StrictMode><DefinitionWorkspace projectId="p-1" /></StrictMode>);
++  expect(reads).toHaveLength(2); expect(reads[0].signal.aborted).toBe(true); expect(reads[1].signal.aborted).toBe(false);
++  await act(async () => reads[0].finish({ ...fixture(), purpose: "Canceled strict effect" }));
++  expect(screen.queryByDisplayValue("Canceled strict effect")).toBeNull();
++  await act(async () => reads[1].finish(fixture()));
++  expect((screen.getByLabelText("The idea") as HTMLTextAreaElement).value).toBe(fixture().purpose);
++  mounted.unmount();
++});
++
++it("preserves definition drafts through Read revocation while canceling and refreshing a pending saved baseline", async () => {
++  const reads: { signal: AbortSignal; finish(value: ProjectSpecification): void }[] = [];
++  vi.spyOn(definitionApi, "get").mockResolvedValueOnce(fixture()).mockImplementation((_id, signal) => new Promise(finish => reads.push({ signal: signal!, finish })));
++  const mounted = render(<DefinitionWorkspace projectId="p-1" />);
++  const idea = await screen.findByLabelText("The idea"); await userEvent.type(idea, " retained answer");
++  const draftKey = Object.keys(localStorage).find(key => key.startsWith("luci.project-draft.v1:"))!;
++  const savedDraft = localStorage.getItem(draftKey);
++  teamAccess.permissions.read = false; mounted.rerender(<DefinitionWorkspace projectId="p-1" />);
++  expect(screen.queryByLabelText("The idea")).toBeNull(); expect(localStorage.getItem(draftKey)).toBe(savedDraft);
++  teamAccess.permissions.read = true; mounted.rerender(<DefinitionWorkspace projectId="p-1" />);
++  expect(reads).toHaveLength(1); expect(reads[0].signal.aborted).toBe(false);
++  expect((screen.getByRole("button", { name: "Restore draft" }) as HTMLButtonElement).disabled).toBe(true);
++  teamAccess.permissions.read = false; mounted.rerender(<DefinitionWorkspace projectId="p-1" />);
++  expect(reads[0].signal.aborted).toBe(true);
++  teamAccess.permissions.read = true; mounted.rerender(<DefinitionWorkspace projectId="p-1" />);
++  expect(reads).toHaveLength(2);
++  await act(async () => reads[0].finish({ ...fixture(), purpose: "Revoked read must not win" }));
++  expect(screen.queryByDisplayValue("Revoked read must not win")).toBeNull();
++  await act(async () => reads[1].finish(fixture()));
++  await userEvent.click(screen.getByRole("button", { name: "Restore draft" }));
++  expect((screen.getByLabelText("The idea") as HTMLTextAreaElement).value).toBe("A complete app retained answer");
++});
++
++it("aborts an explicit definition reload on departure without reporting a late service error", async () => {
++  let signal!: AbortSignal; let fail!: (cause: unknown) => void;
++  vi.spyOn(definitionApi, "get").mockRejectedValueOnce(new Error("Initial read failed")).mockImplementation((_id, selected) => new Promise((_resolve, reject) => { signal = selected!; fail = reject; }));
++  const mounted = render(<DefinitionWorkspace projectId="p-1" />);
++  await userEvent.click(await screen.findByRole("button", { name: "Reload saved definition" }));
++  expect(signal.aborted).toBe(false); mounted.unmount(); expect(signal.aborted).toBe(true);
++  await act(async () => fail(new Error("Late abandoned failure")));
++  expect(screen.queryByText("Late abandoned failure")).toBeNull();
++});
++
++it("does not cancel a readable definition or refetch it for Edit-only permission changes", async () => {
++  let signal!: AbortSignal; let finish!: (value: ProjectSpecification) => void;
++  vi.spyOn(definitionApi, "get").mockImplementation((_id, selected) => new Promise(resolve => { signal = selected!; finish = resolve; }));
++  const mounted = render(<DefinitionWorkspace projectId="p-1" />);
++  teamAccess.permissions.edit = false; mounted.rerender(<DefinitionWorkspace projectId="p-1" />);
++  expect(signal.aborted).toBe(false); expect(definitionApi.get).toHaveBeenCalledOnce();
++  await act(async () => finish(fixture()));
++  expect((screen.getByLabelText("The idea").closest("fieldset") as HTMLFieldSetElement).disabled).toBe(true);
++});
++
++
++it("queues the restored-Read baseline behind a pending definition save without canceling or replaying the write", async () => {
++  vi.spyOn(definitionApi, "get").mockResolvedValue(fixture());
++  let finish!: (value: ProjectSpecification) => void;
++  const save = vi.spyOn(definitionApi, "save").mockImplementation(() => new Promise(resolve => { finish = resolve; }));
++  const mounted = render(<DefinitionWorkspace projectId="p-1" />);
++  await userEvent.type(await screen.findByLabelText("The idea"), " accepted saved change");
++  await userEvent.click(screen.getByRole("button", { name: "Save definition" }));
++  teamAccess.permissions.read = false; mounted.rerender(<DefinitionWorkspace projectId="p-1" />);
++  teamAccess.permissions.read = true; mounted.rerender(<DefinitionWorkspace projectId="p-1" />);
++  expect(definitionApi.get).toHaveBeenCalledOnce(); expect(save).toHaveBeenCalledOnce();
++  const saved = { ...save.mock.calls[0][1], revision: 3, briefRevision: 4 };
++  vi.mocked(definitionApi.get).mockResolvedValue(saved);
++  await act(async () => finish(saved));
++  await waitFor(() => expect(definitionApi.get).toHaveBeenCalledTimes(2));
++  expect((screen.getByLabelText("The idea") as HTMLTextAreaElement).value).toBe(saved.purpose);
++  expect((screen.getByRole("button", { name: "Approve definition" }) as HTMLButtonElement).disabled).toBe(false);
++  expect(save.mock.calls[0]).toHaveLength(4); expect(save).toHaveBeenCalledOnce();
++});
+--- a/desktop/src/components/definition/DefinitionWorkspace.tsx
++++ b/desktop/src/components/definition/DefinitionWorkspace.tsx
+@@ -106,6 +106,14 @@
+   const alive = useRef(true);
+   const submitting = useRef(false);
+   const reading = useRef({ generation: 0, pending: false, ready: false });
++  const readController = useRef<AbortController | null>(null);
++  const readAfterGrant = useRef(true);
++  const readPermission = useRef(canRead); readPermission.current = canRead;
++  const abortRead = useCallback(() => {
++    reading.current.generation++; reading.current.pending = false; reading.current.ready = false;
++    const controller = readController.current; readController.current = null;
++    controller?.abort();
++  }, []);
+   const locked = busy || savedRead !== "ready";
+   const tabsId = useId(), selectedIndex = views.findIndex(([key]) => key === tab);
+   const setLens = useCockpit((s) => s.setLens);
+@@ -113,25 +121,36 @@
+   const load = async () => {
+     if (!canRead || reading.current.pending || submitting.current) return;
+     const generation = ++reading.current.generation;
++    const controller = new AbortController(); readController.current = controller;
+     reading.current.pending = true; reading.current.ready = false; setSavedRead("loading");
+     try {
+-      const value = await definitionApi.get(projectId);
+-      if (!alive.current || reading.current.generation !== generation) return;
++      const value = await definitionApi.get(projectId, controller.signal);
++      if (!alive.current || !readPermission.current || controller.signal.aborted || reading.current.generation !== generation) return;
+       savedSpec.current = value; setSpec(value); setBase({ revision: value.revision, briefRevision: value.briefRevision });
+       reading.current.ready = true; setSavedRead("ready"); setDirty(false); setError("");
+       if (value.purpose || value.revision) setTab("specification");
+     } catch (cause) {
+-      if (alive.current && reading.current.generation === generation) { setSavedRead("failed"); setError(errorText(cause)); }
++      if (alive.current && readPermission.current && !controller.signal.aborted && reading.current.generation === generation) { setSavedRead("failed"); setError(errorText(cause)); }
+     } finally {
++      if (readController.current === controller) readController.current = null;
+       if (reading.current.generation === generation) reading.current.pending = false;
+     }
+   };
+   useEffect(() => {
+-    alive.current = true;
+-    if (!canRead) return;
++    alive.current = true; readAfterGrant.current = true;
++    return () => { alive.current = false; abortRead(); };
++  }, [abortRead]);
++  useEffect(() => {
++    if (!canRead) { readAfterGrant.current = true; abortRead(); return; }
++    // Do not abandon a write or read an older baseline while its outcome is
++    // pending. A restored grant queues exactly one fresh display read after it.
++    if (!readAfterGrant.current || busy || submitting.current) return;
++    readAfterGrant.current = false;
++    // Preserve unsaved answers as an explicit recovery choice before replacing
++    // the saved view. Edit-only changes do not request a new baseline.
++    if (dirty) draft.offerRecovery();
+     void load();
+-    return () => { alive.current = false; reading.current.generation++; reading.current.pending = false; reading.current.ready = false; };
+-  }, [projectId, canRead || !!spec]);
++  }, [projectId, canRead, busy, abortRead]);
+   const reload = () => {
+     if (!canRead || reading.current.pending || submitting.current) return;
+     draft.offerRecovery(); void load();
+--- a/desktop/src/components/orchestrator/OrchestratorPanel.test.tsx
++++ b/desktop/src/components/orchestrator/OrchestratorPanel.test.tsx
+@@ -1,3 +1,4 @@
++import { StrictMode } from "react";
+ import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+ import userEvent from "@testing-library/user-event";
+ import { beforeEach, expect, it, vi } from "vitest";
+@@ -64,7 +65,7 @@
+   vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [turn()] }));
+   render(<OrchestratorPanel projectId="p-1" />);
+   await screen.findByRole("button", { name: "Review design" });
+-  expect(orchestratorApi.get).toHaveBeenCalledWith("p-1");
++  expect(orchestratorApi.get).toHaveBeenCalledWith("p-1", undefined, expect.any(AbortSignal));
+   expect(screen.getByRole("region", { name: "Current project understanding" })).not.toBeNull();
+   // A hidden subtree is still allocated. The untouched discussion must have no
+   // composer, history or provider presentation, while its parent keeps context.
+@@ -115,7 +116,7 @@
+   expect(composer.value).toBe("Only project one");
+   const retained = readComposerRecovery(decisionScope());
+   mounted.rerender(<OrchestratorPanel projectId="p-2" />);
+-  await waitFor(() => expect(orchestratorApi.get).toHaveBeenCalledWith("p-2"));
++  await waitFor(() => expect(orchestratorApi.get).toHaveBeenCalledWith("p-2", undefined, expect.any(AbortSignal)));
+   expect(composer.isConnected).toBe(false);
+   expect(screen.queryByLabelText("Message Luci")).toBeNull();
+   await userEvent.click(screen.getByText("Discuss or request a change"));
+@@ -1394,3 +1395,90 @@
+   expect((screen.getByLabelText("Message Luci") as HTMLTextAreaElement).value).toBe("");
+   expect(orchestratorApi.send).not.toHaveBeenCalled();
+ });
++
++
++it("aborts only the abandoned project's display refresh and fences its late private result", async () => {
++  const reads: { id: string; signal: AbortSignal; finish(value: OrchestratorView): void }[] = [];
++  vi.mocked(orchestratorApi.get).mockImplementation((id, before, signal) => new Promise(finish => {
++    expect(before).toBeUndefined(); expect(signal).toBeInstanceOf(AbortSignal); reads.push({ id, signal: signal!, finish });
++  }));
++  const mounted = render(<OrchestratorPanel projectId="p-1" />);
++  mounted.rerender(<OrchestratorPanel projectId="p-2" />);
++  expect(reads).toHaveLength(2); expect(reads[0].signal.aborted).toBe(true); expect(reads[1].signal.aborted).toBe(false);
++  await act(async () => reads[0].finish(view({ turns: [turn()] })));
++  expect(screen.queryByText("Support guest checkout")).toBeNull();
++  const current = context("p-2"); current.specification.purpose = "Project B current purpose";
++  await act(async () => reads[1].finish(view({ projectId: "p-2", context: current })));
++  expect(screen.getByText("Project B current purpose")).not.toBeNull();
++  mounted.rerender(<OrchestratorPanel projectId="p-1" />);
++  expect(reads).toHaveLength(3); expect(reads[2].signal.aborted).toBe(false);
++  mounted.unmount(); expect(reads[2].signal.aborted).toBe(true);
++  expect(orchestratorApi.cancel).not.toHaveBeenCalled(); expect(orchestratorApi.send).not.toHaveBeenCalled();
++});
++
++it("aborts a superseded display refresh without letting its finally clear the newer request", async () => {
++  const reads: { signal: AbortSignal; fail(cause: unknown): void }[] = [];
++  vi.mocked(orchestratorApi.get).mockImplementation((_id, _before, signal) => new Promise((_resolve, fail) => reads.push({ signal: signal!, fail })));
++  const mounted = render(<OrchestratorPanel projectId="p-1" />);
++  act(() => notifyProjectContextChanged(decisionScope(), "p-1"));
++  expect(reads).toHaveLength(2); expect(reads[0].signal.aborted).toBe(true); expect(reads[1].signal.aborted).toBe(false);
++  await act(async () => reads[0].fail(new Error("Late canceled read failure")));
++  expect(screen.queryByText("Late canceled read failure")).toBeNull();
++  mounted.unmount(); expect(reads[1].signal.aborted).toBe(true);
++  await act(async () => reads[1].fail(reads[1].signal.reason));
++});
++
++it("uses a fresh display controller after StrictMode cleanup without accepting canceled context", async () => {
++  const reads: { signal: AbortSignal; finish(value: OrchestratorView): void }[] = [];
++  vi.mocked(orchestratorApi.get).mockImplementation((_id, _before, signal) => new Promise(finish => reads.push({ signal: signal!, finish })));
++  const mounted = render(<StrictMode><OrchestratorPanel projectId="p-1" /></StrictMode>);
++  expect(reads).toHaveLength(2); expect(reads[0].signal.aborted).toBe(true); expect(reads[1].signal.aborted).toBe(false);
++  await act(async () => reads[0].finish(view({ turns: [turn()] })));
++  expect(screen.queryByText("Support guest checkout")).toBeNull();
++  await act(async () => reads[1].finish(view()));
++  await screen.findByRole("button", { name: "Review design" }); mounted.unmount();
++});
++
++it("preserves unsent recovery and does not abort display reads for Edit-only churn but does for Read loss", async () => {
++  const reads: { signal: AbortSignal; finish(value: OrchestratorView): void }[] = [];
++  saveComposerDraft(decisionScope(), null, "Keep this draft", ""); const before = readComposerRecovery(decisionScope());
++  vi.mocked(orchestratorApi.get).mockImplementation((_id, _sequence, signal) => new Promise(finish => reads.push({ signal: signal!, finish })));
++  const mounted = render(<OrchestratorPanel projectId="p-1" />);
++  identity.edit = false; mounted.rerender(<OrchestratorPanel projectId="p-1" />);
++  expect(reads).toHaveLength(1); expect(reads[0].signal.aborted).toBe(false);
++  identity.read = false; mounted.rerender(<OrchestratorPanel projectId="p-1" />);
++  expect(reads[0].signal.aborted).toBe(true); expect(readComposerRecovery(decisionScope())).toEqual(before);
++  identity.read = true; mounted.rerender(<OrchestratorPanel projectId="p-1" />);
++  expect(reads).toHaveLength(2); expect(reads[1].signal.aborted).toBe(false);
++  await act(async () => reads[0].finish(view({ turns: [turn()] })));
++  expect(screen.queryByText("Support guest checkout")).toBeNull();
++  await act(async () => reads[1].finish(view()));
++  expect(readComposerRecovery(decisionScope())).toEqual(before);
++});
++
++it("display cleanup does not cancel or replay an acknowledged-late send or clear its durable identity early", async () => {
++  let finish!: (value: OrchestratorJob) => void;
++  vi.mocked(orchestratorApi.send).mockReturnValue(new Promise(resolve => { finish = resolve; }));
++  const mounted = render(<OrchestratorPanel projectId="p-1" />); await ready();
++  await userEvent.type(screen.getByLabelText("Message Luci"), "Retain the exact pending request");
++  await userEvent.click(screen.getByRole("button", { name: "Send to Luci" }));
++  const pending = readComposerRecovery(decisionScope()); expect(pending.pending).toHaveLength(1);
++  expect(vi.mocked(orchestratorApi.send).mock.calls[0]).toHaveLength(2);
++  mounted.unmount(); expect(readComposerRecovery(decisionScope())).toEqual(pending);
++  await act(async () => finish(job()));
++  expect(readComposerRecovery(decisionScope()).pending).toHaveLength(0);
++  expect(orchestratorApi.send).toHaveBeenCalledOnce(); expect(orchestratorApi.cancel).not.toHaveBeenCalled();
++});
++
++it("keeps post-send readback outside display cancellation ownership", async () => {
++  const mounted = render(<OrchestratorPanel projectId="p-1" />); await ready();
++  let finish!: (value: OrchestratorView) => void;
++  vi.mocked(orchestratorApi.get).mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
++  await userEvent.type(screen.getByLabelText("Message Luci"), "Accepted request with a delayed readback");
++  await userEvent.click(screen.getByRole("button", { name: "Send to Luci" }));
++  const calls = vi.mocked(orchestratorApi.get).mock.calls;
++  expect(calls[calls.length - 1]).toEqual(["p-1"]);
++  expect(readComposerRecovery(decisionScope()).pending).toHaveLength(0);
++  mounted.unmount(); await act(async () => finish(view()));
++  expect(orchestratorApi.send).toHaveBeenCalledOnce(); expect(orchestratorApi.cancel).not.toHaveBeenCalled();
++});
+--- a/desktop/src/components/orchestrator/OrchestratorPanel.tsx
++++ b/desktop/src/components/orchestrator/OrchestratorPanel.tsx
+@@ -92,6 +92,13 @@
+     ? "Keep your verification setup for later by changing phase and choosing Keep drafts and continue, or discard the setup before applying this amendment."
+     : "Your verification setup is not retained in this browser. Copy the command text you need, then discard the setup before applying this amendment." : "";
+   const alive = useRef(true), generation = useRef(0), viewRead = useRef(0), working = useRef(false), latest = useRef(view);
++  // Only display refreshes own this signal. Sends, jobs and post-write readback
++  // keep their existing durable request and observation lifecycles.
++  const refreshController = useRef<AbortController | null>(null);
++  const abortRefresh = useCallback(() => {
++    const controller = refreshController.current; refreshController.current = null;
++    controller?.abort();
++  }, []);
+   const permission = useRef(access); permission.current = access;
+   const messageRef = useRef(message); messageRef.current = message;
+   const replyToRef = useRef(replyTo); replyToRef.current = replyTo;
+@@ -124,33 +131,38 @@
+   const forgetPrivateRead = useCallback(() => {
+     // A confirmed read refusal supersedes cached permissions and every pending read.
+     // Keep the user's unsent local draft and durable paid-request identity intact.
+-    generation.current++; viewRead.current++; decisionRequest.current++;
++    generation.current++; viewRead.current++; decisionRequest.current++; abortRefresh();
+     latest.current = null; working.current = false;
+     setView(null); setEarlier([]); setPage(null); setReview(null); setSuggestedReply(null);
+     setPendingJob(null); setMissingJobId(""); setDecisionFocus(null); setDecisionNotice("");
+     setBusy(""); setLoading(false); setContextStale(true);
+     cancelEditRequest.current?.(); cancelEditRequest.current = null;
+-  }, []);
++  }, [abortRefresh]);
+   const refresh = useCallback(async (explicit = false) => {
+     if (!permission.current.canRead || working.current) return;
+     const ticket = ++generation.current;
+     const read = ++viewRead.current;
++    abortRefresh();
++    const controller = new AbortController(); refreshController.current = controller;
+     // Routine observation keeps the last recorded view stable. Explicit refreshes
+     // and known context changes disable derived actions until the new read lands.
+     if (explicit || !latest.current) { setContextStale(true); setLoading(true); }
+     try {
+-      const value = await orchestratorApi.get(projectId);
+-      if (!alive.current || ticket !== generation.current || read !== viewRead.current) return;
++      const value = await orchestratorApi.get(projectId, undefined, controller.signal);
++      if (!alive.current || !permission.current.canRead || controller.signal.aborted || ticket !== generation.current || read !== viewRead.current) return;
+       remember(value); setError("");
+       if (explicit) setUncertain(false); // A retained request remains blocked independently until its exact receipt is resolved.
+-    } catch (cause) { if (alive.current && ticket === generation.current && read === viewRead.current) { setError(errorText(cause)); setContextStale(true); if (readAccessDenied(cause)) forgetPrivateRead(); } }
+-    finally { if (alive.current && ticket === generation.current) setLoading(false); }
+-  }, [projectId, remember, forgetPrivateRead]);
++    } catch (cause) { if (alive.current && !controller.signal.aborted && ticket === generation.current && read === viewRead.current) { setError(errorText(cause)); setContextStale(true); if (readAccessDenied(cause)) forgetPrivateRead(); } }
++    finally {
++      if (refreshController.current === controller) refreshController.current = null;
++      if (alive.current && !controller.signal.aborted && ticket === generation.current) setLoading(false);
++    }
++  }, [projectId, remember, forgetPrivateRead, abortRefresh]);
+ 
+   useEffect(() => {
+     alive.current = true;
+-    return () => { alive.current = false; generation.current++; cancelEditRequest.current?.(); };
+-  }, []);
++    return () => { alive.current = false; generation.current++; abortRefresh(); cancelEditRequest.current?.(); };
++  }, [abortRefresh]);
+   useEffect(() => {
+     if (!canRead || (!canEdit && editRequestNeedsWrite.current)) { cancelEditRequest.current?.(); cancelEditRequest.current = null; }
+   }, [canEdit, canRead]);

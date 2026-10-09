@@ -1,0 +1,176 @@
+{
+  "scope": "Actual accepted candidate source bytes; separately declared clean checkout does not make these diagnostic modifications production source.",
+  "files": {
+    "sustained.mjs": {
+      "sha256": "bc815ec8ae3fc28117d000cf56b24dc3a23907083a2b2c8b7ecdab76e9be84b7",
+      "bytes": 84725,
+      "candidateAndAcceptedMatch": true
+    },
+    "task-command.mjs": {
+      "sha256": "414015af6ea915ccd3c838c3a316b7f08e079b70cc5de299a7991bb0b5f9f6fe",
+      "bytes": 10172,
+      "candidateAndAcceptedMatch": true
+    },
+    "workloads.mjs": {
+      "sha256": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306",
+      "bytes": 18691,
+      "candidateAndAcceptedMatch": true
+    },
+    "interaction-metrics.mjs": {
+      "sha256": "9df7c325211757369a8ac68a92d5e351606ad5c5bf9fda3bbb8fd6e71daf576e",
+      "bytes": 9890,
+      "candidateAndAcceptedMatch": true
+    },
+    "latency-diagnostics.mjs": {
+      "sha256": "8a1c8deba848fe61552a9d4149a7530cafbad61056ba0893d8863a165fa6071d",
+      "bytes": 8481,
+      "candidateAndAcceptedMatch": true
+    },
+    "task-context.mjs": {
+      "sha256": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2",
+      "bytes": 2439,
+      "candidateAndAcceptedMatch": true
+    },
+    "source-binding.mjs": {
+      "sha256": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796",
+      "bytes": 2768,
+      "candidateAndAcceptedMatch": true
+    },
+    "queue-controls.mjs": {
+      "sha256": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0",
+      "bytes": 711,
+      "candidateAndAcceptedMatch": true
+    },
+    "run-with-observer.py": {
+      "sha256": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a",
+      "bytes": 17220,
+      "candidateAndAcceptedMatch": true
+    },
+    "primary-profiler.mjs": {
+      "sha256": "6c811644fa2d15e2cc94f7e717630962867cdda888630e8c2f5588a8a0a8fde7",
+      "bytes": 8480,
+      "candidateAndAcceptedMatch": true
+    },
+    "native-terminal-diagnostics.mjs": {
+      "sha256": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+      "bytes": 6811,
+      "candidateAndAcceptedMatch": true
+    },
+    "sample-linux-owned.py": {
+      "sha256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+      "bytes": 35379,
+      "candidateAndAcceptedMatch": true
+    },
+    "fenced-docker-proxy.mjs": {
+      "sha256": "2b6887af0bad7975c74bac42c8ed7988813e3c72ba615281c727c0ac268b1606",
+      "bytes": 39368,
+      "candidateAndAcceptedMatch": true
+    },
+    "worker-create-guard.mjs": {
+      "sha256": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+      "bytes": 5545,
+      "candidateAndAcceptedMatch": true
+    },
+    "durable-acceptance-journal.mjs": {
+      "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+      "bytes": 6670,
+      "candidateAndAcceptedMatch": true
+    },
+    "acceptance-lifecycle.mjs": {
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "bytes": 4176,
+      "candidateAndAcceptedMatch": true
+    },
+    "acceptance-startup.mjs": {
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "bytes": 4637,
+      "candidateAndAcceptedMatch": true
+    }
+  },
+  "repositoryDependencies": {
+    "desktop/node_modules/playwright/cli.js": "5e79302a6aad7d835d92d5ae6b4244c91cf61b28e94d7917279090e6c231f7a1",
+    "desktop/node_modules/playwright/index.js": "4e98f65f0a9d9bcab8cffc0c5cfdd87fd3f5b0be74fc494ff166a466b204cd44",
+    "desktop/node_modules/playwright/index.mjs": "a0f5715ea22354f922791a9c53dc012d5d5c067ff9cc4cd35ffb7cd272071a9f",
+    "desktop/node_modules/playwright/jsx-runtime.js": "2fefb7ec3a42dcf1cea35ca7e3eb107507c4d80821b1d6abf6cfc9bca36498f0",
+    "desktop/node_modules/playwright/jsx-runtime.mjs": "a6ae8df3a36f154f433b01fe1592170500f5fbe7798f6dacdfea5b492f31d1a6",
+    "desktop/node_modules/playwright/lib/agents/agentParser.js": "a2f630c1c2c9eafa0a3ca9cdbeaa26e74801615bc572e3fce226acb662ceb0eb",
+    "desktop/node_modules/playwright/lib/agents/generateAgents.js": "3bae7bde1d05c0fbaaa1a82ce7a39732ff52904de575fe88e69c391a6c41478e",
+    "desktop/node_modules/playwright/lib/cli/reportActions.js": "4eeceedf9588d69a153f018aa548e00b73e5f61cb39bb05f0fc87c06131af2b3",
+    "desktop/node_modules/playwright/lib/cli/testActions.js": "844ee2482212864404513729b51871f43d28693b5c98f260e6fbc5d7bf02827f",
+    "desktop/node_modules/playwright/lib/common/index.js": "f4a6b14f5ba21a118b58a6a25eb0b281a3acc4157023b014e0197145056124a4",
+    "desktop/node_modules/playwright/lib/errorContext.js": "ffc1843cebb3e90e1674c07ee2607a4a63152eff609e5f9865bbb2f9eb02e9a1",
+    "desktop/node_modules/playwright/lib/globals.js": "f5922eb1fb6051900157492eb9c218e62d07378eed135bca4b2f173ed1184d1c",
+    "desktop/node_modules/playwright/lib/index.js": "54bf5935cf339938408c656bde958047a1217bf77434acdf75a0c717cddaaeae",
+    "desktop/node_modules/playwright/lib/isomorphic.js": "3d61508f951aa9518adb4bf6594d61dfd1099c95a1a4f0af809a58ccebc59025",
+    "desktop/node_modules/playwright/lib/loader/loaderProcessEntry.js": "45681332f4178770c204b33e5b8dcbba940baf3bc6fc86506bab24027cb513f3",
+    "desktop/node_modules/playwright/lib/matchers/expect.js": "5ef2a695e787386367f4b1e03c79b05100b5526121462b24d7730a731689d941",
+    "desktop/node_modules/playwright/lib/mcp/test/browserBackend.js": "703f307d1c3e746291b625f886af3d3d28fc0a868b8b2a66173a75bd895ccddc",
+    "desktop/node_modules/playwright/lib/mcp/test/generatorTools.js": "3c53feaeb9fc2ff728f334cb31f9b7211e65b20c692c7585459c3c97bdd13a12",
+    "desktop/node_modules/playwright/lib/mcp/test/plannerTools.js": "715abc888d9ea30b532b75c6f09aa34101ab15c1eeb959c50cf9dedcf3a459ac",
+    "desktop/node_modules/playwright/lib/mcp/test/seed.js": "f36f7fb76d4ed33225e80be208cccc9757d363a9d1527cf560736c0f1e5edd31",
+    "desktop/node_modules/playwright/lib/mcp/test/streams.js": "8affc240a6a90ee2dbdedcde9927018efe426ec0d390bcd1ee4f0464e75adc0f",
+    "desktop/node_modules/playwright/lib/mcp/test/testBackend.js": "dcd8d09366617f13213ce544efb5fe47df5a87258ae93545d4d0738623f43ad1",
+    "desktop/node_modules/playwright/lib/mcp/test/testContext.js": "74ff4273ea12e6353d4860c9452387b643d7d8899fbd4951389ba94d18df5e37",
+    "desktop/node_modules/playwright/lib/mcp/test/testTool.js": "2a8f17d0a61ccb8a4ca9c52a3255d624deca989c0b06281d579629c664f8cc8e",
+    "desktop/node_modules/playwright/lib/mcp/test/testTools.js": "14710b5f34246005d974762b83a2a50e5cc17130af841cd3bc447811d69c6af7",
+    "desktop/node_modules/playwright/lib/package.js": "544a18417ea51dd4c8a9f3dbc4e2b47e46c80f452e0cd23d55e9b3680bc6241e",
+    "desktop/node_modules/playwright/lib/program.js": "dfbb7bae1431d99d330320040c03f7e9c6681184c8dcb59008a09da7ada0c409",
+    "desktop/node_modules/playwright/lib/runner/index.js": "7a2e4e1114d3237d61b87723b4d86a37944c9143f3ce2fb0b2e8867e0c612a5e",
+    "desktop/node_modules/playwright/lib/transform/babelBundle.js": "72363941e21434effbc8ce0484fa490d281154499957e0be244d31cee9a1d5a7",
+    "desktop/node_modules/playwright/lib/transform/esmLoader.js": "51a0a75a3aee8ec1dcfd545ad5c45300c282b5c4fe6d0a74b5a6cdcb649ad0de",
+    "desktop/node_modules/playwright/lib/util.js": "874c55495773da8c5a2ec46551c2265937bf08446231c09a8b5966e8bea2b1f7",
+    "desktop/node_modules/playwright/lib/worker/workerProcessEntry.js": "3d6676ca271c075b1e7c8e2cd6ad5331430cf29a3332d1f621054ff7d8e06478",
+    "desktop/node_modules/playwright/package.json": "8bc2ddebe8d9b051b9ecb87d62c6c63877e59d08617f32c3215681ca8bb70998",
+    "desktop/node_modules/playwright/test.js": "b97fa53a6ab864f51c9c48b5e4647d0acae45ba2948c5d78e38bfeb56755d974",
+    "desktop/node_modules/playwright/test.mjs": "1deb265617d0e87b6d05bf8b3d5bf73cd4b788665c249c609a01b94ceff2eea1",
+    "desktop/node_modules/playwright-core/browsers.json": "545d52f8382c391e605562c330e9c1c534a16045898203037a49bb8bd769a946",
+    "desktop/node_modules/playwright-core/cli.js": "f1c4075aef116c766092250d7f37b3249a7cee6465d953207fc38c8f6145becd",
+    "desktop/node_modules/playwright-core/index.js": "a58fb2cec4293e7dcf73c58a179898a4f3986666451a19da4e731fa3af63265b",
+    "desktop/node_modules/playwright-core/index.mjs": "3d36e2132d3c8b62397d23f0bb4177336aaee503203ae2a2c90fbeb5bf3317dd",
+    "desktop/node_modules/playwright-core/lib/bootstrap.js": "4637f4dbfef9cfc01baeb5f5d2cb63fa0901522c96915ea2227290558d27123e",
+    "desktop/node_modules/playwright-core/lib/coreBundle.js": "549070af3acabb3efcc4f55bfe6210f9f7c2fcf633cf7eaa59bfe60719969171",
+    "desktop/node_modules/playwright-core/lib/entry/cliDaemon.js": "062f256fb29a7bf91793a014b9c3f1f9cf2dc6b12e40a8a2ebba88a630ae16a0",
+    "desktop/node_modules/playwright-core/lib/entry/dashboardApp.js": "209962c6eaeef11629f226d6a2ab33ec7a2480754242b6e19590a9e6eb71d126",
+    "desktop/node_modules/playwright-core/lib/entry/mcp.js": "cc87dc0020cb41caebbf04f50e42bc7835b033a6d80e9c3f0a3d0b3dbdf341c7",
+    "desktop/node_modules/playwright-core/lib/entry/oopBrowserDownload.js": "87567cdbd67dd2f50bb232d47d3784701ece7c81e39c0287bb7d1b466b68cf06",
+    "desktop/node_modules/playwright-core/lib/package.js": "9f938e1d44a0dd231b1660ca62f7dae964859b79cbdc370b8542c5d375ca3c05",
+    "desktop/node_modules/playwright-core/lib/server/electron/loader.js": "699fb5564539da34ed72f49e9821af28f9fc06940adb639cac55dc9c477cfe7c",
+    "desktop/node_modules/playwright-core/lib/serverRegistry.js": "38025f08f335705b099b9f188bf45b5908a56a722825fe895b1e90f56d5595b6",
+    "desktop/node_modules/playwright-core/lib/tools/cli-client/channelSessions.js": "6b9c613e87340f48ad7182addd7495a8ff3fbe55feb1bbd0ce04f59f1552e126",
+    "desktop/node_modules/playwright-core/lib/tools/cli-client/cli.js": "dfde8e9dfde30c4b3914eb25ba1c5a8524ec64651d866171d75cd7b41a827180",
+    "desktop/node_modules/playwright-core/lib/tools/cli-client/help.json": "e78d7a22d059196e838d1f076b563eae185b851e3e36063fa4ae77a8dc1415b1",
+    "desktop/node_modules/playwright-core/lib/tools/cli-client/minimist.js": "9430489ebc06fd02231dccfe844516f743e812a9ac4fe8e6748a67718738851c",
+    "desktop/node_modules/playwright-core/lib/tools/cli-client/output.js": "b4c3ebab965e73d621971cd3c76b60c22cf460a0921f14c5c6c51e46e06f02d2",
+    "desktop/node_modules/playwright-core/lib/tools/cli-client/program.js": "55a9a10132c680ecdec25b5000afb12035745ac9e75dd9cc0ef3e5d5e08d7f3e",
+    "desktop/node_modules/playwright-core/lib/tools/cli-client/registry.js": "4976cd5b2b3a25572cc1a4b5f055a756dacd4cc1b19d48987ee3253428e759b8",
+    "desktop/node_modules/playwright-core/lib/tools/cli-client/session.js": "a71e03ba6dc99d6d9cca4577d534daa6d0c20c32e50065311823f41caba29b46",
+    "desktop/node_modules/playwright-core/lib/tools/utils/extension.js": "404ae19e57a7c7c5ed3e6ecf9df26a3fcf95867250732f954823078ccb879e63",
+    "desktop/node_modules/playwright-core/lib/tools/utils/socketConnection.js": "973c2bea70a1f1445f4673f99e9fa351e50a2ec9fd93d7381b2c41bb4de764dd",
+    "desktop/node_modules/playwright-core/lib/utilsBundle.js": "2d1ccc01d21b7d54ca99a6305991d7fb6e072ea4e725d7fec5eb6184188c52c9",
+    "desktop/node_modules/playwright-core/lib/vite/dashboard/assets/codeMirrorModule-CQ8RZGBm.js": "56b9c6a50c09dfac28eea5ec3e76c8ae85a26009b20ebac9928959cf3c3312bb",
+    "desktop/node_modules/playwright-core/lib/vite/dashboard/assets/index-hRvO4yU2.js": "3a05ed0b026442a1459952df25b9a836d4fa1a917838cf6f9357daefc0e42285",
+    "desktop/node_modules/playwright-core/lib/vite/htmlReport/report.js": "3db0c0291241102b14b62af4b80d84dd8169a281bb2ff360c986b9d7da57c339",
+    "desktop/node_modules/playwright-core/lib/vite/recorder/assets/codeMirrorModule-CVQWJZAA.js": "45f900fd93bf33545e6915308a964c49ce342c2e175a54aaef0898f05b25fcf5",
+    "desktop/node_modules/playwright-core/lib/vite/recorder/assets/index-hrlLqLtq.js": "f7f3dfd9113b0119821adf1f3fc873fa5dddba8b2c278014e0fb0ecc1b3f492b",
+    "desktop/node_modules/playwright-core/lib/vite/traceViewer/assets/codeMirrorModule-BbkfBe3n.js": "274b964242426bf4e1c662a84f6345d8a99f67821caa508fb12c52e2d1dfd48c",
+    "desktop/node_modules/playwright-core/lib/vite/traceViewer/assets/defaultSettingsView-Ds6CBOo0.js": "0b48f13034cfa075338cc0839f212297d22cadab9219d9699d161d2b18c79019",
+    "desktop/node_modules/playwright-core/lib/vite/traceViewer/assets/urlMatch-L3liM589.js": "1bc6321e32d11c31a452bc75896f0b344e6153321854d9f1658818be7f845c16",
+    "desktop/node_modules/playwright-core/lib/vite/traceViewer/assets/xtermModule-DywYcAf8.js": "2546783e4f74a432bbccd88a6763cf78ac4e951686262cdf85b54d5a26ca3995",
+    "desktop/node_modules/playwright-core/lib/vite/traceViewer/index.B4cLoZK3.js": "7b96efd541639738a8d46e4b6ba9780ffaf57a5c104db66764e0cec46d9f64e8",
+    "desktop/node_modules/playwright-core/lib/vite/traceViewer/snapshot.B_Jk1wbt.js": "d4d09e05451d107d8e1a6bbd041405fe518b9fd2833890e4ebaaad83b7f554f5",
+    "desktop/node_modules/playwright-core/lib/vite/traceViewer/sw.bundle.js": "37b230329280e28e32b03df20738d2ed3bfd0ea45b408a69213158bb8400adb3",
+    "desktop/node_modules/playwright-core/lib/vite/traceViewer/uiMode.CU5KtEkS.js": "0c0dc5e0c822c27e60420a5c1659683fda89398f1561e43608f9d829eafdc197",
+    "desktop/node_modules/playwright-core/package.json": "f061c58427e47e843e26d201f0a57076c734e57c734ecbbd87d4a23b7a20db9b"
+  },
+  "frozenRuntimeDependencies": {
+    "scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+    "scripts/acceptance/four-project-queue/sample-linux-owned.py": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+    "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs": "2b6887af0bad7975c74bac42c8ed7988813e3c72ba615281c727c0ac268b1606",
+    "scripts/acceptance/launch-recovery/worker-create-guard.mjs": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+    "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+    "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+    "scripts/acceptance/launch-recovery/acceptance-startup.mjs": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680"
+  },
+  "runtimeToolingScope": "All installed playwright/playwright-core JS/MJS/CJS/JSON files, pinned at preparation; tooling is not the product commit",
+  "installedToolingRehashedDuringPublication": false
+}

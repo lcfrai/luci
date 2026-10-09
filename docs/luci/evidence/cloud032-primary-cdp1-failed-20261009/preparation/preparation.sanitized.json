@@ -1,0 +1,146 @@
+{
+  "representation": "sanitized original JSON; exact private-location substitutions only",
+  "original": {
+    "bytes": 6723,
+    "sha256": "7f90c417d98d03c948b2d365c89f7abcfbd2bb2c7376636cf577ef7330d48513"
+  },
+  "value": {
+    "status": "prepared-not-executed",
+    "sourceDirectory": "/workspace/.luci-tools/cloud032-idle-2da1a821/actual",
+    "sourceBindingSHA256": "ee18a3172f01fccb774b1568368681a89a51e2e73cd7c829a13a962debef64c2",
+    "candidateBindingSHA256": "2ff6e2876a946d08e27913039edc8301817d6365b2484eba423e06a65a6a5018",
+    "patchSHA256": "515d658dcc5390f058e308b070d2f0f33a3b1ab9ea2d710811d3871aa1bc30b4",
+    "changes": [
+      {
+        "file": "sustained.mjs",
+        "label": "external profiler only",
+        "oldSHA256": "3bd42e15e5427f946b98b898212af900ed0a4068cff03a37aa2ce1d3a081f2ec",
+        "newSHA256": "8a45bef34bef06022e094cff8339fe6083ed48b869cdfad10549128648ea2eb6"
+      },
+      {
+        "file": "sustained.mjs",
+        "label": "capture profiler source with accepted harness",
+        "oldSHA256": "83b27e4a17db9fa704adf4cd8abed058a63565d9aed1d98d5d64d818926555b9",
+        "newSHA256": "a39d4bc43717405f8273d9b3af72fe3a8fd021199e7614ef856caea74094ff4c"
+      },
+      {
+        "file": "sustained.mjs",
+        "label": "capture exact frozen runtime dependencies",
+        "oldSHA256": "6bdf96d29ad455fc52b029e760db9ef2c86dcc393f6fb0723dd9e9e6eca7675e",
+        "newSHA256": "ff70c7889badd56cd27fef7d088573f38858e45889e6ba340cec80d3ad214c92"
+      },
+      {
+        "file": "sustained.mjs",
+        "label": "import frozen scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs",
+        "oldSHA256": "9c61c4e084b07a940860baccec5d9e3b130b6b8b66970e55539ec4a9fcfa2193",
+        "newSHA256": "84c807124346b50c4b7d12fffbf5dfacc9d558ad17db2c334b27c63e3ca87921"
+      },
+      {
+        "file": "sustained.mjs",
+        "label": "import frozen scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs",
+        "oldSHA256": "d90fec60f1a10fc7a7e46aa6860a0b3773ddb895a6dfe60342cfd66bf399ad9b",
+        "newSHA256": "9556ddbc9a3a1dd0da0be3085f2fc48461f2934a51ad5f4ff4d063b29823217b"
+      },
+      {
+        "file": "sustained.mjs",
+        "label": "import frozen scripts/acceptance/launch-recovery/worker-create-guard.mjs",
+        "oldSHA256": "5a9638388742e7110ec4454baa4e87a578ac448a330a72e46992e3fa0d6670dd",
+        "newSHA256": "52b65711165a28fea2f160c13de0bf80201bac330c6660076115f1f7fd14f30a"
+      },
+      {
+        "file": "sustained.mjs",
+        "label": "import frozen scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs",
+        "oldSHA256": "7e03e4934a2b58a90fdecd8d8dbb30b42ed6f22cd566ecb72703ccd8fc3f60f5",
+        "newSHA256": "1765e813db99564cef80dd1d69c892a66b6c6fa10c8c1b2ade414d9bbcbc288f"
+      },
+      {
+        "file": "sustained.mjs",
+        "label": "import frozen scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs",
+        "oldSHA256": "a0bc80e9727404c3f94822844b6afe62833558a0e8c50f7addd9a1296eaec40e",
+        "newSHA256": "e61e9ba40fc3316df00d654c1cabedc93667ba9db83c73f467c21957597e1f00"
+      },
+      {
+        "file": "sustained.mjs",
+        "label": "import frozen scripts/acceptance/launch-recovery/acceptance-startup.mjs",
+        "oldSHA256": "eeb19d82fee366d8e77c88be37a8b37848e307f86a012bf87e96197c511ecdb3",
+        "newSHA256": "a9e7800bf1fa6359fde99ac84e7e2b07556473ce0aec41ec4337f2017c7d0f8e"
+      },
+      {
+        "file": "sustained.mjs",
+        "label": "verify frozen inputs plus separately recorded installed tooling; retain clean helper checkout guard",
+        "oldSHA256": "9ff559b3be88517444e8175e6d6cc1f502f240d5c93074e1f6169412c5ea4a03",
+        "newSHA256": "4ff0a91dfd8c181decf35bdf4d55e928b977da807c4955a890f2e5f9e11da698"
+      },
+      {
+        "file": "sustained.mjs",
+        "label": "three capture/final hash reads use frozen runtime bytes; receipt labels original paths explicitly",
+        "replacementCount": 3
+      },
+      {
+        "file": "sustained.mjs",
+        "label": "retain profiler for independent failure cleanup",
+        "oldSHA256": "35763a24635b6dcfe6ea3c508de47e65ff8fe51e813265f0c99ea7dba545e75b",
+        "newSHA256": "8b1bde494aa1597821f957e297f21ace84a50371e6a425c83590b231214381e2"
+      },
+      {
+        "file": "sustained.mjs",
+        "label": "trace overlaps exact original primary400; phase and action timings remain unchanged",
+        "oldSHA256": "b90f3b9e717c3d5ed801de338ca4b9094cdce07265e6d03e7dfa3705c65bdab9",
+        "newSHA256": "513251bcfd647ff4887045bd11c3c39df802a6382b97cb635a79e60189813c99"
+      },
+      {
+        "file": "sustained.mjs",
+        "label": "profiler cannot indefinitely prevent existing independent owned-resource cleanup",
+        "oldSHA256": "288e847e91923a1953bc5e33c05ed8fb0cf7581ba3f7c04ce746e8c39f15f6eb",
+        "newSHA256": "dfa7fda7d9cb5a32a653ae4ba5bc2029ca91b764b8f4b55cf5423aeef50325e9"
+      },
+      {
+        "file": "interaction-metrics.mjs",
+        "label": "carry correlation ID in existing frame RPC; no added per-action RPC",
+        "oldSHA256": "cd827e2137121ec9f97cef0d580dea167220f4c531850a53d10f7d5269b4da0c",
+        "newSHA256": "0007d8b0e491921388b3723d6a868fa0c5d0b7b692e115b991c6c9e12e6d5c94"
+      },
+      {
+        "file": "interaction-metrics.mjs",
+        "label": "correlation follows exact retained primary receipt order",
+        "oldSHA256": "d0c1d9429f15d4baa50f112c3ed4b672cd256cc307ae00f63ac7d4940ca4774f",
+        "newSHA256": "36d6c533fdeec446285f50af50aeb1da33e65807b3b9f47787c44481b508a297"
+      },
+      {
+        "file": "latency-diagnostics.mjs",
+        "label": "bounded user-timing joins; no names, values, IDs, URLs or keys",
+        "oldSHA256": "d18fea1efdbc973c55338f494cc1e2a0c035364227a6e1f8e319aaa511ce600f",
+        "newSHA256": "fb15f2055c3fd584d1fb01c3dd81298d6bb14927f113bfecb18b1bfca37e74e5"
+      },
+      {
+        "file": "latency-diagnostics.mjs",
+        "label": "existing passive observer callbacks get exact sequence markers",
+        "oldSHA256": "0cd4dd98e613f93407931936aabd2e331989bb33eb6da965a18f890a69bc212a",
+        "newSHA256": "833f1df3f88415a5098d7403908a0d29168a12455b487e3ca4a736d13b56dee8"
+      },
+      {
+        "file": "latency-diagnostics.mjs",
+        "label": "three marker witnesses inside existing two-frame RPC",
+        "oldSHA256": "bb5144b761121fef0ff04b906c4e5cd05ffad7d6815767f4e95cee1bb83b26dc",
+        "newSHA256": "05f55202134f5833a0b69053d0b28c2a6d363594c14d5e6b838c562e5499b774"
+      }
+    ],
+    "workflowUnchanged": [
+      "60s quiet",
+      "100 switches",
+      "200 inputs",
+      "100 draft resets",
+      "400 ordered primary spans",
+      "original Node start/end timing",
+      "300/100ms p95 limits",
+      "zero Create/Start/provider calls",
+      "private fixture and independent resource cleanup"
+    ],
+    "limitations": [
+      "CDP sampling/markers add overhead; no acceptance comparison or overhead subtraction",
+      "No runtime executed",
+      "Clean dependency checkout and package identity still supplied independently at launch",
+      "Primary input/focus/setup actions unchanged; existing optional follow-up disabled with --trace-after no for this arm"
+    ]
+  }
+}

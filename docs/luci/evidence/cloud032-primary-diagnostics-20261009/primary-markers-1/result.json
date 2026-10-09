@@ -1,0 +1,76 @@
+{
+  "status": "diagnostic procedure completed; not performance acceptance",
+  "productSource": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+  "cleanHelperCheckout": {
+    "commit": "e2f426bb50267a7cceac1f53eb1e00a0a4cc278e",
+    "dirty": false,
+    "expectedSource": "e2f426bb50267a7cceac1f53eb1e00a0a4cc278e",
+    "productSource": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+    "separateHelperRevision": true
+  },
+  "frozenRuntimeOriginalSource": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+  "originalResult": {
+    "bytes": 6976255,
+    "sha256": "8d7716b2cff00aec0d36e4bc3d88597fb19065bc21b323d424babd8118d4f720"
+  },
+  "primaryActions": 400,
+  "allPrimaryActionsSucceeded": true,
+  "quantiles": {
+    "idle-interactive-calibration:project-switch": {
+      "count": 100,
+      "successful": 100,
+      "failed": 0,
+      "p50Ms": 209.9771599999949,
+      "p95Ms": 349.84220399998594,
+      "p99Ms": 504.42570000000705,
+      "maxMs": 557.8391269999993
+    },
+    "idle-interactive-calibration:input": {
+      "count": 200,
+      "successful": 200,
+      "failed": 0,
+      "p50Ms": 47.763712999993004,
+      "p95Ms": 78.43625400000019,
+      "p99Ms": 140.02149799998733,
+      "maxMs": 208.60767599999963
+    },
+    "idle-interactive-calibration:draft-reset": {
+      "count": 100,
+      "successful": 100,
+      "failed": 0,
+      "p50Ms": 249.7106919999933,
+      "p95Ms": 347.8448119999957,
+      "p99Ms": 458.2465450000018,
+      "maxMs": 549.8541789999872
+    }
+  },
+  "profileComplete": true,
+  "originalFailure": null,
+  "weightedCPUAttribution": "withheld-invalid-timing",
+  "traceDataLoss": false,
+  "failureDetails": [],
+  "rawArtifacts": {
+    "browser-cpu.cpuprofile": {
+      "bytes": 701428,
+      "sha256": "5f925f41f6b9a080f590d98a5168786ccbbc7d2d03da0eb0934941f154e89f79",
+      "private": true
+    },
+    "browser-timeline.json": {
+      "bytes": 1032413,
+      "sha256": "c0de6a0d19f2f14b07b25f882465e27e6039a5c556ed9514aeb585c147bec573",
+      "complete": true,
+      "private": true
+    }
+  },
+  "noAcceptanceOrCausalClaim": true,
+  "noNewTestOrRuntime": true,
+  "runtimeCleanupIsOriginalReceipt": {
+    "containers": 0,
+    "volumes": 0,
+    "ownedServiceProcesses": 0,
+    "ownedBrowserProcesses": 0,
+    "protectedImagePackageAndHelpersUnchanged": true,
+    "rootFreeBytes": 6515515392
+  },
+  "independentClosureScope": "Independent read-only diagnostic closure. Known driver PID/start and recorded controller PID absent; exact parent empty. Browser identities not independently captured; no whole-machine or zero-zombie claim."
+}

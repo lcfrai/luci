@@ -1,0 +1,54 @@
+{
+  "baseCommit": "e2f426bb50267a7cceac1f53eb1e00a0a4cc278e",
+  "paths": [
+    {
+      "path": "scripts/build-release.sh",
+      "beforeSHA256": "5e66730a225110b2859c644c263e911aecb2c6999bc419f4bdcb2a25f11866b0",
+      "afterSHA256": "20c6cb96e475066d5fb9a8ac934eb1262c3f324e4ac78ccda42fbd137d9e080d"
+    },
+    {
+      "path": "scripts/build-release.ps1",
+      "beforeSHA256": "147d1e62aba8d3eb78b566cc9bc29be17fab434e9afb486cea3261050885e13c",
+      "afterSHA256": "42c7f005d6644881bc34fed76d42860d4b701bf4d169bf5657b59cf43c280c16"
+    },
+    {
+      "path": "scripts/export-public-source.py",
+      "beforeSHA256": "943922763883025398c9401b049b4f6978dc66da3b69daee3b1e1f9569e32e67",
+      "afterSHA256": "28ae6a6bc97f5d298a3a655fbae858a5d863c5a85c731424e4b0fac17d626fb1"
+    },
+    {
+      "path": "desktop/src-tauri/tauri.conf.json",
+      "beforeSHA256": "fd851d4d924bbebf6b1a91462fc17346e7ec04a7ee5e38849eabe94fe4da6897",
+      "afterSHA256": "ec23a0e26209879b135d26ef29707fe18c5316c983320721581628717653e6bd"
+    },
+    {
+      "path": "desktop/src-tauri/.gitignore",
+      "beforeSHA256": "cb797283dfa5c2149ce16e16f04660f1adc7b1642175db619bceca4bdd6776ed",
+      "afterSHA256": "6ff36be6ce83c65b2e0d415ab696e3f167038633e46a7c1c99eb591a89853cb6"
+    },
+    {
+      "path": "desktop/src-tauri/build.rs",
+      "beforeSHA256": "487059eaf8a947b80f20a9aacac038a5047b2ad69d2401b827376c67d6fe847f",
+      "afterSHA256": "a4c1084898cebdced1ea89d8c54cd5a3a3114cb82395bece542ad3a0a24c8c10"
+    },
+    {
+      "path": "desktop/README.md",
+      "beforeSHA256": "16c8a9589a344177dafcc1442a864347f9cb7d4d7659858503d42fd71f49a793",
+      "afterSHA256": "4ae5bd755b771e40efab84f4769b96e95c2579604bb4a985ce551e3dec3e49b2"
+    },
+    {
+      "path": "scripts/stage-release-docs.py",
+      "beforeSHA256": null,
+      "afterSHA256": "cd06dc154dc088404909a720f5443c55f8f662f60ee5b2b63d72c12d4ab432b9"
+    },
+    {
+      "path": "scripts/test_stage_release_docs.py",
+      "beforeSHA256": null,
+      "afterSHA256": "bca948ce61bbf01ff7ee94f1fbd9d2110d2659100a69de99e682bf355754e644"
+    }
+  ],
+  "scope": "Outside-checkout candidate. Final 14 fixture tests pass; no package/native build. Actual source guide staging refused two existing missing worklist links before writing output.",
+  "testLog": "tests-attempt3.log",
+  "tests": 14,
+  "fixtureSkips": 0
+}

@@ -1,0 +1,85 @@
+--- prior/sustained.mjs
++++ logger/sustained.mjs
+@@ -3,6 +3,7 @@
+ // Approved context/run seeding is labelled API fixture setup; actual task commands finish naturally before human integration.
+ import assert from 'node:assert/strict';
+ import {createPrimaryProfiler} from './primary-profiler.mjs';
++import {createPublicAPISpans} from './public-api-spans.mjs';
+ import { spawn, execFileSync } from 'node:child_process';
+ import { createHash, randomUUID } from 'node:crypto';
+ import { createServer as httpServer } from 'node:http';
+@@ -107,7 +108,7 @@
+ assert.match(bridge, /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/);
+ writeFileSync(join(evidence, 'package-provenance.json'), provenanceBytes, { mode: 0o600, flag: 'wx' });
+ writeFileSync(join(evidence,'image-provenance.json'),readFileSync(resolve(imageEvidencePath)),{mode:0o600,flag:'wx'});
+-const driverNames=['native-terminal-diagnostics.mjs','sample-linux-owned.py','fenced-docker-proxy.mjs','worker-create-guard.mjs','durable-acceptance-journal.mjs','acceptance-lifecycle.mjs','acceptance-startup.mjs','primary-profiler.mjs','sustained.mjs','external-source-binding.json','task-command.mjs','workloads.mjs','interaction-metrics.mjs','latency-diagnostics.mjs','task-context.mjs','source-binding.mjs','queue-controls.mjs','run-with-observer.py'];
++const driverNames=['public-api-spans.mjs','native-terminal-diagnostics.mjs','sample-linux-owned.py','fenced-docker-proxy.mjs','worker-create-guard.mjs','durable-acceptance-journal.mjs','acceptance-lifecycle.mjs','acceptance-startup.mjs','primary-profiler.mjs','sustained.mjs','external-source-binding.json','task-command.mjs','workloads.mjs','interaction-metrics.mjs','latency-diagnostics.mjs','task-context.mjs','source-binding.mjs','queue-controls.mjs','run-with-observer.py'];
+ const reusedHelpers=['four-project-queue/native-terminal-diagnostics.mjs','four-project-queue/sample-linux-owned.py','launch-recovery/fenced-docker-proxy.mjs','launch-recovery/worker-create-guard.mjs','launch-recovery/durable-acceptance-journal.mjs','launch-recovery/acceptance-lifecycle.mjs','launch-recovery/acceptance-startup.mjs'];
+ mkdirSync(join(evidence, 'accepted-harness'), { mode: 0o700 });
+ for (const name of driverNames) writeFileSync(join(evidence, 'accepted-harness', name), readFileSync(new URL(name, import.meta.url)), { mode: 0o600, flag: 'wx' });
+@@ -482,6 +483,7 @@
+  return phases;
+ }
+ // END SUSTAINED CLEANUP WIRING
++const apiSpans=createPublicAPISpans();
+ let engineID,primaryProfiler;
+ try {
+  workflowControl=createWorkflowDeadline({timeoutMs:remaining(),onFailure:stopOnFailure});
+@@ -506,7 +508,7 @@
+  const browserEnv=Object.fromEntries(['PATH','LANG','LC_ALL','TZ'].filter(n=>process.env[n]).map(n=>[n,process.env[n]]));browserEnv.LUCI_SWARM_BROWSER_FIXTURE=fixture;
+  // BEGIN SUSTAINED BROWSER WIRING: exercised with controlled factories only.
+  await startAcceptanceBrowser({scope:startupScope,assertActive:assertWorkflowActive,
+-  launch:()=>chromium.launch({headless:true,executablePath:option('--chromium','/usr/bin/chromium'),env:browserEnv,args:['--no-proxy-server']}),adoptBrowser:handle=>{browser=handle;},closeBrowser:handle=>handle.close(),
++  launch:()=>chromium.launch({logger:apiSpans.logger,headless:true,executablePath:option('--chromium','/usr/bin/chromium'),env:browserEnv,args:['--no-proxy-server']}),adoptBrowser:handle=>{browser=handle;},closeBrowser:handle=>handle.close(),
+   newContext:handle=>handle.newContext({viewport:{width:1440,height:1080},serviceWorkers:'block'}),
+   installRoutes:async context=>{await installBrowserTiming(context);assertWorkflowActive();await context.route('**/*',async route=>{const request=route.request(),url=new URL(request.url());if(closing||fixtureError||workflowControl?.failed){await route.abort('blockedbyclient');return;}if(url.origin!==base){stopOnFailure(Error('Browser external request refused'));await route.abort('blockedbyclient');return;}if(!['GET','HEAD','OPTIONS'].includes(request.method()))receipt.browserMutations.push({stage,method:request.method(),path:url.pathname});await route.continue();});assertWorkflowActive();},
+   newPage:context=>context.newPage(),adoptPage:handle=>{page=handle;},
+@@ -514,14 +516,15 @@
+  assertWorkflowActive();receipt.browserVersion=browser.version();page.setDefaultTimeout(15000);page.on('pageerror',error=>{receipt.browserErrors.push(scrub(error));stopOnFailure(Error('Browser script error'));});
+  // END SUSTAINED BROWSER WIRING
+  for(const owner of projectStates){setStage('prepare-and-queue-'+owner.task);await prepare(owner);await queueOwner(owner);}
+- assert.equal(effects().create,0);await functionalDrafts();interactions=interactionRunner({page,owners:projectStates,receipt,assertHealthy:health,phase:()=>measuredPhase,observe:passiveTiming});await interactions.warm();
++ assert.equal(effects().create,0);await functionalDrafts();interactions=interactionRunner({page,owners:projectStates,receipt,apiSpans,assertHealthy:health,phase:()=>measuredPhase,observe:passiveTiming});await interactions.warm();
+  setStage('idle-baseline');await quietPhase('quiet-app-open-idle');
+  assert.equal(option('--trace-after','no'),'no','CDP-first diagnostic forbids Playwright throttling-changing trace arm');
+  primaryProfiler=createPrimaryProfiler({page,directory:join(evidence,'private-primary-profile'),assertActive:assertWorkflowActive});
+  await primaryProfiler.start();assertWorkflowActive();
+- const idle=phaseStart('idle-interactive-calibration');await interactions.calibrate(100);phaseEnd(idle);await passiveTiming('end-idle-calibration');
++ apiSpans.startWindow();const idle=phaseStart('idle-interactive-calibration');await interactions.calibrate(100);phaseEnd(idle);apiSpans.stopWindow();receipt.publicAPISpans=apiSpans.snapshot();await passiveTiming('end-idle-calibration');
+  receipt.primaryProfiling=await boundedAttempt(()=>primaryProfiler.finish('primary-complete'),10000,'primary-profiling-stop-deadline');
+  assert(receipt.primaryProfiling.complete,'Primary profiling incomplete; preserve original actions and diagnostics');
++ assert(receipt.publicAPISpans.complete,'Public Logger coverage incomplete; no retry-absence or duration attribution claim');
+  receipt.interactionSummary=summarizeInteractions(receipt.interactions);
+  receipt.latencyTargets={measurement:'Original All projects→open saved Define context→two frames; input→expected field→two frames; no physical-input claim',projectSwitchP95Ms:300,inputP95Ms:100,p99StrictlyBelowMs:1000};
+  receipt.targetComparison=Object.fromEntries(['project-switch','input'].map(kind=>{const value=receipt.interactionSummary['idle-interactive-calibration:'+kind];assert.equal(value.count,kind==='input'?200:100);assert.equal(value.failed,0);return[kind,{...value,withinReference:value.p95Ms<=(kind==='input'?100:300)&&value.p99Ms<1000}];}));
+@@ -545,6 +548,7 @@
+  if(page){try{await boundedAttempt(()=>passiveTiming('failure'),cleanupBudget(3000),'failure-timing-deadline-exceeded');}catch{}try{await boundedAttempt(()=>page.screenshot({path:join(evidence,'failed-stage.png'),fullPage:true}),cleanupBudget(3000),'failure-screenshot-deadline-exceeded');}catch{}}
+ }
+ finally {
++ apiSpans.stopWindow();receipt.publicAPISpans=apiSpans.snapshot();
+  beginCleanup();persistFailureCheckpoint();
+  if(primaryProfiler){try{receipt.primaryProfiling=await boundedAttempt(()=>primaryProfiler.finish('workflow-finally'),cleanupBudget(10000),'profiling-finally-deadline');}catch(error){cleanupFailure(error);receipt.primaryProfiling=primaryProfiler.snapshot();}}
+  try {
+--- prior/interaction-metrics.mjs
++++ logger/interaction-metrics.mjs
+@@ -54,7 +54,7 @@
+  };
+ }
+ 
+-export function interactionRunner({page,owners,receipt,assertHealthy,phase,observe=async()=>{}}) {
++export function interactionRunner({page,owners,receipt,assertHealthy,phase,observe=async()=>{},apiSpans}) {
+  const values=new Map(owners.map(owner=>[owner.owner.id,owner.goal]));
+  receipt.interactions??=[];
+  let current;
+@@ -63,9 +63,10 @@
+   assert(receipt.interactions.length<6000,'Bounded interaction measurement count');
+   const item={phase:phase(),kind,projectID:owner.owner.id,at:new Date().toISOString(),success:false};
+   const start=performance.now(),diagnostic=nodeStageRecorder(item,start);
++  apiSpans?.begin(receipt.interactions.length+1,kind,start);
+   let timeout;try {await Promise.race([(async()=>{diagnostic.mark('action-start');await action(diagnostic.mark);diagnostic.mark('action-end');diagnostic.mark('verify-start');await verify();diagnostic.mark('verify-end');diagnostic.mark('frames-start');diagnostic.frames(await frames(receipt.interactions.length+1));diagnostic.mark('frames-end');})(),new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Error('Interaction deadline exceeded after15seconds')),15000);})]);item.success=true;}
+   catch(error){item.error=String(error.message).slice(0,300);throw error;}
+-  finally{clearTimeout(timeout);item.elapsedMs=performance.now()-start;diagnostic.close();receipt.interactions.push(item);}
++  finally{clearTimeout(timeout);item.elapsedMs=performance.now()-start;diagnostic.close();receipt.interactions.push(item);apiSpans?.end(receipt.interactions.length);}
+  }
+  async function switchTo(owner){
+   assertHealthy();

@@ -92,6 +92,13 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
     ? "Keep your verification setup for later by changing phase and choosing Keep drafts and continue, or discard the setup before applying this amendment."
     : "Your verification setup is not retained in this browser. Copy the command text you need, then discard the setup before applying this amendment." : "";
   const alive = useRef(true), generation = useRef(0), viewRead = useRef(0), working = useRef(false), latest = useRef(view);
+  // Only display refreshes own this signal. Sends, jobs and post-write readback
+  // keep their existing durable request and observation lifecycles.
+  const refreshController = useRef<AbortController | null>(null);
+  const abortRefresh = useCallback(() => {
+    const controller = refreshController.current; refreshController.current = null;
+    controller?.abort();
+  }, []);
   const permission = useRef(access); permission.current = access;
   const messageRef = useRef(message); messageRef.current = message;
   const replyToRef = useRef(replyTo); replyToRef.current = replyTo;
@@ -124,33 +131,38 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
   const forgetPrivateRead = useCallback(() => {
     // A confirmed read refusal supersedes cached permissions and every pending read.
     // Keep the user's unsent local draft and durable paid-request identity intact.
-    generation.current++; viewRead.current++; decisionRequest.current++;
+    generation.current++; viewRead.current++; decisionRequest.current++; abortRefresh();
     latest.current = null; working.current = false;
     setView(null); setEarlier([]); setPage(null); setReview(null); setSuggestedReply(null);
     setPendingJob(null); setMissingJobId(""); setDecisionFocus(null); setDecisionNotice("");
     setBusy(""); setLoading(false); setContextStale(true);
     cancelEditRequest.current?.(); cancelEditRequest.current = null;
-  }, []);
+  }, [abortRefresh]);
   const refresh = useCallback(async (explicit = false) => {
     if (!permission.current.canRead || working.current) return;
     const ticket = ++generation.current;
     const read = ++viewRead.current;
+    abortRefresh();
+    const controller = new AbortController(); refreshController.current = controller;
     // Routine observation keeps the last recorded view stable. Explicit refreshes
     // and known context changes disable derived actions until the new read lands.
     if (explicit || !latest.current) { setContextStale(true); setLoading(true); }
     try {
-      const value = await orchestratorApi.get(projectId);
-      if (!alive.current || ticket !== generation.current || read !== viewRead.current) return;
+      const value = await orchestratorApi.get(projectId, undefined, controller.signal);
+      if (!alive.current || !permission.current.canRead || controller.signal.aborted || ticket !== generation.current || read !== viewRead.current) return;
       remember(value); setError("");
       if (explicit) setUncertain(false); // A retained request remains blocked independently until its exact receipt is resolved.
-    } catch (cause) { if (alive.current && ticket === generation.current && read === viewRead.current) { setError(errorText(cause)); setContextStale(true); if (readAccessDenied(cause)) forgetPrivateRead(); } }
-    finally { if (alive.current && ticket === generation.current) setLoading(false); }
-  }, [projectId, remember, forgetPrivateRead]);
+    } catch (cause) { if (alive.current && !controller.signal.aborted && ticket === generation.current && read === viewRead.current) { setError(errorText(cause)); setContextStale(true); if (readAccessDenied(cause)) forgetPrivateRead(); } }
+    finally {
+      if (refreshController.current === controller) refreshController.current = null;
+      if (alive.current && !controller.signal.aborted && ticket === generation.current) setLoading(false);
+    }
+  }, [projectId, remember, forgetPrivateRead, abortRefresh]);
 
   useEffect(() => {
     alive.current = true;
-    return () => { alive.current = false; generation.current++; cancelEditRequest.current?.(); };
-  }, []);
+    return () => { alive.current = false; generation.current++; abortRefresh(); cancelEditRequest.current?.(); };
+  }, [abortRefresh]);
   useEffect(() => {
     if (!canRead || (!canEdit && editRequestNeedsWrite.current)) { cancelEditRequest.current?.(); cancelEditRequest.current = null; }
   }, [canEdit, canRead]);

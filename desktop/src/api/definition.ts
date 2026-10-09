@@ -50,7 +50,9 @@ function repositoryReceipt(value: DefinitionAssistance, projectId: string, key?:
   return value;
 }
 export const definitionApi = {
-  get: (id: string) => productApi.request<ProjectSpecification>(`${path(id)}/specification`),
+  get: (id: string, signal?: AbortSignal) => signal
+    ? productApi.request<ProjectSpecification>(`${path(id)}/specification`, undefined, "GET", 120_000, signal)
+    : productApi.request<ProjectSpecification>(`${path(id)}/specification`),
   save: (id: string, specification: ProjectSpecification, expectedRevision: number, expectedBriefRevision: number) =>
     productApi.request<ProjectSpecification>(`${path(id)}/specification`, { expectedRevision, expectedBriefRevision, specification }),
   approve: (id: string, revision: number, briefRevision: number) =>

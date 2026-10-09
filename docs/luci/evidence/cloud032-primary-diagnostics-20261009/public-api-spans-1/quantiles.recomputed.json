@@ -1,0 +1,36 @@
+{
+  "scope": "Offline nearest-rank recomputation of instrumented diagnostic400, not acceptance",
+  "originalResult": {
+    "bytes": 7126776,
+    "sha256": "c7b6f65b4e219a1f084e98774158ff57a2f1327e088e1b7371860fe076c358a5"
+  },
+  "groups": {
+    "idle-interactive-calibration:project-switch": {
+      "count": 100,
+      "successful": 100,
+      "failed": 0,
+      "p50Ms": 216.01382500000182,
+      "p95Ms": 363.61455299999216,
+      "p99Ms": 516.7081109999854,
+      "maxMs": 528.1762600000075
+    },
+    "idle-interactive-calibration:input": {
+      "count": 200,
+      "successful": 200,
+      "failed": 0,
+      "p50Ms": 47.98383399999875,
+      "p95Ms": 64.93162399998982,
+      "p99Ms": 131.52643500000704,
+      "maxMs": 175.6167129999958
+    },
+    "idle-interactive-calibration:draft-reset": {
+      "count": 100,
+      "successful": 100,
+      "failed": 0,
+      "p50Ms": 251.48121099999116,
+      "p95Ms": 418.41261199998553,
+      "p99Ms": 505.3066039999976,
+      "maxMs": 551.7297109999927
+    }
+  }
+}

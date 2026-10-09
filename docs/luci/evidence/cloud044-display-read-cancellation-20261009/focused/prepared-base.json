@@ -1,0 +1,34 @@
+{
+  "revision": "e2f426bb50267a7cceac1f53eb1e00a0a4cc278e",
+  "scope": "external candidate only; no tests executed",
+  "files": [
+    {
+      "path": "desktop/src/api/definition.ts",
+      "sha256": "209773e56dba446e764bff33cb8e7c6d5874bd9a0e8444eb7e693daf3dcd2c8f"
+    },
+    {
+      "path": "desktop/src/api/orchestrator.ts",
+      "sha256": "0a9ac7f2e38b19842c27bd87339b2689ee2f6c663ced42c48f9ffd7e437e5292"
+    },
+    {
+      "path": "desktop/src/api/orchestrator.test.ts",
+      "sha256": "8de13da860e8808aca3fc7c8a27c36645916a5eec59ecd629a0cb40194c71cac"
+    },
+    {
+      "path": "desktop/src/components/definition/DefinitionWorkspace.tsx",
+      "sha256": "71c17a92ff737948bfac6e4f476d2857aaf57f6f6b12b50227f8050891e5b484"
+    },
+    {
+      "path": "desktop/src/components/definition/DefinitionWorkspace.test.tsx",
+      "sha256": "c6f00d766c06d743b89feaefabe578679f7eb825a711b4ee6ca25f9607fbcc08"
+    },
+    {
+      "path": "desktop/src/components/orchestrator/OrchestratorPanel.tsx",
+      "sha256": "04dc2ff380bb73c377f89d097265e179728a6ad9eb54c8c84b68fa353c81795d"
+    },
+    {
+      "path": "desktop/src/components/orchestrator/OrchestratorPanel.test.tsx",
+      "sha256": "f12c434e55030f64baa98347d6bd8e4bc4ced481f949b512d3eff75a1f75806f"
+    }
+  ]
+}

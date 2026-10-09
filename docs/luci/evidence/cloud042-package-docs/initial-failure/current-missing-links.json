@@ -1,0 +1,18 @@
+{
+  "scope": "Read-only current guide href path audit using candidate parser; fragments preserved but anchors not validated.",
+  "sourceCommit": "e2f426bb50267a7cceac1f53eb1e00a0a4cc278e",
+  "missing": [
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 37,
+      "writtenTarget": "evidence/check6-terminal-retirement-20261009/README.md",
+      "resolvedPath": "docs/luci/evidence/check6-terminal-retirement-20261009/README.md"
+    },
+    {
+      "document": "docs/luci/QUALITY-WORKLIST.md",
+      "line": 37,
+      "writtenTarget": "evidence/check8-terminal-retirement-20261009/README.md",
+      "resolvedPath": "docs/luci/evidence/check8-terminal-retirement-20261009/README.md"
+    }
+  ]
+}

@@ -37,11 +37,11 @@
       "runtime/": "runtime/",
       "licenses/": "licenses/",
       "cloud/": "cloud/",
-      "../../docs/UAT.md": "docs/UAT.md",
-      "../../docs/RUNBOOK.md": "docs/RUNBOOK.md",
-      "../../docs/luci/": "docs/luci/",
-      "../../DESIGN.md": "DESIGN.md",
-      "../../README.md": "README.md"
+      "guides/docs/": "docs/",
+      "guides/DESIGN.md": "DESIGN.md",
+      "guides/README.md": "README.md",
+      "guides/LICENSE": "LICENSE",
+      "guides/NOTICE": "NOTICE"
     },
     "externalBin": [
       "binaries/luci-api"

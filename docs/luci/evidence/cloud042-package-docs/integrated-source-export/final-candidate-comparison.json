@@ -1,0 +1,45 @@
+{
+  "scope": "Six captured executable/configuration candidate inputs match the final candidate. README and .gitignore are not among the 30 integrated source-export captures; their bytes remain separately bound in candidate.json. This does not claim whole-checkout closure.",
+  "files": [
+    {
+      "path": "scripts/build-release.sh",
+      "capturedByIntegratedSourceExport": true,
+      "matchesFinalCandidate": true
+    },
+    {
+      "path": "scripts/build-release.ps1",
+      "capturedByIntegratedSourceExport": true,
+      "matchesFinalCandidate": true
+    },
+    {
+      "path": "scripts/export-public-source.py",
+      "capturedByIntegratedSourceExport": true,
+      "matchesFinalCandidate": true
+    },
+    {
+      "path": "desktop/src-tauri/tauri.conf.json",
+      "capturedByIntegratedSourceExport": true,
+      "matchesFinalCandidate": true
+    },
+    {
+      "path": "desktop/src-tauri/.gitignore",
+      "capturedByIntegratedSourceExport": false,
+      "matchesFinalCandidate": null
+    },
+    {
+      "path": "desktop/README.md",
+      "capturedByIntegratedSourceExport": false,
+      "matchesFinalCandidate": null
+    },
+    {
+      "path": "scripts/stage-release-docs.py",
+      "capturedByIntegratedSourceExport": true,
+      "matchesFinalCandidate": true
+    },
+    {
+      "path": "scripts/test_stage_release_docs.py",
+      "capturedByIntegratedSourceExport": true,
+      "matchesFinalCandidate": true
+    }
+  ]
+}

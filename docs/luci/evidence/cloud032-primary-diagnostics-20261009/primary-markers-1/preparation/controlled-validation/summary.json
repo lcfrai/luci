@@ -1,0 +1,133 @@
+{
+  "representation": "sanitized original JSON; exact private-location substitutions only",
+  "original": {
+    "bytes": 4411,
+    "sha256": "788a763ca09f0784f75b58e70f01221c22032ce05849ac0bd0a46803a02b2442"
+  },
+  "value": {
+    "scope": "Controlled helper/analysis/path fixtures and syntax only; no app/browser/Docker/provider workload",
+    "candidateBindingSHA256": "6efa2bffae8fd8022d3179b10cca14286788202a0c9fafa451e4576cd64999d9",
+    "sourceInputs": 25,
+    "sourcesUnchanged": true,
+    "commands": [
+      {
+        "name": "node-pure",
+        "command": [
+          "node",
+          "--test",
+          "primary-profiler.test.mjs",
+          "passive-observer.test.mjs"
+        ],
+        "startedAt": "2026-10-09T02:52:52.882927+00:00",
+        "finishedAt": "2026-10-09T02:52:53.600316+00:00",
+        "exitCode": 0,
+        "timeout": false,
+        "stdoutSHA256": "6488590783534bb2b6b0aec005253752d4229913685128aed5deeeb059179c6f",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "short-socket-pure",
+        "command": [
+          "python3",
+          "test_short_socket.py"
+        ],
+        "startedAt": "2026-10-09T02:52:53.600560+00:00",
+        "finishedAt": "2026-10-09T02:52:53.716169+00:00",
+        "exitCode": 0,
+        "timeout": false,
+        "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderrSHA256": "4a5a465d5a324ddf23e5a28d99f42446671feb5f6236f744d8baf28ae4c4860b"
+      },
+      {
+        "name": "analyzer-pure",
+        "command": [
+          "python3",
+          "test_analyzer.py"
+        ],
+        "startedAt": "2026-10-09T02:52:53.716336+00:00",
+        "finishedAt": "2026-10-09T02:52:54.182150+00:00",
+        "exitCode": 0,
+        "timeout": false,
+        "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderrSHA256": "7b9011635efb5bbbe8f543b1210cc0455276c3d7891c5fff5c65fed1c664d205"
+      },
+      {
+        "name": "driver-syntax",
+        "command": [
+          "node",
+          "--check",
+          "candidate/sustained.mjs"
+        ],
+        "startedAt": "2026-10-09T02:52:54.182383+00:00",
+        "finishedAt": "2026-10-09T02:52:54.246986+00:00",
+        "exitCode": 0,
+        "timeout": false,
+        "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "latency-syntax",
+        "command": [
+          "node",
+          "--check",
+          "candidate/latency-diagnostics.mjs"
+        ],
+        "startedAt": "2026-10-09T02:52:54.247170+00:00",
+        "finishedAt": "2026-10-09T02:52:54.311643+00:00",
+        "exitCode": 0,
+        "timeout": false,
+        "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "profiler-syntax",
+        "command": [
+          "node",
+          "--check",
+          "candidate/primary-profiler.mjs"
+        ],
+        "startedAt": "2026-10-09T02:52:54.311817+00:00",
+        "finishedAt": "2026-10-09T02:52:54.379689+00:00",
+        "exitCode": 0,
+        "timeout": false,
+        "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "interaction-syntax",
+        "command": [
+          "node",
+          "--check",
+          "candidate/interaction-metrics.mjs"
+        ],
+        "startedAt": "2026-10-09T02:52:54.380295+00:00",
+        "finishedAt": "2026-10-09T02:52:54.555677+00:00",
+        "exitCode": 0,
+        "timeout": false,
+        "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "python-syntax",
+        "command": [
+          "python3",
+          "-m",
+          "py_compile",
+          "launch.py",
+          "analyze.py",
+          "test_short_socket.py",
+          "test_analyzer.py"
+        ],
+        "startedAt": "2026-10-09T02:52:54.562391+00:00",
+        "finishedAt": "2026-10-09T02:52:54.689506+00:00",
+        "exitCode": 0,
+        "timeout": false,
+        "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "passed": true,
+    "sourcesBeforeSHA256": "4ddc1e814fd7125dfd6ac291ed0cb115cc23e47b82cd5464b97dfe8a9eec24e0",
+    "sourcesAfterSHA256": "4ddc1e814fd7125dfd6ac291ed0cb115cc23e47b82cd5464b97dfe8a9eec24e0"
+  }
+}

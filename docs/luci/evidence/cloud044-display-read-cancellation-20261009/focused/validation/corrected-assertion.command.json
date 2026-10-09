@@ -1,0 +1,16 @@
+{
+  "command": [
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--maxWorkers=1",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/project-read-cancellation-candidate/validation/corrected-assertion.json",
+    "src/components/orchestrator/OrchestratorPanel.test.tsx",
+    "-t",
+    "keeps post-send readback outside display cancellation ownership"
+  ],
+  "startedAt": "2026-10-09T03:21:03.476648+00:00",
+  "elapsedSeconds": 4.8342354260094,
+  "exitCode": 0
+}

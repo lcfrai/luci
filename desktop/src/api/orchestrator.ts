@@ -101,8 +101,12 @@ function verifiedJob(value: OrchestratorJob, projectId: string): OrchestratorJob
   return value;
 }
 export const orchestratorApi = {
-  async get(projectId: string, before?: number) {
-    return verifiedView(await productApi.request<OrchestratorView>(`${route(projectId)}/orchestrator${before === undefined ? "" : `?before=${encodeURIComponent(before)}`}`), projectId);
+  async get(projectId: string, before?: number, signal?: AbortSignal) {
+    const path = `${route(projectId)}/orchestrator${before === undefined ? "" : `?before=${encodeURIComponent(before)}`}`;
+    const value = await (signal
+      ? productApi.request<OrchestratorView>(path, undefined, "GET", 120_000, signal)
+      : productApi.request<OrchestratorView>(path));
+    return verifiedView(value, projectId);
   },
   async send(projectId: string, input: OrchestratorRequest) {
     return verifiedJob(await productApi.request<OrchestratorJob>(`${route(projectId)}/assist/orchestrator`, input), projectId);

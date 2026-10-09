@@ -1,0 +1,166 @@
+--- frozen/sustained.mjs
++++ candidate/sustained.mjs
+@@ -2,6 +2,7 @@
+ // Installed sustained mixed-work witness. Real Docker/native commands; explicitly scripted provider.
+ // Approved context/run seeding is labelled API fixture setup; actual task commands finish naturally before human integration.
+ import assert from 'node:assert/strict';
++import {createPrimaryProfiler} from './primary-profiler.mjs';
+ import { spawn, execFileSync } from 'node:child_process';
+ import { createHash, randomUUID } from 'node:crypto';
+ import { createServer as httpServer } from 'node:http';
+@@ -27,9 +28,9 @@
+ const report = resolve(option('--report', 'artifacts/quality-swarm/sustained-mixed/attempt-' + Date.now() + '/result.json')), evidence = dirname(report);
+ if (existsSync(evidence)) assert.equal(readdirSync(evidence).length, 0, 'Use a fresh evidence directory; prior failures must remain');
+ mkdirSync(evidence, { recursive: true, mode: 0o700 });
+-const {createAcceptanceJournal,diagnosticError,journalProcessIdentity}=await import(join(repo,'scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs'));
+-const {createWorkflowDeadline,boundedAttempt,runBoundedCleanup,writeFailureCheckpoint,settleOwnedBrowser}=await import(join(repo,'scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs'));
+-const {createStartupScope,startAcceptanceServices,startAcceptanceBrowser}=await import(join(repo,'scripts/acceptance/launch-recovery/acceptance-startup.mjs'));
++const {createAcceptanceJournal,diagnosticError,journalProcessIdentity}=await import(join(here,'durable-acceptance-journal.mjs'));
++const {createWorkflowDeadline,boundedAttempt,runBoundedCleanup,writeFailureCheckpoint,settleOwnedBrowser}=await import(join(here,'acceptance-lifecycle.mjs'));
++const {createStartupScope,startAcceptanceServices,startAcceptanceBrowser}=await import(join(here,'acceptance-startup.mjs'));
+ 
+ const journal=createAcceptanceJournal(join(evidence,'diagnostic-journal.jsonl'));
+ journal.record('driver-start',{...journalProcessIdentity(),deadlineMs:DRIVER_TOTAL_MS,stage:'preparation'});
+@@ -39,9 +40,9 @@
+ const preparationHardStop=setTimeout(()=>{const error=Object.assign(Error('Preparation deadline exceeded'),{code:'preparation-deadline-exceeded'});try{journal.record('driver-caught-failure',{stage:'preparation',...diagnosticError(error)});writeFailureCheckpoint(report,preparationCheckpoint(error));}catch{}process.exit(1);},Math.max(1,preparationDeadline-Date.now()));
+ for(const signal of ['SIGTERM','SIGINT'])process.on(signal,()=>{if(!preparationActive)return;const error=Object.assign(Error('Preparation interrupted'),{code:'preparation-interrupted'});try{journal.record('driver-signal',{stage:'preparation',signal});writeFailureCheckpoint(report,{...preparationCheckpoint(error),signal});}catch{}process.exit(1);});
+ const {chromium}=await import(join(repo,'desktop/node_modules/playwright/index.mjs'));
+-const {validateWorkerCreate}=await import(join(repo,'scripts/acceptance/launch-recovery/worker-create-guard.mjs'));
+-const {startFencedDockerProxy}=await import(join(repo,'scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs'));
+-const {createNativeTerminalProbe}=await import(join(repo,'scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs'));
++const {validateWorkerCreate}=await import(join(here,'worker-create-guard.mjs'));
++const {startFencedDockerProxy}=await import(join(here,'fenced-docker-proxy.mjs'));
++const {createNativeTerminalProbe}=await import(join(here,'native-terminal-diagnostics.mjs'));
+ 
+ const taskContextVersion=Number(option('--task-context-version','1')); assert(taskContextVersion===1||taskContextVersion===2,'Explicit trusted context version must be1or2');
+ const binary = resolve(option('--binary', 'artifacts/luci')), web = resolve(option('--web', 'desktop/dist'));
+@@ -59,7 +60,8 @@
+ const externalBinding=JSON.parse(readFileSync(join(here,'external-source-binding.json'),'utf8'));
+ assert.equal(realpathSync(here),externalBinding.executionDirectory);
+ for(const [name,expected] of Object.entries(externalBinding.localSources)) assert.equal(sha(readFileSync(join(here,name))),expected,'External diagnostic source changed: '+name);
+-for(const [name,expected] of Object.entries(externalBinding.repositoryDependencies)) assert.equal(sha(readFileSync(join(repo,name))),expected,'Captured repository dependency changed: '+name);
++for(const [name,expected] of Object.entries(externalBinding.frozenRuntimeDependencies)) assert.equal(sha(readFileSync(join(here,name.split('/').at(-1)))),expected,'Frozen runtime dependency changed: '+name);
++for(const [name,expected] of Object.entries(externalBinding.repositoryDependencies)) assert.equal(sha(readFileSync(join(repo,name))),expected,'Recorded runtime tooling changed: '+name);
+ const sourceBindingOptions=parseSourceBindingOptions(args);
+ function verifySourceBinding(){return validateSourceBinding({provenance,...sourceBindingOptions,helperCommit:execFileSync('git',['rev-parse','HEAD'],{cwd:repo,encoding:'utf8',timeout:Math.ceil(commandBudget(15000))}).trim(),helperDirty:!!execFileSync('git',['status','--porcelain'],{cwd:repo,encoding:'utf8',timeout:Math.ceil(commandBudget(15000))}).trim()});}
+ const harnessCheckout=verifySourceBinding();
+@@ -105,11 +107,11 @@
+ assert.match(bridge, /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/);
+ writeFileSync(join(evidence, 'package-provenance.json'), provenanceBytes, { mode: 0o600, flag: 'wx' });
+ writeFileSync(join(evidence,'image-provenance.json'),readFileSync(resolve(imageEvidencePath)),{mode:0o600,flag:'wx'});
+-const driverNames=['sustained.mjs','external-source-binding.json','task-command.mjs','workloads.mjs','interaction-metrics.mjs','latency-diagnostics.mjs','task-context.mjs','source-binding.mjs','queue-controls.mjs','run-with-observer.py'];
++const driverNames=['native-terminal-diagnostics.mjs','sample-linux-owned.py','fenced-docker-proxy.mjs','worker-create-guard.mjs','durable-acceptance-journal.mjs','acceptance-lifecycle.mjs','acceptance-startup.mjs','primary-profiler.mjs','sustained.mjs','external-source-binding.json','task-command.mjs','workloads.mjs','interaction-metrics.mjs','latency-diagnostics.mjs','task-context.mjs','source-binding.mjs','queue-controls.mjs','run-with-observer.py'];
+ const reusedHelpers=['four-project-queue/native-terminal-diagnostics.mjs','four-project-queue/sample-linux-owned.py','launch-recovery/fenced-docker-proxy.mjs','launch-recovery/worker-create-guard.mjs','launch-recovery/durable-acceptance-journal.mjs','launch-recovery/acceptance-lifecycle.mjs','launch-recovery/acceptance-startup.mjs'];
+ mkdirSync(join(evidence, 'accepted-harness'), { mode: 0o700 });
+ for (const name of driverNames) writeFileSync(join(evidence, 'accepted-harness', name), readFileSync(new URL(name, import.meta.url)), { mode: 0o600, flag: 'wx' });
+-for (const name of reusedHelpers) writeFileSync(join(evidence,'accepted-harness',name.replaceAll('/','_')),readFileSync(join(repo,'scripts/acceptance',name)),{mode:0o600,flag:'wx'});
++for (const name of reusedHelpers) writeFileSync(join(evidence,'accepted-harness',name.replaceAll('/','_')),readFileSync(join(here,name.split('/').at(-1))),{mode:0o600,flag:'wx'});
+ const fixtureParent = resolve(option('--fixture-root', 'artifacts/quality-swarm/private-fixtures')); mkdirSync(fixtureParent, {recursive:true,mode:0o700});
+ const fixture = mkdtempSync(join(fixtureParent,'luci-sustained-'));
+ for (const folder of ['home', 'projects', 'state', 'docker']) mkdirSync(join(fixture, folder), { mode: 0o700 });
+@@ -122,7 +124,7 @@
+   resourceScope: 'At most five real workers across four projects, one at a time; four initial150s fuzz phases and one short reviewed amendment. Worker handoff reports are intentionally not fabricated by this scripted workload; missing reports remain explicit and do not prove no questions. Zero existing containers and six GiB root admission before every Create, no recovery fences allowed; hard one GiB running reserve. No image pulls, release or cloud allocation.',
+   binarySHA256: sha(readFileSync(binary)), webIndexSHA256: sha(readFileSync(join(web, 'index.html'))), driverSHA256: sha(readFileSync(fileURLToPath(import.meta.url))),
+   helperSHA256: Object.fromEntries(driverNames.filter(name=>name!=='sustained.mjs').map(name => [name, sha(readFileSync(new URL(name, import.meta.url)))])),
+-  reusedHelperSHA256:Object.fromEntries(reusedHelpers.map(name=>['scripts/acceptance/'+name,sha(readFileSync(join(repo,'scripts/acceptance',name)))])),
++  reusedHelperSHA256:Object.fromEntries(reusedHelpers.map(name=>['frozen-runtime-original-path/scripts/acceptance/'+name,sha(readFileSync(join(here,name.split('/').at(-1))))])),
+   image: { reference: image, id: imageInfo.Id }, releaseImage: { reference: releaseImage, id: releaseImageInfo.Id },
+   scope: 'Installed mixed build/test commands, explicit idle/settle, action latency, cancellation, active-command restart and reviewed amendment. Scripted provider; no live-model or Windows claim.',
+   limitations: ['Existing trusted Docker images; installation is not exercised.', 'Provider output is deliberately scripted; this proves actual CLI, Docker, task coordination and review mechanics. It does not measure model reasoning, production application quality, cloud deployment or Windows behavior.'],
+@@ -480,7 +482,7 @@
+  return phases;
+ }
+ // END SUSTAINED CLEANUP WIRING
+-let engineID;
++let engineID,primaryProfiler;
+ try {
+  workflowControl=createWorkflowDeadline({timeoutMs:remaining(),onFailure:stopOnFailure});
+  await workflowControl.run(async()=>{
+@@ -513,7 +515,13 @@
+  // END SUSTAINED BROWSER WIRING
+  for(const owner of projectStates){setStage('prepare-and-queue-'+owner.task);await prepare(owner);await queueOwner(owner);}
+  assert.equal(effects().create,0);await functionalDrafts();interactions=interactionRunner({page,owners:projectStates,receipt,assertHealthy:health,phase:()=>measuredPhase,observe:passiveTiming});await interactions.warm();
+- setStage('idle-baseline');await quietPhase('quiet-app-open-idle');const idle=phaseStart('idle-interactive-calibration');await interactions.calibrate(100);phaseEnd(idle);await passiveTiming('end-idle-calibration');
++ setStage('idle-baseline');await quietPhase('quiet-app-open-idle');
++ assert.equal(option('--trace-after','no'),'no','CDP-first diagnostic forbids Playwright throttling-changing trace arm');
++ primaryProfiler=createPrimaryProfiler({page,directory:join(evidence,'private-primary-profile'),assertActive:assertWorkflowActive});
++ await primaryProfiler.start();assertWorkflowActive();
++ const idle=phaseStart('idle-interactive-calibration');await interactions.calibrate(100);phaseEnd(idle);await passiveTiming('end-idle-calibration');
++ receipt.primaryProfiling=await boundedAttempt(()=>primaryProfiler.finish('primary-complete'),10000,'primary-profiling-stop-deadline');
++ assert(receipt.primaryProfiling.complete,'Primary profiling incomplete; preserve original actions and diagnostics');
+  receipt.interactionSummary=summarizeInteractions(receipt.interactions);
+  receipt.latencyTargets={measurement:'Original All projects→open saved Define context→two frames; input→expected field→two frames; no physical-input claim',projectSwitchP95Ms:300,inputP95Ms:100,p99StrictlyBelowMs:1000};
+  receipt.targetComparison=Object.fromEntries(['project-switch','input'].map(kind=>{const value=receipt.interactionSummary['idle-interactive-calibration:'+kind];assert.equal(value.count,kind==='input'?200:100);assert.equal(value.failed,0);return[kind,{...value,withinReference:value.p95Ms<=(kind==='input'?100:300)&&value.p99Ms<1000}];}));
+@@ -538,6 +546,7 @@
+ }
+ finally {
+  beginCleanup();persistFailureCheckpoint();
++ if(primaryProfiler){try{receipt.primaryProfiling=await boundedAttempt(()=>primaryProfiler.finish('workflow-finally'),cleanupBudget(10000),'profiling-finally-deadline');}catch(error){cleanupFailure(error);receipt.primaryProfiling=primaryProfiler.snapshot();}}
+  try {
+   for(const socket of sockets){try{socket.close();}catch(error){cleanupFailure(error);}}
+   receipt.actualTaskResults=Object.fromEntries(observations);receipt.taskEvents=Object.fromEntries(taskEvents);receipt.interactionSummary=summarizeInteractions(receipt.interactions);
+@@ -547,7 +556,7 @@
+   receipt.cleanupPhases=await settleSustainedResources();receipt.startupResources=startupScope.snapshot();
+   if(proxy)receipt.dockerTransportObservations=structuredClone(proxy.observations);
+  if(receipt.controllersStopped&&receipt.dockerRequestsDrained&&receipt.dockerMutationStateCertain&&proxy){const created=proxy.observations.requests.filter(value=>value.method==='POST'&&/\/containers\/create$/.test(value.path)&&value.status===201&&/^[a-f0-9]{64}$/.test(value.id??''));for(const creation of created){try{const ids=docker('ps','-aq','--no-trunc').split(/\s+/).filter(Boolean);if(!ids.includes(creation.id))continue;const value=JSON.parse(docker('inspect',creation.id))[0];assert.equal(value.Id,creation.id);assert.equal(value.Name,'/'+creation.name);assert.equal(value.Config.Labels['luci.instance'],instanceID());assert.equal(value.Config.Labels['luci.session-id'],creation.labels['luci.session-id']);assert(ownedSessions.has(value.Config.Labels['luci.session-id']));assert.equal(value.Config.Labels['luci.managed'],'true');assert.equal(value.Image,imageInfo.Id);assert(value.Mounts.some(mount=>mount.Destination==='/home/dev/work'&&projectStates.some(owner=>realpathSync(mount.Source).startsWith(join(dirname(owner.owner.path),'.luci-swarms')+sep))));cleanupFailure(Error('Unexpected full worker remained; exact failed-fixture cleanup required'));if(value.State.Running)docker('stop','--time','5',value.Id);const current=JSON.parse(docker('inspect',value.Id))[0];assert.equal(current.Id,value.Id);assert.equal(current.State.Running,false);docker('rm',value.Id);}catch(error){cleanupFailure(error);}}}
+- try{assert(startupScope.snapshot().every(row=>row.state==='closed'&&!row.closeTimedOut),'Startup resource remains unsettled');assert(receipt.controllersStopped);assert.equal(receipt.dockerRequestsDrained,true);assert.equal(receipt.dockerMutationStateCertain,true);assert.equal(docker('ps','-aq'),'');assert.equal(docker('volume','ls','-q'),'');assert.equal(ownedProcesses().length,0);assert.equal(ownedProcesses('browser').length,0);assert.equal(JSON.parse(docker('image','inspect',image))[0].Id,imageInfo.Id);assert.equal(sha(readFileSync(binary)),provenance.binarySHA256);assert.equal(sha(readFileSync(join(web,'index.html'))),provenance.webIndexSHA256);assert.equal(docker('info','--format','{{.ID}}'),engineID);for(const name of driverNames)assert.equal(sha(readFileSync(new URL(name,import.meta.url))),sha(readFileSync(join(evidence,'accepted-harness',name))));for(const name of reusedHelpers)assert.equal(sha(readFileSync(join(repo,'scripts/acceptance',name))),sha(readFileSync(join(evidence,'accepted-harness',name.replaceAll('/','_')))));
++ try{assert(startupScope.snapshot().every(row=>row.state==='closed'&&!row.closeTimedOut),'Startup resource remains unsettled');assert(receipt.controllersStopped);assert.equal(receipt.dockerRequestsDrained,true);assert.equal(receipt.dockerMutationStateCertain,true);assert.equal(docker('ps','-aq'),'');assert.equal(docker('volume','ls','-q'),'');assert.equal(ownedProcesses().length,0);assert.equal(ownedProcesses('browser').length,0);assert.equal(JSON.parse(docker('image','inspect',image))[0].Id,imageInfo.Id);assert.equal(sha(readFileSync(binary)),provenance.binarySHA256);assert.equal(sha(readFileSync(join(web,'index.html'))),provenance.webIndexSHA256);assert.equal(docker('info','--format','{{.ID}}'),engineID);for(const name of driverNames)assert.equal(sha(readFileSync(new URL(name,import.meta.url))),sha(readFileSync(join(evidence,'accepted-harness',name))));for(const name of reusedHelpers)assert.equal(sha(readFileSync(join(here,name.split('/').at(-1)))),sha(readFileSync(join(evidence,'accepted-harness',name.replaceAll('/','_')))));
+   receipt.finalHarnessCheckout=verifySourceBinding();assert.deepEqual(receipt.finalHarnessCheckout,receipt.harnessCheckout);
+   receipt.runtimeCleanup={containers:0,volumes:0,ownedServiceProcesses:0,ownedBrowserProcesses:0,protectedImagePackageAndHelpersUnchanged:true,rootFreeBytes:rootFree()};assert.equal(realpathSync(fixture),fixture);assert.equal(dirname(fixture),fixtureParent);assert(fixture.split(sep).at(-1).startsWith('luci-sustained-'));if(receipt.passed&&!fixtureError){rmSync(fixture,{recursive:true});receipt.fixtureRemoved=true;}
+  }catch(error){cleanupFailure(error);}
+--- frozen/interaction-metrics.mjs
++++ candidate/interaction-metrics.mjs
+@@ -58,12 +58,12 @@
+  const values=new Map(owners.map(owner=>[owner.owner.id,owner.goal]));
+  receipt.interactions??=[];
+  let current;
+- const frames=()=>page.evaluate(browserFrameWitness);
++ const frames=actionID=>page.evaluate(browserFrameWitness,actionID);
+  async function measured(kind,owner,action,verify){
+   assert(receipt.interactions.length<6000,'Bounded interaction measurement count');
+   const item={phase:phase(),kind,projectID:owner.owner.id,at:new Date().toISOString(),success:false};
+   const start=performance.now(),diagnostic=nodeStageRecorder(item,start);
+-  let timeout;try {await Promise.race([(async()=>{diagnostic.mark('action-start');await action(diagnostic.mark);diagnostic.mark('action-end');diagnostic.mark('verify-start');await verify();diagnostic.mark('verify-end');diagnostic.mark('frames-start');diagnostic.frames(await frames());diagnostic.mark('frames-end');})(),new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Error('Interaction deadline exceeded after15seconds')),15000);})]);item.success=true;}
++  let timeout;try {await Promise.race([(async()=>{diagnostic.mark('action-start');await action(diagnostic.mark);diagnostic.mark('action-end');diagnostic.mark('verify-start');await verify();diagnostic.mark('verify-end');diagnostic.mark('frames-start');diagnostic.frames(await frames(receipt.interactions.length+1));diagnostic.mark('frames-end');})(),new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Error('Interaction deadline exceeded after15seconds')),15000);})]);item.success=true;}
+   catch(error){item.error=String(error.message).slice(0,300);throw error;}
+   finally{clearTimeout(timeout);item.elapsedMs=performance.now()-start;diagnostic.close();receipt.interactions.push(item);}
+  }
+--- frozen/latency-diagnostics.mjs
++++ candidate/latency-diagnostics.mjs
+@@ -4,10 +4,18 @@
+ // Self-contained because Playwright serializes this function into each document.
+ export function browserLatencyInit() {
+  const bound=2048;
++ let profileMarks=0;
++ Object.defineProperty(window,'__luciPrimaryProfileMark',{value:(name,at)=>{
++  if(!window.__luciPrimaryProfileActive)return;
++  if(++profileMarks>10000){window.__luciPrimaryProfileMarkerOverflow=true;return;}
++  // Only fixed names, sequence numbers and same-document clock values.
++  performance.mark(name,{detail:{observedAt:at,timeOrigin:performance.timeOrigin}});
++  performance.clearMarks(name);
++ },configurable:false});
+  const data={version:1,timeOrigin:performance.timeOrigin,rows:[],observed:0,dropped:0,overflow:false,resourceUnsupported:false,callbacks:0,callbackMs:0};
+  let lastInput=null,lastPointer=null,lastExpected=null;
+  const timed=fn=>{const start=performance.now();try{return fn();}finally{data.callbacks++;data.callbackMs+=performance.now()-start;}};
+- const emit=row=>{const sequence=++data.observed;if(data.rows.length>=bound){data.dropped++;data.overflow=true;return null;}const value={sequence,...row};data.rows.push(value);return value;};
++ const emit=row=>{const sequence=++data.observed;if(data.rows.length>=bound){data.dropped++;data.overflow=true;return null;}const value={sequence,...row};data.rows.push(value);if(['input-dispatch','pointer-dispatch','input-frame-1','input-frame-2','expected-dom'].includes(row.kind))window.__luciPrimaryProfileMark('luci-latency:'+row.kind+':'+sequence,row.at);return value;};
+  const eventRef=row=>row?{sequence:row.sequence,at:row.at}:null;
+  const input=event=>{if(!event.isTrusted)return;timed(()=>{
+   const row=emit({kind:'input-dispatch',at:performance.now()});lastInput=eventRef(row);
+@@ -52,11 +60,13 @@
+ 
+ // Replaces the existing two-rAF RPC body, not the RPC or primary span. These are
+ // callback opportunities in the browser clock, not proof of physical painting.
+-export function browserFrameWitness() {
++export function browserFrameWitness(actionID) {
+  const requestedAt=performance.now();
++ const mark=(part,at)=>window.__luciPrimaryProfileMark?.('luci-primary:'+actionID+':'+part,at);
++ mark('requested',requestedAt);
+  return new Promise(resolve=>requestAnimationFrame(()=>{
+-  const firstFrameAt=performance.now();
+-  requestAnimationFrame(()=>resolve({requestedAt,firstFrameAt,secondFrameAt:performance.now(),references:window.__luciAcceptanceLatency?.references()??null}));
++  const firstFrameAt=performance.now();mark('frame-1',firstFrameAt);
++  requestAnimationFrame(()=>{const secondFrameAt=performance.now();mark('frame-2',secondFrameAt);resolve({requestedAt,firstFrameAt,secondFrameAt,references:window.__luciAcceptanceLatency?.references()??null,primaryProfile:{actionID,markerOverflow:window.__luciPrimaryProfileMarkerOverflow===true}});});
+  }));
+ }
+ 

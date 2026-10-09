@@ -36,6 +36,7 @@ OMISSIONS = {
 }
 EXCLUDED_PREFIXES = (
     "desktop/.vscode/", "desktop/src-tauri/binaries/", "desktop/src-tauri/runtime/",
+    "desktop/src-tauri/guides/",
     "desktop/src-tauri/cloud/", "desktop/src-tauri/licenses/",
     "desktop/public/design-assets/",
 )
@@ -63,7 +64,7 @@ REQUIRED = {
     "desktop/src-tauri/Cargo.lock", "desktop/src-tauri/tauri.conf.json",
     "images/sandbox/Dockerfile", "images/sandbox/entrypoint.sh",
     "scripts/build-release.ps1", "scripts/build-release.sh", "scripts/collect-licenses.py",
-    "scripts/package.py", "scripts/retained_ui.py", "desktop/scripts/prepare-design-assets.mjs",
+    "scripts/package.py", "scripts/stage-release-docs.py", "scripts/retained_ui.py", "desktop/scripts/prepare-design-assets.mjs",
     "third-party/licenses/manifest.json", "control-plane/internal/product/server.go",
     ".github/workflows/luci-ci.yml",
     SUPABASE_MANIFEST, SUPABASE_ROOT + "NOTICE.txt",

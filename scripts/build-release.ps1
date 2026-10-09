@@ -31,7 +31,7 @@ function Copy-Tree([string]$Source, [string]$Destination) {
 }
 function Replace-GeneratedTree([string]$Source, [string]$Destination) {
     $luciAbsolute = [IO.Path]::GetFullPath($Destination)
-    $luciAllowed = @('runtime','licenses','cloud') | ForEach-Object { [IO.Path]::GetFullPath((Join-Path $luciNativeRoot $_)) }
+    $luciAllowed = @('runtime','licenses','cloud','guides') | ForEach-Object { [IO.Path]::GetFullPath((Join-Path $luciNativeRoot $_)) }
     $luciAllowed += @('luci-windows-amd64','luci-linux-amd64','luci-darwin-arm64') | ForEach-Object { [IO.Path]::GetFullPath((Join-Path $luciOutput $_)) }
     if ($luciAllowed -notcontains $luciAbsolute -or -not $luciAbsolute.StartsWith($luciRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw ('Refusing to replace an unrecognised generated directory: ' + $Destination) }
     $luciAncestor = $luciAbsolute
@@ -86,6 +86,11 @@ try {
     Push-Location (Join-Path $luciRoot 'desktop')
     try { & $luciNpm run build; Confirm-Exit 'Desktop production build' } finally { Pop-Location }
 
+    $luciGuides = Join-Path $luciStage 'package-guides'
+    $luciDirtyArgument = if ($null -eq $luciSource.sourceDirty) { 'unknown' } else { ([string]$luciSource.sourceDirty).ToLowerInvariant() }
+    & python (Join-Path $PSScriptRoot 'stage-release-docs.py') $luciRoot $luciGuides "--source-commit=$($luciSource.sourceCommit)" "--source-dirty=$luciDirtyArgument"
+    Confirm-Exit 'Source-bound package documentation'
+
     # Runtime allowlist: only the sandbox build context, never the whole repository or user state.
     $luciRuntime = Join-Path $luciStage 'runtime'
     foreach ($luciTree in @('sandboxd/cmd','sandboxd/internal','sandboxd/vendor')) { Copy-Tree (Join-Path $luciRoot $luciTree) (Join-Path $luciRuntime $luciTree) }
@@ -106,9 +111,7 @@ try {
         try { & go build -trimpath -ldflags '-s -w' -o (Join-Path $luciPackage ('luci' + $luciTarget.suffix)) ./control-plane/cmd/api; Confirm-Exit ($luciName + ' service build') } finally { Pop-Location }
         Copy-Tree (Join-Path $luciRoot 'desktop/dist') (Join-Path $luciPackage 'web')
         Copy-Tree $luciRuntime (Join-Path $luciPackage 'runtime')
-        foreach ($luciDoc in @('LICENSE','NOTICE','README.md','DESIGN.md')) { Copy-Item -LiteralPath (Join-Path $luciRoot $luciDoc) -Destination $luciPackage }
-        Copy-Tree (Join-Path $luciRoot 'docs/luci') (Join-Path $luciPackage 'docs/luci')
-        foreach ($luciDoc in @('UAT.md','RUNBOOK.md')) { Copy-Item -LiteralPath (Join-Path $luciRoot ('docs/' + $luciDoc)) -Destination (Join-Path $luciPackage ('docs/' + $luciDoc)) }
+        Copy-Tree $luciGuides $luciPackage
         $luciLicenses = Join-Path $luciPackage 'licenses'
         & python (Join-Path $PSScriptRoot 'collect-licenses.py') $luciRoot $luciLicenses
         Confirm-Exit ($luciName + ' strict licence collection')
@@ -145,6 +148,7 @@ try {
         & python (Join-Path $PSScriptRoot 'collect-licenses.py') $luciRoot $luciNativeLicenses --native
         Confirm-Exit 'Native strict licence collection'
         $luciNativeCount = Confirm-Licenses $luciNativeLicenses
+        Replace-GeneratedTree $luciGuides (Join-Path $luciNativeRoot 'guides')
         Replace-GeneratedTree $luciRuntime (Join-Path $luciNativeRoot 'runtime')
         Replace-GeneratedTree $luciNativeLicenses (Join-Path $luciNativeRoot 'licenses')
         Replace-GeneratedTree (Join-Path (($luciPackages | Where-Object { $_.os -eq 'windows' }).path) 'cloud') (Join-Path $luciNativeRoot 'cloud')

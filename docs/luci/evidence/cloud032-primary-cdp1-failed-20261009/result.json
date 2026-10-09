@@ -1,0 +1,80 @@
+{
+  "status": "failed diagnostic",
+  "productSource": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+  "cleanHelperCheckout": {
+    "commit": "e2f426bb50267a7cceac1f53eb1e00a0a4cc278e",
+    "dirty": false,
+    "expectedSource": "e2f426bb50267a7cceac1f53eb1e00a0a4cc278e",
+    "productSource": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+    "separateHelperRevision": true
+  },
+  "frozenRuntimeOriginalSource": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+  "originalResult": {
+    "bytes": 6976633,
+    "sha256": "a31bcaf9b9021401c513dd6d3ea03b07c874841a87644c88534266caacfd4a67"
+  },
+  "primaryActions": 400,
+  "allPrimaryActionsSucceeded": true,
+  "quantiles": {
+    "idle-interactive-calibration:project-switch": {
+      "count": 100,
+      "successful": 100,
+      "failed": 0,
+      "p50Ms": 229.92637299999478,
+      "p95Ms": 406.1969510000199,
+      "p99Ms": 509.9311299999972,
+      "maxMs": 549.2987970000104
+    },
+    "idle-interactive-calibration:input": {
+      "count": 200,
+      "successful": 200,
+      "failed": 0,
+      "p50Ms": 49.002562000008766,
+      "p95Ms": 87.06396400000085,
+      "p99Ms": 126.46902999999293,
+      "maxMs": 153.72101400000975
+    },
+    "idle-interactive-calibration:draft-reset": {
+      "count": 100,
+      "successful": 100,
+      "failed": 0,
+      "p50Ms": 268.4319600000017,
+      "p95Ms": 384.94999199997983,
+      "p99Ms": 472.43401100000483,
+      "maxMs": 599.9904859999951
+    }
+  },
+  "profileComplete": false,
+  "originalFailure": "AssertionError [ERR_ASSERTION]: Primary profiling incomplete; preserve original actions and diagnostics\n    at file://<DIAGNOSTIC_PREPARATION>/candidate/sustained.mjs:524:2\n    at async Object.run (file://<DIAGNOSTIC_PREPARATION>/candidate/acceptance-lifecycle.mjs:29:19)\n    at async file://<DIAGNOSTIC_PREPARATION>/candidate/sustained.mjs:488:2",
+  "traceDataLoss": true,
+  "failureDetails": [
+    {
+      "stage": "trace-drain",
+      "error": "Trace stream exceeds declared bound"
+    }
+  ],
+  "rawArtifacts": {
+    "browser-cpu.cpuprofile": {
+      "bytes": 1097185,
+      "sha256": "265646ccaf4ef0742369958494d4c6656369283e8e5988eb331e0a9d0def3fe3",
+      "private": true
+    },
+    "browser-timeline.json": {
+      "bytes": 33554432,
+      "sha256": "87881413924fa94f254a8c56d78827ba56da3bdb3eaa6f29f7bbb9be6b8d08b0",
+      "complete": false,
+      "private": true
+    }
+  },
+  "noAcceptanceOrCausalClaim": true,
+  "noNewTestOrRuntime": true,
+  "runtimeCleanupIsOriginalReceipt": {
+    "containers": 0,
+    "volumes": 0,
+    "ownedServiceProcesses": 0,
+    "ownedBrowserProcesses": 0,
+    "protectedImagePackageAndHelpersUnchanged": true,
+    "rootFreeBytes": 6568202240
+  },
+  "independentClosureScope": "Independent read-only diagnostic closure. Only recorded driver PID/start and recorded controller PID absence independently checked. Browser identities were not captured: no browser identity/zombie or whole-machine absence claim."
+}

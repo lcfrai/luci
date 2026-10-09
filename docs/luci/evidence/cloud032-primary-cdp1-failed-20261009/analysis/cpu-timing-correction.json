@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "scope": "Superseding allowlisted CPU timing validation of exact private primary-cdp-1 bytes. No raw source URLs, function names, arguments, trace events, runtime or tests.",
+  "sourceCPU": {
+    "bytes": 1097185,
+    "sha256": "265646ccaf4ef0742369958494d4c6656369283e8e5988eb331e0a9d0def3fe3",
+    "independentlyRehashedForThisCorrection": true,
+    "rawIncluded": false
+  },
+  "preliminaryAnalysis": {
+    "bytes": 10584,
+    "sha256": "275d83cc4bd313ba35605a538f334f830f266935a7efca5b5bccda08597c22c2",
+    "preservedUnchanged": true,
+    "weightedCPUAttributionSuperseded": true
+  },
+  "analyzerSHA256": "c178fa645c5872b5755a130de3e01d65cf6b3b41a3835583bb239044904c9375",
+  "timingValidation": {
+    "status": "invalid",
+    "nodes": 3289,
+    "samples": 84480,
+    "deltas": 84480,
+    "sampleDeltaCountsMatch": true,
+    "missingSampleNodeReferences": 0,
+    "negativeDeltaCount": 4268,
+    "negativeDeltaSumUs": -13243105,
+    "minimumDeltaUs": -58401,
+    "maximumDeltaUs": 340010,
+    "zeroDeltaCount": 0,
+    "positiveDeltaCount": 80212,
+    "positiveDeltaSumUs": 82672804,
+    "signedDeltaSumUs": 69429699,
+    "recordedStartUs": 259017541100,
+    "recordedEndUs": 259086974793,
+    "recordedEndpointSpanUs": 69433693,
+    "endpointSpanMinusSignedDeltaSumUs": 3994
+  },
+  "weightedAttribution": {
+    "status": "withheld-invalid-timing",
+    "sampleClassesUs": null,
+    "topFrameWeightedTimesUs": null,
+    "inclusiveFrameOrBundleWeightedTimesUs": null,
+    "weightedCPUPercentages": null,
+    "perActionWeightedCPU": null,
+    "invalidatedPreliminaryPointers": [
+      "/cpu/sampleClassesUs",
+      "/cpu/topFrames/*/sampleWeightUs"
+    ],
+    "scope": "All CPU-time-weighted special-frame, exclusive or inclusive frame, script or bundle attribution derived from this profile is invalid. This includes any separate preliminary summaries; no inclusive-bundle field is claimed present in the retained prefix file.",
+    "reason": "Negative sample time deltas prevent a valid monotonic duration allocation. A nearly matching signed total or equal array lengths does not make the weights usable.",
+    "noRepairApplied": "No negative delta was dropped, clamped, absolutized, sorted, redistributed or replaced by the nominal sampling interval."
+  },
+  "unaffectedEvidence": [
+    "Original trace byte-cap failure and traceDataLoss=true remain unchanged.",
+    "Raw CPU hash, node/sample counts and stored endpoint span are structural metadata, not valid CPU-time attribution.",
+    "Prefix trace event/category counts and limited marker coverage retain their original incomplete-prefix scope; this correction did not reread the timeline.",
+    "All 400 original action durations and their separate quantiles remain unchanged; this is not performance acceptance or a causal attribution."
+  ],
+  "limitations": [
+    "The cause of the negative deltas is not established.",
+    "The original preliminary analysis and reconstructed preliminary helper remain byte-for-byte unchanged and must not be used as trusted weighted CPU analysis.",
+    "The historical wholeWindowUs field is an endpoint difference, not a CPU utilization or weighted attribution result."
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "command": [
+    "node",
+    "node_modules/typescript/bin/tsc",
+    "--noEmit"
+  ],
+  "startedAt": "2026-10-09T03:19:58.412020+00:00",
+  "elapsedSeconds": 20.169352058001095,
+  "exitCode": 2
+}

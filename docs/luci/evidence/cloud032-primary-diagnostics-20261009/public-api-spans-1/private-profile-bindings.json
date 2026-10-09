@@ -1,0 +1,23 @@
+{
+  "scope": "Raw CPU/timeline remain private. Exact raw hashes independently matched during the corrected read-only v3 analysis; invalid CPU timing withholds all weighted attribution.",
+  "profileStatus": {
+    "bytes": 3550,
+    "sha256": "09aae5726bbf33c2c17e1eff635391d058ef15506d9958b2f357e004e0468566"
+  },
+  "artifacts": {
+    "browser-cpu.cpuprofile": {
+      "bytes": 672914,
+      "sha256": "9c5fb262a8e453c33d0436122391e2d48f5ffe26ff8386183a54a175f906c170",
+      "private": true
+    },
+    "browser-timeline.json": {
+      "bytes": 1031721,
+      "sha256": "1ed3a1d81089e82fcb4ffd3696fc68d3bc8a03fd66aad80fe38a0d5fba64b09c",
+      "complete": true,
+      "private": true
+    }
+  },
+  "complete": true,
+  "traceDataLoss": false,
+  "causeClaims": false
+}

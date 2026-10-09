@@ -1,0 +1,1109 @@
+{
+  "version": 3,
+  "scope": "Instrumented primary400 diagnosis only; no acceptance or causal attribution",
+  "inputs": {
+    "receipt": {
+      "bytes": 6976255,
+      "sha256": "8d7716b2cff00aec0d36e4bc3d88597fb19065bc21b323d424babd8118d4f720"
+    },
+    "timeline": {
+      "bytes": 1032413,
+      "sha256": "c0de6a0d19f2f14b07b25f882465e27e6039a5c556ed9514aeb585c147bec573"
+    },
+    "cpu": {
+      "bytes": 701428,
+      "sha256": "5f925f41f6b9a080f590d98a5168786ccbbc7d2d03da0eb0934941f154e89f79"
+    },
+    "status": {
+      "bytes": 3532,
+      "sha256": "29210d3215cf08a7b3631a302becabafef665336bd1d8f173960fe4a4a0968b9"
+    }
+  },
+  "captureComplete": true,
+  "primarySummary": {
+    "project-switch": {
+      "count": 100,
+      "p50Ms": 209.9771599999949,
+      "p95Ms": 349.84220399998594,
+      "p99Ms": 504.42570000000705
+    },
+    "input": {
+      "count": 200,
+      "p50Ms": 47.763712999993004,
+      "p95Ms": 78.43625400000019,
+      "p99Ms": 140.02149799998733
+    },
+    "draft-reset": {
+      "count": 100,
+      "p50Ms": 249.7106919999933,
+      "p95Ms": 347.8448119999957,
+      "p99Ms": 458.2465450000018
+    }
+  },
+  "browserTraceAnchors": {
+    "count": 800,
+    "minOffsetMs": 260573235.12199998,
+    "maxOffsetMs": 260573235.68699998,
+    "spreadMs": 0.5649999976158142,
+    "medianOffsetMs": 260573235.216,
+    "note": "User timing marker witnesses only. No Node/browser cross-clock subtraction. Offset drift is exposed, never silently assumed zero."
+  },
+  "slowCohortOrdinals": [
+    1,
+    4,
+    6,
+    82,
+    83,
+    112,
+    144,
+    158,
+    220,
+    261,
+    289,
+    294,
+    297,
+    311,
+    325,
+    339,
+    367,
+    368,
+    378,
+    379
+  ],
+  "slowCohorts": [
+    {
+      "ordinal": 1,
+      "kind": "project-switch",
+      "elapsedMs": 415.6460459999944,
+      "success": true,
+      "nodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.08986500000173692
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 172.7212659999932
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 188.09932999999728
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 297.6352179999958
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 297.64264900000126
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 297.64520299999276
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 389.5345099999977
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 389.538195000001
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 415.63217499999155
+        }
+      ],
+      "browserFrameMs": 22.599999994039536,
+      "traceFrameMarkerSpanMs": 22.664,
+      "browserTraceAnchorOffsetDriftMs": 0.06400001049041748,
+      "postDispatchBrowserMs": 175.822,
+      "dispatchToDriverObservedExpectedDOMMs": 146.967,
+      "passiveLongObservationUnionMs": {
+        "long-task": 0,
+        "long-animation-frame": 0
+      },
+      "overlappingLongFrameSummaries": [],
+      "overlappingKnownResourceClasses": [
+        {
+          "routeClass": "project-specification",
+          "overlapMs": 13.799999982118607,
+          "durationMs": 13.799999982118607,
+          "responseStatus": 200
+        },
+        {
+          "routeClass": "project-orchestrator",
+          "overlapMs": 64.2000000178814,
+          "durationMs": 64.2000000178814,
+          "responseStatus": 200
+        }
+      ]
+    },
+    {
+      "ordinal": 4,
+      "kind": "draft-reset",
+      "elapsedMs": 458.2465450000018,
+      "success": true,
+      "nodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.015983999997843057
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 335.7532669999928
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 335.7549089999957
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 420.152952000004
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 420.15468500000134
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 458.22206800000276
+        }
+      ],
+      "browserFrameMs": 28.0,
+      "traceFrameMarkerSpanMs": 27.955,
+      "browserTraceAnchorOffsetDriftMs": -0.04500001668930054
+    },
+    {
+      "ordinal": 6,
+      "kind": "input",
+      "elapsedMs": 92.94906299999275,
+      "success": true,
+      "nodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.04391599999507889
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 50.84549900000275
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 50.84757199999876
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 60.612764999998035
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 60.614277000000584
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 92.93618399999104
+        }
+      ],
+      "browserFrameMs": 28.5,
+      "traceFrameMarkerSpanMs": 28.407,
+      "browserTraceAnchorOffsetDriftMs": -0.09299999475479126,
+      "postDispatchBrowserMs": 63.615,
+      "dispatchToDriverObservedExpectedDOMMs": 26.219,
+      "passiveLongObservationUnionMs": {
+        "long-task": 0,
+        "long-animation-frame": 0
+      },
+      "overlappingLongFrameSummaries": [],
+      "overlappingKnownResourceClasses": []
+    },
+    {
+      "ordinal": 82,
+      "kind": "input",
+      "elapsedMs": 124.72932100000617,
+      "success": true,
+      "nodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.06579000000783708
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 39.85062199999811
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 39.854397999995854
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 49.98211100000481
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 49.9831520000007
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 124.72018699999899
+        }
+      ],
+      "browserFrameMs": 25.400000005960464,
+      "traceFrameMarkerSpanMs": 25.409,
+      "browserTraceAnchorOffsetDriftMs": 0.009000003337860107,
+      "postDispatchBrowserMs": 63.948,
+      "dispatchToDriverObservedExpectedDOMMs": 29.405,
+      "passiveLongObservationUnionMs": {
+        "long-task": 0,
+        "long-animation-frame": 0
+      },
+      "overlappingLongFrameSummaries": [],
+      "overlappingKnownResourceClasses": []
+    },
+    {
+      "ordinal": 83,
+      "kind": "input",
+      "elapsedMs": 90.17777700000443,
+      "success": true,
+      "nodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.07064700000046287
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 59.4111419999972
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 59.41164299999946
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 65.79550399999425
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 65.79629500000738
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 90.16395600000396
+        }
+      ],
+      "browserFrameMs": 19.0,
+      "traceFrameMarkerSpanMs": 19.108,
+      "browserTraceAnchorOffsetDriftMs": 0.10799998044967651,
+      "postDispatchBrowserMs": 43.61,
+      "dispatchToDriverObservedExpectedDOMMs": 18.021,
+      "passiveLongObservationUnionMs": {
+        "long-task": 0,
+        "long-animation-frame": 0
+      },
+      "overlappingLongFrameSummaries": [],
+      "overlappingKnownResourceClasses": []
+    },
+    {
+      "ordinal": 112,
+      "kind": "draft-reset",
+      "elapsedMs": 350.6565360000095,
+      "success": true,
+      "nodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.0046070000098552555
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 247.03647300000011
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 247.0374840000004
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 325.089347000001
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 325.0905090000015
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 350.6467510000075
+        }
+      ],
+      "browserFrameMs": 21.900000005960464,
+      "traceFrameMarkerSpanMs": 21.922,
+      "browserTraceAnchorOffsetDriftMs": 0.022000014781951904
+    },
+    {
+      "ordinal": 144,
+      "kind": "draft-reset",
+      "elapsedMs": 367.69240099999297,
+      "success": true,
+      "nodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.004916999998386018
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 337.60426500000176
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 337.60543699999107
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 347.3210439999966
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 347.3221349999949
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 367.683137
+        }
+      ],
+      "browserFrameMs": 17.69999998807907,
+      "traceFrameMarkerSpanMs": 17.753,
+      "browserTraceAnchorOffsetDriftMs": 0.05300000309944153
+    },
+    {
+      "ordinal": 158,
+      "kind": "input",
+      "elapsedMs": 82.21375599999737,
+      "success": true,
+      "nodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.05313000000023749
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 43.59508199999982
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 43.596042999997735
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 46.37625699999626
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 46.37707899999805
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 82.20237899999483
+        }
+      ],
+      "browserFrameMs": 32.099999994039536,
+      "traceFrameMarkerSpanMs": 32.091,
+      "browserTraceAnchorOffsetDriftMs": -0.00899997353553772,
+      "postDispatchBrowserMs": 48.805,
+      "dispatchToDriverObservedExpectedDOMMs": 13.62,
+      "passiveLongObservationUnionMs": {
+        "long-task": 0,
+        "long-animation-frame": 0
+      },
+      "overlappingLongFrameSummaries": [],
+      "overlappingKnownResourceClasses": []
+    },
+    {
+      "ordinal": 220,
+      "kind": "draft-reset",
+      "elapsedMs": 398.512327000004,
+      "success": true,
+      "nodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.005387999990489334
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 352.2165879999957
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 352.21775999999954
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 377.74626400000125
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 377.74703499999305
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 398.5035930000013
+        }
+      ],
+      "browserFrameMs": 18.400000005960464,
+      "traceFrameMarkerSpanMs": 18.471,
+      "browserTraceAnchorOffsetDriftMs": 0.07099997997283936
+    },
+    {
+      "ordinal": 261,
+      "kind": "project-switch",
+      "elapsedMs": 504.42570000000705,
+      "success": true,
+      "nodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.008713000002899207
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 101.18749100000423
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 115.24881500001356
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 397.48562500000116
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 397.57648200000403
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 397.5772130000114
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 482.9790830000129
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 482.97995400000946
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 504.4179790000053
+        }
+      ],
+      "browserFrameMs": 17.80000001192093,
+      "traceFrameMarkerSpanMs": 17.798,
+      "browserTraceAnchorOffsetDriftMs": -0.0020000040531158447,
+      "postDispatchBrowserMs": 320.483,
+      "dispatchToDriverObservedExpectedDOMMs": 295.695,
+      "passiveLongObservationUnionMs": {
+        "long-task": 103.0,
+        "long-animation-frame": 57.70000001788139
+      },
+      "overlappingLongFrameSummaries": [
+        {
+          "duration": 57.70000001788139,
+          "blockingDuration": 0,
+          "renderStart": 105737,
+          "styleAndLayoutStart": 105741.60000002384,
+          "scriptCount": 1,
+          "observedScripts": 1,
+          "scriptObservationTruncated": false,
+          "scriptDurationMs": 26.80000001192093,
+          "forcedStyleAndLayoutDurationMs": 0,
+          "scriptPauseDurationMs": 0
+        }
+      ],
+      "overlappingKnownResourceClasses": [
+        {
+          "routeClass": "project-specification",
+          "overlapMs": 204.0,
+          "durationMs": 204,
+          "responseStatus": 200
+        },
+        {
+          "routeClass": "project-orchestrator",
+          "overlapMs": 229.5,
+          "durationMs": 229.5,
+          "responseStatus": 200
+        }
+      ]
+    },
+    {
+      "ordinal": 289,
+      "kind": "project-switch",
+      "elapsedMs": 400.05426499999885,
+      "success": true,
+      "nodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.18080200000258628
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 196.33712399999786
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 218.59695900000224
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 296.17980300000636
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 296.1845500000054
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 296.1850209999975
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 357.81184300000314
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 357.8131149999972
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 400.0451710000052
+        }
+      ],
+      "browserFrameMs": 39.0,
+      "traceFrameMarkerSpanMs": 39.018,
+      "browserTraceAnchorOffsetDriftMs": 0.018000006675720215,
+      "postDispatchBrowserMs": 128.484,
+      "dispatchToDriverObservedExpectedDOMMs": 83.399,
+      "passiveLongObservationUnionMs": {
+        "long-task": 0,
+        "long-animation-frame": 0
+      },
+      "overlappingLongFrameSummaries": [],
+      "overlappingKnownResourceClasses": [
+        {
+          "routeClass": "project-specification",
+          "overlapMs": 24.0,
+          "durationMs": 24,
+          "responseStatus": 200
+        },
+        {
+          "routeClass": "project-orchestrator",
+          "overlapMs": 48.599999994039536,
+          "durationMs": 48.599999994039536,
+          "responseStatus": 200
+        }
+      ]
+    },
+    {
+      "ordinal": 294,
+      "kind": "input",
+      "elapsedMs": 208.60767599999963,
+      "success": true,
+      "nodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.00889399999869056
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 181.3208009999944
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 181.32200299999386
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 185.05357699999877
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 185.0545790000033
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 208.59899299999233
+        }
+      ],
+      "browserFrameMs": 21.400000005960464,
+      "traceFrameMarkerSpanMs": 21.369,
+      "browserTraceAnchorOffsetDriftMs": -0.03100001811981201,
+      "postDispatchBrowserMs": 201.112,
+      "dispatchToDriverObservedExpectedDOMMs": 176.644,
+      "passiveLongObservationUnionMs": {
+        "long-task": 0,
+        "long-animation-frame": 136.40000000596046
+      },
+      "overlappingLongFrameSummaries": [
+        {
+          "duration": 136.40000000596046,
+          "blockingDuration": 0,
+          "renderStart": 111557.30000001192,
+          "styleAndLayoutStart": 111557.5,
+          "scriptCount": 0,
+          "observedScripts": 0,
+          "scriptObservationTruncated": false,
+          "scriptDurationMs": 0,
+          "forcedStyleAndLayoutDurationMs": 0,
+          "scriptPauseDurationMs": 0
+        }
+      ],
+      "overlappingKnownResourceClasses": []
+    },
+    {
+      "ordinal": 297,
+      "kind": "project-switch",
+      "elapsedMs": 557.8391269999993,
+      "success": true,
+      "nodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.008652999997138977
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 88.21802699999535
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 190.4520499999926
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 298.17944599999464
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 298.26063799999247
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 298.26092800000333
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 522.3180850000062
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 522.3187959999923
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 557.8292519999959
+        }
+      ],
+      "browserFrameMs": 32.69999998807907,
+      "traceFrameMarkerSpanMs": 32.669,
+      "browserTraceAnchorOffsetDriftMs": -0.030999988317489624,
+      "postDispatchBrowserMs": 306.406,
+      "dispatchToDriverObservedExpectedDOMMs": 269.284,
+      "passiveLongObservationUnionMs": {
+        "long-task": 0,
+        "long-animation-frame": 0
+      },
+      "overlappingLongFrameSummaries": [],
+      "overlappingKnownResourceClasses": [
+        {
+          "routeClass": "project-specification",
+          "overlapMs": 28.599999994039536,
+          "durationMs": 28.599999994039536,
+          "responseStatus": 200
+        },
+        {
+          "routeClass": "project-orchestrator",
+          "overlapMs": 190.30000001192093,
+          "durationMs": 190.30000001192093,
+          "responseStatus": 200
+        }
+      ]
+    },
+    {
+      "ordinal": 311,
+      "kind": "input",
+      "elapsedMs": 91.80159200000344,
+      "success": true,
+      "nodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.06079200000385754
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 45.76426300001913
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 45.76641599999857
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 53.907468999997946
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 53.90895100001944
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 91.79232800001046
+        }
+      ],
+      "browserFrameMs": 23.299999982118607,
+      "traceFrameMarkerSpanMs": 23.252,
+      "browserTraceAnchorOffsetDriftMs": -0.04799997806549072,
+      "postDispatchBrowserMs": 59.981,
+      "dispatchToDriverObservedExpectedDOMMs": 23.951,
+      "passiveLongObservationUnionMs": {
+        "long-task": 0,
+        "long-animation-frame": 0
+      },
+      "overlappingLongFrameSummaries": [],
+      "overlappingKnownResourceClasses": []
+    },
+    {
+      "ordinal": 325,
+      "kind": "project-switch",
+      "elapsedMs": 502.6038980000012,
+      "success": true,
+      "nodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.007591000001411885
+        },
+        {
+          "stage": "all-projects-click-end",
+          "offsetMs": 79.53050799999619
+        },
+        {
+          "stage": "overview-heading-ready",
+          "offsetMs": 125.18288599999505
+        },
+        {
+          "stage": "open-project-click-end",
+          "offsetMs": 252.69504900000175
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 252.69943499998772
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 252.69975599998725
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 480.8653549999872
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 480.8661269999866
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 502.56942700000945
+        }
+      ],
+      "browserFrameMs": 19.700000017881393,
+      "traceFrameMarkerSpanMs": 19.718,
+      "browserTraceAnchorOffsetDriftMs": 0.017999976873397827,
+      "postDispatchBrowserMs": 288.471,
+      "dispatchToDriverObservedExpectedDOMMs": 265.187,
+      "passiveLongObservationUnionMs": {
+        "long-task": 0,
+        "long-animation-frame": 206.89999997615814
+      },
+      "overlappingLongFrameSummaries": [
+        {
+          "duration": 206.89999997615814,
+          "blockingDuration": 0,
+          "renderStart": 116947.40000000596,
+          "styleAndLayoutStart": 116948.90000000596,
+          "scriptCount": 0,
+          "observedScripts": 0,
+          "scriptObservationTruncated": false,
+          "scriptDurationMs": 0,
+          "forcedStyleAndLayoutDurationMs": 0,
+          "scriptPauseDurationMs": 0
+        }
+      ],
+      "overlappingKnownResourceClasses": [
+        {
+          "routeClass": "project-specification",
+          "overlapMs": 34.39999997615814,
+          "durationMs": 34.39999997615814,
+          "responseStatus": 200
+        },
+        {
+          "routeClass": "project-orchestrator",
+          "overlapMs": 69.40000000596046,
+          "durationMs": 69.40000000596046,
+          "responseStatus": 200
+        }
+      ]
+    },
+    {
+      "ordinal": 339,
+      "kind": "input",
+      "elapsedMs": 149.2900489999738,
+      "success": true,
+      "nodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.006138999975519255
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 46.546601999987615
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 46.54783399999724
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 127.93540899999789
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 127.93716099997982
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 149.23154099998646
+        }
+      ],
+      "browserFrameMs": 17.5,
+      "traceFrameMarkerSpanMs": 17.535,
+      "browserTraceAnchorOffsetDriftMs": 0.034999996423721313,
+      "postDispatchBrowserMs": 125.269,
+      "dispatchToDriverObservedExpectedDOMMs": 28.924,
+      "passiveLongObservationUnionMs": {
+        "long-task": 0,
+        "long-animation-frame": 0
+      },
+      "overlappingLongFrameSummaries": [],
+      "overlappingKnownResourceClasses": []
+    },
+    {
+      "ordinal": 367,
+      "kind": "input",
+      "elapsedMs": 140.02149799998733,
+      "success": true,
+      "nodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.009263999992981553
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 39.60946999999578
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 39.61126299999887
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 49.79301699998905
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 49.79468900000211
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 139.9732349999831
+        }
+      ],
+      "browserFrameMs": 79.7999999821186,
+      "traceFrameMarkerSpanMs": 79.858,
+      "browserTraceAnchorOffsetDriftMs": 0.057999998331069946,
+      "postDispatchBrowserMs": 110.76,
+      "dispatchToDriverObservedExpectedDOMMs": 23.372,
+      "passiveLongObservationUnionMs": {
+        "long-task": 0,
+        "long-animation-frame": 50.400000005960464
+      },
+      "overlappingLongFrameSummaries": [
+        {
+          "duration": 52.5,
+          "blockingDuration": 0,
+          "renderStart": 123321.40000000596,
+          "styleAndLayoutStart": 123323,
+          "scriptCount": 0,
+          "observedScripts": 0,
+          "scriptObservationTruncated": false,
+          "scriptDurationMs": 0,
+          "forcedStyleAndLayoutDurationMs": 0,
+          "scriptPauseDurationMs": 0
+        }
+      ],
+      "overlappingKnownResourceClasses": []
+    },
+    {
+      "ordinal": 368,
+      "kind": "draft-reset",
+      "elapsedMs": 549.8541789999872,
+      "success": true,
+      "nodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.04983499998343177
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 499.45992199998
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 499.46107399999164
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 514.0467669999925
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 514.0474779999931
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 549.8467379999929
+        }
+      ],
+      "browserFrameMs": 20.099999994039536,
+      "traceFrameMarkerSpanMs": 20.177,
+      "browserTraceAnchorOffsetDriftMs": 0.07699999213218689
+    },
+    {
+      "ordinal": 378,
+      "kind": "input",
+      "elapsedMs": 81.89050800001132,
+      "success": true,
+      "nodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.012119000020902604
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 48.14500499999849
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 48.146197000023676
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 53.441505000024335
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 53.44210600000224
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 81.88281700000516
+        }
+      ],
+      "browserFrameMs": 25.0,
+      "traceFrameMarkerSpanMs": 25.06,
+      "browserTraceAnchorOffsetDriftMs": 0.06000000238418579,
+      "postDispatchBrowserMs": 44.186,
+      "dispatchToDriverObservedExpectedDOMMs": 14.39,
+      "passiveLongObservationUnionMs": {
+        "long-task": 0,
+        "long-animation-frame": 0
+      },
+      "overlappingLongFrameSummaries": [],
+      "overlappingKnownResourceClasses": []
+    },
+    {
+      "ordinal": 379,
+      "kind": "input",
+      "elapsedMs": 81.57950400002301,
+      "success": true,
+      "nodeStages": [
+        {
+          "stage": "action-start",
+          "offsetMs": 0.004827000026125461
+        },
+        {
+          "stage": "action-end",
+          "offsetMs": 46.376983000023756
+        },
+        {
+          "stage": "verify-start",
+          "offsetMs": 46.378035000001546
+        },
+        {
+          "stage": "verify-end",
+          "offsetMs": 54.47219500000938
+        },
+        {
+          "stage": "frames-start",
+          "offsetMs": 54.47336700002779
+        },
+        {
+          "stage": "frames-end",
+          "offsetMs": 81.57221300000674
+        }
+      ],
+      "browserFrameMs": 24.0,
+      "traceFrameMarkerSpanMs": 23.875,
+      "browserTraceAnchorOffsetDriftMs": -0.125,
+      "postDispatchBrowserMs": 49.32,
+      "dispatchToDriverObservedExpectedDOMMs": 19.97,
+      "passiveLongObservationUnionMs": {
+        "long-task": 0,
+        "long-animation-frame": 0
+      },
+      "overlappingLongFrameSummaries": [],
+      "overlappingKnownResourceClasses": []
+    }
+  ],
+  "passiveSupport": {
+    "windows": 109,
+    "longTaskUnsupportedWindows": 0,
+    "longAnimationFrameUnsupportedWindows": 0,
+    "timelineStyleLayoutPaintEvents": "intentionally not captured; zero work cannot be inferred"
+  },
+  "cpuWindow": {
+    "samples": 14755,
+    "sumDeltaUs": 63567291,
+    "deltaMinUs": -8739,
+    "deltaMedianUs": 5095,
+    "deltaP95Us": 7671,
+    "requestedIntervalUs": 5000,
+    "startTime": 260638359122,
+    "endTime": 260701928539,
+    "shapeAssessment": {
+      "negativeDeltaCount": 1288,
+      "negativeDeltaSumUs": -3219079,
+      "samplesReferencingMissingNode": 0,
+      "weightedAttributionAllowed": false,
+      "policy": "Preserve irregular deltas unchanged. Withhold weighted CPU and bundle attribution if any delta is negative or sample identity is missing; never clamp, reorder or take absolute values without an independently supported contract."
+    },
+    "topBundleLocations": null,
+    "scope": "Whole primary window, not mapped into individual actions. When permitted by shape validation, sample weight and CPU attribution are statistical; (program) means unknown/native, not app CPU; minified bundle locations are not React component proof."
+  },
+  "limitations": [
+    "Expected-DOM marker is the driver observation after locator.waitFor, not the first app-ready or painted instant",
+    "CPU duration attribution is withheld when raw sample deltas are negative; raw profile preserved",
+    "Passive >50ms observations omit shorter tasks/frames; intervals can overlap and must not be summed across kinds",
+    "Frame script summaries include at most64 entries; truncation is explicit, and script durations can overlap",
+    "Post-dispatch browser interval omits preceding transport/actionability waits and the first overview click for switches",
+    "Node stages retain transport and scheduler overhead",
+    "Resource timings remain browser-clock evidence; they are not backend function timing",
+    "No Playwright actionability retry logs in CDP-only arm; unresolved gaps require separately instrumented action trace",
+    "Broad timeline/style/layout/GC categories deliberately excluded; absence is not evidence of zero work",
+    "All original primary actions and thresholds preserved; instrumentation can change their costs"
+  ]
+}

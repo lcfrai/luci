@@ -39,6 +39,8 @@ cleanup() {
 trap cleanup EXIT
 
 (cd "$root/desktop" && npm run build)
+guides="$stage/package-guides"
+python3 "$root/scripts/stage-release-docs.py" "$root" "$guides" --source-commit="$source_commit" --source-dirty="${source_dirty:-unknown}"
 build_package() {
   local goos=$1 goarch=$2 package=$3
   mkdir -p "$package/runtime/sandboxd" "$package/runtime/images" "$package/docs/luci"
@@ -48,9 +50,7 @@ build_package() {
     cp -R "$root/sandboxd/$source" "$package/runtime/sandboxd/$source"
   done
   cp -R "$root/images/sandbox" "$package/runtime/images/sandbox"
-  cp "$root/LICENSE" "$root/NOTICE" "$root/README.md" "$root/DESIGN.md" "$package/"
-  cp -R "$root/docs/luci/." "$package/docs/luci/"
-  cp "$root/docs/UAT.md" "$root/docs/RUNBOOK.md" "$package/docs/"
+  cp -R "$guides/." "$package/"
   cp "$root/scripts/launch-unix.sh" "$package/start-luci.sh"
   chmod 755 "$package/luci" "$package/start-luci.sh"
   GOOS="$goos" GOARCH="$goarch" CGO_ENABLED=0 python3 "$root/scripts/collect-licenses.py" "$root" "$package/licenses"

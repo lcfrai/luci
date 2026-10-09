@@ -1,0 +1,15 @@
+{
+  "command": [
+    "python3",
+    "-m",
+    "unittest",
+    "test_export_public_source",
+    "-v"
+  ],
+  "cwd": "scripts",
+  "startedAt": "2026-10-09T03:23:02.107769+00:00",
+  "elapsedSeconds": 5.190805878024548,
+  "exitCode": 0,
+  "inputsStable": true,
+  "inputCount": 30
+}

@@ -1,0 +1,30 @@
+{
+  "scope": "Corrected analysis and original predecessor preserved. Final source file hashes are publication bindings; they do not invent an original inline execution hash. No analyzer/test/runtime rerun for publication.",
+  "originalAnalysis": {
+    "bytes": 33826,
+    "sha256": "101987c221138a6479b0463a2b1540b69b846f577d67c40cee0592821a13feed"
+  },
+  "correctedAnalysis": {
+    "bytes": 30841,
+    "sha256": "10a1d1055f4c961b41804bffdaa2aab1a06f8aa9f8b5364fce8c4f2d0e1bc00f"
+  },
+  "originalAnalyzer": {
+    "bytes": 9368,
+    "sha256": "0ed785168accfbef401aa1e9e78e696cde3d3b1783cc137daca0c926569fdeec"
+  },
+  "correctedAnalyzer": {
+    "bytes": 10451,
+    "sha256": "c796940a3c7dc21a1a84472548bb154393e7b0ab2531f0a492bc9ab5eb5f8030"
+  },
+  "shapeAudit": {
+    "bytes": 10748,
+    "sha256": "67b0e1985d07508fd2fe5cd8b2d360e6094672af73085daa0a1a45f932a09d80"
+  },
+  "weightedCPUAttribution": "withheld-invalid-timing",
+  "negativeDeltaCount": 1288,
+  "negativeDeltaSumUs": -3219079,
+  "rawCPURehashAndTimingValidatedDuringPublication": true,
+  "rawTimelineRehashedNotParsedDuringPublication": true,
+  "noNegativeValueRepair": true,
+  "historicalTests": "Eight correction checks include the prior six analyzer cases; counts overlap. No new test invocation."
+}

@@ -1,0 +1,30 @@
+{
+  "representation": "sanitized original JSON; exact private-location substitutions only",
+  "original": {
+    "bytes": 702,
+    "sha256": "6031b5a2f031ed622f22a61ac31e463de414f3cec081077eebf8cefb2fc412b2"
+  },
+  "value": {
+    "path": "<PRIVATE_FIXTURE_PARENT>",
+    "device": 27,
+    "inode": 948378,
+    "uid": 1000,
+    "modeOctal": "0o700",
+    "freshMkdtemp": true,
+    "createdAt": "2026-10-09T03:07:57.306286+00:00",
+    "socketPathBounds": {
+      "templates": {
+        "public": "<PRIVATE_FIXTURE_PARENT>/luci-sustained-XXXXXX/docker-proxy.sock",
+        "private": "<PRIVATE_FIXTURE_PARENT>/luci-sustained-XXXXXX/.luci-fence-proxy-XXXXXX/docker.sock"
+      },
+      "utf8Bytes": {
+        "public": 63,
+        "private": 82
+      },
+      "exclusiveLimitBytes": 108,
+      "fixtureSuffixCharacters": 6,
+      "proxySuffixCharacters": 6
+    },
+    "cleanupPolicy": "Parent retained for explicit owned-fixture closure review; never reuse as a new fixture"
+  }
+}

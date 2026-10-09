@@ -1,0 +1,18 @@
+{
+  "command": [
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--maxWorkers=1",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/project-read-cancellation-candidate/validation/before.json",
+    "src/api/displayReads.test.ts",
+    "src/components/definition/DefinitionWorkspace.test.tsx",
+    "src/components/orchestrator/OrchestratorPanel.test.tsx",
+    "-t",
+    "forwards display cancellation|preserves orchestrator pagination|aborts an abandoned definition GET|aborts only the abandoned project"
+  ],
+  "startedAt": "2026-10-09T03:18:54.365437+00:00",
+  "elapsedSeconds": 8.671087469003396,
+  "exitCode": 1
+}

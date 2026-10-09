@@ -1,0 +1,23 @@
+test_both_packagers_and_native_use_shared_staging (test_stage_release_docs.BuildWiring.test_both_packagers_and_native_use_shared_staging) ... ok
+test_claimed_clean_but_changed_or_wrong_revision_rejected (test_stage_release_docs.StageGuides.test_claimed_clean_but_changed_or_wrong_revision_rejected) ... ok
+test_clean_unpublished_commit_retains_full_docs_without_official_links (test_stage_release_docs.StageGuides.test_clean_unpublished_commit_retains_full_docs_without_official_links) ... ok
+test_code_comments_escaped_links_and_external_destinations_untouched (test_stage_release_docs.StageGuides.test_code_comments_escaped_links_and_external_destinations_untouched) ... ok
+test_comment_openers_in_inline_code_do_not_hide_following_links (test_stage_release_docs.StageGuides.test_comment_openers_in_inline_code_do_not_hide_following_links) ... ok
+test_compact_omits_only_evidence_retains_guides_assets_and_licences (test_stage_release_docs.StageGuides.test_compact_omits_only_evidence_retains_guides_assets_and_licences) ... ok
+test_crlf_and_local_destinations_preserved (test_stage_release_docs.StageGuides.test_crlf_and_local_destinations_preserved) ... ok
+test_dirty_and_unknown_keep_complete_validation_bytes (test_stage_release_docs.StageGuides.test_dirty_and_unknown_keep_complete_validation_bytes) ... ok
+test_entity_delimiters_keep_query_and_fragment_meaning (test_stage_release_docs.StageGuides.test_entity_delimiters_keep_query_and_fragment_meaning) ... ok
+test_existing_destination_not_overwritten (test_stage_release_docs.StageGuides.test_existing_destination_not_overwritten) ... ok
+test_fork_or_missing_tracking_ref_preserves_full_docs (test_stage_release_docs.StageGuides.test_fork_or_missing_tracking_ref_preserves_full_docs) ... ok
+test_ignored_untracked_and_assume_unchanged_bytes_cannot_enter_clean_package (test_stage_release_docs.StageGuides.test_ignored_untracked_and_assume_unchanged_bytes_cannot_enter_clean_package) ... ok
+test_images_references_directories_and_shipped_assets (test_stage_release_docs.StageGuides.test_images_references_directories_and_shipped_assets) ... ok
+test_missing_source_object_and_escaping_links_rejected_without_output (test_stage_release_docs.StageGuides.test_missing_source_object_and_escaping_links_rejected_without_output) ... ok
+test_official_ssh_tracking_ancestor_is_accepted_without_network (test_stage_release_docs.StageGuides.test_official_ssh_tracking_ancestor_is_accepted_without_network) ... ok
+test_offline_probe_failure_falls_back_without_raw_url_diagnostics (test_stage_release_docs.StageGuides.test_offline_probe_failure_falls_back_without_raw_url_diagnostics) ... ok
+test_spaces_percent_encoding_titles_queries_fragments_and_nested_labels (test_stage_release_docs.StageGuides.test_spaces_percent_encoding_titles_queries_fragments_and_nested_labels) ... ok
+test_symlink_input_and_destination_ancestor_refused (test_stage_release_docs.StageGuides.test_symlink_input_and_destination_ancestor_refused) ... ok
+
+----------------------------------------------------------------------
+Ran 18 tests in 1.181s
+
+OK

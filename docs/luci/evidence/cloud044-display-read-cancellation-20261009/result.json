@@ -1,0 +1,71 @@
+{
+  "scope": "Final combined frontend source validation; GET cancellation plus prior integrated Home/discussion implementation",
+  "tests": {
+    "numTotalTests": 2776,
+    "numPassedTests": 2776,
+    "numFailedTests": 0,
+    "numPendingTests": 0
+  },
+  "configuredTestFiles": 158,
+  "configuredDescribeSuites": 266,
+  "exitCode": 0,
+  "typecheckExitCode": 0,
+  "sourceFiles": [
+    {
+      "path": "desktop/src/api/definition.ts",
+      "beforeSHA256": "209773e56dba446e764bff33cb8e7c6d5874bd9a0e8444eb7e693daf3dcd2c8f",
+      "sha256": "19824453993b27b745049952340f808475c8424ee01bf32b8a6cd696bad3a19c",
+      "bytes": 5982
+    },
+    {
+      "path": "desktop/src/api/displayReads.test.ts",
+      "beforeSHA256": null,
+      "sha256": "5be6bddf3dd2161d9abb7effc466c8d061ee99d8c62c5c3d173e19b552057af6",
+      "bytes": 4374
+    },
+    {
+      "path": "desktop/src/api/orchestrator.ts",
+      "beforeSHA256": "0a9ac7f2e38b19842c27bd87339b2689ee2f6c663ced42c48f9ffd7e437e5292",
+      "sha256": "ca6a50795b585177ba08470de7a0b43ad158f6a01b7b4f66262a23f0382220e6",
+      "bytes": 9519
+    },
+    {
+      "path": "desktop/src/components/definition/DefinitionWorkspace.test.tsx",
+      "beforeSHA256": "c6f00d766c06d743b89feaefabe578679f7eb825a711b4ee6ca25f9607fbcc08",
+      "sha256": "dd66d40f5b0aa2272e18dbfa6acf13df36a0ecc15fc6224aba0922e3a8c5eb83",
+      "bytes": 26190
+    },
+    {
+      "path": "desktop/src/components/definition/DefinitionWorkspace.tsx",
+      "beforeSHA256": "71c17a92ff737948bfac6e4f476d2857aaf57f6f6b12b50227f8050891e5b484",
+      "sha256": "d29e3ec45148351be72be7526496c11731725f8d4eff61e61dee7819a81b94a6",
+      "bytes": 31141
+    },
+    {
+      "path": "desktop/src/components/orchestrator/OrchestratorPanel.test.tsx",
+      "beforeSHA256": "f12c434e55030f64baa98347d6bd8e4bc4ced481f949b512d3eff75a1f75806f",
+      "sha256": "c946bed098628d74d71566e3b5f94d8537360106bd327abccb53744d0cc1b049",
+      "bytes": 109869
+    },
+    {
+      "path": "desktop/src/components/orchestrator/OrchestratorPanel.tsx",
+      "beforeSHA256": "04dc2ff380bb73c377f89d097265e179728a6ad9eb54c8c84b68fa353c81795d",
+      "sha256": "a6c174f959daaea7f0c3c38c8a7710602fc2ab2fa718bcc62dbaedeecc28e93a",
+      "bytes": 53107
+    }
+  ],
+  "fullInputCounts": {
+    "repository": 1181,
+    "dependencies": 19369
+  },
+  "fullInputBeforeAfterIdentical": true,
+  "rawReportSHA256": "c3bdf4fb0a11f35129785dc1416bf7c98edeba3e071a829b77594b0ad5dd8883",
+  "focusedManifestPreservedSHA256": "40d1d3e36b265411770e79c37bccf27343aa4702a628ecd7c6c918deba03c9c2",
+  "scopeLimits": [
+    "No full-app responsiveness or sustained memory gate measured.",
+    "No Docker, installed app or provider task execution.",
+    "Earlier183 affected passes and corrected1-case follow-up overlap full2776; no addition of counts.",
+    "Original4 selected failures and original TypeScript exit2 remain retained separately.",
+    "Parent owns repository commit/publication and performance retesting."
+  ]
+}

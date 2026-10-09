@@ -1,0 +1,32 @@
+{
+  "scope": "Projection computed separately before sustained5 from hash-bound incomplete private artifacts. It was originally produced by an inline Python tool command, not a retained source file.",
+  "projection": {
+    "bytes": 10584,
+    "sha256": "275d83cc4bd313ba35605a538f334f830f266935a7efca5b5bccda08597c22c2"
+  },
+  "rawArtifacts": {
+    "browser-cpu.cpuprofile": {
+      "bytes": 1097185,
+      "sha256": "265646ccaf4ef0742369958494d4c6656369283e8e5988eb331e0a9d0def3fe3",
+      "private": true
+    },
+    "browser-timeline.json": {
+      "bytes": 33554432,
+      "sha256": "87881413924fa94f254a8c56d78827ba56da3bdb3eaa6f29f7bbb9be6b8d08b0",
+      "complete": false,
+      "private": true
+    }
+  },
+  "rawArtifactsReopenedDuringPublication": false,
+  "limits": [
+    "Trace incomplete/dataLoss; prefix only, not all400action marker coverage.",
+    "CPU(program) means unknown/native; no app-CPU or component attribution.",
+    "Any later reconstructive analyzer is not a hash binding for the original inline execution."
+  ],
+  "reconstructionHelper": {
+    "path": "analysis/reproduce-failed-prefix.py",
+    "bytes": 4386,
+    "sha256": "f2ccd713303af884f797ed02b286b12b4e15e3b0b11aeeb89f93c462a3236c03",
+    "status": "Staged after original inline calculation; not executed during publication or sustained5. Source hash must not be attributed to original inline execution. Future byte-for-byte reproduction remains unverified."
+  }
+}

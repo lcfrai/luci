@@ -1,0 +1,9 @@
+{
+  "source": "scripts/build-release.ps1",
+  "sourceSHA256": "42c7f005d6644881bc34fed76d42860d4b701bf4d169bf5657b59cf43c280c16",
+  "sourceStable": true,
+  "platform": "Unix",
+  "version": "7.5.5",
+  "errors": [],
+  "scope": "PowerShell parser only on Linux; no packaging commands executed or Windows runtime proof"
+}

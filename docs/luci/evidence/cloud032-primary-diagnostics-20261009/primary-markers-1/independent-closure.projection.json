@@ -1,0 +1,60 @@
+{
+  "representation": "Allowlisted independent closure; private fixtureManifest and originalInputs rows omitted",
+  "original": {
+    "bytes": 6138,
+    "sha256": "2d2e479479e218d44432539f3ba7952abad4601d781350a85767b813b2307e5a"
+  },
+  "receipt": {
+    "at": "2026-10-09T02:58:39.606295+00:00",
+    "scope": "Independent read-only diagnostic closure. Known driver PID/start and recorded controller PID absent; exact parent empty. Browser identities not independently captured; no whole-machine or zero-zombie claim.",
+    "knownIdentities": [
+      {
+        "recorded": {
+          "pid": 2185743,
+          "startTicks": 26055644
+        },
+        "current": null,
+        "observation": "absent"
+      },
+      {
+        "recorded": {
+          "pid": 2185942,
+          "startTicks": null
+        },
+        "current": null,
+        "observation": "absent"
+      }
+    ],
+    "ownedActiveProcesses": [],
+    "unreadableEnvironments": [
+      {
+        "pid": 203,
+        "startTicks": 1521,
+        "state": "S",
+        "ppid": 1
+      },
+      {
+        "pid": 254,
+        "startTicks": 1534,
+        "state": "S",
+        "ppid": 203
+      },
+      {
+        "pid": 260700,
+        "startTicks": 2331192,
+        "state": "S",
+        "ppid": 1
+      }
+    ],
+    "containers": [],
+    "volumes": [],
+    "fixtureParentEmpty": true,
+    "originalInputsUnchanged": true,
+    "signalsOrMutations": false
+  },
+  "limits": [
+    "Only driver PID/start and recorded controller PID absence independently checked. Browser PID/start identities were not captured.",
+    "Three unreadable other process environments; no whole-machine absence or browser-zombie claim.",
+    "Fixture parent is empty; package/image provenance remain original publisher receipts. No browser identity closure claim."
+  ]
+}

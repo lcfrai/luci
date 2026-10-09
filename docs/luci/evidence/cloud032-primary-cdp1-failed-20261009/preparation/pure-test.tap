@@ -1,0 +1,19 @@
+✔ complete fake primary capture preserves two private exact artifacts (13.745994ms)
+✔ cleanup is idempotent and does not claim completion for failed workflow (6.69872ms)
+✔ never-resolving session startup is bounded; a late handle is detached (30.273473ms)
+✔ nonsettling end does not prevent bounded independent detach (123.823184ms)
+✔ reported trace data loss refuses completeness (5.004474ms)
+✔ a full record-until-full buffer is not treated as a full cohort (4.305641ms)
+✔ oversize trace retains partial receipt and still closes transport (5.539462ms)
+✔ oversize CPU response is rejected independently of trace drain (4.597676ms)
+✔ empty never-ending trace chunks cannot grow unbounded command metadata (3.428689ms)
+✔ capture deadline settles diagnostics without claiming a successful cohort (12.229428ms)
+✔ late unresolved commands remain uncertain rather than being counted closed (30.320923ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 326.258955

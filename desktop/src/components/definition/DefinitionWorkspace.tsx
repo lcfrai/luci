@@ -106,6 +106,14 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
   const alive = useRef(true);
   const submitting = useRef(false);
   const reading = useRef({ generation: 0, pending: false, ready: false });
+  const readController = useRef<AbortController | null>(null);
+  const readAfterGrant = useRef(true);
+  const readPermission = useRef(canRead); readPermission.current = canRead;
+  const abortRead = useCallback(() => {
+    reading.current.generation++; reading.current.pending = false; reading.current.ready = false;
+    const controller = readController.current; readController.current = null;
+    controller?.abort();
+  }, []);
   const locked = busy || savedRead !== "ready";
   const tabsId = useId(), selectedIndex = views.findIndex(([key]) => key === tab);
   const setLens = useCockpit((s) => s.setLens);
@@ -113,25 +121,36 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
   const load = async () => {
     if (!canRead || reading.current.pending || submitting.current) return;
     const generation = ++reading.current.generation;
+    const controller = new AbortController(); readController.current = controller;
     reading.current.pending = true; reading.current.ready = false; setSavedRead("loading");
     try {
-      const value = await definitionApi.get(projectId);
-      if (!alive.current || reading.current.generation !== generation) return;
+      const value = await definitionApi.get(projectId, controller.signal);
+      if (!alive.current || !readPermission.current || controller.signal.aborted || reading.current.generation !== generation) return;
       savedSpec.current = value; setSpec(value); setBase({ revision: value.revision, briefRevision: value.briefRevision });
       reading.current.ready = true; setSavedRead("ready"); setDirty(false); setError("");
       if (value.purpose || value.revision) setTab("specification");
     } catch (cause) {
-      if (alive.current && reading.current.generation === generation) { setSavedRead("failed"); setError(errorText(cause)); }
+      if (alive.current && readPermission.current && !controller.signal.aborted && reading.current.generation === generation) { setSavedRead("failed"); setError(errorText(cause)); }
     } finally {
+      if (readController.current === controller) readController.current = null;
       if (reading.current.generation === generation) reading.current.pending = false;
     }
   };
   useEffect(() => {
-    alive.current = true;
-    if (!canRead) return;
+    alive.current = true; readAfterGrant.current = true;
+    return () => { alive.current = false; abortRead(); };
+  }, [abortRead]);
+  useEffect(() => {
+    if (!canRead) { readAfterGrant.current = true; abortRead(); return; }
+    // Do not abandon a write or read an older baseline while its outcome is
+    // pending. A restored grant queues exactly one fresh display read after it.
+    if (!readAfterGrant.current || busy || submitting.current) return;
+    readAfterGrant.current = false;
+    // Preserve unsaved answers as an explicit recovery choice before replacing
+    // the saved view. Edit-only changes do not request a new baseline.
+    if (dirty) draft.offerRecovery();
     void load();
-    return () => { alive.current = false; reading.current.generation++; reading.current.pending = false; reading.current.ready = false; };
-  }, [projectId, canRead || !!spec]);
+  }, [projectId, canRead, busy, abortRead]);
   const reload = () => {
     if (!canRead || reading.current.pending || submitting.current) return;
     draft.offerRecovery(); void load();

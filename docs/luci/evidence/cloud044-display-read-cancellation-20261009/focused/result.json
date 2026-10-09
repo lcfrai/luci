@@ -1,0 +1,87 @@
+{
+  "scope": "Display GET cancellation only; no latency, RAM, backend cancellation or installed claim",
+  "finishedAt": "2026-10-09T03:22:16.458301+00:00",
+  "originalBaseRevision": "e2f426bb50267a7cceac1f53eb1e00a0a4cc278e",
+  "repositoryHEADAtVerification": "9f9cc09d3ff14ed1635c3d72fac876ab7789247d",
+  "sourceState": "Seven controlled uncommitted frontend files; parent concurrent helper/docs changes excluded",
+  "files": [
+    {
+      "path": "desktop/src/api/definition.ts",
+      "beforeSHA256": "209773e56dba446e764bff33cb8e7c6d5874bd9a0e8444eb7e693daf3dcd2c8f",
+      "sha256": "19824453993b27b745049952340f808475c8424ee01bf32b8a6cd696bad3a19c",
+      "bytes": 5982
+    },
+    {
+      "path": "desktop/src/api/displayReads.test.ts",
+      "beforeSHA256": null,
+      "sha256": "5be6bddf3dd2161d9abb7effc466c8d061ee99d8c62c5c3d173e19b552057af6",
+      "bytes": 4374
+    },
+    {
+      "path": "desktop/src/api/orchestrator.ts",
+      "beforeSHA256": "0a9ac7f2e38b19842c27bd87339b2689ee2f6c663ced42c48f9ffd7e437e5292",
+      "sha256": "ca6a50795b585177ba08470de7a0b43ad158f6a01b7b4f66262a23f0382220e6",
+      "bytes": 9519
+    },
+    {
+      "path": "desktop/src/components/definition/DefinitionWorkspace.test.tsx",
+      "beforeSHA256": "c6f00d766c06d743b89feaefabe578679f7eb825a711b4ee6ca25f9607fbcc08",
+      "sha256": "dd66d40f5b0aa2272e18dbfa6acf13df36a0ecc15fc6224aba0922e3a8c5eb83",
+      "bytes": 26190
+    },
+    {
+      "path": "desktop/src/components/definition/DefinitionWorkspace.tsx",
+      "beforeSHA256": "71c17a92ff737948bfac6e4f476d2857aaf57f6f6b12b50227f8050891e5b484",
+      "sha256": "d29e3ec45148351be72be7526496c11731725f8d4eff61e61dee7819a81b94a6",
+      "bytes": 31141
+    },
+    {
+      "path": "desktop/src/components/orchestrator/OrchestratorPanel.test.tsx",
+      "beforeSHA256": "f12c434e55030f64baa98347d6bd8e4bc4ced481f949b512d3eff75a1f75806f",
+      "sha256": "c946bed098628d74d71566e3b5f94d8537360106bd327abccb53744d0cc1b049",
+      "bytes": 109869
+    },
+    {
+      "path": "desktop/src/components/orchestrator/OrchestratorPanel.tsx",
+      "beforeSHA256": "04dc2ff380bb73c377f89d097265e179728a6ad9eb54c8c84b68fa353c81795d",
+      "sha256": "a6c174f959daaea7f0c3c38c8a7710602fc2ab2fa718bcc62dbaedeecc28e93a",
+      "bytes": 53107
+    }
+  ],
+  "sourcePatchSHA256": "53e093d2b68e6f53e358c4a54bae8fb4e1f066269cf39c6429267a2183def605",
+  "regressionBefore": {
+    "selectedFailures": 4,
+    "selectedPasses": 0,
+    "filteredPending": 139,
+    "exitCode": 1,
+    "scope": "Identical prepared tests with original four production files; both APIs fail signal forwarding and both project display reads fail cancellation assertions"
+  },
+  "affectedAfter": {
+    "passed": 183,
+    "failed": 0,
+    "pending": 0,
+    "files": 5,
+    "includesPreparedNewCases": 20,
+    "inputsStable": 722,
+    "scope": "After production correction; predates only Array.at replacement in one test assertion"
+  },
+  "typecheckOriginal": {
+    "exitCode": 2,
+    "cause": "New test calls.at(-1) unsupported by configured TypeScript library; retained"
+  },
+  "finalFollowup": {
+    "assertionsPassed": 1,
+    "filteredPending": 114,
+    "scope": "Only changed post-Send readback test assertion rerun; overlaps183",
+    "typecheckExitCode": 0,
+    "inputsStable": 722,
+    "repositoryInputs": 429,
+    "compilerDependencyInputs": 293
+  },
+  "limitations": [
+    "No backend/frontend installed workflow or performance measurement run.",
+    "A browser abort signal establishes client cancellation; it does not prove every server computation stopped.",
+    "Compiler input hashes include293 dependency files; full runtime node_modules bytes are not bound or published. Lock/config and all429 repository frontend inputs are captured.",
+    "Original before regression selected seven changed/new files were verified before running; the full722-input before/after stability capture applies to corrected validation only."
+  ]
+}

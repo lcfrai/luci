@@ -1,0 +1,317 @@
+{
+  "representation": "sanitized original JSON; exact private-location substitutions only",
+  "original": {
+    "bytes": 23194,
+    "sha256": "2ff6e2876a946d08e27913039edc8301817d6365b2484eba423e06a65a6a5018"
+  },
+  "value": {
+    "version": 1,
+    "executionDirectory": "<DIAGNOSTIC_PREPARATION>/candidate",
+    "scope": "Unexecuted external PRIMARY400 CDP-only diagnostic candidate; exact frozen primary workload, instrumented timings are not acceptance results",
+    "templateSourceSHA256": "6d9e4e1a45c778c5d2066738f3b34930a477d6cf8bcadeec10dab5c975792d32",
+    "localSources": {
+      "sustained.mjs": "bc815ec8ae3fc28117d000cf56b24dc3a23907083a2b2c8b7ecdab76e9be84b7",
+      "task-command.mjs": "414015af6ea915ccd3c838c3a316b7f08e079b70cc5de299a7991bb0b5f9f6fe",
+      "workloads.mjs": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306",
+      "interaction-metrics.mjs": "9df7c325211757369a8ac68a92d5e351606ad5c5bf9fda3bbb8fd6e71daf576e",
+      "latency-diagnostics.mjs": "8a1c8deba848fe61552a9d4149a7530cafbad61056ba0893d8863a165fa6071d",
+      "task-context.mjs": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2",
+      "source-binding.mjs": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796",
+      "queue-controls.mjs": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0",
+      "run-with-observer.py": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a",
+      "primary-profiler.mjs": "6c811644fa2d15e2cc94f7e717630962867cdda888630e8c2f5588a8a0a8fde7",
+      "native-terminal-diagnostics.mjs": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+      "sample-linux-owned.py": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+      "fenced-docker-proxy.mjs": "2b6887af0bad7975c74bac42c8ed7988813e3c72ba615281c727c0ac268b1606",
+      "worker-create-guard.mjs": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+      "durable-acceptance-journal.mjs": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+      "acceptance-lifecycle.mjs": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "acceptance-startup.mjs": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680"
+    },
+    "repositoryDependencies": {
+      "desktop/node_modules/playwright/cli.js": "5e79302a6aad7d835d92d5ae6b4244c91cf61b28e94d7917279090e6c231f7a1",
+      "desktop/node_modules/playwright/index.js": "4e98f65f0a9d9bcab8cffc0c5cfdd87fd3f5b0be74fc494ff166a466b204cd44",
+      "desktop/node_modules/playwright/index.mjs": "a0f5715ea22354f922791a9c53dc012d5d5c067ff9cc4cd35ffb7cd272071a9f",
+      "desktop/node_modules/playwright/jsx-runtime.js": "2fefb7ec3a42dcf1cea35ca7e3eb107507c4d80821b1d6abf6cfc9bca36498f0",
+      "desktop/node_modules/playwright/jsx-runtime.mjs": "a6ae8df3a36f154f433b01fe1592170500f5fbe7798f6dacdfea5b492f31d1a6",
+      "desktop/node_modules/playwright/lib/agents/agentParser.js": "a2f630c1c2c9eafa0a3ca9cdbeaa26e74801615bc572e3fce226acb662ceb0eb",
+      "desktop/node_modules/playwright/lib/agents/generateAgents.js": "3bae7bde1d05c0fbaaa1a82ce7a39732ff52904de575fe88e69c391a6c41478e",
+      "desktop/node_modules/playwright/lib/cli/reportActions.js": "4eeceedf9588d69a153f018aa548e00b73e5f61cb39bb05f0fc87c06131af2b3",
+      "desktop/node_modules/playwright/lib/cli/testActions.js": "844ee2482212864404513729b51871f43d28693b5c98f260e6fbc5d7bf02827f",
+      "desktop/node_modules/playwright/lib/common/index.js": "f4a6b14f5ba21a118b58a6a25eb0b281a3acc4157023b014e0197145056124a4",
+      "desktop/node_modules/playwright/lib/errorContext.js": "ffc1843cebb3e90e1674c07ee2607a4a63152eff609e5f9865bbb2f9eb02e9a1",
+      "desktop/node_modules/playwright/lib/globals.js": "f5922eb1fb6051900157492eb9c218e62d07378eed135bca4b2f173ed1184d1c",
+      "desktop/node_modules/playwright/lib/index.js": "54bf5935cf339938408c656bde958047a1217bf77434acdf75a0c717cddaaeae",
+      "desktop/node_modules/playwright/lib/isomorphic.js": "3d61508f951aa9518adb4bf6594d61dfd1099c95a1a4f0af809a58ccebc59025",
+      "desktop/node_modules/playwright/lib/loader/loaderProcessEntry.js": "45681332f4178770c204b33e5b8dcbba940baf3bc6fc86506bab24027cb513f3",
+      "desktop/node_modules/playwright/lib/matchers/expect.js": "5ef2a695e787386367f4b1e03c79b05100b5526121462b24d7730a731689d941",
+      "desktop/node_modules/playwright/lib/mcp/test/browserBackend.js": "703f307d1c3e746291b625f886af3d3d28fc0a868b8b2a66173a75bd895ccddc",
+      "desktop/node_modules/playwright/lib/mcp/test/generatorTools.js": "3c53feaeb9fc2ff728f334cb31f9b7211e65b20c692c7585459c3c97bdd13a12",
+      "desktop/node_modules/playwright/lib/mcp/test/plannerTools.js": "715abc888d9ea30b532b75c6f09aa34101ab15c1eeb959c50cf9dedcf3a459ac",
+      "desktop/node_modules/playwright/lib/mcp/test/seed.js": "f36f7fb76d4ed33225e80be208cccc9757d363a9d1527cf560736c0f1e5edd31",
+      "desktop/node_modules/playwright/lib/mcp/test/streams.js": "8affc240a6a90ee2dbdedcde9927018efe426ec0d390bcd1ee4f0464e75adc0f",
+      "desktop/node_modules/playwright/lib/mcp/test/testBackend.js": "dcd8d09366617f13213ce544efb5fe47df5a87258ae93545d4d0738623f43ad1",
+      "desktop/node_modules/playwright/lib/mcp/test/testContext.js": "74ff4273ea12e6353d4860c9452387b643d7d8899fbd4951389ba94d18df5e37",
+      "desktop/node_modules/playwright/lib/mcp/test/testTool.js": "2a8f17d0a61ccb8a4ca9c52a3255d624deca989c0b06281d579629c664f8cc8e",
+      "desktop/node_modules/playwright/lib/mcp/test/testTools.js": "14710b5f34246005d974762b83a2a50e5cc17130af841cd3bc447811d69c6af7",
+      "desktop/node_modules/playwright/lib/package.js": "544a18417ea51dd4c8a9f3dbc4e2b47e46c80f452e0cd23d55e9b3680bc6241e",
+      "desktop/node_modules/playwright/lib/program.js": "dfbb7bae1431d99d330320040c03f7e9c6681184c8dcb59008a09da7ada0c409",
+      "desktop/node_modules/playwright/lib/runner/index.js": "7a2e4e1114d3237d61b87723b4d86a37944c9143f3ce2fb0b2e8867e0c612a5e",
+      "desktop/node_modules/playwright/lib/transform/babelBundle.js": "72363941e21434effbc8ce0484fa490d281154499957e0be244d31cee9a1d5a7",
+      "desktop/node_modules/playwright/lib/transform/esmLoader.js": "51a0a75a3aee8ec1dcfd545ad5c45300c282b5c4fe6d0a74b5a6cdcb649ad0de",
+      "desktop/node_modules/playwright/lib/util.js": "874c55495773da8c5a2ec46551c2265937bf08446231c09a8b5966e8bea2b1f7",
+      "desktop/node_modules/playwright/lib/worker/workerProcessEntry.js": "3d6676ca271c075b1e7c8e2cd6ad5331430cf29a3332d1f621054ff7d8e06478",
+      "desktop/node_modules/playwright/package.json": "8bc2ddebe8d9b051b9ecb87d62c6c63877e59d08617f32c3215681ca8bb70998",
+      "desktop/node_modules/playwright/test.js": "b97fa53a6ab864f51c9c48b5e4647d0acae45ba2948c5d78e38bfeb56755d974",
+      "desktop/node_modules/playwright/test.mjs": "1deb265617d0e87b6d05bf8b3d5bf73cd4b788665c249c609a01b94ceff2eea1",
+      "desktop/node_modules/playwright-core/browsers.json": "545d52f8382c391e605562c330e9c1c534a16045898203037a49bb8bd769a946",
+      "desktop/node_modules/playwright-core/cli.js": "f1c4075aef116c766092250d7f37b3249a7cee6465d953207fc38c8f6145becd",
+      "desktop/node_modules/playwright-core/index.js": "a58fb2cec4293e7dcf73c58a179898a4f3986666451a19da4e731fa3af63265b",
+      "desktop/node_modules/playwright-core/index.mjs": "3d36e2132d3c8b62397d23f0bb4177336aaee503203ae2a2c90fbeb5bf3317dd",
+      "desktop/node_modules/playwright-core/lib/bootstrap.js": "4637f4dbfef9cfc01baeb5f5d2cb63fa0901522c96915ea2227290558d27123e",
+      "desktop/node_modules/playwright-core/lib/coreBundle.js": "549070af3acabb3efcc4f55bfe6210f9f7c2fcf633cf7eaa59bfe60719969171",
+      "desktop/node_modules/playwright-core/lib/entry/cliDaemon.js": "062f256fb29a7bf91793a014b9c3f1f9cf2dc6b12e40a8a2ebba88a630ae16a0",
+      "desktop/node_modules/playwright-core/lib/entry/dashboardApp.js": "209962c6eaeef11629f226d6a2ab33ec7a2480754242b6e19590a9e6eb71d126",
+      "desktop/node_modules/playwright-core/lib/entry/mcp.js": "cc87dc0020cb41caebbf04f50e42bc7835b033a6d80e9c3f0a3d0b3dbdf341c7",
+      "desktop/node_modules/playwright-core/lib/entry/oopBrowserDownload.js": "87567cdbd67dd2f50bb232d47d3784701ece7c81e39c0287bb7d1b466b68cf06",
+      "desktop/node_modules/playwright-core/lib/package.js": "9f938e1d44a0dd231b1660ca62f7dae964859b79cbdc370b8542c5d375ca3c05",
+      "desktop/node_modules/playwright-core/lib/server/electron/loader.js": "699fb5564539da34ed72f49e9821af28f9fc06940adb639cac55dc9c477cfe7c",
+      "desktop/node_modules/playwright-core/lib/serverRegistry.js": "38025f08f335705b099b9f188bf45b5908a56a722825fe895b1e90f56d5595b6",
+      "desktop/node_modules/playwright-core/lib/tools/cli-client/channelSessions.js": "6b9c613e87340f48ad7182addd7495a8ff3fbe55feb1bbd0ce04f59f1552e126",
+      "desktop/node_modules/playwright-core/lib/tools/cli-client/cli.js": "dfde8e9dfde30c4b3914eb25ba1c5a8524ec64651d866171d75cd7b41a827180",
+      "desktop/node_modules/playwright-core/lib/tools/cli-client/help.json": "e78d7a22d059196e838d1f076b563eae185b851e3e36063fa4ae77a8dc1415b1",
+      "desktop/node_modules/playwright-core/lib/tools/cli-client/minimist.js": "9430489ebc06fd02231dccfe844516f743e812a9ac4fe8e6748a67718738851c",
+      "desktop/node_modules/playwright-core/lib/tools/cli-client/output.js": "b4c3ebab965e73d621971cd3c76b60c22cf460a0921f14c5c6c51e46e06f02d2",
+      "desktop/node_modules/playwright-core/lib/tools/cli-client/program.js": "55a9a10132c680ecdec25b5000afb12035745ac9e75dd9cc0ef3e5d5e08d7f3e",
+      "desktop/node_modules/playwright-core/lib/tools/cli-client/registry.js": "4976cd5b2b3a25572cc1a4b5f055a756dacd4cc1b19d48987ee3253428e759b8",
+      "desktop/node_modules/playwright-core/lib/tools/cli-client/session.js": "a71e03ba6dc99d6d9cca4577d534daa6d0c20c32e50065311823f41caba29b46",
+      "desktop/node_modules/playwright-core/lib/tools/utils/extension.js": "404ae19e57a7c7c5ed3e6ecf9df26a3fcf95867250732f954823078ccb879e63",
+      "desktop/node_modules/playwright-core/lib/tools/utils/socketConnection.js": "973c2bea70a1f1445f4673f99e9fa351e50a2ec9fd93d7381b2c41bb4de764dd",
+      "desktop/node_modules/playwright-core/lib/utilsBundle.js": "2d1ccc01d21b7d54ca99a6305991d7fb6e072ea4e725d7fec5eb6184188c52c9",
+      "desktop/node_modules/playwright-core/lib/vite/dashboard/assets/codeMirrorModule-CQ8RZGBm.js": "56b9c6a50c09dfac28eea5ec3e76c8ae85a26009b20ebac9928959cf3c3312bb",
+      "desktop/node_modules/playwright-core/lib/vite/dashboard/assets/index-hRvO4yU2.js": "3a05ed0b026442a1459952df25b9a836d4fa1a917838cf6f9357daefc0e42285",
+      "desktop/node_modules/playwright-core/lib/vite/htmlReport/report.js": "3db0c0291241102b14b62af4b80d84dd8169a281bb2ff360c986b9d7da57c339",
+      "desktop/node_modules/playwright-core/lib/vite/recorder/assets/codeMirrorModule-CVQWJZAA.js": "45f900fd93bf33545e6915308a964c49ce342c2e175a54aaef0898f05b25fcf5",
+      "desktop/node_modules/playwright-core/lib/vite/recorder/assets/index-hrlLqLtq.js": "f7f3dfd9113b0119821adf1f3fc873fa5dddba8b2c278014e0fb0ecc1b3f492b",
+      "desktop/node_modules/playwright-core/lib/vite/traceViewer/assets/codeMirrorModule-BbkfBe3n.js": "274b964242426bf4e1c662a84f6345d8a99f67821caa508fb12c52e2d1dfd48c",
+      "desktop/node_modules/playwright-core/lib/vite/traceViewer/assets/defaultSettingsView-Ds6CBOo0.js": "0b48f13034cfa075338cc0839f212297d22cadab9219d9699d161d2b18c79019",
+      "desktop/node_modules/playwright-core/lib/vite/traceViewer/assets/urlMatch-L3liM589.js": "1bc6321e32d11c31a452bc75896f0b344e6153321854d9f1658818be7f845c16",
+      "desktop/node_modules/playwright-core/lib/vite/traceViewer/assets/xtermModule-DywYcAf8.js": "2546783e4f74a432bbccd88a6763cf78ac4e951686262cdf85b54d5a26ca3995",
+      "desktop/node_modules/playwright-core/lib/vite/traceViewer/index.B4cLoZK3.js": "7b96efd541639738a8d46e4b6ba9780ffaf57a5c104db66764e0cec46d9f64e8",
+      "desktop/node_modules/playwright-core/lib/vite/traceViewer/snapshot.B_Jk1wbt.js": "d4d09e05451d107d8e1a6bbd041405fe518b9fd2833890e4ebaaad83b7f554f5",
+      "desktop/node_modules/playwright-core/lib/vite/traceViewer/sw.bundle.js": "37b230329280e28e32b03df20738d2ed3bfd0ea45b408a69213158bb8400adb3",
+      "desktop/node_modules/playwright-core/lib/vite/traceViewer/uiMode.CU5KtEkS.js": "0c0dc5e0c822c27e60420a5c1659683fda89398f1561e43608f9d829eafdc197",
+      "desktop/node_modules/playwright-core/package.json": "f061c58427e47e843e26d201f0a57076c734e57c734ecbbd87d4a23b7a20db9b"
+    },
+    "dependencyDifferences": {
+      "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs": {
+        "templateSHA256": "48e97d6d5c915cf80c99f0c79a8fb16261eb219616f878fa1ce103ee2c59303d",
+        "currentSHA256": "2b6887af0bad7975c74bac42c8ed7988813e3c72ba615281c727c0ac268b1606",
+        "reason": "Root-authorized current opt-in proxy diagnostics; zero Create/Start forwarding remains mandatory."
+      }
+    },
+    "extractionChanges": [
+      {
+        "label": "bounded diagnostic deadline",
+        "oldSHA256": "c45c7bc6f53b5154e0055250213d142f3fa18196532da53a49b1988a9f894cf1",
+        "newSHA256": "899698759f994c9419287ae3087bab08dc612b6835466bea3ef6c8f19995c5fc"
+      },
+      {
+        "label": "accurate deadline text",
+        "oldSHA256": "32ae559796543dc0cdc187cb421dd0363261deff28895722fe0c5e33523f5631",
+        "newSHA256": "b7af6b7711ba984e50fbf1628a3e8a97a1b4c42989dfcb19de73b7bba55a34a0"
+      },
+      {
+        "label": "external executed-source identity; retain product/clean dependency checkout binding",
+        "oldSHA256": "c44d3ee4312196041b004a80fe348729769e0335f561b167ca381e819c5e5920",
+        "newSHA256": "9d1344e3c8763968569fa7bd36766c77bbaf6a44c157f4f9c06c1a716c28a553"
+      },
+      {
+        "label": "declare diagnostic scope before startup",
+        "oldSHA256": "f83e6940f8441a426323c4bb68b339decb6466c392db47ed5c26c673b0b65274",
+        "newSHA256": "903670a0e85e0dd67175d7e3a15a46f709bed18f1fbeb08aa8b6979ce738b122"
+      },
+      {
+        "label": "never unpause queue",
+        "oldSHA256": "ab1dad9a61fd3a7cf43d7b6acd4c9f7557a44322bae519dd1351d90a7f3f3883",
+        "newSHA256": "a0933104d91e72758766f0f348d00a4eb07ece2a4fd0075fa36f2bfb909049f7"
+      },
+      {
+        "label": "hard zero Create identity guard",
+        "oldSHA256": "03327a42e8120bd6978a0dc37ecfc1cfabedc7944fb69ad385a053c6c70b04bf",
+        "newSHA256": "4546d71406891b2ece133ec285dbecd474fbff5d4454e5a52e5121d8799097dd"
+      },
+      {
+        "label": "hard zero Create and Start forwarding guards",
+        "oldSHA256": "32132ad6e815ec091561e73ce5772afc7f386de645b338db5d43fbd7cdc536a9",
+        "newSHA256": "f4e8398267075b349946240bad98eea6105f4e7e82e4d2deb65eaf9586b21caa"
+      },
+      {
+        "label": "match declared positive structural proxy budgets; hard deny remains authority",
+        "oldSHA256": "1be9ae5875b183f656ea0353ea1f59bccdfa2154da0075bbf54467c14c69029b",
+        "newSHA256": "bdbe30fd87c9c3dd0ed2c9ad7541d02d9c847e2ffbdff9ec33638266230ce86b"
+      },
+      {
+        "label": "Diagnostic cleanup controllers\u2192browser\u2192provider\u2192proxy; preserve original proxy close bounds, reserve browser fallback before a slow read drain",
+        "movedPhaseSHA256": "b9d4375289c282cd5cedf675c313f133440a37db068330730fac6608146a06ff"
+      },
+      {
+        "label": "capture external binding beside all executed source",
+        "oldSHA256": "cbeee219b3dbe82e0674dc12fceeef332520701f238ba61428d21c4a0d77d4a8",
+        "newSHA256": "e4d8148b23e5f094ba0224d9c3cc7e02f115d7a728ca090e2945476d384bc5b0"
+      },
+      {
+        "label": "diagnostic budgets; proxy positive structural bounds cannot grant mutation",
+        "oldSHA256": "59a5b0cbe37bac0057fc01e63277a6c2627eb3b62dbd84fff0997f41e3400e54",
+        "newSHA256": "71215f22d6f9c8abb14ad3bae20a7e8344091528233e396ab58354d24a6fbc95"
+      },
+      {
+        "label": "accurate workload timing rationale",
+        "oldSHA256": "d73bdf45545432e8bbe92dbf21db755b13166f9e45cd787235542bd1692ba204",
+        "newSHA256": "fc6969ccb543b06e72370df7e9d5a8d5aabe4a81a970d0b522a3bffc424ea0b6"
+      },
+      {
+        "label": "Stop after exact original idle phase; remove dispatch/work/amendment/settled acceptance tail",
+        "removedBytes": 6101,
+        "oldSHA256": "1e381dbfddfcdff29c57652074124057e1d5d9c9745ca009a3b66899ebb9d580",
+        "newSHA256": "b84e6f21aff47e2889457f350bb82fb060a47d1a85e4cc55276fd7d72d32a075"
+      },
+      {
+        "label": "explicit external diagnostic repository fallback",
+        "oldSHA256": "34ce8aee07eae41a44a6e63faa9ab4239a51043376fb17a13f0cc3a99888e073",
+        "newSHA256": "b5f535836dbe60166a3d54e6673680ed5c60866cf40a60b18133fa4f70d7a478"
+      },
+      {
+        "label": "diagnostic CLI scope",
+        "oldSHA256": "34cb4d441a1723e6f1052ce777a7649f5c435df97d8e37ff11a76e41e3705c97",
+        "newSHA256": "b9d25c72d99057904259ee9e155e33bb13c2c5292df1ecc2a1d8e906d7c3fa74"
+      }
+    ],
+    "parentBindingSHA256": "ee18a3172f01fccb774b1568368681a89a51e2e73cd7c829a13a962debef64c2",
+    "frozenRuntimeDependencies": {
+      "scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+      "scripts/acceptance/four-project-queue/sample-linux-owned.py": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+      "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs": "2b6887af0bad7975c74bac42c8ed7988813e3c72ba615281c727c0ac268b1606",
+      "scripts/acceptance/launch-recovery/worker-create-guard.mjs": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+      "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+      "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "scripts/acceptance/launch-recovery/acceptance-startup.mjs": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680"
+    },
+    "runtimeToolingScope": "All installed playwright/playwright-core JS/MJS/CJS/JSON files, pinned at preparation; tooling is not the product commit",
+    "primaryProfilingChanges": [
+      {
+        "file": "sustained.mjs",
+        "label": "external profiler only",
+        "oldSHA256": "3bd42e15e5427f946b98b898212af900ed0a4068cff03a37aa2ce1d3a081f2ec",
+        "newSHA256": "8a45bef34bef06022e094cff8339fe6083ed48b869cdfad10549128648ea2eb6"
+      },
+      {
+        "file": "sustained.mjs",
+        "label": "capture profiler source with accepted harness",
+        "oldSHA256": "83b27e4a17db9fa704adf4cd8abed058a63565d9aed1d98d5d64d818926555b9",
+        "newSHA256": "a39d4bc43717405f8273d9b3af72fe3a8fd021199e7614ef856caea74094ff4c"
+      },
+      {
+        "file": "sustained.mjs",
+        "label": "capture exact frozen runtime dependencies",
+        "oldSHA256": "6bdf96d29ad455fc52b029e760db9ef2c86dcc393f6fb0723dd9e9e6eca7675e",
+        "newSHA256": "ff70c7889badd56cd27fef7d088573f38858e45889e6ba340cec80d3ad214c92"
+      },
+      {
+        "file": "sustained.mjs",
+        "label": "import frozen scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs",
+        "oldSHA256": "9c61c4e084b07a940860baccec5d9e3b130b6b8b66970e55539ec4a9fcfa2193",
+        "newSHA256": "84c807124346b50c4b7d12fffbf5dfacc9d558ad17db2c334b27c63e3ca87921"
+      },
+      {
+        "file": "sustained.mjs",
+        "label": "import frozen scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs",
+        "oldSHA256": "d90fec60f1a10fc7a7e46aa6860a0b3773ddb895a6dfe60342cfd66bf399ad9b",
+        "newSHA256": "9556ddbc9a3a1dd0da0be3085f2fc48461f2934a51ad5f4ff4d063b29823217b"
+      },
+      {
+        "file": "sustained.mjs",
+        "label": "import frozen scripts/acceptance/launch-recovery/worker-create-guard.mjs",
+        "oldSHA256": "5a9638388742e7110ec4454baa4e87a578ac448a330a72e46992e3fa0d6670dd",
+        "newSHA256": "52b65711165a28fea2f160c13de0bf80201bac330c6660076115f1f7fd14f30a"
+      },
+      {
+        "file": "sustained.mjs",
+        "label": "import frozen scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs",
+        "oldSHA256": "7e03e4934a2b58a90fdecd8d8dbb30b42ed6f22cd566ecb72703ccd8fc3f60f5",
+        "newSHA256": "1765e813db99564cef80dd1d69c892a66b6c6fa10c8c1b2ade414d9bbcbc288f"
+      },
+      {
+        "file": "sustained.mjs",
+        "label": "import frozen scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs",
+        "oldSHA256": "a0bc80e9727404c3f94822844b6afe62833558a0e8c50f7addd9a1296eaec40e",
+        "newSHA256": "e61e9ba40fc3316df00d654c1cabedc93667ba9db83c73f467c21957597e1f00"
+      },
+      {
+        "file": "sustained.mjs",
+        "label": "import frozen scripts/acceptance/launch-recovery/acceptance-startup.mjs",
+        "oldSHA256": "eeb19d82fee366d8e77c88be37a8b37848e307f86a012bf87e96197c511ecdb3",
+        "newSHA256": "a9e7800bf1fa6359fde99ac84e7e2b07556473ce0aec41ec4337f2017c7d0f8e"
+      },
+      {
+        "file": "sustained.mjs",
+        "label": "verify frozen inputs plus separately recorded installed tooling; retain clean helper checkout guard",
+        "oldSHA256": "9ff559b3be88517444e8175e6d6cc1f502f240d5c93074e1f6169412c5ea4a03",
+        "newSHA256": "4ff0a91dfd8c181decf35bdf4d55e928b977da807c4955a890f2e5f9e11da698"
+      },
+      {
+        "file": "sustained.mjs",
+        "label": "three capture/final hash reads use frozen runtime bytes; receipt labels original paths explicitly",
+        "replacementCount": 3
+      },
+      {
+        "file": "sustained.mjs",
+        "label": "retain profiler for independent failure cleanup",
+        "oldSHA256": "35763a24635b6dcfe6ea3c508de47e65ff8fe51e813265f0c99ea7dba545e75b",
+        "newSHA256": "8b1bde494aa1597821f957e297f21ace84a50371e6a425c83590b231214381e2"
+      },
+      {
+        "file": "sustained.mjs",
+        "label": "trace overlaps exact original primary400; phase and action timings remain unchanged",
+        "oldSHA256": "b90f3b9e717c3d5ed801de338ca4b9094cdce07265e6d03e7dfa3705c65bdab9",
+        "newSHA256": "513251bcfd647ff4887045bd11c3c39df802a6382b97cb635a79e60189813c99"
+      },
+      {
+        "file": "sustained.mjs",
+        "label": "profiler cannot indefinitely prevent existing independent owned-resource cleanup",
+        "oldSHA256": "288e847e91923a1953bc5e33c05ed8fb0cf7581ba3f7c04ce746e8c39f15f6eb",
+        "newSHA256": "dfa7fda7d9cb5a32a653ae4ba5bc2029ca91b764b8f4b55cf5423aeef50325e9"
+      },
+      {
+        "file": "interaction-metrics.mjs",
+        "label": "carry correlation ID in existing frame RPC; no added per-action RPC",
+        "oldSHA256": "cd827e2137121ec9f97cef0d580dea167220f4c531850a53d10f7d5269b4da0c",
+        "newSHA256": "0007d8b0e491921388b3723d6a868fa0c5d0b7b692e115b991c6c9e12e6d5c94"
+      },
+      {
+        "file": "interaction-metrics.mjs",
+        "label": "correlation follows exact retained primary receipt order",
+        "oldSHA256": "d0c1d9429f15d4baa50f112c3ed4b672cd256cc307ae00f63ac7d4940ca4774f",
+        "newSHA256": "36d6c533fdeec446285f50af50aeb1da33e65807b3b9f47787c44481b508a297"
+      },
+      {
+        "file": "latency-diagnostics.mjs",
+        "label": "bounded user-timing joins; no names, values, IDs, URLs or keys",
+        "oldSHA256": "d18fea1efdbc973c55338f494cc1e2a0c035364227a6e1f8e319aaa511ce600f",
+        "newSHA256": "fb15f2055c3fd584d1fb01c3dd81298d6bb14927f113bfecb18b1bfca37e74e5"
+      },
+      {
+        "file": "latency-diagnostics.mjs",
+        "label": "existing passive observer callbacks get exact sequence markers",
+        "oldSHA256": "0cd4dd98e613f93407931936aabd2e331989bb33eb6da965a18f890a69bc212a",
+        "newSHA256": "833f1df3f88415a5098d7403908a0d29168a12455b487e3ca4a736d13b56dee8"
+      },
+      {
+        "file": "latency-diagnostics.mjs",
+        "label": "three marker witnesses inside existing two-frame RPC",
+        "oldSHA256": "bb5144b761121fef0ff04b906c4e5cd05ffad7d6815767f4e95cee1bb83b26dc",
+        "newSHA256": "05f55202134f5833a0b69053d0b28c2a6d363594c14d5e6b838c562e5499b774"
+      }
+    ]
+  }
+}
