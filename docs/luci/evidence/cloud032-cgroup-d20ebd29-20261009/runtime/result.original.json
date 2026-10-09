@@ -1,0 +1,112 @@
+{
+  "productSource": "d20ebd292f3f1de04d6726bab0998c210987bcb5",
+  "helperSource": "c625ef0b7842748f4ce74cd3ffc08979d571bddf",
+  "startedAt": "2026-10-09T09:57:29.629384+00:00",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "/workspace/.luci-tools/cloud032-idle-67a5b7c7/launch.py",
+    "--source",
+    "d20ebd292f3f1de04d6726bab0998c210987bcb5",
+    "--helper-source",
+    "c625ef0b7842748f4ce74cd3ffc08979d571bddf",
+    "--package",
+    "/tmp/luci-retained-tools/package-0.5.0-d20ebd29",
+    "--provenance",
+    "/workspace/luci/artifacts/quality-swarm/candidate-d20ebd29/package/package-provenance.json",
+    "--image",
+    "luci/sandbox:verified-candidate-20261008t140025z-a4a2e82b",
+    "--expected-image-id",
+    "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+    "--image-provenance",
+    "/workspace/.luci-tools/sandbox-candidate-20261008T140025Z-a4a2e82b/receipt.json",
+    "--output",
+    "/workspace/luci/artifacts/quality-swarm/idle-d20ebd29-counter-attempt1",
+    "--fixture-root",
+    "/workspace/.c32",
+    "--trace-after",
+    "yes"
+  ],
+  "scope": "Fresh unchanged installed idle protocol plus separately bounded shared-cgroup counter observation. No per-action/process cause, threshold adjustment, Windows or full sustained acceptance claim.",
+  "sources": {
+    "/workspace/.luci-tools/run-idle-d20-with-counter.py": "1e03fe4eef0bb8c4041d1311e759a9dd97ac446bce2308315c11008787c18d1a",
+    "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/observer.py": "fc509776db0d1cbe8d474dfcd58e311d8588746ad9632fecab4d0ca7a2f0fea7",
+    "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/supervisor.py": "4b555802ca17e558bb65e64477af8d28642a55d047b4a310b0b412a08ab25beb",
+    "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/manifest.json": "e3b29883887eff4f8c1647c5099d634e26ce49cf8526e6fc2541c9d651c6f81f",
+    "/workspace/.luci-tools/cloud032-idle-67a5b7c7/launch.py": "a1ffc1ee3e9674a2812ad569a301d4ad69402c8dfa690f543c1a0bc12b270a62",
+    "/workspace/.luci-tools/cloud032-idle-67a5b7c7/actual/sustained.mjs": "18429d2a6497cfec582c8565b572b3ca567b756f2f9d403efd79b6b405719dc2"
+  },
+  "finishedAt": "2026-10-09T10:00:22.615706+00:00",
+  "elapsedSeconds": 172.98197916598292,
+  "launcherExitCode": 0,
+  "error": null,
+  "observer": {
+    "pid": 2331054,
+    "identityMechanism": "direct-child-pidfd-before-exec",
+    "startedAtMonotonic": 285918.875349886,
+    "wallSeconds": 400,
+    "termGraceSeconds": 1,
+    "killGraceSeconds": 1,
+    "events": [
+      {
+        "signal": "SIGTERM",
+        "via": "pidfd",
+        "accepted": true
+      }
+    ],
+    "errors": [],
+    "forced": false,
+    "settled": true,
+    "waitCallCount": 3410,
+    "pidfdSignalAttempts": 1,
+    "exitCode": 0,
+    "observationComplete": true,
+    "scope": "Own observer process settlement only; observation data and application cleanup are not certified.",
+    "stopReason": "owner_finished",
+    "finishedAtMonotonic": 286091.796294026,
+    "processOutcome": "clean_exit",
+    "sourcesBefore": [
+      {
+        "path": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/supervisor.py",
+        "sha256": "4b555802ca17e558bb65e64477af8d28642a55d047b4a310b0b412a08ab25beb",
+        "bytes": 20994
+      },
+      {
+        "path": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/observer.py",
+        "sha256": "fc509776db0d1cbe8d474dfcd58e311d8588746ad9632fecab4d0ca7a2f0fea7",
+        "bytes": 17685
+      }
+    ],
+    "sourcesAfter": [
+      {
+        "path": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/supervisor.py",
+        "sha256": "4b555802ca17e558bb65e64477af8d28642a55d047b4a310b0b412a08ab25beb",
+        "bytes": 20994
+      },
+      {
+        "path": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/observer.py",
+        "sha256": "fc509776db0d1cbe8d474dfcd58e311d8588746ad9632fecab4d0ca7a2f0fea7",
+        "bytes": 17685
+      }
+    ],
+    "sourceStable": true,
+    "observation": {
+      "serializationComplete": true,
+      "observerHeaderPID": 2331054,
+      "rows": 1730,
+      "bytes": 1658626,
+      "stopReason": "owner_stop",
+      "sampleRows": 1728,
+      "metadataStable": false,
+      "unknownObservations": 0,
+      "counterResetOrShapeChanges": 0,
+      "scope": "Bounded serialized capture only, not valid coverage, absence of throttling or product acceptance."
+    },
+    "observerStartedAcknowledgedByHeader": true,
+    "watchdogThreadCPU": {
+      "elapsedNS": 2911927722,
+      "scope": "Watch/wait/signal, source/output validation and pidfd close only. Excludes initial setup, final receipt serialization/fsync, owner thread, observer process and kernel/daemon cost; not total adjunct overhead."
+    }
+  },
+  "cleanAfter": true,
+  "sameHead": true
+}

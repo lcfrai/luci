@@ -1,0 +1,20 @@
+{
+  "sourceThread": "01a1199f-7500-7843-b02b-081081e536fa",
+  "scope": "Relayed local Windows tester intake; no Windows execution in this cloud session.",
+  "productCommit": "d20ebd292f3f1de04d6726bab0998c210987bcb5",
+  "cloud052State": "ready_to_retest; local source and receipt verification pending",
+  "reportedPendingClaims": {
+    "raceOutcomes": 49,
+    "allPackageCompilation": "No selected tests; not full suite",
+    "portableFiles": 956,
+    "licensedComponents": 347,
+    "guides": 47
+  },
+  "configurationChanges": false,
+  "priorCoverage": "CLOUD-048 through CLOUD-051 and older unfinished recovery/provider/resource scopes remain carried at their original revisions, not replaced.",
+  "availableRAMBytesAtLedgerGuard": 262971392,
+  "guardOutcome": "Refused before ledger read/mutation. No tests, builds, dependency installs, browsers, app/worker/container workloads or new checkout launched; existing work preserved.",
+  "localJournal": "E:/Luci-local-acceptance/evidence/d20ebd29/handoff-intake.json",
+  "localOracles": "E:/Luci-local-acceptance/evidence/polls/20261009-0926-cloud052-retest-plan.json",
+  "limits": "Full ledger consolidation remains pending with durable journals. CLOUD-032 and full Windows/live-provider/local acceptance remain open; no cloud/controlled result is promoted to native verification."
+}

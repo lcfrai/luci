@@ -1,0 +1,183 @@
+{
+  "scope": "Exact retained bounded external shared-cgroup observation; no owned-process/action attribution, old-run backfill or acceptance pass.",
+  "productCommit": "d20ebd292f3f1de04d6726bab0998c210987bcb5",
+  "helperCommit": "c625ef0b7842748f4ce74cd3ffc08979d571bddf",
+  "originalCPU": {
+    "bytes": 1658626,
+    "sha256": "f5bb5e1709098f8a942998fa848883f0281a01b1242c389c9610952f871880a1"
+  },
+  "samples": 1728,
+  "totalRows": 1730,
+  "nrThrottledDelta": 13,
+  "throttledUsecDelta": 125756,
+  "metadataStable": false,
+  "missingMetadata": "/proc/self/ns/time: ENOENT before and after",
+  "companionReport": {
+    "path": "2026-10-09-cloud032-cgroup-d20ebd29.md",
+    "bytes": 1339,
+    "sha256": "3d89a48414aeb2fc6d6451e460d5a619f349f7864c6140afa98d317fb4cc3aad"
+  },
+  "members": [
+    {
+      "path": "README.md",
+      "bytes": 6445,
+      "sha256": "00a82bfb594baa9268723e713e24fec6aa01297f908dffac3f4f8064f1f97e9d"
+    },
+    {
+      "path": "analysis/counter-analysis.json",
+      "bytes": 16674,
+      "sha256": "fa8c986d83bf833625996042f0fb38772c45ec6bbec23bd914c3293c6becc05a"
+    },
+    {
+      "path": "analysis/independent-audit.json",
+      "bytes": 12399,
+      "sha256": "4dfe053e8c423c326a97414ba5ec8c83e1c5dfd77f4b8d9d6831d0f383566026"
+    },
+    {
+      "path": "analysis/phase-windows.json",
+      "bytes": 957,
+      "sha256": "a0b23e88cad0117c918c4069f4d5a098ac354cbf1753d0b6caa3718b84deed79"
+    },
+    {
+      "path": "analyze-counter.py",
+      "bytes": 10910,
+      "sha256": "aac834b0bb39acfa7a7c3a724a3543fff3bbdbcb15c97b61a3ba55561ed7f0cc"
+    },
+    {
+      "path": "linked-inputs.json",
+      "bytes": 1262,
+      "sha256": "76e6aff97834914e5cdee95fee11ce9c46ee4239c8e698b01236ab5a3b5e2b65"
+    },
+    {
+      "path": "original-bindings.json",
+      "bytes": 13760,
+      "sha256": "0edc8456fb1b5c1bc0d58bc31ba8854fa1cdfbac9e55c33a72f171f07cea8f27"
+    },
+    {
+      "path": "prepared/README.md",
+      "bytes": 7389,
+      "sha256": "32931649a92a2c591da00e181470d23b36773f6fdbf436f53865dde01caba3cb"
+    },
+    {
+      "path": "prepared/SHA256SUMS",
+      "bytes": 1765,
+      "sha256": "22fd4831c2265c6bda8cf52c26605b358a8054f33e6274f5ee2079e7639cf1f9"
+    },
+    {
+      "path": "prepared/evidence/final-cross-review.json",
+      "bytes": 3291,
+      "sha256": "28c647ebabe8c74f88add0d1c7291717fdc288a2e36baddfffc43af46a86845e"
+    },
+    {
+      "path": "prepared/evidence/observer-fixtures-attempt1/result.json",
+      "bytes": 774,
+      "sha256": "c45f78249537bdba0e3f60b2ebac2d33eb42ec02b070bb75ff3033bf02e2c452"
+    },
+    {
+      "path": "prepared/evidence/observer-fixtures-attempt1/stderr.log",
+      "bytes": 2865,
+      "sha256": "6c6d577f5e8d121d2eae41512eac254f9494d7ed9a1b66f4b78d36227f609db9"
+    },
+    {
+      "path": "prepared/evidence/observer-fixtures-attempt1/stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "prepared/manifest.json",
+      "bytes": 4654,
+      "sha256": "e3b29883887eff4f8c1647c5099d634e26ce49cf8526e6fc2541c9d651c6f81f"
+    },
+    {
+      "path": "prepared/observer.py",
+      "bytes": 17685,
+      "sha256": "fc509776db0d1cbe8d474dfcd58e311d8588746ad9632fecab4d0ca7a2f0fea7"
+    },
+    {
+      "path": "prepared/supervisor-fixture-attempt31-umask.stderr.log",
+      "bytes": 4254,
+      "sha256": "e3d28a15c7cb874eaa62f841268ee9b700e50e00d89064371aec5f0ff2281dae"
+    },
+    {
+      "path": "prepared/supervisor-fixture-attempt31-umask.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "prepared/supervisor-fixture-original26.stderr.log",
+      "bytes": 2987,
+      "sha256": "fabee1dd52e847a90b9d9c73fd1d73473a52d669dabc062a2df6149af238700b"
+    },
+    {
+      "path": "prepared/supervisor-fixture-original26.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "prepared/supervisor-fixture-original27.stderr.log",
+      "bytes": 3142,
+      "sha256": "021fbd6812743c1022b15293b5b44914ec51de9822e52c4a5256df2a07a19a76"
+    },
+    {
+      "path": "prepared/supervisor-fixture-original27.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "prepared/supervisor-fixture.stderr.log",
+      "bytes": 3646,
+      "sha256": "3370224ae064110ace560d29707c1734b5746108e7ab465673c52205ca311d54"
+    },
+    {
+      "path": "prepared/supervisor-fixture.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "prepared/supervisor.py",
+      "bytes": 20994,
+      "sha256": "4b555802ca17e558bb65e64477af8d28642a55d047b4a310b0b412a08ab25beb"
+    },
+    {
+      "path": "prepared/test_observer.py",
+      "bytes": 11518,
+      "sha256": "309a6f10abae9d66c2ce74358349e1f9c249405c7fa4a512549441d32690948d"
+    },
+    {
+      "path": "prepared/test_supervisor.py",
+      "bytes": 12545,
+      "sha256": "31c81d3a5738c5975977a1da34a71c0f3e53a7054b75cdd11119e7e14ec775fa"
+    },
+    {
+      "path": "publish.py",
+      "bytes": 14032,
+      "sha256": "e3601612bf4c584d9e44f8a56fddd29da7a691242065949afb8db4837c0f7df1"
+    },
+    {
+      "path": "runtime/cpu.original.jsonl.gz",
+      "bytes": 227415,
+      "sha256": "4a4f34834545eb2fed8e53946271d09c5132d9c34d98476dd3f2ed8d9347aaf3"
+    },
+    {
+      "path": "runtime/invocation.original.json",
+      "bytes": 2194,
+      "sha256": "182daf4beb813d66e416d44d2f82d4658be889d4b9b954e2a62d5f97e66de0e8"
+    },
+    {
+      "path": "runtime/result.original.json",
+      "bytes": 4804,
+      "sha256": "35769aa5e767d4c222dda24bd3bb9fac1e764e0f726f23924127b523e16bec9b"
+    },
+    {
+      "path": "runtime/supervision-invocation.original.json",
+      "bytes": 869,
+      "sha256": "ae579cf8332564c7d2fd3807400d16571f38701092a71402f2a69a79bb154b4f"
+    },
+    {
+      "path": "runtime/supervision-result.original.json",
+      "bytes": 2285,
+      "sha256": "aea79cffd052ccf0ee87b219446de4e6b54554ce4c3201f1b333f8b7bbd019bd"
+    }
+  ],
+  "manifestConvention": "Members exclude publication.json and SHA256SUMS. SHA256SUMS also binds publication.json."
+}

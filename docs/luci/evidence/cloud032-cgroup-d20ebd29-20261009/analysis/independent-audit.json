@@ -1,0 +1,321 @@
+{
+  "at": "2026-10-09T10:05:58.451587+00:00",
+  "status": "passed",
+  "errors": [],
+  "scope": "Independent read-only arithmetic/receipt/source audit of retained actual cgroup adjunct; no app, sampler, kernel counter, process signal, benchmark, helper or workload rerun. No new acceptance quantile calculation.",
+  "inputs": {
+    "/workspace/.luci-tools/idle-d20ebd29-counter-attempt1/result.json": {
+      "sha256": "35769aa5e767d4c222dda24bd3bb9fac1e764e0f726f23924127b523e16bec9b",
+      "bytes": 4804
+    },
+    "/workspace/.luci-tools/idle-d20ebd29-counter-attempt1/invocation.json": {
+      "sha256": "182daf4beb813d66e416d44d2f82d4658be889d4b9b954e2a62d5f97e66de0e8",
+      "bytes": 2194
+    },
+    "/workspace/.luci-tools/idle-d20ebd29-counter-attempt1/supervision/result.json": {
+      "sha256": "aea79cffd052ccf0ee87b219446de4e6b54554ce4c3201f1b333f8b7bbd019bd",
+      "bytes": 2285
+    },
+    "/workspace/.luci-tools/idle-d20ebd29-counter-attempt1/supervision/invocation.json": {
+      "sha256": "ae579cf8332564c7d2fd3807400d16571f38701092a71402f2a69a79bb154b4f",
+      "bytes": 869
+    },
+    "/workspace/.luci-tools/idle-d20ebd29-counter-attempt1/cpu.jsonl": {
+      "sha256": "f5bb5e1709098f8a942998fa848883f0281a01b1242c389c9610952f871880a1",
+      "bytes": 1658626
+    },
+    "/workspace/luci/artifacts/quality-swarm/idle-d20ebd29-counter-attempt1/driver/result.json": {
+      "sha256": "da1cd7eb46948775af3d5641389940776a4c75f34c1bc71b42bef9ce42c79a77",
+      "bytes": 7499346
+    }
+  },
+  "checks": {
+    "complete JSONL": 1,
+    "record sequence": 1,
+    "hard row/byte bounds": 1,
+    "private output mode": 1,
+    "declared limits": 1,
+    "footer exact serialization counts": 1,
+    "sequential sample index": 1728,
+    "sample monotonic ordering": 1728,
+    "recorded wall read ordering": 1728,
+    "sample timing arithmetic": 1728,
+    "no catchup skipped arithmetic": 1728,
+    "next sample fixed grid without catchup": 1727,
+    "observed sample": 1728,
+    "bounded uint64 counters": 1728,
+    "missing counter truth": 1728,
+    "unknown field truth": 1728,
+    "required counters all observed": 1728,
+    "hash reconstruction from retained ordered counters": 1728,
+    "first valid baseline": 1,
+    "nonoverlapping sample reads": 1727,
+    "counter continuity": 1727,
+    "reset/change fields exact": 1727,
+    "every counter delta exact": 1727,
+    "exact previous sample/gap binding": 1727,
+    "footer unavailable/reset counters": 1,
+    "footer scheduling counters": 1,
+    "footer exact maxima": 1,
+    "fixed-file reads: samples plus two six-read metadata groups": 1,
+    "telescoping endpoint equals all deltas": 1,
+    "reported shared aggregate positive values": 1,
+    "positive and conservative no-throttle fields": 1,
+    "identical metadata records before/after": 1,
+    "held/path cgroup identity exact": 1,
+    "time namespace unavailable remains explicit": 1,
+    "only unavailable metadata time namespace": 1,
+    "metadataStable stays false": 1,
+    "bounded recorded cooperative duration": 1,
+    "observer own CPU scope ordering": 1,
+    "supervisor result exact outer copy": 1,
+    "pidfd-owned child/header acknowledgement identity": 1,
+    "retained normal own-child settlement": 1,
+    "one exact-pidfd TERM no force": 1,
+    "capture serialization completion only": 1,
+    "supervisor bounded capture counts": 1,
+    "selected source unchanged before/after": 1,
+    "exact invoked source hash": 6,
+    "exact supervisor source hash/size": 2,
+    "watchdog CPU field scope retained": 1,
+    "observer CPU actual recorded values": 1,
+    "exact installed raw result binding": 1,
+    "exact product identity": 1,
+    "exact helper identity": 1,
+    "nominal wall label coverage all driver phases": 1
+  },
+  "sampleRows": 1728,
+  "totalRows": 1730,
+  "bytes": 1658626,
+  "rawCounterReconstructionsMatched": 1728,
+  "sharedCounterDeltaTotals": {
+    "usage_usec": 225872091,
+    "user_usec": 177848363,
+    "system_usec": 48023729,
+    "nice_usec": 0,
+    "nr_periods": 1727,
+    "nr_throttled": 13,
+    "throttled_usec": 125756,
+    "nr_bursts": 0,
+    "burst_usec": 0
+  },
+  "positiveSamplingIntervals": [
+    {
+      "index": 100,
+      "previousReadEndMonotonicNS": 285928878542939,
+      "currentReadStartMonotonicNS": 285928977015769,
+      "currentReadEndMonotonicNS": 285928977181639,
+      "previousReadEndWallNS": 1791539859639719233,
+      "currentReadEndWallNS": 1791539859738357812,
+      "nrThrottledDelta": 1,
+      "throttledUsecDelta": 3606
+    },
+    {
+      "index": 208,
+      "previousReadEndMonotonicNS": 285939677672935,
+      "currentReadStartMonotonicNS": 285939777024103,
+      "currentReadEndMonotonicNS": 285939777140318,
+      "previousReadEndWallNS": 1791539870438848868,
+      "currentReadEndWallNS": 1791539870538316742,
+      "nrThrottledDelta": 1,
+      "throttledUsecDelta": 1792
+    },
+    {
+      "index": 218,
+      "previousReadEndMonotonicNS": 285940702974738,
+      "currentReadStartMonotonicNS": 285940777020245,
+      "currentReadEndMonotonicNS": 285940777416523,
+      "previousReadEndWallNS": 1791539871464101828,
+      "currentReadEndWallNS": 1791539871538592526,
+      "nrThrottledDelta": 1,
+      "throttledUsecDelta": 969
+    },
+    {
+      "index": 500,
+      "previousReadEndMonotonicNS": 285968910956007,
+      "currentReadStartMonotonicNS": 285968994962872,
+      "currentReadEndMonotonicNS": 285968997093393,
+      "previousReadEndWallNS": 1791539899672082686,
+      "currentReadEndWallNS": 1791539899758269276,
+      "nrThrottledDelta": 1,
+      "throttledUsecDelta": 4168
+    },
+    {
+      "index": 501,
+      "previousReadEndMonotonicNS": 285968997093393,
+      "currentReadStartMonotonicNS": 285969081607049,
+      "currentReadEndMonotonicNS": 285969098678346,
+      "previousReadEndWallNS": 1791539899758269276,
+      "currentReadEndWallNS": 1791539899859186754,
+      "nrThrottledDelta": 1,
+      "throttledUsecDelta": 24500
+    },
+    {
+      "index": 966,
+      "previousReadEndMonotonicNS": 286015483784972,
+      "currentReadStartMonotonicNS": 286015578821900,
+      "currentReadEndMonotonicNS": 286015584664566,
+      "previousReadEndWallNS": 1791539946244960274,
+      "currentReadEndWallNS": 1791539946345840138,
+      "nrThrottledDelta": 1,
+      "throttledUsecDelta": 26985
+    },
+    {
+      "index": 967,
+      "previousReadEndMonotonicNS": 286015584664566,
+      "currentReadStartMonotonicNS": 286015677025687,
+      "currentReadEndMonotonicNS": 286015677154261,
+      "previousReadEndWallNS": 1791539946345840138,
+      "currentReadEndWallNS": 1791539946438330534,
+      "nrThrottledDelta": 0,
+      "throttledUsecDelta": 32073
+    },
+    {
+      "index": 1013,
+      "previousReadEndMonotonicNS": 286020195324310,
+      "currentReadStartMonotonicNS": 286020282536334,
+      "currentReadEndMonotonicNS": 286020289228963,
+      "previousReadEndWallNS": 1791539950956458309,
+      "currentReadEndWallNS": 1791539951050404776,
+      "nrThrottledDelta": 1,
+      "throttledUsecDelta": 5099
+    },
+    {
+      "index": 1251,
+      "previousReadEndMonotonicNS": 286043987113051,
+      "currentReadStartMonotonicNS": 286044079952637,
+      "currentReadEndMonotonicNS": 286044107237512,
+      "previousReadEndWallNS": 1791539974748287973,
+      "currentReadEndWallNS": 1791539974868350110,
+      "nrThrottledDelta": 1,
+      "throttledUsecDelta": 7573
+    },
+    {
+      "index": 1252,
+      "previousReadEndMonotonicNS": 286044107237512,
+      "currentReadStartMonotonicNS": 286044179055245,
+      "currentReadEndMonotonicNS": 286044180964764,
+      "previousReadEndWallNS": 1791539974868350110,
+      "currentReadEndWallNS": 1791539974942140287,
+      "nrThrottledDelta": 1,
+      "throttledUsecDelta": 1077
+    },
+    {
+      "index": 1319,
+      "previousReadEndMonotonicNS": 286050789976719,
+      "currentReadStartMonotonicNS": 286050879673007,
+      "currentReadEndMonotonicNS": 286050881554654,
+      "previousReadEndWallNS": 1791539981551152202,
+      "currentReadEndWallNS": 1791539981642730396,
+      "nrThrottledDelta": 1,
+      "throttledUsecDelta": 1398
+    },
+    {
+      "index": 1320,
+      "previousReadEndMonotonicNS": 286050881554654,
+      "currentReadStartMonotonicNS": 286050978640184,
+      "currentReadEndMonotonicNS": 286050981178070,
+      "previousReadEndWallNS": 1791539981642730396,
+      "currentReadEndWallNS": 1791539981742353622,
+      "nrThrottledDelta": 1,
+      "throttledUsecDelta": 3392
+    },
+    {
+      "index": 1342,
+      "previousReadEndMonotonicNS": 286053082969755,
+      "currentReadStartMonotonicNS": 286053181383598,
+      "currentReadEndMonotonicNS": 286053183082669,
+      "previousReadEndWallNS": 1791539983844146028,
+      "currentReadEndWallNS": 1791539983944257961,
+      "nrThrottledDelta": 1,
+      "throttledUsecDelta": 1174
+    },
+    {
+      "index": 1607,
+      "previousReadEndMonotonicNS": 286079577350940,
+      "currentReadStartMonotonicNS": 286079683038327,
+      "currentReadEndMonotonicNS": 286079688762464,
+      "previousReadEndWallNS": 1791540010338527003,
+      "currentReadEndWallNS": 1791540010449938057,
+      "nrThrottledDelta": 1,
+      "throttledUsecDelta": 11950
+    }
+  ],
+  "metadata": {
+    "beforeEqualsAfter": true,
+    "metadataStable": false,
+    "onlyUnavailable": "namespaces.time errno 2 (ENOENT)",
+    "heldIdentity": {
+      "device": 24,
+      "inode": 148
+    },
+    "cpuMax": {
+      "status": "observed",
+      "value": "400000 100000"
+    },
+    "effectiveCpuset": {
+      "status": "observed",
+      "value": "0-4"
+    },
+    "positiveInterpretation": "Positive increments between valid absolute cpu.stat observations through the same held cgroup fd remain supported despite conservative false metadataStable. This does not establish time-namespace completeness, cross-process clock calibration, owned-process attribution, exact action causality, or unchanged hidden ancestors."
+  },
+  "sampling": {
+    "missedDeadlines": 0,
+    "overrunReads": 0,
+    "unknown": 0,
+    "counterResets": 0,
+    "maxLatenessNS": 37899596,
+    "maxReadDurationNS": 27284875,
+    "maxActualStartGapNS": 137743371,
+    "minActualStartGapNS": 62223260,
+    "footerReadCount": 1740
+  },
+  "selfCost": {
+    "observeBodyCPUNS": 1373695062,
+    "observerProcessCPUAtFooterNS": 1474588725,
+    "watchdogThreadCPUNS": 2911927722,
+    "watchdogWaitCalls": 3410,
+    "scope": "Body CPU overlaps process CPU and must not be added to it. Supervisor thread is separate, but final serialization/fsync/close and owner thread are excluded, so no total adjunct overhead or cost subtraction is claimed."
+  },
+  "coarseCoverage": [
+    {
+      "phase": "driver labelled receipt interval",
+      "labelledStart": "2026-10-09T09:57:34.763Z",
+      "labelledEnd": "2026-10-09T10:00:22.008Z",
+      "containedByObserverWallLabels": true,
+      "beforeMarginMS": 5024.913046,
+      "afterMarginMS": 430.345118
+    },
+    {
+      "phase": "quiet-app-open-idle",
+      "labelledStart": "2026-10-09T09:57:57.826Z",
+      "labelledEnd": "2026-10-09T09:58:58.264Z",
+      "containedByObserverWallLabels": true,
+      "beforeMarginMS": 28087.913046,
+      "afterMarginMS": 84174.345118
+    },
+    {
+      "phase": "idle-interactive-calibration",
+      "labelledStart": "2026-10-09T09:58:58.265Z",
+      "labelledEnd": "2026-10-09T10:00:13.965Z",
+      "containedByObserverWallLabels": true,
+      "beforeMarginMS": 88526.913046,
+      "afterMarginMS": 8473.345118
+    },
+    {
+      "phase": "idle-actionability-trace-followup",
+      "labelledStart": "2026-10-09T10:00:13.969Z",
+      "labelledEnd": "2026-10-09T10:00:20.011Z",
+      "containedByObserverWallLabels": true,
+      "beforeMarginMS": 164230.913046,
+      "afterMarginMS": 2427.345118
+    }
+  ],
+  "coverageLimits": [
+    "Comparison uses recorded wall labels only, with no Node/browser/host monotonic calibration or measured wall-clock uncertainty.",
+    "All intervals are shared cgroup aggregate observations, with sequential file reads and no process-specific scheduler data.",
+    "nr_throttled and throttled_usec can update in different samples; 14 positive sample intervals are not 14 independent events.",
+    "Scope covers this actual fresh run only; no prior failed run receives retrospective CPU operands or causal attribution.",
+    "Process settlement is supported by retained exact-pidfd/Popen receipt/source, not a new independent live PID census."
+  ]
+}

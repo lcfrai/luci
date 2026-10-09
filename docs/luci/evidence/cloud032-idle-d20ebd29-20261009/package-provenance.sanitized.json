@@ -1,0 +1,33 @@
+{
+  "original": {
+    "sha256": "7819fdfa0d7a3c5c938b0e94a6d0351c02717fa31f0877b759d5defa33399450",
+    "bytes": 1039
+  },
+  "representation": "Archive/extracted paths replaced; recorded verification, hashes and sizes retained.",
+  "provenance": {
+    "sourceCommit": "d20ebd292f3f1de04d6726bab0998c210987bcb5",
+    "sourceDirty": false,
+    "packageDir": "<EXTRACTED_PACKAGE>",
+    "archive": "<PACKAGE_ARCHIVE>",
+    "archiveSHA256": "5e4e0a2a380268f0d17cbbf2cf7cfb41f5aa64abc8f454864fdb7eb0bdb6400c",
+    "binarySHA256": "f322d9091d91b78ff6947c33588dd29d6714bcf71638101c9b7d16e977383ff8",
+    "webIndexSHA256": "79991009aadf92f33af333bb9c0da1eb94fd44daf4bd54f8060243f94f31b765",
+    "subjects": [
+      {
+        "name": "linux-amd64/luci-cloud-linux-amd64.tar.gz",
+        "sha256": "f61e023a464aeb992a7b09455de73065475b69b22f8f6690bf818305f4dc8545",
+        "bytes": 34622222
+      },
+      {
+        "name": "linux-amd64/luci-linux-amd64.tar.gz",
+        "sha256": "5e4e0a2a380268f0d17cbbf2cf7cfb41f5aa64abc8f454864fdb7eb0bdb6400c",
+        "bytes": 69055452
+      },
+      {
+        "name": "linux-amd64/release-manifest.json",
+        "sha256": "baee95caa310743fe556c6fcfb7421a9c52312c33bdf1d0901401f25b57d3867",
+        "bytes": 696
+      }
+    ]
+  }
+}

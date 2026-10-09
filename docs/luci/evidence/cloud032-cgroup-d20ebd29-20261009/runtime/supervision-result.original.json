@@ -1,0 +1,68 @@
+{
+  "pid": 2331054,
+  "identityMechanism": "direct-child-pidfd-before-exec",
+  "startedAtMonotonic": 285918.875349886,
+  "wallSeconds": 400,
+  "termGraceSeconds": 1,
+  "killGraceSeconds": 1,
+  "events": [
+    {
+      "signal": "SIGTERM",
+      "via": "pidfd",
+      "accepted": true
+    }
+  ],
+  "errors": [],
+  "forced": false,
+  "settled": true,
+  "waitCallCount": 3410,
+  "pidfdSignalAttempts": 1,
+  "exitCode": 0,
+  "observationComplete": true,
+  "scope": "Own observer process settlement only; observation data and application cleanup are not certified.",
+  "stopReason": "owner_finished",
+  "finishedAtMonotonic": 286091.796294026,
+  "processOutcome": "clean_exit",
+  "sourcesBefore": [
+    {
+      "path": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/supervisor.py",
+      "sha256": "4b555802ca17e558bb65e64477af8d28642a55d047b4a310b0b412a08ab25beb",
+      "bytes": 20994
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/observer.py",
+      "sha256": "fc509776db0d1cbe8d474dfcd58e311d8588746ad9632fecab4d0ca7a2f0fea7",
+      "bytes": 17685
+    }
+  ],
+  "sourcesAfter": [
+    {
+      "path": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/supervisor.py",
+      "sha256": "4b555802ca17e558bb65e64477af8d28642a55d047b4a310b0b412a08ab25beb",
+      "bytes": 20994
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/observer.py",
+      "sha256": "fc509776db0d1cbe8d474dfcd58e311d8588746ad9632fecab4d0ca7a2f0fea7",
+      "bytes": 17685
+    }
+  ],
+  "sourceStable": true,
+  "observation": {
+    "serializationComplete": true,
+    "observerHeaderPID": 2331054,
+    "rows": 1730,
+    "bytes": 1658626,
+    "stopReason": "owner_stop",
+    "sampleRows": 1728,
+    "metadataStable": false,
+    "unknownObservations": 0,
+    "counterResetOrShapeChanges": 0,
+    "scope": "Bounded serialized capture only, not valid coverage, absence of throttling or product acceptance."
+  },
+  "observerStartedAcknowledgedByHeader": true,
+  "watchdogThreadCPU": {
+    "elapsedNS": 2911927722,
+    "scope": "Watch/wait/signal, source/output validation and pidfd close only. Excludes initial setup, final receipt serialization/fsync, owner thread, observer process and kernel/daemon cost; not total adjunct overhead."
+  }
+}

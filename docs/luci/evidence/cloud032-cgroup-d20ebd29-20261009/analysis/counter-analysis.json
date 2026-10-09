@@ -1,0 +1,480 @@
+{
+  "scope": "Offline validation and nominal wall-phase grouping of retained shared-cgroup counters; no new sampling, exact-action/process attribution or timing adjustment.",
+  "cpuOriginalSHA256": "f5bb5e1709098f8a942998fa848883f0281a01b1242c389c9610952f871880a1",
+  "cpuOriginalBytes": 1658626,
+  "totalRows": 1730,
+  "sampleRows": 1728,
+  "rawCounterReadHashesReconstructed": 1728,
+  "adjacentDeltaComparisons": 1727,
+  "totalObservedDeltas": {
+    "usage_usec": 225872091,
+    "user_usec": 177848363,
+    "system_usec": 48023729,
+    "nice_usec": 0,
+    "nr_periods": 1727,
+    "nr_throttled": 13,
+    "throttled_usec": 125756,
+    "nr_bursts": 0,
+    "burst_usec": 0
+  },
+  "positiveCounterIntervals": 14,
+  "positiveIntervals": [
+    {
+      "sampleIndex": 100,
+      "previousSampleIndex": 99,
+      "nrThrottledDelta": 1,
+      "throttledUsecDelta": 3606,
+      "possibleCounterIntervalStartWallNS": 1791539859639599803,
+      "possibleCounterIntervalEndWallNS": 1791539859738357812,
+      "previousReadBracket": {
+        "startMonotonicNS": 285928878421636,
+        "startWallNS": 1791539859639599803,
+        "endMonotonicNS": 285928878542939,
+        "endWallNS": 1791539859639719233
+      },
+      "currentReadBracket": {
+        "startMonotonicNS": 285928977015769,
+        "startWallNS": 1791539859738193885,
+        "endMonotonicNS": 285928977181639,
+        "endWallNS": 1791539859738357812
+      },
+      "nominalWallContainedPhase": null,
+      "nominalWallOverlappingPhases": []
+    },
+    {
+      "sampleIndex": 208,
+      "previousSampleIndex": 207,
+      "nrThrottledDelta": 1,
+      "throttledUsecDelta": 1792,
+      "possibleCounterIntervalStartWallNS": 1791539870438668867,
+      "possibleCounterIntervalEndWallNS": 1791539870538316742,
+      "previousReadBracket": {
+        "startMonotonicNS": 285939677490840,
+        "startWallNS": 1791539870438668867,
+        "endMonotonicNS": 285939677672935,
+        "endWallNS": 1791539870438848868
+      },
+      "currentReadBracket": {
+        "startMonotonicNS": 285939777024103,
+        "startWallNS": 1791539870538202229,
+        "endMonotonicNS": 285939777140318,
+        "endWallNS": 1791539870538316742
+      },
+      "nominalWallContainedPhase": null,
+      "nominalWallOverlappingPhases": []
+    },
+    {
+      "sampleIndex": 218,
+      "previousSampleIndex": 217,
+      "nrThrottledDelta": 1,
+      "throttledUsecDelta": 969,
+      "possibleCounterIntervalStartWallNS": 1791539871440227048,
+      "possibleCounterIntervalEndWallNS": 1791539871538592526,
+      "previousReadBracket": {
+        "startMonotonicNS": 285940678995371,
+        "startWallNS": 1791539871440227048,
+        "endMonotonicNS": 285940702974738,
+        "endWallNS": 1791539871464101828
+      },
+      "currentReadBracket": {
+        "startMonotonicNS": 285940777020245,
+        "startWallNS": 1791539871538198492,
+        "endMonotonicNS": 285940777416523,
+        "endWallNS": 1791539871538592526
+      },
+      "nominalWallContainedPhase": null,
+      "nominalWallOverlappingPhases": []
+    },
+    {
+      "sampleIndex": 500,
+      "previousSampleIndex": 499,
+      "nrThrottledDelta": 1,
+      "throttledUsecDelta": 4168,
+      "possibleCounterIntervalStartWallNS": 1791539899647641522,
+      "possibleCounterIntervalEndWallNS": 1791539899758269276,
+      "previousReadBracket": {
+        "startMonotonicNS": 285968886399719,
+        "startWallNS": 1791539899647641522,
+        "endMonotonicNS": 285968910956007,
+        "endWallNS": 1791539899672082686
+      },
+      "currentReadBracket": {
+        "startMonotonicNS": 285968994962872,
+        "startWallNS": 1791539899756206327,
+        "endMonotonicNS": 285968997093393,
+        "endWallNS": 1791539899758269276
+      },
+      "nominalWallContainedPhase": "quiet-app-open-idle",
+      "nominalWallOverlappingPhases": [
+        "quiet-app-open-idle"
+      ]
+    },
+    {
+      "sampleIndex": 501,
+      "previousSampleIndex": 500,
+      "nrThrottledDelta": 1,
+      "throttledUsecDelta": 24500,
+      "possibleCounterIntervalStartWallNS": 1791539899756206327,
+      "possibleCounterIntervalEndWallNS": 1791539899859186754,
+      "previousReadBracket": {
+        "startMonotonicNS": 285968994962872,
+        "startWallNS": 1791539899756206327,
+        "endMonotonicNS": 285968997093393,
+        "endWallNS": 1791539899758269276
+      },
+      "currentReadBracket": {
+        "startMonotonicNS": 285969081607049,
+        "startWallNS": 1791539899842848541,
+        "endMonotonicNS": 285969098678346,
+        "endWallNS": 1791539899859186754
+      },
+      "nominalWallContainedPhase": "quiet-app-open-idle",
+      "nominalWallOverlappingPhases": [
+        "quiet-app-open-idle"
+      ]
+    },
+    {
+      "sampleIndex": 966,
+      "previousSampleIndex": 965,
+      "nrThrottledDelta": 1,
+      "throttledUsecDelta": 26985,
+      "possibleCounterIntervalStartWallNS": 1791539946242705636,
+      "possibleCounterIntervalEndWallNS": 1791539946345840138,
+      "previousReadBracket": {
+        "startMonotonicNS": 286015481472777,
+        "startWallNS": 1791539946242705636,
+        "endMonotonicNS": 286015483784972,
+        "endWallNS": 1791539946244960274
+      },
+      "currentReadBracket": {
+        "startMonotonicNS": 286015578821900,
+        "startWallNS": 1791539946340055921,
+        "endMonotonicNS": 286015584664566,
+        "endWallNS": 1791539946345840138
+      },
+      "nominalWallContainedPhase": "idle-interactive-calibration",
+      "nominalWallOverlappingPhases": [
+        "idle-interactive-calibration"
+      ]
+    },
+    {
+      "sampleIndex": 967,
+      "previousSampleIndex": 966,
+      "nrThrottledDelta": 0,
+      "throttledUsecDelta": 32073,
+      "possibleCounterIntervalStartWallNS": 1791539946340055921,
+      "possibleCounterIntervalEndWallNS": 1791539946438330534,
+      "previousReadBracket": {
+        "startMonotonicNS": 286015578821900,
+        "startWallNS": 1791539946340055921,
+        "endMonotonicNS": 286015584664566,
+        "endWallNS": 1791539946345840138
+      },
+      "currentReadBracket": {
+        "startMonotonicNS": 286015677025687,
+        "startWallNS": 1791539946438203944,
+        "endMonotonicNS": 286015677154261,
+        "endWallNS": 1791539946438330534
+      },
+      "nominalWallContainedPhase": "idle-interactive-calibration",
+      "nominalWallOverlappingPhases": [
+        "idle-interactive-calibration"
+      ]
+    },
+    {
+      "sampleIndex": 1013,
+      "previousSampleIndex": 1012,
+      "nrThrottledDelta": 1,
+      "throttledUsecDelta": 5099,
+      "possibleCounterIntervalStartWallNS": 1791539950943327477,
+      "possibleCounterIntervalEndWallNS": 1791539951050404776,
+      "previousReadBracket": {
+        "startMonotonicNS": 286020182085804,
+        "startWallNS": 1791539950943327477,
+        "endMonotonicNS": 286020195324310,
+        "endWallNS": 1791539950956458309
+      },
+      "currentReadBracket": {
+        "startMonotonicNS": 286020282536334,
+        "startWallNS": 1791539951043782003,
+        "endMonotonicNS": 286020289228963,
+        "endWallNS": 1791539951050404776
+      },
+      "nominalWallContainedPhase": "idle-interactive-calibration",
+      "nominalWallOverlappingPhases": [
+        "idle-interactive-calibration"
+      ]
+    },
+    {
+      "sampleIndex": 1251,
+      "previousSampleIndex": 1250,
+      "nrThrottledDelta": 1,
+      "throttledUsecDelta": 7573,
+      "possibleCounterIntervalStartWallNS": 1791539974744125197,
+      "possibleCounterIntervalEndWallNS": 1791539974868350110,
+      "previousReadBracket": {
+        "startMonotonicNS": 286043982893229,
+        "startWallNS": 1791539974744125197,
+        "endMonotonicNS": 286043987113051,
+        "endWallNS": 1791539974748287973
+      },
+      "currentReadBracket": {
+        "startMonotonicNS": 286044079952637,
+        "startWallNS": 1791539974844677882,
+        "endMonotonicNS": 286044107237512,
+        "endWallNS": 1791539974868350110
+      },
+      "nominalWallContainedPhase": "idle-interactive-calibration",
+      "nominalWallOverlappingPhases": [
+        "idle-interactive-calibration"
+      ]
+    },
+    {
+      "sampleIndex": 1252,
+      "previousSampleIndex": 1251,
+      "nrThrottledDelta": 1,
+      "throttledUsecDelta": 1077,
+      "possibleCounterIntervalStartWallNS": 1791539974844677882,
+      "possibleCounterIntervalEndWallNS": 1791539974942140287,
+      "previousReadBracket": {
+        "startMonotonicNS": 286044079952637,
+        "startWallNS": 1791539974844677882,
+        "endMonotonicNS": 286044107237512,
+        "endWallNS": 1791539974868350110
+      },
+      "currentReadBracket": {
+        "startMonotonicNS": 286044179055245,
+        "startWallNS": 1791539974940358721,
+        "endMonotonicNS": 286044180964764,
+        "endWallNS": 1791539974942140287
+      },
+      "nominalWallContainedPhase": "idle-interactive-calibration",
+      "nominalWallOverlappingPhases": [
+        "idle-interactive-calibration"
+      ]
+    },
+    {
+      "sampleIndex": 1319,
+      "previousSampleIndex": 1318,
+      "nrThrottledDelta": 1,
+      "throttledUsecDelta": 1398,
+      "possibleCounterIntervalStartWallNS": 1791539981548953798,
+      "possibleCounterIntervalEndWallNS": 1791539981642730396,
+      "previousReadBracket": {
+        "startMonotonicNS": 286050783970867,
+        "startWallNS": 1791539981548953798,
+        "endMonotonicNS": 286050789976719,
+        "endWallNS": 1791539981551152202
+      },
+      "currentReadBracket": {
+        "startMonotonicNS": 286050879673007,
+        "startWallNS": 1791539981641039207,
+        "endMonotonicNS": 286050881554654,
+        "endWallNS": 1791539981642730396
+      },
+      "nominalWallContainedPhase": "idle-interactive-calibration",
+      "nominalWallOverlappingPhases": [
+        "idle-interactive-calibration"
+      ]
+    },
+    {
+      "sampleIndex": 1320,
+      "previousSampleIndex": 1319,
+      "nrThrottledDelta": 1,
+      "throttledUsecDelta": 3392,
+      "possibleCounterIntervalStartWallNS": 1791539981641039207,
+      "possibleCounterIntervalEndWallNS": 1791539981742353622,
+      "previousReadBracket": {
+        "startMonotonicNS": 286050879673007,
+        "startWallNS": 1791539981641039207,
+        "endMonotonicNS": 286050881554654,
+        "endWallNS": 1791539981642730396
+      },
+      "currentReadBracket": {
+        "startMonotonicNS": 286050978640184,
+        "startWallNS": 1791539981739874766,
+        "endMonotonicNS": 286050981178070,
+        "endWallNS": 1791539981742353622
+      },
+      "nominalWallContainedPhase": "idle-interactive-calibration",
+      "nominalWallOverlappingPhases": [
+        "idle-interactive-calibration"
+      ]
+    },
+    {
+      "sampleIndex": 1342,
+      "previousSampleIndex": 1341,
+      "nrThrottledDelta": 1,
+      "throttledUsecDelta": 1174,
+      "possibleCounterIntervalStartWallNS": 1791539983842022427,
+      "possibleCounterIntervalEndWallNS": 1791539983944257961,
+      "previousReadBracket": {
+        "startMonotonicNS": 286053080770229,
+        "startWallNS": 1791539983842022427,
+        "endMonotonicNS": 286053082969755,
+        "endWallNS": 1791539983844146028
+      },
+      "currentReadBracket": {
+        "startMonotonicNS": 286053181383598,
+        "startWallNS": 1791539983942624118,
+        "endMonotonicNS": 286053183082669,
+        "endWallNS": 1791539983944257961
+      },
+      "nominalWallContainedPhase": "idle-interactive-calibration",
+      "nominalWallOverlappingPhases": [
+        "idle-interactive-calibration"
+      ]
+    },
+    {
+      "sampleIndex": 1607,
+      "previousSampleIndex": 1606,
+      "nrThrottledDelta": 1,
+      "throttledUsecDelta": 11950,
+      "possibleCounterIntervalStartWallNS": 1791540010338272639,
+      "possibleCounterIntervalEndWallNS": 1791540010449938057,
+      "previousReadBracket": {
+        "startMonotonicNS": 286079577094713,
+        "startWallNS": 1791540010338272639,
+        "endMonotonicNS": 286079577350940,
+        "endWallNS": 1791540010338527003
+      },
+      "currentReadBracket": {
+        "startMonotonicNS": 286079683038327,
+        "startWallNS": 1791540010444280359,
+        "endMonotonicNS": 286079688762464,
+        "endWallNS": 1791540010449938057
+      },
+      "nominalWallContainedPhase": "idle-interactive-calibration",
+      "nominalWallOverlappingPhases": [
+        "idle-interactive-calibration"
+      ]
+    }
+  ],
+  "metadataBeforeAfterEqual": true,
+  "metadataStableOriginal": false,
+  "metadataUnavailable": [
+    {
+      "path": "/namespaces/time",
+      "status": "unavailable",
+      "errno": 2
+    }
+  ],
+  "observerSelfCost": {
+    "observeEntryThroughFooterCPUNS": 1373695062,
+    "overlappingProcessCPUThroughFooterNS": 1474588725,
+    "watchdogThreadCPUNS": 2911927722,
+    "elapsedNS": 172800794769,
+    "readCount": 1740,
+    "maxLatenessNS": 37899596,
+    "maxReadDurationNS": 27284875,
+    "missedDeadlines": 0,
+    "scope": "Process CPU contains observe() CPU; do not add them. Watchdog is separate. All exclude declared finalization/other work and do not measure full causal overhead."
+  },
+  "counterWindow": {
+    "firstRead": {
+      "startMonotonicNS": 285918976910250,
+      "startWallNS": 1791539849738086954,
+      "endMonotonicNS": 285918976980856,
+      "endWallNS": 1791539849738157240
+    },
+    "lastRead": {
+      "startMonotonicNS": 286091677022433,
+      "startWallNS": 1791540022438200430,
+      "endMonotonicNS": 286091677168865,
+      "endWallNS": 1791540022438345118
+    }
+  },
+  "phaseBinding": {
+    "originalResult": {
+      "sha256": "da1cd7eb46948775af3d5641389940776a4c75f34c1bc71b42bef9ce42c79a77",
+      "bytes": 7499346
+    },
+    "productSource": "d20ebd292f3f1de04d6726bab0998c210987bcb5",
+    "helperSource": "c625ef0b7842748f4ce74cd3ffc08979d571bddf",
+    "representation": "Exact original phase objects only; omitted private result fields are not reconstructed.",
+    "phases": [
+      {
+        "name": "quiet-app-open-idle",
+        "startedAt": "2026-10-09T09:57:57.826Z",
+        "finishedAt": "2026-10-09T09:58:58.264Z",
+        "elapsedMs": 60438.691032999996
+      },
+      {
+        "name": "idle-interactive-calibration",
+        "startedAt": "2026-10-09T09:58:58.265Z",
+        "finishedAt": "2026-10-09T10:00:13.965Z",
+        "elapsedMs": 75700.40680799999
+      },
+      {
+        "name": "idle-actionability-trace-followup",
+        "startedAt": "2026-10-09T10:00:13.969Z",
+        "finishedAt": "2026-10-09T10:00:20.011Z",
+        "elapsedMs": 6042.558766000002
+      }
+    ]
+  },
+  "phaseCoverageByWallLabels": [
+    {
+      "name": "quiet-app-open-idle",
+      "phaseStartWallNS": 1791539877826000000,
+      "phaseEndWallNS": 1791539938264000000,
+      "firstToLastCounterWindowEnclosesPhaseWallLabels": true
+    },
+    {
+      "name": "idle-interactive-calibration",
+      "phaseStartWallNS": 1791539938265000000,
+      "phaseEndWallNS": 1791540013965000000,
+      "firstToLastCounterWindowEnclosesPhaseWallLabels": true
+    },
+    {
+      "name": "idle-actionability-trace-followup",
+      "phaseStartWallNS": 1791540013969000000,
+      "phaseEndWallNS": 1791540020011000000,
+      "firstToLastCounterWindowEnclosesPhaseWallLabels": true
+    }
+  ],
+  "nominalWallPhaseBuckets": {
+    "quiet-app-open-idle": {
+      "positiveIntervalsWhollyWithinWallLabels": 2,
+      "nrThrottledDelta": 2,
+      "throttledUsecDelta": 28668
+    },
+    "idle-interactive-calibration": {
+      "positiveIntervalsWhollyWithinWallLabels": 9,
+      "nrThrottledDelta": 8,
+      "throttledUsecDelta": 90721
+    },
+    "idle-actionability-trace-followup": {
+      "positiveIntervalsWhollyWithinWallLabels": 0,
+      "nrThrottledDelta": 0,
+      "throttledUsecDelta": 0
+    }
+  },
+  "positiveIntervalIndicesOutsideOrAcrossPhaseBoundaries": [
+    100,
+    208,
+    218
+  ],
+  "closure": {
+    "observerPID": 2331054,
+    "pidfdSignals": [
+      {
+        "signal": "SIGTERM",
+        "via": "pidfd",
+        "accepted": true
+      }
+    ],
+    "exitCode": 0,
+    "forced": false,
+    "sourceStable": true,
+    "scope": "Exact observer child settlement/serialized capture only. App/browser closure is separate."
+  },
+  "limits": [
+    "Shared visible cgroup may contain unrelated tasks; hidden ancestors are not observed.",
+    "Positive adjacent deltas show observed bandwidth throttling, not which process/action it affected.",
+    "MetadataStable remains false: missing time-namespace evidence is not repaired or treated as observed.",
+    "Wall-phase labels are coarse association only; no driver/kernel absolute monotonic clock calibration was added.",
+    "Fourteen positive counter intervals do not mean fourteen independent throttle events.",
+    "No previous-run backfill, timing subtraction, causal gain or acceptance pass."
+  ]
+}

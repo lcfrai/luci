@@ -1,0 +1,29 @@
+{
+  "originalResult": {
+    "sha256": "da1cd7eb46948775af3d5641389940776a4c75f34c1bc71b42bef9ce42c79a77",
+    "bytes": 7499346
+  },
+  "productSource": "d20ebd292f3f1de04d6726bab0998c210987bcb5",
+  "helperSource": "c625ef0b7842748f4ce74cd3ffc08979d571bddf",
+  "representation": "Exact original phase objects only; omitted private result fields are not reconstructed.",
+  "phases": [
+    {
+      "name": "quiet-app-open-idle",
+      "startedAt": "2026-10-09T09:57:57.826Z",
+      "finishedAt": "2026-10-09T09:58:58.264Z",
+      "elapsedMs": 60438.691032999996
+    },
+    {
+      "name": "idle-interactive-calibration",
+      "startedAt": "2026-10-09T09:58:58.265Z",
+      "finishedAt": "2026-10-09T10:00:13.965Z",
+      "elapsedMs": 75700.40680799999
+    },
+    {
+      "name": "idle-actionability-trace-followup",
+      "startedAt": "2026-10-09T10:00:13.969Z",
+      "finishedAt": "2026-10-09T10:00:20.011Z",
+      "elapsedMs": 6042.558766000002
+    }
+  ]
+}

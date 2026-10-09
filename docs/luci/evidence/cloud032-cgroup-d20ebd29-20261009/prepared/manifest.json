@@ -1,0 +1,134 @@
+{
+  "at": "2026-10-09T09:55:07.067479+00:00",
+  "scope": "Prepared external adjunct, source/controlled fixture evidence only. No real observer, app, browser, Docker, live cgroup sampling or benchmark executed.",
+  "sources": [
+    {
+      "path": "observer.py",
+      "bytes": 17685,
+      "sha256": "fc509776db0d1cbe8d474dfcd58e311d8588746ad9632fecab4d0ca7a2f0fea7"
+    },
+    {
+      "path": "test_observer.py",
+      "bytes": 11518,
+      "sha256": "309a6f10abae9d66c2ce74358349e1f9c249405c7fa4a512549441d32690948d"
+    },
+    {
+      "path": "supervisor.py",
+      "bytes": 20994,
+      "sha256": "4b555802ca17e558bb65e64477af8d28642a55d047b4a310b0b412a08ab25beb"
+    },
+    {
+      "path": "test_supervisor.py",
+      "bytes": 12545,
+      "sha256": "31c81d3a5738c5975977a1da34a71c0f3e53a7054b75cdd11119e7e14ec775fa"
+    }
+  ],
+  "controlledEvidence": {
+    "observerFinalTopLevelTests": 20,
+    "supervisorFinalTopLevelTests": 31,
+    "supervisorEarlier26And27OverlapFinal31": true,
+    "intermediate31FixtureUmaskFailurePreserved": true
+  },
+  "constraints": {
+    "intervalMS": 100,
+    "maximumCollectorSeconds": 400,
+    "maximumTotalJSONLRows": 4000,
+    "maximumJSONLBytes": 2097152,
+    "supervisorMaximumWallSeconds": 400,
+    "supervisorStopWaitSeconds": 3,
+    "signals": "pidfd-pinned observer child only; never app",
+    "sampler": "visible cgroup cpu.stat only; fixed before/after metadata; no discovery/profiling/helper changes"
+  },
+  "crossReviewOriginal": {
+    "path": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct-review/final-cross-review.json",
+    "sha256": "28c647ebabe8c74f88add0d1c7291717fdc288a2e36baddfffc43af46a86845e"
+  },
+  "members": [
+    {
+      "path": "README.md",
+      "bytes": 7389,
+      "sha256": "32931649a92a2c591da00e181470d23b36773f6fdbf436f53865dde01caba3cb"
+    },
+    {
+      "path": "evidence/final-cross-review.json",
+      "bytes": 3291,
+      "sha256": "28c647ebabe8c74f88add0d1c7291717fdc288a2e36baddfffc43af46a86845e"
+    },
+    {
+      "path": "evidence/observer-fixtures-attempt1/result.json",
+      "bytes": 774,
+      "sha256": "c45f78249537bdba0e3f60b2ebac2d33eb42ec02b070bb75ff3033bf02e2c452"
+    },
+    {
+      "path": "evidence/observer-fixtures-attempt1/stderr.log",
+      "bytes": 2865,
+      "sha256": "6c6d577f5e8d121d2eae41512eac254f9494d7ed9a1b66f4b78d36227f609db9"
+    },
+    {
+      "path": "evidence/observer-fixtures-attempt1/stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "observer.py",
+      "bytes": 17685,
+      "sha256": "fc509776db0d1cbe8d474dfcd58e311d8588746ad9632fecab4d0ca7a2f0fea7"
+    },
+    {
+      "path": "supervisor-fixture-attempt31-umask.stderr.log",
+      "bytes": 4254,
+      "sha256": "e3d28a15c7cb874eaa62f841268ee9b700e50e00d89064371aec5f0ff2281dae"
+    },
+    {
+      "path": "supervisor-fixture-attempt31-umask.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "supervisor-fixture-original26.stderr.log",
+      "bytes": 2987,
+      "sha256": "fabee1dd52e847a90b9d9c73fd1d73473a52d669dabc062a2df6149af238700b"
+    },
+    {
+      "path": "supervisor-fixture-original26.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "supervisor-fixture-original27.stderr.log",
+      "bytes": 3142,
+      "sha256": "021fbd6812743c1022b15293b5b44914ec51de9822e52c4a5256df2a07a19a76"
+    },
+    {
+      "path": "supervisor-fixture-original27.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "supervisor-fixture.stderr.log",
+      "bytes": 3646,
+      "sha256": "3370224ae064110ace560d29707c1734b5746108e7ab465673c52205ca311d54"
+    },
+    {
+      "path": "supervisor-fixture.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "supervisor.py",
+      "bytes": 20994,
+      "sha256": "4b555802ca17e558bb65e64477af8d28642a55d047b4a310b0b412a08ab25beb"
+    },
+    {
+      "path": "test_observer.py",
+      "bytes": 11518,
+      "sha256": "309a6f10abae9d66c2ce74358349e1f9c249405c7fa4a512549441d32690948d"
+    },
+    {
+      "path": "test_supervisor.py",
+      "bytes": 12545,
+      "sha256": "31c81d3a5738c5975977a1da34a71c0f3e53a7054b75cdd11119e7e14ec775fa"
+    }
+  ],
+  "manifestConvention": "Members exclude this manifest and SHA256SUMS; sums also bind manifest. __pycache__ is generated and excluded."
+}

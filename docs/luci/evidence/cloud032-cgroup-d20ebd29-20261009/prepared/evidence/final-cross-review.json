@@ -1,0 +1,66 @@
+{
+  "at": "2026-10-09T09:52:23.743920+00:00",
+  "scope": "External preparation only. Supervisor31 fake-child/pidfd/clock/temp-file fixture tests passed. No real observer, CPU counter sample, app, browser, benchmark or Docker process executed. Parent separately ran core20 tests; this cross-review did not repeat them.",
+  "finalSupervisorCases": 31,
+  "finalOutcome": "passed",
+  "historical": "26 and27 passing fixture batches overlap final31. Intermediate31 had one fixture-only umask failure: requested mkdir755 became700; explicit chmod755 corrected fixture. Original failed log retained; no claimed product defect or test count sum.",
+  "inputs": {
+    "supervisor.py": {
+      "bytes": 20994,
+      "sha256": "4b555802ca17e558bb65e64477af8d28642a55d047b4a310b0b412a08ab25beb"
+    },
+    "test_supervisor.py": {
+      "bytes": 12545,
+      "sha256": "31c81d3a5738c5975977a1da34a71c0f3e53a7054b75cdd11119e7e14ec775fa"
+    },
+    "supervisor-fixture.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "supervisor-fixture.stderr.log": {
+      "bytes": 3646,
+      "sha256": "3370224ae064110ace560d29707c1734b5746108e7ab465673c52205ca311d54"
+    },
+    "supervisor-fixture-original26.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "supervisor-fixture-original26.stderr.log": {
+      "bytes": 2987,
+      "sha256": "fabee1dd52e847a90b9d9c73fd1d73473a52d669dabc062a2df6149af238700b"
+    },
+    "supervisor-fixture-original27.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "supervisor-fixture-original27.stderr.log": {
+      "bytes": 3142,
+      "sha256": "021fbd6812743c1022b15293b5b44914ec51de9822e52c4a5256df2a07a19a76"
+    },
+    "supervisor-fixture-attempt31-umask.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "supervisor-fixture-attempt31-umask.stderr.log": {
+      "bytes": 4254,
+      "sha256": "e3d28a15c7cb874eaa62f841268ee9b700e50e00d89064371aec5f0ff2281dae"
+    },
+    "observer.py": {
+      "bytes": 17685,
+      "sha256": "fc509776db0d1cbe8d474dfcd58e311d8588746ad9632fecab4d0ca7a2f0fea7"
+    },
+    "test_observer.py": {
+      "bytes": 11518,
+      "sha256": "309a6f10abae9d66c2ce74358349e1f9c249405c7fa4a512549441d32690948d"
+    }
+  },
+  "coreReview": {
+    "status": "no_blocking_defect_found",
+    "scope": "Read-only observer.py/test_observer.py review, includes fixed-file/nonblocking bounded reads, held cgroup directory fd, private append/exclusive writer, reserved sample/footer space, no catch-up scheduling, reset/unavailable and cross-gap semantics, row/byte/time limits and scoped CPU-cost/closure caveats.",
+    "limits": [
+      "No live kernel accounting, scheduler causality, runtime overhead or actual observer settlement is verified by source/fake fixtures.",
+      "Synchronous filesystem operations and OS scheduling remain cooperative; supervisor own-child watchdog/termination bounds are separate, and unknown/forced settlement never passes.",
+      "No process/browser attribution or historical-to-current cgroup inference."
+    ]
+  }
+}

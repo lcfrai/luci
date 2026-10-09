@@ -1,0 +1,22 @@
+{
+  "observer": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/observer.py",
+  "argumentCount": 6,
+  "wallSeconds": 400,
+  "termGraceSeconds": 1,
+  "killGraceSeconds": 1,
+  "identityMechanism": "pidfd",
+  "scope": "Observer only; no app mutation or observation completion claim.",
+  "sourcesBefore": [
+    {
+      "path": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/supervisor.py",
+      "sha256": "4b555802ca17e558bb65e64477af8d28642a55d047b4a310b0b412a08ab25beb",
+      "bytes": 20994
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/observer.py",
+      "sha256": "fc509776db0d1cbe8d474dfcd58e311d8588746ad9632fecab4d0ca7a2f0fea7",
+      "bytes": 17685
+    }
+  ],
+  "observerStdoutStderr": "Discarded; core exception text is unavailable. Nonzero exit/missing receipt is classified without invented diagnosis."
+}

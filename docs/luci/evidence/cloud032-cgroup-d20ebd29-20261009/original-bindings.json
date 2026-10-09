@@ -1,0 +1,266 @@
+{
+  "scope": "Exact originals and reversible gzip only; no private result reconstruction.",
+  "bindings": [
+    {
+      "originalPath": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/README.md",
+      "originalSHA256": "32931649a92a2c591da00e181470d23b36773f6fdbf436f53865dde01caba3cb",
+      "originalBytes": 7389,
+      "publishedPath": "prepared/README.md",
+      "publishedSHA256": "32931649a92a2c591da00e181470d23b36773f6fdbf436f53865dde01caba3cb",
+      "publishedBytes": 7389,
+      "representation": "exact original bytes"
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/evidence/final-cross-review.json",
+      "originalSHA256": "28c647ebabe8c74f88add0d1c7291717fdc288a2e36baddfffc43af46a86845e",
+      "originalBytes": 3291,
+      "publishedPath": "prepared/evidence/final-cross-review.json",
+      "publishedSHA256": "28c647ebabe8c74f88add0d1c7291717fdc288a2e36baddfffc43af46a86845e",
+      "publishedBytes": 3291,
+      "representation": "exact original bytes"
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/evidence/observer-fixtures-attempt1/result.json",
+      "originalSHA256": "c45f78249537bdba0e3f60b2ebac2d33eb42ec02b070bb75ff3033bf02e2c452",
+      "originalBytes": 774,
+      "publishedPath": "prepared/evidence/observer-fixtures-attempt1/result.json",
+      "publishedSHA256": "c45f78249537bdba0e3f60b2ebac2d33eb42ec02b070bb75ff3033bf02e2c452",
+      "publishedBytes": 774,
+      "representation": "exact original bytes"
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/evidence/observer-fixtures-attempt1/stderr.log",
+      "originalSHA256": "6c6d577f5e8d121d2eae41512eac254f9494d7ed9a1b66f4b78d36227f609db9",
+      "originalBytes": 2865,
+      "publishedPath": "prepared/evidence/observer-fixtures-attempt1/stderr.log",
+      "publishedSHA256": "6c6d577f5e8d121d2eae41512eac254f9494d7ed9a1b66f4b78d36227f609db9",
+      "publishedBytes": 2865,
+      "representation": "exact original bytes"
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/evidence/observer-fixtures-attempt1/stdout.log",
+      "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "originalBytes": 0,
+      "publishedPath": "prepared/evidence/observer-fixtures-attempt1/stdout.log",
+      "publishedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publishedBytes": 0,
+      "representation": "exact original bytes"
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/observer.py",
+      "originalSHA256": "fc509776db0d1cbe8d474dfcd58e311d8588746ad9632fecab4d0ca7a2f0fea7",
+      "originalBytes": 17685,
+      "publishedPath": "prepared/observer.py",
+      "publishedSHA256": "fc509776db0d1cbe8d474dfcd58e311d8588746ad9632fecab4d0ca7a2f0fea7",
+      "publishedBytes": 17685,
+      "representation": "exact original bytes"
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/supervisor-fixture-attempt31-umask.stderr.log",
+      "originalSHA256": "e3d28a15c7cb874eaa62f841268ee9b700e50e00d89064371aec5f0ff2281dae",
+      "originalBytes": 4254,
+      "publishedPath": "prepared/supervisor-fixture-attempt31-umask.stderr.log",
+      "publishedSHA256": "e3d28a15c7cb874eaa62f841268ee9b700e50e00d89064371aec5f0ff2281dae",
+      "publishedBytes": 4254,
+      "representation": "exact original bytes"
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/supervisor-fixture-attempt31-umask.stdout.log",
+      "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "originalBytes": 0,
+      "publishedPath": "prepared/supervisor-fixture-attempt31-umask.stdout.log",
+      "publishedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publishedBytes": 0,
+      "representation": "exact original bytes"
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/supervisor-fixture-original26.stderr.log",
+      "originalSHA256": "fabee1dd52e847a90b9d9c73fd1d73473a52d669dabc062a2df6149af238700b",
+      "originalBytes": 2987,
+      "publishedPath": "prepared/supervisor-fixture-original26.stderr.log",
+      "publishedSHA256": "fabee1dd52e847a90b9d9c73fd1d73473a52d669dabc062a2df6149af238700b",
+      "publishedBytes": 2987,
+      "representation": "exact original bytes"
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/supervisor-fixture-original26.stdout.log",
+      "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "originalBytes": 0,
+      "publishedPath": "prepared/supervisor-fixture-original26.stdout.log",
+      "publishedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publishedBytes": 0,
+      "representation": "exact original bytes"
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/supervisor-fixture-original27.stderr.log",
+      "originalSHA256": "021fbd6812743c1022b15293b5b44914ec51de9822e52c4a5256df2a07a19a76",
+      "originalBytes": 3142,
+      "publishedPath": "prepared/supervisor-fixture-original27.stderr.log",
+      "publishedSHA256": "021fbd6812743c1022b15293b5b44914ec51de9822e52c4a5256df2a07a19a76",
+      "publishedBytes": 3142,
+      "representation": "exact original bytes"
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/supervisor-fixture-original27.stdout.log",
+      "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "originalBytes": 0,
+      "publishedPath": "prepared/supervisor-fixture-original27.stdout.log",
+      "publishedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publishedBytes": 0,
+      "representation": "exact original bytes"
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/supervisor-fixture.stderr.log",
+      "originalSHA256": "3370224ae064110ace560d29707c1734b5746108e7ab465673c52205ca311d54",
+      "originalBytes": 3646,
+      "publishedPath": "prepared/supervisor-fixture.stderr.log",
+      "publishedSHA256": "3370224ae064110ace560d29707c1734b5746108e7ab465673c52205ca311d54",
+      "publishedBytes": 3646,
+      "representation": "exact original bytes"
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/supervisor-fixture.stdout.log",
+      "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "originalBytes": 0,
+      "publishedPath": "prepared/supervisor-fixture.stdout.log",
+      "publishedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publishedBytes": 0,
+      "representation": "exact original bytes"
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/supervisor.py",
+      "originalSHA256": "4b555802ca17e558bb65e64477af8d28642a55d047b4a310b0b412a08ab25beb",
+      "originalBytes": 20994,
+      "publishedPath": "prepared/supervisor.py",
+      "publishedSHA256": "4b555802ca17e558bb65e64477af8d28642a55d047b4a310b0b412a08ab25beb",
+      "publishedBytes": 20994,
+      "representation": "exact original bytes"
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/test_observer.py",
+      "originalSHA256": "309a6f10abae9d66c2ce74358349e1f9c249405c7fa4a512549441d32690948d",
+      "originalBytes": 11518,
+      "publishedPath": "prepared/test_observer.py",
+      "publishedSHA256": "309a6f10abae9d66c2ce74358349e1f9c249405c7fa4a512549441d32690948d",
+      "publishedBytes": 11518,
+      "representation": "exact original bytes"
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/test_supervisor.py",
+      "originalSHA256": "31c81d3a5738c5975977a1da34a71c0f3e53a7054b75cdd11119e7e14ec775fa",
+      "originalBytes": 12545,
+      "publishedPath": "prepared/test_supervisor.py",
+      "publishedSHA256": "31c81d3a5738c5975977a1da34a71c0f3e53a7054b75cdd11119e7e14ec775fa",
+      "publishedBytes": 12545,
+      "representation": "exact original bytes"
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/manifest.json",
+      "originalSHA256": "e3b29883887eff4f8c1647c5099d634e26ce49cf8526e6fc2541c9d651c6f81f",
+      "originalBytes": 4654,
+      "publishedPath": "prepared/manifest.json",
+      "publishedSHA256": "e3b29883887eff4f8c1647c5099d634e26ce49cf8526e6fc2541c9d651c6f81f",
+      "publishedBytes": 4654,
+      "representation": "exact original bytes"
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/cloud032-cgroup-counter-adjunct/SHA256SUMS",
+      "originalSHA256": "22fd4831c2265c6bda8cf52c26605b358a8054f33e6274f5ee2079e7639cf1f9",
+      "originalBytes": 1765,
+      "publishedPath": "prepared/SHA256SUMS",
+      "publishedSHA256": "22fd4831c2265c6bda8cf52c26605b358a8054f33e6274f5ee2079e7639cf1f9",
+      "publishedBytes": 1765,
+      "representation": "exact original bytes"
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/idle-d20ebd29-counter-attempt1/invocation.json",
+      "originalSHA256": "182daf4beb813d66e416d44d2f82d4658be889d4b9b954e2a62d5f97e66de0e8",
+      "originalBytes": 2194,
+      "publishedPath": "runtime/invocation.original.json",
+      "publishedSHA256": "182daf4beb813d66e416d44d2f82d4658be889d4b9b954e2a62d5f97e66de0e8",
+      "publishedBytes": 2194,
+      "representation": "exact original bytes"
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/idle-d20ebd29-counter-attempt1/result.json",
+      "originalSHA256": "35769aa5e767d4c222dda24bd3bb9fac1e764e0f726f23924127b523e16bec9b",
+      "originalBytes": 4804,
+      "publishedPath": "runtime/result.original.json",
+      "publishedSHA256": "35769aa5e767d4c222dda24bd3bb9fac1e764e0f726f23924127b523e16bec9b",
+      "publishedBytes": 4804,
+      "representation": "exact original bytes"
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/idle-d20ebd29-counter-attempt1/supervision/invocation.json",
+      "originalSHA256": "ae579cf8332564c7d2fd3807400d16571f38701092a71402f2a69a79bb154b4f",
+      "originalBytes": 869,
+      "publishedPath": "runtime/supervision-invocation.original.json",
+      "publishedSHA256": "ae579cf8332564c7d2fd3807400d16571f38701092a71402f2a69a79bb154b4f",
+      "publishedBytes": 869,
+      "representation": "exact original bytes"
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/idle-d20ebd29-counter-attempt1/supervision/result.json",
+      "originalSHA256": "aea79cffd052ccf0ee87b219446de4e6b54554ce4c3201f1b333f8b7bbd019bd",
+      "originalBytes": 2285,
+      "publishedPath": "runtime/supervision-result.original.json",
+      "publishedSHA256": "aea79cffd052ccf0ee87b219446de4e6b54554ce4c3201f1b333f8b7bbd019bd",
+      "publishedBytes": 2285,
+      "representation": "exact original bytes"
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/d20-cgroup-publication-analysis/phase-windows.json",
+      "originalSHA256": "a0b23e88cad0117c918c4069f4d5a098ac354cbf1753d0b6caa3718b84deed79",
+      "originalBytes": 957,
+      "publishedPath": "analysis/phase-windows.json",
+      "publishedSHA256": "a0b23e88cad0117c918c4069f4d5a098ac354cbf1753d0b6caa3718b84deed79",
+      "publishedBytes": 957,
+      "representation": "exact original bytes"
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/d20-cgroup-publication-analysis/counter-analysis.json",
+      "originalSHA256": "fa8c986d83bf833625996042f0fb38772c45ec6bbec23bd914c3293c6becc05a",
+      "originalBytes": 16674,
+      "publishedPath": "analysis/counter-analysis.json",
+      "publishedSHA256": "fa8c986d83bf833625996042f0fb38772c45ec6bbec23bd914c3293c6becc05a",
+      "publishedBytes": 16674,
+      "representation": "exact original bytes"
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/d20-cgroup-adjunct-audit.json",
+      "originalSHA256": "4dfe053e8c423c326a97414ba5ec8c83e1c5dfd77f4b8d9d6831d0f383566026",
+      "originalBytes": 12399,
+      "publishedPath": "analysis/independent-audit.json",
+      "publishedSHA256": "4dfe053e8c423c326a97414ba5ec8c83e1c5dfd77f4b8d9d6831d0f383566026",
+      "publishedBytes": 12399,
+      "representation": "exact original bytes"
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/analyze-d20-cgroup-counter.py",
+      "originalSHA256": "aac834b0bb39acfa7a7c3a724a3543fff3bbdbcb15c97b61a3ba55561ed7f0cc",
+      "originalBytes": 10910,
+      "publishedPath": "analyze-counter.py",
+      "publishedSHA256": "aac834b0bb39acfa7a7c3a724a3543fff3bbdbcb15c97b61a3ba55561ed7f0cc",
+      "publishedBytes": 10910,
+      "representation": "exact original bytes"
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/publish-d20-cgroup.py",
+      "originalSHA256": "e3601612bf4c584d9e44f8a56fddd29da7a691242065949afb8db4837c0f7df1",
+      "originalBytes": 14032,
+      "publishedPath": "publish.py",
+      "publishedSHA256": "e3601612bf4c584d9e44f8a56fddd29da7a691242065949afb8db4837c0f7df1",
+      "publishedBytes": 14032,
+      "representation": "exact original bytes"
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/idle-d20ebd29-counter-attempt1/cpu.jsonl",
+      "originalSHA256": "f5bb5e1709098f8a942998fa848883f0281a01b1242c389c9610952f871880a1",
+      "originalBytes": 1658626,
+      "publishedPath": "runtime/cpu.original.jsonl.gz",
+      "publishedSHA256": "4a4f34834545eb2fed8e53946271d09c5132d9c34d98476dd3f2ed8d9347aaf3",
+      "publishedBytes": 227415,
+      "representation": "gzip of exact original, mtime zero"
+    }
+  ]
+}

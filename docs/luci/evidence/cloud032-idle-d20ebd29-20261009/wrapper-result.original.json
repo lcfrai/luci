@@ -1,0 +1,23 @@
+{
+  "startedAt": "2026-10-09T09:57:30.868538+00:00",
+  "finishedAt": "2026-10-09T10:00:22.447987+00:00",
+  "elapsedSeconds": 171.57960311399074,
+  "exitCode": 0,
+  "externalMonitorTimeout": false,
+  "forcedExactDriver": false,
+  "driverIdentity": {
+    "pid": 2331148,
+    "startTicks": 28592010,
+    "state": "R"
+  },
+  "finalDriverObservation": {
+    "pid": 2331148,
+    "state": "absent"
+  },
+  "events": [],
+  "ownedCleanupRequiresFinalReceipt": true,
+  "cleanupUnconfirmedByWrapper": true,
+  "resultExists": true,
+  "rawResultSHA256": "da1cd7eb46948775af3d5641389940776a4c75f34c1bc71b42bef9ce42c79a77",
+  "noAutomaticFixtureOrLedgerMutation": true
+}

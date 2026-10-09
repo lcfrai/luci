@@ -1,0 +1,151 @@
+{
+  "preparedOnly": true,
+  "runtimeExecuted": false,
+  "sourceProduct": "67a5b7c75ca6354d43085f5bb81ec53ee4291f34",
+  "gitHEADAtFinalRead": "a31e1ac485c95bdbcc9ebb011581da5ce3f5c67a",
+  "gitStatusAtFinalRead": "",
+  "repositoryEditedByPreparation": false,
+  "selectedRepositorySourcesStillMatch": 17,
+  "entireGeneratedIdleDriverIdenticalTo990": {
+    "bytes": 96527,
+    "sha256": "18429d2a6497cfec582c8565b572b3ca567b756f2f9d403efd79b6b405719dc2"
+  },
+  "launcherByteIdenticalTo990": true,
+  "generatorByteIdenticalTo990": true,
+  "spans": {
+    "measurement-and-quiet-functions": {
+      "bytes": 852,
+      "sha256": "4f1fcd6c922c3a064d4e28c3e37fa9e59b3fd1759761c5a11e7cb0ad08091db0",
+      "identicalTo990Idle": true
+    },
+    "saved-context-and-draft-setup": {
+      "bytes": 5534,
+      "sha256": "1a0b4e7e4f03133f8538052a4b08d9a0afc03e1706f187a65a2b86c6c6c3eb10",
+      "identicalTo990Idle": true
+    },
+    "startup-and-queue-setup": {
+      "bytes": 3883,
+      "sha256": "fcd0a43b665cd5586a7740cfd7140e669bf0d4b34a18063d039a1feda00bcc57",
+      "identicalTo990Idle": true
+    },
+    "quiet-primary-and-separate-trace-workload": {
+      "bytes": 1679,
+      "sha256": "dd7058d08ee1e459c1fa54a0d30762a5cc058978ec895e0de175b92f2426b381",
+      "identicalTo990Idle": true
+    },
+    "bounded-cleanup-wiring": {
+      "bytes": 2207,
+      "sha256": "30d23cb8f212e40ed1884854a92d4ff23e61657a80d4f353e6baeabf3a5a6f76",
+      "identicalTo990Idle": true
+    },
+    "final-cleanup-and-receipt": {
+      "bytes": 6118,
+      "sha256": "3bc8fa864be674046e9971d06f116bec1a01574b77a22952c15524872040615b",
+      "identicalTo990Idle": true
+    }
+  },
+  "C049PhoneChangeOutsideExecutedIdlePrefix": true,
+  "syntaxScope": "The initial check reached its final clean-tree assertion after three Python AST parses and every node --check assertion returned0; wrapper itself failed on concurrent documentation writes. No unchanged syntax or extraction rerun. Individual syntax stdout was captured in memory only; no independent per-command original log is claimed.",
+  "syntaxInputs": [
+    {
+      "path": "launch.py",
+      "sha256": "a1ffc1ee3e9674a2812ad569a301d4ad69402c8dfa690f543c1a0bc12b270a62"
+    },
+    {
+      "path": "prepare-idle.py",
+      "sha256": "af30789b19f8d63a09991928b58cf2650f639af07b041b3d8ea7cc3db2d38db9"
+    },
+    {
+      "path": "actual/run-with-observer.py",
+      "sha256": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a"
+    },
+    {
+      "path": "actual/four-project-queue_native-terminal-diagnostics.mjs",
+      "sha256": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6"
+    },
+    {
+      "path": "actual/interaction-metrics.mjs",
+      "sha256": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502"
+    },
+    {
+      "path": "actual/latency-diagnostics.mjs",
+      "sha256": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96"
+    },
+    {
+      "path": "actual/launch-recovery_acceptance-lifecycle.mjs",
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+    },
+    {
+      "path": "actual/launch-recovery_acceptance-startup.mjs",
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680"
+    },
+    {
+      "path": "actual/launch-recovery_durable-acceptance-journal.mjs",
+      "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1"
+    },
+    {
+      "path": "actual/launch-recovery_fenced-docker-proxy.mjs",
+      "sha256": "b965b9a5d03f8a4cbc19b6e065559e1d9b10a2812453bfafb992e3f0041e448f"
+    },
+    {
+      "path": "actual/launch-recovery_worker-create-guard.mjs",
+      "sha256": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5"
+    },
+    {
+      "path": "actual/queue-controls.mjs",
+      "sha256": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0"
+    },
+    {
+      "path": "actual/receipt-transport.mjs",
+      "sha256": "6a676eefc02c4be569e65f6c3a16da50f750be67acaf4f1380a86739791c34a1"
+    },
+    {
+      "path": "actual/source-binding.mjs",
+      "sha256": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796"
+    },
+    {
+      "path": "actual/sustained.mjs",
+      "sha256": "18429d2a6497cfec582c8565b572b3ca567b756f2f9d403efd79b6b405719dc2"
+    },
+    {
+      "path": "actual/task-command.mjs",
+      "sha256": "7557cc863201e136a6ea0f4d039472d6e225a8efb0fb2afe267b9d65e01a541f"
+    },
+    {
+      "path": "actual/task-context.mjs",
+      "sha256": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2"
+    },
+    {
+      "path": "actual/workloads.mjs",
+      "sha256": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306"
+    }
+  ],
+  "budgets": {
+    "quietSeconds": 60,
+    "primarySwitches": 100,
+    "primaryInputs": 200,
+    "primaryResets": 100,
+    "separateTraceRounds": 8,
+    "separateTraceActions": 32,
+    "preparationSeconds": 60,
+    "workflowSeconds": 210,
+    "cleanupSeconds": 120,
+    "outerWaitSeconds": 450,
+    "outerTermGraceSeconds": 30,
+    "outerKillWaitSeconds": 10,
+    "allowedCreate": 0,
+    "allowedStart": 0,
+    "switchP95Ms": 300,
+    "inputP95Ms": 100,
+    "p99StrictlyBelowMs": 1000,
+    "rootFloorBytes": 6442450944,
+    "runningReserveBytes": 1073741824
+  },
+  "package": {
+    "path": "/tmp/luci-retained-tools/package-0.5.0-67a5b7c7",
+    "provenance": "/workspace/luci/artifacts/quality-swarm/candidate-67a5b7c7/package/package-provenance.json",
+    "provenanceSHA256": "ed4d073040b828a3b9dc1a9baf6dba81137e8f8fe5d9af1febffac085cf5b1fe",
+    "preparationDidNotRunPackageOrImagePreflight": true
+  },
+  "launchRequirements": "Root supplies actual clean committed helper HEAD. Strict launcher binds every selected source to that commit, verifies package/image/Docker-exclusive/disk-floor conditions, then only root launches the separate installed diagnostic. No source substitution or acceptance pass from preparation."
+}

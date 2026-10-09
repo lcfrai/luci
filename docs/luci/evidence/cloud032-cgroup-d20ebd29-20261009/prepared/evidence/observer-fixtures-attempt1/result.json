@@ -1,0 +1,22 @@
+{
+  "startedAt": "2026-10-09T09:48:36.144776+00:00",
+  "elapsedSeconds": 0.5276007149950601,
+  "command": [
+    "python3",
+    "-m",
+    "unittest",
+    "-v",
+    "test_observer.py"
+  ],
+  "exitCode": 0,
+  "scope": "Tiny fake-clock/temporary-file fixtures only; no live cgroup sampling, process workload, app, browser, Docker or metric rerun",
+  "sourceBefore": {
+    "observer.py": "fc509776db0d1cbe8d474dfcd58e311d8588746ad9632fecab4d0ca7a2f0fea7",
+    "test_observer.py": "309a6f10abae9d66c2ce74358349e1f9c249405c7fa4a512549441d32690948d"
+  },
+  "sourceAfter": {
+    "observer.py": "fc509776db0d1cbe8d474dfcd58e311d8588746ad9632fecab4d0ca7a2f0fea7",
+    "test_observer.py": "309a6f10abae9d66c2ce74358349e1f9c249405c7fa4a512549441d32690948d"
+  },
+  "sourceStable": true
+}

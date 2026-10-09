@@ -1,0 +1,21 @@
+{
+  "scope": "Preserved first preparation-check failure; no runtime launched. This is an external summary of the retained tool result, not original per-subprocess logs.",
+  "command": [
+    "python3",
+    "/workspace/.luci-tools/cloud032-idle-67a5b7c7/verify-preparation.py"
+  ],
+  "exitCode": 1,
+  "failedAt": "Final assert git status --porcelain == empty at line38. Prior source/hash/span assertions, three Python AST parses and all node --check subprocess assertions had returned successfully.",
+  "initialScriptSHA256": "c427dfb61185b56b23cc3d5c95da341e90280d8240d3fc95fc28c05eb3f11e8a",
+  "reportedError": "AssertionError at verify-preparation.py:38",
+  "observedStatusAfterFailure": [
+    " M docs/luci/LOCAL-TEST-LOOP.md",
+    " M docs/luci/QUALITY-WORKLIST.md",
+    "?? docs/luci/TEST-CHECKPOINT-67A5B7C7.md",
+    "?? docs/luci/evidence/2026-10-09-archive-preservation-0910.json",
+    "?? docs/luci/evidence/2026-10-09-package-67a5b7c7.md",
+    "?? docs/luci/evidence/package-67a5b7c7/"
+  ],
+  "laterRootInstruction": "Root confirmed concurrent documentation writes and instructed preserving this failure without rerunning unchanged syntax or extraction. Runtime launcher clean-tree guard remains intact.",
+  "runtimeExecuted": false
+}

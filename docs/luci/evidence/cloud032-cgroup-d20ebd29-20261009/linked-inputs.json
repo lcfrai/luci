@@ -1,0 +1,25 @@
+{
+  "productCommit": "d20ebd292f3f1de04d6726bab0998c210987bcb5",
+  "helperCommit": "c625ef0b7842748f4ce74cd3ffc08979d571bddf",
+  "originalPrivateIdleResult": {
+    "sha256": "da1cd7eb46948775af3d5641389940776a4c75f34c1bc71b42bef9ce42c79a77",
+    "bytes": 7499346,
+    "representation": "Only exact phase objects retained here; all action projections and package/source bindings are in the sibling capsule."
+  },
+  "siblingIdleCapsule": {
+    "relativePath": "../cloud032-idle-d20ebd29-20261009/publication.json",
+    "bytes": 12481,
+    "sha256": "1a2157135add48b1ecc6ec2ab9983ae936022af237414fd758aa67e2197fe095"
+  },
+  "exactIntegrationWrapper": {
+    "relativePath": "../cloud032-idle-d20ebd29-20261009/sources/run-idle-d20-with-counter.py",
+    "bytes": 3618,
+    "sha256": "1e03fe4eef0bb8c4041d1311e759a9dd97ac446bce2308315c11008787c18d1a"
+  },
+  "preparedSourceManifest": {
+    "path": "prepared/manifest.json",
+    "bytes": 4654,
+    "sha256": "e3b29883887eff4f8c1647c5099d634e26ce49cf8526e6fc2541c9d651c6f81f"
+  },
+  "limits": "The integration wrapper and installed app/helper/source/image inventory are published once in the sibling capsule. Original invocation paths are retained as provenance, not a claim those paths exist on a recipient machine."
+}
