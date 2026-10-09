@@ -1,0 +1,24 @@
+{
+  "kind": "poll-held",
+  "entry": {
+    "at": "2026-10-09T12:11:34.807Z",
+    "monotonicMs": 46559.559663,
+    "deadlineMonotonicMs": 54559.559663,
+    "budgetMs": 8000
+  },
+  "at": "2026-10-09T12:11:34.807Z",
+  "monotonicMs": 46559.559663,
+  "deadlineMonotonicMs": 54559.559663,
+  "budgetMs": 8000,
+  "bodyObservedMonotonicMs": 46648.274032,
+  "bodySHA256": "b0f2bd14d91df41fed02a54a49512e4f6493c359c7fafa172c31b4ea53e85ece",
+  "bodyBytes": 642,
+  "session": {
+    "id": "s-a6c58cce",
+    "status": "running",
+    "executionGeneration": "60910edf742d3d5cebf840b694f90ae8c662ca754948883a8122d02b1aef2e3f"
+  },
+  "released": null,
+  "expired": false,
+  "observedAt": "2026-10-09T12:11:34.896Z"
+}

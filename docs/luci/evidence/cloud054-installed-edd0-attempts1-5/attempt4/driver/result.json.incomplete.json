@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "passed": false,
+  "status": "cleanup-incomplete",
+  "stage": "terminal-scenario",
+  "failure": {
+    "name": "Error",
+    "code": null,
+    "message": "route.fulfill: Route is already handled!"
+  },
+  "pendingMutations": [],
+  "knownController": {
+    "pid": 2406459,
+    "start": "29392035",
+    "parent": 2406284,
+    "status": "R"
+  },
+  "knownContainers": [
+    {
+      "id": "e3c8d3788a274a23d8432c8a82d3fead54363705ea74bba40811b90428e3f9ba",
+      "sandboxId": "s-a6c58cce",
+      "sessionId": "s-a6c58cce",
+      "instanceId": "c50df820-6a82-4414-a7ab-78b0d77a002c",
+      "imageID": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+      "name": "/luci-s-a6c58cce",
+      "status": "running",
+      "pid": 2407038,
+      "created": "2026-10-09T12:10:52.241718891Z",
+      "startedAt": "2026-10-09T12:11:27.409680752Z",
+      "memoryBytes": 1073741824,
+      "cpuNano": 1000000000,
+      "pidsLimit": 256
+    }
+  ]
+}

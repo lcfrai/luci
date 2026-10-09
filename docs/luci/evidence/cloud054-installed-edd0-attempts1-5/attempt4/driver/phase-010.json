@@ -1,0 +1,8 @@
+{
+  "kind": "poll-gate-entry",
+  "at": "2026-10-09T12:11:34.807Z",
+  "monotonicMs": 46559.559663,
+  "deadlineMonotonicMs": 54559.559663,
+  "budgetMs": 8000,
+  "observedAt": "2026-10-09T12:11:34.807Z"
+}

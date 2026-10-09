@@ -1,0 +1,66 @@
+✔ passive observer preserves native construction/send and excludes other paths (13.95567ms)
+✔ stdout lookalike never becomes typed exit; ordered typed zero and clean1000 retained without private reason (12.338032ms)
+✔ nonzero native exit remains nonzero, abrupt transport does not invent exit (5.452927ms)
+✔ nonbinary and oversized frames are explicit observation failures (6.467145ms)
+✔ socket count bound remains explicit and opaque markers are fresh (4.582505ms)
+✔ observer pending queue is bounded before decoding (7.815538ms)
+✖ typed exit exact known representation and byte hash are retained without changing exit expectation (9.271441ms)
+✖ unclassified typed exit preserves exact bytes/hash while arbitrary private text is omitted (8.190913ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 6
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 252.75685
+
+✖ failing tests:
+
+test at .luci-tools/cloud054-terminal-close/installed-v6/scenario.test.mjs:27:1
+✖ typed exit exact known representation and byte hash are retained without changing exit expectation (9.271441ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + undefined
+  - {
+  -   bytes: 13,
+  -   knownStaticRepresentation: 'exit status 0',
+  -   sha256: '7146fc872b9a9dba5098f80e211bc7a8af3d9b2fbf8a3e5d9447db130fcaa3b2',
+  -   unclassifiedTextRetained: false
+  - }
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v6/scenario.test.mjs:27:438)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: { bytes: 13, sha256: '7146fc872b9a9dba5098f80e211bc7a8af3d9b2fbf8a3e5d9447db130fcaa3b2', knownStaticRepresentation: 'exit status 0', unclassifiedTextRetained: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at .luci-tools/cloud054-terminal-close/installed-v6/scenario.test.mjs:28:1
+✖ unclassified typed exit preserves exact bytes/hash while arbitrary private text is omitted (8.190913ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + undefined
+  - {
+  -   bytes: 32,
+  -   knownStaticRepresentation: null,
+  -   sha256: 'c72981e5133c413f55aa08fec5d9f50e182e2dc4e3f6d1cba0582ab238d87b5e',
+  -   unclassifiedTextRetained: false
+  - }
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v6/scenario.test.mjs:28:479)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: { bytes: 32, sha256: 'c72981e5133c413f55aa08fec5d9f50e182e2dc4e3f6d1cba0582ab238d87b5e', knownStaticRepresentation: null, unclassifiedTextRetained: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

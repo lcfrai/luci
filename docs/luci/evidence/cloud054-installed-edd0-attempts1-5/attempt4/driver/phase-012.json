@@ -1,0 +1,12 @@
+{
+  "kind": "poll-gate-error",
+  "error": "read-only-gate-failed",
+  "entry": {
+    "at": "2026-10-09T12:11:34.807Z",
+    "monotonicMs": 46559.559663,
+    "deadlineMonotonicMs": 54559.559663,
+    "budgetMs": 8000
+  },
+  "expired": false,
+  "observedAt": "2026-10-09T12:11:35.184Z"
+}

@@ -1,0 +1,18 @@
+✔ dispose settles owned handler before removing route interception (15.278628ms)
+✔ checkpoint failure after acknowledged fulfill never attempts a second terminal operation (4.76963ms)
+✔ rejected fulfill remains unknown and is never followed by abort or replay (6.923671ms)
+✔ actual owned-request cancellation is recorded and leaves ordering unexercised without handling it again (6.494219ms)
+✔ successful release and repeated disposal retain exactly one fulfillment and removal (3.449236ms)
+✔ real scenario primary failure survives later route disposal failure (6.141723ms)
+✔ real scenario records primary step and passive failure observation before gate cleanup (4.977438ms)
+✔ diagnostic projection hashes arbitrary errors without retaining raw private messages (0.703149ms)
+✔ handler selected before async unroute cannot begin a late owned fetch (14.234589ms)
+✔ requestfailed checkpoint error cannot escape listener or prevent gate settlement (10.976196ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 234.276719

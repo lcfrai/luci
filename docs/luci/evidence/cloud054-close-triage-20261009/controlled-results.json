@@ -1,0 +1,102 @@
+{
+  "kind": "controlled-go-pty-relay-close-results",
+  "results": [
+    {
+      "group": "sandbox",
+      "exit": {
+        "exitCode": 0
+      },
+      "topLevelPassed": 1,
+      "subtestsPassed": 2,
+      "failedOrSkipped": 0,
+      "firstEvent": "2026-10-09T12:30:55.812037238Z",
+      "lastEvent": "2026-10-09T12:30:56.864427169Z",
+      "test": "TestC054NaturalPTYExitCompletesNormalWebSocketClose",
+      "package": "github.com/lcfrai/luci/sandboxd/internal/server",
+      "reproduction": {
+        "workingDirectory": "/workspace/luci/sandboxd",
+        "environmentActivation": "/workspace/.luci-tools/activate.sh",
+        "GOMAXPROCS": 2,
+        "argv": [
+          "go",
+          "test",
+          "-race",
+          "-p=1",
+          "-count=1",
+          "-timeout=90s",
+          "-overlay=/workspace/.luci-tools/cloud054-close-followup/sandbox/overlay.json",
+          "-run",
+          "^TestC054NaturalPTYExitCompletesNormalWebSocketClose$",
+          "-json",
+          "./internal/server"
+        ],
+        "limitNote": "Reproducible command reconstructed from the invocation settings, not a retained original shell transcript. Original raw Go JSONL/exit status and test/overlay bytes are retained."
+      }
+    },
+    {
+      "group": "gateway",
+      "exit": {
+        "exitCode": 0
+      },
+      "topLevelPassed": 1,
+      "subtestsPassed": 2,
+      "failedOrSkipped": 0,
+      "firstEvent": "2026-10-09T12:32:37.388287979Z",
+      "lastEvent": "2026-10-09T12:32:39.588250721Z",
+      "test": "TestC054NormalCloseThroughAttachAndOwnerGateway",
+      "package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "reproduction": {
+        "workingDirectory": "/workspace/luci/control-plane",
+        "environmentActivation": "/workspace/.luci-tools/activate.sh",
+        "GOMAXPROCS": 2,
+        "argv": [
+          "go",
+          "test",
+          "-race",
+          "-p=1",
+          "-count=1",
+          "-timeout=90s",
+          "-overlay=/workspace/.luci-tools/cloud054-close-followup/gateway/overlay.json",
+          "-run",
+          "^TestC054NormalCloseThroughAttachAndOwnerGateway$",
+          "-json",
+          "./internal/api"
+        ],
+        "limitNote": "Reproducible command reconstructed from the invocation settings, not a retained original shell transcript. Original raw Go JSONL/exit status and test/overlay bytes are retained."
+      }
+    },
+    {
+      "group": "combined",
+      "exit": {
+        "exitCode": 0
+      },
+      "topLevelPassed": 1,
+      "subtestsPassed": 2,
+      "failedOrSkipped": 0,
+      "firstEvent": "2026-10-09T12:34:31.972150287Z",
+      "lastEvent": "2026-10-09T12:34:34.298490974Z",
+      "test": "TestC054RealPTYNormalCloseAcrossOwnerGateway",
+      "package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "reproduction": {
+        "workingDirectory": "/workspace/luci/control-plane",
+        "environmentActivation": "/workspace/.luci-tools/activate.sh",
+        "GOMAXPROCS": 2,
+        "argv": [
+          "go",
+          "test",
+          "-race",
+          "-p=1",
+          "-count=1",
+          "-timeout=90s",
+          "-overlay=/workspace/.luci-tools/cloud054-close-followup/combined/overlay.json",
+          "-run",
+          "^TestC054RealPTYNormalCloseAcrossOwnerGateway$",
+          "-json",
+          "./internal/api"
+        ],
+        "limitNote": "Reproducible command reconstructed from the invocation settings, not a retained original shell transcript. Original raw Go JSONL/exit status and test/overlay bytes are retained."
+      }
+    }
+  ],
+  "scope": "Three overlapping controlled fixture tests; no Chromium, container, packaged binary, real sandboxd entrypoint/linger, or installed reproduction. All client WebSockets use coder/websocket."
+}

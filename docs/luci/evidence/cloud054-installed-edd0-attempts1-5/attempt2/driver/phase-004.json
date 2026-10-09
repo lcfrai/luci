@@ -1,0 +1,26 @@
+{
+  "kind": "http-problem-diagnostic",
+  "stage": "shell-create",
+  "method": "POST",
+  "path": "/v1/sessions",
+  "problem": {
+    "version": 1,
+    "representation": "allowlisted-transformed-problem",
+    "status": 409,
+    "expectedStatus": 201,
+    "originalBodySHA256": "2df31b7a15ff8f89d22c9df0efbccdec98ab22bcbf984dc3ef9cb4adb157ff71",
+    "originalBodyBytes": 170,
+    "originalBodyRetained": false,
+    "parsedJSON": true,
+    "problemShape": true,
+    "error": "conflict",
+    "message": "Execution storage cannot preserve the working reserve for the pending sandbox copies.",
+    "messageOmitted": false,
+    "details": {
+      "reasonCode": "execution_disk_pressure"
+    },
+    "omittedDetailsCount": 0,
+    "numericAdmissionOperands": "unavailable-in-this-POST-problem-schema"
+  },
+  "observedAt": "2026-10-09T11:56:53.395Z"
+}

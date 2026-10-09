@@ -1,0 +1,16 @@
+{"Time":"2026-10-09T12:30:55.812037238Z","Action":"start","Package":"github.com/lcfrai/luci/sandboxd/internal/server"}
+{"Time":"2026-10-09T12:30:55.823702671Z","Action":"run","Package":"github.com/lcfrai/luci/sandboxd/internal/server","Test":"TestC054NaturalPTYExitCompletesNormalWebSocketClose"}
+{"Time":"2026-10-09T12:30:55.823755531Z","Action":"output","Package":"github.com/lcfrai/luci/sandboxd/internal/server","Test":"TestC054NaturalPTYExitCompletesNormalWebSocketClose","Output":"=== RUN   TestC054NaturalPTYExitCompletesNormalWebSocketClose\n"}
+{"Time":"2026-10-09T12:30:55.82380133Z","Action":"run","Package":"github.com/lcfrai/luci/sandboxd/internal/server","Test":"TestC054NaturalPTYExitCompletesNormalWebSocketClose/0"}
+{"Time":"2026-10-09T12:30:55.823803763Z","Action":"output","Package":"github.com/lcfrai/luci/sandboxd/internal/server","Test":"TestC054NaturalPTYExitCompletesNormalWebSocketClose/0","Output":"=== RUN   TestC054NaturalPTYExitCompletesNormalWebSocketClose/0\n"}
+{"Time":"2026-10-09T12:30:55.830755857Z","Action":"output","Package":"github.com/lcfrai/luci/sandboxd/internal/server","Test":"TestC054NaturalPTYExitCompletesNormalWebSocketClose/0","Output":"--- PASS: TestC054NaturalPTYExitCompletesNormalWebSocketClose/0 (0.01s)\n"}
+{"Time":"2026-10-09T12:30:55.83080434Z","Action":"pass","Package":"github.com/lcfrai/luci/sandboxd/internal/server","Test":"TestC054NaturalPTYExitCompletesNormalWebSocketClose/0","Elapsed":0.01}
+{"Time":"2026-10-09T12:30:55.830811801Z","Action":"run","Package":"github.com/lcfrai/luci/sandboxd/internal/server","Test":"TestC054NaturalPTYExitCompletesNormalWebSocketClose/7"}
+{"Time":"2026-10-09T12:30:55.830814576Z","Action":"output","Package":"github.com/lcfrai/luci/sandboxd/internal/server","Test":"TestC054NaturalPTYExitCompletesNormalWebSocketClose/7","Output":"=== RUN   TestC054NaturalPTYExitCompletesNormalWebSocketClose/7\n"}
+{"Time":"2026-10-09T12:30:55.836010893Z","Action":"output","Package":"github.com/lcfrai/luci/sandboxd/internal/server","Test":"TestC054NaturalPTYExitCompletesNormalWebSocketClose/7","Output":"--- PASS: TestC054NaturalPTYExitCompletesNormalWebSocketClose/7 (0.01s)\n"}
+{"Time":"2026-10-09T12:30:55.836049061Z","Action":"pass","Package":"github.com/lcfrai/luci/sandboxd/internal/server","Test":"TestC054NaturalPTYExitCompletesNormalWebSocketClose/7","Elapsed":0.01}
+{"Time":"2026-10-09T12:30:55.83605505Z","Action":"output","Package":"github.com/lcfrai/luci/sandboxd/internal/server","Test":"TestC054NaturalPTYExitCompletesNormalWebSocketClose","Output":"--- PASS: TestC054NaturalPTYExitCompletesNormalWebSocketClose (0.01s)\n"}
+{"Time":"2026-10-09T12:30:55.836063502Z","Action":"pass","Package":"github.com/lcfrai/luci/sandboxd/internal/server","Test":"TestC054NaturalPTYExitCompletesNormalWebSocketClose","Elapsed":0.01}
+{"Time":"2026-10-09T12:30:55.836133468Z","Action":"output","Package":"github.com/lcfrai/luci/sandboxd/internal/server","Output":"PASS\n"}
+{"Time":"2026-10-09T12:30:56.857725418Z","Action":"output","Package":"github.com/lcfrai/luci/sandboxd/internal/server","Output":"ok  \tgithub.com/lcfrai/luci/sandboxd/internal/server\t1.042s\n"}
+{"Time":"2026-10-09T12:30:56.864427169Z","Action":"pass","Package":"github.com/lcfrai/luci/sandboxd/internal/server","Elapsed":1.052}

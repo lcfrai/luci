@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "passed": false,
+  "status": "cleanup-incomplete",
+  "stage": "terminal-scenario",
+  "failure": {
+    "name": "AssertionError",
+    "code": "ERR_ASSERTION",
+    "message": "Expected values to be strictly equal:\n\ntrue !== false\n"
+  },
+  "pendingMutations": [],
+  "knownController": {
+    "pid": 2414780,
+    "start": "29483624",
+    "parent": 2414604,
+    "status": "R"
+  },
+  "knownContainers": [
+    {
+      "id": "60762a994bbf028c00ed9c5ac254c69e07aed60f769c3afe0f77e083dcce55f7",
+      "sandboxId": "s-770faa72",
+      "sessionId": "s-770faa72",
+      "instanceId": "4e22572f-f5e2-4fd8-b151-72c9cb54f287",
+      "imageID": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+      "name": "/luci-s-770faa72",
+      "status": "running",
+      "pid": 2415105,
+      "created": "2026-10-09T12:26:08.252524305Z",
+      "startedAt": "2026-10-09T12:26:31.441873505Z",
+      "memoryBytes": 1073741824,
+      "cpuNano": 1000000000,
+      "pidsLimit": 256
+    }
+  ]
+}

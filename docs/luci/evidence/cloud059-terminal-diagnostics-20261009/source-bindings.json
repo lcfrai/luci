@@ -1,0 +1,308 @@
+{
+  "productCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "productProtocolSources": {
+    "sandboxd/internal/hub/hub.go": {
+      "sha256": "8715c17ae86ac1fe6e4cb1d90f01f5ba25e3fb2818eff46bb438c8bcf8785ee6",
+      "bytes": 5629
+    },
+    "sandboxd/internal/server/server.go": {
+      "sha256": "f918586cacb68eed8b4fcbc11801c49d2ca6aa64421163eaf861b40870d41b47",
+      "bytes": 9183
+    },
+    "sandboxd/internal/wire/frame.go": {
+      "sha256": "8e3bb117f30526b89d1a7b101e34e0361ed29ebd6e95ee727ac43fe310e9abce",
+      "bytes": 1789
+    }
+  },
+  "exactExternalSources": [
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v4/scenario.mjs",
+      "published": "installed-v4/scenario.mjs",
+      "sha256": "5b089cbfc8e1886bfd0e2689454a06415e7578557c929229ae69b3f58f8ce62b",
+      "bytes": 17196
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5/scenario.mjs",
+      "published": "installed-v5/scenario.mjs",
+      "sha256": "67bc7c47e98cc8c64fb29b0e98bfc17712a45ef4a7acb5e04b9c897ca84d99c4",
+      "bytes": 21290
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5/scenario-before-route-settlement.mjs",
+      "published": "installed-v5/scenario-before-route-settlement.mjs",
+      "sha256": "5b089cbfc8e1886bfd0e2689454a06415e7578557c929229ae69b3f58f8ce62b",
+      "bytes": 17196
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5/route-settlement.test.mjs",
+      "published": "installed-v5/route-settlement.test.mjs",
+      "sha256": "0193faf2200c124957ef5ec3c5672cbc41b0c1a0cd62ba4b647724ff71e00245",
+      "bytes": 9690
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5/gate-budget.test.mjs",
+      "published": "installed-v5/gate-budget.test.mjs",
+      "sha256": "009b1dfb770290aab8d82b92078b6156052b33d1635ed24a287fbfef87b14c70",
+      "bytes": 3622
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5/route-settlement.patch",
+      "published": "installed-v5/route-settlement.patch",
+      "sha256": "d7e7af9b915a249440d87d33790689de53157ab263841b19e9717fed0d218c3b",
+      "bytes": 20267
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5/route-validation.json",
+      "published": "installed-v5/route-validation.json",
+      "sha256": "cab4decf8380f5df4adefe7add7f9729bb7197bf0689d1f5a320d39eaed80246",
+      "bytes": 3411
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5/manifest.json",
+      "published": "installed-v5/historical-complete-manifest.json",
+      "sha256": "576ed5f049d77a8082606488c1c0e342a32498eb42218c27a690b02752f2b55c",
+      "bytes": 13698
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5/cloud059-routing-source-review.json",
+      "published": "installed-v5/cloud059-routing-source-review.json",
+      "sha256": "e90f9d3e9f1a4502c5cc96275da49b31e58d4af8b0b0178ffc31356a54886265",
+      "bytes": 4164
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5/cloud059-v5-source-review-initial.json",
+      "published": "installed-v5/cloud059-v5-source-review-initial.json",
+      "sha256": "7851a75467c9cd6e8bcb1860d13821a8e5bcdbb9d75aff6fb17af29eaa30e01e",
+      "bytes": 2613
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5/cloud059-v5-source-review-final.json",
+      "published": "installed-v5/cloud059-v5-source-review-final.json",
+      "sha256": "81f66fa9469db8df83e338dc248faaa884784c8a2c104a86ee4ff98158713dd7",
+      "bytes": 3523
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5/route-original-final.stdout",
+      "published": "installed-v5/route-original-final.stdout",
+      "sha256": "d3823eee2992fb38dffcca0f8a4dd17dc6eedb317f25b4381ea05b1448667904",
+      "bytes": 6888
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5/route-original-final.stderr",
+      "published": "installed-v5/route-original-final.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5/route-fixed-final.stdout",
+      "published": "installed-v5/route-fixed-final.stdout",
+      "sha256": "088f1cd9d0a15a669b8a84b55032aa19010788ec78d4cb6a02f9dee2eef60797",
+      "bytes": 1096
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5/route-fixed-final.stderr",
+      "published": "installed-v5/route-fixed-final.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5/route-budget-final.stdout",
+      "published": "installed-v5/route-budget-final.stdout",
+      "sha256": "49f9e8afff6de41ab03397cce0ca0cd697cdcad98bb9678d4d0416d7bc6a6c6e",
+      "bytes": 390
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5/route-budget-final.stderr",
+      "published": "installed-v5/route-budget-final.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5/route-syntax-final.stdout",
+      "published": "installed-v5/route-syntax-final.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5/route-syntax-final.stderr",
+      "published": "installed-v5/route-syntax-final.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5-draft-before-late-handler/scenario.mjs",
+      "published": "installed-v5-draft-before-late-handler/scenario.mjs",
+      "sha256": "4d4854900cdefb6ce27b550e24bf6b09c7f99154847583a76d1d07c15acb11ca",
+      "bytes": 20962
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5-draft-before-late-handler/route-settlement.test.mjs",
+      "published": "installed-v5-draft-before-late-handler/route-settlement.test.mjs",
+      "sha256": "cb10749a1f19440afd1be2ae81d85f2e7a118ab42c985588252aff3992bb43e3",
+      "bytes": 7170
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5-draft-before-late-handler/route-original.stdout",
+      "published": "installed-v5-draft-before-late-handler/route-original.stdout",
+      "sha256": "ccd0687972fb7ff6a4c7d991640f65918d6f6409e4c8c50a955c26679bc5d505",
+      "bytes": 5304
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5-draft-before-late-handler/route-original.stderr",
+      "published": "installed-v5-draft-before-late-handler/route-original.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5-draft-before-late-handler/route-fixed.stdout",
+      "published": "installed-v5-draft-before-late-handler/route-fixed.stdout",
+      "sha256": "cbf0fc815b08873c7da02634fb9dc0db9fd47fea23d4ee322f182db2c8c32990",
+      "bytes": 906
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5-draft-before-late-handler/route-fixed.stderr",
+      "published": "installed-v5-draft-before-late-handler/route-fixed.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5-draft-before-late-handler/route-budget.stdout",
+      "published": "installed-v5-draft-before-late-handler/route-budget.stdout",
+      "sha256": "ede9a09fa6be32b916c9e09c7015bc217ad2f41f140db9d5cd8f3443427561eb",
+      "bytes": 391
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5-draft-before-late-handler/route-budget.stderr",
+      "published": "installed-v5-draft-before-late-handler/route-budget.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v6/scenario.mjs",
+      "published": "installed-v6/scenario.mjs",
+      "sha256": "11e619bccc1ec06882a5a0fdb378b37a8cd182b865964ea1a729a6105e36c225",
+      "bytes": 21721
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v6/scenario-before-exit-payload-diagnostic.mjs",
+      "published": "installed-v6/scenario-before-exit-payload-diagnostic.mjs",
+      "sha256": "67bc7c47e98cc8c64fb29b0e98bfc17712a45ef4a7acb5e04b9c897ca84d99c4",
+      "bytes": 21290
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v6/scenario.test.mjs",
+      "published": "installed-v6/scenario.test.mjs",
+      "sha256": "8c068573aad66ae30ebf226b61a3971cfe36fc11bdc3a82e27cb6b2453e85c47",
+      "bytes": 7055
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v6/route-settlement.test.mjs",
+      "published": "installed-v6/route-settlement.test.mjs",
+      "sha256": "0193faf2200c124957ef5ec3c5672cbc41b0c1a0cd62ba4b647724ff71e00245",
+      "bytes": 9690
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v6/gate-budget.test.mjs",
+      "published": "installed-v6/gate-budget.test.mjs",
+      "sha256": "009b1dfb770290aab8d82b92078b6156052b33d1635ed24a287fbfef87b14c70",
+      "bytes": 3622
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v6/payload-diagnostic.patch",
+      "published": "installed-v6/payload-diagnostic.patch",
+      "sha256": "3be9b88bb35401e86d0d15d65d05a84ba62e37ef53cdae61a57024baf164da88",
+      "bytes": 1284
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v6/payload-validation.json",
+      "published": "installed-v6/payload-validation.json",
+      "sha256": "9df644da31c5ec94649b39ea2e4453820b05cf573ff3e39951f95972bcb769d6",
+      "bytes": 2552
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v6/manifest.json",
+      "published": "installed-v6/historical-complete-manifest.json",
+      "sha256": "b0366271a658375ff69009bf9e6c86efdad64b0e5e2a377bc598baa2e2dda9a3",
+      "bytes": 16833
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v6/payload-original-final.stdout",
+      "published": "installed-v6/payload-original-final.stdout",
+      "sha256": "0cdd73869152d53fb5874fac8d2eb03a3f79ffaff1d4485ef8a64ad2e956e639",
+      "bytes": 3083
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v6/payload-original-final.stderr",
+      "published": "installed-v6/payload-original-final.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v6/payload-fixed-final.stdout",
+      "published": "installed-v6/payload-fixed-final.stdout",
+      "sha256": "eb35877737b722f3dad94669abcf9b17537b4be3a201c9024b763c500124ce36",
+      "bytes": 883
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v6/payload-fixed-final.stderr",
+      "published": "installed-v6/payload-fixed-final.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v6/payload-affected.stdout",
+      "published": "installed-v6/payload-affected.stdout",
+      "sha256": "fba7c1742235abb035ef8bc79be415aa8cdcadb25ff736c6146db3971634fa10",
+      "bytes": 1371
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v6/payload-affected.stderr",
+      "published": "installed-v6/payload-affected.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v6/payload-syntax.stdout",
+      "published": "installed-v6/payload-syntax.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v6/payload-syntax.stderr",
+      "published": "installed-v6/payload-syntax.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v6/scenario.test.mjs.fixture-syntax-failure",
+      "published": "installed-v6/scenario.test.mjs.fixture-syntax-failure",
+      "sha256": "f53a6f460d6f626d9e20119244eaf9628a94794ac98c056b4ee786542b5c83a0",
+      "bytes": 7054
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v6/payload-original.stdout.fixture-syntax-failure",
+      "published": "installed-v6/payload-original.stdout.fixture-syntax-failure",
+      "sha256": "6987a8c37b9120d2763b80e47a61e89f54af05bc3c59b43aa607eba1b488defd",
+      "bytes": 1747
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v6/payload-original.stderr.fixture-syntax-failure",
+      "published": "installed-v6/payload-original.stderr.fixture-syntax-failure",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v6/payload-fixed.stdout.fixture-syntax-failure",
+      "published": "installed-v6/payload-fixed.stdout.fixture-syntax-failure",
+      "sha256": "4ede3fc1ee5cf30836a5476ade0fd0f92f4e1863e5b7eb2f7e225059922975b9",
+      "bytes": 1747
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/installed-v6/payload-fixed.stderr.fixture-syntax-failure",
+      "published": "installed-v6/payload-fixed.stderr.fixture-syntax-failure",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  ],
+  "scope": "Selected frozen source/controlled evidence only; historical complete manifests describe their original external directories, not a claim every historical member is duplicated here."
+}

@@ -1,0 +1,113 @@
+✖ dispose settles owned handler before removing route interception (12.690938ms)
+✖ checkpoint failure after acknowledged fulfill never attempts a second terminal operation (6.824826ms)
+✖ rejected fulfill remains unknown and is never followed by abort or replay (4.276035ms)
+✖ actual owned-request cancellation is recorded and leaves ordering unexercised without handling it again (4.744521ms)
+✔ successful release and repeated disposal retain exactly one fulfillment and removal (4.344918ms)
+✖ real scenario primary failure survives later route disposal failure (5.817419ms)
+✖ real scenario records primary step and passive failure observation before gate cleanup (14.061373ms)
+✔ diagnostic projection hashes arbitrary errors without retaining raw private messages (0.695188ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 2
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 235.220717
+
+✖ failing tests:
+
+test at .luci-tools/cloud054-terminal-close/installed-v5/route-settlement.test.mjs:25:1
+✖ dispose settles owned handler before removing route interception (12.690938ms)
+  Error: route.fulfill: Route is already handled!
+      at Object.fulfill (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v5/route-settlement.test.mjs:20:189)
+      at handler (evalmachine.<anonymous>:26:19)
+
+test at .luci-tools/cloud054-terminal-close/installed-v5/route-settlement.test.mjs:26:1
+✖ checkpoint failure after acknowledged fulfill never attempts a second terminal operation (6.824826ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v5/route-settlement.test.mjs:26:323)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .luci-tools/cloud054-terminal-close/installed-v5/route-settlement.test.mjs:27:1
+✖ rejected fulfill remains unknown and is never followed by abort or replay (4.276035ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v5/route-settlement.test.mjs:27:323)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .luci-tools/cloud054-terminal-close/installed-v5/route-settlement.test.mjs:28:1
+✖ actual owned-request cancellation is recorded and leaves ordering unexercised without handling it again (4.744521ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /ordering unexercised/. Input:
+  
+  'Error: route.fulfill: Route is already handled!'
+  
+      at async TestContext.<anonymous> (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v5/route-settlement.test.mjs:28:162)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: route.fulfill: Route is already handled!
+        at Object.fulfill (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v5/route-settlement.test.mjs:20:189)
+        at handler (evalmachine.<anonymous>:26:19),
+    expected: /ordering unexercised/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at .luci-tools/cloud054-terminal-close/installed-v5/route-settlement.test.mjs:42:1
+✖ real scenario primary failure survives later route disposal failure (5.817419ms)
+  AssertionError [ERR_ASSERTION]: Expected "actual" to be reference-equal to "expected":
+  + actual - expected
+  
+  + [Error: SECONDARY_ROUTE_FAILURE]
+  - [Error: PRIMARY_COMMAND_FAILURE]
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v5/route-settlement.test.mjs:42:125)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: {},
+    expected: {},
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .luci-tools/cloud054-terminal-close/installed-v5/route-settlement.test.mjs:43:1
+✖ real scenario records primary step and passive failure observation before gate cleanup (14.061373ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert(kinds.includes('scenario-failure'))
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v5/route-settlement.test.mjs:43:173)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

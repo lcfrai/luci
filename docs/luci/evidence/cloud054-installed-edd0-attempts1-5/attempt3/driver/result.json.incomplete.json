@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "passed": false,
+  "status": "cleanup-incomplete",
+  "stage": "shell-create",
+  "failure": {
+    "name": "AssertionError",
+    "code": "ERR_ASSERTION",
+    "message": "Unowned mount"
+  },
+  "pendingMutations": [],
+  "knownController": {
+    "pid": 2404986,
+    "start": "29344223",
+    "parent": 2404810,
+    "status": "R"
+  },
+  "knownContainers": []
+}

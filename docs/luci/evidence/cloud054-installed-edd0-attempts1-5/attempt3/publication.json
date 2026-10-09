@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "attempt": 3,
+  "passed": false,
+  "files": {
+    "README.md": {
+      "sha256": "9b511aed7eb293ba63ba1940637ecb87d88df8915bfc8b8439fa4989dc835eb0",
+      "bytes": 2097
+    },
+    "analysis.json": {
+      "sha256": "9d844ec50983d3927e17714386b40d505db5ca041a8997f245646759ecd5ae59",
+      "bytes": 5947
+    },
+    "before-launch.json": {
+      "sha256": "d2dcbdfa27c0ba49b90f650e325b14f36eb8ae788ca2b30e73f2a752604d7dfe",
+      "bytes": 2672
+    },
+    "driver/accepted-harness/check-create-recovery/fixture-guards.mjs": {
+      "sha256": "5bb86009d73cdd158637a716c4a3a348edb30337e9e2a8cd93ebef82773e1b35",
+      "bytes": 11868
+    },
+    "driver/accepted-harness/check-create-recovery/provenance.mjs": {
+      "sha256": "6b41954f56052d167954018018c79f561722a80497856d135d403904bfd9c08e",
+      "bytes": 4889
+    },
+    "driver/accepted-harness/launch-recovery/acceptance-lifecycle.mjs": {
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "bytes": 4176
+    },
+    "driver/accepted-harness/launch-recovery/acceptance-startup.mjs": {
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "bytes": 4637
+    },
+    "driver/accepted-harness/launch.mjs": {
+      "sha256": "1def18abf3121a9a32c4d75fccd2d1eed4298b7e7ccddba4fa32aa68fc8de69f",
+      "bytes": 44255
+    },
+    "driver/accepted-harness/scenario.mjs": {
+      "sha256": "5b089cbfc8e1886bfd0e2689454a06415e7578557c929229ae69b3f58f8ce62b",
+      "bytes": 17196
+    },
+    "driver/image-provenance.json": {
+      "sha256": "5af726e6670fd6f04c0f67cf3b26b3f6072ed89c1e1e3481c652a631ae6d0a3b",
+      "bytes": 33716
+    },
+    "driver/package-provenance.json": {
+      "sha256": "5ea084d505e292d418b7ab9b2d3fa97d83a0510158fbb3ef8ef66096603aa5f6",
+      "bytes": 1039
+    },
+    "driver/phase-001.json": {
+      "sha256": "6a441880553040f8bf56ba5267d792ea4a342a0c05c5cc8af453f879932e709a",
+      "bytes": 97
+    },
+    "driver/phase-002.json": {
+      "sha256": "02fcd6496acc9b51f8a80b2dbd1f92416d997f121907c3da133f5922ed503984",
+      "bytes": 93
+    },
+    "driver/phase-003.json": {
+      "sha256": "ce0eb3d53a62be13d26a564617d25e39d8c4af4025808b786443bfd9b2fb6781",
+      "bytes": 2933
+    },
+    "driver/result.json": {
+      "sha256": "fc187dab747eafb731728fb79cd70e8e589797ee3d2038c14e9069c0c4a1581b",
+      "bytes": 10468
+    },
+    "driver/result.json.incomplete.json": {
+      "sha256": "d767c5c2b0bcb90388552e1a2dec6edd84e548970b0cfb1fbe8cbf9beddb71c4",
+      "bytes": 374
+    },
+    "identities.jsonl": {
+      "sha256": "a565f96ed6b90e1ee07cc07de01c43827b2080929b9daa48ab9edea5e6d255be",
+      "bytes": 39671
+    },
+    "independent-closure.json": {
+      "sha256": "167cc4275b18fcc340979503de0d7c5bef50e0efbd290c161c88bef0b1b7f9a3",
+      "bytes": 1660
+    },
+    "launcher.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "launcher.stdout": {
+      "sha256": "ef4ed9be690e8ecfa7e2eb5886f83ddc402787dcd7758f0ad5df3f18be7defa2",
+      "bytes": 211
+    },
+    "manual-recovery/after.json": {
+      "sha256": "b08fefa2a81773a539f88174f8eb9a276502b19b05a112fb7d03bc0621a69ef8",
+      "bytes": 6439
+    },
+    "manual-recovery/before.json": {
+      "sha256": "5d59e071a7143b0b3365433d02e5b60a9f41be6e3958837a6e502600049c4da8",
+      "bytes": 7596
+    },
+    "manual-recovery/remove.json": {
+      "sha256": "3aefcc508f48692c5996dcf1a8b1186ce3db2892f3b0d31fd25e5d3a85613cbd",
+      "bytes": 120
+    },
+    "manual-recovery/stop.json": {
+      "sha256": "dbf1fd2e0e5b400d891528a52c1b179ae68d97dfaf490f1861034210e7dc8137",
+      "bytes": 176
+    },
+    "manual-recovery/stopped.json": {
+      "sha256": "0a55d7fe9129d53d55f55f186bd9b7bb28db7f4950b2fdece5e4f653946d0b76",
+      "bytes": 428
+    },
+    "original-bindings.json": {
+      "sha256": "7deed8bc72487dbc02214fcc7bf338260fc570051dc5fab564b95a87b31dde88",
+      "bytes": 14013
+    },
+    "sources/independent-closure.py": {
+      "sha256": "d69e532491406e047720f011b0b544c682d0280bc9515bbe6512e553ff33f3c6",
+      "bytes": 4167
+    },
+    "sources/manual-cleanup.py": {
+      "sha256": "cc6ed84f5d1f25a279ea6b70eee08fdc381519a3b8ee9043cbf6bda00915b41c",
+      "bytes": 6557
+    },
+    "sources/outer-wrapper.py": {
+      "sha256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49",
+      "bytes": 22954
+    },
+    "wrapper-result.json": {
+      "sha256": "55db927babe2217889d65c26187575fe1ef68af1239cd54ad253dba60aff790c",
+      "bytes": 3676
+    }
+  },
+  "scope": "Initial POST /v1/sessions returned201 and a real owned shell allocation existed. The helper rejected the legitimate read-only primary .git/worktrees bind. No browser ran. Helper cleanup failed the same guard. Separate root-owned immutable-ID stop/non-force removal was performed with a private recovery archive; it did not release the exact backend-settled1024MiB/1000mCPU lease or repair the ledger. The original failed fixture,30 file hashes and retained charge remain unchanged."
+}

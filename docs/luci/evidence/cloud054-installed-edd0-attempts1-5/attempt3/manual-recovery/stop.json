@@ -1,0 +1,5 @@
+{
+  "returncode": 0,
+  "stdout": "Flag --time has been deprecated, use --timeout instead\n8e068ee56a4de3d8f6a225e3300501ec8896e1e1326febbd4ce14303d5330b48\n",
+  "stderr": ""
+}

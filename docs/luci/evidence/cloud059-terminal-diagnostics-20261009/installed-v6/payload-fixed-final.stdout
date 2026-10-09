@@ -1,0 +1,16 @@
+✔ passive observer preserves native construction/send and excludes other paths (9.220334ms)
+✔ stdout lookalike never becomes typed exit; ordered typed zero and clean1000 retained without private reason (12.708795ms)
+✔ nonzero native exit remains nonzero, abrupt transport does not invent exit (5.117001ms)
+✔ nonbinary and oversized frames are explicit observation failures (3.431861ms)
+✔ socket count bound remains explicit and opaque markers are fresh (5.202098ms)
+✔ observer pending queue is bounded before decoding (13.111223ms)
+✔ typed exit exact known representation and byte hash are retained without changing exit expectation (7.815126ms)
+✔ unclassified typed exit preserves exact bytes/hash while arbitrary private text is omitted (3.778173ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 282.538357

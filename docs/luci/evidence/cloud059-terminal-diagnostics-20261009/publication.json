@@ -1,0 +1,219 @@
+{
+  "version": 1,
+  "issue": "CLOUD-059",
+  "scope": "External helper controlled source evidence, not product/installed acceptance",
+  "files": {
+    "README.md": {
+      "sha256": "846e2e564e405ef073b08320fda518f3797429432fcacabd101e05be3b78b2c1",
+      "bytes": 2493
+    },
+    "assemble.py": {
+      "sha256": "8ad721cfd53581b1d34f4f85f68963e9e9c8f42a0d1ef59160629784411a2536",
+      "bytes": 7786
+    },
+    "installed-v4/scenario.mjs": {
+      "sha256": "5b089cbfc8e1886bfd0e2689454a06415e7578557c929229ae69b3f58f8ce62b",
+      "bytes": 17196
+    },
+    "installed-v5/cloud059-routing-source-review.json": {
+      "sha256": "e90f9d3e9f1a4502c5cc96275da49b31e58d4af8b0b0178ffc31356a54886265",
+      "bytes": 4164
+    },
+    "installed-v5/cloud059-v5-source-review-final.json": {
+      "sha256": "81f66fa9469db8df83e338dc248faaa884784c8a2c104a86ee4ff98158713dd7",
+      "bytes": 3523
+    },
+    "installed-v5/cloud059-v5-source-review-initial.json": {
+      "sha256": "7851a75467c9cd6e8bcb1860d13821a8e5bcdbb9d75aff6fb17af29eaa30e01e",
+      "bytes": 2613
+    },
+    "installed-v5/gate-budget.test.mjs": {
+      "sha256": "009b1dfb770290aab8d82b92078b6156052b33d1635ed24a287fbfef87b14c70",
+      "bytes": 3622
+    },
+    "installed-v5/historical-complete-manifest.json": {
+      "sha256": "576ed5f049d77a8082606488c1c0e342a32498eb42218c27a690b02752f2b55c",
+      "bytes": 13698
+    },
+    "installed-v5/route-budget-final.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "installed-v5/route-budget-final.stdout": {
+      "sha256": "49f9e8afff6de41ab03397cce0ca0cd697cdcad98bb9678d4d0416d7bc6a6c6e",
+      "bytes": 390
+    },
+    "installed-v5/route-fixed-final.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "installed-v5/route-fixed-final.stdout": {
+      "sha256": "088f1cd9d0a15a669b8a84b55032aa19010788ec78d4cb6a02f9dee2eef60797",
+      "bytes": 1096
+    },
+    "installed-v5/route-original-final.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "installed-v5/route-original-final.stdout": {
+      "sha256": "d3823eee2992fb38dffcca0f8a4dd17dc6eedb317f25b4381ea05b1448667904",
+      "bytes": 6888
+    },
+    "installed-v5/route-settlement.patch": {
+      "sha256": "d7e7af9b915a249440d87d33790689de53157ab263841b19e9717fed0d218c3b",
+      "bytes": 20267
+    },
+    "installed-v5/route-settlement.test.mjs": {
+      "sha256": "0193faf2200c124957ef5ec3c5672cbc41b0c1a0cd62ba4b647724ff71e00245",
+      "bytes": 9690
+    },
+    "installed-v5/route-syntax-final.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "installed-v5/route-syntax-final.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "installed-v5/route-validation.json": {
+      "sha256": "cab4decf8380f5df4adefe7add7f9729bb7197bf0689d1f5a320d39eaed80246",
+      "bytes": 3411
+    },
+    "installed-v5/scenario-before-route-settlement.mjs": {
+      "sha256": "5b089cbfc8e1886bfd0e2689454a06415e7578557c929229ae69b3f58f8ce62b",
+      "bytes": 17196
+    },
+    "installed-v5/scenario.mjs": {
+      "sha256": "67bc7c47e98cc8c64fb29b0e98bfc17712a45ef4a7acb5e04b9c897ca84d99c4",
+      "bytes": 21290
+    },
+    "installed-v5-draft-before-late-handler/route-budget.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "installed-v5-draft-before-late-handler/route-budget.stdout": {
+      "sha256": "ede9a09fa6be32b916c9e09c7015bc217ad2f41f140db9d5cd8f3443427561eb",
+      "bytes": 391
+    },
+    "installed-v5-draft-before-late-handler/route-fixed.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "installed-v5-draft-before-late-handler/route-fixed.stdout": {
+      "sha256": "cbf0fc815b08873c7da02634fb9dc0db9fd47fea23d4ee322f182db2c8c32990",
+      "bytes": 906
+    },
+    "installed-v5-draft-before-late-handler/route-original.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "installed-v5-draft-before-late-handler/route-original.stdout": {
+      "sha256": "ccd0687972fb7ff6a4c7d991640f65918d6f6409e4c8c50a955c26679bc5d505",
+      "bytes": 5304
+    },
+    "installed-v5-draft-before-late-handler/route-settlement.test.mjs": {
+      "sha256": "cb10749a1f19440afd1be2ae81d85f2e7a118ab42c985588252aff3992bb43e3",
+      "bytes": 7170
+    },
+    "installed-v5-draft-before-late-handler/scenario.mjs": {
+      "sha256": "4d4854900cdefb6ce27b550e24bf6b09c7f99154847583a76d1d07c15acb11ca",
+      "bytes": 20962
+    },
+    "installed-v6/gate-budget.test.mjs": {
+      "sha256": "009b1dfb770290aab8d82b92078b6156052b33d1635ed24a287fbfef87b14c70",
+      "bytes": 3622
+    },
+    "installed-v6/historical-complete-manifest.json": {
+      "sha256": "b0366271a658375ff69009bf9e6c86efdad64b0e5e2a377bc598baa2e2dda9a3",
+      "bytes": 16833
+    },
+    "installed-v6/payload-affected.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "installed-v6/payload-affected.stdout": {
+      "sha256": "fba7c1742235abb035ef8bc79be415aa8cdcadb25ff736c6146db3971634fa10",
+      "bytes": 1371
+    },
+    "installed-v6/payload-diagnostic.patch": {
+      "sha256": "3be9b88bb35401e86d0d15d65d05a84ba62e37ef53cdae61a57024baf164da88",
+      "bytes": 1284
+    },
+    "installed-v6/payload-fixed-final.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "installed-v6/payload-fixed-final.stdout": {
+      "sha256": "eb35877737b722f3dad94669abcf9b17537b4be3a201c9024b763c500124ce36",
+      "bytes": 883
+    },
+    "installed-v6/payload-fixed.stderr.fixture-syntax-failure": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "installed-v6/payload-fixed.stdout.fixture-syntax-failure": {
+      "sha256": "4ede3fc1ee5cf30836a5476ade0fd0f92f4e1863e5b7eb2f7e225059922975b9",
+      "bytes": 1747
+    },
+    "installed-v6/payload-original-final.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "installed-v6/payload-original-final.stdout": {
+      "sha256": "0cdd73869152d53fb5874fac8d2eb03a3f79ffaff1d4485ef8a64ad2e956e639",
+      "bytes": 3083
+    },
+    "installed-v6/payload-original.stderr.fixture-syntax-failure": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "installed-v6/payload-original.stdout.fixture-syntax-failure": {
+      "sha256": "6987a8c37b9120d2763b80e47a61e89f54af05bc3c59b43aa607eba1b488defd",
+      "bytes": 1747
+    },
+    "installed-v6/payload-syntax.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "installed-v6/payload-syntax.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "installed-v6/payload-validation.json": {
+      "sha256": "9df644da31c5ec94649b39ea2e4453820b05cf573ff3e39951f95972bcb769d6",
+      "bytes": 2552
+    },
+    "installed-v6/route-settlement.test.mjs": {
+      "sha256": "0193faf2200c124957ef5ec3c5672cbc41b0c1a0cd62ba4b647724ff71e00245",
+      "bytes": 9690
+    },
+    "installed-v6/scenario-before-exit-payload-diagnostic.mjs": {
+      "sha256": "67bc7c47e98cc8c64fb29b0e98bfc17712a45ef4a7acb5e04b9c897ca84d99c4",
+      "bytes": 21290
+    },
+    "installed-v6/scenario.mjs": {
+      "sha256": "11e619bccc1ec06882a5a0fdb378b37a8cd182b865964ea1a729a6105e36c225",
+      "bytes": 21721
+    },
+    "installed-v6/scenario.test.mjs": {
+      "sha256": "8c068573aad66ae30ebf226b61a3971cfe36fc11bdc3a82e27cb6b2453e85c47",
+      "bytes": 7055
+    },
+    "installed-v6/scenario.test.mjs.fixture-syntax-failure": {
+      "sha256": "f53a6f460d6f626d9e20119244eaf9628a94794ac98c056b4ee786542b5c83a0",
+      "bytes": 7054
+    },
+    "reproduce.py": {
+      "sha256": "a09778ece47adb4b6afe5f084328e9edf1eff1c3a0e55b3a3f8f71e3792f3aeb",
+      "bytes": 1294
+    },
+    "source-bindings.json": {
+      "sha256": "994ee72392e9e1672e79744c6b6605082f28fe866652545fc7a38badf9da56ae",
+      "bytes": 14819
+    },
+    "verify.py": {
+      "sha256": "98ce072c0657576fe5774cc55ec661048526263ccdf74baad9e5e241245b3640",
+      "bytes": 382
+    }
+  }
+}

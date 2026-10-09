@@ -1,0 +1,59 @@
+{
+  "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "allAttemptsFailed": true,
+  "attempts": [
+    {
+      "attempt": 1,
+      "title": "Unknown initial refusal",
+      "scope": "Initial POST /v1/sessions returned409 before a known session/allocation/browser. The original body was discarded: cause, body hash and atomic admission operands remain unavailable. This attempt stays failed. No conclusion is backfilled from attempt2 or later environment changes.",
+      "originalResult": {
+        "sha256": "f645bbb69cf4f71191d0e06070535347a1c1e26ce6ff8989d80c13e6658cf7e7",
+        "bytes": 12321
+      }
+    },
+    {
+      "attempt": 2,
+      "title": "Captured disk refusal",
+      "scope": "Initial POST /v1/sessions returned409 with the new bounded Problem projection: execution_disk_pressure. No session/allocation/browser is credited. The complete original body is hash-bound but not retained; numerical actual admission operands are unavailable in that POST schema. C057 has installed diagnostic scope here, not admission correctness or a full terminal pass.",
+      "originalResult": {
+        "sha256": "6d8fa8b5f6d243352094efb11a1a8df961141182048c45e3ccf3c0ef3306ee9b",
+        "bytes": 14023
+      }
+    },
+    {
+      "attempt": 3,
+      "title": "Legitimate mount rejected by helper",
+      "scope": "Initial POST /v1/sessions returned201 and a real owned shell allocation existed. The helper rejected the legitimate read-only primary .git/worktrees bind. No browser ran. Helper cleanup failed the same guard. Separate root-owned immutable-ID stop/non-force removal was performed with a private recovery archive; it did not release the exact backend-settled1024MiB/1000mCPU lease or repair the ledger. The original failed fixture,30 file hashes and retained charge remain unchanged.",
+      "originalResult": {
+        "sha256": "fc187dab747eafb731728fb79cd70e8e589797ee3d2038c14e9069c0c4a1581b",
+        "bytes": 10468
+      }
+    },
+    {
+      "attempt": 4,
+      "title": "Cleanup obscured terminal failure evidence",
+      "scope": "The real browser entered SessionPane with a running shell and held a matching running session-list response. The final error was route.fulfill: Route is already handled!; the original helper finally could replace an earlier scenario error. No primary failure or passive wire snapshot was retained, so its hidden original cause remains unknown. Screenshot shows ready/body-lookalike and ended footer; it is not reconstructed wire evidence. No Restart occurred. Supported Stop cleanup succeeded; two exact Chromium PID1 zombies remain.",
+      "originalResult": {
+        "sha256": "4be0caae9c3cf2f1c5510b870d5b9bf5dde98b5a02c1687116108641e3142e0d",
+        "bytes": 20890
+      }
+    },
+    {
+      "attempt": 5,
+      "title": "Typed exit followed by abnormal close",
+      "scope": "The real browser received FIRST stdout sequence71, native typed exit-status0 sequence73 (13-byte payload7146fc872b9a9dba5098f80e211bc7a8af3d9b2fbf8a3e5d9447db130fcaa3b2), error sequence74 and unclean1006 close sequence75. The primary assertion first.error===false failed at first-wire-assertions. C059 preserved this failure and passive state before successful gate release; the held-read deadline had not expired. UI snapshot says ended/no overlay while the held row still says running. No sustained no-reconnect/no-stdin interval, Restart, nonzero second exit or full terminal pass is credited. Supported Stop cleanup succeeded; two exact Chromium PID1 zombies remain.",
+      "originalResult": {
+        "sha256": "ab98f05cfd859f8da55618ce9140e6c2262dabed13dbc60ce793cfc235427eae",
+        "bytes": 45139
+      }
+    }
+  ],
+  "limits": [
+    "No Windows/live-provider/performance or full terminal pass",
+    "Attempt1 original body/cause not reconstructed",
+    "Attempt3 exact charge retained despite separate container removal",
+    "Attempt4 original primary failure unknown",
+    "Attempt5 typed exit0 does not erase abnormal1006",
+    "Attempts4/5 preserve two exact Chromium PID1 zombies each"
+  ]
+}

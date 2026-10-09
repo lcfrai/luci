@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "issue": "CLOUD-059",
+  "scope": "Source-only candidate review, no tests or runtime",
+  "reviewedAt": "2026-10-09T12:19:30.683206+00:00",
+  "sources": [
+    {
+      "path": "/workspace/.luci-tools/cloud054-terminal-close/installed-v4/scenario.mjs",
+      "bytes": 17196,
+      "sha256": "5b089cbfc8e1886bfd0e2689454a06415e7578557c929229ae69b3f58f8ce62b"
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5/scenario.mjs",
+      "bytes": 20962,
+      "sha256": "4d4854900cdefb6ce27b550e24bf6b09c7f99154847583a76d1d07c15acb11ca"
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5/route-settlement.test.mjs",
+      "bytes": 7170,
+      "sha256": "cb10749a1f19440afd1be2ae81d85f2e7a118ab42c985588252aff3992bb43e3"
+    }
+  ],
+  "state": "Corrections requested before final review",
+  "positive": [
+    "Primary scenario failure is recorded before passive observation and disposal; cleanup failures no longer replace it",
+    "Every gate cleanup attempted separately",
+    "Successful/uncertain fulfill is not followed by abort",
+    "Requestfailed listener matches exact Request object; no raw failure/error messages retained in projected records",
+    "Eight-second absolute gate, original response bytes, one UI Restart and all terminal assertions retained"
+  ],
+  "findings": [
+    {
+      "id": "late-handler-after-dispose",
+      "cause": "dispose has no synchronous closing flag. When used=false, settled returns before page.unroute; a callback entering across this async boundary starts new fetch and uses already-resolved gate, without disposal having awaited its completed promise.",
+      "requiredScope": "Refuse starting owned fetch/fulfill after closing; safely account exact late callback settlement and preserve uncertainty. Add delayed-unroute/new-callback controlled case without app launch."
+    },
+    {
+      "id": "requestfailed-checkpoint-throw",
+      "cause": "requestFailed EventEmitter callback executes record before rejectCapture/releaseGate and outside handler try. A thrown checkpoint error can escape and prevent immediate gate release.",
+      "requiredScope": "Capture checkpoint error as failure, guarantee rejection/release through finally, avoid an uncaught event callback while retaining failure."
+    }
+  ],
+  "limitations": [
+    "No assertion these source paths caused attempt4",
+    "Controlled execution counts are parent-reported, not independently rerun",
+    "No overall installed or cleanup pass",
+    "Original and candidate sources retained; no modifications by reviewer"
+  ]
+}

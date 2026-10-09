@@ -1,0 +1,193 @@
+{
+  "at": "2026-10-09T12:10:31.194965+00:00",
+  "container": {
+    "id": "8e068ee56a4de3d8f6a225e3300501ec8896e1e1326febbd4ce14303d5330b48",
+    "image": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+    "state": {
+      "Status": "running",
+      "Running": true,
+      "Paused": false,
+      "Restarting": false,
+      "OOMKilled": false,
+      "Dead": false,
+      "Pid": 2405384,
+      "ExitCode": 0,
+      "Error": "",
+      "StartedAt": "2026-10-09T12:03:27.560850412Z",
+      "FinishedAt": "0001-01-01T00:00:00Z"
+    },
+    "instance": "0a63094e-ca17-4b39-b40c-7de6e01c502e",
+    "session": "s-1e5fec80",
+    "mounts": [
+      {
+        "sourceRelative": "projects/c054-terminal-fixture",
+        "destination": "/home/dev/work",
+        "rw": true,
+        "type": "bind"
+      },
+      {
+        "sourceRelative": "projects/c054-terminal-fixture/.git/worktrees",
+        "destination": "/home/dev/work/.git/worktrees",
+        "rw": false,
+        "type": "bind"
+      },
+      {
+        "sourceRelative": "state/conversations/h/Bc7FrFANkWW3kD1zk4sSXqCOjmFyKSQ3YVXUY4YGmNY",
+        "destination": "/home/dev/.luci-shell",
+        "rw": true,
+        "type": "bind"
+      }
+    ]
+  },
+  "ledgerSHA256": "e77ee9e2401f36d1d1a476a2688d59210447070ca251df87cb2f5dc63e055385",
+  "lease": {
+    "id": "manual-0ee1faf7",
+    "scope": "a47392cf7d8889dfc309bd175332435bee3595c69c1bc0ab713ac3baf4ff75dc",
+    "actor": {
+      "userId": "user-F-hCfrSVqfZa7HCoMq2qXp",
+      "projectId": "p-ef4d52c2"
+    },
+    "projectId": "p-ef4d52c2",
+    "provider": "harness:shell",
+    "providerLimit": 1,
+    "sessionId": "s-1e5fec80",
+    "sandboxId": "s-1e5fec80",
+    "state": "backend-settled",
+    "launchGuard": 1,
+    "resources": {
+      "CPUMillis": 1000,
+      "MemoryMiB": 1024
+    },
+    "createdAt": "2026-10-09T12:02:54.259237811Z",
+    "updatedAt": "2026-10-09T12:03:27.989459627Z"
+  },
+  "files": {
+    "home/.gitconfig": {
+      "sha256": "ec081e7894c764ff66830f7847574f753a61915ea124b7281aeade03797f4afd",
+      "bytes": 66
+    },
+    "state/.luci-state.lock": {
+      "sha256": "9fac02bb88edfafe57a49aeb007105e4e0fe563bd2f7539cf44ae2ccc5c8ebf2",
+      "bytes": 38
+    },
+    "projects/c054-terminal-fixture/.git/description": {
+      "sha256": "85ab6c163d43a17ea9cf7788308bca1466f1b0a8d1cc92e26e9bf63da4062aee",
+      "bytes": 73
+    },
+    "projects/c054-terminal-fixture/.git/config": {
+      "sha256": "cfe7ba1238c9a78be7535d7c63bcaf5a4d5011d46b07c9b45d3bbf7d6c312dfe",
+      "bytes": 92
+    },
+    "projects/c054-terminal-fixture/.git/HEAD": {
+      "sha256": "28d25bf82af4c0e2b72f50959b2beb859e3e60b9630a5e8c603dad4ddb2b6e80",
+      "bytes": 21
+    },
+    "projects/c054-terminal-fixture/.git/hooks/push-to-checkout.sample": {
+      "sha256": "a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f",
+      "bytes": 2783
+    },
+    "projects/c054-terminal-fixture/.git/hooks/pre-push.sample": {
+      "sha256": "ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a",
+      "bytes": 1374
+    },
+    "projects/c054-terminal-fixture/.git/hooks/applypatch-msg.sample": {
+      "sha256": "0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7",
+      "bytes": 478
+    },
+    "projects/c054-terminal-fixture/.git/hooks/pre-rebase.sample": {
+      "sha256": "4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3",
+      "bytes": 4898
+    },
+    "projects/c054-terminal-fixture/.git/hooks/post-update.sample": {
+      "sha256": "81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5",
+      "bytes": 189
+    },
+    "projects/c054-terminal-fixture/.git/hooks/pre-receive.sample": {
+      "sha256": "a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989",
+      "bytes": 544
+    },
+    "projects/c054-terminal-fixture/.git/hooks/fsmonitor-watchman.sample": {
+      "sha256": "e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0",
+      "bytes": 4726
+    },
+    "projects/c054-terminal-fixture/.git/hooks/commit-msg.sample": {
+      "sha256": "1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437",
+      "bytes": 896
+    },
+    "projects/c054-terminal-fixture/.git/hooks/prepare-commit-msg.sample": {
+      "sha256": "e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619",
+      "bytes": 1492
+    },
+    "projects/c054-terminal-fixture/.git/hooks/pre-commit.sample": {
+      "sha256": "57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b",
+      "bytes": 1649
+    },
+    "projects/c054-terminal-fixture/.git/hooks/update.sample": {
+      "sha256": "8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106",
+      "bytes": 3650
+    },
+    "projects/c054-terminal-fixture/.git/hooks/pre-merge-commit.sample": {
+      "sha256": "d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53",
+      "bytes": 416
+    },
+    "projects/c054-terminal-fixture/.git/hooks/sendemail-validate.sample": {
+      "sha256": "44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92",
+      "bytes": 2308
+    },
+    "projects/c054-terminal-fixture/.git/hooks/pre-applypatch.sample": {
+      "sha256": "e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475",
+      "bytes": 424
+    },
+    "projects/c054-terminal-fixture/.git/info/exclude": {
+      "sha256": "6671fe83b7a07c8932ee89164d1f2793b2318058eb8b98dc5c06ee0a5a3b0ec1",
+      "bytes": 240
+    },
+    "state/sessions/sessions.json": {
+      "sha256": "905056dedb2b7264818d06075482cdc4897d8ad3484e7b31cd97896420d269f4",
+      "bytes": 1168
+    },
+    "state/instance/instance-id": {
+      "sha256": "3026f9be45bf142d39c7699b64c2daf793e762ebb959ebd38cc41d5fddb77ca1",
+      "bytes": 37
+    },
+    "state/control-plane/dependencies.json": {
+      "sha256": "58b2d33cc695bd449097bc8938d710ec2e4078438f94cc4ed1aa2b91c164f982",
+      "bytes": 2093
+    },
+    "state/control-plane/identity.json": {
+      "sha256": "2bd2b71e21ee1ab671ff1e514396928f5a1eb67c449bcb4a43170c6c111fe6fb",
+      "bytes": 1293
+    },
+    "state/control-plane/execution/policy.lock": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "state/control-plane/execution/policy.json": {
+      "sha256": "3e5719e70b69d3f44614302dec4b014589534079f370655526495d56eee3e348",
+      "bytes": 332
+    },
+    "state/control-plane/execution/leases.json": {
+      "sha256": "e77ee9e2401f36d1d1a476a2688d59210447070ca251df87cb2f5dc63e055385",
+      "bytes": 498
+    },
+    "state/control-plane/execution/leases.lock": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "state/control-plane/execution/children/7559731d189420b8457adb7d298271c37eda39e7fcbaf77f82c2927da63adb46.lock": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "state/conversations/h/Bc7FrFANkWW3kD1zk4sSXqCOjmFyKSQ3YVXUY4YGmNY/.bash_profile": {
+      "sha256": "e9865156ad272952db5859fdcd6fd06ccd27c94c0db6d0450f25481ad7b8b2af",
+      "bytes": 218
+    }
+  },
+  "originalReports": {
+    "driver/result.json": "fc187dab747eafb731728fb79cd70e8e589797ee3d2038c14e9069c0c4a1581b",
+    "wrapper-result.json": "55db927babe2217889d65c26187575fe1ef68af1239cd54ad253dba60aff790c"
+  },
+  "privateArchiveSHA256": "a47e0983977584e8c6ccd200940c596dc63b8dd20a8f7bbda1fd400f6aacd19f",
+  "privateArchiveBytes": 13932,
+  "scope": "Independent operator cleanup after failed helper; acknowledged POST201, exact controller identities absent; not product recovery or capacity release."
+}

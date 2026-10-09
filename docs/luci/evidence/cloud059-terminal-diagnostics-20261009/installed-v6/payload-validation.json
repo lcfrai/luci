@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "issue": "CLOUD-059",
+  "product": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "scope": "exact passive monitor in inert VM/fake native websocket, Node-backed SHA256 adapter; no browser/app/Docker",
+  "original": {
+    "exitCode": 1,
+    "tests": 8,
+    "passed": 6,
+    "failed": 2,
+    "env": "C059_PAYLOAD_ORIGINAL=1"
+  },
+  "fixed": {
+    "exitCode": 0,
+    "tests": 8,
+    "passed": 8,
+    "failed": 0
+  },
+  "affectedRouteAndBudget": {
+    "exitCode": 0,
+    "tests": 13,
+    "passed": 13,
+    "failed": 0,
+    "overlaps": "same10+3 already retained in v5"
+  },
+  "fixtureSyntaxFailure": "preserved under *.fixture-syntax-failure; excluded from application results",
+  "syntaxExit": 0,
+  "inputs": {
+    "scenario.mjs": {
+      "sha256": "11e619bccc1ec06882a5a0fdb378b37a8cd182b865964ea1a729a6105e36c225",
+      "bytes": 21721
+    },
+    "scenario-before-exit-payload-diagnostic.mjs": {
+      "sha256": "67bc7c47e98cc8c64fb29b0e98bfc17712a45ef4a7acb5e04b9c897ca84d99c4",
+      "bytes": 21290
+    },
+    "scenario.test.mjs": {
+      "sha256": "8c068573aad66ae30ebf226b61a3971cfe36fc11bdc3a82e27cb6b2453e85c47",
+      "bytes": 7055
+    },
+    "payload-diagnostic.patch": {
+      "sha256": "3be9b88bb35401e86d0d15d65d05a84ba62e37ef53cdae61a57024baf164da88",
+      "bytes": 1284
+    },
+    "payload-original-final.stdout": {
+      "sha256": "0cdd73869152d53fb5874fac8d2eb03a3f79ffaff1d4485ef8a64ad2e956e639",
+      "bytes": 3083
+    },
+    "payload-original-final.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "payload-fixed-final.stdout": {
+      "sha256": "eb35877737b722f3dad94669abcf9b17537b4be3a201c9024b763c500124ce36",
+      "bytes": 883
+    },
+    "payload-fixed-final.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "payload-affected.stdout": {
+      "sha256": "fba7c1742235abb035ef8bc79be415aa8cdcadb25ff736c6146db3971634fa10",
+      "bytes": 1371
+    },
+    "payload-affected.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "payload-syntax.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "payload-syntax.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  },
+  "launcherUnchanged": true,
+  "expectationsUnchanged": true,
+  "noInstalledRun": true
+}

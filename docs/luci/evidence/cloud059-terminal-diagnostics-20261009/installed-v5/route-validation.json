@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "issue": "CLOUD-059",
+  "product": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "scope": "actual gate/scenario source extracted into inert Node VM/fake routes and keyboard callbacks; no browser/HTTP/Docker",
+  "original": {
+    "exitCode": 1,
+    "tests": 10,
+    "passed": 2,
+    "failed": 8,
+    "env": "C059_ORIGINAL=1"
+  },
+  "fixed": {
+    "exitCode": 0,
+    "tests": 10,
+    "passed": 10,
+    "failed": 0
+  },
+  "budget": {
+    "exitCode": 0,
+    "tests": 3,
+    "passed": 3,
+    "failed": 0
+  },
+  "syntaxExit": 0,
+  "earlierCounts": "original6fail2pass/fixed8pass overlap, before late-handler review, preserved",
+  "commands": [
+    "C059_ORIGINAL=1 node --test --test-concurrency=1 route-settlement.test.mjs",
+    "node --test --test-concurrency=1 route-settlement.test.mjs",
+    "node --test --test-concurrency=1 gate-budget.test.mjs",
+    "node --check scenario.mjs"
+  ],
+  "inputs": {
+    "scenario.mjs": {
+      "sha256": "67bc7c47e98cc8c64fb29b0e98bfc17712a45ef4a7acb5e04b9c897ca84d99c4",
+      "bytes": 21290
+    },
+    "scenario-before-route-settlement.mjs": {
+      "sha256": "5b089cbfc8e1886bfd0e2689454a06415e7578557c929229ae69b3f58f8ce62b",
+      "bytes": 17196
+    },
+    "route-settlement.test.mjs": {
+      "sha256": "0193faf2200c124957ef5ec3c5672cbc41b0c1a0cd62ba4b647724ff71e00245",
+      "bytes": 9690
+    },
+    "gate-budget.test.mjs": {
+      "sha256": "009b1dfb770290aab8d82b92078b6156052b33d1635ed24a287fbfef87b14c70",
+      "bytes": 3622
+    },
+    "route-settlement.patch": {
+      "sha256": "d7e7af9b915a249440d87d33790689de53157ab263841b19e9717fed0d218c3b",
+      "bytes": 20267
+    },
+    "cloud059-routing-source-review.json": {
+      "sha256": "e90f9d3e9f1a4502c5cc96275da49b31e58d4af8b0b0178ffc31356a54886265",
+      "bytes": 4164
+    },
+    "cloud059-v5-source-review-initial.json": {
+      "sha256": "7851a75467c9cd6e8bcb1860d13821a8e5bcdbb9d75aff6fb17af29eaa30e01e",
+      "bytes": 2613
+    },
+    "cloud059-v5-source-review-final.json": {
+      "sha256": "81f66fa9469db8df83e338dc248faaa884784c8a2c104a86ee4ff98158713dd7",
+      "bytes": 3523
+    },
+    "route-original-final.stdout": {
+      "sha256": "d3823eee2992fb38dffcca0f8a4dd17dc6eedb317f25b4381ea05b1448667904",
+      "bytes": 6888
+    },
+    "route-original-final.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "route-fixed-final.stdout": {
+      "sha256": "088f1cd9d0a15a669b8a84b55032aa19010788ec78d4cb6a02f9dee2eef60797",
+      "bytes": 1096
+    },
+    "route-fixed-final.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "route-budget-final.stdout": {
+      "sha256": "49f9e8afff6de41ab03397cce0ca0cd697cdcad98bb9678d4d0416d7bc6a6c6e",
+      "bytes": 390
+    },
+    "route-budget-final.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "route-syntax-final.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "route-syntax-final.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  },
+  "launcherUnchanged": true,
+  "originalAttempt4Cause": "unavailable; no retrospective wire or assertion claim",
+  "noInstalledRun": true
+}

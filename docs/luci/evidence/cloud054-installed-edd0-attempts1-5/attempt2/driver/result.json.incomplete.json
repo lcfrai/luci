@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "passed": false,
+  "status": "cleanup-incomplete",
+  "stage": "shell-create",
+  "failure": {
+    "name": "AssertionError",
+    "code": "ERR_ASSERTION",
+    "message": "Unexpected HTTP status 409 for POST /v1/sessions\n\n409 !== 201\n"
+  },
+  "pendingMutations": [],
+  "knownController": {
+    "pid": 2404128,
+    "start": "29308169",
+    "parent": 2403951,
+    "status": "R"
+  },
+  "knownContainers": []
+}

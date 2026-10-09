@@ -1,0 +1,30 @@
+[
+  {
+    "role": "original-installed-result",
+    "bytes": 45139,
+    "sha256": "ab98f05cfd859f8da55618ce9140e6c2262dabed13dbc60ce793cfc235427eae",
+    "externalPrivateOrSeparateArtifact": true,
+    "note": "Original stored externally; neither recopied nor modified. Original installed result may require an allowlisted publication projection."
+  },
+  {
+    "role": "original-installed-launcher",
+    "bytes": 45471,
+    "sha256": "78a2aa7c168601f6569f20af153b73728543f0dee6bd78f48a0069fe46ee9a8a",
+    "externalPrivateOrSeparateArtifact": true,
+    "note": "Original stored externally; neither recopied nor modified. Original installed result may require an allowlisted publication projection."
+  },
+  {
+    "role": "original-installed-scenario",
+    "bytes": 21721,
+    "sha256": "11e619bccc1ec06882a5a0fdb378b37a8cd182b865964ea1a729a6105e36c225",
+    "externalPrivateOrSeparateArtifact": true,
+    "note": "Original stored externally; neither recopied nor modified. Original installed result may require an allowlisted publication projection."
+  },
+  {
+    "role": "frontend-negative-audit",
+    "bytes": 9988,
+    "sha256": "b321562807ed89d34683344be90fb2843e2599aad0425cdd1cf94048d54e856c",
+    "externalPrivateOrSeparateArtifact": true,
+    "note": "Original stored externally; neither recopied nor modified. Original installed result may require an allowlisted publication projection."
+  }
+]

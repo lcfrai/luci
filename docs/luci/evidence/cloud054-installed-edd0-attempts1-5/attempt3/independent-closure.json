@@ -1,0 +1,47 @@
+{
+  "at": "2026-10-09T12:10:44.605827+00:00",
+  "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "passedWorkflow": false,
+  "originalFailedStage": "shell-create",
+  "originalResultSHA256": "fc187dab747eafb731728fb79cd70e8e589797ee3d2038c14e9069c0c4a1581b",
+  "originalWrapperSHA256": "55db927babe2217889d65c26187575fe1ef68af1239cd54ad253dba60aff790c",
+  "capturedProblems": [],
+  "identities": [
+    {
+      "pid": 2404810,
+      "expectedStartTicks": "29343878",
+      "family": "launcher",
+      "now": {
+        "status": "absent"
+      }
+    },
+    {
+      "pid": 2404986,
+      "expectedStartTicks": "29344223",
+      "family": "controller",
+      "now": {
+        "status": "absent"
+      }
+    }
+  ],
+  "containers": [],
+  "volumes": [],
+  "sameEngine": true,
+  "ledger": {
+    "sha256": "e77ee9e2401f36d1d1a476a2688d59210447070ca251df87cb2f5dc63e055385",
+    "bytes": 498,
+    "counts": {
+      "leases": 1,
+      "checks": 0,
+      "fences": 0,
+      "checkFences": 0
+    }
+  },
+  "fixtureFilesCount": 30,
+  "fixtureManifestSHA256": "31a24ef26ccaad15e68923a18d1e89d32d44505155e0a132905f189b34be735d",
+  "fixtureLinks": [],
+  "originalFilesUnchanged": true,
+  "fixtureFilesUnchanged": true,
+  "scriptSHA256": "d69e532491406e047720f011b0b544c682d0280bc9515bbe6512e553ff33f3c6",
+  "scope": "Read-only exact recorded process identities, selected daemon inventories and private ledger counts. No signals, cleanup mutation, whole-machine census, historical charge release, numeric admission reconstruction or Docker wire counts. Private files remain unchanged; original transient/zombie and unreadable observations remain in their receipts."
+}

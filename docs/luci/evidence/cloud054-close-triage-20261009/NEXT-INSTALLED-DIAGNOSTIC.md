@@ -1,0 +1,30 @@
+# Next installed diagnostic — CLOUD-054, helper scope CLOUD-059
+
+Status: proposed; not executed. Root owns the allocation window and helper integration. package_publication has confirmed original v6 stays frozen and is publishing attempts1–5; assign exactly one author for the next helper revision. No product change is justified yet.
+
+## Preserve the controlled variables
+
+Use the same exact edd0 package and image identities, shell task, current actor/authority, admission predicates, supported Stop, strict stdout→typedExit→normal-close oracle, and existing eight-second held-poll gate. Preserve original attempt5 bytes/failed fixture. Do not increase its deadline, reconnect/replay, normalize1006, disable the close assertion, force-release a lease, or rewrite a prior receipt. This is diagnostic, not a responsiveness benchmark; logging changes cannot establish a latency improvement.
+
+## Capture controller evidence before spawning
+
+1. Create a new private fixture evidence directory (0700) and stderr file (0600, exclusive creation). Set this fixture's LUCI_LOG_LEVEL=info explicitly; stdout may remain ignored. Existing main logs slog TextHandler to stderr, including route=attach and session on the Info-level `attach relay ended` record. Retain exact fixture environment NAME/delta without tokens or values.
+2. Attach the stderr data listener immediately after spawn and continuously drain it through shutdown. Retain at most256KiB, increment total byte count and streaming SHA256 even if overflow occurs. Overflow sets a durable diagnostic-failure flag and retains truncation status; never backpressure the controller or certify a complete log from a prefix. Bound in-memory chunks separately; use already-open fd and direct bounded writes for this tiny fixture. Do not destroy stdout/stderr pipes prematurely while the controller lives.
+3. Cleanup first uses the existing exact-identity supported shutdown. Bound stderr settlement after confirmed process exit; record error/unclosed stream as uncertainty. Do not treat timeout as successful closure. Snapshot diagnostic availability/failure before potentially blocking cleanup, preserving original scenario failure separately.
+4. Publish a projection only: exact known session ID, observed log timestamp, event name, an allowlisted fixed classification (normal-close, EOF, context-canceled, deadline, protocol-error, other), raw-record byte length/SHA256, and whether truncation/parse ambiguity occurred. Retain raw logs privately. Do not publish err text, raw reasons, URLs, tokens, endpoint addresses, shell output or arbitrary slog fields. If parsing cannot isolate the original error safely, report unclassified with a private hash. A log `err` does not itself identify directional origin; RelayHooked returns its first observed failure.
+
+## Capture browser protocol reason passively
+
+Register `page.on('websocket', ...)` BEFORE attach/navigation, and attach socketerror/close listeners immediately. Match sockets internally to the exact known attach session, discarding URL queries from any public projection. Retain exact socketerror string privately with a small explicit byte/row cap (e.g.4096 bytes each/16 events), event sequence, host monotonic timestamp, byte length and SHA256. Publish only an allowlisted fixed class/hash. No wrapping of send/close, no replacement of native WebSocket, and no data/payload handler are needed for this first diagnostic.
+
+If the supported Playwright socketerror lacks protocol detail, add bounded CDP `Network.webSocketFrameError` and handshake events in the same new revision before allocation. Map requestId through webSocketCreated internally; never export full URL/query. Export only status, exact known socket ordinal/session, Sec-WebSocket-Extensions and Sec-WebSocket-Protocol when each matches a conservative bounded token grammar; otherwise classification/hash only. Never export Cookie, Authorization, Sec-WebSocket-Key/Accept, request/response headers wholesale, frame payloadData, or raw CDP events. Do not request frameReceived/frameSent merely to diagnose errors: existing passive typed-frame receipts remain authoritative.
+
+Record whether evidence was unavailable versus an observed absence. Compression is disabled in source, so actual negotiated extension observation tests this fact rather than assuming compression caused the failure. Existing Go-client success does not exclude browser-specific framing, container termination or an unobserved client close.
+
+## Assertions before another installed allocation
+
+Controlled helper checks should prove: stderr survives normal exit; overflow remains bounded and marked failed while continuing drain; throwing private sink/error projection does not suppress primary failure or supported cleanup; socketerror retains private exact bytes and public hash/class without URL/token leakage; unmapped socket and excess events fail/mark incomplete rather than attributing them to the target; all listeners are registered before traffic; capture does not call socket send/close or mutate task controls. Preserve existing v6 failure/cleanup checks and identity guards. Do not run unrelated product suites for a helper-only delta.
+
+## Interpret only the new evidence
+
+If browser protocol detail identifies a malformed frame while relay sees normal-close, investigate that exact handshake/frame contract. If relay sees abnormal upstream EOF before browser close, inspect sandboxd entrypoint/container lifecycle with exact ordering. If relay sees client failure first, inspect frontend/native close-call and transport events; do not infer deliberate client closure from1006. If Info records are absent despite complete capture, declare that missing evidence, not clean closure. Publish immutable source/helper/package/image identities, bounded original/private artifact hashes and public projections, primary failure/passive observation before cleanup, exact supported Stop/lease evidence, and owned process/zombie inventory. Keep installed acceptance open unless the unchanged full scenario passes.

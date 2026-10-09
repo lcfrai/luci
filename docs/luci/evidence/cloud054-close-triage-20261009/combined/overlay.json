@@ -1,0 +1,6 @@
+{
+  "Replace": {
+    "/workspace/luci/control-plane/internal/api/c054_combined_close_followup_test.go": "/workspace/.luci-tools/cloud054-close-followup/combined/close_test.go",
+    "/workspace/luci/sandboxd/c054_fixture_bridge.go": "/workspace/.luci-tools/cloud054-close-followup/combined/bridge.go"
+  }
+}

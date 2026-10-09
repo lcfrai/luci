@@ -1,0 +1,16 @@
+{"Time":"2026-10-09T12:34:31.972150287Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/api"}
+{"Time":"2026-10-09T12:34:32.048552936Z","Action":"run","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestC054RealPTYNormalCloseAcrossOwnerGateway"}
+{"Time":"2026-10-09T12:34:32.048598755Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestC054RealPTYNormalCloseAcrossOwnerGateway","Output":"=== RUN   TestC054RealPTYNormalCloseAcrossOwnerGateway\n"}
+{"Time":"2026-10-09T12:34:32.048716963Z","Action":"run","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestC054RealPTYNormalCloseAcrossOwnerGateway/direct-api"}
+{"Time":"2026-10-09T12:34:32.048722532Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestC054RealPTYNormalCloseAcrossOwnerGateway/direct-api","Output":"=== RUN   TestC054RealPTYNormalCloseAcrossOwnerGateway/direct-api\n"}
+{"Time":"2026-10-09T12:34:32.081575059Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestC054RealPTYNormalCloseAcrossOwnerGateway/direct-api","Output":"--- PASS: TestC054RealPTYNormalCloseAcrossOwnerGateway/direct-api (0.03s)\n"}
+{"Time":"2026-10-09T12:34:32.081614048Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestC054RealPTYNormalCloseAcrossOwnerGateway/direct-api","Elapsed":0.03}
+{"Time":"2026-10-09T12:34:32.081906168Z","Action":"run","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestC054RealPTYNormalCloseAcrossOwnerGateway/owner-gateway"}
+{"Time":"2026-10-09T12:34:32.081911967Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestC054RealPTYNormalCloseAcrossOwnerGateway/owner-gateway","Output":"=== RUN   TestC054RealPTYNormalCloseAcrossOwnerGateway/owner-gateway\n"}
+{"Time":"2026-10-09T12:34:33.272530119Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestC054RealPTYNormalCloseAcrossOwnerGateway/owner-gateway","Output":"--- PASS: TestC054RealPTYNormalCloseAcrossOwnerGateway/owner-gateway (1.19s)\n"}
+{"Time":"2026-10-09T12:34:33.274261327Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestC054RealPTYNormalCloseAcrossOwnerGateway/owner-gateway","Elapsed":1.19}
+{"Time":"2026-10-09T12:34:33.274623053Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestC054RealPTYNormalCloseAcrossOwnerGateway","Output":"--- PASS: TestC054RealPTYNormalCloseAcrossOwnerGateway (1.22s)\n"}
+{"Time":"2026-10-09T12:34:33.274629983Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestC054RealPTYNormalCloseAcrossOwnerGateway","Elapsed":1.22}
+{"Time":"2026-10-09T12:34:33.274715632Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Output":"PASS\n"}
+{"Time":"2026-10-09T12:34:34.298439817Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/api\t2.324s\n"}
+{"Time":"2026-10-09T12:34:34.298490974Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/api","Elapsed":2.326}

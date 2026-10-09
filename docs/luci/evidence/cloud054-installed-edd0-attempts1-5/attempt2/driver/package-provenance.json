@@ -1,0 +1,26 @@
+{
+  "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "sourceDirty": false,
+  "packageDir": "/tmp/luci-retained-tools/package-0.5.0-edd0cb12",
+  "archive": "/workspace/luci/artifacts/releases/0.5.0/luci-linux-amd64.tar.gz",
+  "archiveSHA256": "477d48fb6e6ce58f0acb801fbf6ba9046e8721a1f6fff9c1b5bc20a40b80d2c8",
+  "binarySHA256": "e156c638ba111d28f11e683347def5037862589969e617c029a1f5a687e1f540",
+  "webIndexSHA256": "b5d6265287b93b6fa83fe25e26843eaf1bb0b42d6923dfdb26ffa93d41dc10df",
+  "subjects": [
+    {
+      "name": "linux-amd64/luci-cloud-linux-amd64.tar.gz",
+      "sha256": "9b0bf0d02caa354c663fb3729039aeadbf1ef55e887be224cdcd575d4c1b22ea",
+      "bytes": 34628069
+    },
+    {
+      "name": "linux-amd64/luci-linux-amd64.tar.gz",
+      "sha256": "477d48fb6e6ce58f0acb801fbf6ba9046e8721a1f6fff9c1b5bc20a40b80d2c8",
+      "bytes": 69065419
+    },
+    {
+      "name": "linux-amd64/release-manifest.json",
+      "sha256": "d4c3122beb8a3892295313d1179b26b7c1018d120fb167e4827f2aade6bd08a6",
+      "bytes": 696
+    }
+  ]
+}

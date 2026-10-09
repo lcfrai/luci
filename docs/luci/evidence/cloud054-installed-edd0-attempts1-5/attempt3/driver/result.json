@@ -1,0 +1,343 @@
+{
+  "version": 1,
+  "passed": false,
+  "mode": "installed-CLOUD-054-interactive-shell",
+  "startedAt": "2026-10-09T12:02:49.707Z",
+  "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "helperSourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "helperBindings": [
+    {
+      "path": "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs",
+      "commit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "bytes": 4176
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/acceptance-startup.mjs",
+      "commit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "bytes": 4637
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/provenance.mjs",
+      "commit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+      "sha256": "6b41954f56052d167954018018c79f561722a80497856d135d403904bfd9c08e",
+      "bytes": 4889
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/fixture-guards.mjs",
+      "commit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+      "sha256": "5bb86009d73cdd158637a716c4a3a348edb30337e9e2a8cd93ebef82773e1b35",
+      "bytes": 11868
+    }
+  ],
+  "launcherSHA256": "1def18abf3121a9a32c4d75fccd2d1eed4298b7e7ccddba4fa32aa68fc8de69f",
+  "scenarioSHA256": "5b089cbfc8e1886bfd0e2689454a06415e7578557c929229ae69b3f58f8ce62b",
+  "apiActions": [
+    {
+      "method": "POST",
+      "path": "/v1/auth/bootstrap",
+      "status": 201,
+      "at": "2026-10-09T12:02:53.763Z"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/setup/git/identity",
+      "status": 200,
+      "at": "2026-10-09T12:02:53.772Z"
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/admin/policy",
+      "status": 200,
+      "at": "2026-10-09T12:02:53.777Z"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/product/swarm-scheduler",
+      "status": 200,
+      "at": "2026-10-09T12:02:53.785Z"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/product/swarm-scheduler",
+      "status": 200,
+      "at": "2026-10-09T12:02:53.798Z"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/product/projects",
+      "status": 201,
+      "at": "2026-10-09T12:02:53.810Z"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/projects/p-ef4d52c2/branches",
+      "status": 200,
+      "at": "2026-10-09T12:02:53.830Z"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/projects/p-ef4d52c2/worktrees?branchId=b-ef4d52c2-main-0d6e4079",
+      "status": 200,
+      "at": "2026-10-09T12:02:53.838Z"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/machines",
+      "status": 200,
+      "at": "2026-10-09T12:02:53.841Z"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/harnesses",
+      "status": 200,
+      "at": "2026-10-09T12:02:53.845Z"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/product/swarm-scheduler",
+      "status": 200,
+      "at": "2026-10-09T12:02:53.849Z"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/sessions",
+      "status": 201,
+      "at": "2026-10-09T12:03:28.004Z"
+    }
+  ],
+  "browserMutations": [],
+  "phases": [
+    {
+      "kind": "stage",
+      "stage": "controller-start",
+      "observedAt": "2026-10-09T12:02:52.989Z"
+    },
+    {
+      "kind": "stage",
+      "stage": "shell-create",
+      "observedAt": "2026-10-09T12:02:53.845Z"
+    },
+    {
+      "kind": "admission-advisory",
+      "label": "initial-shell",
+      "rootFreeBytes": 7017431040,
+      "policy": {
+        "maxActive": 1,
+        "maxPerProject": 1,
+        "headroomPercent": 25,
+        "minHeadroomMiB": 2048,
+        "diskReserveMiB": 2048
+      },
+      "resources": {
+        "host": {
+          "observedAt": "2026-10-09T12:02:53.238005657Z",
+          "status": "partial",
+          "platform": "linux",
+          "scope": "control-plane-host",
+          "memory": {
+            "physicalTotalBytes": 35743784960,
+            "physicalAvailableBytes": 17090908160,
+            "effectiveTotalBytes": 34359738368,
+            "effectiveAvailableBytes": 12282822656,
+            "limitSource": "physical-and-control-plane-cgroup-v2",
+            "commitLimitBytes": null,
+            "commitAvailableBytes": null
+          },
+          "cpu": {
+            "logicalProcessors": 5,
+            "effectiveMillis": 4000,
+            "limitSource": "process-affinity-and-control-plane-cgroup-v2",
+            "utilizationPercent": null,
+            "pressureSomeAvg10": null,
+            "memoryPressureSomeAvg10": null,
+            "ioPressureSomeAvg10": null
+          },
+          "disks": [
+            {
+              "observedAt": "2026-10-09T12:02:53.237941581Z",
+              "basis": "native-host-volume",
+              "role": "projects",
+              "totalBytes": 33770192896,
+              "availableBytes": 7017574400
+            },
+            {
+              "observedAt": "2026-10-09T12:02:53.237945296Z",
+              "basis": "native-host-volume",
+              "role": "state",
+              "totalBytes": 33770192896,
+              "availableBytes": 7017574400
+            }
+          ],
+          "processes": [
+            {
+              "pid": 2404986,
+              "role": "control-plane",
+              "startId": "linux-ticks:29344223",
+              "residentBytes": 43053056,
+              "privateCommitBytes": null
+            }
+          ],
+          "unavailable": [
+            {
+              "metric": "cpu.pressureSomeAvg10",
+              "reason": "Linux pressure observation is unavailable"
+            },
+            {
+              "metric": "memory.pressureSomeAvg10",
+              "reason": "Linux pressure observation is unavailable"
+            },
+            {
+              "metric": "io.pressureSomeAvg10",
+              "reason": "Linux pressure observation is unavailable"
+            },
+            {
+              "metric": "cpu.utilizationPercent",
+              "reason": "two increasing CPU observations are required"
+            }
+          ]
+        },
+        "execution": {
+          "cpuMillis": 5000,
+          "hostStorage": null,
+          "observedAt": "2026-10-09T12:02:53.271955667Z",
+          "scope": "execution-daemon",
+          "status": "ready",
+          "totalMemoryBytes": 35743784960,
+          "unavailable": []
+        },
+        "reservations": {
+          "status": "unavailable"
+        }
+      },
+      "ledger": {
+        "present": false,
+        "leases": [],
+        "checks": [],
+        "fences": []
+      },
+      "containers": [],
+      "authority": "Read-only advisory; actual product atomic CPU/memory/disk/lease admission is unchanged and authoritative.",
+      "observedAt": "2026-10-09T12:02:54.220Z"
+    }
+  ],
+  "cleanup": [
+    {
+      "name": "AssertionError",
+      "code": "ERR_ASSERTION",
+      "message": "Unowned mount"
+    },
+    {
+      "name": "AssertionError",
+      "code": "ERR_ASSERTION",
+      "message": "Unowned mount"
+    },
+    {
+      "name": "AssertionError",
+      "code": "ERR_ASSERTION",
+      "message": "Unexpected/retained container\n+ actual - expected\n\n+ [\n+   '8e068ee56a4de3d8f6a225e3300501ec8896e1e1326febbd4ce14303d5330b48'\n+ ]\n- []\n"
+    }
+  ],
+  "scope": "One actual shell Create, one UI same-ID Restart, two natural terminal exits. No model/provider calls, no performance/Windows/permission-revocation claim. Direct Docker transport: no proxy wire count or unknown-Create fence/drain claim.",
+  "limitations": [
+    "Exclusive empty Linux daemon only; not suitable for the shared Windows daemon.",
+    "No app-owned process census outside exact retained identities and fixture environment matches; unreadable foreign environments and observed zombies are reported.",
+    "If any mutation loses its response, remote settlement is unverified and acceptance fails even if inventory later becomes empty.",
+    "Failed-fixture immutable-ID removal does not release or repair private product ledgers."
+  ],
+  "packageIntegrity": {
+    "verifiedMembers": 957,
+    "allMembersMatch": true
+  },
+  "package": {
+    "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+    "binarySHA256": "e156c638ba111d28f11e683347def5037862589969e617c029a1f5a687e1f540",
+    "webIndexSHA256": "b5d6265287b93b6fa83fe25e26843eaf1bb0b42d6923dfdb26ffa93d41dc10df",
+    "archiveSHA256": "477d48fb6e6ce58f0acb801fbf6ba9046e8721a1f6fff9c1b5bc20a40b80d2c8"
+  },
+  "daemon": {
+    "id": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+    "os": "linux",
+    "imageID": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+    "initialContainers": [],
+    "initialVolumes": []
+  },
+  "policy": {
+    "allowHostCommands": false,
+    "allowCloudProvisioning": false,
+    "allowPublicPublishing": false,
+    "maxSessionsPerUser": 1,
+    "maxConcurrentChecksPerUser": 1,
+    "sessionMemoryMiB": 1024,
+    "sessionCPUMillis": 1000,
+    "checkMemoryMiB": 1024,
+    "checkCPUMillis": 1000,
+    "monthlyBudgetUsd": 30,
+    "allowedHarnesses": [
+      "claude-code",
+      "codex",
+      "opencode",
+      "shell"
+    ],
+    "backingMode": "docker",
+    "instanceName": "Luci"
+  },
+  "failedStage": "shell-create",
+  "failure": {
+    "name": "AssertionError",
+    "code": "ERR_ASSERTION",
+    "message": "Unowned mount"
+  },
+  "cleanupPhases": [
+    {
+      "name": "browser",
+      "status": "completed",
+      "result": {
+        "identities": [],
+        "final": [],
+        "unreadableEnvironmentObservations": 25836
+      }
+    },
+    {
+      "name": "supported-session-stop",
+      "status": "failed-or-unsettled",
+      "code": "ERR_ASSERTION"
+    },
+    {
+      "name": "controller",
+      "status": "completed",
+      "result": {
+        "identities": [
+          {
+            "pid": 2404986,
+            "start": "29344223",
+            "parent": 2404810,
+            "status": "S"
+          }
+        ],
+        "final": [
+          {
+            "pid": 2404986,
+            "start": "29344223",
+            "parent": 2404810,
+            "status": "Z"
+          }
+        ],
+        "unreadableEnvironmentObservations": 51675
+      }
+    },
+    {
+      "name": "exact-container-leftovers",
+      "status": "failed-or-unsettled",
+      "code": "ERR_ASSERTION"
+    },
+    {
+      "name": "final-source-and-inventory",
+      "status": "failed-or-unsettled",
+      "code": "ERR_ASSERTION"
+    }
+  ],
+  "endedAt": "2026-10-09T12:03:30.468Z",
+  "pendingMutations": []
+}

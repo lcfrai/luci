@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "issue": "CLOUD-059",
+  "scope": "Read-only bounded source review during quiet window; no tests, browser, app, HTTP, Go, Docker or metrics execution",
+  "reviewedAt": "2026-10-09T12:13:44.114463+00:00",
+  "sources": [
+    {
+      "path": "/workspace/.luci-tools/cloud054-terminal-close/installed-v4/scenario.mjs",
+      "bytes": 17196,
+      "sha256": "5b089cbfc8e1886bfd0e2689454a06415e7578557c929229ae69b3f58f8ce62b"
+    },
+    {
+      "path": "/workspace/luci/desktop/node_modules/playwright-core/package.json",
+      "bytes": 876,
+      "sha256": "f061c58427e47e843e26d201f0a57076c734e57c734ecbbd87d4a23b7a20db9b",
+      "version": "1.63.0"
+    }
+  ],
+  "dependencyRead": {
+    "path": "/workspace/luci/desktop/node_modules/playwright-core/lib/coreBundle.js",
+    "lines": [
+      [
+        59721,
+        59762
+      ],
+      [
+        59820,
+        59828
+      ],
+      [
+        60179,
+        60190
+      ],
+      [
+        61428,
+        61449
+      ],
+      [
+        61756,
+        61779
+      ]
+    ],
+    "scope": "Selected existing dependency source spans read, full dependency bytes/hash not checked in this narrow review"
+  },
+  "findings": [
+    {
+      "id": "primary-error-masking",
+      "sourceLines": [
+        164
+      ],
+      "concrete": "Bare finally awaiting each gate.dispose can replace the primary scenario assertion/timeout with a route-disposal error, and a first failing dispose skips later gates. No catch records the original error or monitor snapshot before cleanup.",
+      "suggestion": "Boundedly record allowlisted primary error stage and raw passive-monitor projection before cleanup; collect each gate cleanup result separately; rethrow original primary while retaining cleanup errors. If no primary exists, cleanup failure must still fail scenario."
+    },
+    {
+      "id": "route-double-settlement-path",
+      "sourceLines": [
+        105,
+        108
+      ],
+      "concrete": "After await route.fulfill, remaining() and record() may throw; generic catch then attempts route.abort despite already fulfilled route. Playwright _checkNotHandled rejects handled routes; fulfillment and abort are terminal settlements, fetch alone is not.",
+      "suggestion": "Track the owned route operation attempt/success/uncertainty; never issue a second terminal operation following acknowledged or uncertain fulfill. Abort exactly once only if no terminal operation was attempted. Preserve unknown/incomplete settlement as failure."
+    },
+    {
+      "id": "remove-before-handler-settlement",
+      "sourceLines": [
+        112,
+        113
+      ],
+      "concrete": "dispose releases the gate, calls page.unroute, then awaits completed. Playwright default unroute removes matching handler/interception without waiting active handler; this is not handler settlement proof.",
+      "suggestion": "Retain absolute8s gate deadline; make cancellation/settlement explicit and bounded, await exact handler settlement before removal, separately record bounded removal failure. Avoid treating unroute as permission to replay request or complete an ambiguous route."
+    },
+    {
+      "id": "lost-passive-failure-evidence",
+      "sourceLines": [
+        121,
+        145,
+        156,
+        162,
+        164
+      ],
+      "concrete": "snapshot helper asserts monitor health; checkpointed wire snapshots are only later success-stage records. A failure before them can leave already-observed terminal frames outside the retained receipt.",
+      "suggestion": "Use bounded nonasserting monitor.snapshot in failure capture and record observation unavailable/errors separately; do not invent absent native exit, primary failure or original route owner."
+    }
+  ],
+  "limitations": [
+    "Attempt4 original primary error and prior route settlement owner are not known from this source review. No claim that a specific candidate path caused that run.",
+    "No timeout relaxation, request retry, mutation replay or alternative manufactured stale session row is suggested.",
+    "A failed/late route operation remains uncertain even after browser cleanup.",
+    "Original v4 fixture/results remain immutable."
+  ]
+}

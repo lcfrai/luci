@@ -1,0 +1,67 @@
+{
+  "at": "2026-10-09T12:02:30.724885+00:00",
+  "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "passedWorkflow": false,
+  "originalFailedStage": "shell-create",
+  "originalResultSHA256": "6d8fa8b5f6d243352094efb11a1a8df961141182048c45e3ccf3c0ef3306ee9b",
+  "originalWrapperSHA256": "aa1441094f76676b249e1242fecf05c5d839b339fdee1ce2ecb6aee43bbf08c4",
+  "capturedProblems": [
+    {
+      "version": 1,
+      "representation": "allowlisted-transformed-problem",
+      "status": 409,
+      "expectedStatus": 201,
+      "originalBodySHA256": "2df31b7a15ff8f89d22c9df0efbccdec98ab22bcbf984dc3ef9cb4adb157ff71",
+      "originalBodyBytes": 170,
+      "originalBodyRetained": false,
+      "parsedJSON": true,
+      "problemShape": true,
+      "error": "conflict",
+      "message": "Execution storage cannot preserve the working reserve for the pending sandbox copies.",
+      "messageOmitted": false,
+      "details": {
+        "reasonCode": "execution_disk_pressure"
+      },
+      "omittedDetailsCount": 0,
+      "numericAdmissionOperands": "unavailable-in-this-POST-problem-schema"
+    }
+  ],
+  "identities": [
+    {
+      "pid": 2403951,
+      "expectedStartTicks": "29307740",
+      "family": "launcher",
+      "now": {
+        "status": "absent"
+      }
+    },
+    {
+      "pid": 2404128,
+      "expectedStartTicks": "29308169",
+      "family": "controller",
+      "now": {
+        "status": "absent"
+      }
+    }
+  ],
+  "containers": [],
+  "volumes": [],
+  "sameEngine": true,
+  "ledger": {
+    "sha256": "c0022f0995797c072d8097729ea90e74487bcefb911576c91e4af0665403a49e",
+    "bytes": 25,
+    "counts": {
+      "leases": 0,
+      "checks": 0,
+      "fences": 0,
+      "checkFences": 0
+    }
+  },
+  "fixtureFilesCount": 27,
+  "fixtureManifestSHA256": "4eac5e51b58e08ec6dbf243e4d17d0d4a1c493c219df5f5ca1d411f6aa16d639",
+  "fixtureLinks": [],
+  "originalFilesUnchanged": true,
+  "fixtureFilesUnchanged": true,
+  "scriptSHA256": "d69e532491406e047720f011b0b544c682d0280bc9515bbe6512e553ff33f3c6",
+  "scope": "Read-only exact recorded process identities, selected daemon inventories and private ledger counts. No signals, cleanup mutation, whole-machine census, historical charge release, numeric admission reconstruction or Docker wire counts. Private files remain unchanged; original transient/zombie and unreadable observations remain in their receipts."
+}

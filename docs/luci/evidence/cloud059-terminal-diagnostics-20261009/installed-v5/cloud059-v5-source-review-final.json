@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "issue": "CLOUD-059",
+  "reviewedAt": "2026-10-09T12:21:37.260970+00:00",
+  "scope": "Final source-only narrow review; no tests, runtime, browser, app or Docker execution",
+  "result": "No remaining concrete blocker found in reviewed candidate corrections",
+  "sources": [
+    {
+      "path": "/workspace/.luci-tools/cloud054-terminal-close/installed-v4/scenario.mjs",
+      "bytes": 17196,
+      "sha256": "5b089cbfc8e1886bfd0e2689454a06415e7578557c929229ae69b3f58f8ce62b"
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5/scenario.mjs",
+      "bytes": 21290,
+      "sha256": "67bc7c47e98cc8c64fb29b0e98bfc17712a45ef4a7acb5e04b9c897ca84d99c4"
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5/route-settlement.test.mjs",
+      "bytes": 9690,
+      "sha256": "0193faf2200c124957ef5ec3c5672cbc41b0c1a0cd62ba4b647724ff71e00245"
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud054-terminal-close/installed-v5/gate-budget.test.mjs",
+      "bytes": 3622,
+      "sha256": "009b1dfb770290aab8d82b92078b6156052b33d1635ed24a287fbfef87b14c70"
+    }
+  ],
+  "initialReview": {
+    "path": "/workspace/.luci-tools/cloud054-terminal-close/cloud059-v5-source-review-initial.json",
+    "sha256": "7851a75467c9cd6e8bcb1860d13821a8e5bcdbb9d75aff6fb17af29eaa30e01e"
+  },
+  "closedSourceFindings": [
+    {
+      "id": "late-handler-after-dispose",
+      "observation": "Synchronous disposing flag precedes async disposal. New selected handler checks it inside guarded lifecycle before fetch, records failure and attempts one bounded abort. Disposal accounts newly entered handler after asynchronous removal. Existing owner keeps original settlement budget; no repeated7s wait added for already owned handler."
+    },
+    {
+      "id": "requestfailed-checkpoint-throw",
+      "observation": "Exact-request event checkpoint error becomes failure and checkpointFailed metadata; finally always rejects capture and releases gate. No uncaught checkpoint exception from that event callback."
+    }
+  ],
+  "preserved": [
+    "Primary failure and stage are recorded before bounded passive observation and gate cleanup",
+    "All gates receive cleanup attempts; cleanup failures do not replace primary exception; cleanup-only failure still fails scenario",
+    "Terminal route operation attempted/acknowledged/unknown state is explicit; no abort after attempted fulfill",
+    "Exact requestfailed observation avoids a new route terminal operation on known failed request",
+    "Absolute8000ms entry-to-gate deadline and response body hash/bytes retained; no changed timeout/retry/replay or generated stale data",
+    "Error projection retains finite class/code/kind plus hash/length, not arbitrary message",
+    "Real shell commands, one UI Restart, typed0/7 exits, no reconnect/stdin after exit and retained xterm requirements unchanged"
+  ],
+  "controlledEvidenceScope": "Parent reports final10pass versus original8fail/2controls and unchanged3budgetpasses. Reviewer read source/fixtures only; no independent execution or log recount.",
+  "limits": [
+    "No inference of attempt4 hidden primary failure or route settlement owner",
+    "An unacknowledged terminal operation remains uncertain; unroute does not certify transport settlement",
+    "Fixed source does not establish installed browser/recovery/performance acceptance",
+    "Persistent evidence-write failure may prevent durable diagnostics; no durability claim when write failed"
+  ]
+}

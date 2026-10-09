@@ -1,0 +1,46 @@
+{
+  "at": "2026-10-09T11:48:08.243890+00:00",
+  "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "passedWorkflow": false,
+  "originalFailedStage": "shell-create",
+  "unknownOriginalReason": "HTTP409 problem body was not retained; no attribution from earlier advisory values.",
+  "originalResultSHA256": "f645bbb69cf4f71191d0e06070535347a1c1e26ce6ff8989d80c13e6658cf7e7",
+  "originalWrapperSHA256": "0c5923cc9f4f5683a655fbb5c051746eaf8052d8e2ded1ca798071b5e5e75e61",
+  "identities": [
+    {
+      "pid": 2401941,
+      "expectedStartTicks": "29242712",
+      "family": "launcher",
+      "now": {
+        "status": "absent"
+      }
+    },
+    {
+      "pid": 2402122,
+      "expectedStartTicks": "29243083",
+      "family": "controller",
+      "now": {
+        "status": "absent"
+      }
+    }
+  ],
+  "containers": [],
+  "volumes": [],
+  "sameEngine": true,
+  "ledger": {
+    "sha256": "c0022f0995797c072d8097729ea90e74487bcefb911576c91e4af0665403a49e",
+    "bytes": 25,
+    "counts": {
+      "leases": 0,
+      "checks": 0,
+      "fences": 0,
+      "checkFences": 0
+    }
+  },
+  "fixtureFilesCount": 27,
+  "fixtureManifestSHA256": "c281b190233bed4cb7304336fc5202fe6dc5a65d4655c66bf8a213900598b34c",
+  "fixtureLinks": [],
+  "originalFilesUnchanged": true,
+  "fixtureFilesUnchanged": true,
+  "scope": "Read-only independent exact known process observations, selected daemon inventories and private ledger counts. No mutation, browser runtime, whole-machine process census, admission operands or remote wire Create count claimed. Original helper transient controller Z and its repeated unreadable-environment count remain unchanged; now both known identities absent."
+}

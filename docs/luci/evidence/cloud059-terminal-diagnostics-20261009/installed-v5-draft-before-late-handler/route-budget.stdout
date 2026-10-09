@@ -1,0 +1,11 @@
+✔ delayed fetch shares one absolute8s deadline and cannot forward after it (15.687824ms)
+✔ body read consuming remaining deadline cannot publish a ready stale response (2.492957ms)
+✔ within-budget real response bytes fulfill once and retain exact body hash (5.988355ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 128.149158

@@ -1,0 +1,21 @@
+✔ delayed fetch shares one absolute8s deadline and cannot forward after it (12.866469ms)
+✔ body read consuming remaining deadline cannot publish a ready stale response (1.936007ms)
+✔ within-budget real response bytes fulfill once and retain exact body hash (3.996653ms)
+✔ dispose settles owned handler before removing route interception (7.939414ms)
+✔ checkpoint failure after acknowledged fulfill never attempts a second terminal operation (2.808252ms)
+✔ rejected fulfill remains unknown and is never followed by abort or replay (2.266655ms)
+✔ actual owned-request cancellation is recorded and leaves ordering unexercised without handling it again (3.070297ms)
+✔ successful release and repeated disposal retain exactly one fulfillment and removal (1.682415ms)
+✔ real scenario primary failure survives later route disposal failure (4.345108ms)
+✔ real scenario records primary step and passive failure observation before gate cleanup (2.518816ms)
+✔ diagnostic projection hashes arbitrary errors without retaining raw private messages (0.296747ms)
+✔ handler selected before async unroute cannot begin a late owned fetch (12.130811ms)
+✔ requestfailed checkpoint error cannot escape listener or prevent gate settlement (3.134754ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 284.032937

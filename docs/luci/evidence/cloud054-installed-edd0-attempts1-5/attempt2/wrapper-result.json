@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "passed": false,
+  "startedAt": "2026-10-09T11:56:48.168418+00:00",
+  "budgets": {
+    "preparationSeconds": 120,
+    "workflowSeconds": 480,
+    "cooperativeCommandOverhangSeconds": 60,
+    "cleanupSeconds": 80,
+    "launcherSeconds": 740,
+    "termGraceSeconds": 20,
+    "killSettlementSeconds": 5,
+    "finalObservationSeconds": 5,
+    "nominalMaximumSeconds": 770,
+    "note": "Monotonic supervisor; synchronous kernel/file reads are cooperative, not preempted. No signal is sent to controllers, browsers, process groups or Docker."
+  },
+  "sourceBefore": {
+    "/workspace/.luci-tools/cloud054-terminal-close/outer-v2/run.py": {
+      "bytes": 22954,
+      "sha256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/installed-v3/launch.mjs": {
+      "bytes": 44255,
+      "sha256": "1def18abf3121a9a32c4d75fccd2d1eed4298b7e7ccddba4fa32aa68fc8de69f"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/installed-v3/scenario.mjs": {
+      "bytes": 17196,
+      "sha256": "5b089cbfc8e1886bfd0e2689454a06415e7578557c929229ae69b3f58f8ce62b"
+    }
+  },
+  "limitations": [
+    "This wrapper observes exact fixture process identities only, not memory/CPU/performance or whole-machine closure.",
+    "Driver receipt may attest Docker/ledger closure; this wrapper does not independently query Docker or repair retained charges.",
+    "Only the exact launcher PID is signalled through its pidfd. Surviving controller/browser identities remain open for independent reviewed cleanup.",
+    "Absent unobserved ephemeral processes cannot be inferred; unreadable environment scans and zombies stay explicit."
+  ],
+  "driverReport": {
+    "sha256": "6d8fa8b5f6d243352094efb11a1a8df961141182048c45e3ccf3c0ef3306ee9b",
+    "bytes": 14023,
+    "passed": false
+  },
+  "launcherExitCode": 1,
+  "failure": null,
+  "signals": [],
+  "wrapperSignals": [],
+  "identities": [
+    {
+      "expected": {
+        "status": "observed",
+        "pid": 2403951,
+        "startTicks": "29307740",
+        "parentPid": 2403947,
+        "state": "R",
+        "family": "launcher",
+        "source": "owned-Popen",
+        "firstObservedAt": "2026-10-09T11:56:48.169571+00:00"
+      },
+      "current": {
+        "status": "absent",
+        "pid": 2403951
+      }
+    },
+    {
+      "expected": {
+        "status": "observed",
+        "pid": 2404128,
+        "startTicks": "29308169",
+        "parentPid": 2403951,
+        "state": "S",
+        "family": "controller",
+        "firstObservedAt": "2026-10-09T11:56:53.156028+00:00",
+        "source": "outer-environment"
+      },
+      "current": {
+        "status": "absent",
+        "pid": 2404128
+      }
+    }
+  ],
+  "sourceAfter": {
+    "/workspace/.luci-tools/cloud054-terminal-close/outer-v2/run.py": {
+      "bytes": 22954,
+      "sha256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/installed-v3/launch.mjs": {
+      "bytes": 44255,
+      "sha256": "1def18abf3121a9a32c4d75fccd2d1eed4298b7e7ccddba4fa32aa68fc8de69f"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/installed-v3/scenario.mjs": {
+      "bytes": 17196,
+      "sha256": "5b089cbfc8e1886bfd0e2689454a06415e7578557c929229ae69b3f58f8ce62b"
+    }
+  },
+  "samples": 7,
+  "unreadableEnvironmentObservations": 38743,
+  "outputBytesObserved": {
+    "stdout": 211,
+    "stderr": 0
+  },
+  "outputTruncated": {
+    "stdout": false,
+    "stderr": false
+  },
+  "settlementErrors": [],
+  "finishedAt": "2026-10-09T11:56:56.260414+00:00",
+  "elapsedSeconds": 8.092025841993745,
+  "receiptDurable": true
+}

@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "/workspace/luci/sandboxd/internal/server/c054_close_followup_test.go": "/workspace/.luci-tools/cloud054-close-followup/sandbox/close_test.go"
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "at": "2026-10-09T12:26:03.902237+00:00",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/.luci-tools/cloud054-terminal-close/installed-v6/launch.mjs",
+    "--window-granted",
+    "--exclusive-daemon",
+    "--repo",
+    "/workspace/luci",
+    "--binary",
+    "/tmp/luci-retained-tools/package-0.5.0-edd0cb12/luci",
+    "--web",
+    "/tmp/luci-retained-tools/package-0.5.0-edd0cb12/web",
+    "--provenance",
+    "/workspace/luci/artifacts/quality-swarm/candidate-edd0cb12/package/package-provenance.json",
+    "--image-provenance",
+    "/workspace/.luci-tools/sandbox-candidate-20261008T140025Z-a4a2e82b/receipt.json",
+    "--expected-source",
+    "edd0cb121ff6847f681ab6bf41509a497f043d41",
+    "--helper-source",
+    "edd0cb121ff6847f681ab6bf41509a497f043d41",
+    "--expected-image-id",
+    "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+    "--expected-launcher-sha256",
+    "78a2aa7c168601f6569f20af153b73728543f0dee6bd78f48a0069fe46ee9a8a",
+    "--expected-scenario-sha256",
+    "11e619bccc1ec06882a5a0fdb378b37a8cd182b865964ea1a729a6105e36c225",
+    "--chromium",
+    "/usr/bin/chromium",
+    "--report",
+    "/workspace/.luci-tools/cloud054-terminal-close/actual-edd0/evidence/attempt5/driver/result.json",
+    "--fixture-root",
+    "/workspace/.luci-tools/cloud054-terminal-close/actual-edd0/fixtures"
+  ],
+  "budgets": {
+    "preparationSeconds": 120,
+    "workflowSeconds": 480,
+    "cooperativeCommandOverhangSeconds": 60,
+    "cleanupSeconds": 80,
+    "launcherSeconds": 740,
+    "termGraceSeconds": 20,
+    "killSettlementSeconds": 5,
+    "finalObservationSeconds": 5,
+    "nominalMaximumSeconds": 770,
+    "note": "Monotonic supervisor; synchronous kernel/file reads are cooperative, not preempted. No signal is sent to controllers, browsers, process groups or Docker."
+  },
+  "sources": {
+    "/workspace/.luci-tools/cloud054-terminal-close/outer-v2/run.py": {
+      "bytes": 22954,
+      "sha256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/installed-v6/launch.mjs": {
+      "bytes": 45471,
+      "sha256": "78a2aa7c168601f6569f20af153b73728543f0dee6bd78f48a0069fe46ee9a8a"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/installed-v6/scenario.mjs": {
+      "bytes": 21721,
+      "sha256": "11e619bccc1ec06882a5a0fdb378b37a8cd182b865964ea1a729a6105e36c225"
+    }
+  },
+  "environmentNames": [
+    "DOCKER_HOST",
+    "HOME",
+    "LANG",
+    "LC_ALL",
+    "PATH"
+  ],
+  "dockerEndpoint": "unix:///var/run/docker.sock",
+  "status": "prepared-before-launch"
+}
