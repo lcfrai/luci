@@ -1,0 +1,36 @@
+{
+  "command": [
+    "node",
+    "/workspace/.luci-tools/cloud055-readiness-stage-gate-v2/controlled/browser.mjs",
+    "/workspace/.luci-tools/cloud055-readiness-stage-gate-v2/controlled/receipts/attempt1/browser"
+  ],
+  "environmentOverrides": {
+    "GOMAXPROCS": "2"
+  },
+  "sourceSHA256": {
+    "observer/autonomous-readiness.mjs": "7f534431a37a0bd599c2de48870d3c9e8badfd1e33b2d48e47078782aa74467b",
+    "observer/stage-gate.patch": "face99ca2780921f551fcf2ff9ae1087e013e9ec5219251cc1aac572665a1fed",
+    "controlled/browser.mjs": "3570716d34a0920549dc5b1f27a19ec9be26134f8a52b4893026cf34e608eecd",
+    "controlled/vite-fixture-plugin.mjs": "601130adcdd92ecdbdc7585869f56d5c91c16de98b4c64955e858c9d4686fd9f",
+    "controlled/fixture.tsx": "e75e67d199f4abdc85c33250de8e4adee73978aeced331f2f3fe753d37e0249a",
+    "controlled/run.py": "c26fcb81247765a0fa1d01abf32b23578d34779fa023599a29e9ffc83254a177",
+    "controlled/source-binding.json": "a71c466844788a9bf72e23c4f4ce985507f710ed821b10d327a327557f94e36a",
+    "controlled/original/autonomous-readiness.mjs": "fca427906b3a3d580b3280548ae931fe1fb55b4041c73ef1810b1354c2d61209",
+    "controlled/original/interaction-metrics.mjs": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502",
+    "controlled/original/latency-diagnostics.mjs": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96"
+  },
+  "startedAt": "2026-10-09T11:25:45.484797+00:00",
+  "stdout": "stdout.txt",
+  "stderr": "stderr.txt",
+  "deadlineSeconds": 90,
+  "outerDeadlineSeconds": 110,
+  "nodePid": 2393130,
+  "exitCode": 1,
+  "endedAt": "2026-10-09T11:25:52.857417+00:00",
+  "unchanged": true,
+  "cleanup": {
+    "nodeExited": true,
+    "ownedProfileCommandSurvivors": [],
+    "profileAbsent": true
+  }
+}

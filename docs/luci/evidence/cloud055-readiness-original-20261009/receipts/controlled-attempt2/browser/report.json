@@ -1,0 +1,1213 @@
+{
+  "passed": true,
+  "scope": "Controlled styled actual AppShell/Home/Rail/Definition source fixture with synthetic API values. No installed app, backend, worker, provider, acceptance performance or paint claim.",
+  "sourceBefore": {
+    "desktop/src/components/AppShell.tsx": "b3aaf4ce4302109c2c10b023ecbff249b96655955f4d29bf0bb4834b4fc8fcd4",
+    "desktop/src/components/rail/Rail.tsx": "8fb76ca0162eebfe29c3b589b07f5c6e19db8fe55f508a96354f37a79ea6b6e8",
+    "desktop/src/components/rail/ProjectRow.tsx": "71dcaf85dfddb4feff179cd1c3f53cd80d647a472fdbc00952395358674257f9",
+    "desktop/src/components/projects/ProjectOverviewBoard.tsx": "380db2996d677f099da77e2702fabfe5391e4dd226404513db1e58546a59b48f",
+    "desktop/src/components/definition/DefinitionWorkspace.tsx": "fe63aa3dcda3c5896ab13140ff2db74c492eda0e068a415cc560b7ec7777cfc7",
+    "desktop/src/store/slices/uiSlice.ts": "4da15890388c23ac657ffe99311b5a1155001b78400f1b40846061372f1a5b0b"
+  },
+  "checks": [
+    {
+      "label": "original-late-only-limitation-retained",
+      "passed": true,
+      "autonomousWitnessAvailable": false,
+      "notAProductFailure": true,
+      "unchangedFullSpanMs": 664.3572320000003
+    },
+    {
+      "label": "autonomous-witness-precedes-controlled-late-driver",
+      "passed": true,
+      "gapMs": 629.6000000238419,
+      "unchangedFullSpanMs": 883.1964900000003
+    },
+    {
+      "label": "delayed-read-and-native-disabled-fieldset",
+      "passed": true,
+      "rows": [
+        {
+          "sequence": 2,
+          "at": 2520.2999999523163,
+          "authorityGeneration": 1,
+          "generation": 2,
+          "round": 0,
+          "projectOrdinal": 0,
+          "stage": "define",
+          "status": "ready",
+          "reason": "predicate-observed",
+          "clickAt": 2111.899999976158,
+          "observedAt": 2520,
+          "samples": 24,
+          "firstSampleAt": 2112,
+          "lastSampleAt": 2520,
+          "maxSampleGapMs": 29.599999964237213,
+          "maxNodesVisited": 159,
+          "maxControlsVisited": 27
+        },
+        {
+          "sequence": 3,
+          "at": 2607.199999988079,
+          "authorityGeneration": 1,
+          "generation": 3,
+          "round": 1,
+          "projectOrdinal": null,
+          "stage": null,
+          "status": "closed",
+          "reason": "cohort-end"
+        }
+      ]
+    },
+    {
+      "label": "same-value-wrong-project-and-authority-invalidation",
+      "passed": true,
+      "rows": [
+        {
+          "sequence": 2,
+          "at": 3252,
+          "authorityGeneration": 1,
+          "generation": 2,
+          "round": 0,
+          "projectOrdinal": 0,
+          "stage": "define",
+          "status": "cancelled",
+          "reason": "authority-changed",
+          "clickAt": 2899.199999988079,
+          "observedAt": null,
+          "samples": 22,
+          "firstSampleAt": 2899.199999988079,
+          "lastSampleAt": 3237.5,
+          "maxSampleGapMs": 28.80000001192093,
+          "maxNodesVisited": 159,
+          "maxControlsVisited": 27
+        },
+        {
+          "sequence": 3,
+          "at": 3252.399999976158,
+          "authorityGeneration": 1,
+          "generation": 3,
+          "round": 1,
+          "projectOrdinal": null,
+          "stage": null,
+          "status": "closed",
+          "reason": "authority-changed"
+        }
+      ]
+    },
+    {
+      "label": "wrong-trusted-project-refused",
+      "passed": true,
+      "rows": [
+        {
+          "sequence": 1,
+          "at": 1869.5,
+          "authorityGeneration": 1,
+          "generation": 1,
+          "round": 0,
+          "projectOrdinal": 0,
+          "stage": "home",
+          "status": "ready",
+          "reason": "predicate-observed",
+          "clickAt": 1798.5999999642372,
+          "observedAt": 1868.7999999523163,
+          "samples": 2,
+          "firstSampleAt": 1799.3999999761581,
+          "lastSampleAt": 1868.7999999523163,
+          "maxSampleGapMs": 69.39999997615814,
+          "maxNodesVisited": 159,
+          "maxControlsVisited": 27
+        },
+        {
+          "sequence": 2,
+          "at": 1973.199999988079,
+          "authorityGeneration": 1,
+          "generation": 2,
+          "round": 0,
+          "projectOrdinal": null,
+          "stage": null,
+          "status": "closed",
+          "reason": "driver-cancelled"
+        }
+      ]
+    },
+    {
+      "label": "untrusted-click-cannot-arm",
+      "passed": true
+    },
+    {
+      "label": "read-revoked-with-authoritative-invalidation",
+      "passed": true,
+      "rows": [
+        {
+          "sequence": 1,
+          "at": 2056.300000011921,
+          "authorityGeneration": 1,
+          "generation": 1,
+          "round": 0,
+          "projectOrdinal": 0,
+          "stage": "home",
+          "status": "ready",
+          "reason": "predicate-observed",
+          "clickAt": 2022.699999988079,
+          "observedAt": 2055.300000011921,
+          "samples": 2,
+          "firstSampleAt": 2023.0999999642372,
+          "lastSampleAt": 2055.300000011921,
+          "maxSampleGapMs": 32.200000047683716,
+          "maxNodesVisited": 159,
+          "maxControlsVisited": 27
+        },
+        {
+          "sequence": 2,
+          "at": 2155.5,
+          "authorityGeneration": 1,
+          "generation": 2,
+          "round": 0,
+          "projectOrdinal": 0,
+          "stage": "define",
+          "status": "cancelled",
+          "reason": "authority-changed",
+          "clickAt": 2122.899999976158,
+          "observedAt": null,
+          "samples": 2,
+          "firstSampleAt": 2123,
+          "lastSampleAt": 2148.699999988079,
+          "maxSampleGapMs": 25.69999998807907,
+          "maxNodesVisited": 145,
+          "maxControlsVisited": 27
+        },
+        {
+          "sequence": 3,
+          "at": 2155.599999964237,
+          "authorityGeneration": 1,
+          "generation": 3,
+          "round": 1,
+          "projectOrdinal": null,
+          "stage": null,
+          "status": "closed",
+          "reason": "authority-changed"
+        }
+      ]
+    },
+    {
+      "label": "observer-delay-exposes-gap",
+      "passed": true,
+      "rows": [
+        {
+          "sequence": 1,
+          "at": 1529.300000011921,
+          "authorityGeneration": 1,
+          "generation": 1,
+          "round": 0,
+          "projectOrdinal": 0,
+          "stage": "home",
+          "status": "ready",
+          "reason": "predicate-observed",
+          "clickAt": 1506.6000000238419,
+          "observedAt": 1528.699999988079,
+          "samples": 2,
+          "firstSampleAt": 1507,
+          "lastSampleAt": 1528.699999988079,
+          "maxSampleGapMs": 21.69999998807907,
+          "maxNodesVisited": 159,
+          "maxControlsVisited": 27
+        },
+        {
+          "sequence": 2,
+          "at": 1818,
+          "authorityGeneration": 1,
+          "generation": 2,
+          "round": 0,
+          "projectOrdinal": 0,
+          "stage": "define",
+          "status": "ready",
+          "reason": "predicate-observed",
+          "clickAt": 1594.5,
+          "observedAt": 1817.5,
+          "samples": 4,
+          "firstSampleAt": 1594.6000000238419,
+          "lastSampleAt": 1817.5,
+          "maxSampleGapMs": 204.39999997615814,
+          "maxNodesVisited": 158,
+          "maxControlsVisited": 27
+        },
+        {
+          "sequence": 3,
+          "at": 2001.300000011921,
+          "authorityGeneration": 1,
+          "generation": 3,
+          "round": 1,
+          "projectOrdinal": null,
+          "stage": null,
+          "status": "closed",
+          "reason": "cohort-end"
+        }
+      ]
+    },
+    {
+      "label": "unmount-settles-without-stale-witness",
+      "passed": true,
+      "rows": [
+        {
+          "sequence": 1,
+          "at": 1470.6000000238419,
+          "authorityGeneration": 1,
+          "generation": 1,
+          "round": 0,
+          "projectOrdinal": 0,
+          "stage": "home",
+          "status": "ready",
+          "reason": "predicate-observed",
+          "clickAt": 1442,
+          "observedAt": 1470.1000000238419,
+          "samples": 2,
+          "firstSampleAt": 1442.5,
+          "lastSampleAt": 1470.1000000238419,
+          "maxSampleGapMs": 27.600000023841858,
+          "maxNodesVisited": 159,
+          "maxControlsVisited": 27
+        },
+        {
+          "sequence": 2,
+          "at": 1581.7000000476837,
+          "authorityGeneration": 1,
+          "generation": 2,
+          "round": 0,
+          "projectOrdinal": 0,
+          "stage": "define",
+          "status": "censored",
+          "reason": "observed-disconnection",
+          "clickAt": 1546.800000011921,
+          "observedAt": null,
+          "samples": 3,
+          "firstSampleAt": 1547.1000000238419,
+          "lastSampleAt": 1581.6000000238419,
+          "maxSampleGapMs": 24.69999998807907,
+          "maxNodesVisited": 145,
+          "maxControlsVisited": 27
+        },
+        {
+          "sequence": 3,
+          "at": 1663.5,
+          "authorityGeneration": 1,
+          "generation": 3,
+          "round": 1,
+          "projectOrdinal": null,
+          "stage": null,
+          "status": "closed",
+          "reason": "cohort-end"
+        }
+      ]
+    },
+    {
+      "label": "wrong-value-bounded-censor",
+      "passed": true,
+      "rows": [
+        {
+          "sequence": 1,
+          "at": 1456.5,
+          "authorityGeneration": 1,
+          "generation": 1,
+          "round": 0,
+          "projectOrdinal": 0,
+          "stage": "home",
+          "status": "ready",
+          "reason": "predicate-observed",
+          "clickAt": 1432.699999988079,
+          "observedAt": 1455.300000011921,
+          "samples": 2,
+          "firstSampleAt": 1433.1000000238419,
+          "lastSampleAt": 1455.300000011921,
+          "maxSampleGapMs": 22.19999998807907,
+          "maxNodesVisited": 159,
+          "maxControlsVisited": 27
+        },
+        {
+          "sequence": 2,
+          "at": 4535.600000023842,
+          "authorityGeneration": 1,
+          "generation": 2,
+          "round": 0,
+          "projectOrdinal": 0,
+          "stage": "define",
+          "status": "censored",
+          "reason": "wall-time-cap",
+          "clickAt": 1534.800000011921,
+          "observedAt": null,
+          "samples": 180,
+          "firstSampleAt": 1534.9000000357628,
+          "lastSampleAt": 4521.300000011921,
+          "maxSampleGapMs": 23.80000001192093,
+          "maxNodesVisited": 159,
+          "maxControlsVisited": 27
+        },
+        {
+          "sequence": 3,
+          "at": 4676.800000011921,
+          "authorityGeneration": 1,
+          "generation": 3,
+          "round": 1,
+          "projectOrdinal": null,
+          "stage": null,
+          "status": "closed",
+          "reason": "cohort-end"
+        }
+      ]
+    },
+    {
+      "label": "controlled-fixture-only-same-origin-GET",
+      "passed": true,
+      "requests": 2366
+    },
+    {
+      "label": "observer-source-forbidden-layout-write-network-api-scan",
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "cases": [
+    {
+      "enabled": false,
+      "interactions": [
+        {
+          "phase": "controlled-late-only",
+          "kind": "project-switch",
+          "projectID": "alpha",
+          "at": "2026-10-09T10:48:20.124Z",
+          "success": true,
+          "diagnostics": {
+            "version": 1,
+            "nodeStages": [
+              {
+                "stage": "action-start",
+                "offsetMs": 0.08212400000047637
+              },
+              {
+                "stage": "all-projects-click-end",
+                "offsetMs": 99.88919200000055
+              },
+              {
+                "stage": "overview-heading-ready",
+                "offsetMs": 106.65254600000026
+              },
+              {
+                "stage": "open-project-click-end",
+                "offsetMs": 220.0557060000001
+              },
+              {
+                "stage": "action-end",
+                "offsetMs": 220.06267600000047
+              },
+              {
+                "stage": "verify-start",
+                "offsetMs": 220.06483000000026
+              },
+              {
+                "stage": "verify-end",
+                "offsetMs": 634.6372340000007
+              },
+              {
+                "stage": "frames-start",
+                "offsetMs": 634.6409200000007
+              },
+              {
+                "stage": "frames-end",
+                "offsetMs": 664.1706610000001
+              }
+            ],
+            "nodeClockReads": 9,
+            "browserFrames": {
+              "requestedAt": 3688.199999988079,
+              "firstFrameAt": 3697.800000011921,
+              "secondFrameAt": 3714.5,
+              "references": {
+                "timeOrigin": 1791542897071.5,
+                "input": null,
+                "pointer": {
+                  "sequence": 3,
+                  "at": 3206.399999976158
+                },
+                "expectedDOM": {
+                  "sequence": 4,
+                  "at": 3680.899999976158,
+                  "actionKind": "project-switch"
+                }
+              }
+            },
+            "limitations": [
+              "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+            ]
+          },
+          "elapsedMs": 664.3572320000003
+        },
+        {
+          "phase": "controlled-late-only",
+          "kind": "input",
+          "projectID": "alpha",
+          "at": "2026-10-09T10:48:20.815Z",
+          "success": true,
+          "diagnostics": {
+            "version": 1,
+            "nodeStages": [
+              {
+                "stage": "action-start",
+                "offsetMs": 0.04458799999974872
+              },
+              {
+                "stage": "action-end",
+                "offsetMs": 43.112489000000096
+              },
+              {
+                "stage": "verify-start",
+                "offsetMs": 43.11381099999926
+              },
+              {
+                "stage": "verify-end",
+                "offsetMs": 48.1659609999997
+              },
+              {
+                "stage": "frames-start",
+                "offsetMs": 48.16731299999992
+              },
+              {
+                "stage": "frames-end",
+                "offsetMs": 71.96303799999987
+              }
+            ],
+            "nodeClockReads": 6,
+            "browserFrames": {
+              "requestedAt": 3793.399999976158,
+              "firstFrameAt": 3798,
+              "secondFrameAt": 3814.699999988079,
+              "references": {
+                "timeOrigin": 1791542897071.5,
+                "input": {
+                  "sequence": 5,
+                  "at": 3756.099999964237
+                },
+                "pointer": {
+                  "sequence": 3,
+                  "at": 3206.399999976158
+                },
+                "expectedDOM": {
+                  "sequence": 8,
+                  "at": 3789.800000011921,
+                  "actionKind": "input"
+                }
+              }
+            },
+            "limitations": [
+              "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+            ]
+          },
+          "elapsedMs": 71.97123999999985
+        },
+        {
+          "phase": "controlled-late-only",
+          "kind": "input",
+          "projectID": "alpha",
+          "at": "2026-10-09T10:48:20.887Z",
+          "success": true,
+          "diagnostics": {
+            "version": 1,
+            "nodeStages": [
+              {
+                "stage": "action-start",
+                "offsetMs": 0.011086999999861291
+              },
+              {
+                "stage": "action-end",
+                "offsetMs": 30.87373800000023
+              },
+              {
+                "stage": "verify-start",
+                "offsetMs": 30.875210000000152
+              },
+              {
+                "stage": "verify-end",
+                "offsetMs": 36.69626799999969
+              },
+              {
+                "stage": "frames-start",
+                "offsetMs": 36.69748999999956
+              },
+              {
+                "stage": "frames-end",
+                "offsetMs": 66.7068849999996
+              }
+            ],
+            "nodeClockReads": 6,
+            "browserFrames": {
+              "requestedAt": 3853.5,
+              "firstFrameAt": 3864.699999988079,
+              "secondFrameAt": 3881,
+              "references": {
+                "timeOrigin": 1791542897071.5,
+                "input": {
+                  "sequence": 9,
+                  "at": 3827.699999988079
+                },
+                "pointer": {
+                  "sequence": 3,
+                  "at": 3206.399999976158
+                },
+                "expectedDOM": {
+                  "sequence": 12,
+                  "at": 3848.899999976158,
+                  "actionKind": "input"
+                }
+              }
+            },
+            "limitations": [
+              "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+            ]
+          },
+          "elapsedMs": 66.7214469999999
+        },
+        {
+          "phase": "controlled-late-only",
+          "kind": "draft-reset",
+          "projectID": "alpha",
+          "at": "2026-10-09T10:48:20.954Z",
+          "success": true,
+          "diagnostics": {
+            "version": 1,
+            "nodeStages": [
+              {
+                "stage": "action-start",
+                "offsetMs": 0.012259000000085507
+              },
+              {
+                "stage": "action-end",
+                "offsetMs": 304.3164280000001
+              },
+              {
+                "stage": "verify-start",
+                "offsetMs": 304.31797000000006
+              },
+              {
+                "stage": "verify-end",
+                "offsetMs": 311.00467800000024
+              },
+              {
+                "stage": "frames-start",
+                "offsetMs": 311.00616100000025
+              },
+              {
+                "stage": "frames-end",
+                "offsetMs": 333.4728519999999
+              }
+            ],
+            "nodeClockReads": 6,
+            "browserFrames": {
+              "requestedAt": 4197,
+              "firstFrameAt": 4199.099999964237,
+              "secondFrameAt": 4215,
+              "references": {
+                "timeOrigin": 1791542897071.5,
+                "input": {
+                  "sequence": 9,
+                  "at": 3827.699999988079
+                },
+                "pointer": {
+                  "sequence": 15,
+                  "at": 4140.099999964237
+                },
+                "expectedDOM": {
+                  "sequence": 12,
+                  "at": 3848.899999976158,
+                  "actionKind": "input"
+                }
+              }
+            },
+            "limitations": [
+              "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+            ]
+          },
+          "elapsedMs": 333.5730430000003
+        }
+      ],
+      "latency": {
+        "version": 1,
+        "timeOrigin": 1791542897071.5,
+        "rows": [
+          {
+            "sequence": 1,
+            "kind": "pointer-dispatch",
+            "at": 2895.899999976158
+          },
+          {
+            "sequence": 2,
+            "kind": "pointer-dispatch",
+            "at": 3104.800000011921
+          },
+          {
+            "sequence": 3,
+            "kind": "pointer-dispatch",
+            "at": 3206.399999976158
+          },
+          {
+            "sequence": 4,
+            "kind": "expected-dom",
+            "actionKind": "project-switch",
+            "at": 3680.899999976158,
+            "input": null,
+            "pointer": {
+              "sequence": 3,
+              "at": 3206.399999976158
+            }
+          },
+          {
+            "sequence": 5,
+            "kind": "input-dispatch",
+            "at": 3756.099999964237
+          },
+          {
+            "sequence": 6,
+            "kind": "input-frame-1",
+            "inputSequence": 5,
+            "at": 3782
+          },
+          {
+            "sequence": 7,
+            "kind": "input-frame-2",
+            "inputSequence": 5,
+            "at": 3784.300000011921
+          },
+          {
+            "sequence": 8,
+            "kind": "expected-dom",
+            "actionKind": "input",
+            "at": 3789.800000011921,
+            "input": {
+              "sequence": 5,
+              "at": 3756.099999964237
+            },
+            "pointer": {
+              "sequence": 3,
+              "at": 3206.399999976158
+            }
+          },
+          {
+            "sequence": 9,
+            "kind": "input-dispatch",
+            "at": 3827.699999988079
+          },
+          {
+            "sequence": 10,
+            "kind": "input-frame-1",
+            "inputSequence": 9,
+            "at": 3841.199999988079
+          },
+          {
+            "sequence": 11,
+            "kind": "input-frame-2",
+            "inputSequence": 9,
+            "at": 3847.699999988079
+          },
+          {
+            "sequence": 12,
+            "kind": "expected-dom",
+            "actionKind": "input",
+            "at": 3848.899999976158,
+            "input": {
+              "sequence": 9,
+              "at": 3827.699999988079
+            },
+            "pointer": {
+              "sequence": 3,
+              "at": 3206.399999976158
+            }
+          },
+          {
+            "sequence": 13,
+            "kind": "pointer-dispatch",
+            "at": 3922.199999988079
+          },
+          {
+            "sequence": 14,
+            "kind": "pointer-dispatch",
+            "at": 4023.399999976158
+          },
+          {
+            "sequence": 15,
+            "kind": "pointer-dispatch",
+            "at": 4140.099999964237
+          }
+        ],
+        "observed": 15,
+        "dropped": 0,
+        "overflow": false,
+        "resourceUnsupported": false,
+        "callbacks": 194,
+        "callbackMs": 29.09999942779541,
+        "visibility": "visible"
+      },
+      "observation": null
+    },
+    {
+      "enabled": true,
+      "interactions": [
+        {
+          "phase": "controlled-with-witness",
+          "kind": "project-switch",
+          "projectID": "alpha",
+          "at": "2026-10-09T10:48:23.457Z",
+          "success": true,
+          "diagnostics": {
+            "version": 1,
+            "nodeStages": [
+              {
+                "stage": "action-start",
+                "offsetMs": 0.012067999999999302
+              },
+              {
+                "stage": "all-projects-click-end",
+                "offsetMs": 84.49635200000012
+              },
+              {
+                "stage": "overview-heading-ready",
+                "offsetMs": 91.10127199999988
+              },
+              {
+                "stage": "open-project-click-end",
+                "offsetMs": 328.8800540000011
+              },
+              {
+                "stage": "action-end",
+                "offsetMs": 328.9544470000001
+              },
+              {
+                "stage": "verify-start",
+                "offsetMs": 328.9551279999996
+              },
+              {
+                "stage": "verify-end",
+                "offsetMs": 834.294401000001
+              },
+              {
+                "stage": "frames-start",
+                "offsetMs": 834.2957330000008
+              },
+              {
+                "stage": "frames-end",
+                "offsetMs": 883.0493180000012
+              }
+            ],
+            "nodeClockReads": 9,
+            "browserFrames": {
+              "requestedAt": 2670.2000000476837,
+              "firstFrameAt": 2679.900000035763,
+              "secondFrameAt": 2710.100000023842,
+              "references": {
+                "timeOrigin": 1791542901624.1,
+                "input": null,
+                "pointer": {
+                  "sequence": 3,
+                  "at": 1970.1000000238419
+                },
+                "expectedDOM": {
+                  "sequence": 4,
+                  "at": 2653.100000023842,
+                  "actionKind": "project-switch"
+                }
+              }
+            },
+            "limitations": [
+              "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+            ]
+          },
+          "elapsedMs": 883.1964900000003
+        },
+        {
+          "phase": "controlled-with-witness",
+          "kind": "input",
+          "projectID": "alpha",
+          "at": "2026-10-09T10:48:24.393Z",
+          "success": true,
+          "diagnostics": {
+            "version": 1,
+            "nodeStages": [
+              {
+                "stage": "action-start",
+                "offsetMs": 0.01823799999874609
+              },
+              {
+                "stage": "action-end",
+                "offsetMs": 71.4499739999992
+              },
+              {
+                "stage": "verify-start",
+                "offsetMs": 71.45159599999897
+              },
+              {
+                "stage": "verify-end",
+                "offsetMs": 78.72333599999911
+              },
+              {
+                "stage": "frames-start",
+                "offsetMs": 78.72535900000003
+              },
+              {
+                "stage": "frames-end",
+                "offsetMs": 111.21961999999985
+              }
+            ],
+            "nodeClockReads": 6,
+            "browserFrames": {
+              "requestedAt": 2849.900000035763,
+              "firstFrameAt": 2861.800000011921,
+              "secondFrameAt": 2878.7000000476837,
+              "references": {
+                "timeOrigin": 1791542901624.1,
+                "input": {
+                  "sequence": 5,
+                  "at": 2787.400000035763
+                },
+                "pointer": {
+                  "sequence": 3,
+                  "at": 1970.1000000238419
+                },
+                "expectedDOM": {
+                  "sequence": 8,
+                  "at": 2845,
+                  "actionKind": "input"
+                }
+              }
+            },
+            "limitations": [
+              "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+            ]
+          },
+          "elapsedMs": 111.23283900000024
+        },
+        {
+          "phase": "controlled-with-witness",
+          "kind": "input",
+          "projectID": "alpha",
+          "at": "2026-10-09T10:48:24.505Z",
+          "success": true,
+          "diagnostics": {
+            "version": 1,
+            "nodeStages": [
+              {
+                "stage": "action-start",
+                "offsetMs": 0.013139999999111751
+              },
+              {
+                "stage": "action-end",
+                "offsetMs": 47.39932500000032
+              },
+              {
+                "stage": "verify-start",
+                "offsetMs": 47.40068699999938
+              },
+              {
+                "stage": "verify-end",
+                "offsetMs": 63.54571600000054
+              },
+              {
+                "stage": "frames-start",
+                "offsetMs": 63.54739799999879
+              },
+              {
+                "stage": "frames-end",
+                "offsetMs": 101.064574
+              }
+            ],
+            "nodeClockReads": 6,
+            "browserFrames": {
+              "requestedAt": 2949.7000000476837,
+              "firstFrameAt": 2966.400000035763,
+              "secondFrameAt": 2978.900000035763,
+              "references": {
+                "timeOrigin": 1791542901624.1,
+                "input": {
+                  "sequence": 9,
+                  "at": 2903.800000011921
+                },
+                "pointer": {
+                  "sequence": 3,
+                  "at": 1970.1000000238419
+                },
+                "expectedDOM": {
+                  "sequence": 12,
+                  "at": 2935.7000000476837,
+                  "actionKind": "input"
+                }
+              }
+            },
+            "limitations": [
+              "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+            ]
+          },
+          "elapsedMs": 101.08234999999877
+        },
+        {
+          "phase": "controlled-with-witness",
+          "kind": "draft-reset",
+          "projectID": "alpha",
+          "at": "2026-10-09T10:48:24.606Z",
+          "success": true,
+          "diagnostics": {
+            "version": 1,
+            "nodeStages": [
+              {
+                "stage": "action-start",
+                "offsetMs": 0.01917899999898509
+              },
+              {
+                "stage": "action-end",
+                "offsetMs": 380.1391160000003
+              },
+              {
+                "stage": "verify-start",
+                "offsetMs": 380.14053799999965
+              },
+              {
+                "stage": "verify-end",
+                "offsetMs": 397.77521700000034
+              },
+              {
+                "stage": "frames-start",
+                "offsetMs": 397.77778099999887
+              },
+              {
+                "stage": "frames-end",
+                "offsetMs": 431.66002800000024
+              }
+            ],
+            "nodeClockReads": 6,
+            "browserFrames": {
+              "requestedAt": 3381.400000035763,
+              "firstFrameAt": 3398,
+              "secondFrameAt": 3412.100000023842,
+              "references": {
+                "timeOrigin": 1791542901624.1,
+                "input": {
+                  "sequence": 9,
+                  "at": 2903.800000011921
+                },
+                "pointer": {
+                  "sequence": 15,
+                  "at": 3328.900000035763
+                },
+                "expectedDOM": {
+                  "sequence": 12,
+                  "at": 2935.7000000476837,
+                  "actionKind": "input"
+                }
+              }
+            },
+            "limitations": [
+              "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+            ]
+          },
+          "elapsedMs": 431.6735179999996
+        }
+      ],
+      "latency": {
+        "version": 1,
+        "timeOrigin": 1791542901624.1,
+        "rows": [
+          {
+            "sequence": 1,
+            "kind": "pointer-dispatch",
+            "at": 1688.2000000476837
+          },
+          {
+            "sequence": 2,
+            "kind": "pointer-dispatch",
+            "at": 1867.9000000357628
+          },
+          {
+            "sequence": 3,
+            "kind": "pointer-dispatch",
+            "at": 1970.1000000238419
+          },
+          {
+            "sequence": 4,
+            "kind": "expected-dom",
+            "actionKind": "project-switch",
+            "at": 2653.100000023842,
+            "input": null,
+            "pointer": {
+              "sequence": 3,
+              "at": 1970.1000000238419
+            }
+          },
+          {
+            "sequence": 5,
+            "kind": "input-dispatch",
+            "at": 2787.400000035763
+          },
+          {
+            "sequence": 6,
+            "kind": "input-frame-1",
+            "inputSequence": 5,
+            "at": 2829.800000011921
+          },
+          {
+            "sequence": 7,
+            "kind": "input-frame-2",
+            "inputSequence": 5,
+            "at": 2836.400000035763
+          },
+          {
+            "sequence": 8,
+            "kind": "expected-dom",
+            "actionKind": "input",
+            "at": 2845,
+            "input": {
+              "sequence": 5,
+              "at": 2787.400000035763
+            },
+            "pointer": {
+              "sequence": 3,
+              "at": 1970.1000000238419
+            }
+          },
+          {
+            "sequence": 9,
+            "kind": "input-dispatch",
+            "at": 2903.800000011921
+          },
+          {
+            "sequence": 10,
+            "kind": "input-frame-1",
+            "inputSequence": 9,
+            "at": 2917.900000035763
+          },
+          {
+            "sequence": 11,
+            "kind": "input-frame-2",
+            "inputSequence": 9,
+            "at": 2928.600000023842
+          },
+          {
+            "sequence": 12,
+            "kind": "expected-dom",
+            "actionKind": "input",
+            "at": 2935.7000000476837,
+            "input": {
+              "sequence": 9,
+              "at": 2903.800000011921
+            },
+            "pointer": {
+              "sequence": 3,
+              "at": 1970.1000000238419
+            }
+          },
+          {
+            "sequence": 13,
+            "kind": "pointer-dispatch",
+            "at": 3027.400000035763
+          },
+          {
+            "sequence": 14,
+            "kind": "pointer-dispatch",
+            "at": 3205.2000000476837
+          },
+          {
+            "sequence": 15,
+            "kind": "pointer-dispatch",
+            "at": 3328.900000035763
+          }
+        ],
+        "observed": 15,
+        "dropped": 0,
+        "overflow": false,
+        "resourceUnsupported": false,
+        "callbacks": 152,
+        "callbackMs": 45.39999961853027,
+        "visibility": "visible"
+      },
+      "observation": {
+        "version": 1,
+        "timeOrigin": 1791542901624.1,
+        "authorityGeneration": 1,
+        "limits": {
+          "stages": 200,
+          "samplesPerStage": 180,
+          "stageMs": 3000,
+          "totalSamples": 36000,
+          "nodesPerSample": 512,
+          "controlsPerSample": 32,
+          "ancestors": 32,
+          "rows": 1000,
+          "bytes": 524288
+        },
+        "closed": true,
+        "round": 1,
+        "stages": 2,
+        "totalSamples": 5,
+        "sequence": 3,
+        "bytes": 906,
+        "overflow": false,
+        "lateCallbacks": 0,
+        "activeGeneration": null,
+        "rows": [
+          {
+            "sequence": 1,
+            "at": 1897.9000000357628,
+            "authorityGeneration": 1,
+            "generation": 1,
+            "round": 0,
+            "projectOrdinal": 0,
+            "stage": "home",
+            "status": "ready",
+            "reason": "predicate-observed",
+            "clickAt": 1868.800000011921,
+            "observedAt": 1897.1000000238419,
+            "samples": 2,
+            "firstSampleAt": 1869.300000011921,
+            "lastSampleAt": 1897.1000000238419,
+            "maxSampleGapMs": 27.80000001192093,
+            "maxNodesVisited": 159,
+            "maxControlsVisited": 27
+          },
+          {
+            "sequence": 2,
+            "at": 2024.1000000238419,
+            "authorityGeneration": 1,
+            "generation": 2,
+            "round": 0,
+            "projectOrdinal": 0,
+            "stage": "define",
+            "status": "ready",
+            "reason": "predicate-observed",
+            "clickAt": 1971.300000011921,
+            "observedAt": 2023.5,
+            "samples": 3,
+            "firstSampleAt": 1971.4000000357628,
+            "lastSampleAt": 2023.5,
+            "maxSampleGapMs": 31.599999964237213,
+            "maxNodesVisited": 158,
+            "maxControlsVisited": 27
+          },
+          {
+            "sequence": 3,
+            "at": 3421,
+            "authorityGeneration": 1,
+            "generation": 3,
+            "round": 1,
+            "projectOrdinal": null,
+            "stage": null,
+            "status": "closed",
+            "reason": "cohort-end"
+          }
+        ]
+      }
+    }
+  ],
+  "sourceAfter": {
+    "desktop/src/components/AppShell.tsx": "b3aaf4ce4302109c2c10b023ecbff249b96655955f4d29bf0bb4834b4fc8fcd4",
+    "desktop/src/components/rail/Rail.tsx": "8fb76ca0162eebfe29c3b589b07f5c6e19db8fe55f508a96354f37a79ea6b6e8",
+    "desktop/src/components/rail/ProjectRow.tsx": "71dcaf85dfddb4feff179cd1c3f53cd80d647a472fdbc00952395358674257f9",
+    "desktop/src/components/projects/ProjectOverviewBoard.tsx": "380db2996d677f099da77e2702fabfe5391e4dd226404513db1e58546a59b48f",
+    "desktop/src/components/definition/DefinitionWorkspace.tsx": "fe63aa3dcda3c5896ab13140ff2db74c492eda0e068a415cc560b7ec7777cfc7",
+    "desktop/src/store/slices/uiSlice.ts": "4da15890388c23ac657ffe99311b5a1155001b78400f1b40846061372f1a5b0b"
+  },
+  "sourceUnchanged": true
+}

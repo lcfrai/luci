@@ -1,0 +1,13 @@
+{
+  "observedAt": "2026-10-09T11:34:04.468220+00:00",
+  "scope": "Independent read-only hash of the exact legacy archive referenced by retained original d20 provenance, before parent replaces the release directory. No archive/provenance rewrite or extraction.",
+  "productSource": "d20ebd292f3f1de04d6726bab0998c210987bcb5",
+  "provenanceSHA256": "7819fdfa0d7a3c5c938b0e94a6d0351c02717fa31f0877b759d5defa33399450",
+  "archiveName": "luci-linux-amd64.tar.gz",
+  "archiveBytes": 69055452,
+  "archiveSHA256": "5e4e0a2a380268f0d17cbbf2cf7cfb41f5aa64abc8f454864fdb7eb0bdb6400c",
+  "expectedArchiveSHA256": "5e4e0a2a380268f0d17cbbf2cf7cfb41f5aa64abc8f454864fdb7eb0bdb6400c",
+  "matches": true,
+  "sameFileMetadataBeforeAfter": true,
+  "originalProvenanceUnchanged": true
+}

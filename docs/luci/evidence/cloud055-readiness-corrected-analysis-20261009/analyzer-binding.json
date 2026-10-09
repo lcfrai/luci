@@ -1,0 +1,6 @@
+{
+  "scope": "Immutable v1 algorithm reused; only frozen accepted-helper validation directory explicitly rebound to sealed v2. No projection/join/metric/threshold logic changed.",
+  "beforeSHA256": "7e09d95b0eac506c21b8169ef020adc97ae9a62a9577d13d0a310b0e35153f1d",
+  "afterSHA256": "6af3feceb97fd579aad6f51fe7667e1949f09bab75a3a06f5f3b5ee2c8625f1b",
+  "frozenV2ManifestSHA256": "789ecae04845d42c32378143e3013fac778d3d91c963899c2219e60cc656c9e0"
+}

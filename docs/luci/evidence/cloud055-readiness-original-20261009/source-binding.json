@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "productSource": "d20ebd292f3f1de04d6726bab0998c210987bcb5",
+  "helperAtControlledValidation": "5f318d5178210e95cd2b773f07686d88936d603e",
+  "committedSourceTreesIdentical": {
+    "desktop": true,
+    "scripts/acceptance": true
+  },
+  "sourceContracts": {
+    "desktop/src/components/AppShell.tsx": {
+      "sha256": "b3aaf4ce4302109c2c10b023ecbff249b96655955f4d29bf0bb4834b4fc8fcd4",
+      "bytes": 6381
+    },
+    "desktop/src/components/definition/DefinitionWorkspace.tsx": {
+      "sha256": "fe63aa3dcda3c5896ab13140ff2db74c492eda0e068a415cc560b7ec7777cfc7",
+      "bytes": 31738
+    },
+    "desktop/src/components/fluid/components/tabs-subtle.tsx": {
+      "sha256": "fd19cb3679fb2d6eff2d9f94b4f4c8319a477d091b4d66a585d303d9799462c7",
+      "bytes": 18454
+    },
+    "desktop/src/components/journey/shared.tsx": {
+      "sha256": "7cc942f3bce282d9aeaf3e82b1173d6afe279e26deea1395d1aea816fcbe1fbd",
+      "bytes": 1149
+    },
+    "desktop/src/components/lens/DiscoverLens.tsx": {
+      "sha256": "5ffbc5f8e9411836118a4e7dbd12589e61e7dbb5ede9ed98cfb390a5d75e8436",
+      "bytes": 313
+    },
+    "desktop/src/components/orchestrator/fixtures.ts": {
+      "sha256": "9340eba210fa806a1511c5b99a03b08bb0ed9b15c342c01b69466e5bbbc78006",
+      "bytes": 3577
+    },
+    "desktop/src/components/projects/ProjectOverviewBoard.tsx": {
+      "sha256": "380db2996d677f099da77e2702fabfe5391e4dd226404513db1e58546a59b48f",
+      "bytes": 23198
+    },
+    "desktop/src/components/projects/ProjectsHome.tsx": {
+      "sha256": "ac22f3cf538ae28e231263aad85c4154c5acc4d4b3d2381d69c4603260669986",
+      "bytes": 5213
+    },
+    "desktop/src/components/rail/ProjectRow.tsx": {
+      "sha256": "71dcaf85dfddb4feff179cd1c3f53cd80d647a472fdbc00952395358674257f9",
+      "bytes": 3009
+    },
+    "desktop/src/components/rail/Rail.tsx": {
+      "sha256": "8fb76ca0162eebfe29c3b589b07f5c6e19db8fe55f508a96354f37a79ea6b6e8",
+      "bytes": 8508
+    },
+    "desktop/src/store/slices/uiSlice.ts": {
+      "sha256": "4da15890388c23ac657ffe99311b5a1155001b78400f1b40846061372f1a5b0b",
+      "bytes": 17032
+    },
+    "desktop/src/styles/app.css": {
+      "sha256": "0b672e16997fbb7e2efec0cd1011fb08cbdcb3987169cedd7e86512e9c7329c0",
+      "bytes": 2301
+    },
+    "desktop/src/test/fixtures.ts": {
+      "sha256": "5f8a1d84422914e034dcfe16958a6aaf3abf79b202698b5a180dae5f2c35fa84",
+      "bytes": 5391
+    }
+  },
+  "observerSHA256": "fca427906b3a3d580b3280548ae931fe1fb55b4041c73ef1810b1354c2d61209",
+  "ledgerSHA256": "0a6db6505273c685d1281d039fd50f05c42e44d5312309ac4267f57ae05fd1ff",
+  "validationScope": "Actual styled source components with synthetic API/provider fixture, no installed app/backend/worker/provider/performance run. Source unchanged in final browser receipts; root independently owns documentation publication and subsequent product edits."
+}

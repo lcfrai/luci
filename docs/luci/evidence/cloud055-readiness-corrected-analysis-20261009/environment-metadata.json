@@ -1,0 +1,15 @@
+{
+  "receiptSHA256": "bf5b146bb0fe5174459b5e478e5e6a3619f0b2d6fbe031483228ca2127e223cd",
+  "receiptBytes": 2362,
+  "beforeAvailableBytes": {
+    "/": 6083358720,
+    "/tmp": 2085728256
+  },
+  "afterAvailableBytes": {
+    "/": 6703722496,
+    "/tmp": 1465307136
+  },
+  "preservedRegularBytes": 620087163,
+  "passed": true,
+  "scope": "Root-owned Rust relocation immediately before run: disk availability improved by consuming tmpfs/memory capacity. No whole-host capacity gain or matched performance comparison."
+}

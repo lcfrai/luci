@@ -1,0 +1,51 @@
+{
+  "preparedOnly": true,
+  "installedRuntimeExecuted": false,
+  "originalPrimaryModulesExact": true,
+  "originalRouteGuardExact": true,
+  "originalTargetsExact": true,
+  "changes": [
+    {
+      "label": "Add only passive diagnostic modules",
+      "oldSHA256": "fa67feca45d354db8c9a43ce9992b468dfaea809240cd103cbbca35623704bbe",
+      "newSHA256": "6c95255c8b38611ff349b4c1d03f6d63e41ace7275b1b023509272670d25dd07"
+    },
+    {
+      "label": "Independent diagnostic ledger",
+      "oldSHA256": "3e00326a2282af0d9139619a82de30430b06b9e0908d863ebfe1d7b36e0adc9c",
+      "newSHA256": "a722f5871cc533cf669a1e3c9d35041471909da3b6daffc01e7a3ad97f31c138"
+    },
+    {
+      "label": "Capture every executed diagnostic module",
+      "oldSHA256": "e4d8148b23e5f094ba0224d9c3cc7e02f115d7a728ca090e2945476d384bc5b0",
+      "newSHA256": "de2cce3df182cec1dd05ca8167a545cb7e7e9fa045804e0b39387af5867cd53c"
+    },
+    {
+      "label": "Drain after original round span, never inside an action",
+      "oldSHA256": "901a367ecfa8a177ec0a3bee11b0cfa10617ec7eba291e65c52ba8689c9b6208",
+      "newSHA256": "868ca69a984c691f164d71e1df1ce48b519a53b816c333671c7ae907b0dfca96"
+    },
+    {
+      "label": "Install after quiet and before primary phase start",
+      "oldSHA256": "e3397ebb2eab8e35f549d2a23cd78901891eb53b2584ebf84a2f72d2cc18f09e",
+      "newSHA256": "cfc22a3149f086ff4865747d2dc90445d9d40cb7805d4369a9c2dfd6c8f6b704"
+    },
+    {
+      "label": "Close outside primary phase and before separate trace",
+      "oldSHA256": "522b22cbf400aa43f3e5f92209ccfc1dbf837a55c44e760e9d02d1f857b6e9bb",
+      "newSHA256": "f6ce897a849328b0a97e11fe91d0141c4074d6ccbd1d93dd7f83af21ec13541f"
+    },
+    {
+      "label": "Owned bounded failure cleanup before browser closure",
+      "oldSHA256": "04f0808439b2e09e3a3b20d87553ea814f506e5e185a6a962a08d9089456dd6a",
+      "newSHA256": "f3582f76c965ab3c29320aceae8954b6a8e3f323b8d6edafd01a20347ab19fed"
+    },
+    {
+      "label": "Separate diagnostic identity",
+      "oldSHA256": "4a61d38f6a2d43e91cce81092b85ec0771b894f37b7bd41ac24a19ab224eab36",
+      "newSHA256": "f32e21c0bcc60164595f9d35c292bbfededfd1236700f020f40027f1cee0aac6"
+    }
+  ],
+  "prospectiveProduct": "d20ebd292f3f1de04d6726bab0998c210987bcb5",
+  "helperAtPreparation": "5f318d5178210e95cd2b773f07686d88936d603e"
+}

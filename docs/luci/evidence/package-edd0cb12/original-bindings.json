@@ -1,0 +1,185 @@
+{
+  "scope": "Byte-exact copied completed receipts/helpers and five immutable packaging sources. Publication does not hash private large archives or run build/verifiers/application.",
+  "files": [
+    {
+      "publishedPath": "receipts/build-invocation.json",
+      "originalPath": "/workspace/luci/artifacts/quality-swarm/candidate-edd0cb12/package/build-invocation.json",
+      "originalBytes": 420,
+      "originalSHA256": "7db07d6b745b5e00c2d5e7c75299eb5a810222008b9423318608ef03cd9af20a",
+      "publishedBytes": 420,
+      "publishedSHA256": "7db07d6b745b5e00c2d5e7c75299eb5a810222008b9423318608ef03cd9af20a",
+      "transformation": "none"
+    },
+    {
+      "publishedPath": "receipts/build-result.json",
+      "originalPath": "/workspace/luci/artifacts/quality-swarm/candidate-edd0cb12/package/build-result.json",
+      "originalBytes": 591,
+      "originalSHA256": "f85269fefb69db1d2f247b954ecd8af3517ac98ef834a6e7dc6d9a7862cb783a",
+      "publishedBytes": 591,
+      "publishedSHA256": "f85269fefb69db1d2f247b954ecd8af3517ac98ef834a6e7dc6d9a7862cb783a",
+      "transformation": "none"
+    },
+    {
+      "publishedPath": "receipts/build.log",
+      "originalPath": "/workspace/luci/artifacts/quality-swarm/candidate-edd0cb12/package/build.log",
+      "originalBytes": 18758,
+      "originalSHA256": "aa78e7577e8c88a0b5fde97d14f86504168ebf0040685e44cf63b810b3d4f7b0",
+      "publishedBytes": 18758,
+      "publishedSHA256": "aa78e7577e8c88a0b5fde97d14f86504168ebf0040685e44cf63b810b3d4f7b0",
+      "transformation": "none"
+    },
+    {
+      "publishedPath": "receipts/package-integrity.json",
+      "originalPath": "/workspace/luci/artifacts/quality-swarm/candidate-edd0cb12/package/package-integrity.json",
+      "originalBytes": 788,
+      "originalSHA256": "2785616aebd647f61084b074cf20d28a58c8983c63bd6e0f8cb49d8ab870b1db",
+      "publishedBytes": 788,
+      "publishedSHA256": "2785616aebd647f61084b074cf20d28a58c8983c63bd6e0f8cb49d8ab870b1db",
+      "transformation": "none"
+    },
+    {
+      "publishedPath": "receipts/package-provenance.json",
+      "originalPath": "/workspace/luci/artifacts/quality-swarm/candidate-edd0cb12/package/package-provenance.json",
+      "originalBytes": 1039,
+      "originalSHA256": "5ea084d505e292d418b7ab9b2d3fa97d83a0510158fbb3ef8ef66096603aa5f6",
+      "publishedBytes": 1039,
+      "publishedSHA256": "5ea084d505e292d418b7ab9b2d3fa97d83a0510158fbb3ef8ef66096603aa5f6",
+      "transformation": "none"
+    },
+    {
+      "publishedPath": "receipts/previous-release-preservation.json",
+      "originalPath": "/workspace/luci/artifacts/quality-swarm/candidate-edd0cb12/package/previous-release-preservation.json",
+      "originalBytes": 1284,
+      "originalSHA256": "536aa68ee1a8f1207df49fa5693a5b6bcd5a3941719fa330461911c6c5cfd828",
+      "publishedBytes": 1284,
+      "publishedSHA256": "536aa68ee1a8f1207df49fa5693a5b6bcd5a3941719fa330461911c6c5cfd828",
+      "transformation": "none"
+    },
+    {
+      "publishedPath": "receipts/compact-package-verification.json",
+      "originalPath": "/workspace/luci/artifacts/quality-swarm/candidate-edd0cb12/package/compact-package-verification.json",
+      "originalBytes": 1980,
+      "originalSHA256": "5a65d2e1656f95477b48432441c0e18a25c8bea39b63e84edc69bfe80220add8",
+      "publishedBytes": 1980,
+      "publishedSHA256": "5a65d2e1656f95477b48432441c0e18a25c8bea39b63e84edc69bfe80220add8",
+      "transformation": "none"
+    },
+    {
+      "publishedPath": "receipts/preflight-refusal.json",
+      "originalPath": "/workspace/.luci-tools/cloud054-build-preflight-recovery.json",
+      "originalBytes": 721,
+      "originalSHA256": "c1ef02ecc03ba89552dff77cd9334d073baa34b995e20f684552f495539f116e",
+      "publishedBytes": 721,
+      "publishedSHA256": "c1ef02ecc03ba89552dff77cd9334d073baa34b995e20f684552f495539f116e",
+      "transformation": "none"
+    },
+    {
+      "publishedPath": "receipts/new-archive-preservation.json",
+      "originalPath": "/workspace/.luci-tools/archive-preservation-edd0cb12.json",
+      "originalBytes": 1231,
+      "originalSHA256": "b002f7356a5bf439895a27408ace8288927c62222387fa0a567802193fcbd8b0",
+      "publishedBytes": 1231,
+      "publishedSHA256": "b002f7356a5bf439895a27408ace8288927c62222387fa0a567802193fcbd8b0",
+      "transformation": "none"
+    },
+    {
+      "publishedPath": "helpers/build-cloud054-candidate.py",
+      "originalPath": "/workspace/.luci-tools/build-cloud054-candidate.py",
+      "originalBytes": 3680,
+      "originalSHA256": "78b29fd8224ad004f90ef3998e7725e3442f78316000279a5725f9506e784182",
+      "publishedBytes": 3680,
+      "publishedSHA256": "78b29fd8224ad004f90ef3998e7725e3442f78316000279a5725f9506e784182",
+      "transformation": "none"
+    },
+    {
+      "publishedPath": "helpers/verify-local-package.py",
+      "originalPath": "/workspace/.luci-tools/verify-local-package.py",
+      "originalBytes": 2246,
+      "originalSHA256": "b7985ac8f7687a3da9e232a20319c49f900bd8c8015c4bdc41a005f467ed4a8c",
+      "publishedBytes": 2246,
+      "publishedSHA256": "b7985ac8f7687a3da9e232a20319c49f900bd8c8015c4bdc41a005f467ed4a8c",
+      "transformation": "none"
+    },
+    {
+      "publishedPath": "helpers/verify-compact-local-package.py",
+      "originalPath": "/workspace/.luci-tools/verify-compact-local-package.py",
+      "originalBytes": 16170,
+      "originalSHA256": "71336af992d082854d4e87062a6996400ef3f8a51ba1abb0780fc88f9c40e6bc",
+      "publishedBytes": 16170,
+      "publishedSHA256": "71336af992d082854d4e87062a6996400ef3f8a51ba1abb0780fc88f9c40e6bc",
+      "transformation": "none"
+    },
+    {
+      "publishedPath": "helpers/assemble.py",
+      "originalPath": "/workspace/.luci-tools/publish-package-edd0cb12/assemble.py",
+      "originalBytes": 16363,
+      "originalSHA256": "3c72e018bc93867a74c73af37f89c19ef28dcbba187bea144ff48653cfb3c4e3",
+      "publishedBytes": 16363,
+      "publishedSHA256": "3c72e018bc93867a74c73af37f89c19ef28dcbba187bea144ff48653cfb3c4e3",
+      "transformation": "none"
+    },
+    {
+      "publishedPath": "release/release-manifest.json",
+      "originalPath": "/workspace/luci/artifacts/releases/0.5.0/release-manifest.json",
+      "originalBytes": 696,
+      "originalSHA256": "d4c3122beb8a3892295313d1179b26b7c1018d120fb167e4827f2aade6bd08a6",
+      "publishedBytes": 696,
+      "publishedSHA256": "d4c3122beb8a3892295313d1179b26b7c1018d120fb167e4827f2aade6bd08a6",
+      "transformation": "none"
+    },
+    {
+      "publishedPath": "release/SHA256SUMS",
+      "originalPath": "/workspace/luci/artifacts/releases/0.5.0/SHA256SUMS",
+      "originalBytes": 186,
+      "originalSHA256": "fe691107bc6c1751481c883998ba9445c4b8019b741c95750148b1c9571a30ce",
+      "publishedBytes": 186,
+      "publishedSHA256": "fe691107bc6c1751481c883998ba9445c4b8019b741c95750148b1c9571a30ce",
+      "transformation": "none"
+    },
+    {
+      "publishedPath": "source/scripts/build-release.sh",
+      "originalPath": "git:edd0cb121ff6847f681ab6bf41509a497f043d41:scripts/build-release.sh",
+      "originalBytes": 6029,
+      "originalSHA256": "20c6cb96e475066d5fb9a8ac934eb1262c3f324e4ac78ccda42fbd137d9e080d",
+      "publishedBytes": 6029,
+      "publishedSHA256": "20c6cb96e475066d5fb9a8ac934eb1262c3f324e4ac78ccda42fbd137d9e080d",
+      "transformation": "none"
+    },
+    {
+      "publishedPath": "source/scripts/stage-release-docs.py",
+      "originalPath": "git:edd0cb121ff6847f681ab6bf41509a497f043d41:scripts/stage-release-docs.py",
+      "originalBytes": 20959,
+      "originalSHA256": "cd520022c86ff25695faaaeed5aad512147b91f37342963e1cea2cc3252b8e26",
+      "publishedBytes": 20959,
+      "publishedSHA256": "cd520022c86ff25695faaaeed5aad512147b91f37342963e1cea2cc3252b8e26",
+      "transformation": "none"
+    },
+    {
+      "publishedPath": "source/scripts/package.py",
+      "originalPath": "git:edd0cb121ff6847f681ab6bf41509a497f043d41:scripts/package.py",
+      "originalBytes": 2649,
+      "originalSHA256": "9c3785eea32c597947395968a41f59ed973b05c0b955fea1067d3c0315fea9e5",
+      "publishedBytes": 2649,
+      "publishedSHA256": "9c3785eea32c597947395968a41f59ed973b05c0b955fea1067d3c0315fea9e5",
+      "transformation": "none"
+    },
+    {
+      "publishedPath": "source/scripts/collect-licenses.py",
+      "originalPath": "git:edd0cb121ff6847f681ab6bf41509a497f043d41:scripts/collect-licenses.py",
+      "originalBytes": 14817,
+      "originalSHA256": "4a07489e31c417f8072cd94a3b1b596137a1faa78403311b74c48990c53110be",
+      "publishedBytes": 14817,
+      "publishedSHA256": "4a07489e31c417f8072cd94a3b1b596137a1faa78403311b74c48990c53110be",
+      "transformation": "none"
+    },
+    {
+      "publishedPath": "source/scripts/launch-unix.sh",
+      "originalPath": "git:edd0cb121ff6847f681ab6bf41509a497f043d41:scripts/launch-unix.sh",
+      "originalBytes": 5579,
+      "originalSHA256": "e73094527f35dce3d10fe9fb72ea321df8e8890aaabb175c0816f292bdf32e53",
+      "publishedBytes": 5579,
+      "publishedSHA256": "e73094527f35dce3d10fe9fb72ea321df8e8890aaabb175c0816f292bdf32e53",
+      "transformation": "none"
+    }
+  ]
+}

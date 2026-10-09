@@ -1,0 +1,51 @@
+{
+  "status": "passed",
+  "at": "2026-10-09T11:38:36.499045+00:00",
+  "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "sourceDirty": false,
+  "packageDir": "/tmp/luci-retained-tools/package-0.5.0-edd0cb12",
+  "originalProvenanceSHA256": "5ea084d505e292d418b7ab9b2d3fa97d83a0510158fbb3ef8ef66096603aa5f6",
+  "releaseManifestSHA256": "d4c3122beb8a3892295313d1179b26b7c1018d120fb167e4827f2aade6bd08a6",
+  "packageIdentity": "999f81b307be32d61d92736f25df4115dc6e974b8c758124df04c613d5d74baa",
+  "artifacts": [
+    {
+      "name": "luci-cloud-linux-amd64.tar.gz",
+      "bytes": 34628069,
+      "sha256": "9b0bf0d02caa354c663fb3729039aeadbf1ef55e887be224cdcd575d4c1b22ea"
+    },
+    {
+      "name": "luci-linux-amd64.tar.gz",
+      "bytes": 69065419,
+      "sha256": "477d48fb6e6ce58f0acb801fbf6ba9046e8721a1f6fff9c1b5bc20a40b80d2c8"
+    }
+  ],
+  "verifiedPackageFiles": 957,
+  "verifiedCloudFiles": 956,
+  "verifiedRuntimeSourceFiles": 104,
+  "verifiedGuideFiles": 48,
+  "unchangedNonMarkdownGuides": 2,
+  "newHostedURLsBoundToExactGitObjects": 263,
+  "licenseComponents": 347,
+  "stagingHelperSHA256": "cd520022c86ff25695faaaeed5aad512147b91f37342963e1cea2cc3252b8e26",
+  "stagingResult": {
+    "compact": true,
+    "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+    "officialSourceAssociation": {
+      "repository": "https://github.com/lcfrai/luci",
+      "trackingCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41"
+    },
+    "retainedReason": null,
+    "files": 48,
+    "rewrittenLinks": 262
+  },
+  "stagingReproduction": "same committed implementation; not independent Markdown rewrite proof",
+  "independentChecks": [
+    "Git guide/runtime file inventories",
+    "unchanged non-Markdown guide/licence bytes",
+    "new hosted URL commit/object/type",
+    "licence manifest/file hashes",
+    "full archive/extraction and embedded cloud equality including file modes"
+  ],
+  "ownedTemporaryStageRemoved": true,
+  "originalProvenanceUnchanged": true
+}

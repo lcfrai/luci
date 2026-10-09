@@ -1,0 +1,39 @@
+{
+  "commands": [
+    {
+      "command": [
+        "node",
+        "--check",
+        "actual/sustained.mjs"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "actual/autonomous-readiness.mjs"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "actual/readiness-ledger.mjs"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "pythonCompileOnly": [
+    "launch.py",
+    "prepare.py"
+  ],
+  "installedRuntimeExecuted": false
+}

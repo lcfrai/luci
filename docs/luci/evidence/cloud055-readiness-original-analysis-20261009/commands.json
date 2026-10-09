@@ -1,0 +1,61 @@
+{
+  "scope": "Tool-reported completed commands; no installed app launched by this analysis.",
+  "commands": [
+    {
+      "argv": [
+        "python3",
+        "analyze.py",
+        "<retained-run>/driver/result.json",
+        "actual-attempt1"
+      ],
+      "exitCode": 0,
+      "rows": 432,
+      "joinedDefine": 0,
+      "issues": 0,
+      "originalUnchanged": true
+    },
+    {
+      "argv": [
+        "python3",
+        "test_analyze.py"
+      ],
+      "exitCode": 0,
+      "tests": 6,
+      "stdout": "tests.stdout",
+      "stderr": "tests.stderr"
+    },
+    {
+      "argv": [
+        "python3",
+        "analyze.py",
+        "<retained-run>/driver/result.json",
+        "actual-attempt2"
+      ],
+      "exitCode": 0,
+      "rows": 432,
+      "joinedDefine": 0,
+      "joinedHome": 100,
+      "issues": 0,
+      "originalUnchanged": true
+    },
+    {
+      "argv": [
+        "python3",
+        "closure.py",
+        "<retained-run>",
+        "independent-closure.json"
+      ],
+      "exitCode": 0,
+      "exactDriverControllerAbsent": true,
+      "containers": 0,
+      "volumes": 0,
+      "imageAndEngineMatch": true,
+      "originalsStable": true
+    }
+  ],
+  "sourceSHA256": {
+    "analyze.py": "7e09d95b0eac506c21b8169ef020adc97ae9a62a9577d13d0a310b0e35153f1d",
+    "test_analyze.py": "234f2491c0af095a2b147a201bc7fe08740015fdcd4b33dfdb1a7a6c5394032b",
+    "closure.py": "4f2bdbdedd79ccc6af5ac7da93c06de5ab6c90da005f1e0d1c23de0bbe51db53"
+  }
+}

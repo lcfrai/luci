@@ -1,0 +1,19 @@
+{
+  "command": [
+    "node",
+    "/workspace/.luci-tools/cloud032-autonomous-readiness-v1-20261009/controlled/browser-lifecycle.mjs",
+    "/workspace/.luci-tools/cloud032-autonomous-readiness-v1-20261009/receipts/controlled-lifecycle-attempt1/browser"
+  ],
+  "sourceSHA256": {
+    "observer/autonomous-readiness.mjs": "ce9c7fed0500bebeef86c69148cb3e470c65d1aa2ef8271a10424db9295ccc4a",
+    "observer/readiness-ledger.mjs": "a4d0a192c78aad3a7a288efd8638f4075825191968b583c7e912928bcb747906",
+    "controlled/browser-lifecycle.mjs": "18bcc6e0be7507513f7ebb0fa10f4b3da0da8d4820cee57ec44ee627139dc285",
+    "controlled/browser.mjs": "10a1fc74f5d9adddbec9cd8c5fa39ce310777f4205ae933b8322be211d82e3c7",
+    "controlled/fixture.tsx": "53802b7348e7becd2aa25d1ef8718795a67b6969857400dffc8ebc28714938e6",
+    "controlled/run.py": "5de8cccf87f65fe5cafb92fb1ffc10b1b9ab34f091a3e25d631cab134cecc125"
+  },
+  "startedAt": "2026-10-09T10:51:45.830842+00:00",
+  "exitCode": 1,
+  "endedAt": "2026-10-09T10:52:04.703930+00:00",
+  "unchanged": true
+}

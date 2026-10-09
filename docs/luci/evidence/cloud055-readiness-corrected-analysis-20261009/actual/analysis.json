@@ -1,0 +1,538 @@
+{
+  "allOriginalRows": 432,
+  "expectedRows": 432,
+  "actualPhaseCounts": {
+    "idle-interactive-calibration": 400,
+    "idle-actionability-trace-followup": 32
+  },
+  "cohorts": {
+    "idle-interactive-calibration:project-switch": {
+      "count": 100,
+      "p50Ms": 253.97242400000687,
+      "p95Ms": 522.3809689999907,
+      "p99Ms": 654.2845910000033,
+      "maxMs": 879.571272000001,
+      "rows": 100,
+      "successful": 100,
+      "failed": 0
+    },
+    "idle-interactive-calibration:input": {
+      "count": 200,
+      "p50Ms": 50.5327399999951,
+      "p95Ms": 110.08748899999773,
+      "p99Ms": 273.642789000005,
+      "maxMs": 315.2651880000194,
+      "rows": 200,
+      "successful": 200,
+      "failed": 0
+    },
+    "idle-interactive-calibration:draft-reset": {
+      "count": 100,
+      "p50Ms": 282.4241789999942,
+      "p95Ms": 668.0500179999945,
+      "p99Ms": 724.9661650000053,
+      "maxMs": 767.8564520000073,
+      "rows": 100,
+      "successful": 100,
+      "failed": 0
+    },
+    "idle-actionability-trace-followup:project-switch": {
+      "count": 8,
+      "p50Ms": 239.5395140000037,
+      "p95Ms": 512.6453540000075,
+      "p99Ms": 512.6453540000075,
+      "maxMs": 512.6453540000075,
+      "rows": 8,
+      "successful": 8,
+      "failed": 0
+    },
+    "idle-actionability-trace-followup:input": {
+      "count": 16,
+      "p50Ms": 49.688770000007935,
+      "p95Ms": 71.11841900000582,
+      "p99Ms": 71.11841900000582,
+      "maxMs": 71.11841900000582,
+      "rows": 16,
+      "successful": 16,
+      "failed": 0
+    },
+    "idle-actionability-trace-followup:draft-reset": {
+      "count": 8,
+      "p50Ms": 267.0663899999927,
+      "p95Ms": 299.0439030000125,
+      "p99Ms": 299.0439030000125,
+      "maxMs": 299.0439030000125,
+      "rows": 8,
+      "successful": 8,
+      "failed": 0
+    }
+  },
+  "originalTargets": {
+    "project-switch": {
+      "p95LimitMs": 300,
+      "p99StrictlyBelowMs": 1000,
+      "withinOriginalReference": false,
+      "expectedCount": 100,
+      "actualCount": 100,
+      "allSuccessful": true
+    },
+    "input": {
+      "p95LimitMs": 100,
+      "p99StrictlyBelowMs": 1000,
+      "withinOriginalReference": false,
+      "expectedCount": 200,
+      "actualCount": 200,
+      "allSuccessful": true
+    }
+  },
+  "observerStatus": "closed",
+  "observerLastCumulativeSnapshot": {
+    "timeOrigin": 1791545411193.1,
+    "authorityGeneration": 1,
+    "round": 100,
+    "stages": 200,
+    "totalSamples": 605,
+    "sequence": 201,
+    "bytes": 76215,
+    "overflow": false,
+    "lateCallbacks": 0,
+    "activeGeneration": null,
+    "closed": true
+  },
+  "observerStreamValid": true,
+  "observerRows": 201,
+  "stageCounts": [
+    {
+      "stage": "define",
+      "status": "ready",
+      "reason": "predicate-observed",
+      "count": 100
+    },
+    {
+      "stage": "home",
+      "status": "ready",
+      "reason": "predicate-observed",
+      "count": 100
+    }
+  ],
+  "stageCompleteness": {
+    "home": {
+      "expected": 100,
+      "missing": 0,
+      "ambiguous": 0
+    },
+    "define": {
+      "expected": 100,
+      "missing": 0,
+      "ambiguous": 0
+    }
+  },
+  "joinedSwitches": 100,
+  "unavailableSwitches": 0,
+  "signedObservedToDriverMs": {
+    "count": 100,
+    "p50Ms": 31.299999952316284,
+    "p95Ms": 62.09999996423721,
+    "p99Ms": 220.60000002384186,
+    "maxMs": 341.5
+  },
+  "signedLagNegative": 0,
+  "signedLagPositive": 100,
+  "homeJoinedSwitches": 100,
+  "homeClickToObservedMs": {
+    "count": 100,
+    "p50Ms": 16.899999976158142,
+    "p95Ms": 31.19999998807907,
+    "p99Ms": 63.60000002384186,
+    "maxMs": 80.70000004768372
+  },
+  "homeObservedToOpenClickMs": {
+    "count": 100,
+    "p50Ms": 83.79999995231628,
+    "p95Ms": 151.69999998807907,
+    "p99Ms": 319.69999998807907,
+    "maxMs": 579.7000000476837
+  },
+  "trustedOpenClickToDriverDOMMs": {
+    "count": 100,
+    "p50Ms": 71.69999998807907,
+    "p95Ms": 159.9000000357628,
+    "p99Ms": 387.0,
+    "maxMs": 450
+  },
+  "samplingGaps": {
+    "home": {
+      "count": 100,
+      "p50Ms": 16.80000001192093,
+      "p95Ms": 30.19999998807907,
+      "p99Ms": 63.60000002384186,
+      "maxMs": 79.10000002384186,
+      "over50Ms": 2,
+      "over100Ms": 0
+    },
+    "define": {
+      "count": 100,
+      "p50Ms": 20.30000001192093,
+      "p95Ms": 37.60000002384186,
+      "p99Ms": 128.5,
+      "maxMs": 222.69999998807907,
+      "over50Ms": 3,
+      "over100Ms": 2
+    }
+  },
+  "groups": {
+    "projectOrdinal": [
+      {
+        "projectOrdinal": 0,
+        "switches": {
+          "count": 25,
+          "p50Ms": 252.28226300000097,
+          "p95Ms": 632.1695410000102,
+          "p99Ms": 654.2845910000033,
+          "maxMs": 654.2845910000033
+        },
+        "joinedObservedToDriver": {
+          "count": 25,
+          "p50Ms": 30.5,
+          "p95Ms": 62.09999996423721,
+          "p99Ms": 341.5,
+          "maxMs": 341.5
+        }
+      },
+      {
+        "projectOrdinal": 1,
+        "switches": {
+          "count": 25,
+          "p50Ms": 258.450932000007,
+          "p95Ms": 345.29197599999316,
+          "p99Ms": 469.4833580000268,
+          "maxMs": 469.4833580000268
+        },
+        "joinedObservedToDriver": {
+          "count": 25,
+          "p50Ms": 26.400000035762787,
+          "p95Ms": 39.30000001192093,
+          "p99Ms": 60.30000001192093,
+          "maxMs": 60.30000001192093
+        }
+      },
+      {
+        "projectOrdinal": 2,
+        "switches": {
+          "count": 25,
+          "p50Ms": 255.46732399999746,
+          "p95Ms": 575.7391400000051,
+          "p99Ms": 651.9452430000092,
+          "maxMs": 651.9452430000092
+        },
+        "joinedObservedToDriver": {
+          "count": 25,
+          "p50Ms": 33.69999998807907,
+          "p95Ms": 98.60000002384186,
+          "p99Ms": 220.60000002384186,
+          "maxMs": 220.60000002384186
+        }
+      },
+      {
+        "projectOrdinal": 3,
+        "switches": {
+          "count": 25,
+          "p50Ms": 247.45404899999266,
+          "p95Ms": 439.48328799998853,
+          "p99Ms": 879.571272000001,
+          "maxMs": 879.571272000001
+        },
+        "joinedObservedToDriver": {
+          "count": 25,
+          "p50Ms": 31.599999964237213,
+          "p95Ms": 46.700000047683716,
+          "p99Ms": 58.39999997615814,
+          "maxMs": 58.39999997615814
+        }
+      }
+    ],
+    "tenRoundBlock": [
+      {
+        "tenRoundBlock": 0,
+        "switches": {
+          "count": 10,
+          "p50Ms": 283.93330600000627,
+          "p95Ms": 654.2845910000033,
+          "p99Ms": 654.2845910000033,
+          "maxMs": 654.2845910000033
+        },
+        "joinedObservedToDriver": {
+          "count": 10,
+          "p50Ms": 33.90000003576279,
+          "p95Ms": 341.5,
+          "p99Ms": 341.5,
+          "maxMs": 341.5
+        }
+      },
+      {
+        "tenRoundBlock": 1,
+        "switches": {
+          "count": 10,
+          "p50Ms": 244.7542390000017,
+          "p95Ms": 302.73054299999785,
+          "p99Ms": 302.73054299999785,
+          "maxMs": 302.73054299999785
+        },
+        "joinedObservedToDriver": {
+          "count": 10,
+          "p50Ms": 31.0,
+          "p95Ms": 41.39999997615814,
+          "p99Ms": 41.39999997615814,
+          "maxMs": 41.39999997615814
+        }
+      },
+      {
+        "tenRoundBlock": 2,
+        "switches": {
+          "count": 10,
+          "p50Ms": 251.01853200000187,
+          "p95Ms": 651.9452430000092,
+          "p99Ms": 651.9452430000092,
+          "maxMs": 651.9452430000092
+        },
+        "joinedObservedToDriver": {
+          "count": 10,
+          "p50Ms": 28.100000023841858,
+          "p95Ms": 63.19999998807907,
+          "p99Ms": 63.19999998807907,
+          "maxMs": 63.19999998807907
+        }
+      },
+      {
+        "tenRoundBlock": 3,
+        "switches": {
+          "count": 10,
+          "p50Ms": 222.76151499999105,
+          "p95Ms": 879.571272000001,
+          "p99Ms": 879.571272000001,
+          "maxMs": 879.571272000001
+        },
+        "joinedObservedToDriver": {
+          "count": 10,
+          "p50Ms": 27.099999964237213,
+          "p95Ms": 98.60000002384186,
+          "p99Ms": 98.60000002384186,
+          "maxMs": 98.60000002384186
+        }
+      },
+      {
+        "tenRoundBlock": 4,
+        "switches": {
+          "count": 10,
+          "p50Ms": 229.89484300000186,
+          "p95Ms": 439.48328799998853,
+          "p99Ms": 439.48328799998853,
+          "maxMs": 439.48328799998853
+        },
+        "joinedObservedToDriver": {
+          "count": 10,
+          "p50Ms": 20.799999952316284,
+          "p95Ms": 37.59999996423721,
+          "p99Ms": 37.59999996423721,
+          "maxMs": 37.59999996423721
+        }
+      },
+      {
+        "tenRoundBlock": 5,
+        "switches": {
+          "count": 10,
+          "p50Ms": 214.53303799999412,
+          "p95Ms": 477.77131100000406,
+          "p99Ms": 477.77131100000406,
+          "maxMs": 477.77131100000406
+        },
+        "joinedObservedToDriver": {
+          "count": 10,
+          "p50Ms": 25.0,
+          "p95Ms": 220.60000002384186,
+          "p99Ms": 220.60000002384186,
+          "maxMs": 220.60000002384186
+        }
+      },
+      {
+        "tenRoundBlock": 6,
+        "switches": {
+          "count": 10,
+          "p50Ms": 258.27692400000524,
+          "p95Ms": 342.9217800000042,
+          "p99Ms": 342.9217800000042,
+          "maxMs": 342.9217800000042
+        },
+        "joinedObservedToDriver": {
+          "count": 10,
+          "p50Ms": 28.0,
+          "p95Ms": 55.0,
+          "p99Ms": 55.0,
+          "maxMs": 55.0
+        }
+      },
+      {
+        "tenRoundBlock": 7,
+        "switches": {
+          "count": 10,
+          "p50Ms": 259.12749300000723,
+          "p95Ms": 632.1695410000102,
+          "p99Ms": 632.1695410000102,
+          "maxMs": 632.1695410000102
+        },
+        "joinedObservedToDriver": {
+          "count": 10,
+          "p50Ms": 34.60000002384186,
+          "p95Ms": 62.09999996423721,
+          "p99Ms": 62.09999996423721,
+          "maxMs": 62.09999996423721
+        }
+      },
+      {
+        "tenRoundBlock": 8,
+        "switches": {
+          "count": 10,
+          "p50Ms": 269.72907899998245,
+          "p95Ms": 522.3809689999907,
+          "p99Ms": 522.3809689999907,
+          "maxMs": 522.3809689999907
+        },
+        "joinedObservedToDriver": {
+          "count": 10,
+          "p50Ms": 36.0,
+          "p95Ms": 73.40000003576279,
+          "p99Ms": 73.40000003576279,
+          "maxMs": 73.40000003576279
+        }
+      },
+      {
+        "tenRoundBlock": 9,
+        "switches": {
+          "count": 10,
+          "p50Ms": 250.2959269999992,
+          "p95Ms": 335.81909400000586,
+          "p99Ms": 335.81909400000586,
+          "maxMs": 335.81909400000586
+        },
+        "joinedObservedToDriver": {
+          "count": 10,
+          "p50Ms": 26.19999998807907,
+          "p95Ms": 40.19999998807907,
+          "p99Ms": 40.19999998807907,
+          "maxMs": 40.19999998807907
+        }
+      }
+    ]
+  },
+  "slowSwitchIndices": [
+    0,
+    12,
+    20,
+    24,
+    32,
+    56,
+    104,
+    144,
+    156,
+    168,
+    188,
+    208,
+    232,
+    244,
+    260,
+    264,
+    288,
+    308,
+    316,
+    332,
+    336,
+    344,
+    356,
+    360,
+    364,
+    380
+  ],
+  "issues": [],
+  "limitations": [
+    "Original full-span metrics unchanged; no overhead subtraction.",
+    "Signed lag compares same-document first observed structural predicate with driver expected-DOM mark, not actual first readiness, physical paint or pure transport.",
+    "Home has no equivalent driver browser mark. Reset references are not fresh reset witnesses.",
+    "Censoring/late sampling cannot establish late app readiness; trace actions have no observer by design.",
+    "Fixed context/authority and helper owner ordering; no standalone server provenance or permission proof."
+  ],
+  "primarySwitchNodeSubspansMs": {
+    "allProjectsCommand": {
+      "count": 100,
+      "p50Ms": 70.80049000002327,
+      "p95Ms": 124.4758359999978,
+      "p99Ms": 237.19368899999245,
+      "maxMs": 377.29073500001687
+    },
+    "headingWait": {
+      "count": 100,
+      "p50Ms": 13.375278999999864,
+      "p95Ms": 25.84547100000782,
+      "p99Ms": 36.81053200000315,
+      "maxMs": 38.188721999991685
+    },
+    "openProjectCommand": {
+      "count": 100,
+      "p50Ms": 83.36497500000405,
+      "p95Ms": 275.4568460000155,
+      "p99Ms": 433.18356700000004,
+      "maxMs": 574.9664590000029
+    },
+    "verification": {
+      "count": 100,
+      "p50Ms": 54.37178000000131,
+      "p95Ms": 103.86535500000173,
+      "p99Ms": 239.7573370000173,
+      "maxMs": 393.9029739999969
+    },
+    "twoFrameCommand": {
+      "count": 100,
+      "p50Ms": 27.976571000006516,
+      "p95Ms": 42.60485499999777,
+      "p99Ms": 49.28856200000155,
+      "maxMs": 55.65569200000027
+    }
+  },
+  "slowVsOtherObservedToDriver": {
+    "over300Ms": {
+      "count": 26,
+      "p50Ms": 39.19999998807907,
+      "p95Ms": 220.60000002384186,
+      "p99Ms": 341.5,
+      "maxMs": 341.5
+    },
+    "atMost300Ms": {
+      "count": 74,
+      "p50Ms": 28.0,
+      "p95Ms": 41.39999997615814,
+      "p99Ms": 98.60000002384186,
+      "maxMs": 98.60000002384186
+    }
+  },
+  "topSwitchIndices": [
+    156,
+    32,
+    104,
+    288,
+    24,
+    344,
+    144,
+    208,
+    356,
+    232,
+    188,
+    336,
+    332,
+    20,
+    264,
+    360,
+    380,
+    244,
+    316,
+    308
+  ]
+}

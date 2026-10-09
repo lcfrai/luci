@@ -1,0 +1,14 @@
+{
+  "scope": "No installed run; frozen v1 preserved. One selected-project gate moved before Define scan, declared variant updated, source binding resealed.",
+  "originalActionModulesExact": true,
+  "originalRouteGuardExact": true,
+  "originalTargetsAndDeadlinesExact": true,
+  "allCapsExact": true,
+  "prospectiveProduct": "d20ebd292f3f1de04d6726bab0998c210987bcb5",
+  "observerBeforeSHA256": "fca427906b3a3d580b3280548ae931fe1fb55b4041c73ef1810b1354c2d61209",
+  "observerAfterSHA256": "7f534431a37a0bd599c2de48870d3c9e8badfd1e33b2d48e47078782aa74467b",
+  "driverSHA256": "002aef80147d8a9d95bfde2e0e589f81511ec93e1cde52f004e53c1579e8069f",
+  "bindingSHA256": "a15fbb7b37f61ce26ff333caba54431ec3ea30f902f2511c936537c6fedc9721",
+  "launcherSHA256": "7f5e9ed9b614882d29ce88e41654b5289f73f64e4ef0914fbe326f469520de16",
+  "installedRuntimeExecuted": false
+}

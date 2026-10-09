@@ -1,0 +1,18 @@
+--- frozen-v1/autonomous-readiness.mjs
++++ v2/autonomous-readiness.mjs
+@@ -63,6 +63,7 @@
+    if(a.clickedShell!==shell||a.shell&& (a.shell!==shell||a.lens!==lens))return {reason:'root-replaced',terminal:true,visited,controls};
+    a.shell=shell;a.lens=lens;
+    const selected=scan(rail,n=>n.matches('[role="treeitem"][data-kind="project"][aria-selected="true"]'));
++   if(a.stage==='define'&&(selected.length!==1||selected[0].getAttribute('data-id')!==a.project.id||selected[0].getAttribute('aria-label')!==a.project.name))return {reason:'project-mismatch',visited,controls};
+    const nodes=scan(lens,n=>n.matches('section.definition-workspace,section.definition-workspace > header h1,.overview-heading h2,nav.overview-projects[aria-label="Open a project"] button.overview-project-destination,.definition-specification > label.luci-field > textarea'));
+    const definitions=nodes.filter(n=>n.matches('section.definition-workspace'));
+    const fields=nodes.filter(n=>n instanceof HTMLTextAreaElement);
+@@ -72,7 +73,6 @@
+     const buttons=nodes.filter(n=>n instanceof HTMLButtonElement&&n.getAttribute('aria-label')==='Open project '+a.project.name);
+     return {ready:selected.length===0&&definitions.length===0&&fields.length===0&&headings.length===1&&buttons.length===1&&usable(headings[0])&&usable(buttons[0]),visited,controls};
+    }
+-   if(selected.length!==1||selected[0].getAttribute('data-id')!==a.project.id||selected[0].getAttribute('aria-label')!==a.project.name)return {reason:'project-mismatch',visited,controls};
+    const fieldsWithLabel=fields.filter(field=>field.labels?.length===1&&field.labels[0].control===field&&!field.hasAttribute('aria-label')&&!field.hasAttribute('aria-labelledby')&&Array.from(field.labels[0].childNodes).filter(n=>n.nodeType===Node.TEXT_NODE).map(n=>n.textContent).join('').trim()==='The idea');
+    if(definitions.length!==1||fieldsWithLabel.length!==1)return {reason:'missing-editor',terminal:!!a.editor||!!a.definition,visited,controls};
+    const field=fieldsWithLabel[0];

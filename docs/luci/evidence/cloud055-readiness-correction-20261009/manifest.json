@@ -1,0 +1,452 @@
+{
+  "createdAt": "2026-10-09T11:29:04.219826+00:00",
+  "scope": "External v2 review capsule; immutable Git source extraction retained externally and bound by source manifest, not recopied. Reproducible browser caches and private owned temporary profile paths omitted. Original failures and all helper/proof bytes retained.",
+  "members": [
+    {
+      "path": "README.md",
+      "bytes": 4403,
+      "sha256": "0dde396167abf580cfb7a4d9822d9fa60d1c7890e7108e41bed21edfd349d01e"
+    },
+    {
+      "path": "actual/autonomous-readiness.mjs",
+      "bytes": 12628,
+      "sha256": "7f534431a37a0bd599c2de48870d3c9e8badfd1e33b2d48e47078782aa74467b"
+    },
+    {
+      "path": "actual/external-source-binding.json",
+      "bytes": 8843,
+      "sha256": "a15fbb7b37f61ce26ff333caba54431ec3ea30f902f2511c936537c6fedc9721"
+    },
+    {
+      "path": "actual/four-project-queue_native-terminal-diagnostics.mjs",
+      "bytes": 6811,
+      "sha256": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6"
+    },
+    {
+      "path": "actual/four-project-queue_sample-linux-owned.py",
+      "bytes": 35379,
+      "sha256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d"
+    },
+    {
+      "path": "actual/interaction-metrics.mjs",
+      "bytes": 9846,
+      "sha256": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502"
+    },
+    {
+      "path": "actual/latency-diagnostics.mjs",
+      "bytes": 7545,
+      "sha256": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96"
+    },
+    {
+      "path": "actual/launch-recovery_acceptance-lifecycle.mjs",
+      "bytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+    },
+    {
+      "path": "actual/launch-recovery_acceptance-startup.mjs",
+      "bytes": 4637,
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680"
+    },
+    {
+      "path": "actual/launch-recovery_durable-acceptance-journal.mjs",
+      "bytes": 6670,
+      "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1"
+    },
+    {
+      "path": "actual/launch-recovery_fenced-docker-proxy.mjs",
+      "bytes": 39518,
+      "sha256": "b965b9a5d03f8a4cbc19b6e065559e1d9b10a2812453bfafb992e3f0041e448f"
+    },
+    {
+      "path": "actual/launch-recovery_worker-create-guard.mjs",
+      "bytes": 5545,
+      "sha256": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5"
+    },
+    {
+      "path": "actual/queue-controls.mjs",
+      "bytes": 711,
+      "sha256": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0"
+    },
+    {
+      "path": "actual/readiness-ledger.mjs",
+      "bytes": 2304,
+      "sha256": "0a6db6505273c685d1281d039fd50f05c42e44d5312309ac4267f57ae05fd1ff"
+    },
+    {
+      "path": "actual/receipt-transport.mjs",
+      "bytes": 5857,
+      "sha256": "6a676eefc02c4be569e65f6c3a16da50f750be67acaf4f1380a86739791c34a1"
+    },
+    {
+      "path": "actual/run-with-observer.py",
+      "bytes": 17220,
+      "sha256": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a"
+    },
+    {
+      "path": "actual/source-binding.mjs",
+      "bytes": 2768,
+      "sha256": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796"
+    },
+    {
+      "path": "actual/sustained.mjs",
+      "bytes": 97638,
+      "sha256": "002aef80147d8a9d95bfde2e0e589f81511ec93e1cde52f004e53c1579e8069f"
+    },
+    {
+      "path": "actual/task-command.mjs",
+      "bytes": 11762,
+      "sha256": "7557cc863201e136a6ea0f4d039472d6e225a8efb0fb2afe267b9d65e01a541f"
+    },
+    {
+      "path": "actual/task-context.mjs",
+      "bytes": 2439,
+      "sha256": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2"
+    },
+    {
+      "path": "actual/workloads.mjs",
+      "bytes": 18691,
+      "sha256": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306"
+    },
+    {
+      "path": "controlled/browser.mjs",
+      "bytes": 11523,
+      "sha256": "a7500053dccef5fed1dd1cdb6f20e0a95918d51879741e25dbc3a2541708bcb7"
+    },
+    {
+      "path": "controlled/fixture.tsx",
+      "bytes": 6575,
+      "sha256": "9dd8f78f1312bcc9bd4b7ee6cce7f62892f5a3a32619dc44c6016a303f946137"
+    },
+    {
+      "path": "controlled/original/autonomous-readiness.mjs",
+      "bytes": 12606,
+      "sha256": "fca427906b3a3d580b3280548ae931fe1fb55b4041c73ef1810b1354c2d61209"
+    },
+    {
+      "path": "controlled/original/interaction-metrics.mjs",
+      "bytes": 9846,
+      "sha256": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502"
+    },
+    {
+      "path": "controlled/original/latency-diagnostics.mjs",
+      "bytes": 7545,
+      "sha256": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96"
+    },
+    {
+      "path": "controlled/preparation-attempt1-error.txt",
+      "bytes": 384,
+      "sha256": "396f347cb7c2ee0f9635d16f9eb0f0050b052ddd2a30a97ba785f4aadc94dffe"
+    },
+    {
+      "path": "controlled/receipts/attempt1/browser/report.json",
+      "bytes": 147715,
+      "sha256": "89124471dd3840f48d96cc19bf9c0bca1944598077a68456d8326edff7730ce5"
+    },
+    {
+      "path": "controlled/receipts/attempt1/command.json",
+      "bytes": 1750,
+      "sha256": "f6cce744d46610165973189a7b3a2dfd2343de149b18745c71065ccd7606c1d9"
+    },
+    {
+      "path": "controlled/receipts/attempt1/source/controlled/browser.mjs",
+      "bytes": 10781,
+      "sha256": "3570716d34a0920549dc5b1f27a19ec9be26134f8a52b4893026cf34e608eecd"
+    },
+    {
+      "path": "controlled/receipts/attempt1/source/controlled/fixture.tsx",
+      "bytes": 6490,
+      "sha256": "e75e67d199f4abdc85c33250de8e4adee73978aeced331f2f3fe753d37e0249a"
+    },
+    {
+      "path": "controlled/receipts/attempt1/source/controlled/original/autonomous-readiness.mjs",
+      "bytes": 12606,
+      "sha256": "fca427906b3a3d580b3280548ae931fe1fb55b4041c73ef1810b1354c2d61209"
+    },
+    {
+      "path": "controlled/receipts/attempt1/source/controlled/original/interaction-metrics.mjs",
+      "bytes": 9846,
+      "sha256": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502"
+    },
+    {
+      "path": "controlled/receipts/attempt1/source/controlled/original/latency-diagnostics.mjs",
+      "bytes": 7545,
+      "sha256": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96"
+    },
+    {
+      "path": "controlled/receipts/attempt1/source/controlled/run.py",
+      "bytes": 2773,
+      "sha256": "c26fcb81247765a0fa1d01abf32b23578d34779fa023599a29e9ffc83254a177"
+    },
+    {
+      "path": "controlled/receipts/attempt1/source/controlled/source-binding.json",
+      "bytes": 61237,
+      "sha256": "a71c466844788a9bf72e23c4f4ce985507f710ed821b10d327a327557f94e36a"
+    },
+    {
+      "path": "controlled/receipts/attempt1/source/controlled/vite-fixture-plugin.mjs",
+      "bytes": 1537,
+      "sha256": "601130adcdd92ecdbdc7585869f56d5c91c16de98b4c64955e858c9d4686fd9f"
+    },
+    {
+      "path": "controlled/receipts/attempt1/source/observer/autonomous-readiness.mjs",
+      "bytes": 12628,
+      "sha256": "7f534431a37a0bd599c2de48870d3c9e8badfd1e33b2d48e47078782aa74467b"
+    },
+    {
+      "path": "controlled/receipts/attempt1/source/observer/stage-gate.patch",
+      "bytes": 2031,
+      "sha256": "face99ca2780921f551fcf2ff9ae1087e013e9ec5219251cc1aac572665a1fed"
+    },
+    {
+      "path": "controlled/receipts/attempt1/stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "controlled/receipts/attempt1/stdout.txt",
+      "bytes": 686,
+      "sha256": "76965fcd841d87023dde69e4d83714da8e92911ada4a3b5dcd7d0f9ca8ae8d79"
+    },
+    {
+      "path": "controlled/receipts/attempt2/browser/fixed-ready-define.png",
+      "bytes": 138126,
+      "sha256": "9ebc094dd530b098f4a51abc5a3b0fc12e0fdf330ab5ca1f7be71fee35e861d1"
+    },
+    {
+      "path": "controlled/receipts/attempt2/browser/fixed-settled-home.png",
+      "bytes": 91000,
+      "sha256": "c6fbf0ebbff665bfa32ddeb5be5e8e47b8bff9d473943750d1457d3a52e29be3"
+    },
+    {
+      "path": "controlled/receipts/attempt2/browser/report.json",
+      "bytes": 560683,
+      "sha256": "793777fd631049c026672b63084dea08d0dfe75922fed53c7cd42a4a406d82cd"
+    },
+    {
+      "path": "controlled/receipts/attempt2/command.json",
+      "bytes": 1750,
+      "sha256": "172a2d4ba0dc5e05304725f4411b35889c794eafd807c2da5210c3e60d4c09b5"
+    },
+    {
+      "path": "controlled/receipts/attempt2/source/controlled/browser.mjs",
+      "bytes": 11523,
+      "sha256": "a7500053dccef5fed1dd1cdb6f20e0a95918d51879741e25dbc3a2541708bcb7"
+    },
+    {
+      "path": "controlled/receipts/attempt2/source/controlled/fixture.tsx",
+      "bytes": 6575,
+      "sha256": "9dd8f78f1312bcc9bd4b7ee6cce7f62892f5a3a32619dc44c6016a303f946137"
+    },
+    {
+      "path": "controlled/receipts/attempt2/source/controlled/original/autonomous-readiness.mjs",
+      "bytes": 12606,
+      "sha256": "fca427906b3a3d580b3280548ae931fe1fb55b4041c73ef1810b1354c2d61209"
+    },
+    {
+      "path": "controlled/receipts/attempt2/source/controlled/original/interaction-metrics.mjs",
+      "bytes": 9846,
+      "sha256": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502"
+    },
+    {
+      "path": "controlled/receipts/attempt2/source/controlled/original/latency-diagnostics.mjs",
+      "bytes": 7545,
+      "sha256": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96"
+    },
+    {
+      "path": "controlled/receipts/attempt2/source/controlled/run.py",
+      "bytes": 2773,
+      "sha256": "c26fcb81247765a0fa1d01abf32b23578d34779fa023599a29e9ffc83254a177"
+    },
+    {
+      "path": "controlled/receipts/attempt2/source/controlled/source-binding.json",
+      "bytes": 61237,
+      "sha256": "a71c466844788a9bf72e23c4f4ce985507f710ed821b10d327a327557f94e36a"
+    },
+    {
+      "path": "controlled/receipts/attempt2/source/controlled/vite-fixture-plugin.mjs",
+      "bytes": 1537,
+      "sha256": "601130adcdd92ecdbdc7585869f56d5c91c16de98b4c64955e858c9d4686fd9f"
+    },
+    {
+      "path": "controlled/receipts/attempt2/source/observer/autonomous-readiness.mjs",
+      "bytes": 12628,
+      "sha256": "7f534431a37a0bd599c2de48870d3c9e8badfd1e33b2d48e47078782aa74467b"
+    },
+    {
+      "path": "controlled/receipts/attempt2/source/observer/stage-gate.patch",
+      "bytes": 2031,
+      "sha256": "face99ca2780921f551fcf2ff9ae1087e013e9ec5219251cc1aac572665a1fed"
+    },
+    {
+      "path": "controlled/receipts/attempt2/stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "controlled/receipts/attempt2/stdout.txt",
+      "bytes": 1362,
+      "sha256": "72093de238b4affca25fcf6ef0771a99cedbc8bef9ad788380c07ed7b619a0da"
+    },
+    {
+      "path": "controlled/run.py",
+      "bytes": 2773,
+      "sha256": "c26fcb81247765a0fa1d01abf32b23578d34779fa023599a29e9ffc83254a177"
+    },
+    {
+      "path": "controlled/source-binding.json",
+      "bytes": 61237,
+      "sha256": "a71c466844788a9bf72e23c4f4ce985507f710ed821b10d327a327557f94e36a"
+    },
+    {
+      "path": "controlled/vite-fixture-plugin.mjs",
+      "bytes": 1537,
+      "sha256": "601130adcdd92ecdbdc7585869f56d5c91c16de98b4c64955e858c9d4686fd9f"
+    },
+    {
+      "path": "integration/freeze.py",
+      "bytes": 3534,
+      "sha256": "0204cc1ba84196cda747ef48a9fc5f11c7b23d3b55fa0ef941ebedb159924375"
+    },
+    {
+      "path": "integration/preparation.json",
+      "bytes": 853,
+      "sha256": "c68e68f44dfa446efb994f6f2af3b973a883494d51b1c5dc04cb164d6e05ef97"
+    },
+    {
+      "path": "integration/prepare.py",
+      "bytes": 4202,
+      "sha256": "c2cd6695b8bc873879ed5ec64b5292c0aadb4e0baec3b18a141308baa4e9cb7b"
+    },
+    {
+      "path": "launch.py",
+      "bytes": 8440,
+      "sha256": "7f5e9ed9b614882d29ce88e41654b5289f73f64e4ef0914fbe326f469520de16"
+    },
+    {
+      "path": "observer/autonomous-readiness.mjs",
+      "bytes": 12628,
+      "sha256": "7f534431a37a0bd599c2de48870d3c9e8badfd1e33b2d48e47078782aa74467b"
+    },
+    {
+      "path": "observer/stage-gate.patch",
+      "bytes": 2031,
+      "sha256": "face99ca2780921f551fcf2ff9ae1087e013e9ec5219251cc1aac572665a1fed"
+    },
+    {
+      "path": "observer.patch",
+      "bytes": 2025,
+      "sha256": "cdb1d0b56dd1fbeb7ba1852f421f5a42069a3a85f354423b210acc1ff6ae733c"
+    },
+    {
+      "path": "original-v1/autonomous-readiness.mjs",
+      "bytes": 12606,
+      "sha256": "fca427906b3a3d580b3280548ae931fe1fb55b4041c73ef1810b1354c2d61209"
+    },
+    {
+      "path": "original-v1/external-source-binding.json",
+      "bytes": 8587,
+      "sha256": "3aef53f3c537c2ff4cb5d179e0d724308349ea16293c59ffc185044fb62fcd2a"
+    },
+    {
+      "path": "original-v1/four-project-queue_native-terminal-diagnostics.mjs",
+      "bytes": 6811,
+      "sha256": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6"
+    },
+    {
+      "path": "original-v1/four-project-queue_sample-linux-owned.py",
+      "bytes": 35379,
+      "sha256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d"
+    },
+    {
+      "path": "original-v1/interaction-metrics.mjs",
+      "bytes": 9846,
+      "sha256": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502"
+    },
+    {
+      "path": "original-v1/latency-diagnostics.mjs",
+      "bytes": 7545,
+      "sha256": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96"
+    },
+    {
+      "path": "original-v1/launch-recovery_acceptance-lifecycle.mjs",
+      "bytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+    },
+    {
+      "path": "original-v1/launch-recovery_acceptance-startup.mjs",
+      "bytes": 4637,
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680"
+    },
+    {
+      "path": "original-v1/launch-recovery_durable-acceptance-journal.mjs",
+      "bytes": 6670,
+      "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1"
+    },
+    {
+      "path": "original-v1/launch-recovery_fenced-docker-proxy.mjs",
+      "bytes": 39518,
+      "sha256": "b965b9a5d03f8a4cbc19b6e065559e1d9b10a2812453bfafb992e3f0041e448f"
+    },
+    {
+      "path": "original-v1/launch-recovery_worker-create-guard.mjs",
+      "bytes": 5545,
+      "sha256": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5"
+    },
+    {
+      "path": "original-v1/queue-controls.mjs",
+      "bytes": 711,
+      "sha256": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0"
+    },
+    {
+      "path": "original-v1/readiness-ledger.mjs",
+      "bytes": 2304,
+      "sha256": "0a6db6505273c685d1281d039fd50f05c42e44d5312309ac4267f57ae05fd1ff"
+    },
+    {
+      "path": "original-v1/receipt-transport.mjs",
+      "bytes": 5857,
+      "sha256": "6a676eefc02c4be569e65f6c3a16da50f750be67acaf4f1380a86739791c34a1"
+    },
+    {
+      "path": "original-v1/run-with-observer.py",
+      "bytes": 17220,
+      "sha256": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a"
+    },
+    {
+      "path": "original-v1/source-binding.mjs",
+      "bytes": 2768,
+      "sha256": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796"
+    },
+    {
+      "path": "original-v1/sustained.mjs",
+      "bytes": 97635,
+      "sha256": "ca52f31abd14e411e579abe141e1019d029276c0b0a2caa50bae70021edaaeba"
+    },
+    {
+      "path": "original-v1/task-command.mjs",
+      "bytes": 11762,
+      "sha256": "7557cc863201e136a6ea0f4d039472d6e225a8efb0fb2afe267b9d65e01a541f"
+    },
+    {
+      "path": "original-v1/task-context.mjs",
+      "bytes": 2439,
+      "sha256": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2"
+    },
+    {
+      "path": "original-v1/workloads.mjs",
+      "bytes": 18691,
+      "sha256": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306"
+    },
+    {
+      "path": "template-capture.json",
+      "bytes": 3943,
+      "sha256": "5a8219b07d17b5d5cffd616ec74b5a92a2829466c7636ddbdf090800e7253685"
+    },
+    {
+      "path": "validation-summary.json",
+      "bytes": 2730,
+      "sha256": "ee40eb09cacf03e2d61553733eb4b1c9b43989a833505cabe08476ceb88671ee"
+    }
+  ],
+  "payloadBytes": 1959357
+}

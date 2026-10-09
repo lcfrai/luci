@@ -1,0 +1,29 @@
+{
+  "at": "2026-10-09T11:38:56.249527+00:00",
+  "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "scope": "Preserve two newly generated owned archives by verified copy and compatibility link. Original manifests/receipts and all failed fixtures unchanged. tmpfs consumes memory; no total-resource gain or performance claim.",
+  "before": {
+    "rootFreeBytes": 6481633280,
+    "tmpFreeBytes": 1308024832
+  },
+  "after": {
+    "rootFreeBytes": 6585303040,
+    "tmpFreeBytes": 1204326400
+  },
+  "members": [
+    {
+      "originalPath": "/workspace/luci/artifacts/releases/0.5.0/luci-cloud-linux-amd64.tar.gz",
+      "retainedPath": "/tmp/luci-retained-tools/archive-preservation-edd0cb12/luci-cloud-linux-amd64.tar.gz",
+      "sha256": "9b0bf0d02caa354c663fb3729039aeadbf1ef55e887be224cdcd575d4c1b22ea",
+      "bytes": 34628069,
+      "compatibilityLink": true
+    },
+    {
+      "originalPath": "/workspace/luci/artifacts/releases/0.5.0/luci-linux-amd64.tar.gz",
+      "retainedPath": "/tmp/luci-retained-tools/archive-preservation-edd0cb12/luci-linux-amd64.tar.gz",
+      "sha256": "477d48fb6e6ce58f0acb801fbf6ba9046e8721a1f6fff9c1b5bc20a40b80d2c8",
+      "bytes": 69065419,
+      "compatibilityLink": true
+    }
+  ]
+}

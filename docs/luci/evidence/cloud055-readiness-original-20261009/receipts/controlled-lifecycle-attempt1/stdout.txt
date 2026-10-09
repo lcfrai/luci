@@ -1,0 +1,1 @@
+{"passed":false,"checks":4,"failure":"AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert(value.rows.some(r=>r.round===4&&r.stage==='define'&&r.status==='censored'&&r.reason==='retained-editor'))\n\n    at file:///workspace/.luci-tools/cloud032-autonomous-readiness-v1-20261009/controlled/browser-lifecycle.mjs:41:339","sourceUnchanged":true}

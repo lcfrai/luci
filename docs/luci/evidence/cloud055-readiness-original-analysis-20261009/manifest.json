@@ -1,0 +1,107 @@
+{
+  "createdAt": "2026-10-09T11:20:11.799553+00:00",
+  "scope": "Allowlisted offline analysis of frozen original v1. No raw private results, contexts, fixture paths, tokens or original archive payload copied. Original result remains unchanged.",
+  "members": [
+    {
+      "path": "PLAN.md",
+      "bytes": 4916,
+      "sha256": "6aea3c708d5bbaaeca9b4b6f5cdca72bf454c6a5704cd8e96193a68d6362662c"
+    },
+    {
+      "path": "README.md",
+      "bytes": 6605,
+      "sha256": "123e191a41680d8a2a74d991d4e0ee690b22117e0621f7739898870f84a578da"
+    },
+    {
+      "path": "actual-attempt1/analysis.json",
+      "bytes": 12180,
+      "sha256": "e48f1c39975346904b2af50eea954ef3d465a68ed9c98539ee75c278bad8d9f9"
+    },
+    {
+      "path": "actual-attempt1/analyze.py",
+      "bytes": 17324,
+      "sha256": "b692ceb3cb3df56ef30546c6d0714e16bab672f247ec4d3f3a4729f3a1e467b8"
+    },
+    {
+      "path": "actual-attempt1/interactions.projection.json",
+      "bytes": 698298,
+      "sha256": "03410af437bf055df510b8863c47fb733c334475adf42068a53feb9b3f54c893"
+    },
+    {
+      "path": "actual-attempt1/original-binding.json",
+      "bytes": 1827,
+      "sha256": "de22e3125d252286cbb6db5f8452df3de23e37f6c885ff42886257b02e744d70"
+    },
+    {
+      "path": "actual-attempt1/readiness.projection.json",
+      "bytes": 306475,
+      "sha256": "6754a8b3869f0c8e14ab68262522c8f5b1ed18d81a304dca676fd8f94db4f8cc"
+    },
+    {
+      "path": "actual-attempt2/analysis.json",
+      "bytes": 12621,
+      "sha256": "40fba33411f5dbf746a6ac740940c8bcca6e835dee965ad439f350cf41abf576"
+    },
+    {
+      "path": "actual-attempt2/interactions.projection.json",
+      "bytes": 698298,
+      "sha256": "03410af437bf055df510b8863c47fb733c334475adf42068a53feb9b3f54c893"
+    },
+    {
+      "path": "actual-attempt2/original-binding.json",
+      "bytes": 1827,
+      "sha256": "1a06096fb0a73f4f31b75b08591a2bb880c3671e9ae51d3304740f84358e97da"
+    },
+    {
+      "path": "actual-attempt2/readiness.projection.json",
+      "bytes": 325729,
+      "sha256": "70a9f29b15bca5d991e43243ba0dc0d0f6f8cbf107e34ee2832cc20577ee331b"
+    },
+    {
+      "path": "analyze.py",
+      "bytes": 18201,
+      "sha256": "7e09d95b0eac506c21b8169ef020adc97ae9a62a9577d13d0a310b0e35153f1d"
+    },
+    {
+      "path": "closure.py",
+      "bytes": 6004,
+      "sha256": "4f2bdbdedd79ccc6af5ac7da93c06de5ab6c90da005f1e0d1c23de0bbe51db53"
+    },
+    {
+      "path": "commands.json",
+      "bytes": 1456,
+      "sha256": "e9eb4be19ad24b33bd45dec92453da93eac2c194739dc42f090a862f9d22d5cf"
+    },
+    {
+      "path": "environment-metadata.json",
+      "bytes": 514,
+      "sha256": "d19e624fbd13da75a2e5d9d1055434a8aded40f72dc0b81f1b046f49a35e5694"
+    },
+    {
+      "path": "independent-closure.json",
+      "bytes": 7276,
+      "sha256": "a2d48dce0f3e1da3e7e1c78b38972771f0b334605cb893b354ee32d028dc819b"
+    },
+    {
+      "path": "peer-review.md",
+      "bytes": 789,
+      "sha256": "53ec0ee40ac363fa25a810b660e85173670d3ee14d6d66eac6bb0f9b3f34b77a"
+    },
+    {
+      "path": "test_analyze.py",
+      "bytes": 3538,
+      "sha256": "234f2491c0af095a2b147a201bc7fe08740015fdcd4b33dfdb1a7a6c5394032b"
+    },
+    {
+      "path": "tests.stderr",
+      "bytes": 104,
+      "sha256": "065c7d15facfd20f14fb9182747be315f3349fa1d5e1a0e966047509f4bfa9b1"
+    },
+    {
+      "path": "tests.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "payloadBytes": 2123982
+}

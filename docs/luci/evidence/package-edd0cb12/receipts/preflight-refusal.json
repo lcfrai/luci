@@ -1,0 +1,10 @@
+{
+  "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "firstInvocation": "refused before output directory creation or release mutation",
+  "failure": "remote-tracking refs did not yet contain pushed commit",
+  "evidence": "tool output retained in conversation; no fabricated original stderr file",
+  "readOnlyRemoteCheck": "git ls-remote origin refs/heads/codex/luci-production-runs returned exact edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "recovery": "git fetch origin codex/luci-production-runs:refs/remotes/origin/codex/luci-production-runs updated d20ebd29 to edd0cb12",
+  "retry": "same unchanged guard/build script",
+  "scope": "local checkout metadata prerequisite; not a package/product failure"
+}

@@ -1,0 +1,106 @@
+/* desktop/src/styles/app.css
+ *
+ * Document-level ground. The token import, the reset, and the defaults every surface
+ * inherits. Deliberately thin: per contract §5.5 each component ships its own prefixed CSS
+ * file, so nothing that belongs to one surface belongs here.
+ *
+ * Task 24 imports this from main.tsx and deletes the Vite starter's App.css. Every value
+ * below is a var() from tokens.css; this file declares no colour of its own.
+ */
+@import "./tokens.css";
+@import "./fluid.css";
+@import "./shadcn.css";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.5;
+  /* Live numbers must not jitter. Set once here and inherited. */
+  font-variant-numeric: var(--numeric);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* The shell scrolls its own regions; the document itself never does. */
+  overflow: hidden;
+}
+
+code,
+kbd,
+pre,
+samp {
+  font-family: var(--mono);
+}
+
+/* Keep the document form reset below control utilities. An unlayered reset
+   outranks every Tailwind utility, including a primary button's light label. */
+@layer base {
+  :where(button, input, select, textarea) {
+    font: inherit;
+    color: inherit;
+  }
+}
+
+::selection {
+  background: var(--accent-tint);
+  color: var(--ink);
+}
+
+/* Scrollbars are part of the surface, not the browser's. The standard properties first, then
+ * the WebKit pseudo-elements the Tauri webview actually honours. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ink-4) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--ink-4);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: var(--r-chip);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-3);
+  background-clip: padding-box;
+}
+
+:where(input, textarea) {
+  caret-color: var(--accent);
+}
+:where(input, textarea)::placeholder {
+  color: var(--ink-3);
+  opacity: 1;
+}
+a {
+  text-underline-offset: 0.2em;
+}
+:where(h1, h2, h3) {
+  text-wrap: balance;
+}
+.navigation-icon {
+  display: block;
+  flex: 0 0 auto;
+}

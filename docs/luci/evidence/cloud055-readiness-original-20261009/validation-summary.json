@@ -1,0 +1,21 @@
+{
+  "browserChecks": {
+    "controlled-final": 12,
+    "controlled-lifecycle-final": 13
+  },
+  "ledgerTests": 6,
+  "uniqueCountClaim": false,
+  "repeatedAudits": "Same-origin GET and forbidden API source scan repeated in both browser batches. Prior passing intermediates are not additional cases.",
+  "controlledLateDriver": {
+    "label": "autonomous-witness-precedes-controlled-late-driver",
+    "passed": true,
+    "gapMs": 615.8000000119209,
+    "unchangedFullSpanMs": 866.882404
+  },
+  "retainedFailures": [
+    "controlled-attempt1: Chromium socket path too long, no action ran",
+    "controlled-lifecycle-attempt1: old-node replacement safely censored as observed disconnection before test expected retained-editor"
+  ],
+  "originalLateOnly": "No autonomous witness, expected limitation; not a fabricated production before-failure.",
+  "installedRuntimeExecuted": false
+}

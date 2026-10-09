@@ -1,0 +1,141 @@
+{
+  "observedAt": "2026-10-09T11:15:03.549293+00:00",
+  "scope": "Independent read-only exact driver/controller identities and exclusive daemon inventory. No process environment scan, browser PID census, signals, cleanup changes or private fixture access.",
+  "runProductSource": "d20ebd292f3f1de04d6726bab0998c210987bcb5",
+  "runHelperSource": "f43542a84bd9cd81c2b263e680c36d8225e10024",
+  "originalResultSHA256": "80cc4fd1b12b3ecc1338adad48e87e70662da295a8757993417ef38d0946d969",
+  "originalArtifacts": {
+    "driver/accepted-harness/autonomous-readiness.mjs": "fca427906b3a3d580b3280548ae931fe1fb55b4041c73ef1810b1354c2d61209",
+    "driver/accepted-harness/external-source-binding.json": "3aef53f3c537c2ff4cb5d179e0d724308349ea16293c59ffc185044fb62fcd2a",
+    "driver/accepted-harness/four-project-queue_native-terminal-diagnostics.mjs": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+    "driver/accepted-harness/four-project-queue_sample-linux-owned.py": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+    "driver/accepted-harness/interaction-metrics.mjs": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502",
+    "driver/accepted-harness/latency-diagnostics.mjs": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96",
+    "driver/accepted-harness/launch-recovery_acceptance-lifecycle.mjs": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+    "driver/accepted-harness/launch-recovery_acceptance-startup.mjs": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+    "driver/accepted-harness/launch-recovery_durable-acceptance-journal.mjs": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+    "driver/accepted-harness/launch-recovery_fenced-docker-proxy.mjs": "b965b9a5d03f8a4cbc19b6e065559e1d9b10a2812453bfafb992e3f0041e448f",
+    "driver/accepted-harness/launch-recovery_worker-create-guard.mjs": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+    "driver/accepted-harness/queue-controls.mjs": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0",
+    "driver/accepted-harness/readiness-ledger.mjs": "0a6db6505273c685d1281d039fd50f05c42e44d5312309ac4267f57ae05fd1ff",
+    "driver/accepted-harness/receipt-transport.mjs": "6a676eefc02c4be569e65f6c3a16da50f750be67acaf4f1380a86739791c34a1",
+    "driver/accepted-harness/run-with-observer.py": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a",
+    "driver/accepted-harness/source-binding.mjs": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796",
+    "driver/accepted-harness/sustained.mjs": "ca52f31abd14e411e579abe141e1019d029276c0b0a2caa50bae70021edaaeba",
+    "driver/accepted-harness/task-command.mjs": "7557cc863201e136a6ea0f4d039472d6e225a8efb0fb2afe267b9d65e01a541f",
+    "driver/accepted-harness/task-context.mjs": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2",
+    "driver/accepted-harness/workloads.mjs": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306",
+    "driver/action-only-trace.zip": "bf25463f53e65a67a1fbfabcc1da3aae6fa092de67b2b60147dae745df1686c6",
+    "driver/diagnostic-journal.jsonl": "1637f4eab707c895b5dd6fcc0beb5fdf0165c1cace1e3819fa8fadb40319efa8",
+    "driver/image-provenance.json": "5af726e6670fd6f04c0f67cf3b26b3f6072ed89c1e1e3481c652a631ae6d0a3b",
+    "driver/package-provenance.json": "7819fdfa0d7a3c5c938b0e94a6d0351c02717fa31f0877b759d5defa33399450",
+    "driver/result.json": "80cc4fd1b12b3ecc1338adad48e87e70662da295a8757993417ef38d0946d969",
+    "driver/result.json.incomplete.json": "fe47097922543c62c290d2624f97eeb6183b0c988c2eb66e56ad803a99a3b673",
+    "driver-identity.json": "9675d661146e862208597d8a7c48a301fbc65ecc49c251731fc54d47085cd513",
+    "driver.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "driver.stdout.log": "f4478a104169d63b81135e1b7689e93e2e9329eb2565d35eefcaf8dca1c3f9e0",
+    "invocation.json": "526dc324fd87b17df160ff0080fdde651077bb47c558321c2aa86a6c7fc10c9c",
+    "wrapper-result.json": "1648b67c99d5eae9cd78560bdfd2cf5b4e1b3d3ca15865e2c16bf85e25437db0"
+  },
+  "allOriginalArtifactsStable": true,
+  "identities": [
+    {
+      "expected": {
+        "pid": 2384364,
+        "startTicks": 29017188
+      },
+      "observation": "absent"
+    },
+    {
+      "expected": {
+        "pid": 2384682,
+        "startTicks": 29017616
+      },
+      "observation": "absent"
+    }
+  ],
+  "docker": {
+    "containers": {
+      "command": [
+        "docker",
+        "ps",
+        "-aq"
+      ],
+      "exitCode": 0,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "count": 0,
+      "empty": true
+    },
+    "volumes": {
+      "command": [
+        "docker",
+        "volume",
+        "ls"
+      ],
+      "exitCode": 0,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "count": 0,
+      "empty": true
+    },
+    "engine": {
+      "command": [
+        "docker",
+        "info",
+        "--format"
+      ],
+      "exitCode": 0,
+      "stdoutSHA256": "333d407c8c1c1009557aac00cebe68a7deee7e65bdff6df8d4f62fd4b2c25001",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "identitySHA256": "9ccbe65e5da6fcbddb4f24a682abf7d4e4ddf8dff3a453fca0c0dbd34de76de5",
+      "matchesInvocation": true
+    },
+    "image": {
+      "command": [
+        "docker",
+        "image",
+        "inspect"
+      ],
+      "exitCode": 0,
+      "stdoutSHA256": "e47563a9176771549a9b314ca55ae7542e59c8e0beb3b568a88f64b30f139ce4",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "expectedID": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+      "matches": true
+    }
+  },
+  "wrapper": {
+    "exitCode": 0,
+    "externalMonitorTimeout": false,
+    "forcedExactDriver": false,
+    "cleanupUnconfirmedByWrapper": true
+  },
+  "driverAssertions": {
+    "controllersStopped": true,
+    "dockerRequestsDrained": true,
+    "dockerMutationStateCertain": true,
+    "fixtureRemoved": true
+  },
+  "driverCleanupCount": 0,
+  "driverResourceAssertions": {
+    "containers": 0,
+    "volumes": 0,
+    "ownedServiceProcesses": 0,
+    "ownedBrowserProcesses": 0,
+    "protectedImagePackageAndHelpersUnchanged": true,
+    "rootFreeBytes": 6701522944
+  },
+  "observerAssertions": {
+    "status": "closed",
+    "closed": true,
+    "activeGeneration": null,
+    "overflow": false,
+    "lateCallbacks": 0
+  },
+  "limits": [
+    "Current repository is not used as run identity; root may integrate new source after the run.",
+    "Only exact journal-recorded driver/controller processes were independently inspected. No browser PID census, whole-machine absence or historical zombie attribution.",
+    "Browser and private fixture removal remain retained driver assertions, not independent private-path inspection.",
+    "Container/volume emptiness and engine/image identity describe this read-only instant. No package/archive/image payload rehash here."
+  ]
+}

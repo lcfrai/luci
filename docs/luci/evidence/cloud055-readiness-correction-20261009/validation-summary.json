@@ -1,0 +1,88 @@
+{
+  "scope": "Controlled actual d20 source fixture only; no installed v2 run.",
+  "checks": [
+    {
+      "label": "original",
+      "passed": true,
+      "savedDefineReady": false,
+      "terminal": "censored",
+      "reason": "control-cap",
+      "earlyHomeControls": 27,
+      "settledHomeControls": 36,
+      "defineSamples": 1
+    },
+    {
+      "label": "fixed",
+      "passed": true,
+      "savedDefineReady": true,
+      "terminal": "ready",
+      "reason": "predicate-observed",
+      "earlyHomeControls": 27,
+      "settledHomeControls": 36,
+      "defineSamples": 4
+    },
+    {
+      "label": "wrong-selection",
+      "passed": true,
+      "savedDefineReady": false,
+      "terminal": "censored",
+      "reason": "sample-or-time-cap",
+      "earlyHomeControls": 27,
+      "settledHomeControls": 36,
+      "defineSamples": 175
+    },
+    {
+      "label": "missing",
+      "passed": true,
+      "savedDefineReady": false,
+      "terminal": "censored",
+      "reason": "wall-time-cap",
+      "earlyHomeControls": 27,
+      "settledHomeControls": 36,
+      "defineSamples": 167
+    },
+    {
+      "label": "wrong-value",
+      "passed": true,
+      "savedDefineReady": false,
+      "terminal": "censored",
+      "reason": "sample-or-time-cap",
+      "earlyHomeControls": 27,
+      "settledHomeControls": 36,
+      "defineSamples": 180
+    },
+    {
+      "label": "disabled",
+      "passed": true,
+      "savedDefineReady": false,
+      "terminal": "censored",
+      "reason": "wall-time-cap",
+      "earlyHomeControls": 27,
+      "settledHomeControls": 36,
+      "defineSamples": 171
+    },
+    {
+      "label": "same-origin-read-only-controlled-transport",
+      "passed": true,
+      "requests": 1416
+    },
+    {
+      "label": "observer-retains-no-layout-write-network-APIs",
+      "passed": true
+    }
+  ],
+  "sourceUnchanged": true,
+  "cleanup": {
+    "contextClosed": true,
+    "browserClosed": true,
+    "viteClosed": true,
+    "profileRemoved": true
+  },
+  "reportSHA256": "793777fd631049c026672b63084dea08d0dfe75922fed53c7cd42a4a406d82cd",
+  "observerSHA256": "7f534431a37a0bd599c2de48870d3c9e8badfd1e33b2d48e47078782aa74467b",
+  "frozenV1ObserverSHA256": "fca427906b3a3d580b3280548ae931fe1fb55b4041c73ef1810b1354c2d61209",
+  "fixtureSourceBindingSHA256": "a71c466844788a9bf72e23c4f4ce985507f710ed821b10d327a327557f94e36a",
+  "retainedFailure": "attempt1 had exactly32 real settled controls and correctly failed the >32 precondition; no comparison was certified. Attempt2 uses two legitimate recorded review obligations per project to reveal existing show-more controls.",
+  "metricLimitation": "No first-ready/paint/cause/performance claim. Same original targets/action spans/caps.",
+  "runNotLaunched": true
+}

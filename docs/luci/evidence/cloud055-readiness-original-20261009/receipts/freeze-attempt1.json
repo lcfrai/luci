@@ -1,0 +1,11 @@
+{
+  "command": [
+    "python3",
+    "/workspace/.luci-tools/cloud032-autonomous-readiness-v1-20261009/freeze.py"
+  ],
+  "exitCode": 1,
+  "stage": "Git source-contract copy before capsule creation",
+  "error": "fatal: path 'desktop/src/components/ui/tabs-subtle.tsx' does not exist in '5f318d5178210e95cd2b773f07686d88936d603e'",
+  "scope": "Preparation path typo; corrected to existing components/fluid/components/tabs-subtle.tsx found by rg. No runtime/test result changed; no capsule had been created.",
+  "receiptBasis": "Recorded tool result, error excerpt; original failed generator retained as freeze-attempt1.py."
+}

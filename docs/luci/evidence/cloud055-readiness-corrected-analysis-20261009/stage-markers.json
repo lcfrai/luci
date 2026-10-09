@@ -1,0 +1,727 @@
+{
+  "originalResultSHA256": "fcfa0cca877aac152ee449645caa068d26641f317e31979b63cdb000656d0ad3",
+  "scope": "Four preselected primary rows: two large observed-to-driver gaps, one late sample with blind gap, and largest Home-observed-to-Open interval. No raw URL/project ID/body or inferred request identity.",
+  "limitations": [
+    "Resource route classes do not independently identify a specific project request; concurrent/cancelled reads may be present.",
+    "Event Timing collection uses a16ms threshold; missing entries are not proof of no event work. Duration is not physical paint or exclusive CPU time.",
+    "No primary Playwright actionability trace or long-task collector exists in this run; followup trace is a different cohort."
+  ],
+  "rows": [
+    {
+      "index": 32,
+      "browserClockTimeOrigin": 1791545411193.1,
+      "anchors": {
+        "homeClickAt": 74401.69999998808,
+        "homeObservedAt": 74422.80000001192,
+        "openClickAt": 74537.80000001192,
+        "defineObservedAt": 74583.30000001192,
+        "driverExpectedDOMAt": 74924.80000001192
+      },
+      "resources": [
+        {
+          "route": "swarm-scheduler",
+          "at": 74406.69999998808,
+          "duration": 41.30000001192093,
+          "responseStatus": 200,
+          "requestStart": 74435.39999997616,
+          "responseStart": 74437.60000002384,
+          "responseEnd": 74448,
+          "transferSize": 2064,
+          "encodedBodySize": 1764,
+          "decodedBodySize": 1764
+        },
+        {
+          "route": "project-overview",
+          "at": 74408.19999998808,
+          "duration": 40.10000002384186,
+          "responseStatus": 200,
+          "requestStart": 74437.39999997616,
+          "responseStart": 74441.30000001192,
+          "responseEnd": 74448.30000001192,
+          "transferSize": 1605,
+          "encodedBodySize": 1305,
+          "decodedBodySize": 1305
+        },
+        {
+          "route": "project-overview",
+          "at": 74407.19999998808,
+          "duration": 44.80000001192093,
+          "responseStatus": 200,
+          "requestStart": 74437.10000002384,
+          "responseStart": 74448.39999997616,
+          "responseEnd": 74452,
+          "transferSize": 1589,
+          "encodedBodySize": 1289,
+          "decodedBodySize": 1289
+        },
+        {
+          "route": "project-overview",
+          "at": 74407.69999998808,
+          "duration": 44.5,
+          "responseStatus": 200,
+          "requestStart": 74437.30000001192,
+          "responseStart": 74449.60000002384,
+          "responseEnd": 74452.19999998808,
+          "transferSize": 1596,
+          "encodedBodySize": 1296,
+          "decodedBodySize": 1296
+        },
+        {
+          "route": "project-overview",
+          "at": 74408.80000001192,
+          "duration": 42.09999996423721,
+          "responseStatus": 200,
+          "requestStart": 74437.5,
+          "responseStart": 74448.19999998808,
+          "responseEnd": 74450.89999997616,
+          "transferSize": 1601,
+          "encodedBodySize": 1301,
+          "decodedBodySize": 1301
+        },
+        {
+          "route": "project-specification",
+          "at": 74544.80000001192,
+          "duration": 24.19999998807907,
+          "responseStatus": 200,
+          "requestStart": 74562.80000001192,
+          "responseStart": 74565.5,
+          "responseEnd": 74569,
+          "transferSize": 1072,
+          "encodedBodySize": 772,
+          "decodedBodySize": 772
+        },
+        {
+          "route": "project-orchestrator",
+          "at": 74546,
+          "duration": 50.69999998807907,
+          "responseStatus": 200,
+          "requestStart": 74569.19999998808,
+          "responseStart": 74594.39999997616,
+          "responseEnd": 74596.69999998808,
+          "transferSize": 4705,
+          "encodedBodySize": 4405,
+          "decodedBodySize": 4405
+        }
+      ],
+      "eventTiming": [
+        {
+          "name": "pointerdown",
+          "startTime": 74399.39999997616,
+          "duration": 48,
+          "processingStart": 74400.80000001192,
+          "processingEnd": 74401.19999998808,
+          "interactionId": 6599
+        },
+        {
+          "name": "mousedown",
+          "startTime": 74399.39999997616,
+          "duration": 48,
+          "processingStart": 74401.19999998808,
+          "processingEnd": 74401.30000001192,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerup",
+          "startTime": 74399.5,
+          "duration": 48,
+          "processingStart": 74401.60000002384,
+          "processingEnd": 74401.60000002384,
+          "interactionId": 6599
+        },
+        {
+          "name": "mouseup",
+          "startTime": 74399.5,
+          "duration": 48,
+          "processingStart": 74401.60000002384,
+          "processingEnd": 74401.60000002384,
+          "interactionId": 0
+        },
+        {
+          "name": "click",
+          "startTime": 74399.5,
+          "duration": 48,
+          "processingStart": 74401.60000002384,
+          "processingEnd": 74420.30000001192,
+          "interactionId": 6599
+        },
+        {
+          "name": "pointerdown",
+          "startTime": 74533.19999998808,
+          "duration": 40,
+          "processingStart": 74535.19999998808,
+          "processingEnd": 74535.80000001192,
+          "interactionId": 6606
+        },
+        {
+          "name": "mousedown",
+          "startTime": 74533.19999998808,
+          "duration": 40,
+          "processingStart": 74535.80000001192,
+          "processingEnd": 74535.80000001192,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerup",
+          "startTime": 74533.19999998808,
+          "duration": 40,
+          "processingStart": 74537.69999998808,
+          "processingEnd": 74537.69999998808,
+          "interactionId": 6606
+        },
+        {
+          "name": "mouseup",
+          "startTime": 74533.19999998808,
+          "duration": 40,
+          "processingStart": 74537.69999998808,
+          "processingEnd": 74537.80000001192,
+          "interactionId": 0
+        },
+        {
+          "name": "click",
+          "startTime": 74533.19999998808,
+          "duration": 40,
+          "processingStart": 74537.80000001192,
+          "processingEnd": 74546.30000001192,
+          "interactionId": 6606
+        }
+      ]
+    },
+    {
+      "index": 104,
+      "browserClockTimeOrigin": 1791545411193.1,
+      "anchors": {
+        "homeClickAt": 89115.89999997616,
+        "homeObservedAt": 89129.60000002384,
+        "openClickAt": 89227,
+        "defineObservedAt": 89613.80000001192,
+        "driverExpectedDOMAt": 89677
+      },
+      "resources": [
+        {
+          "route": "swarm-scheduler",
+          "at": 89120.39999997616,
+          "duration": 17.400000035762787,
+          "responseStatus": 200,
+          "requestStart": 89133.80000001192,
+          "responseStart": 89136.10000002384,
+          "responseEnd": 89137.80000001192,
+          "transferSize": 2071,
+          "encodedBodySize": 1771,
+          "decodedBodySize": 1771
+        },
+        {
+          "route": "project-overview",
+          "at": 89121,
+          "duration": 21.30000001192093,
+          "responseStatus": 200,
+          "requestStart": 89137.60000002384,
+          "responseStart": 89141.19999998808,
+          "responseEnd": 89142.30000001192,
+          "transferSize": 1588,
+          "encodedBodySize": 1288,
+          "decodedBodySize": 1288
+        },
+        {
+          "route": "project-overview",
+          "at": 89121.39999997616,
+          "duration": 27.600000023841858,
+          "responseStatus": 200,
+          "requestStart": 89138.10000002384,
+          "responseStart": 89146.69999998808,
+          "responseEnd": 89149,
+          "transferSize": 1595,
+          "encodedBodySize": 1295,
+          "decodedBodySize": 1295
+        },
+        {
+          "route": "project-overview",
+          "at": 89121.89999997616,
+          "duration": 38.80000001192093,
+          "responseStatus": 200,
+          "requestStart": 89138.19999998808,
+          "responseStart": 89151.69999998808,
+          "responseEnd": 89160.69999998808,
+          "transferSize": 1605,
+          "encodedBodySize": 1305,
+          "decodedBodySize": 1305
+        },
+        {
+          "route": "project-overview",
+          "at": 89122.39999997616,
+          "duration": 29,
+          "responseStatus": 200,
+          "requestStart": 89138.19999998808,
+          "responseStart": 89150.10000002384,
+          "responseEnd": 89151.39999997616,
+          "transferSize": 1601,
+          "encodedBodySize": 1301,
+          "decodedBodySize": 1301
+        },
+        {
+          "route": "project-specification",
+          "at": 89244,
+          "duration": 332.30000001192093,
+          "responseStatus": 200,
+          "requestStart": 89541.19999998808,
+          "responseStart": 89570.60000002384,
+          "responseEnd": 89576.30000001192,
+          "transferSize": 1102,
+          "encodedBodySize": 802,
+          "decodedBodySize": 802
+        },
+        {
+          "route": "project-orchestrator",
+          "at": 89246.10000002384,
+          "duration": 371.39999997615814,
+          "responseStatus": 200,
+          "requestStart": 89543.30000001192,
+          "responseStart": 89615.89999997616,
+          "responseEnd": 89617.5,
+          "transferSize": 4535,
+          "encodedBodySize": 4235,
+          "decodedBodySize": 4235
+        }
+      ],
+      "eventTiming": [
+        {
+          "name": "pointerdown",
+          "startTime": 89113.60000002384,
+          "duration": 48,
+          "processingStart": 89115,
+          "processingEnd": 89115.39999997616,
+          "interactionId": 7607
+        },
+        {
+          "name": "mousedown",
+          "startTime": 89113.60000002384,
+          "duration": 48,
+          "processingStart": 89115.39999997616,
+          "processingEnd": 89115.39999997616,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerup",
+          "startTime": 89113.69999998808,
+          "duration": 48,
+          "processingStart": 89115.80000001192,
+          "processingEnd": 89115.89999997616,
+          "interactionId": 7607
+        },
+        {
+          "name": "mouseup",
+          "startTime": 89113.69999998808,
+          "duration": 48,
+          "processingStart": 89115.89999997616,
+          "processingEnd": 89115.89999997616,
+          "interactionId": 0
+        },
+        {
+          "name": "click",
+          "startTime": 89113.69999998808,
+          "duration": 48,
+          "processingStart": 89115.89999997616,
+          "processingEnd": 89128.5,
+          "interactionId": 7607
+        },
+        {
+          "name": "pointerdown",
+          "startTime": 89215.60000002384,
+          "duration": 360,
+          "processingStart": 89222.60000002384,
+          "processingEnd": 89224.60000002384,
+          "interactionId": 7614
+        },
+        {
+          "name": "mousedown",
+          "startTime": 89215.60000002384,
+          "duration": 360,
+          "processingStart": 89224.60000002384,
+          "processingEnd": 89225,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerup",
+          "startTime": 89215.80000001192,
+          "duration": 360,
+          "processingStart": 89226.39999997616,
+          "processingEnd": 89226.5,
+          "interactionId": 7614
+        },
+        {
+          "name": "mouseup",
+          "startTime": 89215.80000001192,
+          "duration": 360,
+          "processingStart": 89226.5,
+          "processingEnd": 89226.5,
+          "interactionId": 0
+        },
+        {
+          "name": "click",
+          "startTime": 89215.80000001192,
+          "duration": 360,
+          "processingStart": 89226.5,
+          "processingEnd": 89246.69999998808,
+          "interactionId": 7614
+        }
+      ]
+    },
+    {
+      "index": 156,
+      "browserClockTimeOrigin": 1791545411193.1,
+      "anchors": {
+        "homeClickAt": 98643,
+        "homeObservedAt": 98687.89999997616,
+        "openClickAt": 99267.60000002384,
+        "defineObservedAt": 99375.89999997616,
+        "driverExpectedDOMAt": 99422.60000002384
+      },
+      "resources": [
+        {
+          "route": "swarm-scheduler",
+          "at": 98659.69999998808,
+          "duration": 58.10000002384186,
+          "responseStatus": 200,
+          "requestStart": 98707.30000001192,
+          "responseStart": 98714.30000001192,
+          "responseEnd": 98717.80000001192,
+          "transferSize": 2071,
+          "encodedBodySize": 1771,
+          "decodedBodySize": 1771
+        },
+        {
+          "route": "project-overview",
+          "at": 98662.19999998808,
+          "duration": 71.80000001192093,
+          "responseStatus": 200,
+          "requestStart": 98714.39999997616,
+          "responseStart": 98732.5,
+          "responseEnd": 98734,
+          "transferSize": 1588,
+          "encodedBodySize": 1288,
+          "decodedBodySize": 1288
+        },
+        {
+          "route": "project-overview",
+          "at": 98663.10000002384,
+          "duration": 73.29999995231628,
+          "responseStatus": 200,
+          "requestStart": 98714.60000002384,
+          "responseStart": 98734.10000002384,
+          "responseEnd": 98736.39999997616,
+          "transferSize": 1596,
+          "encodedBodySize": 1296,
+          "decodedBodySize": 1296
+        },
+        {
+          "route": "project-overview",
+          "at": 98663.89999997616,
+          "duration": 64.60000002384186,
+          "responseStatus": 200,
+          "requestStart": 98714.60000002384,
+          "responseStart": 98724.19999998808,
+          "responseEnd": 98728.5,
+          "transferSize": 1605,
+          "encodedBodySize": 1305,
+          "decodedBodySize": 1305
+        },
+        {
+          "route": "project-overview",
+          "at": 98664.80000001192,
+          "duration": 63.39999997615814,
+          "responseStatus": 200,
+          "requestStart": 98714.80000001192,
+          "responseStart": 98724.10000002384,
+          "responseEnd": 98728.19999998808,
+          "transferSize": 1601,
+          "encodedBodySize": 1301,
+          "decodedBodySize": 1301
+        },
+        {
+          "route": "project-specification",
+          "at": 99293.5,
+          "duration": 60.39999997615814,
+          "responseStatus": 200,
+          "requestStart": 99328,
+          "responseStart": 99352.19999998808,
+          "responseEnd": 99353.89999997616,
+          "transferSize": 1096,
+          "encodedBodySize": 796,
+          "decodedBodySize": 796
+        },
+        {
+          "route": "project-orchestrator",
+          "at": 99295.30000001192,
+          "duration": 96.39999997615814,
+          "responseStatus": 200,
+          "requestStart": 99330.80000001192,
+          "responseStart": 99390.69999998808,
+          "responseEnd": 99391.69999998808,
+          "transferSize": 4512,
+          "encodedBodySize": 4212,
+          "decodedBodySize": 4212
+        }
+      ],
+      "eventTiming": [
+        {
+          "name": "pointerdown",
+          "startTime": 98640.30000001192,
+          "duration": 96,
+          "processingStart": 98642.19999998808,
+          "processingEnd": 98642.39999997616,
+          "interactionId": 8335
+        },
+        {
+          "name": "mousedown",
+          "startTime": 98640.30000001192,
+          "duration": 96,
+          "processingStart": 98642.39999997616,
+          "processingEnd": 98642.39999997616,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerup",
+          "startTime": 98640.39999997616,
+          "duration": 96,
+          "processingStart": 98642.89999997616,
+          "processingEnd": 98643,
+          "interactionId": 8335
+        },
+        {
+          "name": "mouseup",
+          "startTime": 98640.39999997616,
+          "duration": 96,
+          "processingStart": 98643,
+          "processingEnd": 98643,
+          "interactionId": 0
+        },
+        {
+          "name": "click",
+          "startTime": 98640.39999997616,
+          "duration": 96,
+          "processingStart": 98643,
+          "processingEnd": 98682.69999998808,
+          "interactionId": 8335
+        },
+        {
+          "name": "pointerdown",
+          "startTime": 99253.89999997616,
+          "duration": 72,
+          "processingStart": 99265.5,
+          "processingEnd": 99266.39999997616,
+          "interactionId": 8342
+        },
+        {
+          "name": "mousedown",
+          "startTime": 99253.89999997616,
+          "duration": 72,
+          "processingStart": 99266.39999997616,
+          "processingEnd": 99266.5,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerup",
+          "startTime": 99254.60000002384,
+          "duration": 72,
+          "processingStart": 99267.19999998808,
+          "processingEnd": 99267.30000001192,
+          "interactionId": 8342
+        },
+        {
+          "name": "mouseup",
+          "startTime": 99254.60000002384,
+          "duration": 72,
+          "processingStart": 99267.30000001192,
+          "processingEnd": 99267.30000001192,
+          "interactionId": 0
+        },
+        {
+          "name": "click",
+          "startTime": 99254.60000002384,
+          "duration": 72,
+          "processingStart": 99267.30000001192,
+          "processingEnd": 99295.89999997616,
+          "interactionId": 8342
+        }
+      ]
+    },
+    {
+      "index": 232,
+      "browserClockTimeOrigin": 1791545411193.1,
+      "anchors": {
+        "homeClickAt": 114500,
+        "homeObservedAt": 114512.89999997616,
+        "openClickAt": 114579.5,
+        "defineObservedAt": 114632,
+        "driverExpectedDOMAt": 114852.60000002384
+      },
+      "resources": [
+        {
+          "route": "swarm-scheduler",
+          "at": 114503.60000002384,
+          "duration": 27.399999976158142,
+          "responseStatus": 200,
+          "requestStart": 114522,
+          "responseStart": 114524.10000002384,
+          "responseEnd": 114531,
+          "transferSize": 2070,
+          "encodedBodySize": 1770,
+          "decodedBodySize": 1770
+        },
+        {
+          "route": "project-overview",
+          "at": 114504.10000002384,
+          "duration": 27,
+          "responseStatus": 200,
+          "requestStart": 114523.39999997616,
+          "responseStart": 114527.60000002384,
+          "responseEnd": 114531.10000002384,
+          "transferSize": 1589,
+          "encodedBodySize": 1289,
+          "decodedBodySize": 1289
+        },
+        {
+          "route": "project-overview",
+          "at": 114504.5,
+          "duration": 28.5,
+          "responseStatus": 200,
+          "requestStart": 114526.80000001192,
+          "responseStart": 114530.69999998808,
+          "responseEnd": 114533,
+          "transferSize": 1596,
+          "encodedBodySize": 1296,
+          "decodedBodySize": 1296
+        },
+        {
+          "route": "project-overview",
+          "at": 114505,
+          "duration": 27.19999998807907,
+          "responseStatus": 200,
+          "requestStart": 114528.89999997616,
+          "responseStart": 114530.39999997616,
+          "responseEnd": 114532.19999998808,
+          "transferSize": 1605,
+          "encodedBodySize": 1305,
+          "decodedBodySize": 1305
+        },
+        {
+          "route": "project-overview",
+          "at": 114505.39999997616,
+          "duration": 28.900000035762787,
+          "responseStatus": 200,
+          "requestStart": 114530.89999997616,
+          "responseStart": 114533.19999998808,
+          "responseEnd": 114534.30000001192,
+          "transferSize": 1601,
+          "encodedBodySize": 1301,
+          "decodedBodySize": 1301
+        },
+        {
+          "route": "project-specification",
+          "at": 114584.5,
+          "duration": 16.69999998807907,
+          "responseStatus": 200,
+          "requestStart": 114597.39999997616,
+          "responseStart": 114599.5,
+          "responseEnd": 114601.19999998808,
+          "transferSize": 1102,
+          "encodedBodySize": 802,
+          "decodedBodySize": 802
+        },
+        {
+          "route": "project-orchestrator",
+          "at": 114585.19999998808,
+          "duration": 181.80000001192093,
+          "responseStatus": 200,
+          "requestStart": 114608.60000002384,
+          "responseStart": 114750.10000002384,
+          "responseEnd": 114767,
+          "transferSize": 4535,
+          "encodedBodySize": 4235,
+          "decodedBodySize": 4235
+        }
+      ],
+      "eventTiming": [
+        {
+          "name": "pointerdown",
+          "startTime": 114498,
+          "duration": 48,
+          "processingStart": 114499.39999997616,
+          "processingEnd": 114499.60000002384,
+          "interactionId": 9399
+        },
+        {
+          "name": "mousedown",
+          "startTime": 114498,
+          "duration": 48,
+          "processingStart": 114499.60000002384,
+          "processingEnd": 114499.60000002384,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerup",
+          "startTime": 114498.10000002384,
+          "duration": 48,
+          "processingStart": 114499.89999997616,
+          "processingEnd": 114499.89999997616,
+          "interactionId": 9399
+        },
+        {
+          "name": "mouseup",
+          "startTime": 114498.10000002384,
+          "duration": 48,
+          "processingStart": 114499.89999997616,
+          "processingEnd": 114500,
+          "interactionId": 0
+        },
+        {
+          "name": "click",
+          "startTime": 114498.10000002384,
+          "duration": 48,
+          "processingStart": 114500,
+          "processingEnd": 114511.69999998808,
+          "interactionId": 9399
+        },
+        {
+          "name": "pointerdown",
+          "startTime": 114576.80000001192,
+          "duration": 56,
+          "processingStart": 114578.69999998808,
+          "processingEnd": 114579.10000002384,
+          "interactionId": 9406
+        },
+        {
+          "name": "mousedown",
+          "startTime": 114576.80000001192,
+          "duration": 56,
+          "processingStart": 114579.10000002384,
+          "processingEnd": 114579.10000002384,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerup",
+          "startTime": 114576.89999997616,
+          "duration": 56,
+          "processingStart": 114579.39999997616,
+          "processingEnd": 114579.5,
+          "interactionId": 9406
+        },
+        {
+          "name": "mouseup",
+          "startTime": 114576.89999997616,
+          "duration": 56,
+          "processingStart": 114579.5,
+          "processingEnd": 114579.5,
+          "interactionId": 0
+        },
+        {
+          "name": "click",
+          "startTime": 114576.89999997616,
+          "duration": 56,
+          "processingStart": 114579.5,
+          "processingEnd": 114585.39999997616,
+          "interactionId": 9406
+        }
+      ]
+    }
+  ]
+}

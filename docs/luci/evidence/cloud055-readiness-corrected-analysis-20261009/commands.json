@@ -1,0 +1,18 @@
+{
+  "scope": "Reproduction commands for completed read-only analysis; no installed run or new validation round launched by this publication step. Fresh output required.",
+  "commands": [
+    [
+      "python3",
+      "/workspace/.luci-tools/cloud032-autonomous-readiness-analysis-v2/analyze.py",
+      "RETAINED_PRIVATE_RUN/driver/result.json",
+      "FRESH_OUTPUT"
+    ],
+    [
+      "python3",
+      "/workspace/.luci-tools/cloud032-autonomous-readiness-analysis-v2/closure.py",
+      "--help"
+    ]
+  ],
+  "analyzerValidation": "Six algorithm tests passed in frozen v1; not rerun or recounted for the binding-only v2 change.",
+  "rawOriginals": "Excluded; original artifact hashes are in the closure and binding records."
+}

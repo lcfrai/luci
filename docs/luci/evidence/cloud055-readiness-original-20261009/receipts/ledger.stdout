@@ -1,0 +1,14 @@
+✔ missing installed observer is explicit unavailable and cannot silently close (1.464665ms)
+✔ overflow snapshot with retained sequence remains retrievable (0.335976ms)
+✔ document mismatch and gaps cannot masquerade as ready (1.752619ms)
+✔ installation uncertainty is retained after bounded cleanup (1.941082ms)
+✔ uncertain cleanup without observer remains unavailable (0.347773ms)
+✔ nominal 200 stages, drain windows and final close are separate from primary acceptance (1.931658ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 101.032342
