@@ -1,0 +1,26 @@
+{
+  "command": [
+    "npm",
+    "exec",
+    "--",
+    "vitest",
+    "run",
+    "src/components/orchestrator/OrchestratorPanel.test.tsx",
+    "src/components/orchestrator/ProjectUnderstanding.test.tsx",
+    "src/components/orchestrator/composerRecovery.test.ts",
+    "src/components/orchestrator/ConversationStorage.test.tsx",
+    "src/components/AppShell.test.tsx",
+    "src/components/definition/DefinitionWorkspace.test.tsx",
+    "src/components/teams/TeamWorkspaceProvider.test.tsx",
+    "src/store/draftRegistration.test.ts",
+    "src/hooks/useProjectDraft.test.tsx",
+    "--maxWorkers=2",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/cloud032-discussion-mount/validation/after-affected/vitest.json"
+  ],
+  "cwd": "/workspace/luci/desktop",
+  "activation": "source /workspace/.luci-tools/activate.sh",
+  "startedAt": "2026-10-09T01:24:48.935788+00:00",
+  "label": "after-affected",
+  "scope": "Controlled frontend verification only; no browser/app/runtime. No full frontend suite."
+}

@@ -1,0 +1,20 @@
+{
+  "phase": "exact-target-charge-retired",
+  "at": "2026-10-09T01:17:43.492Z",
+  "checkId": "check-9499b0b27457bc8ce99ee80b",
+  "allocationId": "checkexec-f37fa411f0b542f281f61d7d",
+  "resourcesHeld": false,
+  "cleanupConfirmed": true,
+  "witnessAllocationId": null,
+  "fenceId": "f810ed45a390122637e062b2f0c79c603a49a80a135e9be7a890006bab85f12b",
+  "fenceState": "retired",
+  "beforeCharge": {
+    "memoryMiB": 1024,
+    "cpuMillis": 1000
+  },
+  "afterCharge": {
+    "memoryMiB": 0,
+    "cpuMillis": 0
+  },
+  "concurrentChargedWitness": "not-exercised-single-allocation-scope"
+}

@@ -1,0 +1,31 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-timeout=30000",
+    "--test-reporter=spec",
+    "--test-name-pattern=SDK generated one-shot stats request forwards one bounded read",
+    "scripts/acceptance/check-create-recovery/proxy-recovery.test.mjs"
+  ],
+  "startedAtUTC": "2026-10-09T01:21:41.475397+00:00",
+  "durationSeconds": 0.42016943302587606,
+  "exitCode": 1,
+  "scope": "original proxy and new regression; original query unavailable; generated SDK request",
+  "selectedSources": [
+    {
+      "path": "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs",
+      "bytes": 38547,
+      "sha256": "7315bcd8ecd230bf33de8eb4d06d900e4fdc380b52ed901875b12bf536672dae"
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/proxy-recovery.test.mjs",
+      "bytes": 20389,
+      "sha256": "e49aeda8268924b31c324fcc81f65298449eef8ca85522de8a066f72db8d97b8"
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/sdk-stats-wire.json",
+      "bytes": 477,
+      "sha256": "1f57d425819c9d706101ea8eaf431fac9595af875cfc4289036d1a8147505a38"
+    }
+  ]
+}

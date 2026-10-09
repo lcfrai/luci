@@ -1,0 +1,31 @@
+{
+  "scope": "Existing offline analyses were read only. No raw trace was opened in this capsule preparation. Temporal correlation is not React/function causality.",
+  "inputs": {
+    "result": {
+      "sha256": "0195f938c60badd754b87e296eb0c8adf5b53832d1abf6ef21495ccc86e50a78",
+      "bytes": 7325801
+    },
+    "comparisonAnalysis": {
+      "sha256": "ad84da42b26502e892e9f5d3ab7e94689a23c63eb331f1d10f4c982ac396ecc7",
+      "bytes": 79329
+    },
+    "passiveCorrelationAnalysis": {
+      "sha256": "dd8732cb0915d20252cda8ab2182060a5998253f3213823e6db75592b92f841c",
+      "bytes": 181408
+    },
+    "comparisonAnalyzer": {
+      "sha256": "9e5c970d7aaaf8273b0048014fc818df355a0a3cac637fec5e2f6dfd2da6cb08",
+      "bytes": 10451
+    },
+    "passiveCorrelationAnalyzer": {
+      "sha256": "43ed9b22da6744d6444d0403dccf33093572b2efe57e35890e40b60b356c4d61",
+      "bytes": 3613
+    }
+  },
+  "comparisonScope": "Original immutable primary metrics retained. One actual da8 packaged diagnostic arm without the full Linux sampler; original browser collectors unchanged. No subtraction or causal comparison claim. Trace follow-up is 8 extra rounds, not the primary 100.",
+  "passiveLimits": [
+    "Sequential single arms; changes cannot be causally attributed.",
+    "No clock-domain subtraction or filtering of primary metric rows.",
+    "Separate8-round trace does not contain primary slow events; zero retries there does not prove primary has no retries."
+  ]
+}

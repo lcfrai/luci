@@ -44,7 +44,8 @@ const json = (res, status, body) => {res.writeHead(status, {'content-type': 'app
 function send(socketPath, method, path, body) {
   let request;
   const promise = new Promise(resolve => {
-    request = http.request({socketPath, method, path, agent: false}, response => {
+    request = http.request({socketPath, method, path, agent: false,
+      headers: body === undefined ? {} : {'content-type':'application/json','content-length':Buffer.byteLength(JSON.stringify(body))}}, response => {
       const chunks = [];
       response.on('data', value => chunks.push(value));
       response.once('end', () => resolve({status: response.statusCode, body: Buffer.concat(chunks).toString()}));
@@ -108,7 +109,7 @@ async function createCheck(f, labels) {
 
 test('assembled proxy is based on the exact pinned helper source', async () => {
   assert.equal(hash(pinned('fenced-docker-proxy.mjs')), '48e97d6d5c915cf80c99f0c79a8fb16261eb219616f878fa1ce103ee2c59303d');
-  assert.equal(hash(await readFile(proxyURL)), '7315bcd8ecd230bf33de8eb4d06d900e4fdc380b52ed901875b12bf536672dae');
+  assert.equal(hash(await readFile(proxyURL)), '2b6887af0bad7975c74bac42c8ed7988813e3c72ba615281c727c0ac268b1606');
 });
 
 test('recovery opt-in is explicit and check budget is bounded to three', async () => {
@@ -119,6 +120,127 @@ test('recovery opt-in is explicit and check budget is bounded to three', async (
     {...recoveryOptions, maxCreatesByKind: {worker: 1, check: 2, fence: 1}},
   ]) await assert.rejects(startFencedDockerProxy({socketPath: '/tmp/absent-p.sock', upstreamSocketPath: '/tmp/absent-u.sock',
     identifyCreate: identify, beforeCreate() {}, ...options}), /explicit-sdk-check-recovery|required|budget/);
+});
+
+test('SDK generated one-shot stats request forwards one bounded read for the exact owned check', async t => {
+  const wire=JSON.parse(await readFile(new URL('./sdk-stats-wire.json',import.meta.url),'utf8'));
+  assert.equal(wire.calls,1);assert.equal(wire.request.method,'GET');assert.equal(wire.request.bodyBytes,0);
+  assert.equal(wire.request.path,'/v1.51/containers/'+'a'.repeat(64)+'/stats');
+  assert.equal(wire.request.rawQuery,'one-shot=1&stream=0');
+  const f=await fixture(t,recoveryOptions,(entry,res,reply)=>{
+    if(entry.method==='GET'&&entry.path.includes('/stats?'))return json(res,200,{read:'controlled single response',memory_stats:{usage:42}});
+    reply(entry,res);
+  });
+  const labels=labelsFor('a'),id=await createCheck(f,labels),before=f.received.length;
+  const path=wire.request.requestURI.replace('a'.repeat(64),id);
+  const response=await f.request(wire.request.method,path).promise;
+  assert.equal(response.status,200);assert.deepEqual(JSON.parse(response.body),{read:'controlled single response',memory_stats:{usage:42}});
+  assert.equal(f.received.length,before+1);assert.deepEqual(f.received.at(-1),{method:'GET',path,body:undefined});
+  assert.equal(f.proxy.observations.counts.start,0);assert.equal(f.proxy.observations.counts.check,1);
+  assert.equal(f.proxy.observations.requests.at(-1).kind,'check');assert.equal(f.proxy.observations.requests.at(-1).ref,id);
+  assert.deepEqual(f.proxy.observations.failures,[]);assert.equal((await f.proxy.close()).drained,true);
+});
+
+test('owned SDK stats refuses streaming malformed queries bodies methods and logical names',async t=>{
+  const f=await fixture(t,recoveryOptions),labels=labelsFor('a'),id=await createCheck(f,labels),prefix=api+id+'/stats';
+  const before=f.received.length;
+  const cases=[
+    ['GET',prefix],['GET',prefix+'?stream=0'],['GET',prefix+'?one-shot=1'],
+    ['GET',prefix+'?one-shot=1&stream=1'],['GET',prefix+'?one-shot=0&stream=0'],
+    ['GET',prefix+'?one-shot=true&stream=false'],['GET',prefix+'?one-shot=1&stream=0&extra=1'],
+    ['GET',prefix+'?one-shot=1&stream=0&stream=0'],['GET',prefix+'?one-shot=1&one-shot=1&stream=0'],
+    ['HEAD',prefix+'?one-shot=1&stream=0'],['POST',prefix+'?one-shot=1&stream=0'],['DELETE',prefix+'?one-shot=1&stream=0'],
+    ['GET',prefix+'?one-shot=1&stream=0',{unexpected:'body'}],
+    ['GET',api+checkName(labels)+'/stats?one-shot=1&stream=0'],
+    ['GET',api+checkName(labelsFor('f'))+'/stats?one-shot=1&stream=0'],
+  ];
+  for(const [method,path,body] of cases)assert.equal((await f.request(method,path,body).promise).status,503,method+' '+path);
+  assert.equal(f.received.length,before);assert.equal(f.proxy.observations.counts.start,0);
+  assert(f.proxy.observations.failures.includes('check-query-shape-refused'));
+  assert(f.proxy.observations.failures.includes('check-lifecycle-body-refused'));
+});
+
+test('versioned and unversioned owned stats retain only the validated bounded query',async t=>{
+  const f=await fixture(t,recoveryOptions,(entry,res,reply)=>{
+    if(entry.method==='GET'&&entry.path.includes('/stats?'))return json(res,200,{read:'controlled one-shot'});
+    reply(entry,res);
+  });
+  const id=await createCheck(f,labelsFor('a'));
+  for(const [prefix,query] of [[api,'?one-shot=1&stream=0'],['/containers/','?stream=%30&one%2Dshot=%31']]){
+    const path=prefix+id+'/stats'+query,before=f.received.length;
+    assert.equal((await f.request('GET',path).promise).status,200);assert.equal(f.received.length,before+1);
+    const receipt=f.proxy.observations.requests.at(-1);assert.equal(receipt.kind,'check');assert.equal(receipt.ref,id);assert.equal(receipt.checkStatsQuery,query);
+    assert.equal(f.received.at(-1).path,path);
+  }
+  assert.deepEqual(f.proxy.observations.failures,[]);assert.equal(f.proxy.observations.counts.start,0);
+});
+
+test('both owned stats routes refuse unsafe requests without exporting rejected query text',async t=>{
+  const f=await fixture(t,recoveryOptions),labels=labelsFor('a'),id=await createCheck(f,labels),secret='controlled-private-query-sentinel';
+  const before=f.received.length;
+  for(const prefix of [api,'/containers/']){
+    const path=prefix+id+'/stats';
+    for(const [method,url,body] of [
+      ['GET',path+'?one-shot=1&stream=0&secret='+secret],['GET',path+'?one-shot=1&stream=1'],
+      ['GET',path+'?one-shot=1&stream=0&stream=0'],['GET',path+'?one-shot=1'],
+      ['GET',path+'?one-shot=1&stream=0'+'&'.repeat(200)],
+      ['GET',path+'?one-shot=1&stream=0',{body:secret}],['HEAD',path+'?one-shot=1&stream=0'],
+      ['POST',path+'?one-shot=1&stream=0'],['DELETE',path+'?one-shot=1&stream=0'],
+      ['GET',prefix+checkName(labels)+'/stats?one-shot=1&stream=0'],
+    ]){
+      assert.equal((await f.request(method,url,body).promise).status,503,method+' '+url);
+      assert.equal(f.proxy.observations.requests.at(-1).checkStatsQuery,undefined);
+    }
+  }
+  assert.equal(f.received.length,before);assert(!JSON.stringify(f.proxy.observations).includes(secret));assert.equal(f.proxy.observations.counts.start,0);
+});
+
+test('stats followup leaves generic foreign worker and fence GET observation behavior unchanged',async t=>{
+  const f=await fixture(t,recoveryOptions,(entry,res,reply)=>{
+    if(entry.method==='GET'&&entry.path.includes('/stats?'))return json(res,200,{});
+    reply(entry,res);
+  });
+  const labels=labelsFor('a'),id=await createCheck(f,labels);
+  const worker=JSON.parse((await f.request('POST',api+'create?name=controlled-worker',{Labels:{'luci.managed':'true'}}).promise).body).Id;
+  assert.equal((await f.request('DELETE',api+id+'?v=1').promise).status,204);
+  const marker=JSON.parse((await f.request('POST',createPath(labels),{Labels:fenceLabelsFor(labels)}).promise).body).Id;
+  for(const ref of [worker,marker,'f'.repeat(64)])for(const prefix of [api,'/containers/']){
+    const path=prefix+ref+'/stats?stream=1&generic=unchanged',before=f.received.length;
+    assert.equal((await f.request('GET',path).promise).status,200);assert.equal(f.received.length,before+1);
+    assert.equal(f.proxy.observations.requests.at(-1).checkStatsQuery,undefined);
+    assert.equal((await f.request('HEAD',path).promise).status,204);assert.equal(f.received.length,before+2);
+    assert.equal(f.proxy.observations.requests.at(-1).checkStatsQuery,undefined);
+  }
+  assert.deepEqual(f.proxy.observations.failures,[]);assert.equal(f.proxy.observations.counts.start,0);
+});
+
+test('owned SDK stats retains the shared response byte bound',async t=>{
+  const f=await fixture(t,{...recoveryOptions,maxResponseBytes:256},(entry,res,reply)=>{
+    if(entry.method==='GET'&&entry.path.includes('/stats?'))return json(res,200,{payload:'x'.repeat(512)});
+    reply(entry,res);
+  });
+  const id=await createCheck(f,labelsFor('a'));
+  const response=await f.request('GET',api+id+'/stats?one-shot=1&stream=0').promise;
+  assert(response.error);
+  // reply.destroy can synchronously emit aborted before the byte-limit label;
+  // both existing paths must terminate the read, never return oversized data.
+  assert(f.proxy.observations.failures.some(code=>['response-body-limit','upstream-response-incomplete'].includes(code)));
+  assert.equal(response.body,undefined);
+  assert.equal(f.received.length,2);assert.equal(f.proxy.observations.counts.start,0);
+});
+
+test('owned SDK stats retains upstream deadline and request concurrency limits',async t=>{
+  let entered,respond;const arrived=new Promise(resolve=>{entered=resolve;});
+  const f=await fixture(t,{...recoveryOptions,maxConcurrentRequests:1,upstreamTimeoutMs:250},(entry,res,reply)=>{
+    if(entry.method==='GET'&&entry.path.includes('/stats?')){respond=()=>json(res,200,{});entered();return;}
+    reply(entry,res);
+  });
+  const id=await createCheck(f,labelsFor('a')),path=api+id+'/stats?one-shot=1&stream=0';
+  const first=f.request('GET',path);await arrived;
+  assert.equal((await f.request('GET',path).promise).status,503);
+  const response=await first.promise;assert.equal(response.status,502);
+  assert.equal(f.received.length,2);assert(f.proxy.observations.failures.includes('concurrent-request-limit'));assert(f.proxy.observations.failures.includes('upstream-timeout'));
+  assert.equal(f.proxy.observations.counts.start,0);respond();assert.equal((await f.proxy.close()).drained,true);
 });
 
 test('default SDK behavior still refuses named reads and a second check', async t => {

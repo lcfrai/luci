@@ -1,0 +1,153 @@
+{
+  "version": 1,
+  "sourceRoot": "scripts/acceptance",
+  "helperSourceCommit": "da8a6ff29d5f4b15b674087076855404456f2d9d",
+  "pins": {
+    "product": "4df94ab9dad0e9fedd28a873bbadc56720e1402e",
+    "helper": "5d306b6dae3cc9d0a4d9cbf95f8142c37958964f",
+    "image": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98"
+  },
+  "status": "committed-source-binding-not-runtime-evidence",
+  "executedFiles": [
+    {
+      "path": "check-create-recovery/check-create-guard.mjs",
+      "repositoryPath": "scripts/acceptance/check-create-recovery/check-create-guard.mjs",
+      "bytes": 9521,
+      "sha256": "4c36f0f9253da83bd5d75fd4f5af40363ecd0fd1598db9e00f9c0e10d98507a0",
+      "origin": {
+        "commit": "da8a6ff29d5f4b15b674087076855404456f2d9d",
+        "path": "scripts/acceptance/check-create-recovery/check-create-guard.mjs"
+      }
+    },
+    {
+      "path": "check-create-recovery/fixture-guards.mjs",
+      "repositoryPath": "scripts/acceptance/check-create-recovery/fixture-guards.mjs",
+      "bytes": 11868,
+      "sha256": "5bb86009d73cdd158637a716c4a3a348edb30337e9e2a8cd93ebef82773e1b35",
+      "origin": {
+        "commit": "da8a6ff29d5f4b15b674087076855404456f2d9d",
+        "path": "scripts/acceptance/check-create-recovery/fixture-guards.mjs"
+      }
+    },
+    {
+      "path": "check-create-recovery/installed-recovery.mjs",
+      "repositoryPath": "scripts/acceptance/check-create-recovery/installed-recovery.mjs",
+      "bytes": 48594,
+      "sha256": "1f4acfbe56c91daadbc8968ac5c1a8db0fbd75e1a066c0bae50c84d748ad1c81",
+      "origin": {
+        "commit": "da8a6ff29d5f4b15b674087076855404456f2d9d",
+        "path": "scripts/acceptance/check-create-recovery/installed-recovery.mjs"
+      }
+    },
+    {
+      "path": "check-create-recovery/provenance.mjs",
+      "repositoryPath": "scripts/acceptance/check-create-recovery/provenance.mjs",
+      "bytes": 4889,
+      "sha256": "6b41954f56052d167954018018c79f561722a80497856d135d403904bfd9c08e",
+      "origin": {
+        "commit": "da8a6ff29d5f4b15b674087076855404456f2d9d",
+        "path": "scripts/acceptance/check-create-recovery/provenance.mjs"
+      }
+    },
+    {
+      "path": "check-create-recovery/recovery-scenario.mjs",
+      "repositoryPath": "scripts/acceptance/check-create-recovery/recovery-scenario.mjs",
+      "bytes": 17076,
+      "sha256": "f69a7d5bbf1fd1019106f5a24170f4946e182c78f741d6ad8415b5a90d386e24",
+      "origin": {
+        "commit": "da8a6ff29d5f4b15b674087076855404456f2d9d",
+        "path": "scripts/acceptance/check-create-recovery/recovery-scenario.mjs"
+      }
+    },
+    {
+      "path": "check-create-recovery/run-with-observer.py",
+      "repositoryPath": "scripts/acceptance/check-create-recovery/run-with-observer.py",
+      "bytes": 16640,
+      "sha256": "4ae1172679672ca785a1ed5a310942f764545900f4f376183b74407b0bff1edc",
+      "origin": {
+        "commit": "da8a6ff29d5f4b15b674087076855404456f2d9d",
+        "path": "scripts/acceptance/check-create-recovery/run-with-observer.py"
+      }
+    },
+    {
+      "path": "four-project-queue/sample-linux-owned.py",
+      "repositoryPath": "scripts/acceptance/four-project-queue/sample-linux-owned.py",
+      "bytes": 35379,
+      "sha256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+      "origin": {
+        "commit": "da8a6ff29d5f4b15b674087076855404456f2d9d",
+        "path": "scripts/acceptance/four-project-queue/sample-linux-owned.py"
+      },
+      "historicalOrigin": {
+        "commit": "5d306b6dae3cc9d0a4d9cbf95f8142c37958964f",
+        "path": "scripts/acceptance/four-project-queue/sample-linux-owned.py",
+        "sha256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+        "relation": "exact-bytes"
+      }
+    },
+    {
+      "path": "launch-recovery/acceptance-lifecycle.mjs",
+      "repositoryPath": "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs",
+      "bytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "origin": {
+        "commit": "da8a6ff29d5f4b15b674087076855404456f2d9d",
+        "path": "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs"
+      },
+      "historicalOrigin": {
+        "commit": "81f2ba5b194a81a4f2ad167e466793f59162b387",
+        "path": "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs",
+        "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+        "relation": "exact-bytes"
+      }
+    },
+    {
+      "path": "launch-recovery/acceptance-startup.mjs",
+      "repositoryPath": "scripts/acceptance/launch-recovery/acceptance-startup.mjs",
+      "bytes": 4637,
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "origin": {
+        "commit": "da8a6ff29d5f4b15b674087076855404456f2d9d",
+        "path": "scripts/acceptance/launch-recovery/acceptance-startup.mjs"
+      },
+      "historicalOrigin": {
+        "commit": "81f2ba5b194a81a4f2ad167e466793f59162b387",
+        "path": "scripts/acceptance/launch-recovery/acceptance-startup.mjs",
+        "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+        "relation": "exact-bytes"
+      }
+    },
+    {
+      "path": "launch-recovery/durable-acceptance-journal.mjs",
+      "repositoryPath": "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs",
+      "bytes": 6670,
+      "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+      "origin": {
+        "commit": "da8a6ff29d5f4b15b674087076855404456f2d9d",
+        "path": "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs"
+      },
+      "historicalOrigin": {
+        "commit": "81f2ba5b194a81a4f2ad167e466793f59162b387",
+        "path": "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs",
+        "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+        "relation": "exact-bytes"
+      }
+    },
+    {
+      "path": "launch-recovery/fenced-docker-proxy.mjs",
+      "repositoryPath": "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs",
+      "bytes": 38547,
+      "sha256": "7315bcd8ecd230bf33de8eb4d06d900e4fdc380b52ed901875b12bf536672dae",
+      "origin": {
+        "commit": "da8a6ff29d5f4b15b674087076855404456f2d9d",
+        "path": "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs"
+      },
+      "historicalOrigin": {
+        "commit": "81f2ba5b194a81a4f2ad167e466793f59162b387",
+        "path": "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs",
+        "sha256": "48e97d6d5c915cf80c99f0c79a8fb16261eb219616f878fa1ce103ee2c59303d",
+        "relation": "modified-from"
+      }
+    }
+  ]
+}

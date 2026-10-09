@@ -1,0 +1,115 @@
+{
+  "finishedAt": "2026-10-09T01:18:03.713298+00:00",
+  "samples": 85,
+  "durationSeconds": 89.61895460399683,
+  "driverExitObserved": true,
+  "peakObserved": {
+    "summedRSS_test-driver": 182005760,
+    "summedRSS_allOwnedProcesses": 1249251328,
+    "summedRSS_other-owned-descendant": 18882560,
+    "summedRSS_control-plane": 236740608,
+    "summedRSS_browser": 835383296
+  },
+  "observedCounterDeltas": {
+    "observedProcessCPUSeconds": 52.619999999999955,
+    "observedProcessIO_read_bytes": 0.0,
+    "observedProcessIO_write_bytes": 7659520.0,
+    "observedProcessIO_rchar": 932099562.0,
+    "observedProcessIO_wchar": 39350132.0
+  },
+  "processIdentities": [
+    {
+      "pid": 2124251,
+      "startTicks": 25466327,
+      "role": "test-driver"
+    },
+    {
+      "pid": 2124375,
+      "startTicks": 25466433,
+      "role": "other-owned-descendant"
+    },
+    {
+      "pid": 2124434,
+      "startTicks": 25466655,
+      "role": "control-plane"
+    },
+    {
+      "pid": 2124454,
+      "startTicks": 25466707,
+      "role": "control-plane"
+    },
+    {
+      "pid": 2124670,
+      "startTicks": 25466876,
+      "role": "browser"
+    },
+    {
+      "pid": 2124697,
+      "startTicks": 25466888,
+      "role": "browser"
+    },
+    {
+      "pid": 2124698,
+      "startTicks": 25466889,
+      "role": "browser"
+    },
+    {
+      "pid": 2124718,
+      "startTicks": 25466899,
+      "role": "browser"
+    },
+    {
+      "pid": 2124740,
+      "startTicks": 25466941,
+      "role": "browser"
+    },
+    {
+      "pid": 2124741,
+      "startTicks": 25466946,
+      "role": "browser"
+    },
+    {
+      "pid": 2124772,
+      "startTicks": 25466958,
+      "role": "browser"
+    },
+    {
+      "pid": 2124779,
+      "startTicks": 25466961,
+      "role": "browser"
+    },
+    {
+      "pid": 2124781,
+      "startTicks": 25466962,
+      "role": "browser"
+    }
+  ],
+  "containerIds": [
+    "1cf412f01e4c1d326d8fa3a2fbdcf4619e6586914c5f15f726d30adb633467b8",
+    "71deb55a1d0bd1fa64b97105b1f2d5207fbb6c860fa5f101d3738610fd72b8c3"
+  ],
+  "containerKinds": {
+    "1cf412f01e4c1d326d8fa3a2fbdcf4619e6586914c5f15f726d30adb633467b8": "check",
+    "71deb55a1d0bd1fa64b97105b1f2d5207fbb6c860fa5f101d3738610fd72b8c3": "check"
+  },
+  "containerIssueCounts": {
+    "exact-owned-instance-not-yet-provided": 5,
+    "check-label-set-invalid": 22
+  },
+  "checkCoverage": {
+    "enabled": true,
+    "identitySamples": 5,
+    "cgroupUsageSamples": 0,
+    "status": "identity-only"
+  },
+  "limitations": [
+    "Sum of process RSS double-counts shared pages; it is not unique physical memory.",
+    "Container cgroup memory is separate and must not be added to container process RSS.",
+    "Docker daemon/shared kernel/VM overhead is unassigned; host memory includes unrelated work.",
+    "Processes starting and exiting between 1 Hz samples may be missed; delta counters cover observed intervals only.",
+    "Post-driver-exit settlement is not an application idle baseline.",
+    "No UI input latency, other-app responsiveness or model reasoning quality is measured."
+  ],
+  "baseline": "post-start; no pre-run idle baseline observed",
+  "instanceIdentitySHA256": "d59b1d291987cf85bd66b578805eadeb75492ef4748c4d9cc97821656c958744"
+}

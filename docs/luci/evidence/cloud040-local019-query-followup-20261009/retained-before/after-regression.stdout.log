@@ -1,0 +1,11 @@
+✔ versioned and unversioned owned stats retain only the validated bounded query (56.057142ms)
+✔ both owned stats routes refuse unsafe requests without exporting rejected query text (30.276987ms)
+✔ stats followup leaves generic foreign worker and fence GET observation behavior unchanged (40.198012ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 356.730331

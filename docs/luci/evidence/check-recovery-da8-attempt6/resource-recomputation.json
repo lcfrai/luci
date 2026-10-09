@@ -1,0 +1,31 @@
+{
+  "command": [
+    "python3",
+    "recompute-resources.py"
+  ],
+  "executedAt": "2026-10-09T01:30:38.740367+00:00",
+  "exitCode": 0,
+  "stdout": {
+    "sampleCount": 85,
+    "samplesWithObservedRows": 62,
+    "observedRows": 124,
+    "sampleStatusCounts": {
+      "not-observed": 23,
+      "observed": 62
+    },
+    "formulaMismatches": [],
+    "minimumPhysicalAvailableBytes": 21004247040,
+    "minimumEffectiveAvailableBytes": 9989062656,
+    "checkCoverage": {
+      "enabled": true,
+      "identitySamples": 5,
+      "cgroupUsageSamples": 0,
+      "status": "identity-only"
+    },
+    "decodedSamplesSHA256": "2bbee33413c59fa767cf6a9606a1f2da9dae3718e7060d5dc5e8e6e49d0328d8",
+    "scope": "Read-only recalculation of retained sequential samples; no atomic admission or performance claim."
+  },
+  "stderr": "",
+  "scriptSHA256": "e7d42266cf7bba4f4fd36f461c4a1743ef8ddbdf07b32b61bcdddf7d82b996b9",
+  "newRuntime": false
+}

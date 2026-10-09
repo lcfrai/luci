@@ -1,0 +1,30 @@
+{
+  "command": [
+    "npm",
+    "exec",
+    "--",
+    "vitest",
+    "run",
+    "src/components/orchestrator/OrchestratorPanel.test.tsx",
+    "-t",
+    "defers unopened discussion|keeps active-job observation running before discussion|keeps an opened discussion node",
+    "--maxWorkers=1",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/cloud032-discussion-mount/validation/before-new-tests/vitest.json"
+  ],
+  "cwd": "/workspace/luci/desktop",
+  "startedAt": "2026-10-09T01:24:17.762699+00:00",
+  "finishedAt": "2026-10-09T01:24:24.131025+00:00",
+  "durationSeconds": 6.3682538449938875,
+  "exitCode": 1,
+  "sourceInputsUnchanged": true,
+  "changedPaths": [],
+  "stdout": {
+    "bytes": 112,
+    "sha256": "e4fa606fcaa4f3dfb2aeb9ed2f9dd7210213130ec06e5e7f10b2c475bd30a827"
+  },
+  "stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "phase": "stale-review-refused",
+  "status": 409,
+  "error": "check_recovery_conflict"
+}

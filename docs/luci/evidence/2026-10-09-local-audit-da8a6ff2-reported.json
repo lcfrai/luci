@@ -1,0 +1,26 @@
+{
+  "reportedBy": "Authorized originating Windows tester thread 01a1199f-7500-7843-b02b-081081e536fa",
+  "auditedRevision": "da8a6ff29d5f4b15b674087076855404456f2d9d",
+  "independentRuntimeExecuted": false,
+  "newActionableDefect": false,
+  "scopes": {
+    "CLOUD-039": "Controlled source and413-test capsule independently matched; matching installed full recovery pending.",
+    "CLOUD-032": "Home289/14+tsc source verified, prioraad432 timingrows independently recomputed, switching failed; da8 installed run not yet published at audit.",
+    "attempts4and5": "All capsule/helper bindings matched; memory/CPU admission refusals not recovery passes; two exited zombies in each closure; exact admission numeric inputs unavailable."
+  },
+  "auditSHA256": {
+    "check-readiness": "4f320d73c88e95841bb82b52ed30cc11cb5dd2eaf35af02c74bb71355ae63c68",
+    "home-latency": "2711f4672e72a194d604860960fb9015c436723c3236b408e0cd980338d96bbc",
+    "failed-attempts": "4e23585bac78695dda4022dfb0ef40953bc472a2d37f65cd4004b7d2722266c4"
+  },
+  "windows": {
+    "observedAt": "2026-10-09T01:15:22Z",
+    "availableRAMGiB": 0.623,
+    "runtimeHeld": true,
+    "existingCheckoutsClean": true,
+    "originalDockerContainers": 107,
+    "originalRunningContainers": 4,
+    "ordinaryWorkloadsPreserved": true
+  },
+  "scopeLimitation": "Relayed tester report; private original Windows evidence was not retrieved by this cloud session."
+}

@@ -1,0 +1,123 @@
+{
+  "scope": "Controlled frontend source validation; no browser, app, installed runtime or latency measurement.",
+  "baseCommit": "da8a6ff29d5f4b15b674087076855404456f2d9d",
+  "before": {
+    "passed": 0,
+    "failed": 4,
+    "filtered": 105,
+    "reason": "Hidden composer/history/provider presentation allocated before explicit opening; these four same regressions are included in the corrected batch."
+  },
+  "after": {
+    "passed": 210,
+    "failed": 0,
+    "skipped": 0,
+    "files": 8,
+    "typecheckExit": 0
+  },
+  "sameRegressionBytes": true,
+  "originalProductionMatchesBaseCommit": true,
+  "capturedSourceInputs": {
+    "before-new-tests": 426,
+    "after-affected": 426,
+    "after-typecheck": 426
+  },
+  "sourceStableDuringEveryCommand": true,
+  "commands": {
+    "before-new-tests": {
+      "command": [
+        "npm",
+        "exec",
+        "--",
+        "vitest",
+        "run",
+        "src/components/orchestrator/OrchestratorPanel.test.tsx",
+        "-t",
+        "defers unopened discussion|keeps active-job observation running before discussion|keeps an opened discussion node",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile=/workspace/.luci-tools/cloud032-discussion-mount/validation/before-new-tests/vitest.json"
+      ],
+      "cwd": "/workspace/luci/desktop",
+      "startedAt": "2026-10-09T01:24:17.762699+00:00",
+      "finishedAt": "2026-10-09T01:24:24.131025+00:00",
+      "durationSeconds": 6.3682538449938875,
+      "exitCode": 1,
+      "sourceInputsUnchanged": true,
+      "changedPaths": [],
+      "stdout": {
+        "bytes": 112,
+        "sha256": "e4fa606fcaa4f3dfb2aeb9ed2f9dd7210213130ec06e5e7f10b2c475bd30a827"
+      },
+      "stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "after-affected": {
+      "command": [
+        "npm",
+        "exec",
+        "--",
+        "vitest",
+        "run",
+        "src/components/orchestrator/OrchestratorPanel.test.tsx",
+        "src/components/orchestrator/ProjectUnderstanding.test.tsx",
+        "src/components/orchestrator/composerRecovery.test.ts",
+        "src/components/orchestrator/ConversationStorage.test.tsx",
+        "src/components/AppShell.test.tsx",
+        "src/components/definition/DefinitionWorkspace.test.tsx",
+        "src/components/teams/TeamWorkspaceProvider.test.tsx",
+        "src/store/draftRegistration.test.ts",
+        "src/hooks/useProjectDraft.test.tsx",
+        "--maxWorkers=2",
+        "--reporter=json",
+        "--outputFile=/workspace/.luci-tools/cloud032-discussion-mount/validation/after-affected/vitest.json"
+      ],
+      "cwd": "/workspace/luci/desktop",
+      "startedAt": "2026-10-09T01:24:48.935788+00:00",
+      "finishedAt": "2026-10-09T01:25:28.972794+00:00",
+      "durationSeconds": 40.037006135011325,
+      "exitCode": 0,
+      "sourceInputsUnchanged": true,
+      "changedPaths": [],
+      "stdout": {
+        "bytes": 110,
+        "sha256": "ac660b85971f64138aff82852242b7fa75226f795b5d90745d230aada1e7f5c3"
+      },
+      "stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "after-typecheck": {
+      "command": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "cwd": "/workspace/luci/desktop",
+      "startedAt": "2026-10-09T01:26:07.622334+00:00",
+      "finishedAt": "2026-10-09T01:26:25.207214+00:00",
+      "durationSeconds": 17.584871215978637,
+      "exitCode": 0,
+      "sourceInputsUnchanged": true,
+      "changedPaths": [],
+      "stdout": {
+        "bytes": 54,
+        "sha256": "6d51e3ec9a9d283eee096e5e9403c5d963c9468e9756fd61f3e9e0d3df1bde71"
+      },
+      "stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  },
+  "unmatchedRequestedFile": "src/hooks/useProjectDraft.test.tsx does not exist; Vitest ran eight actual requested files. No coverage is inferred for that nonexistent argument.",
+  "postchangeInstalledLatency": "unmeasured",
+  "limits": [
+    "The four new cases overlap the 210 corrected passes; do not add counts.",
+    "Captured src/config/package-lock inputs are source provenance, not a trace of every external compiler dependency.",
+    "No full frontend suite run on these changed bytes.",
+    "da8 idle timing is earlier source and remains a separate failing switch gate."
+  ]
+}

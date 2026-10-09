@@ -1,0 +1,15 @@
+{
+  "at": "2026-10-09T01:16:21.033166+00:00",
+  "sourceCommit": "da8a6ff29d5f4b15b674087076855404456f2d9d",
+  "sourceClean": true,
+  "dockerContainers": [],
+  "dockerVolumes": [],
+  "imageID": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+  "driverIdentity": {
+    "pid": 2119698,
+    "startTicks": 25447392
+  },
+  "driverObservation": "absent",
+  "rawResultSHA256": "0195f938c60badd754b87e296eb0c8adf5b53832d1abf6ef21495ccc86e50a78",
+  "scope": "Independent exact driver/source/daemon inventory; application/browser ownership closure additionally relies on driver receipts, not a whole-machine absence assertion."
+}

@@ -1,0 +1,27 @@
+{
+  "phase": "exact-shared-ledger-charge",
+  "totals": {
+    "count": 1,
+    "memoryMiB": 1024,
+    "cpuMillis": 1000
+  },
+  "chargeAuthority": "full-private-shared-ledger",
+  "publicReservationScope": "owner-public-read-non-authoritative-for-release",
+  "publicReservations": {
+    "status": "ready",
+    "observedAt": "2026-10-09T01:17:35.76820001Z",
+    "count": 1,
+    "memoryMiB": 1024,
+    "cpuMillis": 1000
+  },
+  "publicVisibilityRequired": true,
+  "publicVisibilityVerified": true,
+  "publicVisibility": {
+    "status": "ready",
+    "observedAt": "2026-10-09T01:17:35.76820001Z",
+    "count": 1,
+    "memoryMiB": 1024,
+    "cpuMillis": 1000
+  },
+  "observedByOwnerUserId": "user-s6LLkfyHUCS7kT7iU0JXP3"
+}

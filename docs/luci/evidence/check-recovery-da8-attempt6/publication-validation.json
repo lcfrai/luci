@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "at": "2026-10-09T01:30:38.556526+00:00",
+  "newRuntimeExecuted": false,
+  "fixtureModified": false,
+  "dockerCalls": false,
+  "knownRetainedAuthFilesRead": 1,
+  "knownRetainedCredentialScalarsChecked": 2,
+  "privateRootsChecked": 2,
+  "redactions": {},
+  "screenshotsVisuallyInspected": [
+    "exact-recovery-review.png",
+    "recovery-complete-marker-retained.png",
+    "failed-stage.png"
+  ],
+  "limitations": [
+    "Only the exact retained fixture identity auth file was read for known credential values; ephemeral in-memory credentials cannot be reread.",
+    "No universal secret-detection claim. Private fixture inventory, auth contents, raw ledger, and instance pointer are not published.",
+    "Independent closure and package archive/member verification remain publisher receipts where underlying private bytes are excluded."
+  ],
+  "recursiveDocumentsChecked": 189,
+  "recursiveStringFieldsChecked": 46206,
+  "exactPrivateRootMatches": 0,
+  "knownRetainedCredentialMatches": 0,
+  "originalInputsUnchanged": true,
+  "retainedAuthInputsUnchanged": true,
+  "scopeOfScan": "All present capsule decoded/text artifacts and JSON fields, including explanatory/reproduction/resource files; own final timestamp/hash metadata added afterward.",
+  "finalScanAt": "2026-10-09T01:30:38.822046+00:00"
+}

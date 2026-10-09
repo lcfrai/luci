@@ -1,0 +1,66 @@
+{
+  "scope": "allowlisted projection of private original installed attempt 6; query is absent from original recorded metadata and must not be inferred",
+  "originalReportSHA256": "f2b05ffcd3acad5228c5d3ab4681610cc2021e777b6771a74ab161f9b5e2118b",
+  "sourceCommit": "da8a6ff29d5f4b15b674087076855404456f2d9d",
+  "helperSourceCommit": "da8a6ff29d5f4b15b674087076855404456f2d9d",
+  "passed": false,
+  "failureCodes": [
+    "sdk-check-request-shape-refused"
+  ],
+  "statsRefusals": [
+    {
+      "method": "GET",
+      "path": "/v1.51/containers/1cf412f01e4c1d326d8fa3a2fbdcf4619e6586914c5f15f726d30adb633467b8/stats",
+      "kind": "check",
+      "requestSequence": 193,
+      "requestedAt": "2026-10-09T01:17:06.131Z",
+      "failure": "sdk-check-request-shape-refused",
+      "proxyStatus": 503
+    },
+    {
+      "method": "GET",
+      "path": "/v1.51/containers/71deb55a1d0bd1fa64b97105b1f2d5207fbb6c860fa5f101d3738610fd72b8c3/stats",
+      "kind": "check",
+      "requestSequence": 394,
+      "requestedAt": "2026-10-09T01:17:35.938Z",
+      "failure": "sdk-check-request-shape-refused",
+      "proxyStatus": 503
+    },
+    {
+      "method": "GET",
+      "path": "/v1.51/containers/71deb55a1d0bd1fa64b97105b1f2d5207fbb6c860fa5f101d3738610fd72b8c3/stats",
+      "kind": "check",
+      "requestSequence": 399,
+      "requestedAt": "2026-10-09T01:17:36.445Z",
+      "failure": "sdk-check-request-shape-refused",
+      "proxyStatus": 503
+    },
+    {
+      "method": "GET",
+      "path": "/v1.51/containers/71deb55a1d0bd1fa64b97105b1f2d5207fbb6c860fa5f101d3738610fd72b8c3/stats",
+      "kind": "check",
+      "requestSequence": 404,
+      "requestedAt": "2026-10-09T01:17:36.941Z",
+      "failure": "sdk-check-request-shape-refused",
+      "proxyStatus": 503
+    },
+    {
+      "method": "GET",
+      "path": "/v1.51/containers/71deb55a1d0bd1fa64b97105b1f2d5207fbb6c860fa5f101d3738610fd72b8c3/stats",
+      "kind": "check",
+      "requestSequence": 410,
+      "requestedAt": "2026-10-09T01:17:37.450Z",
+      "failure": "sdk-check-request-shape-refused",
+      "proxyStatus": 503
+    },
+    {
+      "method": "GET",
+      "path": "/v1.51/containers/71deb55a1d0bd1fa64b97105b1f2d5207fbb6c860fa5f101d3738610fd72b8c3/stats",
+      "kind": "check",
+      "requestSequence": 416,
+      "requestedAt": "2026-10-09T01:17:37.930Z",
+      "failure": "sdk-check-request-shape-refused",
+      "proxyStatus": 503
+    }
+  ]
+}

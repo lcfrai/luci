@@ -1,0 +1,72 @@
+✔ assembled proxy is based on the exact pinned helper source (46.595251ms)
+✔ recovery opt-in is explicit and check budget is bounded to three (2.612428ms)
+✔ SDK generated one-shot stats request forwards one bounded read for the exact owned check (52.118047ms)
+✔ owned SDK stats refuses streaming malformed queries bodies methods and logical names (31.870944ms)
+✖ owned SDK stats retains the shared response byte bound (35.446234ms)
+✔ default SDK behavior still refuses named reads and a second check (15.054208ms)
+✔ SDK check fences require recovery opt-in even when the original identity is known (9.515049ms)
+✔ opted recovery allows exactly three independent checks (12.969712ms)
+✔ known-name inspection is read-only; malformed/foreign names and queries never forward (18.834026ms)
+✔ full check fence identity survives and marker Start/Stop/Delete are refused (27.270288ms)
+✔ malformed or unbound check fence labels cannot reach the upstream (28.804081ms)
+✔ one lost real ACK is drained once, retained for inspection, and never replayed (10.045319ms)
+✔ held witness releases once through fresh guard and unsent cleanup cancels it (10.924718ms)
+✔ a held witness fails before forwarding when the fresh admission guard refuses (7.292853ms)
+✔ close drains an already forwarded check mutation after downstream disconnect (4.106831ms)
+✔ held uploaded Create survives requester death; released bytes get actual name conflict (8.827787ms)
+✔ delayed immutable Start receives actual 404 after remove and never retargets the fence (11.170949ms)
+✔ new Start is fenced at forwarding after deadline; exact Stop/Delete and drain remain reachable (44.859764ms)
+✔ an asynchronous Start guard is refused before upstream mutation (8.815538ms)
+✔ lost real fence ACK retains ID; async proof predicate holds only the final inspect response (11.732947ms)
+✔ close conclusively cancels an unsent gate and preserves a replacement public path (5.589436ms)
+✔ close drains a forwarded mutation despite downstream death; transport truncation remains uncertain (13.590687ms)
+✔ unknown mutation, kind budget, body limit and failed allocation guard never forward (9.240325ms)
+✔ gate expiry is explicit, one-shot release cannot replay, and arm cancellation resolves waiters (29.523815ms)
+✔ observation overflow rejects later work instead of silently losing evidence (4.679865ms)
+✔ aggregate body and concurrent request bounds do not leak retained buffers on cancel (7.74836ms)
+✔ overlong socket paths fail before allocation (0.561466ms)
+✔ a malformed or unexpected success is never accepted as a known container identity (7.269899ms)
+✔ a forwarded request that never finishes makes close fail after its bounded drain (41.647051ms)
+✔ checks and upgrades are denied by default without forwarding (6.962376ms)
+✔ one explicitly enabled check forwards actual start/wait and unchanged named cleanup after exact inspect (17.828931ms)
+✔ named check cleanup preserves real404 while a swapped or uncertain name cannot delete anything (18.319255ms)
+✔ check identity, budgets, query and lifecycle bodies fail closed (9.283083ms)
+✔ known check attach preserves real upgrade header and output bytes with bounded drain (7.592185ms)
+✔ attach rejects workers, unknown checks, stdin and uploaded bytes before the upstream (13.641844ms)
+✔ attach output/time caps are explicit fixture failures and close releases all sockets (89.323ms)
+✔ durable real Create ACK exists before held response delivery (13.574623ms)
+✔ durable journal failure refuses forwarding a new mutation (5.029953ms)
+✔ an incomplete daemon response cannot create a journal ACK (6.129891ms)
+✔ SDK opt-in retains exact lease labels and uses immutable inspect/logs/start/remove (27.874915ms)
+✔ SDK named reads/mutations, attach/wait, streaming logs, and unscoped removal are refused (26.887226ms)
+✔ SDK protocol rejects extra/missing labels, wrong allocation/name, and CLI names (11.892436ms)
+✔ SDK exact-ID cancellation removal accepts only explicit v=1 and optional force=1 (4.67707ms)
+✔ SDK Start obeys the same active fence while exact cancellation removal remains available (5.859523ms)
+ℹ tests 44
+ℹ suites 0
+ℹ pass 43
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1191.485613
+
+✖ failing tests:
+
+test at scripts/acceptance/check-create-recovery/proxy-recovery.test.mjs:163:1
+✖ owned SDK stats retains the shared response byte bound (35.446234ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert(f.proxy.observations.failures.includes('response-body-limit'))
+  
+      at TestContext.<anonymous> (file:///workspace/luci/scripts/acceptance/check-create-recovery/proxy-recovery.test.mjs:170:49)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

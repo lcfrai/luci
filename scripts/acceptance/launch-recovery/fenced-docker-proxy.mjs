@@ -10,6 +10,7 @@ const OBJECT = /^\/v\d+\.\d+\/containers\/([a-f0-9]{64})(?:\/(start|stop|json|st
 const INSPECT = /^\/v\d+\.\d+\/containers\/[^/]+\/json$/;
 const CHECK_OBJECT = /^\/v\d+\.\d+\/containers\/([a-f0-9]{64}|luci-check-check-[a-f0-9]{24}-0)(?:\/(start|stop|attach|wait))?$/;
 const SDK_CHECK_OBJECT = /^\/v\d+\.\d+\/containers\/([a-f0-9]{64}|luci-check-checkexec-[a-f0-9]{24})(?:\/(start|stop|attach|wait|json|logs|stats))?$/;
+const SDK_UNVERSIONED_CHECK_STATS = /^\/containers\/([a-f0-9]{64}|luci-check-checkexec-[a-f0-9]{24})\/(stats)$/;
 const SDK_CHECK_LABELS = ['luci.check','luci.check-protocol','luci.instance','luci.check-engine','luci.check-allocation','luci.check-id','luci.check-command-index','luci.check-scope','luci.check-project','luci.check-command-digest','luci.check-source-digest','luci.check-image'];
 const SDK_CHECK_FENCE_LABELS = SDK_CHECK_LABELS.filter(key => !['luci.check-source-digest','luci.check-image'].includes(key)).concat(['luci.launch-fence','luci.fence-intent','luci.fence-binding']);
 const ALLOWED_LABELS = new Set(['luci.managed', 'luci.instance', 'luci.sandbox-id', 'luci.session-id', 'luci.project-id', 'luci.user-id', 'luci.team-id', 'luci.launch-fence', 'luci.fence-intent', 'luci.fence-binding']);
@@ -165,7 +166,7 @@ export async function startFencedDockerProxy({
   }
   function checkObject(row) {
     if (!allowCheckTraffic) return null;
-    const found = (sdkChecks ? SDK_CHECK_OBJECT : CHECK_OBJECT).exec(row.path);
+    const found = sdkChecks ? (SDK_CHECK_OBJECT.exec(row.path) || SDK_UNVERSIONED_CHECK_STATS.exec(row.path)) : CHECK_OBJECT.exec(row.path);
     if (!found) return null;
     let id = found[1], identity = knownContainers.get(id);
     if (!identity && id.startsWith('luci-check-')) {
@@ -187,6 +188,10 @@ export async function startFencedDockerProxy({
       if (upgrade || check.supplied !== check.id) throw problem('sdk-check-immutable-id-required');
       if (row.method === 'GET' && check.action === 'json') queryShape(req, {});
       else if (row.method === 'GET' && check.action === 'logs') queryShape(req, {stdout:['1'],stderr:['1'],tail:['all']}, {stdout:['1'],stderr:['1'],tail:['all']});
+      else if (row.method === 'GET' && check.action === 'stats') {
+        queryShape(req, {stream:['0'],'one-shot':['1']}, {stream:['0'],'one-shot':['1']});
+        if (new URL(req.url, 'http://fixture.invalid').search.length > 128) throw problem('check-query-shape-refused');
+      }
       else if (row.method === 'POST' && check.action === 'start') {
         queryShape(req, {});
         if (++check.identity.startCount > 1 || ++observations.counts.start > maxStarts) throw problem('start-budget-exceeded');
@@ -321,6 +326,11 @@ export async function startFencedDockerProxy({
       if (closing) throw problem('proxy-closing');
       mutationShape(req, row);
       if (row.kind === 'check' && body.length !== 0) throw problem('check-lifecycle-body-refused');
+      if (sdkChecks && row.kind === 'check' && row.method === 'GET' && checkObject(row)?.action === 'stats') {
+        // Preserve actual ordering/encoding only after this exact query and the
+        // empty body passed validation. Rejected/private query text stays out.
+        row.checkStatsQuery = new URL(req.url, 'http://fixture.invalid').search;
+      }
       const create = row.method === 'POST' && CREATE.test(row.path);
       if (create) {
         row.ordinal = ++observations.counts.create;

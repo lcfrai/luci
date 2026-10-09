@@ -1,0 +1,24 @@
+{
+  "sourceCommit": "da8a6ff29d5f4b15b674087076855404456f2d9d",
+  "sourceDirty": false,
+  "archiveSHA256": "0b8c223789f1914cf8a533cb9204732cef43f1288e2a0f8a69ce14695c13b9fc",
+  "binarySHA256": "33c8f04cd8ac3ca4bb7193cbcb1870751ccfe96c43aca369a419bc3ad5641dca",
+  "webIndexSHA256": "76a4ecec572e89cda1b0f9ddbe50f090622544d7ee66bb4ac2f8c14448866dd6",
+  "subjects": [
+    {
+      "name": "linux-amd64/luci-cloud-linux-amd64.tar.gz",
+      "sha256": "656e8190642c2af23ba99f1d038e6fdb5b6bf5bfcb2d7070f2c32d51cfd461e2",
+      "bytes": 65554823
+    },
+    {
+      "name": "linux-amd64/luci-linux-amd64.tar.gz",
+      "sha256": "0b8c223789f1914cf8a533cb9204732cef43f1288e2a0f8a69ce14695c13b9fc",
+      "bytes": 130899377
+    },
+    {
+      "name": "linux-amd64/release-manifest.json",
+      "sha256": "c6a4f0abffb4d9b3a102aef9c4f7ce7be0196652240950d49aa38cfea5df8cdd",
+      "bytes": 697
+    }
+  ]
+}

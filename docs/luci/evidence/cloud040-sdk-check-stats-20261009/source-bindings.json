@@ -1,0 +1,399 @@
+{
+  "baseCommit": "da8a6ff29d5f4b15b674087076855404456f2d9d",
+  "scope": "selected helper/support and product SDK-call/module inputs; not complete compiled Go inputs or installed-runtime provenance",
+  "before": [
+    {
+      "path": "control-plane/go.mod",
+      "sha256": "46639d620d215ff94c6e6d2ea2bf52c74abdf501811248e8905aad3846ae0341",
+      "bytes": 3111
+    },
+    {
+      "path": "control-plane/go.sum",
+      "sha256": "fad248c401dce6545f51ad4beba435f67999c8605be35232f5261b69c7b50344",
+      "bytes": 19122
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/resource_observer.go",
+      "sha256": "40a3aa49b96d2f72845ba0a7a2391f3a4de8c5f1cf05073f0932f6b08cd418dc",
+      "bytes": 8480
+    },
+    {
+      "path": "go.work",
+      "sha256": "e634b59bb2cdd79a961dc765ab7452e40a0fa486cf8972d3357ff5df2dbd9db9",
+      "bytes": 48
+    },
+    {
+      "path": "go.work.sum",
+      "sha256": "cebe32be8573f52246bc5d2e8daac3d204fae0bea61f35fe569ed4e9ca18785e",
+      "bytes": 2499
+    },
+    {
+      "path": "sandboxd/go.mod",
+      "sha256": "3738aaeb484df43a75cbafe9c1144da5362854a4c7a97d94e5a4089cb329e3b8",
+      "bytes": 152
+    },
+    {
+      "path": "sandboxd/go.sum",
+      "sha256": "f9e8a4f159db3ca23aa77a1d62fcf714bbc1a5276d7cfbe12d776372d2a77d8d",
+      "bytes": 336
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/README.md",
+      "sha256": "2bc92ffde38e27e704bde3a2823a4d557492f8d58072549470fd3190691b016d",
+      "bytes": 13349
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/adapter-contract.md",
+      "sha256": "d1cc9e3b4472e69ea8dacbecc795c8416b2ece21aaf8fb53d18756a16567265d",
+      "bytes": 7710
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/check-create-guard.mjs",
+      "sha256": "4c36f0f9253da83bd5d75fd4f5af40363ecd0fd1598db9e00f9c0e10d98507a0",
+      "bytes": 9521
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/check-guard.test.mjs",
+      "sha256": "5ed70679db7bffdcd8718eaff530a37aa0aac703107a7f38c0ebf4a41d01e5c6",
+      "bytes": 15920
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/check-readiness.test.mjs",
+      "sha256": "adda22259c0ece1e0c01747a4d8003f6b73f9e19c66be7de457e25878c443c04",
+      "bytes": 12427
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/cleanup.test.mjs",
+      "sha256": "b1b63c7fd26b28c0e78b0a080904384fdb7919038d71f885858a66d4a4df0ab0",
+      "bytes": 5121
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/controller-stop.test.mjs",
+      "sha256": "09d855ca4c6c2678dfba784415fe42f66baf87e1edd6208b33fb5c93aee97588",
+      "bytes": 3810
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/fixture-guards.mjs",
+      "sha256": "5bb86009d73cdd158637a716c4a3a348edb30337e9e2a8cd93ebef82773e1b35",
+      "bytes": 11868
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/freeze-source-binding.py",
+      "sha256": "a16901987163f4cef25c3759c0128df6eb59ed1762008527149da0e73f4569d0",
+      "bytes": 4110
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/inspect-guards.test.mjs",
+      "sha256": "46a65b81a359de20af4e4617cc96893d008a81af84ba07cfb3a416a88d9c5b1c",
+      "bytes": 9592
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/installed-recovery.mjs",
+      "sha256": "1f4acfbe56c91daadbc8968ac5c1a8db0fbd75e1a066c0bae50c84d748ad1c81",
+      "bytes": 48594
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/known-controller.test.mjs",
+      "sha256": "584fec6c0349d9d8c26705531457408f3efeea056f2a9004b8fec506a58531e5",
+      "bytes": 1258
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/provenance-binding.test.mjs",
+      "sha256": "11b4115f3b3d8406b06fc3f1fb6fe3f717e622359b36559befdae31e0d39ee57",
+      "bytes": 15105
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/provenance.mjs",
+      "sha256": "6b41954f56052d167954018018c79f561722a80497856d135d403904bfd9c08e",
+      "bytes": 4889
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/proxy-recovery.test.mjs",
+      "sha256": "1d5fc75524668cbbc4f1d3da60c52b3a944eaa0d4c8d64216a1fb40b3b653513",
+      "bytes": 21614
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/recovery-proofs.test.mjs",
+      "sha256": "3b418bbe97a15ffab40e67ec30f388a9108d7d428b04e30789b59783f337c1e8",
+      "bytes": 22357
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/recovery-scenario.mjs",
+      "sha256": "f69a7d5bbf1fd1019106f5a24170f4946e182c78f741d6ad8415b5a90d386e24",
+      "bytes": 17076
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/review-readiness.test.mjs",
+      "sha256": "a2c051dfe70fcd2b12f22a12cb659e33029e8c4eb61d4febb33fb71b99078371",
+      "bytes": 5319
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/run-with-observer.py",
+      "sha256": "4ae1172679672ca785a1ed5a310942f764545900f4f376183b74407b0bff1edc",
+      "bytes": 16640
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/scenario-flow.test.mjs",
+      "sha256": "0b79e273b060ce7ffd7e90ff810a33c478b1d3bcd2e5ce90af87d5a058ef7ad0",
+      "bytes": 20711
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/sdk-stats-wire.json",
+      "sha256": "1f57d425819c9d706101ea8eaf431fac9595af875cfc4289036d1a8147505a38",
+      "bytes": 477
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/wrapper.test.py",
+      "sha256": "d3e54c2cb0fad3a4d20c38be0a42deb0505368ed1c2706f76c01eae36ab55373",
+      "bytes": 16177
+    },
+    {
+      "path": "scripts/acceptance/four-project-queue/sample-linux-owned.py",
+      "sha256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+      "bytes": 35379
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs",
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "bytes": 4176
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/acceptance-startup.mjs",
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "bytes": 4637
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs",
+      "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+      "bytes": 6670
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs",
+      "sha256": "ef61647d38f0f5202771a1c980f9209bb4b103a47230fcc6d3f2116524811213",
+      "bytes": 38695
+    }
+  ],
+  "after": [
+    {
+      "path": "control-plane/go.mod",
+      "sha256": "46639d620d215ff94c6e6d2ea2bf52c74abdf501811248e8905aad3846ae0341",
+      "bytes": 3111
+    },
+    {
+      "path": "control-plane/go.sum",
+      "sha256": "fad248c401dce6545f51ad4beba435f67999c8605be35232f5261b69c7b50344",
+      "bytes": 19122
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/resource_observer.go",
+      "sha256": "40a3aa49b96d2f72845ba0a7a2391f3a4de8c5f1cf05073f0932f6b08cd418dc",
+      "bytes": 8480
+    },
+    {
+      "path": "go.work",
+      "sha256": "e634b59bb2cdd79a961dc765ab7452e40a0fa486cf8972d3357ff5df2dbd9db9",
+      "bytes": 48
+    },
+    {
+      "path": "go.work.sum",
+      "sha256": "cebe32be8573f52246bc5d2e8daac3d204fae0bea61f35fe569ed4e9ca18785e",
+      "bytes": 2499
+    },
+    {
+      "path": "sandboxd/go.mod",
+      "sha256": "3738aaeb484df43a75cbafe9c1144da5362854a4c7a97d94e5a4089cb329e3b8",
+      "bytes": 152
+    },
+    {
+      "path": "sandboxd/go.sum",
+      "sha256": "f9e8a4f159db3ca23aa77a1d62fcf714bbc1a5276d7cfbe12d776372d2a77d8d",
+      "bytes": 336
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/README.md",
+      "sha256": "2bc92ffde38e27e704bde3a2823a4d557492f8d58072549470fd3190691b016d",
+      "bytes": 13349
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/adapter-contract.md",
+      "sha256": "d1cc9e3b4472e69ea8dacbecc795c8416b2ece21aaf8fb53d18756a16567265d",
+      "bytes": 7710
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/check-create-guard.mjs",
+      "sha256": "4c36f0f9253da83bd5d75fd4f5af40363ecd0fd1598db9e00f9c0e10d98507a0",
+      "bytes": 9521
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/check-guard.test.mjs",
+      "sha256": "5ed70679db7bffdcd8718eaff530a37aa0aac703107a7f38c0ebf4a41d01e5c6",
+      "bytes": 15920
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/check-readiness.test.mjs",
+      "sha256": "adda22259c0ece1e0c01747a4d8003f6b73f9e19c66be7de457e25878c443c04",
+      "bytes": 12427
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/cleanup.test.mjs",
+      "sha256": "b1b63c7fd26b28c0e78b0a080904384fdb7919038d71f885858a66d4a4df0ab0",
+      "bytes": 5121
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/controller-stop.test.mjs",
+      "sha256": "09d855ca4c6c2678dfba784415fe42f66baf87e1edd6208b33fb5c93aee97588",
+      "bytes": 3810
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/fixture-guards.mjs",
+      "sha256": "5bb86009d73cdd158637a716c4a3a348edb30337e9e2a8cd93ebef82773e1b35",
+      "bytes": 11868
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/freeze-source-binding.py",
+      "sha256": "a16901987163f4cef25c3759c0128df6eb59ed1762008527149da0e73f4569d0",
+      "bytes": 4110
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/inspect-guards.test.mjs",
+      "sha256": "46a65b81a359de20af4e4617cc96893d008a81af84ba07cfb3a416a88d9c5b1c",
+      "bytes": 9592
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/installed-recovery.mjs",
+      "sha256": "1f4acfbe56c91daadbc8968ac5c1a8db0fbd75e1a066c0bae50c84d748ad1c81",
+      "bytes": 48594
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/known-controller.test.mjs",
+      "sha256": "584fec6c0349d9d8c26705531457408f3efeea056f2a9004b8fec506a58531e5",
+      "bytes": 1258
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/provenance-binding.test.mjs",
+      "sha256": "11b4115f3b3d8406b06fc3f1fb6fe3f717e622359b36559befdae31e0d39ee57",
+      "bytes": 15105
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/provenance.mjs",
+      "sha256": "6b41954f56052d167954018018c79f561722a80497856d135d403904bfd9c08e",
+      "bytes": 4889
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/proxy-recovery.test.mjs",
+      "sha256": "1d5fc75524668cbbc4f1d3da60c52b3a944eaa0d4c8d64216a1fb40b3b653513",
+      "bytes": 21614
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/recovery-proofs.test.mjs",
+      "sha256": "3b418bbe97a15ffab40e67ec30f388a9108d7d428b04e30789b59783f337c1e8",
+      "bytes": 22357
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/recovery-scenario.mjs",
+      "sha256": "f69a7d5bbf1fd1019106f5a24170f4946e182c78f741d6ad8415b5a90d386e24",
+      "bytes": 17076
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/review-readiness.test.mjs",
+      "sha256": "a2c051dfe70fcd2b12f22a12cb659e33029e8c4eb61d4febb33fb71b99078371",
+      "bytes": 5319
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/run-with-observer.py",
+      "sha256": "4ae1172679672ca785a1ed5a310942f764545900f4f376183b74407b0bff1edc",
+      "bytes": 16640
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/scenario-flow.test.mjs",
+      "sha256": "0b79e273b060ce7ffd7e90ff810a33c478b1d3bcd2e5ce90af87d5a058ef7ad0",
+      "bytes": 20711
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/sdk-stats-wire.json",
+      "sha256": "1f57d425819c9d706101ea8eaf431fac9595af875cfc4289036d1a8147505a38",
+      "bytes": 477
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/wrapper.test.py",
+      "sha256": "d3e54c2cb0fad3a4d20c38be0a42deb0505368ed1c2706f76c01eae36ab55373",
+      "bytes": 16177
+    },
+    {
+      "path": "scripts/acceptance/four-project-queue/sample-linux-owned.py",
+      "sha256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+      "bytes": 35379
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs",
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "bytes": 4176
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/acceptance-startup.mjs",
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "bytes": 4637
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs",
+      "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+      "bytes": 6670
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs",
+      "sha256": "ef61647d38f0f5202771a1c980f9209bb4b103a47230fcc6d3f2116524811213",
+      "bytes": 38695
+    }
+  ],
+  "unchangedDuringValidation": true,
+  "pinnedProxyInputs": [
+    {
+      "commit": "81f2ba5b194a81a4f2ad167e466793f59162b387",
+      "path": "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs",
+      "bytes": 35707,
+      "sha256": "48e97d6d5c915cf80c99f0c79a8fb16261eb219616f878fa1ce103ee2c59303d"
+    },
+    {
+      "commit": "81f2ba5b194a81a4f2ad167e466793f59162b387",
+      "path": "scripts/acceptance/launch-recovery/fenced-docker-proxy.test.mjs",
+      "bytes": 34033,
+      "sha256": "f7b76ba8a0047cdeaed6741a81a10a36edca3513db4fcffde617fb37fcb0ef04"
+    },
+    {
+      "commit": "81f2ba5b194a81a4f2ad167e466793f59162b387",
+      "path": "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs",
+      "bytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+    },
+    {
+      "commit": "81f2ba5b194a81a4f2ad167e466793f59162b387",
+      "path": "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs",
+      "bytes": 6670,
+      "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1"
+    }
+  ],
+  "sdkModule": {
+    "Path": "github.com/docker/docker",
+    "Version": "v28.3.3+incompatible",
+    "Sum": "h1:Dypm25kh4rmk49v1eiVbsAtpAsYURjYkaKubwuBdxEI=",
+    "GoModSum": "h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk="
+  },
+  "externalSDKSelectedFiles": [
+    {
+      "module": "github.com/docker/docker",
+      "version": "v28.3.3+incompatible",
+      "path": "client/container_stats.go",
+      "bytes": 1577,
+      "sha256": "768084b07cbef3caca1bf2c5e39d28ffcb68d71fc83ecb2e899dbe19011c5b27"
+    },
+    {
+      "module": "github.com/docker/docker",
+      "version": "v28.3.3+incompatible",
+      "path": "LICENSE",
+      "bytes": 10765,
+      "sha256": "7c87873291f289713ac5df48b1f2010eb6963752bbd6b530416ab99fc37914a8"
+    }
+  ],
+  "nodeVersion": "v24.19.0",
+  "goVersion": "go version go1.26.3 linux/amd64"
+}

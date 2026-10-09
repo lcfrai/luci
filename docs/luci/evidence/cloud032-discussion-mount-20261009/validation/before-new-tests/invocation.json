@@ -1,0 +1,20 @@
+{
+  "command": [
+    "npm",
+    "exec",
+    "--",
+    "vitest",
+    "run",
+    "src/components/orchestrator/OrchestratorPanel.test.tsx",
+    "-t",
+    "defers unopened discussion|keeps active-job observation running before discussion|keeps an opened discussion node",
+    "--maxWorkers=1",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/cloud032-discussion-mount/validation/before-new-tests/vitest.json"
+  ],
+  "cwd": "/workspace/luci/desktop",
+  "activation": "source /workspace/.luci-tools/activate.sh",
+  "startedAt": "2026-10-09T01:24:17.762699+00:00",
+  "label": "before-new-tests",
+  "scope": "Controlled frontend verification only; no browser/app/runtime. No full frontend suite."
+}

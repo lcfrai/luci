@@ -1,0 +1,12 @@
+{
+  "startedAt": "2026-10-09T01:13:24.679424+00:00",
+  "finishedAt": "2026-10-09T01:15:59.058097+00:00",
+  "elapsedSeconds": 154.37870407200535,
+  "exitCode": 0,
+  "externalMonitorTimeout": false,
+  "driverIdentity": {
+    "pid": 2119698,
+    "startTicks": 25447392
+  },
+  "ownedCleanupRequiresFinalReceipt": true
+}

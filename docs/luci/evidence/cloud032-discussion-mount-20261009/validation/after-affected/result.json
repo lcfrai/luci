@@ -1,0 +1,36 @@
+{
+  "command": [
+    "npm",
+    "exec",
+    "--",
+    "vitest",
+    "run",
+    "src/components/orchestrator/OrchestratorPanel.test.tsx",
+    "src/components/orchestrator/ProjectUnderstanding.test.tsx",
+    "src/components/orchestrator/composerRecovery.test.ts",
+    "src/components/orchestrator/ConversationStorage.test.tsx",
+    "src/components/AppShell.test.tsx",
+    "src/components/definition/DefinitionWorkspace.test.tsx",
+    "src/components/teams/TeamWorkspaceProvider.test.tsx",
+    "src/store/draftRegistration.test.ts",
+    "src/hooks/useProjectDraft.test.tsx",
+    "--maxWorkers=2",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/cloud032-discussion-mount/validation/after-affected/vitest.json"
+  ],
+  "cwd": "/workspace/luci/desktop",
+  "startedAt": "2026-10-09T01:24:48.935788+00:00",
+  "finishedAt": "2026-10-09T01:25:28.972794+00:00",
+  "durationSeconds": 40.037006135011325,
+  "exitCode": 0,
+  "sourceInputsUnchanged": true,
+  "changedPaths": [],
+  "stdout": {
+    "bytes": 110,
+    "sha256": "ac660b85971f64138aff82852242b7fa75226f795b5d90745d230aada1e7f5c3"
+  },
+  "stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

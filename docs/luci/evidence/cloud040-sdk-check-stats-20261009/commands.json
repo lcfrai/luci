@@ -1,0 +1,94 @@
+[
+  {
+    "label": "original-proxy-bound-regression",
+    "command": [
+      "node",
+      "--test",
+      "--test-timeout=30000",
+      "--test-reporter=spec",
+      "--test-name-pattern=SDK generated one-shot stats request forwards one bounded read",
+      "scripts/acceptance/check-create-recovery/proxy-recovery.test.mjs"
+    ],
+    "cwd": "isolated frozen source tree; only proxy replaced with exact original da8 bytes",
+    "startedAtUTC": "2026-10-09T01:23:40.635818+00:00",
+    "durationSeconds": 0.6189138250192627,
+    "exitCode": 1,
+    "expectedExitCode": 1,
+    "stdoutSHA256": "9c4c68fd621e1021db0f647dfb75c3b8bee5f64ea1ee4cae4c07acec8a874adc",
+    "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "label": "corrected-controlled",
+    "command": [
+      "node",
+      "--test",
+      "--test-timeout=30000",
+      "--test-reporter=spec",
+      "--test-concurrency=2",
+      "scripts/acceptance/check-create-recovery/check-guard.test.mjs",
+      "scripts/acceptance/check-create-recovery/check-readiness.test.mjs",
+      "scripts/acceptance/check-create-recovery/cleanup.test.mjs",
+      "scripts/acceptance/check-create-recovery/controller-stop.test.mjs",
+      "scripts/acceptance/check-create-recovery/inspect-guards.test.mjs",
+      "scripts/acceptance/check-create-recovery/known-controller.test.mjs",
+      "scripts/acceptance/check-create-recovery/provenance-binding.test.mjs",
+      "scripts/acceptance/check-create-recovery/proxy-recovery.test.mjs",
+      "scripts/acceptance/check-create-recovery/recovery-proofs.test.mjs",
+      "scripts/acceptance/check-create-recovery/review-readiness.test.mjs",
+      "scripts/acceptance/check-create-recovery/scenario-flow.test.mjs"
+    ],
+    "cwd": "repository root",
+    "startedAtUTC": "2026-10-09T01:23:41.256765+00:00",
+    "durationSeconds": 2.3503996779909357,
+    "exitCode": 0,
+    "expectedExitCode": 0,
+    "stdoutSHA256": "d9b8ca047f18b6bc00dbbf3e3e8dc9fe400b9314e109124ad69f8ba3fb1277e4",
+    "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "label": "syntax-fenced-docker-proxy.mjs",
+    "command": [
+      "node",
+      "--check",
+      "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs"
+    ],
+    "cwd": "repository root",
+    "startedAtUTC": "2026-10-09T01:23:43.607230+00:00",
+    "durationSeconds": 0.041466170019702986,
+    "exitCode": 0,
+    "expectedExitCode": 0,
+    "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "label": "syntax-proxy-recovery.test.mjs",
+    "command": [
+      "node",
+      "--check",
+      "scripts/acceptance/check-create-recovery/proxy-recovery.test.mjs"
+    ],
+    "cwd": "repository root",
+    "startedAtUTC": "2026-10-09T01:23:43.648753+00:00",
+    "durationSeconds": 0.04292506899219006,
+    "exitCode": 0,
+    "expectedExitCode": 0,
+    "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "label": "sdk-wire-repeat",
+    "command": [
+      "go",
+      "run",
+      "-p=1",
+      "/workspace/.luci-tools/cloud040-stats/sdk-stats-wire.go"
+    ],
+    "cwd": "repository root",
+    "startedAtUTC": "2026-10-09T01:23:43.691726+00:00",
+    "durationSeconds": 0.2581028709828388,
+    "exitCode": 0,
+    "expectedExitCode": 0,
+    "stdoutSHA256": "1f57d425819c9d706101ea8eaf431fac9595af875cfc4289036d1a8147505a38",
+    "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

@@ -47,7 +47,14 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
   const [openChoice, setOpenChoice] = useState<boolean | null>(null);
   const open = openChoice ?? !compact;
   const [view, setView] = useState<OrchestratorView | null>(null);
-  const [conversationOpen, setConversationOpen] = useState(false);
+  // Defer the hidden discussion until it is requested. Once opened, preserve
+  // its controls and focus targets through closing within this project scope.
+  // Reads, request observation and draft recovery remain owned by this parent.
+  const [conversation, setConversation] = useState({ open: false, mounted: false });
+  const conversationOpen = conversation.open;
+  const setConversationOpen = useCallback((open: boolean) => {
+    setConversation(current => current.open === open ? current : { open, mounted: current.mounted || open });
+  }, []);
   const [earlier, setEarlier] = useState<OrchestratorTurn[]>([]), [page, setPage] = useState<{ before: number; hasEarlier: boolean } | null>(null);
   const [message, setMessage] = useState(""), [replyTo, setReplyTo] = useState("");
   const [suggestedReply, setSuggestedReply] = useState<{ turnId: string; question: string; answer: string; message: string; replyTo: string; previousQuestion: string } | null>(null);
@@ -557,7 +564,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
         {(loading || contextRefreshQueued) && view && <p role="status">Updating saved project understanding…</p>}
         {view && <ProjectUnderstanding view={view} stale={contextStale || contextRefreshQueued} onAsk={ask} onReply={reply} onNavigate={setLens} onInspect={inspect} onEdit={edit} canEdit={canEdit} />}
         <details className="orchestrator-discussion" open={conversationOpen} onToggle={event => setConversationOpen(event.currentTarget.open)}><summary>Discuss or request a change</summary>
-        <div hidden={!conversationOpen}>
+        {conversation.mounted && <div hidden={!conversationOpen}>
         {view && <>
           <div className="orchestrator-toolbar"><h3>Luci</h3><Button variant="ghost" size="compact" disabled={!!busy || loading} onClick={() => void refresh(true)}>Refresh conversation</Button></div>
           {(page?.hasEarlier ?? view.hasEarlier) && <Button variant="secondary" size="compact" disabled={!!busy} onClick={() => void older()}>Show earlier conversation</Button>}
@@ -611,7 +618,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
           <div className="orchestrator-actions"><Button type="submit" disabled={!canAssist || !view || !message.trim() || !!contextDrafts || !!routeIssue || !!busy || loading || contextStale || contextRefreshQueued || !!activeTurn || !!activeJobId || uncertain || !!pendingRequest || !!recoveredDraft || storageConflict || !!localRecovery.error}>{busy === "send" ? "Sending…" : "Send to Luci"}</Button>{activeJobId && !completedUnrecorded && !missingReservedJob && <Button type="button" variant="secondary" disabled={!canExecute || !!busy} onClick={() => void cancel()}>Cancel Luci request</Button>}</div>
           <p className="orchestrator-muted">Messages can propose changes. You review amendments and start coding, checks or deployment explicitly.</p>
         </form>
-        </div>
+        </div>}
         </details>
       </>}
     </div>

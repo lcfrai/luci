@@ -56,6 +56,74 @@ function openDecision(turnId = "decision-access", overrides: Record<string, unkn
 }
 const browserRecords = () => Object.fromEntries(Object.keys(localStorage).sort().map(key => [key, localStorage.getItem(key)]));
 
+it.each(["recovered", "pending"])("defers unopened discussion presentation while preserving current understanding and the %s request record", async mode => {
+  const scope = decisionScope();
+  saveComposerDraft(scope, null, "Retain my original question", "original-reply");
+  if (mode === "pending") retainComposerRequest(scope, { expectedRevision: 3, expectedContextDigest: context().digest, idempotencyKey: "original-request-lazy-mount", message: "Retain my original question", replyToTurnId: "original-reply", harness: "codex", model: "model-team", agentConnectionId: "gateway" });
+  const before = readComposerRecovery(scope);
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [turn()] }));
+  render(<OrchestratorPanel projectId="p-1" />);
+  await screen.findByRole("button", { name: "Review design" });
+  expect(orchestratorApi.get).toHaveBeenCalledWith("p-1");
+  expect(screen.getByRole("region", { name: "Current project understanding" })).not.toBeNull();
+  // A hidden subtree is still allocated. The untouched discussion must have no
+  // composer, history or provider presentation, while its parent keeps context.
+  expect(screen.queryByLabelText("Message Luci")).toBeNull();
+  expect(document.querySelector(".orchestrator-turns")).toBeNull();
+  expect(screen.queryByLabelText("Luci connection")).toBeNull();
+  expect(readComposerRecovery(scope)).toEqual(before);
+  await userEvent.click(screen.getByText("Discuss or request a change"));
+  await screen.findByLabelText("Message Luci");
+  expect(screen.getByRole("button", { name: mode === "pending" ? "Check original request" : "Restore unsent message" })).not.toBeNull();
+  expect(screen.getByText("Support guest checkout")).not.toBeNull();
+  expect(readComposerRecovery(scope)).toEqual(before);
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+  expect(orchestratorApi.resolveRequest).not.toHaveBeenCalled();
+});
+
+it("keeps active-job observation running before discussion presentation is opened", async () => {
+  vi.useFakeTimers();
+  try {
+    vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [turn({ status: "running", answer: undefined })] }));
+    vi.mocked(orchestratorApi.job).mockResolvedValue(job({ id: "job-1", status: "succeeded" }));
+    render(<OrchestratorPanel projectId="p-1" />);
+    await act(async () => {});
+    expect(document.querySelector(".orchestrator-composer")).toBeNull();
+    await act(async () => { await vi.advanceTimersByTimeAsync(2500); });
+    expect(orchestratorApi.job).toHaveBeenCalledWith("p-1", "job-1");
+    expect(document.querySelector(".orchestrator-composer")).toBeNull();
+    act(() => window.dispatchEvent(new CustomEvent(ORCHESTRATOR_OPEN, { detail: { projectId: "p-1" } })));
+    await act(async () => { await vi.advanceTimersByTimeAsync(20); });
+    expect(screen.getByRole("button", { name: "Recover recorded response" })).not.toBeNull();
+    expect(document.activeElement).toBe(screen.getByLabelText("Message Luci"));
+    expect(orchestratorApi.send).not.toHaveBeenCalled();
+    expect(orchestratorApi.reconcile).not.toHaveBeenCalled();
+  } finally { vi.useRealTimers(); }
+});
+
+it("keeps an opened discussion node and draft across closing but resets its presentation for another project", async () => {
+  const mounted = render(<OrchestratorPanel projectId="p-1" />);
+  await screen.findByRole("button", { name: "Review design" });
+  act(() => window.dispatchEvent(new CustomEvent(ORCHESTRATOR_OPEN, { detail: { projectId: "p-1", message: "Only project one" } })));
+  const composer = screen.getByLabelText("Message Luci") as HTMLTextAreaElement;
+  await waitFor(() => expect(document.activeElement).toBe(composer));
+  await userEvent.click(screen.getByText("Discuss or request a change"));
+  await waitFor(() => expect(screen.queryByRole("textbox", { name: "Message Luci" })).toBeNull());
+  expect(composer.isConnected).toBe(true);
+  await userEvent.click(screen.getByText("Discuss or request a change"));
+  expect(screen.getByRole("textbox", { name: "Message Luci" })).toBe(composer);
+  expect(composer.value).toBe("Only project one");
+  const retained = readComposerRecovery(decisionScope());
+  mounted.rerender(<OrchestratorPanel projectId="p-2" />);
+  await waitFor(() => expect(orchestratorApi.get).toHaveBeenCalledWith("p-2"));
+  expect(composer.isConnected).toBe(false);
+  expect(screen.queryByLabelText("Message Luci")).toBeNull();
+  await userEvent.click(screen.getByText("Discuss or request a change"));
+  expect((await screen.findByLabelText("Message Luci") as HTMLTextAreaElement).value).toBe("");
+  expect(readComposerRecovery(decisionScope())).toEqual(retained);
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
 it("reveals the exact current blocking question without replacing an unsent message or its reply target", async () => {
   vi.mocked(orchestratorApi.get).mockResolvedValue(view({ blockingQuestions: decisions }));
   render(<OrchestratorPanel projectId="p-1" />); await ready();

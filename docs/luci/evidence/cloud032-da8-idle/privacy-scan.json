@@ -1,0 +1,9 @@
+{
+  "members": 54,
+  "jsonStrings": 12064,
+  "decodedGzipMembers": 35,
+  "knownPrivatePatterns": 5,
+  "runtimeCredentialValuesFoundInOriginalResult": 0,
+  "matches": 0,
+  "scope": "Recursive JSON string and decoded text/gzip scan for known run/private preparation roots and credential-shaped values in the original result. No universal secret-scan claim; raw trace was not read."
+}
