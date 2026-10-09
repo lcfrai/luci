@@ -1,0 +1,108 @@
+{
+  "issue": "CLOUD-045",
+  "startedAt": "2026-10-09T07:16:33.845571+00:00",
+  "scope": "Pure inert GET/context/loop fixtures only; no app, browser, provider, Docker, network or workload process starts",
+  "productBaseline": "0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f",
+  "head": "7aeb3373f9cf21c1c8d39711f9ee6ec294226633",
+  "nodeVersion": "v24.19.0",
+  "sameTestSHA256": "30b62233dbf514674779e7904968c67ac0969c0310fb776261dd33cddaf887ae",
+  "inputBindingsBefore": {
+    "scripts/acceptance/sustained-four-project/sustained.mjs": "aa62a03a91e226a5e18bafc4fc3a37a749a3ed904a4a49aab715c66e945c9980",
+    "scripts/acceptance/sustained-four-project/queue-selection.test.mjs": "30b62233dbf514674779e7904968c67ac0969c0310fb776261dd33cddaf887ae",
+    "scripts/acceptance/sustained-four-project/fixtures/queue-order-retained.json": "42cf70a9d9b23f8fd422485635cd4081994fe1bb3e1000b7ddecfa628352fee2",
+    "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+  },
+  "cases": [
+    {
+      "label": "before",
+      "command": [
+        "node",
+        "--test",
+        "--test-reporter=tap",
+        "/workspace/.luci-tools/cloud045-terminal-queue-refusal/after/queue-selection.test.mjs"
+      ],
+      "environmentOverride": {
+        "LUCI_SUSTAINED_TEST_SOURCE": "/workspace/.luci-tools/cloud045-terminal-queue-refusal/before/sustained.mjs"
+      },
+      "sourceSHA256": "cb6883d9bdd5387bf8c54829d869780f565de896efc1e56b41bb6eb6e3e7a77a",
+      "testSHA256": "30b62233dbf514674779e7904968c67ac0969c0310fb776261dd33cddaf887ae",
+      "exitCode": 1,
+      "elapsedSeconds": 0.528,
+      "counts": {
+        "tests": 46,
+        "pass": 39,
+        "fail": 7,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "logs": {
+        "stdout": {
+          "path": "before-final.stdout.log",
+          "sha256": "52e17440d46798fb57b944a12494b4435d104756799ab91f5ce3befb08cc22ba",
+          "bytes": 17116
+        },
+        "stderr": {
+          "path": "before-final.stderr.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        }
+      }
+    },
+    {
+      "label": "after",
+      "command": [
+        "node",
+        "--test",
+        "--test-reporter=tap",
+        "/workspace/.luci-tools/cloud045-terminal-queue-refusal/after/queue-selection.test.mjs"
+      ],
+      "environmentOverride": {
+        "LUCI_SUSTAINED_TEST_SOURCE": "/workspace/.luci-tools/cloud045-terminal-queue-refusal/after/sustained.mjs"
+      },
+      "sourceSHA256": "aa62a03a91e226a5e18bafc4fc3a37a749a3ed904a4a49aab715c66e945c9980",
+      "testSHA256": "30b62233dbf514674779e7904968c67ac0969c0310fb776261dd33cddaf887ae",
+      "exitCode": 0,
+      "elapsedSeconds": 0.361,
+      "counts": {
+        "tests": 46,
+        "pass": 46,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "logs": {
+        "stdout": {
+          "path": "after-final.stdout.log",
+          "sha256": "98091b1721b940c64a1acc318713867032c863ff250ff72b6f28e1cac360174f",
+          "bytes": 13248
+        },
+        "stderr": {
+          "path": "after-final.stderr.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        }
+      }
+    }
+  ],
+  "syntax": {
+    "exitCode": 0,
+    "stderr": ""
+  },
+  "diffCheck": {
+    "exitCode": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "inputBindingsAfter": {
+    "scripts/acceptance/sustained-four-project/sustained.mjs": "aa62a03a91e226a5e18bafc4fc3a37a749a3ed904a4a49aab715c66e945c9980",
+    "scripts/acceptance/sustained-four-project/queue-selection.test.mjs": "30b62233dbf514674779e7904968c67ac0969c0310fb776261dd33cddaf887ae",
+    "scripts/acceptance/sustained-four-project/fixtures/queue-order-retained.json": "42cf70a9d9b23f8fd422485635cd4081994fe1bb3e1000b7ddecfa628352fee2",
+    "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+  },
+  "inputsUnchangedDuringValidation": true,
+  "baselineMatches0dcGitBlob": true,
+  "baselineMatches7aebGitBlob": true,
+  "finishedAt": "2026-10-09T07:16:34.811324+00:00"
+}

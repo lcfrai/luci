@@ -1,0 +1,19 @@
+{
+  "testSHA256": "842998d192a177be4cd62a41f5387ab584cf8a915c33cf9ae05cf244ed2cd2fe",
+  "currentHelperSHA256": "54a16812be4252d20eb4eff9559d392242f4e93369d42b4bd294b0c25a6daff1",
+  "baselineHelperSHA256": "cb6883d9bdd5387bf8c54829d869780f565de896efc1e56b41bb6eb6e3e7a77a",
+  "cases": [
+    {
+      "label": "before",
+      "exitCode": 1,
+      "elapsedSeconds": 0.469,
+      "sourceSHA256": "cb6883d9bdd5387bf8c54829d869780f565de896efc1e56b41bb6eb6e3e7a77a"
+    },
+    {
+      "label": "after",
+      "exitCode": 0,
+      "elapsedSeconds": 0.439,
+      "sourceSHA256": "54a16812be4252d20eb4eff9559d392242f4e93369d42b4bd294b0c25a6daff1"
+    }
+  ]
+}

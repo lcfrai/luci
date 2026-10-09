@@ -8,16 +8,25 @@ const source=readFileSync(process.env.LUCI_SUSTAINED_TEST_SOURCE??new URL('./sus
 const retained=JSON.parse(readFileSync(new URL('./fixtures/queue-order-retained.json',import.meta.url)));
 function fixture(){return structuredClone(retained.observations).map(row=>{row.owner.queued=structuredClone(row.queue.items);return row;});}
 function selectionContext(rows=fixture(),options={}){
- const reads=[];
- const ctx={assert,api:async(method,path)=>{assert.equal(method,'GET','Selection must not mutate dispatch');reads.push(path);const row=rows.find(row=>path===row.owner.route+'/swarm-queue');assert(row,'Unknown project route');return options.queue?options.queue(row):row.queue;},until:async(label,fn,budget)=>{assert.equal(budget,150000);for(let i=0;i<2;i++){const value=await fn();if(value)return value;}throw Error(label+' did not complete within its bounded prerequisite window');}};
+ const reads=[],checkpoints=[],diagnosticReads=[];
+ const ctx={assert,receipt:{},stage:'actual-work-build-a',workspace:'',evidence:'/controlled/evidence',join:(...parts)=>parts.join('/'),encodeURIComponent,
+  setStage:value=>{ctx.stage=value;},writeFailureCheckpoint:(path,value)=>{assert(!checkpoints.some(entry=>entry.path===path));checkpoints.push({path,value:structuredClone(value)});options.checkpoint?.(path,value);},
+  api:async(method,path,body,expected,timeout)=>{
+   assert.equal(method,'GET','Selection must not mutate dispatch');reads.push(path);
+   const row=rows.find(row=>path===row.owner.route+'/swarm-queue');if(row)return options.queue?options.queue(row):row.queue;
+   assert.equal(body,undefined);assert.equal(expected,200);assert.equal(timeout,3000,'Diagnostic reads stay bounded');
+   assert.equal(checkpoints.length,1,'Refusal must be durable before diagnostic awaits');diagnosticReads.push(path);
+   if(options.read)return options.read(path);throw Error('Controlled diagnostic unavailable');
+  },until:async(label,fn,budget)=>{assert.equal(budget,150000);for(let i=0;i<2;i++){const value=await fn();if(value)return value;}throw Error(label+' did not complete within its bounded prerequisite window');}};
  if(source.includes('async function allocatedQueuedOwner(')){
-  vm.runInNewContext(source.slice(source.indexOf('async function allocatedQueuedOwner('),source.indexOf('async function queuedChild('))+'\nglobalThis.select=allocatedQueuedOwner;',ctx);
+  const start=source.indexOf('async function failRequiredQueuedTarget(');
+  vm.runInNewContext(source.slice(start<0?source.indexOf('async function allocatedQueuedOwner('):start,source.indexOf('async function queuedChild('))+'\nglobalThis.select=allocatedQueuedOwner;',ctx);
  }else{
   // Exact original C-only selector, ending before session/bundle inspection.
   const start=source.indexOf('async function queuedChild('),end=source.indexOf(' const session=await api(',start);assert(start>=0&&end>start);
   vm.runInNewContext(source.slice(start,end)+'return {owner,queued};}\nglobalThis.select=candidates=>queuedChild(Array.isArray(candidates)?candidates[0]:candidates);',ctx);
  }
- return {ctx,rows,reads,select:candidates=>ctx.select(candidates)};
+ return {ctx,rows,reads,checkpoints,diagnosticReads,select:candidates=>ctx.select(candidates)};
 }
 const remaining=rows=>rows.filter(row=>['build-c','build-d'].includes(row.owner.task)).map(row=>row.owner);
 
@@ -54,6 +63,73 @@ test('high priority within B does not predict its cross-project turn',async()=>{
  assert.equal(b.queue.items[0].priority,'high');const f=selectionContext(rows);
  const selected=await f.select(rows.filter(row=>row.owner.task!=='build-a').map(row=>row.owner));
  assert.equal(selected.owner.task,'build-d');assert.equal(b.queue.items[0].priority,'high');assert.equal(f.reads.length,3);
+});
+
+function terminalFixture(state='failed'){
+ const rows=fixture(),b=rows.find(row=>row.owner.task==='build-b'),item=b.queue.items[0];
+ Object.assign(item,{state,reasonCode:'cpu_pressure',operationId:'op-820720a86bb1fae84a2f7330',updatedAt:'2026-10-09T03:46:39.591940852Z',reason:'PRIVATE message',taskTitle:'PRIVATE title'});
+ const failure={stage:'admission',reasonCode:'cpu_pressure',message:'PRIVATE message'};
+ const run={id:b.owner.run.id,projectId:b.owner.owner.id,revision:6,state:'blocked',operations:[{id:item.operationId,taskId:item.taskId,childId:item.childId,status:'failed',startFailure:failure,implementation:'PRIVATE context'}],context:'PRIVATE context'};
+ const session={id:item.childId,projectId:item.projectId,projectRunId:item.runId,projectRunOperationId:item.operationId,status:'exited',startFailure:failure,attachToken:'PRIVATE token',openingPrompt:'PRIVATE prompt'};
+ const scheduler={revision:4,policy:{maxActive:1,maxPerProject:1,headroomPercent:25,minHeadroomMiB:2048,diskReserveMiB:1024},resources:{host:{observedAt:'2026-10-09T03:46:40Z',status:'ready',cpu:{utilizationPercent:12.5,effectiveMillis:4000},memory:{effectiveTotalBytes:8589934592,effectiveAvailableBytes:4294967296},disks:[{role:'state',availableBytes:6500000000,path:'PRIVATE path'}],processes:[{command:'PRIVATE command'}]},execution:{status:'ready',totalMemoryBytes:8589934592,cpuMillis:4000,containers:[{environment:'PRIVATE env'}]},reservations:{status:'ready',count:0,memoryMiB:0,cpuMillis:0}}};
+ const read=async path=>{if(path===b.owner.route+'/runs/'+b.owner.run.id)return {run};if(path==='/v1/sessions/'+item.childId)return session;if(path==='/v1/product/swarm-scheduler')return scheduler;assert.fail('Unexpected diagnostic request');};
+ return {rows,b,item,run,session,scheduler,read,candidates:rows.filter(row=>['build-b','build-c','build-d'].includes(row.owner.task)).map(row=>row.owner)};
+}
+test('required failed B is durably diagnosed before accepting running D, without replay or raw private fields',async()=>{
+ const t=terminalFixture(),before=JSON.stringify(t.rows),f=selectionContext(t.rows,{read:t.read});
+ await assert.rejects(f.select(t.candidates),error=>error.code==='required-queued-task-terminal'&&/build-b is failed \(cpu_pressure\)/.test(error.message));
+ assert.equal(JSON.stringify(t.rows),before);assert.equal(f.reads.filter(path=>path.endsWith('/swarm-queue')).length,3,'One observation, no prerequisite polling');
+ assert.equal(f.checkpoints.length,2);const [initial,complete]=f.checkpoints.map(entry=>entry.value);
+ assert.equal(initial.diagnosticReads,'pending');assert.equal(initial.queue.id,t.item.id);assert.equal(initial.observedDuringStage,'actual-work-build-a');assert.equal(initial.runningPeers[0].taskId,'build-d');
+ assert.equal(complete.run.id,t.run.id);assert.equal(complete.operation.id,t.item.operationId);assert.equal(complete.session.id,t.item.childId);assert.equal(complete.operation.startFailure.reasonCode,'cpu_pressure');
+ assert.equal(complete.scheduler.policy.headroomPercent,25);assert.equal(complete.resources.host.cpu.utilizationPercent,12.5);assert.match(complete.resourceObservationBasis,/non-atomic/);assert.match(complete.resourceObservationBasis,/Exact admission operands are not retained/);
+ assert.equal(complete.retryAttempted,false);assert.equal(f.ctx.stage,'required-queue-terminal-build-b');assert(!JSON.stringify(f.checkpoints).includes('PRIVATE'));
+ assert.deepEqual(Object.values(complete.diagnosticReads),['observed','observed','observed']);
+});
+test('required cancelled target without a child fails promptly while deliberate extra cancellation stays ignored',async()=>{
+ const t=terminalFixture('cancelled');delete t.item.childId;delete t.item.operationId;const f=selectionContext(t.rows,{read:t.read});
+ await assert.rejects(f.select(t.candidates),/build-b is cancelled/);assert.equal(f.diagnosticReads.length,2);assert(!f.checkpoints[1].value.session);assert(!f.checkpoints[1].value.operation);
+ const rows=fixture(),a=rows.find(row=>row.owner.task==='build-a');a.queue.items.find(item=>item.taskId==='cancel-a').state='cancelled';a.queue.items.find(item=>item.taskId==='build-a').state='queued';
+ const ignored=selectionContext(rows);assert.equal((await ignored.select(rows.filter(row=>row.owner.task!=='build-b').map(row=>row.owner))).owner.task,'build-d');assert.equal(ignored.checkpoints.length,0);
+});
+test('required completion before receipt capture fails distinctly without accepting a verified result',async()=>{
+ const t=terminalFixture('completed'),f=selectionContext(t.rows,{read:t.read});
+ await assert.rejects(f.select(t.candidates),error=>error.code==='required-queued-task-completed-before-capture'&&/completed before receipt capture; no verified task result was accepted/.test(error.message));
+ assert.equal(f.checkpoints[0].value.queue.state,'completed');assert.equal(f.checkpoints[1].value.retryAttempted,false);assert(!f.ctx.receipt.allocationOrder);assert(!f.ctx.receipt.taskReceiptSettlements);
+});
+test('terminal refusal remains the failure when run session and scheduler diagnostics are unavailable',async()=>{
+ const t=terminalFixture(),f=selectionContext(t.rows);await assert.rejects(f.select(t.b.owner),error=>error.code==='required-queued-task-terminal');
+ assert.equal(f.checkpoints.length,2);assert.deepEqual(Object.values(f.checkpoints[1].value.diagnosticReads),['unavailable','unavailable','unavailable']);assert.equal(f.reads.filter(path=>path.endsWith('/swarm-queue')).length,1);
+});
+test('blocked unknown and other nonterminal required targets retain conservative selection and waiting',async()=>{
+ for(const state of ['blocked','unknown','queued','paused','reserved']){
+  const t=terminalFixture(state),f=selectionContext(t.rows);assert.equal((await f.select(t.candidates)).owner.task,'build-d');assert.equal(f.checkpoints.length,0);
+  await assert.rejects(f.select(t.b.owner),/bounded prerequisite window/);assert.equal(f.checkpoints.length,0);
+ }
+});
+test('terminal target requires its exact project run enqueue and unique identity before diagnostic reads',async()=>{
+ for(const mutate of [t=>{t.item.projectId='foreign';},t=>{t.item.runId='foreign';},t=>{t.item.id='foreign';},t=>{t.b.queue.items.push({...t.item});}]){
+  const t=terminalFixture();mutate(t);const f=selectionContext(t.rows);await assert.rejects(f.select(t.candidates));assert.equal(f.checkpoints.length,0);assert.equal(f.diagnosticReads.length,0);
+ }
+});
+test('terminal peer never bypasses running identity and one-worker guards',async()=>{
+ for(const mutate of [t=>{t.rows.find(row=>row.owner.task==='build-d').queue.items[0].runId='foreign';},t=>{const c=t.rows.find(row=>row.owner.task==='build-c').queue.items[0];c.state='running';c.childId='controlled-second';}]){
+  const t=terminalFixture();mutate(t);const f=selectionContext(t.rows);await assert.rejects(f.select(t.candidates));assert.equal(f.checkpoints.length,0);assert.equal(f.diagnosticReads.length,0);
+ }
+});
+test('diagnostic run operation and session identities cannot attach another attempt to the refusal',async()=>{
+ for(const mutate of [t=>{t.run.id='foreign';},t=>{t.run.projectId='foreign';},t=>{t.run.operations[0].id='foreign';},t=>{t.run.operations[0].taskId='foreign';},t=>{t.run.operations[0].childId='foreign';},t=>{t.run.operations.push({...t.run.operations[0]});}]){
+  const t=terminalFixture();mutate(t);const f=selectionContext(t.rows,{read:t.read});await assert.rejects(f.select(t.candidates),error=>error.code==='required-queued-task-terminal');const diagnostic=f.checkpoints[1].value;
+  assert.equal(diagnostic.diagnosticReads.run,'identity-or-shape-mismatch');assert(!diagnostic.operation);assert(!JSON.stringify(diagnostic).includes('foreign'));
+ }
+ for(const field of ['id','projectId','projectRunId','projectRunOperationId']){
+  const t=terminalFixture();t.session[field]='foreign';const f=selectionContext(t.rows,{read:t.read});await assert.rejects(f.select(t.candidates),error=>error.code==='required-queued-task-terminal');
+  assert.equal(f.checkpoints[1].value.diagnosticReads.session,'identity-or-shape-mismatch');assert(!f.checkpoints[1].value.session);
+ }
+});
+test('failure to durably record the initial refusal cannot proceed to diagnostics or accept a worker',async()=>{
+ const t=terminalFixture(),f=selectionContext(t.rows,{checkpoint:()=>{throw Error('controlled disk failure');}});
+ await assert.rejects(f.select(t.candidates),/controlled disk failure/);assert.equal(f.diagnosticReads.length,0);
 });
 
 function workerContext(overrides={}){

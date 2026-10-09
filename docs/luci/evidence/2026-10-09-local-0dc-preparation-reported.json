@@ -1,0 +1,41 @@
+{
+  "source": "Relayed local tester preparation report; original Windows artifacts remain on local machine",
+  "sourceRevision": "0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f",
+  "publicationReviewed": "7aeb3373f9cf21c1c8d39711f9ee6ec294226633",
+  "previousFullAuditSummarySHA256": "0483a2e312557f7b83d4a8093507d02762acd181fc917335ed267815c5c6a168",
+  "sourceScope": "All79publicationchangedpaths are documentation; product/helper remain0dc",
+  "prepared": {
+    "checkout": "E:\\Luci-local-acceptance\\checkouts\\0dcafb14",
+    "clean": true,
+    "launcher": "scripts/start-local-acceptance.ps1 -PrepareOnly",
+    "passed": true,
+    "node": "24.19.0",
+    "privateStateAndProjects": true,
+    "cacheDrive": "E:",
+    "ports": [
+      19730,
+      15200
+    ]
+  },
+  "limits": {
+    "applicationLaunched": false,
+    "dependencyBuildLaunched": false,
+    "nativeGuideStagingRequired": true,
+    "availableRAMGiBReported": [
+      0.16,
+      0.094,
+      0.8
+    ],
+    "sourceGateGiB": 2,
+    "nativeBrowserGateGiB": 2.5,
+    "remainingScopes": 34,
+    "newPackageAndAttempt6Audit": "in progress"
+  },
+  "preserved": [
+    "original802becheckout",
+    "old29becheckout",
+    "normalstate/projects",
+    "unrelatedworkloads",
+    "fouroriginalDockercontainers"
+  ]
+}

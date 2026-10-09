@@ -332,6 +332,54 @@ function taskRow(task){return page.locator('.project-swarm-tasks > li').filter({
 // a priority change inside one project does not require it to run next.
 // Select only a single running allocation from this explicit remaining set;
 // no dispatch, cancellation or priority mutation is performed by observation.
+async function failRequiredQueuedTarget(terminals,running){
+ const {owner,queued}=terminals[0];
+ // Only public identifiers, codes, timestamps and numeric observations belong
+ // in this receipt. Never copy task titles, messages, contexts or raw errors.
+ const fields=(value,keys)=>Object.fromEntries(keys.map(key=>[key,value?.[key]]).filter(([,value])=>value===null||typeof value==='boolean'||typeof value==='number'&&Number.isFinite(value)||typeof value==='string'&&/^[a-zA-Z0-9_.:+-]{1,128}$/.test(value)));
+ const queueView=item=>fields(item,['id','projectId','runId','taskId','state','reasonCode','revision','priority','queuedAt','updatedAt','operationId','childId','memoryMiB','cpuMillis']);
+ const startFailure=value=>fields(value,['stage','reasonCode']);
+ const diagnostic={version:1,code:queued.state==='completed'?'required-queued-task-completed-before-capture':'required-queued-task-terminal',observedAt:new Date().toISOString(),observedDuringStage:stage,
+  queue:queueView(queued),otherTerminalTargets:terminals.slice(1).map(value=>queueView(value.queued)),runningPeers:running.map(value=>queueView(value.queued)),
+  resourceObservationBasis:'Later cached scheduler GET; non-atomic with queue, run, session and actual refusal. Exact admission operands are not retained.',
+  diagnosticReads:'pending',retryAttempted:false};
+ receipt.queueRefusal=diagnostic;
+ // The first durable record precedes every diagnostic await. The second is
+ // additive, so interruption or a failed GET cannot erase the observed refusal.
+ writeFailureCheckpoint(join(evidence,'required-queue-refusal.json'),diagnostic);
+ setStage('required-queue-terminal-'+owner.task);
+ const reads=[['run',owner.route+'/runs/'+owner.run.id],['scheduler','/v1/product/swarm-scheduler']];
+ if(queued.childId)reads.push(['session',workspace+'/v1/sessions/'+encodeURIComponent(queued.childId)]);
+ const observations=await Promise.allSettled(reads.map(([,path])=>api('GET',path,undefined,200,3000)));
+ diagnostic.diagnosticReads={};
+ for(let index=0;index<reads.length;index++){
+  const [kind]=reads[index],observation=observations[index];
+  if(observation.status!=='fulfilled'){diagnostic.diagnosticReads[kind]='unavailable';continue;}
+  const value=observation.value;
+  try{
+   if(kind==='run'){
+    const run=value.run;assert.equal(run.id,owner.run.id);assert.equal(run.projectId,owner.owner.id);
+    diagnostic.run=fields(run,['id','projectId','revision','state','createdAt','updatedAt']);
+    if(queued.operationId){
+     assert(Array.isArray(run.operations));const matches=run.operations.filter(op=>op.id===queued.operationId);assert.equal(matches.length,1);
+     const op=matches[0];assert.equal(op.taskId,owner.task);assert.equal(op.childId,queued.childId);
+     diagnostic.operation={...fields(op,['id','taskId','childId','status','createdAt','updatedAt']),startFailure:startFailure(op.startFailure)};
+    }
+   }else if(kind==='session'){
+    assert.equal(value.id,queued.childId);assert.equal(value.projectId,owner.owner.id);assert.equal(value.projectRunId,owner.run.id);assert.equal(value.projectRunOperationId,queued.operationId);
+    diagnostic.session={...fields(value,['id','projectId','projectRunId','projectRunOperationId','status','createdAt','updatedAt']),startFailure:startFailure(value.startFailure)};
+   }else{
+    const resources=value.resources??{},host=resources.host??{},execution=resources.execution??{};
+    diagnostic.scheduler={...fields(value,['revision','observedAt','dispatchPaused']),policy:fields(value.policy,['maxActive','maxPerProject','headroomPercent','minHeadroomMiB','diskReserveMiB'])};
+    diagnostic.resources={host:{...fields(host,['observedAt','status']),cpu:fields(host.cpu,['logicalProcessors','effectiveMillis','utilizationPercent','pressureSomeAvg10']),memory:fields(host.memory,['effectiveTotalBytes','effectiveAvailableBytes']),disks:(Array.isArray(host.disks)?host.disks:[]).slice(0,16).map(disk=>fields(disk,['observedAt','role','totalBytes','availableBytes']))},execution:fields(execution,['observedAt','status','totalMemoryBytes','cpuMillis']),reservations:fields(resources.reservations,['observedAt','status','count','memoryMiB','cpuMillis'])};
+   }
+   diagnostic.diagnosticReads[kind]='observed';
+  }catch{diagnostic.diagnosticReads[kind]='identity-or-shape-mismatch';}
+ }
+ writeFailureCheckpoint(join(evidence,'required-queue-refusal-details.json'),diagnostic);
+ const outcome=queued.state==='completed'?'completed before receipt capture; no verified task result was accepted':'is '+queued.state+' ('+(diagnostic.queue.reasonCode??'reason-unavailable')+'); inspect the retained attempt before explicitly retrying';
+ throw Object.assign(Error('Required queued task '+owner.task+' '+outcome),{code:diagnostic.code});
+}
 async function allocatedQueuedOwner(candidates){
  const owners=Array.isArray(candidates)?candidates:[candidates];
  assert(owners.length>=1&&owners.length<=4,'Bounded remaining project candidates required');
@@ -339,12 +387,18 @@ async function allocatedQueuedOwner(candidates){
  assert.equal(new Set(owners.map(owner=>owner.task)).size,owners.length,'Duplicate candidate task');
  return until('Exactly one queued worker allocated',async()=>{
   const snapshots=await Promise.all(owners.map(async owner=>({owner,queue:await api('GET',owner.route+'/swarm-queue')})));
-  const running=[];
+  const running=[],terminals=[];
   for(const {owner,queue} of snapshots){
    assert(Array.isArray(queue.items)&&queue.items.length<=8,'Bounded fixture queue observation required');
    for(const item of queue.items){
     assert.equal(item.projectId,owner.owner.id,'Observed queue belongs to another project');
     if(item.taskId==='cancel-a')assert(!item.childId&&!item.operationId,'Cancelled waiting fixture task must never allocate');
+    if(item.taskId===owner.task&&['failed','cancelled','completed'].includes(item.state)){
+     assert.equal(item.runId,owner.run.id,'Terminal queue belongs to another run');
+     assert(owner.queued.some(expected=>expected.id===item.id&&expected.taskId===item.taskId),'Terminal queue has no exact fixture enqueue receipt');
+     assert(!terminals.some(value=>value.owner===owner),'Duplicate terminal fixture task');
+     terminals.push({owner,queued:item});
+    }
     if(item.state!=='running')continue;
     assert(item.childId,'Running queue task requires exact child identity');
     assert.equal(item.taskId,owner.task,'Unexpected running fixture task');
@@ -354,6 +408,7 @@ async function allocatedQueuedOwner(candidates){
    }
   }
   assert(running.length<=1,'One worker ceiling is enforced across candidate projects');
+  if(terminals.length)await failRequiredQueuedTarget(terminals,running);
   return running[0]??null;
  },150000);
 }

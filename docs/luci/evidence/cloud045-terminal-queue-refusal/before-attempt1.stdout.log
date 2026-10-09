@@ -1,0 +1,146 @@
+✔ retained D-before-C allocation is selected without changing its queue or issuing work (10.544314ms)
+✔ empty and ambiguous active candidates refuse instead of choosing or launching a worker (4.589213ms)
+✔ foreign task project run enqueue identity and missing child cannot establish an owned allocation (8.286553ms)
+✔ cancelled waiting fixture cannot allocate and duplicate candidate sets remain bounded (2.08397ms)
+✔ high priority within B does not predict its cross-project turn (1.917379ms)
+✖ required failed B is durably diagnosed before accepting running D, without replay or raw private fields (2.513867ms)
+✖ required cancelled target without a child fails promptly while deliberate extra cancellation stays ignored (2.388748ms)
+✖ terminal refusal remains the failure when run session and scheduler diagnostics are unavailable (1.877408ms)
+✔ blocked unknown and other nonterminal required targets retain conservative selection and waiting (8.690531ms)
+✖ terminal target requires its exact project run enqueue and unique identity before diagnostic reads (5.376891ms)
+✔ terminal peer never bypasses running identity and one-worker guards (3.613513ms)
+✖ diagnostic run operation and session identities cannot attach another attempt to the refusal (4.006696ms)
+✖ failure to durably record the initial refusal cannot proceed to diagnostics or accept a worker (1.650817ms)
+✔ actual child helper retains owned context and single-container checks after peer selection (16.099352ms)
+✔ actual startup and completion loop visits each project once with scheduler order build-a → build-b → build-c → build-d (5.426675ms)
+✔ actual startup and completion loop visits each project once with scheduler order build-a → build-b → build-d → build-c (3.82351ms)
+✔ actual startup and completion loop visits each project once with scheduler order build-a → build-c → build-b → build-d (6.218788ms)
+✔ actual startup and completion loop visits each project once with scheduler order build-a → build-c → build-d → build-b (3.140371ms)
+✔ actual startup and completion loop visits each project once with scheduler order build-a → build-d → build-b → build-c (3.775948ms)
+✔ actual startup and completion loop visits each project once with scheduler order build-a → build-d → build-c → build-b (3.089734ms)
+✔ actual startup and completion loop visits each project once with scheduler order build-b → build-a → build-c → build-d (3.260342ms)
+✔ actual startup and completion loop visits each project once with scheduler order build-b → build-a → build-d → build-c (2.871456ms)
+✔ actual startup and completion loop visits each project once with scheduler order build-b → build-c → build-a → build-d (2.785846ms)
+✔ actual startup and completion loop visits each project once with scheduler order build-b → build-c → build-d → build-a (4.906992ms)
+✔ actual startup and completion loop visits each project once with scheduler order build-b → build-d → build-a → build-c (3.020861ms)
+✔ actual startup and completion loop visits each project once with scheduler order build-b → build-d → build-c → build-a (3.390207ms)
+✔ actual startup and completion loop visits each project once with scheduler order build-c → build-a → build-b → build-d (3.313312ms)
+✔ actual startup and completion loop visits each project once with scheduler order build-c → build-a → build-d → build-b (2.488088ms)
+✔ actual startup and completion loop visits each project once with scheduler order build-c → build-b → build-a → build-d (3.282184ms)
+✔ actual startup and completion loop visits each project once with scheduler order build-c → build-b → build-d → build-a (3.081643ms)
+✔ actual startup and completion loop visits each project once with scheduler order build-c → build-d → build-a → build-b (3.857461ms)
+✔ actual startup and completion loop visits each project once with scheduler order build-c → build-d → build-b → build-a (3.858122ms)
+✔ actual startup and completion loop visits each project once with scheduler order build-d → build-a → build-b → build-c (4.980983ms)
+✔ actual startup and completion loop visits each project once with scheduler order build-d → build-a → build-c → build-b (3.970622ms)
+✔ actual startup and completion loop visits each project once with scheduler order build-d → build-b → build-a → build-c (4.714322ms)
+✔ actual startup and completion loop visits each project once with scheduler order build-d → build-b → build-c → build-a (4.883386ms)
+✔ actual startup and completion loop visits each project once with scheduler order build-d → build-c → build-a → build-b (5.927058ms)
+✔ actual startup and completion loop visits each project once with scheduler order build-d → build-c → build-b → build-a (5.378682ms)
+✔ actual initial discovery rejects the canceled child before exercise even when D starts first (2.784084ms)
+✔ actual queue controls protect exact A then cancel under load with build-a active (3.550819ms)
+✔ actual queue controls protect exact A then cancel under load with build-b active (6.178999ms)
+✔ actual queue controls protect exact A then cancel under load with build-c active (1.193277ms)
+✔ actual queue controls protect exact A then cancel under load with build-d active (1.709315ms)
+✔ queue control observations reject wrong scope duplicate identity and allocated targets before action (11.222646ms)
+✔ queue priority requires another current waiting owner and exact high readback (3.670129ms)
+ℹ tests 45
+ℹ suites 0
+ℹ pass 39
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 380.813051
+
+✖ failing tests:
+
+test at scripts/acceptance/sustained-four-project/queue-selection.test.mjs:78:1
+✖ required failed B is durably diagnosed before accepting running D, without replay or raw private fields (2.513867ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///workspace/luci/scripts/acceptance/sustained-four-project/queue-selection.test.mjs:80:2)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at scripts/acceptance/sustained-four-project/queue-selection.test.mjs:89:1
+✖ required cancelled target without a child fails promptly while deliberate extra cancellation stays ignored (2.388748ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///workspace/luci/scripts/acceptance/sustained-four-project/queue-selection.test.mjs:91:2)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /build-b is cancelled/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at scripts/acceptance/sustained-four-project/queue-selection.test.mjs:95:1
+✖ terminal refusal remains the failure when run session and scheduler diagnostics are unavailable (1.877408ms)
+  AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+  
+  Caught error:
+  
+  Error: Exactly one queued worker allocated did not complete within its bounded prerequisite window
+      at async TestContext.<anonymous> (file:///workspace/luci/scripts/acceptance/sustained-four-project/queue-selection.test.mjs:96:55)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: Exactly one queued worker allocated did not complete within its bounded prerequisite window
+        at until (file:///workspace/luci/scripts/acceptance/sustained-four-project/queue-selection.test.mjs:20:137)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (file:///workspace/luci/scripts/acceptance/sustained-four-project/queue-selection.test.mjs:96:55)
+        at async Test.run (node:internal/test_runner/test:1389:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:960:7),
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at scripts/acceptance/sustained-four-project/queue-selection.test.mjs:105:1
+✖ terminal target requires its exact project run enqueue and unique identity before diagnostic reads (5.376891ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///workspace/luci/scripts/acceptance/sustained-four-project/queue-selection.test.mjs:107:72)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at scripts/acceptance/sustained-four-project/queue-selection.test.mjs:115:1
+✖ diagnostic run operation and session identities cannot attach another attempt to the refusal (4.006696ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///workspace/luci/scripts/acceptance/sustained-four-project/queue-selection.test.mjs:117:86)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at scripts/acceptance/sustained-four-project/queue-selection.test.mjs:125:1
+✖ failure to durably record the initial refusal cannot proceed to diagnostics or accept a worker (1.650817ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///workspace/luci/scripts/acceptance/sustained-four-project/queue-selection.test.mjs:127:2)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /controlled disk failure/,
+    operator: 'rejects',
+    diff: 'simple'
+  }

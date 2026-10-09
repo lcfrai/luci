@@ -1,0 +1,27 @@
+{
+  "source": "Relayed local Windows tester package audit; private original archives not locally fetched",
+  "revision": "7aeb3373f9cf21c1c8d39711f9ee6ec294226633",
+  "productSource": "0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f",
+  "auditSHA256": "6d5c0735c306c4c31d368dbc17aa65cad6b2ec32a16335756ab439cdcefb8ffd",
+  "capsuleFiles": 24,
+  "checksums": 23,
+  "publicationMembers": 22,
+  "originalReceiptBindings": 18,
+  "packagingSourcesMatched": 5,
+  "portableMembers": 953,
+  "cloudMembers": 952,
+  "webHashes": 424,
+  "runtimeSources": 104,
+  "guideSources": 43,
+  "stagedGuides": 44,
+  "licenses": 347,
+  "portableArchiveDifferenceBytes": 65312714,
+  "limitations": [
+    "Original archives not locally retrieved",
+    "Different source revisions; no isolated causal archive/code speed or RAM improvement",
+    "Native Windows open",
+    "Attempt6 audit pending",
+    "No app/build/browser/Docker workload launched"
+  ],
+  "newDefect": false
+}

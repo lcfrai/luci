@@ -1,0 +1,27 @@
+{
+  "issue": "CLOUD-045",
+  "productBaseline": "0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f",
+  "integrationBase": "7aeb3373f9cf21c1c8d39711f9ee6ec294226633",
+  "patchSHA256": "9c4affc79a97a6d73830053648a6e10f93a6ac4f1bf1101787a2db0e444ada58",
+  "files": [
+    {
+      "path": "scripts/acceptance/sustained-four-project/sustained.mjs",
+      "beforeSHA256": "cb6883d9bdd5387bf8c54829d869780f565de896efc1e56b41bb6eb6e3e7a77a",
+      "afterSHA256": "aa62a03a91e226a5e18bafc4fc3a37a749a3ed904a4a49aab715c66e945c9980",
+      "beforeBytes": 91804,
+      "afterBytes": 97100
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/queue-selection.test.mjs",
+      "beforeSHA256": "dc296e901729dd9c200cf2f62f4cab967d265d47251e480acca2713b5cafd384",
+      "afterSHA256": "30b62233dbf514674779e7904968c67ac0969c0310fb776261dd33cddaf887ae",
+      "beforeBytes": 17418,
+      "afterBytes": 26729
+    }
+  ],
+  "originalDiagnosisSHA256": "520f93d366a142bdc6e55a5a05ad0ca77e95e6de48a34cb5e33c6e84fd4b6aa7",
+  "validationSHA256": "ade093472c253b2ea80ce13a1444e8397db9adf93ad8e47a086610b06568f336",
+  "installedRetestPerformed": false,
+  "performanceClaim": false,
+  "onlyAuthorizedSourceFilesChangedByThisTask": true
+}

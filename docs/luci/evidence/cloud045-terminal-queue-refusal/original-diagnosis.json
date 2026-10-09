@@ -1,0 +1,276 @@
+{
+  "schemaVersion": 1,
+  "case": "CLOUD045 original installed attempt6 terminal queue refusal",
+  "capturedAt": "2026-10-09T07:14:34.973555+00:00",
+  "readOnlyOriginals": true,
+  "originalFiles": [
+    {
+      "role": "result",
+      "sha256": "9b26b0f3fff80e37f61b07dbf6a740b38c2e1f52cff16f6466104904e140feea",
+      "bytes": 23445411
+    },
+    {
+      "role": "acceptedDriver",
+      "sha256": "cb6883d9bdd5387bf8c54829d869780f565de896efc1e56b41bb6eb6e3e7a77a",
+      "bytes": 91804
+    },
+    {
+      "role": "scheduler",
+      "sha256": "1c2a1996800b354a4b617b10d1df99612cd7dded9955142168701b633ac4961e",
+      "bytes": 5999
+    },
+    {
+      "role": "sessions",
+      "sha256": "2bfce5c2ed1418875be7b37ab7d295a8f651af0f994489cab7609d354961d297",
+      "bytes": 33615
+    },
+    {
+      "role": "run",
+      "sha256": "15a9a7b33c1f23b704765650f4603013f10e9f91ee0c4cf39520cc8da28b0c0c",
+      "bytes": 6243
+    }
+  ],
+  "binding": {
+    "productAndHelperCommit": "0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f",
+    "acceptedDriverMatchesResultHash": true
+  },
+  "result": {
+    "passed": false,
+    "startedAt": "2026-10-09T03:39:36.075Z",
+    "finishedAt": "2026-10-09T03:58:12.331Z",
+    "failedStage": "actual-work-build-d",
+    "sourceCommit": "0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f",
+    "sourceDirty": false,
+    "actualTaskCount": 3,
+    "driverSHA256": "cb6883d9bdd5387bf8c54829d869780f565de896efc1e56b41bb6eb6e3e7a77a",
+    "binarySHA256": "684e1837d39aa526dd254c933af1d17cbf48a451aad59d00cc33423bf789ea5e",
+    "webIndexSHA256": "c9637481e649b1689961417f3e93293cc3995481bb0d878776e396f2b6acdcc5",
+    "dockerMutationStateCertain": true
+  },
+  "failureSummary": "Error: Exactly one queued worker allocated did not complete within its bounded prerequisite window",
+  "scheduler": {
+    "revision": 54,
+    "policyRevision": 3,
+    "paused": false,
+    "policy": {
+      "maxActive": 1,
+      "maxPerProject": 1,
+      "headroomPercent": 25,
+      "minHeadroomMiB": 2048,
+      "diskReserveMiB": 1024
+    },
+    "observedAt": "2026-10-09T03:55:38.44400543Z"
+  },
+  "bQueue": {
+    "id": "queue-86b8db96f7c1911003538d9e",
+    "projectId": "p-5bc2cc76",
+    "runId": "run-2b76fee9af3cb50441cdc133",
+    "taskId": "build-b",
+    "priority": "high",
+    "state": "failed",
+    "queuedAt": "2026-10-09T03:39:45.574135042Z",
+    "updatedAt": "2026-10-09T03:46:39.591940852Z",
+    "revision": 9,
+    "reasonCode": "cpu_pressure",
+    "reason": "Measured CPU pressure prevented final admission. No sandbox allocation was attempted. Inspect this retained attempt before explicitly retrying.",
+    "operationId": "op-a7270538520c4a652f9a164d",
+    "childId": "s-5c705a0a"
+  },
+  "bRun": {
+    "id": "run-2b76fee9af3cb50441cdc133",
+    "projectId": "p-5bc2cc76",
+    "revision": 6,
+    "state": "blocked",
+    "createdAt": "2026-10-09T03:39:38.341080116Z",
+    "updatedAt": "2026-10-09T03:46:39.580575832Z"
+  },
+  "bOperation": {
+    "id": "op-a7270538520c4a652f9a164d",
+    "childId": "s-5c705a0a",
+    "taskId": "build-b",
+    "status": "failed",
+    "allocation": "ready",
+    "createdAt": "2026-10-09T03:46:37.145913511Z",
+    "updatedAt": "2026-10-09T03:46:39.580574921Z",
+    "startFailure": {
+      "stage": "admission",
+      "reasonCode": "cpu_pressure",
+      "message": "Measured CPU pressure prevented final admission. No sandbox allocation was attempted. Inspect this retained attempt before explicitly retrying."
+    },
+    "attempt": 1
+  },
+  "bSession": {
+    "id": "s-5c705a0a",
+    "projectId": "p-5bc2cc76",
+    "projectRunId": "run-2b76fee9af3cb50441cdc133",
+    "projectRunOperationId": "op-a7270538520c4a652f9a164d",
+    "status": "exited",
+    "createdAt": "2026-10-09T03:46:39.551355946Z",
+    "updatedAt": "2026-10-09T03:46:39.607945377Z",
+    "startFailure": {
+      "stage": "admission",
+      "reasonCode": "cpu_pressure",
+      "message": "Measured CPU pressure prevented final admission. No sandbox allocation was attempted. Inspect this retained attempt before explicitly retrying."
+    },
+    "sandboxId": "s-5c705a0a",
+    "sandboxRef": ""
+  },
+  "allocationOrder": [
+    {
+      "ordinal": 1,
+      "task": "build-a",
+      "projectID": "p-cefd3d8a",
+      "queueID": "queue-aa256fe71c3682754bee1d8e",
+      "sessionID": "s-e8cbc76c",
+      "operationID": "op-6a9e7d3239b81c9e704b47f4",
+      "observedAt": "2026-10-09T03:42:30.652Z"
+    },
+    {
+      "ordinal": 2,
+      "task": "build-c",
+      "projectID": "p-0d6a6feb",
+      "queueID": "queue-9cc206af4336a8901c0594f2",
+      "sessionID": "s-d6a22e36",
+      "operationID": "op-16fdc2d7756b629ed076bf8c",
+      "observedAt": "2026-10-09T03:47:10.521Z"
+    },
+    {
+      "ordinal": 3,
+      "task": "build-d",
+      "projectID": "p-328878f7",
+      "queueID": "queue-b823a4ceb0a7569e31882e4a",
+      "sessionID": "s-31ecd247",
+      "operationID": "op-9bb81ff516d251a287e726bc",
+      "observedAt": "2026-10-09T03:51:40.194Z"
+    }
+  ],
+  "naturalCompletions": [
+    {
+      "task": "build-a",
+      "sessionID": "s-e8cbc76c",
+      "sessionStatus": "exited",
+      "recordedExitReason": "process exited",
+      "cleanNativeExitFrame": true,
+      "exitFrameObservedAt": "2026-10-09T03:46:04.319Z",
+      "stoppedAndAbsentObservedAt": "2026-10-09T03:46:35.940Z",
+      "queueCompletedObservedAt": "2026-10-09T03:46:37.038Z",
+      "queueState": "completed"
+    },
+    {
+      "task": "build-c",
+      "sessionID": "s-d6a22e36",
+      "sessionStatus": "exited",
+      "recordedExitReason": "process exited",
+      "cleanNativeExitFrame": true,
+      "exitFrameObservedAt": "2026-10-09T03:50:45.918Z",
+      "stoppedAndAbsentObservedAt": "2026-10-09T03:51:06.179Z",
+      "queueCompletedObservedAt": "2026-10-09T03:51:08.557Z",
+      "queueState": "completed"
+    },
+    {
+      "task": "build-d",
+      "sessionID": "s-31ecd247",
+      "sessionStatus": "exited",
+      "recordedExitReason": "process exited",
+      "cleanNativeExitFrame": true,
+      "exitFrameObservedAt": "2026-10-09T03:55:18.713Z",
+      "stoppedAndAbsentObservedAt": "2026-10-09T03:55:36.015Z",
+      "queueCompletedObservedAt": "2026-10-09T03:55:38.547Z",
+      "queueState": "completed"
+    }
+  ],
+  "nonAtomicResourceObservations": [
+    {
+      "at": "2026-10-09T03:42:05.821Z",
+      "ordinal": 1,
+      "rootFreeBytes": 6499926016,
+      "stage": "sustained-work"
+    },
+    {
+      "at": "2026-10-09T03:46:45.761Z",
+      "ordinal": 2,
+      "rootFreeBytes": 6495879168,
+      "stage": "active-command-restart"
+    },
+    {
+      "at": "2026-10-09T03:51:14.339Z",
+      "ordinal": 3,
+      "rootFreeBytes": 6491242496,
+      "stage": "actual-work-build-c"
+    }
+  ],
+  "cpuDecision": {
+    "predicate": "host.cpu.utilizationPercent > 100 - policy.headroomPercent",
+    "configuredHeadroomPercent": 25,
+    "configuredMaximumUtilizationPercent": 75,
+    "exactOriginalUtilizationPercent": null,
+    "exactOriginalSnapshotObservedAt": null,
+    "originalNumericalOperandsRetained": false
+  },
+  "sourceReferences": [
+    {
+      "commit": "0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f",
+      "path": "control-plane/internal/api/execution_capacity.go",
+      "line": 50,
+      "sha256": "a97113455a9da43a0d2402fde940cc07d357a85b4228fa552208b7c239d0b217",
+      "meaning": "CPU refusal predicate: host CPU utilizationPercent > 100 - policy.HeadroomPercent."
+    },
+    {
+      "commit": "0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f",
+      "path": "control-plane/internal/api/swarm_dispatch.go",
+      "line": 306,
+      "sha256": "ddf39c0404225c8daa8f492b7172f6b766ccd2f7d87808d34edc059e055459da",
+      "meaning": "Final reserve repeats admission; a non-admitted decision becomes admissionDecisionFailure."
+    },
+    {
+      "commit": "0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f",
+      "path": "control-plane/internal/api/session_allocation.go",
+      "line": 81,
+      "sha256": "ae51c9e1b61d7a5827f9045b319cfbcfa83797e9f5bcbb17611db1e9418e35dd",
+      "meaning": "BeforeAllocate refusal records a durable failure before Backend.Create at line 103."
+    },
+    {
+      "commit": "0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f",
+      "path": "control-plane/internal/api/session_start_failure.go",
+      "line": 43,
+      "sha256": "b917c06040ae516665c91aa836ec48c75b25a33cf0f3e22b4ce435247f704a67",
+      "meaning": "Canonical StartFailure persisted on the exact starting session, with status exited."
+    },
+    {
+      "commit": "0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f",
+      "path": "control-plane/internal/product/project_swarm_scheduler.go",
+      "line": 513,
+      "sha256": "6d4028f6d5242aa425805b1995b3a0ad2c386e76187eee55774ce56c85027b5c",
+      "meaning": "Operation failure and original StartFailure are projected into failed queue state."
+    },
+    {
+      "commit": "0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f",
+      "path": "control-plane/internal/product/project_swarm_scheduler_store.go",
+      "line": 221,
+      "sha256": "301c57fc49aa259bd5caf633b036ae766629ebec425bc5edc93a81a18156e11a",
+      "meaning": "Only queued, claiming and reserved entries are eligible; failed entries cannot resume automatically."
+    },
+    {
+      "commit": "0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f",
+      "path": "control-plane/internal/api/swarm_start_failure_test.go",
+      "line": 230,
+      "sha256": "b6ed1575ff3d0fad48ed9f2a31f1f6371db7801ff1e308af443ed8f4e529c888",
+      "meaning": "Source assertions explicitly require no replay after admission recovers; not executed for this diagnosis."
+    },
+    {
+      "commit": "0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f",
+      "path": "scripts/acceptance/sustained-four-project/sustained.mjs",
+      "line": 348,
+      "sha256": "cb6883d9bdd5387bf8c54829d869780f565de896efc1e56b41bb6eb6e3e7a77a",
+      "meaning": "Original helper ignores every non-running state and waits up to 150000 ms, hiding terminal failure behind timeout."
+    }
+  ],
+  "limits": [
+    "Stored records, public result timestamps and pre-Create disk samples are separate non-atomic observations.",
+    "The exact original CPU percentage and sample time are not retained in the canonical failure record; no numerical value is inferred.",
+    "B has a reserved checkout and durable child identity but its StartFailure records refusal before Backend.Create.",
+    "A, C and D were observed running and completing; this does not imply B was merely queued or cooling down.",
+    "Private original paths, credentials, reviewed task context and raw private logs are omitted.",
+    "No tests, service calls, runtime launches or original fixture writes were performed for this diagnosis."
+  ]
+}
