@@ -3,12 +3,12 @@ import {ApiError} from '../../api/client';
 import {productApi, errorText, type CheckRun} from '../../api/product';
 import {checkCanRecover, type CheckRecoveryReview} from '../../api/projectCheckContracts';
 import {Button} from '../fluid/components/button';
-import {WorkflowDialog} from '../common/WorkflowDialog';
+import {WorkflowDialog, type WorkflowDialogReadAccess} from '../common/WorkflowDialog';
 import './check-recovery.css';
 
 interface Review {run: CheckRun; recovery: CheckRecoveryReview; owner: number}
-export function CheckRecoveryDialog({run, projectName, canRead, canEdit, onUpdate, onClose, onReadDenied, getCloseFocusTarget}: {
-  run: CheckRun; projectName: string; canRead: boolean; canEdit: boolean;
+export function CheckRecoveryDialog({run, projectName, readAccess, canRead, canEdit, onUpdate, onClose, onReadDenied, getCloseFocusTarget}: {
+  readAccess: WorkflowDialogReadAccess; run: CheckRun; projectName: string; canRead: boolean; canEdit: boolean;
   onUpdate(value: CheckRun): void; onClose(): void; onReadDenied?(): void;
   getCloseFocusTarget(openingControl: HTMLElement | null): HTMLElement | null;
 }) {
@@ -75,7 +75,7 @@ export function CheckRecoveryDialog({run, projectName, canRead, canEdit, onUpdat
   }
   const continuing = value?.recovery.state === 'pending';
   const mutating = pending === 'Recovering this check';
-  return <WorkflowDialog title="Review check recovery" busy={mutating} onClose={onClose} getCloseFocusTarget={getCloseFocusTarget}
+  return <WorkflowDialog readAccess={readAccess} title="Review check recovery" busy={mutating} onClose={onClose} getCloseFocusTarget={getCloseFocusTarget}
     description="Inspect this exact check allocation. Recovery may stop its original command and retains recorded output. It never reruns a command or starts a replacement.">
     <div className="check-recovery" role={mutating ? 'region' : undefined} aria-label={mutating ? 'Check recovery details' : undefined} tabIndex={mutating ? 0 : undefined}>
     {!canRead ? <p role="status">Reading access is unavailable. Close this view and refresh project access.</p> : <>

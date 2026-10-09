@@ -10,7 +10,7 @@ const initial = swarmRunFixture();
 async function openQueueControls() { await userEvent.click(screen.getByText(/^Queue status and controls/)); }
 function Harness({run = initial, edit = true, execute = true, changed = vi.fn()} = {}) {
   const [busy, setBusy] = useState('');
-  return <SwarmRunQueue run={run} canEdit={edit} canExecute={execute} busy={!!busy} onBusy={setBusy} onQueueChange={changed} />;
+  return <SwarmRunQueue readAccess={{canRead:true,loading:false,error:''}} run={run} canEdit={edit} canExecute={execute} busy={!!busy} onBusy={setBusy} onQueueChange={changed} />;
 }
 beforeEach(() => { resetCockpit(); useCockpit.getState().setHarnesses([swarmHarnessFixture()]); vi.spyOn(swarmQueueApi, 'get').mockResolvedValue(swarmQueueFixture()); });
 afterEach(() => { vi.restoreAllMocks(); });

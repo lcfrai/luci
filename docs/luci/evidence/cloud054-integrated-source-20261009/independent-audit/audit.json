@@ -1,0 +1,289 @@
+{
+  "at": "2026-10-09T13:26:24.458361+00:00",
+  "baseHeadBefore": "a61ac242da77edb6a5a1dead793487ca7a8d646f",
+  "baseHeadAfter": "a61ac242da77edb6a5a1dead793487ca7a8d646f",
+  "scope": "Read-only source/module audit with external offline vendor regeneration; no tests or runtime",
+  "modules": [
+    {
+      "module": "control-plane",
+      "pinV1815": true,
+      "hasV1812Pin": false,
+      "zipSumExactlyOnce": true,
+      "goModSumExactlyOnce": true
+    },
+    {
+      "module": "sandboxd",
+      "pinV1815": true,
+      "hasV1812Pin": false,
+      "zipSumExactlyOnce": true,
+      "goModSumExactlyOnce": true
+    }
+  ],
+  "vendor": {
+    "actualCount": 30,
+    "regeneratedCount": 30,
+    "upstreamBindings": [
+      {
+        "path": ".gitignore",
+        "actual": {
+          "bytes": 8,
+          "sha256": "ed6cfbce214958ad4dfe1f387ebb95caa900597410363397763d5179b1736e6c"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      },
+      {
+        "path": "AGENTS.md",
+        "actual": {
+          "bytes": 9661,
+          "sha256": "4f18e644c5ea375e6df74def90e0b0a5c3d53af651363dee21cc92c78263e82d"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      },
+      {
+        "path": "LICENSE.txt",
+        "actual": {
+          "bytes": 720,
+          "sha256": "cc0975a5f6305145bdd7b41ce9479632fdac3870e6ac4281f28017f18c767c4e"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      },
+      {
+        "path": "Makefile",
+        "actual": {
+          "bytes": 166,
+          "sha256": "258058f087ba86c2b191d48c7fff25e6c8c3d5e9320c15f0a2d614fd7052d157"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      },
+      {
+        "path": "README.md",
+        "actual": {
+          "bytes": 6657,
+          "sha256": "5fd5393d4d3095741658019bf7e86ebbe4a5272cfcffeae6c7e9032e3fc4c97f"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      },
+      {
+        "path": "accept.go",
+        "actual": {
+          "bytes": 11682,
+          "sha256": "3578bc97e032fdee9ff5fbcecf4e02f2f9d0928184b92466702858de76d8b6af"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      },
+      {
+        "path": "close.go",
+        "actual": {
+          "bytes": 7853,
+          "sha256": "2cee606147172e5ac31731ae1846bdceae2d1e8a25dc9990cb46de75dd41b948"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      },
+      {
+        "path": "compress.go",
+        "actual": {
+          "bytes": 5837,
+          "sha256": "dfca27c32fd9109279ea248193c2203546a28dbbc647a5c2b4c207f8ae08bf54"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      },
+      {
+        "path": "conn.go",
+        "actual": {
+          "bytes": 6672,
+          "sha256": "f5aabddca411a9ccbf2938f976d9152f373e52bb1de138c305110807e1c7b0e4"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      },
+      {
+        "path": "dial.go",
+        "actual": {
+          "bytes": 9928,
+          "sha256": "613ea3bb251a13de7c0f47839947a7e5f867acb9555bad1499d1a514b9a772d7"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      },
+      {
+        "path": "doc.go",
+        "actual": {
+          "bytes": 1041,
+          "sha256": "58ee6f20e5baed220eaae3999651d97dc5aa97499ab69b81ded421af94b70e90"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      },
+      {
+        "path": "errors.go",
+        "actual": {
+          "bytes": 176,
+          "sha256": "7664ab90db0687f0834fd25561e950cc0ba4ae3c4d616fde6ae186bb7bcef230"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      },
+      {
+        "path": "frame.go",
+        "actual": {
+          "bytes": 3287,
+          "sha256": "ee8a805dd226f4e3b461fc5699c58a00e5a45cc35d0e56542ca96773c2d61d8a"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      },
+      {
+        "path": "hijack.go",
+        "actual": {
+          "bytes": 848,
+          "sha256": "971691793739eae342309998ed96f22194c37439a868c9d48fd434245f8ee8b2"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      },
+      {
+        "path": "internal/bpool/bpool.go",
+        "actual": {
+          "bytes": 370,
+          "sha256": "0806d6ed46c48d3b2b3af68138e4f5d80f466eb8e9ce85d9786f7bc86a849c7f"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      },
+      {
+        "path": "internal/errd/wrap.go",
+        "actual": {
+          "bytes": 318,
+          "sha256": "0e70ac99d7bb75692509b1eeb4c921c281f18c24a3bdcc86e7e57dcbfc3fdab5"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      },
+      {
+        "path": "internal/util/util.go",
+        "actual": {
+          "bytes": 346,
+          "sha256": "384c5982c8854cd041a930586580bff71478be939a4c9c0f6d4870263de199bc"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      },
+      {
+        "path": "internal/wsjs/wsjs_js.go",
+        "actual": {
+          "bytes": 4020,
+          "sha256": "d477d40a1e50a66e59224009343740b1e8f5d82648d368788e29b98ff68f0de1"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      },
+      {
+        "path": "mask.go",
+        "actual": {
+          "bytes": 4321,
+          "sha256": "4b910cc40e42d5268682ce14395027f5936f3b5b4ad3f8b0c511b87f176702b4"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      },
+      {
+        "path": "mask_amd64.s",
+        "actual": {
+          "bytes": 2003,
+          "sha256": "3ff45361b7376aacf750c3d75aee213ab2a39c6ba96f4e298ebe83ea64696733"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      },
+      {
+        "path": "mask_arm64.s",
+        "actual": {
+          "bytes": 1413,
+          "sha256": "8a9703306ce9ced3056b9a41e63d10c4c266731259c51b8a57f94e8e1d043e50"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      },
+      {
+        "path": "mask_asm.go",
+        "actual": {
+          "bytes": 874,
+          "sha256": "1858a7bb3ffd4b643fb1e683a6b1f30f28ac904f970611c4e3f865df6e3a4924"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      },
+      {
+        "path": "mask_go.go",
+        "actual": {
+          "bytes": 121,
+          "sha256": "90b7f1a3969fe810d1e598ce4a5f909c392855f2eb95862d7e3e4a7e5c57caee"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      },
+      {
+        "path": "netconn.go",
+        "actual": {
+          "bytes": 5474,
+          "sha256": "3ffff33c5c0caeb5b5be8b272edc20649f834514bf99d256e4a5dc163f4f06c3"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      },
+      {
+        "path": "netconn_js.go",
+        "actual": {
+          "bytes": 171,
+          "sha256": "3d24e9796a6d87a49917adf4b08f1e7cdb3617f2ce6f522addc14676e32be520"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      },
+      {
+        "path": "netconn_notjs.go",
+        "actual": {
+          "bytes": 326,
+          "sha256": "25053a79f57498a87c6f610214b0ee71d225d7f3af1d2719607eeba5a5266ec7"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      },
+      {
+        "path": "read.go",
+        "actual": {
+          "bytes": 12226,
+          "sha256": "bc8fe2d1003a6acdd078da05e490edc5f0b5a5df69b28ae6f5004c7c526cfeb6"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      },
+      {
+        "path": "stringer.go",
+        "actual": {
+          "bytes": 2943,
+          "sha256": "7c1120b8b7f24a5a9ef9e779add7c482dbf2d48908de7501227fcb405ec685fe"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      },
+      {
+        "path": "write.go",
+        "actual": {
+          "bytes": 9027,
+          "sha256": "c867336502e341f18d5c8a8c484da1115dd84659f40ee8aed64fcba1d412aa21"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      },
+      {
+        "path": "ws_js.go",
+        "actual": {
+          "bytes": 15019,
+          "sha256": "afde6fe4b98c1d28a9cb2f0e27203e8d8fa2c14cc779947698040bf9bc7decb7"
+        },
+        "matchesChecksumVerifiedUpstream": true
+      }
+    ],
+    "comparison": {
+      "extraVersusGoVendor": [],
+      "missingVersusGoVendor": [],
+      "differentVersusGoVendor": []
+    },
+    "modulesTxtMatchesGoVendor": true
+  },
+  "ciCandidate": {
+    "bytes": 6146,
+    "sha256": "2cf7e44be58a0b95ae3239059ded4c069a0c9dbca35f73f4707107c74d61e05f",
+    "matchesPassingExternalCandidate": true
+  },
+  "selectedSourceChangedDuringAudit": [],
+  "license": {
+    "bytes": 720,
+    "sha256": "cc0975a5f6305145bdd7b41ce9479632fdac3870e6ac4281f28017f18c767c4e"
+  },
+  "limitations": [
+    "No installed package/runtime or browser acceptance",
+    "Upstream AGENTS.md is vendored third-party bytes, not applied as project instructions",
+    "Unrelated repository files may change concurrently; only captured scope checked"
+  ]
+}

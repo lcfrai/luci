@@ -47,6 +47,8 @@ function TeamPanel({onClose,billingReturn=null}:{onClose():void;billingReturn?:B
   const workspace=useTeamWorkspace()!;
   const teamId=workspace.selected?.team.id??'';
   const projectId=useCockpit(state=>state.selection.projectId)??'';
+  const accessKey=JSON.stringify([teamId,projectId,workspace.revision]);
+  const [detailKey,setDetailKey]=useState('');
   const projectName=useCockpit(state=>state.projects.find(project=>project.id===projectId)?.name)??'Selected project';
   const tabsId=useId();
   const [tab,setTab]=useState(billingReturn?2:0);
@@ -54,6 +56,7 @@ function TeamPanel({onClose,billingReturn=null}:{onClose():void;billingReturn?:B
   const [detail,setDetail]=useState<TeamDetail|null>(null);
   const [projectAccess,setProjectAccess]=useState<ProjectAccess|null>(null);
   const [error,setError]=useState('');
+  const [readError,setReadError]=useState('');
   const [busy,setBusy]=useState(false);
   const [loading,setLoading]=useState(!!teamId);
   const [name,setName]=useState('');
@@ -63,21 +66,18 @@ function TeamPanel({onClose,billingReturn=null}:{onClose():void;billingReturn?:B
   const [sharing,setSharing]=useState('');
   const [shareRole,setShareRole]=useState<ProjectGrant['role']>('viewer');
   const [shareGrants,setShareGrants]=useState<TeamGrants>({...emptyGrants});
-  const refresh=async()=>{
-    await workspace.refresh();
-    if(!teamId)return;
-    const value=await teamsApi.detail(teamId);setDetail(value);
-    if(projectId&&value.permissions.admin)setProjectAccess(await teamsApi.projectAccess(teamId,projectId));
-  };
+  // The provider's revision starts the one scope-fenced detail read below.
+  // A second unkeyed read here could overwrite the current authority result.
+  const refresh=async()=>{await workspace.refresh();};
   useEffect(()=>{
     let live=true;
-    setDetail(null);setProjectAccess(null);setError('');setLoading(!!teamId);
+    setDetailKey('');setReadError('');setLoading(!!teamId);
     if(teamId)void teamsApi.detail(teamId).then(async value=>{
       if(!live)return;setDetail(value);
       if(projectId&&value.permissions.admin){const access=await teamsApi.projectAccess(teamId,projectId);if(live)setProjectAccess(access);}
-    }).catch(cause=>{if(live)setError(errorText(cause));}).finally(()=>{if(live)setLoading(false);});
+    }).catch(cause=>{if(live)setReadError(errorText(cause));}).finally(()=>{if(live){setDetailKey(accessKey);setLoading(false);}});
     return()=>{live=false;};
-  },[teamId,projectId]);
+  },[teamId,projectId,accessKey]);
   const perform=async(action:()=>Promise<unknown>)=>{
     if(working.current)return;working.current=true;setBusy(true);setError('');
     try{await action();await refresh();}catch(cause){setError(errorText(cause));try{await refresh();}catch{/* Keep the actionable original error. */}}finally{working.current=false;setBusy(false);}
@@ -86,7 +86,7 @@ function TeamPanel({onClose,billingReturn=null}:{onClose():void;billingReturn?:B
   const owner=detail?.membership.role==='owner';
   const addMember=()=>perform(async()=>{if(!detail)return;await teamsApi.addMember(teamId,detail.team.revision,username,role,role==='owner'?{...grants,admin:true}:grants);setUsername('');setGrants({...emptyGrants});});
   const saveGrant=(grant:Pick<ProjectGrant,'userId'|'role'|'grants'>)=>perform(()=>teamsApi.saveProjectGrant(teamId,projectId,detail!.team.revision,grant));
-  return <WorkflowDialog title={teamId?'Team access':'Your teams'} description={teamId?'Share a workspace and choose what each person can do.':'Keep personal projects separate or collaborate in a shared team workspace.'} busy={busy} onClose={onClose}>
+  return <WorkflowDialog readAccess={{canRead:!teamId||!!detail&&detailKey===accessKey&&!readError,loading:!!teamId&&(loading||detailKey!==accessKey),error:readError}} title={teamId?'Team access':'Your teams'} description={teamId?'Share a workspace and choose what each person can do.':'Keep personal projects separate or collaborate in a shared team workspace.'} busy={busy} onClose={onClose}>
     <div className="team-panel">
       {error&&<div role="alert"><p>{error}</p><Button variant="secondary" disabled={busy} onClick={()=>void perform(async()=>{})}>Reload current access</Button></div>}{loading&&<p role="status">Loading team access…</p>}
       {!teamId&&!workspace.managedTeamId&&<form onSubmit={event=>{event.preventDefault();void perform(async()=>{const value=await teamsApi.create(name.trim());await workspace.refresh();workspace.select(value.team.id);});}}><label>Team name<input autoComplete="organization" value={name} onChange={event=>setName(event.target.value)} maxLength={100} required disabled={busy}/></label><p className="team-muted">A team has its own projects and provider connections. Creating one does not provision a cloud host or charge a payment method.</p><Button type="submit" disabled={busy||!name.trim()}>Create team</Button></form>}

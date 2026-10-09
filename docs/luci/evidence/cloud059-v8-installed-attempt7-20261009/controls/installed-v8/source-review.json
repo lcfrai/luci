@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "at": "2026-10-09T13:05:44.283707+00:00",
+  "scope": "Narrow source-only review of v8 private transport error retention and launcher/scenario delta against frozen v7. No tests/apps/browser/Docker and no private runtime files read.",
+  "sources": [
+    {
+      "path": "/workspace/.luci-tools/cloud054-terminal-close/installed-v7/launch.mjs",
+      "sha256": "be1bf738325edf9e5bdb40fbcbf1949991253bf2f16b9d99ffad7f067d5b987a",
+      "bytes": 59142
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud054-terminal-close/installed-v7/scenario.mjs",
+      "sha256": "65365bed749e93b18e3bf863420d23a505d3d441669c20a2ccba4e2a72c11b25",
+      "bytes": 28632
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud054-terminal-close/installed-v8/private-transport-errors.mjs",
+      "sha256": "40a9adecd52de324435f9e1fa24044a39ce315842b3284de50ac1463636ec75d",
+      "bytes": 4739
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud054-terminal-close/installed-v8/launch.mjs",
+      "sha256": "1e24175a110c67652a9dcf2d54899760d06fc9d76b414e41689cf52f2a836bf0",
+      "bytes": 64548
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud054-terminal-close/installed-v8/scenario.mjs",
+      "sha256": "3e5acc9fbd2a568e7e27137743d32aa42ae6b774db7cc801feed9f3753f35219",
+      "bytes": 29106
+    }
+  ],
+  "byteExactInline": true,
+  "concreteBlockers": [],
+  "findings": [
+    {
+      "topic": "Retention before projection",
+      "result": "Both exact known CDP socket and Playwright socketerror hooks synchronously call private record before the existing public projection. The module writes and fsyncs the JSON-escaped original string before returning only ordinal, UTF8 byte count, SHA256 and retainedPrivately flag."
+    },
+    {
+      "topic": "Privacy and bounds",
+      "result": "Fresh canonical owned private parent; exclusive no-follow append ordinary single-link0600 file. 2048-byte per-error,32 rows,128KiB total refusal; raw arbitrary strings remain private JSONL. Neither record return nor snapshot exports raw error text, private path, URL or headers."
+    },
+    {
+      "topic": "Failure and cleanup",
+      "result": "Validation/cap/write/sync errors set a sticky capture failure and throw fixed static errors; guarded CDP and Playwright callbacks retain observer failure rather than throwing out of event delivery. Launcher onFailure sets workflow failure. Close validates identity/size/parent and fsync/close acknowledgement. The bounded independent cleanup phase records failed capture and prevents overall pass; later cleanup phases remain reachable."
+    },
+    {
+      "topic": "Scope unchanged",
+      "result": "Existing read gate budget, Create/Restart count and terminal close/error assertions are unchanged; no fallback, replay or admission changes. Actual v7 unknown error remains unavailable; this prospective correction does not recover original text."
+    }
+  ],
+  "limitations": [
+    "Synchronous filesystem writes/fsync/close cannot be preempted by JS timer; independent outer watchdog remains required for a hard process bound.",
+    "Close-phase snapshot success concerns private capture only, not socket/terminal/application success.",
+    "Incoming strings originate in observer APIs; capture validates UTF8 byte length after conversion and does not claim arbitrary upstream allocation bounds.",
+    "No new controls executed or independent count audit in this source review; parent-reported original8pass2fail/fixed10pass remain separate from this review.",
+    "Raw file must remain excluded from publication. Unknown strings can contain sensitive data despite deliberately limited collection."
+  ]
+}

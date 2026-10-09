@@ -3,9 +3,9 @@ module github.com/lcfrai/luci/control-plane
 go 1.25.0
 
 require (
+	github.com/coder/websocket v1.8.15
 	github.com/shopspring/decimal v1.4.0
 	github.com/stripe/stripe-go/v87 v87.0.0
-	github.com/coder/websocket v1.8.12
 	golang.org/x/crypto v0.41.0
 	golang.org/x/sys v0.35.0
 	k8s.io/api v0.31.1

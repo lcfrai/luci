@@ -1,0 +1,13 @@
+{
+  "command": [
+    "go",
+    "mod",
+    "vendor"
+  ],
+  "cwd": "/workspace/.luci-tools/cloud054-integrated-dependency-review/vendor-regeneration",
+  "GOWORK": "off",
+  "GOMAXPROCS": "2",
+  "GOPROXY": "off",
+  "exitCode": 0,
+  "scope": "External source copy only; no compilation or tests; repository untouched"
+}

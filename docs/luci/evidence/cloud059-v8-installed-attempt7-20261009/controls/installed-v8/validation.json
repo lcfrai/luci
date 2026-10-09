@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "createdAt": "2026-10-09T13:06:50.683660+00:00",
+  "productSource": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "installedRunPerformed": false,
+  "launcherSHA256": "1e24175a110c67652a9dcf2d54899760d06fc9d76b414e41689cf52f2a836bf0",
+  "scenarioSHA256": "3e5acc9fbd2a568e7e27137743d32aa42ae6b774db7cc801feed9f3753f35219",
+  "privateModuleSHA256": "40a9adecd52de324435f9e1fa24044a39ce315842b3284de50ac1463636ec75d",
+  "previousLauncherSHA256": "be1bf738325edf9e5bdb40fbcbf1949991253bf2f16b9d99ffad7f067d5b987a",
+  "previousScenarioSHA256": "65365bed749e93b18e3bf863420d23a505d3d441669c20a2ccba4e2a72c11b25",
+  "controls": [
+    {
+      "stage": "same actual hooks at v7",
+      "passed": 8,
+      "failed": 2,
+      "exitCode": 1,
+      "reportSHA256": "e5e44d1483e92fabec18ce04619213dfb4398e2cc05cea4df4129dfcc99534b9",
+      "originalFailureExpected": true
+    },
+    {
+      "stage": "same actual hooks corrected v8",
+      "passed": 10,
+      "failed": 0,
+      "exitCode": 0,
+      "reportSHA256": "06f25eaaebc8f745cee19f5b8c8e332f8732631fe7975fed613bfa19f1c9ac9f"
+    },
+    {
+      "stage": "final affected inert tests",
+      "passed": 43,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "reportSHA256": "a19a9303f2477b58955e1e7f97838615bdcda364a9ae31752516a0399c2d4ac6",
+      "overlap": "Includes corrected10; earlierv7 affected32 mostly overlap. Do not sum."
+    },
+    {
+      "stage": "node --check launcher/scenario",
+      "exitCodes": [
+        0,
+        0
+      ]
+    }
+  ],
+  "privateFilesExcludedFromPublication": [
+    "private-transport-errors.jsonl",
+    "private-controller.stderr",
+    "private-fixture-path"
+  ],
+  "acceptanceAndCleanupBoundsUnchanged": true,
+  "reviewSHA256": "44a697749f1f52b62a14ddebe866b222b81bb1a506dd07649061fe7d4d71eb6b",
+  "scope": "No product/app/browser/Docker run. Tiny inert callbacks and private temporary filesystem fixtures only."
+}

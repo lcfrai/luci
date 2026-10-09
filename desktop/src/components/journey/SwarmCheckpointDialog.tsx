@@ -3,12 +3,12 @@ import { errorText } from '../../api/product';
 import type { ProjectRun, RunOperation } from '../../api/projectRuns';
 import { swarmCheckpointApi, type SwarmCheckpointReview } from '../../api/swarmCheckpoint';
 import { Button } from '../fluid/components/button';
-import { WorkflowDialog } from '../common/WorkflowDialog';
+import { WorkflowDialog, type WorkflowDialogReadAccess } from '../common/WorkflowDialog';
 
 /** The parent binds this view to one authority epoch and exact run revision. */
-export function SwarmCheckpointDialog({run, operation, taskTitle, projectName, canContinue, busy, error, onClose, onConfirm, getCloseFocusTarget}: {
+export function SwarmCheckpointDialog({run, operation, taskTitle, projectName, readAccess, canContinue, busy, error, onClose, onConfirm, getCloseFocusTarget}: {
   run: ProjectRun; operation: RunOperation; taskTitle: string; projectName: string;
-  canContinue: boolean; busy: boolean; error: string; onClose(): void;
+  readAccess: WorkflowDialogReadAccess; canContinue: boolean; busy: boolean; error: string; onClose(): void;
   onConfirm(review: SwarmCheckpointReview, idempotencyKey: string): void;
   getCloseFocusTarget?(openingControl: HTMLElement | null): HTMLElement | null;
 }) {
@@ -23,7 +23,7 @@ export function SwarmCheckpointDialog({run, operation, taskTitle, projectName, c
       .catch(cause => { if (live) setReadError(errorText(cause)); }).finally(() => { if (live) setLoading(false); });
     return () => { live = false; controller.abort(); };
   }, [run.projectId, run.id, run.revision, operation.id, operation.childId, refresh]);
-  return <WorkflowDialog title="Continue from retained changes" onClose={onClose} busy={busy} getCloseFocusTarget={getCloseFocusTarget}
+  return <WorkflowDialog readAccess={readAccess} title="Continue from retained changes" onClose={onClose} busy={busy} getCloseFocusTarget={getCloseFocusTarget}
     description="Review the retained changes to copy into a new isolated attempt. The previous attempt stays intact. This prepares a workspace; starting its agent remains a separate action.">
     <dl className="swarm-recovery-scope">
       <div><dt>Project</dt><dd>{projectName}</dd></div>

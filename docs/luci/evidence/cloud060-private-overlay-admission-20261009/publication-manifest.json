@@ -1,0 +1,42 @@
+[
+  {
+    "path": "README.md",
+    "bytes": 6672,
+    "sha256": "8e2d5760348fa986aaaf48b235906798641f9884406eda500698a5c8990ea66a"
+  },
+  {
+    "path": "archive-members.json",
+    "bytes": 119282,
+    "sha256": "7d8bc816e0eb0746550531b9b7284068a41e4fa7e3aeafa6c1ef52ef61f36a78"
+  },
+  {
+    "path": "cloud060-final-candidate-sources.json",
+    "bytes": 8754,
+    "sha256": "ffd69e722b767e6914189b34e8254793d74dfb76a73156ab127f7b06f0329913"
+  },
+  {
+    "path": "cloud060-final-candidate.patch",
+    "bytes": 120967,
+    "sha256": "ff1aed9e3867f428c55b9ebfa5f50a14897b78f227e047f445efe84284ad8f01"
+  },
+  {
+    "path": "dialog-scope-inventory.md",
+    "bytes": 14112,
+    "sha256": "6c57550276fd9b7f1ab50b7eb276aa3c6317d7de242fca2f0bc49fc13b12b669"
+  },
+  {
+    "path": "latest-per-file-coverage.json",
+    "bytes": 114180,
+    "sha256": "9f75f733adc37fe23bf87dd4bc710848cd623b3541736c526287b3ad20672944"
+  },
+  {
+    "path": "original-artifacts.tar.gz",
+    "bytes": 2786410,
+    "sha256": "fabef55660823afa9dcddd0b4d1ac1abf1dadbc3614c97b3d8648e9c4877c963"
+  },
+  {
+    "path": "runs.json",
+    "bytes": 27356,
+    "sha256": "b842605e49d5213bbaa8abf72b98fdd61b6f152e566b59047dca7edb3e1a935d"
+  }
+]

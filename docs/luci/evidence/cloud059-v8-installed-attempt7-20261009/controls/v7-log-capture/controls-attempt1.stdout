@@ -1,0 +1,25 @@
+✔ genuine streamed private0600 bytes and both hashes settle only on end (15.182043ms)
+✔ exact relay session/route/message required; arbitrary stderr remains private (3.746187ms)
+✔ capture cap retains exact256KiB prefix but drains/hashes all observed bytes and fails (73.945042ms)
+✔ overlong line never projected, and following bounded relay still captured (1.851832ms)
+✔ matching rows capped at16 with explicit overflow and no dropped-stream hash (2.982895ms)
+✔ unfinished stream times out boundedly, closes file, and never claims complete hash (11.320643ms)
+✔ stream error and close without end are explicit incomplete observations (1.873134ms)
+✔ plain close without end is never accepted (0.683911ms)
+✔ trailing incomplete line retained privately but not projected (0.853827ms)
+✔ unattached capture is closed as explicit failure; cannot signal or launch anything (0.63048ms)
+✔ nonprivate parent, existing file and symlink are refused without overwrites (0.963132ms)
+✔ hardlink added during capture invalidates ownership at settlement (0.983593ms)
+✔ path replacement cannot receive old descriptor writes or claim identity (1.123364ms)
+✔ session callback changes never merge foreign relay rows (0.788819ms)
+✔ callback exceptions are static capture failures and never escape event delivery (0.900337ms)
+✔ strict Go quoted-byte hashes and conservative fixed classifications (0.893647ms)
+✔ already-flowing stream and second attachment are rejected conservatively (0.933567ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 297.081498

@@ -1,0 +1,42 @@
+{
+  "kind": "scenario-failure",
+  "step": "first-wire-assertions",
+  "error": {
+    "name": "AssertionError",
+    "code": "ERR_ASSERTION",
+    "messageSHA256": "cbe96a0a9d884fb5a0f33ca672d04645dffba8a39a891ce649cc519ddcac34e3",
+    "messageBytes": 54,
+    "messageRetained": false,
+    "kind": "other"
+  },
+  "gates": [
+    {
+      "entry": {
+        "at": "2026-10-09T13:09:58.520Z",
+        "monotonicMs": 35202.21332,
+        "deadlineMonotonicMs": 43202.21332,
+        "budgetMs": 8000
+      },
+      "at": "2026-10-09T13:09:58.520Z",
+      "monotonicMs": 35202.21332,
+      "deadlineMonotonicMs": 43202.21332,
+      "budgetMs": 8000,
+      "bodyObservedMonotonicMs": 35220.88641,
+      "bodySHA256": "67c01e0014d52c0fcc79f9650b6731aa8f85b9bc372528d6e9be893d893da7f3",
+      "bodyBytes": 642,
+      "session": {
+        "id": "s-c1cdf38f",
+        "status": "running",
+        "executionGeneration": "c484dc01a6d3f5c601b3cbcfbf22e3505fc76d49a882f698a141e3e17a8115a9"
+      },
+      "released": null,
+      "expired": false,
+      "settlement": {
+        "attempted": null,
+        "acknowledged": false,
+        "requestFailed": false
+      }
+    }
+  ],
+  "observedAt": "2026-10-09T13:09:58.850Z"
+}

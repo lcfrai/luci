@@ -65,7 +65,7 @@ export function ReviewedContextInspector({ session, scope, onClose }: { session:
   const context = session.implementationContext!;
   const label = documents.find(item => item.kind === document)!.label;
   return <div onPointerDown={event => event.stopPropagation()}>
-    <WorkflowDialog title="Reviewed context" description="The original inputs captured for this coding session. Later project amendments are separate. This view does not change the project or run any work." onClose={onClose}>
+    <WorkflowDialog readAccess={{...access, canRead}} title="Reviewed context" description="The original inputs captured for this coding session. Later project amendments are separate. This view does not change the project or run any work." onClose={onClose}>
       <div className="reviewed-context-inspector">
         {canRead && <section aria-label="Captured session scope">
           <h3>{session.title}</h3>

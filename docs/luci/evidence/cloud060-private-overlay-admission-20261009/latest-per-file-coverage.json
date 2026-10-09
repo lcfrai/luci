@@ -1,0 +1,2382 @@
+{
+  "files": {
+    "desktop/src/components/teams/TeamWorkspacePortalAuthority.test.tsx": {
+      "CLOUD-060 actual Radix portal is removed on fresh authoritative denial before membership settles [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "CLOUD-060 reopens retained review only after both fresh catalogues, without replaying its captured read [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "CLOUD-060 restored membership without the former project/session never reveals its cached portal [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "CLOUD-060 busy private review releases modal traps without clearing its parent answer draft [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "CLOUD-060 public recovery dialog outside admitted private scope remains interactive [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "CLOUD-060 restored catalogues wait for the exact dialog project read grant, including a transient failure and retry [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "CLOUD-060 exact granular read denial cannot reveal a restored project catalogue portal [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "CLOUD-060 a repeated denial fences an older granular recovery and account replacement removes retained private state [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "CLOUD-060 pending granular authority still permits an ordinary close without retaining a ghost modal [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "CLOUD-060 a programmatically opened dialog survives suspension without inventing an opening control [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "CLOUD-060 a removed opening control is never refocused after suspended review closes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "CLOUD-060 actual nested provider form fields survive suspension without saving or connecting [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "CLOUD-060 an actual nested provider save settling while suspended reconnects from its owner without replay [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      }
+    },
+    "desktop/src/components/projects/ProjectOverviewBoard.authority.test.tsx": {
+      "CLOUD-060 bulk: one pending exact peer hides every selected private row until both owners are admitted [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "CLOUD-060 bulk: a selected peer revoked on revision refresh suspends the whole private review without clearing selection [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "CLOUD-060 bulk: Close review while a peer read is pending aborts that exact batch, retains selection and never cancels work [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "CLOUD-060 bulk: an aborted older revision cannot reveal names while the current exact owner remains pending or denied [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "CLOUD-060 bulk: changing account ownership unmounts the review and rejects its late positive reads [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "CLOUD-060 bulk: deduplicates exact selected owners and bounds permission admission to four concurrent reads [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "CLOUD-060 bulk: refuses a positive permission response with the wrong project binding [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "CLOUD-060 bulk: refuses a positive permission response with the wrong team binding [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      }
+    },
+    "desktop/src/hooks/useDismissable.test.ts": {
+      "the overlay stack closeTopOverlay does nothing and reports false with an empty stack [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "the overlay stack reports an open overlay, and forgets it again on unmount [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "the overlay stack Escape closes only the topmost overlay, not the one beneath it [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "the overlay stack a pointerdown outside closes, and one inside does not [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "the overlay stack exempts the trigger of an OPEN overlay, and not a trigger reporting closed [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "the overlay stack dismisses through the LATEST onClose after an open overlay re-renders [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "the overlay stack uses the latest onClose for an outside pointerdown too [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "the overlay stack returns focus to whatever had it before the overlay opened [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      }
+    },
+    "desktop/src/components/common/WorkflowDialog.test.tsx": {
+      "returns focus to the retained navigation control after Escape closes a trigger-less Fluid dialog [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "returns focus to the retained navigation control after Keep editing closes a trigger-less Fluid dialog [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "resolves an explicit close target after the focus trap is removed, with current admission true [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "resolves an explicit close target after the focus trap is removed, with current admission false [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      }
+    },
+    "desktop/src/components/develop/ReviewedContextInspector.test.tsx": {
+      "reads four original documents only after deliberate actions and renders their content inertly [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "rejects a late previous document response and never substitutes current context after unavailable capture [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "clears the open inspector and fences a late read when session identity changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "clears the open inspector and fences a late read when workspace identity changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "clears the open inspector and fences a late read when permission identity changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "waits for confirmed read access, clears displayed data on denial, and never needs execution access [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "preserves the viewed document through permission rechecks without automatically reading it again [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "refuses a response with mismatched sessionId [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "refuses a response with mismatched digest [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "refuses a response with mismatched document [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "does not offer an inspector for legacy or malformed recorded delivery [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "does not offer an inspector for legacy or malformed recorded delivery [occurrence 2]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "does not offer an inspector for legacy or malformed recorded delivery [occurrence 3]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "returns keyboard focus to its trigger after close without changing an unrelated draft [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "recognizes version 2 captured inputs and reads the exact dependency-bound original document [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "refuses version 2 wrong-version rather than showing unbound context [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "refuses version 2 missing-dependency rather than showing unbound context [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "refuses version 2 wrong-dependency rather than showing unbound context [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "does not offer version 2 inspection without a valid saved dependency digest: undefined [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "does not offer version 2 inspection without a valid saved dependency digest: \"\" [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "does not offer version 2 inspection without a valid saved dependency digest: \"invalid\" [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "rejects a dependency-bearing response for a version 1 session [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "closes a version 2 inspection when the saved dependency binding changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      }
+    },
+    "desktop/src/components/projects/ProjectOverviewBoard.test.tsx": {
+      "opens a current project before summary reads finish and preserves the unsaved-draft decision [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "removes a destination with its current catalogue entry and ignores the departed overview reply [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "renders only the changed project summary while preserving fresh independent overview reads [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "removes memoized summaries immediately on authority change and rejects the old in-flight reply [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "reads compact summaries only until the operator opens a queue, and navigates atomically [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "opens the exact overview run in its project scope instead of a previous inspection [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "shows a terminal failed entry without waiting controls and opens its exact run behind the draft guard [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "keeps failed-entry inspection unavailable while its project context is stale or denied [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "shows older review work beside zero queue activity and opens its exact run without a mutation [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "keeps an older review target behind the normal unsaved-draft guard [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "exposes unresolved reported questions on an accepted build and opens that exact older run [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "avoids duplicating the visible exact-run review action while preserving a different next destination [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "labels retained review work as historical during source preparation and clears it on permission failure [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "clears review identities immediately when the account changes and rejects a late old-scope summary [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "keeps exact-run navigation behind the draft guard and discards it on cancellation [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "does not create a run intent after a removed project rejects navigation [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "preserves an in-progress queue click while its project summary arrives [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "keeps unavailable counters and incomplete question history distinct from zero [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "retains explicitly recorded context during source preparation while keeping queue intervention available [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "clears retained private context when a later read fails with status 403 [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "clears retained private context when a later read fails with status 500 [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "bounds concurrent summaries to four and never starts the fifth while four are pending [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "drops a late summary when the account scope changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "forgets removed project summaries before that project can be shown again [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "keeps shown queue selections across reordering but forgets a removed project before a bulk action [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "reports a cross-project partial failure using individual item revisions [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "keeps an interrupted mutation unconfirmed and never retries it during a refresh [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "requires an explicit list review before cancelling and does not mutate on dialog dismissal [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "stops the remaining bulk dispatches on a scope change during an in-flight control [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "keeps queue selection disabled for a viewer even with an execution grant [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "allows an editor without execution access to pause waiting work [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "allows an editor without execution access to cancel waiting work [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "allows an editor without execution access to priority waiting work [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "allows paused-task selection for an editor but does not offer resume without execution access [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "checks fresh editing access before intervening in a previously selected task [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "resumes only projects with fresh execution access and preserves partial outcomes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "labels a legacy unknown failure count without claiming no failures [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      }
+    },
+    "desktop/src/components/setup/AgentConnections.test.tsx": {
+      "saves an explicitly selected local model without adding a paid fallback or exposing credentials [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "opens official Codex sign-in without a project and returns to its isolated terminal [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "connects a stopped sign-in for future Codex sessions and keeps API billing unselected [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "keeps a rejected sign-in unconnected and displays the actionable service error [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "disconnects the subscription without deleting a separate API key or claiming to stop sessions [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      }
+    },
+    "desktop/src/components/teams/BillingReturnNavigation.test.tsx": {
+      "opens the matched return return on Service and data with server-owned status only [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "opens the matched cancel return on Service and data with server-owned status only [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "opens the matched portal return on Service and data with server-owned status only [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "requires a deliberate verification action after return; a URL cannot grant execution [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "offers the existing reserved checkout after cancellation without creating or resuming it automatically [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "resolves old links only from authenticated managed-team binding [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "explains unavailable or ambiguous ?billing=return links without choosing a team or reading billing [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "explains unavailable or ambiguous ?billing=return&billingTeam=unknown links without choosing a team or reading billing [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "explains unavailable or ambiguous ?billing=return&billingTeam=team-bbbbbbbbbbbbbbbbbbbbbb links without choosing a team or reading billing [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "explains unavailable or ambiguous ?billing=return&billing=cancel&billingTeam=team-aaaaaaaaaaaaaaaaaaaaaa links without choosing a team or reading billing [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "does not follow a team hint outside the managed service binding even for a listed member [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "requires an explicit validated team choice and preserves the existing draft-switch guard [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "keeps the current workspace when membership was revoked after the team list loaded [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "ignores a late membership response after the current account/workspace identity changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      }
+    },
+    "desktop/src/components/teams/TeamWorkspaceAuthority.test.tsx": {
+      "CLOUD-056 stable regression: a fresh authoritative list denial hides already-delivered session content before an unrelated refresh [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "CLOUD-056 control: the independent fresh membership refresh really hides the app and disposes its terminal [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "CLOUD-056 control: an authoritative filtered 200 removes revoked project sessions [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "CLOUD-056 non-authority control: forbidden_origin does not imply revoked membership [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "CLOUD-056 non-authority control: forbidden_host does not imply revoked membership [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "CLOUD-056 non-authority control: a transport failure preserves cached content and clears after success [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "CLOUD-056 scope control: an old workspace denial cannot apply to a newly selected workspace [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "CLOUD-056 scope control: an old workspace success cannot apply to a newly selected workspace [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "CLOUD-056 actor control: an old actor denial cannot apply after the provider changes account scope [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "CLOUD-056 actor control: an old actor success cannot apply after the provider changes account scope [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "CLOUD-056 recovery: membership restored without old project grants never exposes the old session again [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "CLOUD-056 recovery: transient revalidation failure keeps private views hidden and drafts/terminal buffer intact until explicit successful retry [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "CLOUD-056 coalesces repeated denials without accepting an older membership success [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "CLOUD-056 fresh catalogue failure leaves recovery blocked without deleting already-delivered content [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "CLOUD-056 episode: settled absent membership does not trigger a new read on each subsequent403 or overwrite its explanation [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "CLOUD-056 episode: transient revalidation keeps the buffer and explicit Retry starts one fresh recovery; a later denial starts a new episode [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "CLOUD-056 episode: the existing focus and60second refresh remain available while automatic denial reads coalesce [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "CLOUD-056 episode: a repeated denial still fences a pending explicit membership recovery [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      }
+    },
+    "desktop/src/components/teams/TeamWorkspaceControl.test.tsx": {
+      "adds a collaborator with explicit independent grants and the current team revision [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "shows a stale-save error and refreshes the actual role without silently retrying the edit [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "requires explicit member removal and explains that shared work remains [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "keeps nonadministrators out of membership and project mutation controls [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "shares only the selected project and never invents team execution or secret grants [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "CLOUD060 hides stale team administrator controls through a current revision read, denial and fresh viewer restoration [occurrence 1]": {
+        "status": "passed",
+        "run": "after-attempt11"
+      },
+      "CLOUD060 suspends old project sharing while a different exact project grant read is pending or denied [occurrence 1]": {
+        "status": "passed",
+        "run": "after-attempt11"
+      }
+    },
+    "desktop/src/components/teams/TeamWorkspaceProvider.test.tsx": {
+      "resolves the remembered team before mounting project content or issuing project requests [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "opens the managed team regardless of a personal preference and refuses workspace switching [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "blocks an account outside the managed team without offering personal fallback [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "lets an existing nonmember join the bound managed team only after membership is refreshed [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "defers private child effects until the first confirmed membership and mounts a clean workspace after joining [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "keeps a previously admitted managed editor mounted but hidden after team access is revoked [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "keeps an accepted invitation blocked when fresh membership is absent and retries reads without resubmitting its code [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "rejects a wrong-team invitation response without switching, refreshing membership or consuming the entry form [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "does not expose an invitation for an unconfirmed managed binding after the initial lookup fails [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "clears an entered invitation and fences late acceptance when the account changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "clears an entered invitation and fences late acceptance when the installation changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "ignores the old account membership refresh after an accepted invitation when the account changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "fences an accepted invitation refresh after a newer read confirms membership removal [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "clears invitation input and fences a late acceptance while signing out from blocked entry [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "retries the complete initial load and restores the remembered team after a connection failure [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "restores navigation only when its stored workspace marker matches (match=true) [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "restores navigation only when its stored workspace marker matches (match=false) [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "does not broadcast draft registry changes while workspace selection still guards the current drafts [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "broadcasts revision-only refreshes and fresh membership permissions after context memoization [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "keeps an unsaved editor mounted while refreshing access and disables every stale write grant [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "keeps drafts mounted after a transient team refresh failure and retries without resetting the workspace [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "retains only prior read access after a temporary project lookup failure, then recovers on refresh [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "hides a revoked team without switching to personal authority or discarding its mounted drafts [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "clears confirmed denied project permissions and rejects late results from a different project [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "ignores an older successful refresh after the latest refresh revokes membership [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "asks before switching a workspace with unsaved drafts (retained=true) [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "asks before switching a workspace with unsaved drafts (retained=false) [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      },
+      "keeps local check drafts protected on workspace change without suggesting a nonexistent shared save [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-core-attempt2"
+      }
+    },
+    "desktop/src/components/journey/CheckRecoveryDialog.test.tsx": {
+      "requires exact check consent and makes one recovery request without starting commands [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "keeps the remove-exact effect and pending finalization explicit [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "keeps the fence-launch effect and pending finalization explicit [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "keeps a null-method pending review read-only [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "refreshes after a lost recovery receipt but never resends or restores consent [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "invalidates consent when the parent records a newer check revision [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "discards a late recovery read after reading access is revoked [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "allows inspection without Edit but does not expose recovery consent authority [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "allows closing a slow read and aborts it without a second read or recovery write [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "does not interpret an Edit-only POST refusal as loss of reading access [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "keeps pending recovery details keyboard reachable without enabling dismissal or a second mutation [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      }
+    },
+    "desktop/src/components/journey/ProjectSwarm.test.tsx": {
+      "keeps saved ask unchanged and requires a separately reviewed build before preparing autonomous tasks [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "keeps saved plan unchanged and requires a separately reviewed build before preparing autonomous tasks [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "waits for advertised task capability and refreshes it without preparing or dispatching [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "discards preparation consent when task capabilities or the saved model route change [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "does not launch a delayed reservation after a task capability is revoked and restored [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "reconciles each acknowledged dispatch with a fresh revision before starting the next independent task [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "retains the acknowledged child after get-failure without replaying or continuing the batch [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "retains the acknowledged child after reconcile-failure without replaying or continuing the batch [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "retains the acknowledged child after reconcile-conflict without replaying or continuing the batch [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "preserves authoritative terminal status when the acknowledged worker has already exited [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "refuses stale get observations without replacing a newer run or replaying [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "refuses stale reconcile observations without replacing a newer run or replaying [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "fences a late get response after execution authority is revoked and restored [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "fences a late reconcile response after execution authority is revoked and restored [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "does not inspect or upsert a late successful create after switching project and run [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "does not silently retry a lost start response and keeps the reserved child visible [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "does not acknowledge or reconcile a successful response for a different child [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "fences a delayed reservation after execution authority changes, even if later restored [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "fences a delayed reservation after leaving the team view [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "pause stops future starts without claiming existing agents stopped, and resume never launches them [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "requires exact-change review for review-required before integrating, and integration alone does not claim verification [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "requires exact-change review for succeeded before integrating, and integration alone does not claim verification [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "serializes unspecified or overlapping file scopes and blocks readers from execution [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "retains integrating integration uncertainty instead of releasing dependencies or claiming success [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "retains unknown integration uncertainty instead of releasing dependencies or claiming success [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "offers the saved subscription route only one slot and prepares without starting an agent [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "requires an explicit recovery choice, retains output and does not launch the retry [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "uses exact missing-child recovery for unknown without execution permission or launching work [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "uses exact missing-child recovery for dispatching without execution permission or launching work [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "uses exact missing-child recovery for cancelled without execution permission or launching work [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "keeps an uncertain attempt available for inspection when absence cannot be proved [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "discards recovery consent when a newer run replaces the inspected attempt [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "reads back partial retirement once and requires a new explicit finalization action [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "explains unconfirmed recovery when readback also fails and never replays it [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "discards checked integration consent across execution revocation and restoration [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "restores the exact review opener after asynchronous loading temporarily loses native focus [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      }
+    },
+    "desktop/src/components/journey/SwarmCheckpoint.test.tsx": {
+      "reviews complete retained changes, requires separate consent and prepares without starting or integrating [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "returns keyboard focus to the connected opener when keeping the retained attempt [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "shows a complete-review refusal without offering consent or allocating [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "clears consent on refresh failure and rejects late review after permission revoke/regrant [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "reads back a lost reservation once without automatic allocation retry or agent start [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "focuses the exact task heading when the recorded continuation cannot yet start [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "does not restore an old task target or commit a late reservation after switching build scope [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "does not review or reserve without both permissions: {\"canEdit\":false} [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "does not review or reserve without both permissions: {\"canExecute\":false} [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "reports an HTTP-successful retained integration conflict without claiming integration or dependency release [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      }
+    },
+    "desktop/src/components/journey/SwarmRunQueue.test.tsx": {
+      "only reads on mount and requires explicit consent for independent and dependent tasks together [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "blocks queueing and resume for saved ask while retaining cancellation controls [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "blocks queueing and resume for saved plan while retaining cancellation controls [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "discards queue consent when current task capability or saved route changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "refreshes after a lost receipt without duplicating already accepted tasks [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "closes consent when reviewed input or execution permission changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "keeps waiting-task control separate from active-session stops and hides other runs [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "leaves a viewer read-only and aborts an unfinished read on unmount [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "offers an explicitly retired attempt for fresh queueing and keeps uncertain starts blocked [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "waits for durable retirement finalization before offering the task for a new queue attempt [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "keeps queue observation mounted while controls are collapsed and consent independently visible [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "shows failed queue work separately and offers no queue replay or pending-item controls [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      }
+    },
+    "desktop/src/components/journey/SwarmTaskHandoff.test.tsx": {
+      "reads inert worker claims separately from recorded evidence without capture, execution or integration [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "explains not-recorded without inventing output or questions [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "explains missing without inventing output or questions [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "explains invalid without inventing output or questions [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "explains unavailable without inventing output or questions [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "requires explicit capture, updates the run receipt, and never treats capture as a passing check [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "allows an editor without Execute to answer once, preserve the draft, and amend the saved answer [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "prevents accidental close/navigation loss of a changed answer and requires explicit discard [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "blocks oversized UTF-8 answers rather than relying on the browser character limit [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "holds a lost answer response for explicit fresh review, preserves text and obtains the next CAS revision [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "keeps an outdated draft after report replacement but never saves it against another question digest [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "requires deliberate amendment when another editor changes the answer and preserves both versions [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "recognizes an answer saved before its response was lost without sending it again [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "fences late private reads when scope changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "fences late private reads when read changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "fences late private reads when parent-read changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "fences late private reads when unmount changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "clears prior private report and draft after a confirmed read denial 401 [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "clears prior private report and draft after a confirmed read denial 403 [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "clears prior private report after a confirmed answer denial without automatic retry [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "ignores a late mutation after Edit is revoked and regranted, keeps the draft and requires fresh review [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "cannot double-submit while pending and clears no unsent answer before success [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "blocks capture for active without blocking authorized integrated answers [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "blocks capture for integrated without blocking authorized integrated answers [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "blocks capture for recovery without blocking authorized integrated answers [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "blocks capture for read-only without blocking authorized integrated answers [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "opens the exact parent attempt only on deliberate review, with Edit but no Execute, and closes on lost Read [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      },
+      "follows Home review work to visible earlier questions and opens the retained report by its exact identity [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-journey-attempt3"
+      }
+    },
+    "desktop/src/components/journey/SwarmWorkspaceReview.test.tsx": {
+      "inspects an abandoned attempt without a session and reads only deliberately selected files as inert text [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps lower-bound omitted counts, partial text, binary files and a truncated patch explicit [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not let a slow previous file replace the newer selection, and clearing then selecting reads it again [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "aborts and fences a pending private file after scope changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "aborts and fences a pending private file after permission changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "aborts and fences a pending private file after parent permission changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "aborts and fences a pending private file after unmount changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not revive an old inventory response after reading permission is revoked and restored [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not display a prior attempt file when the project changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not display a prior attempt file when the run changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not display a prior attempt file when the operation changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "requires a known scope and read authority before the first inspection [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "preserves a completed preview during a permission recheck without starting new reads [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps missing output honest, retries read failures deliberately, and refresh clears a prior file selection [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      }
+    },
+    "desktop/src/components/journey/BranchManager.test.tsx": {
+      "creates once from the inspected source and refreshes the branch-scoped workspace [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "switches using the inspected target commit and verifies the new checkout [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "blocks editor drafts and dirty repositories with a path back to the work [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps branch changes protected by local verification setup with an actionable retention remedy (retained=true) [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps branch changes protected by local verification setup with an actionable retention remedy (retained=false) [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retains the name after a stale-source refusal and permits an explicit refresh [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "reconciles a lost reply by reading the exact operation without repeating checkout [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "rejects mismatched provenance before adopting source [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "rejects a checkout changed before the final catalogue readback [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "ignores a catalogue delivered after this project was unmounted [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      }
+    },
+    "desktop/src/components/journey/ContextStorage.test.tsx": {
+      "reads only after opening and repairs generated exports only after reviewing the replacement action [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "browses immutable imported history with its stable context identity and exact cursor [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "refuses archive pages from another context even when they reuse the requested digest [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "requires an actual backup download and an explicit saved-file acknowledgement before removing archives [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "cannot enable archive removal after a failed backup or a newer context observed during download [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retains a stale repair refusal without automatically retrying against a newer version [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "drops a late backup result when the account or selected workspace changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "shows interrupted unused archive files and permits their explicit backup cleanup while blocking corrupt archives [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "lets a viewer inspect archive history while disabling export repair, private backup export and archive deletion [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "drops a private backup after editing is revoked during backup, even if editing returns [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "drops a private backup after editing is revoked during context readback, even if editing returns [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps archive reading available through an edit downgrade and permission refresh, but fences actual read revocation [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not publish a late context read after access was lost and a fresh read completed [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "drops a backup readback when the disclosure unmounts [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "cannot download or show success after read access disappears during backup [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "cannot download or show success after read access disappears during context readback [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not publish a late repair outcome after edit revocation [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retains an admitted backup through a refresh that confirms the same editing grants [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retains an admitted context readback through a refresh that confirms the same editing grants [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "drops backup completion during permission refresh with an explicit retry and no stuck busy state [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "drops context readback completion during permission refresh with an explicit retry and no stuck busy state [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      }
+    },
+    "desktop/src/components/journey/DeploymentRecovery.test.tsx": {
+      "finds a retained preview on returning to Deploy and opens its exact history row without starting or verifying work [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps available history usable when the other service is unavailable and scopes event refresh [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "discards delayed retained releases from another workspace [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "reports an unavailable selected release instead of silently choosing another [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "requires source review and acknowledgement before building a replacement at the captured commit [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "preserves replacement review when the server rejects changed source and never retries implicitly [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "refuses uncommitted replacement source and exposes only server-authorized failed container cleanup [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "lets viewers inspect retained history while keeping recovery disabled [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not infer cleanup eligibility when the server explicitly reports no owned retained handle [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      }
+    },
+    "desktop/src/components/journey/DeploymentWorkspace.test.tsx": {
+      "keeps one private configuration draft across both workspaces and every deployment destination [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "also retains private drafts on the direct publishing entry when Pages is selected [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps deployment tabs locked until a configuration mutation is acknowledged [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      }
+    },
+    "desktop/src/components/journey/ProjectChecks.test.tsx": {
+      "opens the exact reviewed build with visible, initially unchecked criteria and no execution [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "runs explicitly selected coverage and attaches eligible results only by a separate action using the fresh exact run revision [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not offer generic check evidence for the selected build [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not offer failed check evidence for the selected build [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not offer dirty check evidence for the selected build [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not offer old source check evidence for the selected build [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not offer different review check evidence for the selected build [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not offer different acceptance check evidence for the selected build [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "blocks stale reviewed context and dirty source with a recovery action instead of silently checking different inputs [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not attach a late result or expose the old selected build after an account switch [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "opens collapsed project work when Verify this build is chosen [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "gives the owned coding session room by collapsing checks after focus, retaining mounted draft controls and reopening verification explicitly [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps plan and checks open when the coding session fails the exact run ownership check [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps the panel and drafts open when session navigation is pending and then cancelled [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not focus or collapse from an old workspace session response [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not focus or collapse after reading permission changes while opening a session [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "preserves a newer same-project branch choice when an old session lookup returns [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "recovers custom commands, exact unfinished arguments and same-context coverage after remount, without host mode, trust or automatic execution [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "preserves text but requires review and clears recovered criteria after source changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "preserves text but requires review and clears recovered criteria after approvals changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "re-reads the saved build reference after recovery before enabling its restored criteria, with no allocation [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not transfer old criteria to a newer explicitly selected build when restoring command text [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "isolates retained check setup from another-account and recovers it only in the original scope [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "isolates retained check setup from another-team-workspace and recovers it only in the original scope [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "isolates retained check setup from another-project and recovers it only in the original scope [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "preserves edits made before a delayed suggestions response and an intentionally empty command list on refresh [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "discards local setup explicitly without running it and resets to current suggestions without retaining consent [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps browser recovery read-only after execution access is removed [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps recovered text when a saved build is missing, and ignores a delayed build from the previous workspace [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retains the recorded command template while protecting edits made during a late run response (new text: false) [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retains the recorded command template while protecting edits made during a late run response (new text: true) [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps the setup protected when the check request has an uncertain outcome [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "reports oversized unfinished text as unretained without truncating it or promising recovery that validation would reject [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retains cancellation with Edit when Execute is revoked and keeps new checks unavailable [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retains earlier output for admission-blocked work without turning it into passing build evidence [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "requires a history refresh and fresh trust after an unconfirmed check start receipt [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "continues bounded visible observations beyond four rounds and stops naturally when checks settle [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not overlap a delayed observation and aborts it when the view is hidden [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "clears current private check history on check GET 401, gates controls, and retains unsent setup for an explicit fresh read [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "clears current private check history on check GET 403, gates controls, and retains unsent setup for an explicit fresh read [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "clears current private check history on availability GET 401, gates controls, and retains unsent setup for an explicit fresh read [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "clears current private check history on availability GET 403, gates controls, and retains unsent setup for an explicit fresh read [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "fences an inflight history read on confirmed denial and requires a successful explicit access refresh [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "handles a fresh recovery read denial after Edit changes while a history refresh is already pending [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "ignores an old project recovery read denial after switching to another project [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "LOCAL-015 retains the start barrier after Edit churn and uncertain rejection until later explicit history and fresh consent [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "LOCAL-015 retains the start barrier after Edit churn and discarded success until later explicit history and fresh consent [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "LOCAL-015 does not use an explicit history read begun before start settlement to clear uncertainty [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "LOCAL-015 keeps read revocation private and retains start uncertainty after access returns [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "LOCAL-015 does not leak an old start result or barrier into another project scope [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "LOCAL-015 does not leak an old start result or barrier into another account scope [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "shows proven cleanup for a legacy live exit without rewriting its receipt [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "shows proven cleanup for a legacy observed exit without rewriting its receipt [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "shows proven cleanup for a legacy retried removal without rewriting its receipt [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "shows proven cleanup for a legacy later absence without rewriting its receipt [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retains unconfirmed cleanup instead of manufacturing a cleanup display conclusion [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retains unknown outcome instead of manufacturing a cleanup display conclusion [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retains missing exit instead of manufacturing a cleanup display conclusion [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retains cancelled command instead of manufacturing a cleanup display conclusion [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retains admission diagnosis instead of manufacturing a cleanup display conclusion [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retains other message instead of manufacturing a cleanup display conclusion [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      }
+    },
+    "desktop/src/components/journey/ProjectRuns.test.tsx": {
+      "only reads on mount and refresh, and retains ended or unknown coding as unverified [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "prioritizes unintegrated task review over whole-build verification after a normal worker exit [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "routes unsupported autonomous permissions back to explicit plan review while retaining interactive coding [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "refreshes a prepared run to changed context and opens its current plan without dispatch or rewriting history [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps active session access and reconciliation when reviewed context is changed [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps active session access and reconciliation when reviewed context is unavailable [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retains the original Open trigger across a delayed session read so its destination can protect newer focus [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "preserves accepted evidence and stopped-session status separately from current context freshness [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retries an unavailable context through read-only history refresh without losing the prepared run [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "routes a awaiting-checks run with changed inputs to plan review instead of rejected evidence actions [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "routes a awaiting-release run with changed inputs to plan review instead of rejected evidence actions [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "reveals the exact blocking question from a run whose reviewed documents still match without preparing a reply [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "offers a read-only decisions remedy when its ledger is unavailable and restores actions only after refreshed guidance [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "reserves once before coding and sends the recorded route rather than current defaults [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retains a reservation without dispatch when its response reports changed context [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retains a reservation without dispatch when its response reports unavailable context [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retains a reserved operation when a newly reported material question blocks dispatch [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not allocate a replacement or infer success after an ambiguous coding response [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "continues the same reserved child after reload only through its explicit action [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "creates a saved run through the existing model picker without allocating a coding child [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not invite coding when an idempotent create response recovers a run with changed context [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "joins only a selected existing check ID and preserves a server rejection [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "shows accepted history and the valid observation time without repeating the prior acceptance instruction [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retains historical acceptance while displaying current invalidity without offering acceptance again [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retains pruned check provenance and joins a selected release with its exact target [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps the create idempotency key after an uncertain response without starting a child [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "offers native deployment evidence even when the standard release history is unavailable [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "requires explicit behavior acceptance and sends only expected revision [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "drops late project history and does not dispatch a reservation after switching account or workspace [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "rejects foreign project receipts and only requests explicit cancellation of future dispatch [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "exposes run history to viewers and reconciliation to editors without granting execution [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not dispatch a reserved child when execution permission changes during reservation [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "opens the exact older build through the build card after Develop mounts and history arrives, without dispatch or reconciliation [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "opens the exact older build through the primary next step after Develop mounts and history arrives, without dispatch or reconciliation [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps an unavailable inspection target explicit instead of selecting or starting the newest run [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "discards an inspection request when the account changes before its history reply [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "hands verification the selected reviewed run without executing or asking for an evidence ID [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "carries the last accepted check and exact source into deployment while retaining the dirty navigation guard [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "refreshes the exact inspection target after evidence is joined instead of continuing with its cached revision [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "refreshes a cached run from the overview before carrying its newly joined check into deployment [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "reframes recorded awaiting-checks guidance after a saved plan amendment instead of advertising it as the next step [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "reframes recorded awaiting-release guidance after a saved plan amendment instead of advertising it as the next step [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps prior release guidance in its receipts when context is changed [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps prior release guidance in its receipts when context is unavailable [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps recorded running coding visible ahead of stale review guidance without dispatch [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps recorded dispatching coding visible ahead of stale review guidance without dispatch [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps recorded unknown coding visible ahead of stale review guidance without dispatch [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retains cancellation and unconfirmed child activity when the plan has changed [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "labels a release-stage decision as current while keeping its former release instruction historical [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "lazily compares the captured selected task titles with saved changed, removed and unchanged titles for a viewer [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "clears an old comparison immediately during refresh, failure and explicit recovery [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "discards a closed comparison request before reopening with a new saved snapshot [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retires the previous selected run comparison and requires a new explicit read for its replacement [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not carry a saved-plan comparison across a account switch [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not carry a saved-plan comparison across a workspace switch [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not carry a saved-plan comparison across a project switch [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "clears and retires comparisons after confirmed loss of project reading access [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "refuses an unverifiable foreign saved plan without displaying its contents [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "refuses an unverifiable duplicate-task saved plan without displaying its contents [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps the latest saved-plan read when StrictMode retires an earlier effect [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retains an open saved-plan comparison through a loading permission refresh with reading access [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retains an open saved-plan comparison through a error permission refresh with reading access [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      }
+    },
+    "desktop/src/components/orchestrator/OrchestratorPanel.test.tsx": {
+      "defers unopened discussion presentation while preserving current understanding and the recovered request record [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "defers unopened discussion presentation while preserving current understanding and the pending request record [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps active-job observation running before discussion presentation is opened [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps an opened discussion node and draft across closing but resets its presentation for another project [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "reveals the exact current blocking question without replacing an unsent message or its reply target [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "reveals a decision while preserving the exact recovered composer record [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "reveals a decision while preserving the exact pending composer record [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "reports an already resolved or missing target instead of selecting another unresolved decision [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps an unreadable decision lookup actionable without touching the composer [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "ignores foreign project and workspace decision destinations [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "cancels a slow decision destination after navigation changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "cancels a slow decision destination after new destination changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "cancels a slow decision destination after read access changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "cancels a slow decision destination after account changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "focuses the readable question itself when the member cannot use its answer control [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not replace a newer saved context at the same conversation revision with a delayed decision lookup [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not let a refresh started before a decision lookup overwrite that lookup's newer same-revision context [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "starts compact screens with a labelled phase/context disclosure and opens only on request [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "adapts an untouched overview on resize without moving task focus, while preserving explicit open and close choices [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retains the exact mounted conversation and unsent composer through compact disclosure changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not hide a focused composer on resize and keeps explicit project-open events working after a manual close [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "restores shared history without inference and keeps the same composer across phase changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "opens and focuses only this project's composer without sending or overwriting an unsent question [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "honors the chosen saved connection/model on explicit Send and preserves it across settings refresh and reload [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "explains material ambiguity and pre-fills an attributed reply only until Send [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps an occupied composer and its recovery copy until a suggested answer is explicitly chosen [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "replaces an occupied message only explicitly and retains the selected question until deliberate Send [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not complete a pending replacement focus handoff after a change to newer focus [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not complete a pending replacement focus handoff after a change to message [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not complete a pending replacement focus handoff after a change to read [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not complete a pending replacement focus handoff after a change to assist [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not complete a pending replacement focus handoff after a change to scope [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retires a pending suggested replacement across assist loss and regrant without changing the original draft [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retires a pending suggested replacement across read loss and regrant without changing the original draft [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not carry a suggested replacement into another account or replace its retained draft [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "preserves another tab's newer message if storage changes during the replacement choice [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps an amendment and returns to its editor after Replace with suggested answer when the question was resolved during the choice [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps an amendment and returns to its editor after Keep current message when the question was resolved during the choice [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps an amendment and returns to its editor after Escape when the question was resolved during the choice [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "binds the actual unresolved question when a person types an answer from Answer the open question [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "binds the actual unresolved question when a person types an answer from Work through the decisions [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps Change the plan generic after a decision reply was selected [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps an occupied answer and its question through generic discussion until intentional Send, with explicit detachment false [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps an occupied answer and its question through generic discussion until intentional Send, with explicit detachment true [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "reviews actual changes and saves only after explicit acknowledgement and exact CAS Apply [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "lets a person decline a proposal and blocks stale proposals without overwriting current context [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "preserves an amendment on a save conflict and leaves edited source untouched [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "blocks sending/applying over unsaved edits and also preserves edits begun while Apply is in flight [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "lets a person ask for help beside an actual unfinished check draft without attaching it or weakening navigation protection [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps amendments blocked by a local check draft and shared context still blocks sending when both exist [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "allows only the exact original request retry beside local setup, while shared context retains its retry guard [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "defers editor remount for a new local setup created while an amendment is saving [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "fences late private conversation replies when the selected actor changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "fences late private conversation replies when the selected connection changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "fences late private conversation replies when the selected root changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "fences late private conversation replies when the selected project changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "fences late private conversation replies when the selected team changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps project facts visible by default and opens discussion only for an explicit change request [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "restores an active request without replay and cancels only on an explicit click [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "recovers a terminal job only with an explicit recording action, without inference [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "recovers a missing job only with an explicit recording action, without inference [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "ignores a late send response after access is revoked and restored [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "clears private conversation on logout and reads without inviting execution for a viewer [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "clears current and earlier private reads on confirmed HTTP 401 while preserving the unsent draft [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "clears current and earlier private reads on confirmed HTTP 403 while preserving the unsent draft [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "labels review context as stale and disables its derived actions until a failed refresh succeeds [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not replace newer current turns or context with a late historical page [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "reports missing provider and uncertain send honestly, keeping text without automatic retries [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "refreshes immediately after a real definition save and approval without remounting the editor or losing a newer draft [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "fences an older overview read after a saved-context notification and ignores foreign account/project notifications [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "queues context refresh behind an in-flight Send without orphaning its response or replaying inference [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "offers manual editing without a provider and delivers its exact target after the editor mounts [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "discards a pending manual edit on account change instead of replaying it when the old account returns [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "collapses compact overview only after an explicit successful question handoff [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "collapses compact overview only after an explicit successful plan handoff [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps compact overview open for a generic definition handoff without a destination-focus contract [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps compact overview open for a generic design handoff without a destination-focus contract [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps the desktop overview open after a successful same-stage plan review [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps compact overview and drafts on guard cancellation, then collapses after Keep drafts and continue [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps compact overview and drafts on guard cancellation, then collapses after Discard edits and continue [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "uses the viewport at guarded success, with compact=true, instead of the activation width [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "uses the viewport at guarded success, with compact=false, instead of the activation width [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not collapse compact overview when permission is lost before guarded editor navigation succeeds [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "preserves an explicitly open compact overview through programmatic navigation and asynchronous context refresh [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "publishes repeatable exact plan review requests in Develop for a read-only reader without sending or changing context [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps a guarded plan review unpublished when navigation is cancelled, then delivers it after explicit continuation [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps pending plan review after edit access is removed but cancels it when read access is removed [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "abandons an unconsumed lazy plan request after navigation changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "abandons an unconsumed lazy plan request after account changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "abandons an unconsumed lazy plan request after project changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "cancels question navigation with the existing draft guard and leaves no answer target for a later visit [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "focuses the requested answer after Keep drafts and continue and after the real draft dialog restores focus [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "focuses the requested answer after Discard edits and continue and after the real draft dialog restores focus [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "collapses the compact overview and focuses the requested answer after the real draft dialog closes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "abandons an unconsumed question target when navigation changes before its lazy editor loads [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "cancels a question target when editing access is lost while the definition is loading [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retains an unsent scoped message and reply target after the conversation remounts [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "retains an uncertain request through remount and refresh, and retries its exact original identity [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "uses a durable not-sent receipt before restoring an editable message against new context [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps unknown outcomes blocked, and an accepted receipt clears the draft without resending [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps an unsent message private across actor scope navigation [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps an unsent message private across connection scope navigation [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps an unsent message private across root scope navigation [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps an unsent message private across project scope navigation [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps an unsent message private across team scope navigation [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "hides recovery and private composer content when permission is revoked [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "blocks paid dispatch if its recovery identity cannot be stored [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "lets a demoted reader resolve their original request without allowing another paid send [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "does not resend stale text after another tab clears the saved draft [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "aborts only the abandoned project's display refresh and fences its late private result [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "aborts a superseded display refresh without letting its finally clear the newer request [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "uses a fresh display controller after StrictMode cleanup without accepting canceled context [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "preserves unsent recovery and does not abort display reads for Edit-only churn but does for Read loss [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "display cleanup does not cancel or replay an acknowledged-late send or clear its durable identity early [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      },
+      "keeps post-send readback outside display cancellation ownership [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-owners-attempt4"
+      }
+    },
+    "desktop/src/components/teams/TeamDataLifecycle.test.tsx": {
+      "requires explicit acknowledgement, displays a review receipt, and cancels only that exact request [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "hides data lifecycle controls from administrators who are not owners [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "reports a failed request without claiming it was saved, then lets the owner refresh an uncertain outcome [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "discards a previous team's late request receipt and permission loss removes controls [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      }
+    },
+    "desktop/src/components/teams/TeamInvitations.test.tsx": {
+      "creates explicit team capabilities and exposes a one-time code only until hidden or revoked [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "offers owner invitations only to current owners and reads no invitations for nonadmins [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "requires administration on an owner invitation and never implies paid capabilities [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "keeps a failed or stale request recoverable and never automatically creates a replacement [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "clears one-time codes immediately when the account changes and ignores late creation [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "hides a created code without deleting or recovering it from list history [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "joins an existing account once, clears its code and preserves success if workspace refresh fails [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "retains an unsuccessful join code for correction without claiming membership [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "clears the code and ignores acceptance when the required managed team changes [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      }
+    },
+    "desktop/src/components/setup/AgentConnectionManager.test.tsx": {
+      "keeps saved keys private and preserves them on an ordinary connection edit [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "turns the gateway off explicitly without deleting the saved connection [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "converts a keyed gateway to Codex subscription by explicitly clearing only that connection's key [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "clears a key only through an explicit choice [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "retains the connection draft after a refused save and clears the submitted secret [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "applies one LiteLLM address to the explicitly selected agents and exact model aliases [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "preserves custom saved paths when editing without explicitly applying the address preset [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "refuses an invalid gateway address without replacing the saved endpoints or sending a request [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "does not replace a confirmed connection choice with an older manual refresh [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      },
+      "ignores a superseded refresh failure but reports a current failure without losing the selected connection [occurrence 1]": {
+        "status": "passed",
+        "run": "affected-final-attempt5"
+      }
+    }
+  },
+  "passed": 580,
+  "failed": 0,
+  "fileCount": 27,
+  "scope": "Latest executed outcomes by logical file/fullName/occurrence; parameterized duplicate names preserved; filtered/skipped entries do not replace prior executed outcomes; historical batches overlap."
+}

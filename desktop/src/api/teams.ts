@@ -20,7 +20,7 @@ export const teamsApi = {
   addMember: (id: string, expectedRevision: number, username: string, role: TeamMember['role'], grants: TeamGrants) => productApi.request<TeamDetail>(`${teamPath(id)}/members`, {expectedRevision, username, role, grants}),
   saveMember: (id: string, expectedRevision: number, member: Pick<TeamMember,'userId'|'role'|'grants'>) => productApi.request<TeamDetail>(`${teamPath(id)}/members/${encodeURIComponent(member.userId)}`, {expectedRevision, role: member.role, grants: member.grants}, 'PUT'),
   removeMember: (id: string, expectedRevision: number, userId: string) => productApi.request(`${teamPath(id)}/members/${encodeURIComponent(userId)}`, {expectedRevision}, 'DELETE'),
-  projectAccess: (id: string, projectId: string) => productApi.request<ProjectAccess>(`${teamPath(id)}/projects/${encodeURIComponent(projectId)}/members`),
+  projectAccess: (id: string, projectId: string, signal?: AbortSignal) => productApi.request<ProjectAccess>(`${teamPath(id)}/projects/${encodeURIComponent(projectId)}/members`, undefined, "GET", 120_000, signal),
   saveProjectGrant: (id: string, projectId: string, expectedRevision: number, grant: Pick<ProjectGrant,'userId'|'role'|'grants'>) => productApi.request<ProjectAccess>(`${teamPath(id)}/projects/${encodeURIComponent(projectId)}/members/${encodeURIComponent(grant.userId)}`, {expectedRevision,role:grant.role,grants:grant.grants}, 'PUT'),
   removeProjectGrant: (id: string, projectId: string, expectedRevision: number, userId: string) => productApi.request(`${teamPath(id)}/projects/${encodeURIComponent(projectId)}/members/${encodeURIComponent(userId)}`, {expectedRevision}, 'DELETE'),
 };

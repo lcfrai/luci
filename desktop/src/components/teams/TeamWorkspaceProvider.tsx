@@ -11,6 +11,7 @@ import { resetCockpit, useCockpit } from '../../store/store';
 import { useAuth } from '../auth/AuthProvider';
 import { JoinTeamInvitation } from './TeamInvitations';
 import { WorkflowDialog } from '../common/WorkflowDialog';
+import { WorkspaceOverlayScope } from '../common/WorkspaceOverlayScope';
 import { Button } from '../fluid/components/button';
 import './teams.css';
 interface TeamWorkspaceValue {
@@ -153,12 +154,13 @@ function ScopedTeamWorkspaceProvider({children,auth,storageKey}: {children:React
   // Draft dialog updates do not change workspace context. Access refreshes still
   // publish their revision so every project revalidates its current permissions.
   const value=useMemo(()=>({teams,selected:teams.find(row=>row.team.id===selected)??null,teamId:selected,managedTeamId,revision,accessBlocked:blocked,refresh,select}),[teams,selected,managedTeamId,revision,blocked,refresh,select]);
+  const overlayAdmission=useMemo(()=>({available:!blocked,retry:refresh}),[blocked,refresh]);
   const retained=Object.values(drafts).every(draft=>draft.retained);
   const localSetup=Object.values(drafts).some(draft=>draft.purpose==='verification-setup');
   return <TeamWorkspaceContext.Provider value={value}>
     {/* Initial nonmembers must not start private child reads. After admission,
         retain mounted editors through access refreshes and hide them on denial. */}
-    {ready&&(!blocked||admitted)&&<div className="team-app-host" hidden={blocked}><Fragment key={`${userId}:${epoch}`}>{children}</Fragment></div>}
+    {ready&&(!blocked||admitted)&&<div className="team-app-host" hidden={blocked}><WorkspaceOverlayScope value={overlayAdmission}><Fragment key={`${userId}:${epoch}`}>{children}</Fragment></WorkspaceOverlayScope></div>}
     {ready&&!blocked&&error&&<div className="team-connection-status" role="status">Workspace access could not be refreshed: {error} <button onClick={()=>void refresh().catch(()=>{})}>Retry</button></div>}
     {(!ready||blocked)&&<main className="team-entry">
       <h1>{error?'Workspace unavailable':'Opening your workspace…'}</h1>

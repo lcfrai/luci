@@ -8,7 +8,8 @@ import {checkRecoveryFixture,checkRunFixture} from '../../test/checkFixtures';
 import {CheckRecoveryDialog} from './CheckRecoveryDialog';
 
 const initial=checkRunFixture();
-function Harness({canRead=true,canEdit=true}:{canRead?:boolean;canEdit?:boolean}){const[run,setRun]=useState(initial);return <CheckRecoveryDialog run={run} projectName="Alpha" canRead={canRead} canEdit={canEdit} onUpdate={setRun} onClose={vi.fn()} getCloseFocusTarget={()=>null}/>;}
+const currentReadAccess={canRead:true,loading:false,error:''};
+function Harness({canRead=true,canEdit=true}:{canRead?:boolean;canEdit?:boolean}){const[run,setRun]=useState(initial);return <CheckRecoveryDialog readAccess={{...currentReadAccess,canRead}} run={run} projectName="Alpha" canRead={canRead} canEdit={canEdit} onUpdate={setRun} onClose={vi.fn()} getCloseFocusTarget={()=>null}/>;}
 beforeEach(()=>{vi.restoreAllMocks();vi.spyOn(productApi,'checkRun').mockResolvedValue(initial);vi.spyOn(productApi,'checkRecovery').mockResolvedValue(checkRecoveryFixture());});
 it('requires exact check consent and makes one recovery request without starting commands',async()=>{
   const saved=checkRunFixture({revision:5,status:'failed',resourcesHeld:false}),start=vi.spyOn(productApi,'runChecks');
@@ -36,8 +37,8 @@ it('refreshes after a lost recovery receipt but never resends or restores consen
 });
 it('invalidates consent when the parent records a newer check revision',async()=>{
   const props={projectName:'Alpha',canRead:true,canEdit:true,onUpdate:vi.fn(),onClose:vi.fn(),getCloseFocusTarget:()=>null};
-  const view=render(<CheckRecoveryDialog {...props} run={initial}/>);await userEvent.click(await screen.findByRole('checkbox'));
-  view.rerender(<CheckRecoveryDialog {...props} run={{...initial,revision:5}}/>);
+  const view=render(<CheckRecoveryDialog readAccess={currentReadAccess} {...props} run={initial}/>);await userEvent.click(await screen.findByRole('checkbox'));
+  view.rerender(<CheckRecoveryDialog readAccess={currentReadAccess} {...props} run={{...initial,revision:5}}/>);
   expect(screen.getByText(/recorded check changed/)).toBeTruthy();expect(screen.getByRole('checkbox')).toHaveProperty('checked',false);expect(screen.getByRole('button',{name:'Recover this exact check'})).toHaveProperty('disabled',true);
 });
 it('discards a late recovery read after reading access is revoked',async()=>{
@@ -53,7 +54,7 @@ it('allows closing a slow read and aborts it without a second read or recovery w
   let finish!:(run:CheckRun)=>void;
   vi.mocked(productApi.checkRun).mockReturnValue(new Promise(resolve=>{finish=resolve;}));
   const recover=vi.spyOn(productApi,'recoverCheck');
-  function ClosingView(){const[open,setOpen]=useState(true);return open?<CheckRecoveryDialog run={initial} projectName="Alpha" canRead canEdit onUpdate={vi.fn()} onClose={()=>setOpen(false)} getCloseFocusTarget={()=>null}/>:<p>Check history</p>;}
+  function ClosingView(){const[open,setOpen]=useState(true);return open?<CheckRecoveryDialog readAccess={currentReadAccess} run={initial} projectName="Alpha" canRead canEdit onUpdate={vi.fn()} onClose={()=>setOpen(false)} getCloseFocusTarget={()=>null}/>:<p>Check history</p>;}
   render(<ClosingView/>);
   await waitFor(()=>expect(productApi.checkRun).toHaveBeenCalledOnce());
   const signal=vi.mocked(productApi.checkRun).mock.calls[0][2];
@@ -65,7 +66,7 @@ it('allows closing a slow read and aborts it without a second read or recovery w
 
 it('does not interpret an Edit-only POST refusal as loss of reading access',async()=>{
   const denied=vi.fn();vi.spyOn(productApi,'recoverCheck').mockRejectedValue(new ApiError('permission_denied' as ProblemCode,'Editing access changed.',403));
-  render(<CheckRecoveryDialog run={initial} projectName="Alpha" canRead canEdit onUpdate={vi.fn()} onReadDenied={denied} onClose={vi.fn()} getCloseFocusTarget={()=>null}/>);
+  render(<CheckRecoveryDialog readAccess={currentReadAccess} run={initial} projectName="Alpha" canRead canEdit onUpdate={vi.fn()} onReadDenied={denied} onClose={vi.fn()} getCloseFocusTarget={()=>null}/>);
   await userEvent.click(await screen.findByRole('checkbox'));await userEvent.click(screen.getByRole('button',{name:'Recover this exact check'}));
   await screen.findByText('Editing access changed.');expect(denied).not.toHaveBeenCalled();
   expect(productApi.checkRun).toHaveBeenCalledOnce();expect(productApi.checkRecovery).toHaveBeenCalledOnce();expect(productApi.recoverCheck).toHaveBeenCalledOnce();
@@ -75,7 +76,7 @@ it('keeps pending recovery details keyboard reachable without enabling dismissal
   let finish!:(run:CheckRun)=>void;
   const recover=vi.spyOn(productApi,'recoverCheck').mockReturnValue(new Promise(resolve=>{finish=resolve;}));
   const close=vi.fn();
-  render(<CheckRecoveryDialog run={initial} projectName="Alpha" canRead canEdit onUpdate={vi.fn()} onClose={close} getCloseFocusTarget={()=>null}/>);
+  render(<CheckRecoveryDialog readAccess={currentReadAccess} run={initial} projectName="Alpha" canRead canEdit onUpdate={vi.fn()} onClose={close} getCloseFocusTarget={()=>null}/>);
   await userEvent.click(await screen.findByRole('checkbox'));
   await userEvent.click(screen.getByRole('button',{name:'Recover this exact check'}));
   const details=await screen.findByRole('region',{name:'Check recovery details'});

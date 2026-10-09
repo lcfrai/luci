@@ -1,0 +1,7 @@
+{
+  "scope": "Post-test receipt serialization only; not a control failure",
+  "result": "failed",
+  "reason": "Parser expected TAP # summary but existing Node stdout uses spec-reporter U+2139 summary; AttributeError on missing regex match",
+  "rawControlLogsUnchanged": true,
+  "testsRerun": false
+}

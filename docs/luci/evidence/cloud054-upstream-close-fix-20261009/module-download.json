@@ -1,0 +1,16 @@
+{
+	"Path": "github.com/coder/websocket",
+	"Version": "v1.8.15",
+	"Info": "/workspace/.luci-tools/cloud054-duplicate-close-edd0/verified-module-cache/cache/download/github.com/coder/websocket/@v/v1.8.15.info",
+	"GoMod": "/workspace/.luci-tools/cloud054-duplicate-close-edd0/verified-module-cache/cache/download/github.com/coder/websocket/@v/v1.8.15.mod",
+	"Zip": "/workspace/.luci-tools/cloud054-duplicate-close-edd0/verified-module-cache/cache/download/github.com/coder/websocket/@v/v1.8.15.zip",
+	"Dir": "/workspace/.luci-tools/cloud054-duplicate-close-edd0/verified-module-cache/github.com/coder/websocket@v1.8.15",
+	"Sum": "h1:6B2JPeOGlpff2Uz6vOEH1Vzpi0iUz20A+lPVhPHtNUA=",
+	"GoModSum": "h1:NX3SzP+inril6yawo5CQXx8+fk145lPDC6pumgx0mVg=",
+	"Origin": {
+		"VCS": "git",
+		"URL": "https://github.com/coder/websocket",
+		"Hash": "9c8faadccd1b679e811a79ce506f8a10237251ad",
+		"Ref": "refs/tags/v1.8.15"
+	}
+}

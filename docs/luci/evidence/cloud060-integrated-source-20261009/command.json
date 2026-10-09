@@ -1,0 +1,14 @@
+{
+  "command": [
+    "npx",
+    "vitest",
+    "run",
+    "src/components/teams/TeamWorkspacePortalAuthority.test.tsx",
+    "src/components/projects/ProjectOverviewBoard.authority.test.tsx",
+    "--maxWorkers=1",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/cloud060-integrated-validation/tests.json"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 10.593912601470947
+}

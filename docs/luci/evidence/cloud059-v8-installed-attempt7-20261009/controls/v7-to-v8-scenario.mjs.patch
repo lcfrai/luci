@@ -1,0 +1,41 @@
+--- v7/scenario.mjs
++++ v8/scenario.mjs
+@@ -31,7 +31,8 @@
+   const upgrade=value('upgrade'),connection=value('connection'),protocol=value('sec-websocket-protocol'),extensions=value('sec-websocket-extensions');
+   return {available:true,status:Number.isSafeInteger(response.status)?response.status:null,upgradeWebSocket:upgrade.length===1&&upgrade[0]?.trim().toLowerCase()==='websocket',connectionUpgrade:connection.length===1&&!!connection[0]?.split(',').some(v=>v.trim().toLowerCase()==='upgrade'),protocolPresent:protocol.length>0,protocolEmpty:protocol.length===1&&protocol[0]==='',extensionPresent:extensions.length>0,perMessageDeflate:extensions.length===1&&typeof extensions[0]==='string'&&/^permessage-deflate(?:\s*;\s*(?:server_no_context_takeover|client_no_context_takeover|(?:server_max_window_bits|client_max_window_bits)(?:=(?:[89]|1[0-5]))?))*$/i.test(extensions[0]),headerValuesRetained:false};
+ }
+-export async function installTransportDiagnostics(page,{origin,attachPath}) {
++export async function installTransportDiagnostics(page,{origin,attachPath,retainTransportError}) {
++  assert.equal(typeof retainTransportError,'function','Private transport error capture required before traffic');
+   let client,closed=false,setupComplete=false;const rows=[],known=new Map(),failures=[],listeners=[];
+   const fail=code=>{if(failures.length<16&&!failures.includes(code))failures.push(code);};
+   const bounded=async(promise,ms,code)=>{let timer;try{return await Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error(code)),ms);})]);}finally{clearTimeout(timer);}};
+@@ -43,7 +44,7 @@
+     client=await bounded(acquisition,2000,'cdp-acquisition-deadline');
+     add('Network.webSocketCreated',event=>{let url;try{url=new URL(event.url);}catch{return;}if(url.origin!==origin||url.pathname!==attachPath)return;if(known.has(event.requestId)){fail('duplicate-cdp-socket');return;}if(rows.length>=8){fail('cdp-socket-limit');return;}const row={ordinal:rows.length+1,created:at(),handshakes:[],errors:[],closeFrames:[],closed:null};known.set(event.requestId,row);rows.push(row);});
+     add('Network.webSocketHandshakeResponseReceived',event=>{const row=known.get(event.requestId);if(!row)return;if(row.handshakes.length>=2){fail('handshake-limit');return;}row.handshakes.push({...at(),...handshakeEvidence(event.response)});});
+-    add('Network.webSocketFrameError',event=>{const row=known.get(event.requestId);if(!row)return;if(row.errors.length>=8){fail('cdp-error-limit');return;}row.errors.push({...at(),...transportErrorEvidence(event.errorMessage)});});
++    add('Network.webSocketFrameError',event=>{const row=known.get(event.requestId);if(!row)return;if(row.errors.length>=8){fail('cdp-error-limit');return;}const retained=retainTransportError({channel:'cdp',ordinal:row.ordinal,error:event.errorMessage});row.errors.push({...at(),...transportErrorEvidence(event.errorMessage),privateError:retained});});
+     for(const [name,direction]of [['Network.webSocketFrameReceived','received'],['Network.webSocketFrameSent','sent']])add(name,event=>{const row=known.get(event.requestId);if(!row||event.response?.opcode!==8)return;if(row.closeFrames.length>=8){fail('close-frame-limit');return;}const value=closeFrameEvidence(event.response,direction);if(!value.available)fail('close-frame-projection-unavailable');row.closeFrames.push({...at(),...value});});
+     add('Network.webSocketClosed',event=>{const row=known.get(event.requestId);if(row)row.closed=at();});
+     await bounded(client.send('Network.enable'),2000,'cdp-enable-deadline');setupComplete=true;
+@@ -101,16 +102,16 @@
+   Object.defineProperty(globalThis,'__luciC054Terminal',{value:()=>JSON.parse(JSON.stringify({version:1,failures,rows})),configurable:false});
+ }
+ 
+-export async function installTerminalMonitor(page,{base,attachPath,markers}) {
++export async function installTerminalMonitor(page,{base,attachPath,markers,retainTransportError}) {
+   const target=new URL(base);target.protocol=target.protocol==='https:'?'wss:':'ws:';
+   await page.addInitScript(terminalMonitor,{origin:target.origin,attachPath,markers});
+-  const transport=await installTransportDiagnostics(page,{origin:target.origin,attachPath});
++  const transport=await installTransportDiagnostics(page,{origin:target.origin,attachPath,retainTransportError});
+   const sent=[];let observerFailure=transport.snapshot().setupComplete?null:'transport-setup-unavailable';
+   const hook=socket=>{
+     const url=new URL(socket.url());if(url.origin!==target.origin||url.pathname!==attachPath)return;
+     const row={ordinal:sent.length+1,stdinFrames:0,stdinBytes:0,resizeFrames:0,otherFrames:0,socketErrors:[],sendEvents:[]};sent.push(row);
+     if(sent.length>8)observerFailure='sent-socket-limit';
+-    socket.on('socketerror',error=>{if(row.socketErrors.length>=8){observerFailure='socket-error-limit';return;}row.socketErrors.push({wall:new Date().toISOString(),monotonicMs:performance.now(),...transportErrorEvidence(error)});});
++    socket.on('socketerror',error=>{if(row.socketErrors.length>=8){observerFailure='socket-error-limit';return;}try{const retained=retainTransportError({channel:'playwright',ordinal:row.ordinal,error});row.socketErrors.push({wall:new Date().toISOString(),monotonicMs:performance.now(),...transportErrorEvidence(error),privateError:retained});}catch{observerFailure='private-transport-error-capture-failed';}});
+     socket.on('framesent',frame=>{
+       if(!Buffer.isBuffer(frame.payload)){observerFailure='non-binary-sent-frame';return;}
+       const bytes=frame.payload;if(!bytes.length){observerFailure='empty-sent-frame';return;}

@@ -1,0 +1,8 @@
+{
+  "GOSUMDB": "sum.golang.org",
+  "GOPROXY": "https://proxy.golang.org",
+  "GONOSUMDB": "",
+  "GOPRIVATE": "",
+  "isolatedNewModuleCache": true,
+  "exitCode": 0
+}

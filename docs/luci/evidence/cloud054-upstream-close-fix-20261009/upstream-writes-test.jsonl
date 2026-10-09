@@ -1,0 +1,52 @@
+{"Time":"2026-10-09T13:17:19.59662897Z","Action":"start","Package":"github.com/coder/websocket"}
+{"Time":"2026-10-09T13:17:19.613817457Z","Action":"run","Package":"github.com/coder/websocket","Test":"TestConn"}
+{"Time":"2026-10-09T13:17:19.613877457Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConn","Output":"=== RUN   TestConn\n"}
+{"Time":"2026-10-09T13:17:19.613937798Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConn","Output":"=== PAUSE TestConn\n"}
+{"Time":"2026-10-09T13:17:19.613941854Z","Action":"pause","Package":"github.com/coder/websocket","Test":"TestConn"}
+{"Time":"2026-10-09T13:17:19.613944648Z","Action":"cont","Package":"github.com/coder/websocket","Test":"TestConn"}
+{"Time":"2026-10-09T13:17:19.613946521Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConn","Output":"=== CONT  TestConn\n"}
+{"Time":"2026-10-09T13:17:19.614380425Z","Action":"run","Package":"github.com/coder/websocket","Test":"TestConn/badClose"}
+{"Time":"2026-10-09T13:17:19.614388217Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConn/badClose","Output":"=== RUN   TestConn/badClose\n"}
+{"Time":"2026-10-09T13:17:19.614407516Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConn/badClose","Output":"=== PAUSE TestConn/badClose\n"}
+{"Time":"2026-10-09T13:17:19.614409459Z","Action":"pause","Package":"github.com/coder/websocket","Test":"TestConn/badClose"}
+{"Time":"2026-10-09T13:17:19.615812023Z","Action":"run","Package":"github.com/coder/websocket","Test":"TestConn/concurrentWrite"}
+{"Time":"2026-10-09T13:17:19.615820686Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConn/concurrentWrite","Output":"=== RUN   TestConn/concurrentWrite\n"}
+{"Time":"2026-10-09T13:17:19.615995464Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConn/concurrentWrite","Output":"=== PAUSE TestConn/concurrentWrite\n"}
+{"Time":"2026-10-09T13:17:19.616015034Z","Action":"pause","Package":"github.com/coder/websocket","Test":"TestConn/concurrentWrite"}
+{"Time":"2026-10-09T13:17:19.616228916Z","Action":"run","Package":"github.com/coder/websocket","Test":"TestConn/concurrentWriteError"}
+{"Time":"2026-10-09T13:17:19.616266392Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConn/concurrentWriteError","Output":"=== RUN   TestConn/concurrentWriteError\n"}
+{"Time":"2026-10-09T13:17:19.616272912Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConn/concurrentWriteError","Output":"=== PAUSE TestConn/concurrentWriteError\n"}
+{"Time":"2026-10-09T13:17:19.616275977Z","Action":"pause","Package":"github.com/coder/websocket","Test":"TestConn/concurrentWriteError"}
+{"Time":"2026-10-09T13:17:19.617571355Z","Action":"run","Package":"github.com/coder/websocket","Test":"TestConn/CloseNow"}
+{"Time":"2026-10-09T13:17:19.617589082Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConn/CloseNow","Output":"=== RUN   TestConn/CloseNow\n"}
+{"Time":"2026-10-09T13:17:19.617595792Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConn/CloseNow","Output":"=== PAUSE TestConn/CloseNow\n"}
+{"Time":"2026-10-09T13:17:19.617599207Z","Action":"pause","Package":"github.com/coder/websocket","Test":"TestConn/CloseNow"}
+{"Time":"2026-10-09T13:17:19.61787972Z","Action":"run","Package":"github.com/coder/websocket","Test":"TestConn/MidReadClose"}
+{"Time":"2026-10-09T13:17:19.6178864Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConn/MidReadClose","Output":"=== RUN   TestConn/MidReadClose\n"}
+{"Time":"2026-10-09T13:17:19.617951127Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConn/MidReadClose","Output":"=== PAUSE TestConn/MidReadClose\n"}
+{"Time":"2026-10-09T13:17:19.617954602Z","Action":"pause","Package":"github.com/coder/websocket","Test":"TestConn/MidReadClose"}
+{"Time":"2026-10-09T13:17:19.618236648Z","Action":"cont","Package":"github.com/coder/websocket","Test":"TestConn/badClose"}
+{"Time":"2026-10-09T13:17:19.618243959Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConn/badClose","Output":"=== CONT  TestConn/badClose\n"}
+{"Time":"2026-10-09T13:17:19.618730221Z","Action":"cont","Package":"github.com/coder/websocket","Test":"TestConn/MidReadClose"}
+{"Time":"2026-10-09T13:17:19.618739656Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConn/MidReadClose","Output":"=== CONT  TestConn/MidReadClose\n"}
+{"Time":"2026-10-09T13:17:19.620008729Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConn/badClose","Output":"--- PASS: TestConn/badClose (0.00s)\n"}
+{"Time":"2026-10-09T13:17:19.620066045Z","Action":"pass","Package":"github.com/coder/websocket","Test":"TestConn/badClose","Elapsed":0}
+{"Time":"2026-10-09T13:17:19.620072154Z","Action":"cont","Package":"github.com/coder/websocket","Test":"TestConn/CloseNow"}
+{"Time":"2026-10-09T13:17:19.62007587Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConn/CloseNow","Output":"=== CONT  TestConn/CloseNow\n"}
+{"Time":"2026-10-09T13:17:19.621051751Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConn/CloseNow","Output":"--- PASS: TestConn/CloseNow (0.00s)\n"}
+{"Time":"2026-10-09T13:17:19.62106489Z","Action":"pass","Package":"github.com/coder/websocket","Test":"TestConn/CloseNow","Elapsed":0}
+{"Time":"2026-10-09T13:17:19.621068105Z","Action":"cont","Package":"github.com/coder/websocket","Test":"TestConn/concurrentWrite"}
+{"Time":"2026-10-09T13:17:19.6210713Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConn/concurrentWrite","Output":"=== CONT  TestConn/concurrentWrite\n"}
+{"Time":"2026-10-09T13:17:19.647800031Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConn/concurrentWrite","Output":"--- PASS: TestConn/concurrentWrite (0.03s)\n"}
+{"Time":"2026-10-09T13:17:19.648083338Z","Action":"pass","Package":"github.com/coder/websocket","Test":"TestConn/concurrentWrite","Elapsed":0.03}
+{"Time":"2026-10-09T13:17:19.648092401Z","Action":"cont","Package":"github.com/coder/websocket","Test":"TestConn/concurrentWriteError"}
+{"Time":"2026-10-09T13:17:19.648095186Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConn/concurrentWriteError","Output":"=== CONT  TestConn/concurrentWriteError\n"}
+{"Time":"2026-10-09T13:17:19.763469202Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConn/MidReadClose","Output":"--- PASS: TestConn/MidReadClose (0.14s)\n"}
+{"Time":"2026-10-09T13:17:19.768967089Z","Action":"pass","Package":"github.com/coder/websocket","Test":"TestConn/MidReadClose","Elapsed":0.14}
+{"Time":"2026-10-09T13:17:19.769440312Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConn/concurrentWriteError","Output":"--- PASS: TestConn/concurrentWriteError (0.11s)\n"}
+{"Time":"2026-10-09T13:17:19.770750427Z","Action":"pass","Package":"github.com/coder/websocket","Test":"TestConn/concurrentWriteError","Elapsed":0.11}
+{"Time":"2026-10-09T13:17:19.770820172Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConn","Output":"--- PASS: TestConn (0.00s)\n"}
+{"Time":"2026-10-09T13:17:19.772103576Z","Action":"pass","Package":"github.com/coder/websocket","Test":"TestConn","Elapsed":0}
+{"Time":"2026-10-09T13:17:19.772186691Z","Action":"output","Package":"github.com/coder/websocket","Output":"PASS\n"}
+{"Time":"2026-10-09T13:17:20.78878993Z","Action":"output","Package":"github.com/coder/websocket","Output":"ok  \tgithub.com/coder/websocket\t1.188s\n"}
+{"Time":"2026-10-09T13:17:20.790941803Z","Action":"pass","Package":"github.com/coder/websocket","Elapsed":1.194}

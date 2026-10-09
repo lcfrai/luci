@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "go",
+    "test",
+    "-race",
+    "-p=1",
+    "-count=1",
+    "-timeout=90s",
+    "-overlay=/workspace/.luci-tools/cloud054-duplicate-close-edd0/before-overlay.json",
+    "-run",
+    "^TestC054RawRFC6455NoSecondCloseAfterAcknowledgement$",
+    "-json",
+    "./internal/api"
+  ],
+  "cwd": "/workspace/luci/control-plane",
+  "GOWORK": "/workspace/.luci-tools/cloud054-duplicate-close-edd0/after.work",
+  "GOMAXPROCS": "2",
+  "startedAt": "2026-10-09T13:15:19.251249+00:00",
+  "testSHA256": "40141d5aa5a7f87023251ccae35ee76ad6fe6a12dafe8aa8260b404c97c515af"
+}

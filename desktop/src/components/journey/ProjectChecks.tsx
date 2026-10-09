@@ -574,7 +574,7 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
           </li>
         ))}
       </ul>
-      {recoveryId && runs.find(run => run.id === recoveryId) && <CheckRecoveryDialog
+      {recoveryId && runs.find(run => run.id === recoveryId) && <CheckRecoveryDialog readAccess={{...access, canRead: canRead && !readDenied}}
         key={recoveryId} run={runs.find(run => run.id === recoveryId)!} projectName={useCockpit.getState().projects.find(project => project.id === projectId)?.name || projectId}
         canRead={canRead} canEdit={canEdit} onUpdate={updateRun} onClose={() => setRecoveryId(null)} onReadDenied={() => invalidateRead(generation.current)}
         getCloseFocusTarget={openingControl => {

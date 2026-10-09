@@ -1,0 +1,8 @@
+go 1.25.0
+
+use (
+ /workspace/luci/control-plane
+ /workspace/luci/sandboxd
+)
+
+replace github.com/coder/websocket v1.8.12 => github.com/coder/websocket v1.8.15

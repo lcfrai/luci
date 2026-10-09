@@ -13,7 +13,7 @@ import { Button } from '../fluid/components/button';
 import { Button as ProjectDestinationButton } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { NavigationIcon } from '../common/NavigationIcon';
-import { WorkflowDialog } from '../common/WorkflowDialog';
+import { WorkflowDialog, type WorkflowDialogReadAccess } from '../common/WorkflowDialog';
 import { RecordedRunAttention } from '../common/RecordedRunAttention';
 import { HostCapacity } from './HostCapacity';
 import './project-overview.css';
@@ -146,8 +146,51 @@ function ScopedOverview({ projects }: { projects: Project[] }) {
     {outcomes.length > 0 && <section className="overview-outcomes" aria-label="Queue change results" aria-live="polite"><h3>Queue changes</h3><p>{outcomes.filter(row => row.state === 'changed').length} changed · {outcomes.filter(row => row.state === 'failed').length} failed · {outcomes.filter(row => row.state === 'unconfirmed').length} unconfirmed · {outcomes.filter(row => row.state === 'skipped').length} skipped</p><ul>{outcomes.map((row, index) => <li key={index}><strong>{row.name}</strong><span data-outcome={row.state}>{row.state === 'failed' ? 'Failed: ' : row.state === 'unconfirmed' ? 'Unconfirmed: ' : row.state === 'skipped' ? 'Skipped: ' : ''}{row.message}</span></li>)}</ul></section>}
     <ul className="overview-grid">{visible.map(project => <ProjectCard key={project.id} project={project} summary={summaries[project.id]} refresh={refresh} picked={picked} pending={pending} onSelect={select} onForget={forgetProject} />)}</ul>
     {projects.length > visible.length && <Button variant="secondary" onClick={() => setLimit(value => value + 20)}>Show more projects ({projects.length - visible.length} remaining)</Button>}
-    {cancelReview && <WorkflowDialog title="Cancel selected waiting tasks?" description="This removes the selected waiting work from dispatch. Saved context and any existing worker output remain available in each project." onClose={() => setCancelReview(false)}><ul className="overview-cancel-list">{selection.map(row => <li key={itemKey(row.item)}>{row.project.name} · {row.item.taskTitle}</li>)}</ul><div className="workflow-actions"><Button variant="secondary" onClick={() => setCancelReview(false)}>Keep queued</Button><Button onClick={() => void apply('cancel')}>Cancel {selection.length} waiting {selection.length === 1 ? 'task' : 'tasks'}</Button></div></WorkflowDialog>}
+    {cancelReview && <SelectedQueueCancelReview selection={selection} pending={pending} onClose={() => setCancelReview(false)} onCancel={() => void apply('cancel')} />}
   </div>;
+}
+
+/** Display admission is for every exact selected project. It never changes the
+ * selection or performs queue actions; the action still reauthorizes each row. */
+function SelectedQueueCancelReview({selection, pending, onClose, onCancel}: {
+  selection: Picked[]; pending: boolean; onClose(): void; onCancel(): void;
+}) {
+  const workspace = useTeamWorkspace();
+  const teamId = workspace?.teamId ?? '';
+  const projectIds = JSON.stringify([...new Set(selection.map(row => row.project.id))].sort());
+  const key = JSON.stringify([teamScopeGeneration(), teamId, workspace?.revision ?? 0, projectIds]);
+  const [observation, setObservation] = useState<{key: string; access: WorkflowDialogReadAccess} | null>(null);
+  const blocked = !!workspace?.accessBlocked;
+  useEffect(() => {
+    if (!teamId || blocked) return;
+    const controller = new AbortController();
+    const ids = JSON.parse(projectIds) as string[];
+    let next = 0, failure = '';
+    const read = async () => {
+      while (!controller.signal.aborted && next < ids.length) {
+        const projectId = ids[next++];
+        try {
+          const result = await teamsApi.projectAccess(teamId, projectId, controller.signal);
+          if (controller.signal.aborted) return;
+          if (result.team.id !== teamId || result.projectId !== projectId || !result.permissions.read)
+            failure = 'Reading access is unavailable for a selected project.';
+        } catch {
+          if (!controller.signal.aborted) failure = 'Selected project access could not be confirmed.';
+        }
+      }
+    };
+    void Promise.all(Array.from({length: Math.min(4, ids.length)}, read)).then(() => {
+      if (!controller.signal.aborted) setObservation({key, access: {canRead: ids.length > 0 && !failure, loading: false, error: failure}});
+    });
+    return () => controller.abort();
+  }, [teamId, blocked, key, projectIds]);
+  const readAccess: WorkflowDialogReadAccess = blocked ? {canRead: false, loading: false, error: 'Workspace access must be refreshed before continuing.'}
+    : !teamId ? {canRead: selection.length > 0, loading: false, error: ''}
+    : observation?.key === key ? observation.access : {canRead: false, loading: true, error: ''};
+  return <WorkflowDialog readAccess={readAccess} busy={pending} title="Cancel selected waiting tasks?" description="This removes the selected waiting work from dispatch. Saved context and any existing worker output remain available in each project." onClose={onClose}>
+    <ul className="overview-cancel-list">{selection.map(row => <li key={itemKey(row.item)}>{row.project.name} · {row.item.taskTitle}</li>)}</ul>
+    <div className="workflow-actions"><Button variant="secondary" disabled={pending} onClick={onClose}>Keep queued</Button><Button disabled={pending || !readAccess.canRead || readAccess.loading || !!readAccess.error} onClick={onCancel}>Cancel {selection.length} waiting {selection.length === 1 ? 'task' : 'tasks'}</Button></div>
+  </WorkflowDialog>;
 }
 
 const ProjectCard = memo(function ProjectCard({ project, summary, refresh, picked, pending, onSelect, onForget }: {

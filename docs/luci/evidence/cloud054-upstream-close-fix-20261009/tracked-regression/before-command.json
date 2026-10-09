@@ -1,0 +1,21 @@
+{
+  "argv": [
+    "go",
+    "test",
+    "-race",
+    "-p=1",
+    "-count=1",
+    "-timeout=45s",
+    "-overlay=/workspace/.luci-tools/cloud054-ci-close-regression/overlay.json",
+    "-run",
+    "^TestRelaySendsOneCloseFrameBeforeTransportEOF$",
+    "-json",
+    "./internal/proxy"
+  ],
+  "GOWORK": "/workspace/.luci-tools/cloud054-ci-close-regression/before.work",
+  "GOMAXPROCS": "2",
+  "cwd": "/workspace/luci/control-plane",
+  "startedAt": "2026-10-09T13:20:26.674675+00:00",
+  "testSHA256": "2cf7e44be58a0b95ae3239059ded4c069a0c9dbca35f73f4707107c74d61e05f",
+  "outerTimeoutSeconds": 55
+}

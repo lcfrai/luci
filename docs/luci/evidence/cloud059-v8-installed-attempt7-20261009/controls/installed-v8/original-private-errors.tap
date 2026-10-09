@@ -1,0 +1,54 @@
+✔ private exact unknown error text persists before projection, no public secret (15.339228ms)
+✔ missing/overlong/unclassified inputs fail explicitly without truncating a successful claim (1.59883ms)
+✔ unknown text is retained without changing literal 26-byte content (2.646118ms)
+✔ 32 row bound preserves originals and rejects33 (8.025255ms)
+✔ total private byte cap keeps prefix intact and rejects overflow (19.070221ms)
+✔ closed capture and bad observation cannot certify success (2.095228ms)
+✔ replaced file refuses identity certification (3.08497ms)
+✔ hardlinked file and public parent are refused safely (2.694961ms)
+✖ actual cdp hook retains unknown original before public projection (7.595157ms)
+✖ actual playwright hook retains unknown original before public projection (3.793878ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 8
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 307.847444
+
+✖ failing tests:
+
+test at .luci-tools/cloud054-terminal-close/installed-v8/private-errors.test.mjs:15:43
+✖ actual cdp hook retains unknown original before public projection (7.595157ms)
+  AssertionError [ERR_ASSERTION]: Original unknown error must be retained before public projection
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v8/private-errors.test.mjs:15:889)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .luci-tools/cloud054-terminal-close/installed-v8/private-errors.test.mjs:15:43
+✖ actual playwright hook retains unknown original before public projection (3.793878ms)
+  AssertionError [ERR_ASSERTION]: Original unknown error must be retained before public projection
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud054-terminal-close/installed-v8/private-errors.test.mjs:15:889)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

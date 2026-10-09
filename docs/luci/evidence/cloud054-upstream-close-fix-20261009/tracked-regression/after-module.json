@@ -1,0 +1,17 @@
+{
+	"Path": "github.com/coder/websocket",
+	"Version": "v1.8.15",
+	"Replace": {
+		"Path": "github.com/coder/websocket",
+		"Version": "v1.8.15",
+		"Time": "2026-06-15T03:25:28Z",
+		"Dir": "/tmp/luci-retained-tools/go-mod/github.com/coder/websocket@v1.8.15",
+		"GoMod": "/tmp/luci-retained-tools/go-mod/cache/download/github.com/coder/websocket/@v/v1.8.15.mod",
+		"GoVersion": "1.23",
+		"Sum": "h1:6B2JPeOGlpff2Uz6vOEH1Vzpi0iUz20A+lPVhPHtNUA=",
+		"GoModSum": "h1:NX3SzP+inril6yawo5CQXx8+fk145lPDC6pumgx0mVg="
+	},
+	"Dir": "/tmp/luci-retained-tools/go-mod/github.com/coder/websocket@v1.8.15",
+	"GoMod": "/tmp/luci-retained-tools/go-mod/cache/download/github.com/coder/websocket/@v/v1.8.15.mod",
+	"GoVersion": "1.23"
+}

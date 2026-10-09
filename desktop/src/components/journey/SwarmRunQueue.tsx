@@ -5,11 +5,11 @@ import { swarmQueueApi, type ProjectSwarmQueue, type SwarmQueueItem, type QueueP
 import { swarmTaskCapability } from '../../api/swarmTaskCapability';
 import { useCockpit } from '../../store/store';
 import { Button } from '../fluid/components/button';
-import { WorkflowDialog } from '../common/WorkflowDialog';
+import { WorkflowDialog, type WorkflowDialogReadAccess } from '../common/WorkflowDialog';
 
 const unfinished = (item: SwarmQueueItem) => !['cancelled', 'completed', 'failed'].includes(item.state);
 interface Props {
-  run: ProjectRun; canEdit: boolean; canExecute: boolean; busy: boolean;
+  readAccess: WorkflowDialogReadAccess; run: ProjectRun; canEdit: boolean; canExecute: boolean; busy: boolean;
   onBusy(label: string): void;
   onQueueChange(queue: ProjectSwarmQueue): void;
   onConsentChange?(open: boolean): void;
@@ -17,7 +17,7 @@ interface Props {
 }
 /** Queue consent names saved task inputs. A read, tab switch or retrying a read never enqueues work. */
 export function SwarmRunQueue(props: Props) {
-  const { run, canEdit, canExecute, busy } = props;
+  const { run, readAccess, canEdit, canExecute, busy } = props;
   const harnesses = useCockpit(state => state.harnesses);
   const capability = swarmTaskCapability(run, harnesses);
   const [queue, setQueue] = useState<ProjectSwarmQueue | null>(null), [error, setError] = useState('');
@@ -125,7 +125,7 @@ export function SwarmRunQueue(props: Props) {
     </li>)}</ul>}
     {queue?.hasMore && <p>Only part of the project queue is shown. Refresh as earlier entries complete to inspect remaining work.</p>}
     </details>
-    {confirm && <WorkflowDialog title="Queue reviewed work" description="Authorize these exact saved tasks to start automatically as capacity becomes available. Dependent tasks wait for reviewed integration. Your configured model connection may incur usage charges." busy={busy} onClose={() => setConfirm(false)}>
+    {confirm && <WorkflowDialog readAccess={readAccess} title="Queue reviewed work" description="Authorize these exact saved tasks to start automatically as capacity becomes available. Dependent tasks wait for reviewed integration. Your configured model connection may incur usage charges." busy={busy} onClose={() => setConfirm(false)}>
       <p>{run.input.route.harness} · {run.input.route.model || 'Configured model'} · up to {run.swarm?.maxParallel} agents in this build, within workspace and provider limits.</p>
       <p>Saved permission: {capability.mode}. Tasks run commands without interactive approvals inside isolated Docker workspaces and exit after their response. Their output still needs review; queue completion does not accept or integrate changes.</p>
       {capability.notice && <p>{capability.notice}</p>}

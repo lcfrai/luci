@@ -3,7 +3,7 @@ import { errorText } from '../../api/product';
 import type { ProjectRun, RunOperation } from '../../api/projectRuns';
 import { projectSwarmApi, type SwarmRecoveryAvailability } from '../../api/projectSwarm';
 import { Button } from '../fluid/components/button';
-import { WorkflowDialog } from '../common/WorkflowDialog';
+import { WorkflowDialog, type WorkflowDialogReadAccess } from '../common/WorkflowDialog';
 
 export function launchRecoveryStatus(operation: RunOperation) {
   switch (operation.recovery?.state) {
@@ -15,9 +15,9 @@ export function launchRecoveryStatus(operation: RunOperation) {
 }
 
 /** Mounted for one exact run revision/attempt and authority epoch by ProjectSwarm. */
-export function SwarmLaunchRecoveryDialog({run, operation, taskTitle, projectName, canEdit, busy, error, onClose, onConfirm}: {
+export function SwarmLaunchRecoveryDialog({run, operation, taskTitle, projectName, readAccess, canEdit, busy, error, onClose, onConfirm}: {
   run: ProjectRun; operation: RunOperation; taskTitle: string; projectName: string;
-  canEdit: boolean; busy: boolean; error: string; onClose(): void;
+  readAccess: WorkflowDialogReadAccess; canEdit: boolean; busy: boolean; error: string; onClose(): void;
   onConfirm(availability: SwarmRecoveryAvailability): void;
 }) {
   const [availability, setAvailability] = useState<SwarmRecoveryAvailability | null>(null);
@@ -34,7 +34,7 @@ export function SwarmLaunchRecoveryDialog({run, operation, taskTitle, projectNam
   }, [run.projectId, run.id, run.revision, operation.id, operation.childId, refresh]);
   const continuing = !!operation.recovery;
   const supported = availability?.availability.supported === true;
-  return <WorkflowDialog title={continuing ? 'Continue launch recovery' : 'Stop uncertain launch and retain output'} onClose={onClose} busy={busy}
+  return <WorkflowDialog readAccess={readAccess} title={continuing ? 'Continue launch recovery' : 'Stop uncertain launch and retain output'} onClose={onClose} busy={busy}
     description="Recover this exact uncertain task launch. Luci may stop its original worker and will keep the workspace, context and output. This action never starts a replacement agent.">
     <dl className="swarm-recovery-scope">
       <div><dt>Project</dt><dd>{projectName}</dd></div>

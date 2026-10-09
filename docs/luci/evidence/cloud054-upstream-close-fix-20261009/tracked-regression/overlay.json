@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "/workspace/luci/control-plane/internal/proxy/close_ack_test.go": "/workspace/.luci-tools/cloud054-ci-close-regression/candidate/control-plane/internal/proxy/close_ack_test.go"
+  }
+}

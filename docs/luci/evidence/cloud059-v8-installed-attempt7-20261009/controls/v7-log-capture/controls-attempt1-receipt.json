@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "scope": "External inert capture controls and source-only integration review; no installed execution",
+  "recordedAt": "2026-10-09T12:55:39.381871+00:00",
+  "command": "node --max-old-space-size=64 --test --test-concurrency=1 controller-log-capture.test.mjs > controls-attempt1.stdout 2> controls-attempt1.stderr",
+  "exitCode": 0,
+  "counts": {
+    "tests": 17,
+    "pass": 17,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "durationMS": 297.081498,
+  "runtime": "v24.19.0",
+  "bindings": [
+    {
+      "path": "/workspace/.luci-tools/cloud054-terminal-close/v7-log-capture/controller-log-capture.mjs",
+      "bytes": 12829,
+      "sha256": "d60c41b61919c6d317c55824f8a39f71c849ef77103224900ae4fa0e933c57fa"
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud054-terminal-close/v7-log-capture/controller-log-capture.test.mjs",
+      "bytes": 10205,
+      "sha256": "719e522af4ebee5200e95529038d05996659f2df3c4d5cd3c9d5c63c084b375d"
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud054-terminal-close/v7-log-capture/controls-attempt1.stdout",
+      "bytes": 1624,
+      "sha256": "260deef53b9d6485f997cbe22b6d804785684db2293fb5791e15ccd108030b46"
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud054-terminal-close/v7-log-capture/controls-attempt1.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud054-terminal-close/v7-log-capture/README.md",
+      "bytes": 3348,
+      "sha256": "20e5fbb50ce8c97957644e9139ef8627baa741be8e5312fc43c3d3ce1788e30d"
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud054-terminal-close/v7-log-capture/receipt-parser-attempt1.json",
+      "bytes": 300,
+      "sha256": "58613bec8f82f73372ab7b8cb259b29d0a57e2e82a42972984362411f21e146d"
+    }
+  ],
+  "sourceBindingTiming": "Final bindings recorded after completed controls; no independently captured pre/post manifest",
+  "productionContract": {
+    "commit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+    "path": "control-plane/internal/api/attach.go",
+    "sha256": "405d96bb411197d9c227c3cbad3ad83592f1dd50944b9af3be9a039f2a63e9ee",
+    "bytes": 15418,
+    "claim": "Exact route/session context and INFO attach relay ended only on nonnil relay error; absence of row is not success proof"
+  },
+  "integrationReview": {
+    "launcher": {
+      "path": "/workspace/.luci-tools/cloud054-terminal-close/installed-v7/launch.mjs",
+      "bytes": 59142,
+      "sha256": "be1bf738325edf9e5bdb40fbcbf1949991253bf2f16b9d99ffad7f067d5b987a"
+    },
+    "moduleByteExactInline": true,
+    "findings": [],
+    "reviewed": [
+      "INFO stderr pipe",
+      "capture created before acquisition, attached after owned controller registration",
+      "static failure projection and finite relay callback",
+      "separate bounded capture phase after controller cleanup",
+      "async transport monitor disposal caught without skipping browser cleanup"
+    ],
+    "limits": [
+      "No new scenario or runtime execution",
+      "Capture closed field means retention disabled after close attempt; close failure remains failure",
+      "Synchronous filesystem calls need independent outer process bound"
+    ]
+  }
+}

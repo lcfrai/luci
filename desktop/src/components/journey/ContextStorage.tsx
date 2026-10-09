@@ -153,7 +153,7 @@ function ContextStorageContent({ projectId }: { projectId: string }) {
       </details>}
       <ContextHistory projectId={projectId} />
     </>}
-    {repairOpen && context && grantedEdit && <WorkflowDialog title="Repair shared context files?" busy={!!busy} description="Regenerate these files from the saved project context. Edits made directly to these generated files will be replaced. This keeps current revisions and approvals unchanged." onClose={() => { if (!busy) setRepairOpen(false); }}>
+    {repairOpen && context && grantedEdit && <WorkflowDialog readAccess={access} title="Repair shared context files?" busy={!!busy} description="Regenerate these files from the saved project context. Edits made directly to these generated files will be replaced. This keeps current revisions and approvals unchanged." onClose={() => { if (!busy) setRepairOpen(false); }}>
       <ul>{changed.map(item => <li key={item.path}><code>{item.path}</code> · {exportStatus[item.status]}</li>)}</ul>
       <div className="journey-actions"><Button type="button" variant="secondary" disabled={!!busy} onClick={() => setRepairOpen(false)}>Keep existing files</Button><Button type="button" disabled={!canEdit || !!busy} onClick={() => void run("Repairing shared context files…", "edit", async current => {
         if (!canEdit) return;

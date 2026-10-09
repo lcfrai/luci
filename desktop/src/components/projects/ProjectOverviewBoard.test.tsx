@@ -24,7 +24,7 @@ beforeEach(() => {
   environment.scope = 'account-one'; environment.teamId = ''; environment.edit = true; environment.execute = true;
   environment.revision = 0; environment.teamPermissions = null; vi.mocked(useProjectDraftScope).mockClear();
   vi.spyOn(projectOverviewApi, 'get').mockImplementation(async id => overview(id)); vi.spyOn(swarmQueueApi, 'get').mockImplementation(async id => queue(id)); vi.spyOn(swarmQueueApi, 'control').mockImplementation(async id => queue(id));
-  vi.spyOn(teamsApi, 'projectAccess').mockImplementation(async (_teamId, projectId) => ({ projectId, permissions: { ...personalPermissions, edit: environment.edit, execute: environment.execute } } as ProjectAccess));
+  vi.spyOn(teamsApi, 'projectAccess').mockImplementation(async (teamId, projectId) => ({ team: { id: teamId, name: 'Controlled team', revision: 1, createdAt: '', updatedAt: '' }, projectId, permissions: { ...personalPermissions, edit: environment.edit, execute: environment.execute }, grants: [] } as ProjectAccess));
 });
 afterEach(cleanup);
 

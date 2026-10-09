@@ -1,0 +1,52 @@
+{"Time":"2026-10-09T13:17:23.113482741Z","Action":"start","Package":"github.com/coder/websocket"}
+{"Time":"2026-10-09T13:17:23.137414541Z","Action":"run","Package":"github.com/coder/websocket","Test":"TestConcurrentClosePing"}
+{"Time":"2026-10-09T13:17:23.137840213Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConcurrentClosePing","Output":"=== RUN   TestConcurrentClosePing\n"}
+{"Time":"2026-10-09T13:17:23.138327187Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConcurrentClosePing","Output":"=== PAUSE TestConcurrentClosePing\n"}
+{"Time":"2026-10-09T13:17:23.141509033Z","Action":"pause","Package":"github.com/coder/websocket","Test":"TestConcurrentClosePing"}
+{"Time":"2026-10-09T13:17:23.141544106Z","Action":"run","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation"}
+{"Time":"2026-10-09T13:17:23.14154718Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation","Output":"=== RUN   TestConnClosePropagation\n"}
+{"Time":"2026-10-09T13:17:23.14155348Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation","Output":"=== PAUSE TestConnClosePropagation\n"}
+{"Time":"2026-10-09T13:17:23.141556204Z","Action":"pause","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation"}
+{"Time":"2026-10-09T13:17:23.141559188Z","Action":"cont","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation"}
+{"Time":"2026-10-09T13:17:23.141561762Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation","Output":"=== CONT  TestConnClosePropagation\n"}
+{"Time":"2026-10-09T13:17:23.141565328Z","Action":"cont","Package":"github.com/coder/websocket","Test":"TestConcurrentClosePing"}
+{"Time":"2026-10-09T13:17:23.141568052Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConcurrentClosePing","Output":"=== CONT  TestConcurrentClosePing\n"}
+{"Time":"2026-10-09T13:17:23.141582934Z","Action":"run","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseOtherSideDuringWrite"}
+{"Time":"2026-10-09T13:17:23.141588683Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseOtherSideDuringWrite","Output":"=== RUN   TestConnClosePropagation/CloseOtherSideDuringWrite\n"}
+{"Time":"2026-10-09T13:17:23.141592599Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseOtherSideDuringWrite","Output":"=== PAUSE TestConnClosePropagation/CloseOtherSideDuringWrite\n"}
+{"Time":"2026-10-09T13:17:23.141596004Z","Action":"pause","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseOtherSideDuringWrite"}
+{"Time":"2026-10-09T13:17:23.14160029Z","Action":"run","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseThisSideDuringWrite"}
+{"Time":"2026-10-09T13:17:23.141604206Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseThisSideDuringWrite","Output":"=== RUN   TestConnClosePropagation/CloseThisSideDuringWrite\n"}
+{"Time":"2026-10-09T13:17:23.141607711Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseThisSideDuringWrite","Output":"=== PAUSE TestConnClosePropagation/CloseThisSideDuringWrite\n"}
+{"Time":"2026-10-09T13:17:23.141610636Z","Action":"pause","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseThisSideDuringWrite"}
+{"Time":"2026-10-09T13:17:23.14161371Z","Action":"run","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseOtherSideDuringRead"}
+{"Time":"2026-10-09T13:17:23.141616104Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseOtherSideDuringRead","Output":"=== RUN   TestConnClosePropagation/CloseOtherSideDuringRead\n"}
+{"Time":"2026-10-09T13:17:23.14161983Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseOtherSideDuringRead","Output":"=== PAUSE TestConnClosePropagation/CloseOtherSideDuringRead\n"}
+{"Time":"2026-10-09T13:17:23.141707622Z","Action":"pause","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseOtherSideDuringRead"}
+{"Time":"2026-10-09T13:17:23.141713972Z","Action":"run","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseThisSideDuringRead"}
+{"Time":"2026-10-09T13:17:23.141716716Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseThisSideDuringRead","Output":"=== RUN   TestConnClosePropagation/CloseThisSideDuringRead\n"}
+{"Time":"2026-10-09T13:17:23.141720171Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseThisSideDuringRead","Output":"=== PAUSE TestConnClosePropagation/CloseThisSideDuringRead\n"}
+{"Time":"2026-10-09T13:17:23.141722715Z","Action":"pause","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseThisSideDuringRead"}
+{"Time":"2026-10-09T13:17:23.141725669Z","Action":"cont","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseOtherSideDuringWrite"}
+{"Time":"2026-10-09T13:17:23.141728193Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseOtherSideDuringWrite","Output":"=== CONT  TestConnClosePropagation/CloseOtherSideDuringWrite\n"}
+{"Time":"2026-10-09T13:17:23.142711225Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseOtherSideDuringWrite","Output":"--- PASS: TestConnClosePropagation/CloseOtherSideDuringWrite (0.00s)\n"}
+{"Time":"2026-10-09T13:17:23.142761921Z","Action":"pass","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseOtherSideDuringWrite","Elapsed":0}
+{"Time":"2026-10-09T13:17:23.14276806Z","Action":"cont","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseThisSideDuringRead"}
+{"Time":"2026-10-09T13:17:23.142770384Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseThisSideDuringRead","Output":"=== CONT  TestConnClosePropagation/CloseThisSideDuringRead\n"}
+{"Time":"2026-10-09T13:17:23.145807947Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseThisSideDuringRead","Output":"--- PASS: TestConnClosePropagation/CloseThisSideDuringRead (0.00s)\n"}
+{"Time":"2026-10-09T13:17:23.145927097Z","Action":"pass","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseThisSideDuringRead","Elapsed":0}
+{"Time":"2026-10-09T13:17:23.145938914Z","Action":"cont","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseThisSideDuringWrite"}
+{"Time":"2026-10-09T13:17:23.145946065Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseThisSideDuringWrite","Output":"=== CONT  TestConnClosePropagation/CloseThisSideDuringWrite\n"}
+{"Time":"2026-10-09T13:17:23.14836762Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseThisSideDuringWrite","Output":"--- PASS: TestConnClosePropagation/CloseThisSideDuringWrite (0.00s)\n"}
+{"Time":"2026-10-09T13:17:23.148398897Z","Action":"pass","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseThisSideDuringWrite","Elapsed":0}
+{"Time":"2026-10-09T13:17:23.148403694Z","Action":"cont","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseOtherSideDuringRead"}
+{"Time":"2026-10-09T13:17:23.14840769Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseOtherSideDuringRead","Output":"=== CONT  TestConnClosePropagation/CloseOtherSideDuringRead\n"}
+{"Time":"2026-10-09T13:17:23.14953266Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseOtherSideDuringRead","Output":"--- PASS: TestConnClosePropagation/CloseOtherSideDuringRead (0.00s)\n"}
+{"Time":"2026-10-09T13:17:23.149549506Z","Action":"pass","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation/CloseOtherSideDuringRead","Elapsed":0}
+{"Time":"2026-10-09T13:17:23.14955922Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation","Output":"--- PASS: TestConnClosePropagation (0.00s)\n"}
+{"Time":"2026-10-09T13:17:23.92297422Z","Action":"pass","Package":"github.com/coder/websocket","Test":"TestConnClosePropagation","Elapsed":0}
+{"Time":"2026-10-09T13:17:23.923125148Z","Action":"output","Package":"github.com/coder/websocket","Test":"TestConcurrentClosePing","Output":"--- PASS: TestConcurrentClosePing (0.78s)\n"}
+{"Time":"2026-10-09T13:17:23.9235714Z","Action":"pass","Package":"github.com/coder/websocket","Test":"TestConcurrentClosePing","Elapsed":0.78}
+{"Time":"2026-10-09T13:17:23.923586153Z","Action":"output","Package":"github.com/coder/websocket","Output":"PASS\n"}
+{"Time":"2026-10-09T13:17:24.939093573Z","Action":"output","Package":"github.com/coder/websocket","Output":"ok  \tgithub.com/coder/websocket\t1.821s\n"}
+{"Time":"2026-10-09T13:17:24.941726712Z","Action":"pass","Package":"github.com/coder/websocket","Elapsed":1.8279999999999998}

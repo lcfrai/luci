@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useCockpit } from "../../store/store";
 import { Button } from "../fluid/components/button";
+import { useProjectAccess } from "../../hooks/useProjectAccess";
 import { WorkflowDialog } from "./WorkflowDialog";
 
 // Compact navigation may close its rail while this guarded decision stays open.
@@ -20,6 +21,8 @@ function draftNavigationCloseTarget(openingControl: HTMLElement | null): HTMLEle
 
 export function DraftNavigationDialog() {
   const pending = useCockpit(state => state.pendingNavigation);
+  const sourceProjectId = useCockpit(state => state.selection.projectId) ?? "";
+  const readAccess = useProjectAccess(sourceProjectId);
   const labels = useCockpit(useShallow(state => [...new Set(Object.values(state.unsavedProjectDrafts)
     .filter(draft => draft.projectId === state.selection.projectId).map(draft => draft.label))]));
   const retained = useCockpit(state => Object.values(state.unsavedProjectDrafts)
@@ -30,7 +33,8 @@ export function DraftNavigationDialog() {
   const proceed = useCockpit(state => state.discardDraftsAndNavigate);
   useEffect(() => { if (pending && labels.length === 0) proceed(); }, [pending, labels.length, proceed]);
   if (!pending || !labels.length) return null;
-  return <WorkflowDialog title="Keep your changes?" description={`${labels.join(" and ")} has unsaved edits. Stay here to ${localSetup ? "continue editing" : "save them"}${retained ? ", keep the browser drafts for later," : ""} or discard those edits before continuing.`} onClose={cancel} getCloseFocusTarget={draftNavigationCloseTarget}>
-    <div className="workflow-actions"><Button variant="secondary" onClick={() => proceed()}>Discard edits and continue</Button>{retained && <Button variant="secondary" onClick={() => proceed(true)}>Keep drafts and continue</Button>}<Button onClick={cancel}>Keep editing</Button></div>
+  const actions = <div className="workflow-actions"><Button variant="secondary" onClick={() => proceed()}>Discard edits and continue</Button>{retained && <Button variant="secondary" onClick={() => proceed(true)}>Keep drafts and continue</Button>}<Button onClick={cancel}>Keep editing</Button></div>;
+  return <WorkflowDialog unavailableContent={actions} readAccess={{...readAccess, canRead: !!sourceProjectId && readAccess.canRead}} title="Keep your changes?" description={`${labels.join(" and ")} has unsaved edits. Stay here to ${localSetup ? "continue editing" : "save them"}${retained ? ", keep the browser drafts for later," : ""} or discard those edits before continuing.`} onClose={cancel} getCloseFocusTarget={draftNavigationCloseTarget}>
+    {actions}
   </WorkflowDialog>;
 }

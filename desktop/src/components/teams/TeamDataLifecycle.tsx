@@ -16,7 +16,7 @@ function ScopedTeamDataLifecycle({ team, onChange }: Props) {
   const [error, setError] = useState(""), [notice, setNotice] = useState("");
   const alive = useRef(true), working = useRef(false);
   useEffect(() => {
-    let current = true; alive.current = true;
+    let current = true; alive.current = true; setBusy(working.current);
     void teamDataLifecycleApi.get(team.id).then(result => { if (current) setValue(result); }).catch(cause => { if (current) setError(errorText(cause)); }).finally(() => { if (current) setLoading(false); });
     return () => { current = false; alive.current = false; };
   }, [team.id]);

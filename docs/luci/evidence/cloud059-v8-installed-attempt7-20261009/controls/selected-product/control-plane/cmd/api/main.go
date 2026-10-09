@@ -1,0 +1,752 @@
+// Command api is the luci control plane: one HTTP surface on loopback,
+// one JSON registry on disk, one backend, one reaper. It owns no logic of its
+// own beyond wiring, configuration and contract §5.5's restart recovery.
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"log/slog"
+	"net"
+	"net/http"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"strings"
+	"sync/atomic"
+	"syscall"
+	"time"
+
+	// k8s.io/client-go/kubernetes and .../rest and nothing else from that
+	// module. k8s.io/client-go/tools/clientcmd — the package that reads a
+	// kubeconfig FILE — is deliberately absent: it pulls github.com/imdario/mergo
+	// and github.com/spf13/pflag, and mergo is in neither go.mod nor go.sum, so
+	// importing it makes every GOPROXY=off command fail with "updates to go.mod
+	// needed". Group C ruling 8: no new module enters go.mod in this task. See
+	// kubeClient below for what that costs.
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+
+	"github.com/lcfrai/luci/control-plane/internal/api"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/backend/dockerbe"
+	"github.com/lcfrai/luci/control-plane/internal/backend/katabe"
+	"github.com/lcfrai/luci/control-plane/internal/diagnostics"
+	"github.com/lcfrai/luci/control-plane/internal/httpx"
+	"github.com/lcfrai/luci/control-plane/internal/instance"
+	"github.com/lcfrai/luci/control-plane/internal/management"
+	"github.com/lcfrai/luci/control-plane/internal/platform"
+	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
+	"github.com/lcfrai/luci/control-plane/internal/product"
+	"github.com/lcfrai/luci/control-plane/internal/project"
+	"github.com/lcfrai/luci/control-plane/internal/reaper"
+	"github.com/lcfrai/luci/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/resourcebudget"
+	"github.com/lcfrai/luci/control-plane/internal/sandbox"
+)
+
+func main() {
+	os.Exit(runCommand(os.Args[1:], os.Stdout, os.Stderr, func() int {
+		if err := protectChildren(); err != nil {
+			fmt.Fprintf(os.Stderr, "luci: child process cleanup unavailable: %v\n", err)
+		}
+		return run(os.Getenv, os.Stderr)
+	}))
+}
+
+// run is main with its two impure edges as parameters, so that the exit-2 path
+// is a unit test rather than a process. Exit codes: 2 is a configuration
+// refusal the operator must fix, 1 is a runtime failure, 0 is a clean signal.
+func run(getenv func(string) string, errOut io.Writer) int {
+	cfg, err := loadConfig(getenv)
+	if err != nil {
+		fmt.Fprintf(errOut, "luci: %v\n", err)
+		return 2
+	}
+	cfg.WebDir = getenv(envWebDir)
+	cfg.RuntimeDir = getenv(envRuntimeDir)
+	cfg.CloudBundle = getenv(envCloudBundle)
+	cfg.Worker = getenv(envWorker) == "1"
+	cfg.WorkerToken = getenv(envWorkerToken)
+	cfg.WorkerAddressFile = getenv(envWorkerAddressFile)
+	cfg.Backing = getenv(envBacking)
+	cfg.InstanceName = getenv(envInstanceName)
+	cfg.ManagedTeamID = getenv(envManagedTeamID)
+	cfg.ManagedShutdownToken = getenv(envManagedShutdownToken)
+	if cfg.Worker && (len(cfg.WorkerToken) < 40 || !filepath.IsAbs(cfg.WorkerAddressFile) || !filepath.IsAbs(cfg.StateDir)) {
+		fmt.Fprintln(errOut, "luci: managed workers require a private token, state directory and address file")
+		return 2
+	}
+	log := slog.New(slog.NewTextHandler(errOut, &slog.HandlerOptions{Level: cfg.LogLevel}))
+	logWarnings(log, cfg.Warnings)
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := serve(ctx, cfg, log); err != nil {
+		log.Error("control plane stopped", "err", err)
+		return 1
+	}
+	return 0
+}
+
+func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
+	executionStateDir, err := executionStateDirectory(cfg, os.Getenv("LUCI_EXECUTION_STATE_DIR"))
+	if err != nil {
+		return err
+	}
+	cfg.ExecutionStateDir = executionStateDir
+	lease, err := acquireManagedStateLease(cfg)
+	if err != nil {
+		return fmt.Errorf("acquire Luci state: %w", err)
+	}
+	if lease != nil {
+		defer lease.Close()
+	}
+	// The instance id comes first: the backend stamps it on every sandbox and
+	// lists only sandboxes that carry it, and the reaper destroys only those,
+	// so neither can be built without it. It is this state directory's, minted
+	// on the first start and read back on every one after — which is what lets
+	// a restart keep the sandboxes it made (internal/instance).
+	instanceID, minted, err := instance.Load(cfg.InstancePath)
+	if err != nil {
+		return fmt.Errorf("load this control plane's instance id: %w", err)
+	}
+	if minted {
+		log.Info("minted this state directory's instance id; every sandbox it creates is labelled with it, and the reaper acts only on those and on unlabelled ones from before the label that this registry holds",
+			"instance", instanceID, "file", cfg.InstancePath)
+	}
+
+	be, err := newBackend(cfg, instanceID, log)
+	if errors.Is(err, backend.ErrUnavailable) && cfg.Backend == string(backend.KindDocker) {
+		log.Warn("Docker is not ready; Luci setup, Define and Design remain available", "err", err)
+		be = &recoveringBackend{factory: func() (backend.Backend, error) { return newBackend(cfg, instanceID, log) }}
+		err = nil
+	}
+	if err != nil {
+		return err
+	}
+	defer func() { _ = be.Close() }()
+
+	// statepath.Dir creates nothing on purpose (contract §2.7) — the caller
+	// knows whether a missing directory is an error. Here it is not.
+	if err := os.MkdirAll(filepath.Dir(cfg.SessionsPath), 0o700); err != nil {
+		return fmt.Errorf("create state directory: %w", err)
+	}
+	store, err := registry.NewFileStore(cfg.SessionsPath)
+	if err != nil {
+		return fmt.Errorf("open session registry %s: %w", cfg.SessionsPath, err)
+	}
+
+	// Contract §5.5, once, before anything can serve a request from a stale
+	// endpoint.
+	recoverSessions(ctx, store, be, log)
+
+	cleanupProof := &stoppedTaskCleanupGate{}
+	reaperConfig := reaperConfigFor(cfg, instanceID, store, be, log)
+	reaperConfig.ConfirmStoppedTaskCleanup = cleanupProof.confirm
+	rp := reaper.New(reaperConfig)
+	// The reaper gets its own context rather than ctx, so that a SIGINT drains
+	// the HTTP server while the reaper is still sweeping a live backend; ctx is
+	// already cancelled by the time Shutdown is called, and a reaper on ctx
+	// would have stopped at the signal.
+	reapCtx, stopReaper := context.WithCancel(context.Background())
+	reaperDone := make(chan struct{})
+	go func() {
+		defer close(reaperDone)
+		rp.Run(reapCtx)
+	}()
+	// Registered AFTER the backend's Close and therefore run BEFORE it: defers
+	// unwind last-in-first-out, and be.Close() under an in-flight sweep is a
+	// Destroy against a closed Docker client. This one defer covers every exit
+	// from here down, including the serve-error path that returns without
+	// reaching the shutdown block.
+	defer func() {
+		stopReaper()
+		<-reaperDone
+	}()
+
+	scanner, err := newScanner(cfg, project.NewExecRunner())
+	if err != nil {
+		return err
+	}
+	projects := &liveProjects{scanner: scanner, cfg: cfg}
+	runtimeDir := cfg.RuntimeDir
+	if runtimeDir == "" {
+		if exe, err := os.Executable(); err == nil {
+			runtimeDir = filepath.Join(filepath.Dir(exe), "runtime")
+		}
+	}
+	var shutdownService func()
+	cloudBundle := cfg.CloudBundle
+	if cloudBundle == "" {
+		if exe, err := os.Executable(); err == nil {
+			cloudBundle = filepath.Join(filepath.Dir(exe), "cloud", "luci-cloud-linux-amd64.tar.gz")
+		}
+	}
+	var platformService *platform.Service
+	resolveDataPlatform := func() *platform.Service { return platformService }
+	productService, err := product.New(product.Options{SwarmSchedulerPolicyDir: executionStateDir, ClearBranchReady: func(ctx context.Context, worktreeID string) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		_, err := store.SetWorktreeReady(worktreeID, false)
+		return err
+	}, BranchSessions: func(ctx context.Context, projectID, worktreeID string) (bool, error) {
+		if err := ctx.Err(); err != nil {
+			return false, err
+		}
+		sessions, err := store.List()
+		if err != nil {
+			return false, err
+		}
+		for _, sess := range sessions {
+			if (sess.ProjectID == projectID || sess.WorktreeID == worktreeID) && sess.Status != registry.StatusExited {
+				return true, nil
+			}
+		}
+		return false, nil
+	}, NativePrototypeReleases: product.PlatformPrototypeReleases(resolveDataPlatform), CloudDataBindings: product.PlatformCloudDataBindings(resolveDataPlatform), BrowserPreviewPort: cfg.BrowserPreviewPort, BrowserPreviewDomain: cfg.PreviewBaseDomain, ManagedWorkspace: cfg.Worker, CloudBundle: cloudBundle, StateDir: filepath.Dir(cfg.SessionsPath), RuntimeDir: runtimeDir, ProjectsDir: cfg.ProjectsDir, SandboxImage: cfg.SandboxImage, CheckMemoryMiB: cfg.MemoryMiB, CheckCPUMillis: cfg.CPUMillis, Configure: projects.configure, Shutdown: func() {
+		if shutdownService != nil {
+			shutdownService()
+		}
+	}})
+	if err != nil {
+		return fmt.Errorf("initialise Luci: %w", err)
+	}
+	defer productService.Close()
+	// Public browser origins are optional and independent from private Docker
+	// health URLs. The portable/native launch paths keep their prior defaults.
+	platformService, err = platform.New(platform.Options{FunctionSources: productService.FunctionSources(), DataDomains: productService.PlatformDataDomains(resolveDataPlatform), BrowserPreviewPort: cfg.BrowserPreviewPort, BrowserPreviewDomain: cfg.PreviewBaseDomain, StateDir: filepath.Dir(cfg.SessionsPath), InstanceID: instanceID, DockerHost: cfg.DockerHost, MemoryMiB: cfg.MemoryMiB, CPUMillis: cfg.CPUMillis, ResolveProject: productService.ResolveProject, ApplicationConfiguration: productService.ApplicationConfiguration, ValidateDeploymentSource: productService.ValidateDeploymentSource, RecordDeploymentProvenance: productService.RecordProjectRunReleaseProvenance})
+	if err != nil {
+		return fmt.Errorf("initialise application platform: %w", err)
+	}
+	defer platformService.Close()
+	productService.SetProjectRunNativeReleaseObserver(func(ctx context.Context, projectID, releaseID string) (product.ProjectRunNativeReleaseObservation, error) {
+		observed, err := platformService.ObserveProjectRunDeployment(ctx, projectID, releaseID)
+		if err != nil {
+			return product.ProjectRunNativeReleaseObservation{}, err
+		}
+		d := observed.Deployment
+		return product.ProjectRunNativeReleaseObservation{ReleaseID: d.ID, ProjectID: d.ProjectID, Target: "native-" + d.Provider, Commit: d.Commit, URL: d.URL, Ready: d.Status == "ready", ObservedAt: observed.ObservedAt, Limitations: observed.Limitations}, nil
+	})
+
+	// The host's own git config, and nothing a sandbox can write, answers the
+	// identity, line-ending and global-file questions: hostGit runs each git in
+	// a directory made for it alone, outside every repository (X-1).
+	host, err := newHostGit()
+	if err != nil {
+		return err
+	}
+
+	// Asked once here as well as at every create, so the user without an
+	// identity hears it at startup, before any agent tries to commit. The
+	// answer is the same machine-wide one each time.
+	gitIdentity := gitIdentityResolver(cfg.GitName, cfg.GitEmail, host)
+	if _, err := gitIdentity(ctx); err != nil {
+		log.Warn("no git identity", "err", err)
+	}
+
+	// api.New returns (*API, error): it validates every dependency it cannot
+	// default and names the nil one, because a wiring mistake should stop the
+	// process here with a sentence rather than panic on the first request.
+	// There is no IdleAfter field to pass — the idle window belongs to the
+	// reaper above, which is the only thing that derives idle.
+	origins := cfg.AllowedOrigins
+	if cfg.PublicAppOrigin != "" {
+		origins = []string{cfg.PublicAppOrigin}
+	}
+	if len(origins) == 0 {
+		origins = append(httpx.DefaultOrigins(), "http://"+cfg.Addr)
+	}
+	originPolicy := httpx.NewOriginPolicy(origins, log)
+	if cfg.PublicAppOrigin != "" {
+		if err := originPolicy.SetPublicAppOrigin(cfg.PublicAppOrigin); err != nil {
+			return err
+		}
+	}
+	var recordFailure func(string, error) error
+	if recorder := openWorkerDiagnostics(cfg, log); recorder != nil {
+		defer recorder.Close()
+		recordFailure = recorder.Record
+	}
+	var observer resourcebudget.ExecutionObserver
+	if value, ok := be.(resourcebudget.ExecutionObserver); ok {
+		observer = value
+	}
+	sampler := resourcebudget.NewSampler(resourcebudget.NewHostProbe(resourcebudget.ProbeOptions{DisksFunc: func() []resourcebudget.DiskPath {
+		return []resourcebudget.DiskPath{{Role: "projects", Path: productService.Config().ProjectsDir}, {Role: "state", Path: filepath.Dir(cfg.SessionsPath)}}
+	}}), observer)
+	sampleCtx, stopSamples := context.WithCancel(context.Background())
+	samplesDone := make(chan struct{})
+	go func() { defer close(samplesDone); sampler.Run(sampleCtx) }()
+	defer func() { stopSamples(); <-samplesDone }()
+	var executionAuthority management.ExecutionAuthorizer
+	var checkAuthority management.CheckAuthorizer
+	var executionControlAuthority management.ExecutionControlAuthorizer
+	var executionReady atomic.Bool
+	if cfg.Worker {
+		scope := management.FileExecutionAuthorityScope{IdentityPath: os.Getenv("LUCI_EXECUTION_AUTHORITY_FILE"), UserID: os.Getenv("LUCI_ACTOR_ID"), TeamID: os.Getenv("LUCI_TEAM_ID"), ManagedTeamID: os.Getenv("LUCI_EXECUTION_MANAGED_TEAM"), BillingConfigID: os.Getenv("LUCI_EXECUTION_BILLING_CONFIG")}
+		executionAuthority, err = management.NewFileExecutionAuthorizer(scope)
+		if err != nil {
+			return fmt.Errorf("initialize current execution authority: %w", err)
+		}
+		checkAuthority, err = management.NewFileCheckAuthorizer(scope)
+		if err != nil {
+			return fmt.Errorf("initialize current check authority: %w", err)
+		}
+		executionControlAuthority, err = management.NewFileExecutionControlAuthorizer(scope)
+		if err != nil {
+			return fmt.Errorf("initialize current execution control authority: %w", err)
+		}
+		executionReady.Store(true)
+	}
+	handler, err := api.New(api.Deps{
+		ObserveTaskCompletions: true,
+		ExecutionStateDir:      executionStateDir,
+		ResourceSnapshot:       sampler.Latest,
+		ExecutionReady:         executionReady.Load,
+		ManagedExecution:       cfg.Worker,
+		AuthorizeChecks: func(ctx context.Context, ref management.ExecutionActorRef) (management.ExecutionAuthority, error) {
+			if !executionReady.Load() || checkAuthority == nil {
+				return management.ExecutionAuthority{}, management.ErrExecutionAuthority
+			}
+			return checkAuthority(ctx, ref)
+		},
+		AuthorizeExecutionControl: func(ctx context.Context, ref management.ExecutionActorRef) error {
+			if !executionReady.Load() || executionControlAuthority == nil {
+				return management.ErrExecutionAuthority
+			}
+			return executionControlAuthority(ctx, ref)
+		},
+		AuthorizeExecution: func(ctx context.Context, ref management.ExecutionActorRef, harness string, needsSecrets bool) (management.ExecutionAuthority, error) {
+			if !executionReady.Load() || executionAuthority == nil {
+				return management.ExecutionAuthority{}, management.ErrExecutionAuthority
+			}
+			return executionAuthority(ctx, ref, harness, needsSecrets)
+		},
+
+		Store:              store,
+		Backend:            be,
+		Worktrees:          projects,
+		Projects:           projects,
+		Product:            productService,
+		ProjectsDirCurrent: func() string { return productService.Config().ProjectsDir },
+		Flags:              store, // registry.WorktreeFlagStore, implemented by *FileStore
+		Origin:             originPolicy,
+		Image:              cfg.SandboxImage,
+		Resources:          cfg.Resources(),
+		ReadyTimeout:       cfg.ReadyTimeout,
+		BackendReady:       rp.BackendReady,
+		Log:                log,
+		RecordFailure:      recordFailure,
+		// Created per worktree, at the first session that needs it.
+		ConversationsDir: cfg.ConversationsDir,
+		// Where every project is, so the region a global git file may not be
+		// reached through (X-3). See Deps.ProjectsDir for what it is not.
+		ProjectsDir:    cfg.ProjectsDir,
+		GitIdentity:    gitIdentity,
+		GitLineEndings: gitLineEndingsResolver(host),
+		GitGlobalFiles: gitGlobalFilesResolver(host),
+		CABundle:       cfg.CABundle,
+	})
+	if err != nil {
+		return fmt.Errorf("build the HTTP surface: %w", err)
+	}
+	cleanupProof.publish(handler.ConfirmStoppedTaskCleanup)
+	defer cleanupProof.publish(nil)
+
+	ln, err := net.Listen("tcp", cfg.Addr)
+	if err != nil {
+		return fmt.Errorf("listen on %s: %w", cfg.Addr, err)
+	}
+	if cfg.LocalAccessToken != "" || cfg.PortableOwnerAccess {
+		address, ok := ln.Addr().(*net.TCPAddr)
+		if cfg.Worker || !ok || !address.IP.IsLoopback() || (cfg.PortableOwnerAccess && (cfg.AllowPublicBind || cfg.LocalAccessToken != "")) {
+			_ = ln.Close()
+			return fmt.Errorf("local account access requires an owned, loopback-only management service")
+		}
+	}
+
+	platformHandler := platformService.Handler()
+	combined := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/v1/platform/") {
+			platformHandler.ServeHTTP(w, r)
+			return
+		}
+		handler.ServeHTTP(w, r)
+	})
+	engine := productService.ProxyWorkspace(combined)
+	var control *management.Gateway
+	if cfg.Worker {
+		engine = management.WorkerHandler(cfg.WorkerToken, engine)
+		if err := management.WriteWorkerAddress(cfg.WorkerAddressFile, "http://"+ln.Addr().String()); err != nil {
+			_ = ln.Close()
+			return fmt.Errorf("publish owned worker address: %w", err)
+		}
+	} else {
+		root := cfg.StateDir
+		if root == "" {
+			root = filepath.Dir(filepath.Dir(cfg.SessionsPath))
+		}
+		storage, _ := be.(management.ExecutionStorageConfigurer)
+		control, err = management.New(management.Options{ExecutionStateDir: executionStateDir, ExecutionStorage: storage, StripeBilling: management.StripeBillingConfig{APIKey: cfg.StripeAPIKey, WebhookSecret: cfg.StripeWebhookSecret, AccountID: cfg.StripeAccountID, PriceID: cfg.StripePriceID, TermsURL: cfg.BillingTermsURL, PrivacyURL: cfg.BillingPrivacyURL}, StateDir: root, InstanceName: cfg.InstanceName, ManagedTeamID: cfg.ManagedTeamID, PublicAppOrigin: cfg.PublicAppOrigin, Backing: cfg.Backing, Version: product.Version, InitialHandler: engine, BaseEnvironment: os.Environ(), LocalAccessToken: cfg.LocalAccessToken, PortableOwnerAccess: cfg.PortableOwnerAccess, PortablePackageID: cfg.PortablePackageID})
+		if err != nil {
+			_ = ln.Close()
+			return fmt.Errorf("initialise control-plane management: %w", err)
+		}
+		executionAuthority = control.AuthorizeExecution
+		checkAuthority = control.AuthorizeChecks
+		executionControlAuthority = control.AuthorizeExecutionControl
+		executionReady.Store(true)
+		defer func() {
+			cleanup, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			_ = control.Close(cleanup)
+		}()
+		if cfg.PublicAppOrigin != "" && control.ManagedTeamID() == "" {
+			_ = ln.Close()
+			return errors.New("public HTTPS ingress requires this installation to be bound to one managed team")
+		}
+		engine = control.Handler()
+	}
+	if cfg.BrowserPreviewAddr != "" && !cfg.Worker {
+		root := cfg.StateDir
+		if root == "" {
+			root = filepath.Dir(filepath.Dir(cfg.SessionsPath))
+		}
+		gateway, err := previewgateway.New(root, cfg.BrowserPreviewPort, previewgateway.DockerVerifier(cfg.DockerHost))
+		if cfg.PreviewBaseDomain != "" {
+			gateway, err = previewgateway.NewWithPublicIngress(root, cfg.BrowserPreviewPort, previewgateway.DockerVerifier(cfg.DockerHost), cfg.PreviewBaseDomain, control.ManagedTeamID())
+		}
+		if err != nil {
+			_ = ln.Close()
+			return fmt.Errorf("initialise browser gateway: %w", err)
+		}
+		control.SetBrowserGateway(gateway)
+		previewListener, err := net.Listen("tcp", cfg.BrowserPreviewAddr)
+		if err != nil {
+			_ = ln.Close()
+			return fmt.Errorf("listen on browser gateway: %w", err)
+		}
+		previewServer := &http.Server{Handler: gateway, ReadHeaderTimeout: 10 * time.Second}
+		defer previewServer.Close()
+		go func() {
+			if err := previewServer.Serve(previewListener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				log.Error("browser gateway stopped", "err", err)
+				_ = ln.Close()
+			}
+		}()
+	}
+	srv := &http.Server{
+		Handler: withWeb(originPolicy.Middleware(withManagedShutdown(engine, cfg.ManagedShutdownToken, func() {
+			if shutdownService != nil {
+				shutdownService()
+			}
+		})), cfg),
+		// ReadHeaderTimeout and nothing else. A ReadTimeout or a WriteTimeout
+		// would kill /attach: the relay is a WebSocket that is idle for minutes
+		// and then streams for an hour, and both timeouts apply to it.
+		ReadHeaderTimeout: 10 * time.Second,
+		ErrorLog:          slog.NewLogLogger(log.Handler(), slog.LevelWarn),
+	}
+
+	shutdownService = func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(shutdownCtx)
+	}
+	serveErr := make(chan error, 1)
+	go func() { serveErr <- srv.Serve(ln) }()
+	log.Info("control plane listening",
+		"addr", ln.Addr().String(),
+		"backend", be.Kind(),
+		"instance", instanceID,
+		"sessions", cfg.SessionsPath,
+		"conversations", cfg.ConversationsDir,
+		"projects", cfg.ProjectsDir,
+		"image", cfg.SandboxImage,
+		"caBundle", cfg.CABundle,
+	)
+
+	select {
+	case err := <-serveErr:
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
+		}
+		return fmt.Errorf("serve: %w", err)
+	case <-ctx.Done():
+	}
+
+	log.Info("shutting down")
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	// Shutdown does not close hijacked connections, and coder/websocket hijacks
+	// every /attach. Those relays end when the process does; the sandbox and its
+	// PTY survive (Group A task 3), so the desktop reattaches with scrollback.
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Warn("graceful shutdown did not finish in time; closing what is left", "err", err)
+		_ = srv.Close()
+	}
+	// The reaper is stopped and drained by the deferred function above, after
+	// the HTTP server has finished and before the backend is closed.
+	return nil
+}
+
+// newScanner is the projects directory's scanner, which serve hands the HTTP
+// surface as its project list and as the worktree.Provider every session
+// create resolves through. It is extracted from serve so that a test can see
+// what it is given (X-3 review 5 C-1); serve's CALL of it is pinned by running
+// serve (TestServeRefusesAWorktreeSwappedInsideAConversationStore).
+//
+// Every sandbox mounts its worktree's conversation store,
+// <ConversationsDir>/<owner>/<worktree id>, read-WRITE, and the stores are
+// outside the projects directory, so a worktree location inside one is the
+// agent's to swap for a junction (X-3 review 4 I-D). Path refuses that only
+// because the stores' root is named here. It FAILS CLOSED on a root that is
+// not absolute: which directories sandboxes write is then not known, and a
+// boundary with the stores missing from it is the hole, not a default.
+func newScanner(cfg Config, git project.Runner) (*project.Scanner, error) {
+	if !filepath.IsAbs(cfg.ConversationsDir) {
+		return nil, fmt.Errorf("the conversation stores' root %q is not absolute, so a worktree location inside a store cannot be refused: every sandbox mounts its store read-write", cfg.ConversationsDir)
+	}
+	return project.NewScanner(cfg.ProjectsDir, git).WithProjectBoundary().WithWritableDirs(cfg.ConversationsDir), nil
+}
+
+// Worker stderr remains discarded by the gateway. Retain only classified API
+// failures in that worker's private state, without adding a readable API surface.
+func openWorkerDiagnostics(cfg Config, log *slog.Logger) *diagnostics.Recorder {
+	if !cfg.Worker {
+		return nil
+	}
+	recorder, err := diagnostics.New(cfg.StateDir)
+	if err != nil {
+		// Do not turn an unavailable diagnostic sink into a workspace outage,
+		// or echo filesystem paths/error strings through a new logging surface.
+		log.Warn("Private worker failure diagnostics are unavailable")
+		return nil
+	}
+	return recorder
+}
+
+// reaperConfigFor is the Config-to-reaper.Config mapping, extracted from serve
+// so that a test can see its body. serve's CALL of it — that serve hands it the
+// id it loaded — is pinned separately, by running serve against a fake Docker
+// API (TestServeReapsItsOwnOrphanWithTheIDItLoadedAndSparesAnothers): a helper
+// test cannot see which argument its caller passes.
+//
+// CreateGrace is DERIVED from the ready timeout and is deliberately longer than
+// it: reaper.CreateGraceFor owns the reasoning, and going through it means this
+// call site and the reaper's own default cannot drift into disagreeing about how
+// long a create may take. Passing cfg.ReadyTimeout here instead would compile,
+// run, and quietly shorten the window that stops a mid-create session being
+// marked exited.
+//
+// Instance is the other decision. Without it the reaper owns nothing and
+// collects no orphan; with the wrong one it would own another control plane's
+// sandboxes. It is the same id newBackend stamps and lists by, passed to both
+// from the one Load in serve.
+func reaperConfigFor(cfg Config, instanceID string, store registry.Store, be backend.Backend, log *slog.Logger) reaper.Config {
+	return reaper.Config{
+		Store:       store,
+		Backend:     be,
+		Instance:    instanceID,
+		IdleAfter:   cfg.IdleAfter,
+		IdleTimeout: cfg.IdleTimeout,
+		Interval:    cfg.ReapInterval,
+		CreateGrace: reaper.CreateGraceFor(cfg.ReadyTimeout),
+		Log:         log,
+	}
+}
+
+func newBackend(cfg Config, instanceID string, log *slog.Logger) (backend.Backend, error) {
+	switch cfg.Backend {
+	case string(backend.KindDocker):
+		// BindIP is deliberately not configurable: dockerbe defaults it to
+		// 127.0.0.1 and refuses anything else, and there is no safe non-loopback
+		// value to expose as an environment variable.
+		return dockerbe.New(dockerbe.Config{
+			Host:                            cfg.DockerHost,
+			ResourceImage:                   cfg.SandboxImage,
+			ResourceStorageConfirmationPath: executionStorageConfirmationPath(cfg.ExecutionStateDir),
+			ResourceStorageReadOnly:         cfg.Worker,
+			ReadyTimeout:                    cfg.ReadyTimeout,
+			Log:                             log,
+			Instance:                        instanceID,
+		})
+	case string(backend.KindKata):
+		client, err := kubeClient(cfg.Kubeconfig)
+		if err != nil {
+			return nil, fmt.Errorf("kata backend: %w", err)
+		}
+		return katabe.New(katabe.Config{
+			Manager:      sandbox.NewManager(client, cfg.Namespace),
+			ReadyTimeout: cfg.ReadyTimeout,
+			Instance:     instanceID,
+		})
+	default:
+		// loadConfig already refused anything else; this arm exists so the
+		// switch is total, not because a user can reach it.
+		return nil, fmt.Errorf("unknown backend %q", cfg.Backend)
+	}
+}
+
+// kubeClient builds a Kubernetes client for the Kata path from the in-cluster
+// service account, and refuses LUCI_KUBECONFIG rather than honouring it.
+//
+// Reading a kubeconfig FILE needs k8s.io/client-go/tools/clientcmd, which drags
+// github.com/imdario/mergo and github.com/spf13/pflag into go.mod — modules no
+// other package here needs and that go.sum does not pin. Group C ruling 8 keeps
+// them out: Kata is dormant in Phase 2, the Docker backend is what this task
+// wires, and the real Kata deployment runs inside the cluster, where the
+// service account is the credential anyway. So the variable is refused with a
+// sentence naming what would have to change, which is honest, rather than
+// ignored, which is not. loadConfig still parses it into Config.Kubeconfig for
+// exactly that reason: the value has to reach here for the error to name it.
+// Phase 8 turns Kata on and adds the module then, with contract §8.5's pinning
+// review it deserves.
+//
+// This is the REFUSAL half of ruling 1, and it is deliberately louder than the
+// warning half in loadConfig: set under docker the same variable earns one
+// warning line and the process starts, because there it merely has no effect.
+// Here it is a request this build cannot satisfy.
+func kubeClient(kubeconfig string) (*kubernetes.Clientset, error) {
+	if kubeconfig != "" {
+		return nil, fmt.Errorf("%s is set, but Phase 2 reads Kubernetes credentials from the in-cluster service account only — a kubeconfig file needs k8s.io/client-go/tools/clientcmd, which this phase does not add to go.mod: %w", envKubeconfig, backend.ErrUnsupported)
+	}
+	restCfg, err := rest.InClusterConfig()
+	if err != nil {
+		// Outside a cluster this is the expected state of every developer
+		// laptop, so it is ErrUnavailable and not a panic.
+		return nil, fmt.Errorf("%w: %v", backend.ErrUnavailable, err)
+	}
+	return kubernetes.NewForConfig(restCfg)
+}
+
+// recoverSessions is contract §5.5. It runs once, before the listener, and it
+// is not part of the reaper on purpose: the reaper converges a system that is
+// running, this reconciles one that was not. Orphans are left to the reaper's
+// first sweep, which starts immediately.
+func recoverSessions(ctx context.Context, store registry.Store, be backend.Backend, log *slog.Logger) {
+	sessions, err := store.List()
+	if err != nil {
+		log.Warn("could not read the session registry at startup", "err", err)
+		return
+	}
+	if len(sessions) == 0 {
+		return
+	}
+	live, err := be.List(ctx)
+	if err != nil {
+		// THE failure mode this rule exists to prevent: marking everything
+		// exited because Docker Desktop had not finished starting loses a
+		// night's work, and exited is terminal (contract §5.6).
+		log.Warn("backend did not answer at startup; every session is left exactly as it was and the reaper will converge",
+			"sessions", len(sessions), "err", err)
+		return
+	}
+	bySandbox := make(map[string]backend.Sandbox, len(live))
+	for _, sb := range live {
+		bySandbox[sb.ID] = sb
+	}
+
+	for _, s := range sessions {
+		if s.SandboxID == "" {
+			continue // nothing was ever created for this record
+		}
+		sb, alive := bySandbox[s.SandboxID]
+		if !alive {
+			if s.Status == registry.StatusExited {
+				clearStaleAttachCount(store, log, s)
+				continue
+			}
+			applyUpdate(store, log, s.ID, func(rec *registry.Session) {
+				rec.Status = registry.StatusExited
+				rec.ExitReason = "sandbox disappeared while the app was not running"
+				rec.AttachCount = 0
+			})
+			continue
+		}
+		if s.Status == registry.StatusExited {
+			// §5.6 has no transition out of exited, so the record stays
+			// terminal — and the container is not destroyed here either, because
+			// destroying at boot is the irreversible choice. DELETE
+			// /v1/sessions/{id}?purge=1 owns that. The consequence is a
+			// container the reaper will not collect while the record exists;
+			// this line is the only warning anyone gets about it.
+			log.Warn("a finished session still has a live sandbox; delete the session with purge to remove it",
+				"session", s.ID, "sandbox", s.SandboxID, "state", sb.State)
+			clearStaleAttachCount(store, log, s)
+			continue
+		}
+		if s.Endpoint != sb.Endpoint {
+			// Logged out here rather than inside the mutate function: the store
+			// holds its write lock while that runs.
+			log.Info("sandbox endpoint moved while the app was not running",
+				"session", s.ID, "was", s.Endpoint, "now", sb.Endpoint)
+		}
+		applyUpdate(store, log, s.ID, func(rec *registry.Session) {
+			// Overwritten unconditionally, including with "": a NonLoopback
+			// sandbox reports an empty endpoint (task 5), and keeping the old
+			// one would let a client attach to something on the LAN.
+			rec.Endpoint = sb.Endpoint
+			rec.SandboxRef = sb.Ref
+			// AttachCount is a count of live WebSockets and every one of them
+			// died with the previous process. Task 12's relay defer is what
+			// would have decremented it, and that goroutine died too, so this
+			// boot sweep is the only thing that can repair the field — nothing
+			// else in the phase can tell a stale 3 from a real one.
+			rec.AttachCount = 0
+			switch sb.State {
+			case backend.StateRunning:
+				// The reaper re-derives idle on its first sweep.
+				rec.Status = registry.StatusRunning
+			case backend.StateStopped, backend.StateGone:
+				rec.Status = registry.StatusExited
+				rec.ExitReason = "process exited"
+			case backend.StateStarting:
+				// The one row this task adds to contract §5.5 step 3, which
+				// names only StateRunning and StateStopped. A sandbox that is
+				// still starting is neither: the control plane went down
+				// between Create and the first /healthz answer. Reporting
+				// running would fabricate a status, exited is terminal, and
+				// starting is simply true. An owned Docker Created-only child
+				// converges through the reaper's bounded interrupted-create rule;
+				// a pending pod or restarting container is not that evidence.
+				rec.Status = registry.StatusStarting
+			}
+		})
+	}
+}
+
+// clearStaleAttachCount repairs the one field nothing else can, on the two
+// recovery branches that otherwise leave the record untouched: a session that
+// was already exited. Both return early — §5.6 has no transition out of exited
+// and this must not invent one — but AttachCount is not a status. It counts live
+// WebSockets, all of which died with the previous process along with the relay
+// defer that would have decremented them, so a session that was exited with a
+// client attached would otherwise show that client as connected for ever.
+//
+// Guarded on the current value rather than written unconditionally: an Update is
+// a full rewrite of the registry document under the write lock, and a laptop
+// with fifty finished sessions would pay fifty of them at every boot to change
+// nothing.
+func clearStaleAttachCount(store registry.Store, log *slog.Logger, s registry.Session) {
+	if s.AttachCount == 0 {
+		return
+	}
+	applyUpdate(store, log, s.ID, func(rec *registry.Session) {
+		rec.AttachCount = 0
+	})
+}
+
+func applyUpdate(store registry.Store, log *slog.Logger, id string, apply func(*registry.Session)) {
+	if _, err := store.Update(id, func(s *registry.Session) error {
+		apply(s)
+		return nil
+	}); err != nil {
+		log.Warn("could not update a session during recovery", "session", id, "err", err)
+	}
+}

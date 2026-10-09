@@ -5,6 +5,7 @@ import { errorText } from "../../api/product";
 import { ApiError } from "../../api/client";
 import { useCockpit } from "../../store/store";
 import type { BranchManagerTarget } from "../../store/slices/uiSlice";
+import { useProjectAccess } from "../../hooks/useProjectAccess";
 import { WorkflowDialog } from "../common/WorkflowDialog";
 import { Button } from "../fluid/components/button";
 
@@ -15,6 +16,7 @@ export function BranchManager() {
 
 export function ProjectBranchManager({ target }: { target: BranchManagerTarget }) {
   const { projectId, action } = target;
+  const readAccess = useProjectAccess(projectId);
   const alive = useRef(true), flight = useRef(false), generation = useRef(0);
   const intent = useRef<{ id: string; branchId: string; commit: string; name?: string; targetId?: string; targetCommit?: string } | null>(null);
   const [catalogue, setCatalogue] = useState<BranchCatalogue | null>(null);
@@ -114,7 +116,7 @@ export function ProjectBranchManager({ target }: { target: BranchManagerTarget }
     }
     finally { flight.current = false; if (alive.current) setPending(""); }
   }
-  return <WorkflowDialog title={action === "create" ? "Create a branch" : "Switch branch"}
+  return <WorkflowDialog readAccess={readAccess} title={action === "create" ? "Create a branch" : "Switch branch"}
     description={action === "create" ? "Give this change its own branch. Luci creates it from the current saved commit and opens it in your project." : "Open an existing branch in your project. Its files, definition and design will become the current source."}
     busy={busy} onClose={close}>
     {catalogue && <div className="workflow-facts"><span>Current: {catalogue.currentBranch || "No branch"}</span><code>{catalogue.commit?.slice(0, 8) || "No saved commit"}</code></div>}

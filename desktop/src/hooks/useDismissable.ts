@@ -47,6 +47,7 @@ export function __resetOverlays(): void {
 export function useDismissable<T extends HTMLElement>(
   open: boolean,
   onClose: () => void,
+  restoreFocus = true,
 ): RefObject<T | null> {
   const ref = useRef<T | null>(null);
   const onCloseRef = useRef(onClose);
@@ -97,9 +98,9 @@ export function useDismissable<T extends HTMLElement>(
       document.removeEventListener("keydown", onKeyDown, true);
       const index = stack.indexOf(entry);
       if (index >= 0) stack.splice(index, 1);
-      if (restoreTo !== null && document.contains(restoreTo)) restoreTo.focus();
+      if (restoreFocus && restoreTo !== null && document.contains(restoreTo) && !restoreTo.closest("[hidden], [inert], [aria-hidden='true']")) restoreTo.focus();
     };
-  }, [open]);
+  }, [open, restoreFocus]);
 
   return ref;
 }

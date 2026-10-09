@@ -1,0 +1,15 @@
+# CLOUD-059 v8 private error correction and failed installed terminal attempt7
+
+**C054 terminal acceptance remains failed.** Exact product/package and utility helpers: edd0cb121ff6847f681ab6bf41509a497f043d41. Later source-tree changes are not executed by this package. External v8 adds only missing private error retention before existing public projections.
+
+The real shell printed FIRST, emitted typed native exit0, then Chromium reported an error and unclean1006. Controller relay text classified1000, without proving direction or browser success. The primary failure remains first-wire-assertions. No same-ID Restart/nonzero second exit/extended reconnect interval was reached. No cause is asserted in this publication.
+
+V8 successfully retained both original26-byte error strings privately before public projection: one CDP row and one Playwright row, distinct private record ordinals1/2 and the same original UTF-8 hash. These are two observations, not two causal failures. The exact private JSONL is479 bytes and matches the returned hash/size/identity/close receipt. Raw text is excluded; later source/diagnostic analysis is separate. This verifies the narrow private-retention correction, not C054 transport success. Originalv7 attempt6 lost-text evidence remains unchanged and is not backfilled.
+
+The exact same original hook regression produces8 unaffected-control passes/2 expected omission failures againstv7; fixedv8 gives10 passes. Final43 affected tests pass and include those10 (counts overlap). Historical17 private-controller-log controls are carried unchanged at their original scope, not rerun or counted as new. No app or full suite was rerun for publication.
+
+Original result, all24 phases, wrapper/identities, accepted sources, package/image receipts, screenshot and independent closure are retained. Supported Stop200 and empty selected daemon/volumes/ledger are observed. Exact launcher/controller/main-browser are absent,31 private fixture files unchanged, and two Chromium identities2429800/2429805 remain PID1 zombies. No whole-machine/zero-process claim. Older failed fixtures and charged reservations remain separate and untouched.
+
+Excluded: private-controller.stderr, private-transport-errors.jsonl, private-fixture-path, all private application state and package/image binaries. Original/changed representations and exact exclusions are in original-bindings.json. Public error hashes and private raw-file hashes do not make the private bytes retrievable. Screenshot shows disposable fixture/terminal/nonce only, not missing protocol proof.
+
+Use python3 verify.py for checksum checks only. Linux inert control reproduction: node --test --test-concurrency=1 controls/installed-v8/*.test.mjs; original target reproduction uses C059_PRIVATE_ORIGINAL=1 on private-errors.test.mjs (two expected failures). Reproduction launches no app/browser/Docker. Private file tests require Linux ownership APIs. Never run archived runtime/cleanup commands against retained fixtures or a shared user daemon. No Windows, live-provider or performance claim is made.

@@ -634,7 +634,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
         </details>
       </>}
     </div>
-    {suggestedReply && canRead && canAssist && <WorkflowDialog title="Replace your unsent message?" description="Using this suggested answer replaces your current message and its saved draft in this browser. Nothing is sent until you choose Send to Luci." onClose={closeSuggestedReply} getCloseFocusTarget={openingControl => suggestedReplyCloseTarget(suggestedReply, openingControl)}>
+    {suggestedReply && canRead && canAssist && <WorkflowDialog readAccess={access} title="Replace your unsent message?" description="Using this suggested answer replaces your current message and its saved draft in this browser. Nothing is sent until you choose Send to Luci." onClose={closeSuggestedReply} getCloseFocusTarget={openingControl => suggestedReplyCloseTarget(suggestedReply, openingControl)}>
       <details><summary>Current unsent message</summary><p className="orchestrator-message">{suggestedReply.message}</p></details>
       {suggestedReply.replyTo && suggestedReply.replyTo !== suggestedReply.turnId && <>
         <p>Replacing this message also switches your reply to the new question.</p>
@@ -643,6 +643,6 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
       <p><strong>{suggestedReply.replyTo && suggestedReply.replyTo !== suggestedReply.turnId ? "New question: " : "Reply will answer: "}</strong>{suggestedReply.question}</p><p className="orchestrator-message">{suggestedReply.answer}</p>
       <div className="workflow-actions"><Button variant="secondary" onClick={closeSuggestedReply}>Keep current message</Button><Button disabled={!!busy || !!pendingRequest || !!recoveredDraft || storageConflict} onClick={replaceWithSuggestion}>Replace with suggested answer</Button></div>
     </WorkflowDialog>}
-    {review && view && <AmendmentReview turn={review.turn} view={view} busy={busy === "apply"} blocked={reviewBlock} error={error} onClose={() => setReview(null)} onApply={() => void apply()} />}
+    {review && view && <AmendmentReview readAccess={access} turn={review.turn} view={view} busy={busy === "apply"} blocked={reviewBlock} error={error} onClose={() => setReview(null)} onApply={() => void apply()} />}
   </aside>;
 }

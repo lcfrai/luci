@@ -53,6 +53,9 @@ export function AgentConnections({
         : "Endpoint API key · optional";
   useEffect(() => {
     alive.current = true;
+    // Activity can reconnect after an existing request settled while hidden.
+    // Reflect that operation owner; do not start or replay a mutation.
+    setBusy(working.current);
     void client
       .agents()
       .then((result) => {

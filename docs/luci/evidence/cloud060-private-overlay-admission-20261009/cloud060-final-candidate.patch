@@ -1,0 +1,1303 @@
+diff --git a/desktop/src/api/teams.ts b/desktop/src/api/teams.ts
+--- a/desktop/src/api/teams.ts
++++ b/desktop/src/api/teams.ts
+@@ -20,7 +20,7 @@
+   addMember: (id: string, expectedRevision: number, username: string, role: TeamMember['role'], grants: TeamGrants) => productApi.request<TeamDetail>(`${teamPath(id)}/members`, {expectedRevision, username, role, grants}),
+   saveMember: (id: string, expectedRevision: number, member: Pick<TeamMember,'userId'|'role'|'grants'>) => productApi.request<TeamDetail>(`${teamPath(id)}/members/${encodeURIComponent(member.userId)}`, {expectedRevision, role: member.role, grants: member.grants}, 'PUT'),
+   removeMember: (id: string, expectedRevision: number, userId: string) => productApi.request(`${teamPath(id)}/members/${encodeURIComponent(userId)}`, {expectedRevision}, 'DELETE'),
+-  projectAccess: (id: string, projectId: string) => productApi.request<ProjectAccess>(`${teamPath(id)}/projects/${encodeURIComponent(projectId)}/members`),
++  projectAccess: (id: string, projectId: string, signal?: AbortSignal) => productApi.request<ProjectAccess>(`${teamPath(id)}/projects/${encodeURIComponent(projectId)}/members`, undefined, "GET", 120_000, signal),
+   saveProjectGrant: (id: string, projectId: string, expectedRevision: number, grant: Pick<ProjectGrant,'userId'|'role'|'grants'>) => productApi.request<ProjectAccess>(`${teamPath(id)}/projects/${encodeURIComponent(projectId)}/members/${encodeURIComponent(grant.userId)}`, {expectedRevision,role:grant.role,grants:grant.grants}, 'PUT'),
+   removeProjectGrant: (id: string, projectId: string, expectedRevision: number, userId: string) => productApi.request(`${teamPath(id)}/projects/${encodeURIComponent(projectId)}/members/${encodeURIComponent(userId)}`, {expectedRevision}, 'DELETE'),
+ };
+diff --git a/desktop/src/components/common/DraftNavigationDialog.tsx b/desktop/src/components/common/DraftNavigationDialog.tsx
+--- a/desktop/src/components/common/DraftNavigationDialog.tsx
++++ b/desktop/src/components/common/DraftNavigationDialog.tsx
+@@ -2,6 +2,7 @@
+ import { useShallow } from "zustand/react/shallow";
+ import { useCockpit } from "../../store/store";
+ import { Button } from "../fluid/components/button";
++import { useProjectAccess } from "../../hooks/useProjectAccess";
+ import { WorkflowDialog } from "./WorkflowDialog";
+ 
+ // Compact navigation may close its rail while this guarded decision stays open.
+@@ -20,6 +21,8 @@
+ 
+ export function DraftNavigationDialog() {
+   const pending = useCockpit(state => state.pendingNavigation);
++  const sourceProjectId = useCockpit(state => state.selection.projectId) ?? "";
++  const readAccess = useProjectAccess(sourceProjectId);
+   const labels = useCockpit(useShallow(state => [...new Set(Object.values(state.unsavedProjectDrafts)
+     .filter(draft => draft.projectId === state.selection.projectId).map(draft => draft.label))]));
+   const retained = useCockpit(state => Object.values(state.unsavedProjectDrafts)
+@@ -30,7 +33,8 @@
+   const proceed = useCockpit(state => state.discardDraftsAndNavigate);
+   useEffect(() => { if (pending && labels.length === 0) proceed(); }, [pending, labels.length, proceed]);
+   if (!pending || !labels.length) return null;
+-  return <WorkflowDialog title="Keep your changes?" description={`${labels.join(" and ")} has unsaved edits. Stay here to ${localSetup ? "continue editing" : "save them"}${retained ? ", keep the browser drafts for later," : ""} or discard those edits before continuing.`} onClose={cancel} getCloseFocusTarget={draftNavigationCloseTarget}>
+-    <div className="workflow-actions"><Button variant="secondary" onClick={() => proceed()}>Discard edits and continue</Button>{retained && <Button variant="secondary" onClick={() => proceed(true)}>Keep drafts and continue</Button>}<Button onClick={cancel}>Keep editing</Button></div>
++  const actions = <div className="workflow-actions"><Button variant="secondary" onClick={() => proceed()}>Discard edits and continue</Button>{retained && <Button variant="secondary" onClick={() => proceed(true)}>Keep drafts and continue</Button>}<Button onClick={cancel}>Keep editing</Button></div>;
++  return <WorkflowDialog unavailableContent={actions} readAccess={{...readAccess, canRead: !!sourceProjectId && readAccess.canRead}} title="Keep your changes?" description={`${labels.join(" and ")} has unsaved edits. Stay here to ${localSetup ? "continue editing" : "save them"}${retained ? ", keep the browser drafts for later," : ""} or discard those edits before continuing.`} onClose={cancel} getCloseFocusTarget={draftNavigationCloseTarget}>
++    {actions}
+   </WorkflowDialog>;
+ }
+diff --git a/desktop/src/components/common/WorkflowDialog.tsx b/desktop/src/components/common/WorkflowDialog.tsx
+--- a/desktop/src/components/common/WorkflowDialog.tsx
++++ b/desktop/src/components/common/WorkflowDialog.tsx
+@@ -1,26 +1,75 @@
+-import { useState, type ReactNode } from "react";
++import { Activity, useRef, useState, type ReactNode } from "react";
+ import { useDismissable } from "../../hooks/useDismissable";
+ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../fluid/components/dialog";
++import { useWorkspaceOverlayAdmission } from "./WorkspaceOverlayScope";
++import { Button } from "../fluid/components/button";
+ import "./workflow-dialog.css";
+ 
+-/** The shadcn/Radix modal supplies focus trapping; the shared overlay stack owns app shortcuts. */
+-export function WorkflowDialog({ title, description, busy = false, onClose, getCloseFocusTarget, children }: {
++export interface WorkflowDialogReadAccess {
++  canRead: boolean; loading: boolean; error: string;
++}
++type WorkflowDialogProps = {
++  /** Exact owner permission state; retained canRead alone is not fresh admission. */
++  readAccess?: WorkflowDialogReadAccess;
++  /** Generic owner-owned close/discard advice without private draft contents. */
++  unavailableContent?: ReactNode;
++  /** Owner-authored generic scope guidance; never a captured private value. */
++  unavailableMessage?: string;
+   title: string; description: string; busy?: boolean; onClose(): void; children: ReactNode;
+-  /** Resolve a guarded destination after the modal focus trap is removed; null skips restoration. */
+   getCloseFocusTarget?(openingControl: HTMLElement | null): HTMLElement | null;
+-}) {
++};
++
++/** Retain modal-owned drafts while disconnected workspace access suspends presentation. */
++export function WorkflowDialog(props: WorkflowDialogProps) {
++  const workspace = useWorkspaceOverlayAdmission();
++  const read = props.readAccess;
++  const freshRead = !read || read.canRead && !read.loading && !read.error;
++  const [readSuspended, setReadSuspended] = useState(!workspace.available || !!read && !read.canRead);
++  const denied = !workspace.available || !!read && !read.canRead;
++  if (denied && !readSuspended) setReadSuspended(true);
++  else if (!denied && readSuspended && freshRead) setReadSuspended(false);
++  // Routine permission refreshes keep an admitted immutable review mounted.
++  // Once denied, retained canRead is insufficient: exact fresh authority must
++  // settle before that same review becomes visible again.
++  const available = workspace.available && !denied && !readSuspended;
++  const [retrying, setRetrying] = useState(false);
++  const latestAvailable = useRef(available); latestAvailable.current = available;
+   const [returnFocusTo] = useState<HTMLElement | null>(() =>
+     typeof document !== "undefined" && document.activeElement instanceof HTMLElement ? document.activeElement : null,
+   );
+-  const panel = useDismissable<HTMLDivElement>(true, () => { if (!busy) onClose(); });
++  // Activity also hides React portals and disconnects modal effects, while
++  // retaining nested form state. CSS on the host alone cannot do either.
++  // C056 reopens this scope only after current membership and fresh project /
++  // session catalogues have been applied; their owners still control mounting.
++  return <>
++    {workspace.available && !available && <section className="workflow-unavailable" aria-label="Review access">
++      <p role="status">{read?.loading ? "Checking access for this review…" : props.unavailableMessage ?? "This review is unavailable with the current project access. Restore access before continuing."}</p>
++      {props.unavailableContent}
++      <div className="workflow-actions">
++        {workspace.retry && <Button variant="secondary" disabled={retrying || read?.loading} onClick={() => {
++          setRetrying(true); void workspace.retry!().catch(() => {}).finally(() => setRetrying(false));
++        }}>Retry review access</Button>}
++        <Button variant="secondary" disabled={props.busy} onClick={props.onClose}>Close review</Button>
++      </div>
++    </section>}
++    <Activity mode={available ? "visible" : "hidden"}>
++      <WorkflowDialogModal {...props} returnFocusTo={returnFocusTo} mayRestoreFocus={() => latestAvailable.current} />
++    </Activity>
++  </>;
++}
++
++function WorkflowDialogModal({ title, description, busy = false, onClose, getCloseFocusTarget, children, returnFocusTo, mayRestoreFocus }: WorkflowDialogProps & {
++  returnFocusTo: HTMLElement | null; mayRestoreFocus(): boolean;
++}) {
++  const panel = useDismissable<HTMLDivElement>(true, () => { if (!busy) onClose(); }, false);
++  const restore = useRef(mayRestoreFocus); restore.current = mayRestoreFocus;
+   return <Dialog open onOpenChange={open => { if (!open && !busy) onClose(); }}>
+     <DialogContent ref={panel} size="lg" showCloseButton={false} aria-modal="true"
+       onCloseAutoFocus={event => {
+-        // This controlled dialog has no Radix Trigger. Restore the opening
+-        // control after its focus trap is removed, rather than during cleanup.
+         event.preventDefault();
++        if (!restore.current()) return;
+         const target = getCloseFocusTarget ? getCloseFocusTarget(returnFocusTo) : returnFocusTo;
+-        if (target?.isConnected) target.focus();
++        if (target?.isConnected && !target.closest("[hidden], [inert], [aria-hidden='true']")) target.focus();
+       }}
+       onEscapeKeyDown={event => { if (busy) event.preventDefault(); }}
+       onPointerDownOutside={event => { if (busy) event.preventDefault(); }}>
+diff --git a/desktop/src/components/common/WorkspaceOverlayScope.tsx b/desktop/src/components/common/WorkspaceOverlayScope.tsx
+new file mode 100644
+--- /dev/null
++++ b/desktop/src/components/common/WorkspaceOverlayScope.tsx
+@@ -0,0 +1,11 @@
++import { createContext, useContext } from 'react';
++
++// Only the admitted private workspace supplies this boundary. Account sign-in,
++// invitations and workspace recovery outside it remain usable during denial.
++export interface WorkspaceOverlayAdmission {
++  available: boolean;
++  retry?(): Promise<void>;
++}
++const WorkspaceOverlayContext = createContext<WorkspaceOverlayAdmission>({available: true});
++export const WorkspaceOverlayScope = WorkspaceOverlayContext.Provider;
++export const useWorkspaceOverlayAdmission = () => useContext(WorkspaceOverlayContext);
+diff --git a/desktop/src/components/develop/ReviewedContextInspector.tsx b/desktop/src/components/develop/ReviewedContextInspector.tsx
+--- a/desktop/src/components/develop/ReviewedContextInspector.tsx
++++ b/desktop/src/components/develop/ReviewedContextInspector.tsx
+@@ -65,7 +65,7 @@
+   const context = session.implementationContext!;
+   const label = documents.find(item => item.kind === document)!.label;
+   return <div onPointerDown={event => event.stopPropagation()}>
+-    <WorkflowDialog title="Reviewed context" description="The original inputs captured for this coding session. Later project amendments are separate. This view does not change the project or run any work." onClose={onClose}>
++    <WorkflowDialog readAccess={{...access, canRead}} title="Reviewed context" description="The original inputs captured for this coding session. Later project amendments are separate. This view does not change the project or run any work." onClose={onClose}>
+       <div className="reviewed-context-inspector">
+         {canRead && <section aria-label="Captured session scope">
+           <h3>{session.title}</h3>
+diff --git a/desktop/src/components/journey/BranchManager.tsx b/desktop/src/components/journey/BranchManager.tsx
+--- a/desktop/src/components/journey/BranchManager.tsx
++++ b/desktop/src/components/journey/BranchManager.tsx
+@@ -5,6 +5,7 @@
+ import { ApiError } from "../../api/client";
+ import { useCockpit } from "../../store/store";
+ import type { BranchManagerTarget } from "../../store/slices/uiSlice";
++import { useProjectAccess } from "../../hooks/useProjectAccess";
+ import { WorkflowDialog } from "../common/WorkflowDialog";
+ import { Button } from "../fluid/components/button";
+ 
+@@ -15,6 +16,7 @@
+ 
+ export function ProjectBranchManager({ target }: { target: BranchManagerTarget }) {
+   const { projectId, action } = target;
++  const readAccess = useProjectAccess(projectId);
+   const alive = useRef(true), flight = useRef(false), generation = useRef(0);
+   const intent = useRef<{ id: string; branchId: string; commit: string; name?: string; targetId?: string; targetCommit?: string } | null>(null);
+   const [catalogue, setCatalogue] = useState<BranchCatalogue | null>(null);
+@@ -114,7 +116,7 @@
+     }
+     finally { flight.current = false; if (alive.current) setPending(""); }
+   }
+-  return <WorkflowDialog title={action === "create" ? "Create a branch" : "Switch branch"}
++  return <WorkflowDialog readAccess={readAccess} title={action === "create" ? "Create a branch" : "Switch branch"}
+     description={action === "create" ? "Give this change its own branch. Luci creates it from the current saved commit and opens it in your project." : "Open an existing branch in your project. Its files, definition and design will become the current source."}
+     busy={busy} onClose={close}>
+     {catalogue && <div className="workflow-facts"><span>Current: {catalogue.currentBranch || "No branch"}</span><code>{catalogue.commit?.slice(0, 8) || "No saved commit"}</code></div>}
+diff --git a/desktop/src/components/journey/CheckRecoveryDialog.test.tsx b/desktop/src/components/journey/CheckRecoveryDialog.test.tsx
+--- a/desktop/src/components/journey/CheckRecoveryDialog.test.tsx
++++ b/desktop/src/components/journey/CheckRecoveryDialog.test.tsx
+@@ -8,7 +8,8 @@
+ import {CheckRecoveryDialog} from './CheckRecoveryDialog';
+ 
+ const initial=checkRunFixture();
+-function Harness({canRead=true,canEdit=true}:{canRead?:boolean;canEdit?:boolean}){const[run,setRun]=useState(initial);return <CheckRecoveryDialog run={run} projectName="Alpha" canRead={canRead} canEdit={canEdit} onUpdate={setRun} onClose={vi.fn()} getCloseFocusTarget={()=>null}/>;}
++const currentReadAccess={canRead:true,loading:false,error:''};
++function Harness({canRead=true,canEdit=true}:{canRead?:boolean;canEdit?:boolean}){const[run,setRun]=useState(initial);return <CheckRecoveryDialog readAccess={{...currentReadAccess,canRead}} run={run} projectName="Alpha" canRead={canRead} canEdit={canEdit} onUpdate={setRun} onClose={vi.fn()} getCloseFocusTarget={()=>null}/>;}
+ beforeEach(()=>{vi.restoreAllMocks();vi.spyOn(productApi,'checkRun').mockResolvedValue(initial);vi.spyOn(productApi,'checkRecovery').mockResolvedValue(checkRecoveryFixture());});
+ it('requires exact check consent and makes one recovery request without starting commands',async()=>{
+   const saved=checkRunFixture({revision:5,status:'failed',resourcesHeld:false}),start=vi.spyOn(productApi,'runChecks');
+@@ -36,8 +37,8 @@
+ });
+ it('invalidates consent when the parent records a newer check revision',async()=>{
+   const props={projectName:'Alpha',canRead:true,canEdit:true,onUpdate:vi.fn(),onClose:vi.fn(),getCloseFocusTarget:()=>null};
+-  const view=render(<CheckRecoveryDialog {...props} run={initial}/>);await userEvent.click(await screen.findByRole('checkbox'));
+-  view.rerender(<CheckRecoveryDialog {...props} run={{...initial,revision:5}}/>);
++  const view=render(<CheckRecoveryDialog readAccess={currentReadAccess} {...props} run={initial}/>);await userEvent.click(await screen.findByRole('checkbox'));
++  view.rerender(<CheckRecoveryDialog readAccess={currentReadAccess} {...props} run={{...initial,revision:5}}/>);
+   expect(screen.getByText(/recorded check changed/)).toBeTruthy();expect(screen.getByRole('checkbox')).toHaveProperty('checked',false);expect(screen.getByRole('button',{name:'Recover this exact check'})).toHaveProperty('disabled',true);
+ });
+ it('discards a late recovery read after reading access is revoked',async()=>{
+@@ -53,7 +54,7 @@
+   let finish!:(run:CheckRun)=>void;
+   vi.mocked(productApi.checkRun).mockReturnValue(new Promise(resolve=>{finish=resolve;}));
+   const recover=vi.spyOn(productApi,'recoverCheck');
+-  function ClosingView(){const[open,setOpen]=useState(true);return open?<CheckRecoveryDialog run={initial} projectName="Alpha" canRead canEdit onUpdate={vi.fn()} onClose={()=>setOpen(false)} getCloseFocusTarget={()=>null}/>:<p>Check history</p>;}
++  function ClosingView(){const[open,setOpen]=useState(true);return open?<CheckRecoveryDialog readAccess={currentReadAccess} run={initial} projectName="Alpha" canRead canEdit onUpdate={vi.fn()} onClose={()=>setOpen(false)} getCloseFocusTarget={()=>null}/>:<p>Check history</p>;}
+   render(<ClosingView/>);
+   await waitFor(()=>expect(productApi.checkRun).toHaveBeenCalledOnce());
+   const signal=vi.mocked(productApi.checkRun).mock.calls[0][2];
+@@ -65,7 +66,7 @@
+ 
+ it('does not interpret an Edit-only POST refusal as loss of reading access',async()=>{
+   const denied=vi.fn();vi.spyOn(productApi,'recoverCheck').mockRejectedValue(new ApiError('permission_denied' as ProblemCode,'Editing access changed.',403));
+-  render(<CheckRecoveryDialog run={initial} projectName="Alpha" canRead canEdit onUpdate={vi.fn()} onReadDenied={denied} onClose={vi.fn()} getCloseFocusTarget={()=>null}/>);
++  render(<CheckRecoveryDialog readAccess={currentReadAccess} run={initial} projectName="Alpha" canRead canEdit onUpdate={vi.fn()} onReadDenied={denied} onClose={vi.fn()} getCloseFocusTarget={()=>null}/>);
+   await userEvent.click(await screen.findByRole('checkbox'));await userEvent.click(screen.getByRole('button',{name:'Recover this exact check'}));
+   await screen.findByText('Editing access changed.');expect(denied).not.toHaveBeenCalled();
+   expect(productApi.checkRun).toHaveBeenCalledOnce();expect(productApi.checkRecovery).toHaveBeenCalledOnce();expect(productApi.recoverCheck).toHaveBeenCalledOnce();
+@@ -75,7 +76,7 @@
+   let finish!:(run:CheckRun)=>void;
+   const recover=vi.spyOn(productApi,'recoverCheck').mockReturnValue(new Promise(resolve=>{finish=resolve;}));
+   const close=vi.fn();
+-  render(<CheckRecoveryDialog run={initial} projectName="Alpha" canRead canEdit onUpdate={vi.fn()} onClose={close} getCloseFocusTarget={()=>null}/>);
++  render(<CheckRecoveryDialog readAccess={currentReadAccess} run={initial} projectName="Alpha" canRead canEdit onUpdate={vi.fn()} onClose={close} getCloseFocusTarget={()=>null}/>);
+   await userEvent.click(await screen.findByRole('checkbox'));
+   await userEvent.click(screen.getByRole('button',{name:'Recover this exact check'}));
+   const details=await screen.findByRole('region',{name:'Check recovery details'});
+diff --git a/desktop/src/components/journey/CheckRecoveryDialog.tsx b/desktop/src/components/journey/CheckRecoveryDialog.tsx
+--- a/desktop/src/components/journey/CheckRecoveryDialog.tsx
++++ b/desktop/src/components/journey/CheckRecoveryDialog.tsx
+@@ -3,12 +3,12 @@
+ import {productApi, errorText, type CheckRun} from '../../api/product';
+ import {checkCanRecover, type CheckRecoveryReview} from '../../api/projectCheckContracts';
+ import {Button} from '../fluid/components/button';
+-import {WorkflowDialog} from '../common/WorkflowDialog';
++import {WorkflowDialog, type WorkflowDialogReadAccess} from '../common/WorkflowDialog';
+ import './check-recovery.css';
+ 
+ interface Review {run: CheckRun; recovery: CheckRecoveryReview; owner: number}
+-export function CheckRecoveryDialog({run, projectName, canRead, canEdit, onUpdate, onClose, onReadDenied, getCloseFocusTarget}: {
+-  run: CheckRun; projectName: string; canRead: boolean; canEdit: boolean;
++export function CheckRecoveryDialog({run, projectName, readAccess, canRead, canEdit, onUpdate, onClose, onReadDenied, getCloseFocusTarget}: {
++  readAccess: WorkflowDialogReadAccess; run: CheckRun; projectName: string; canRead: boolean; canEdit: boolean;
+   onUpdate(value: CheckRun): void; onClose(): void; onReadDenied?(): void;
+   getCloseFocusTarget(openingControl: HTMLElement | null): HTMLElement | null;
+ }) {
+@@ -75,7 +75,7 @@
+   }
+   const continuing = value?.recovery.state === 'pending';
+   const mutating = pending === 'Recovering this check';
+-  return <WorkflowDialog title="Review check recovery" busy={mutating} onClose={onClose} getCloseFocusTarget={getCloseFocusTarget}
++  return <WorkflowDialog readAccess={readAccess} title="Review check recovery" busy={mutating} onClose={onClose} getCloseFocusTarget={getCloseFocusTarget}
+     description="Inspect this exact check allocation. Recovery may stop its original command and retains recorded output. It never reruns a command or starts a replacement.">
+     <div className="check-recovery" role={mutating ? 'region' : undefined} aria-label={mutating ? 'Check recovery details' : undefined} tabIndex={mutating ? 0 : undefined}>
+     {!canRead ? <p role="status">Reading access is unavailable. Close this view and refresh project access.</p> : <>
+diff --git a/desktop/src/components/journey/ContextStorage.tsx b/desktop/src/components/journey/ContextStorage.tsx
+--- a/desktop/src/components/journey/ContextStorage.tsx
++++ b/desktop/src/components/journey/ContextStorage.tsx
+@@ -153,7 +153,7 @@
+       </details>}
+       <ContextHistory projectId={projectId} />
+     </>}
+-    {repairOpen && context && grantedEdit && <WorkflowDialog title="Repair shared context files?" busy={!!busy} description="Regenerate these files from the saved project context. Edits made directly to these generated files will be replaced. This keeps current revisions and approvals unchanged." onClose={() => { if (!busy) setRepairOpen(false); }}>
++    {repairOpen && context && grantedEdit && <WorkflowDialog readAccess={access} title="Repair shared context files?" busy={!!busy} description="Regenerate these files from the saved project context. Edits made directly to these generated files will be replaced. This keeps current revisions and approvals unchanged." onClose={() => { if (!busy) setRepairOpen(false); }}>
+       <ul>{changed.map(item => <li key={item.path}><code>{item.path}</code> · {exportStatus[item.status]}</li>)}</ul>
+       <div className="journey-actions"><Button type="button" variant="secondary" disabled={!!busy} onClick={() => setRepairOpen(false)}>Keep existing files</Button><Button type="button" disabled={!canEdit || !!busy} onClick={() => void run("Repairing shared context files…", "edit", async current => {
+         if (!canEdit) return;
+diff --git a/desktop/src/components/journey/ProjectChecks.tsx b/desktop/src/components/journey/ProjectChecks.tsx
+--- a/desktop/src/components/journey/ProjectChecks.tsx
++++ b/desktop/src/components/journey/ProjectChecks.tsx
+@@ -574,7 +574,7 @@
+           </li>
+         ))}
+       </ul>
+-      {recoveryId && runs.find(run => run.id === recoveryId) && <CheckRecoveryDialog
++      {recoveryId && runs.find(run => run.id === recoveryId) && <CheckRecoveryDialog readAccess={{...access, canRead: canRead && !readDenied}}
+         key={recoveryId} run={runs.find(run => run.id === recoveryId)!} projectName={useCockpit.getState().projects.find(project => project.id === projectId)?.name || projectId}
+         canRead={canRead} canEdit={canEdit} onUpdate={updateRun} onClose={() => setRecoveryId(null)} onReadDenied={() => invalidateRead(generation.current)}
+         getCloseFocusTarget={openingControl => {
+diff --git a/desktop/src/components/journey/ProjectRuns.tsx b/desktop/src/components/journey/ProjectRuns.tsx
+--- a/desktop/src/components/journey/ProjectRuns.tsx
++++ b/desktop/src/components/journey/ProjectRuns.tsx
+@@ -430,7 +430,7 @@
+     <SessionPicker open={!!draft && canEdit} worktreeId={draft?.worktreeId ?? null} implementationContext={draft?.implementationContext} onClose={onDraftClose} onSubmit={create} onCreated={onDraftClose} submitLabel="Create project run">
+       <p className="pick-note">Save the reviewed inputs and model route. Coding and deployment start only through their separate controls.</p><label className="pick-field">Intended outcome<select value={outcome} onChange={event => setOutcome(event.target.value as typeof outcome)}><option value="preview">Workspace preview</option><option value="publish">Public deployment</option></select></label>
+     </SessionPicker>
+-    {dialog && run && canEdit && <WorkflowDialog title={actionLabel[dialog]} busy={!!busy} onClose={() => setDialog(null)} description={dialog === 'cancel' ? 'Cancel future dispatch for this run. This does not stop an existing coding session, check or application; use its separate stop control.' : dialog === 'accept' ? 'Review the selected behavior yourself. Acceptance records that review only after the server revalidates matching technical evidence.' : 'Choose an existing result. The server validates its project, current reviews, requirements and exact source before joining it. This does not execute commands or deploy anything.'}>
++    {dialog && run && canEdit && <WorkflowDialog readAccess={access} title={actionLabel[dialog]} busy={!!busy} onClose={() => setDialog(null)} description={dialog === 'cancel' ? 'Cancel future dispatch for this run. This does not stop an existing coding session, check or application; use its separate stop control.' : dialog === 'accept' ? 'Review the selected behavior yourself. Acceptance records that review only after the server revalidates matching technical evidence.' : 'Choose an existing result. The server validates its project, current reviews, requirements and exact source before joining it. This does not execute commands or deploy anything.'}>
+       {error && <p role="alert" className="journey-error">{error}</p>}
+       {evidenceNotice && <p role="status" className="journey-muted">{evidenceNotice}</p>}
+       {dialog === 'accept' ? <label className="setup-check"><input type="checkbox" checked={accepted} onChange={event => setAccepted(event.target.checked)} />I reviewed the selected {run.input.outcome === 'preview' ? 'workspace preview' : 'public deployment'} and accept this run’s outcome.</label> : dialog === 'join-check' || dialog === 'join-release' ? <label className="luci-field">{dialog === 'join-check' ? 'Check result' : 'Release result'}<select value={choice} onChange={event => setChoice(event.target.value)}><option value="">Choose recorded evidence</option>{(dialog === 'join-check' ? checks : releases).map(item => <option key={'target' in item ? releaseKey(item) : item.id} value={'target' in item ? releaseKey(item) : item.id}>{item.id} · {item.status} · {'target' in item ? `${item.target} · ` : ''}{item.commit ? item.commit.slice(0, 12) : 'No commit'}</option>)}</select>{!(dialog === 'join-check' ? checks : releases).length && <small>No results recorded yet. Run checks or prepare a release through its existing controls first.</small>}</label> : null}
+diff --git a/desktop/src/components/journey/ProjectSwarm.tsx b/desktop/src/components/journey/ProjectSwarm.tsx
+--- a/desktop/src/components/journey/ProjectSwarm.tsx
++++ b/desktop/src/components/journey/ProjectSwarm.tsx
+@@ -466,7 +466,7 @@
+         </li>;
+       })}</ol>
+       <div ref={queueRegion} tabIndex={-1} role="region" aria-label="Background queue review" className="project-swarm-queue-region">
+-      <SwarmRunQueue key={`${run.projectId}:${run.id}`} run={run} canEdit={canEdit} canExecute={canExecute} busy={busy} onBusy={onBusy} onQueueChange={queueChanged}
++      <SwarmRunQueue readAccess={projectAccess} key={`${run.projectId}:${run.id}`} run={run} canEdit={canEdit} canExecute={canExecute} busy={busy} onBusy={onBusy} onQueueChange={queueChanged}
+         reviewButtonRef={queueReviewButton}
+         onConsentChange={open => setQueueConsent(previous => open ? queueScope : previous === queueScope ? null : previous)} />
+       </div>
+@@ -475,7 +475,7 @@
+       {tasks.length > 0 && tasks.every(integrated) && <p role="status">All task changes are integrated. Verify this build against its reviewed requirements before accepting the result.</p>}
+     </>}
+     <details className="project-swarm-guidance"><summary>Agent task permissions</summary><p>Keep Ask or Plan in an interactive agent if you want approvals during execution.</p><p>Autonomous tasks run commands without interactive approvals inside isolated Docker workspaces, then exit after their response. Outputs still need review, integration and verification; Luci does not accept them automatically.</p>{capability.notice && <p>{capability.notice}</p>}<p>Status is recorded, not a live process guarantee. Check team status after an interruption. Pausing future starts leaves existing agents running.</p></details>
+-    {dialog === 'prepare' && <WorkflowDialog title="Prepare agent team" onClose={() => setDialog(null)} busy={busy} description="Use this build’s saved tasks and model connection. Preparation records the team; it does not start agents.">
++    {dialog === 'prepare' && <WorkflowDialog readAccess={projectAccess} title="Prepare agent team" onClose={() => setDialog(null)} busy={busy} description="Use this build’s saved tasks and model connection. Preparation records the team; it does not start agents.">
+       <p>Saved permission: {capability.mode}. Task commands run without interactive approvals inside isolated Docker workspaces. Each task exits after its response; review and integration remain your choice.</p>
+       {capability.notice && <p>{capability.notice}</p>}
+       <label className="luci-field">Maximum parallel agents<select value={selectedLimit} disabled={busy || subscription} onChange={event => setLimit(Number(event.target.value))}>{(subscription ? [1] : [1, 2, 3, 4]).map(value => <option key={value} value={value}>{value}</option>)}</select></label>
+@@ -485,11 +485,11 @@
+       {error && <p role="alert">{error}</p>}
+       <div className="workflow-actions"><Button variant="secondary" disabled={busy} onClick={() => setDialog(null)}>Keep reviewing</Button><Button disabled={busy || !canEdit || !canExecute || blocked || !capability.allowed} onClick={() => void operate('Preparing agent team', async epoch => { if (!current.current.taskAllowed) return; const value = await projectSwarmApi.prepare(run.projectId, run.id, run.revision, selectedLimit); if (remember(value, epoch)) { setDialog(null); setNotice('Agent team prepared. Review the task scopes, then start the ready tasks.'); } })}>Prepare team</Button></div>
+     </WorkflowDialog>}
+-    {dialog === 'cancel' && <WorkflowDialog title="Cancel remaining tasks" onClose={() => setDialog(null)} busy={busy} description="Prevent further task starts for this team. Existing agents keep running until you stop them in their sessions. Saved changes and integration history remain available.">
++    {dialog === 'cancel' && <WorkflowDialog readAccess={projectAccess} title="Cancel remaining tasks" onClose={() => setDialog(null)} busy={busy} description="Prevent further task starts for this team. Existing agents keep running until you stop them in their sessions. Saved changes and integration history remain available.">
+       {error && <p role="alert">{error}</p>}
+       <div className="workflow-actions"><Button variant="secondary" disabled={busy} onClick={() => setDialog(null)}>Keep team</Button><Button disabled={busy || !canEdit} onClick={() => void operate('Cancelling new starts', epoch => control('cancel', epoch), 'edit')}>Cancel future starts</Button></div>
+     </WorkflowDialog>}
+-    {review && <WorkflowDialog title="Review task changes" getCloseFocusTarget={() => reviewCloseTarget(review)} onClose={() => setReview(null)} busy={busy} description="Review the exact committed task changes before integrating them into the main project. The server checks the task and target again before changing files.">
++    {review && <WorkflowDialog readAccess={projectAccess} title="Review task changes" getCloseFocusTarget={() => reviewCloseTarget(review)} onClose={() => setReview(null)} busy={busy} description="Review the exact committed task changes before integrating them into the main project. The server checks the task and target again before changing files.">
+       <p>{tasks.find(task => task.id === review.taskId)?.title}</p>
+       <p className="project-swarm-commits">Task commit <code>{review.sourceCommit || 'unavailable'}</code><br />Target commit <code>{review.targetCommit || 'unavailable'}</code></p>
+       <p className={review.canIntegrate ? 'journey-muted' : 'journey-warning'}>{review.reason}</p>
+@@ -499,16 +499,16 @@
+       {error && <p role="alert">{error}</p>}
+       <div className="workflow-actions"><Button variant="secondary" disabled={busy} onClick={() => setReview(null)}>Keep reviewing</Button><Button disabled={busy || !canEdit || !canExecute || blocked || !review.canIntegrate || !approved} onClick={() => void operate('Integrating reviewed changes', async epoch => { const selected = review; setReview(null); const value = await projectSwarmApi.integrate(run.projectId, run.id, selected.taskId, run.revision, selected.reviewDigest); if (remember(value, epoch)) setNotice(value.swarm?.tasks.find(task => task.id === selected.taskId)?.integration?.state === 'integrated' ? 'Reviewed changes integrated. Dependent tasks can now start; the combined build still needs verification.' : 'Integration did not complete. The task changes are retained; inspect the recorded outcome before retrying. Dependent tasks still wait for reviewed integration.'); })}>Integrate reviewed changes</Button></div>
+     </WorkflowDialog>}
+-    {retire && <WorkflowDialog title={finishingRecovery ? 'Finish recovery' : 'Retain changes and retry'} onClose={() => setRetire(null)} busy={busy} description="Keep this attempt’s workspace and output. Luci will allow retirement only when it can prove the child is stopped or was never allocated. A running process, an in-flight allocation, or an uncertain observation prevents recovery. This does not undo integrated changes or start another agent; a fresh attempt requires execution permission and a separate start.">
++    {retire && <WorkflowDialog readAccess={projectAccess} title={finishingRecovery ? 'Finish recovery' : 'Retain changes and retry'} onClose={() => setRetire(null)} busy={busy} description="Keep this attempt’s workspace and output. Luci will allow retirement only when it can prove the child is stopped or was never allocated. A running process, an in-flight allocation, or an uncertain observation prevents recovery. This does not undo integrated changes or start another agent; a fresh attempt requires execution permission and a separate start.">
+       <p>{tasks.find(task => task.id === retire)?.title}</p>
+       {error && <p role="alert">{error}</p>}
+       <div className="workflow-actions"><Button variant="secondary" disabled={busy} onClick={() => setRetire(null)}>Keep inspecting</Button><Button disabled={busy || !canEdit} onClick={() => void operate('Verifying and retiring attempt', epoch => retireAttempt(retire, epoch), 'edit')}>{finishingRecovery ? 'Finish recovery' : 'Retain output and allow retry'}</Button></div>
+     </WorkflowDialog>}
+-    {recoveryTask && recoveryOperation && recoveryOperation.childId === launchRecovery?.childId && <SwarmLaunchRecoveryDialog
++    {recoveryTask && recoveryOperation && recoveryOperation.childId === launchRecovery?.childId && <SwarmLaunchRecoveryDialog readAccess={projectAccess}
+       key={`${run.projectId}:${run.id}:${run.revision}:${recoveryOperation.id}:${launchRecovery?.epoch}`}
+       run={run} operation={recoveryOperation} taskTitle={recoveryTask.title} projectName={projectName} canEdit={canEdit} busy={busy} error={error}
+       onClose={() => setLaunchRecovery(null)} onConfirm={availability => void operate('Stopping the exact uncertain launch', epoch => retireAttempt(recoveryTask.id, epoch, availability), 'edit')} />}
+-    {checkpointTask && checkpointOperation && checkpointOperation.childId === checkpoint?.childId && <SwarmCheckpointDialog
++    {checkpointTask && checkpointOperation && checkpointOperation.childId === checkpoint?.childId && <SwarmCheckpointDialog readAccess={projectAccess}
+       key={`${run.projectId}:${run.id}:${run.revision}:${checkpointOperation.id}:${checkpoint?.epoch}`}
+       run={run} operation={checkpointOperation} taskTitle={checkpointTask.title} projectName={projectName}
+       canContinue={canEdit && canExecute && !blocked && capability.allowed} busy={busy} error={error}
+diff --git a/desktop/src/components/journey/SwarmCheckpointDialog.tsx b/desktop/src/components/journey/SwarmCheckpointDialog.tsx
+--- a/desktop/src/components/journey/SwarmCheckpointDialog.tsx
++++ b/desktop/src/components/journey/SwarmCheckpointDialog.tsx
+@@ -3,12 +3,12 @@
+ import type { ProjectRun, RunOperation } from '../../api/projectRuns';
+ import { swarmCheckpointApi, type SwarmCheckpointReview } from '../../api/swarmCheckpoint';
+ import { Button } from '../fluid/components/button';
+-import { WorkflowDialog } from '../common/WorkflowDialog';
++import { WorkflowDialog, type WorkflowDialogReadAccess } from '../common/WorkflowDialog';
+ 
+ /** The parent binds this view to one authority epoch and exact run revision. */
+-export function SwarmCheckpointDialog({run, operation, taskTitle, projectName, canContinue, busy, error, onClose, onConfirm, getCloseFocusTarget}: {
++export function SwarmCheckpointDialog({run, operation, taskTitle, projectName, readAccess, canContinue, busy, error, onClose, onConfirm, getCloseFocusTarget}: {
+   run: ProjectRun; operation: RunOperation; taskTitle: string; projectName: string;
+-  canContinue: boolean; busy: boolean; error: string; onClose(): void;
++  readAccess: WorkflowDialogReadAccess; canContinue: boolean; busy: boolean; error: string; onClose(): void;
+   onConfirm(review: SwarmCheckpointReview, idempotencyKey: string): void;
+   getCloseFocusTarget?(openingControl: HTMLElement | null): HTMLElement | null;
+ }) {
+@@ -23,7 +23,7 @@
+       .catch(cause => { if (live) setReadError(errorText(cause)); }).finally(() => { if (live) setLoading(false); });
+     return () => { live = false; controller.abort(); };
+   }, [run.projectId, run.id, run.revision, operation.id, operation.childId, refresh]);
+-  return <WorkflowDialog title="Continue from retained changes" onClose={onClose} busy={busy} getCloseFocusTarget={getCloseFocusTarget}
++  return <WorkflowDialog readAccess={readAccess} title="Continue from retained changes" onClose={onClose} busy={busy} getCloseFocusTarget={getCloseFocusTarget}
+     description="Review the retained changes to copy into a new isolated attempt. The previous attempt stays intact. This prepares a workspace; starting its agent remains a separate action.">
+     <dl className="swarm-recovery-scope">
+       <div><dt>Project</dt><dd>{projectName}</dd></div>
+diff --git a/desktop/src/components/journey/SwarmLaunchRecoveryDialog.tsx b/desktop/src/components/journey/SwarmLaunchRecoveryDialog.tsx
+--- a/desktop/src/components/journey/SwarmLaunchRecoveryDialog.tsx
++++ b/desktop/src/components/journey/SwarmLaunchRecoveryDialog.tsx
+@@ -3,7 +3,7 @@
+ import type { ProjectRun, RunOperation } from '../../api/projectRuns';
+ import { projectSwarmApi, type SwarmRecoveryAvailability } from '../../api/projectSwarm';
+ import { Button } from '../fluid/components/button';
+-import { WorkflowDialog } from '../common/WorkflowDialog';
++import { WorkflowDialog, type WorkflowDialogReadAccess } from '../common/WorkflowDialog';
+ 
+ export function launchRecoveryStatus(operation: RunOperation) {
+   switch (operation.recovery?.state) {
+@@ -15,9 +15,9 @@
+ }
+ 
+ /** Mounted for one exact run revision/attempt and authority epoch by ProjectSwarm. */
+-export function SwarmLaunchRecoveryDialog({run, operation, taskTitle, projectName, canEdit, busy, error, onClose, onConfirm}: {
++export function SwarmLaunchRecoveryDialog({run, operation, taskTitle, projectName, readAccess, canEdit, busy, error, onClose, onConfirm}: {
+   run: ProjectRun; operation: RunOperation; taskTitle: string; projectName: string;
+-  canEdit: boolean; busy: boolean; error: string; onClose(): void;
++  readAccess: WorkflowDialogReadAccess; canEdit: boolean; busy: boolean; error: string; onClose(): void;
+   onConfirm(availability: SwarmRecoveryAvailability): void;
+ }) {
+   const [availability, setAvailability] = useState<SwarmRecoveryAvailability | null>(null);
+@@ -34,7 +34,7 @@
+   }, [run.projectId, run.id, run.revision, operation.id, operation.childId, refresh]);
+   const continuing = !!operation.recovery;
+   const supported = availability?.availability.supported === true;
+-  return <WorkflowDialog title={continuing ? 'Continue launch recovery' : 'Stop uncertain launch and retain output'} onClose={onClose} busy={busy}
++  return <WorkflowDialog readAccess={readAccess} title={continuing ? 'Continue launch recovery' : 'Stop uncertain launch and retain output'} onClose={onClose} busy={busy}
+     description="Recover this exact uncertain task launch. Luci may stop its original worker and will keep the workspace, context and output. This action never starts a replacement agent.">
+     <dl className="swarm-recovery-scope">
+       <div><dt>Project</dt><dd>{projectName}</dd></div>
+diff --git a/desktop/src/components/journey/SwarmRunQueue.test.tsx b/desktop/src/components/journey/SwarmRunQueue.test.tsx
+--- a/desktop/src/components/journey/SwarmRunQueue.test.tsx
++++ b/desktop/src/components/journey/SwarmRunQueue.test.tsx
+@@ -10,7 +10,7 @@
+ async function openQueueControls() { await userEvent.click(screen.getByText(/^Queue status and controls/)); }
+ function Harness({run = initial, edit = true, execute = true, changed = vi.fn()} = {}) {
+   const [busy, setBusy] = useState('');
+-  return <SwarmRunQueue run={run} canEdit={edit} canExecute={execute} busy={!!busy} onBusy={setBusy} onQueueChange={changed} />;
++  return <SwarmRunQueue readAccess={{canRead:true,loading:false,error:''}} run={run} canEdit={edit} canExecute={execute} busy={!!busy} onBusy={setBusy} onQueueChange={changed} />;
+ }
+ beforeEach(() => { resetCockpit(); useCockpit.getState().setHarnesses([swarmHarnessFixture()]); vi.spyOn(swarmQueueApi, 'get').mockResolvedValue(swarmQueueFixture()); });
+ afterEach(() => { vi.restoreAllMocks(); });
+diff --git a/desktop/src/components/journey/SwarmRunQueue.tsx b/desktop/src/components/journey/SwarmRunQueue.tsx
+--- a/desktop/src/components/journey/SwarmRunQueue.tsx
++++ b/desktop/src/components/journey/SwarmRunQueue.tsx
+@@ -5,11 +5,11 @@
+ import { swarmTaskCapability } from '../../api/swarmTaskCapability';
+ import { useCockpit } from '../../store/store';
+ import { Button } from '../fluid/components/button';
+-import { WorkflowDialog } from '../common/WorkflowDialog';
++import { WorkflowDialog, type WorkflowDialogReadAccess } from '../common/WorkflowDialog';
+ 
+ const unfinished = (item: SwarmQueueItem) => !['cancelled', 'completed', 'failed'].includes(item.state);
+ interface Props {
+-  run: ProjectRun; canEdit: boolean; canExecute: boolean; busy: boolean;
++  readAccess: WorkflowDialogReadAccess; run: ProjectRun; canEdit: boolean; canExecute: boolean; busy: boolean;
+   onBusy(label: string): void;
+   onQueueChange(queue: ProjectSwarmQueue): void;
+   onConsentChange?(open: boolean): void;
+@@ -17,7 +17,7 @@
+ }
+ /** Queue consent names saved task inputs. A read, tab switch or retrying a read never enqueues work. */
+ export function SwarmRunQueue(props: Props) {
+-  const { run, canEdit, canExecute, busy } = props;
++  const { run, readAccess, canEdit, canExecute, busy } = props;
+   const harnesses = useCockpit(state => state.harnesses);
+   const capability = swarmTaskCapability(run, harnesses);
+   const [queue, setQueue] = useState<ProjectSwarmQueue | null>(null), [error, setError] = useState('');
+@@ -125,7 +125,7 @@
+     </li>)}</ul>}
+     {queue?.hasMore && <p>Only part of the project queue is shown. Refresh as earlier entries complete to inspect remaining work.</p>}
+     </details>
+-    {confirm && <WorkflowDialog title="Queue reviewed work" description="Authorize these exact saved tasks to start automatically as capacity becomes available. Dependent tasks wait for reviewed integration. Your configured model connection may incur usage charges." busy={busy} onClose={() => setConfirm(false)}>
++    {confirm && <WorkflowDialog readAccess={readAccess} title="Queue reviewed work" description="Authorize these exact saved tasks to start automatically as capacity becomes available. Dependent tasks wait for reviewed integration. Your configured model connection may incur usage charges." busy={busy} onClose={() => setConfirm(false)}>
+       <p>{run.input.route.harness} · {run.input.route.model || 'Configured model'} · up to {run.swarm?.maxParallel} agents in this build, within workspace and provider limits.</p>
+       <p>Saved permission: {capability.mode}. Tasks run commands without interactive approvals inside isolated Docker workspaces and exit after their response. Their output still needs review; queue completion does not accept or integrate changes.</p>
+       {capability.notice && <p>{capability.notice}</p>}
+diff --git a/desktop/src/components/journey/SwarmTaskHandoff.tsx b/desktop/src/components/journey/SwarmTaskHandoff.tsx
+--- a/desktop/src/components/journey/SwarmTaskHandoff.tsx
++++ b/desktop/src/components/journey/SwarmTaskHandoff.tsx
+@@ -124,7 +124,9 @@
+     }
+   }
+ 
+-  return <WorkflowDialog title="Task result and questions" description="Review what this agent reported, the evidence Luci actually recorded, and decisions needed by later tasks. This view never starts an agent or accepts its work." busy={busy} onClose={close}>
++  const closePrompt = closeReview && <section className="handoff-draft" role="alert"><h3>Discard this unsaved answer?</h3><p>The recorded report and previous answers will remain unchanged.</p><div className="workflow-actions"><Button variant="secondary" onClick={() => setCloseReview(false)}>Keep editing</Button><Button variant="tertiary" onClick={() => { setDraft(null); onClose(); }}>Discard draft and close</Button></div></section>;
++
++  return <WorkflowDialog readAccess={{...access, canRead}} unavailableContent={closePrompt} title="Task result and questions" description="Review what this agent reported, the evidence Luci actually recorded, and decisions needed by later tasks. This view never starts an agent or accepts its work." busy={busy} onClose={close}>
+     <div className="swarm-task-handoff">
+       {!canRead ? <p role="status">Reading access is unavailable for this task attempt. Close this view and reopen it after access is restored.</p> : <>
+         <p><strong>{projectName} · {taskTitle}</strong></p>
+@@ -161,7 +163,7 @@
+         {visibleDraft && <section className="handoff-draft" aria-label="Task answer draft"><h3>Answer this recorded question</h3><p>{visibleDraft.question}</p><label className="luci-field"><span>Your answer</span><textarea autoFocus rows={4} maxLength={4000} value={visibleDraft.answer} disabled={!canEdit || !!pending} onChange={event => setDraft({...visibleDraft, answer: event.target.value})} /></label><p className={answerBytes > 4000 ? 'handoff-warning' : 'handoff-muted'}>{answerBytes.toLocaleString()} / 4,000 UTF-8 bytes. Changes are not saved until you choose Save answer.</p>{!draftQuestionMatches && <p className="handoff-warning">The report changed or is being refreshed. Your draft is kept. Review the current question before saving; copy your text before discarding an outdated draft.</p>}
+           {answerBaseChanged && <div role="alert"><p>{recordedAnswer === visibleDraft.answer ? 'Your draft matches the answer now recorded. No further save is needed.' : 'The recorded answer changed while you were editing. Your draft is kept; review the new answer above before choosing to amend it.'}</p><Button variant="secondary" disabled={!!pending || (recordedAnswer !== visibleDraft.answer && !canEdit)} onClick={() => recordedAnswer === visibleDraft.answer ? setDraft(null) : setDraft({...visibleDraft, original: recordedAnswer})}>{recordedAnswer === visibleDraft.answer ? 'Dismiss already recorded draft' : 'Use draft to amend current answer'}</Button></div>}
+           <div className="workflow-actions"><Button disabled={!canEdit || !!pending || needsRefresh || !draftMatches || !dirty || !visibleDraft.answer.trim() || answerBytes > 4000} onClick={() => void change('answer')}>{pending === 'answer' ? 'Saving answer…' : 'Save answer'}</Button><Button variant="ghost" disabled={!!pending} onClick={() => setDraft(null)}>Discard answer draft</Button></div></section>}
+-        {closeReview && <section className="handoff-draft" role="alert"><h3>Discard this unsaved answer?</h3><p>The recorded report and previous answers will remain unchanged.</p><div className="workflow-actions"><Button variant="secondary" onClick={() => setCloseReview(false)}>Keep editing</Button><Button variant="tertiary" onClick={() => { setDraft(null); onClose(); }}>Discard draft and close</Button></div></section>}
++        {closePrompt}
+       </>}
+       <div className="workflow-actions"><Button variant="secondary" disabled={busy} onClick={close}>Close task result</Button></div>
+     </div>
+diff --git a/desktop/src/components/journey/SwarmWorkspaceReview.tsx b/desktop/src/components/journey/SwarmWorkspaceReview.tsx
+--- a/desktop/src/components/journey/SwarmWorkspaceReview.tsx
++++ b/desktop/src/components/journey/SwarmWorkspaceReview.tsx
+@@ -53,7 +53,7 @@
+   const current = canRead && workspace?.key === listKey ? workspace : null;
+   const preview = canRead && file?.key === fileKey ? file : null;
+   const refreshList = () => { if (!canRequest) return; setSelected(''); setFile(null); setRefresh(value => value + 1); };
+-  return <div onPointerDown={event => event.stopPropagation()}><WorkflowDialog title="Retained task workspace" description="Inspect the files left by this task attempt, including a failed or interrupted start. Reading does not run an agent, change files or integrate its work." onClose={onClose}>
++  return <div onPointerDown={event => event.stopPropagation()}><WorkflowDialog unavailableMessage={!sameScope ? 'The account or workspace changed. Close this view and reopen the task in its workspace.' : 'Reading access is unavailable. Close this view or wait for access to return.'} readAccess={{...access, canRead}} title="Retained task workspace" description="Inspect the files left by this task attempt, including a failed or interrupted start. Reading does not run an agent, change files or integrate its work." onClose={onClose}>
+     <div className="swarm-workspace-review">
+       {!canRead ? <p role="status">{!sameScope ? 'The account or workspace changed. Close this view and reopen the task in its workspace.' : 'Reading access is unavailable. Close this view or wait for access to return.'}</p> : <>
+         <p className="journey-muted">Attempt {operation.attempt}. This is a current read of its retained files, not an immutable review or proof of completion. Files may change while an agent is active.</p>
+diff --git a/desktop/src/components/lens/DeployLens.tsx b/desktop/src/components/lens/DeployLens.tsx
+--- a/desktop/src/components/lens/DeployLens.tsx
++++ b/desktop/src/components/lens/DeployLens.tsx
+@@ -537,7 +537,7 @@
+           </li>
+         ))}
+       </ul>
+-      {replacement && <WorkflowDialog title="Review replacement preview" description="Create a new preview from the selected current commit. This retains the earlier release record; it does not restart the old container or roll back application data." busy={!!busy} onClose={() => { setReplacement(null); setReplacementAccepted(false); }}>
++      {replacement && <WorkflowDialog readAccess={projectAccess} title="Review replacement preview" description="Create a new preview from the selected current commit. This retains the earlier release record; it does not restart the old container or roll back application data." busy={!!busy} onClose={() => { setReplacement(null); setReplacementAccepted(false); }}>
+         <p>Earlier source: <code>{replacement.previous.commit}</code></p>
+         <p>Replacement source: <code>{replacement.commit}</code></p>
+         {replacement.previous.commit !== replacement.commit && <p className="journey-warning">The project has changed since that release. The replacement must be checked and reviewed again before its behavior is accepted.</p>}
+diff --git a/desktop/src/components/orchestrator/AmendmentReview.tsx b/desktop/src/components/orchestrator/AmendmentReview.tsx
+--- a/desktop/src/components/orchestrator/AmendmentReview.tsx
++++ b/desktop/src/components/orchestrator/AmendmentReview.tsx
+@@ -1,7 +1,7 @@
+ import { useState } from "react";
+ import type { OrchestratorTurn, OrchestratorView } from "../../api/orchestrator";
+ import { Button } from "../fluid/components/button";
+-import { WorkflowDialog } from "../common/WorkflowDialog";
++import { WorkflowDialog, type WorkflowDialogReadAccess } from "../common/WorkflowDialog";
+ 
+ const names = { specification: "definition", "design-plan": "design handoff", plan: "implementation plan" };
+ const metadata = new Set(["projectId", "version", "revision", "briefRevision", "specificationRevision", "specificationDigest", "sketchRevision", "status", "digest", "updatedAt"]);
+@@ -13,8 +13,8 @@
+   return String(value);
+ }
+ 
+-export function AmendmentReview({ turn, view, busy, blocked, error, onClose, onApply }: {
+-  turn: OrchestratorTurn; view: OrchestratorView; busy: boolean; blocked: string; error: string;
++export function AmendmentReview({ turn, view, readAccess, busy, blocked, error, onClose, onApply }: {
++  readAccess: WorkflowDialogReadAccess; turn: OrchestratorTurn; view: OrchestratorView; busy: boolean; blocked: string; error: string;
+   onClose(): void; onApply(): void;
+ }) {
+   const [acknowledged, setAcknowledged] = useState(false);
+@@ -25,7 +25,7 @@
+   const after = proposal[property] as unknown as Record<string, unknown> | null;
+   const changes = after ? Object.keys(after).filter(key => !metadata.has(key) && JSON.stringify(before[key]) !== JSON.stringify(after[key])) : [];
+   const stale = turn.contextDigest !== view.context.digest;
+-  return <WorkflowDialog title={`Review ${names[proposal.target]} amendment`} description="Compare the saved context Luci used with the proposed draft. Applying does not approve the document, start coding or deploy anything." busy={busy} onClose={onClose}>
++  return <WorkflowDialog readAccess={readAccess} title={`Review ${names[proposal.target]} amendment`} description="Compare the saved context Luci used with the proposed draft. Applying does not approve the document, start coding or deploy anything." busy={busy} onClose={onClose}>
+     <p>{proposal.summary}</p>
+     {turn.answer?.rationale && <p><strong>Why this change: </strong>{turn.answer.rationale}</p>}
+     {!!turn.answer?.impact?.length && <div><strong>Affected work</strong><ul>{turn.answer.impact.map((impact, index) => <li key={index}>{impact}</li>)}</ul></div>}
+diff --git a/desktop/src/components/orchestrator/OrchestratorPanel.tsx b/desktop/src/components/orchestrator/OrchestratorPanel.tsx
+--- a/desktop/src/components/orchestrator/OrchestratorPanel.tsx
++++ b/desktop/src/components/orchestrator/OrchestratorPanel.tsx
+@@ -634,7 +634,7 @@
+         </details>
+       </>}
+     </div>
+-    {suggestedReply && canRead && canAssist && <WorkflowDialog title="Replace your unsent message?" description="Using this suggested answer replaces your current message and its saved draft in this browser. Nothing is sent until you choose Send to Luci." onClose={closeSuggestedReply} getCloseFocusTarget={openingControl => suggestedReplyCloseTarget(suggestedReply, openingControl)}>
++    {suggestedReply && canRead && canAssist && <WorkflowDialog readAccess={access} title="Replace your unsent message?" description="Using this suggested answer replaces your current message and its saved draft in this browser. Nothing is sent until you choose Send to Luci." onClose={closeSuggestedReply} getCloseFocusTarget={openingControl => suggestedReplyCloseTarget(suggestedReply, openingControl)}>
+       <details><summary>Current unsent message</summary><p className="orchestrator-message">{suggestedReply.message}</p></details>
+       {suggestedReply.replyTo && suggestedReply.replyTo !== suggestedReply.turnId && <>
+         <p>Replacing this message also switches your reply to the new question.</p>
+@@ -643,6 +643,6 @@
+       <p><strong>{suggestedReply.replyTo && suggestedReply.replyTo !== suggestedReply.turnId ? "New question: " : "Reply will answer: "}</strong>{suggestedReply.question}</p><p className="orchestrator-message">{suggestedReply.answer}</p>
+       <div className="workflow-actions"><Button variant="secondary" onClick={closeSuggestedReply}>Keep current message</Button><Button disabled={!!busy || !!pendingRequest || !!recoveredDraft || storageConflict} onClick={replaceWithSuggestion}>Replace with suggested answer</Button></div>
+     </WorkflowDialog>}
+-    {review && view && <AmendmentReview turn={review.turn} view={view} busy={busy === "apply"} blocked={reviewBlock} error={error} onClose={() => setReview(null)} onApply={() => void apply()} />}
++    {review && view && <AmendmentReview readAccess={access} turn={review.turn} view={view} busy={busy === "apply"} blocked={reviewBlock} error={error} onClose={() => setReview(null)} onApply={() => void apply()} />}
+   </aside>;
+ }
+diff --git a/desktop/src/components/projects/ProjectOverviewBoard.authority.test.tsx b/desktop/src/components/projects/ProjectOverviewBoard.authority.test.tsx
+new file mode 100644
+--- /dev/null
++++ b/desktop/src/components/projects/ProjectOverviewBoard.authority.test.tsx
+@@ -0,0 +1,175 @@
++import {act, cleanup, render, screen, waitFor, within} from '@testing-library/react';
++import userEvent from '@testing-library/user-event';
++import {afterEach, beforeEach, expect, it, vi} from 'vitest';
++import {ProjectOverviewBoard} from './ProjectOverviewBoard';
++import {projectOverviewApi, type ProjectOverview} from '../../api/projectOverview';
++import {swarmQueueApi, type ProjectSwarmQueue, type SwarmQueueItem} from '../../api/swarmQueue';
++import {ApiError, type ProblemCode} from '../../api/client';
++import {personalPermissions, teamsApi, type ProjectAccess} from '../../api/teams';
++import {resetCockpit, useCockpit} from '../../store/store';
++
++// These tests exercise the actual board, bulk owner and Radix WorkflowDialog.
++// Workspace membership and HTTP permission responses are controlled; no real
++// provider, Docker, browser process or queue mutation is executed.
++const environment = vi.hoisted(() => ({scope: 'bulk-account-one', teamId: 'team-one', revision: 0}));
++vi.mock('../../hooks/useProjectDraft', () => ({useProjectDraftScope: (projectId: string) => `${environment.scope}:${projectId}`}));
++vi.mock('../teams/TeamWorkspaceProvider', () => ({
++  useTeamWorkspace: () => ({teamId: environment.teamId, revision: environment.revision, selected: null}),
++  useTeamProjectPermissions: () => ({permissions: {read: true, edit: true, execute: true}, loading: false, error: ''}),
++}));
++vi.mock('../auth/AuthProvider', () => ({useAuth: () => ({profile: {user: {role: 'member'}}})}));
++const projects = Array.from({length: 7}, (_, i) => ({id: `scope-p${i + 1}`, name: `Private project ${i + 1}`, path: `/unused/private-${i + 1}`}));
++function overview(projectId: string): ProjectOverview {
++  return {projectId, observedAt: new Date().toISOString(), status: 'ready', goal: {text: `Outcome ${projectId}`, revision: 1, updatedAt: '', truncated: false}, phase: {id: 'develop', label: 'Develop'}, context: {briefRevision: 1, specificationRevision: 1, definitionStatus: 'approved', designRevision: 1, designStatus: 'approved', planRevision: 1, tasks: {total: 1, recordedDone: 0}}, questions: {status: 'recorded', count: 0, items: [], omitted: 0}, execution: {scope: 'swarm-queue', status: 'recorded', observedAt: '', running: 0, queued: 1, paused: 0, reserved: 0, blocked: 0, unknown: 0, failed: 0, dispatchPaused: false}, nextAction: {id: 'review-plan', label: 'Review the plan', lens: 'develop'}, limitations: []};
++}
++function queue(projectId: string, extra = false): ProjectSwarmQueue {
++  const item: SwarmQueueItem = {id: `q-${projectId}`, revision: 3, projectId, runId: `run-${projectId}`, taskId: `task-${projectId}`, taskTitle: `Private task ${projectId}`, state: 'queued', priority: 'normal', queuedAt: '', updatedAt: ''};
++  return {revision: 2, observedAt: '', dispatchPaused: false, hasMore: false, counts: {queued: extra ? 2 : 1, paused: 0, reserved: 0, running: 0, blocked: 0, unknown: 0, completed: 0, failed: 0, cancelled: 0}, items: extra ? [item, {...item, id: `${item.id}-extra`, taskId: `${item.taskId}-extra`, taskTitle: `${item.taskTitle} extra`}] : [item]};
++}
++function permitted(teamId: string, projectId: string): ProjectAccess {
++  return {team: {id: teamId, name: 'Controlled team', revision: 1, createdAt: '', updatedAt: ''}, projectId, permissions: {...personalPermissions}, grants: []};
++}
++type Held = {teamId: string; projectId: string; signal?: AbortSignal; resolve(value: ProjectAccess): void; reject(cause: Error): void; settled: boolean};
++function holdPermissions() {
++  const requests: Held[] = [];
++  vi.mocked(teamsApi.projectAccess).mockImplementation((teamId, projectId, signal) => new Promise((resolve, reject) => {
++    const held: Held = {teamId, projectId, signal, settled: false, resolve(value) {held.settled = true; resolve(value);}, reject(cause) {held.settled = true; reject(cause);}};
++    requests.push(held);
++  }));
++  return requests;
++}
++function privateListVisible() {
++  return [...document.querySelectorAll<HTMLElement>('.overview-cancel-list')].some(list => {
++    for (let node: HTMLElement | null = list; node; node = node.parentElement) {
++      const style = window.getComputedStyle(node);
++      if (node.hidden || style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') return false;
++    }
++    return true;
++  });
++}
++function expectPrivateReviewHidden() {
++  expect(screen.queryByRole('dialog', {name: 'Cancel selected waiting tasks?'})).toBeNull();
++  expect(privateListVisible()).toBe(false);
++  expect(screen.queryByRole('button', {name: /^Cancel \d+ waiting tasks?$/})).toBeNull();
++  expect(document.body.style.pointerEvents).not.toBe('none');
++}
++function expectNoWrites() {expect(swarmQueueApi.control).not.toHaveBeenCalled(); expect(swarmQueueApi.enqueueMany).not.toHaveBeenCalled();}
++async function choose(selected: typeof projects, shown: typeof projects = selected) {
++  const user = userEvent.setup();
++  const view = render(<ProjectOverviewBoard projects={shown} />);
++  for (const project of selected) {
++    const heading = await screen.findByRole('heading', {name: project.name});
++    const card = heading.closest('li')!;
++    await user.click(within(card).getByRole('button', {name: 'Manage queue'}));
++    await user.click(await screen.findByRole('checkbox', {name: `Select Private task ${project.id} in ${project.name}`}));
++  }
++  return {user, view};
++}
++async function openReview(user: ReturnType<typeof userEvent.setup>) {await user.click(screen.getByRole('button', {name: 'Cancel waiting…'}));}
++beforeEach(() => {
++  vi.restoreAllMocks(); resetCockpit(); useCockpit.getState().setProjects(projects);
++  environment.scope = 'bulk-account-one'; environment.teamId = 'team-one'; environment.revision = 0;
++  vi.spyOn(projectOverviewApi, 'get').mockImplementation(async id => overview(id));
++  vi.spyOn(swarmQueueApi, 'get').mockImplementation(async id => queue(id));
++  vi.spyOn(swarmQueueApi, 'control').mockImplementation(async id => queue(id));
++  vi.spyOn(swarmQueueApi, 'enqueueMany').mockRejectedValue(new Error('No enqueue is authorized by these display tests.'));
++  vi.spyOn(teamsApi, 'projectAccess').mockImplementation(async (teamId, projectId) => permitted(teamId, projectId));
++});
++afterEach(cleanup);
++
++it('CLOUD-060 bulk: one pending exact peer hides every selected private row until both owners are admitted', async () => {
++  const requests = holdPermissions(); const {user} = await choose(projects.slice(0, 2), projects.slice(0, 3));
++  useCockpit.getState().selectProject(projects[2].id); // Not a selected task owner.
++  await openReview(user);
++  expectPrivateReviewHidden();
++  await waitFor(() => expect(requests).toHaveLength(2));
++  expect(requests.map(row => row.projectId).sort()).toEqual(projects.slice(0, 2).map(row => row.id));
++  await act(async () => requests[0].resolve(permitted(requests[0].teamId, requests[0].projectId)));
++  expectPrivateReviewHidden(); expect(screen.getByText('2 waiting tasks selected')).toBeTruthy();
++  await act(async () => requests[1].resolve(permitted(requests[1].teamId, requests[1].projectId)));
++  const dialog = await screen.findByRole('dialog', {name: 'Cancel selected waiting tasks?'});
++  for (const project of projects.slice(0, 2)) expect(within(dialog).getByText(`${project.name} · Private task ${project.id}`)).toBeTruthy();
++  expect(within(dialog).queryByText(projects[2].name)).toBeNull(); expectNoWrites();
++});
++
++it('CLOUD-060 bulk: a selected peer revoked on revision refresh suspends the whole private review without clearing selection', async () => {
++  const {user, view} = await choose(projects.slice(0, 2)); await openReview(user);
++  await screen.findByRole('dialog', {name: 'Cancel selected waiting tasks?'});
++  const requests = holdPermissions(); environment.revision++;
++  view.rerender(<ProjectOverviewBoard projects={projects.slice(0, 2)} />);
++  expectPrivateReviewHidden();
++  await waitFor(() => expect(requests).toHaveLength(2));
++  await act(async () => {
++    requests[0].resolve(permitted(requests[0].teamId, requests[0].projectId));
++    requests[1].reject(new ApiError('permission_denied' as ProblemCode, 'Peer access revoked.', 403));
++  });
++  expectPrivateReviewHidden(); expect(screen.getByText('2 waiting tasks selected')).toBeTruthy();
++  for (const project of projects.slice(0, 2)) expect(screen.getByRole('checkbox', {name: `Select Private task ${project.id} in ${project.name}`})).toHaveProperty('checked', true);
++  expectNoWrites();
++});
++
++it('CLOUD-060 bulk: Close review while a peer read is pending aborts that exact batch, retains selection and never cancels work', async () => {
++  const requests = holdPermissions(); const {user} = await choose(projects.slice(0, 2)); await openReview(user);
++  await waitFor(() => expect(requests).toHaveLength(2));
++  expectPrivateReviewHidden();
++  await user.click(screen.getByRole('button', {name: 'Close review'}));
++  expect(requests.every(row => row.signal?.aborted)).toBe(true);
++  await act(async () => requests.forEach(row => row.resolve(permitted(row.teamId, row.projectId))));
++  expectPrivateReviewHidden(); expect(screen.queryByRole('region', {name: 'Review access'})).toBeNull();
++  expect(screen.getByText('2 waiting tasks selected')).toBeTruthy(); expectNoWrites();
++});
++
++it('CLOUD-060 bulk: an aborted older revision cannot reveal names while the current exact owner remains pending or denied', async () => {
++  const requests = holdPermissions(); const {user, view} = await choose(projects.slice(0, 2)); await openReview(user);
++  await waitFor(() => expect(requests).toHaveLength(2));
++  const older = requests.slice(); environment.revision++;
++  view.rerender(<ProjectOverviewBoard projects={projects.slice(0, 2)} />);
++  await waitFor(() => expect(requests).toHaveLength(4));
++  expect(older.every(row => row.signal?.aborted)).toBe(true);
++  await act(async () => older.forEach(row => row.resolve(permitted(row.teamId, row.projectId))));
++  expectPrivateReviewHidden();
++  await act(async () => {
++    requests[2].resolve(permitted(requests[2].teamId, requests[2].projectId));
++    requests[3].resolve({...permitted(requests[3].teamId, requests[3].projectId), permissions: {...personalPermissions, read: false}});
++  });
++  expectPrivateReviewHidden(); expectNoWrites();
++});
++
++it('CLOUD-060 bulk: changing account ownership unmounts the review and rejects its late positive reads', async () => {
++  const requests = holdPermissions(); const {user, view} = await choose(projects.slice(0, 2)); await openReview(user);
++  await waitFor(() => expect(requests).toHaveLength(2));
++  environment.scope = 'bulk-account-two'; environment.teamId = 'team-two';
++  view.rerender(<ProjectOverviewBoard projects={projects.slice(2, 3)} />);
++  expect(requests.every(row => row.signal?.aborted)).toBe(true);
++  await act(async () => requests.forEach(row => row.resolve(permitted(row.teamId, row.projectId))));
++  expectPrivateReviewHidden(); expect(screen.queryByText('2 waiting tasks selected')).toBeNull();
++  expect(requests).toHaveLength(2); expectNoWrites();
++});
++
++it('CLOUD-060 bulk: deduplicates exact selected owners and bounds permission admission to four concurrent reads', async () => {
++  vi.mocked(swarmQueueApi.get).mockImplementation(async id => queue(id, id === projects[0].id));
++  const requests = holdPermissions(); const {user} = await choose(projects.slice(0, 6), projects);
++  await user.click(screen.getByRole('checkbox', {name: `Select Private task ${projects[0].id} extra in ${projects[0].name}`}));
++  await openReview(user); expectPrivateReviewHidden();
++  await waitFor(() => expect(requests).toHaveLength(4));
++  expect(requests.filter(row => !row.settled && !row.signal?.aborted)).toHaveLength(4);
++  await act(async () => requests[0].resolve(permitted(requests[0].teamId, requests[0].projectId)));
++  await waitFor(() => expect(requests).toHaveLength(5));
++  expect(requests.filter(row => !row.settled && !row.signal?.aborted)).toHaveLength(4);
++  await act(async () => requests[1].resolve(permitted(requests[1].teamId, requests[1].projectId)));
++  await waitFor(() => expect(requests).toHaveLength(6));
++  expect(requests.filter(row => !row.settled && !row.signal?.aborted)).toHaveLength(4);
++  expect(requests.map(row => row.projectId).sort()).toEqual(projects.slice(0, 6).map(row => row.id));
++  expect(new Set(requests.map(row => row.projectId)).size).toBe(6);
++  expect(requests.every(row => row.teamId === 'team-one')).toBe(true);
++  await act(async () => requests.filter(row => !row.settled).forEach(row => row.resolve(permitted(row.teamId, row.projectId))));
++  const dialog = await screen.findByRole('dialog', {name: 'Cancel selected waiting tasks?'});
++  expect(within(dialog).getAllByRole('listitem')).toHaveLength(7); expectNoWrites();
++});
++
++it.each(['project', 'team'] as const)('CLOUD-060 bulk: refuses a positive permission response with the wrong %s binding', async kind => {
++  vi.mocked(teamsApi.projectAccess).mockImplementation(async (teamId, projectId) => permitted(kind === 'team' ? 'foreign-team' : teamId, kind === 'project' ? 'foreign-project' : projectId));
++  const {user} = await choose(projects.slice(0, 1)); await openReview(user);
++  await screen.findByText('This review is unavailable with the current project access. Restore access before continuing.');
++  expectPrivateReviewHidden(); expect(screen.getByText('1 waiting task selected')).toBeTruthy(); expectNoWrites();
++});
+diff --git a/desktop/src/components/projects/ProjectOverviewBoard.test.tsx b/desktop/src/components/projects/ProjectOverviewBoard.test.tsx
+--- a/desktop/src/components/projects/ProjectOverviewBoard.test.tsx
++++ b/desktop/src/components/projects/ProjectOverviewBoard.test.tsx
+@@ -24,7 +24,7 @@
+   environment.scope = 'account-one'; environment.teamId = ''; environment.edit = true; environment.execute = true;
+   environment.revision = 0; environment.teamPermissions = null; vi.mocked(useProjectDraftScope).mockClear();
+   vi.spyOn(projectOverviewApi, 'get').mockImplementation(async id => overview(id)); vi.spyOn(swarmQueueApi, 'get').mockImplementation(async id => queue(id)); vi.spyOn(swarmQueueApi, 'control').mockImplementation(async id => queue(id));
+-  vi.spyOn(teamsApi, 'projectAccess').mockImplementation(async (_teamId, projectId) => ({ projectId, permissions: { ...personalPermissions, edit: environment.edit, execute: environment.execute } } as ProjectAccess));
++  vi.spyOn(teamsApi, 'projectAccess').mockImplementation(async (teamId, projectId) => ({ team: { id: teamId, name: 'Controlled team', revision: 1, createdAt: '', updatedAt: '' }, projectId, permissions: { ...personalPermissions, edit: environment.edit, execute: environment.execute }, grants: [] } as ProjectAccess));
+ });
+ afterEach(cleanup);
+ 
+diff --git a/desktop/src/components/projects/ProjectOverviewBoard.tsx b/desktop/src/components/projects/ProjectOverviewBoard.tsx
+--- a/desktop/src/components/projects/ProjectOverviewBoard.tsx
++++ b/desktop/src/components/projects/ProjectOverviewBoard.tsx
+@@ -13,7 +13,7 @@
+ import { Button as ProjectDestinationButton } from '../ui/button';
+ import { Badge } from '../ui/badge';
+ import { NavigationIcon } from '../common/NavigationIcon';
+-import { WorkflowDialog } from '../common/WorkflowDialog';
++import { WorkflowDialog, type WorkflowDialogReadAccess } from '../common/WorkflowDialog';
+ import { RecordedRunAttention } from '../common/RecordedRunAttention';
+ import { HostCapacity } from './HostCapacity';
+ import './project-overview.css';
+@@ -146,8 +146,51 @@
+     {outcomes.length > 0 && <section className="overview-outcomes" aria-label="Queue change results" aria-live="polite"><h3>Queue changes</h3><p>{outcomes.filter(row => row.state === 'changed').length} changed · {outcomes.filter(row => row.state === 'failed').length} failed · {outcomes.filter(row => row.state === 'unconfirmed').length} unconfirmed · {outcomes.filter(row => row.state === 'skipped').length} skipped</p><ul>{outcomes.map((row, index) => <li key={index}><strong>{row.name}</strong><span data-outcome={row.state}>{row.state === 'failed' ? 'Failed: ' : row.state === 'unconfirmed' ? 'Unconfirmed: ' : row.state === 'skipped' ? 'Skipped: ' : ''}{row.message}</span></li>)}</ul></section>}
+     <ul className="overview-grid">{visible.map(project => <ProjectCard key={project.id} project={project} summary={summaries[project.id]} refresh={refresh} picked={picked} pending={pending} onSelect={select} onForget={forgetProject} />)}</ul>
+     {projects.length > visible.length && <Button variant="secondary" onClick={() => setLimit(value => value + 20)}>Show more projects ({projects.length - visible.length} remaining)</Button>}
+-    {cancelReview && <WorkflowDialog title="Cancel selected waiting tasks?" description="This removes the selected waiting work from dispatch. Saved context and any existing worker output remain available in each project." onClose={() => setCancelReview(false)}><ul className="overview-cancel-list">{selection.map(row => <li key={itemKey(row.item)}>{row.project.name} · {row.item.taskTitle}</li>)}</ul><div className="workflow-actions"><Button variant="secondary" onClick={() => setCancelReview(false)}>Keep queued</Button><Button onClick={() => void apply('cancel')}>Cancel {selection.length} waiting {selection.length === 1 ? 'task' : 'tasks'}</Button></div></WorkflowDialog>}
++    {cancelReview && <SelectedQueueCancelReview selection={selection} pending={pending} onClose={() => setCancelReview(false)} onCancel={() => void apply('cancel')} />}
+   </div>;
++}
++
++/** Display admission is for every exact selected project. It never changes the
++ * selection or performs queue actions; the action still reauthorizes each row. */
++function SelectedQueueCancelReview({selection, pending, onClose, onCancel}: {
++  selection: Picked[]; pending: boolean; onClose(): void; onCancel(): void;
++}) {
++  const workspace = useTeamWorkspace();
++  const teamId = workspace?.teamId ?? '';
++  const projectIds = JSON.stringify([...new Set(selection.map(row => row.project.id))].sort());
++  const key = JSON.stringify([teamScopeGeneration(), teamId, workspace?.revision ?? 0, projectIds]);
++  const [observation, setObservation] = useState<{key: string; access: WorkflowDialogReadAccess} | null>(null);
++  const blocked = !!workspace?.accessBlocked;
++  useEffect(() => {
++    if (!teamId || blocked) return;
++    const controller = new AbortController();
++    const ids = JSON.parse(projectIds) as string[];
++    let next = 0, failure = '';
++    const read = async () => {
++      while (!controller.signal.aborted && next < ids.length) {
++        const projectId = ids[next++];
++        try {
++          const result = await teamsApi.projectAccess(teamId, projectId, controller.signal);
++          if (controller.signal.aborted) return;
++          if (result.team.id !== teamId || result.projectId !== projectId || !result.permissions.read)
++            failure = 'Reading access is unavailable for a selected project.';
++        } catch {
++          if (!controller.signal.aborted) failure = 'Selected project access could not be confirmed.';
++        }
++      }
++    };
++    void Promise.all(Array.from({length: Math.min(4, ids.length)}, read)).then(() => {
++      if (!controller.signal.aborted) setObservation({key, access: {canRead: ids.length > 0 && !failure, loading: false, error: failure}});
++    });
++    return () => controller.abort();
++  }, [teamId, blocked, key, projectIds]);
++  const readAccess: WorkflowDialogReadAccess = blocked ? {canRead: false, loading: false, error: 'Workspace access must be refreshed before continuing.'}
++    : !teamId ? {canRead: selection.length > 0, loading: false, error: ''}
++    : observation?.key === key ? observation.access : {canRead: false, loading: true, error: ''};
++  return <WorkflowDialog readAccess={readAccess} busy={pending} title="Cancel selected waiting tasks?" description="This removes the selected waiting work from dispatch. Saved context and any existing worker output remain available in each project." onClose={onClose}>
++    <ul className="overview-cancel-list">{selection.map(row => <li key={itemKey(row.item)}>{row.project.name} · {row.item.taskTitle}</li>)}</ul>
++    <div className="workflow-actions"><Button variant="secondary" disabled={pending} onClick={onClose}>Keep queued</Button><Button disabled={pending || !readAccess.canRead || readAccess.loading || !!readAccess.error} onClick={onCancel}>Cancel {selection.length} waiting {selection.length === 1 ? 'task' : 'tasks'}</Button></div>
++  </WorkflowDialog>;
+ }
+ 
+ const ProjectCard = memo(function ProjectCard({ project, summary, refresh, picked, pending, onSelect, onForget }: {
+diff --git a/desktop/src/components/setup/AgentConnectionManager.tsx b/desktop/src/components/setup/AgentConnectionManager.tsx
+--- a/desktop/src/components/setup/AgentConnectionManager.tsx
++++ b/desktop/src/components/setup/AgentConnectionManager.tsx
+@@ -14,7 +14,7 @@
+   const [presetError, setPresetError] = useState("");
+   const working = useRef(false);
+   const alive = useRef(true);
+-  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
++  useEffect(() => { alive.current = true; setBusy(working.current); return () => { alive.current = false; }; }, []);
+   const entries = catalogue?.connections ?? [];
+   const saved = entries.find(item => item.id === draft.id);
+   const active = entries.find(item => item.id === catalogue?.activeConnectionId);
+diff --git a/desktop/src/components/setup/AgentConnections.tsx b/desktop/src/components/setup/AgentConnections.tsx
+--- a/desktop/src/components/setup/AgentConnections.tsx
++++ b/desktop/src/components/setup/AgentConnections.tsx
+@@ -53,6 +53,9 @@
+         : "Endpoint API key · optional";
+   useEffect(() => {
+     alive.current = true;
++    // Activity can reconnect after an existing request settled while hidden.
++    // Reflect that operation owner; do not start or replay a mutation.
++    setBusy(working.current);
+     void client
+       .agents()
+       .then((result) => {
+diff --git a/desktop/src/components/teams/TeamDataLifecycle.tsx b/desktop/src/components/teams/TeamDataLifecycle.tsx
+--- a/desktop/src/components/teams/TeamDataLifecycle.tsx
++++ b/desktop/src/components/teams/TeamDataLifecycle.tsx
+@@ -16,7 +16,7 @@
+   const [error, setError] = useState(""), [notice, setNotice] = useState("");
+   const alive = useRef(true), working = useRef(false);
+   useEffect(() => {
+-    let current = true; alive.current = true;
++    let current = true; alive.current = true; setBusy(working.current);
+     void teamDataLifecycleApi.get(team.id).then(result => { if (current) setValue(result); }).catch(cause => { if (current) setError(errorText(cause)); }).finally(() => { if (current) setLoading(false); });
+     return () => { current = false; alive.current = false; };
+   }, [team.id]);
+diff --git a/desktop/src/components/teams/TeamInvitations.tsx b/desktop/src/components/teams/TeamInvitations.tsx
+--- a/desktop/src/components/teams/TeamInvitations.tsx
++++ b/desktop/src/components/teams/TeamInvitations.tsx
+@@ -31,7 +31,7 @@
+   const [error, setError] = useState(""), [notice, setNotice] = useState("");
+   const alive = useRef(true), working = useRef(false);
+   useEffect(() => {
+-    let current = true; alive.current = true;
++    let current = true; alive.current = true; setBusy(working.current);
+     void teamInvitationsApi.list(team.id).then(value => {
+       if (current) { setInvitations(value.invitations); setRevision(value.team.revision); }
+     }).catch(cause => { if (current) setError(errorText(cause)); }).finally(() => { if (current) setLoading(false); });
+diff --git a/desktop/src/components/teams/TeamWorkspaceControl.test.tsx b/desktop/src/components/teams/TeamWorkspaceControl.test.tsx
+--- a/desktop/src/components/teams/TeamWorkspaceControl.test.tsx
++++ b/desktop/src/components/teams/TeamWorkspaceControl.test.tsx
+@@ -1,9 +1,10 @@
+ import { beforeEach, afterEach, expect, it, vi } from 'vitest';
+-import { render, screen, waitFor, within } from '@testing-library/react';
++import { act, render, screen, waitFor, within } from '@testing-library/react';
+ import userEvent from '@testing-library/user-event';
+ import { TeamWorkspaceControl } from './TeamWorkspaceControl';
+ import { teamsApi, emptyGrants, personalPermissions, type TeamDetail, type TeamSummary } from '../../api/teams';
+ import { resetCockpit, useCockpit } from '../../store/store';
++import { ApiError, type ProblemCode } from '../../api/client';
+ const workspace=vi.hoisted(()=>({selected:null as TeamSummary|null,teams:[] as TeamSummary[],refresh:vi.fn(),select:vi.fn(),revision:0,teamId:''}));
+ vi.mock('../auth/TeamServiceStatus',()=>({TeamServiceStatus:()=>null}));
+ vi.mock('./TeamWorkspaceProvider',()=>({useTeamWorkspace:()=>workspace}));
+@@ -58,3 +59,118 @@
+   await userEvent.click(within(share).getByRole('button',{name:'Share project'}));
+   await waitFor(()=>expect(teamsApi.saveProjectGrant).toHaveBeenCalledWith(detail.team.id,'p1',7,{userId:'bob',role:'editor',grants:emptyGrants}));
+ });
++
++
++// CLOUD-060: actual TeamWorkspaceControl and WorkflowDialog/Radix with the
++// existing controlled workspace. These scenarios do not use a real server,
++// browser, provider, Docker, or any successful mutation.
++function deferredTeamRead<T>() {
++  let resolve!: (value: T) => void, reject!: (cause: Error) => void;
++  const promise = new Promise<T>((accept, fail) => {resolve = accept; reject = fail;});
++  return {promise, resolve, reject};
++}
++function expectPrivateTeamModalHidden() {
++  expect(screen.queryByRole('dialog', {name: 'Team access'})).toBeNull();
++  expect(screen.queryByRole('button', {name: 'Save access'})).toBeNull();
++  expect(screen.queryByRole('button', {name: 'Share project'})).toBeNull();
++  expect(screen.queryByRole('button', {name: 'Remove access'})).toBeNull();
++  expect(document.body.style.pointerEvents).not.toBe('none');
++  // Activity may retain DOM and editor state. Its private panel must actually
++  // be visually hidden as well as absent from the accessible modal tree.
++  for (const panel of document.querySelectorAll<HTMLElement>('.team-panel')) {
++    let hidden = false;
++    for (let node: HTMLElement | null = panel; node; node = node.parentElement) {
++      const style = window.getComputedStyle(node);
++      if (node.hidden || style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') {hidden = true; break;}
++    }
++    expect(hidden).toBe(true);
++  }
++}
++function expectNoTeamMutation() {
++  expect(teamsApi.addMember).not.toHaveBeenCalled();
++  expect(teamsApi.saveMember).not.toHaveBeenCalled();
++  expect(teamsApi.removeMember).not.toHaveBeenCalled();
++  expect(teamsApi.saveProjectGrant).not.toHaveBeenCalled();
++}
++
++it('CLOUD060 hides stale team administrator controls through a current revision read, denial and fresh viewer restoration', async () => {
++  workspace.revision = 0; workspace.teamId = detail.team.id;
++  const user = userEvent.setup(), view = render(<TeamWorkspaceControl/>);
++  await user.click(screen.getByRole('button', {name: 'Team access'}));
++  await screen.findByRole('heading', {name: /^Members/});
++  await user.click(screen.getByLabelText('Team access for Bob'));
++  const member = screen.getByRole('group', {name: 'Bob'});
++  await user.selectOptions(within(member).getByLabelText('Role'), 'viewer');
++  expect(within(member).getByRole('button', {name: 'Save access'})).toHaveProperty('disabled', false);
++  expectNoTeamMutation();
++
++  const denied = deferredTeamRead<TeamDetail>();
++  vi.mocked(teamsApi.detail).mockReturnValueOnce(denied.promise);
++  workspace.revision++;
++  view.rerender(<TeamWorkspaceControl/>);
++  expectPrivateTeamModalHidden();
++  await waitFor(() => expect(teamsApi.detail).toHaveBeenCalledTimes(2));
++  expect(vi.mocked(teamsApi.detail).mock.calls.every(([id]) => id === detail.team.id)).toBe(true);
++  await act(async () => denied.reject(new ApiError('permission_denied' as ProblemCode, 'Membership was revoked.', 403)));
++  expectPrivateTeamModalHidden(); expectNoTeamMutation();
++
++  const fresh = deferredTeamRead<TeamDetail>();
++  vi.mocked(teamsApi.detail).mockReturnValueOnce(fresh.promise);
++  const viewer: TeamDetail = {...structuredClone(detail), membership: {...editor, role: 'viewer'}, permissions: {...emptyGrants, read: true, edit: false}};
++  workspace.selected = viewer; workspace.revision++;
++  view.rerender(<TeamWorkspaceControl/>);
++  await waitFor(() => expect(teamsApi.detail).toHaveBeenCalledTimes(3));
++  expectPrivateTeamModalHidden();
++  await act(async () => fresh.resolve(viewer));
++  const restored = await screen.findByRole('dialog', {name: 'Team access'});
++  expect(within(restored).getByText('Bob · editor')).toBeTruthy();
++  expect(within(restored).queryByRole('button', {name: 'Save access'})).toBeNull();
++  expect(within(restored).queryByRole('group', {name: 'Add an existing Luci account'})).toBeNull();
++  expect(within(restored).queryByRole('button', {name: 'Remove access'})).toBeNull();
++  expect(teamsApi.projectAccess).not.toHaveBeenCalled(); expectNoTeamMutation();
++});
++
++it('CLOUD060 suspends old project sharing while a different exact project grant read is pending or denied', async () => {
++  workspace.revision = 0; workspace.teamId = detail.team.id;
++  useCockpit.setState({selection: {projectId: 'p1', branchId: null, worktreeId: null, sessionId: null}, projects: [{id: 'p1', name: 'Atlas', path: '/team/atlas'}, {id: 'p2', name: 'Beacon', path: '/team/beacon'}]});
++  const atlasAccess = {team: detail.team, projectId: 'p1', permissions: personalPermissions, grants: [{userId: 'bob', role: 'editor' as const, grants: emptyGrants, revision: 1}]};
++  vi.mocked(teamsApi.projectAccess).mockResolvedValueOnce(atlasAccess);
++  const user = userEvent.setup(), view = render(<TeamWorkspaceControl/>);
++  await user.click(screen.getByRole('button', {name: 'Team access'}));
++  await screen.findByRole('heading', {name: /^Members/});
++  await user.click(screen.getByRole('tab', {name: 'Project sharing'}));
++  await screen.findByRole('heading', {name: 'Share Atlas'});
++  await user.click(screen.getByLabelText('Project access for Bob'));
++  expect(screen.getByRole('group', {name: 'Bob'})).toBeTruthy();
++  expect(teamsApi.projectAccess).toHaveBeenCalledExactlyOnceWith(detail.team.id, 'p1');
++  expectNoTeamMutation();
++
++  const pending = deferredTeamRead<typeof atlasAccess>();
++  vi.mocked(teamsApi.projectAccess).mockImplementationOnce((teamId, projectId) => {
++    expect(teamId).toBe(detail.team.id); expect(projectId).toBe('p2'); return pending.promise;
++  });
++  act(() => useCockpit.setState({selection: {projectId: 'p2', branchId: null, worktreeId: null, sessionId: null}}));
++  expectPrivateTeamModalHidden();
++  await waitFor(() => expect(teamsApi.projectAccess).toHaveBeenCalledTimes(2));
++  expect(screen.queryByRole('heading', {name: 'Share Atlas'})).toBeNull();
++  expect(screen.queryByRole('heading', {name: 'Share Beacon'})).toBeNull();
++  await act(async () => pending.reject(new ApiError('permission_denied' as ProblemCode, 'This project is not shared.', 403)));
++  expectPrivateTeamModalHidden(); expectNoTeamMutation();
++
++  const beaconAccess = {...atlasAccess, projectId: 'p2', grants: []};
++  const restoredRead = deferredTeamRead<typeof beaconAccess>();
++  vi.mocked(teamsApi.projectAccess).mockImplementationOnce((teamId, projectId) => {
++    expect(teamId).toBe(detail.team.id); expect(projectId).toBe('p2'); return restoredRead.promise;
++  });
++  workspace.revision++; view.rerender(<TeamWorkspaceControl/>);
++  await waitFor(() => expect(teamsApi.projectAccess).toHaveBeenCalledTimes(3));
++  expectPrivateTeamModalHidden();
++  await act(async () => restoredRead.resolve(beaconAccess));
++  const restored = await screen.findByRole('dialog', {name: 'Team access'});
++  expect(within(restored).getByRole('heading', {name: 'Share Beacon'})).toBeTruthy();
++  expect(within(restored).queryByRole('heading', {name: 'Share Atlas'})).toBeNull();
++  expect(within(restored).queryByRole('group', {name: 'Bob'})).toBeNull();
++  expect(within(restored).getByRole('group', {name: 'Grant project access'})).toBeTruthy();
++  expect(vi.mocked(teamsApi.projectAccess).mock.calls.map(([teamId, projectId]) => [teamId, projectId])).toEqual([[detail.team.id, 'p1'], [detail.team.id, 'p2'], [detail.team.id, 'p2']]);
++  expectNoTeamMutation();
++});
+diff --git a/desktop/src/components/teams/TeamWorkspaceControl.tsx b/desktop/src/components/teams/TeamWorkspaceControl.tsx
+--- a/desktop/src/components/teams/TeamWorkspaceControl.tsx
++++ b/desktop/src/components/teams/TeamWorkspaceControl.tsx
+@@ -47,6 +47,8 @@
+   const workspace=useTeamWorkspace()!;
+   const teamId=workspace.selected?.team.id??'';
+   const projectId=useCockpit(state=>state.selection.projectId)??'';
++  const accessKey=JSON.stringify([teamId,projectId,workspace.revision]);
++  const [detailKey,setDetailKey]=useState('');
+   const projectName=useCockpit(state=>state.projects.find(project=>project.id===projectId)?.name)??'Selected project';
+   const tabsId=useId();
+   const [tab,setTab]=useState(billingReturn?2:0);
+@@ -54,6 +56,7 @@
+   const [detail,setDetail]=useState<TeamDetail|null>(null);
+   const [projectAccess,setProjectAccess]=useState<ProjectAccess|null>(null);
+   const [error,setError]=useState('');
++  const [readError,setReadError]=useState('');
+   const [busy,setBusy]=useState(false);
+   const [loading,setLoading]=useState(!!teamId);
+   const [name,setName]=useState('');
+@@ -63,21 +66,18 @@
+   const [sharing,setSharing]=useState('');
+   const [shareRole,setShareRole]=useState<ProjectGrant['role']>('viewer');
+   const [shareGrants,setShareGrants]=useState<TeamGrants>({...emptyGrants});
+-  const refresh=async()=>{
+-    await workspace.refresh();
+-    if(!teamId)return;
+-    const value=await teamsApi.detail(teamId);setDetail(value);
+-    if(projectId&&value.permissions.admin)setProjectAccess(await teamsApi.projectAccess(teamId,projectId));
+-  };
++  // The provider's revision starts the one scope-fenced detail read below.
++  // A second unkeyed read here could overwrite the current authority result.
++  const refresh=async()=>{await workspace.refresh();};
+   useEffect(()=>{
+     let live=true;
+-    setDetail(null);setProjectAccess(null);setError('');setLoading(!!teamId);
++    setDetailKey('');setReadError('');setLoading(!!teamId);
+     if(teamId)void teamsApi.detail(teamId).then(async value=>{
+       if(!live)return;setDetail(value);
+       if(projectId&&value.permissions.admin){const access=await teamsApi.projectAccess(teamId,projectId);if(live)setProjectAccess(access);}
+-    }).catch(cause=>{if(live)setError(errorText(cause));}).finally(()=>{if(live)setLoading(false);});
++    }).catch(cause=>{if(live)setReadError(errorText(cause));}).finally(()=>{if(live){setDetailKey(accessKey);setLoading(false);}});
+     return()=>{live=false;};
+-  },[teamId,projectId]);
++  },[teamId,projectId,accessKey]);
+   const perform=async(action:()=>Promise<unknown>)=>{
+     if(working.current)return;working.current=true;setBusy(true);setError('');
+     try{await action();await refresh();}catch(cause){setError(errorText(cause));try{await refresh();}catch{/* Keep the actionable original error. */}}finally{working.current=false;setBusy(false);}
+@@ -86,7 +86,7 @@
+   const owner=detail?.membership.role==='owner';
+   const addMember=()=>perform(async()=>{if(!detail)return;await teamsApi.addMember(teamId,detail.team.revision,username,role,role==='owner'?{...grants,admin:true}:grants);setUsername('');setGrants({...emptyGrants});});
+   const saveGrant=(grant:Pick<ProjectGrant,'userId'|'role'|'grants'>)=>perform(()=>teamsApi.saveProjectGrant(teamId,projectId,detail!.team.revision,grant));
+-  return <WorkflowDialog title={teamId?'Team access':'Your teams'} description={teamId?'Share a workspace and choose what each person can do.':'Keep personal projects separate or collaborate in a shared team workspace.'} busy={busy} onClose={onClose}>
++  return <WorkflowDialog readAccess={{canRead:!teamId||!!detail&&detailKey===accessKey&&!readError,loading:!!teamId&&(loading||detailKey!==accessKey),error:readError}} title={teamId?'Team access':'Your teams'} description={teamId?'Share a workspace and choose what each person can do.':'Keep personal projects separate or collaborate in a shared team workspace.'} busy={busy} onClose={onClose}>
+     <div className="team-panel">
+       {error&&<div role="alert"><p>{error}</p><Button variant="secondary" disabled={busy} onClick={()=>void perform(async()=>{})}>Reload current access</Button></div>}{loading&&<p role="status">Loading team access…</p>}
+       {!teamId&&!workspace.managedTeamId&&<form onSubmit={event=>{event.preventDefault();void perform(async()=>{const value=await teamsApi.create(name.trim());await workspace.refresh();workspace.select(value.team.id);});}}><label>Team name<input autoComplete="organization" value={name} onChange={event=>setName(event.target.value)} maxLength={100} required disabled={busy}/></label><p className="team-muted">A team has its own projects and provider connections. Creating one does not provision a cloud host or charge a payment method.</p><Button type="submit" disabled={busy||!name.trim()}>Create team</Button></form>}
+diff --git a/desktop/src/components/teams/TeamWorkspacePortalAuthority.test.tsx b/desktop/src/components/teams/TeamWorkspacePortalAuthority.test.tsx
+new file mode 100644
+--- /dev/null
++++ b/desktop/src/components/teams/TeamWorkspacePortalAuthority.test.tsx
+@@ -0,0 +1,188 @@
++// Actual TeamWorkspaceProvider + project permissions + ReviewedContextInspector
++// + WorkflowDialog + Radix. HTTP replies controlled; no browser or worker runtime.
++import {useState} from 'react';
++import {act,cleanup,render,screen,waitFor,within} from '@testing-library/react';
++import userEvent from '@testing-library/user-event';
++import {afterEach,beforeEach,expect,it,vi} from 'vitest';
++import {TeamWorkspaceProvider} from './TeamWorkspaceProvider';
++import {teamsApi,personalPermissions,type TeamSummary} from '../../api/teams';
++import {api} from '../../api';
++import {ApiError,createClient,type ProblemCode,type SessionReviewedContext} from '../../api/client';
++import {createProductClient,productApi} from '../../api/product';
++import {teamWorkspaceStorageKey} from '../../api/teamWorkspacePreference';
++import {selectTeamScope} from '../../api/teamScope';
++import {resetCockpit,useCockpit} from '../../store/store';
++import {aSession} from '../../test/fixtures';
++import {ReviewedContextNote} from '../develop/ReviewedContextNote';
++import {AgentConnections} from '../setup/AgentConnections';
++import {useProjectAccess} from '../../hooks/useProjectAccess';
++import {WorkflowDialog} from '../common/WorkflowDialog';
++import {hasOpenOverlay,__resetOverlays} from '../../hooks/useDismissable';
++const auth=vi.hoisted(()=>({user:'portal-alice'}));
++vi.mock('../auth/AuthProvider',()=>({useAuth:()=>({profile:{user:{id:auth.user}},logout:vi.fn()})}));
++vi.mock('../setup/SetupProvider',()=>({useSetup:()=>({status:{config:{projectsDir:'/controlled/projects'},access:{user:{username:'alice'}}},workspace:{mode:'local'}})}));
++const teamId='team-abcdefghijklmnopqrstuv';
++const summary:TeamSummary={team:{id:teamId,name:'Controlled private team',revision:1,createdAt:'',updatedAt:''},membership:{userId:'portal-alice',role:'editor',grants:personalPermissions,revision:1},permissions:personalPermissions};
++const session=aSession({id:'s-portal',projectId:'p-portal',worktreeId:'w-portal',title:'Private retained session title',implementationContext:{projectId:'p-portal',worktreeId:'w-portal',briefRevision:1,planRevision:1,specificationRevision:1,designPlanRevision:1,briefDigest:'brief',planDigest:'plan',specificationDigest:'spec',designPlanDigest:'design',taskIds:['private-task'],taskTitles:['Private retained task name'],requirementIds:[],sourceCommit:'',sourceDigest:'source',sourceDirty:false},reviewedContextDelivery:{status:'captured',version:1,digest:'a'.repeat(64)}});
++const captured:SessionReviewedContext={sessionId:session.id,projectId:session.projectId,worktreeId:session.worktreeId,version:1,digest:'a'.repeat(64),implementationContext:session.implementationContext!,document:{kind:'definition',sha256:'b'.repeat(64),bytes:100,value:{purpose:'Private original captured purpose',revision:1}}};
++const client=createClient({fetch:async()=>new Response(JSON.stringify({error:'team_access_denied',message:'Workspace membership unavailable'}),{status:403,headers:{'Content-Type':'application/json'}})});
++const pending=<T,>()=>{let resolve!:(value:T)=>void;let reject!:(error:Error)=>void;return{promise:new Promise<T>((yes,no)=>{resolve=yes;reject=no;}),get resolve(){return resolve;},get reject(){return reject;}};};
++function NestedDraft(){const[value,setValue]=useState('Nested provider draft');return <label>Nested draft<input value={value} onChange={e=>setValue(e.target.value)}/></label>;}
++const providerFetch=vi.fn<typeof fetch>(async(url)=>new Response(JSON.stringify(String(url).endsWith('/agent-connections')?{revision:1,connections:[],activeConnectionId:''}:String(url).includes('/codex/')?{configured:false}:{providers:[{id:'local',name:'OpenCode',configured:false,model:''}]})));
++const providerClient=createProductClient('http://controlled.invalid',providerFetch);
++function Surface({busy=false,initialOpen=false,opener=true,nestedProvider=false}:{busy?:boolean;initialOpen?:boolean;opener?:boolean;nestedProvider?:boolean}){
++ const retained=useCockpit(state=>state.sessions[session.id]);
++ const access=useProjectAccess(session.projectId),[open,setOpen]=useState(initialOpen),[answer,setAnswer]=useState('Keep unsaved private answer');
++ return <><label>Unrelated retained draft<textarea defaultValue="Keep unsaved private idea"/></label>
++ {retained&&<ReviewedContextNote session={retained} canInspect={access.canRead} readPending={access.loading}/>}
++ {opener&&<button onClick={()=>setOpen(true)}>Open private action review</button>}
++ {open&&<WorkflowDialog readAccess={access} title="Private action review" description="Review a private task without executing it." busy={busy} onClose={()=>{if(!busy)setOpen(false);}}>
++ <NestedDraft/>{nestedProvider&&<AgentConnections client={providerClient} cloud={false} initialProvider="local"/>}<label>Retained answer<textarea value={answer} onChange={e=>setAnswer(e.target.value)}/></label><button disabled={busy} onClick={()=>setOpen(false)}>Close action review</button>
++ </WorkflowDialog>}</>;
++}
++function PublicDialog(){const[open,setOpen]=useState(false);return <><button onClick={()=>setOpen(true)}>Open public recovery</button>{open&&<WorkflowDialog title="Public recovery" description="Outside the private workspace." onClose={()=>setOpen(false)}><button onClick={()=>setOpen(false)}>Close recovery</button></WorkflowDialog>}</>;}
++async function open(){render(<TeamWorkspaceProvider><Surface/></TeamWorkspaceProvider>);await userEvent.click(await screen.findByRole('button',{name:'View reviewed context'}));const dialog=await screen.findByRole('dialog',{name:'Reviewed context'});await within(dialog).findByText('Private original captured purpose');expect(dialog.closest('.team-app-host')).toBeNull();expect(document.body.style.pointerEvents).toBe('none');expect(hasOpenOverlay()).toBe(true);return dialog;}
++async function deny(){await act(async()=>{await client.listSessions().catch(()=>{});});}
++beforeEach(()=>{providerFetch.mockClear();auth.user='portal-alice';localStorage.clear();resetCockpit();selectTeamScope('');__resetOverlays();localStorage.setItem(teamWorkspaceStorageKey(productApi.baseUrl,auth.user),teamId);localStorage.setItem(teamWorkspaceStorageKey(productApi.baseUrl,auth.user)+'.cockpit',teamId);useCockpit.getState().replaceSessions([session],[session.worktreeId]);vi.spyOn(teamsApi,'list').mockResolvedValue({teams:[summary]});vi.spyOn(teamsApi,'projectAccess').mockResolvedValue({team:summary.team,projectId:session.projectId,permissions:personalPermissions,grants:[]});vi.spyOn(api,'getSessionReviewedContext').mockResolvedValue(captured);vi.spyOn(api,'listProjects').mockResolvedValue([{id:session.projectId,name:'Private project',path:'/controlled/project'}]);vi.spyOn(api,'listSessions').mockResolvedValue([session]);});
++afterEach(()=>{cleanup();resetCockpit();selectTeamScope('');__resetOverlays();vi.restoreAllMocks();});
++it('CLOUD-060 actual Radix portal is removed on fresh authoritative denial before membership settles',async()=>{
++ await open();const held=pending<{teams:TeamSummary[]}>();vi.mocked(teamsApi.list).mockReturnValueOnce(held.promise);await deny();
++ expect(document.querySelector('.team-app-host')?.hasAttribute('hidden')).toBe(true);
++ expect(screen.queryByRole('dialog',{name:'Reviewed context'})).toBeNull();
++ expect((screen.getByText('Private original captured purpose').closest('[role=dialog]') as HTMLElement).style.display).toBe('none');
++ await waitFor(()=>expect(document.body.style.pointerEvents).not.toBe('none'));
++ expect(document.body.hasAttribute('data-scroll-locked')).toBe(false);expect(hasOpenOverlay()).toBe(false);
++ const retry=screen.getByRole('button',{name:'Retry connection'});expect(retry.closest('[aria-hidden="true"]')).toBeNull();
++ retry.focus();expect(document.activeElement).toBe(retry);await userEvent.tab();expect(document.activeElement?.closest('[hidden],[inert],[aria-hidden="true"]')).toBeNull();
++ expect((document.querySelector('textarea') as HTMLTextAreaElement).value).toBe('Keep unsaved private idea');
++ await act(async()=>held.reject(new Error('Controlled membership network interruption')));
++ expect(screen.queryByRole('dialog')).toBeNull();
++});
++it('CLOUD-060 reopens retained review only after both fresh catalogues, without replaying its captured read',async()=>{
++ await open();vi.mocked(teamsApi.list).mockRejectedValueOnce(new Error('Controlled network interruption'));await deny();
++ const projects=pending<Awaited<ReturnType<typeof api.listProjects>>>(),sessions=pending<Awaited<ReturnType<typeof api.listSessions>>>();
++ vi.mocked(api.listProjects).mockReturnValueOnce(projects.promise);vi.mocked(api.listSessions).mockReturnValueOnce(sessions.promise);
++ await userEvent.click(screen.getByRole('button',{name:'Retry connection'}));
++ await waitFor(()=>expect(api.listProjects).toHaveBeenCalledTimes(1));expect(screen.queryByRole('dialog')).toBeNull();
++ await act(async()=>projects.resolve([{id:session.projectId,name:'Private project',path:'/controlled/project'}]));
++ expect(screen.queryByRole('dialog')).toBeNull();expect(document.body.style.pointerEvents).not.toBe('none');
++ await act(async()=>sessions.resolve([session]));
++ await within(await screen.findByRole('dialog',{name:'Reviewed context'})).findByText('Private original captured purpose');
++ expect(api.getSessionReviewedContext).toHaveBeenCalledTimes(1);expect(document.body.style.pointerEvents).toBe('none');
++ await userEvent.click(screen.getByRole('button',{name:'Close reviewed context'}));await waitFor(()=>expect(screen.queryByRole('dialog')).toBeNull());
++ await waitFor(()=>expect(document.activeElement).toBe(screen.getByRole('button',{name:'View reviewed context'})));
++});
++it('CLOUD-060 restored membership without the former project/session never reveals its cached portal',async()=>{
++ await open();vi.mocked(teamsApi.list).mockRejectedValueOnce(new Error('Controlled network interruption'));await deny();
++ vi.mocked(api.listProjects).mockResolvedValueOnce([]);vi.mocked(api.listSessions).mockResolvedValueOnce([]);
++ await userEvent.click(screen.getByRole('button',{name:'Retry connection'}));await waitFor(()=>expect(document.querySelector('.team-app-host')?.hasAttribute('hidden')).toBe(false));
++ expect(screen.queryByRole('dialog')).toBeNull();expect(screen.queryByText('Private original captured purpose')).toBeNull();
++ expect(screen.queryByRole('button',{name:'View reviewed context'})).toBeNull();expect(api.getSessionReviewedContext).toHaveBeenCalledTimes(1);
++ expect(document.body.style.pointerEvents).not.toBe('none');expect(hasOpenOverlay()).toBe(false);
++});
++it('CLOUD-060 busy private review releases modal traps without clearing its parent answer draft',async()=>{
++ render(<TeamWorkspaceProvider><Surface busy/></TeamWorkspaceProvider>);await userEvent.click(await screen.findByRole('button',{name:'Open private action review'}));await userEvent.type(screen.getByRole('textbox',{name:'Retained answer'}),' amendment');await userEvent.type(screen.getByRole('textbox',{name:'Nested draft'}),' kept');
++ vi.mocked(teamsApi.list).mockRejectedValueOnce(new Error('Controlled network interruption'));await deny();expect(screen.queryByRole('dialog')).toBeNull();await waitFor(()=>expect(document.body.style.pointerEvents).not.toBe('none'));
++ await userEvent.click(screen.getByRole('button',{name:'Retry connection'}));await waitFor(()=>expect(document.querySelector('.team-app-host')?.hasAttribute('hidden')).toBe(false));
++ await screen.findByRole('dialog',{name:'Private action review'});
++ expect((screen.getByRole('textbox',{name:'Retained answer'}) as HTMLTextAreaElement).value).toBe('Keep unsaved private answer amendment');
++ expect((screen.getByRole('textbox',{name:'Nested draft'}) as HTMLInputElement).value).toBe('Nested provider draft kept');
++});
++it('CLOUD-060 public recovery dialog outside admitted private scope remains interactive',async()=>{
++ render(<><TeamWorkspaceProvider><Surface/></TeamWorkspaceProvider><PublicDialog/></>);await screen.findByRole('button',{name:'View reviewed context'});vi.mocked(teamsApi.list).mockRejectedValueOnce(new Error('Controlled network interruption'));await deny();
++ await userEvent.click(screen.getByRole('button',{name:'Open public recovery'}));await screen.findByRole('dialog',{name:'Public recovery'});await userEvent.keyboard('{Escape}');await waitFor(()=>expect(screen.queryByRole('dialog')).toBeNull());
++ expect(document.body.style.pointerEvents).not.toBe('none');
++});
++
++it('CLOUD-060 restored catalogues wait for the exact dialog project read grant, including a transient failure and retry',async()=>{
++ await open();vi.mocked(teamsApi.list).mockRejectedValueOnce(new Error('Controlled membership interruption'));await deny();
++ const grant=pending<Awaited<ReturnType<typeof teamsApi.projectAccess>>>();
++ vi.mocked(teamsApi.projectAccess).mockReturnValue(grant.promise);
++ await userEvent.click(screen.getByRole('button',{name:'Retry connection'}));
++ await waitFor(()=>expect(document.querySelector('.team-app-host')?.hasAttribute('hidden')).toBe(false));
++ expect(screen.queryByRole('dialog')).toBeNull();expect(screen.getByRole('status').textContent).toContain('Checking access for this review');
++ expect(document.body.style.pointerEvents).not.toBe('none');expect(hasOpenOverlay()).toBe(false);
++ const requested=vi.mocked(teamsApi.projectAccess).mock.calls;
++ expect(requested.every(([team,project])=>team===teamId&&project===session.projectId)).toBe(true);
++ await act(async()=>grant.reject(new Error('Controlled granular read interruption')));
++ expect(screen.queryByRole('dialog')).toBeNull();expect(screen.getByRole('button',{name:'Close review'})).toBeTruthy();
++ vi.mocked(teamsApi.projectAccess).mockResolvedValue({team:summary.team,projectId:session.projectId,permissions:personalPermissions,grants:[]});
++ await userEvent.click(screen.getByRole('button',{name:'Retry review access'}));
++ await within(await screen.findByRole('dialog',{name:'Reviewed context'})).findByText('Private original captured purpose');
++ expect(api.getSessionReviewedContext).toHaveBeenCalledTimes(1);
++});
++it('CLOUD-060 exact granular read denial cannot reveal a restored project catalogue portal',async()=>{
++ await open();vi.mocked(teamsApi.list).mockRejectedValueOnce(new Error('Controlled membership interruption'));await deny();
++ const grant=pending<Awaited<ReturnType<typeof teamsApi.projectAccess>>>();vi.mocked(teamsApi.projectAccess).mockReturnValue(grant.promise);
++ await userEvent.click(screen.getByRole('button',{name:'Retry connection'}));await waitFor(()=>expect(document.querySelector('.team-app-host')?.hasAttribute('hidden')).toBe(false));
++ expect(screen.queryByRole('dialog')).toBeNull();
++ await act(async()=>grant.reject(new ApiError('team_access_denied' as ProblemCode,'Project read revoked',403)));
++ await waitFor(()=>expect(screen.queryByText('Private original captured purpose')).toBeNull());
++ expect(screen.queryByRole('dialog')).toBeNull();expect(api.getSessionReviewedContext).toHaveBeenCalledTimes(1);
++ expect(document.body.style.pointerEvents).not.toBe('none');expect(hasOpenOverlay()).toBe(false);
++});
++it('CLOUD-060 a repeated denial fences an older granular recovery and account replacement removes retained private state',async()=>{
++ const tree=render(<TeamWorkspaceProvider><Surface/></TeamWorkspaceProvider>);
++ await userEvent.click(await screen.findByRole('button',{name:'View reviewed context'}));await within(await screen.findByRole('dialog')).findByText('Private original captured purpose');
++ vi.mocked(teamsApi.list).mockRejectedValueOnce(new Error('Controlled membership interruption'));await deny();
++ const grant=pending<Awaited<ReturnType<typeof teamsApi.projectAccess>>>();vi.mocked(teamsApi.projectAccess).mockReturnValue(grant.promise);
++ await userEvent.click(screen.getByRole('button',{name:'Retry connection'}));await waitFor(()=>expect(document.querySelector('.team-app-host')?.hasAttribute('hidden')).toBe(false));
++ vi.mocked(teamsApi.list).mockRejectedValueOnce(new Error('Controlled second membership refusal'));await deny();
++ await act(async()=>grant.resolve({team:summary.team,projectId:session.projectId,permissions:personalPermissions,grants:[]}));
++ expect(document.querySelector('.team-app-host')?.hasAttribute('hidden')).toBe(true);expect(screen.queryByRole('dialog')).toBeNull();
++ auth.user='portal-bob';tree.rerender(<TeamWorkspaceProvider><Surface/></TeamWorkspaceProvider>);
++ await waitFor(()=>expect(screen.queryByRole('button',{name:'Retry connection'})).toBeNull());
++ expect(screen.queryByText('Private original captured purpose')).toBeNull();expect(screen.queryByRole('dialog')).toBeNull();
++ expect(document.body.style.pointerEvents).not.toBe('none');expect(hasOpenOverlay()).toBe(false);
++});
++it('CLOUD-060 pending granular authority still permits an ordinary close without retaining a ghost modal',async()=>{
++ await open();vi.mocked(teamsApi.list).mockRejectedValueOnce(new Error('Controlled membership interruption'));await deny();
++ const grant=pending<Awaited<ReturnType<typeof teamsApi.projectAccess>>>();vi.mocked(teamsApi.projectAccess).mockReturnValue(grant.promise);
++ await userEvent.click(screen.getByRole('button',{name:'Retry connection'}));await screen.findByRole('button',{name:'Close review'});
++ await userEvent.click(screen.getByRole('button',{name:'Close review'}));expect(screen.queryByRole('region',{name:'Review access'})).toBeNull();
++ await act(async()=>grant.resolve({team:summary.team,projectId:session.projectId,permissions:personalPermissions,grants:[]}));
++ expect(screen.queryByRole('dialog')).toBeNull();expect(screen.queryByText('Private original captured purpose')).toBeNull();
++});
++
++it('CLOUD-060 a programmatically opened dialog survives suspension without inventing an opening control',async()=>{
++ render(<TeamWorkspaceProvider><Surface initialOpen/></TeamWorkspaceProvider>);await screen.findByRole('dialog',{name:'Private action review'});
++ vi.mocked(teamsApi.list).mockRejectedValueOnce(new Error('Controlled membership interruption'));await deny();
++ expect(screen.queryByRole('dialog')).toBeNull();await userEvent.click(screen.getByRole('button',{name:'Retry connection'}));
++ await screen.findByRole('dialog',{name:'Private action review'});await userEvent.keyboard('{Escape}');await waitFor(()=>expect(screen.queryByRole('dialog')).toBeNull());
++ expect(document.body.style.pointerEvents).not.toBe('none');expect(hasOpenOverlay()).toBe(false);
++});
++it('CLOUD-060 a removed opening control is never refocused after suspended review closes',async()=>{
++ const tree=render(<TeamWorkspaceProvider><Surface/></TeamWorkspaceProvider>);const trigger=await screen.findByRole('button',{name:'Open private action review'});await userEvent.click(trigger);
++ tree.rerender(<TeamWorkspaceProvider><Surface opener={false}/></TeamWorkspaceProvider>);expect(trigger.isConnected).toBe(false);
++ vi.mocked(teamsApi.list).mockRejectedValueOnce(new Error('Controlled membership interruption'));await deny();
++ await userEvent.click(screen.getByRole('button',{name:'Retry connection'}));await screen.findByRole('dialog',{name:'Private action review'});
++ await userEvent.keyboard('{Escape}');await waitFor(()=>expect(screen.queryByRole('dialog')).toBeNull());expect(document.activeElement).not.toBe(trigger);
++ expect(document.activeElement?.closest('[hidden],[inert],[aria-hidden="true"]')).toBeNull();
++});
++it('CLOUD-060 actual nested provider form fields survive suspension without saving or connecting',async()=>{
++ render(<TeamWorkspaceProvider><Surface nestedProvider/></TeamWorkspaceProvider>);await userEvent.click(await screen.findByRole('button',{name:'Open private action review'}));
++ const model=await screen.findByLabelText('Installed model ID');await userEvent.type(model,'fixture-local-coder');
++ const endpoint=screen.getByLabelText('Model endpoint URL');await userEvent.clear(endpoint);await userEvent.type(endpoint,'http://fixture.invalid/v1');
++ vi.mocked(teamsApi.list).mockRejectedValueOnce(new Error('Controlled membership interruption'));await deny();expect(screen.queryByRole('dialog')).toBeNull();
++ await userEvent.click(screen.getByRole('button',{name:'Retry connection'}));await screen.findByRole('dialog',{name:'Private action review'});
++ expect((screen.getByLabelText('Installed model ID') as HTMLInputElement).value).toBe('fixture-local-coder');
++ expect((screen.getByLabelText('Model endpoint URL') as HTMLInputElement).value).toBe('http://fixture.invalid/v1');
++ expect(providerFetch.mock.calls.every(([,init])=>!init?.method||init.method==='GET')).toBe(true);
++});
++
++it('CLOUD-060 an actual nested provider save settling while suspended reconnects from its owner without replay',async()=>{
++ render(<TeamWorkspaceProvider><Surface nestedProvider/></TeamWorkspaceProvider>);await userEvent.click(await screen.findByRole('button',{name:'Open private action review'}));
++ await userEvent.type(await screen.findByLabelText('Installed model ID'),'fixture-local-coder');
++ const saved=pending<Response>();
++ providerFetch.mockImplementationOnce(async()=>saved.promise);
++ await userEvent.click(screen.getByRole('button',{name:'Save agent connection'}));
++ const postsBefore=providerFetch.mock.calls.filter(([,init])=>init?.method==='POST').length;expect(postsBefore).toBe(1);
++ vi.mocked(teamsApi.list).mockRejectedValueOnce(new Error('Controlled membership interruption'));await deny();
++ expect(screen.queryByRole('dialog')).toBeNull();
++ await act(async()=>saved.resolve(new Response(JSON.stringify({providers:[{id:'local',name:'OpenCode',configured:true,model:'fixture-local-coder'}]}))));
++ await userEvent.click(screen.getByRole('button',{name:'Retry connection'}));await screen.findByRole('dialog',{name:'Private action review'});
++ await waitFor(()=>expect((screen.getByLabelText('Coding agent') as HTMLSelectElement).disabled).toBe(false));
++ expect(providerFetch.mock.calls.filter(([,init])=>init?.method==='POST')).toHaveLength(postsBefore);
++ expect((screen.getByLabelText('Installed model ID') as HTMLInputElement).value).toBe('fixture-local-coder');
++ expect(providerFetch.mock.calls.slice(-1)[0]?.[1]?.method??'GET').toBe('GET');
++});
+diff --git a/desktop/src/components/teams/TeamWorkspaceProvider.tsx b/desktop/src/components/teams/TeamWorkspaceProvider.tsx
+--- a/desktop/src/components/teams/TeamWorkspaceProvider.tsx
++++ b/desktop/src/components/teams/TeamWorkspaceProvider.tsx
+@@ -11,6 +11,7 @@
+ import { useAuth } from '../auth/AuthProvider';
+ import { JoinTeamInvitation } from './TeamInvitations';
+ import { WorkflowDialog } from '../common/WorkflowDialog';
++import { WorkspaceOverlayScope } from '../common/WorkspaceOverlayScope';
+ import { Button } from '../fluid/components/button';
+ import './teams.css';
+ interface TeamWorkspaceValue {
+@@ -153,12 +154,13 @@
+   // Draft dialog updates do not change workspace context. Access refreshes still
+   // publish their revision so every project revalidates its current permissions.
+   const value=useMemo(()=>({teams,selected:teams.find(row=>row.team.id===selected)??null,teamId:selected,managedTeamId,revision,accessBlocked:blocked,refresh,select}),[teams,selected,managedTeamId,revision,blocked,refresh,select]);
++  const overlayAdmission=useMemo(()=>({available:!blocked,retry:refresh}),[blocked,refresh]);
+   const retained=Object.values(drafts).every(draft=>draft.retained);
+   const localSetup=Object.values(drafts).some(draft=>draft.purpose==='verification-setup');
+   return <TeamWorkspaceContext.Provider value={value}>
+     {/* Initial nonmembers must not start private child reads. After admission,
+         retain mounted editors through access refreshes and hide them on denial. */}
+-    {ready&&(!blocked||admitted)&&<div className="team-app-host" hidden={blocked}><Fragment key={`${userId}:${epoch}`}>{children}</Fragment></div>}
++    {ready&&(!blocked||admitted)&&<div className="team-app-host" hidden={blocked}><WorkspaceOverlayScope value={overlayAdmission}><Fragment key={`${userId}:${epoch}`}>{children}</Fragment></WorkspaceOverlayScope></div>}
+     {ready&&!blocked&&error&&<div className="team-connection-status" role="status">Workspace access could not be refreshed: {error} <button onClick={()=>void refresh().catch(()=>{})}>Retry</button></div>}
+     {(!ready||blocked)&&<main className="team-entry">
+       <h1>{error?'Workspace unavailable':'Opening your workspace…'}</h1>
+diff --git a/desktop/src/hooks/useDismissable.ts b/desktop/src/hooks/useDismissable.ts
+--- a/desktop/src/hooks/useDismissable.ts
++++ b/desktop/src/hooks/useDismissable.ts
+@@ -47,6 +47,7 @@
+ export function useDismissable<T extends HTMLElement>(
+   open: boolean,
+   onClose: () => void,
++  restoreFocus = true,
+ ): RefObject<T | null> {
+   const ref = useRef<T | null>(null);
+   const onCloseRef = useRef(onClose);
+@@ -97,9 +98,9 @@
+       document.removeEventListener("keydown", onKeyDown, true);
+       const index = stack.indexOf(entry);
+       if (index >= 0) stack.splice(index, 1);
+-      if (restoreTo !== null && document.contains(restoreTo)) restoreTo.focus();
++      if (restoreFocus && restoreTo !== null && document.contains(restoreTo) && !restoreTo.closest("[hidden], [inert], [aria-hidden='true']")) restoreTo.focus();
+     };
+-  }, [open]);
++  }, [open, restoreFocus]);
+ 
+   return ref;
+ }

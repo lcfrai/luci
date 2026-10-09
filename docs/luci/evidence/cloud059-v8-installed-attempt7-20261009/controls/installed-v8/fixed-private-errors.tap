@@ -1,0 +1,18 @@
+✔ private exact unknown error text persists before projection, no public secret (15.485148ms)
+✔ missing/overlong/unclassified inputs fail explicitly without truncating a successful claim (2.392405ms)
+✔ unknown text is retained without changing literal 26-byte content (1.318868ms)
+✔ 32 row bound preserves originals and rejects33 (5.080662ms)
+✔ total private byte cap keeps prefix intact and rejects overflow (17.131274ms)
+✔ closed capture and bad observation cannot certify success (1.906904ms)
+✔ replaced file refuses identity certification (2.738377ms)
+✔ hardlinked file and public parent are refused safely (2.206055ms)
+✔ actual cdp hook retains unknown original before public projection (5.500921ms)
+✔ actual playwright hook retains unknown original before public projection (4.152703ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 268.274433

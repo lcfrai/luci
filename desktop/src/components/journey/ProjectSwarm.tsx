@@ -466,7 +466,7 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
         </li>;
       })}</ol>
       <div ref={queueRegion} tabIndex={-1} role="region" aria-label="Background queue review" className="project-swarm-queue-region">
-      <SwarmRunQueue key={`${run.projectId}:${run.id}`} run={run} canEdit={canEdit} canExecute={canExecute} busy={busy} onBusy={onBusy} onQueueChange={queueChanged}
+      <SwarmRunQueue readAccess={projectAccess} key={`${run.projectId}:${run.id}`} run={run} canEdit={canEdit} canExecute={canExecute} busy={busy} onBusy={onBusy} onQueueChange={queueChanged}
         reviewButtonRef={queueReviewButton}
         onConsentChange={open => setQueueConsent(previous => open ? queueScope : previous === queueScope ? null : previous)} />
       </div>
@@ -475,7 +475,7 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
       {tasks.length > 0 && tasks.every(integrated) && <p role="status">All task changes are integrated. Verify this build against its reviewed requirements before accepting the result.</p>}
     </>}
     <details className="project-swarm-guidance"><summary>Agent task permissions</summary><p>Keep Ask or Plan in an interactive agent if you want approvals during execution.</p><p>Autonomous tasks run commands without interactive approvals inside isolated Docker workspaces, then exit after their response. Outputs still need review, integration and verification; Luci does not accept them automatically.</p>{capability.notice && <p>{capability.notice}</p>}<p>Status is recorded, not a live process guarantee. Check team status after an interruption. Pausing future starts leaves existing agents running.</p></details>
-    {dialog === 'prepare' && <WorkflowDialog title="Prepare agent team" onClose={() => setDialog(null)} busy={busy} description="Use this build’s saved tasks and model connection. Preparation records the team; it does not start agents.">
+    {dialog === 'prepare' && <WorkflowDialog readAccess={projectAccess} title="Prepare agent team" onClose={() => setDialog(null)} busy={busy} description="Use this build’s saved tasks and model connection. Preparation records the team; it does not start agents.">
       <p>Saved permission: {capability.mode}. Task commands run without interactive approvals inside isolated Docker workspaces. Each task exits after its response; review and integration remain your choice.</p>
       {capability.notice && <p>{capability.notice}</p>}
       <label className="luci-field">Maximum parallel agents<select value={selectedLimit} disabled={busy || subscription} onChange={event => setLimit(Number(event.target.value))}>{(subscription ? [1] : [1, 2, 3, 4]).map(value => <option key={value} value={value}>{value}</option>)}</select></label>
@@ -485,11 +485,11 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
       {error && <p role="alert">{error}</p>}
       <div className="workflow-actions"><Button variant="secondary" disabled={busy} onClick={() => setDialog(null)}>Keep reviewing</Button><Button disabled={busy || !canEdit || !canExecute || blocked || !capability.allowed} onClick={() => void operate('Preparing agent team', async epoch => { if (!current.current.taskAllowed) return; const value = await projectSwarmApi.prepare(run.projectId, run.id, run.revision, selectedLimit); if (remember(value, epoch)) { setDialog(null); setNotice('Agent team prepared. Review the task scopes, then start the ready tasks.'); } })}>Prepare team</Button></div>
     </WorkflowDialog>}
-    {dialog === 'cancel' && <WorkflowDialog title="Cancel remaining tasks" onClose={() => setDialog(null)} busy={busy} description="Prevent further task starts for this team. Existing agents keep running until you stop them in their sessions. Saved changes and integration history remain available.">
+    {dialog === 'cancel' && <WorkflowDialog readAccess={projectAccess} title="Cancel remaining tasks" onClose={() => setDialog(null)} busy={busy} description="Prevent further task starts for this team. Existing agents keep running until you stop them in their sessions. Saved changes and integration history remain available.">
       {error && <p role="alert">{error}</p>}
       <div className="workflow-actions"><Button variant="secondary" disabled={busy} onClick={() => setDialog(null)}>Keep team</Button><Button disabled={busy || !canEdit} onClick={() => void operate('Cancelling new starts', epoch => control('cancel', epoch), 'edit')}>Cancel future starts</Button></div>
     </WorkflowDialog>}
-    {review && <WorkflowDialog title="Review task changes" getCloseFocusTarget={() => reviewCloseTarget(review)} onClose={() => setReview(null)} busy={busy} description="Review the exact committed task changes before integrating them into the main project. The server checks the task and target again before changing files.">
+    {review && <WorkflowDialog readAccess={projectAccess} title="Review task changes" getCloseFocusTarget={() => reviewCloseTarget(review)} onClose={() => setReview(null)} busy={busy} description="Review the exact committed task changes before integrating them into the main project. The server checks the task and target again before changing files.">
       <p>{tasks.find(task => task.id === review.taskId)?.title}</p>
       <p className="project-swarm-commits">Task commit <code>{review.sourceCommit || 'unavailable'}</code><br />Target commit <code>{review.targetCommit || 'unavailable'}</code></p>
       <p className={review.canIntegrate ? 'journey-muted' : 'journey-warning'}>{review.reason}</p>
@@ -499,16 +499,16 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
       {error && <p role="alert">{error}</p>}
       <div className="workflow-actions"><Button variant="secondary" disabled={busy} onClick={() => setReview(null)}>Keep reviewing</Button><Button disabled={busy || !canEdit || !canExecute || blocked || !review.canIntegrate || !approved} onClick={() => void operate('Integrating reviewed changes', async epoch => { const selected = review; setReview(null); const value = await projectSwarmApi.integrate(run.projectId, run.id, selected.taskId, run.revision, selected.reviewDigest); if (remember(value, epoch)) setNotice(value.swarm?.tasks.find(task => task.id === selected.taskId)?.integration?.state === 'integrated' ? 'Reviewed changes integrated. Dependent tasks can now start; the combined build still needs verification.' : 'Integration did not complete. The task changes are retained; inspect the recorded outcome before retrying. Dependent tasks still wait for reviewed integration.'); })}>Integrate reviewed changes</Button></div>
     </WorkflowDialog>}
-    {retire && <WorkflowDialog title={finishingRecovery ? 'Finish recovery' : 'Retain changes and retry'} onClose={() => setRetire(null)} busy={busy} description="Keep this attempt’s workspace and output. Luci will allow retirement only when it can prove the child is stopped or was never allocated. A running process, an in-flight allocation, or an uncertain observation prevents recovery. This does not undo integrated changes or start another agent; a fresh attempt requires execution permission and a separate start.">
+    {retire && <WorkflowDialog readAccess={projectAccess} title={finishingRecovery ? 'Finish recovery' : 'Retain changes and retry'} onClose={() => setRetire(null)} busy={busy} description="Keep this attempt’s workspace and output. Luci will allow retirement only when it can prove the child is stopped or was never allocated. A running process, an in-flight allocation, or an uncertain observation prevents recovery. This does not undo integrated changes or start another agent; a fresh attempt requires execution permission and a separate start.">
       <p>{tasks.find(task => task.id === retire)?.title}</p>
       {error && <p role="alert">{error}</p>}
       <div className="workflow-actions"><Button variant="secondary" disabled={busy} onClick={() => setRetire(null)}>Keep inspecting</Button><Button disabled={busy || !canEdit} onClick={() => void operate('Verifying and retiring attempt', epoch => retireAttempt(retire, epoch), 'edit')}>{finishingRecovery ? 'Finish recovery' : 'Retain output and allow retry'}</Button></div>
     </WorkflowDialog>}
-    {recoveryTask && recoveryOperation && recoveryOperation.childId === launchRecovery?.childId && <SwarmLaunchRecoveryDialog
+    {recoveryTask && recoveryOperation && recoveryOperation.childId === launchRecovery?.childId && <SwarmLaunchRecoveryDialog readAccess={projectAccess}
       key={`${run.projectId}:${run.id}:${run.revision}:${recoveryOperation.id}:${launchRecovery?.epoch}`}
       run={run} operation={recoveryOperation} taskTitle={recoveryTask.title} projectName={projectName} canEdit={canEdit} busy={busy} error={error}
       onClose={() => setLaunchRecovery(null)} onConfirm={availability => void operate('Stopping the exact uncertain launch', epoch => retireAttempt(recoveryTask.id, epoch, availability), 'edit')} />}
-    {checkpointTask && checkpointOperation && checkpointOperation.childId === checkpoint?.childId && <SwarmCheckpointDialog
+    {checkpointTask && checkpointOperation && checkpointOperation.childId === checkpoint?.childId && <SwarmCheckpointDialog readAccess={projectAccess}
       key={`${run.projectId}:${run.id}:${run.revision}:${checkpointOperation.id}:${checkpoint?.epoch}`}
       run={run} operation={checkpointOperation} taskTitle={checkpointTask.title} projectName={projectName}
       canContinue={canEdit && canExecute && !blocked && capability.allowed} busy={busy} error={error}

@@ -1,0 +1,24 @@
+{
+  "exitCode": 0,
+  "testSHA256": "2cf7e44be58a0b95ae3239059ded4c069a0c9dbca35f73f4707107c74d61e05f",
+  "changedSelectedInputs": [],
+  "testOutcomes": [
+    {
+      "Action": "pass",
+      "Test": "TestRelaySendsOneCloseFrameBeforeTransportEOF/exit-zero"
+    },
+    {
+      "Action": "pass",
+      "Test": "TestRelaySendsOneCloseFrameBeforeTransportEOF/exit-nonzero"
+    },
+    {
+      "Action": "pass",
+      "Test": "TestRelaySendsOneCloseFrameBeforeTransportEOF/overload"
+    },
+    {
+      "Action": "pass",
+      "Test": "TestRelaySendsOneCloseFrameBeforeTransportEOF"
+    }
+  ],
+  "finishedAt": "2026-10-09T13:20:32.359703+00:00"
+}

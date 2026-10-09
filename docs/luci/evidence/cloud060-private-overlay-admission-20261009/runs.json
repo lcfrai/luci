@@ -1,0 +1,939 @@
+[
+  {
+    "path": "affected-attempt1",
+    "result": {
+      "commands": [
+        {
+          "kind": "affected",
+          "command": [
+            "node",
+            "node_modules/vitest/vitest.mjs",
+            "run",
+            "--config",
+            "/workspace/.luci-tools/cloud060-workspace-portals/affected-attempt1/config.mts",
+            "--maxWorkers=1",
+            "--reporter=json",
+            "--outputFile=/workspace/.luci-tools/cloud060-workspace-portals/affected-attempt1/report.json"
+          ],
+          "environment": {
+            "CLOUD060_FIXED": "1",
+            "CLOUD060_CORE_ONLY": null
+          },
+          "exitCode": 143,
+          "timedOut": true,
+          "seconds": 120.12222385406494,
+          "ownedRootPID": 2427679,
+          "rootWaited": true
+        },
+        {
+          "kind": "typecheck",
+          "command": [
+            "node",
+            "/workspace/.luci-tools/cloud060-workspace-portals/affected-attempt1/typecheck.cjs"
+          ],
+          "environment": {
+            "CLOUD060_FIXED": "1",
+            "CLOUD060_CORE_ONLY": null
+          },
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 22.908222436904907,
+          "ownedRootPID": 2428824,
+          "rootWaited": true
+        }
+      ],
+      "sourceStable": true,
+      "sourceInputs": 429,
+      "scope": "Controlled actual components/Radix plus external TypeScript compiler host overlays; no real app/browser/provider/Docker; no whole-machine census"
+    }
+  },
+  {
+    "path": "affected-core-attempt2",
+    "result": {
+      "commands": [
+        {
+          "kind": "affected",
+          "command": [
+            "node",
+            "node_modules/vitest/vitest.mjs",
+            "run",
+            "--config",
+            "/workspace/.luci-tools/cloud060-workspace-portals/affected-core-attempt2/config.mts",
+            "--maxWorkers=1",
+            "--reporter=default",
+            "--reporter=json",
+            "--outputFile=/workspace/.luci-tools/cloud060-workspace-portals/affected-core-attempt2/report.json"
+          ],
+          "environment": {
+            "CLOUD060_FIXED": "1",
+            "CLOUD060_CORE_ONLY": null
+          },
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 59.98129916191101,
+          "ownedRootPID": 2430745,
+          "rootWaited": true
+        }
+      ],
+      "sourceStable": true,
+      "sourceInputs": 429,
+      "scope": "Controlled actual components/Radix plus external TypeScript compiler host overlays; no real app/browser/provider/Docker; no whole-machine census"
+    },
+    "tests": {
+      "numPassedTests": 163,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "files": [
+      {
+        "name": "/workspace/.luci-tools/cloud060-workspace-portals/affected-core-attempt2/authority-portals.test.tsx",
+        "passed": 13,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "/workspace/.luci-tools/cloud060-workspace-portals/affected-core-attempt2/bulk-portals.test.tsx",
+        "passed": 8,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "/workspace/luci/desktop/src/hooks/useDismissable.test.ts",
+        "passed": 8,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "/workspace/luci/desktop/src/components/common/WorkflowDialog.test.tsx",
+        "passed": 4,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "/workspace/luci/desktop/src/components/develop/ReviewedContextInspector.test.tsx",
+        "passed": 23,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "/workspace/luci/desktop/src/components/projects/ProjectOverviewBoard.test.tsx",
+        "passed": 37,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "/workspace/luci/desktop/src/components/setup/AgentConnections.test.tsx",
+        "passed": 5,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "/workspace/luci/desktop/src/components/teams/BillingReturnNavigation.test.tsx",
+        "passed": 14,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "/workspace/luci/desktop/src/components/teams/TeamWorkspaceAuthority.test.tsx",
+        "passed": 18,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "/workspace/luci/desktop/src/components/teams/TeamWorkspaceControl.test.tsx",
+        "passed": 5,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "/workspace/luci/desktop/src/components/teams/TeamWorkspaceProvider.test.tsx",
+        "passed": 28,
+        "failed": 0,
+        "pending": 0
+      }
+    ]
+  },
+  {
+    "path": "affected-final-attempt5",
+    "result": {
+      "commands": [
+        {
+          "kind": "affected",
+          "command": [
+            "node",
+            "node_modules/vitest/vitest.mjs",
+            "run",
+            "--config",
+            "/workspace/.luci-tools/cloud060-workspace-portals/affected-final-attempt5/config.mts",
+            "--maxWorkers=1",
+            "--reporter=default",
+            "--reporter=json",
+            "--outputFile=/workspace/.luci-tools/cloud060-workspace-portals/affected-final-attempt5/report.json"
+          ],
+          "environment": {
+            "CLOUD060_FIXED": "1",
+            "CLOUD060_CORE_ONLY": null
+          },
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 26.916189908981323,
+          "ownedRootPID": 2434406,
+          "rootWaited": true
+        },
+        {
+          "kind": "typecheck",
+          "command": [
+            "node",
+            "/workspace/.luci-tools/cloud060-workspace-portals/affected-final-attempt5/typecheck.cjs"
+          ],
+          "environment": {
+            "CLOUD060_FIXED": "1",
+            "CLOUD060_CORE_ONLY": null
+          },
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 24.172889947891235,
+          "ownedRootPID": 2434527,
+          "rootWaited": true
+        }
+      ],
+      "sourceStable": true,
+      "sourceInputs": 429,
+      "scope": "Controlled actual components/Radix plus external TypeScript compiler host overlays; no real app/browser/provider/Docker; no whole-machine census"
+    },
+    "tests": {
+      "numPassedTests": 48,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "files": [
+      {
+        "name": "/workspace/.luci-tools/cloud060-workspace-portals/affected-final-attempt5/authority-portals.test.tsx",
+        "passed": 13,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "/workspace/.luci-tools/cloud060-workspace-portals/affected-final-attempt5/bulk-portals.test.tsx",
+        "passed": 8,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "/workspace/luci/desktop/src/components/common/WorkflowDialog.test.tsx",
+        "passed": 4,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "/workspace/luci/desktop/src/components/teams/TeamDataLifecycle.test.tsx",
+        "passed": 4,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "/workspace/luci/desktop/src/components/teams/TeamInvitations.test.tsx",
+        "passed": 9,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "/workspace/luci/desktop/src/components/setup/AgentConnectionManager.test.tsx",
+        "passed": 10,
+        "failed": 0,
+        "pending": 0
+      }
+    ]
+  },
+  {
+    "path": "affected-journey-attempt3",
+    "result": {
+      "commands": [
+        {
+          "kind": "affected",
+          "command": [
+            "node",
+            "node_modules/vitest/vitest.mjs",
+            "run",
+            "--config",
+            "/workspace/.luci-tools/cloud060-workspace-portals/affected-journey-attempt3/config.mts",
+            "--maxWorkers=1",
+            "--reporter=default",
+            "--reporter=json",
+            "--outputFile=/workspace/.luci-tools/cloud060-workspace-portals/affected-journey-attempt3/report.json"
+          ],
+          "environment": {
+            "CLOUD060_FIXED": "1",
+            "CLOUD060_CORE_ONLY": null
+          },
+          "exitCode": 1,
+          "timedOut": false,
+          "seconds": 35.050209045410156,
+          "ownedRootPID": 2431425,
+          "rootWaited": true
+        }
+      ],
+      "sourceStable": true,
+      "sourceInputs": 429,
+      "scope": "Controlled actual components/Radix plus external TypeScript compiler host overlays; no real app/browser/provider/Docker; no whole-machine census"
+    },
+    "tests": {
+      "numPassedTests": 110,
+      "numFailedTests": 1,
+      "numPendingTests": 0
+    },
+    "files": [
+      {
+        "name": "/workspace/luci/desktop/src/components/journey/CheckRecoveryDialog.test.tsx",
+        "passed": 11,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "/workspace/luci/desktop/src/components/journey/ProjectSwarm.test.tsx",
+        "passed": 36,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "/workspace/luci/desktop/src/components/journey/SwarmCheckpoint.test.tsx",
+        "passed": 10,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "/workspace/luci/desktop/src/components/journey/SwarmRunQueue.test.tsx",
+        "passed": 12,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "/workspace/luci/desktop/src/components/journey/SwarmTaskHandoff.test.tsx",
+        "passed": 28,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "/workspace/luci/desktop/src/components/journey/SwarmWorkspaceReview.test.tsx",
+        "passed": 13,
+        "failed": 1,
+        "pending": 0
+      }
+    ]
+  },
+  {
+    "path": "affected-owners-attempt4",
+    "result": {
+      "commands": [
+        {
+          "kind": "affected",
+          "command": [
+            "node",
+            "node_modules/vitest/vitest.mjs",
+            "run",
+            "--config",
+            "/workspace/.luci-tools/cloud060-workspace-portals/affected-owners-attempt4/config.mts",
+            "--maxWorkers=1",
+            "--reporter=default",
+            "--reporter=json",
+            "--outputFile=/workspace/.luci-tools/cloud060-workspace-portals/affected-owners-attempt4/report.json"
+          ],
+          "environment": {
+            "CLOUD060_FIXED": "1",
+            "CLOUD060_CORE_ONLY": null
+          },
+          "exitCode": 0,
+          "timedOut": false,
+          "seconds": 100.01658606529236,
+          "ownedRootPID": 2431711,
+          "rootWaited": true
+        }
+      ],
+      "sourceStable": true,
+      "sourceInputs": 429,
+      "scope": "Controlled actual components/Radix plus external TypeScript compiler host overlays; no real app/browser/provider/Docker; no whole-machine census"
+    },
+    "tests": {
+      "numPassedTests": 295,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "files": [
+      {
+        "name": "/workspace/luci/desktop/src/components/journey/BranchManager.test.tsx",
+        "passed": 10,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "/workspace/luci/desktop/src/components/journey/ContextStorage.test.tsx",
+        "passed": 21,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "/workspace/luci/desktop/src/components/journey/DeploymentRecovery.test.tsx",
+        "passed": 9,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "/workspace/luci/desktop/src/components/journey/DeploymentWorkspace.test.tsx",
+        "passed": 3,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "/workspace/luci/desktop/src/components/journey/ProjectChecks.test.tsx",
+        "passed": 61,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "/workspace/luci/desktop/src/components/journey/ProjectRuns.test.tsx",
+        "passed": 62,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "/workspace/luci/desktop/src/components/journey/SwarmWorkspaceReview.test.tsx",
+        "passed": 14,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "/workspace/luci/desktop/src/components/orchestrator/OrchestratorPanel.test.tsx",
+        "passed": 115,
+        "failed": 0,
+        "pending": 0
+      }
+    ]
+  },
+  {
+    "path": "after-attempt1",
+    "result": {
+      "mode": "after",
+      "command": [
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "/workspace/.luci-tools/cloud060-workspace-portals/config.mts",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile=/workspace/.luci-tools/cloud060-workspace-portals/after-attempt1/report.json"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 4.480348110198975,
+      "sourceStable": true,
+      "sourceInputs": 428,
+      "ownedRootPID": 2419308,
+      "rootWaited": true,
+      "scope": "Controlled actual React/Radix with fixtureHTTP; no real app/browser/Docker/provider; no whole-machine census"
+    },
+    "tests": {
+      "numPassedTests": 4,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "files": [
+      {
+        "name": "/workspace/.luci-tools/cloud060-workspace-portals/authority-portals.test.tsx",
+        "passed": 4,
+        "failed": 0,
+        "pending": 0
+      }
+    ]
+  },
+  {
+    "path": "after-attempt11",
+    "result": {
+      "mode": "after",
+      "environment": {
+        "CLOUD060_FIXED": "1",
+        "CLOUD060_CORE_ONLY": null,
+        "CLOUD060_NESTED_ORIGINAL": null,
+        "CLOUD060_COUNTEREXAMPLES": "1"
+      },
+      "command": [
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "/workspace/.luci-tools/cloud060-workspace-portals/config.mts",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile=/workspace/.luci-tools/cloud060-workspace-portals/after-attempt11/report.json"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 7.279430627822876,
+      "sourceStable": true,
+      "sourceInputs": 428,
+      "ownedRootPID": 2433435,
+      "rootWaited": true,
+      "scope": "Controlled actual React/Radix with fixtureHTTP; no real app/browser/Docker/provider; no whole-machine census"
+    },
+    "tests": {
+      "numPassedTests": 2,
+      "numFailedTests": 0,
+      "numPendingTests": 5
+    },
+    "files": [
+      {
+        "name": "/workspace/.luci-tools/cloud060-workspace-portals/team-panel-portals.test.tsx",
+        "passed": 2,
+        "failed": 0,
+        "pending": 0
+      }
+    ]
+  },
+  {
+    "path": "after-attempt2",
+    "result": {
+      "mode": "after",
+      "command": [
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "/workspace/.luci-tools/cloud060-workspace-portals/config.mts",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile=/workspace/.luci-tools/cloud060-workspace-portals/after-attempt2/report.json"
+      ],
+      "exitCode": 1,
+      "timedOut": false,
+      "seconds": 5.156431436538696,
+      "sourceStable": true,
+      "sourceInputs": 428,
+      "ownedRootPID": 2420703,
+      "rootWaited": true,
+      "scope": "Controlled actual React/Radix with fixtureHTTP; no real app/browser/Docker/provider; no whole-machine census"
+    },
+    "tests": {
+      "numPassedTests": 3,
+      "numFailedTests": 1,
+      "numPendingTests": 0
+    },
+    "files": [
+      {
+        "name": "/workspace/.luci-tools/cloud060-workspace-portals/authority-portals.test.tsx",
+        "passed": 3,
+        "failed": 1,
+        "pending": 0
+      }
+    ]
+  },
+  {
+    "path": "after-attempt3",
+    "result": {
+      "mode": "after",
+      "command": [
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "/workspace/.luci-tools/cloud060-workspace-portals/config.mts",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile=/workspace/.luci-tools/cloud060-workspace-portals/after-attempt3/report.json"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 4.579633712768555,
+      "sourceStable": true,
+      "sourceInputs": 428,
+      "ownedRootPID": 2424665,
+      "rootWaited": true,
+      "scope": "Controlled actual React/Radix with fixtureHTTP; no real app/browser/Docker/provider; no whole-machine census"
+    },
+    "tests": {
+      "numPassedTests": 5,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "files": [
+      {
+        "name": "/workspace/.luci-tools/cloud060-workspace-portals/authority-portals.test.tsx",
+        "passed": 5,
+        "failed": 0,
+        "pending": 0
+      }
+    ]
+  },
+  {
+    "path": "after-attempt4",
+    "result": {
+      "mode": "after",
+      "command": [
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "/workspace/.luci-tools/cloud060-workspace-portals/config.mts",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile=/workspace/.luci-tools/cloud060-workspace-portals/after-attempt4/report.json"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 7.192532300949097,
+      "sourceStable": true,
+      "sourceInputs": 428,
+      "ownedRootPID": 2426492,
+      "rootWaited": true,
+      "scope": "Controlled actual React/Radix with fixtureHTTP; no real app/browser/Docker/provider; no whole-machine census"
+    },
+    "tests": {
+      "numPassedTests": 9,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "files": [
+      {
+        "name": "/workspace/.luci-tools/cloud060-workspace-portals/authority-portals.test.tsx",
+        "passed": 9,
+        "failed": 0,
+        "pending": 0
+      }
+    ]
+  },
+  {
+    "path": "after-attempt5",
+    "result": {
+      "mode": "after",
+      "command": [
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "/workspace/.luci-tools/cloud060-workspace-portals/config.mts",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile=/workspace/.luci-tools/cloud060-workspace-portals/after-attempt5/report.json"
+      ],
+      "exitCode": 1,
+      "timedOut": false,
+      "seconds": 7.200481414794922,
+      "sourceStable": true,
+      "sourceInputs": 428,
+      "ownedRootPID": 2426693,
+      "rootWaited": true,
+      "scope": "Controlled actual React/Radix with fixtureHTTP; no real app/browser/Docker/provider; no whole-machine census"
+    },
+    "tests": {
+      "numPassedTests": 6,
+      "numFailedTests": 3,
+      "numPendingTests": 0
+    },
+    "files": [
+      {
+        "name": "/workspace/.luci-tools/cloud060-workspace-portals/authority-portals.test.tsx",
+        "passed": 6,
+        "failed": 3,
+        "pending": 0
+      }
+    ]
+  },
+  {
+    "path": "after-attempt6",
+    "result": {
+      "mode": "after",
+      "environment": {
+        "CLOUD060_FIXED": "1",
+        "CLOUD060_CORE_ONLY": null,
+        "CLOUD060_NESTED_ORIGINAL": "1"
+      },
+      "command": [
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "/workspace/.luci-tools/cloud060-workspace-portals/config.mts",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile=/workspace/.luci-tools/cloud060-workspace-portals/after-attempt6/report.json"
+      ],
+      "exitCode": 1,
+      "timedOut": false,
+      "seconds": 7.965115785598755,
+      "sourceStable": true,
+      "sourceInputs": 428,
+      "ownedRootPID": 2430456,
+      "rootWaited": true,
+      "scope": "Controlled actual React/Radix with fixtureHTTP; no real app/browser/Docker/provider; no whole-machine census"
+    },
+    "tests": {
+      "numPassedTests": 11,
+      "numFailedTests": 2,
+      "numPendingTests": 0
+    },
+    "files": [
+      {
+        "name": "/workspace/.luci-tools/cloud060-workspace-portals/authority-portals.test.tsx",
+        "passed": 11,
+        "failed": 2,
+        "pending": 0
+      }
+    ]
+  },
+  {
+    "path": "after-attempt7",
+    "result": {
+      "mode": "after",
+      "environment": {
+        "CLOUD060_FIXED": "1",
+        "CLOUD060_CORE_ONLY": null,
+        "CLOUD060_NESTED_ORIGINAL": null
+      },
+      "command": [
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "/workspace/.luci-tools/cloud060-workspace-portals/config.mts",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile=/workspace/.luci-tools/cloud060-workspace-portals/after-attempt7/report.json"
+      ],
+      "exitCode": 1,
+      "timedOut": false,
+      "seconds": 7.7927775382995605,
+      "sourceStable": true,
+      "sourceInputs": 428,
+      "ownedRootPID": 2430508,
+      "rootWaited": true,
+      "scope": "Controlled actual React/Radix with fixtureHTTP; no real app/browser/Docker/provider; no whole-machine census"
+    },
+    "tests": {
+      "numPassedTests": 12,
+      "numFailedTests": 1,
+      "numPendingTests": 0
+    },
+    "files": [
+      {
+        "name": "/workspace/.luci-tools/cloud060-workspace-portals/authority-portals.test.tsx",
+        "passed": 12,
+        "failed": 1,
+        "pending": 0
+      }
+    ]
+  },
+  {
+    "path": "after-attempt9",
+    "result": {
+      "mode": "after",
+      "environment": {
+        "CLOUD060_FIXED": "1",
+        "CLOUD060_CORE_ONLY": null,
+        "CLOUD060_NESTED_ORIGINAL": null,
+        "CLOUD060_COUNTEREXAMPLES": "1"
+      },
+      "command": [
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "/workspace/.luci-tools/cloud060-workspace-portals/config.mts",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile=/workspace/.luci-tools/cloud060-workspace-portals/after-attempt9/report.json"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "seconds": 9.6262686252594,
+      "sourceStable": true,
+      "sourceInputs": 428,
+      "ownedRootPID": 2432650,
+      "rootWaited": true,
+      "scope": "Controlled actual React/Radix with fixtureHTTP; no real app/browser/Docker/provider; no whole-machine census"
+    },
+    "tests": {
+      "numPassedTests": 8,
+      "numFailedTests": 0,
+      "numPendingTests": 7
+    },
+    "files": [
+      {
+        "name": "/workspace/.luci-tools/cloud060-workspace-portals/bulk-portals.test.tsx",
+        "passed": 8,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "name": "/workspace/.luci-tools/cloud060-workspace-portals/team-panel-portals.test.tsx",
+        "passed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    ]
+  },
+  {
+    "path": "before-attempt1",
+    "result": {
+      "mode": "before",
+      "command": [
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "/workspace/.luci-tools/cloud060-workspace-portals/config.mts",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile=/workspace/.luci-tools/cloud060-workspace-portals/before-attempt1/report.json"
+      ],
+      "exitCode": 1,
+      "timedOut": false,
+      "seconds": 6.3120787143707275,
+      "sourceStable": true,
+      "sourceInputs": 428,
+      "ownedRootPID": 2419241,
+      "rootWaited": true,
+      "scope": "Controlled actual React/Radix with fixtureHTTP; no real app/browser/Docker/provider; no whole-machine census"
+    },
+    "tests": {
+      "numPassedTests": 1,
+      "numFailedTests": 3,
+      "numPendingTests": 0
+    },
+    "files": [
+      {
+        "name": "/workspace/.luci-tools/cloud060-workspace-portals/authority-portals.test.tsx",
+        "passed": 1,
+        "failed": 3,
+        "pending": 0
+      }
+    ]
+  },
+  {
+    "path": "before-attempt10",
+    "result": {
+      "mode": "before",
+      "environment": {
+        "CLOUD060_FIXED": "0",
+        "CLOUD060_CORE_ONLY": null,
+        "CLOUD060_NESTED_ORIGINAL": null,
+        "CLOUD060_COUNTEREXAMPLES": "1"
+      },
+      "command": [
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "/workspace/.luci-tools/cloud060-workspace-portals/config.mts",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile=/workspace/.luci-tools/cloud060-workspace-portals/before-attempt10/report.json"
+      ],
+      "exitCode": 1,
+      "timedOut": false,
+      "seconds": 5.848163366317749,
+      "sourceStable": true,
+      "sourceInputs": 428,
+      "ownedRootPID": 2433256,
+      "rootWaited": true,
+      "scope": "Controlled actual React/Radix with fixtureHTTP; no real app/browser/Docker/provider; no whole-machine census"
+    },
+    "tests": {
+      "numPassedTests": 0,
+      "numFailedTests": 2,
+      "numPendingTests": 5
+    },
+    "files": [
+      {
+        "name": "/workspace/.luci-tools/cloud060-workspace-portals/team-panel-portals.test.tsx",
+        "passed": 0,
+        "failed": 2,
+        "pending": 0
+      }
+    ]
+  },
+  {
+    "path": "before-attempt4",
+    "result": {
+      "mode": "before",
+      "command": [
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "/workspace/.luci-tools/cloud060-workspace-portals/config.mts",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile=/workspace/.luci-tools/cloud060-workspace-portals/before-attempt4/report.json"
+      ],
+      "exitCode": 1,
+      "timedOut": false,
+      "seconds": 7.695923328399658,
+      "sourceStable": true,
+      "sourceInputs": 428,
+      "ownedRootPID": 2426437,
+      "rootWaited": true,
+      "scope": "Controlled actual React/Radix with fixtureHTTP; no real app/browser/Docker/provider; no whole-machine census"
+    },
+    "tests": {
+      "numPassedTests": 1,
+      "numFailedTests": 8,
+      "numPendingTests": 0
+    },
+    "files": [
+      {
+        "name": "/workspace/.luci-tools/cloud060-workspace-portals/authority-portals.test.tsx",
+        "passed": 1,
+        "failed": 8,
+        "pending": 0
+      }
+    ]
+  },
+  {
+    "path": "before-attempt8",
+    "result": {
+      "mode": "before",
+      "environment": {
+        "CLOUD060_FIXED": "0",
+        "CLOUD060_CORE_ONLY": null,
+        "CLOUD060_NESTED_ORIGINAL": null,
+        "CLOUD060_COUNTEREXAMPLES": "1"
+      },
+      "command": [
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "/workspace/.luci-tools/cloud060-workspace-portals/config.mts",
+        "--maxWorkers=1",
+        "--reporter=json",
+        "--outputFile=/workspace/.luci-tools/cloud060-workspace-portals/before-attempt8/report.json"
+      ],
+      "exitCode": 1,
+      "timedOut": false,
+      "seconds": 13.70798110961914,
+      "sourceStable": true,
+      "sourceInputs": 428,
+      "ownedRootPID": 2432573,
+      "rootWaited": true,
+      "scope": "Controlled actual React/Radix with fixtureHTTP; no real app/browser/Docker/provider; no whole-machine census"
+    },
+    "tests": {
+      "numPassedTests": 0,
+      "numFailedTests": 8,
+      "numPendingTests": 7
+    },
+    "files": [
+      {
+        "name": "/workspace/.luci-tools/cloud060-workspace-portals/bulk-portals.test.tsx",
+        "passed": 0,
+        "failed": 8,
+        "pending": 0
+      },
+      {
+        "name": "/workspace/.luci-tools/cloud060-workspace-portals/team-panel-portals.test.tsx",
+        "passed": 0,
+        "failed": 0,
+        "pending": 0
+      }
+    ]
+  }
+]

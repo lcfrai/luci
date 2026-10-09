@@ -537,7 +537,7 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
           </li>
         ))}
       </ul>
-      {replacement && <WorkflowDialog title="Review replacement preview" description="Create a new preview from the selected current commit. This retains the earlier release record; it does not restart the old container or roll back application data." busy={!!busy} onClose={() => { setReplacement(null); setReplacementAccepted(false); }}>
+      {replacement && <WorkflowDialog readAccess={projectAccess} title="Review replacement preview" description="Create a new preview from the selected current commit. This retains the earlier release record; it does not restart the old container or roll back application data." busy={!!busy} onClose={() => { setReplacement(null); setReplacementAccepted(false); }}>
         <p>Earlier source: <code>{replacement.previous.commit}</code></p>
         <p>Replacement source: <code>{replacement.commit}</code></p>
         {replacement.previous.commit !== replacement.commit && <p className="journey-warning">The project has changed since that release. The replacement must be checked and reviewed again before its behavior is accepted.</p>}

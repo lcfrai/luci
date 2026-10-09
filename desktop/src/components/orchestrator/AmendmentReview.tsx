@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { OrchestratorTurn, OrchestratorView } from "../../api/orchestrator";
 import { Button } from "../fluid/components/button";
-import { WorkflowDialog } from "../common/WorkflowDialog";
+import { WorkflowDialog, type WorkflowDialogReadAccess } from "../common/WorkflowDialog";
 
 const names = { specification: "definition", "design-plan": "design handoff", plan: "implementation plan" };
 const metadata = new Set(["projectId", "version", "revision", "briefRevision", "specificationRevision", "specificationDigest", "sketchRevision", "status", "digest", "updatedAt"]);
@@ -13,8 +13,8 @@ function readable(value: unknown, depth = 0): string {
   return String(value);
 }
 
-export function AmendmentReview({ turn, view, busy, blocked, error, onClose, onApply }: {
-  turn: OrchestratorTurn; view: OrchestratorView; busy: boolean; blocked: string; error: string;
+export function AmendmentReview({ turn, view, readAccess, busy, blocked, error, onClose, onApply }: {
+  readAccess: WorkflowDialogReadAccess; turn: OrchestratorTurn; view: OrchestratorView; busy: boolean; blocked: string; error: string;
   onClose(): void; onApply(): void;
 }) {
   const [acknowledged, setAcknowledged] = useState(false);
@@ -25,7 +25,7 @@ export function AmendmentReview({ turn, view, busy, blocked, error, onClose, onA
   const after = proposal[property] as unknown as Record<string, unknown> | null;
   const changes = after ? Object.keys(after).filter(key => !metadata.has(key) && JSON.stringify(before[key]) !== JSON.stringify(after[key])) : [];
   const stale = turn.contextDigest !== view.context.digest;
-  return <WorkflowDialog title={`Review ${names[proposal.target]} amendment`} description="Compare the saved context Luci used with the proposed draft. Applying does not approve the document, start coding or deploy anything." busy={busy} onClose={onClose}>
+  return <WorkflowDialog readAccess={readAccess} title={`Review ${names[proposal.target]} amendment`} description="Compare the saved context Luci used with the proposed draft. Applying does not approve the document, start coding or deploy anything." busy={busy} onClose={onClose}>
     <p>{proposal.summary}</p>
     {turn.answer?.rationale && <p><strong>Why this change: </strong>{turn.answer.rationale}</p>}
     {!!turn.answer?.impact?.length && <div><strong>Affected work</strong><ul>{turn.answer.impact.map((impact, index) => <li key={index}>{impact}</li>)}</ul></div>}

@@ -1,0 +1,21 @@
+{
+  "kind": "private-transport-errors-settled",
+  "observation": {
+    "version": 1,
+    "scope": "Private browser error text records only; no URLs, headers, stdout or credentials deliberately collected; arbitrary error strings may themselves contain secrets and remain private.",
+    "rows": 2,
+    "bytes": 479,
+    "sha256": "6442b6376ed3634e301dbad1f0b367a85e68499a0f0d75ea9e447ea771f739ca",
+    "maxBytes": 131072,
+    "maxTextBytes": 2048,
+    "maxRows": 32,
+    "closed": true,
+    "failed": false,
+    "failures": [],
+    "fsyncSucceeded": true,
+    "identityVerified": true,
+    "closeAcknowledged": true,
+    "passed": true
+  },
+  "observedAt": "2026-10-09T13:10:04.056Z"
+}

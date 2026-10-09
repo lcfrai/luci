@@ -1,0 +1,3257 @@
+[
+  {
+    "path": "affected-attempt1/affected-files.txt",
+    "bytes": 1081,
+    "sha256": "2bb8bbac50829d366528d2d3b41bcf0b977516cc768d70313a9632e140f6d603"
+  },
+  {
+    "path": "affected-attempt1/affected.stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "affected-attempt1/affected.stdout.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "affected-attempt1/after/desktop/src/api/teams.ts",
+    "bytes": 3283,
+    "sha256": "3817a2e9cfe621a07bdf3f15d217fa3d0fede9b324e639329b8fbb2183448df2"
+  },
+  {
+    "path": "affected-attempt1/after/desktop/src/components/common/DraftNavigationDialog.tsx",
+    "bytes": 3147,
+    "sha256": "570aa3909dee369d7e1b4c7dfa052d7ec17e5dd0d7d72702f40ffc239182a3c4"
+  },
+  {
+    "path": "affected-attempt1/after/desktop/src/components/common/WorkflowDialog.tsx",
+    "bytes": 4094,
+    "sha256": "8024f392355596de0bc251ca32845d49d4e036e9ac94d3c72282912b30e5ac2d"
+  },
+  {
+    "path": "affected-attempt1/after/desktop/src/components/common/WorkspaceOverlayScope.tsx",
+    "bytes": 557,
+    "sha256": "99d187585b33031b9f6d869fafd4e237f0db41f597b723b1d15d20ae84af3332"
+  },
+  {
+    "path": "affected-attempt1/after/desktop/src/components/develop/ReviewedContextInspector.tsx",
+    "bytes": 7253,
+    "sha256": "ed22a7a36bef39809d4151fcbfaae2e0f6310ee076fab2c0c11accfd1cc3b3e6"
+  },
+  {
+    "path": "affected-attempt1/after/desktop/src/components/journey/BranchManager.tsx",
+    "bytes": 11655,
+    "sha256": "ae0239412af70b56006a15bac6d25ecdb0a6a323074d91f2511a2e98bb59447f"
+  },
+  {
+    "path": "affected-attempt1/after/desktop/src/components/journey/CheckRecoveryDialog.test.tsx",
+    "bytes": 9520,
+    "sha256": "1fb7fd2fc8818a06600f2ef47de023a7ae3fe26fa982006c9982e7afc7cb143b"
+  },
+  {
+    "path": "affected-attempt1/after/desktop/src/components/journey/CheckRecoveryDialog.tsx",
+    "bytes": 8728,
+    "sha256": "6601c75749e5a2160f926bc1f480e1610be95367fd16aefb635e661f4c657026"
+  },
+  {
+    "path": "affected-attempt1/after/desktop/src/components/journey/ContextStorage.tsx",
+    "bytes": 14104,
+    "sha256": "1c347ce58f5b1a7fdffd706a8c762551e48cb5f730e5981c9bcfdb732fb28ae5"
+  },
+  {
+    "path": "affected-attempt1/after/desktop/src/components/journey/ProjectChecks.tsx",
+    "bytes": 41307,
+    "sha256": "9fe29851853743886e9d81dea9574b9adc578b667a8b575ab59213f8f2e5ffc3"
+  },
+  {
+    "path": "affected-attempt1/after/desktop/src/components/journey/ProjectRuns.tsx",
+    "bytes": 41314,
+    "sha256": "6c6709b41ae883c149bee1a5b8bc745032db7512f8b92ba74cbfefdfaf1889b5"
+  },
+  {
+    "path": "affected-attempt1/after/desktop/src/components/journey/ProjectSwarm.tsx",
+    "bytes": 52803,
+    "sha256": "3bb54057e42fa15144c7e006220b6dbf3571726233f99394851082aebe15dacd"
+  },
+  {
+    "path": "affected-attempt1/after/desktop/src/components/journey/SwarmCheckpointDialog.tsx",
+    "bytes": 5469,
+    "sha256": "8e573665eab80af60d8fbfd087aea32a747f5a3057c9d0a764f160357184c57b"
+  },
+  {
+    "path": "affected-attempt1/after/desktop/src/components/journey/SwarmLaunchRecoveryDialog.tsx",
+    "bytes": 5324,
+    "sha256": "76aec29d2f2e5d6991a4a4ec693def9d442c58a6b1624c71de4216a8a3fe3774"
+  },
+  {
+    "path": "affected-attempt1/after/desktop/src/components/journey/SwarmRunQueue.test.tsx",
+    "bytes": 13648,
+    "sha256": "56cd3733739847a4c20dbc1592771f3ee8eaeb72d7b42159eb208951d0da5da8"
+  },
+  {
+    "path": "affected-attempt1/after/desktop/src/components/journey/SwarmRunQueue.tsx",
+    "bytes": 12271,
+    "sha256": "d73f6a891b50b8eeb25c71d813de311e3678a0c38e2b73a2cee8f9d867e4f1da"
+  },
+  {
+    "path": "affected-attempt1/after/desktop/src/components/journey/SwarmTaskHandoff.tsx",
+    "bytes": 20738,
+    "sha256": "bc9512d3ad25c530acc403bf72d185d2e595f8a2bd23f9028501253f74effb55"
+  },
+  {
+    "path": "affected-attempt1/after/desktop/src/components/journey/SwarmWorkspaceReview.tsx",
+    "bytes": 9548,
+    "sha256": "ff7fcf20acc5efe666f4529599c6db70b58c1c8c247a4724b310c51129460c34"
+  },
+  {
+    "path": "affected-attempt1/after/desktop/src/components/lens/DeployLens.tsx",
+    "bytes": 31599,
+    "sha256": "9d93803a32beb38cda5f19138e5f7e0ac722ffa6f8c82ed1b56b2b8a380eedf0"
+  },
+  {
+    "path": "affected-attempt1/after/desktop/src/components/orchestrator/AmendmentReview.tsx",
+    "bytes": 3778,
+    "sha256": "293d4d1ca2ff2efeb7b407699bfc85c5ed997fbe0fd47c8b421350af7885cf2e"
+  },
+  {
+    "path": "affected-attempt1/after/desktop/src/components/orchestrator/OrchestratorPanel.tsx",
+    "bytes": 53147,
+    "sha256": "4213194e38481cc9e0b4e1f8c3eccfd1a0c62a67823a3a29fae92c5e55baf73f"
+  },
+  {
+    "path": "affected-attempt1/after/desktop/src/components/projects/ProjectOverviewBoard.tsx",
+    "bytes": 25690,
+    "sha256": "3f198ff66958b205a65309a8a53192959bd0e1c805cc8c0b40b692f676eef9a8"
+  },
+  {
+    "path": "affected-attempt1/after/desktop/src/components/teams/TeamWorkspaceControl.tsx",
+    "bytes": 14794,
+    "sha256": "859b39ecddb16bcec882d41f0e0a136d935b892781a5f00ed48a202a1d0c4039"
+  },
+  {
+    "path": "affected-attempt1/after/desktop/src/components/teams/TeamWorkspaceProvider.tsx",
+    "bytes": 15171,
+    "sha256": "a8a96ee7ccf6dcdb16decfe31e42c40081dd408e2e8004101c1af64f3bb9c3fa"
+  },
+  {
+    "path": "affected-attempt1/after/desktop/src/hooks/useDismissable.ts",
+    "bytes": 4865,
+    "sha256": "52ed6fe58003ae2e96a9f8918fbf8f73df9e09b871544fb42188f212082b82c6"
+  },
+  {
+    "path": "affected-attempt1/authority-portals.test.tsx",
+    "bytes": 17183,
+    "sha256": "baac37a810db422dbaf2c8d52f8464c3d3fe70c0a74e7dbcecc1d374219b53fc"
+  },
+  {
+    "path": "affected-attempt1/commands.json",
+    "bytes": 984,
+    "sha256": "11b0e436740025915f845dd6353d1b67e075e435a365bf5d578c6a2f515c7b6b"
+  },
+  {
+    "path": "affected-attempt1/config.mts",
+    "bytes": 3551,
+    "sha256": "915abd2ec6113cb8a5fcc9579f4ecd8465ec89e8e179399df11b9dabcfd1ff1f"
+  },
+  {
+    "path": "affected-attempt1/frozen-inputs.json",
+    "bytes": 5261,
+    "sha256": "745cc7e44de5d40a1590df039f695068fa4bb3dbd805975f3a7d630a8c1a1e45"
+  },
+  {
+    "path": "affected-attempt1/process-group-closure.json",
+    "bytes": 328,
+    "sha256": "919f2d114e4e6d2c1b63e9af85c606bd467a966930c60defec0a049b38a49ce3"
+  },
+  {
+    "path": "affected-attempt1/result.json",
+    "bytes": 1286,
+    "sha256": "1d06eeff3154774aee88834c12477caefa5056db5927e359d5a7e737fb220d55"
+  },
+  {
+    "path": "affected-attempt1/source-after.json",
+    "bytes": 72709,
+    "sha256": "c82df8acf59e9c42a023dde27ae9a3a65069658f346da27e28dd80ef92b72229"
+  },
+  {
+    "path": "affected-attempt1/source-before.json",
+    "bytes": 72709,
+    "sha256": "c82df8acf59e9c42a023dde27ae9a3a65069658f346da27e28dd80ef92b72229"
+  },
+  {
+    "path": "affected-attempt1/typecheck-inputs.json",
+    "bytes": 215883,
+    "sha256": "75ef510c933c6f2960061bcc34376a0c97a8f4ce53f3de56a23dfbbb8db56cea"
+  },
+  {
+    "path": "affected-attempt1/typecheck.cjs",
+    "bytes": 1557,
+    "sha256": "1c4167897d448fb8e467507b99fe58d029261b11103a6de77e20787734489995"
+  },
+  {
+    "path": "affected-attempt1/typecheck.stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "affected-attempt1/typecheck.stdout.log",
+    "bytes": 32,
+    "sha256": "997bc8df66c4af9c338e7a24c2b1ea8fdf291634f4f5050ea114beefc1bf3d43"
+  },
+  {
+    "path": "affected-attempt1/validate.py",
+    "bytes": 3486,
+    "sha256": "b28b820cba9ebedaf50db374f1ef3cb03633de876f9d3d47dcab8f33e934227b"
+  },
+  {
+    "path": "affected-attempt1/versions.json",
+    "bytes": 98,
+    "sha256": "3d58b6ea6d365887b06aba78ec5e8c21d85a92b0996129b52ef6de5f800ff380"
+  },
+  {
+    "path": "affected-core-attempt2/affected-files.txt",
+    "bytes": 447,
+    "sha256": "cf375aa1926ed37e7f0e4ca7441c2d432dcbfb1eb8707b2c53dc596328293fdf"
+  },
+  {
+    "path": "affected-core-attempt2/affected.stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "affected-core-attempt2/affected.stdout.log",
+    "bytes": 3794,
+    "sha256": "ad1bfab1d94ee8ba805c9bbc148d33c5d71cfb9cac89308aeb151c4493dc7ba9"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/api/teams.ts",
+    "bytes": 3283,
+    "sha256": "3817a2e9cfe621a07bdf3f15d217fa3d0fede9b324e639329b8fbb2183448df2"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/components/common/DraftNavigationDialog.tsx",
+    "bytes": 3147,
+    "sha256": "570aa3909dee369d7e1b4c7dfa052d7ec17e5dd0d7d72702f40ffc239182a3c4"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/components/common/WorkflowDialog.tsx",
+    "bytes": 4654,
+    "sha256": "f2b8b81a28e37c99d6a3640d5ec425cf847a815a67aa5d678a5ff668a0fb9c8b"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/components/common/WorkspaceOverlayScope.tsx",
+    "bytes": 557,
+    "sha256": "99d187585b33031b9f6d869fafd4e237f0db41f597b723b1d15d20ae84af3332"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/components/develop/ReviewedContextInspector.tsx",
+    "bytes": 7253,
+    "sha256": "ed22a7a36bef39809d4151fcbfaae2e0f6310ee076fab2c0c11accfd1cc3b3e6"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/components/journey/BranchManager.tsx",
+    "bytes": 11655,
+    "sha256": "ae0239412af70b56006a15bac6d25ecdb0a6a323074d91f2511a2e98bb59447f"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/components/journey/CheckRecoveryDialog.test.tsx",
+    "bytes": 9520,
+    "sha256": "1fb7fd2fc8818a06600f2ef47de023a7ae3fe26fa982006c9982e7afc7cb143b"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/components/journey/CheckRecoveryDialog.tsx",
+    "bytes": 8728,
+    "sha256": "6601c75749e5a2160f926bc1f480e1610be95367fd16aefb635e661f4c657026"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/components/journey/ContextStorage.tsx",
+    "bytes": 14104,
+    "sha256": "1c347ce58f5b1a7fdffd706a8c762551e48cb5f730e5981c9bcfdb732fb28ae5"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/components/journey/ProjectChecks.tsx",
+    "bytes": 41307,
+    "sha256": "9fe29851853743886e9d81dea9574b9adc578b667a8b575ab59213f8f2e5ffc3"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/components/journey/ProjectRuns.tsx",
+    "bytes": 41314,
+    "sha256": "6c6709b41ae883c149bee1a5b8bc745032db7512f8b92ba74cbfefdfaf1889b5"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/components/journey/ProjectSwarm.tsx",
+    "bytes": 52803,
+    "sha256": "3bb54057e42fa15144c7e006220b6dbf3571726233f99394851082aebe15dacd"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/components/journey/SwarmCheckpointDialog.tsx",
+    "bytes": 5469,
+    "sha256": "8e573665eab80af60d8fbfd087aea32a747f5a3057c9d0a764f160357184c57b"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/components/journey/SwarmLaunchRecoveryDialog.tsx",
+    "bytes": 5324,
+    "sha256": "76aec29d2f2e5d6991a4a4ec693def9d442c58a6b1624c71de4216a8a3fe3774"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/components/journey/SwarmRunQueue.test.tsx",
+    "bytes": 13648,
+    "sha256": "56cd3733739847a4c20dbc1592771f3ee8eaeb72d7b42159eb208951d0da5da8"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/components/journey/SwarmRunQueue.tsx",
+    "bytes": 12271,
+    "sha256": "d73f6a891b50b8eeb25c71d813de311e3678a0c38e2b73a2cee8f9d867e4f1da"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/components/journey/SwarmTaskHandoff.tsx",
+    "bytes": 20738,
+    "sha256": "bc9512d3ad25c530acc403bf72d185d2e595f8a2bd23f9028501253f74effb55"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/components/journey/SwarmWorkspaceReview.tsx",
+    "bytes": 9548,
+    "sha256": "ff7fcf20acc5efe666f4529599c6db70b58c1c8c247a4724b310c51129460c34"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/components/lens/DeployLens.tsx",
+    "bytes": 31599,
+    "sha256": "9d93803a32beb38cda5f19138e5f7e0ac722ffa6f8c82ed1b56b2b8a380eedf0"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/components/orchestrator/AmendmentReview.tsx",
+    "bytes": 3778,
+    "sha256": "293d4d1ca2ff2efeb7b407699bfc85c5ed997fbe0fd47c8b421350af7885cf2e"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/components/orchestrator/OrchestratorPanel.tsx",
+    "bytes": 53147,
+    "sha256": "4213194e38481cc9e0b4e1f8c3eccfd1a0c62a67823a3a29fae92c5e55baf73f"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/components/projects/ProjectOverviewBoard.authority.test.tsx",
+    "bytes": 13283,
+    "sha256": "7e90ecea16bc90bace60ce55e70410ac85a18fd4bed1edca27b31dfacbec90e7"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/components/projects/ProjectOverviewBoard.test.tsx",
+    "bytes": 42211,
+    "sha256": "e11b3d94aad6c5d7c456c98878ea4c1b275c1df228b041950e3d7c6d2b90a084"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/components/projects/ProjectOverviewBoard.tsx",
+    "bytes": 25690,
+    "sha256": "3f198ff66958b205a65309a8a53192959bd0e1c805cc8c0b40b692f676eef9a8"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/components/setup/AgentConnectionManager.tsx",
+    "bytes": 13573,
+    "sha256": "ee6beac5987af145ad1d62eedd94140673939e69ff6ab3421fbdfb7bb0a27bc4"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/components/setup/AgentConnections.tsx",
+    "bytes": 14429,
+    "sha256": "a707c0c7e0c1a8b70ff39124aecdfb941c25ad3c3f1728ff88e12c537ca458b9"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/components/teams/TeamDataLifecycle.tsx",
+    "bytes": 4890,
+    "sha256": "0e4c3d03db9d189a10d69c25fd779d8d4bab25bc988afa944abc16ad89fd3e22"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/components/teams/TeamInvitations.tsx",
+    "bytes": 9748,
+    "sha256": "ea6d7ac9d6d59201580059ac2913be54c35329c3bce18b4eced0acff95a167f0"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/components/teams/TeamWorkspaceControl.tsx",
+    "bytes": 14794,
+    "sha256": "859b39ecddb16bcec882d41f0e0a136d935b892781a5f00ed48a202a1d0c4039"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/components/teams/TeamWorkspaceProvider.tsx",
+    "bytes": 15171,
+    "sha256": "a8a96ee7ccf6dcdb16decfe31e42c40081dd408e2e8004101c1af64f3bb9c3fa"
+  },
+  {
+    "path": "affected-core-attempt2/after/desktop/src/hooks/useDismissable.ts",
+    "bytes": 4865,
+    "sha256": "52ed6fe58003ae2e96a9f8918fbf8f73df9e09b871544fb42188f212082b82c6"
+  },
+  {
+    "path": "affected-core-attempt2/authority-portals.test.tsx",
+    "bytes": 22404,
+    "sha256": "439a2d91383a50c9ba047e6488d24a2be0d75e1c65191a70535069983b3dd21b"
+  },
+  {
+    "path": "affected-core-attempt2/bulk-portals.test.tsx",
+    "bytes": 13533,
+    "sha256": "42e939f86d33f105f0adf225d4ef79c0c746b8360b1566f56867dcc73a55f124"
+  },
+  {
+    "path": "affected-core-attempt2/commands.json",
+    "bytes": 639,
+    "sha256": "1d20e6080d85a9288f783e1689f356e5a08fc34f2046205a9c417e64c243337b"
+  },
+  {
+    "path": "affected-core-attempt2/config.mts",
+    "bytes": 3343,
+    "sha256": "80df4a3e7ea4fa7763edd90ef79d280644516511ad07288a9e3137e390abb5d1"
+  },
+  {
+    "path": "affected-core-attempt2/frozen-inputs.json",
+    "bytes": 6531,
+    "sha256": "ec9895537611cc1b8eb33220f3de4e3acb4c35d7f9a8cdee2cd7cffd9e5977b6"
+  },
+  {
+    "path": "affected-core-attempt2/report.json",
+    "bytes": 56189,
+    "sha256": "e34c9b95c232ef1b40fbf3b48e4a2a066fd6bb9fb70dc72897624d31d5b83ddd"
+  },
+  {
+    "path": "affected-core-attempt2/result.json",
+    "bytes": 911,
+    "sha256": "62893b9117ea152ba85cf35e435184a2f6cf8dfd5ca83dcbcd8ee6cd9b35ff80"
+  },
+  {
+    "path": "affected-core-attempt2/source-after.json",
+    "bytes": 72709,
+    "sha256": "c82df8acf59e9c42a023dde27ae9a3a65069658f346da27e28dd80ef92b72229"
+  },
+  {
+    "path": "affected-core-attempt2/source-before.json",
+    "bytes": 72709,
+    "sha256": "c82df8acf59e9c42a023dde27ae9a3a65069658f346da27e28dd80ef92b72229"
+  },
+  {
+    "path": "affected-core-attempt2/typecheck.cjs",
+    "bytes": 1557,
+    "sha256": "1c4167897d448fb8e467507b99fe58d029261b11103a6de77e20787734489995"
+  },
+  {
+    "path": "affected-core-attempt2/validate.py",
+    "bytes": 3674,
+    "sha256": "a1e5e4212c89d5e1f8a8f8de0be3582e0e623b1b17ceddb43d7c0c856d196330"
+  },
+  {
+    "path": "affected-core-attempt2/versions.json",
+    "bytes": 98,
+    "sha256": "545af2c3c8dddfa9008e0960d9530d04eea2ca91b30b26b8271e0ee51da3b7c5"
+  },
+  {
+    "path": "affected-files-full.txt",
+    "bytes": 1081,
+    "sha256": "2bb8bbac50829d366528d2d3b41bcf0b977516cc768d70313a9632e140f6d603"
+  },
+  {
+    "path": "affected-files.txt",
+    "bytes": 193,
+    "sha256": "7adb00dd14f043b115071593ffb93d99489ad4bc82242bf6181f121b8c163811"
+  },
+  {
+    "path": "affected-final-attempt5/affected-files.txt",
+    "bytes": 193,
+    "sha256": "7adb00dd14f043b115071593ffb93d99489ad4bc82242bf6181f121b8c163811"
+  },
+  {
+    "path": "affected-final-attempt5/affected.stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "affected-final-attempt5/affected.stdout.log",
+    "bytes": 2661,
+    "sha256": "77f575f78a8103b5e690c8a77739e532c291386f6caccba351a6b7fe5925608a"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/api/teams.ts",
+    "bytes": 3283,
+    "sha256": "3817a2e9cfe621a07bdf3f15d217fa3d0fede9b324e639329b8fbb2183448df2"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/common/DraftNavigationDialog.tsx",
+    "bytes": 3147,
+    "sha256": "570aa3909dee369d7e1b4c7dfa052d7ec17e5dd0d7d72702f40ffc239182a3c4"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/common/WorkflowDialog.tsx",
+    "bytes": 4793,
+    "sha256": "14effd3e6108aeca895fbd786e68384dc81b37533adc488d9ebdfe680dc1b3a2"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/common/WorkspaceOverlayScope.tsx",
+    "bytes": 557,
+    "sha256": "99d187585b33031b9f6d869fafd4e237f0db41f597b723b1d15d20ae84af3332"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/develop/ReviewedContextInspector.tsx",
+    "bytes": 7253,
+    "sha256": "ed22a7a36bef39809d4151fcbfaae2e0f6310ee076fab2c0c11accfd1cc3b3e6"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/journey/BranchManager.tsx",
+    "bytes": 11655,
+    "sha256": "ae0239412af70b56006a15bac6d25ecdb0a6a323074d91f2511a2e98bb59447f"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/journey/CheckRecoveryDialog.test.tsx",
+    "bytes": 9520,
+    "sha256": "1fb7fd2fc8818a06600f2ef47de023a7ae3fe26fa982006c9982e7afc7cb143b"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/journey/CheckRecoveryDialog.tsx",
+    "bytes": 8728,
+    "sha256": "6601c75749e5a2160f926bc1f480e1610be95367fd16aefb635e661f4c657026"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/journey/ContextStorage.tsx",
+    "bytes": 14104,
+    "sha256": "1c347ce58f5b1a7fdffd706a8c762551e48cb5f730e5981c9bcfdb732fb28ae5"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/journey/ProjectChecks.tsx",
+    "bytes": 41307,
+    "sha256": "9fe29851853743886e9d81dea9574b9adc578b667a8b575ab59213f8f2e5ffc3"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/journey/ProjectRuns.tsx",
+    "bytes": 41314,
+    "sha256": "6c6709b41ae883c149bee1a5b8bc745032db7512f8b92ba74cbfefdfaf1889b5"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/journey/ProjectSwarm.tsx",
+    "bytes": 52803,
+    "sha256": "3bb54057e42fa15144c7e006220b6dbf3571726233f99394851082aebe15dacd"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/journey/SwarmCheckpointDialog.tsx",
+    "bytes": 5469,
+    "sha256": "8e573665eab80af60d8fbfd087aea32a747f5a3057c9d0a764f160357184c57b"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/journey/SwarmLaunchRecoveryDialog.tsx",
+    "bytes": 5324,
+    "sha256": "76aec29d2f2e5d6991a4a4ec693def9d442c58a6b1624c71de4216a8a3fe3774"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/journey/SwarmRunQueue.test.tsx",
+    "bytes": 13648,
+    "sha256": "56cd3733739847a4c20dbc1592771f3ee8eaeb72d7b42159eb208951d0da5da8"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/journey/SwarmRunQueue.tsx",
+    "bytes": 12271,
+    "sha256": "d73f6a891b50b8eeb25c71d813de311e3678a0c38e2b73a2cee8f9d867e4f1da"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/journey/SwarmTaskHandoff.tsx",
+    "bytes": 20738,
+    "sha256": "bc9512d3ad25c530acc403bf72d185d2e595f8a2bd23f9028501253f74effb55"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/journey/SwarmWorkspaceReview.tsx",
+    "bytes": 9753,
+    "sha256": "117d62cc501773ac037f014293dde9489af26df3e09ccad042b1f80b4625011f"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/lens/DeployLens.tsx",
+    "bytes": 31599,
+    "sha256": "9d93803a32beb38cda5f19138e5f7e0ac722ffa6f8c82ed1b56b2b8a380eedf0"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/orchestrator/AmendmentReview.tsx",
+    "bytes": 3778,
+    "sha256": "293d4d1ca2ff2efeb7b407699bfc85c5ed997fbe0fd47c8b421350af7885cf2e"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/orchestrator/OrchestratorPanel.tsx",
+    "bytes": 53147,
+    "sha256": "4213194e38481cc9e0b4e1f8c3eccfd1a0c62a67823a3a29fae92c5e55baf73f"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/projects/ProjectOverviewBoard.authority.test.tsx",
+    "bytes": 13283,
+    "sha256": "7e90ecea16bc90bace60ce55e70410ac85a18fd4bed1edca27b31dfacbec90e7"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/projects/ProjectOverviewBoard.test.tsx",
+    "bytes": 42211,
+    "sha256": "e11b3d94aad6c5d7c456c98878ea4c1b275c1df228b041950e3d7c6d2b90a084"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/projects/ProjectOverviewBoard.tsx",
+    "bytes": 25690,
+    "sha256": "3f198ff66958b205a65309a8a53192959bd0e1c805cc8c0b40b692f676eef9a8"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/setup/AgentConnectionManager.tsx",
+    "bytes": 13573,
+    "sha256": "ee6beac5987af145ad1d62eedd94140673939e69ff6ab3421fbdfb7bb0a27bc4"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/setup/AgentConnections.tsx",
+    "bytes": 14429,
+    "sha256": "a707c0c7e0c1a8b70ff39124aecdfb941c25ad3c3f1728ff88e12c537ca458b9"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/teams/TeamDataLifecycle.tsx",
+    "bytes": 4890,
+    "sha256": "0e4c3d03db9d189a10d69c25fd779d8d4bab25bc988afa944abc16ad89fd3e22"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/teams/TeamInvitations.tsx",
+    "bytes": 9748,
+    "sha256": "ea6d7ac9d6d59201580059ac2913be54c35329c3bce18b4eced0acff95a167f0"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/teams/TeamWorkspaceControl.test.tsx",
+    "bytes": 13041,
+    "sha256": "df2aa7dfa55df5160549cba69bb918536f85e9a03ff24cac4b59f4faff54777a"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/teams/TeamWorkspaceControl.tsx",
+    "bytes": 14794,
+    "sha256": "859b39ecddb16bcec882d41f0e0a136d935b892781a5f00ed48a202a1d0c4039"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/teams/TeamWorkspacePortalAuthority.test.tsx",
+    "bytes": 21961,
+    "sha256": "5c47f69e23572dffd8e20d4e4c5c8c9247b3db8599ab1cbe621137c48115c8de"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/components/teams/TeamWorkspaceProvider.tsx",
+    "bytes": 15171,
+    "sha256": "a8a96ee7ccf6dcdb16decfe31e42c40081dd408e2e8004101c1af64f3bb9c3fa"
+  },
+  {
+    "path": "affected-final-attempt5/after/desktop/src/hooks/useDismissable.ts",
+    "bytes": 4865,
+    "sha256": "52ed6fe58003ae2e96a9f8918fbf8f73df9e09b871544fb42188f212082b82c6"
+  },
+  {
+    "path": "affected-final-attempt5/authority-portals.test.tsx",
+    "bytes": 22404,
+    "sha256": "439a2d91383a50c9ba047e6488d24a2be0d75e1c65191a70535069983b3dd21b"
+  },
+  {
+    "path": "affected-final-attempt5/bulk-portals.test.tsx",
+    "bytes": 13533,
+    "sha256": "42e939f86d33f105f0adf225d4ef79c0c746b8360b1566f56867dcc73a55f124"
+  },
+  {
+    "path": "affected-final-attempt5/commands.json",
+    "bytes": 1029,
+    "sha256": "a07957f0663b6dcb8b80dbe7966f83ac3fd7f0137b4bbb5f291c6532e74be760"
+  },
+  {
+    "path": "affected-final-attempt5/config.mts",
+    "bytes": 3050,
+    "sha256": "299a94f45214ba7f2ba8644c80f3a2e73328444865ae0ae8b8032b7da5aa64ca"
+  },
+  {
+    "path": "affected-final-attempt5/frozen-inputs.json",
+    "bytes": 7072,
+    "sha256": "544f4fe7f9be616f6abb4c9f4ef2bfd1d2b28401cbd794d4d7f5944149a0d639"
+  },
+  {
+    "path": "affected-final-attempt5/report.json",
+    "bytes": 17718,
+    "sha256": "a3c1af7e4e4dbcace193f69eee77d131475f78bb836393373db1b3518912ac2d"
+  },
+  {
+    "path": "affected-final-attempt5/result.json",
+    "bytes": 1333,
+    "sha256": "3858d911250ab3c3af6893b8c721ea3abb604b39d8cdb2c2937e737d9a592789"
+  },
+  {
+    "path": "affected-final-attempt5/source-after.json",
+    "bytes": 72709,
+    "sha256": "c82df8acf59e9c42a023dde27ae9a3a65069658f346da27e28dd80ef92b72229"
+  },
+  {
+    "path": "affected-final-attempt5/source-before.json",
+    "bytes": 72709,
+    "sha256": "c82df8acf59e9c42a023dde27ae9a3a65069658f346da27e28dd80ef92b72229"
+  },
+  {
+    "path": "affected-final-attempt5/team-panel-portals.test.tsx",
+    "bytes": 13229,
+    "sha256": "40fe9279927d4dd95e8404c2bdebb8b6a73e58878e468d65273dd049933785d0"
+  },
+  {
+    "path": "affected-final-attempt5/typecheck-inputs.json",
+    "bytes": 217244,
+    "sha256": "eba2f44aae6588921baee3eb34dfe5f34af42a48c00b1c94df18ce0367b3a8ad"
+  },
+  {
+    "path": "affected-final-attempt5/typecheck.cjs",
+    "bytes": 1696,
+    "sha256": "815bd5e253bf03cf2db6aebfc0d2e6a6036ff6acb14a3a7afe8626f51c2d792f"
+  },
+  {
+    "path": "affected-final-attempt5/typecheck.stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "affected-final-attempt5/typecheck.stdout.log",
+    "bytes": 32,
+    "sha256": "7f623dd4f15228d3a28290bad593b69c8e2badb5e03908cf117b20e9590df3ea"
+  },
+  {
+    "path": "affected-final-attempt5/validate.py",
+    "bytes": 4144,
+    "sha256": "9ddb32162dea6e5105ccc93ad9219d196c68d071bbb4a8e2998904fe88b20fe2"
+  },
+  {
+    "path": "affected-final-attempt5/versions.json",
+    "bytes": 98,
+    "sha256": "545af2c3c8dddfa9008e0960d9530d04eea2ca91b30b26b8271e0ee51da3b7c5"
+  },
+  {
+    "path": "affected-journey-attempt3/affected-files.txt",
+    "bytes": 293,
+    "sha256": "fcbf7fa15b6dc6e0dc43164530b09104b827ffe5f8c57f2ef21e3f4c12db4dda"
+  },
+  {
+    "path": "affected-journey-attempt3/affected.stderr.log",
+    "bytes": 1008,
+    "sha256": "242f3a3e56c0135e4ea1373ab9fd329d6f7e58626879a44e3efa85085380c131"
+  },
+  {
+    "path": "affected-journey-attempt3/affected.stdout.log",
+    "bytes": 4224,
+    "sha256": "eb0c75a058f56df6f07d123f9a00749df5a3f6c1487e119222efffe085b19f2a"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/api/teams.ts",
+    "bytes": 3283,
+    "sha256": "3817a2e9cfe621a07bdf3f15d217fa3d0fede9b324e639329b8fbb2183448df2"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/components/common/DraftNavigationDialog.tsx",
+    "bytes": 3147,
+    "sha256": "570aa3909dee369d7e1b4c7dfa052d7ec17e5dd0d7d72702f40ffc239182a3c4"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/components/common/WorkflowDialog.tsx",
+    "bytes": 4654,
+    "sha256": "f2b8b81a28e37c99d6a3640d5ec425cf847a815a67aa5d678a5ff668a0fb9c8b"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/components/common/WorkspaceOverlayScope.tsx",
+    "bytes": 557,
+    "sha256": "99d187585b33031b9f6d869fafd4e237f0db41f597b723b1d15d20ae84af3332"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/components/develop/ReviewedContextInspector.tsx",
+    "bytes": 7253,
+    "sha256": "ed22a7a36bef39809d4151fcbfaae2e0f6310ee076fab2c0c11accfd1cc3b3e6"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/components/journey/BranchManager.tsx",
+    "bytes": 11655,
+    "sha256": "ae0239412af70b56006a15bac6d25ecdb0a6a323074d91f2511a2e98bb59447f"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/components/journey/CheckRecoveryDialog.test.tsx",
+    "bytes": 9520,
+    "sha256": "1fb7fd2fc8818a06600f2ef47de023a7ae3fe26fa982006c9982e7afc7cb143b"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/components/journey/CheckRecoveryDialog.tsx",
+    "bytes": 8728,
+    "sha256": "6601c75749e5a2160f926bc1f480e1610be95367fd16aefb635e661f4c657026"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/components/journey/ContextStorage.tsx",
+    "bytes": 14104,
+    "sha256": "1c347ce58f5b1a7fdffd706a8c762551e48cb5f730e5981c9bcfdb732fb28ae5"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/components/journey/ProjectChecks.tsx",
+    "bytes": 41307,
+    "sha256": "9fe29851853743886e9d81dea9574b9adc578b667a8b575ab59213f8f2e5ffc3"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/components/journey/ProjectRuns.tsx",
+    "bytes": 41314,
+    "sha256": "6c6709b41ae883c149bee1a5b8bc745032db7512f8b92ba74cbfefdfaf1889b5"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/components/journey/ProjectSwarm.tsx",
+    "bytes": 52803,
+    "sha256": "3bb54057e42fa15144c7e006220b6dbf3571726233f99394851082aebe15dacd"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/components/journey/SwarmCheckpointDialog.tsx",
+    "bytes": 5469,
+    "sha256": "8e573665eab80af60d8fbfd087aea32a747f5a3057c9d0a764f160357184c57b"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/components/journey/SwarmLaunchRecoveryDialog.tsx",
+    "bytes": 5324,
+    "sha256": "76aec29d2f2e5d6991a4a4ec693def9d442c58a6b1624c71de4216a8a3fe3774"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/components/journey/SwarmRunQueue.test.tsx",
+    "bytes": 13648,
+    "sha256": "56cd3733739847a4c20dbc1592771f3ee8eaeb72d7b42159eb208951d0da5da8"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/components/journey/SwarmRunQueue.tsx",
+    "bytes": 12271,
+    "sha256": "d73f6a891b50b8eeb25c71d813de311e3678a0c38e2b73a2cee8f9d867e4f1da"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/components/journey/SwarmTaskHandoff.tsx",
+    "bytes": 20738,
+    "sha256": "bc9512d3ad25c530acc403bf72d185d2e595f8a2bd23f9028501253f74effb55"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/components/journey/SwarmWorkspaceReview.tsx",
+    "bytes": 9548,
+    "sha256": "ff7fcf20acc5efe666f4529599c6db70b58c1c8c247a4724b310c51129460c34"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/components/lens/DeployLens.tsx",
+    "bytes": 31599,
+    "sha256": "9d93803a32beb38cda5f19138e5f7e0ac722ffa6f8c82ed1b56b2b8a380eedf0"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/components/orchestrator/AmendmentReview.tsx",
+    "bytes": 3778,
+    "sha256": "293d4d1ca2ff2efeb7b407699bfc85c5ed997fbe0fd47c8b421350af7885cf2e"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/components/orchestrator/OrchestratorPanel.tsx",
+    "bytes": 53147,
+    "sha256": "4213194e38481cc9e0b4e1f8c3eccfd1a0c62a67823a3a29fae92c5e55baf73f"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/components/projects/ProjectOverviewBoard.authority.test.tsx",
+    "bytes": 13283,
+    "sha256": "7e90ecea16bc90bace60ce55e70410ac85a18fd4bed1edca27b31dfacbec90e7"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/components/projects/ProjectOverviewBoard.test.tsx",
+    "bytes": 42211,
+    "sha256": "e11b3d94aad6c5d7c456c98878ea4c1b275c1df228b041950e3d7c6d2b90a084"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/components/projects/ProjectOverviewBoard.tsx",
+    "bytes": 25690,
+    "sha256": "3f198ff66958b205a65309a8a53192959bd0e1c805cc8c0b40b692f676eef9a8"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/components/setup/AgentConnectionManager.tsx",
+    "bytes": 13573,
+    "sha256": "ee6beac5987af145ad1d62eedd94140673939e69ff6ab3421fbdfb7bb0a27bc4"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/components/setup/AgentConnections.tsx",
+    "bytes": 14429,
+    "sha256": "a707c0c7e0c1a8b70ff39124aecdfb941c25ad3c3f1728ff88e12c537ca458b9"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/components/teams/TeamDataLifecycle.tsx",
+    "bytes": 4890,
+    "sha256": "0e4c3d03db9d189a10d69c25fd779d8d4bab25bc988afa944abc16ad89fd3e22"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/components/teams/TeamInvitations.tsx",
+    "bytes": 9748,
+    "sha256": "ea6d7ac9d6d59201580059ac2913be54c35329c3bce18b4eced0acff95a167f0"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/components/teams/TeamWorkspaceControl.tsx",
+    "bytes": 14794,
+    "sha256": "859b39ecddb16bcec882d41f0e0a136d935b892781a5f00ed48a202a1d0c4039"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/components/teams/TeamWorkspaceProvider.tsx",
+    "bytes": 15171,
+    "sha256": "a8a96ee7ccf6dcdb16decfe31e42c40081dd408e2e8004101c1af64f3bb9c3fa"
+  },
+  {
+    "path": "affected-journey-attempt3/after/desktop/src/hooks/useDismissable.ts",
+    "bytes": 4865,
+    "sha256": "52ed6fe58003ae2e96a9f8918fbf8f73df9e09b871544fb42188f212082b82c6"
+  },
+  {
+    "path": "affected-journey-attempt3/authority-portals.test.tsx",
+    "bytes": 22404,
+    "sha256": "439a2d91383a50c9ba047e6488d24a2be0d75e1c65191a70535069983b3dd21b"
+  },
+  {
+    "path": "affected-journey-attempt3/bulk-portals.test.tsx",
+    "bytes": 13533,
+    "sha256": "42e939f86d33f105f0adf225d4ef79c0c746b8360b1566f56867dcc73a55f124"
+  },
+  {
+    "path": "affected-journey-attempt3/commands.json",
+    "bytes": 646,
+    "sha256": "f10ed1b605f4bfa08f004dbe139e02c37a290969f3c9f5da51bdcaf1518563af"
+  },
+  {
+    "path": "affected-journey-attempt3/config.mts",
+    "bytes": 3101,
+    "sha256": "3bdac38e3f31c3f16c0de578da40a0e1ca8d21642ac8cdb19f5f57bcf6dbc716"
+  },
+  {
+    "path": "affected-journey-attempt3/frozen-inputs.json",
+    "bytes": 6531,
+    "sha256": "7a7cfb1c6e1461e549fad799d88e3087c01ff171ca27bb6ddea869747570186b"
+  },
+  {
+    "path": "affected-journey-attempt3/report.json",
+    "bytes": 37409,
+    "sha256": "bc8f1befdf6e5e37b6ac09e8bf4e4f30d306cb9444c8019c3b1c34c35dc7ad81"
+  },
+  {
+    "path": "affected-journey-attempt3/result.json",
+    "bytes": 918,
+    "sha256": "92f1bd7ec4fb632d91a0f8e7b12ecd9d00dfa5e2db2fd2cdb3c15819ec74cf99"
+  },
+  {
+    "path": "affected-journey-attempt3/source-after.json",
+    "bytes": 72709,
+    "sha256": "c82df8acf59e9c42a023dde27ae9a3a65069658f346da27e28dd80ef92b72229"
+  },
+  {
+    "path": "affected-journey-attempt3/source-before.json",
+    "bytes": 72709,
+    "sha256": "c82df8acf59e9c42a023dde27ae9a3a65069658f346da27e28dd80ef92b72229"
+  },
+  {
+    "path": "affected-journey-attempt3/typecheck.cjs",
+    "bytes": 1557,
+    "sha256": "1c4167897d448fb8e467507b99fe58d029261b11103a6de77e20787734489995"
+  },
+  {
+    "path": "affected-journey-attempt3/validate.py",
+    "bytes": 3843,
+    "sha256": "31816323d95c4545b99c9214e49c3a58fed0bae27f11460cbc0f895a95e032ea"
+  },
+  {
+    "path": "affected-journey-attempt3/versions.json",
+    "bytes": 98,
+    "sha256": "545af2c3c8dddfa9008e0960d9530d04eea2ca91b30b26b8271e0ee51da3b7c5"
+  },
+  {
+    "path": "affected-owners-attempt4/affected-files.txt",
+    "bytes": 394,
+    "sha256": "fe8bfaad647c6bed5de9f3edfbd7a535af6bb28441ea3d8ad26282b3a33f57d8"
+  },
+  {
+    "path": "affected-owners-attempt4/affected.stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "affected-owners-attempt4/affected.stdout.log",
+    "bytes": 9065,
+    "sha256": "0e6b6c42dc72632e193c102850e9933338ca20e16824218ce7797af1244b2ded"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/api/teams.ts",
+    "bytes": 3283,
+    "sha256": "3817a2e9cfe621a07bdf3f15d217fa3d0fede9b324e639329b8fbb2183448df2"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/components/common/DraftNavigationDialog.tsx",
+    "bytes": 3147,
+    "sha256": "570aa3909dee369d7e1b4c7dfa052d7ec17e5dd0d7d72702f40ffc239182a3c4"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/components/common/WorkflowDialog.tsx",
+    "bytes": 4793,
+    "sha256": "14effd3e6108aeca895fbd786e68384dc81b37533adc488d9ebdfe680dc1b3a2"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/components/common/WorkspaceOverlayScope.tsx",
+    "bytes": 557,
+    "sha256": "99d187585b33031b9f6d869fafd4e237f0db41f597b723b1d15d20ae84af3332"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/components/develop/ReviewedContextInspector.tsx",
+    "bytes": 7253,
+    "sha256": "ed22a7a36bef39809d4151fcbfaae2e0f6310ee076fab2c0c11accfd1cc3b3e6"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/components/journey/BranchManager.tsx",
+    "bytes": 11655,
+    "sha256": "ae0239412af70b56006a15bac6d25ecdb0a6a323074d91f2511a2e98bb59447f"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/components/journey/CheckRecoveryDialog.test.tsx",
+    "bytes": 9520,
+    "sha256": "1fb7fd2fc8818a06600f2ef47de023a7ae3fe26fa982006c9982e7afc7cb143b"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/components/journey/CheckRecoveryDialog.tsx",
+    "bytes": 8728,
+    "sha256": "6601c75749e5a2160f926bc1f480e1610be95367fd16aefb635e661f4c657026"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/components/journey/ContextStorage.tsx",
+    "bytes": 14104,
+    "sha256": "1c347ce58f5b1a7fdffd706a8c762551e48cb5f730e5981c9bcfdb732fb28ae5"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/components/journey/ProjectChecks.tsx",
+    "bytes": 41307,
+    "sha256": "9fe29851853743886e9d81dea9574b9adc578b667a8b575ab59213f8f2e5ffc3"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/components/journey/ProjectRuns.tsx",
+    "bytes": 41314,
+    "sha256": "6c6709b41ae883c149bee1a5b8bc745032db7512f8b92ba74cbfefdfaf1889b5"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/components/journey/ProjectSwarm.tsx",
+    "bytes": 52803,
+    "sha256": "3bb54057e42fa15144c7e006220b6dbf3571726233f99394851082aebe15dacd"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/components/journey/SwarmCheckpointDialog.tsx",
+    "bytes": 5469,
+    "sha256": "8e573665eab80af60d8fbfd087aea32a747f5a3057c9d0a764f160357184c57b"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/components/journey/SwarmLaunchRecoveryDialog.tsx",
+    "bytes": 5324,
+    "sha256": "76aec29d2f2e5d6991a4a4ec693def9d442c58a6b1624c71de4216a8a3fe3774"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/components/journey/SwarmRunQueue.test.tsx",
+    "bytes": 13648,
+    "sha256": "56cd3733739847a4c20dbc1592771f3ee8eaeb72d7b42159eb208951d0da5da8"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/components/journey/SwarmRunQueue.tsx",
+    "bytes": 12271,
+    "sha256": "d73f6a891b50b8eeb25c71d813de311e3678a0c38e2b73a2cee8f9d867e4f1da"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/components/journey/SwarmTaskHandoff.tsx",
+    "bytes": 20738,
+    "sha256": "bc9512d3ad25c530acc403bf72d185d2e595f8a2bd23f9028501253f74effb55"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/components/journey/SwarmWorkspaceReview.tsx",
+    "bytes": 9753,
+    "sha256": "117d62cc501773ac037f014293dde9489af26df3e09ccad042b1f80b4625011f"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/components/lens/DeployLens.tsx",
+    "bytes": 31599,
+    "sha256": "9d93803a32beb38cda5f19138e5f7e0ac722ffa6f8c82ed1b56b2b8a380eedf0"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/components/orchestrator/AmendmentReview.tsx",
+    "bytes": 3778,
+    "sha256": "293d4d1ca2ff2efeb7b407699bfc85c5ed997fbe0fd47c8b421350af7885cf2e"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/components/orchestrator/OrchestratorPanel.tsx",
+    "bytes": 53147,
+    "sha256": "4213194e38481cc9e0b4e1f8c3eccfd1a0c62a67823a3a29fae92c5e55baf73f"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/components/projects/ProjectOverviewBoard.authority.test.tsx",
+    "bytes": 13283,
+    "sha256": "7e90ecea16bc90bace60ce55e70410ac85a18fd4bed1edca27b31dfacbec90e7"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/components/projects/ProjectOverviewBoard.test.tsx",
+    "bytes": 42211,
+    "sha256": "e11b3d94aad6c5d7c456c98878ea4c1b275c1df228b041950e3d7c6d2b90a084"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/components/projects/ProjectOverviewBoard.tsx",
+    "bytes": 25690,
+    "sha256": "3f198ff66958b205a65309a8a53192959bd0e1c805cc8c0b40b692f676eef9a8"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/components/setup/AgentConnectionManager.tsx",
+    "bytes": 13573,
+    "sha256": "ee6beac5987af145ad1d62eedd94140673939e69ff6ab3421fbdfb7bb0a27bc4"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/components/setup/AgentConnections.tsx",
+    "bytes": 14429,
+    "sha256": "a707c0c7e0c1a8b70ff39124aecdfb941c25ad3c3f1728ff88e12c537ca458b9"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/components/teams/TeamDataLifecycle.tsx",
+    "bytes": 4890,
+    "sha256": "0e4c3d03db9d189a10d69c25fd779d8d4bab25bc988afa944abc16ad89fd3e22"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/components/teams/TeamInvitations.tsx",
+    "bytes": 9748,
+    "sha256": "ea6d7ac9d6d59201580059ac2913be54c35329c3bce18b4eced0acff95a167f0"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/components/teams/TeamWorkspaceControl.tsx",
+    "bytes": 14794,
+    "sha256": "859b39ecddb16bcec882d41f0e0a136d935b892781a5f00ed48a202a1d0c4039"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/components/teams/TeamWorkspaceProvider.tsx",
+    "bytes": 15171,
+    "sha256": "a8a96ee7ccf6dcdb16decfe31e42c40081dd408e2e8004101c1af64f3bb9c3fa"
+  },
+  {
+    "path": "affected-owners-attempt4/after/desktop/src/hooks/useDismissable.ts",
+    "bytes": 4865,
+    "sha256": "52ed6fe58003ae2e96a9f8918fbf8f73df9e09b871544fb42188f212082b82c6"
+  },
+  {
+    "path": "affected-owners-attempt4/authority-portals.test.tsx",
+    "bytes": 22404,
+    "sha256": "439a2d91383a50c9ba047e6488d24a2be0d75e1c65191a70535069983b3dd21b"
+  },
+  {
+    "path": "affected-owners-attempt4/bulk-portals.test.tsx",
+    "bytes": 13533,
+    "sha256": "42e939f86d33f105f0adf225d4ef79c0c746b8360b1566f56867dcc73a55f124"
+  },
+  {
+    "path": "affected-owners-attempt4/commands.json",
+    "bytes": 644,
+    "sha256": "a5b4279b41588bf0f5c2fcdc1bc6bccbec0a8f87024387f1b523c5a24c5e074a"
+  },
+  {
+    "path": "affected-owners-attempt4/config.mts",
+    "bytes": 3217,
+    "sha256": "82411d6f72ed100e5230aa31709044c053aaf3f6dc04c39907902e7c9cc072d9"
+  },
+  {
+    "path": "affected-owners-attempt4/frozen-inputs.json",
+    "bytes": 6531,
+    "sha256": "8977c617840acbca17b5c2f4b06c93f495c390fa1e022c3093e547c1d2363e67"
+  },
+  {
+    "path": "affected-owners-attempt4/report.json",
+    "bytes": 98995,
+    "sha256": "5340695b3b60f5d3661b0d479e62c47b5854f46e9c50f00e649e4f6a84f3f5e4"
+  },
+  {
+    "path": "affected-owners-attempt4/result.json",
+    "bytes": 916,
+    "sha256": "b50e9ad25dfa61b09cf19c109323f2b59741caccb0ab4cdf63b793ac93d50933"
+  },
+  {
+    "path": "affected-owners-attempt4/source-after.json",
+    "bytes": 72709,
+    "sha256": "c82df8acf59e9c42a023dde27ae9a3a65069658f346da27e28dd80ef92b72229"
+  },
+  {
+    "path": "affected-owners-attempt4/source-before.json",
+    "bytes": 72709,
+    "sha256": "c82df8acf59e9c42a023dde27ae9a3a65069658f346da27e28dd80ef92b72229"
+  },
+  {
+    "path": "affected-owners-attempt4/typecheck.cjs",
+    "bytes": 1557,
+    "sha256": "1c4167897d448fb8e467507b99fe58d029261b11103a6de77e20787734489995"
+  },
+  {
+    "path": "affected-owners-attempt4/validate.py",
+    "bytes": 3843,
+    "sha256": "31816323d95c4545b99c9214e49c3a58fed0bae27f11460cbc0f895a95e032ea"
+  },
+  {
+    "path": "affected-owners-attempt4/versions.json",
+    "bytes": 98,
+    "sha256": "545af2c3c8dddfa9008e0960d9530d04eea2ca91b30b26b8271e0ee51da3b7c5"
+  },
+  {
+    "path": "after/desktop/src/api/teams.ts",
+    "bytes": 3283,
+    "sha256": "3817a2e9cfe621a07bdf3f15d217fa3d0fede9b324e639329b8fbb2183448df2"
+  },
+  {
+    "path": "after/desktop/src/components/common/DraftNavigationDialog.tsx",
+    "bytes": 3147,
+    "sha256": "570aa3909dee369d7e1b4c7dfa052d7ec17e5dd0d7d72702f40ffc239182a3c4"
+  },
+  {
+    "path": "after/desktop/src/components/common/WorkflowDialog.tsx",
+    "bytes": 4793,
+    "sha256": "14effd3e6108aeca895fbd786e68384dc81b37533adc488d9ebdfe680dc1b3a2"
+  },
+  {
+    "path": "after/desktop/src/components/common/WorkspaceOverlayScope.tsx",
+    "bytes": 557,
+    "sha256": "99d187585b33031b9f6d869fafd4e237f0db41f597b723b1d15d20ae84af3332"
+  },
+  {
+    "path": "after/desktop/src/components/develop/ReviewedContextInspector.tsx",
+    "bytes": 7253,
+    "sha256": "ed22a7a36bef39809d4151fcbfaae2e0f6310ee076fab2c0c11accfd1cc3b3e6"
+  },
+  {
+    "path": "after/desktop/src/components/journey/BranchManager.tsx",
+    "bytes": 11655,
+    "sha256": "ae0239412af70b56006a15bac6d25ecdb0a6a323074d91f2511a2e98bb59447f"
+  },
+  {
+    "path": "after/desktop/src/components/journey/CheckRecoveryDialog.test.tsx",
+    "bytes": 9520,
+    "sha256": "1fb7fd2fc8818a06600f2ef47de023a7ae3fe26fa982006c9982e7afc7cb143b"
+  },
+  {
+    "path": "after/desktop/src/components/journey/CheckRecoveryDialog.tsx",
+    "bytes": 8728,
+    "sha256": "6601c75749e5a2160f926bc1f480e1610be95367fd16aefb635e661f4c657026"
+  },
+  {
+    "path": "after/desktop/src/components/journey/ContextStorage.tsx",
+    "bytes": 14104,
+    "sha256": "1c347ce58f5b1a7fdffd706a8c762551e48cb5f730e5981c9bcfdb732fb28ae5"
+  },
+  {
+    "path": "after/desktop/src/components/journey/ProjectChecks.tsx",
+    "bytes": 41307,
+    "sha256": "9fe29851853743886e9d81dea9574b9adc578b667a8b575ab59213f8f2e5ffc3"
+  },
+  {
+    "path": "after/desktop/src/components/journey/ProjectRuns.tsx",
+    "bytes": 41314,
+    "sha256": "6c6709b41ae883c149bee1a5b8bc745032db7512f8b92ba74cbfefdfaf1889b5"
+  },
+  {
+    "path": "after/desktop/src/components/journey/ProjectSwarm.tsx",
+    "bytes": 52803,
+    "sha256": "3bb54057e42fa15144c7e006220b6dbf3571726233f99394851082aebe15dacd"
+  },
+  {
+    "path": "after/desktop/src/components/journey/SwarmCheckpointDialog.tsx",
+    "bytes": 5469,
+    "sha256": "8e573665eab80af60d8fbfd087aea32a747f5a3057c9d0a764f160357184c57b"
+  },
+  {
+    "path": "after/desktop/src/components/journey/SwarmLaunchRecoveryDialog.tsx",
+    "bytes": 5324,
+    "sha256": "76aec29d2f2e5d6991a4a4ec693def9d442c58a6b1624c71de4216a8a3fe3774"
+  },
+  {
+    "path": "after/desktop/src/components/journey/SwarmRunQueue.test.tsx",
+    "bytes": 13648,
+    "sha256": "56cd3733739847a4c20dbc1592771f3ee8eaeb72d7b42159eb208951d0da5da8"
+  },
+  {
+    "path": "after/desktop/src/components/journey/SwarmRunQueue.tsx",
+    "bytes": 12271,
+    "sha256": "d73f6a891b50b8eeb25c71d813de311e3678a0c38e2b73a2cee8f9d867e4f1da"
+  },
+  {
+    "path": "after/desktop/src/components/journey/SwarmTaskHandoff.tsx",
+    "bytes": 20738,
+    "sha256": "bc9512d3ad25c530acc403bf72d185d2e595f8a2bd23f9028501253f74effb55"
+  },
+  {
+    "path": "after/desktop/src/components/journey/SwarmWorkspaceReview.tsx",
+    "bytes": 9753,
+    "sha256": "117d62cc501773ac037f014293dde9489af26df3e09ccad042b1f80b4625011f"
+  },
+  {
+    "path": "after/desktop/src/components/lens/DeployLens.tsx",
+    "bytes": 31599,
+    "sha256": "9d93803a32beb38cda5f19138e5f7e0ac722ffa6f8c82ed1b56b2b8a380eedf0"
+  },
+  {
+    "path": "after/desktop/src/components/orchestrator/AmendmentReview.tsx",
+    "bytes": 3778,
+    "sha256": "293d4d1ca2ff2efeb7b407699bfc85c5ed997fbe0fd47c8b421350af7885cf2e"
+  },
+  {
+    "path": "after/desktop/src/components/orchestrator/OrchestratorPanel.tsx",
+    "bytes": 53147,
+    "sha256": "4213194e38481cc9e0b4e1f8c3eccfd1a0c62a67823a3a29fae92c5e55baf73f"
+  },
+  {
+    "path": "after/desktop/src/components/projects/ProjectOverviewBoard.authority.test.tsx",
+    "bytes": 13283,
+    "sha256": "7e90ecea16bc90bace60ce55e70410ac85a18fd4bed1edca27b31dfacbec90e7"
+  },
+  {
+    "path": "after/desktop/src/components/projects/ProjectOverviewBoard.test.tsx",
+    "bytes": 42211,
+    "sha256": "e11b3d94aad6c5d7c456c98878ea4c1b275c1df228b041950e3d7c6d2b90a084"
+  },
+  {
+    "path": "after/desktop/src/components/projects/ProjectOverviewBoard.tsx",
+    "bytes": 25690,
+    "sha256": "3f198ff66958b205a65309a8a53192959bd0e1c805cc8c0b40b692f676eef9a8"
+  },
+  {
+    "path": "after/desktop/src/components/setup/AgentConnectionManager.tsx",
+    "bytes": 13573,
+    "sha256": "ee6beac5987af145ad1d62eedd94140673939e69ff6ab3421fbdfb7bb0a27bc4"
+  },
+  {
+    "path": "after/desktop/src/components/setup/AgentConnections.tsx",
+    "bytes": 14429,
+    "sha256": "a707c0c7e0c1a8b70ff39124aecdfb941c25ad3c3f1728ff88e12c537ca458b9"
+  },
+  {
+    "path": "after/desktop/src/components/teams/TeamDataLifecycle.tsx",
+    "bytes": 4890,
+    "sha256": "0e4c3d03db9d189a10d69c25fd779d8d4bab25bc988afa944abc16ad89fd3e22"
+  },
+  {
+    "path": "after/desktop/src/components/teams/TeamInvitations.tsx",
+    "bytes": 9748,
+    "sha256": "ea6d7ac9d6d59201580059ac2913be54c35329c3bce18b4eced0acff95a167f0"
+  },
+  {
+    "path": "after/desktop/src/components/teams/TeamWorkspaceControl.test.tsx",
+    "bytes": 13041,
+    "sha256": "df2aa7dfa55df5160549cba69bb918536f85e9a03ff24cac4b59f4faff54777a"
+  },
+  {
+    "path": "after/desktop/src/components/teams/TeamWorkspaceControl.tsx",
+    "bytes": 14794,
+    "sha256": "859b39ecddb16bcec882d41f0e0a136d935b892781a5f00ed48a202a1d0c4039"
+  },
+  {
+    "path": "after/desktop/src/components/teams/TeamWorkspacePortalAuthority.test.tsx",
+    "bytes": 21961,
+    "sha256": "5c47f69e23572dffd8e20d4e4c5c8c9247b3db8599ab1cbe621137c48115c8de"
+  },
+  {
+    "path": "after/desktop/src/components/teams/TeamWorkspaceProvider.tsx",
+    "bytes": 15171,
+    "sha256": "a8a96ee7ccf6dcdb16decfe31e42c40081dd408e2e8004101c1af64f3bb9c3fa"
+  },
+  {
+    "path": "after/desktop/src/hooks/useDismissable.ts",
+    "bytes": 4865,
+    "sha256": "52ed6fe58003ae2e96a9f8918fbf8f73df9e09b871544fb42188f212082b82c6"
+  },
+  {
+    "path": "after-attempt1/after/desktop/src/components/common/WorkflowDialog.tsx",
+    "bytes": 3303,
+    "sha256": "8f34ad5a0868751c7b1c74a7b836f3e7b44094359be0a44b4dfd4564a5284d37"
+  },
+  {
+    "path": "after-attempt1/after/desktop/src/components/common/WorkspaceOverlayScope.tsx",
+    "bytes": 416,
+    "sha256": "3ae91245ce6a2bc00ccdfb89c12a40e3f570ab5e2ea25e329bcda8a38fbf017f"
+  },
+  {
+    "path": "after-attempt1/after/desktop/src/components/teams/TeamWorkspaceProvider.tsx",
+    "bytes": 15069,
+    "sha256": "f332d26575998f97838622c806bdc0a31d1e2ec8236f22fd4990434922b65fea"
+  },
+  {
+    "path": "after-attempt1/after/desktop/src/hooks/useDismissable.ts",
+    "bytes": 4843,
+    "sha256": "1a9212d342dfaa5d13f278c9a6df0370487489b684a2cc48e113ac86852830a2"
+  },
+  {
+    "path": "after-attempt1/authority-portals.test.tsx",
+    "bytes": 9760,
+    "sha256": "11cdb24ac1906b8d66799780ea8e2dea25fd9e78c18d129fab881b92ac45aca1"
+  },
+  {
+    "path": "after-attempt1/config.mts",
+    "bytes": 1166,
+    "sha256": "cefaf2289f568f8c6c2b1fcc42eaa894b89c84c9c120f4ea1209e6611154398c"
+  },
+  {
+    "path": "after-attempt1/helper-bindings.json",
+    "bytes": 1136,
+    "sha256": "686b7b000af160d79c61aabc04d8c8b952c37f5f9b88a4a7f3bf5701735dbb77"
+  },
+  {
+    "path": "after-attempt1/report.json",
+    "bytes": 1996,
+    "sha256": "be82537c98d1a19c89bae6eca2b71407f749db956094660229b2b9d72c9e7a84"
+  },
+  {
+    "path": "after-attempt1/result.json",
+    "bytes": 617,
+    "sha256": "938d70612ecbd784172f6f35c6cac8651e55493209e7415ac0318e5c73a9f881"
+  },
+  {
+    "path": "after-attempt1/run.py",
+    "bytes": 2706,
+    "sha256": "6d47e8dee48a98f44bc560194ab8a60017bde057017030e4bd212b0130029d49"
+  },
+  {
+    "path": "after-attempt1/source-after.json",
+    "bytes": 72564,
+    "sha256": "742c0aa6c8efef0f43e971dee142f1ef3e8621e637111ff8a87f94042853098d"
+  },
+  {
+    "path": "after-attempt1/source-before.json",
+    "bytes": 72564,
+    "sha256": "742c0aa6c8efef0f43e971dee142f1ef3e8621e637111ff8a87f94042853098d"
+  },
+  {
+    "path": "after-attempt1/stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "after-attempt1/stdout.log",
+    "bytes": 100,
+    "sha256": "32466f7e32f5008735c3f301430346fd95c6af58cfd29a59a37ec047bde0fe17"
+  },
+  {
+    "path": "after-attempt1/versions.json",
+    "bytes": 98,
+    "sha256": "64dd34524e9e8c30fb0d48c40b625b914f8e3d768488db3154e41ecc9a95363f"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/api/teams.ts",
+    "bytes": 3283,
+    "sha256": "3817a2e9cfe621a07bdf3f15d217fa3d0fede9b324e639329b8fbb2183448df2"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/common/DraftNavigationDialog.tsx",
+    "bytes": 3147,
+    "sha256": "570aa3909dee369d7e1b4c7dfa052d7ec17e5dd0d7d72702f40ffc239182a3c4"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/common/WorkflowDialog.tsx",
+    "bytes": 4793,
+    "sha256": "14effd3e6108aeca895fbd786e68384dc81b37533adc488d9ebdfe680dc1b3a2"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/common/WorkspaceOverlayScope.tsx",
+    "bytes": 557,
+    "sha256": "99d187585b33031b9f6d869fafd4e237f0db41f597b723b1d15d20ae84af3332"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/develop/ReviewedContextInspector.tsx",
+    "bytes": 7253,
+    "sha256": "ed22a7a36bef39809d4151fcbfaae2e0f6310ee076fab2c0c11accfd1cc3b3e6"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/journey/BranchManager.tsx",
+    "bytes": 11655,
+    "sha256": "ae0239412af70b56006a15bac6d25ecdb0a6a323074d91f2511a2e98bb59447f"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/journey/CheckRecoveryDialog.test.tsx",
+    "bytes": 9520,
+    "sha256": "1fb7fd2fc8818a06600f2ef47de023a7ae3fe26fa982006c9982e7afc7cb143b"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/journey/CheckRecoveryDialog.tsx",
+    "bytes": 8728,
+    "sha256": "6601c75749e5a2160f926bc1f480e1610be95367fd16aefb635e661f4c657026"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/journey/ContextStorage.tsx",
+    "bytes": 14104,
+    "sha256": "1c347ce58f5b1a7fdffd706a8c762551e48cb5f730e5981c9bcfdb732fb28ae5"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/journey/ProjectChecks.tsx",
+    "bytes": 41307,
+    "sha256": "9fe29851853743886e9d81dea9574b9adc578b667a8b575ab59213f8f2e5ffc3"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/journey/ProjectRuns.tsx",
+    "bytes": 41314,
+    "sha256": "6c6709b41ae883c149bee1a5b8bc745032db7512f8b92ba74cbfefdfaf1889b5"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/journey/ProjectSwarm.tsx",
+    "bytes": 52803,
+    "sha256": "3bb54057e42fa15144c7e006220b6dbf3571726233f99394851082aebe15dacd"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/journey/SwarmCheckpointDialog.tsx",
+    "bytes": 5469,
+    "sha256": "8e573665eab80af60d8fbfd087aea32a747f5a3057c9d0a764f160357184c57b"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/journey/SwarmLaunchRecoveryDialog.tsx",
+    "bytes": 5324,
+    "sha256": "76aec29d2f2e5d6991a4a4ec693def9d442c58a6b1624c71de4216a8a3fe3774"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/journey/SwarmRunQueue.test.tsx",
+    "bytes": 13648,
+    "sha256": "56cd3733739847a4c20dbc1592771f3ee8eaeb72d7b42159eb208951d0da5da8"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/journey/SwarmRunQueue.tsx",
+    "bytes": 12271,
+    "sha256": "d73f6a891b50b8eeb25c71d813de311e3678a0c38e2b73a2cee8f9d867e4f1da"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/journey/SwarmTaskHandoff.tsx",
+    "bytes": 20738,
+    "sha256": "bc9512d3ad25c530acc403bf72d185d2e595f8a2bd23f9028501253f74effb55"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/journey/SwarmWorkspaceReview.tsx",
+    "bytes": 9753,
+    "sha256": "117d62cc501773ac037f014293dde9489af26df3e09ccad042b1f80b4625011f"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/lens/DeployLens.tsx",
+    "bytes": 31599,
+    "sha256": "9d93803a32beb38cda5f19138e5f7e0ac722ffa6f8c82ed1b56b2b8a380eedf0"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/orchestrator/AmendmentReview.tsx",
+    "bytes": 3778,
+    "sha256": "293d4d1ca2ff2efeb7b407699bfc85c5ed997fbe0fd47c8b421350af7885cf2e"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/orchestrator/OrchestratorPanel.tsx",
+    "bytes": 53147,
+    "sha256": "4213194e38481cc9e0b4e1f8c3eccfd1a0c62a67823a3a29fae92c5e55baf73f"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/projects/ProjectOverviewBoard.authority.test.tsx",
+    "bytes": 13283,
+    "sha256": "7e90ecea16bc90bace60ce55e70410ac85a18fd4bed1edca27b31dfacbec90e7"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/projects/ProjectOverviewBoard.test.tsx",
+    "bytes": 42211,
+    "sha256": "e11b3d94aad6c5d7c456c98878ea4c1b275c1df228b041950e3d7c6d2b90a084"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/projects/ProjectOverviewBoard.tsx",
+    "bytes": 25690,
+    "sha256": "3f198ff66958b205a65309a8a53192959bd0e1c805cc8c0b40b692f676eef9a8"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/setup/AgentConnectionManager.tsx",
+    "bytes": 13573,
+    "sha256": "ee6beac5987af145ad1d62eedd94140673939e69ff6ab3421fbdfb7bb0a27bc4"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/setup/AgentConnections.tsx",
+    "bytes": 14429,
+    "sha256": "a707c0c7e0c1a8b70ff39124aecdfb941c25ad3c3f1728ff88e12c537ca458b9"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/teams/TeamDataLifecycle.tsx",
+    "bytes": 4890,
+    "sha256": "0e4c3d03db9d189a10d69c25fd779d8d4bab25bc988afa944abc16ad89fd3e22"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/teams/TeamInvitations.tsx",
+    "bytes": 9748,
+    "sha256": "ea6d7ac9d6d59201580059ac2913be54c35329c3bce18b4eced0acff95a167f0"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/teams/TeamWorkspaceControl.test.tsx",
+    "bytes": 13041,
+    "sha256": "df2aa7dfa55df5160549cba69bb918536f85e9a03ff24cac4b59f4faff54777a"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/teams/TeamWorkspaceControl.tsx",
+    "bytes": 14794,
+    "sha256": "859b39ecddb16bcec882d41f0e0a136d935b892781a5f00ed48a202a1d0c4039"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/components/teams/TeamWorkspaceProvider.tsx",
+    "bytes": 15171,
+    "sha256": "a8a96ee7ccf6dcdb16decfe31e42c40081dd408e2e8004101c1af64f3bb9c3fa"
+  },
+  {
+    "path": "after-attempt11/after/desktop/src/hooks/useDismissable.ts",
+    "bytes": 4865,
+    "sha256": "52ed6fe58003ae2e96a9f8918fbf8f73df9e09b871544fb42188f212082b82c6"
+  },
+  {
+    "path": "after-attempt11/authority-portals.test.tsx",
+    "bytes": 22404,
+    "sha256": "439a2d91383a50c9ba047e6488d24a2be0d75e1c65191a70535069983b3dd21b"
+  },
+  {
+    "path": "after-attempt11/bulk-portals.test.tsx",
+    "bytes": 13533,
+    "sha256": "42e939f86d33f105f0adf225d4ef79c0c746b8360b1566f56867dcc73a55f124"
+  },
+  {
+    "path": "after-attempt11/config.mts",
+    "bytes": 2932,
+    "sha256": "788b8d842ea587536449308e257e6e59defc89fbd9fc8fc4122c737245a5e728"
+  },
+  {
+    "path": "after-attempt11/helper-bindings.json",
+    "bytes": 6589,
+    "sha256": "0f80fbc769002af1ed3d2d7446ae3ff55f1e52f08bf4451ca9a2cb0c7480783a"
+  },
+  {
+    "path": "after-attempt11/report.json",
+    "bytes": 2818,
+    "sha256": "c70e4d538faff932186896a7869262e7b7ba46f3508cab0ffa0a8ddca1179f53"
+  },
+  {
+    "path": "after-attempt11/result.json",
+    "bytes": 775,
+    "sha256": "45931ec4d77bee05afb2f68d108863041eec2cbcad4e69ed4e03453f726d47ff"
+  },
+  {
+    "path": "after-attempt11/run.py",
+    "bytes": 2892,
+    "sha256": "40c8136a50fda1af6a10a9fa772f187d8b5d379bab3a24a3c8edbe3c6a615e91"
+  },
+  {
+    "path": "after-attempt11/source-after.json",
+    "bytes": 72564,
+    "sha256": "742c0aa6c8efef0f43e971dee142f1ef3e8621e637111ff8a87f94042853098d"
+  },
+  {
+    "path": "after-attempt11/source-before.json",
+    "bytes": 72564,
+    "sha256": "742c0aa6c8efef0f43e971dee142f1ef3e8621e637111ff8a87f94042853098d"
+  },
+  {
+    "path": "after-attempt11/stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "after-attempt11/stdout.log",
+    "bytes": 101,
+    "sha256": "d130fb108501caa906a9411ffecb4f382c0174323b15a80a4b3d89865aeae5ee"
+  },
+  {
+    "path": "after-attempt11/team-panel-portals.test.tsx",
+    "bytes": 13229,
+    "sha256": "40fe9279927d4dd95e8404c2bdebb8b6a73e58878e468d65273dd049933785d0"
+  },
+  {
+    "path": "after-attempt11/versions.json",
+    "bytes": 98,
+    "sha256": "545af2c3c8dddfa9008e0960d9530d04eea2ca91b30b26b8271e0ee51da3b7c5"
+  },
+  {
+    "path": "after-attempt2/after/desktop/src/components/common/WorkflowDialog.tsx",
+    "bytes": 3442,
+    "sha256": "4b03b4dab6d23cff73a9a0852a2315d35b137d9620b64beee21b2e4824fc545a"
+  },
+  {
+    "path": "after-attempt2/after/desktop/src/components/common/WorkspaceOverlayScope.tsx",
+    "bytes": 416,
+    "sha256": "3ae91245ce6a2bc00ccdfb89c12a40e3f570ab5e2ea25e329bcda8a38fbf017f"
+  },
+  {
+    "path": "after-attempt2/after/desktop/src/components/teams/TeamWorkspaceProvider.tsx",
+    "bytes": 15069,
+    "sha256": "f332d26575998f97838622c806bdc0a31d1e2ec8236f22fd4990434922b65fea"
+  },
+  {
+    "path": "after-attempt2/after/desktop/src/hooks/useDismissable.ts",
+    "bytes": 4843,
+    "sha256": "1a9212d342dfaa5d13f278c9a6df0370487489b684a2cc48e113ac86852830a2"
+  },
+  {
+    "path": "after-attempt2/authority-portals.test.tsx",
+    "bytes": 10292,
+    "sha256": "2d24cb8039027b1690b1a521d3bb91af53a3239900d0218c9e418e0edccdecbb"
+  },
+  {
+    "path": "after-attempt2/config.mts",
+    "bytes": 1166,
+    "sha256": "cefaf2289f568f8c6c2b1fcc42eaa894b89c84c9c120f4ea1209e6611154398c"
+  },
+  {
+    "path": "after-attempt2/helper-bindings.json",
+    "bytes": 1137,
+    "sha256": "ede6741ec993b46f53c65a59ec92a8c5d534a4d1f6a2db5cea35bdb90529310b"
+  },
+  {
+    "path": "after-attempt2/report.json",
+    "bytes": 2329,
+    "sha256": "5e863ded70b6f0dfe11a5f0c3dbe35c03b57f2b9a624dc64cf2262d3b5df066b"
+  },
+  {
+    "path": "after-attempt2/result.json",
+    "bytes": 617,
+    "sha256": "d2948972b1fa197ec4e0f2ba05d3f15ac5f8e3c005577e0f9d187cd3cb801019"
+  },
+  {
+    "path": "after-attempt2/run.py",
+    "bytes": 2706,
+    "sha256": "6d47e8dee48a98f44bc560194ab8a60017bde057017030e4bd212b0130029d49"
+  },
+  {
+    "path": "after-attempt2/source-after.json",
+    "bytes": 72564,
+    "sha256": "742c0aa6c8efef0f43e971dee142f1ef3e8621e637111ff8a87f94042853098d"
+  },
+  {
+    "path": "after-attempt2/source-before.json",
+    "bytes": 72564,
+    "sha256": "742c0aa6c8efef0f43e971dee142f1ef3e8621e637111ff8a87f94042853098d"
+  },
+  {
+    "path": "after-attempt2/stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "after-attempt2/stdout.log",
+    "bytes": 100,
+    "sha256": "1cb063fb9360c5829bc40b28d78a55140e424ccca64c59d5a7c8a3cfdf009197"
+  },
+  {
+    "path": "after-attempt2/versions.json",
+    "bytes": 98,
+    "sha256": "3d58b6ea6d365887b06aba78ec5e8c21d85a92b0996129b52ef6de5f800ff380"
+  },
+  {
+    "path": "after-attempt3/after/desktop/src/components/common/WorkflowDialog.tsx",
+    "bytes": 2722,
+    "sha256": "1a2383e04276009e442f263dfd98180bb9491b3c51db60eb0d01499b56001d89"
+  },
+  {
+    "path": "after-attempt3/after/desktop/src/components/common/WorkspaceOverlayScope.tsx",
+    "bytes": 416,
+    "sha256": "3ae91245ce6a2bc00ccdfb89c12a40e3f570ab5e2ea25e329bcda8a38fbf017f"
+  },
+  {
+    "path": "after-attempt3/after/desktop/src/components/teams/TeamWorkspaceProvider.tsx",
+    "bytes": 15069,
+    "sha256": "f332d26575998f97838622c806bdc0a31d1e2ec8236f22fd4990434922b65fea"
+  },
+  {
+    "path": "after-attempt3/after/desktop/src/hooks/useDismissable.ts",
+    "bytes": 4843,
+    "sha256": "1a9212d342dfaa5d13f278c9a6df0370487489b684a2cc48e113ac86852830a2"
+  },
+  {
+    "path": "after-attempt3/authority-portals.test.tsx",
+    "bytes": 11957,
+    "sha256": "3f229f9e0ec8ac694ce1a9dc2afda6da784a01c28c0033ba2bd6249ddb3c1b41"
+  },
+  {
+    "path": "after-attempt3/config.mts",
+    "bytes": 1166,
+    "sha256": "cefaf2289f568f8c6c2b1fcc42eaa894b89c84c9c120f4ea1209e6611154398c"
+  },
+  {
+    "path": "after-attempt3/helper-bindings.json",
+    "bytes": 1137,
+    "sha256": "b8c9b36d715ce3439fbe21003bbda613dd38c510872b77f26f4a99b90b470d5c"
+  },
+  {
+    "path": "after-attempt3/report.json",
+    "bytes": 2371,
+    "sha256": "f35043067fe2988892a32b54e738ed6e7e112fbff770eb87064b90119cb5da66"
+  },
+  {
+    "path": "after-attempt3/result.json",
+    "bytes": 617,
+    "sha256": "02ea7c96fa6ab041d95001b4a69472cf04403181aa95a2afad596224df181b05"
+  },
+  {
+    "path": "after-attempt3/run.py",
+    "bytes": 2706,
+    "sha256": "6d47e8dee48a98f44bc560194ab8a60017bde057017030e4bd212b0130029d49"
+  },
+  {
+    "path": "after-attempt3/source-after.json",
+    "bytes": 72564,
+    "sha256": "742c0aa6c8efef0f43e971dee142f1ef3e8621e637111ff8a87f94042853098d"
+  },
+  {
+    "path": "after-attempt3/source-before.json",
+    "bytes": 72564,
+    "sha256": "742c0aa6c8efef0f43e971dee142f1ef3e8621e637111ff8a87f94042853098d"
+  },
+  {
+    "path": "after-attempt3/stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "after-attempt3/stdout.log",
+    "bytes": 100,
+    "sha256": "6e72997af89fbc478ebc96a2d210650af31936f05165e1dd40a159e17990db0e"
+  },
+  {
+    "path": "after-attempt3/versions.json",
+    "bytes": 98,
+    "sha256": "3d58b6ea6d365887b06aba78ec5e8c21d85a92b0996129b52ef6de5f800ff380"
+  },
+  {
+    "path": "after-attempt4/after/desktop/src/components/common/WorkflowDialog.tsx",
+    "bytes": 4072,
+    "sha256": "11491a0755b74d4c6ac3dccfe8ca9fd1d3191981eb53dce8e713bd1a9c70e2cd"
+  },
+  {
+    "path": "after-attempt4/after/desktop/src/components/common/WorkspaceOverlayScope.tsx",
+    "bytes": 557,
+    "sha256": "99d187585b33031b9f6d869fafd4e237f0db41f597b723b1d15d20ae84af3332"
+  },
+  {
+    "path": "after-attempt4/after/desktop/src/components/develop/ReviewedContextInspector.tsx",
+    "bytes": 7253,
+    "sha256": "ed22a7a36bef39809d4151fcbfaae2e0f6310ee076fab2c0c11accfd1cc3b3e6"
+  },
+  {
+    "path": "after-attempt4/after/desktop/src/components/teams/TeamWorkspaceProvider.tsx",
+    "bytes": 15171,
+    "sha256": "a8a96ee7ccf6dcdb16decfe31e42c40081dd408e2e8004101c1af64f3bb9c3fa"
+  },
+  {
+    "path": "after-attempt4/after/desktop/src/hooks/useDismissable.ts",
+    "bytes": 4843,
+    "sha256": "1a9212d342dfaa5d13f278c9a6df0370487489b684a2cc48e113ac86852830a2"
+  },
+  {
+    "path": "after-attempt4/authority-portals.test.tsx",
+    "bytes": 17121,
+    "sha256": "32e0d9d87b6f3c8ca1162b46d6204a0f6db3072ea92eb71e9b513b47d9fdb62b"
+  },
+  {
+    "path": "after-attempt4/config.mts",
+    "bytes": 1220,
+    "sha256": "80f33d4fed9ad8e51de91e762ac46d0ce40671ca20cfa5741d691b8f1a49d65b"
+  },
+  {
+    "path": "after-attempt4/helper-bindings.json",
+    "bytes": 1327,
+    "sha256": "42ecadc0c9c73a4dcd1c50725373e11242a0714213050c0f2625faf2c07ffcc1"
+  },
+  {
+    "path": "after-attempt4/report.json",
+    "bytes": 3804,
+    "sha256": "e076b72e519aba603364bcf6601c747b0ce01ab1e7f9fc2a5da93fbb82d8735c"
+  },
+  {
+    "path": "after-attempt4/result.json",
+    "bytes": 617,
+    "sha256": "1c5389430cd74f67a79daf17e4b16191401cdb828a39453d0289a45d3dd3e962"
+  },
+  {
+    "path": "after-attempt4/run.py",
+    "bytes": 2706,
+    "sha256": "6d47e8dee48a98f44bc560194ab8a60017bde057017030e4bd212b0130029d49"
+  },
+  {
+    "path": "after-attempt4/source-after.json",
+    "bytes": 72564,
+    "sha256": "742c0aa6c8efef0f43e971dee142f1ef3e8621e637111ff8a87f94042853098d"
+  },
+  {
+    "path": "after-attempt4/source-before.json",
+    "bytes": 72564,
+    "sha256": "742c0aa6c8efef0f43e971dee142f1ef3e8621e637111ff8a87f94042853098d"
+  },
+  {
+    "path": "after-attempt4/stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "after-attempt4/stdout.log",
+    "bytes": 100,
+    "sha256": "3545ee91e125ed849499d74202f7d170529b27d43f29bf9ba5c4f2bf94ea721b"
+  },
+  {
+    "path": "after-attempt4/versions.json",
+    "bytes": 98,
+    "sha256": "3d58b6ea6d365887b06aba78ec5e8c21d85a92b0996129b52ef6de5f800ff380"
+  },
+  {
+    "path": "after-attempt5/after/desktop/src/api/teams.ts",
+    "bytes": 3283,
+    "sha256": "3817a2e9cfe621a07bdf3f15d217fa3d0fede9b324e639329b8fbb2183448df2"
+  },
+  {
+    "path": "after-attempt5/after/desktop/src/components/common/DraftNavigationDialog.tsx",
+    "bytes": 3089,
+    "sha256": "06129a345036b8df9d931f52b1c555ce0c4180b187228b195e7bfb5ecdcc564d"
+  },
+  {
+    "path": "after-attempt5/after/desktop/src/components/common/WorkflowDialog.tsx",
+    "bytes": 4072,
+    "sha256": "11491a0755b74d4c6ac3dccfe8ca9fd1d3191981eb53dce8e713bd1a9c70e2cd"
+  },
+  {
+    "path": "after-attempt5/after/desktop/src/components/common/WorkspaceOverlayScope.tsx",
+    "bytes": 557,
+    "sha256": "99d187585b33031b9f6d869fafd4e237f0db41f597b723b1d15d20ae84af3332"
+  },
+  {
+    "path": "after-attempt5/after/desktop/src/components/develop/ReviewedContextInspector.tsx",
+    "bytes": 7253,
+    "sha256": "ed22a7a36bef39809d4151fcbfaae2e0f6310ee076fab2c0c11accfd1cc3b3e6"
+  },
+  {
+    "path": "after-attempt5/after/desktop/src/components/journey/BranchManager.tsx",
+    "bytes": 11655,
+    "sha256": "ae0239412af70b56006a15bac6d25ecdb0a6a323074d91f2511a2e98bb59447f"
+  },
+  {
+    "path": "after-attempt5/after/desktop/src/components/journey/CheckRecoveryDialog.tsx",
+    "bytes": 8728,
+    "sha256": "6601c75749e5a2160f926bc1f480e1610be95367fd16aefb635e661f4c657026"
+  },
+  {
+    "path": "after-attempt5/after/desktop/src/components/journey/ContextStorage.tsx",
+    "bytes": 14104,
+    "sha256": "1c347ce58f5b1a7fdffd706a8c762551e48cb5f730e5981c9bcfdb732fb28ae5"
+  },
+  {
+    "path": "after-attempt5/after/desktop/src/components/journey/ProjectChecks.tsx",
+    "bytes": 41307,
+    "sha256": "9fe29851853743886e9d81dea9574b9adc578b667a8b575ab59213f8f2e5ffc3"
+  },
+  {
+    "path": "after-attempt5/after/desktop/src/components/journey/ProjectRuns.tsx",
+    "bytes": 41314,
+    "sha256": "6c6709b41ae883c149bee1a5b8bc745032db7512f8b92ba74cbfefdfaf1889b5"
+  },
+  {
+    "path": "after-attempt5/after/desktop/src/components/journey/ProjectSwarm.tsx",
+    "bytes": 52803,
+    "sha256": "3bb54057e42fa15144c7e006220b6dbf3571726233f99394851082aebe15dacd"
+  },
+  {
+    "path": "after-attempt5/after/desktop/src/components/journey/SwarmCheckpointDialog.tsx",
+    "bytes": 5469,
+    "sha256": "8e573665eab80af60d8fbfd087aea32a747f5a3057c9d0a764f160357184c57b"
+  },
+  {
+    "path": "after-attempt5/after/desktop/src/components/journey/SwarmLaunchRecoveryDialog.tsx",
+    "bytes": 5324,
+    "sha256": "76aec29d2f2e5d6991a4a4ec693def9d442c58a6b1624c71de4216a8a3fe3774"
+  },
+  {
+    "path": "after-attempt5/after/desktop/src/components/journey/SwarmRunQueue.tsx",
+    "bytes": 12271,
+    "sha256": "d73f6a891b50b8eeb25c71d813de311e3678a0c38e2b73a2cee8f9d867e4f1da"
+  },
+  {
+    "path": "after-attempt5/after/desktop/src/components/journey/SwarmTaskHandoff.tsx",
+    "bytes": 20738,
+    "sha256": "bc9512d3ad25c530acc403bf72d185d2e595f8a2bd23f9028501253f74effb55"
+  },
+  {
+    "path": "after-attempt5/after/desktop/src/components/journey/SwarmWorkspaceReview.tsx",
+    "bytes": 9548,
+    "sha256": "ff7fcf20acc5efe666f4529599c6db70b58c1c8c247a4724b310c51129460c34"
+  },
+  {
+    "path": "after-attempt5/after/desktop/src/components/lens/DeployLens.tsx",
+    "bytes": 31599,
+    "sha256": "9d93803a32beb38cda5f19138e5f7e0ac722ffa6f8c82ed1b56b2b8a380eedf0"
+  },
+  {
+    "path": "after-attempt5/after/desktop/src/components/orchestrator/AmendmentReview.tsx",
+    "bytes": 3778,
+    "sha256": "293d4d1ca2ff2efeb7b407699bfc85c5ed997fbe0fd47c8b421350af7885cf2e"
+  },
+  {
+    "path": "after-attempt5/after/desktop/src/components/orchestrator/OrchestratorPanel.tsx",
+    "bytes": 53147,
+    "sha256": "4213194e38481cc9e0b4e1f8c3eccfd1a0c62a67823a3a29fae92c5e55baf73f"
+  },
+  {
+    "path": "after-attempt5/after/desktop/src/components/projects/ProjectOverviewBoard.tsx",
+    "bytes": 25690,
+    "sha256": "3f198ff66958b205a65309a8a53192959bd0e1c805cc8c0b40b692f676eef9a8"
+  },
+  {
+    "path": "after-attempt5/after/desktop/src/components/teams/TeamWorkspaceProvider.tsx",
+    "bytes": 15171,
+    "sha256": "a8a96ee7ccf6dcdb16decfe31e42c40081dd408e2e8004101c1af64f3bb9c3fa"
+  },
+  {
+    "path": "after-attempt5/after/desktop/src/hooks/useDismissable.ts",
+    "bytes": 4843,
+    "sha256": "1a9212d342dfaa5d13f278c9a6df0370487489b684a2cc48e113ac86852830a2"
+  },
+  {
+    "path": "after-attempt5/authority-portals.test.tsx",
+    "bytes": 17121,
+    "sha256": "32e0d9d87b6f3c8ca1162b46d6204a0f6db3072ea92eb71e9b513b47d9fdb62b"
+  },
+  {
+    "path": "after-attempt5/config.mts",
+    "bytes": 2123,
+    "sha256": "bfb8c2c239c4ce892cb5c0230db621589141a3b3c97b85ac79c6c36e2da851c2"
+  },
+  {
+    "path": "after-attempt5/execution-mode.json",
+    "bytes": 298,
+    "sha256": "72ab8e72012b1ba5364799728939a3f6e614726ba218debee893214b62ae296c"
+  },
+  {
+    "path": "after-attempt5/helper-bindings.json",
+    "bytes": 4415,
+    "sha256": "88f49ffc8e8ba62519d3bc0bac076987febe608086a0b5fdff6f7420cbfed53d"
+  },
+  {
+    "path": "after-attempt5/report.json",
+    "bytes": 17381,
+    "sha256": "7a1267ff308371ecba3a6a14aed0e7118b7cd6f7a8520325003034dcc56cd9d6"
+  },
+  {
+    "path": "after-attempt5/result.json",
+    "bytes": 617,
+    "sha256": "5be5732aee4b28c27a337c72d918249b52d8770fd6d64af9ac088007eff97643"
+  },
+  {
+    "path": "after-attempt5/run.py",
+    "bytes": 2706,
+    "sha256": "6d47e8dee48a98f44bc560194ab8a60017bde057017030e4bd212b0130029d49"
+  },
+  {
+    "path": "after-attempt5/source-after.json",
+    "bytes": 72564,
+    "sha256": "742c0aa6c8efef0f43e971dee142f1ef3e8621e637111ff8a87f94042853098d"
+  },
+  {
+    "path": "after-attempt5/source-before.json",
+    "bytes": 72564,
+    "sha256": "742c0aa6c8efef0f43e971dee142f1ef3e8621e637111ff8a87f94042853098d"
+  },
+  {
+    "path": "after-attempt5/stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "after-attempt5/stdout.log",
+    "bytes": 100,
+    "sha256": "1ba0b4d06618bdf414175864677a8259d79df95bd59b3b35aec1749c28f58812"
+  },
+  {
+    "path": "after-attempt5/versions.json",
+    "bytes": 98,
+    "sha256": "3d58b6ea6d365887b06aba78ec5e8c21d85a92b0996129b52ef6de5f800ff380"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/api/teams.ts",
+    "bytes": 3283,
+    "sha256": "3817a2e9cfe621a07bdf3f15d217fa3d0fede9b324e639329b8fbb2183448df2"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/components/common/DraftNavigationDialog.tsx",
+    "bytes": 3147,
+    "sha256": "570aa3909dee369d7e1b4c7dfa052d7ec17e5dd0d7d72702f40ffc239182a3c4"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/components/common/WorkflowDialog.tsx",
+    "bytes": 4094,
+    "sha256": "8024f392355596de0bc251ca32845d49d4e036e9ac94d3c72282912b30e5ac2d"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/components/common/WorkspaceOverlayScope.tsx",
+    "bytes": 557,
+    "sha256": "99d187585b33031b9f6d869fafd4e237f0db41f597b723b1d15d20ae84af3332"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/components/develop/ReviewedContextInspector.tsx",
+    "bytes": 7253,
+    "sha256": "ed22a7a36bef39809d4151fcbfaae2e0f6310ee076fab2c0c11accfd1cc3b3e6"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/components/journey/BranchManager.tsx",
+    "bytes": 11655,
+    "sha256": "ae0239412af70b56006a15bac6d25ecdb0a6a323074d91f2511a2e98bb59447f"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/components/journey/CheckRecoveryDialog.test.tsx",
+    "bytes": 9520,
+    "sha256": "1fb7fd2fc8818a06600f2ef47de023a7ae3fe26fa982006c9982e7afc7cb143b"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/components/journey/CheckRecoveryDialog.tsx",
+    "bytes": 8728,
+    "sha256": "6601c75749e5a2160f926bc1f480e1610be95367fd16aefb635e661f4c657026"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/components/journey/ContextStorage.tsx",
+    "bytes": 14104,
+    "sha256": "1c347ce58f5b1a7fdffd706a8c762551e48cb5f730e5981c9bcfdb732fb28ae5"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/components/journey/ProjectChecks.tsx",
+    "bytes": 41307,
+    "sha256": "9fe29851853743886e9d81dea9574b9adc578b667a8b575ab59213f8f2e5ffc3"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/components/journey/ProjectRuns.tsx",
+    "bytes": 41314,
+    "sha256": "6c6709b41ae883c149bee1a5b8bc745032db7512f8b92ba74cbfefdfaf1889b5"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/components/journey/ProjectSwarm.tsx",
+    "bytes": 52803,
+    "sha256": "3bb54057e42fa15144c7e006220b6dbf3571726233f99394851082aebe15dacd"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/components/journey/SwarmCheckpointDialog.tsx",
+    "bytes": 5469,
+    "sha256": "8e573665eab80af60d8fbfd087aea32a747f5a3057c9d0a764f160357184c57b"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/components/journey/SwarmLaunchRecoveryDialog.tsx",
+    "bytes": 5324,
+    "sha256": "76aec29d2f2e5d6991a4a4ec693def9d442c58a6b1624c71de4216a8a3fe3774"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/components/journey/SwarmRunQueue.test.tsx",
+    "bytes": 13648,
+    "sha256": "56cd3733739847a4c20dbc1592771f3ee8eaeb72d7b42159eb208951d0da5da8"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/components/journey/SwarmRunQueue.tsx",
+    "bytes": 12271,
+    "sha256": "d73f6a891b50b8eeb25c71d813de311e3678a0c38e2b73a2cee8f9d867e4f1da"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/components/journey/SwarmTaskHandoff.tsx",
+    "bytes": 20738,
+    "sha256": "bc9512d3ad25c530acc403bf72d185d2e595f8a2bd23f9028501253f74effb55"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/components/journey/SwarmWorkspaceReview.tsx",
+    "bytes": 9548,
+    "sha256": "ff7fcf20acc5efe666f4529599c6db70b58c1c8c247a4724b310c51129460c34"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/components/lens/DeployLens.tsx",
+    "bytes": 31599,
+    "sha256": "9d93803a32beb38cda5f19138e5f7e0ac722ffa6f8c82ed1b56b2b8a380eedf0"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/components/orchestrator/AmendmentReview.tsx",
+    "bytes": 3778,
+    "sha256": "293d4d1ca2ff2efeb7b407699bfc85c5ed997fbe0fd47c8b421350af7885cf2e"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/components/orchestrator/OrchestratorPanel.tsx",
+    "bytes": 53147,
+    "sha256": "4213194e38481cc9e0b4e1f8c3eccfd1a0c62a67823a3a29fae92c5e55baf73f"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/components/projects/ProjectOverviewBoard.authority.test.tsx",
+    "bytes": 13283,
+    "sha256": "7e90ecea16bc90bace60ce55e70410ac85a18fd4bed1edca27b31dfacbec90e7"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/components/projects/ProjectOverviewBoard.test.tsx",
+    "bytes": 42211,
+    "sha256": "e11b3d94aad6c5d7c456c98878ea4c1b275c1df228b041950e3d7c6d2b90a084"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/components/projects/ProjectOverviewBoard.tsx",
+    "bytes": 25690,
+    "sha256": "3f198ff66958b205a65309a8a53192959bd0e1c805cc8c0b40b692f676eef9a8"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/components/setup/AgentConnectionManager.tsx",
+    "bytes": 13573,
+    "sha256": "ee6beac5987af145ad1d62eedd94140673939e69ff6ab3421fbdfb7bb0a27bc4"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/components/setup/AgentConnections.tsx",
+    "bytes": 14429,
+    "sha256": "a707c0c7e0c1a8b70ff39124aecdfb941c25ad3c3f1728ff88e12c537ca458b9"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/components/teams/TeamDataLifecycle.tsx",
+    "bytes": 4890,
+    "sha256": "0e4c3d03db9d189a10d69c25fd779d8d4bab25bc988afa944abc16ad89fd3e22"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/components/teams/TeamInvitations.tsx",
+    "bytes": 9748,
+    "sha256": "ea6d7ac9d6d59201580059ac2913be54c35329c3bce18b4eced0acff95a167f0"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/components/teams/TeamWorkspaceControl.tsx",
+    "bytes": 14794,
+    "sha256": "859b39ecddb16bcec882d41f0e0a136d935b892781a5f00ed48a202a1d0c4039"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/components/teams/TeamWorkspaceProvider.tsx",
+    "bytes": 15171,
+    "sha256": "a8a96ee7ccf6dcdb16decfe31e42c40081dd408e2e8004101c1af64f3bb9c3fa"
+  },
+  {
+    "path": "after-attempt6/after/desktop/src/hooks/useDismissable.ts",
+    "bytes": 4865,
+    "sha256": "52ed6fe58003ae2e96a9f8918fbf8f73df9e09b871544fb42188f212082b82c6"
+  },
+  {
+    "path": "after-attempt6/authority-portals.test.tsx",
+    "bytes": 22420,
+    "sha256": "0988fca4041464ab98e5755daf70e962c9ee0f8acd0e01c88206a92c230629ac"
+  },
+  {
+    "path": "after-attempt6/config.mts",
+    "bytes": 2770,
+    "sha256": "ef9784926fdfcef19d117ab8e25c3e59b0f24c7877b535a725faa0a003ece650"
+  },
+  {
+    "path": "after-attempt6/helper-bindings.json",
+    "bytes": 6099,
+    "sha256": "cdd7798ebe7f2cc7a8e166b363c288d03583239c66a12973b03e13bf46229353"
+  },
+  {
+    "path": "after-attempt6/report.json",
+    "bytes": 25989,
+    "sha256": "a60af93a58d1f597819f641a5681230c52b0321e905e4474e4292a4816546cab"
+  },
+  {
+    "path": "after-attempt6/result.json",
+    "bytes": 736,
+    "sha256": "7188efb0c19391297d89d5a5045dc5f68e0feeef8bd1748ff163ddad74896685"
+  },
+  {
+    "path": "after-attempt6/run.py",
+    "bytes": 2811,
+    "sha256": "984fe186273b6bac6bd94eb5b7408bf890dce65b5a99b91b2465120f3b729d22"
+  },
+  {
+    "path": "after-attempt6/source-after.json",
+    "bytes": 72564,
+    "sha256": "742c0aa6c8efef0f43e971dee142f1ef3e8621e637111ff8a87f94042853098d"
+  },
+  {
+    "path": "after-attempt6/source-before.json",
+    "bytes": 72564,
+    "sha256": "742c0aa6c8efef0f43e971dee142f1ef3e8621e637111ff8a87f94042853098d"
+  },
+  {
+    "path": "after-attempt6/stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "after-attempt6/stdout.log",
+    "bytes": 100,
+    "sha256": "4f02efcc8da456a031d529a777ac65320698bbe343b1b45e9f169fb4b1fea80b"
+  },
+  {
+    "path": "after-attempt6/versions.json",
+    "bytes": 98,
+    "sha256": "545af2c3c8dddfa9008e0960d9530d04eea2ca91b30b26b8271e0ee51da3b7c5"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/api/teams.ts",
+    "bytes": 3283,
+    "sha256": "3817a2e9cfe621a07bdf3f15d217fa3d0fede9b324e639329b8fbb2183448df2"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/components/common/DraftNavigationDialog.tsx",
+    "bytes": 3147,
+    "sha256": "570aa3909dee369d7e1b4c7dfa052d7ec17e5dd0d7d72702f40ffc239182a3c4"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/components/common/WorkflowDialog.tsx",
+    "bytes": 4094,
+    "sha256": "8024f392355596de0bc251ca32845d49d4e036e9ac94d3c72282912b30e5ac2d"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/components/common/WorkspaceOverlayScope.tsx",
+    "bytes": 557,
+    "sha256": "99d187585b33031b9f6d869fafd4e237f0db41f597b723b1d15d20ae84af3332"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/components/develop/ReviewedContextInspector.tsx",
+    "bytes": 7253,
+    "sha256": "ed22a7a36bef39809d4151fcbfaae2e0f6310ee076fab2c0c11accfd1cc3b3e6"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/components/journey/BranchManager.tsx",
+    "bytes": 11655,
+    "sha256": "ae0239412af70b56006a15bac6d25ecdb0a6a323074d91f2511a2e98bb59447f"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/components/journey/CheckRecoveryDialog.test.tsx",
+    "bytes": 9520,
+    "sha256": "1fb7fd2fc8818a06600f2ef47de023a7ae3fe26fa982006c9982e7afc7cb143b"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/components/journey/CheckRecoveryDialog.tsx",
+    "bytes": 8728,
+    "sha256": "6601c75749e5a2160f926bc1f480e1610be95367fd16aefb635e661f4c657026"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/components/journey/ContextStorage.tsx",
+    "bytes": 14104,
+    "sha256": "1c347ce58f5b1a7fdffd706a8c762551e48cb5f730e5981c9bcfdb732fb28ae5"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/components/journey/ProjectChecks.tsx",
+    "bytes": 41307,
+    "sha256": "9fe29851853743886e9d81dea9574b9adc578b667a8b575ab59213f8f2e5ffc3"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/components/journey/ProjectRuns.tsx",
+    "bytes": 41314,
+    "sha256": "6c6709b41ae883c149bee1a5b8bc745032db7512f8b92ba74cbfefdfaf1889b5"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/components/journey/ProjectSwarm.tsx",
+    "bytes": 52803,
+    "sha256": "3bb54057e42fa15144c7e006220b6dbf3571726233f99394851082aebe15dacd"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/components/journey/SwarmCheckpointDialog.tsx",
+    "bytes": 5469,
+    "sha256": "8e573665eab80af60d8fbfd087aea32a747f5a3057c9d0a764f160357184c57b"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/components/journey/SwarmLaunchRecoveryDialog.tsx",
+    "bytes": 5324,
+    "sha256": "76aec29d2f2e5d6991a4a4ec693def9d442c58a6b1624c71de4216a8a3fe3774"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/components/journey/SwarmRunQueue.test.tsx",
+    "bytes": 13648,
+    "sha256": "56cd3733739847a4c20dbc1592771f3ee8eaeb72d7b42159eb208951d0da5da8"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/components/journey/SwarmRunQueue.tsx",
+    "bytes": 12271,
+    "sha256": "d73f6a891b50b8eeb25c71d813de311e3678a0c38e2b73a2cee8f9d867e4f1da"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/components/journey/SwarmTaskHandoff.tsx",
+    "bytes": 20738,
+    "sha256": "bc9512d3ad25c530acc403bf72d185d2e595f8a2bd23f9028501253f74effb55"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/components/journey/SwarmWorkspaceReview.tsx",
+    "bytes": 9548,
+    "sha256": "ff7fcf20acc5efe666f4529599c6db70b58c1c8c247a4724b310c51129460c34"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/components/lens/DeployLens.tsx",
+    "bytes": 31599,
+    "sha256": "9d93803a32beb38cda5f19138e5f7e0ac722ffa6f8c82ed1b56b2b8a380eedf0"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/components/orchestrator/AmendmentReview.tsx",
+    "bytes": 3778,
+    "sha256": "293d4d1ca2ff2efeb7b407699bfc85c5ed997fbe0fd47c8b421350af7885cf2e"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/components/orchestrator/OrchestratorPanel.tsx",
+    "bytes": 53147,
+    "sha256": "4213194e38481cc9e0b4e1f8c3eccfd1a0c62a67823a3a29fae92c5e55baf73f"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/components/projects/ProjectOverviewBoard.authority.test.tsx",
+    "bytes": 13283,
+    "sha256": "7e90ecea16bc90bace60ce55e70410ac85a18fd4bed1edca27b31dfacbec90e7"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/components/projects/ProjectOverviewBoard.test.tsx",
+    "bytes": 42211,
+    "sha256": "e11b3d94aad6c5d7c456c98878ea4c1b275c1df228b041950e3d7c6d2b90a084"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/components/projects/ProjectOverviewBoard.tsx",
+    "bytes": 25690,
+    "sha256": "3f198ff66958b205a65309a8a53192959bd0e1c805cc8c0b40b692f676eef9a8"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/components/setup/AgentConnectionManager.tsx",
+    "bytes": 13573,
+    "sha256": "ee6beac5987af145ad1d62eedd94140673939e69ff6ab3421fbdfb7bb0a27bc4"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/components/setup/AgentConnections.tsx",
+    "bytes": 14429,
+    "sha256": "a707c0c7e0c1a8b70ff39124aecdfb941c25ad3c3f1728ff88e12c537ca458b9"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/components/teams/TeamDataLifecycle.tsx",
+    "bytes": 4890,
+    "sha256": "0e4c3d03db9d189a10d69c25fd779d8d4bab25bc988afa944abc16ad89fd3e22"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/components/teams/TeamInvitations.tsx",
+    "bytes": 9748,
+    "sha256": "ea6d7ac9d6d59201580059ac2913be54c35329c3bce18b4eced0acff95a167f0"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/components/teams/TeamWorkspaceControl.tsx",
+    "bytes": 14794,
+    "sha256": "859b39ecddb16bcec882d41f0e0a136d935b892781a5f00ed48a202a1d0c4039"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/components/teams/TeamWorkspaceProvider.tsx",
+    "bytes": 15171,
+    "sha256": "a8a96ee7ccf6dcdb16decfe31e42c40081dd408e2e8004101c1af64f3bb9c3fa"
+  },
+  {
+    "path": "after-attempt7/after/desktop/src/hooks/useDismissable.ts",
+    "bytes": 4865,
+    "sha256": "52ed6fe58003ae2e96a9f8918fbf8f73df9e09b871544fb42188f212082b82c6"
+  },
+  {
+    "path": "after-attempt7/authority-portals.test.tsx",
+    "bytes": 22420,
+    "sha256": "0988fca4041464ab98e5755daf70e962c9ee0f8acd0e01c88206a92c230629ac"
+  },
+  {
+    "path": "after-attempt7/config.mts",
+    "bytes": 2770,
+    "sha256": "ef9784926fdfcef19d117ab8e25c3e59b0f24c7877b535a725faa0a003ece650"
+  },
+  {
+    "path": "after-attempt7/helper-bindings.json",
+    "bytes": 6099,
+    "sha256": "cdd7798ebe7f2cc7a8e166b363c288d03583239c66a12973b03e13bf46229353"
+  },
+  {
+    "path": "after-attempt7/report.json",
+    "bytes": 15677,
+    "sha256": "a1dea3df6a7ed94fe43895cb775013d9466785db6df3883f3b14b47b06b0f033"
+  },
+  {
+    "path": "after-attempt7/result.json",
+    "bytes": 738,
+    "sha256": "c4133713fd7bcbc6d5d5dd2b60ddf8cf03f67dc7fc19e1a9552bd908f9f09fef"
+  },
+  {
+    "path": "after-attempt7/run.py",
+    "bytes": 2811,
+    "sha256": "984fe186273b6bac6bd94eb5b7408bf890dce65b5a99b91b2465120f3b729d22"
+  },
+  {
+    "path": "after-attempt7/source-after.json",
+    "bytes": 72564,
+    "sha256": "742c0aa6c8efef0f43e971dee142f1ef3e8621e637111ff8a87f94042853098d"
+  },
+  {
+    "path": "after-attempt7/source-before.json",
+    "bytes": 72564,
+    "sha256": "742c0aa6c8efef0f43e971dee142f1ef3e8621e637111ff8a87f94042853098d"
+  },
+  {
+    "path": "after-attempt7/stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "after-attempt7/stdout.log",
+    "bytes": 100,
+    "sha256": "a152666ae902a89cbfae89f92ec603a1276e38aa60591afddcfc0ec0c14d1f84"
+  },
+  {
+    "path": "after-attempt7/versions.json",
+    "bytes": 98,
+    "sha256": "545af2c3c8dddfa9008e0960d9530d04eea2ca91b30b26b8271e0ee51da3b7c5"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/api/teams.ts",
+    "bytes": 3283,
+    "sha256": "3817a2e9cfe621a07bdf3f15d217fa3d0fede9b324e639329b8fbb2183448df2"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/common/DraftNavigationDialog.tsx",
+    "bytes": 3147,
+    "sha256": "570aa3909dee369d7e1b4c7dfa052d7ec17e5dd0d7d72702f40ffc239182a3c4"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/common/WorkflowDialog.tsx",
+    "bytes": 4793,
+    "sha256": "14effd3e6108aeca895fbd786e68384dc81b37533adc488d9ebdfe680dc1b3a2"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/common/WorkspaceOverlayScope.tsx",
+    "bytes": 557,
+    "sha256": "99d187585b33031b9f6d869fafd4e237f0db41f597b723b1d15d20ae84af3332"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/develop/ReviewedContextInspector.tsx",
+    "bytes": 7253,
+    "sha256": "ed22a7a36bef39809d4151fcbfaae2e0f6310ee076fab2c0c11accfd1cc3b3e6"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/journey/BranchManager.tsx",
+    "bytes": 11655,
+    "sha256": "ae0239412af70b56006a15bac6d25ecdb0a6a323074d91f2511a2e98bb59447f"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/journey/CheckRecoveryDialog.test.tsx",
+    "bytes": 9520,
+    "sha256": "1fb7fd2fc8818a06600f2ef47de023a7ae3fe26fa982006c9982e7afc7cb143b"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/journey/CheckRecoveryDialog.tsx",
+    "bytes": 8728,
+    "sha256": "6601c75749e5a2160f926bc1f480e1610be95367fd16aefb635e661f4c657026"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/journey/ContextStorage.tsx",
+    "bytes": 14104,
+    "sha256": "1c347ce58f5b1a7fdffd706a8c762551e48cb5f730e5981c9bcfdb732fb28ae5"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/journey/ProjectChecks.tsx",
+    "bytes": 41307,
+    "sha256": "9fe29851853743886e9d81dea9574b9adc578b667a8b575ab59213f8f2e5ffc3"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/journey/ProjectRuns.tsx",
+    "bytes": 41314,
+    "sha256": "6c6709b41ae883c149bee1a5b8bc745032db7512f8b92ba74cbfefdfaf1889b5"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/journey/ProjectSwarm.tsx",
+    "bytes": 52803,
+    "sha256": "3bb54057e42fa15144c7e006220b6dbf3571726233f99394851082aebe15dacd"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/journey/SwarmCheckpointDialog.tsx",
+    "bytes": 5469,
+    "sha256": "8e573665eab80af60d8fbfd087aea32a747f5a3057c9d0a764f160357184c57b"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/journey/SwarmLaunchRecoveryDialog.tsx",
+    "bytes": 5324,
+    "sha256": "76aec29d2f2e5d6991a4a4ec693def9d442c58a6b1624c71de4216a8a3fe3774"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/journey/SwarmRunQueue.test.tsx",
+    "bytes": 13648,
+    "sha256": "56cd3733739847a4c20dbc1592771f3ee8eaeb72d7b42159eb208951d0da5da8"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/journey/SwarmRunQueue.tsx",
+    "bytes": 12271,
+    "sha256": "d73f6a891b50b8eeb25c71d813de311e3678a0c38e2b73a2cee8f9d867e4f1da"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/journey/SwarmTaskHandoff.tsx",
+    "bytes": 20738,
+    "sha256": "bc9512d3ad25c530acc403bf72d185d2e595f8a2bd23f9028501253f74effb55"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/journey/SwarmWorkspaceReview.tsx",
+    "bytes": 9753,
+    "sha256": "117d62cc501773ac037f014293dde9489af26df3e09ccad042b1f80b4625011f"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/lens/DeployLens.tsx",
+    "bytes": 31599,
+    "sha256": "9d93803a32beb38cda5f19138e5f7e0ac722ffa6f8c82ed1b56b2b8a380eedf0"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/orchestrator/AmendmentReview.tsx",
+    "bytes": 3778,
+    "sha256": "293d4d1ca2ff2efeb7b407699bfc85c5ed997fbe0fd47c8b421350af7885cf2e"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/orchestrator/OrchestratorPanel.tsx",
+    "bytes": 53147,
+    "sha256": "4213194e38481cc9e0b4e1f8c3eccfd1a0c62a67823a3a29fae92c5e55baf73f"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/projects/ProjectOverviewBoard.authority.test.tsx",
+    "bytes": 13283,
+    "sha256": "7e90ecea16bc90bace60ce55e70410ac85a18fd4bed1edca27b31dfacbec90e7"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/projects/ProjectOverviewBoard.test.tsx",
+    "bytes": 42211,
+    "sha256": "e11b3d94aad6c5d7c456c98878ea4c1b275c1df228b041950e3d7c6d2b90a084"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/projects/ProjectOverviewBoard.tsx",
+    "bytes": 25690,
+    "sha256": "3f198ff66958b205a65309a8a53192959bd0e1c805cc8c0b40b692f676eef9a8"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/setup/AgentConnectionManager.tsx",
+    "bytes": 13573,
+    "sha256": "ee6beac5987af145ad1d62eedd94140673939e69ff6ab3421fbdfb7bb0a27bc4"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/setup/AgentConnections.tsx",
+    "bytes": 14429,
+    "sha256": "a707c0c7e0c1a8b70ff39124aecdfb941c25ad3c3f1728ff88e12c537ca458b9"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/teams/TeamDataLifecycle.tsx",
+    "bytes": 4890,
+    "sha256": "0e4c3d03db9d189a10d69c25fd779d8d4bab25bc988afa944abc16ad89fd3e22"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/teams/TeamInvitations.tsx",
+    "bytes": 9748,
+    "sha256": "ea6d7ac9d6d59201580059ac2913be54c35329c3bce18b4eced0acff95a167f0"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/teams/TeamWorkspaceControl.test.tsx",
+    "bytes": 13041,
+    "sha256": "df2aa7dfa55df5160549cba69bb918536f85e9a03ff24cac4b59f4faff54777a"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/teams/TeamWorkspaceControl.tsx",
+    "bytes": 14794,
+    "sha256": "859b39ecddb16bcec882d41f0e0a136d935b892781a5f00ed48a202a1d0c4039"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/components/teams/TeamWorkspaceProvider.tsx",
+    "bytes": 15171,
+    "sha256": "a8a96ee7ccf6dcdb16decfe31e42c40081dd408e2e8004101c1af64f3bb9c3fa"
+  },
+  {
+    "path": "after-attempt9/after/desktop/src/hooks/useDismissable.ts",
+    "bytes": 4865,
+    "sha256": "52ed6fe58003ae2e96a9f8918fbf8f73df9e09b871544fb42188f212082b82c6"
+  },
+  {
+    "path": "after-attempt9/authority-portals.test.tsx",
+    "bytes": 22404,
+    "sha256": "439a2d91383a50c9ba047e6488d24a2be0d75e1c65191a70535069983b3dd21b"
+  },
+  {
+    "path": "after-attempt9/bulk-portals.test.tsx",
+    "bytes": 13533,
+    "sha256": "42e939f86d33f105f0adf225d4ef79c0c746b8360b1566f56867dcc73a55f124"
+  },
+  {
+    "path": "after-attempt9/config.mts",
+    "bytes": 2964,
+    "sha256": "a909245e1d74a18ce04ac43e51c770f7b8d5647ec0135f314cb7850795fccd10"
+  },
+  {
+    "path": "after-attempt9/helper-bindings.json",
+    "bytes": 6589,
+    "sha256": "d6739b96d2d3321229cb3e2ba693e56e13a7d120032a3f62be9ae6353fe0d523"
+  },
+  {
+    "path": "after-attempt9/report.json",
+    "bytes": 5820,
+    "sha256": "20473925aa29c665f2f2c92320ed085c0b94ae2205240a10e0ac98a4b90c68a7"
+  },
+  {
+    "path": "after-attempt9/result.json",
+    "bytes": 772,
+    "sha256": "7708729333198e971fd1439f1a0ef69e13c5b6d5c0425e945d9dea3fb102dcde"
+  },
+  {
+    "path": "after-attempt9/run.py",
+    "bytes": 2892,
+    "sha256": "40c8136a50fda1af6a10a9fa772f187d8b5d379bab3a24a3c8edbe3c6a615e91"
+  },
+  {
+    "path": "after-attempt9/source-after.json",
+    "bytes": 72564,
+    "sha256": "742c0aa6c8efef0f43e971dee142f1ef3e8621e637111ff8a87f94042853098d"
+  },
+  {
+    "path": "after-attempt9/source-before.json",
+    "bytes": 72564,
+    "sha256": "742c0aa6c8efef0f43e971dee142f1ef3e8621e637111ff8a87f94042853098d"
+  },
+  {
+    "path": "after-attempt9/stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "after-attempt9/stdout.log",
+    "bytes": 100,
+    "sha256": "49df2e32a81a37f4423020860262c7bd7046fad7671dec5c9bf29d4bb1b8d357"
+  },
+  {
+    "path": "after-attempt9/team-panel-portals.test.tsx",
+    "bytes": 13229,
+    "sha256": "40fe9279927d4dd95e8404c2bdebb8b6a73e58878e468d65273dd049933785d0"
+  },
+  {
+    "path": "after-attempt9/versions.json",
+    "bytes": 98,
+    "sha256": "545af2c3c8dddfa9008e0960d9530d04eea2ca91b30b26b8271e0ee51da3b7c5"
+  },
+  {
+    "path": "after-owner-calls/desktop/src/api/teams.ts",
+    "bytes": 3283,
+    "sha256": "3817a2e9cfe621a07bdf3f15d217fa3d0fede9b324e639329b8fbb2183448df2"
+  },
+  {
+    "path": "after-owner-calls/desktop/src/components/common/DraftNavigationDialog.tsx",
+    "bytes": 3089,
+    "sha256": "06129a345036b8df9d931f52b1c555ce0c4180b187228b195e7bfb5ecdcc564d"
+  },
+  {
+    "path": "after-owner-calls/desktop/src/components/journey/BranchManager.tsx",
+    "bytes": 11655,
+    "sha256": "ae0239412af70b56006a15bac6d25ecdb0a6a323074d91f2511a2e98bb59447f"
+  },
+  {
+    "path": "after-owner-calls/desktop/src/components/journey/CheckRecoveryDialog.test.tsx",
+    "bytes": 9520,
+    "sha256": "1fb7fd2fc8818a06600f2ef47de023a7ae3fe26fa982006c9982e7afc7cb143b"
+  },
+  {
+    "path": "after-owner-calls/desktop/src/components/journey/CheckRecoveryDialog.tsx",
+    "bytes": 8728,
+    "sha256": "6601c75749e5a2160f926bc1f480e1610be95367fd16aefb635e661f4c657026"
+  },
+  {
+    "path": "after-owner-calls/desktop/src/components/journey/ContextStorage.tsx",
+    "bytes": 14104,
+    "sha256": "1c347ce58f5b1a7fdffd706a8c762551e48cb5f730e5981c9bcfdb732fb28ae5"
+  },
+  {
+    "path": "after-owner-calls/desktop/src/components/journey/ProjectChecks.tsx",
+    "bytes": 41307,
+    "sha256": "9fe29851853743886e9d81dea9574b9adc578b667a8b575ab59213f8f2e5ffc3"
+  },
+  {
+    "path": "after-owner-calls/desktop/src/components/journey/ProjectRuns.tsx",
+    "bytes": 41314,
+    "sha256": "6c6709b41ae883c149bee1a5b8bc745032db7512f8b92ba74cbfefdfaf1889b5"
+  },
+  {
+    "path": "after-owner-calls/desktop/src/components/journey/ProjectSwarm.tsx",
+    "bytes": 52803,
+    "sha256": "3bb54057e42fa15144c7e006220b6dbf3571726233f99394851082aebe15dacd"
+  },
+  {
+    "path": "after-owner-calls/desktop/src/components/journey/SwarmCheckpointDialog.tsx",
+    "bytes": 5469,
+    "sha256": "8e573665eab80af60d8fbfd087aea32a747f5a3057c9d0a764f160357184c57b"
+  },
+  {
+    "path": "after-owner-calls/desktop/src/components/journey/SwarmLaunchRecoveryDialog.tsx",
+    "bytes": 5324,
+    "sha256": "76aec29d2f2e5d6991a4a4ec693def9d442c58a6b1624c71de4216a8a3fe3774"
+  },
+  {
+    "path": "after-owner-calls/desktop/src/components/journey/SwarmRunQueue.test.tsx",
+    "bytes": 13648,
+    "sha256": "56cd3733739847a4c20dbc1592771f3ee8eaeb72d7b42159eb208951d0da5da8"
+  },
+  {
+    "path": "after-owner-calls/desktop/src/components/journey/SwarmRunQueue.tsx",
+    "bytes": 12271,
+    "sha256": "d73f6a891b50b8eeb25c71d813de311e3678a0c38e2b73a2cee8f9d867e4f1da"
+  },
+  {
+    "path": "after-owner-calls/desktop/src/components/journey/SwarmTaskHandoff.tsx",
+    "bytes": 20738,
+    "sha256": "bc9512d3ad25c530acc403bf72d185d2e595f8a2bd23f9028501253f74effb55"
+  },
+  {
+    "path": "after-owner-calls/desktop/src/components/journey/SwarmWorkspaceReview.tsx",
+    "bytes": 9548,
+    "sha256": "ff7fcf20acc5efe666f4529599c6db70b58c1c8c247a4724b310c51129460c34"
+  },
+  {
+    "path": "after-owner-calls/desktop/src/components/lens/DeployLens.tsx",
+    "bytes": 31599,
+    "sha256": "9d93803a32beb38cda5f19138e5f7e0ac722ffa6f8c82ed1b56b2b8a380eedf0"
+  },
+  {
+    "path": "after-owner-calls/desktop/src/components/orchestrator/AmendmentReview.tsx",
+    "bytes": 3778,
+    "sha256": "293d4d1ca2ff2efeb7b407699bfc85c5ed997fbe0fd47c8b421350af7885cf2e"
+  },
+  {
+    "path": "after-owner-calls/desktop/src/components/orchestrator/OrchestratorPanel.tsx",
+    "bytes": 53147,
+    "sha256": "4213194e38481cc9e0b4e1f8c3eccfd1a0c62a67823a3a29fae92c5e55baf73f"
+  },
+  {
+    "path": "after-owner-calls/desktop/src/components/projects/ProjectOverviewBoard.authority.test.tsx",
+    "bytes": 13283,
+    "sha256": "7e90ecea16bc90bace60ce55e70410ac85a18fd4bed1edca27b31dfacbec90e7"
+  },
+  {
+    "path": "after-owner-calls/desktop/src/components/projects/ProjectOverviewBoard.test.tsx",
+    "bytes": 42211,
+    "sha256": "e11b3d94aad6c5d7c456c98878ea4c1b275c1df228b041950e3d7c6d2b90a084"
+  },
+  {
+    "path": "after-owner-calls/desktop/src/components/projects/ProjectOverviewBoard.tsx",
+    "bytes": 25690,
+    "sha256": "3f198ff66958b205a65309a8a53192959bd0e1c805cc8c0b40b692f676eef9a8"
+  },
+  {
+    "path": "after-owner-calls/desktop/src/components/teams/TeamWorkspaceControl.test.tsx",
+    "bytes": 13041,
+    "sha256": "df2aa7dfa55df5160549cba69bb918536f85e9a03ff24cac4b59f4faff54777a"
+  },
+  {
+    "path": "authority-portals.test.tsx",
+    "bytes": 22404,
+    "sha256": "439a2d91383a50c9ba047e6488d24a2be0d75e1c65191a70535069983b3dd21b"
+  },
+  {
+    "path": "before/desktop/src/components/common/WorkflowDialog.tsx",
+    "bytes": 1884,
+    "sha256": "be1d8ebb8f56d92d5a8848bc2c1d870c7fdb55c4f8a0a691aa7f252021469978"
+  },
+  {
+    "path": "before/desktop/src/components/teams/TeamWorkspaceProvider.tsx",
+    "bytes": 14932,
+    "sha256": "af1b2e23ec79bc5627595ec163ba6894be9f258485339d1ac6049991b966ac60"
+  },
+  {
+    "path": "before/desktop/src/hooks/useDismissable.ts",
+    "bytes": 4747,
+    "sha256": "6a31aebc21778d4eceb87679e9320db40590288696b2ec4e576415958a4906c7"
+  },
+  {
+    "path": "before-attempt1/authority-portals.test.tsx",
+    "bytes": 9760,
+    "sha256": "11cdb24ac1906b8d66799780ea8e2dea25fd9e78c18d129fab881b92ac45aca1"
+  },
+  {
+    "path": "before-attempt1/config.mts",
+    "bytes": 1166,
+    "sha256": "cefaf2289f568f8c6c2b1fcc42eaa894b89c84c9c120f4ea1209e6611154398c"
+  },
+  {
+    "path": "before-attempt1/helper-bindings.json",
+    "bytes": 420,
+    "sha256": "56b8bfd809a5c20621710e8eb3d6dd78626c8b3a8309e413e8c985ba205f0b47"
+  },
+  {
+    "path": "before-attempt1/report.json",
+    "bytes": 24331,
+    "sha256": "b5e27b3491bfcaf4cb79ecc21e51d024e39e7c04540cb4cf42bd8ceaecea4e6a"
+  },
+  {
+    "path": "before-attempt1/result.json",
+    "bytes": 620,
+    "sha256": "4fe31881301febc02255e8cfc77fdf6d51008ebb54dfb596cf9f75a5d7f5f68a"
+  },
+  {
+    "path": "before-attempt1/run.py",
+    "bytes": 2706,
+    "sha256": "6d47e8dee48a98f44bc560194ab8a60017bde057017030e4bd212b0130029d49"
+  },
+  {
+    "path": "before-attempt1/source-after.json",
+    "bytes": 72564,
+    "sha256": "742c0aa6c8efef0f43e971dee142f1ef3e8621e637111ff8a87f94042853098d"
+  },
+  {
+    "path": "before-attempt1/source-before.json",
+    "bytes": 72564,
+    "sha256": "742c0aa6c8efef0f43e971dee142f1ef3e8621e637111ff8a87f94042853098d"
+  },
+  {
+    "path": "before-attempt1/stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "before-attempt1/stdout.log",
+    "bytes": 101,
+    "sha256": "859c29183eda06b419099442ace7be449523f26f59da1133d88f702350e0d1b8"
+  },
+  {
+    "path": "before-attempt1/versions.json",
+    "bytes": 98,
+    "sha256": "64dd34524e9e8c30fb0d48c40b625b914f8e3d768488db3154e41ecc9a95363f"
+  },
+  {
+    "path": "before-attempt10/authority-portals.test.tsx",
+    "bytes": 22404,
+    "sha256": "439a2d91383a50c9ba047e6488d24a2be0d75e1c65191a70535069983b3dd21b"
+  },
+  {
+    "path": "before-attempt10/bulk-portals.test.tsx",
+    "bytes": 13533,
+    "sha256": "42e939f86d33f105f0adf225d4ef79c0c746b8360b1566f56867dcc73a55f124"
+  },
+  {
+    "path": "before-attempt10/config.mts",
+    "bytes": 2932,
+    "sha256": "788b8d842ea587536449308e257e6e59defc89fbd9fc8fc4122c737245a5e728"
+  },
+  {
+    "path": "before-attempt10/helper-bindings.json",
+    "bytes": 721,
+    "sha256": "885afabf0d4085d8240ed843624c5e9fa460225fc7f1420c9382d3ea8ac693f7"
+  },
+  {
+    "path": "before-attempt10/report.json",
+    "bytes": 3599,
+    "sha256": "6e7a47c006809a458f98c1418dd1227085703a954272ff53b6fc9f90781f89c3"
+  },
+  {
+    "path": "before-attempt10/result.json",
+    "bytes": 777,
+    "sha256": "6db132a12b1b81b183e1160a44c540678ab75f262d06fc57606cce5460659417"
+  },
+  {
+    "path": "before-attempt10/run.py",
+    "bytes": 2892,
+    "sha256": "40c8136a50fda1af6a10a9fa772f187d8b5d379bab3a24a3c8edbe3c6a615e91"
+  },
+  {
+    "path": "before-attempt10/source-after.json",
+    "bytes": 72564,
+    "sha256": "742c0aa6c8efef0f43e971dee142f1ef3e8621e637111ff8a87f94042853098d"
+  },
+  {
+    "path": "before-attempt10/source-before.json",
+    "bytes": 72564,
+    "sha256": "742c0aa6c8efef0f43e971dee142f1ef3e8621e637111ff8a87f94042853098d"
+  },
+  {
+    "path": "before-attempt10/stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "before-attempt10/stdout.log",
+    "bytes": 102,
+    "sha256": "019b8f44819edf1b83c9d69adbb0a4dad2334afdcbad26885ff6c73d21fb3b65"
+  },
+  {
+    "path": "before-attempt10/team-panel-portals.test.tsx",
+    "bytes": 13229,
+    "sha256": "40fe9279927d4dd95e8404c2bdebb8b6a73e58878e468d65273dd049933785d0"
+  },
+  {
+    "path": "before-attempt10/versions.json",
+    "bytes": 98,
+    "sha256": "545af2c3c8dddfa9008e0960d9530d04eea2ca91b30b26b8271e0ee51da3b7c5"
+  },
+  {
+    "path": "before-attempt4/authority-portals.test.tsx",
+    "bytes": 17121,
+    "sha256": "32e0d9d87b6f3c8ca1162b46d6204a0f6db3072ea92eb71e9b513b47d9fdb62b"
+  },
+  {
+    "path": "before-attempt4/config.mts",
+    "bytes": 1220,
+    "sha256": "80f33d4fed9ad8e51de91e762ac46d0ce40671ca20cfa5741d691b8f1a49d65b"
+  },
+  {
+    "path": "before-attempt4/helper-bindings.json",
+    "bytes": 421,
+    "sha256": "6b47402f63b7961081dd296d6451097f7f19d1f316301e15993694a0a17c0163"
+  },
+  {
+    "path": "before-attempt4/report.json",
+    "bytes": 135169,
+    "sha256": "7b4d432a3fe8650a303c76134691018819969ec2d20a8796d28ef7baf057f961"
+  },
+  {
+    "path": "before-attempt4/result.json",
+    "bytes": 619,
+    "sha256": "6d93dcdaadbb68bd2baee7a13dd8d2d100663f9fc2f876fed88cd5eb182ea863"
+  },
+  {
+    "path": "before-attempt4/run.py",
+    "bytes": 2706,
+    "sha256": "6d47e8dee48a98f44bc560194ab8a60017bde057017030e4bd212b0130029d49"
+  },
+  {
+    "path": "before-attempt4/source-after.json",
+    "bytes": 72564,
+    "sha256": "742c0aa6c8efef0f43e971dee142f1ef3e8621e637111ff8a87f94042853098d"
+  },
+  {
+    "path": "before-attempt4/source-before.json",
+    "bytes": 72564,
+    "sha256": "742c0aa6c8efef0f43e971dee142f1ef3e8621e637111ff8a87f94042853098d"
+  },
+  {
+    "path": "before-attempt4/stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "before-attempt4/stdout.log",
+    "bytes": 101,
+    "sha256": "e2d1729bc37693ddddcae9d6ca40b581f19956f2de291b8918068b42c8965a03"
+  },
+  {
+    "path": "before-attempt4/versions.json",
+    "bytes": 98,
+    "sha256": "3d58b6ea6d365887b06aba78ec5e8c21d85a92b0996129b52ef6de5f800ff380"
+  },
+  {
+    "path": "before-attempt8/authority-portals.test.tsx",
+    "bytes": 22404,
+    "sha256": "439a2d91383a50c9ba047e6488d24a2be0d75e1c65191a70535069983b3dd21b"
+  },
+  {
+    "path": "before-attempt8/bulk-portals.test.tsx",
+    "bytes": 13533,
+    "sha256": "42e939f86d33f105f0adf225d4ef79c0c746b8360b1566f56867dcc73a55f124"
+  },
+  {
+    "path": "before-attempt8/config.mts",
+    "bytes": 2964,
+    "sha256": "a909245e1d74a18ce04ac43e51c770f7b8d5647ec0135f314cb7850795fccd10"
+  },
+  {
+    "path": "before-attempt8/helper-bindings.json",
+    "bytes": 721,
+    "sha256": "5275a40892bed58c1cebe0d0c10740125d8d060822f830b4ee819fde560f4811"
+  },
+  {
+    "path": "before-attempt8/report.json",
+    "bytes": 58046,
+    "sha256": "0e6feed5f25293f3c399633469ce19afcafe7ab82fe91f4076983c80b6923952"
+  },
+  {
+    "path": "before-attempt8/result.json",
+    "bytes": 776,
+    "sha256": "6d183c39d5566f5d1abcfd0ca1b7d18cc2c0cde47d0137d47afc8d6e6b48e46e"
+  },
+  {
+    "path": "before-attempt8/run.py",
+    "bytes": 2892,
+    "sha256": "40c8136a50fda1af6a10a9fa772f187d8b5d379bab3a24a3c8edbe3c6a615e91"
+  },
+  {
+    "path": "before-attempt8/source-after.json",
+    "bytes": 72564,
+    "sha256": "742c0aa6c8efef0f43e971dee142f1ef3e8621e637111ff8a87f94042853098d"
+  },
+  {
+    "path": "before-attempt8/source-before.json",
+    "bytes": 72564,
+    "sha256": "742c0aa6c8efef0f43e971dee142f1ef3e8621e637111ff8a87f94042853098d"
+  },
+  {
+    "path": "before-attempt8/stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "before-attempt8/stdout.log",
+    "bytes": 101,
+    "sha256": "aa54822e1020756c00bf4ced643b7ef743f34510f5498c7c42740f31b5605849"
+  },
+  {
+    "path": "before-attempt8/team-panel-portals.test.tsx",
+    "bytes": 13229,
+    "sha256": "40fe9279927d4dd95e8404c2bdebb8b6a73e58878e468d65273dd049933785d0"
+  },
+  {
+    "path": "before-attempt8/versions.json",
+    "bytes": 98,
+    "sha256": "545af2c3c8dddfa9008e0960d9530d04eea2ca91b30b26b8271e0ee51da3b7c5"
+  },
+  {
+    "path": "before-owner-calls/desktop/src/api/teams.ts",
+    "bytes": 3226,
+    "sha256": "02abaa062d39a24d21f0ae7a36eaf6036aee59c25285885a5b0b6dc9a0b1f39b"
+  },
+  {
+    "path": "before-owner-calls/desktop/src/components/common/DraftNavigationDialog.tsx",
+    "bytes": 2809,
+    "sha256": "8b15f26f9a21cc33b6978d9f8bbf8e7837689e51d9e296d212201e7e28c2369f"
+  },
+  {
+    "path": "before-owner-calls/desktop/src/components/journey/BranchManager.tsx",
+    "bytes": 11516,
+    "sha256": "577c6679a4ba0c82165fb801fc278e79fafdbe3b0f8510b457a91137b11543e5"
+  },
+  {
+    "path": "before-owner-calls/desktop/src/components/journey/CheckRecoveryDialog.test.tsx",
+    "bytes": 9258,
+    "sha256": "266d18ce09b185c4fbf8c1691c6b7083d942a3513b93e32223cc8c6bc0883462"
+  },
+  {
+    "path": "before-owner-calls/desktop/src/components/journey/CheckRecoveryDialog.tsx",
+    "bytes": 8623,
+    "sha256": "88d5dea885ba8d019548580e096031cbccf5d06516d2a0937960683ba0d8323e"
+  },
+  {
+    "path": "before-owner-calls/desktop/src/components/journey/ContextStorage.tsx",
+    "bytes": 14084,
+    "sha256": "6fc91d6862b34dd24b57ec35a6ec9ad25d813c94742e12f2035984b9305c6b63"
+  },
+  {
+    "path": "before-owner-calls/desktop/src/components/journey/ProjectChecks.tsx",
+    "bytes": 41249,
+    "sha256": "efd6677ccf54a4bd1e4d802d4845e6575a964bd335907b0513baa79d7ae7bcb5"
+  },
+  {
+    "path": "before-owner-calls/desktop/src/components/journey/ProjectRuns.tsx",
+    "bytes": 41294,
+    "sha256": "083f6cc2de3d264adf7d7e1062ef5a0e4339b101e57a30232f885d0cb8113ad7"
+  },
+  {
+    "path": "before-owner-calls/desktop/src/components/journey/ProjectSwarm.tsx",
+    "bytes": 52614,
+    "sha256": "fd3f328b7bc85a43f0dea6b2edf7eb156e17f16b8742824606741a1c2a03a464"
+  },
+  {
+    "path": "before-owner-calls/desktop/src/components/journey/SwarmCheckpointDialog.tsx",
+    "bytes": 5364,
+    "sha256": "f5558f3dd41b1ebc6574108bf456113bca6efd44f7f7c94f76b84526cf9e42d1"
+  },
+  {
+    "path": "before-owner-calls/desktop/src/components/journey/SwarmLaunchRecoveryDialog.tsx",
+    "bytes": 5219,
+    "sha256": "36ca3baff34bd972b4450f12c921b49a866695461328c10c1720d2e7f3ae51df"
+  },
+  {
+    "path": "before-owner-calls/desktop/src/components/journey/SwarmRunQueue.test.tsx",
+    "bytes": 13597,
+    "sha256": "49b95e52adc2089cd92afea7a58b0d9e60f97fe937a1a7f0b4daf54f2e35f69f"
+  },
+  {
+    "path": "before-owner-calls/desktop/src/components/journey/SwarmRunQueue.tsx",
+    "bytes": 12166,
+    "sha256": "a742e46e90f2cf386817c149829c0d4f2176f6f36c3aeae2c55f371e9e3d0648"
+  },
+  {
+    "path": "before-owner-calls/desktop/src/components/journey/SwarmTaskHandoff.tsx",
+    "bytes": 20635,
+    "sha256": "50df8112a536cecbc990c5c0cbe044990457752e04c63617df091d4e922f50e5"
+  },
+  {
+    "path": "before-owner-calls/desktop/src/components/journey/SwarmWorkspaceReview.tsx",
+    "bytes": 9514,
+    "sha256": "ce2ac35fa6ef88558c3d9c19a2b66a2c44d8f3cb0e70bc779f6b643cb5a3cdf0"
+  },
+  {
+    "path": "before-owner-calls/desktop/src/components/lens/DeployLens.tsx",
+    "bytes": 31572,
+    "sha256": "8d24e94094b3c2951a606bcb64c36dfe950c74fdfcb3ba44d8ae725292be2913"
+  },
+  {
+    "path": "before-owner-calls/desktop/src/components/orchestrator/AmendmentReview.tsx",
+    "bytes": 3673,
+    "sha256": "8acf6de329f781a002b665004a4e4351ee578e2ee3da46893a2224406abde5a4"
+  },
+  {
+    "path": "before-owner-calls/desktop/src/components/orchestrator/OrchestratorPanel.tsx",
+    "bytes": 53107,
+    "sha256": "a6c174f959daaea7f0c3c38c8a7710602fc2ab2fa718bcc62dbaedeecc28e93a"
+  },
+  {
+    "path": "before-owner-calls/desktop/src/components/projects/ProjectOverviewBoard.test.tsx",
+    "bytes": 42110,
+    "sha256": "4ee7e9c28eb35dedbff28004212578f81e76e29098a44b2afd03175454400f2f"
+  },
+  {
+    "path": "before-owner-calls/desktop/src/components/projects/ProjectOverviewBoard.tsx",
+    "bytes": 23198,
+    "sha256": "380db2996d677f099da77e2702fabfe5391e4dd226404513db1e58546a59b48f"
+  },
+  {
+    "path": "before-owner-calls/desktop/src/components/teams/TeamWorkspaceControl.test.tsx",
+    "bytes": 5728,
+    "sha256": "90bd1b57b254f5defda689cd75ad5d9fbc0653d8188a820244a33e779d27240f"
+  },
+  {
+    "path": "bulk-portals.test.tsx",
+    "bytes": 13533,
+    "sha256": "42e939f86d33f105f0adf225d4ef79c0c746b8360b1566f56867dcc73a55f124"
+  },
+  {
+    "path": "bulk-regression-preparation.json",
+    "bytes": 1054,
+    "sha256": "62ef3b6172a7bf3138279e5f66bc75e42634ebdc78a4cd0131f60430150b0350"
+  },
+  {
+    "path": "cloud060-final-candidate-sources.json",
+    "bytes": 8754,
+    "sha256": "ffd69e722b767e6914189b34e8254793d74dfb76a73156ab127f7b06f0329913"
+  },
+  {
+    "path": "cloud060-final-candidate.patch",
+    "bytes": 120967,
+    "sha256": "ff1aed9e3867f428c55b9ebfa5f50a14897b78f227e047f445efe84284ad8f01"
+  },
+  {
+    "path": "config.mts",
+    "bytes": 2932,
+    "sha256": "788b8d842ea587536449308e257e6e59defc89fbd9fc8fc4122c737245a5e728"
+  },
+  {
+    "path": "dialog-scope-inventory.md",
+    "bytes": 14112,
+    "sha256": "6c57550276fd9b7f1ab50b7eb276aa3c6317d7de242fca2f0bc49fc13b12b669"
+  },
+  {
+    "path": "intermediate-after-unmount/desktop/src/components/common/WorkflowDialog.tsx",
+    "bytes": 3303,
+    "sha256": "8f34ad5a0868751c7b1c74a7b836f3e7b44094359be0a44b4dfd4564a5284d37"
+  },
+  {
+    "path": "intermediate-after-unmount/desktop/src/components/common/WorkspaceOverlayScope.tsx",
+    "bytes": 416,
+    "sha256": "3ae91245ce6a2bc00ccdfb89c12a40e3f570ab5e2ea25e329bcda8a38fbf017f"
+  },
+  {
+    "path": "intermediate-after-unmount/desktop/src/components/teams/TeamWorkspaceProvider.tsx",
+    "bytes": 15069,
+    "sha256": "f332d26575998f97838622c806bdc0a31d1e2ec8236f22fd4990434922b65fea"
+  },
+  {
+    "path": "intermediate-after-unmount/desktop/src/hooks/useDismissable.ts",
+    "bytes": 4843,
+    "sha256": "1a9212d342dfaa5d13f278c9a6df0370487489b684a2cc48e113ac86852830a2"
+  },
+  {
+    "path": "intermediate-unmount.test.tsx",
+    "bytes": 9760,
+    "sha256": "11cdb24ac1906b8d66799780ea8e2dea25fd9e78c18d129fab881b92ac45aca1"
+  },
+  {
+    "path": "owner-call-bindings.json",
+    "bytes": 6292,
+    "sha256": "2f45919a5a024a6497d0743cfc222e9689346428e79df57f5cdbc43c12fbfc35"
+  },
+  {
+    "path": "prepare-owner-calls.py",
+    "bytes": 10205,
+    "sha256": "951a76ade8f9839706c4e97e819a9a48b26319cac90145e7e55c9bc4f8c6100a"
+  },
+  {
+    "path": "root-integration.json",
+    "bytes": 190,
+    "sha256": "8e44159b0e2312b1f6066e8588e37b8cdde621ce05cce020c7f47707dc0d348b"
+  },
+  {
+    "path": "run.py",
+    "bytes": 2892,
+    "sha256": "40c8136a50fda1af6a10a9fa772f187d8b5d379bab3a24a3c8edbe3c6a615e91"
+  },
+  {
+    "path": "team-panel-portals.test.tsx",
+    "bytes": 13229,
+    "sha256": "40fe9279927d4dd95e8404c2bdebb8b6a73e58878e468d65273dd049933785d0"
+  },
+  {
+    "path": "typecheck-attempt1.log",
+    "bytes": 10006,
+    "sha256": "1d18056491dde91d1526fe2eae18ca1404cead3dfbf8991dc639d18be05daa17"
+  },
+  {
+    "path": "typecheck-bindings.json",
+    "bytes": 215097,
+    "sha256": "3e4c37a07db21545430ab91f74009e4ffb0c48aeb9c7993bc9542172ba6de98e"
+  },
+  {
+    "path": "typecheck.cjs",
+    "bytes": 1696,
+    "sha256": "815bd5e253bf03cf2db6aebfc0d2e6a6036ff6acb14a3a7afe8626f51c2d792f"
+  },
+  {
+    "path": "validate.py",
+    "bytes": 4144,
+    "sha256": "9ddb32162dea6e5105ccc93ad9219d196c68d071bbb4a8e2998904fe88b20fe2"
+  }
+]

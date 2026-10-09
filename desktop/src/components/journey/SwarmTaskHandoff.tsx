@@ -124,7 +124,9 @@ function TaskHandoff({projectId, projectName, run, operation, taskTitle, canRead
     }
   }
 
-  return <WorkflowDialog title="Task result and questions" description="Review what this agent reported, the evidence Luci actually recorded, and decisions needed by later tasks. This view never starts an agent or accepts its work." busy={busy} onClose={close}>
+  const closePrompt = closeReview && <section className="handoff-draft" role="alert"><h3>Discard this unsaved answer?</h3><p>The recorded report and previous answers will remain unchanged.</p><div className="workflow-actions"><Button variant="secondary" onClick={() => setCloseReview(false)}>Keep editing</Button><Button variant="tertiary" onClick={() => { setDraft(null); onClose(); }}>Discard draft and close</Button></div></section>;
+
+  return <WorkflowDialog readAccess={{...access, canRead}} unavailableContent={closePrompt} title="Task result and questions" description="Review what this agent reported, the evidence Luci actually recorded, and decisions needed by later tasks. This view never starts an agent or accepts its work." busy={busy} onClose={close}>
     <div className="swarm-task-handoff">
       {!canRead ? <p role="status">Reading access is unavailable for this task attempt. Close this view and reopen it after access is restored.</p> : <>
         <p><strong>{projectName} · {taskTitle}</strong></p>
@@ -161,7 +163,7 @@ function TaskHandoff({projectId, projectName, run, operation, taskTitle, canRead
         {visibleDraft && <section className="handoff-draft" aria-label="Task answer draft"><h3>Answer this recorded question</h3><p>{visibleDraft.question}</p><label className="luci-field"><span>Your answer</span><textarea autoFocus rows={4} maxLength={4000} value={visibleDraft.answer} disabled={!canEdit || !!pending} onChange={event => setDraft({...visibleDraft, answer: event.target.value})} /></label><p className={answerBytes > 4000 ? 'handoff-warning' : 'handoff-muted'}>{answerBytes.toLocaleString()} / 4,000 UTF-8 bytes. Changes are not saved until you choose Save answer.</p>{!draftQuestionMatches && <p className="handoff-warning">The report changed or is being refreshed. Your draft is kept. Review the current question before saving; copy your text before discarding an outdated draft.</p>}
           {answerBaseChanged && <div role="alert"><p>{recordedAnswer === visibleDraft.answer ? 'Your draft matches the answer now recorded. No further save is needed.' : 'The recorded answer changed while you were editing. Your draft is kept; review the new answer above before choosing to amend it.'}</p><Button variant="secondary" disabled={!!pending || (recordedAnswer !== visibleDraft.answer && !canEdit)} onClick={() => recordedAnswer === visibleDraft.answer ? setDraft(null) : setDraft({...visibleDraft, original: recordedAnswer})}>{recordedAnswer === visibleDraft.answer ? 'Dismiss already recorded draft' : 'Use draft to amend current answer'}</Button></div>}
           <div className="workflow-actions"><Button disabled={!canEdit || !!pending || needsRefresh || !draftMatches || !dirty || !visibleDraft.answer.trim() || answerBytes > 4000} onClick={() => void change('answer')}>{pending === 'answer' ? 'Saving answer…' : 'Save answer'}</Button><Button variant="ghost" disabled={!!pending} onClick={() => setDraft(null)}>Discard answer draft</Button></div></section>}
-        {closeReview && <section className="handoff-draft" role="alert"><h3>Discard this unsaved answer?</h3><p>The recorded report and previous answers will remain unchanged.</p><div className="workflow-actions"><Button variant="secondary" onClick={() => setCloseReview(false)}>Keep editing</Button><Button variant="tertiary" onClick={() => { setDraft(null); onClose(); }}>Discard draft and close</Button></div></section>}
+        {closePrompt}
       </>}
       <div className="workflow-actions"><Button variant="secondary" disabled={busy} onClick={close}>Close task result</Button></div>
     </div>

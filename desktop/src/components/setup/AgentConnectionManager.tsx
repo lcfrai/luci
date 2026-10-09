@@ -14,7 +14,7 @@ export function AgentConnectionManager({ client }: { client: ProductClient }) {
   const [presetError, setPresetError] = useState("");
   const working = useRef(false);
   const alive = useRef(true);
-  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  useEffect(() => { alive.current = true; setBusy(working.current); return () => { alive.current = false; }; }, []);
   const entries = catalogue?.connections ?? [];
   const saved = entries.find(item => item.id === draft.id);
   const active = entries.find(item => item.id === catalogue?.activeConnectionId);

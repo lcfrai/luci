@@ -1,0 +1,13 @@
+{
+  "proxyNamedOutcomes": {
+    "pass": 15,
+    "fail": 0,
+    "skip": 0
+  },
+  "allPackageCompile": [
+    "control-plane",
+    "sandboxd"
+  ],
+  "sourceFilesStable": 928,
+  "matchingInstalledVerified": false
+}

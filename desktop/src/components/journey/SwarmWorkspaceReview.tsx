@@ -53,7 +53,7 @@ function WorkspaceReview({projectId, runId, operation, canRead: allowed, onClose
   const current = canRead && workspace?.key === listKey ? workspace : null;
   const preview = canRead && file?.key === fileKey ? file : null;
   const refreshList = () => { if (!canRequest) return; setSelected(''); setFile(null); setRefresh(value => value + 1); };
-  return <div onPointerDown={event => event.stopPropagation()}><WorkflowDialog title="Retained task workspace" description="Inspect the files left by this task attempt, including a failed or interrupted start. Reading does not run an agent, change files or integrate its work." onClose={onClose}>
+  return <div onPointerDown={event => event.stopPropagation()}><WorkflowDialog unavailableMessage={!sameScope ? 'The account or workspace changed. Close this view and reopen the task in its workspace.' : 'Reading access is unavailable. Close this view or wait for access to return.'} readAccess={{...access, canRead}} title="Retained task workspace" description="Inspect the files left by this task attempt, including a failed or interrupted start. Reading does not run an agent, change files or integrate its work." onClose={onClose}>
     <div className="swarm-workspace-review">
       {!canRead ? <p role="status">{!sameScope ? 'The account or workspace changed. Close this view and reopen the task in its workspace.' : 'Reading access is unavailable. Close this view or wait for access to return.'}</p> : <>
         <p className="journey-muted">Attempt {operation.attempt}. This is a current read of its retained files, not an immutable review or proof of completion. Files may change while an agent is active.</p>

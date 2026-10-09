@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "scope": "External v8 diagnostic source/controls only",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 394,
+      "sha256": "bf5dcf9e50ea6c96d72d4948c371bee0e413c78d522929ae30565e5cc78b6792"
+    },
+    {
+      "path": "RUN.sh",
+      "bytes": 1426,
+      "sha256": "cdc4fb672e9124d4adf295f7a95a5e6a023ad186fd3cc969338c65e3d48bac9e"
+    }
+  ]
+}

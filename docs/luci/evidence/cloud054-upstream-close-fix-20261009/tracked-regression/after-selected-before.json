@@ -1,0 +1,50 @@
+{
+  "scope": "selected proxy source/module/overlay inputs, not whole compiled inventory",
+  "entries": [
+    {
+      "path": "/workspace/luci/control-plane/internal/proxy/proxy_test.go",
+      "bytes": 12075,
+      "sha256": "6e76c9bca68a80ab885fe704962b4856aa52ca061ae7523b11232cf27795a045"
+    },
+    {
+      "path": "/workspace/luci/control-plane/internal/proxy/proxy.go",
+      "bytes": 3031,
+      "sha256": "ebc02379306e5b555f317fc6d66a3f3ec3f9e6c29a5b93cd898165e65a8d565b"
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud054-ci-close-regression/candidate/control-plane/internal/proxy/close_ack_test.go",
+      "bytes": 6146,
+      "sha256": "2cf7e44be58a0b95ae3239059ded4c069a0c9dbca35f73f4707107c74d61e05f"
+    },
+    {
+      "path": "/workspace/luci/control-plane/go.mod",
+      "bytes": 3111,
+      "sha256": "a5f4faf59655f01c0691b2a05632d474b0e4019111f4e7c3d8c1d89731a44c92"
+    },
+    {
+      "path": "/workspace/luci/control-plane/go.sum",
+      "bytes": 19295,
+      "sha256": "c3bbf4f9f4b235b5864b171019079ed97efc3b71bae1cefd885f69f7322b086d"
+    },
+    {
+      "path": "/workspace/luci/sandboxd/go.mod",
+      "bytes": 152,
+      "sha256": "729defcdf4013ecccfa8ba2f5f985eb6655e90e31d15595c7d396edcfb800292"
+    },
+    {
+      "path": "/workspace/luci/sandboxd/go.sum",
+      "bytes": 509,
+      "sha256": "48236c5190f2aa0ad9ecc672ed5749dfc083921633445122061a290f1aa43729"
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud054-ci-close-regression/after.work",
+      "bytes": 148,
+      "sha256": "0aac774190fef7db22028dc44118785db548feab3bed6186bd96e103fd940221"
+    },
+    {
+      "path": "/workspace/.luci-tools/cloud054-ci-close-regression/overlay.json",
+      "bytes": 204,
+      "sha256": "2630d0466e8932dee1138d0a96f3573f87cef9f99ee2872041c422b3c7f62f03"
+    }
+  ]
+}

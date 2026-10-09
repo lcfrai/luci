@@ -1,0 +1,77 @@
+{
+  "at": "2026-10-09T13:11:02.558052+00:00",
+  "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "passedWorkflow": false,
+  "originalFailedStage": "terminal-scenario",
+  "originalResultSHA256": "3b6e0eadd1e87086c4cbef59cf7be1ad0b1c8b268e3a202a1af9c7fe2905ced2",
+  "originalWrapperSHA256": "76fde7d1da60d457dab2003609d69b745a6265dc9f2fb18a6a2c0fc45b817334",
+  "capturedProblems": [],
+  "identities": [
+    {
+      "pid": 2429053,
+      "expectedStartTicks": "29743248",
+      "family": "launcher",
+      "now": {
+        "status": "absent"
+      }
+    },
+    {
+      "pid": 2429229,
+      "expectedStartTicks": "29743560",
+      "family": "controller",
+      "now": {
+        "status": "absent"
+      }
+    },
+    {
+      "pid": 2429785,
+      "expectedStartTicks": "29746295",
+      "family": "browser",
+      "now": {
+        "status": "absent"
+      }
+    },
+    {
+      "pid": 2429800,
+      "expectedStartTicks": "29746303",
+      "family": "browser",
+      "now": {
+        "status": "observed",
+        "startTicks": "29746303",
+        "state": "Z",
+        "parentPID": 1
+      }
+    },
+    {
+      "pid": 2429805,
+      "expectedStartTicks": "29746307",
+      "family": "browser",
+      "now": {
+        "status": "observed",
+        "startTicks": "29746307",
+        "state": "Z",
+        "parentPID": 1
+      }
+    }
+  ],
+  "containers": [],
+  "volumes": [],
+  "sameEngine": true,
+  "ledger": {
+    "sha256": "c0022f0995797c072d8097729ea90e74487bcefb911576c91e4af0665403a49e",
+    "bytes": 25,
+    "counts": {
+      "leases": 0,
+      "checks": 0,
+      "fences": 0,
+      "checkFences": 0
+    }
+  },
+  "fixtureFilesCount": 31,
+  "fixtureManifestSHA256": "fb3bab644a2da11f5015bbf15c87e7a39ceacf722b28c9c3d5bd78fd5fedebd5",
+  "fixtureLinks": [],
+  "originalFilesUnchanged": true,
+  "fixtureFilesUnchanged": true,
+  "scriptSHA256": "d69e532491406e047720f011b0b544c682d0280bc9515bbe6512e553ff33f3c6",
+  "scope": "Read-only exact recorded process identities, selected daemon inventories and private ledger counts. No signals, cleanup mutation, whole-machine census, historical charge release, numeric admission reconstruction or Docker wire counts. Private files remain unchanged; original transient/zombie and unreadable observations remain in their receipts."
+}

@@ -31,7 +31,7 @@ function InvitationEditor({ team, membership, onChange }: Props) {
   const [error, setError] = useState(""), [notice, setNotice] = useState("");
   const alive = useRef(true), working = useRef(false);
   useEffect(() => {
-    let current = true; alive.current = true;
+    let current = true; alive.current = true; setBusy(working.current);
     void teamInvitationsApi.list(team.id).then(value => {
       if (current) { setInvitations(value.invitations); setRevision(value.team.revision); }
     }).catch(cause => { if (current) setError(errorText(cause)); }).finally(() => { if (current) setLoading(false); });
