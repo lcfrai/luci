@@ -1,0 +1,38 @@
+{
+  "directories": {
+    "changed": [],
+    "extra": [],
+    "missing": []
+  },
+  "expectedInventorySHA256": "c49a27bd78518d76caa1ba4d49414cf3034050e074e7be6301b6c341f3caf863",
+  "files": {
+    "changed": [],
+    "extra": [],
+    "missing": []
+  },
+  "finishedAt": "2026-10-09T16:44:23.927609+00:00",
+  "manifestSHA256": "377518398482124b8f74c7619b52ca2d21c023fc851b377ab9bb2cb3eecec785",
+  "observedInventorySHA256": "c49a27bd78518d76caa1ba4d49414cf3034050e074e7be6301b6c341f3caf863",
+  "observedTotals": {
+    "bytes": 18547881,
+    "directories": 39,
+    "files": 176
+  },
+  "packages": {
+    "playwright": {
+      "configuredPath": "/workspace/luci/desktop/node_modules/playwright",
+      "resolvedRoot": "/workspace/luci/desktop/node_modules/playwright",
+      "version": "1.63.0"
+    },
+    "playwright-core": {
+      "configuredPath": "/workspace/luci/desktop/node_modules/playwright-core",
+      "resolvedRoot": "/workspace/luci/desktop/node_modules/playwright-core",
+      "version": "1.63.0"
+    }
+  },
+  "passed": true,
+  "schema": "luci.playwright-dependency-binding.v1.verification",
+  "scope": "Read-only installed dependency verification; no file copies or dependency mutations.",
+  "stableAcrossTwoReadPasses": true,
+  "startedAt": "2026-10-09T16:44:23.769645+00:00"
+}

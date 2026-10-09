@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "diagnosticOnly": true,
+  "acceptance": false,
+  "limits": {
+    "rounds": 8,
+    "traceMs": 30000,
+    "commandMs": 5000,
+    "completeMs": 5000,
+    "drainMs": 10000,
+    "closeMs": 2000,
+    "chunkBytes": 65536,
+    "maxBytes": 67108864,
+    "bufferKiB": 32768,
+    "stopFraction": 0.75,
+    "maxBufferEvents": 256,
+    "maxJournalEvents": 4096,
+    "maxJournalBytes": 1048576
+  },
+  "state": "refused",
+  "startRequested": true,
+  "startAcknowledged": true,
+  "endRequests": 1,
+  "completedRounds": 1,
+  "attemptedRounds": 2,
+  "markers": [
+    {
+      "name": "luci-layout-boundary-0-start",
+      "round": 0,
+      "edge": "start",
+      "timeOrigin": 1791563569410,
+      "startTime": 65931.60000002384
+    },
+    {
+      "name": "luci-layout-boundary-0-end",
+      "round": 0,
+      "edge": "end",
+      "timeOrigin": 1791563569410,
+      "startTime": 67430.30000001192
+    },
+    {
+      "name": "luci-layout-boundary-1-start",
+      "round": 1,
+      "edge": "start",
+      "timeOrigin": 1791563569410,
+      "startTime": 67435
+    }
+  ],
+  "bufferUsage": [
+    {
+      "fraction": 0.1927083134651184,
+      "atMs": 1791563635836
+    },
+    {
+      "fraction": 0.3217054307460785,
+      "atMs": 1791563636337
+    },
+    {
+      "fraction": 0.3917151093482971,
+      "atMs": 1791563636840
+    },
+    {
+      "fraction": 0.6212451457977295,
+      "atMs": 1791563637338
+    },
+    {
+      "fraction": 0.8305474519729614,
+      "atMs": 1791563637839
+    }
+  ],
+  "cleanup": {
+    "end": "acknowledged",
+    "streamClose": "closed",
+    "detach": "detached"
+  },
+  "failure": {
+    "code": "trace-buffer-limit"
+  },
+  "complete": false,
+  "dataLossOccurred": false,
+  "rawPrivate": true,
+  "categories": {
+    "availableCount": 283,
+    "availableSHA256": "79fa858381e482998573356276cb29823d5395c5a36db5457303717de99e84b1",
+    "selected": [
+      "devtools.timeline",
+      "disabled-by-default-devtools.timeline",
+      "disabled-by-default-devtools.timeline.stack",
+      "disabled-by-default-devtools.timeline.invalidationTracking",
+      "blink.user_timing"
+    ]
+  },
+  "config": {
+    "transferMode": "ReturnAsStream",
+    "streamFormat": "json",
+    "streamCompression": "none",
+    "bufferUsageReportingInterval": 500,
+    "traceConfig": {
+      "recordMode": "recordUntilFull",
+      "traceBufferSizeInKb": 32768,
+      "includedCategories": [
+        "devtools.timeline",
+        "disabled-by-default-devtools.timeline",
+        "disabled-by-default-devtools.timeline.stack",
+        "disabled-by-default-devtools.timeline.invalidationTracking",
+        "blink.user_timing"
+      ],
+      "enableSampling": false
+    }
+  },
+  "streamEOF": true,
+  "lateResponsesObserved": 1,
+  "raw": {
+    "bytes": 32234319,
+    "sha256": "45463172fffdaa9503bfb6bddb78e8dde13446305c60327362e7e6151974d763",
+    "journalEvents": 1011,
+    "journalBytes": 147631,
+    "private": true
+  }
+}

@@ -1,0 +1,20 @@
+--- frozen-v1/layout-trace-capture.mjs
++++ v2/layout-trace-capture.mjs
+@@ -4,7 +4,7 @@
+ import {join} from 'node:path';
+ 
+ export const LIMITS=Object.freeze({rounds:8,traceMs:30000,commandMs:5000,completeMs:5000,drainMs:10000,closeMs:2000,chunkBytes:65536,maxBytes:64*1024*1024,bufferKiB:32768,stopFraction:.75,maxBufferEvents:256,maxJournalEvents:4096,maxJournalBytes:1024*1024});
+-export const CATEGORIES=Object.freeze(['devtools.timeline','disabled-by-default-devtools.timeline','disabled-by-default-devtools.timeline.stack','disabled-by-default-devtools.timeline.invalidationTracking','blink.user_timing']);
++export const CATEGORIES=Object.freeze(['devtools.timeline','disabled-by-default-devtools.timeline','disabled-by-default-devtools.timeline.stack','blink.user_timing']);
+ const writeAll=(fd,bytes)=>{let offset=0;while(offset<bytes.length){const wrote=writeSync(fd,bytes,offset,bytes.length-offset);assert(wrote>0,'Trace sink write made no progress');offset+=wrote;}};
+ const refusal=code=>Object.assign(Error(code),{code});
+ const safeError=e=>({code:/^[a-z][a-z0-9-]{1,80}$/.test(e?.code??'')?e.code:'trace-operation-failed'});
+@@ -59,7 +59,7 @@
+    receipt.categories={availableCount:reply.categories.length,availableSHA256:createHash('sha256').update(JSON.stringify(reply.categories)).digest('hex'),selected:[...CATEGORIES]};
+    record('categories-returned',receipt.categories);
+    if(!CATEGORIES.every(v=>reply.categories.includes(v)))throw refusal('trace-categories-unavailable');
+-   const config={transferMode:'ReturnAsStream',streamFormat:'json',streamCompression:'none',bufferUsageReportingInterval:500,traceConfig:{recordMode:'recordUntilFull',traceBufferSizeInKb:limits.bufferKiB,includedCategories:[...CATEGORIES],enableSampling:false}};
++   const config={transferMode:'ReturnAsStream',streamFormat:'json',streamCompression:'none',bufferUsageReportingInterval:500,traceConfig:{recordMode:'recordUntilFull',traceBufferSizeInKb:limits.bufferKiB,includedCategories:[...CATEGORIES],excludedCategories:['*'],enableSampling:false}};
+    receipt.startRequested=true;receipt.config=config;record('start-requested',{config});
+    traceTimer=setTimeout(()=>fail(refusal('trace-duration-limit')),limits.traceMs);
+    await bounded(()=>session.send('Tracing.start',config),limits.commandMs,'trace-start-timeout');assertActive();receipt.startAcknowledged=true;receipt.state='recording';record('start-acknowledged');

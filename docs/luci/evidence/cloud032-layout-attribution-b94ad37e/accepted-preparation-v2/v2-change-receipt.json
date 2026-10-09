@@ -1,0 +1,19 @@
+{
+  "priorManifestSHA256": "6d7e00992449fc4a345240c73c919786a77b3c4f84a9b15599220e93b9a69454",
+  "priorRawResultSHA256": "cce8e1fa7195525e2bf4976cee45844876cf62cf2de5d5960ee88394cb99645f",
+  "priorPrivateRawTraceSHA256": "45463172fffdaa9503bfb6bddb78e8dde13446305c60327362e7e6151974d763",
+  "helperOnlyDelta": "Remove only fine invalidationTracking category and explicitly exclude all unselected categories; no limits/actions/clock/loss/cleanup changes.",
+  "pureProjectorUnchanged": true,
+  "pureProjectorSHA256": "39947e459848838eae32c2686cdaa5c59db7e1d4a1743c18c0fc1f0057d2f797",
+  "priorProjector17TestsReceipt": "/workspace/.luci-tools/cloud032-layout-b94/inert-final-attempt3.receipt.json",
+  "actualDriverUnchanged": true,
+  "originalActionsUnchanged": {
+    "interaction-metrics.mjs": "1bec6579a3fc27310c88bfbb378321bf3fc764de62900f9be068fffe3626a2cc",
+    "navigation-verifier.mjs": "65ab8efa51ac38cbe453f8c4f44cbdd57b0830f379c712b1065c9067b6da78ed",
+    "latency-diagnostics.mjs": "4d1c0f75f15c01444c22133f360f10700af58c6dfebd3906700e67dc9407313f",
+    "autonomous-readiness.mjs": "7f534431a37a0bd599c2de48870d3c9e8badfd1e33b2d48e47078782aa74467b",
+    "readiness-ledger.mjs": "0a6db6505273c685d1281d039fd50f05c42e44d5312309ac4267f57ae05fd1ff"
+  },
+  "runtimeLaunched": false,
+  "independentPartialAnalysis": "/workspace/.luci-tools/cloud032-layout-b94-attempt1-analysis/partial-layout-analysis.json"
+}

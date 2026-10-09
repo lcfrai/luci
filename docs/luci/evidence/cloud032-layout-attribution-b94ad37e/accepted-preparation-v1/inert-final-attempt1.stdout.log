@@ -1,0 +1,45 @@
+✔ original five action/verification/observer modules unchanged from accepted299 source (4.79706ms)
+✔ actual orchestration executes exactly8 original rounds/32 actions, finishes capture before projection (3.681379ms)
+✔ actual orchestration persists incomplete capture and refuses projection (2.150692ms)
+✔ actual wrong-clock refusal is durable before throw and never contains private error text (1.235823ms)
+✔ valid schema with no usable stack preserves projection and refuses diagnostic goal (0.646644ms)
+✔ zero-allocation guards unchanged and primary benchmark not executed (3.219443ms)
+✔ exact eight rounds, finite config, one end and complete stream close/detach (21.948953ms)
+✔ missing required category refuses before start and still detaches (2.392757ms)
+✔ buffer threshold refuses before next round, preserves start/limit/cleanup decisions (1.702215ms)
+✔ data loss refuses complete attribution but retains returned raw stream (5.254359ms)
+✔ absent loss flag is explicit refusal, not false complete (5.966763ms)
+✔ missing completion is bounded, one end, detaches with durable refusal (24.606528ms)
+✔ raw byte overflow retains earlier chunks and returned chunk hash, closes stream (2.521811ms)
+✔ empty non-final chunk refuses without busy loop (3.153112ms)
+✔ invalid base64 is refused, not silently decoded (3.03853ms)
+✔ duration limit fences late round resolution and no later markers or rounds (19.512761ms)
+✔ start timeout remains uncertain, end is still attempted exactly once (9.195509ms)
+✔ cancellation immediately fences current operation and preserves bounded cleanup (1.230184ms)
+✔ read timeout detaches and a late read cannot append raw bytes (9.397324ms)
+✔ cleanup close or detach failure never reports capture complete (1.900995ms)
+✔ wrong marker document shape refuses before completed round (0.606924ms)
+✔ all sixteen receipt anchors bind one renderer clock without marker details (5.508733ms)
+✔ retains every required event, every phase and events outside rounds/on other threads (2.204513ms)
+✔ publishes exact bundle hash/coordinates, never frame names, URLs, args or opaque IDs (1.337216ms)
+✔ same origin but unmatched path, query, fragment or missing coordinates stays unattributed (2.913561ms)
+✔ known bundle stack positions distinguish usable attribution from valid but unhelpful capture (0.994639ms)
+✔ retains thread timing and cross-round overlap without inferring CPU or causality (0.573244ms)
+✔ accepts bounded offset jitter and refuses spread above one millisecond (1.530257ms)
+✔ missing, duplicate and unexpected late boundary marks refuse (0.721978ms)
+✔ wrong document, renderer, marker phase and category refuse (1.604639ms)
+✔ receipt count, identity, duplicates and nonmonotonic boundaries refuse (1.718149ms)
+✔ complete JSON and explicit completed/no-loss capture flags are mandatory (1.684549ms)
+✔ negative/nonfinite time and malformed events refuse even when not selected for projection (2.691947ms)
+✔ raw byte and event limits refuse before projection without returning a passing subset (45.143306ms)
+✔ UTF-8 bytes are accepted; invalid UTF-8 is refused (1.981827ms)
+✔ invalid or oversized stack data refuses without clipping frames (5.714584ms)
+✔ bundle bindings reject duplicates and noncanonical or credential-bearing origins (0.424309ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 37
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 602.726854

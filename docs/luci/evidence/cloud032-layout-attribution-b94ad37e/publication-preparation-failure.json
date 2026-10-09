@@ -1,0 +1,7 @@
+{
+  "scope": "External publication selection, not app/runtime diagnostic",
+  "sourceBeforeSHA256": "a8c1a54d3e5e83df9a6fe73ff5e7b35c325e2235cd14dc5c04787e8cb31d4007",
+  "failure": "V2 capture failure field is null; .get(code) on None refused before final privacy/manifest",
+  "sourceLine": 92,
+  "runtimeEvidenceUnchanged": true
+}

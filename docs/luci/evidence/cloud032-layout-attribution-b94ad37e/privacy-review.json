@@ -1,0 +1,32 @@
+{
+  "scope": "Allowlisted metadata/timings/source positions; raw trace/result excluded. Known captured value scan is finite, not proof of universal secret absence. No headers/cookies/account/private response content intentionally exported. Source code contains credential handling, not captured payloads.",
+  "privateInputCount": 4,
+  "credentialValuesChecked": 0,
+  "fixtureIdentityValuesChecked": 18,
+  "publicFilesScanned": 296,
+  "exactKnownValueMatches": [],
+  "rawPrivateInputs": [
+    {
+      "attempt": 1,
+      "privateResult": "/workspace/luci/artifacts/quality-swarm/layout-b94ad37e-attempt1/driver/result.json",
+      "privateResultSHA256": "cce8e1fa7195525e2bf4976cee45844876cf62cf2de5d5960ee88394cb99645f",
+      "privateResultBytes": 1173761,
+      "privateTrace": "/workspace/luci/artifacts/quality-swarm/layout-b94ad37e-attempt1/driver/layout-trace.raw.json",
+      "privateTraceSHA256": "45463172fffdaa9503bfb6bddb78e8dde13446305c60327362e7e6151974d763",
+      "privateTraceBytes": 32234319,
+      "publicRawTrace": false,
+      "publicRawResult": false
+    },
+    {
+      "attempt": 2,
+      "privateResult": "/workspace/luci/artifacts/quality-swarm/layout-b94ad37e-attempt2/driver/result.json",
+      "privateResultSHA256": "fead13b770f2351282fc4c9a1bd9d0ab34248b087311e9b4ccdb651ed424fe26",
+      "privateResultBytes": 10150948,
+      "privateTrace": "/workspace/luci/artifacts/quality-swarm/layout-b94ad37e-attempt2/driver/layout-trace.raw.json",
+      "privateTraceSHA256": "f55eb46a4fc0d6ece3a2393135fb3636aaf5b5548f7db41eea3931b50659aa3c",
+      "privateTraceBytes": 28383461,
+      "publicRawTrace": false,
+      "publicRawResult": false
+    }
+  ]
+}

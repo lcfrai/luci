@@ -1,0 +1,31 @@
+✔ original five action/verification/observer modules unchanged from accepted299 source (10.125203ms)
+✔ actual orchestration executes exactly8 original rounds/32 actions, finishes capture before projection (8.393041ms)
+✔ actual orchestration persists incomplete capture and refuses projection (4.222646ms)
+✔ actual wrong-clock refusal is durable before throw and never contains private error text (2.227527ms)
+✔ valid schema with no usable stack preserves projection and refuses diagnostic goal (1.183104ms)
+✔ zero-allocation guards unchanged and primary benchmark not executed (5.183734ms)
+✔ exact eight rounds, finite config, one end and complete stream close/detach (15.65301ms)
+✔ missing required category refuses before start and still detaches (2.34898ms)
+✔ buffer threshold refuses before next round, preserves start/limit/cleanup decisions (1.063553ms)
+✔ data loss refuses complete attribution but retains returned raw stream (5.339439ms)
+✔ absent loss flag is explicit refusal, not false complete (5.282552ms)
+✔ missing completion is bounded, one end, detaches with durable refusal (26.552864ms)
+✔ raw byte overflow retains earlier chunks and returned chunk hash, closes stream (4.084937ms)
+✔ empty non-final chunk refuses without busy loop (5.173288ms)
+✔ invalid base64 is refused, not silently decoded (5.099667ms)
+✔ duration limit fences late round resolution and no later markers or rounds (19.205169ms)
+✔ start timeout remains uncertain, end is still attempted exactly once (9.323273ms)
+✔ cancellation immediately fences current operation and preserves bounded cleanup (1.115902ms)
+✔ read timeout detaches and a late read cannot append raw bytes (9.787428ms)
+✔ cleanup close or detach failure never reports capture complete (2.742774ms)
+✔ wrong marker document shape refuses before completed round (0.852936ms)
+✔ real private sink preserves exact chunk bytes/hash and durable numbered journal (4.340994ms)
+✔ actual V2 start transmits exact coarse-layout/stack categories and exclude-all, unchanged guards (4.486073ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 436.703689

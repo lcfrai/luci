@@ -1,0 +1,23 @@
+✔ exact eight rounds, finite config, one end and complete stream close/detach (13.32228ms)
+✔ missing required category refuses before start and still detaches (1.599661ms)
+✔ buffer threshold refuses before next round, preserves start/limit/cleanup decisions (1.475003ms)
+✔ data loss refuses complete attribution but retains returned raw stream (5.581687ms)
+✔ absent loss flag is explicit refusal, not false complete (5.106086ms)
+✔ missing completion is bounded, one end, detaches with durable refusal (25.737822ms)
+✔ raw byte overflow retains earlier chunks and returned chunk hash, closes stream (1.666723ms)
+✔ empty non-final chunk refuses without busy loop (2.807722ms)
+✔ invalid base64 is refused, not silently decoded (4.247802ms)
+✔ duration limit fences late round resolution and no later markers or rounds (19.747704ms)
+✔ start timeout remains uncertain, end is still attempted exactly once (9.345576ms)
+✔ cancellation immediately fences current operation and preserves bounded cleanup (1.0017ms)
+✔ read timeout detaches and a late read cannot append raw bytes (8.119578ms)
+✔ cleanup close or detach failure never reports capture complete (1.682846ms)
+✔ wrong marker document shape refuses before completed round (1.292057ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 272.264185

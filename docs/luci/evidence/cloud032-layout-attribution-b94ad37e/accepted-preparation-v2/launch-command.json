@@ -1,0 +1,30 @@
+{
+  "scope": "Prepared eight-round caller attribution only; no primary latency acceptance. Root runtime grant required.",
+  "command": [
+    "python3",
+    "/workspace/.luci-tools/cloud032-layout-b94-v2/launch.py",
+    "--source",
+    "b94ad37e53181e360ac8910ee980570de622728c",
+    "--helper-source",
+    "b94ad37e53181e360ac8910ee980570de622728c",
+    "--package",
+    "/tmp/luci-retained-tools/package-0.5.0-b94ad37e",
+    "--provenance",
+    "/workspace/luci/artifacts/quality-swarm/candidate-b94ad37e/package/package-provenance.json",
+    "--image",
+    "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+    "--expected-image-id",
+    "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+    "--image-provenance",
+    "/workspace/.luci-tools/sandbox-candidate-20261009T134118Z-4a347241/receipt.json",
+    "--docker-host",
+    "unix:///var/run/docker.sock",
+    "--fixture-root",
+    "/workspace/.c32",
+    "--output",
+    "/workspace/luci/artifacts/quality-swarm/layout-b94ad37e-attempt2",
+    "--window-granted",
+    "--layout-diagnostic",
+    "yes"
+  ]
+}

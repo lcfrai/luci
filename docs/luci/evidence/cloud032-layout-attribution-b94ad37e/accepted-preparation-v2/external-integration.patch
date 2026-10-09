@@ -1,0 +1,147 @@
+--- frozen299/actual/sustained.mjs
++++ layout-b94/actual/sustained.mjs
+@@ -20,10 +20,12 @@
+ import {beginReadiness,drainReadiness,endReadiness} from './autonomous-readiness.mjs';
+ import {createReadinessLedger} from './readiness-ledger.mjs';
+ import {installLongFrameTiming} from './long-frame-observer.mjs';
++import {createTraceSink,createLayoutTraceCapture} from './layout-trace-capture.mjs';
++import {projectLayoutTrace} from './layout-trace-projector.mjs';
+ 
+ const here=dirname(fileURLToPath(import.meta.url)),repo=resolve(process.env.LUCI_ACCEPTANCE_REPO??'/workspace/luci'),args=process.argv.slice(2);
+ const option = (name, fallback) => { const i = args.indexOf(name); if (i < 0) return fallback; assert(args[i + 1] && !args[i + 1].startsWith('--'), 'Missing value for ' + name); return args[i + 1]; };
+-if(args.includes('--help')){console.log('CLOUD-032 diagnostic only: frozen installed prefix through idle100 switches/200 inputs, zero Create/Start hard guards. Original package/image/source/provenance arguments remain mandatory. No full sustained pass. Explicit controlled runtime window required.');process.exit(0);}
++if(args.includes('--help')){console.log('CLOUD-032 diagnostic only: eight original rounds for bounded Layout caller attribution, zero Create/Start hard guards. Original package/image/source/provenance arguments remain mandatory. No full sustained pass. Explicit controlled runtime window required.');process.exit(0);}
+ const PREPARATION_MS=60000,WORKFLOW_MS=210000,CLEANUP_MS=120000,DRIVER_TOTAL_MS=PREPARATION_MS+WORKFLOW_MS+CLEANUP_MS;
+ const driverStarted=Date.now(),preparationDeadline=driverStarted+PREPARATION_MS;
+ let commandDeadline=preparationDeadline,preparationActive=true;
+@@ -117,7 +119,7 @@
+ assert.match(bridge, /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/);
+ writeFileSync(join(evidence, 'package-provenance.json'), provenanceBytes, { mode: 0o600, flag: 'wx' });
+ writeFileSync(join(evidence,'image-provenance.json'),readFileSync(resolve(imageEvidencePath)),{mode:0o600,flag:'wx'});
+-const driverNames=['long-frame-observer.mjs','long-frame-bundles.json','checkout-binding.py','template-capture.json','dependency-binding.py','dependency-manifest.json','navigation-verifier.mjs','sustained.mjs','external-source-binding.json','autonomous-readiness.mjs','readiness-ledger.mjs','task-command.mjs','receipt-transport.mjs','workloads.mjs','interaction-metrics.mjs','latency-diagnostics.mjs','task-context.mjs','source-binding.mjs','queue-controls.mjs','run-with-observer.py'];
++const driverNames=['layout-trace-capture.mjs','layout-trace-projector.mjs','long-frame-observer.mjs','long-frame-bundles.json','checkout-binding.py','template-capture.json','dependency-binding.py','dependency-manifest.json','navigation-verifier.mjs','sustained.mjs','external-source-binding.json','autonomous-readiness.mjs','readiness-ledger.mjs','task-command.mjs','receipt-transport.mjs','workloads.mjs','interaction-metrics.mjs','latency-diagnostics.mjs','task-context.mjs','source-binding.mjs','queue-controls.mjs','run-with-observer.py'];
+ const reusedHelpers=['four-project-queue/native-terminal-diagnostics.mjs','four-project-queue/sample-linux-owned.py','launch-recovery/fenced-docker-proxy.mjs','launch-recovery/worker-create-guard.mjs','launch-recovery/durable-acceptance-journal.mjs','launch-recovery/acceptance-lifecycle.mjs','launch-recovery/acceptance-startup.mjs'];
+ mkdirSync(join(evidence, 'accepted-harness'), { mode: 0o700 });
+ for (const name of driverNames) writeFileSync(join(evidence, 'accepted-harness', name), readFileSync(new URL(name, import.meta.url)), { mode: 0o600, flag: 'wx' });
+@@ -142,9 +144,9 @@
+ };
+ 
+ Object.assign(receipt,{
+- mode:'installed-four-project-navigation-callback-5f4-diagnostic',diagnosticOnly:true,fullSustainedAcceptance:false,
+- scope:'Fresh installed package, exact original four saved contexts and paused queues, original draft/warm setup and idle100 switches/200 inputs. No task execution or sustained completion claim.',
+- resourceScope:'One owned browser and installed app. Docker readiness/image inventory reads are required. Explicit guards reject every Create/Start before forwarding. No full Linux resource sampler; browser diagnostic collection is identical to the static control.',
++ mode:'installed-eight-round-layout-attribution-b94-diagnostic',diagnosticOnly:true,fullSustainedAcceptance:false,
++ scope:'Fresh installed b94 package; eight exact original interaction rounds (32 actions), original saved contexts/paused queues/draft warm setup. Layout caller attribution only, no primary latency acceptance or sustained claim.',
++ resourceScope:'One owned browser and installed app. Docker readiness/image inventory reads are required. Explicit guards reject every Create/Start before forwarding. No full Linux resource sampler. Original browser diagnostics plus a bounded renderer trace; added overhead is unquantified, no comparison/acceptance claim.',
+  limitations:[...receipt.limitations,'Diagnostic subset only; original sustained failure remains unchanged. No resource-cost subtraction.','No independent Linux observer in either prepared control arm; this is not a matched replay of the old observer load.'],
+  externalSourceBinding:externalBinding,dependencyCheckout:receipt.harnessCheckout,
+  diagnosticPreparedFrom:{kind:'current frozen repository template',sourceSHA256:externalBinding.templateSourceSHA256},
+@@ -506,7 +508,9 @@
+ function admission({kind,ordinal,body,...meta}){
+  try{health();assert.equal(kind,'worker');assert(ordinal>=1&&ordinal<=5);identifyCreate(body,meta);const free=rootFree();assert(free>=6*1024**3,'Six GiB pre-create guard remains mandatory');assert.equal(workerContainers().length,0,'No overlapping full worker permitted');(receipt.resourceObservations??=[]).push({at:new Date().toISOString(),stage,ordinal,rootFreeBytes:free});}catch(error){stopOnFailure(error);throw error;}
+ }
+-function assertWorkflowActive(){if(closing)throw Error('Workflow closed for cleanup');workflowControl?.assertActive();remaining();if(fixtureError)throw fixtureError;}
++let layoutCapture,layoutFailure,layoutFinish;
++async function finishLayoutTrace(reason){if(!layoutCapture)return;if(!layoutFinish){layoutFinish=(async()=>{const value=await layoutCapture.finish(reason);receipt.layoutTraceCapture=value;writeFileSync(join(evidence,'layout-trace-capture.json'),JSON.stringify(value,null,2)+'\n',{mode:0o600,flag:'wx'});return value;})();void layoutFinish.catch(()=>{});}return layoutFinish;}
++function assertWorkflowActive(){if(layoutFailure)throw layoutFailure;if(closing)throw Error('Workflow closed for cleanup');workflowControl?.assertActive();remaining();if(fixtureError)throw fixtureError;}
+ function health(){assertWorkflowActive();if(service&&service.exitCode!==null)throw Error('Owned service exited unexpectedly');}
+ async function timed(promise,ms,label){let timer;try{return await Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error(label+' deadline exceeded')),ms);})]);}finally{clearTimeout(timer);}}
+ function phaseStart(name){measuredPhase=name;const row={name,startedAt:new Date().toISOString(),monotonicStartMs:performance.now()};receipt.phases.push(row);return row;}
+@@ -623,6 +627,7 @@
+ // BEGIN SUSTAINED CLEANUP WIRING: exercised with controlled resources only.
+ async function settleSustainedResources(){
+  const phases=await runBoundedCleanup({checkpoint:persistFailureCheckpoint,onFailure:cleanupFailure,onPhase:(name,status)=>journal.record('driver-stage',{stage:'cleanup-'+name+'-'+status}),phases:[
++  {name:'layout-trace',timeoutMs:30000,run:async()=>{if(!layoutCapture)return {notStarted:true};if(!layoutFinish)layoutCapture.cancel();return finishLayoutTrace('failed');}},
+   {name:'controllers',timeoutMs:30000,run:async()=>{const stopped=await stopService(false);assert(stopped);assert(controllerIdentities.filter(Boolean).every(identity=>!stillOwned(identity)));return {stopped:true};}},
+   {name:'browser',timeoutMs:12000,run:async()=>{try{if(startupScope.has('browser'))await startupScope.close('browser',cleanupBudget(5000));}catch(error){cleanupFailure(error);}finally{await settleOwnedBrowser({browser:undefined,listOwned:()=>ownedProcesses('browser'),stillOwned,forceTerminate:identity=>{try{process.kill(identity.pid,'SIGKILL');}catch(error){if(error.code!=='ESRCH')throw error;}},onFailure:cleanupFailure,closeTimeoutMs:cleanupBudget(5000),settleTimeoutMs:cleanupBudget(5000)});}}},
+   {name:'provider',timeoutMs:3000,run:()=>startupScope.has('provider')?startupScope.close('provider',cleanupBudget(2500)):undefined},
+@@ -643,8 +648,8 @@
+  await workflowControl.run(async()=>{
+  reserveTimer=setInterval(()=>{try{const free=rootFree();(receipt.diskSamples??=[]).push({stage,at:new Date().toISOString(),rootFreeBytes:free});if(free<1024**3)stopOnFailure(Error('Hard one GiB reserve breached'));for(const worker of taskData.values())if(worker.finalReleased&&worker.session)observeTaskLease(worker);}catch(error){stopOnFailure(error);}},1000);
+  for(const name of ['SIGTERM','SIGINT'])process.on(name,()=>{signalFailure=name;try{journal.record('driver-signal',{stage,signal:name});}catch{}stopOnFailure(Error('Acceptance interrupted by '+name));});
+- receipt.bounds={preparationDeadlineMs:PREPARATION_MS,scenarioDeadlineMs:WORKFLOW_MS,cleanupDeadlineMs:CLEANUP_MS,totalDeadlineMs:DRIVER_TOTAL_MS,maxMeasuredActions:432,primaryMeasuredActions:400,optionalTraceMeasuredActions:32,actualFuzzSeconds:0,allowedCreates:0,allowedStarts:0,upstreamRequestMs:120000,maxCreates:1,maxStarts:1,preCreateFreeBytes:6*1024**3,runningReserveBytes:1024**3,proxyStructuralBudgetNote:'Existing proxy requires positive numeric maxima; unconditional guards refuse Create and Start before forwarding.'};
+- receipt.predeclaredTimingReason='Prepared idle subset:60s quiet,100 switches/200 inputs/100 resets;210s workflow,60s preparation and120s cleanup. No extension on failure.';
++ receipt.bounds={preparationDeadlineMs:PREPARATION_MS,scenarioDeadlineMs:WORKFLOW_MS,cleanupDeadlineMs:CLEANUP_MS,totalDeadlineMs:DRIVER_TOTAL_MS,maxMeasuredActions:32,primaryMeasuredActions:0,diagnosticTraceMeasuredActions:32,actualFuzzSeconds:0,allowedCreates:0,allowedStarts:0,upstreamRequestMs:120000,maxCreates:1,maxStarts:1,preCreateFreeBytes:6*1024**3,runningReserveBytes:1024**3,proxyStructuralBudgetNote:'Existing proxy requires positive numeric maxima; unconditional guards refuse Create and Start before forwarding.'};
++ receipt.predeclaredTimingReason='Eight original rounds only (8 switches/16 inputs/8 resets), after original60s quiet; bounded30s trace,210s workflow,60s preparation and120s cleanup. No primary benchmark or latency acceptance; no extension on failure.';
+  engineID=docker('info','--format','{{.ID}}');assert(engineID.length>0&&engineID.length<=256);receipt.engineIdentitySHA256=sha(engineID);
+  await startSustainedServices();
+  const bootstrap=readFileSync(join(fixture,'state/control-plane/bootstrap-token'),'utf8').trim();sensitive.push(bootstrap);
+@@ -670,21 +675,30 @@
+  // END SUSTAINED BROWSER WIRING
+  for(const owner of projectStates){setStage('prepare-and-queue-'+owner.task);await prepare(owner);await queueOwner(owner);}
+  await protectCancellation();assert.equal(effects().create,0);await functionalDrafts();interactions=interactionRunner({page,owners:projectStates,receipt,assertHealthy:health,phase:()=>measuredPhase,observe:passiveTiming});await interactions.warm();
+- setStage('idle-baseline');await quietPhase('quiet-app-open-idle');readinessAttempted=true;readinessLedger.attempt();readinessLedger.begin(await timed(beginReadiness(page,projectStates),3000,'Autonomous DOM witness setup'));readinessStarted=true;const idle=phaseStart('idle-interactive-calibration');await interactions.calibrate(100);phaseEnd(idle);await passiveTiming('end-idle-calibration');readinessLedger.append(await timed(endReadiness(page),3000,'Autonomous DOM witness close'));readinessClosed=true;
+- receipt.interactionSummary=summarizeInteractions(receipt.interactions);
+- receipt.latencyTargets={measurement:'Original All projects→open saved Define context→two frames; input→expected field→two frames; no physical-input claim',projectSwitchP95Ms:300,inputP95Ms:100,p99StrictlyBelowMs:1000};
+- receipt.targetComparison=Object.fromEntries(['project-switch','input'].map(kind=>{const value=receipt.interactionSummary['idle-interactive-calibration:'+kind];assert.equal(value.count,kind==='input'?200:100);assert.equal(value.failed,0);return[kind,{...value,withinReference:value.p95Ms<=(kind==='input'?100:300)&&value.p99Ms<1000}];}));
+- assert.equal(receipt.interactions.length,400);
+- const traceAfter=option('--trace-after','no');assert(['yes','no'].includes(traceAfter));
+- if(traceAfter==='yes'){
+-  const tracePhase=phaseStart('idle-actionability-trace-followup');receipt.traceScope='Eight extra rounds after the primary100; snapshots/screenshots/sources disabled; instrumentation differs and does not replace primary metrics.';
+-  await page.context().tracing.start({screenshots:false,snapshots:false,sources:false});
+-  try{for(let index=0;index<8;index++)await interactions.round(index);await passiveTiming('trace-followup-complete');phaseEnd(tracePhase);}
+-  finally{await boundedAttempt(()=>page.context().tracing.stop({path:join(evidence,'action-only-trace.zip')}),5000,'trace-stop-timeout');}
+- }
++ setStage('layout-attribution');await quietPhase('quiet-app-open-idle');
++ readinessAttempted=true;readinessLedger.attempt();readinessLedger.begin(await timed(beginReadiness(page,projectStates),3000,'Autonomous DOM witness setup'));readinessStarted=true;
++ receipt.latencyTargets={projectSwitchP95Ms:300,inputP95Ms:100,p99StrictlyBelowMs:1000,assessed:false,reason:'Eight instrumented diagnostic rounds are not a primary acceptance cohort; previous failures remain unchanged.'};receipt.targetComparison={status:'not-assessed-diagnostic-short-cohort'};
++ const cdp=await timed(startupScope.acquire('layout-trace-cdp',{start:()=>browser.newBrowserCDPSession(),close:handle=>handle.detach(),parent:'browser'}),5000,'Layout CDP setup');assertWorkflowActive();
++ const session={send:cdp.send.bind(cdp),on:cdp.on.bind(cdp),off:cdp.off.bind(cdp),detach:()=>startupScope.close('layout-trace-cdp',2000)};
++ layoutCapture=createLayoutTraceCapture({session,sink:createTraceSink(evidence),onFailure:error=>{layoutFailure??=error;}});
++ const tracePhase=phaseStart('eight-round-layout-attribution');let capture;
++ try{
++  await layoutCapture.start();assertWorkflowActive();
++  await layoutCapture.runRounds({assertHealthy:health,round:index=>interactions.round(index),mark:async marker=>{
++   health();const value=await page.evaluate(({name,round,edge})=>{const entry=performance.mark(name);return {name,round,edge,timeOrigin:performance.timeOrigin,startTime:entry.startTime};},marker);health();return value;
++  }});
++ }finally{capture=await finishLayoutTrace(layoutFailure?'failed':'completed');phaseEnd(tracePhase);}
++ assert(capture.complete,'Bounded Layout capture refused; exact raw stream/journal retained');
++ try{
++  receipt.layoutTraceProjection=projectLayoutTrace(readFileSync(join(evidence,'layout-trace.raw.json')),{appOrigin:base,bundles:JSON.parse(readFileSync(join(here,'long-frame-bundles.json'),'utf8')),markers:capture.markers,expectedRounds:8,capture});
++  writeFileSync(join(evidence,'layout-trace-projection.json'),JSON.stringify(receipt.layoutTraceProjection,null,2)+'\n',{mode:0o600,flag:'wx'});
++ }catch(error){const code=/^[a-z][a-z0-9-]{1,80}$/.test(error?.code??'')?error.code:'layout-projection-refused';receipt.layoutTraceProjection={validCapture:false,status:'refused',code};writeFileSync(join(evidence,'layout-trace-projection.json'),JSON.stringify(receipt.layoutTraceProjection,null,2)+'\n',{mode:0o600,flag:'wx'});throw Object.assign(Error(code),{code});}
++ assert(receipt.layoutTraceProjection.attributionAvailable===true,'Trace has no attributable layout caller; raw evidence retained, no component or acceptance claim');
++ await passiveTiming('end-layout-attribution');readinessLedger.append(await timed(endReadiness(page),3000,'Autonomous DOM witness close'));readinessClosed=true;
++ assert.equal(receipt.interactions.length,32);assert(receipt.interactions.every(value=>value.success));receipt.interactionSummary=summarizeInteractions(receipt.interactions);
+  assert.deepEqual(effects(),{create:0,start:0,destroy:0});assert.equal(proxy.observations.failures.length,0);assert.equal(receipt.browserErrors.length,0);assert.equal(providerCalls,0);assert.equal(auxiliaryCalls,0);assert.equal(workerContainers().length,0);
+  receipt.idleDiagnosticCompleted=true;receipt.passed=true;
+- check('Fresh installed idle diagnostic completed; no full sustained or latency-target success implied');
++ check('Eight-round Layout caller capture completed; no latency acceptance, component cause or sustained success implied');
+  });
+ }catch(error){
+  workflowControl?.fail(error);fixtureError??=error;
+--- frozen299/launch.py
++++ layout-b94/launch.py
+@@ -40,16 +40,16 @@
+     parser.add_argument('--expected-image-id',required=True)
+     parser.add_argument('--image-provenance',type=Path,required=True)
+     parser.add_argument('--output',type=Path,required=True)
+-    parser.add_argument('--trace-after',choices=['yes'],required=True)
++    parser.add_argument('--layout-diagnostic',choices=['yes'],required=True)
+     parser.add_argument('--fixture-root',type=Path,default=Path('/workspace/.c32'))
+     args=parser.parse_args();helper=args.helper_source or args.source
+     assert args.window_granted,'Parent-coordinated exclusive runtime window required'
+     runtime_env=controlled_environment(os.environ,args.docker_host)
+     docker=lambda values:docker_command(values,runtime_env)
+-    assert args.source=='29931afc5b31ae9b9bd7b8973a7e3fdb840609a3' and helper=='29931afc5b31ae9b9bd7b8973a7e3fdb840609a3','Frozen matching299 product and helper binding required'
+-    assert args.package.resolve()==Path('/tmp/luci-retained-tools/package-0.5.0-29931afc').resolve()
+-    assert args.provenance.resolve()==Path('/workspace/luci/artifacts/quality-swarm/candidate-29931afc/package/package-provenance.json').resolve()
+-    assert sha(args.provenance)=='5c2870a873d49177863f9a16e0cf366fba41bae80684ceb3c4ddd9732ff6068a','Original matching299 provenance bytes required'
++    assert args.source=='b94ad37e53181e360ac8910ee980570de622728c' and helper=='b94ad37e53181e360ac8910ee980570de622728c','Frozen matchingb94 product and helper binding required'
++    assert args.package.resolve()==Path('/tmp/luci-retained-tools/package-0.5.0-b94ad37e').resolve()
++    assert args.provenance.resolve()==Path('/workspace/luci/artifacts/quality-swarm/candidate-b94ad37e/package/package-provenance.json').resolve()
++    assert sha(args.provenance)=='b9e151cb6825c92ad013c7421fdbb76ed43b075a366107bbd83c1d6ebbb4d9d4','Original matchingb94 provenance bytes required'
+     assert args.expected_image_id=='sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8' and args.image==args.expected_image_id
+     assert args.image_provenance.resolve()==Path('/workspace/.luci-tools/sandbox-candidate-20261009T134118Z-4a347241/receipt.json').resolve()
+     assert sha(args.image_provenance)=='a6fb7d93c1ce81b726923a155e44a5adbd53ed6da1198bafb76e4a82da009331','Exact retained image evidence required'
+@@ -82,8 +82,8 @@
+     assert json.loads(dependency_before.read_text())['passed'] is True
+     protected={name:sha(path) for name,path in {'launcher':Path(__file__),'binding':HERE/'actual/external-source-binding.json','capture':HERE/'template-capture.json','provenance':args.provenance,'image-provenance':args.image_provenance,**{'source/'+name:HERE/'actual'/name for name in binding['localSources']}}.items()}
+     result_dir=output/'driver';result=result_dir/'result.json'
+-    cmd=['node',str(HERE/'actual/sustained.mjs'),'--task-context-version','2','--binary',str(package/'luci'),'--web',str(package/'web'),'--provenance',str(args.provenance.resolve()),'--expected-source',args.source,'--expected-helper-source',helper,'--image',args.image,'--expected-image-id',args.expected_image_id,'--image-provenance',str(args.image_provenance.resolve()),'--fixture-root',str(args.fixture_root.resolve()),'--report',str(result),'--trace-after',args.trace_after]
+-    invocation={'version':1,'preparedAt':now(),'command':cmd,'productSource':args.source,'helperSource':helper,'observedCheckout':observed_checkout,'sourceBinding':capture,'driverSHA256':sha(HERE/'actual/sustained.mjs'),'bindingSHA256':sha(HERE/'actual/external-source-binding.json'),'launcherSHA256':sha(Path(__file__)),'provenanceSHA256':sha(args.provenance),'dependencyBeforeSHA256':sha(dependency_before),'protectedInputSHA256':protected,'environment':{'LUCI_ACCEPTANCE_REPO':str(REPO),'DOCKER_HOST':args.docker_host,'DockerContextTLSOverridesRemoved':True,'DockerCLIHostExplicit':True},'scope':'Fresh installed idle diagnostic only; no runtime allocation, no full sustained pass, no model quality or Windows acceptance.','fixedScope':{'quietSeconds':60,'primarySwitches':100,'primaryInputs':200,'primaryResets':100,'extraTraceRounds':8,'originalActionCohortExecuted':True,'navigationVerificationResponsesExpected':108,'switchP95Ms':300,'inputP95Ms':100,'p99StrictlyBelowMs':1000,'allowedCreates':0,'allowedStarts':0,'preparationSeconds':60,'workflowSeconds':210,'cleanupSeconds':120,'outerDriverWaitSeconds':450,'outerTermGraceSeconds':30,'outerKillWaitSeconds':10,'postDriverDependencyCheckSeconds':30,'linuxSampler':False},'engineIdentitySHA256':hashlib.sha256(engine.encode()).hexdigest(),'rootFreeBytes':free,'rawEvidence':'Retain result interactions and node/browser spans verbatim. Raw trace/private fixture may contain context; publish only separately bound allowlisted projections.'}
++    cmd=['node',str(HERE/'actual/sustained.mjs'),'--task-context-version','2','--binary',str(package/'luci'),'--web',str(package/'web'),'--provenance',str(args.provenance.resolve()),'--expected-source',args.source,'--expected-helper-source',helper,'--image',args.image,'--expected-image-id',args.expected_image_id,'--image-provenance',str(args.image_provenance.resolve()),'--fixture-root',str(args.fixture_root.resolve()),'--report',str(result),'--layout-diagnostic',args.layout_diagnostic]
++    invocation={'version':1,'preparedAt':now(),'command':cmd,'productSource':args.source,'helperSource':helper,'observedCheckout':observed_checkout,'sourceBinding':capture,'driverSHA256':sha(HERE/'actual/sustained.mjs'),'bindingSHA256':sha(HERE/'actual/external-source-binding.json'),'launcherSHA256':sha(Path(__file__)),'provenanceSHA256':sha(args.provenance),'dependencyBeforeSHA256':sha(dependency_before),'protectedInputSHA256':protected,'environment':{'LUCI_ACCEPTANCE_REPO':str(REPO),'DOCKER_HOST':args.docker_host,'DockerContextTLSOverridesRemoved':True,'DockerCLIHostExplicit':True},'scope':'Fresh installed idle diagnostic only; no runtime allocation, no full sustained pass, no model quality or Windows acceptance.','fixedScope':{'quietSeconds':60,'primarySwitches':0,'primaryInputs':0,'primaryResets':0,'diagnosticRounds':8,'diagnosticSwitches':8,'diagnosticInputs':16,'diagnosticResets':8,'originalActionModulesUnchanged':True,'primaryLatencyAssessed':False,'navigationVerificationResponsesExpected':8,'switchP95Ms':300,'inputP95Ms':100,'p99StrictlyBelowMs':1000,'allowedCreates':0,'allowedStarts':0,'preparationSeconds':60,'workflowSeconds':210,'cleanupSeconds':120,'outerDriverWaitSeconds':450,'outerTermGraceSeconds':30,'outerKillWaitSeconds':10,'postDriverDependencyCheckSeconds':30,'linuxSampler':False},'engineIdentitySHA256':hashlib.sha256(engine.encode()).hexdigest(),'rootFreeBytes':free,'rawEvidence':'Retain result interactions and node/browser spans verbatim. Raw trace/private fixture may contain context; publish only separately bound allowlisted projections.'}
+     write(output/'invocation.json',invocation)
+     env=runtime_env;start=time.monotonic();started=now();timeout=False;forced=False;events=[]
+     with (output/'driver.stdout.log').open('w') as stdout,(output/'driver.stderr.log').open('w') as stderr:

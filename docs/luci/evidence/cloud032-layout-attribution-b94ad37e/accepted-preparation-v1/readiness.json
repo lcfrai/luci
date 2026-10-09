@@ -1,0 +1,20 @@
+{
+  "readyToLaunch": true,
+  "runtimeLaunched": false,
+  "productSource": "b94ad37e53181e360ac8910ee980570de622728c",
+  "helperSource": "b94ad37e53181e360ac8910ee980570de622728c",
+  "scope": "Eight diagnostic rounds/32 original actions only. No primary benchmark or latency acceptance. Root exclusive runtime grant required.",
+  "tests": {
+    "uniqueFinalPassed": 39,
+    "receipt": "inert-final-attempt3.receipt.json",
+    "receiptSHA256": "c42e5ba04e262e72f89f83bf4f11b1486ae22759907ef15e2a08deb688dcf3c5",
+    "inputsUnchanged": true
+  },
+  "commandSHA256": "55df40ed0d4d873cd8c9941650def8a8df2ea1c3f38cb891a6a5663ad64ba9c3",
+  "launcherSHA256": "fa84c921bfe40c43633a796200bb40bc338a53a1c07d90d2ce3f2f4ebaaab483",
+  "driverSHA256": "35d80d8b265bb6ef7d794d2ae895a53355e4e1efedc6df59efbd652c939781ce",
+  "captureSHA256": "03cb83efbb84bdf0595140565a5e460611e42df1e456f1c815a8bf38a26c1f57",
+  "projectorSHA256": "39947e459848838eae32c2686cdaa5c59db7e1d4a1743c18c0fc1f0057d2f797",
+  "bindingSHA256": "0daa1bc050bcbc05dfbd6bf45ab997fa298a0a7a2b7915464e519c32ba388932",
+  "childReviewScope": "Pure projector schema/clock/private-field/stack boundary implementation and review,17 final controls. Parent implemented capture + actual orchestration,22 additional unique controls. No actual browser/build."
+}

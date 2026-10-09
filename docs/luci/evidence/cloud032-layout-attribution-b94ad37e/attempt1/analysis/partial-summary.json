@@ -1,0 +1,302 @@
+{
+  "categoryBytes": [
+    {
+      "category": "disabled-by-default-devtools.timeline.invalidationTracking",
+      "events": 8919,
+      "rawEventJSONBytes": 24948139
+    },
+    {
+      "category": "devtools.timeline",
+      "events": 4283,
+      "rawEventJSONBytes": 3396248
+    },
+    {
+      "category": "disabled-by-default-devtools.timeline",
+      "events": 12196,
+      "rawEventJSONBytes": 2907818
+    },
+    {
+      "category": "devtools.timeline,disabled-by-default-v8.gc",
+      "events": 2191,
+      "rawEventJSONBytes": 394263
+    },
+    {
+      "category": "blink,devtools.timeline",
+      "events": 318,
+      "rawEventJSONBytes": 235308
+    },
+    {
+      "category": "cc,disabled-by-default-devtools.timeline",
+      "events": 659,
+      "rawEventJSONBytes": 191987
+    },
+    {
+      "category": "blink.animations,devtools.timeline,benchmark,rail",
+      "events": 101,
+      "rawEventJSONBytes": 24075
+    },
+    {
+      "category": "__metadata",
+      "events": 51,
+      "rawEventJSONBytes": 6565
+    },
+    {
+      "category": "loading,rail,devtools.timeline",
+      "events": 14,
+      "rawEventJSONBytes": 5557
+    },
+    {
+      "category": "devtools.timeline,v8",
+      "events": 12,
+      "rawEventJSONBytes": 2865
+    },
+    {
+      "category": "v8,devtools.timeline,disabled-by-default-v8.compile",
+      "events": 9,
+      "rawEventJSONBytes": 2168
+    },
+    {
+      "category": "blink.user_timing",
+      "events": 3,
+      "rawEventJSONBytes": 880
+    },
+    {
+      "category": "v8,devtools.timeline",
+      "events": 2,
+      "rawEventJSONBytes": 521
+    }
+  ],
+  "topEventByteCosts": [
+    {
+      "name": "LayoutInvalidationTracking",
+      "events": 3908,
+      "rawEventJSONBytes": 20037930,
+      "categories": [
+        "disabled-by-default-devtools.timeline.invalidationTracking"
+      ]
+    },
+    {
+      "name": "StyleRecalcInvalidationTracking",
+      "events": 541,
+      "rawEventJSONBytes": 2806769,
+      "categories": [
+        "disabled-by-default-devtools.timeline.invalidationTracking"
+      ]
+    },
+    {
+      "name": "RunTask",
+      "events": 9871,
+      "rawEventJSONBytes": 1580179,
+      "categories": [
+        "disabled-by-default-devtools.timeline"
+      ]
+    },
+    {
+      "name": "StyleResolver::ResolveStyle",
+      "events": 4304,
+      "rawEventJSONBytes": 1067658,
+      "categories": [
+        "disabled-by-default-devtools.timeline.invalidationTracking"
+      ]
+    },
+    {
+      "name": "ScheduleStyleInvalidationTracking",
+      "events": 94,
+      "rawEventJSONBytes": 988114,
+      "categories": [
+        "disabled-by-default-devtools.timeline.invalidationTracking"
+      ]
+    },
+    {
+      "name": "RequestAnimationFrame",
+      "events": 118,
+      "rawEventJSONBytes": 595768,
+      "categories": [
+        "devtools.timeline"
+      ]
+    },
+    {
+      "name": "FunctionCall",
+      "events": 1381,
+      "rawEventJSONBytes": 532526,
+      "categories": [
+        "devtools.timeline"
+      ]
+    },
+    {
+      "name": "EventDispatch",
+      "events": 455,
+      "rawEventJSONBytes": 473970,
+      "categories": [
+        "devtools.timeline"
+      ]
+    },
+    {
+      "name": "ScheduleStyleRecalculation",
+      "events": 186,
+      "rawEventJSONBytes": 449559,
+      "categories": [
+        "disabled-by-default-devtools.timeline"
+      ]
+    },
+    {
+      "name": "CancelAnimationFrame",
+      "events": 44,
+      "rawEventJSONBytes": 437599,
+      "categories": [
+        "devtools.timeline"
+      ]
+    },
+    {
+      "name": "InvalidateLayout",
+      "events": 50,
+      "rawEventJSONBytes": 390291,
+      "categories": [
+        "disabled-by-default-devtools.timeline"
+      ]
+    },
+    {
+      "name": "UpdateCounters",
+      "events": 1395,
+      "rawEventJSONBytes": 338550,
+      "categories": [
+        "disabled-by-default-devtools.timeline"
+      ]
+    },
+    {
+      "name": "TimerInstall",
+      "events": 44,
+      "rawEventJSONBytes": 306187,
+      "categories": [
+        "devtools.timeline"
+      ]
+    },
+    {
+      "name": "ResourceSendRequest",
+      "events": 29,
+      "rawEventJSONBytes": 254572,
+      "categories": [
+        "devtools.timeline"
+      ]
+    },
+    {
+      "name": "UpdateLayoutTree",
+      "events": 188,
+      "rawEventJSONBytes": 200998,
+      "categories": [
+        "blink,devtools.timeline"
+      ]
+    },
+    {
+      "name": "RasterTask",
+      "events": 659,
+      "rawEventJSONBytes": 191987,
+      "categories": [
+        "cc,disabled-by-default-devtools.timeline"
+      ]
+    },
+    {
+      "name": "TimerRemove",
+      "events": 50,
+      "rawEventJSONBytes": 171715,
+      "categories": [
+        "devtools.timeline"
+      ]
+    },
+    {
+      "name": "EventTiming",
+      "events": 594,
+      "rawEventJSONBytes": 167640,
+      "categories": [
+        "devtools.timeline"
+      ]
+    },
+    {
+      "name": "Major concurrent marking rescheduled",
+      "events": 598,
+      "rawEventJSONBytes": 105581,
+      "categories": [
+        "devtools.timeline,disabled-by-default-v8.gc"
+      ]
+    },
+    {
+      "name": "V8.GC_MC_INCREMENTAL",
+      "events": 600,
+      "rawEventJSONBytes": 102187,
+      "categories": [
+        "devtools.timeline,disabled-by-default-v8.gc"
+      ]
+    }
+  ],
+  "layoutStyleEvents": 232,
+  "withStacks": 71,
+  "mappedPositions": 78,
+  "anchorSpreadUs": 89.0,
+  "topLayouts": [
+    {
+      "rawEventIndex": 2513,
+      "name": "Layout",
+      "ph": "X",
+      "pid": 2526594,
+      "tid": 2526594,
+      "tsUs": 309704910503,
+      "durUs": 10242,
+      "sameRenderer": true,
+      "overlapsCompleteRound0": true,
+      "afterUnfinishedRound1Start": false,
+      "stacks": []
+    },
+    {
+      "rawEventIndex": 11899,
+      "name": "Layout",
+      "ph": "X",
+      "pid": 2526594,
+      "tid": 2526594,
+      "tsUs": 309705684349,
+      "durUs": 8423,
+      "sameRenderer": true,
+      "overlapsCompleteRound0": true,
+      "afterUnfinishedRound1Start": false,
+      "stacks": []
+    },
+    {
+      "rawEventIndex": 1289,
+      "name": "Layout",
+      "ph": "X",
+      "pid": 2526594,
+      "tid": 2526594,
+      "tsUs": 309704786299,
+      "durUs": 7883,
+      "sameRenderer": true,
+      "overlapsCompleteRound0": true,
+      "afterUnfinishedRound1Start": false,
+      "stacks": []
+    },
+    {
+      "rawEventIndex": 14328,
+      "name": "Layout",
+      "ph": "X",
+      "pid": 2526594,
+      "tid": 2526594,
+      "tsUs": 309706201359,
+      "durUs": 6428,
+      "sameRenderer": true,
+      "overlapsCompleteRound0": false,
+      "afterUnfinishedRound1Start": true,
+      "stacks": []
+    },
+    {
+      "rawEventIndex": 17416,
+      "name": "Layout",
+      "ph": "X",
+      "pid": 2526594,
+      "tid": 2526594,
+      "tsUs": 309706407016,
+      "durUs": 6290,
+      "sameRenderer": true,
+      "overlapsCompleteRound0": false,
+      "afterUnfinishedRound1Start": true,
+      "stacks": []
+    }
+  ]
+}

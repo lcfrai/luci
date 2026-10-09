@@ -1,0 +1,2350 @@
+{
+  "rawResultSHA256": "fead13b770f2351282fc4c9a1bd9d0ab34248b087311e9b4ccdb651ed424fe26",
+  "projectIdentityMapping": "First-appearance ordinals0..3",
+  "interactions": [
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "project-switch",
+      "at": "2026-10-09T16:45:50.093Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.27847999999357853
+          },
+          {
+            "stage": "all-projects-click-end",
+            "offsetMs": 121.01769199999399
+          },
+          {
+            "stage": "overview-heading-ready",
+            "offsetMs": 137.94144500000402
+          },
+          {
+            "stage": "open-project-click-start",
+            "offsetMs": 137.95010800000455
+          },
+          {
+            "stage": "open-project-click-end",
+            "offsetMs": 249.2163029999938
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 249.22440500000084
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 249.22732000000542
+          },
+          {
+            "stage": "idea-field-wait-end",
+            "offsetMs": 277.9226789999957
+          },
+          {
+            "stage": "idea-context-evaluate-end",
+            "offsetMs": 314.6725529999967
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 326.3074789999955
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 326.31296799999836
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 354.53891000000294
+          }
+        ],
+        "nodeClockReads": 12,
+        "browserFrames": {
+          "requestedAt": 66097.69999998808,
+          "firstFrameAt": 66105.59999996424,
+          "secondFrameAt": 66120.29999995232,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 147,
+              "at": 4519.799999952316
+            },
+            "pointer": {
+              "sequence": 204,
+              "at": 65967.69999998808
+            },
+            "expectedDOM": {
+              "sequence": 207,
+              "at": 66080.89999997616,
+              "actionKind": "project-switch"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 354.5523700000049,
+      "navigationVerification": {
+        "status": "returned",
+        "reason": null,
+        "witness": {
+          "version": 1,
+          "status": "matched",
+          "timeOrigin": 1791564284324.6,
+          "enteredAt": 66080.79999995232,
+          "firstSampleAt": 66080.89999997616,
+          "firstMatchedAt": 66080.89999997616,
+          "resolveRequestedAt": 66081,
+          "samples": 1,
+          "failedSamples": 0,
+          "failedDisconnected": 0,
+          "failedValueMismatch": 0
+        }
+      },
+      "index": 0,
+      "projectOrdinal": 0
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "input",
+      "at": "2026-10-09T16:45:50.488Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.04075200000079349
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 62.12557600000582
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 62.12756900000386
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 68.36137400000007
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 68.36412800000107
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 95.7147960000002
+          }
+        ],
+        "nodeClockReads": 6,
+        "browserFrames": {
+          "requestedAt": 66233.5,
+          "firstFrameAt": 66236.69999998808,
+          "secondFrameAt": 66253.59999996424,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 208,
+              "at": 66188.09999996424
+            },
+            "pointer": {
+              "sequence": 204,
+              "at": 65967.69999998808
+            },
+            "expectedDOM": {
+              "sequence": 211,
+              "at": 66228.79999995232,
+              "actionKind": "input"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 95.74295800000255,
+      "index": 1,
+      "projectOrdinal": 0
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "input",
+      "at": "2026-10-09T16:45:50.583Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.022234000003663823
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 23.205025000002934
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 23.20701800000097
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 28.58652599999914
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 28.588388999996823
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 63.55638200000976
+          }
+        ],
+        "nodeClockReads": 6,
+        "browserFrames": {
+          "requestedAt": 66292.5,
+          "firstFrameAt": 66304.09999996424,
+          "secondFrameAt": 66320,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 212,
+              "at": 66273.09999996424
+            },
+            "pointer": {
+              "sequence": 204,
+              "at": 65967.69999998808
+            },
+            "expectedDOM": {
+              "sequence": 213,
+              "at": 66284.89999997616,
+              "actionKind": "input"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 63.569482000006246,
+      "index": 2,
+      "projectOrdinal": 0
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "draft-reset",
+      "at": "2026-10-09T16:45:50.647Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.029144000000087544
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 298.91162300000724
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 298.9143570000015
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 336.78033400001004
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 336.78218700000434
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 375.06555300000764
+          }
+        ],
+        "nodeClockReads": 6,
+        "browserFrames": {
+          "requestedAt": 66663.5,
+          "firstFrameAt": 66671.69999998808,
+          "secondFrameAt": 66695.79999995232,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 212,
+              "at": 66273.09999996424
+            },
+            "pointer": {
+              "sequence": 219,
+              "at": 66582.19999998808
+            },
+            "expectedDOM": {
+              "sequence": 213,
+              "at": 66284.89999997616,
+              "actionKind": "input"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 375.07727100000193,
+      "index": 3,
+      "projectOrdinal": 0
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "project-switch",
+      "at": "2026-10-09T16:45:51.537Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.024025999999139458
+          },
+          {
+            "stage": "all-projects-click-end",
+            "offsetMs": 109.77286100000492
+          },
+          {
+            "stage": "overview-heading-ready",
+            "offsetMs": 124.4874550000095
+          },
+          {
+            "stage": "open-project-click-start",
+            "offsetMs": 124.48971800001164
+          },
+          {
+            "stage": "open-project-click-end",
+            "offsetMs": 248.69333100000222
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 248.70008100000268
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 248.7011230000062
+          },
+          {
+            "stage": "idea-field-wait-end",
+            "offsetMs": 283.8052980000066
+          },
+          {
+            "stage": "idea-context-evaluate-end",
+            "offsetMs": 306.21289100000286
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 312.32245500000136
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 312.3239870000107
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 342.12870900001144
+          }
+        ],
+        "nodeClockReads": 12,
+        "browserFrames": {
+          "requestedAt": 67526,
+          "firstFrameAt": 67536.89999997616,
+          "secondFrameAt": 67553.29999995232,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 212,
+              "at": 66273.09999996424
+            },
+            "pointer": {
+              "sequence": 228,
+              "at": 67410.89999997616
+            },
+            "expectedDOM": {
+              "sequence": 231,
+              "at": 67517.59999996424,
+              "actionKind": "project-switch"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 342.1419089999981,
+      "navigationVerification": {
+        "status": "returned",
+        "reason": null,
+        "witness": {
+          "version": 1,
+          "status": "matched",
+          "timeOrigin": 1791564284324.6,
+          "enteredAt": 67517.5,
+          "firstSampleAt": 67517.5,
+          "firstMatchedAt": 67517.5,
+          "resolveRequestedAt": 67517.59999996424,
+          "samples": 1,
+          "failedSamples": 0,
+          "failedDisconnected": 0,
+          "failedValueMismatch": 0
+        }
+      },
+      "index": 4,
+      "projectOrdinal": 1
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "input",
+      "at": "2026-10-09T16:45:51.907Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.02155299999867566
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 33.349740999998176
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 33.351834999994026
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 58.12379599999986
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 58.126210000002175
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 89.09656399999221
+          }
+        ],
+        "nodeClockReads": 6,
+        "browserFrames": {
+          "requestedAt": 67642.19999998808,
+          "firstFrameAt": 67653.19999998808,
+          "secondFrameAt": 67670.09999996424,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 232,
+              "at": 67598.59999996424
+            },
+            "pointer": {
+              "sequence": 228,
+              "at": 67410.89999997616
+            },
+            "expectedDOM": {
+              "sequence": 234,
+              "at": 67618.79999995232,
+              "actionKind": "input"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 89.10971399999107,
+      "index": 5,
+      "projectOrdinal": 1
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "input",
+      "at": "2026-10-09T16:45:51.996Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.016043999989051372
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 19.368382000000565
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 19.36968399999023
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 24.887009999991278
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 24.8883419999911
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 50.09679699999106
+          }
+        ],
+        "nodeClockReads": 6,
+        "browserFrames": {
+          "requestedAt": 67698,
+          "firstFrameAt": 67703,
+          "secondFrameAt": 67719.69999998808,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 236,
+              "at": 67681.69999998808
+            },
+            "pointer": {
+              "sequence": 228,
+              "at": 67410.89999997616
+            },
+            "expectedDOM": {
+              "sequence": 238,
+              "at": 67694.5,
+              "actionKind": "input"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 50.11114899998938,
+      "index": 6,
+      "projectOrdinal": 1
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "draft-reset",
+      "at": "2026-10-09T16:45:52.047Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.016865999990841374
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 354.1911309999996
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 354.1931539999932
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 394.9300530000037
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 394.9316059999983
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 418.69746699999087
+          }
+        ],
+        "nodeClockReads": 6,
+        "browserFrames": {
+          "requestedAt": 68119.29999995232,
+          "firstFrameAt": 68121.39999997616,
+          "secondFrameAt": 68137.89999997616,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 236,
+              "at": 67681.69999998808
+            },
+            "pointer": {
+              "sequence": 244,
+              "at": 68056.59999996424
+            },
+            "expectedDOM": {
+              "sequence": 238,
+              "at": 67694.5,
+              "actionKind": "input"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 418.7077520000021,
+      "index": 7,
+      "projectOrdinal": 1
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "project-switch",
+      "at": "2026-10-09T16:45:52.501Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.019598999992012978
+          },
+          {
+            "stage": "all-projects-click-end",
+            "offsetMs": 72.06665599999542
+          },
+          {
+            "stage": "overview-heading-ready",
+            "offsetMs": 86.30566699999326
+          },
+          {
+            "stage": "open-project-click-start",
+            "offsetMs": 86.30705899999884
+          },
+          {
+            "stage": "open-project-click-end",
+            "offsetMs": 210.25762099999702
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 210.26304900000105
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 210.2638799999986
+          },
+          {
+            "stage": "idea-field-wait-end",
+            "offsetMs": 239.94259799999418
+          },
+          {
+            "stage": "idea-context-evaluate-end",
+            "offsetMs": 276.4802229999914
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 286.0382489999902
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 286.040181999997
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 312.2245830000029
+          }
+        ],
+        "nodeClockReads": 12,
+        "browserFrames": {
+          "requestedAt": 68463.79999995232,
+          "firstFrameAt": 68471,
+          "secondFrameAt": 68487.09999996424,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 236,
+              "at": 67681.69999998808
+            },
+            "pointer": {
+              "sequence": 253,
+              "at": 68329.5
+            },
+            "expectedDOM": {
+              "sequence": 256,
+              "at": 68450.29999995232,
+              "actionKind": "project-switch"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 312.312064999991,
+      "navigationVerification": {
+        "status": "returned",
+        "reason": null,
+        "witness": {
+          "version": 1,
+          "status": "matched",
+          "timeOrigin": 1791564284324.6,
+          "enteredAt": 68450.19999998808,
+          "firstSampleAt": 68450.29999995232,
+          "firstMatchedAt": 68450.29999995232,
+          "resolveRequestedAt": 68450.29999995232,
+          "samples": 1,
+          "failedSamples": 0,
+          "failedDisconnected": 0,
+          "failedValueMismatch": 0
+        }
+      },
+      "index": 8,
+      "projectOrdinal": 2
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "input",
+      "at": "2026-10-09T16:45:52.857Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.0366550000035204
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 69.62223599999561
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 69.62434900000517
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 75.21200100000715
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 75.21377400000347
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 107.37625499999558
+          }
+        ],
+        "nodeClockReads": 6,
+        "browserFrames": {
+          "requestedAt": 68609.19999998808,
+          "firstFrameAt": 68620,
+          "secondFrameAt": 68637,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 257,
+              "at": 68571.19999998808
+            },
+            "pointer": {
+              "sequence": 253,
+              "at": 68329.5
+            },
+            "expectedDOM": {
+              "sequence": 260,
+              "at": 68604.09999996424,
+              "actionKind": "input"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 107.3842169999989,
+      "index": 9,
+      "projectOrdinal": 2
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "input",
+      "at": "2026-10-09T16:45:52.964Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.012447999994037673
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 23.075119000000996
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 23.077412999991793
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 27.752788999991026
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 27.754440999997314
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 48.71007699999609
+          }
+        ],
+        "nodeClockReads": 6,
+        "browserFrames": {
+          "requestedAt": 68668.29999995232,
+          "firstFrameAt": 68670.79999995232,
+          "secondFrameAt": 68686.79999995232,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 261,
+              "at": 68650.39999997616
+            },
+            "pointer": {
+              "sequence": 253,
+              "at": 68329.5
+            },
+            "expectedDOM": {
+              "sequence": 263,
+              "at": 68664.29999995232,
+              "actionKind": "input"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 48.71586499999103,
+      "index": 10,
+      "projectOrdinal": 2
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "draft-reset",
+      "at": "2026-10-09T16:45:53.013Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.006769999992684461
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 304.4857439999905
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 304.48812799999723
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 332.1229389999935
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 332.12516300000425
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 368.31375200000184
+          }
+        ],
+        "nodeClockReads": 6,
+        "browserFrames": {
+          "requestedAt": 69026.79999995232,
+          "firstFrameAt": 69038.89999997616,
+          "secondFrameAt": 69054.69999998808,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 261,
+              "at": 68650.39999997616
+            },
+            "pointer": {
+              "sequence": 269,
+              "at": 68962.09999996424
+            },
+            "expectedDOM": {
+              "sequence": 263,
+              "at": 68664.29999995232,
+              "actionKind": "input"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 368.3194899999944,
+      "index": 11,
+      "projectOrdinal": 2
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "project-switch",
+      "at": "2026-10-09T16:45:53.437Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.009483999994699843
+          },
+          {
+            "stage": "all-projects-click-end",
+            "offsetMs": 86.23433999999543
+          },
+          {
+            "stage": "overview-heading-ready",
+            "offsetMs": 97.73463300000003
+          },
+          {
+            "stage": "open-project-click-start",
+            "offsetMs": 97.73690699999861
+          },
+          {
+            "stage": "open-project-click-end",
+            "offsetMs": 177.28421299999172
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 177.28752800000075
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 177.28789799999504
+          },
+          {
+            "stage": "idea-field-wait-end",
+            "offsetMs": 218.79299499999615
+          },
+          {
+            "stage": "idea-context-evaluate-end",
+            "offsetMs": 235.94965499998943
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 238.62100099999225
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 238.62201199999254
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 261.1405129999912
+          }
+        ],
+        "nodeClockReads": 12,
+        "browserFrames": {
+          "requestedAt": 69352,
+          "firstFrameAt": 69353.89999997616,
+          "secondFrameAt": 69370.39999997616,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 261,
+              "at": 68650.39999997616
+            },
+            "pointer": {
+              "sequence": 278,
+              "at": 69263.89999997616
+            },
+            "expectedDOM": {
+              "sequence": 281,
+              "at": 69347.69999998808,
+              "actionKind": "project-switch"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 261.17141899999115,
+      "navigationVerification": {
+        "status": "returned",
+        "reason": null,
+        "witness": {
+          "version": 1,
+          "status": "matched",
+          "timeOrigin": 1791564284324.6,
+          "enteredAt": 69347.59999996424,
+          "firstSampleAt": 69347.59999996424,
+          "firstMatchedAt": 69347.59999996424,
+          "resolveRequestedAt": 69347.69999998808,
+          "samples": 1,
+          "failedSamples": 0,
+          "failedDisconnected": 0,
+          "failedValueMismatch": 0
+        }
+      },
+      "index": 12,
+      "projectOrdinal": 3
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "input",
+      "at": "2026-10-09T16:45:53.722Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.012489000000641681
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 18.081883999999263
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 18.083526000002166
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 20.91960100000142
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 20.92087299999548
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 56.96995699999388
+          }
+        ],
+        "nodeClockReads": 6,
+        "browserFrames": {
+          "requestedAt": 69423.59999996424,
+          "firstFrameAt": 69436.5,
+          "secondFrameAt": 69453.19999998808,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 282,
+              "at": 69408
+            },
+            "pointer": {
+              "sequence": 278,
+              "at": 69263.89999997616
+            },
+            "expectedDOM": {
+              "sequence": 283,
+              "at": 69417.39999997616,
+              "actionKind": "input"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 56.97640699999465,
+      "index": 13,
+      "projectOrdinal": 3
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "input",
+      "at": "2026-10-09T16:45:53.779Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.006620000000111759
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 12.583085000005667
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 12.584918000007747
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 21.06148899999971
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 21.062721000009333
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 50.21489499999734
+          }
+        ],
+        "nodeClockReads": 6,
+        "browserFrames": {
+          "requestedAt": 69477.69999998808,
+          "firstFrameAt": 69486.39999997616,
+          "secondFrameAt": 69503.09999996424,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 286,
+              "at": 69462.89999997616
+            },
+            "pointer": {
+              "sequence": 278,
+              "at": 69263.89999997616
+            },
+            "expectedDOM": {
+              "sequence": 287,
+              "at": 69468.89999997616,
+              "actionKind": "input"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 50.22279700000945,
+      "index": 14,
+      "projectOrdinal": 3
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "draft-reset",
+      "at": "2026-10-09T16:45:53.829Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.006699999998090789
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 253.6989920000051
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 253.7006540000002
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 272.21188000000257
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 272.2136520000058
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 321.7764190000016
+          }
+        ],
+        "nodeClockReads": 6,
+        "browserFrames": {
+          "requestedAt": 69791.29999995232,
+          "firstFrameAt": 69806.09999996424,
+          "secondFrameAt": 69821.5,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 286,
+              "at": 69462.89999997616
+            },
+            "pointer": {
+              "sequence": 294,
+              "at": 69728.39999997616
+            },
+            "expectedDOM": {
+              "sequence": 287,
+              "at": 69468.89999997616,
+              "actionKind": "input"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 321.78382100000454,
+      "index": 15,
+      "projectOrdinal": 3
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "project-switch",
+      "at": "2026-10-09T16:45:54.186Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.010054999991552904
+          },
+          {
+            "stage": "all-projects-click-end",
+            "offsetMs": 81.13430799999333
+          },
+          {
+            "stage": "overview-heading-ready",
+            "offsetMs": 86.33856699999887
+          },
+          {
+            "stage": "open-project-click-start",
+            "offsetMs": 86.34053999999014
+          },
+          {
+            "stage": "open-project-click-end",
+            "offsetMs": 174.50567499999306
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 174.50936999999976
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 174.51000099998782
+          },
+          {
+            "stage": "idea-field-wait-end",
+            "offsetMs": 217.02131999999983
+          },
+          {
+            "stage": "idea-context-evaluate-end",
+            "offsetMs": 257.80288199998904
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 265.65416999999434
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 265.65551199999754
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 293.9602389999927
+          }
+        ],
+        "nodeClockReads": 12,
+        "browserFrames": {
+          "requestedAt": 70128.19999998808,
+          "firstFrameAt": 70136.89999997616,
+          "secondFrameAt": 70153.29999995232,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 286,
+              "at": 69462.89999997616
+            },
+            "pointer": {
+              "sequence": 303,
+              "at": 69993.79999995232
+            },
+            "expectedDOM": {
+              "sequence": 306,
+              "at": 70118.19999998808,
+              "actionKind": "project-switch"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 293.97032399999443,
+      "navigationVerification": {
+        "status": "returned",
+        "reason": null,
+        "witness": {
+          "version": 1,
+          "status": "matched",
+          "timeOrigin": 1791564284324.6,
+          "enteredAt": 70118.09999996424,
+          "firstSampleAt": 70118.09999996424,
+          "firstMatchedAt": 70118.19999998808,
+          "resolveRequestedAt": 70118.19999998808,
+          "samples": 1,
+          "failedSamples": 0,
+          "failedDisconnected": 0,
+          "failedValueMismatch": 0
+        }
+      },
+      "index": 16,
+      "projectOrdinal": 0
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "input",
+      "at": "2026-10-09T16:45:54.505Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.011086999991675839
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 30.648288999989745
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 30.650782999990042
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 33.12205299999914
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 33.12314399999741
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 58.956540999992285
+          }
+        ],
+        "nodeClockReads": 6,
+        "browserFrames": {
+          "requestedAt": 70214.5,
+          "firstFrameAt": 70219.79999995232,
+          "secondFrameAt": 70237.09999996424,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 307,
+              "at": 70193.19999998808
+            },
+            "pointer": {
+              "sequence": 303,
+              "at": 69993.79999995232
+            },
+            "expectedDOM": {
+              "sequence": 309,
+              "at": 70212.29999995232,
+              "actionKind": "input"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 59.05576999999175,
+      "index": 17,
+      "projectOrdinal": 0
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "input",
+      "at": "2026-10-09T16:45:54.564Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.00607900001341477
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 19.04535100000794
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 19.04720400000224
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 26.10407000000123
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 26.1069140000036
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 50.152762000012444
+          }
+        ],
+        "nodeClockReads": 6,
+        "browserFrames": {
+          "requestedAt": 70267.39999997616,
+          "firstFrameAt": 70270.09999996424,
+          "secondFrameAt": 70286.39999997616,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 311,
+              "at": 70252.5
+            },
+            "pointer": {
+              "sequence": 303,
+              "at": 69993.79999995232
+            },
+            "expectedDOM": {
+              "sequence": 312,
+              "at": 70260.29999995232,
+              "actionKind": "input"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 50.15849000000162,
+      "index": 18,
+      "projectOrdinal": 0
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "draft-reset",
+      "at": "2026-10-09T16:45:54.614Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.006210000006831251
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 236.8092319999996
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 236.81107500000508
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 255.39104499999667
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 255.39345800000592
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 281.66718400000536
+          }
+        ],
+        "nodeClockReads": 6,
+        "browserFrames": {
+          "requestedAt": 70547.5,
+          "firstFrameAt": 70559.09999996424,
+          "secondFrameAt": 70570,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 311,
+              "at": 70252.5
+            },
+            "pointer": {
+              "sequence": 319,
+              "at": 70500.19999998808
+            },
+            "expectedDOM": {
+              "sequence": 312,
+              "at": 70260.29999995232,
+              "actionKind": "input"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 281.6730630000093,
+      "index": 19,
+      "projectOrdinal": 0
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "project-switch",
+      "at": "2026-10-09T16:45:54.937Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.011687999998684973
+          },
+          {
+            "stage": "all-projects-click-end",
+            "offsetMs": 80.23407399999269
+          },
+          {
+            "stage": "overview-heading-ready",
+            "offsetMs": 96.10471499999403
+          },
+          {
+            "stage": "open-project-click-start",
+            "offsetMs": 96.10692799999379
+          },
+          {
+            "stage": "open-project-click-end",
+            "offsetMs": 181.9409169999999
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 181.9447530000034
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 181.94528299999365
+          },
+          {
+            "stage": "idea-field-wait-end",
+            "offsetMs": 202.97656299998926
+          },
+          {
+            "stage": "idea-context-evaluate-end",
+            "offsetMs": 224.24245599999267
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 228.60197699999844
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 228.60352999999304
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 259.1700259999925
+          }
+        ],
+        "nodeClockReads": 12,
+        "browserFrames": {
+          "requestedAt": 70842.19999998808,
+          "firstFrameAt": 70853.59999996424,
+          "secondFrameAt": 70870.19999998808,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 311,
+              "at": 70252.5
+            },
+            "pointer": {
+              "sequence": 328,
+              "at": 70762.59999996424
+            },
+            "expectedDOM": {
+              "sequence": 331,
+              "at": 70835.79999995232,
+              "actionKind": "project-switch"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 259.17579500000284,
+      "navigationVerification": {
+        "status": "returned",
+        "reason": null,
+        "witness": {
+          "version": 1,
+          "status": "matched",
+          "timeOrigin": 1791564284324.6,
+          "enteredAt": 70835.79999995232,
+          "firstSampleAt": 70835.79999995232,
+          "firstMatchedAt": 70835.79999995232,
+          "resolveRequestedAt": 70835.89999997616,
+          "samples": 1,
+          "failedSamples": 0,
+          "failedDisconnected": 0,
+          "failedValueMismatch": 0
+        }
+      },
+      "index": 20,
+      "projectOrdinal": 1
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "input",
+      "at": "2026-10-09T16:45:55.221Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.011387000005925074
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 20.902255000008154
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 20.9038670000009
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 29.902375000005122
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 29.90396700000565
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 60.26875000000291
+          }
+        ],
+        "nodeClockReads": 6,
+        "browserFrames": {
+          "requestedAt": 70927.79999995232,
+          "firstFrameAt": 70941.29999995232,
+          "secondFrameAt": 70955.69999998808,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 332,
+              "at": 70909.09999996424
+            },
+            "pointer": {
+              "sequence": 328,
+              "at": 70762.59999996424
+            },
+            "expectedDOM": {
+              "sequence": 333,
+              "at": 70919.5,
+              "actionKind": "input"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 60.27350700000534,
+      "index": 21,
+      "projectOrdinal": 1
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "input",
+      "at": "2026-10-09T16:45:55.282Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.0055379999976139516
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 16.482473999989452
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 16.48379600000044
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 19.43622599999071
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 19.437487999995938
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 47.038409000000684
+          }
+        ],
+        "nodeClockReads": 6,
+        "browserFrames": {
+          "requestedAt": 70977.5,
+          "firstFrameAt": 70986.59999996424,
+          "secondFrameAt": 71003.19999998808,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 336,
+              "at": 70967.09999996424
+            },
+            "pointer": {
+              "sequence": 328,
+              "at": 70762.59999996424
+            },
+            "expectedDOM": {
+              "sequence": 338,
+              "at": 70975.29999995232,
+              "actionKind": "input"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 47.043516999998246,
+      "index": 22,
+      "projectOrdinal": 1
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "draft-reset",
+      "at": "2026-10-09T16:45:55.329Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.0063200000004144385
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 251.34763000000385
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 251.35000399999262
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 282.93714900000487
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 282.94041399999696
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 317.6434900000022
+          }
+        ],
+        "nodeClockReads": 6,
+        "browserFrames": {
+          "requestedAt": 71288.89999997616,
+          "firstFrameAt": 71303.29999995232,
+          "secondFrameAt": 71320.09999996424,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 336,
+              "at": 70967.09999996424
+            },
+            "pointer": {
+              "sequence": 344,
+              "at": 71227.89999997616
+            },
+            "expectedDOM": {
+              "sequence": 338,
+              "at": 70975.29999995232,
+              "actionKind": "input"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 317.65179299999727,
+      "index": 23,
+      "projectOrdinal": 1
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "project-switch",
+      "at": "2026-10-09T16:45:55.687Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.00846300000557676
+          },
+          {
+            "stage": "all-projects-click-end",
+            "offsetMs": 81.6416850000096
+          },
+          {
+            "stage": "overview-heading-ready",
+            "offsetMs": 97.30573500000173
+          },
+          {
+            "stage": "open-project-click-start",
+            "offsetMs": 97.30772799999977
+          },
+          {
+            "stage": "open-project-click-end",
+            "offsetMs": 204.73074199999974
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 204.93068299999868
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 204.93176500000118
+          },
+          {
+            "stage": "idea-field-wait-end",
+            "offsetMs": 237.39479000000574
+          },
+          {
+            "stage": "idea-context-evaluate-end",
+            "offsetMs": 264.95615199999884
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 268.7587140000105
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 268.7608270000055
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 292.5757770000055
+          }
+        ],
+        "nodeClockReads": 12,
+        "browserFrames": {
+          "requestedAt": 71631.89999997616,
+          "firstFrameAt": 71636.39999997616,
+          "secondFrameAt": 71653.29999995232,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 336,
+              "at": 70967.09999996424
+            },
+            "pointer": {
+              "sequence": 353,
+              "at": 71528.19999998808
+            },
+            "expectedDOM": {
+              "sequence": 356,
+              "at": 71625.69999998808,
+              "actionKind": "project-switch"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 292.58096400000795,
+      "navigationVerification": {
+        "status": "returned",
+        "reason": null,
+        "witness": {
+          "version": 1,
+          "status": "matched",
+          "timeOrigin": 1791564284324.6,
+          "enteredAt": 71625.69999998808,
+          "firstSampleAt": 71625.69999998808,
+          "firstMatchedAt": 71625.69999998808,
+          "resolveRequestedAt": 71625.79999995232,
+          "samples": 1,
+          "failedSamples": 0,
+          "failedDisconnected": 0,
+          "failedValueMismatch": 0
+        }
+      },
+      "index": 24,
+      "projectOrdinal": 2
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "input",
+      "at": "2026-10-09T16:45:56.003Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.012107999995350838
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 26.73189700000512
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 26.734660999994958
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 30.398763999997755
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 30.40012600000773
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 59.89811599999666
+          }
+        ],
+        "nodeClockReads": 6,
+        "browserFrames": {
+          "requestedAt": 71709.79999995232,
+          "firstFrameAt": 71719.79999995232,
+          "secondFrameAt": 71736.5,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 357,
+              "at": 71687.89999997616
+            },
+            "pointer": {
+              "sequence": 353,
+              "at": 71528.19999998808
+            },
+            "expectedDOM": {
+              "sequence": 360,
+              "at": 71707.5,
+              "actionKind": "input"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 59.90427600000112,
+      "index": 25,
+      "projectOrdinal": 2
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "input",
+      "at": "2026-10-09T16:45:56.063Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.00713099999120459
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 18.237868999989587
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 18.23989199999778
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 21.585735000000568
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 21.587407999992138
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 49.17821899999399
+          }
+        ],
+        "nodeClockReads": 6,
+        "browserFrames": {
+          "requestedAt": 71760.69999998808,
+          "firstFrameAt": 71769.89999997616,
+          "secondFrameAt": 71786.19999998808,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 361,
+              "at": 71748
+            },
+            "pointer": {
+              "sequence": 353,
+              "at": 71528.19999998808
+            },
+            "expectedDOM": {
+              "sequence": 363,
+              "at": 71757.89999997616,
+              "actionKind": "input"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 49.18394799999078,
+      "index": 26,
+      "projectOrdinal": 2
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "draft-reset",
+      "at": "2026-10-09T16:45:56.112Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.006279000008362345
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 225.90220200001204
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 225.90365400000883
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 255.64746100000048
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 255.65094600000884
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 283.961432000011
+          }
+        ],
+        "nodeClockReads": 6,
+        "browserFrames": {
+          "requestedAt": 72045,
+          "firstFrameAt": 72055,
+          "secondFrameAt": 72069.89999997616,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 361,
+              "at": 71748
+            },
+            "pointer": {
+              "sequence": 369,
+              "at": 71995.69999998808
+            },
+            "expectedDOM": {
+              "sequence": 363,
+              "at": 71757.89999997616,
+              "actionKind": "input"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 283.9675610000122,
+      "index": 27,
+      "projectOrdinal": 2
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "project-switch",
+      "at": "2026-10-09T16:45:56.427Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.00983500000438653
+          },
+          {
+            "stage": "all-projects-click-end",
+            "offsetMs": 71.21538999999757
+          },
+          {
+            "stage": "overview-heading-ready",
+            "offsetMs": 79.84708000000683
+          },
+          {
+            "stage": "open-project-click-start",
+            "offsetMs": 79.84936300000118
+          },
+          {
+            "stage": "open-project-click-end",
+            "offsetMs": 170.7853369999939
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 170.78923300000315
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 170.79016400000546
+          },
+          {
+            "stage": "idea-field-wait-end",
+            "offsetMs": 182.9411289999989
+          },
+          {
+            "stage": "idea-context-evaluate-end",
+            "offsetMs": 206.56779000000097
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 211.01217899999756
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 211.01351099999738
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 235.69455200000084
+          }
+        ],
+        "nodeClockReads": 12,
+        "browserFrames": {
+          "requestedAt": 72316.69999998808,
+          "firstFrameAt": 72319.69999998808,
+          "secondFrameAt": 72337,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 361,
+              "at": 71748
+            },
+            "pointer": {
+              "sequence": 378,
+              "at": 72243.5
+            },
+            "expectedDOM": {
+              "sequence": 381,
+              "at": 72308,
+              "actionKind": "project-switch"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 235.70119200000772,
+      "navigationVerification": {
+        "status": "returned",
+        "reason": null,
+        "witness": {
+          "version": 1,
+          "status": "matched",
+          "timeOrigin": 1791564284324.6,
+          "enteredAt": 72308,
+          "firstSampleAt": 72308,
+          "firstMatchedAt": 72308,
+          "resolveRequestedAt": 72308.09999996424,
+          "samples": 1,
+          "failedSamples": 0,
+          "failedDisconnected": 0,
+          "failedValueMismatch": 0
+        }
+      },
+      "index": 28,
+      "projectOrdinal": 3
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "input",
+      "at": "2026-10-09T16:45:56.707Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.01643399999011308
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 26.730429000002914
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 26.732061999995494
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 29.544785999998567
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 29.54595800000243
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 56.49607899998955
+          }
+        ],
+        "nodeClockReads": 6,
+        "browserFrames": {
+          "requestedAt": 72413.69999998808,
+          "firstFrameAt": 72419.5,
+          "secondFrameAt": 72436.29999995232,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 382,
+              "at": 72396
+            },
+            "pointer": {
+              "sequence": 378,
+              "at": 72243.5
+            },
+            "expectedDOM": {
+              "sequence": 384,
+              "at": 72411.29999995232,
+              "actionKind": "input"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 56.504200999988825,
+      "index": 29,
+      "projectOrdinal": 3
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "input",
+      "at": "2026-10-09T16:45:56.764Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.0895650000020396
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 17.939639000003808
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 17.941231000004336
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 20.307548000011593
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 20.30916000000434
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 74.09757399999944
+          }
+        ],
+        "nodeClockReads": 6,
+        "browserFrames": {
+          "requestedAt": 72460.59999996424,
+          "firstFrameAt": 72471.39999997616,
+          "secondFrameAt": 72488.09999996424,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 386,
+              "at": 72450.09999996424
+            },
+            "pointer": {
+              "sequence": 378,
+              "at": 72243.5
+            },
+            "expectedDOM": {
+              "sequence": 388,
+              "at": 72458.5,
+              "actionKind": "input"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 74.19871599999897,
+      "index": 30,
+      "projectOrdinal": 3
+    },
+    {
+      "phase": "eight-round-layout-attribution",
+      "kind": "draft-reset",
+      "at": "2026-10-09T16:45:56.838Z",
+      "success": true,
+      "diagnostics": {
+        "version": 1,
+        "nodeStages": [
+          {
+            "stage": "action-start",
+            "offsetMs": 0.09065600000030827
+          },
+          {
+            "stage": "action-end",
+            "offsetMs": 255.0847470000008
+          },
+          {
+            "stage": "verify-start",
+            "offsetMs": 255.08620900000096
+          },
+          {
+            "stage": "verify-end",
+            "offsetMs": 282.9658860000054
+          },
+          {
+            "stage": "frames-start",
+            "offsetMs": 282.9682199999952
+          },
+          {
+            "stage": "frames-end",
+            "offsetMs": 307.3872110000084
+          }
+        ],
+        "nodeClockReads": 6,
+        "browserFrames": {
+          "requestedAt": 72798.09999996424,
+          "firstFrameAt": 72808.19999998808,
+          "secondFrameAt": 72819.59999996424,
+          "references": {
+            "timeOrigin": 1791564284324.6,
+            "input": {
+              "sequence": 386,
+              "at": 72450.09999996424
+            },
+            "pointer": {
+              "sequence": 394,
+              "at": 72747.29999995232
+            },
+            "expectedDOM": {
+              "sequence": 388,
+              "at": 72458.5,
+              "actionKind": "input"
+            }
+          }
+        },
+        "limitations": [
+          "Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead."
+        ]
+      },
+      "elapsedMs": 307.3945620000013,
+      "index": 31,
+      "projectOrdinal": 3
+    }
+  ]
+}

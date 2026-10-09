@@ -1,0 +1,22 @@
+{
+  "productSource": "b94ad37e53181e360ac8910ee980570de622728c",
+  "helperSource": "b94ad37e53181e360ac8910ee980570de622728c",
+  "templateSource": "29931afc5b31ae9b9bd7b8973a7e3fdb840609a3",
+  "templateDriverSHA256": "82eacd50a9dea2c8c9ff1499a33f7d23f5799295d7fe0fa07874515304aae055",
+  "driverSHA256": "171d8be5b7ce0dde2518e3da208495acda6bb40a52502125c28768182dff4586",
+  "unchangedActionModules": {
+    "interaction-metrics.mjs": "1bec6579a3fc27310c88bfbb378321bf3fc764de62900f9be068fffe3626a2cc",
+    "navigation-verifier.mjs": "65ab8efa51ac38cbe453f8c4f44cbdd57b0830f379c712b1065c9067b6da78ed",
+    "latency-diagnostics.mjs": "4d1c0f75f15c01444c22133f360f10700af58c6dfebd3906700e67dc9407313f",
+    "autonomous-readiness.mjs": "7f534431a37a0bd599c2de48870d3c9e8badfd1e33b2d48e47078782aa74467b",
+    "readiness-ledger.mjs": "0a6db6505273c685d1281d039fd50f05c42e44d5312309ac4267f57ae05fd1ff"
+  },
+  "frontendJSFilesVerifiedIdentical": 170,
+  "webIndexSHA256": "f99796b77f74be2fed35d0fa5b0dbf6729b6552905831e402f9a6515a231825b",
+  "packageProvenanceSHA256": "b9e151cb6825c92ad013c7421fdbb76ed43b075a366107bbd83c1d6ebbb4d9d4",
+  "archiveSHA256": "4a5ab15e2cbb926f6ad70609507429641dc65ee4719ef462c50df96f04cffe0f",
+  "binarySHA256": "c9816ced2db72fb508ccbcb2880c55f36049ca0d581c66fafc8a40bd65ca5a66",
+  "image": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+  "imageSourceInputsUnchanged": 106,
+  "runtimeLaunched": false
+}

@@ -1,0 +1,55 @@
+{
+  "scope": "Node syntax parse plus inert CDP/EventEmitter/controlled-stream/clock/driver-orchestration tests only; no browser/app/Docker/compiler/package build.",
+  "commands": [
+    {
+      "command": [
+        "node",
+        "--check",
+        "/workspace/.luci-tools/cloud032-layout-b94/actual/sustained.mjs"
+      ],
+      "exitCode": 0
+    },
+    {
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=1",
+        "/workspace/.luci-tools/cloud032-layout-b94/layout-trace-capture.test.mjs",
+        "/workspace/.luci-tools/cloud032-layout-b94/projector.test.mjs",
+        "/workspace/.luci-tools/cloud032-layout-b94/integration.test.mjs"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "inputHashesBefore": {
+    "layout-trace-capture.mjs": "03cb83efbb84bdf0595140565a5e460611e42df1e456f1c815a8bf38a26c1f57",
+    "layout-trace-projector.mjs": "39947e459848838eae32c2686cdaa5c59db7e1d4a1743c18c0fc1f0057d2f797",
+    "layout-trace-capture.test.mjs": "61c5512d7c9238bc882f3fef265caef9d5e8bdbd3fd7b0469a06b223532715f3",
+    "projector.test.mjs": "a29eaea34da4576a4e5a3a7f61ee849d32e6fd4c94c91b63b1b6eee52fd90466",
+    "integration.test.mjs": "25e2e35dfeab2b49e0d2f05803a73fe343ff0e59d865b2af35517e7546abdbcf",
+    "actual/sustained.mjs": "35d80d8b265bb6ef7d794d2ae895a53355e4e1efedc6df59efbd652c939781ce",
+    "actual/layout-trace-capture.mjs": "03cb83efbb84bdf0595140565a5e460611e42df1e456f1c815a8bf38a26c1f57",
+    "actual/layout-trace-projector.mjs": "39947e459848838eae32c2686cdaa5c59db7e1d4a1743c18c0fc1f0057d2f797",
+    "actual/external-source-binding.json": "0daa1bc050bcbc05dfbd6bf45ab997fa298a0a7a2b7915464e519c32ba388932",
+    "launch.py": "fa84c921bfe40c43633a796200bb40bc338a53a1c07d90d2ce3f2f4ebaaab483",
+    "prepare.py": "733b0a3e151fc012e35b7b6c993e0e2cbefd59721bf3d02c09902669e057d69b",
+    "run-inert-final.py": "086cd6e64dac668bd5369392d2ab52fee43443a37c050275fcf7f67adc7435a3"
+  },
+  "inputHashesAfter": {
+    "layout-trace-capture.mjs": "03cb83efbb84bdf0595140565a5e460611e42df1e456f1c815a8bf38a26c1f57",
+    "layout-trace-projector.mjs": "39947e459848838eae32c2686cdaa5c59db7e1d4a1743c18c0fc1f0057d2f797",
+    "layout-trace-capture.test.mjs": "61c5512d7c9238bc882f3fef265caef9d5e8bdbd3fd7b0469a06b223532715f3",
+    "projector.test.mjs": "a29eaea34da4576a4e5a3a7f61ee849d32e6fd4c94c91b63b1b6eee52fd90466",
+    "integration.test.mjs": "25e2e35dfeab2b49e0d2f05803a73fe343ff0e59d865b2af35517e7546abdbcf",
+    "actual/sustained.mjs": "35d80d8b265bb6ef7d794d2ae895a53355e4e1efedc6df59efbd652c939781ce",
+    "actual/layout-trace-capture.mjs": "03cb83efbb84bdf0595140565a5e460611e42df1e456f1c815a8bf38a26c1f57",
+    "actual/layout-trace-projector.mjs": "39947e459848838eae32c2686cdaa5c59db7e1d4a1743c18c0fc1f0057d2f797",
+    "actual/external-source-binding.json": "0daa1bc050bcbc05dfbd6bf45ab997fa298a0a7a2b7915464e519c32ba388932",
+    "launch.py": "fa84c921bfe40c43633a796200bb40bc338a53a1c07d90d2ce3f2f4ebaaab483",
+    "prepare.py": "733b0a3e151fc012e35b7b6c993e0e2cbefd59721bf3d02c09902669e057d69b",
+    "run-inert-final.py": "086cd6e64dac668bd5369392d2ab52fee43443a37c050275fcf7f67adc7435a3"
+  },
+  "inputsUnchanged": true,
+  "elapsedSeconds": 2.0519020557403564,
+  "passed": true
+}

@@ -1,0 +1,604 @@
+{
+  "version": 1,
+  "status": "no-actionable-product-patch-supported",
+  "scope": {
+    "analysis": "Read-only static attribution of the successful V2 capture; no tests, builds, browser execution, or source edits performed for this report.",
+    "rounds": 8,
+    "stageWindows": 16,
+    "stages": [
+      "home",
+      "define"
+    ],
+    "selection": "Same anchored renderer thread; Layout, UpdateLayoutTree, or RecalculateStyles intervals overlapping the original autonomousReadiness clickAt-to-observedAt windows. All selected events are fully contained. Readiness rounds 1 through 8 correspond to trace marker rounds 0 through 7.",
+    "excluded": "Input and draft-reset portions of each original round are outside these readiness windows. The overall 14.6 ms FocusScope event is draft-reset work and is not attributed to switching.",
+    "performanceClaim": "Diagnostic capture only; no acceptance, improvement, comparative performance, or absence-of-all-bottlenecks claim."
+  },
+  "inputs": {
+    "result": {
+      "file": "result.json",
+      "sha256": "fead13b770f2351282fc4c9a1bd9d0ab34248b087311e9b4ccdb651ed424fe26"
+    },
+    "projection": {
+      "file": "layout-trace-projection.json",
+      "sha256": "5edbbd64ccade117352258b92c6910a91d490681a1172f36052a7a0114de7e07"
+    },
+    "asset": {
+      "file": "web/assets/index-oRjgUib4.js",
+      "sha256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e"
+    }
+  },
+  "clock": {
+    "offsetUs": 310353563604,
+    "anchorSpreadUs": 81.00006103515625,
+    "anchorCount": 16,
+    "conversion": "browserNowMs = (traceTimestampUs - offsetUs) / 1000",
+    "allSelectedWindowsSameDocumentTimeOrigin": true
+  },
+  "counts": {
+    "allRawTraceEvents": 70958,
+    "allProjectedLayoutAndInvalidationEvents": 1926,
+    "selectedEvents": 111,
+    "selectedUniqueEvents": 111,
+    "selectedByName": {
+      "UpdateLayoutTree": 70,
+      "Layout": 41
+    },
+    "selectedEventsWithStacks": 16,
+    "selectedStackedByName": {
+      "UpdateLayoutTree": 8,
+      "Layout": 8
+    },
+    "selectedEventsWithMappedBundleFrames": 16,
+    "selectedEventsWithoutStacks": 95,
+    "distinctMappedPositions": 18,
+    "unattributedFramesInSelectedStacks": 0,
+    "homeEvents": 24,
+    "defineEvents": 87
+  },
+  "sourceCorrespondence": {
+    "method": "Static reading of the exact captured asset and comparison with the local unminified React production dependency. This is structural code correspondence, not source-map attribution or proof of the full dependency/build provenance.",
+    "assetHashMatchesEverySelectedMappedFrame": true,
+    "frameworkSource": {
+      "file": "desktop/node_modules/react-dom/cjs/react-dom-client.production.js",
+      "sha256": "8a8147c1cebdb19d82fd11bdb76391be9b20d00edf67cc8e8b30f44e850ce693",
+      "function": "commitDeletionEffectsOnFiber",
+      "functionLine": 10201,
+      "removeChildLine": 10283
+    },
+    "leadingPosition": {
+      "lineNumber": 9,
+      "columnNumber": 107406,
+      "occurrences": 16,
+      "emittedOperation": "removeChild",
+      "emittedFunction": "Tu",
+      "correspondingFrameworkFunction": "commitDeletionEffectsOnFiber"
+    },
+    "observedPositions": [
+      {
+        "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+        "lineNumber": 9,
+        "columnNumber": 106756
+      },
+      {
+        "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+        "lineNumber": 9,
+        "columnNumber": 107406
+      },
+      {
+        "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+        "lineNumber": 9,
+        "columnNumber": 107730
+      },
+      {
+        "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+        "lineNumber": 9,
+        "columnNumber": 108998
+      },
+      {
+        "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+        "lineNumber": 9,
+        "columnNumber": 109123
+      },
+      {
+        "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+        "lineNumber": 9,
+        "columnNumber": 109370
+      },
+      {
+        "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+        "lineNumber": 9,
+        "columnNumber": 111622
+      },
+      {
+        "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+        "lineNumber": 9,
+        "columnNumber": 112062
+      },
+      {
+        "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+        "lineNumber": 9,
+        "columnNumber": 113422
+      },
+      {
+        "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+        "lineNumber": 9,
+        "columnNumber": 124161
+      },
+      {
+        "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+        "lineNumber": 9,
+        "columnNumber": 124865
+      },
+      {
+        "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+        "lineNumber": 9,
+        "columnNumber": 129349
+      },
+      {
+        "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+        "lineNumber": 9,
+        "columnNumber": 129867
+      },
+      {
+        "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+        "lineNumber": 9,
+        "columnNumber": 130157
+      },
+      {
+        "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+        "lineNumber": 9,
+        "columnNumber": 134538
+      },
+      {
+        "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+        "lineNumber": 9,
+        "columnNumber": 134810
+      },
+      {
+        "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+        "lineNumber": 9,
+        "columnNumber": 135974
+      },
+      {
+        "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+        "lineNumber": 9,
+        "columnNumber": 136027
+      }
+    ],
+    "coordinateConvention": "Positions are preserved as recorded in the projection; the checked leading position corresponds to emitted asset line 9.",
+    "interpretation": "All observed attributable positions lie in React commit/deletion traversal or scheduled-work paths. No app component caller is identified by these stacks. The stacks do not identify the removed DOM element or establish an app-specific cause.",
+    "sourceMapsGeneratedOrConsumed": false,
+    "capturedAssetRebuilt": false
+  },
+  "largestSelectedEvents": [
+    {
+      "name": "Layout",
+      "durationMs": 7.243,
+      "rawEventIndex": 25686,
+      "hasStack": false
+    },
+    {
+      "name": "UpdateLayoutTree",
+      "durationMs": 9.046,
+      "rawEventIndex": 27346,
+      "hasStack": false
+    }
+  ],
+  "windows": [
+    {
+      "readinessRound": 1,
+      "markerRound": 0,
+      "stage": "home",
+      "spanMs": 28.8,
+      "eventCount": 3,
+      "countsByName": {
+        "UpdateLayoutTree": 2,
+        "Layout": 1
+      },
+      "eventsWithStacks": 0,
+      "allEventsFullyContained": true,
+      "durationSumMs": 7.143,
+      "largestEventMs": 4.804,
+      "mappedEvents": []
+    },
+    {
+      "readinessRound": 1,
+      "markerRound": 0,
+      "stage": "define",
+      "spanMs": 62.6,
+      "eventCount": 10,
+      "countsByName": {
+        "UpdateLayoutTree": 6,
+        "Layout": 4
+      },
+      "eventsWithStacks": 2,
+      "allEventsFullyContained": true,
+      "durationSumMs": 17.665,
+      "largestEventMs": 4.07,
+      "mappedEvents": [
+        {
+          "name": "UpdateLayoutTree",
+          "durationMs": 2.237,
+          "rawEventIndex": 2013,
+          "firstPosition": {
+            "lineNumber": 9,
+            "columnNumber": 107406
+          }
+        },
+        {
+          "name": "Layout",
+          "durationMs": 1.419,
+          "rawEventIndex": 2019,
+          "firstPosition": {
+            "lineNumber": 9,
+            "columnNumber": 107406
+          }
+        }
+      ]
+    },
+    {
+      "readinessRound": 2,
+      "markerRound": 1,
+      "stage": "home",
+      "spanMs": 37.1,
+      "eventCount": 3,
+      "countsByName": {
+        "UpdateLayoutTree": 2,
+        "Layout": 1
+      },
+      "eventsWithStacks": 0,
+      "allEventsFullyContained": true,
+      "durationSumMs": 9.96,
+      "largestEventMs": 6.706,
+      "mappedEvents": []
+    },
+    {
+      "readinessRound": 2,
+      "markerRound": 1,
+      "stage": "define",
+      "spanMs": 66.8,
+      "eventCount": 11,
+      "countsByName": {
+        "UpdateLayoutTree": 7,
+        "Layout": 4
+      },
+      "eventsWithStacks": 2,
+      "allEventsFullyContained": true,
+      "durationSumMs": 16.936,
+      "largestEventMs": 3.363,
+      "mappedEvents": [
+        {
+          "name": "UpdateLayoutTree",
+          "durationMs": 2.674,
+          "rawEventIndex": 10285,
+          "firstPosition": {
+            "lineNumber": 9,
+            "columnNumber": 107406
+          }
+        },
+        {
+          "name": "Layout",
+          "durationMs": 2.227,
+          "rawEventIndex": 10292,
+          "firstPosition": {
+            "lineNumber": 9,
+            "columnNumber": 107406
+          }
+        }
+      ]
+    },
+    {
+      "readinessRound": 3,
+      "markerRound": 2,
+      "stage": "home",
+      "spanMs": 22.6,
+      "eventCount": 3,
+      "countsByName": {
+        "UpdateLayoutTree": 2,
+        "Layout": 1
+      },
+      "eventsWithStacks": 0,
+      "allEventsFullyContained": true,
+      "durationSumMs": 6.796,
+      "largestEventMs": 4.413,
+      "mappedEvents": []
+    },
+    {
+      "readinessRound": 3,
+      "markerRound": 2,
+      "stage": "define",
+      "spanMs": 49.5,
+      "eventCount": 11,
+      "countsByName": {
+        "UpdateLayoutTree": 7,
+        "Layout": 4
+      },
+      "eventsWithStacks": 2,
+      "allEventsFullyContained": true,
+      "durationSumMs": 13.516,
+      "largestEventMs": 2.514,
+      "mappedEvents": [
+        {
+          "name": "UpdateLayoutTree",
+          "durationMs": 1.886,
+          "rawEventIndex": 18499,
+          "firstPosition": {
+            "lineNumber": 9,
+            "columnNumber": 107406
+          }
+        },
+        {
+          "name": "Layout",
+          "durationMs": 1.33,
+          "rawEventIndex": 18511,
+          "firstPosition": {
+            "lineNumber": 9,
+            "columnNumber": 107406
+          }
+        }
+      ]
+    },
+    {
+      "readinessRound": 4,
+      "markerRound": 3,
+      "stage": "home",
+      "spanMs": 24.7,
+      "eventCount": 3,
+      "countsByName": {
+        "UpdateLayoutTree": 2,
+        "Layout": 1
+      },
+      "eventsWithStacks": 0,
+      "allEventsFullyContained": true,
+      "durationSumMs": 9.261,
+      "largestEventMs": 7.243,
+      "mappedEvents": []
+    },
+    {
+      "readinessRound": 4,
+      "markerRound": 3,
+      "stage": "define",
+      "spanMs": 51.1,
+      "eventCount": 11,
+      "countsByName": {
+        "UpdateLayoutTree": 7,
+        "Layout": 4
+      },
+      "eventsWithStacks": 2,
+      "allEventsFullyContained": true,
+      "durationSumMs": 18.741,
+      "largestEventMs": 9.046,
+      "mappedEvents": [
+        {
+          "name": "UpdateLayoutTree",
+          "durationMs": 1.572,
+          "rawEventIndex": 26833,
+          "firstPosition": {
+            "lineNumber": 9,
+            "columnNumber": 107406
+          }
+        },
+        {
+          "name": "Layout",
+          "durationMs": 0.909,
+          "rawEventIndex": 26852,
+          "firstPosition": {
+            "lineNumber": 9,
+            "columnNumber": 107406
+          }
+        }
+      ]
+    },
+    {
+      "readinessRound": 5,
+      "markerRound": 4,
+      "stage": "home",
+      "spanMs": 19.7,
+      "eventCount": 3,
+      "countsByName": {
+        "UpdateLayoutTree": 2,
+        "Layout": 1
+      },
+      "eventsWithStacks": 0,
+      "allEventsFullyContained": true,
+      "durationSumMs": 5.448,
+      "largestEventMs": 3.048,
+      "mappedEvents": []
+    },
+    {
+      "readinessRound": 5,
+      "markerRound": 4,
+      "stage": "define",
+      "spanMs": 64.3,
+      "eventCount": 10,
+      "countsByName": {
+        "UpdateLayoutTree": 6,
+        "Layout": 4
+      },
+      "eventsWithStacks": 2,
+      "allEventsFullyContained": true,
+      "durationSumMs": 15.082,
+      "largestEventMs": 2.692,
+      "mappedEvents": [
+        {
+          "name": "UpdateLayoutTree",
+          "durationMs": 2.374,
+          "rawEventIndex": 34172,
+          "firstPosition": {
+            "lineNumber": 9,
+            "columnNumber": 107406
+          }
+        },
+        {
+          "name": "Layout",
+          "durationMs": 1.667,
+          "rawEventIndex": 34186,
+          "firstPosition": {
+            "lineNumber": 9,
+            "columnNumber": 107406
+          }
+        }
+      ]
+    },
+    {
+      "readinessRound": 6,
+      "markerRound": 5,
+      "stage": "home",
+      "spanMs": 21.9,
+      "eventCount": 3,
+      "countsByName": {
+        "UpdateLayoutTree": 2,
+        "Layout": 1
+      },
+      "eventsWithStacks": 0,
+      "allEventsFullyContained": true,
+      "durationSumMs": 9.792,
+      "largestEventMs": 5.657,
+      "mappedEvents": []
+    },
+    {
+      "readinessRound": 6,
+      "markerRound": 5,
+      "stage": "define",
+      "spanMs": 41.6,
+      "eventCount": 10,
+      "countsByName": {
+        "UpdateLayoutTree": 6,
+        "Layout": 4
+      },
+      "eventsWithStacks": 2,
+      "allEventsFullyContained": true,
+      "durationSumMs": 9.747,
+      "largestEventMs": 1.872,
+      "mappedEvents": [
+        {
+          "name": "UpdateLayoutTree",
+          "durationMs": 1.35,
+          "rawEventIndex": 41906,
+          "firstPosition": {
+            "lineNumber": 9,
+            "columnNumber": 107406
+          }
+        },
+        {
+          "name": "Layout",
+          "durationMs": 0.903,
+          "rawEventIndex": 41914,
+          "firstPosition": {
+            "lineNumber": 9,
+            "columnNumber": 107406
+          }
+        }
+      ]
+    },
+    {
+      "readinessRound": 7,
+      "markerRound": 6,
+      "stage": "home",
+      "spanMs": 21.5,
+      "eventCount": 3,
+      "countsByName": {
+        "UpdateLayoutTree": 2,
+        "Layout": 1
+      },
+      "eventsWithStacks": 0,
+      "allEventsFullyContained": true,
+      "durationSumMs": 5.622,
+      "largestEventMs": 3.383,
+      "mappedEvents": []
+    },
+    {
+      "readinessRound": 7,
+      "markerRound": 6,
+      "stage": "define",
+      "spanMs": 54.1,
+      "eventCount": 11,
+      "countsByName": {
+        "UpdateLayoutTree": 7,
+        "Layout": 4
+      },
+      "eventsWithStacks": 2,
+      "allEventsFullyContained": true,
+      "durationSumMs": 12.83,
+      "largestEventMs": 3.237,
+      "mappedEvents": [
+        {
+          "name": "UpdateLayoutTree",
+          "durationMs": 1.531,
+          "rawEventIndex": 49604,
+          "firstPosition": {
+            "lineNumber": 9,
+            "columnNumber": 107406
+          }
+        },
+        {
+          "name": "Layout",
+          "durationMs": 0.965,
+          "rawEventIndex": 49612,
+          "firstPosition": {
+            "lineNumber": 9,
+            "columnNumber": 107406
+          }
+        }
+      ]
+    },
+    {
+      "readinessRound": 8,
+      "markerRound": 7,
+      "stage": "home",
+      "spanMs": 16.4,
+      "eventCount": 3,
+      "countsByName": {
+        "UpdateLayoutTree": 2,
+        "Layout": 1
+      },
+      "eventsWithStacks": 0,
+      "allEventsFullyContained": true,
+      "durationSumMs": 4.483,
+      "largestEventMs": 2.498,
+      "mappedEvents": []
+    },
+    {
+      "readinessRound": 8,
+      "markerRound": 7,
+      "stage": "define",
+      "spanMs": 46.6,
+      "eventCount": 13,
+      "countsByName": {
+        "UpdateLayoutTree": 8,
+        "Layout": 5
+      },
+      "eventsWithStacks": 2,
+      "allEventsFullyContained": true,
+      "durationSumMs": 13.631,
+      "largestEventMs": 2.786,
+      "mappedEvents": [
+        {
+          "name": "UpdateLayoutTree",
+          "durationMs": 1.382,
+          "rawEventIndex": 56834,
+          "firstPosition": {
+            "lineNumber": 9,
+            "columnNumber": 107406
+          }
+        },
+        {
+          "name": "Layout",
+          "durationMs": 0.973,
+          "rawEventIndex": 56837,
+          "firstPosition": {
+            "lineNumber": 9,
+            "columnNumber": 107406
+          }
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Event duration sums are descriptive inclusive wall-time totals; they are not a decomposition of end-to-end switch latency or a claim of exclusive CPU time.",
+    "The 95 selected events without stacks remain unattributed. Their presence must not be treated as evidence that no app work occurred.",
+    "Framework-only stacks do not justify a generic memoization or component lifecycle patch.",
+    "The capture does not reproduce the previously observed long forced-layout tail; its absence here does not disprove that earlier observation."
+  ],
+  "conclusion": "No actionable product patch is supported by these switch-specific layout/style stacks. The maximum selected Layout is 7.243 ms; the maximum selected UpdateLayoutTree is 9.046 ms and has no stack. Each Define window has one mapped style/layout pair, and Home windows have no mapped layout/style stacks."
+}

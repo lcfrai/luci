@@ -1,0 +1,14 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-concurrency=1",
+    "/workspace/.luci-tools/cloud032-layout-b94/layout-trace-capture.test.mjs"
+  ],
+  "exitCode": 0,
+  "testsPassed": 15,
+  "sourceSHA256": "6dedb6af3b134e8d78cc0cd6075e30c635f62ae5fcffa0c09dfa0a13e99df5e1",
+  "testSHA256": "da9e52e7cece7ee10cb0d1146a41c2a4e3ea925456efb276c462abcc83683284",
+  "sourceSnapshotMethod": "Exact source reconstructed by reversing only the two subsequent documented edits: cancel after closure becomes no-op; IO.read requests only remaining quota. Snapshot matches executed attempt1 before these edits.",
+  "scope": "Inert EventEmitter CDP and memory sink; no browser/app/Docker/build."
+}

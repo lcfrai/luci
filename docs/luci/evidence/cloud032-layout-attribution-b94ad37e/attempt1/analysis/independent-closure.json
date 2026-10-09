@@ -1,0 +1,81 @@
+{
+  "observedAt": "2026-10-09T16:34:52.616600+00:00",
+  "rawResultSHA256": "cce8e1fa7195525e2bf4976cee45844876cf62cf2de5d5960ee88394cb99645f",
+  "wrapperSHA256": "7466b6421220ee80f45e7b9ebaf051acf273c6100cc2ed834c62489b164749a1",
+  "ownedProcesses": [
+    {
+      "role": "driver",
+      "pid": 2525692,
+      "startTicks": 30961943,
+      "observed": {
+        "state": "absent"
+      }
+    },
+    {
+      "role": "controller",
+      "pid": 2525967,
+      "startTicks": 30962390,
+      "observed": {
+        "state": "absent"
+      }
+    },
+    {
+      "role": "browser-recorded",
+      "pid": 2526478,
+      "startTicks": 30962702,
+      "observed": {
+        "state": "absent"
+      }
+    },
+    {
+      "role": "browser-recorded",
+      "pid": 2526500,
+      "startTicks": 30962714,
+      "observed": {
+        "state": "Z",
+        "parentPid": 1,
+        "group": 2526499,
+        "startTicks": 30962714,
+        "sameIdentity": true
+      }
+    },
+    {
+      "role": "browser-recorded",
+      "pid": 2526504,
+      "startTicks": 30962714,
+      "observed": {
+        "state": "Z",
+        "parentPid": 1,
+        "group": 2526503,
+        "startTicks": 30962714,
+        "sameIdentity": true
+      }
+    }
+  ],
+  "docker": {
+    "endpoint": "unix:///var/run/docker.sock",
+    "containerCount": 0,
+    "volumeCount": 0,
+    "engineIdentitySHA256": "9ccbe65e5da6fcbddb4f24a682abf7d4e4ddf8dff3a453fca0c0dbd34de76de5",
+    "imageId": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+    "engineMatchesRun": true,
+    "imageMatchesRun": true,
+    "status": "observed"
+  },
+  "fixtureParent": {
+    "parentRole": "declared-private-fixture-parent",
+    "parentExists": true,
+    "children": 1,
+    "sustainedPrefixChildren": 1,
+    "childNameHashes": [
+      "58e4cf531c23bd8c0e21ff7cf27743dfc9390d190f93a645c390b48d88585d6f"
+    ],
+    "scope": "Directory entries only; no credential/private fixture contents. No matching prefix child means the declared parent contains no candidate sustained fixture now."
+  },
+  "journalRows": 50,
+  "journalContiguous": true,
+  "journalLastEvent": "driver-exit",
+  "signalsSent": 0,
+  "mutations": 0,
+  "scope": "Independent read-only checks of recorded PID/start identities and explicitly selected daemon/fixture parent. Literal zombies retained. No whole-machine census or unrecorded child absence claim."
+}

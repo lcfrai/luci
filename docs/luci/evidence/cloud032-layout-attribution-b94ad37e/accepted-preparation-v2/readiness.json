@@ -1,0 +1,21 @@
+{
+  "readyToLaunch": true,
+  "runtimeLaunched": false,
+  "productSource": "b94ad37e53181e360ac8910ee980570de622728c",
+  "helperSource": "b94ad37e53181e360ac8910ee980570de622728c",
+  "scope": "V2 coarse Layout/style caller attribution: fine invalidationTracking omitted, exact four categories/exclude-all. Eight diagnostic rounds/32 original actions; unchanged guards. No primary acceptance. Root exclusive runtime grant required.",
+  "tests": {
+    "affectedCurrentPassed": 23,
+    "unchangedProjectorHistoricalPassed": 17,
+    "receipt": "v2-inert-attempt1.receipt.json",
+    "receiptSHA256": "2a44ea8b41200aa6e14bd49633bf3f4f331e535bf0fbb2cdb20dec94c18b1504",
+    "inputsUnchanged": true
+  },
+  "commandSHA256": "50b123ac192eeee175819c54985edadc54da886e45815b2313ae1fbe78eee260",
+  "launcherSHA256": "fa84c921bfe40c43633a796200bb40bc338a53a1c07d90d2ce3f2f4ebaaab483",
+  "driverSHA256": "35d80d8b265bb6ef7d794d2ae895a53355e4e1efedc6df59efbd652c939781ce",
+  "captureSHA256": "9e712594e359c91c8c6723ac2d053496a9e6fc885b892f0773231c6cd0485e9d",
+  "projectorSHA256": "39947e459848838eae32c2686cdaa5c59db7e1d4a1743c18c0fc1f0057d2f797",
+  "bindingSHA256": "16927e57006d50506b009162204915062c444485516e71972cc52ca7e8c64a7d",
+  "childReviewScope": "Pure projector unchanged from17 V1 controls. Local protocol/client review found no observed default-only leakage; V2 omits fine invalidation detail explicitly.23 affected current controls include one new exact category-transmission regression. No actual browser/build."
+}

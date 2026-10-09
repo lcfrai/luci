@@ -1,0 +1,246 @@
+{
+  "version": 1,
+  "diagnosticOnly": true,
+  "acceptance": false,
+  "limits": {
+    "rounds": 8,
+    "traceMs": 30000,
+    "commandMs": 5000,
+    "completeMs": 5000,
+    "drainMs": 10000,
+    "closeMs": 2000,
+    "chunkBytes": 65536,
+    "maxBytes": 67108864,
+    "bufferKiB": 32768,
+    "stopFraction": 0.75,
+    "maxBufferEvents": 256,
+    "maxJournalEvents": 4096,
+    "maxJournalBytes": 1048576
+  },
+  "state": "captured",
+  "startRequested": true,
+  "startAcknowledged": true,
+  "endRequests": 1,
+  "completedRounds": 8,
+  "attemptedRounds": 8,
+  "markers": [
+    {
+      "name": "luci-layout-boundary-0-start",
+      "round": 0,
+      "edge": "start",
+      "timeOrigin": 1791564284324.6,
+      "startTime": 65765.5
+    },
+    {
+      "name": "luci-layout-boundary-0-end",
+      "round": 0,
+      "edge": "end",
+      "timeOrigin": 1791564284324.6,
+      "startTime": 67205.29999995232
+    },
+    {
+      "name": "luci-layout-boundary-1-start",
+      "round": 1,
+      "edge": "start",
+      "timeOrigin": 1791564284324.6,
+      "startTime": 67210
+    },
+    {
+      "name": "luci-layout-boundary-1-end",
+      "round": 1,
+      "edge": "end",
+      "timeOrigin": 1791564284324.6,
+      "startTime": 68168.39999997616
+    },
+    {
+      "name": "luci-layout-boundary-2-start",
+      "round": 2,
+      "edge": "start",
+      "timeOrigin": 1791564284324.6,
+      "startTime": 68174.29999995232
+    },
+    {
+      "name": "luci-layout-boundary-2-end",
+      "round": 2,
+      "edge": "end",
+      "timeOrigin": 1791564284324.6,
+      "startTime": 69104.89999997616
+    },
+    {
+      "name": "luci-layout-boundary-3-start",
+      "round": 3,
+      "edge": "start",
+      "timeOrigin": 1791564284324.6,
+      "startTime": 69110.89999997616
+    },
+    {
+      "name": "luci-layout-boundary-3-end",
+      "round": 3,
+      "edge": "end",
+      "timeOrigin": 1791564284324.6,
+      "startTime": 69852
+    },
+    {
+      "name": "luci-layout-boundary-4-start",
+      "round": 4,
+      "edge": "start",
+      "timeOrigin": 1791564284324.6,
+      "startTime": 69857.69999998808
+    },
+    {
+      "name": "luci-layout-boundary-4-end",
+      "round": 4,
+      "edge": "end",
+      "timeOrigin": 1791564284324.6,
+      "startTime": 70599
+    },
+    {
+      "name": "luci-layout-boundary-5-start",
+      "round": 5,
+      "edge": "start",
+      "timeOrigin": 1791564284324.6,
+      "startTime": 70609.19999998808
+    },
+    {
+      "name": "luci-layout-boundary-5-end",
+      "round": 5,
+      "edge": "end",
+      "timeOrigin": 1791564284324.6,
+      "startTime": 71356.29999995232
+    },
+    {
+      "name": "luci-layout-boundary-6-start",
+      "round": 6,
+      "edge": "start",
+      "timeOrigin": 1791564284324.6,
+      "startTime": 71360.89999997616
+    },
+    {
+      "name": "luci-layout-boundary-6-end",
+      "round": 6,
+      "edge": "end",
+      "timeOrigin": 1791564284324.6,
+      "startTime": 72097.59999996424
+    },
+    {
+      "name": "luci-layout-boundary-7-start",
+      "round": 7,
+      "edge": "start",
+      "timeOrigin": 1791564284324.6,
+      "startTime": 72101.59999996424
+    },
+    {
+      "name": "luci-layout-boundary-7-end",
+      "round": 7,
+      "edge": "end",
+      "timeOrigin": 1791564284324.6,
+      "startTime": 72844.19999998808
+    }
+  ],
+  "bufferUsage": [
+    {
+      "fraction": 0.003997087478637695,
+      "atMs": 1791564350587
+    },
+    {
+      "fraction": 0.006177306175231934,
+      "atMs": 1791564351086
+    },
+    {
+      "fraction": 0.06867730617523193,
+      "atMs": 1791564351589
+    },
+    {
+      "fraction": 0.07061529159545898,
+      "atMs": 1791564352093
+    },
+    {
+      "fraction": 0.10222867131233215,
+      "atMs": 1791564352591
+    },
+    {
+      "fraction": 0.16630327701568604,
+      "atMs": 1791564353094
+    },
+    {
+      "fraction": 0.1860465109348297,
+      "atMs": 1791564353593
+    },
+    {
+      "fraction": 0.24418604373931885,
+      "atMs": 1791564354098
+    },
+    {
+      "fraction": 0.29215115308761597,
+      "atMs": 1791564354597
+    },
+    {
+      "fraction": 0.3305474817752838,
+      "atMs": 1791564355099
+    },
+    {
+      "fraction": 0.38723352551460266,
+      "atMs": 1791564355601
+    },
+    {
+      "fraction": 0.43568313121795654,
+      "atMs": 1791564356097
+    },
+    {
+      "fraction": 0.46790212392807007,
+      "atMs": 1791564356599
+    },
+    {
+      "fraction": 0.5367006063461304,
+      "atMs": 1791564357098
+    }
+  ],
+  "cleanup": {
+    "end": "acknowledged",
+    "streamClose": "closed",
+    "detach": "detached"
+  },
+  "failure": null,
+  "complete": true,
+  "dataLossOccurred": false,
+  "rawPrivate": true,
+  "categories": {
+    "availableCount": 283,
+    "availableSHA256": "79fa858381e482998573356276cb29823d5395c5a36db5457303717de99e84b1",
+    "selected": [
+      "devtools.timeline",
+      "disabled-by-default-devtools.timeline",
+      "disabled-by-default-devtools.timeline.stack",
+      "blink.user_timing"
+    ]
+  },
+  "config": {
+    "transferMode": "ReturnAsStream",
+    "streamFormat": "json",
+    "streamCompression": "none",
+    "bufferUsageReportingInterval": 500,
+    "traceConfig": {
+      "recordMode": "recordUntilFull",
+      "traceBufferSizeInKb": 32768,
+      "includedCategories": [
+        "devtools.timeline",
+        "disabled-by-default-devtools.timeline",
+        "disabled-by-default-devtools.timeline.stack",
+        "blink.user_timing"
+      ],
+      "excludedCategories": [
+        "*"
+      ],
+      "enableSampling": false
+    }
+  },
+  "streamEOF": true,
+  "lateResponsesObserved": 0,
+  "raw": {
+    "bytes": 28383461,
+    "sha256": "f55eb46a4fc0d6ece3a2393135fb3636aaf5b5548f7db41eea3931b50659aa3c",
+    "journalEvents": 929,
+    "journalBytes": 134502,
+    "private": true
+  }
+}

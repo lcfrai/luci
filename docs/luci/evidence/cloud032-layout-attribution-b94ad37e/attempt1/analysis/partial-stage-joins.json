@@ -1,0 +1,2135 @@
+{
+  "partialAnalysisSHA256": "c407917133e07365eb7abe228e8387b7f3e222c6293710e80bf764ea77c803db",
+  "knownBundleStackOriginCount": 1,
+  "knownBundleStackOriginSHA256": "fe55431fa1d0b0f99a46f0d326fde1ab1c732144da6f614aac8ab0b136247c1a",
+  "singleLoopbackOrigin": true,
+  "originalMapperEquivalentToExactOriginForThisTrace": true,
+  "coordinateNote": "Raw trace positions retained. In this asset lineNumber9 indexes physical line8; zero-based interpretation is out of bounds for the captured column, supporting one-based trace line convention. Column is retained, not globally normalized.",
+  "stageJoins": [
+    {
+      "round": 0,
+      "stage": "home",
+      "browserClickAt": 66018.90000003576,
+      "browserObservedAt": 66147.90000003576,
+      "layoutStyleEvents": [
+        {
+          "rawEventIndex": 1214,
+          "name": "UpdateLayoutTree",
+          "ph": "X",
+          "pid": 2526594,
+          "tid": 2526594,
+          "tsUs": 309704781388,
+          "durUs": 4828,
+          "sameRenderer": true,
+          "overlapsCompleteRound0": true,
+          "afterUnfinishedRound1Start": false,
+          "stacks": []
+        },
+        {
+          "rawEventIndex": 1289,
+          "name": "Layout",
+          "ph": "X",
+          "pid": 2526594,
+          "tid": 2526594,
+          "tsUs": 309704786299,
+          "durUs": 7883,
+          "sameRenderer": true,
+          "overlapsCompleteRound0": true,
+          "afterUnfinishedRound1Start": false,
+          "stacks": []
+        },
+        {
+          "rawEventIndex": 1580,
+          "name": "UpdateLayoutTree",
+          "ph": "X",
+          "pid": 2526594,
+          "tid": 2526594,
+          "tsUs": 309704796196,
+          "durUs": 130,
+          "sameRenderer": true,
+          "overlapsCompleteRound0": true,
+          "afterUnfinishedRound1Start": false,
+          "stacks": []
+        }
+      ],
+      "scope": "Partial observed stage; no completed-round assertion for round1, no8round or primary latency pass."
+    },
+    {
+      "round": 0,
+      "stage": "define",
+      "browserClickAt": 66325.20000004768,
+      "browserObservedAt": 66474.80000001192,
+      "layoutStyleEvents": [
+        {
+          "rawEventIndex": 3437,
+          "name": "UpdateLayoutTree",
+          "ph": "X",
+          "pid": 2526594,
+          "tid": 2526594,
+          "tsUs": 309704980321,
+          "durUs": 9996,
+          "sameRenderer": true,
+          "overlapsCompleteRound0": true,
+          "afterUnfinishedRound1Start": false,
+          "stacks": [
+            {
+              "location": "beginData",
+              "frames": [
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 107406
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 106756
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 107730
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 108998
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 111622
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 111622
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 111622
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 111622
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 111622
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 112062
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 130157
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 129867
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 129349
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 124865
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 124161
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 135974
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 134538
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 134810
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 136027
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "rawEventIndex": 3511,
+          "name": "Layout",
+          "ph": "X",
+          "pid": 2526594,
+          "tid": 2526594,
+          "tsUs": 309704990340,
+          "durUs": 1281,
+          "sameRenderer": true,
+          "overlapsCompleteRound0": true,
+          "afterUnfinishedRound1Start": false,
+          "stacks": [
+            {
+              "location": "beginData",
+              "frames": [
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 107406
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 106756
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 107730
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 108998
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 111622
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 111622
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 111622
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 111622
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 111622
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 112062
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 130157
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 129867
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 129349
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 124865
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 124161
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 135974
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 134538
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 134810
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 136027
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "rawEventIndex": 3943,
+          "name": "UpdateLayoutTree",
+          "ph": "X",
+          "pid": 2526594,
+          "tid": 2526594,
+          "tsUs": 309705045985,
+          "durUs": 3175,
+          "sameRenderer": true,
+          "overlapsCompleteRound0": true,
+          "afterUnfinishedRound1Start": false,
+          "stacks": []
+        },
+        {
+          "rawEventIndex": 4089,
+          "name": "Layout",
+          "ph": "X",
+          "pid": 2526594,
+          "tid": 2526594,
+          "tsUs": 309705049169,
+          "durUs": 2377,
+          "sameRenderer": true,
+          "overlapsCompleteRound0": true,
+          "afterUnfinishedRound1Start": false,
+          "stacks": []
+        },
+        {
+          "rawEventIndex": 4146,
+          "name": "UpdateLayoutTree",
+          "ph": "X",
+          "pid": 2526594,
+          "tid": 2526594,
+          "tsUs": 309705052900,
+          "durUs": 145,
+          "sameRenderer": true,
+          "overlapsCompleteRound0": true,
+          "afterUnfinishedRound1Start": false,
+          "stacks": []
+        },
+        {
+          "rawEventIndex": 4409,
+          "name": "UpdateLayoutTree",
+          "ph": "X",
+          "pid": 2526594,
+          "tid": 2526594,
+          "tsUs": 309705077793,
+          "durUs": 492,
+          "sameRenderer": true,
+          "overlapsCompleteRound0": true,
+          "afterUnfinishedRound1Start": false,
+          "stacks": []
+        },
+        {
+          "rawEventIndex": 4425,
+          "name": "Layout",
+          "ph": "X",
+          "pid": 2526594,
+          "tid": 2526594,
+          "tsUs": 309705078291,
+          "durUs": 693,
+          "sameRenderer": true,
+          "overlapsCompleteRound0": true,
+          "afterUnfinishedRound1Start": false,
+          "stacks": []
+        },
+        {
+          "rawEventIndex": 4449,
+          "name": "UpdateLayoutTree",
+          "ph": "X",
+          "pid": 2526594,
+          "tid": 2526594,
+          "tsUs": 309705080905,
+          "durUs": 136,
+          "sameRenderer": true,
+          "overlapsCompleteRound0": true,
+          "afterUnfinishedRound1Start": false,
+          "stacks": []
+        },
+        {
+          "rawEventIndex": 4684,
+          "name": "UpdateLayoutTree",
+          "ph": "X",
+          "pid": 2526594,
+          "tid": 2526594,
+          "tsUs": 309705108278,
+          "durUs": 6623,
+          "sameRenderer": true,
+          "overlapsCompleteRound0": true,
+          "afterUnfinishedRound1Start": false,
+          "stacks": [
+            {
+              "location": "beginData",
+              "frames": [
+                {
+                  "attribution": "unattributed"
+                },
+                {
+                  "attribution": "unattributed"
+                },
+                {
+                  "attribution": "unattributed"
+                },
+                {
+                  "attribution": "unattributed"
+                },
+                {
+                  "attribution": "unattributed"
+                },
+                {
+                  "attribution": "unattributed"
+                },
+                {
+                  "attribution": "unattributed"
+                },
+                {
+                  "attribution": "unattributed"
+                },
+                {
+                  "attribution": "unattributed"
+                },
+                {
+                  "attribution": "unattributed"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "rawEventIndex": 4996,
+          "name": "Layout",
+          "ph": "X",
+          "pid": 2526594,
+          "tid": 2526594,
+          "tsUs": 309705114921,
+          "durUs": 5384,
+          "sameRenderer": true,
+          "overlapsCompleteRound0": true,
+          "afterUnfinishedRound1Start": false,
+          "stacks": [
+            {
+              "location": "beginData",
+              "frames": [
+                {
+                  "attribution": "unattributed"
+                },
+                {
+                  "attribution": "unattributed"
+                },
+                {
+                  "attribution": "unattributed"
+                },
+                {
+                  "attribution": "unattributed"
+                },
+                {
+                  "attribution": "unattributed"
+                },
+                {
+                  "attribution": "unattributed"
+                },
+                {
+                  "attribution": "unattributed"
+                },
+                {
+                  "attribution": "unattributed"
+                },
+                {
+                  "attribution": "unattributed"
+                },
+                {
+                  "attribution": "unattributed"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "scope": "Partial observed stage; no completed-round assertion for round1, no8round or primary latency pass."
+    },
+    {
+      "round": 1,
+      "stage": "home",
+      "browserClickAt": 67488.30000001192,
+      "browserObservedAt": 67561.70000004768,
+      "layoutStyleEvents": [
+        {
+          "rawEventIndex": 14252,
+          "name": "UpdateLayoutTree",
+          "ph": "X",
+          "pid": 2526594,
+          "tid": 2526594,
+          "tsUs": 309706198039,
+          "durUs": 3305,
+          "sameRenderer": true,
+          "overlapsCompleteRound0": false,
+          "afterUnfinishedRound1Start": true,
+          "stacks": []
+        },
+        {
+          "rawEventIndex": 14328,
+          "name": "Layout",
+          "ph": "X",
+          "pid": 2526594,
+          "tid": 2526594,
+          "tsUs": 309706201359,
+          "durUs": 6428,
+          "sameRenderer": true,
+          "overlapsCompleteRound0": false,
+          "afterUnfinishedRound1Start": true,
+          "stacks": []
+        },
+        {
+          "rawEventIndex": 14611,
+          "name": "UpdateLayoutTree",
+          "ph": "X",
+          "pid": 2526594,
+          "tid": 2526594,
+          "tsUs": 309706210168,
+          "durUs": 99,
+          "sameRenderer": true,
+          "overlapsCompleteRound0": false,
+          "afterUnfinishedRound1Start": true,
+          "stacks": []
+        }
+      ],
+      "scope": "Partial observed stage; no completed-round assertion for round1, no8round or primary latency pass."
+    },
+    {
+      "round": 1,
+      "stage": "define",
+      "browserClickAt": 67657.40000003576,
+      "browserObservedAt": 67767.30000001192,
+      "layoutStyleEvents": [
+        {
+          "rawEventIndex": 16290,
+          "name": "UpdateLayoutTree",
+          "ph": "X",
+          "pid": 2526594,
+          "tid": 2526594,
+          "tsUs": 309706311455,
+          "durUs": 7064,
+          "sameRenderer": true,
+          "overlapsCompleteRound0": false,
+          "afterUnfinishedRound1Start": true,
+          "stacks": [
+            {
+              "location": "beginData",
+              "frames": [
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 107406
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 106756
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 107730
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 108998
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 111622
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 111622
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 111622
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 111622
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 111622
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 112062
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 130157
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 129867
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 129349
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 124865
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 124161
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 135974
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 134538
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 134810
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 136027
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "rawEventIndex": 16378,
+          "name": "Layout",
+          "ph": "X",
+          "pid": 2526594,
+          "tid": 2526594,
+          "tsUs": 309706318541,
+          "durUs": 1600,
+          "sameRenderer": true,
+          "overlapsCompleteRound0": false,
+          "afterUnfinishedRound1Start": true,
+          "stacks": [
+            {
+              "location": "beginData",
+              "frames": [
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 107406
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 106756
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 107730
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 108998
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 111622
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 111622
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 111622
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 111622
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 111622
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109370
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 113422
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 109123
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 112062
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 130157
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 129867
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 129349
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 124865
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 124161
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 135974
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 134538
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 134810
+                },
+                {
+                  "attribution": "bundle",
+                  "bundleSHA256": "526b6f92ddac31da933f04978f13f5bd5a3e2e5312422a04d89b8c53051c9c3e",
+                  "assetPath": "/assets/index-oRjgUib4.js",
+                  "lineNumber": 9,
+                  "columnNumber": 136027
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "rawEventIndex": 16770,
+          "name": "UpdateLayoutTree",
+          "ph": "X",
+          "pid": 2526594,
+          "tid": 2526594,
+          "tsUs": 309706372226,
+          "durUs": 2839,
+          "sameRenderer": true,
+          "overlapsCompleteRound0": false,
+          "afterUnfinishedRound1Start": true,
+          "stacks": []
+        },
+        {
+          "rawEventIndex": 16911,
+          "name": "Layout",
+          "ph": "X",
+          "pid": 2526594,
+          "tid": 2526594,
+          "tsUs": 309706375071,
+          "durUs": 1906,
+          "sameRenderer": true,
+          "overlapsCompleteRound0": false,
+          "afterUnfinishedRound1Start": true,
+          "stacks": []
+        },
+        {
+          "rawEventIndex": 16973,
+          "name": "UpdateLayoutTree",
+          "ph": "X",
+          "pid": 2526594,
+          "tid": 2526594,
+          "tsUs": 309706377835,
+          "durUs": 129,
+          "sameRenderer": true,
+          "overlapsCompleteRound0": false,
+          "afterUnfinishedRound1Start": true,
+          "stacks": []
+        },
+        {
+          "rawEventIndex": 17090,
+          "name": "UpdateLayoutTree",
+          "ph": "X",
+          "pid": 2526594,
+          "tid": 2526594,
+          "tsUs": 309706381054,
+          "durUs": 64,
+          "sameRenderer": true,
+          "overlapsCompleteRound0": false,
+          "afterUnfinishedRound1Start": true,
+          "stacks": []
+        },
+        {
+          "rawEventIndex": 17407,
+          "name": "UpdateLayoutTree",
+          "ph": "X",
+          "pid": 2526594,
+          "tid": 2526594,
+          "tsUs": 309706405550,
+          "durUs": 1458,
+          "sameRenderer": true,
+          "overlapsCompleteRound0": false,
+          "afterUnfinishedRound1Start": true,
+          "stacks": []
+        },
+        {
+          "rawEventIndex": 17416,
+          "name": "Layout",
+          "ph": "X",
+          "pid": 2526594,
+          "tid": 2526594,
+          "tsUs": 309706407016,
+          "durUs": 6290,
+          "sameRenderer": true,
+          "overlapsCompleteRound0": false,
+          "afterUnfinishedRound1Start": true,
+          "stacks": []
+        }
+      ],
+      "scope": "Partial observed stage; no completed-round assertion for round1, no8round or primary latency pass."
+    }
+  ],
+  "interpretation": "Home Layout events in these partial stages lack stacks. Define style events map React DOM removeChild; larger Radix focus event is outside these stages during draft-reset. No evidenced product patch or explanation of prior91.8ms primary forced-layout tail."
+}
