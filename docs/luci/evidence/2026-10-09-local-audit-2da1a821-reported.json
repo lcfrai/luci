@@ -1,0 +1,67 @@
+{
+  "source": "Relayed Windows tester messages in local thread 01a1199f-7500-7843-b02b-081081e536fa; local evidence was not reread by cloud root.",
+  "revision": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+  "discussionIdleAuditSHA256": "16f3802aa45aef8da1bac44e09dbc5acb7f09a638b0323171f6ab7766cbeceb4",
+  "attempt6AuditSHA256": "4c53e5af9c1f114938fca253a3d54d5c11cdc1d434f29ec4b20431aa1bbf1e23",
+  "statsControlledSHA256": "e5e6f1761e54d8a9d339a43ad3ed815876f7826a06139b55c75e19b48ab86556",
+  "statsSourceAuditSHA256": "42e12d026e0ac6ae070ad5c579b76466213b64c297a5fb941fb9344382ad997e",
+  "local020ProbeSHA256": "81b0269a8edc89b091db9e7c61ddf389b92ef8c3ba47bb7c138ce80820670c7c",
+  "bindings": "No reported binding discrepancies; current source, frozen sources, raw outcomes and helper/package assertions retain their distinct scopes.",
+  "discussion": {
+    "affectedPasses": 210,
+    "files": 8,
+    "typecheckExit": 0,
+    "originalRegressionFailures": 4,
+    "filtered": 105,
+    "capturedInputsPerCommand": 426
+  },
+  "priorDa8Idle": {
+    "primaryRows": 400,
+    "followupRows": 32,
+    "switchP95Ms": 317.287164,
+    "inputP95Ms": 66.501146,
+    "resetP95Ms": 434.110281,
+    "targetsMs": {
+      "switch": 300,
+      "input": 100
+    },
+    "passedSwitchTarget": false,
+    "scope": "No 2da performance result or causal gain inferred."
+  },
+  "attempt6": {
+    "overallPassed": false,
+    "supported": "Actual lost ACK, authority/stale-review refusals, explicit consented recovery, permanent fence and exact charge release; target cancelled/unverified, no Start/replay.",
+    "open": [
+      "original review-before-first-observation ordering",
+      "concurrent charged witness",
+      "CLOUD-039 terminal-refusal branch",
+      "separate terminal-retirement proof unpublished at audited revision"
+    ],
+    "resource": {
+      "samples": 85,
+      "observedSamples": 62,
+      "cgroupRows": 124,
+      "formulaMismatches": 0,
+      "minimumEffectiveBytes": 9989062656,
+      "ownedRSSPeakBytes": 1249251328,
+      "cpuSeconds": 52.62,
+      "observerCores": 0.261477,
+      "checkIdentitySamples": 5,
+      "checkUsageSamples": 0,
+      "inertFenceExclusions": 22
+    },
+    "closure": "13 absent known identities, two literal PID-1 Chromium zombies, three unrelated unreadable environments; private ledger/inventory and package bytes remain publisher-held assertions."
+  },
+  "local019": "Original known-check stats refusal reproduced and corrected controlled cases passed with fake identities/counters; no actual app or Docker request locally. Generic unknown-ID GET/HEAD policy preserved.",
+  "local020": "Raw-fragment discrepancy reported from pure VM only; SDK does not emit it. Track separately as P3 acceptance-proxy correction.",
+  "windows": {
+    "observedAt": "2026-10-09T01:42:26Z",
+    "availableGiB": 0.758,
+    "runtimeHeld": true,
+    "originalContainers": 107,
+    "originalRunning": 4,
+    "checkoutsPreserved": true,
+    "unrelatedApplicationsStopped": false
+  },
+  "fullLocalAcceptancePassed": false
+}

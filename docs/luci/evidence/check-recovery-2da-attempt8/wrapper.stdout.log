@@ -1,0 +1,3 @@
+{"driverPID": 2142972, "startTicks": "25651533", "samplerPID": 2142973, "observationDirectory": "/workspace/luci/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/observation", "observerSelfCost": "/workspace/luci/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/observation-observer-self-cost.json"}
+{"passed":true,"report":"/workspace/luci/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/report.json","failedStage":null,"permanentMarkerRetained":"4b9b07e96a0f5afdd7e5aa3118c707544905a993212948c4064a360f874e8373"}
+{"samples": 91, "durationSeconds": 93.51851421399624, "containerCount": 2, "driverExitObserved": true}

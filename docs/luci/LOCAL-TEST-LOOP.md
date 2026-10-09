@@ -6,14 +6,15 @@ cloud implementation task and local thread
 Windows; the cloud thread implements and validates corrections. Neither waits
 unnecessarily for the other to finish a whole suite.
 
-Current successful installed checkpoint remains the scripted two-worker
-continuation at clean `c4400f11736e923617a93e8e86803f15d7187bef`. The later
-`4e7d5fe4` dependency attempt reached reviewed conflict/replacement/join integration,
-then failed its Docker check create transport and lost the final driver receipt.
-Its [failed evidence and independent manual cleanup](evidence/cloud013-installed-4e7d5fe4-interrupted/README.md)
-are retained; cause of the interruption remains unknown. LOCAL-013's separate
-bounded-cleanup correction is in progress. Native heavy checks remain RAM-held.
-These scoped results do not constitute LOCAL TEST HANDOFF READY.
+Current measured product is `2da1a821b8456c20a858fb86ef87649ea917d9de`.
+The complete matching scripted unknown-Create recovery scenario passes, while
+its idle switch p95 369.714279 ms still fails the unchanged 300 ms target.
+The earlier dependency/conflict/join/actual-check positive and worker Stop/restart
+positive retain their own source pins and scopes in QUALITY-WORKLIST.md.
+Original failures, charged fixtures and untested first-observer/concurrent-charge
+recovery cases remain explicit. Windows runtime is currently RAM-held; no user
+workloads are stopped. The complete sustained four-project and live-provider
+gates remain open. These results do not constitute LOCAL TEST HANDOFF READY.
 
 ## Handoff and pinned revisions
 

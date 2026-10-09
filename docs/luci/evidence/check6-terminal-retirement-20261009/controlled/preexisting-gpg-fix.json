@@ -1,0 +1,89 @@
+{
+  "mode": "controlled fake readers only",
+  "passed": true,
+  "caseCount": 15,
+  "cases": [
+    {
+      "name": "original exact code refuses unreadable preexisting identity",
+      "passed": true,
+      "expectedRefusal": "process-observation-permission-denied"
+    },
+    {
+      "name": "corrected closure records only exact preexisting exclusion",
+      "passed": true,
+      "result": {
+        "exclusion": "unreadable-preexisting-not-fixture-child",
+        "remainsLiveAndUnreadable": true
+      }
+    },
+    {
+      "name": "reject live identity drift startTicks=25466320",
+      "passed": true,
+      "expectedRefusal": "preexisting-proof-or-live-identity-mismatch"
+    },
+    {
+      "name": "reject live identity drift startTicks=25466319",
+      "passed": true,
+      "expectedRefusal": "preexisting-proof-or-live-identity-mismatch"
+    },
+    {
+      "name": "reject live identity drift uid=0",
+      "passed": true,
+      "expectedRefusal": "preexisting-proof-or-live-identity-mismatch"
+    },
+    {
+      "name": "reject live identity drift comm=other-process",
+      "passed": true,
+      "expectedRefusal": "preexisting-proof-or-live-identity-mismatch"
+    },
+    {
+      "name": "reject live identity drift parentPid=999",
+      "passed": true,
+      "expectedRefusal": "preexisting-proof-or-live-identity-mismatch"
+    },
+    {
+      "name": "reject identity change during denied read",
+      "passed": true,
+      "expectedRefusal": "preexisting-proof-or-live-identity-mismatch"
+    },
+    {
+      "name": "reject exact identity listed as fixture-owned",
+      "passed": true,
+      "expectedRefusal": "cannot-exclude-recorded-fixture-process"
+    },
+    {
+      "name": "reject missing proof",
+      "passed": true,
+      "expectedRefusal": "preexisting-proof-incomplete"
+    },
+    {
+      "name": "reject single-observation proof",
+      "passed": true,
+      "expectedRefusal": "preexisting-proof-incomplete"
+    },
+    {
+      "name": "reject equal-age wrapper or changed wrapper binding",
+      "passed": true,
+      "expectedRefusal": "exclusion-wrapper-identity-not-exact"
+    },
+    {
+      "name": "reject unbound proof",
+      "passed": true,
+      "expectedRefusal": "preexisting-proof-not-pinned"
+    },
+    {
+      "name": "reject another unreadable process even after allowed old process",
+      "passed": true,
+      "expectedRefusal": "process-observation-permission-denied"
+    },
+    {
+      "name": "reject unreadable stat/status before environment observation",
+      "passed": true,
+      "expectedRefusal": "process-observation-permission-denied"
+    }
+  ],
+  "beforeSourceSHA256": "61e277343713e9d0bbd8c22f5c46f3c4eecf990da5739f42b96f309d8aeac82c",
+  "afterSourceSHA256": "21468be668aaabede4e921b5913a8f0b8a5604b9abed67608d5642c80f3dd87b",
+  "noActualProcDockerFixtureReads": true,
+  "noSignalsOrMutations": true
+}

@@ -1,0 +1,152 @@
+{
+  "version": 1,
+  "scope": "Separate terminal fixture retirement after scoped passed installed check recovery. Original product receipt remains marker-retained and unchanged. No private archive/credential bytes published.",
+  "originalFinalRetirementSHA256": "df095377438911c55282f6afbb7f44cd3842f19c2f0fb230fb63373e6686ef2b",
+  "originalAcceptanceSHA256": "168842f53b85f23c9c4eac0d4d139325f743d635f594611246259fe0cbda5222",
+  "privateArchive": {
+    "published": false,
+    "bytes": 440320,
+    "sha256": "277be1bf6ce1daa0f8125e578b977405bbc4f44a918caed66bda350b0dd4ed65",
+    "claims": "Archive, full manifest and private-byte preservation are publisher-observed; excluded originals are not independently retrievable from this capsule."
+  },
+  "members": [
+    {
+      "path": "receipts/input-bindings.json",
+      "originalSHA256": "3186e06042f12e124d77f3ce580687a6c58464b77e2774d7ebb1fe8141ba0196",
+      "originalBytes": 922,
+      "publishedSHA256": "6b5bf97b294f5cf3a475ebe7f675c3f1416f3096172cd6c5df66bc64a95cf05c",
+      "publishedBytes": 898,
+      "byteIdentical": false,
+      "transformation": "Explicit path substitution in keys/values; private fixture inventory projected when present",
+      "privateSourceLocatorSHA256": "db3c414a79a09a2f8c552a6c83f76dabcece0c070a3f3daa4389372661cb1d11"
+    },
+    {
+      "path": "receipts/1-archive-verified.json",
+      "originalSHA256": "10d7d7a7c2e23fc11fb62f80936f841320eaef9cf46a6748b8cec9a34991d783",
+      "originalBytes": 9825,
+      "publishedSHA256": "7eae0dcf37861ce16ff3f989317b643ef9e405875080a81b41ffa5910b5f81e5",
+      "publishedBytes": 9798,
+      "byteIdentical": false,
+      "transformation": "Explicit path substitution in keys/values; private fixture inventory projected when present",
+      "privateSourceLocatorSHA256": "2b4fd19f7e32f4ea587a1e1a0c41472621c94871cbc2283aaa1393152e57b84b"
+    },
+    {
+      "path": "receipts/2-pre-move-closure.json",
+      "originalSHA256": "f37fadfbbd9f8748b3d2e11967ef8424084fcd47bca5691b0e46f6859d2472d1",
+      "originalBytes": 9626,
+      "publishedSHA256": "f37fadfbbd9f8748b3d2e11967ef8424084fcd47bca5691b0e46f6859d2472d1",
+      "publishedBytes": 9626,
+      "byteIdentical": true,
+      "transformation": "Explicit path substitution in keys/values; private fixture inventory projected when present",
+      "privateSourceLocatorSHA256": "de3b561afbccbce2d70de584a7fdd0517c02ae13b47b783927280d8abad2df77"
+    },
+    {
+      "path": "receipts/3-forensic-move-and-nonresumption-barrier.json",
+      "originalSHA256": "2d5d89fe2c76429f18fe88b8749b477647fceb3eca2f7b21c8994fccea430dd7",
+      "originalBytes": 9767,
+      "publishedSHA256": "2d5d89fe2c76429f18fe88b8749b477647fceb3eca2f7b21c8994fccea430dd7",
+      "publishedBytes": 9767,
+      "byteIdentical": true,
+      "transformation": "Explicit path substitution in keys/values; private fixture inventory projected when present",
+      "privateSourceLocatorSHA256": "5b82db7cd9e86e3c5c42b4c68d2c7ab63aab88d4eeed2d2134f4e5c8fdfb691f"
+    },
+    {
+      "path": "receipts/4-exact-id-nonforce-removal.json",
+      "originalSHA256": "c8b00bf50bf67725dd6c4b46c940f007d4bf9e20961a4f04d10023c5f1d36574",
+      "originalBytes": 332,
+      "publishedSHA256": "c8b00bf50bf67725dd6c4b46c940f007d4bf9e20961a4f04d10023c5f1d36574",
+      "publishedBytes": 332,
+      "byteIdentical": true,
+      "transformation": "Explicit path substitution in keys/values; private fixture inventory projected when present",
+      "privateSourceLocatorSHA256": "b12afd9ffb18782e7e1e1c2219b9d0e40b3371acfe570ae18f7c3008cc2ee950"
+    },
+    {
+      "path": "receipts/5-final-closure.json",
+      "originalSHA256": "920c8f7ce79032356a9791976982857aa3f9ef050519b652576929b0124c2afb",
+      "originalBytes": 4015,
+      "publishedSHA256": "920c8f7ce79032356a9791976982857aa3f9ef050519b652576929b0124c2afb",
+      "publishedBytes": 4015,
+      "byteIdentical": true,
+      "transformation": "Explicit path substitution in keys/values; private fixture inventory projected when present",
+      "privateSourceLocatorSHA256": "0d3152fc796950b7280a8a4e3346ad9a567127f413f6682f0f0df3241c90948b"
+    },
+    {
+      "path": "receipts/retirement-final.json",
+      "originalSHA256": "df095377438911c55282f6afbb7f44cd3842f19c2f0fb230fb63373e6686ef2b",
+      "originalBytes": 39877,
+      "publishedSHA256": "c64aeef575b6d8c812f6092ac4cc130c9160591a7214b43d448c9e46402ed3fd",
+      "publishedBytes": 39775,
+      "byteIdentical": false,
+      "transformation": "Explicit path substitution in keys/values; private fixture inventory projected when present",
+      "privateSourceLocatorSHA256": "d3436d5dccd5b2d2952eca53a67453fa8edef40cbacc1d96af92fdb66f23edf1"
+    },
+    {
+      "path": "receipts/independent-closure-before-retirement.json",
+      "originalSHA256": "d9e7a48f983471f2bceb0b8d9d95b210b93cbef3bc3aad15dee555c9bbc1dd79",
+      "originalBytes": 66148,
+      "publishedSHA256": "ed01e60ea581b2ba2364f898d9a570b5fbda8fa80581249ac3cfd9380baa9a80",
+      "publishedBytes": 15977,
+      "byteIdentical": false,
+      "transformation": "Explicit path substitution in keys/values; private fixture inventory projected when present",
+      "privateSourceLocatorSHA256": "899a2fdce0e0f02be81c3e1ab604de2f229f76e6b128b2257acbc08bd9d4d207"
+    },
+    {
+      "path": "source/retire-successful-check8.py",
+      "originalSHA256": "89cf034b6a162b279fe3629e9abe678c92dff187ca70ee0308a0975bb01fd9bc",
+      "originalBytes": 8195,
+      "publishedSHA256": "1b77b325af2be20d9d235a6ec92931760abb2e2cd80ef269e0a823b4f71de0ac",
+      "publishedBytes": 8187,
+      "byteIdentical": false,
+      "transformation": "Path substitution only; unchanged source identified by byteIdentical",
+      "privateSourceLocatorSHA256": "0c1f4e357571749c092dd8b838de4763df4cfd0e2e5a13ff99458b06cf7eab39"
+    },
+    {
+      "path": "source/preflight.py",
+      "originalSHA256": "f0357901cdfa808e3693b6ee508627b5d3330c421cc87f8aab031ecad5b68e3c",
+      "originalBytes": 35733,
+      "publishedSHA256": "f0357901cdfa808e3693b6ee508627b5d3330c421cc87f8aab031ecad5b68e3c",
+      "publishedBytes": 35733,
+      "byteIdentical": true,
+      "transformation": "Path substitution only; unchanged source identified by byteIdentical",
+      "privateSourceLocatorSHA256": "8d09a828d9e9ea6ad959e12e71f08bb117c1e295ce23053f22d15fb208611e4f"
+    },
+    {
+      "path": "source/fixture-guards.mjs",
+      "originalSHA256": "5bb86009d73cdd158637a716c4a3a348edb30337e9e2a8cd93ebef82773e1b35",
+      "originalBytes": 11868,
+      "publishedSHA256": "5bb86009d73cdd158637a716c4a3a348edb30337e9e2a8cd93ebef82773e1b35",
+      "publishedBytes": 11868,
+      "byteIdentical": true,
+      "transformation": "Path substitution only; unchanged source identified by byteIdentical",
+      "privateSourceLocatorSHA256": "bd2965adb9762b6cebf9191284a6db2bb4176ce20756a761ea537925cc52d659"
+    },
+    {
+      "path": "source/check8-readonly-closure.py",
+      "originalSHA256": "4d0225df9b8977c6560d12631c58e4c70b87e1c7fb419d3c95140b34a8a67d1c",
+      "originalBytes": 6123,
+      "publishedSHA256": "7f8ebe1fd61f5cf073bdb58951ca9ee9a3273605798b1a6679ca318bd9bbe2e5",
+      "publishedBytes": 6110,
+      "byteIdentical": false,
+      "transformation": "Path substitution only; unchanged source identified by byteIdentical",
+      "privateSourceLocatorSHA256": "aac79ea545c115af2cba5816c2f8d2bb150d32b091c406f2bbbd56be49bf00c1"
+    },
+    {
+      "path": "receipts/original-wrapper-exit.json",
+      "originalSHA256": "978377b324ba246d88c9045e3eb55c299022d76037749103ccf30cae91ede4af",
+      "originalBytes": 123,
+      "publishedSHA256": "978377b324ba246d88c9045e3eb55c299022d76037749103ccf30cae91ede4af",
+      "publishedBytes": 123,
+      "byteIdentical": true,
+      "transformation": "Explicit path substitution in keys/values; private fixture inventory projected when present",
+      "privateSourceLocatorSHA256": "0aa86d0c3c30adca34cf6b7079f190f21dfd18e0155d31e55a07336115d99fd9"
+    }
+  ],
+  "redactions": {
+    "strings": "Exact original fixture, forensic destination, archive path, tools root and checkout prefix replaced by labelled tokens in strings AND map keys.",
+    "structuredFields": [
+      "fixtureInventoryBefore",
+      "fixtureInventoryAfter"
+    ]
+  },
+  "reproductionLimit": "One-time retirement source is an audit record, not a reusable destructive command or authorization. Sanitized paths/configuration require fresh reviewed identities and exact source/hash reconstruction."
+}

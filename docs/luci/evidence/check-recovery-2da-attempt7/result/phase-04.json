@@ -1,0 +1,152 @@
+{
+  "phase": "terminal-check-capacity",
+  "requestedAt": "2026-10-09T01:42:17.288Z",
+  "completedAt": "2026-10-09T01:42:17.295Z",
+  "check": {
+    "revision": 7,
+    "resourcesHeld": false,
+    "stage": "admission",
+    "reasonCode": "memory_pressure",
+    "id": "check-7c853f3f9118e2d4e1638652",
+    "projectId": "p-e61c258b",
+    "commit": "541dad5efcc7214a702e5967e36e1a6f2704d7aa",
+    "dirty": false,
+    "execution": "docker",
+    "memoryMiB": 1024,
+    "cpuMillis": 1000,
+    "sourceDigest": "b38a3e52dfd206aa225f20e36721660014130e463875394c7194cd351fbbcf77",
+    "sourceChanged": false,
+    "status": "blocked",
+    "commands": [
+      {
+        "label": "node",
+        "executable": "node",
+        "args": [
+          "verify.mjs",
+          "final"
+        ],
+        "allocationId": "checkexec-d8e0113096c545b04b93ea90",
+        "stage": "admission",
+        "reasonCode": "memory_pressure",
+        "message": "Available memory cannot preserve the configured headroom for another worker.",
+        "cleanupConfirmed": true,
+        "status": "blocked",
+        "output": "",
+        "truncated": false
+      }
+    ],
+    "createdAt": "2026-10-09T01:41:53.077724278Z",
+    "updatedAt": "2026-10-09T01:42:17.172701886Z",
+    "message": "Available memory cannot preserve the configured headroom for another worker.",
+    "requirementIds": [
+      "AC-recovery"
+    ],
+    "requirementSnapshots": [
+      {
+        "id": "AC-recovery",
+        "title": "Reviewed check recovery",
+        "acceptance": "Retain uncertain check output, verify exact recovery ownership and never replay its command."
+      }
+    ],
+    "specificationRevision": 2,
+    "specificationDigest": "b572811fee77b125f667759ed9f8ba934bb74ee31007dc5b55064302f91e8bae",
+    "designPlanRevision": 2,
+    "designPlanDigest": "ef07331183f1b108def41f1a79e67e76c8a5f81db3b4704ad6565f3fdde36658",
+    "evidenceStatus": "unverified",
+    "staleReasons": [
+      "The linked run has no confirmed passing outcome."
+    ],
+    "approvalSelection": {
+      "specificationApprovalId": "approval-8582abe306b3d262211f9f1e",
+      "specificationRevision": 2,
+      "specificationDigest": "b572811fee77b125f667759ed9f8ba934bb74ee31007dc5b55064302f91e8bae",
+      "designApprovalId": "approval-fc4a7935a75378c479a4ca08",
+      "designRevision": 2,
+      "designDigest": "ef07331183f1b108def41f1a79e67e76c8a5f81db3b4704ad6565f3fdde36658",
+      "briefDigest": "8118b2face073b2b6e192f1434bca9ceaf9935d66aad407b4daa6b56782e40c4",
+      "sketchDigest": "0fe578c577e48248107ae1f58adfaa0acbd9389f5fb4ad649539d5e9ca81ac5c"
+    }
+  },
+  "resources": {
+    "host": {
+      "observedAt": "2026-10-09T01:42:17.053077615Z",
+      "status": "partial",
+      "platform": "linux",
+      "scope": "control-plane-host",
+      "memory": {
+        "physicalTotalBytes": 35743784960,
+        "physicalAvailableBytes": 20780523520,
+        "effectiveTotalBytes": 34359738368,
+        "effectiveAvailableBytes": 14320291840,
+        "limitSource": "physical-and-control-plane-cgroup-v2",
+        "commitLimitBytes": null,
+        "commitAvailableBytes": null
+      },
+      "cpu": {
+        "logicalProcessors": 5,
+        "effectiveMillis": 4000,
+        "limitSource": "process-affinity-and-control-plane-cgroup-v2",
+        "utilizationPercent": 36.507936507936506,
+        "pressureSomeAvg10": null,
+        "memoryPressureSomeAvg10": null,
+        "ioPressureSomeAvg10": null
+      },
+      "disks": [
+        {
+          "observedAt": "2026-10-09T01:42:17.052738214Z",
+          "basis": "native-host-volume",
+          "role": "projects",
+          "totalBytes": 33770192896,
+          "availableBytes": 6328578048
+        },
+        {
+          "observedAt": "2026-10-09T01:42:17.052806867Z",
+          "basis": "native-host-volume",
+          "role": "state",
+          "totalBytes": 33770192896,
+          "availableBytes": 6328578048
+        }
+      ],
+      "processes": [
+        {
+          "pid": 2141086,
+          "role": "control-plane",
+          "startId": "linux-ticks:25617624",
+          "residentBytes": 180928512,
+          "privateCommitBytes": null
+        }
+      ],
+      "unavailable": [
+        {
+          "metric": "cpu.pressureSomeAvg10",
+          "reason": "Linux pressure observation is unavailable"
+        },
+        {
+          "metric": "memory.pressureSomeAvg10",
+          "reason": "Linux pressure observation is unavailable"
+        },
+        {
+          "metric": "io.pressureSomeAvg10",
+          "reason": "Linux pressure observation is unavailable"
+        }
+      ]
+    },
+    "execution": {
+      "cpuMillis": 5000,
+      "hostStorage": null,
+      "observedAt": "2026-10-09T01:42:17.089284222Z",
+      "scope": "execution-daemon",
+      "status": "ready",
+      "totalMemoryBytes": 35743784960,
+      "unavailable": []
+    },
+    "reservations": {
+      "status": "ready",
+      "observedAt": "2026-10-09T01:42:17.294105105Z",
+      "count": 0,
+      "memoryMiB": 0,
+      "cpuMillis": 0
+    }
+  },
+  "rootFreeBytes": 6651424768
+}

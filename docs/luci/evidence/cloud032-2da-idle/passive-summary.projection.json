@@ -1,0 +1,346 @@
+{
+  "representation": "summary projection of existing temporal EventTiming correlation; no raw events or trace included",
+  "originalAnalysisSHA256": "dc203afe10c7700d4fa2da48dad9b237ed7dd9940de0a29f6308ac3d0833746a",
+  "originalResultSHA256": "b949714a6b68b1ef51fb2bae96b6af02fbd3a2158047b94ca2221ff7b6207637",
+  "scope": "All100 switch rows retained; temporal browser EventTiming matching only, not React/function causal attribution.0.2ms quantization tolerance; click uses same nonzero interactionID and start within100ms of pointerdown. Thresholded events absent are not zero.",
+  "groups": {
+    "all": {
+      "count": 100,
+      "elapsedMs": {
+        "count": 100,
+        "p50": 214.3793069999956,
+        "p95": 369.7142790000071,
+        "max": 512.0721090000006
+      },
+      "allToOpenBrowserMs": {
+        "count": 100,
+        "p50": 79.39999997615814,
+        "p95": 118.40000000596046,
+        "max": 328.0
+      },
+      "openToExpectedDOMMs": {
+        "count": 100,
+        "p50": 58.19999998807907,
+        "p95": 87.40000000596046,
+        "max": 318.80000001192093
+      },
+      "allPointerqueueMs": {
+        "count": 100,
+        "p50": 1.300000011920929,
+        "p95": 3.7000000178813934,
+        "max": 5.0
+      },
+      "allPointerhandlerMs": {
+        "count": 100,
+        "p50": 0.30000001192092896,
+        "p95": 0.7999999821186066,
+        "max": 21.5
+      },
+      "allPointerdurationMs": {
+        "count": 100,
+        "p50": 48,
+        "p95": 64,
+        "max": 88
+      },
+      "allClickqueueMs": {
+        "count": 100,
+        "p50": 2.0999999940395355,
+        "p95": 4.800000011920929,
+        "max": 24.69999998807907
+      },
+      "allClickhandlerMs": {
+        "count": 100,
+        "p50": 11.600000023841858,
+        "p95": 21.5,
+        "max": 31.900000005960464
+      },
+      "allClickdurationMs": {
+        "count": 100,
+        "p50": 48,
+        "p95": 64,
+        "max": 88
+      },
+      "openPointerqueueMs": {
+        "count": 100,
+        "p50": 1.399999976158142,
+        "p95": 2.5,
+        "max": 14.700000017881393
+      },
+      "openPointerhandlerMs": {
+        "count": 100,
+        "p50": 0.30000001192092896,
+        "p95": 0.5999999940395355,
+        "max": 5.0999999940395355
+      },
+      "openPointerdurationMs": {
+        "count": 100,
+        "p50": 48,
+        "p95": 64,
+        "max": 256
+      },
+      "openClickqueueMs": {
+        "count": 100,
+        "p50": 2.100000023841858,
+        "p95": 4.0,
+        "max": 26.599999994039536
+      },
+      "openClickhandlerMs": {
+        "count": 100,
+        "p50": 6.5,
+        "p95": 10.700000017881393,
+        "max": 132.7000000178814
+      },
+      "openClickdurationMs": {
+        "count": 100,
+        "p50": 48,
+        "p95": 64,
+        "max": 256
+      }
+    },
+    "over300": {
+      "count": 12,
+      "elapsedMs": {
+        "count": 12,
+        "p50": 358.64452499999607,
+        "p95": 512.0721090000006,
+        "max": 512.0721090000006
+      },
+      "allToOpenBrowserMs": {
+        "count": 12,
+        "p50": 105.5,
+        "p95": 328.0,
+        "max": 328.0
+      },
+      "openToExpectedDOMMs": {
+        "count": 12,
+        "p50": 67.5,
+        "p95": 318.80000001192093,
+        "max": 318.80000001192093
+      },
+      "allPointerqueueMs": {
+        "count": 12,
+        "p50": 2.5,
+        "p95": 5.0,
+        "max": 5.0
+      },
+      "allPointerhandlerMs": {
+        "count": 12,
+        "p50": 0.5999999940395355,
+        "p95": 21.5,
+        "max": 21.5
+      },
+      "allPointerdurationMs": {
+        "count": 12,
+        "p50": 48,
+        "p95": 88,
+        "max": 88
+      },
+      "allClickqueueMs": {
+        "count": 12,
+        "p50": 3.9000000059604645,
+        "p95": 24.69999998807907,
+        "max": 24.69999998807907
+      },
+      "allClickhandlerMs": {
+        "count": 12,
+        "p50": 19.30000001192093,
+        "p95": 31.900000005960464,
+        "max": 31.900000005960464
+      },
+      "allClickdurationMs": {
+        "count": 12,
+        "p50": 48,
+        "p95": 88,
+        "max": 88
+      },
+      "openPointerqueueMs": {
+        "count": 12,
+        "p50": 1.800000011920929,
+        "p95": 5.5999999940395355,
+        "max": 5.5999999940395355
+      },
+      "openPointerhandlerMs": {
+        "count": 12,
+        "p50": 0.3999999761581421,
+        "p95": 5.0999999940395355,
+        "max": 5.0999999940395355
+      },
+      "openPointerdurationMs": {
+        "count": 12,
+        "p50": 48,
+        "p95": 256,
+        "max": 256
+      },
+      "openClickqueueMs": {
+        "count": 12,
+        "p50": 2.5999999940395355,
+        "p95": 26.599999994039536,
+        "max": 26.599999994039536
+      },
+      "openClickhandlerMs": {
+        "count": 12,
+        "p50": 8.800000011920929,
+        "p95": 132.7000000178814,
+        "max": 132.7000000178814
+      },
+      "openClickdurationMs": {
+        "count": 12,
+        "p50": 48,
+        "p95": 256,
+        "max": 256
+      }
+    },
+    "within300": {
+      "count": 88,
+      "elapsedMs": {
+        "count": 88,
+        "p50": 211.9349210000073,
+        "p95": 252.10597200000484,
+        "max": 282.5842249999987
+      },
+      "allToOpenBrowserMs": {
+        "count": 88,
+        "p50": 70.19999998807907,
+        "p95": 96.80000001192093,
+        "max": 118.40000000596046
+      },
+      "openToExpectedDOMMs": {
+        "count": 88,
+        "p50": 57.400000005960464,
+        "p95": 76.40000000596046,
+        "max": 87.40000000596046
+      },
+      "allPointerqueueMs": {
+        "count": 88,
+        "p50": 1.2999999821186066,
+        "p95": 2.0999999940395355,
+        "max": 3.9000000059604645
+      },
+      "allPointerhandlerMs": {
+        "count": 88,
+        "p50": 0.30000001192092896,
+        "p95": 0.5999999940395355,
+        "max": 1.800000011920929
+      },
+      "allPointerdurationMs": {
+        "count": 88,
+        "p50": 48,
+        "p95": 64,
+        "max": 64
+      },
+      "allClickqueueMs": {
+        "count": 88,
+        "p50": 2.0,
+        "p95": 3.9000000059604645,
+        "max": 4.800000011920929
+      },
+      "allClickhandlerMs": {
+        "count": 88,
+        "p50": 11.299999982118607,
+        "p95": 16.5,
+        "max": 22.400000005960464
+      },
+      "allClickdurationMs": {
+        "count": 88,
+        "p50": 48,
+        "p95": 64,
+        "max": 64
+      },
+      "openPointerqueueMs": {
+        "count": 88,
+        "p50": 1.399999976158142,
+        "p95": 2.0,
+        "max": 14.700000017881393
+      },
+      "openPointerhandlerMs": {
+        "count": 88,
+        "p50": 0.30000001192092896,
+        "p95": 0.5,
+        "max": 0.699999988079071
+      },
+      "openPointerdurationMs": {
+        "count": 88,
+        "p50": 48,
+        "p95": 64,
+        "max": 64
+      },
+      "openClickqueueMs": {
+        "count": 88,
+        "p50": 2.0999999940395355,
+        "p95": 3.4000000059604645,
+        "max": 15.300000011920929
+      },
+      "openClickhandlerMs": {
+        "count": 88,
+        "p50": 6.399999976158142,
+        "p95": 9.599999994039536,
+        "max": 13.800000011920929
+      },
+      "openClickdurationMs": {
+        "count": 88,
+        "p50": 48,
+        "p95": 64,
+        "max": 64
+      }
+    }
+  },
+  "thresholdComparison": {
+    "d348": {
+      "project-switch": {
+        "count": 100,
+        "successful": 100,
+        "failed": 0,
+        "p50Ms": 228.19098299999314,
+        "p95Ms": 400.4607449999894,
+        "p99Ms": 547.5955450000038,
+        "maxMs": 607.2558600000048,
+        "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+        "timeouts": [],
+        "withinReference": false
+      },
+      "input": {
+        "count": 200,
+        "successful": 200,
+        "failed": 0,
+        "p50Ms": 50.084262000003946,
+        "p95Ms": 132.94279400000232,
+        "p99Ms": 201.71118799998658,
+        "maxMs": 240.09865900001023,
+        "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+        "timeouts": [],
+        "withinReference": false
+      }
+    },
+    "2da": {
+      "project-switch": {
+        "count": 100,
+        "successful": 100,
+        "failed": 0,
+        "p50Ms": 214.3793069999956,
+        "p95Ms": 369.7142790000071,
+        "p99Ms": 493.27053100000194,
+        "maxMs": 512.0721090000006,
+        "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+        "timeouts": [],
+        "withinReference": false
+      },
+      "input": {
+        "count": 200,
+        "successful": 200,
+        "failed": 0,
+        "p50Ms": 47.67117800000415,
+        "p95Ms": 65.91081799998938,
+        "p99Ms": 109.98703200000455,
+        "maxMs": 191.02401499998814,
+        "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+        "timeouts": [],
+        "withinReference": true
+      }
+    }
+  },
+  "limits": [
+    "Sequential single arms; changes cannot be causally attributed.",
+    "No clock-domain subtraction or filtering of primary metric rows.",
+    "Separate8-round trace does not contain primary slow events; zero retries there does not prove primary has no retries."
+  ]
+}

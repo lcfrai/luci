@@ -1,0 +1,402 @@
+{
+  "version": 1,
+  "scope": "FAILED installed historical check memory admission before Start; no target/recovery",
+  "overallPassed": false,
+  "productCommit": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+  "helperCommit": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+  "archiveUploaded": false,
+  "independentBinaryRetrievalClaimed": false,
+  "originalInputsRemainPrivateAndUnchanged": true,
+  "originalFixtureMutated": false,
+  "members": [
+    {
+      "path": "README.md",
+      "operation": "New scoped derived/explanatory artifact; no application/runtime re-execution",
+      "bytes": 5522,
+      "sha256": "6afb32dcac7353344ae5b0cfa64bf07c645986a81756d068ff70c96fd4e053fb"
+    },
+    {
+      "path": "REPRODUCE.md",
+      "operation": "New scoped derived/explanatory artifact; no application/runtime re-execution",
+      "bytes": 4816,
+      "sha256": "acbe4937a32f238a8159da3f60762e3329a6af58a41bf1703ffdf56e3fb5d64e"
+    },
+    {
+      "path": "attempt-outcome.json",
+      "operation": "New scoped derived/explanatory artifact; no application/runtime re-execution",
+      "bytes": 5381,
+      "sha256": "0ec28f95d8f08ccf2bf7cb3c31e6e0d9273713e2868db9e8dcd25c29effdb57a"
+    },
+    {
+      "path": "image-provenance.json",
+      "bytes": 33716,
+      "sha256": "5af726e6670fd6f04c0f67cf3b26b3f6072ed89c1e1e3481c652a631ae6d0a3b",
+      "originalPath": "[private-independent-receipt]",
+      "originalBytes": 33716,
+      "originalSHA256": "5af726e6670fd6f04c0f67cf3b26b3f6072ed89c1e1e3481c652a631ae6d0a3b",
+      "operation": "Allowlisted projection; original remains private and unchanged"
+    },
+    {
+      "path": "independent-scoped-closure.json",
+      "bytes": 4776,
+      "sha256": "d6a8cf36ebe59ab13db2d362a3b056d8ed2c9ce4392eb3d8c95bf4ab8212e2c2",
+      "originalPath": "[private-independent-receipt]",
+      "originalBytes": 60427,
+      "originalSHA256": "eef7c3e894551b6727db86be64c0f70487127010f42b8cb540873e7943d1e836",
+      "operation": "Allowlisted projection; original remains private and unchanged"
+    },
+    {
+      "path": "invocation.json",
+      "bytes": 1479,
+      "sha256": "d7e1c7d976479d6abb7401df1f7f3e1d70bda54b25d3aeb4452249616d4bc49c",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/invocation.json",
+      "originalBytes": 1479,
+      "originalSHA256": "d7e1c7d976479d6abb7401df1f7f3e1d70bda54b25d3aeb4452249616d4bc49c",
+      "operation": "Original bytes"
+    },
+    {
+      "path": "observation-lifecycle.jsonl.gz",
+      "bytes": 268,
+      "sha256": "17fe64ae2416b37d48b2d2e28fb28b4c347e48988a85c0905d7d76585ad4876d",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/observation-lifecycle.jsonl",
+      "originalBytes": 585,
+      "originalSHA256": "48d84093e7bf3bea9c5eb67677b77fd491fdd079d78974669c731aa559b7338e",
+      "operation": "Original bytes; deterministic gzip mtime=0",
+      "decodedBytes": 585,
+      "decodedSHA256": "48d84093e7bf3bea9c5eb67677b77fd491fdd079d78974669c731aa559b7338e"
+    },
+    {
+      "path": "observation-observer-self-cost.json",
+      "bytes": 925,
+      "sha256": "403458ecba733c04d3d4921cd204abb26eae3271775d5463888ae6cf411b423b",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/observation-observer-self-cost.json",
+      "originalBytes": 925,
+      "originalSHA256": "403458ecba733c04d3d4921cd204abb26eae3271775d5463888ae6cf411b423b",
+      "operation": "Original bytes"
+    },
+    {
+      "path": "observation/accepted-sampler.py",
+      "bytes": 35379,
+      "sha256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/observation/accepted-sampler.py",
+      "originalBytes": 35379,
+      "originalSHA256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+      "operation": "Original bytes"
+    },
+    {
+      "path": "observation/metadata.json",
+      "bytes": 2996,
+      "sha256": "3c4ccfe110b379e033eee8df796558c32b74bb5c5e0483624d417bbd5fb3986b",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/observation/metadata.json",
+      "originalBytes": 2996,
+      "originalSHA256": "3c4ccfe110b379e033eee8df796558c32b74bb5c5e0483624d417bbd5fb3986b",
+      "operation": "Original bytes"
+    },
+    {
+      "path": "observation/samples.jsonl.gz",
+      "bytes": 20739,
+      "sha256": "6227145dc3eae18bcc935b3aeeceef73756edb68312e80b7c895ca7d5f8cabc9",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/observation/samples.jsonl",
+      "originalBytes": 277905,
+      "originalSHA256": "0ac981117addb6c9ad7267517bc58498c9ce6076e71d093ef1845b0911933e15",
+      "operation": "Original bytes; deterministic gzip mtime=0",
+      "decodedBytes": 277905,
+      "decodedSHA256": "0ac981117addb6c9ad7267517bc58498c9ce6076e71d093ef1845b0911933e15"
+    },
+    {
+      "path": "observation/summary.json",
+      "bytes": 3017,
+      "sha256": "f7bb5c58dbe1433f5e2a52220c374515c154d45f3e4f15f13b7bcdb1e35a6841",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/observation/summary.json",
+      "originalBytes": 3017,
+      "originalSHA256": "f7bb5c58dbe1433f5e2a52220c374515c154d45f3e4f15f13b7bcdb1e35a6841",
+      "operation": "Original bytes"
+    },
+    {
+      "path": "package/build-result.json",
+      "bytes": 433,
+      "sha256": "c6cdb6eec5188cde600a78419a8bd688fb2c53843c2c1822b209864486d168f7",
+      "originalPath": "artifacts/quality-swarm/candidate-2da1a821/package/build-result.json",
+      "originalBytes": 433,
+      "originalSHA256": "c6cdb6eec5188cde600a78419a8bd688fb2c53843c2c1822b209864486d168f7",
+      "operation": "Original bytes"
+    },
+    {
+      "path": "package/build.log",
+      "bytes": 18479,
+      "sha256": "9d693ec2690a1e49281d8232047caf44e31bf98798c7807ecf844ac5b5489841",
+      "originalPath": "artifacts/quality-swarm/candidate-2da1a821/package/build.log",
+      "originalBytes": 18479,
+      "originalSHA256": "9d693ec2690a1e49281d8232047caf44e31bf98798c7807ecf844ac5b5489841",
+      "operation": "Original bytes"
+    },
+    {
+      "path": "package/package-integrity.json",
+      "bytes": 790,
+      "sha256": "2ffc98c8292f9404a47908130ff58a41070f7fbbeb5b9ccb0275d42b153dd85a",
+      "originalPath": "artifacts/quality-swarm/candidate-2da1a821/package/package-integrity.json",
+      "originalBytes": 790,
+      "originalSHA256": "2ffc98c8292f9404a47908130ff58a41070f7fbbeb5b9ccb0275d42b153dd85a",
+      "operation": "Original bytes"
+    },
+    {
+      "path": "publication-validation.json",
+      "operation": "New scoped derived/explanatory artifact; no application/runtime re-execution",
+      "bytes": 1195,
+      "sha256": "e6b4c9116f6a8adb815c71112f5fd25bb8126362460f414e3257d3adb896b343"
+    },
+    {
+      "path": "recompute-resources.py",
+      "operation": "New scoped derived/explanatory artifact; no application/runtime re-execution",
+      "bytes": 2914,
+      "sha256": "99206f228a77b68b8e481d608ce24e16c8bd024d88215f79f5378d129227468d"
+    },
+    {
+      "path": "resource-observations.json",
+      "operation": "New scoped derived/explanatory artifact; no application/runtime re-execution",
+      "bytes": 25790,
+      "sha256": "23c96963cd039736db35a58c8c31db4bc1f3dbd97c4b3da0c6bd71950e8f4ba2"
+    },
+    {
+      "path": "resource-recomputation.json",
+      "operation": "New scoped derived/explanatory artifact; no application/runtime re-execution",
+      "bytes": 874,
+      "sha256": "d6465dda2ec4399bc133c56a49d2797061b4f25f35f585c23e58ff3f8a4aa7e8"
+    },
+    {
+      "path": "result/accepted-harness/check-create-recovery_check-create-guard.mjs",
+      "bytes": 9521,
+      "sha256": "4c36f0f9253da83bd5d75fd4f5af40363ecd0fd1598db9e00f9c0e10d98507a0",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/result/accepted-harness/check-create-recovery_check-create-guard.mjs",
+      "originalBytes": 9521,
+      "originalSHA256": "4c36f0f9253da83bd5d75fd4f5af40363ecd0fd1598db9e00f9c0e10d98507a0",
+      "operation": "Original bytes"
+    },
+    {
+      "path": "result/accepted-harness/check-create-recovery_fixture-guards.mjs",
+      "bytes": 11868,
+      "sha256": "5bb86009d73cdd158637a716c4a3a348edb30337e9e2a8cd93ebef82773e1b35",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/result/accepted-harness/check-create-recovery_fixture-guards.mjs",
+      "originalBytes": 11868,
+      "originalSHA256": "5bb86009d73cdd158637a716c4a3a348edb30337e9e2a8cd93ebef82773e1b35",
+      "operation": "Original bytes"
+    },
+    {
+      "path": "result/accepted-harness/check-create-recovery_installed-recovery.mjs",
+      "bytes": 48594,
+      "sha256": "1f4acfbe56c91daadbc8968ac5c1a8db0fbd75e1a066c0bae50c84d748ad1c81",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/result/accepted-harness/check-create-recovery_installed-recovery.mjs",
+      "originalBytes": 48594,
+      "originalSHA256": "1f4acfbe56c91daadbc8968ac5c1a8db0fbd75e1a066c0bae50c84d748ad1c81",
+      "operation": "Original bytes"
+    },
+    {
+      "path": "result/accepted-harness/check-create-recovery_provenance.mjs",
+      "bytes": 4889,
+      "sha256": "6b41954f56052d167954018018c79f561722a80497856d135d403904bfd9c08e",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/result/accepted-harness/check-create-recovery_provenance.mjs",
+      "originalBytes": 4889,
+      "originalSHA256": "6b41954f56052d167954018018c79f561722a80497856d135d403904bfd9c08e",
+      "operation": "Original bytes"
+    },
+    {
+      "path": "result/accepted-harness/check-create-recovery_recovery-scenario.mjs",
+      "bytes": 17076,
+      "sha256": "f69a7d5bbf1fd1019106f5a24170f4946e182c78f741d6ad8415b5a90d386e24",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/result/accepted-harness/check-create-recovery_recovery-scenario.mjs",
+      "originalBytes": 17076,
+      "originalSHA256": "f69a7d5bbf1fd1019106f5a24170f4946e182c78f741d6ad8415b5a90d386e24",
+      "operation": "Original bytes"
+    },
+    {
+      "path": "result/accepted-harness/check-create-recovery_run-with-observer.py",
+      "bytes": 16640,
+      "sha256": "4ae1172679672ca785a1ed5a310942f764545900f4f376183b74407b0bff1edc",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/result/accepted-harness/check-create-recovery_run-with-observer.py",
+      "originalBytes": 16640,
+      "originalSHA256": "4ae1172679672ca785a1ed5a310942f764545900f4f376183b74407b0bff1edc",
+      "operation": "Original bytes"
+    },
+    {
+      "path": "result/accepted-harness/four-project-queue_sample-linux-owned.py",
+      "bytes": 35379,
+      "sha256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/result/accepted-harness/four-project-queue_sample-linux-owned.py",
+      "originalBytes": 35379,
+      "originalSHA256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+      "operation": "Original bytes"
+    },
+    {
+      "path": "result/accepted-harness/launch-recovery_acceptance-lifecycle.mjs",
+      "bytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/result/accepted-harness/launch-recovery_acceptance-lifecycle.mjs",
+      "originalBytes": 4176,
+      "originalSHA256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "operation": "Original bytes"
+    },
+    {
+      "path": "result/accepted-harness/launch-recovery_acceptance-startup.mjs",
+      "bytes": 4637,
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/result/accepted-harness/launch-recovery_acceptance-startup.mjs",
+      "originalBytes": 4637,
+      "originalSHA256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "operation": "Original bytes"
+    },
+    {
+      "path": "result/accepted-harness/launch-recovery_durable-acceptance-journal.mjs",
+      "bytes": 6670,
+      "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/result/accepted-harness/launch-recovery_durable-acceptance-journal.mjs",
+      "originalBytes": 6670,
+      "originalSHA256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+      "operation": "Original bytes"
+    },
+    {
+      "path": "result/accepted-harness/launch-recovery_fenced-docker-proxy.mjs",
+      "bytes": 39368,
+      "sha256": "2b6887af0bad7975c74bac42c8ed7988813e3c72ba615281c727c0ac268b1606",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/result/accepted-harness/launch-recovery_fenced-docker-proxy.mjs",
+      "originalBytes": 39368,
+      "originalSHA256": "2b6887af0bad7975c74bac42c8ed7988813e3c72ba615281c727c0ac268b1606",
+      "operation": "Original bytes"
+    },
+    {
+      "path": "result/diagnostic-journal.jsonl.gz",
+      "bytes": 1642,
+      "sha256": "1ea40f42e71d2a7e5d1b85a91052877d7f55adbb4069c5f93352c412db95422b",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/result/diagnostic-journal.jsonl",
+      "originalBytes": 9818,
+      "originalSHA256": "f907af0e79814f246845a00469115f301a80e6550f45b9d5ec12713909fc0cf8",
+      "operation": "Original bytes; deterministic gzip mtime=0",
+      "decodedBytes": 9818,
+      "decodedSHA256": "f907af0e79814f246845a00469115f301a80e6550f45b9d5ec12713909fc0cf8"
+    },
+    {
+      "path": "result/failed-stage.png",
+      "bytes": 223040,
+      "sha256": "76129775f9f618f1baf3b0a3a13dd9eaf6a3edc59ed7755ba27fbd6e5b9aedb9",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/result/failed-stage.png",
+      "originalBytes": 223040,
+      "originalSHA256": "76129775f9f618f1baf3b0a3a13dd9eaf6a3edc59ed7755ba27fbd6e5b9aedb9",
+      "operation": "Original bytes"
+    },
+    {
+      "path": "result/helper-source-binding.json",
+      "bytes": 6688,
+      "sha256": "43affe38c1d8ba494de55237ac3344a7d0af7636cec694ab4cce7c4e00dd1115",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/result/helper-source-binding.json",
+      "originalBytes": 6688,
+      "originalSHA256": "43affe38c1d8ba494de55237ac3344a7d0af7636cec694ab4cce7c4e00dd1115",
+      "operation": "Original bytes"
+    },
+    {
+      "path": "result/package-provenance.sanitized.json",
+      "bytes": 892,
+      "sha256": "a851eeae414ebdbf7e1525a7ef48585fa6aa9f1489f8bb4ee06a74ed2075c3db",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/result/package-provenance.json",
+      "originalBytes": 1040,
+      "originalSHA256": "5b6ba87386b908ad4145e1f676de7fdad8958ec511757bdaf533e352f45a9810",
+      "operation": "Allowlisted projection; original remains private and unchanged"
+    },
+    {
+      "path": "result/phase-01.json",
+      "bytes": 3263,
+      "sha256": "25a9424e57a1411c63c6ffe71ea2e246d1dd4adf7ae6ee13232c97fd3f040fab",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/result/phase-01.json",
+      "originalBytes": 3263,
+      "originalSHA256": "25a9424e57a1411c63c6ffe71ea2e246d1dd4adf7ae6ee13232c97fd3f040fab",
+      "operation": "Original bytes"
+    },
+    {
+      "path": "result/phase-02.json",
+      "bytes": 2744,
+      "sha256": "7d4b9c68fb5d32bb5a5188096389366d25c59378afcde31b1fe12e4b0c822439",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/result/phase-02.json",
+      "originalBytes": 2744,
+      "originalSHA256": "7d4b9c68fb5d32bb5a5188096389366d25c59378afcde31b1fe12e4b0c822439",
+      "operation": "Original bytes"
+    },
+    {
+      "path": "result/phase-03.json",
+      "bytes": 2720,
+      "sha256": "ea7ac6bbeeaf5b1bf8654272938a57ff79c41801f5418e84dad539269e7ff5a1",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/result/phase-03.json",
+      "originalBytes": 2720,
+      "originalSHA256": "ea7ac6bbeeaf5b1bf8654272938a57ff79c41801f5418e84dad539269e7ff5a1",
+      "operation": "Original bytes"
+    },
+    {
+      "path": "result/phase-04.json",
+      "bytes": 5024,
+      "sha256": "ba37ffd50554bc13b6aa52d9e6ba3d6e24d0c8e90f69486e71ce2c2e87382b7e",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/result/phase-04.json",
+      "originalBytes": 5024,
+      "originalSHA256": "ba37ffd50554bc13b6aa52d9e6ba3d6e24d0c8e90f69486e71ce2c2e87382b7e",
+      "operation": "Original bytes"
+    },
+    {
+      "path": "result/report.json.gz",
+      "bytes": 10909,
+      "sha256": "dca3db0f14ac3effde4cb02d6ecda8fd058d1d68069a902b89dd7208bd3ad2f9",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/result/report.json",
+      "originalBytes": 143563,
+      "originalSHA256": "63c18f966e27ab059444977310d51ba5fcc7b5332714534ca6e945a25b6b86be",
+      "operation": "Original bytes; deterministic gzip mtime=0",
+      "decodedBytes": 143563,
+      "decodedSHA256": "63c18f966e27ab059444977310d51ba5fcc7b5332714534ca6e945a25b6b86be"
+    },
+    {
+      "path": "result/report.json.incomplete.json",
+      "bytes": 689,
+      "sha256": "9c9ac8985a598f468b0fcafa4a38dcb1a0cb474e1afbae7059b326fc585a87f9",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/result/report.json.incomplete.json",
+      "originalBytes": 689,
+      "originalSHA256": "9c9ac8985a598f468b0fcafa4a38dcb1a0cb474e1afbae7059b326fc585a87f9",
+      "operation": "Original bytes"
+    },
+    {
+      "path": "source-binding.json",
+      "bytes": 6688,
+      "sha256": "43affe38c1d8ba494de55237ac3344a7d0af7636cec694ab4cce7c4e00dd1115",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/source-binding.json",
+      "originalBytes": 6688,
+      "originalSHA256": "43affe38c1d8ba494de55237ac3344a7d0af7636cec694ab4cce7c4e00dd1115",
+      "operation": "Original bytes"
+    },
+    {
+      "path": "source-verification.json",
+      "operation": "New scoped derived/explanatory artifact; no application/runtime re-execution",
+      "bytes": 2824,
+      "sha256": "813f78fb2b36996b8d6220f21bbf4f2570473a2107d41a6877a0ec42945f49e4"
+    },
+    {
+      "path": "wrapper-exit.json",
+      "bytes": 123,
+      "sha256": "9b9debc8fa8dc0e4c76920ee0aa6d3de85383c6ac4ec925b1a43bf3744452924",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/wrapper-exit.json",
+      "originalBytes": 123,
+      "originalSHA256": "9b9debc8fa8dc0e4c76920ee0aa6d3de85383c6ac4ec925b1a43bf3744452924",
+      "operation": "Original bytes"
+    },
+    {
+      "path": "wrapper.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/wrapper.stderr.log",
+      "originalBytes": 0,
+      "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "operation": "Original bytes"
+    },
+    {
+      "path": "wrapper.stdout.log",
+      "bytes": 649,
+      "sha256": "8cc26c727b04835a707cf797ede35c418c0e07587b5ded32c99e755a9cb66717",
+      "originalPath": "artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt7/wrapper.stdout.log",
+      "originalBytes": 649,
+      "originalSHA256": "8cc26c727b04835a707cf797ede35c418c0e07587b5ded32c99e755a9cb66717",
+      "operation": "Original bytes"
+    }
+  ]
+}

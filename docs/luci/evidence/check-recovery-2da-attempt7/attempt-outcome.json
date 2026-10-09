@@ -1,0 +1,149 @@
+{
+  "version": 1,
+  "overallPassed": false,
+  "originalReportSHA256": "63c18f966e27ab059444977310d51ba5fcc7b5332714534ca6e945a25b6b86be",
+  "failedStage": "consent-check-1",
+  "failure": {
+    "errorName": "AssertionError",
+    "errorCode": "ERR_ASSERTION",
+    "locations": [
+      {
+        "file": "recovery-scenario.mjs",
+        "line": 131,
+        "column": 10
+      },
+      {
+        "file": "installed-recovery.mjs",
+        "line": 401,
+        "column": 16
+      },
+      {
+        "file": "installed-recovery.mjs",
+        "line": 381,
+        "column": 5
+      },
+      {
+        "file": "installed-recovery.mjs",
+        "line": 425,
+        "column": 79
+      }
+    ]
+  },
+  "transportCounts": {
+    "total": 209,
+    "create": 1,
+    "worker": 0,
+    "fence": 0,
+    "start": 0,
+    "check": 1
+  },
+  "transportFailures": [],
+  "statsRequests": [
+    {
+      "method": "GET",
+      "path": "/v1.51/containers/d964f78b7753684657f961f91a59c64813d4bb27103f8ba4fcc450537854ca09/stats",
+      "requestedAt": "2026-10-09T01:42:15.610Z",
+      "requestSequence": 189,
+      "ref": "d964f78b7753684657f961f91a59c64813d4bb27103f8ba4fcc450537854ca09",
+      "kind": "check",
+      "name": "luci-check-checkexec-d8e0113096c545b04b93ea90",
+      "labels": {
+        "luci.check": "true",
+        "luci.check-protocol": "1",
+        "luci.instance": "99124086-bbcc-4820-8f4e-b4ac8557e1a5",
+        "luci.check-engine": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+        "luci.check-allocation": "checkexec-d8e0113096c545b04b93ea90",
+        "luci.check-id": "check-7c853f3f9118e2d4e1638652",
+        "luci.check-command-index": "0",
+        "luci.check-scope": "3a78b5386cca216bbc76179d6582ee5a3a35d3f17030d4d7bb0babadcecdc568",
+        "luci.check-project": "p-e61c258b",
+        "luci.check-command-digest": "b6f83c2858c0fbc9fb238daa0d6ad33ef8a8b0e40955d3578dfaa8063dc1bb02",
+        "luci.check-source-digest": "b38a3e52dfd206aa225f20e36721660014130e463875394c7194cd351fbbcf77",
+        "luci.check-image": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98"
+      },
+      "checkStatsQuery": "?one-shot=1&stream=0",
+      "forwardedAt": "2026-10-09T01:42:15.610Z",
+      "status": 200,
+      "respondedAt": "2026-10-09T01:42:15.611Z",
+      "completedAt": "2026-10-09T01:42:15.611Z",
+      "responseBytes": 834
+    }
+  ],
+  "externalModelCalls": 0,
+  "concurrentChargedWitnessCovered": false,
+  "originalReviewBeforeFirstObserverOrderingCovered": false,
+  "CLOUD039TerminalRefusalBranchExercised": false,
+  "scopeLimits": [
+    "A cancelled/unverified recovered target is not passing target-check evidence.",
+    "No Windows/native/live-provider/sustained acceptance claim.",
+    "Driver closure, independent root closure and terminal fixture retirement are separate."
+  ],
+  "historicalAttempt": {
+    "revision": 7,
+    "resourcesHeld": false,
+    "stage": "admission",
+    "reasonCode": "memory_pressure",
+    "id": "check-7c853f3f9118e2d4e1638652",
+    "projectId": "p-e61c258b",
+    "commit": "541dad5efcc7214a702e5967e36e1a6f2704d7aa",
+    "dirty": false,
+    "execution": "docker",
+    "memoryMiB": 1024,
+    "cpuMillis": 1000,
+    "sourceDigest": "b38a3e52dfd206aa225f20e36721660014130e463875394c7194cd351fbbcf77",
+    "sourceChanged": false,
+    "status": "blocked",
+    "commands": [
+      {
+        "label": "node",
+        "executable": "node",
+        "args": [
+          "verify.mjs",
+          "final"
+        ],
+        "allocationId": "checkexec-d8e0113096c545b04b93ea90",
+        "stage": "admission",
+        "reasonCode": "memory_pressure",
+        "message": "Available memory cannot preserve the configured headroom for another worker.",
+        "cleanupConfirmed": true,
+        "status": "blocked",
+        "output": "",
+        "truncated": false
+      }
+    ],
+    "createdAt": "2026-10-09T01:41:53.077724278Z",
+    "updatedAt": "2026-10-09T01:42:17.172701886Z",
+    "message": "Available memory cannot preserve the configured headroom for another worker.",
+    "requirementIds": [
+      "AC-recovery"
+    ],
+    "requirementSnapshots": [
+      {
+        "id": "AC-recovery",
+        "title": "Reviewed check recovery",
+        "acceptance": "Retain uncertain check output, verify exact recovery ownership and never replay its command."
+      }
+    ],
+    "specificationRevision": 2,
+    "specificationDigest": "b572811fee77b125f667759ed9f8ba934bb74ee31007dc5b55064302f91e8bae",
+    "designPlanRevision": 2,
+    "designPlanDigest": "ef07331183f1b108def41f1a79e67e76c8a5f81db3b4704ad6565f3fdde36658",
+    "evidenceStatus": "unverified",
+    "staleReasons": [
+      "The linked run has no confirmed passing outcome."
+    ],
+    "approvalSelection": {
+      "specificationApprovalId": "approval-8582abe306b3d262211f9f1e",
+      "specificationRevision": 2,
+      "specificationDigest": "b572811fee77b125f667759ed9f8ba934bb74ee31007dc5b55064302f91e8bae",
+      "designApprovalId": "approval-fc4a7935a75378c479a4ca08",
+      "designRevision": 2,
+      "designDigest": "ef07331183f1b108def41f1a79e67e76c8a5f81db3b4704ad6565f3fdde36658",
+      "briefDigest": "8118b2face073b2b6e192f1434bca9ceaf9935d66aad407b4daa6b56782e40c4",
+      "sketchDigest": "0fe578c577e48248107ae1f58adfaa0acbd9389f5fb4ad649539d5e9ca81ac5c"
+    }
+  },
+  "targetSubmitted": false,
+  "recoveryReached": false,
+  "numericAtomicAdmissionSnapshotAvailable": false
+}

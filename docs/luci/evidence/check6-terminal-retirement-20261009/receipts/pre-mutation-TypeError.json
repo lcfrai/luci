@@ -1,0 +1,6 @@
+{
+  "stage": "before move or Docker mutation",
+  "error": "TypeError: check_partial_history requires original_closure argument",
+  "fixtureMutationPerformed": false,
+  "dockerMutationPerformed": false
+}

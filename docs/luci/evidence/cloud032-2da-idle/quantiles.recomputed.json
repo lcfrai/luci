@@ -1,0 +1,63 @@
+{
+  "basis": "Nearest rank over every unmodified elapsedMs row in each named phase/kind; no filtering or overhead subtraction.",
+  "originalResultSHA256": "b949714a6b68b1ef51fb2bae96b6af02fbd3a2158047b94ca2221ff7b6207637",
+  "groups": {
+    "idle-interactive-calibration:project-switch": {
+      "count": 100,
+      "successful": 100,
+      "failed": 0,
+      "p50Ms": 214.3793069999956,
+      "p95Ms": 369.7142790000071,
+      "p99Ms": 493.27053100000194,
+      "maxMs": 512.0721090000006
+    },
+    "idle-interactive-calibration:input": {
+      "count": 200,
+      "successful": 200,
+      "failed": 0,
+      "p50Ms": 47.67117800000415,
+      "p95Ms": 65.91081799998938,
+      "p99Ms": 109.98703200000455,
+      "maxMs": 191.02401499998814
+    },
+    "idle-interactive-calibration:draft-reset": {
+      "count": 100,
+      "successful": 100,
+      "failed": 0,
+      "p50Ms": 250.19724899998982,
+      "p95Ms": 368.0968659999926,
+      "p99Ms": 484.9710239999986,
+      "maxMs": 583.6833089999855
+    },
+    "idle-actionability-trace-followup:project-switch": {
+      "count": 8,
+      "successful": 8,
+      "failed": 0,
+      "p50Ms": 224.35662700000103,
+      "p95Ms": 331.47363000002224,
+      "p99Ms": 331.47363000002224,
+      "maxMs": 331.47363000002224
+    },
+    "idle-actionability-trace-followup:input": {
+      "count": 16,
+      "successful": 16,
+      "failed": 0,
+      "p50Ms": 49.62393800000427,
+      "p95Ms": 138.79665599999134,
+      "p99Ms": 138.79665599999134,
+      "maxMs": 138.79665599999134
+    },
+    "idle-actionability-trace-followup:draft-reset": {
+      "count": 8,
+      "successful": 8,
+      "failed": 0,
+      "p50Ms": 251.48944999999367,
+      "p95Ms": 555.3903299999947,
+      "p99Ms": 555.3903299999947,
+      "maxMs": 555.3903299999947
+    }
+  },
+  "matchesAllSixOriginalSummaries": true,
+  "primaryRows": 400,
+  "separateFollowupRows": 32
+}

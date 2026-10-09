@@ -1,0 +1,149 @@
+{
+  "phase": "terminal-check-capacity",
+  "requestedAt": "2026-10-09T01:48:06.075Z",
+  "completedAt": "2026-10-09T01:48:06.081Z",
+  "check": {
+    "revision": 7,
+    "resourcesHeld": false,
+    "stage": "cleanup",
+    "id": "check-d2e8f78bfcd63fd36a3f3974",
+    "projectId": "p-3667e573",
+    "commit": "11bda4870ba7c7d69ab47618b380b3841ab34151",
+    "dirty": false,
+    "execution": "docker",
+    "memoryMiB": 1024,
+    "cpuMillis": 1000,
+    "sourceDigest": "220c33f76cc6102fd4d34a9e25860758553ae1d8c667daca655b827b146ead51",
+    "sourceChanged": false,
+    "status": "passed",
+    "commands": [
+      {
+        "label": "node",
+        "executable": "node",
+        "args": [
+          "verify.mjs",
+          "final"
+        ],
+        "allocationId": "checkexec-8404c3bc115c25d5492c1ca4",
+        "stage": "cleanup",
+        "message": "The command exit and output were recorded; exact container cleanup is confirmed.",
+        "cleanupConfirmed": true,
+        "status": "passed",
+        "exitCode": 0,
+        "output": "RECOVERY_CHECK_OK\n",
+        "truncated": false
+      }
+    ],
+    "createdAt": "2026-10-09T01:47:35.844992613Z",
+    "updatedAt": "2026-10-09T01:48:05.878817687Z",
+    "message": "Commands finished with recorded exit codes and confirmed cleanup. This does not automatically verify completion criteria.",
+    "requirementIds": [
+      "AC-recovery"
+    ],
+    "requirementSnapshots": [
+      {
+        "id": "AC-recovery",
+        "title": "Reviewed check recovery",
+        "acceptance": "Retain uncertain check output, verify exact recovery ownership and never replay its command."
+      }
+    ],
+    "specificationRevision": 2,
+    "specificationDigest": "23498324b1949783cf6cf73d87ebfd543812b22380d24e2642cb46473833cf4a",
+    "designPlanRevision": 2,
+    "designPlanDigest": "eef841e10906e9fd3098743e18f72c5a8e71dc4a482212137d18be3dbd80e5e3",
+    "evidenceStatus": "linked-test-evidence",
+    "staleReasons": [],
+    "approvalSelection": {
+      "specificationApprovalId": "approval-3beee8fc2946fe82bd932c4e",
+      "specificationRevision": 2,
+      "specificationDigest": "23498324b1949783cf6cf73d87ebfd543812b22380d24e2642cb46473833cf4a",
+      "designApprovalId": "approval-bb267c35d39f0bb03446f092",
+      "designRevision": 2,
+      "designDigest": "eef841e10906e9fd3098743e18f72c5a8e71dc4a482212137d18be3dbd80e5e3",
+      "briefDigest": "f8d2bb3030f6282c4be82c0d16d9f356bcfc1ed78d5f29b1bb8cd2b5b4c61e08",
+      "sketchDigest": "ffbd8ce0bde83a80b6dd2c0b1d33e802f3960e7720123cf178373b21f2ba19d0"
+    }
+  },
+  "resources": {
+    "host": {
+      "observedAt": "2026-10-09T01:48:05.418628899Z",
+      "status": "partial",
+      "platform": "linux",
+      "scope": "control-plane-host",
+      "memory": {
+        "physicalTotalBytes": 35743784960,
+        "physicalAvailableBytes": 21793181696,
+        "effectiveTotalBytes": 34359738368,
+        "effectiveAvailableBytes": 13348012032,
+        "limitSource": "physical-and-control-plane-cgroup-v2",
+        "commitLimitBytes": null,
+        "commitAvailableBytes": null
+      },
+      "cpu": {
+        "logicalProcessors": 5,
+        "effectiveMillis": 4000,
+        "limitSource": "process-affinity-and-control-plane-cgroup-v2",
+        "utilizationPercent": 27.345309381237524,
+        "pressureSomeAvg10": null,
+        "memoryPressureSomeAvg10": null,
+        "ioPressureSomeAvg10": null
+      },
+      "disks": [
+        {
+          "observedAt": "2026-10-09T01:48:05.418589199Z",
+          "basis": "native-host-volume",
+          "role": "projects",
+          "totalBytes": 33770192896,
+          "availableBytes": 4405182464
+        },
+        {
+          "observedAt": "2026-10-09T01:48:05.418593115Z",
+          "basis": "native-host-volume",
+          "role": "state",
+          "totalBytes": 33770192896,
+          "availableBytes": 4405182464
+        }
+      ],
+      "processes": [
+        {
+          "pid": 2143190,
+          "role": "control-plane",
+          "startId": "linux-ticks:25651961",
+          "residentBytes": 183689216,
+          "privateCommitBytes": null
+        }
+      ],
+      "unavailable": [
+        {
+          "metric": "cpu.pressureSomeAvg10",
+          "reason": "Linux pressure observation is unavailable"
+        },
+        {
+          "metric": "memory.pressureSomeAvg10",
+          "reason": "Linux pressure observation is unavailable"
+        },
+        {
+          "metric": "io.pressureSomeAvg10",
+          "reason": "Linux pressure observation is unavailable"
+        }
+      ]
+    },
+    "execution": {
+      "cpuMillis": 5000,
+      "hostStorage": null,
+      "observedAt": "2026-10-09T01:48:05.433448088Z",
+      "scope": "execution-daemon",
+      "status": "ready",
+      "totalMemoryBytes": 35743784960,
+      "unavailable": []
+    },
+    "reservations": {
+      "status": "ready",
+      "observedAt": "2026-10-09T01:48:06.078439042Z",
+      "count": 0,
+      "memoryMiB": 0,
+      "cpuMillis": 0
+    }
+  },
+  "rootFreeBytes": 6649524224
+}

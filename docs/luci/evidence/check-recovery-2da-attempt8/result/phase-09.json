@@ -1,0 +1,9 @@
+{
+  "phase": "real-create-ack-lost",
+  "at": "2026-10-09T01:48:33.730Z",
+  "checkId": "check-5a719faeb22b400c1678b25e",
+  "allocationId": "checkexec-1050be441a70586a2442be85",
+  "containerId": "d8d410410a198ff579f6b75eebd11701db1209a9f6f0643c1ce2d499ae5f6171",
+  "status": "unknown",
+  "reasonCode": "check_create_unconfirmed"
+}

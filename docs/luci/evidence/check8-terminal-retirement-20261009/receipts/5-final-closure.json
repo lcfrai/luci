@@ -1,0 +1,174 @@
+{
+  "stage": "final-closure",
+  "at": "2026-10-09T01:55:56.085040+00:00",
+  "closure": {
+    "at": "2026-10-09T01:55:56.085017+00:00",
+    "known": [
+      {
+        "expected": {
+          "pid": 2142972,
+          "startTicks": 25651533,
+          "role": "test-driver"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2143096,
+          "startTicks": 25651653,
+          "role": "other-owned-descendant"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2143190,
+          "startTicks": 25651961,
+          "role": "control-plane"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2143209,
+          "startTicks": 25652047,
+          "role": "control-plane"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2143440,
+          "startTicks": 25652225,
+          "role": "browser"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2143457,
+          "startTicks": 25652236,
+          "role": "browser"
+        },
+        "observation": {
+          "pid": 2143457,
+          "startTicks": "25652236",
+          "state": "Z",
+          "parentPid": 1
+        },
+        "result": "exited-zombie"
+      },
+      {
+        "expected": {
+          "pid": 2143460,
+          "startTicks": 25652236,
+          "role": "browser"
+        },
+        "observation": {
+          "pid": 2143460,
+          "startTicks": "25652236",
+          "state": "Z",
+          "parentPid": 1
+        },
+        "result": "exited-zombie"
+      },
+      {
+        "expected": {
+          "pid": 2143480,
+          "startTicks": 25652248,
+          "role": "browser"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2143510,
+          "startTicks": 25652290,
+          "role": "browser"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2143511,
+          "startTicks": 25652292,
+          "role": "browser"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2143541,
+          "startTicks": 25652307,
+          "role": "browser"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2143548,
+          "startTicks": 25652311,
+          "role": "browser"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2143550,
+          "startTicks": 25652311,
+          "role": "browser"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2142973,
+          "startTicks": 25651533,
+          "role": "observer"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2142971,
+          "startTicks": 25651528,
+          "role": "wrapper"
+        },
+        "observation": null,
+        "result": "absent"
+      }
+    ],
+    "ownedActive": [],
+    "preexistingUnreadable": [
+      {
+        "facts": {
+          "pid": 260700,
+          "startTicks": "2331192",
+          "state": "S",
+          "parentPid": 1,
+          "uid": 1000,
+          "comm": "gpg-agent"
+        },
+        "scope": "Exact live preexisting process; environment unreadable; predates this wrapper and is not an owned child. Not absence."
+      }
+    ],
+    "otherUidUninspectedCount": 2,
+    "scope": "Exact known identities and readable same-UID fixture ownership only; no whole-machine absence claim."
+  },
+  "containers": [],
+  "volumes": [],
+  "markerAbsent": true,
+  "ledgerAndFixtureBytesUnchanged": true
+}

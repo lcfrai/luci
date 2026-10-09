@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "at": "2026-10-09T01:55:30.010570+00:00",
+  "newRuntimeExecuted": false,
+  "fixtureModified": false,
+  "dockerCalls": false,
+  "knownRetainedAuthFilesRead": 1,
+  "knownRetainedCredentialScalarsChecked": 2,
+  "privateRootsChecked": 2,
+  "redactions": {},
+  "limitations": [
+    "Only exact retained auth scalar values can be checked; ephemeral in-memory credentials cannot be reread.",
+    "No universal secret-detection claim.",
+    "Private fixture paths/auth/raw ledger/inventory are not published."
+  ],
+  "originalInputsUnchanged": true,
+  "retainedAuthInputsUnchanged": true,
+  "recursiveDocumentsChecked": 197,
+  "recursiveStringFieldsChecked": 49450,
+  "exactPrivateRootMatches": 0,
+  "knownCredentialMatches": 0,
+  "screenshotsVisuallyInspected": [
+    "exact-recovery-review.png",
+    "recovery-complete-marker-retained.png",
+    "settled-history-marker-retained.png"
+  ],
+  "knownCredentialScanScope": "All captured/decoded original payloads and derived outcome/resource/source/closure records were scanned with two retained auth scalars in memory before terminal retirement. Final explanatory/reproduction text adds only existing public identities and generic placeholders; no fixture is reread.",
+  "finalExactRootScanAt": "2026-10-09T01:58:45.547647+00:00"
+}

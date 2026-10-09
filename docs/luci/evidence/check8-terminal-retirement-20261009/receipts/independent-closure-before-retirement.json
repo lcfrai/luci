@@ -1,0 +1,291 @@
+{
+  "at": "2026-10-09T01:53:47.067746+00:00",
+  "scope": "Independent read-only closure after overall passed helper; exact retired recovery proof/marker remains, not a whole-machine process absence claim.",
+  "fixture": "<ORIGINAL_PRIVATE_FIXTURE>",
+  "recordedIdentities": [
+    {
+      "recorded": {
+        "pid": 2142972,
+        "startTicks": 25651533,
+        "role": "test-driver"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2143096,
+        "startTicks": 25651653,
+        "role": "other-owned-descendant"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2143190,
+        "startTicks": 25651961,
+        "role": "control-plane"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2143209,
+        "startTicks": 25652047,
+        "role": "control-plane"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2143440,
+        "startTicks": 25652225,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2143457,
+        "startTicks": 25652236,
+        "role": "browser"
+      },
+      "current": {
+        "pid": 2143457,
+        "startTicks": 25652236,
+        "state": "Z",
+        "ppid": 1
+      },
+      "observation": "exited-zombie"
+    },
+    {
+      "recorded": {
+        "pid": 2143460,
+        "startTicks": 25652236,
+        "role": "browser"
+      },
+      "current": {
+        "pid": 2143460,
+        "startTicks": 25652236,
+        "state": "Z",
+        "ppid": 1
+      },
+      "observation": "exited-zombie"
+    },
+    {
+      "recorded": {
+        "pid": 2143480,
+        "startTicks": 25652248,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2143510,
+        "startTicks": 25652290,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2143511,
+        "startTicks": 25652292,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2143541,
+        "startTicks": 25652307,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2143548,
+        "startTicks": 25652311,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2143550,
+        "startTicks": 25652311,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2142973,
+        "startTicks": 25651533,
+        "role": "observer"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2142971,
+        "startTicks": 25651528,
+        "role": "wrapper"
+      },
+      "current": null,
+      "observation": "absent"
+    }
+  ],
+  "ownedActiveProcesses": [],
+  "unreadableProcessEnvironments": [
+    {
+      "pid": 203,
+      "startTicks": 1521,
+      "state": "S",
+      "ppid": 1
+    },
+    {
+      "pid": 254,
+      "startTicks": 1534,
+      "state": "S",
+      "ppid": 203
+    },
+    {
+      "pid": 260700,
+      "startTicks": 2331192,
+      "state": "S",
+      "ppid": 1
+    }
+  ],
+  "dockerContainers": [
+    "4b9b07e96a0f5afdd7e5aa3118c707544905a993212948c4064a360f874e8373"
+  ],
+  "dockerVolumes": [],
+  "fence": {
+    "scope": "316e95d81c72234cbd7cd7549583bb59b728a6872e8de4c599cfe4965a930be7",
+    "identity": {
+      "protocol": 1,
+      "engineId": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+      "instanceId": "7c6e1617-77e3-4de2-bd57-f90cb7f5cdb3",
+      "allocationId": "checkexec-1050be441a70586a2442be85",
+      "checkId": "check-5a719faeb22b400c1678b25e",
+      "commandIndex": 0,
+      "scopeDigest": "316e95d81c72234cbd7cd7549583bb59b728a6872e8de4c599cfe4965a930be7",
+      "projectId": "p-1cb2afc2",
+      "commandDigest": "a93524ee8b52941eb5a9d83b526a66fa6f00ae9af5e829eeeaafe12930d0a948"
+    },
+    "actor": {
+      "userId": "user-6U_LoL_RBHyqbQcfBcNQfR",
+      "teamId": "team-Sfwpp1vcpaC5QG7-ERQdbh",
+      "projectId": "p-1cb2afc2"
+    },
+    "intentId": "e3f63696342c386fd729a0df8e82c78f",
+    "state": "retired",
+    "proof": {
+      "identity": {
+        "protocol": 1,
+        "engineId": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+        "instanceId": "7c6e1617-77e3-4de2-bd57-f90cb7f5cdb3",
+        "allocationId": "checkexec-1050be441a70586a2442be85",
+        "checkId": "check-5a719faeb22b400c1678b25e",
+        "commandIndex": 0,
+        "scopeDigest": "316e95d81c72234cbd7cd7549583bb59b728a6872e8de4c599cfe4965a930be7",
+        "projectId": "p-1cb2afc2",
+        "commandDigest": "a93524ee8b52941eb5a9d83b526a66fa6f00ae9af5e829eeeaafe12930d0a948"
+      },
+      "intentId": "e3f63696342c386fd729a0df8e82c78f",
+      "fenceRef": "4b9b07e96a0f5afdd7e5aa3118c707544905a993212948c4064a360f874e8373",
+      "configDigest": "945f752d48d9ebb4571808ee4fb16e6d83c63ad8e7e2277b9ed0eca6df9234d1",
+      "acknowledgedAt": "2026-10-09T01:48:37.713955631Z",
+      "observedAt": "2026-10-09T01:48:37.740796478Z"
+    },
+    "createdAt": "2026-10-09T01:48:36.585757232Z",
+    "updatedAt": "2026-10-09T01:48:37.764859527Z"
+  },
+  "markerShapeValidated": true,
+  "ledgerSHA256": "30aafe64b8387f1681f447b1a1ffa4c13c242cd9710c0a71e0c9fe114cf6f8c1",
+  "activeLeaseCount": 0,
+  "fixtureInventoryBefore": {
+    "withheld": true,
+    "originalCanonicalJSONSHA256": "382d3842ddc0cab26740241a32453fae0d64cff90b32d84a52827ab86ee597dc",
+    "scope": "Private file inventory withheld; publisher retains exact originals.",
+    "files": 110,
+    "bytes": 104924,
+    "sha256": "63e813e42a3fe4fa9d7ef96d478616ec8a5e02a6573524660e07a5feabbbdef3"
+  },
+  "fixtureInventoryAfter": {
+    "withheld": true,
+    "originalCanonicalJSONSHA256": "382d3842ddc0cab26740241a32453fae0d64cff90b32d84a52827ab86ee597dc",
+    "scope": "Private file inventory withheld; publisher retains exact originals.",
+    "files": 110,
+    "bytes": 104924,
+    "sha256": "63e813e42a3fe4fa9d7ef96d478616ec8a5e02a6573524660e07a5feabbbdef3"
+  },
+  "fixtureUnchanged": true,
+  "originalArtifactInputs": {
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/wrapper.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/invocation.json": "47c01e17c63987da22ad59774769853135dff77e9fbf32f55c9ac174b4e674e2",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/observation-lifecycle.jsonl": "6dfe89606a7a6b78cb50519b6761fc9758798d0e47f261978612d0507d7f687d",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/wrapper.stdout.log": "bc154332deee0cb38eb90bd28be785ec2978a33f9d519d6c28d458bd5e6e6210",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/wrapper-exit.json": "978377b324ba246d88c9045e3eb55c299022d76037749103ccf30cae91ede4af",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/observation-observer-self-cost.json": "11b495ce715a0aec4169a9aa8144404f068a8dda4f139a0cc1d3765875354d07",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/observation-instance-path.txt": "55d72be85e692e3b7bd13d895841b2ae575911439a798ce71cb204a2ea3b57b5",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/source-binding.json": "43affe38c1d8ba494de55237ac3344a7d0af7636cec694ab4cce7c4e00dd1115",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/package-provenance.json": "5b6ba87386b908ad4145e1f676de7fdad8958ec511757bdaf533e352f45a9810",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/phase-17.json": "1f6cedf1e771bc3bf890349b68d602ffbf6a8ad51988ab9a160e5191a8a2ab66",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/helper-source-binding.json": "43affe38c1d8ba494de55237ac3344a7d0af7636cec694ab4cce7c4e00dd1115",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/settled-history-marker-retained.png": "8afb1513010ea22623d7bc6669dc95e643adce0da50d075227307cc14de86394",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/phase-18.json": "34c90fca7b6c895d3867844e669ada677def2fd7783d5a78cf8472cf2531c5ea",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/phase-06.json": "f861763ddb3f1e0390774155b02bfd9d102a4ed8ba4b30bb97398b30e18ab57b",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/phase-16.json": "51ff2e4ccfc8a119cb48d0981074f7e116825c374425c703cbf123d96716c3f8",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/phase-05.json": "d80020ce6fc473e53695194508c6fb3bd51edb7fdc11c6706e5e2d50857372f0",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/phase-02.json": "c9aace7b3728a4f748f71ad2a5a71eb35ca0ad9ca8a23f371c7e120b203404a0",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/phase-01.json": "5c9bd33c8b6b9aa29f21c00075d12f24e0b81a74a1a07f69e07cc50ce39352ea",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/report.json.incomplete.json": "70bac636898778552a822b8b91020443a791a3bf1ed708ab771854ca144041f6",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/phase-10.json": "4d93f3706f5b50fb89532ff1f271645075f2033b8efb32777d40c2d10fba6db6",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/recovery-complete-marker-retained.png": "79ae569f23263b8f1420b150e925dc2c281a1bb931bfa5b82a8bfe55089d7176",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/exact-recovery-review.png": "afd6e81a51c1019cae0c6e693e2a5242c642421118c14e0408b0d9268ae7e128",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/phase-13.json": "ba4d4fbaa4d055d5e015256c85c60e517f4edef160538ee13a1a95e557ca0bde",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/phase-04.json": "6075d1cea892f4a1a7153eb29c19fad073654d123a4be11b8317677ce7c19e17",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/report.json": "168842f53b85f23c9c4eac0d4d139325f743d635f594611246259fe0cbda5222",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/phase-08.json": "5df45dcb2fc143338384334334320f38c3936d7a5c5792bae32e9edcdbc99387",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/diagnostic-journal.jsonl": "07ef0ac6c154dfb637e99770ddacb7017078581564ba44147e03c90745ef6102",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/phase-07.json": "a19b368cf14f83ef57890b172b9e54efd46a98de0158bd4e1821ea601153f429",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/phase-11.json": "d8e9187aafc69fdabd364ec14dea42ff89a056274b440d39f5fe210a3277f548",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/phase-09.json": "16e04d3e367f44b3315e4b1a19e443ee7661e6eda971a00b4d7e06dad4009e87",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/phase-03.json": "9d4f39c17f2b97f7d4b29bca6e733cec9fd69e020abf6ba8f016d1fe0d10e1bc",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/phase-15.json": "59e0390c7a536303c22823dc1a1c973b747f60f68dce26de4f313852bb7220e4",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/phase-14.json": "e180b0f873fbd12e8b64dd421770d266b44202eabbe3bd88420dfed4c58d06a2",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/phase-12.json": "ded6226509c04331b6e9d53dbad518039461c02afa57291a9d52b1e84d292689",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/observation/summary.json": "9dea7f084cb83b06b4679d4679234c72cd7d815a65b0753e84890bc334aa7236",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/observation/metadata.json": "048d492467421b32dfd6ca7bd21f957b11a69aeb8992465d8121fe1e9f310fc8",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/observation/accepted-sampler.py": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/observation/samples.jsonl": "7fe98a99c531ec544f3a578bf96a3feff63361305da64de8c2d90a215214f57d",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/accepted-harness/launch-recovery_acceptance-startup.mjs": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/accepted-harness/check-create-recovery_fixture-guards.mjs": "5bb86009d73cdd158637a716c4a3a348edb30337e9e2a8cd93ebef82773e1b35",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/accepted-harness/four-project-queue_sample-linux-owned.py": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/accepted-harness/check-create-recovery_check-create-guard.mjs": "4c36f0f9253da83bd5d75fd4f5af40363ecd0fd1598db9e00f9c0e10d98507a0",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/accepted-harness/launch-recovery_fenced-docker-proxy.mjs": "2b6887af0bad7975c74bac42c8ed7988813e3c72ba615281c727c0ac268b1606",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/accepted-harness/check-create-recovery_installed-recovery.mjs": "1f4acfbe56c91daadbc8968ac5c1a8db0fbd75e1a066c0bae50c84d748ad1c81",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/accepted-harness/launch-recovery_acceptance-lifecycle.mjs": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/accepted-harness/check-create-recovery_recovery-scenario.mjs": "f69a7d5bbf1fd1019106f5a24170f4946e182c78f741d6ad8415b5a90d386e24",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/accepted-harness/check-create-recovery_run-with-observer.py": "4ae1172679672ca785a1ed5a310942f764545900f4f376183b74407b0bff1edc",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/accepted-harness/launch-recovery_durable-acceptance-journal.mjs": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+    "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/accepted-harness/check-create-recovery_provenance.mjs": "6b41954f56052d167954018018c79f561722a80497856d135d403904bfd9c08e"
+  },
+  "originalArtifactInputsUnchanged": true,
+  "noSignalsOrMutationsPerformed": true
+}

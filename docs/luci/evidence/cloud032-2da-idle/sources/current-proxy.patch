@@ -1,0 +1,109 @@
+--- preserved-attempt3/launch-recovery/fenced-docker-proxy.mjs
++++ current-dependency/launch-recovery/fenced-docker-proxy.mjs
+@@ -10,7 +10,9 @@
+ const INSPECT = /^\/v\d+\.\d+\/containers\/[^/]+\/json$/;
+ const CHECK_OBJECT = /^\/v\d+\.\d+\/containers\/([a-f0-9]{64}|luci-check-check-[a-f0-9]{24}-0)(?:\/(start|stop|attach|wait))?$/;
+ const SDK_CHECK_OBJECT = /^\/v\d+\.\d+\/containers\/([a-f0-9]{64}|luci-check-checkexec-[a-f0-9]{24})(?:\/(start|stop|attach|wait|json|logs|stats))?$/;
++const SDK_UNVERSIONED_CHECK_STATS = /^\/containers\/([a-f0-9]{64}|luci-check-checkexec-[a-f0-9]{24})\/(stats)$/;
+ const SDK_CHECK_LABELS = ['luci.check','luci.check-protocol','luci.instance','luci.check-engine','luci.check-allocation','luci.check-id','luci.check-command-index','luci.check-scope','luci.check-project','luci.check-command-digest','luci.check-source-digest','luci.check-image'];
++const SDK_CHECK_FENCE_LABELS = SDK_CHECK_LABELS.filter(key => !['luci.check-source-digest','luci.check-image'].includes(key)).concat(['luci.launch-fence','luci.fence-intent','luci.fence-binding']);
+ const ALLOWED_LABELS = new Set(['luci.managed', 'luci.instance', 'luci.sandbox-id', 'luci.session-id', 'luci.project-id', 'luci.user-id', 'luci.team-id', 'luci.launch-fence', 'luci.fence-intent', 'luci.fence-binding']);
+ const now = () => new Date().toISOString();
+ const problem = code => Object.assign(new Error(code), { code });
+@@ -37,9 +39,12 @@
+   maxConcurrentRequests = 16, maxPendingBodyBytes = 32 * 1024 * 1024,
+   upstreamTimeoutMs = 120_000, holdTimeoutMs = 120_000,
+   allowCheckTraffic = false, journal = null, checkTrafficProtocol = 'cli-v1',
++  allowCheckRecovery = false, checkCreateLimit = 1,
+ } = {}) {
+   if (!['cli-v1','sdk-ledger-v1'].includes(checkTrafficProtocol) || (checkTrafficProtocol !== 'cli-v1' && !allowCheckTraffic)) throw problem('explicit-check-protocol-required');
+   const sdkChecks = checkTrafficProtocol === 'sdk-ledger-v1';
++  if (typeof allowCheckRecovery !== 'boolean' || (allowCheckRecovery && !sdkChecks)) throw problem('explicit-sdk-check-recovery-required');
++  if (!Number.isSafeInteger(checkCreateLimit) || checkCreateLimit < 1 || checkCreateLimit > 3 || (checkCreateLimit !== 1 && !allowCheckRecovery)) throw problem('bounded-check-recovery-budget-required');
+   if (journal !== null && typeof journal?.record !== 'function') throw problem('invalid-journal');
+   if (!isAbsolute(socketPath ?? '') || !isAbsolute(upstreamSocketPath ?? '') || resolve(socketPath) === resolve(upstreamSocketPath)) throw problem('distinct-absolute-sockets-required');
+   if (Buffer.byteLength(socketPath) >= 108 || Buffer.byteLength(join(dirname(socketPath), '.luci-fence-proxy-XXXXXX', 'docker.sock')) >= 108) throw problem('socket-path-too-long');
+@@ -48,7 +53,7 @@
+   for (const [name, value] of Object.entries({ maxCreates, maxStarts, maxObservations, maxBodyBytes, maxBufferedResponseBytes, maxResponseBytes, maxConcurrentRequests, maxPendingBodyBytes, upstreamTimeoutMs, holdTimeoutMs, worker: maxCreatesByKind?.worker, fence: maxCreatesByKind?.fence })) {
+     if (!Number.isSafeInteger(value) || value < 1) throw problem(`invalid-${name}`);
+   }
+-  if (typeof allowCheckTraffic !== 'boolean' || (allowCheckTraffic && maxCreatesByKind?.check !== 1) || (!allowCheckTraffic && maxCreatesByKind?.check !== undefined)) throw problem('explicit-single-check-budget-required');
++  if (typeof allowCheckTraffic !== 'boolean' || (allowCheckTraffic && maxCreatesByKind?.check !== checkCreateLimit) || (!allowCheckTraffic && maxCreatesByKind?.check !== undefined)) throw problem('explicit-single-check-budget-required');
+   try { await lstat(socketPath); throw problem('socket-already-exists'); } catch (cause) { if (cause.code !== 'ENOENT') throw cause; }
+   if (!(await lstat(upstreamSocketPath)).isSocket()) throw problem('upstream-must-be-a-socket');
+ 
+@@ -161,7 +166,7 @@
+   }
+   function checkObject(row) {
+     if (!allowCheckTraffic) return null;
+-    const found = (sdkChecks ? SDK_CHECK_OBJECT : CHECK_OBJECT).exec(row.path);
++    const found = sdkChecks ? (SDK_CHECK_OBJECT.exec(row.path) || SDK_UNVERSIONED_CHECK_STATS.exec(row.path)) : CHECK_OBJECT.exec(row.path);
+     if (!found) return null;
+     let id = found[1], identity = knownContainers.get(id);
+     if (!identity && id.startsWith('luci-check-')) {
+@@ -183,6 +188,10 @@
+       if (upgrade || check.supplied !== check.id) throw problem('sdk-check-immutable-id-required');
+       if (row.method === 'GET' && check.action === 'json') queryShape(req, {});
+       else if (row.method === 'GET' && check.action === 'logs') queryShape(req, {stdout:['1'],stderr:['1'],tail:['all']}, {stdout:['1'],stderr:['1'],tail:['all']});
++      else if (row.method === 'GET' && check.action === 'stats') {
++        queryShape(req, {stream:['0'],'one-shot':['1']}, {stream:['0'],'one-shot':['1']});
++        if (new URL(req.url, 'http://fixture.invalid').search.length > 128) throw problem('check-query-shape-refused');
++      }
+       else if (row.method === 'POST' && check.action === 'start') {
+         queryShape(req, {});
+         if (++check.identity.startCount > 1 || ++observations.counts.start > maxStarts) throw problem('start-budget-exceeded');
+@@ -206,6 +215,16 @@
+   }
+   function mutationShape(req, row) {
+     if (sdkChecks) {
++      // Recovery may inspect only a previously identified exact logical check
++      // name. All lifecycle mutations still require immutable known IDs.
++      const named = SDK_CHECK_OBJECT.exec(row.path);
++      if (allowCheckRecovery && row.method === 'GET' && named?.[1].startsWith('luci-check-') && named[2] === 'json') {
++        const candidates = [...knownContainers.values()].filter(value => value.name === named[1] && ['check','fence'].includes(value.kind));
++        if (candidates.length === 0) throw problem('unknown-sdk-check-recovery-name');
++        queryShape(req, {});
++        const known = candidates.at(-1); row.kind = known.kind; row.name = known.name; row.labels = known.labels;
++        return; // A forwarded Inspect response, not this mapping, proves identity.
++      }
+       if (checkObject(row)) {checkTraffic(req,row);return;}
+       const sdkObject=SDK_CHECK_OBJECT.exec(row.path), knownWorker=sdkObject&&knownContainers.get(sdkObject[1])?.kind==='worker';
+       if (/^\/v\d+\.\d+\/containers\/luci-check-/.test(row.path) || (!knownWorker && /^\/v\d+\.\d+\/containers\/[^/]+\/logs$/.test(row.path))) throw problem('unknown-sdk-check-identity');
+@@ -215,6 +234,9 @@
+     if (checkObject(row)) { checkTraffic(req, row); return; }
+     const found = OBJECT.exec(row.path), identity = found && knownContainers.get(found[1]);
+     if (!identity || !((row.method === 'POST' && ['start', 'stop'].includes(found[2])) || (row.method === 'DELETE' && found[2] === undefined))) throw problem('unknown-mutation-shape-or-identity');
++    // This opted witness retains its acknowledged check marker permanently.
++    // Agent-fence replacement/cleanup behavior remains unchanged.
++    if (allowCheckRecovery && identity.kind === 'fence' && identity.labels['luci.check'] === 'true' && row.method === 'DELETE') throw problem('permanent-check-fence-delete-forbidden');
+     if (identity.kind === 'fence' && row.method !== 'DELETE') throw problem('fence-start-or-stop-forbidden');
+     row.ref = found[1]; row.kind = identity.kind; row.labels = identity.labels; row.name = identity.name;
+     if (found[2] === 'start' && ++observations.counts.start > maxStarts) throw problem('start-budget-exceeded');
+@@ -304,6 +326,11 @@
+       if (closing) throw problem('proxy-closing');
+       mutationShape(req, row);
+       if (row.kind === 'check' && body.length !== 0) throw problem('check-lifecycle-body-refused');
++      if (sdkChecks && row.kind === 'check' && row.method === 'GET' && checkObject(row)?.action === 'stats') {
++        // Preserve actual ordering/encoding only after this exact query and the
++        // empty body passed validation. Rejected/private query text stays out.
++        row.checkStatsQuery = new URL(req.url, 'http://fixture.invalid').search;
++      }
+       const create = row.method === 'POST' && CREATE.test(row.path);
+       if (create) {
+         row.ordinal = ++observations.counts.create;
+@@ -314,6 +341,15 @@
+         row.labels = cleanLabels(input?.Labels);
+         row.kind = await bounded(Promise.resolve().then(() => identifyCreate(body, cleanMeta(row))), 'identify-create-timeout');
+         if (!['worker', 'fence', ...(allowCheckTraffic ? ['check'] : [])].includes(row.kind)) throw problem('create-shape-rejected');
++        if (row.kind === 'fence' && sdkChecks && input.Labels?.['luci.check'] === 'true') {
++          if (!allowCheckRecovery) throw problem('check-recovery-opt-in-required');
++          const labels = input.Labels;
++          if (Object.keys(labels).length !== SDK_CHECK_FENCE_LABELS.length || SDK_CHECK_FENCE_LABELS.some(key => typeof labels[key] !== 'string') || labels['luci.launch-fence'] !== '1') throw problem('sdk-check-fence-labels-refused');
++          const prior = [...knownContainers.values()].filter(value => value.kind === 'check' && value.name === row.name);
++          if (prior.length !== 1 || SDK_CHECK_FENCE_LABELS.filter(key => !['luci.launch-fence','luci.fence-intent','luci.fence-binding'].includes(key)).some(key => labels[key] !== prior[0].labels[key])) throw problem('sdk-check-fence-original-identity-refused');
++          if (!/^[a-f0-9]{32}$/.test(labels['luci.fence-intent']) || !/^[a-f0-9]{64}$/.test(labels['luci.fence-binding'])) throw problem('sdk-check-fence-intent-refused');
++          row.labels = Object.fromEntries(SDK_CHECK_FENCE_LABELS.map(key => [key, labels[key]]));
++        }
+         if (row.kind === 'check') {
+           if (sdkChecks) {
+             const labels=input.Labels??{};

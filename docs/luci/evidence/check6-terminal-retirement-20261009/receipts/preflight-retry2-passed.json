@@ -1,0 +1,909 @@
+{
+  "version": 1,
+  "passed": true,
+  "at": "2026-10-09T01:34:13.611426+00:00",
+  "configSHA256": "cbfa247e71a9db246a08bd28f4bba3d2deeb6df1570c3e400f6cd381b40008f6",
+  "scope": "Read-only preparation; no fixture retirement, Docker deletion, or authorization to mutate.",
+  "errors": [],
+  "originalRunPassed": false,
+  "originalFailurePreserved": {
+    "errorName": "AssertionError",
+    "errorCode": "ERR_ASSERTION",
+    "locations": [
+      {
+        "file": "recovery-scenario.mjs",
+        "line": 241,
+        "column": 10
+      },
+      {
+        "file": "installed-recovery.mjs",
+        "line": 401,
+        "column": 16
+      },
+      {
+        "file": "installed-recovery.mjs",
+        "line": 381,
+        "column": 5
+      },
+      {
+        "file": "installed-recovery.mjs",
+        "line": 425,
+        "column": 79
+      }
+    ]
+  },
+  "partialRetirementAllowance": {
+    "acknowledgeOriginalRunFailed": true,
+    "receiptSHA256": "f2b05ffcd3acad5228c5d3ab4681610cc2021e777b6771a74ab161f9b5e2118b",
+    "allowance": "exact-da8a-attempt6-final-stats-refusal-assertion-only"
+  },
+  "closureBefore": {
+    "at": "2026-10-09T01:34:13.974280+00:00",
+    "known": [
+      {
+        "expected": {
+          "pid": 2124251,
+          "startTicks": 25466327,
+          "role": "driver",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124375,
+          "startTicks": 25466433,
+          "role": "other-owned-descendant",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124434,
+          "startTicks": 25466655,
+          "role": "controller",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124454,
+          "startTicks": 25466707,
+          "role": "controller",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124670,
+          "startTicks": 25466876,
+          "role": "browser",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124697,
+          "startTicks": 25466888,
+          "role": "browser",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": {
+          "pid": 2124697,
+          "startTicks": "25466888",
+          "state": "Z",
+          "parentPid": 1
+        },
+        "result": "exited-zombie"
+      },
+      {
+        "expected": {
+          "pid": 2124698,
+          "startTicks": 25466889,
+          "role": "browser",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": {
+          "pid": 2124698,
+          "startTicks": "25466889",
+          "state": "Z",
+          "parentPid": 1
+        },
+        "result": "exited-zombie"
+      },
+      {
+        "expected": {
+          "pid": 2124718,
+          "startTicks": 25466899,
+          "role": "browser",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124740,
+          "startTicks": 25466941,
+          "role": "browser",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124741,
+          "startTicks": 25466946,
+          "role": "browser",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124772,
+          "startTicks": 25466958,
+          "role": "browser",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124779,
+          "startTicks": 25466961,
+          "role": "browser",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124781,
+          "startTicks": 25466962,
+          "role": "browser",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124252,
+          "startTicks": 25466327,
+          "role": "observer",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124250,
+          "startTicks": 25466319,
+          "role": "wrapper",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      }
+    ],
+    "fixtureOwnedLive": [],
+    "unreadableProcesses": [
+      {
+        "pid": 260700,
+        "result": "unreadable-preexisting-not-fixture-child"
+      }
+    ],
+    "preexistingUnreadableExclusions": [
+      {
+        "result": "unreadable-preexisting-not-fixture-child",
+        "before": {
+          "pid": 260700,
+          "startTicks": "2331192",
+          "state": "S",
+          "parentPid": 1,
+          "uid": 1000,
+          "comm": "gpg-agent"
+        },
+        "after": {
+          "pid": 260700,
+          "startTicks": "2331192",
+          "state": "S",
+          "parentPid": 1,
+          "uid": 1000,
+          "comm": "gpg-agent"
+        },
+        "creationTicksBeforeWrapper": 23135127,
+        "proofInput": "preexistingProcessProof",
+        "scope": "Exact preexisting identity only; environment remains unreadable, process remains live, not absence or whole-machine closure."
+      }
+    ],
+    "otherUidProcessesNotInspected": 227,
+    "scope": "Exact recorded identities plus same-UID fixture environment scan; other UIDs excluded, no whole-machine zero-process claim."
+  },
+  "partialHistoryBefore": {
+    "targetHistoryRelativePath": {
+      "relativePath": "state/control-plane/teams/team-MSyzSWC28BCwgwuFA75Mth/runtime/state/sessions/project-checks/p-b127f5a3.json",
+      "rawSHA256": "16fff5bf0f2bb477547977b3d5c3030c340fc63a2e60d97189b53061d2213090"
+    },
+    "historyHistoryRelativePath": {
+      "relativePath": "state/control-plane/teams/team-MSyzSWC28BCwgwuFA75Mth/runtime/state/sessions/project-checks/p-f0038548.json",
+      "rawSHA256": "da36cb82f058861c5b5a299eed9bd17eb786a96b59d56969a240045b0b181522"
+    },
+    "privateDerivedProjectionComparison": {
+      "withheld": true,
+      "originalCanonicalJSONSHA256": "ee934f92fead526de28c612c90d5e5318b008bbce9a833ae797794188949e410",
+      "scope": "Private stored values/file inventory excluded; original bytes remain publisher-held."
+    }
+  },
+  "markerBefore": {
+    "at": "2026-10-09T01:34:14.621681+00:00",
+    "inspection": {
+      "Id": "f810ed45a390122637e062b2f0c79c603a49a80a135e9be7a890006bab85f12b",
+      "Created": "2026-10-09T01:17:41.572766506Z",
+      "Path": "/",
+      "Args": [],
+      "State": {
+        "Status": "created",
+        "Running": false,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 0,
+        "ExitCode": 0,
+        "Error": "",
+        "StartedAt": "0001-01-01T00:00:00Z",
+        "FinishedAt": "0001-01-01T00:00:00Z"
+      },
+      "Image": "",
+      "ResolvConfPath": "",
+      "HostnamePath": "",
+      "HostsPath": "",
+      "LogPath": "",
+      "Name": "/luci-check-checkexec-f37fa411f0b542f281f61d7d",
+      "RestartCount": 0,
+      "Driver": "vfs",
+      "Platform": "linux",
+      "MountLabel": "",
+      "ProcessLabel": "",
+      "AppArmorProfile": "",
+      "ExecIDs": null,
+      "HostConfig": {
+        "Binds": null,
+        "ContainerIDFile": "",
+        "LogConfig": {
+          "Type": "none",
+          "Config": {}
+        },
+        "NetworkMode": "none",
+        "PortBindings": null,
+        "RestartPolicy": {
+          "Name": "no",
+          "MaximumRetryCount": 0
+        },
+        "AutoRemove": false,
+        "VolumeDriver": "",
+        "VolumesFrom": null,
+        "ConsoleSize": [
+          0,
+          0
+        ],
+        "CapAdd": null,
+        "CapDrop": [
+          "ALL"
+        ],
+        "CgroupnsMode": "private",
+        "Dns": null,
+        "DnsOptions": null,
+        "DnsSearch": null,
+        "ExtraHosts": null,
+        "GroupAdd": null,
+        "IpcMode": "none",
+        "Cgroup": "",
+        "Links": null,
+        "OomScoreAdj": 0,
+        "PidMode": "",
+        "Privileged": false,
+        "PublishAllPorts": false,
+        "ReadonlyRootfs": true,
+        "SecurityOpt": [
+          "no-new-privileges:true"
+        ],
+        "UTSMode": "",
+        "UsernsMode": "",
+        "ShmSize": 67108864,
+        "Runtime": "runc",
+        "Isolation": "",
+        "CpuShares": 0,
+        "Memory": 6291456,
+        "NanoCpus": 100000000,
+        "CgroupParent": "",
+        "BlkioWeight": 0,
+        "BlkioWeightDevice": null,
+        "BlkioDeviceReadBps": null,
+        "BlkioDeviceWriteBps": null,
+        "BlkioDeviceReadIOps": null,
+        "BlkioDeviceWriteIOps": null,
+        "CpuPeriod": 0,
+        "CpuQuota": 0,
+        "CpuRealtimePeriod": 0,
+        "CpuRealtimeRuntime": 0,
+        "CpusetCpus": "",
+        "CpusetMems": "",
+        "Devices": null,
+        "DeviceCgroupRules": null,
+        "DeviceRequests": null,
+        "MemoryReservation": 0,
+        "MemorySwap": 12582912,
+        "MemorySwappiness": null,
+        "OomKillDisable": false,
+        "PidsLimit": 1,
+        "Ulimits": null,
+        "CpuCount": 0,
+        "CpuPercent": 0,
+        "IOMaximumIOps": 0,
+        "IOMaximumBandwidth": 0,
+        "MaskedPaths": [
+          "/proc/asound",
+          "/proc/acpi",
+          "/proc/interrupts",
+          "/proc/kcore",
+          "/proc/keys",
+          "/proc/latency_stats",
+          "/proc/timer_list",
+          "/proc/timer_stats",
+          "/proc/sched_debug",
+          "/proc/scsi",
+          "/sys/firmware",
+          "/sys/devices/virtual/powercap"
+        ],
+        "ReadonlyPaths": [
+          "/proc/bus",
+          "/proc/fs",
+          "/proc/irq",
+          "/proc/sys",
+          "/proc/sysrq-trigger"
+        ]
+      },
+      "GraphDriver": {
+        "Data": {
+          "ID": "f810ed45a390122637e062b2f0c79c603a49a80a135e9be7a890006bab85f12b"
+        },
+        "Name": "vfs"
+      },
+      "Mounts": [],
+      "Config": {
+        "Hostname": "f810ed45a390",
+        "Domainname": "",
+        "User": "",
+        "AttachStdin": false,
+        "AttachStdout": false,
+        "AttachStderr": false,
+        "Tty": false,
+        "OpenStdin": false,
+        "StdinOnce": false,
+        "Env": null,
+        "Cmd": [
+          "/"
+        ],
+        "Image": "",
+        "Volumes": {},
+        "WorkingDir": "",
+        "Entrypoint": null,
+        "NetworkDisabled": true,
+        "OnBuild": null,
+        "Labels": {
+          "luci.check": "true",
+          "luci.check-allocation": "checkexec-f37fa411f0b542f281f61d7d",
+          "luci.check-command-digest": "3aa0317fe3e73bf862b6b9ed99474d7b1c008a187e0dda593d6a26506d0e0ec9",
+          "luci.check-command-index": "0",
+          "luci.check-engine": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+          "luci.check-id": "check-9499b0b27457bc8ce99ee80b",
+          "luci.check-project": "p-b127f5a3",
+          "luci.check-protocol": "1",
+          "luci.check-scope": "7f4ad4cf0bd5b722d47918d36c8da8799f246390b61be620407a9dac8ad68207",
+          "luci.fence-binding": "a479063d3d3a51a4e412c375b1a9a8d4c1d3d2fe7f2e9d880596a579c71af383",
+          "luci.fence-intent": "7108911f387bb8c8d6d927ddb37ad942",
+          "luci.instance": "03c2d65e-9a83-49a1-8f96-4c617a2237d6",
+          "luci.launch-fence": "1"
+        }
+      },
+      "NetworkSettings": {
+        "Bridge": "",
+        "SandboxID": "",
+        "SandboxKey": "",
+        "Ports": {},
+        "HairpinMode": false,
+        "LinkLocalIPv6Address": "",
+        "LinkLocalIPv6PrefixLen": 0,
+        "SecondaryIPAddresses": null,
+        "SecondaryIPv6Addresses": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "MacAddress": "",
+        "Networks": {}
+      }
+    },
+    "containers": [
+      "f810ed45a390122637e062b2f0c79c603a49a80a135e9be7a890006bab85f12b"
+    ],
+    "volumes": []
+  },
+  "ledgerRawSHA256": "bfef13440edb6e1ed2437427d8fbc17c2b2d011cfcc03426878b3a986107b6fd",
+  "retiredProofJSONSHA256": "68602003d31cc15990e670645bb0f2a5a67dd8f5aa08ffb5d7f21182e16f133a",
+  "archive": {
+    "path": "<PRIVATE_VERIFIED_FIXTURE_ARCHIVE>",
+    "bytes": 440320,
+    "sha256": "8977156c22e099583d010e0dfbd689ece291526e2571e20fc0b7e89a5547a000"
+  },
+  "closureAfter": {
+    "at": "2026-10-09T01:34:15.056289+00:00",
+    "known": [
+      {
+        "expected": {
+          "pid": 2124251,
+          "startTicks": 25466327,
+          "role": "driver",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124375,
+          "startTicks": 25466433,
+          "role": "other-owned-descendant",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124434,
+          "startTicks": 25466655,
+          "role": "controller",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124454,
+          "startTicks": 25466707,
+          "role": "controller",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124670,
+          "startTicks": 25466876,
+          "role": "browser",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124697,
+          "startTicks": 25466888,
+          "role": "browser",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": {
+          "pid": 2124697,
+          "startTicks": "25466888",
+          "state": "Z",
+          "parentPid": 1
+        },
+        "result": "exited-zombie"
+      },
+      {
+        "expected": {
+          "pid": 2124698,
+          "startTicks": 25466889,
+          "role": "browser",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": {
+          "pid": 2124698,
+          "startTicks": "25466889",
+          "state": "Z",
+          "parentPid": 1
+        },
+        "result": "exited-zombie"
+      },
+      {
+        "expected": {
+          "pid": 2124718,
+          "startTicks": 25466899,
+          "role": "browser",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124740,
+          "startTicks": 25466941,
+          "role": "browser",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124741,
+          "startTicks": 25466946,
+          "role": "browser",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124772,
+          "startTicks": 25466958,
+          "role": "browser",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124779,
+          "startTicks": 25466961,
+          "role": "browser",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124781,
+          "startTicks": 25466962,
+          "role": "browser",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124252,
+          "startTicks": 25466327,
+          "role": "observer",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124250,
+          "startTicks": 25466319,
+          "role": "wrapper",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      }
+    ],
+    "fixtureOwnedLive": [],
+    "unreadableProcesses": [
+      {
+        "pid": 260700,
+        "result": "unreadable-preexisting-not-fixture-child"
+      }
+    ],
+    "preexistingUnreadableExclusions": [
+      {
+        "result": "unreadable-preexisting-not-fixture-child",
+        "before": {
+          "pid": 260700,
+          "startTicks": "2331192",
+          "state": "S",
+          "parentPid": 1,
+          "uid": 1000,
+          "comm": "gpg-agent"
+        },
+        "after": {
+          "pid": 260700,
+          "startTicks": "2331192",
+          "state": "S",
+          "parentPid": 1,
+          "uid": 1000,
+          "comm": "gpg-agent"
+        },
+        "creationTicksBeforeWrapper": 23135127,
+        "proofInput": "preexistingProcessProof",
+        "scope": "Exact preexisting identity only; environment remains unreadable, process remains live, not absence or whole-machine closure."
+      }
+    ],
+    "otherUidProcessesNotInspected": 227,
+    "scope": "Exact recorded identities plus same-UID fixture environment scan; other UIDs excluded, no whole-machine zero-process claim."
+  },
+  "markerAfter": {
+    "at": "2026-10-09T01:34:15.521625+00:00",
+    "inspection": {
+      "Id": "f810ed45a390122637e062b2f0c79c603a49a80a135e9be7a890006bab85f12b",
+      "Created": "2026-10-09T01:17:41.572766506Z",
+      "Path": "/",
+      "Args": [],
+      "State": {
+        "Status": "created",
+        "Running": false,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 0,
+        "ExitCode": 0,
+        "Error": "",
+        "StartedAt": "0001-01-01T00:00:00Z",
+        "FinishedAt": "0001-01-01T00:00:00Z"
+      },
+      "Image": "",
+      "ResolvConfPath": "",
+      "HostnamePath": "",
+      "HostsPath": "",
+      "LogPath": "",
+      "Name": "/luci-check-checkexec-f37fa411f0b542f281f61d7d",
+      "RestartCount": 0,
+      "Driver": "vfs",
+      "Platform": "linux",
+      "MountLabel": "",
+      "ProcessLabel": "",
+      "AppArmorProfile": "",
+      "ExecIDs": null,
+      "HostConfig": {
+        "Binds": null,
+        "ContainerIDFile": "",
+        "LogConfig": {
+          "Type": "none",
+          "Config": {}
+        },
+        "NetworkMode": "none",
+        "PortBindings": null,
+        "RestartPolicy": {
+          "Name": "no",
+          "MaximumRetryCount": 0
+        },
+        "AutoRemove": false,
+        "VolumeDriver": "",
+        "VolumesFrom": null,
+        "ConsoleSize": [
+          0,
+          0
+        ],
+        "CapAdd": null,
+        "CapDrop": [
+          "ALL"
+        ],
+        "CgroupnsMode": "private",
+        "Dns": null,
+        "DnsOptions": null,
+        "DnsSearch": null,
+        "ExtraHosts": null,
+        "GroupAdd": null,
+        "IpcMode": "none",
+        "Cgroup": "",
+        "Links": null,
+        "OomScoreAdj": 0,
+        "PidMode": "",
+        "Privileged": false,
+        "PublishAllPorts": false,
+        "ReadonlyRootfs": true,
+        "SecurityOpt": [
+          "no-new-privileges:true"
+        ],
+        "UTSMode": "",
+        "UsernsMode": "",
+        "ShmSize": 67108864,
+        "Runtime": "runc",
+        "Isolation": "",
+        "CpuShares": 0,
+        "Memory": 6291456,
+        "NanoCpus": 100000000,
+        "CgroupParent": "",
+        "BlkioWeight": 0,
+        "BlkioWeightDevice": null,
+        "BlkioDeviceReadBps": null,
+        "BlkioDeviceWriteBps": null,
+        "BlkioDeviceReadIOps": null,
+        "BlkioDeviceWriteIOps": null,
+        "CpuPeriod": 0,
+        "CpuQuota": 0,
+        "CpuRealtimePeriod": 0,
+        "CpuRealtimeRuntime": 0,
+        "CpusetCpus": "",
+        "CpusetMems": "",
+        "Devices": null,
+        "DeviceCgroupRules": null,
+        "DeviceRequests": null,
+        "MemoryReservation": 0,
+        "MemorySwap": 12582912,
+        "MemorySwappiness": null,
+        "OomKillDisable": false,
+        "PidsLimit": 1,
+        "Ulimits": null,
+        "CpuCount": 0,
+        "CpuPercent": 0,
+        "IOMaximumIOps": 0,
+        "IOMaximumBandwidth": 0,
+        "MaskedPaths": [
+          "/proc/asound",
+          "/proc/acpi",
+          "/proc/interrupts",
+          "/proc/kcore",
+          "/proc/keys",
+          "/proc/latency_stats",
+          "/proc/timer_list",
+          "/proc/timer_stats",
+          "/proc/sched_debug",
+          "/proc/scsi",
+          "/sys/firmware",
+          "/sys/devices/virtual/powercap"
+        ],
+        "ReadonlyPaths": [
+          "/proc/bus",
+          "/proc/fs",
+          "/proc/irq",
+          "/proc/sys",
+          "/proc/sysrq-trigger"
+        ]
+      },
+      "GraphDriver": {
+        "Data": {
+          "ID": "f810ed45a390122637e062b2f0c79c603a49a80a135e9be7a890006bab85f12b"
+        },
+        "Name": "vfs"
+      },
+      "Mounts": [],
+      "Config": {
+        "Hostname": "f810ed45a390",
+        "Domainname": "",
+        "User": "",
+        "AttachStdin": false,
+        "AttachStdout": false,
+        "AttachStderr": false,
+        "Tty": false,
+        "OpenStdin": false,
+        "StdinOnce": false,
+        "Env": null,
+        "Cmd": [
+          "/"
+        ],
+        "Image": "",
+        "Volumes": {},
+        "WorkingDir": "",
+        "Entrypoint": null,
+        "NetworkDisabled": true,
+        "OnBuild": null,
+        "Labels": {
+          "luci.check": "true",
+          "luci.check-allocation": "checkexec-f37fa411f0b542f281f61d7d",
+          "luci.check-command-digest": "3aa0317fe3e73bf862b6b9ed99474d7b1c008a187e0dda593d6a26506d0e0ec9",
+          "luci.check-command-index": "0",
+          "luci.check-engine": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+          "luci.check-id": "check-9499b0b27457bc8ce99ee80b",
+          "luci.check-project": "p-b127f5a3",
+          "luci.check-protocol": "1",
+          "luci.check-scope": "7f4ad4cf0bd5b722d47918d36c8da8799f246390b61be620407a9dac8ad68207",
+          "luci.fence-binding": "a479063d3d3a51a4e412c375b1a9a8d4c1d3d2fe7f2e9d880596a579c71af383",
+          "luci.fence-intent": "7108911f387bb8c8d6d927ddb37ad942",
+          "luci.instance": "03c2d65e-9a83-49a1-8f96-4c617a2237d6",
+          "luci.launch-fence": "1"
+        }
+      },
+      "NetworkSettings": {
+        "Bridge": "",
+        "SandboxID": "",
+        "SandboxKey": "",
+        "Ports": {},
+        "HairpinMode": false,
+        "LinkLocalIPv6Address": "",
+        "LinkLocalIPv6PrefixLen": 0,
+        "SecondaryIPAddresses": null,
+        "SecondaryIPv6Addresses": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "MacAddress": "",
+        "Networks": {}
+      }
+    },
+    "containers": [
+      "f810ed45a390122637e062b2f0c79c603a49a80a135e9be7a890006bab85f12b"
+    ],
+    "volumes": []
+  },
+  "partialHistoryAfter": {
+    "targetHistoryRelativePath": {
+      "relativePath": "state/control-plane/teams/team-MSyzSWC28BCwgwuFA75Mth/runtime/state/sessions/project-checks/p-b127f5a3.json",
+      "rawSHA256": "16fff5bf0f2bb477547977b3d5c3030c340fc63a2e60d97189b53061d2213090"
+    },
+    "historyHistoryRelativePath": {
+      "relativePath": "state/control-plane/teams/team-MSyzSWC28BCwgwuFA75Mth/runtime/state/sessions/project-checks/p-f0038548.json",
+      "rawSHA256": "da36cb82f058861c5b5a299eed9bd17eb786a96b59d56969a240045b0b181522"
+    },
+    "privateDerivedProjectionComparison": {
+      "withheld": true,
+      "originalCanonicalJSONSHA256": "ee934f92fead526de28c612c90d5e5318b008bbce9a833ae797794188949e410",
+      "scope": "Private stored values/file inventory excluded; original bytes remain publisher-held."
+    }
+  },
+  "knownExitedZombies": [
+    {
+      "expected": {
+        "pid": 2124697,
+        "startTicks": 25466888,
+        "role": "browser",
+        "evidenceKey": "independentClosure"
+      },
+      "observation": {
+        "pid": 2124697,
+        "startTicks": "25466888",
+        "state": "Z",
+        "parentPid": 1
+      },
+      "result": "exited-zombie"
+    },
+    {
+      "expected": {
+        "pid": 2124698,
+        "startTicks": 25466889,
+        "role": "browser",
+        "evidenceKey": "independentClosure"
+      },
+      "observation": {
+        "pid": 2124698,
+        "startTicks": "25466889",
+        "state": "Z",
+        "parentPid": 1
+      },
+      "result": "exited-zombie"
+    }
+  ],
+  "rootReviewRequired": [
+    "Known exited PID1 browser zombies are not absent or reaped.",
+    "Read-only observations are point-in-time; repeat immediately before any move or immutable-ID deletion.",
+    "No automatic move/tombstone/delete is supplied. Keep the permanent marker until separate terminal nonresumption steps are reviewed."
+  ],
+  "finishedAt": "2026-10-09T01:34:15.550268+00:00"
+}

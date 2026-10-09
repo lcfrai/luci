@@ -1,0 +1,275 @@
+{
+  "scope": "Exact accepted and prepared helper bytes match the historical result; repository dependencies also read from immutable product/helper commit. This is not a new app or package execution.",
+  "productAndHelperSource": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+  "frozenDriverSHA256": "d7fb7586e5b4a2639da9abb6c2e1c6a1296d2161ea7cf2ec393a8f1d3ab1b016",
+  "acceptedHelpers": {
+    "sustained.mjs": {
+      "sha256": "d7fb7586e5b4a2639da9abb6c2e1c6a1296d2161ea7cf2ec393a8f1d3ab1b016",
+      "bytes": 83594,
+      "member": "sources/accepted/sustained.mjs.gz",
+      "uncompressedBytes": 83594,
+      "representation": "gzip of exact accepted helper bytes"
+    },
+    "task-command.mjs": {
+      "sha256": "414015af6ea915ccd3c838c3a316b7f08e079b70cc5de299a7991bb0b5f9f6fe",
+      "bytes": 10172,
+      "member": "sources/accepted/task-command.mjs.gz",
+      "uncompressedBytes": 10172,
+      "representation": "gzip of exact accepted helper bytes"
+    },
+    "workloads.mjs": {
+      "sha256": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306",
+      "bytes": 18691,
+      "member": "sources/accepted/workloads.mjs.gz",
+      "uncompressedBytes": 18691,
+      "representation": "gzip of exact accepted helper bytes"
+    },
+    "interaction-metrics.mjs": {
+      "sha256": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502",
+      "bytes": 9846,
+      "member": "sources/accepted/interaction-metrics.mjs.gz",
+      "uncompressedBytes": 9846,
+      "representation": "gzip of exact accepted helper bytes"
+    },
+    "latency-diagnostics.mjs": {
+      "sha256": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96",
+      "bytes": 7545,
+      "member": "sources/accepted/latency-diagnostics.mjs.gz",
+      "uncompressedBytes": 7545,
+      "representation": "gzip of exact accepted helper bytes"
+    },
+    "task-context.mjs": {
+      "sha256": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2",
+      "bytes": 2439,
+      "member": "sources/accepted/task-context.mjs.gz",
+      "uncompressedBytes": 2439,
+      "representation": "gzip of exact accepted helper bytes"
+    },
+    "source-binding.mjs": {
+      "sha256": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796",
+      "bytes": 2768,
+      "member": "sources/accepted/source-binding.mjs.gz",
+      "uncompressedBytes": 2768,
+      "representation": "gzip of exact accepted helper bytes"
+    },
+    "queue-controls.mjs": {
+      "sha256": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0",
+      "bytes": 711,
+      "member": "sources/accepted/queue-controls.mjs.gz",
+      "uncompressedBytes": 711,
+      "representation": "gzip of exact accepted helper bytes"
+    },
+    "run-with-observer.py": {
+      "sha256": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a",
+      "bytes": 17220,
+      "member": "sources/accepted/run-with-observer.py.gz",
+      "uncompressedBytes": 17220,
+      "representation": "gzip of exact accepted helper bytes"
+    },
+    "scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs": {
+      "sha256": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+      "bytes": 6811,
+      "member": "sources/accepted/four-project-queue_native-terminal-diagnostics.mjs.gz",
+      "uncompressedBytes": 6811,
+      "representation": "gzip of exact accepted helper bytes"
+    },
+    "scripts/acceptance/four-project-queue/sample-linux-owned.py": {
+      "sha256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+      "bytes": 35379,
+      "member": "sources/accepted/four-project-queue_sample-linux-owned.py.gz",
+      "uncompressedBytes": 35379,
+      "representation": "gzip of exact accepted helper bytes"
+    },
+    "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs": {
+      "sha256": "2b6887af0bad7975c74bac42c8ed7988813e3c72ba615281c727c0ac268b1606",
+      "bytes": 39368,
+      "member": "sources/accepted/launch-recovery_fenced-docker-proxy.mjs.gz",
+      "uncompressedBytes": 39368,
+      "representation": "gzip of exact accepted helper bytes"
+    },
+    "scripts/acceptance/launch-recovery/worker-create-guard.mjs": {
+      "sha256": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+      "bytes": 5545,
+      "member": "sources/accepted/launch-recovery_worker-create-guard.mjs.gz",
+      "uncompressedBytes": 5545,
+      "representation": "gzip of exact accepted helper bytes"
+    },
+    "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs": {
+      "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+      "bytes": 6670,
+      "member": "sources/accepted/launch-recovery_durable-acceptance-journal.mjs.gz",
+      "uncompressedBytes": 6670,
+      "representation": "gzip of exact accepted helper bytes"
+    },
+    "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs": {
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "bytes": 4176,
+      "member": "sources/accepted/launch-recovery_acceptance-lifecycle.mjs.gz",
+      "uncompressedBytes": 4176,
+      "representation": "gzip of exact accepted helper bytes"
+    },
+    "scripts/acceptance/launch-recovery/acceptance-startup.mjs": {
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "bytes": 4637,
+      "member": "sources/accepted/launch-recovery_acceptance-startup.mjs.gz",
+      "uncompressedBytes": 4637,
+      "representation": "gzip of exact accepted helper bytes"
+    }
+  },
+  "preservedTemplates": {
+    "four-project-queue_native-terminal-diagnostics.mjs": {
+      "sha256": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+      "bytes": 6811,
+      "member": "sources/template/four-project-queue_native-terminal-diagnostics.mjs.gz",
+      "representation": "gzip of exact preserved template bytes"
+    },
+    "four-project-queue_sample-linux-owned.py": {
+      "sha256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+      "bytes": 35379,
+      "member": "sources/template/four-project-queue_sample-linux-owned.py.gz",
+      "representation": "gzip of exact preserved template bytes"
+    },
+    "interaction-metrics.mjs": {
+      "sha256": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502",
+      "bytes": 9846,
+      "member": "sources/template/interaction-metrics.mjs.gz",
+      "representation": "gzip of exact preserved template bytes"
+    },
+    "latency-diagnostics.mjs": {
+      "sha256": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96",
+      "bytes": 7545,
+      "member": "sources/template/latency-diagnostics.mjs.gz",
+      "representation": "gzip of exact preserved template bytes"
+    },
+    "launch-recovery_acceptance-lifecycle.mjs": {
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "bytes": 4176,
+      "member": "sources/template/launch-recovery_acceptance-lifecycle.mjs.gz",
+      "representation": "gzip of exact preserved template bytes"
+    },
+    "launch-recovery_acceptance-startup.mjs": {
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "bytes": 4637,
+      "member": "sources/template/launch-recovery_acceptance-startup.mjs.gz",
+      "representation": "gzip of exact preserved template bytes"
+    },
+    "launch-recovery_durable-acceptance-journal.mjs": {
+      "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+      "bytes": 6670,
+      "member": "sources/template/launch-recovery_durable-acceptance-journal.mjs.gz",
+      "representation": "gzip of exact preserved template bytes"
+    },
+    "launch-recovery_fenced-docker-proxy.mjs": {
+      "sha256": "48e97d6d5c915cf80c99f0c79a8fb16261eb219616f878fa1ce103ee2c59303d",
+      "bytes": 35707,
+      "member": "sources/template/launch-recovery_fenced-docker-proxy.mjs.gz",
+      "representation": "gzip of exact preserved template bytes"
+    },
+    "launch-recovery_worker-create-guard.mjs": {
+      "sha256": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+      "bytes": 5545,
+      "member": "sources/template/launch-recovery_worker-create-guard.mjs.gz",
+      "representation": "gzip of exact preserved template bytes"
+    },
+    "queue-controls.mjs": {
+      "sha256": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0",
+      "bytes": 711,
+      "member": "sources/template/queue-controls.mjs.gz",
+      "representation": "gzip of exact preserved template bytes"
+    },
+    "run-with-observer.py": {
+      "sha256": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a",
+      "bytes": 17220,
+      "member": "sources/template/run-with-observer.py.gz",
+      "representation": "gzip of exact preserved template bytes"
+    },
+    "source-binding.mjs": {
+      "sha256": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796",
+      "bytes": 2768,
+      "member": "sources/template/source-binding.mjs.gz",
+      "representation": "gzip of exact preserved template bytes"
+    },
+    "sustained.mjs": {
+      "sha256": "6d9e4e1a45c778c5d2066738f3b34930a477d6cf8bcadeec10dab5c975792d32",
+      "bytes": 86152,
+      "member": "sources/template/sustained.mjs.gz",
+      "representation": "gzip of exact preserved template bytes"
+    },
+    "task-command.mjs": {
+      "sha256": "414015af6ea915ccd3c838c3a316b7f08e079b70cc5de299a7991bb0b5f9f6fe",
+      "bytes": 10172,
+      "member": "sources/template/task-command.mjs.gz",
+      "representation": "gzip of exact preserved template bytes"
+    },
+    "task-context.mjs": {
+      "sha256": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2",
+      "bytes": 2439,
+      "member": "sources/template/task-context.mjs.gz",
+      "representation": "gzip of exact preserved template bytes"
+    },
+    "workloads.mjs": {
+      "sha256": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306",
+      "bytes": 18691,
+      "member": "sources/template/workloads.mjs.gz",
+      "representation": "gzip of exact preserved template bytes"
+    }
+  },
+  "repositoryDependenciesAtCommit": {
+    "scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs": {
+      "sha256": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+      "bytes": 6811,
+      "commit": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+      "matchesAccepted": true
+    },
+    "scripts/acceptance/four-project-queue/sample-linux-owned.py": {
+      "sha256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+      "bytes": 35379,
+      "commit": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+      "matchesAccepted": true
+    },
+    "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs": {
+      "sha256": "2b6887af0bad7975c74bac42c8ed7988813e3c72ba615281c727c0ac268b1606",
+      "bytes": 39368,
+      "commit": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+      "matchesAccepted": true
+    },
+    "scripts/acceptance/launch-recovery/worker-create-guard.mjs": {
+      "sha256": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+      "bytes": 5545,
+      "commit": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+      "matchesAccepted": true
+    },
+    "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs": {
+      "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+      "bytes": 6670,
+      "commit": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+      "matchesAccepted": true
+    },
+    "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs": {
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "bytes": 4176,
+      "commit": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+      "matchesAccepted": true
+    },
+    "scripts/acceptance/launch-recovery/acceptance-startup.mjs": {
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "bytes": 4637,
+      "commit": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+      "matchesAccepted": true
+    }
+  },
+  "extractionFiles": {
+    "preparationScript": {
+      "sha256": "f3562a2440076553693ddd4b285884b052026d2dabcc26ef7436fa42cbf3c519",
+      "bytes": 12326
+    },
+    "idleExtractionPatch": {
+      "sha256": "dbdb75f33e94de9b7f20b85dc832669498ea4b7cdc7a60ee0dd554d7a0bf71fa",
+      "bytes": 24832
+    },
+    "currentProxyPatch": {
+      "sha256": "aeaa39306ff308c854fa5b639080e0b49c09d89bf48a14b7cf34c9b2a1a8de78",
+      "bytes": 9801
+    }
+  }
+}

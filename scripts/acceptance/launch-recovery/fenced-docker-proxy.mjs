@@ -176,6 +176,8 @@ export async function startFencedDockerProxy({
     return identity?.kind === 'check' ? { id, identity, supplied: found[1], action: found[2] } : null;
   }
   function queryShape(req, allowed, required = {}) {
+    // URL parsing discards fragments, while forwarding preserves req.url.
+    if (req.url.includes('#')) throw problem('check-query-shape-refused');
     const query = new URL(req.url, 'http://fixture.invalid').searchParams;
     const keys = [...query.keys()];
     if (new Set(keys).size !== keys.length || keys.some(key => !allowed[key]?.includes(query.get(key))) || Object.entries(required).some(([key, values]) => !values.includes(query.get(key)))) throw problem('check-query-shape-refused');

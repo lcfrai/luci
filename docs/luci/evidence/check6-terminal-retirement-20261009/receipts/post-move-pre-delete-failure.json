@@ -1,0 +1,6 @@
+{
+  "error": "KeyError relativePath while iterating projection metadata rather than only history paths",
+  "fixtureMoved": true,
+  "oldPathTombstoned": true,
+  "markerRemovalAttempted": false
+}

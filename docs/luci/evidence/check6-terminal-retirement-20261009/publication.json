@@ -1,0 +1,284 @@
+{
+  "version": 1,
+  "scope": "Separate terminal fixture retirement of exact failed attempt6; original installed acceptance remains FAILED. No private fixture/archive/credential bytes are published.",
+  "originalFinalRetirementSHA256": "992fa4d10dd0b6836b9b00bcda16e39a845823cf63289c10fdd7960bc47a358b",
+  "originalAcceptanceSHA256": "f2b05ffcd3acad5228c5d3ab4681610cc2021e777b6771a74ab161f9b5e2118b",
+  "privateArchive": {
+    "published": false,
+    "bytes": 440320,
+    "sha256": "8977156c22e099583d010e0dfbd689ece291526e2571e20fc0b7e89a5547a000",
+    "claims": "Archive verification/fixture-content preservation are publisher-observed, not independently recoverable from this capsule."
+  },
+  "redactions": {
+    "strings": "Original fixture root, forensic-only destination, archive path, tools-root and checkout paths replaced by labelled tokens. Exact originals are not in this manifest.",
+    "structuredFields": [
+      "fixtureInventoryAfter",
+      "fixtureInventoryBefore",
+      "privateDerivedProjectionComparison"
+    ],
+    "noSecretValuesReadFromFixture": true
+  },
+  "members": [
+    {
+      "path": "receipts/preflight-initial-failed.json",
+      "originalSHA256": "d751ad688011cd70c8663ffe9a8cc40af9c24577c2ce4916e94d7bd19c164174",
+      "originalBytes": 5536,
+      "publishedSHA256": "d751ad688011cd70c8663ffe9a8cc40af9c24577c2ce4916e94d7bd19c164174",
+      "publishedBytes": 5536,
+      "byteIdentical": true,
+      "transformation": "Path substitution and explicit private-field projections",
+      "privateSourceLocatorSHA256": "3ccd23d64731079da7f33e57dcdffc999fc516c6f053f6cdf7ee930327a8a7fd"
+    },
+    {
+      "path": "receipts/preflight-retry1-failed.json",
+      "originalSHA256": "9efe13dc7dd3c9d8124a5ea9f69fbb2bb2e11c682a2764b48d0300ce622a56c6",
+      "originalBytes": 6329,
+      "publishedSHA256": "9efe13dc7dd3c9d8124a5ea9f69fbb2bb2e11c682a2764b48d0300ce622a56c6",
+      "publishedBytes": 6329,
+      "byteIdentical": true,
+      "transformation": "Path substitution and explicit private-field projections",
+      "privateSourceLocatorSHA256": "c9e1538fd272dee0b64b3f7b4c996b1635b3f3fb30e0b6f432cf83360ea3a821"
+    },
+    {
+      "path": "receipts/preflight-retry2-passed.json",
+      "originalSHA256": "09b89e3e8077104e58806297ff7d62fbdc8f290bfaf95390d4bf3cbe70d33306",
+      "originalBytes": 26176,
+      "publishedSHA256": "bad9617be7f332f207ea803d0b86e8e66613acaa6b5d219a7cad776359825b68",
+      "publishedBytes": 25812,
+      "byteIdentical": false,
+      "transformation": "Path substitution and explicit private-field projections",
+      "privateSourceLocatorSHA256": "4bb774abda434eb14e0edb3afef71f4b4d535e7be1a81f836d6b1f41831a9d1a"
+    },
+    {
+      "path": "receipts/pre-mutation-TypeError.json",
+      "originalSHA256": "d3c30dbecd4513245c4134f091f233a7aae3e3c02c8015a3a62e255141eb0268",
+      "originalBytes": 193,
+      "publishedSHA256": "73b29a41ee6a11e6a6886a4854ef7011860c2acee9941ad9ef68c8dc4741b336",
+      "publishedBytes": 203,
+      "byteIdentical": false,
+      "transformation": "Path substitution and explicit private-field projections",
+      "privateSourceLocatorSHA256": "80c4778d6c2ae9af79c4ace057d859323ed544b5cba2762bf15336cbe7a7e95d"
+    },
+    {
+      "path": "receipts/retirement.json",
+      "originalSHA256": "863dc767f3702af847a46b38df3655b5e79b9221b9d434c0c417927feac495e5",
+      "originalBytes": 12086,
+      "publishedSHA256": "84d45da131bc5087b0e478711fc6e295781a22a27ccd2cb74904584662d72650",
+      "publishedBytes": 11994,
+      "byteIdentical": false,
+      "transformation": "Path substitution and explicit private-field projections",
+      "privateSourceLocatorSHA256": "e2fea2ef85af6fef0b92b705fa777ba5d8fe858a7d4f226f12064452721a7f40"
+    },
+    {
+      "path": "receipts/post-move-pre-delete-failure.json",
+      "originalSHA256": "79e47005cea610e876cd7d4f1e6c65a3d58a2ff95c442eda6b3757a7a2cefccb",
+      "originalBytes": 184,
+      "publishedSHA256": "07166452c7ae2cc8f77c802e848cd543ff8d0496ce2720c0053453f5b300d095",
+      "publishedBytes": 194,
+      "byteIdentical": false,
+      "transformation": "Path substitution and explicit private-field projections",
+      "privateSourceLocatorSHA256": "a36f57dd54256c2844fec091990baa261e2280b7c0cbd6d2956d7a43536d4f05"
+    },
+    {
+      "path": "receipts/pre-delete-confirmation.json",
+      "originalSHA256": "ec86f3337f768e6db94dd68556cd4a9b7d0f66c199fbccf4db4f37499241db08",
+      "originalBytes": 11930,
+      "publishedSHA256": "ce35fbffa763a260d9b73a80166ce90d622f2888a13a0fb6daadc2d7cc5aa6aa",
+      "publishedBytes": 11838,
+      "byteIdentical": false,
+      "transformation": "Path substitution and explicit private-field projections",
+      "privateSourceLocatorSHA256": "bdf7c872fdc607d1228b317e7ad542d9f22e9f016fc0a03866a080dc387283de"
+    },
+    {
+      "path": "receipts/delete-receipt.json",
+      "originalSHA256": "0eb81ccb6cb3d05e043cbae4293b0b8a7aad6917555866a2541be042f0670e9b",
+      "originalBytes": 292,
+      "publishedSHA256": "0eb81ccb6cb3d05e043cbae4293b0b8a7aad6917555866a2541be042f0670e9b",
+      "publishedBytes": 292,
+      "byteIdentical": true,
+      "transformation": "Path substitution and explicit private-field projections",
+      "privateSourceLocatorSHA256": "325571d1807fb0464ef2f8f27ac2cfd7ac1aeae78a1814c8b61b8c19268058a9"
+    },
+    {
+      "path": "receipts/retirement-final.json",
+      "originalSHA256": "992fa4d10dd0b6836b9b00bcda16e39a845823cf63289c10fdd7960bc47a358b",
+      "originalBytes": 17592,
+      "publishedSHA256": "8891a45546011130dc16788e12099b9e8090a2f00f351f27c1d2c23cc92dde3e",
+      "publishedBytes": 17500,
+      "byteIdentical": false,
+      "transformation": "Path substitution and explicit private-field projections",
+      "privateSourceLocatorSHA256": "cab350cd0728686dfd505206b9507dd21f17c591d1b00fab1178e1a0e95f44e1"
+    },
+    {
+      "path": "receipts/independent-closure-before-retirement.json",
+      "originalSHA256": "a5ee75e8e8aa9fefc7d96c3e7dfb9a6af78e48e8ac60c5005db9b429688e57d5",
+      "originalBytes": 65944,
+      "publishedSHA256": "8bfbae68f6b0564e82112db0c2f849cb98ea24892bc173e76b7a4038f80f2e83",
+      "publishedBytes": 15812,
+      "byteIdentical": false,
+      "transformation": "Path substitution and explicit private-field projections",
+      "privateSourceLocatorSHA256": "25fbeb00adfa1926c50652ee68782c30963e7eddaf87da7345532c261bc7a987"
+    },
+    {
+      "path": "source/preflight.py",
+      "originalSHA256": "f0357901cdfa808e3693b6ee508627b5d3330c421cc87f8aab031ecad5b68e3c",
+      "originalBytes": 35733,
+      "publishedSHA256": "f0357901cdfa808e3693b6ee508627b5d3330c421cc87f8aab031ecad5b68e3c",
+      "publishedBytes": 35733,
+      "byteIdentical": true,
+      "transformation": "Exact text with path substitution only; byteIdentical identifies unchanged source",
+      "privateSourceLocatorSHA256": "8d09a828d9e9ea6ad959e12e71f08bb117c1e295ce23053f22d15fb208611e4f"
+    },
+    {
+      "path": "source/retire-attempt6.py",
+      "originalSHA256": "f9021037462d77e36df30bfe825f15ec5a97cf9b2c18e83d05da0991b184ca05",
+      "originalBytes": 5589,
+      "publishedSHA256": "097df1744b9192edad6f8f53d2c3f2639e51ed21ecea6beaab6cc760368ebb87",
+      "publishedBytes": 5559,
+      "byteIdentical": false,
+      "transformation": "Exact text with path substitution only; byteIdentical identifies unchanged source",
+      "privateSourceLocatorSHA256": "88e0d1d7790992f20a72778a77abdce1b8784731efacc16e42f77f85cf11356d"
+    },
+    {
+      "path": "source/retire-attempt6-retry1.py",
+      "originalSHA256": "fe0e14871efb53bbe921fb88bc2801c9c045a1d5ac2e9644731c0c03e168f9cb",
+      "originalBytes": 5700,
+      "publishedSHA256": "237bb41c0ee1d16c45e90fa4e421a9770e8912c1faa7e97045cafe3fc2b0dfbb",
+      "publishedBytes": 5670,
+      "byteIdentical": false,
+      "transformation": "Exact text with path substitution only; byteIdentical identifies unchanged source",
+      "privateSourceLocatorSHA256": "299ee95384c5fdbcfb887e776865fa27d7890591bcf2502793b723598e968fb7"
+    },
+    {
+      "path": "source/finish-attempt6-retirement.py",
+      "originalSHA256": "159c2da380069aaee669a7ac96461bedfb32cdc13971826cc1c83e5ecef44204",
+      "originalBytes": 4477,
+      "publishedSHA256": "b304698776178b32c21bcede3dbca2b18a7f2ca286141e17655868808c36be52",
+      "publishedBytes": 4447,
+      "byteIdentical": false,
+      "transformation": "Exact text with path substitution only; byteIdentical identifies unchanged source",
+      "privateSourceLocatorSHA256": "5a3886ba4c997406f6885f1b9456da20829a6fd060330fba82a698db8f8b7e2c"
+    },
+    {
+      "path": "source/preexisting-gpg-fix/before-preflight.py",
+      "originalSHA256": "61e277343713e9d0bbd8c22f5c46f3c4eecf990da5739f42b96f309d8aeac82c",
+      "originalBytes": 30012,
+      "publishedSHA256": "61e277343713e9d0bbd8c22f5c46f3c4eecf990da5739f42b96f309d8aeac82c",
+      "publishedBytes": 30012,
+      "byteIdentical": true,
+      "transformation": "Exact text with path substitution only; byteIdentical identifies unchanged source",
+      "privateSourceLocatorSHA256": "97449aabbbdb951414bf1095303cf28c48c4b6dd9ef9f4f19bcdc9f6c8cbbc08"
+    },
+    {
+      "path": "source/preexisting-gpg-fix/controlled.py",
+      "originalSHA256": "0beb9836d03a1c5d3efee5d18e494fde669dacb2d447d704b6ba9766b8d5e7cf",
+      "originalBytes": 6753,
+      "publishedSHA256": "0beb9836d03a1c5d3efee5d18e494fde669dacb2d447d704b6ba9766b8d5e7cf",
+      "publishedBytes": 6753,
+      "byteIdentical": true,
+      "transformation": "Exact text with path substitution only; byteIdentical identifies unchanged source",
+      "privateSourceLocatorSHA256": "405292a251c266c6c73c829a0b0039b3b1ddfe8e6a36a2c8436083afc5276f30"
+    },
+    {
+      "path": "controlled/preexisting-gpg-fix.json",
+      "originalSHA256": "ccdea9e4e023327d7d33d9722c9a43af083ec49f3261e803858fee371c8756da",
+      "originalBytes": 2861,
+      "publishedSHA256": "ccdea9e4e023327d7d33d9722c9a43af083ec49f3261e803858fee371c8756da",
+      "publishedBytes": 2861,
+      "byteIdentical": true,
+      "transformation": "Path substitution and explicit private-field projections",
+      "privateSourceLocatorSHA256": "a064eb1de6607e3b4919a922712147e46d9b7488b65503c35382c3416ed25717"
+    },
+    {
+      "path": "source/history-projection-fix/before-preflight.py",
+      "originalSHA256": "21468be668aaabede4e921b5913a8f0b8a5604b9abed67608d5642c80f3dd87b",
+      "originalBytes": 33322,
+      "publishedSHA256": "21468be668aaabede4e921b5913a8f0b8a5604b9abed67608d5642c80f3dd87b",
+      "publishedBytes": 33322,
+      "byteIdentical": true,
+      "transformation": "Exact text with path substitution only; byteIdentical identifies unchanged source",
+      "privateSourceLocatorSHA256": "d8d1cc1254019a8158cbdd2883b69772d913c6d836ad4b6e9b0157d30789f7dd"
+    },
+    {
+      "path": "source/history-projection-fix/controlled.py",
+      "originalSHA256": "63972ef3772014fcc0e67cba75fd3485d2eb73290d13fea4ee58703b2022309e",
+      "originalBytes": 4941,
+      "publishedSHA256": "63972ef3772014fcc0e67cba75fd3485d2eb73290d13fea4ee58703b2022309e",
+      "publishedBytes": 4941,
+      "byteIdentical": true,
+      "transformation": "Exact text with path substitution only; byteIdentical identifies unchanged source",
+      "privateSourceLocatorSHA256": "e7befad61d20c7a55a4a492241b65b3b24fbb5c6f690bc7d7578199312c3959f"
+    },
+    {
+      "path": "controlled/history-projection-fix.json",
+      "originalSHA256": "5083712030b6cfbba8f3fa2d768a25af261e4ad310516c1a260db71317f9b74c",
+      "originalBytes": 3167,
+      "publishedSHA256": "5083712030b6cfbba8f3fa2d768a25af261e4ad310516c1a260db71317f9b74c",
+      "publishedBytes": 3167,
+      "byteIdentical": true,
+      "transformation": "Path substitution and explicit private-field projections",
+      "privateSourceLocatorSHA256": "5f6517a853c3d15508faa4b7544405b8ebbb3d8873e810391afc85aa4dd55686"
+    },
+    {
+      "path": "source/history-projection-fix/project_evidence.go",
+      "originalSHA256": "00f5d99d4c4fdbab969a235b46e92e711ae7dd15c5bc0ba0cabce6f9e6ddc309",
+      "originalBytes": 13857,
+      "publishedSHA256": "00f5d99d4c4fdbab969a235b46e92e711ae7dd15c5bc0ba0cabce6f9e6ddc309",
+      "publishedBytes": 13857,
+      "byteIdentical": true,
+      "transformation": "Exact text with path substitution only; byteIdentical identifies unchanged source",
+      "privateSourceLocatorSHA256": "27de52aa6f09ef2cc69d4c977e4c0b3d47c944a7ddd1c9b39a8b2f43d106f8b1"
+    },
+    {
+      "path": "source/history-projection-fix/project_checks.go",
+      "originalSHA256": "cd7a2a28c0125566a3ddeccef823ea12676a77232d14423a0cd54609db5e999e",
+      "originalBytes": 21901,
+      "publishedSHA256": "cd7a2a28c0125566a3ddeccef823ea12676a77232d14423a0cd54609db5e999e",
+      "publishedBytes": 21901,
+      "byteIdentical": true,
+      "transformation": "Exact text with path substitution only; byteIdentical identifies unchanged source",
+      "privateSourceLocatorSHA256": "ec2f508e144bf5c4dbb0e6384acb962b57391e57de1bda7408530c3768deb3e4"
+    },
+    {
+      "path": "controlled/preexisting-process-proof.json",
+      "originalSHA256": "24648c97f3b4a5977283f7eceb7b8d1d49cdb11287762983d11f129f1cc85204",
+      "originalBytes": 560,
+      "publishedSHA256": "24648c97f3b4a5977283f7eceb7b8d1d49cdb11287762983d11f129f1cc85204",
+      "publishedBytes": 560,
+      "byteIdentical": true,
+      "transformation": "Path substitution and explicit private-field projections",
+      "privateSourceLocatorSHA256": "26747cc60cf0be42a1910406b3015ac007aff541837d8ea13af0479ce6ecba02"
+    },
+    {
+      "path": "configuration/attempt6-root-review-config.json",
+      "originalSHA256": "e3a975a8e6b81cb466c89aba5c0f3e097960ac1ef850818660bb673f93a1001a",
+      "originalBytes": 5501,
+      "publishedSHA256": "fa2e64533ebeebef2ef56d5aed1d818e3588de069f15995bef038477b454ddc5",
+      "publishedBytes": 5431,
+      "byteIdentical": false,
+      "transformation": "Path substitution and explicit private-field projections",
+      "privateSourceLocatorSHA256": "07c14f9592551db0544a8eaa999948a9f39247a7551d0d9234cbab7a7f149404"
+    },
+    {
+      "path": "configuration/attempt6-root-review-config-retry1.json",
+      "originalSHA256": "1e81a7fd6e1cd572d94383aecb7cc03169fa88ff4c4e122ff209befad292604b",
+      "originalBytes": 5977,
+      "publishedSHA256": "0cfd2496324c264562bcc6e54686ae81355705e2bf37d1b53a399a99b9d954d2",
+      "publishedBytes": 5904,
+      "byteIdentical": false,
+      "transformation": "Path substitution and explicit private-field projections",
+      "privateSourceLocatorSHA256": "1effce7688b5b918535dff838b8c3912b4a33d218c90e057b663c2814cb2568b"
+    },
+    {
+      "path": "configuration/attempt6-root-review-config-retry2.json",
+      "originalSHA256": "cbfa247e71a9db246a08bd28f4bba3d2deeb6df1570c3e400f6cd381b40008f6",
+      "originalBytes": 6444,
+      "publishedSHA256": "8d756ab7855f9eefc8d5c2c5049c6115bdee5052355fcee906874d7fb99730c6",
+      "publishedBytes": 6365,
+      "byteIdentical": false,
+      "transformation": "Path substitution and explicit private-field projections",
+      "privateSourceLocatorSHA256": "6f59ba1c44bc33950cf0ed60f0b9c0a4e85629840a7586149896621912462dff"
+    }
+  ],
+  "reproductionLimit": "One-time destructive retirement sources are audit records, not a reusable command or authorization. Sanitized path-bearing scripts/configs need reconstruction and hash review; private raw histories needed by controlled history tests are intentionally withheld."
+}

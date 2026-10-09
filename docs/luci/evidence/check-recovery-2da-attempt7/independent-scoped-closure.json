@@ -1,0 +1,195 @@
+{
+  "at": "2026-10-09T01:53:58.395887+00:00",
+  "scope": "Independent read-only closure after overall failed historical check admission; exact retired recovery proof/marker remains, not a whole-machine process absence claim.",
+  "recordedIdentities": [
+    {
+      "recorded": {
+        "pid": 2140900,
+        "startTicks": 25617272,
+        "role": "test-driver"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2141024,
+        "startTicks": 25617380,
+        "role": "other-owned-descendant"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2141086,
+        "startTicks": 25617624,
+        "role": "control-plane"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2141105,
+        "startTicks": 25617671,
+        "role": "control-plane"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2141329,
+        "startTicks": 25617869,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2141362,
+        "startTicks": 25617882,
+        "role": "browser"
+      },
+      "current": {
+        "pid": 2141362,
+        "startTicks": 25617882,
+        "state": "Z",
+        "ppid": 1
+      },
+      "observation": "exited-zombie"
+    },
+    {
+      "recorded": {
+        "pid": 2141363,
+        "startTicks": 25617882,
+        "role": "browser"
+      },
+      "current": {
+        "pid": 2141363,
+        "startTicks": 25617882,
+        "state": "Z",
+        "ppid": 1
+      },
+      "observation": "exited-zombie"
+    },
+    {
+      "recorded": {
+        "pid": 2141383,
+        "startTicks": 25617894,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2141405,
+        "startTicks": 25617935,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2141406,
+        "startTicks": 25617939,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2141437,
+        "startTicks": 25617957,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2141446,
+        "startTicks": 25617962,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2141447,
+        "startTicks": 25617963,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2140901,
+        "startTicks": 25617272,
+        "role": "observer"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2140899,
+        "startTicks": 25617269,
+        "role": "wrapper"
+      },
+      "current": null,
+      "observation": "absent"
+    }
+  ],
+  "ownedActiveProcesses": [],
+  "unreadableProcessEnvironments": [
+    {
+      "pid": 203,
+      "startTicks": 1521,
+      "state": "S",
+      "ppid": 1
+    },
+    {
+      "pid": 254,
+      "startTicks": 1534,
+      "state": "S",
+      "ppid": 203
+    },
+    {
+      "pid": 260700,
+      "startTicks": 2331192,
+      "state": "S",
+      "ppid": 1
+    }
+  ],
+  "dockerContainers": [
+    "4b9b07e96a0f5afdd7e5aa3118c707544905a993212948c4064a360f874e8373"
+  ],
+  "dockerVolumes": [],
+  "ledgerSHA256": "c0022f0995797c072d8097729ea90e74487bcefb911576c91e4af0665403a49e",
+  "activeLeaseCount": 0,
+  "fixtureUnchanged": true,
+  "originalArtifactInputsUnchanged": true,
+  "noSignalsOrMutationsPerformed": true,
+  "privateReceiptSHA256": "eef7c3e894551b6727db86be64c0f70487127010f42b8cb540873e7943d1e836",
+  "fixtureInventory": {
+    "files": 108,
+    "bytes": 100686,
+    "sha256": "5a3d355fc383acf46db3ab6d8e27576ad9f7a3d4d5ae62428b74deed027ec5ad"
+  },
+  "scopeLimitations": [
+    "Raw private fixture rows, auth and ledger bytes are not exported.",
+    "This publisher did not independently inspect live processes or Docker; this is the root retained read-only closure.",
+    "Exited zombies and unreadable unrelated process environments remain explicit.",
+    "Terminal fixture archival/marker retirement, if later performed, is a separate receipt."
+  ],
+  "unrelatedAttempt8MarkerOnly": true,
+  "laterDaemonInventoryClarification": "This later inspection happened after attempt 8; its one retained marker belongs to attempt 8, not this failed attempt 7. Original driver closure recorded empty Docker/volumes/ledger."
+}

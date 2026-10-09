@@ -1,0 +1,67 @@
+diff --git a/scripts/acceptance/check-create-recovery/proxy-recovery.test.mjs b/scripts/acceptance/check-create-recovery/proxy-recovery.test.mjs
+index 85f3d0b8..3a00a09d 100644
+--- a/scripts/acceptance/check-create-recovery/proxy-recovery.test.mjs
++++ b/scripts/acceptance/check-create-recovery/proxy-recovery.test.mjs
+@@ -109,7 +109,7 @@ async function createCheck(f, labels) {
+ 
+ test('assembled proxy is based on the exact pinned helper source', async () => {
+   assert.equal(hash(pinned('fenced-docker-proxy.mjs')), '48e97d6d5c915cf80c99f0c79a8fb16261eb219616f878fa1ce103ee2c59303d');
+-  assert.equal(hash(await readFile(proxyURL)), '2b6887af0bad7975c74bac42c8ed7988813e3c72ba615281c727c0ac268b1606');
++  assert.equal(hash(await readFile(proxyURL)), 'b965b9a5d03f8a4cbc19b6e065559e1d9b10a2812453bfafb992e3f0041e448f');
+ });
+ 
+ test('recovery opt-in is explicit and check budget is bounded to three', async () => {
+@@ -214,6 +214,40 @@ test('stats followup leaves generic foreign worker and fence GET observation beh
+   assert.deepEqual(f.proxy.observations.failures,[]);assert.equal(f.proxy.observations.counts.start,0);
+ });
+ 
++test('known SDK check query guard rejects raw fragments before URL parsing or forwarding',async t=>{
++  const f=await fixture(t,recoveryOptions,(entry,res,reply)=>{
++    if(entry.method==='GET'&&entry.path.includes('/stats?'))return json(res,200,{});
++    reply(entry,res);
++  });
++  const id=await createCheck(f,labelsFor('a')),before=f.received.length,secret='controlled-fragment-sentinel';
++  for(const prefix of [api,'/containers/'])for(const suffix of ['#'+secret,'#','%23'+secret]){
++    const path=prefix+id+'/stats?one-shot=1&stream=0'+suffix;
++    assert.equal((await f.request('GET',path).promise).status,503);
++    const row=f.proxy.observations.requests.at(-1);assert.equal(row.failure,'check-query-shape-refused');assert.equal(row.checkStatsQuery,undefined);
++  }
++  for(const [method,suffix] of [['GET','/json?#'+secret],['GET','/logs?stdout=1&stderr=1&tail=all#'+secret],['POST','/start?#'+secret],['DELETE','?v=1#'+secret]]){
++    assert.equal((await f.request(method,api+id+suffix).promise).status,503);assert.equal(f.proxy.observations.requests.at(-1).failure,'check-query-shape-refused');
++  }
++  assert.equal(f.received.length,before);assert.equal(f.proxy.observations.counts.start,0);assert(!JSON.stringify(f.proxy.observations).includes(secret));
++});
++
++test('raw fragment guard preserves generic GET HEAD passthrough without normalizing raw URLs',async t=>{
++  const f=await fixture(t,recoveryOptions,(entry,res,reply)=>{
++    if(entry.method==='GET'&&entry.path.includes('/stats?'))return json(res,200,{});
++    reply(entry,res);
++  });
++  const labels=labelsFor('a'),id=await createCheck(f,labels);
++  const worker=JSON.parse((await f.request('POST',api+'create?name=controlled-worker',{Labels:{'luci.managed':'true'}}).promise).body).Id;
++  assert.equal((await f.request('DELETE',api+id+'?v=1').promise).status,204);
++  const marker=JSON.parse((await f.request('POST',createPath(labels),{Labels:fenceLabelsFor(labels)}).promise).body).Id;
++  for(const ref of [worker,marker,'f'.repeat(64)])for(const prefix of [api,'/containers/'])for(const method of ['GET','HEAD']){
++    const path=prefix+ref+'/stats?one-shot=1&stream=0#controlled-generic-fragment',before=f.received.length;
++    assert.equal((await f.request(method,path).promise).status,method==='GET'?200:204);assert.equal(f.received.length,before+1);
++    assert.equal(f.received.at(-1).path,path);assert.equal(f.proxy.observations.requests.at(-1).checkStatsQuery,undefined);
++  }
++  assert.deepEqual(f.proxy.observations.failures,[]);assert.equal(f.proxy.observations.counts.start,0);
++});
++
+ test('owned SDK stats retains the shared response byte bound',async t=>{
+   const f=await fixture(t,{...recoveryOptions,maxResponseBytes:256},(entry,res,reply)=>{
+     if(entry.method==='GET'&&entry.path.includes('/stats?'))return json(res,200,{payload:'x'.repeat(512)});
+diff --git a/scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs b/scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs
+index 00694ea1..4cb7d139 100644
+--- a/scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs
++++ b/scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs
+@@ -176,6 +176,8 @@ export async function startFencedDockerProxy({
+     return identity?.kind === 'check' ? { id, identity, supplied: found[1], action: found[2] } : null;
+   }
+   function queryShape(req, allowed, required = {}) {
++    // URL parsing discards fragments, while forwarding preserves req.url.
++    if (req.url.includes('#')) throw problem('check-query-shape-refused');
+     const query = new URL(req.url, 'http://fixture.invalid').searchParams;
+     const keys = [...query.keys()];
+     if (new Set(keys).size !== keys.length || keys.some(key => !allowed[key]?.includes(query.get(key))) || Object.entries(required).some(([key, values]) => !values.includes(query.get(key)))) throw problem('check-query-shape-refused');

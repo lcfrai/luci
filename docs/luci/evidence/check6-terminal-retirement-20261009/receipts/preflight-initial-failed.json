@@ -1,0 +1,220 @@
+{
+  "version": 1,
+  "passed": false,
+  "at": "2026-10-09T01:25:24.934711+00:00",
+  "configSHA256": "e3a975a8e6b81cb466c89aba5c0f3e097960ac1ef850818660bb673f93a1001a",
+  "scope": "Read-only preparation; no fixture retirement, Docker deletion, or authorization to mutate.",
+  "errors": [
+    {
+      "type": "RuntimeError",
+      "code": "process-observation-permission-denied"
+    }
+  ],
+  "originalRunPassed": false,
+  "originalFailurePreserved": {
+    "errorName": "AssertionError",
+    "errorCode": "ERR_ASSERTION",
+    "locations": [
+      {
+        "file": "recovery-scenario.mjs",
+        "line": 241,
+        "column": 10
+      },
+      {
+        "file": "installed-recovery.mjs",
+        "line": 401,
+        "column": 16
+      },
+      {
+        "file": "installed-recovery.mjs",
+        "line": 381,
+        "column": 5
+      },
+      {
+        "file": "installed-recovery.mjs",
+        "line": 425,
+        "column": 79
+      }
+    ]
+  },
+  "partialRetirementAllowance": {
+    "acknowledgeOriginalRunFailed": true,
+    "receiptSHA256": "f2b05ffcd3acad5228c5d3ab4681610cc2021e777b6771a74ab161f9b5e2118b",
+    "allowance": "exact-da8a-attempt6-final-stats-refusal-assertion-only"
+  },
+  "closureBefore": {
+    "at": "2026-10-09T01:25:24.950115+00:00",
+    "known": [
+      {
+        "expected": {
+          "pid": 2124251,
+          "startTicks": 25466327,
+          "role": "driver",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124375,
+          "startTicks": 25466433,
+          "role": "other-owned-descendant",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124434,
+          "startTicks": 25466655,
+          "role": "controller",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124454,
+          "startTicks": 25466707,
+          "role": "controller",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124670,
+          "startTicks": 25466876,
+          "role": "browser",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124697,
+          "startTicks": 25466888,
+          "role": "browser",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": {
+          "pid": 2124697,
+          "startTicks": "25466888",
+          "state": "Z",
+          "parentPid": 1
+        },
+        "result": "exited-zombie"
+      },
+      {
+        "expected": {
+          "pid": 2124698,
+          "startTicks": 25466889,
+          "role": "browser",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": {
+          "pid": 2124698,
+          "startTicks": "25466889",
+          "state": "Z",
+          "parentPid": 1
+        },
+        "result": "exited-zombie"
+      },
+      {
+        "expected": {
+          "pid": 2124718,
+          "startTicks": 25466899,
+          "role": "browser",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124740,
+          "startTicks": 25466941,
+          "role": "browser",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124741,
+          "startTicks": 25466946,
+          "role": "browser",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124772,
+          "startTicks": 25466958,
+          "role": "browser",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124779,
+          "startTicks": 25466961,
+          "role": "browser",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124781,
+          "startTicks": 25466962,
+          "role": "browser",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124252,
+          "startTicks": 25466327,
+          "role": "observer",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2124250,
+          "startTicks": 25466319,
+          "role": "wrapper",
+          "evidenceKey": "independentClosure"
+        },
+        "observation": null,
+        "result": "absent"
+      }
+    ],
+    "fixtureOwnedLive": [],
+    "unreadableProcesses": [
+      {
+        "pid": 260700,
+        "result": "unknown"
+      }
+    ],
+    "otherUidProcessesNotInspected": 87,
+    "scope": "Exact recorded identities plus same-UID fixture environment scan; other UIDs excluded, no whole-machine zero-process claim."
+  },
+  "finishedAt": "2026-10-09T01:25:25.121014+00:00"
+}

@@ -1,0 +1,9 @@
+{
+  "phase": "scenario-complete-marker-retained",
+  "at": "2026-10-09T01:48:41.513Z",
+  "witnessCheckId": null,
+  "retainedHistoryCheckId": "check-d2e8f78bfcd63fd36a3f3974",
+  "activeCheckLeases": 0,
+  "permanentFenceId": "4b9b07e96a0f5afdd7e5aa3118c707544905a993212948c4064a360f874e8373",
+  "scope": "Installed explicit check recovery only; recovery is not passing target-check evidence."
+}

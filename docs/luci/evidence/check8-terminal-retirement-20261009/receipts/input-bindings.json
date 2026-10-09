@@ -1,0 +1,8 @@
+{
+  "<PRIVATE_TOOL_ROOT>/terminal-retirement-preparation/preflight.py": "f0357901cdfa808e3693b6ee508627b5d3330c421cc87f8aab031ecad5b68e3c",
+  "<PRIVATE_TOOL_ROOT>/retire-successful-check8.py": "89cf034b6a162b279fe3629e9abe678c92dff187ca70ee0308a0975bb01fd9bc",
+  "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/result/report.json": "168842f53b85f23c9c4eac0d4d139325f743d635f594611246259fe0cbda5222",
+  "<CHECKOUT>/artifacts/quality-swarm/check-recovery-2da1a821-helper-2da1a821-attempt8/wrapper-exit.json": "978377b324ba246d88c9045e3eb55c299022d76037749103ccf30cae91ede4af",
+  "<PRIVATE_TOOL_ROOT>/check8-closure-private/independent-closure.json": "d9e7a48f983471f2bceb0b8d9d95b210b93cbef3bc3aad15dee555c9bbc1dd79",
+  "<CHECKOUT>/scripts/acceptance/check-create-recovery/fixture-guards.mjs": "5bb86009d73cdd158637a716c4a3a348edb30337e9e2a8cd93ebef82773e1b35"
+}

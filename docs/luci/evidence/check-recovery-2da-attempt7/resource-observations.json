@@ -1,0 +1,768 @@
+{
+  "version": 1,
+  "kind": "read-only-derived-resource-observations",
+  "attempt": "check-recovery-2da-attempt7",
+  "productCommit": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+  "helperCommit": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+  "sourceInputs": {
+    "result/report.json": {
+      "bytes": 143563,
+      "sha256": "63c18f966e27ab059444977310d51ba5fcc7b5332714534ca6e945a25b6b86be"
+    },
+    "source-binding.json": {
+      "bytes": 6688,
+      "sha256": "43affe38c1d8ba494de55237ac3344a7d0af7636cec694ab4cce7c4e00dd1115"
+    },
+    "observation/samples.jsonl": {
+      "bytes": 277905,
+      "sha256": "0ac981117addb6c9ad7267517bc58498c9ce6076e71d093ef1845b0911933e15"
+    },
+    "observation/summary.json": {
+      "bytes": 3017,
+      "sha256": "f7bb5c58dbe1433f5e2a52220c374515c154d45f3e4f15f13b7bcdb1e35a6841"
+    },
+    "observation/metadata.json": {
+      "bytes": 2996,
+      "sha256": "3c4ccfe110b379e033eee8df796558c32b74bb5c5e0483624d417bbd5fb3986b"
+    },
+    "observation-observer-self-cost.json": {
+      "bytes": 925,
+      "sha256": "403458ecba733c04d3d4921cd204abb26eae3271775d5463888ae6cf411b423b"
+    }
+  },
+  "sampleCount": 53,
+  "durationSeconds": 57.7374006070022,
+  "sampleStatusCounts": {
+    "not-observed": 23,
+    "observed": 30
+  },
+  "observedRows": 60,
+  "samplesWithObservedRows": 30,
+  "formulaMismatchCount": 0,
+  "formula": "Independent minima of physical total and finite visible limits; physical available and max(0, limit-current) at every visible ancestor. No memory.stat, RSS, swap, high limit or scheduling reservation subtraction.",
+  "minObservedPhysicalAvailableBytes": 20780109824,
+  "minObservedEffectiveAvailableBytes": 9617809408,
+  "observations": [
+    {
+      "sampleIndex": 4,
+      "observedAt": "2026-10-09T01:41:47.827614+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 21378310144,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 15611432960,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 4,
+      "observedAt": "2026-10-09T01:41:47.827614+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 21378310144,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 15611432960,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 5,
+      "observedAt": "2026-10-09T01:41:48.840077+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 21325955072,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 15541596160,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 5,
+      "observedAt": "2026-10-09T01:41:48.840077+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 21325955072,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 15541596160,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 6,
+      "observedAt": "2026-10-09T01:41:49.832834+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 21215346688,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 15410520064,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 6,
+      "observedAt": "2026-10-09T01:41:49.832834+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 21215346688,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 15410520064,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 7,
+      "observedAt": "2026-10-09T01:41:50.888110+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 21092265984,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 15291228160,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 7,
+      "observedAt": "2026-10-09T01:41:50.888110+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 21092265984,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 15291293696,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 8,
+      "observedAt": "2026-10-09T01:41:51.850524+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20919562240,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 15128563712,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 8,
+      "observedAt": "2026-10-09T01:41:51.850524+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20919562240,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 15127781376,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 9,
+      "observedAt": "2026-10-09T01:41:52.879379+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20830289920,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 15083438080,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 9,
+      "observedAt": "2026-10-09T01:41:52.879379+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20830289920,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 15083175936,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 10,
+      "observedAt": "2026-10-09T01:41:53.812207+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20802174976,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 15013216256,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 10,
+      "observedAt": "2026-10-09T01:41:53.812207+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20802174976,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 15012958208,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 11,
+      "observedAt": "2026-10-09T01:41:54.831733+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20828631040,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 14752202752,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 11,
+      "observedAt": "2026-10-09T01:41:54.831733+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20828631040,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 14752202752,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 12,
+      "observedAt": "2026-10-09T01:41:55.844575+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20852817920,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 14506115072,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 12,
+      "observedAt": "2026-10-09T01:41:55.844575+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20852817920,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 14505590784,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 13,
+      "observedAt": "2026-10-09T01:41:56.836734+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20870848512,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 14251245568,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 13,
+      "observedAt": "2026-10-09T01:41:56.836734+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20870848512,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 14250987520,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 14,
+      "observedAt": "2026-10-09T01:41:57.823692+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20884537344,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 14077558784,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 14,
+      "observedAt": "2026-10-09T01:41:57.823692+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20884537344,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 14077558784,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 15,
+      "observedAt": "2026-10-09T01:41:58.879779+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20890763264,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 13863088128,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 15,
+      "observedAt": "2026-10-09T01:41:58.879779+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20890763264,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 13863088128,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 16,
+      "observedAt": "2026-10-09T01:41:59.793471+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20897488896,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 13709467648,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 16,
+      "observedAt": "2026-10-09T01:41:59.793471+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20897488896,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 13709467648,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 17,
+      "observedAt": "2026-10-09T01:42:00.837309+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20898381824,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 13607641088,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 17,
+      "observedAt": "2026-10-09T01:42:00.837309+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20898381824,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 13607641088,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 18,
+      "observedAt": "2026-10-09T01:42:01.805559+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20901445632,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 13499797504,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 18,
+      "observedAt": "2026-10-09T01:42:01.805559+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20901445632,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 13499797504,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 19,
+      "observedAt": "2026-10-09T01:42:02.827520+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20895469568,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 13237837824,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 19,
+      "observedAt": "2026-10-09T01:42:02.827520+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20895469568,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 13237575680,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 20,
+      "observedAt": "2026-10-09T01:42:03.810505+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20890677248,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 12924989440,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 20,
+      "observedAt": "2026-10-09T01:42:03.810505+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20890677248,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 12924727296,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 21,
+      "observedAt": "2026-10-09T01:42:04.818776+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20895100928,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 12662030336,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 21,
+      "observedAt": "2026-10-09T01:42:04.818776+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20895100928,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 12662030336,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 22,
+      "observedAt": "2026-10-09T01:42:05.829437+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20894756864,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 12482723840,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 22,
+      "observedAt": "2026-10-09T01:42:05.829437+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20894756864,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 12482465792,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 23,
+      "observedAt": "2026-10-09T01:42:06.831799+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20885999616,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 12215001088,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 23,
+      "observedAt": "2026-10-09T01:42:06.831799+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20885999616,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 12215001088,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 24,
+      "observedAt": "2026-10-09T01:42:07.821778+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20879990784,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 12008161280,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 24,
+      "observedAt": "2026-10-09T01:42:07.821778+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20879990784,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 12008161280,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 25,
+      "observedAt": "2026-10-09T01:42:08.789867+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20871290880,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 11659710464,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 25,
+      "observedAt": "2026-10-09T01:42:08.789867+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20871290880,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 11659448320,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 26,
+      "observedAt": "2026-10-09T01:42:09.819400+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20870381568,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 11321061376,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 26,
+      "observedAt": "2026-10-09T01:42:09.819400+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20870381568,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 11320799232,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 27,
+      "observedAt": "2026-10-09T01:42:10.827490+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20871577600,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 11000684544,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 27,
+      "observedAt": "2026-10-09T01:42:10.827490+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20871577600,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 11000684544,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 28,
+      "observedAt": "2026-10-09T01:42:11.833318+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20866473984,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 10835116032,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 28,
+      "observedAt": "2026-10-09T01:42:11.833318+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20866473984,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 10835116032,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 29,
+      "observedAt": "2026-10-09T01:42:12.852169+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20869222400,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 10501140480,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 29,
+      "observedAt": "2026-10-09T01:42:12.852169+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20869222400,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 10500878336,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 30,
+      "observedAt": "2026-10-09T01:42:13.816601+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20865871872,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 10138902528,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 30,
+      "observedAt": "2026-10-09T01:42:13.816601+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20865871872,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 10138902528,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 31,
+      "observedAt": "2026-10-09T01:42:14.914638+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20846723072,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 9826873344,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 31,
+      "observedAt": "2026-10-09T01:42:14.914638+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20846723072,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 9825562624,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 32,
+      "observedAt": "2026-10-09T01:42:15.932309+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20830048256,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 9617809408,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 32,
+      "observedAt": "2026-10-09T01:42:15.932309+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20830048256,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 9617821696,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 33,
+      "observedAt": "2026-10-09T01:42:16.860173+00:00",
+      "pid": 2141086,
+      "startTicks": 25617624,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20780109824,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 13696581632,
+      "formulaMatches": true
+    },
+    {
+      "sampleIndex": 33,
+      "observedAt": "2026-10-09T01:42:16.860173+00:00",
+      "pid": 2141105,
+      "startTicks": 25617671,
+      "physicalTotalBytes": 35743784960,
+      "physicalAvailableBytes": 20780109824,
+      "effectiveTotalBytes": 34359738368,
+      "effectiveAvailableBytes": 13696737280,
+      "formulaMatches": true
+    }
+  ],
+  "reportedPeaks": {
+    "summedRSS_test-driver": 190951424,
+    "summedRSS_allOwnedProcesses": 1180635136,
+    "summedRSS_other-owned-descendant": 17674240,
+    "summedRSS_control-plane": 233177088,
+    "summedRSS_browser": 799973376
+  },
+  "observedCounterDeltas": {
+    "observedProcessCPUSeconds": 36.70999999999999,
+    "observedProcessIO_read_bytes": 0.0,
+    "observedProcessIO_write_bytes": 3190784.0,
+    "observedProcessIO_rchar": 816555789.0,
+    "observedProcessIO_wchar": 7873963.0
+  },
+  "checkCoverage": {
+    "enabled": true,
+    "identitySamples": 2,
+    "cgroupUsageSamples": 0,
+    "status": "identity-only"
+  },
+  "containerIssueCounts": {
+    "exact-owned-instance-not-yet-provided": 6
+  },
+  "observerSelfCost": {
+    "version": 1,
+    "status": "completed",
+    "exitCode": 0,
+    "pid": 2140901,
+    "signalNumber": null,
+    "finishedAt": "2026-10-09T01:42:41.387560+00:00",
+    "scope": "Observer interpreter RUSAGE_SELF, including interpreter imports and launcher; excludes spawned Docker CLI/helpers and all Docker daemon work.",
+    "wallSeconds": 57.906313690007664,
+    "launcherWallSeconds": 57.84295713700703,
+    "processStartClockTicks": 25617272,
+    "clockTicksPerSecond": 100,
+    "userCPUSeconds": 8.528442,
+    "systemCPUSeconds": 5.950933,
+    "cpuSecondsPerWallSecond": 0.2500482948632002,
+    "maxRSSBytes": 19165184,
+    "inputBlockOperations": 8,
+    "outputBlockOperations": 728,
+    "voluntaryContextSwitches": 99,
+    "involuntaryContextSwitches": 2010,
+    "units": "Linux ru_maxrss KiB converted to bytes; block counts are I/O operations, not bytes. Lifetime wall uses CLOCK_BOOTTIME minus /proc creation ticks, with tick-resolution uncertainty."
+  },
+  "limitations": [
+    "Sum of process RSS double-counts shared pages; it is not unique physical memory.",
+    "Container cgroup memory is separate and must not be added to container process RSS.",
+    "Docker daemon/shared kernel/VM overhead is unassigned; host memory includes unrelated work.",
+    "Processes starting and exiting between 1 Hz samples may be missed; delta counters cover observed intervals only.",
+    "Post-driver-exit settlement is not an application idle baseline.",
+    "No UI input latency, other-app responsiveness or model reasoning quality is measured.",
+    "The 50 ms time budget is cooperative between synchronous reads, not a hard filesystem-read interruption.",
+    "Sequential sampled counters are not atomic and do not reproduce any prior admission decision.",
+    "Visibility ends at the process-visible mount root; hidden ancestors are not inferred.",
+    "Missing limit files are recorded as missing and skipped only to match product semantics; they are not claimed unlimited.",
+    "Role follows existing process-name classification after descendant/PID-start ownership proof, not executable-byte verification.",
+    "Sequential sampled/phase observations are not atomic admission snapshots; no cause of earlier refusal is inferred.",
+    "Check identity samples do not establish running-check memory usage.",
+    "No sustained four-project, Windows, model-quality or whole-computer responsiveness claim."
+  ]
+}

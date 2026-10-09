@@ -1,0 +1,30 @@
+✖ known SDK check query guard rejects raw fragments before URL parsing or forwarding (59.244691ms)
+✔ raw fragment guard preserves generic GET HEAD passthrough without normalizing raw URLs (43.806745ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 328.574786
+
+✖ failing tests:
+
+test at scripts/acceptance/check-create-recovery/proxy-recovery.test.mjs:217:1
+✖ known SDK check query guard rejects raw fragments before URL parsing or forwarding (59.244691ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  200 !== 503
+  
+      at TestContext.<anonymous> (file:///workspace/luci/scripts/acceptance/check-create-recovery/proxy-recovery.test.mjs:225:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 503,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

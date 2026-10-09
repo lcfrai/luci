@@ -1,0 +1,90 @@
+{
+  "passed": true,
+  "mode": "Frozen private copies and fake file readers only; no live fixture/API/Docker/process observation.",
+  "caseCount": 16,
+  "cases": [
+    {
+      "name": "original checker rejects exact preserved raw/API history at derived fields",
+      "passed": true,
+      "expectedRefusal": "unrelated-historical-success-not-preserved"
+    },
+    {
+      "name": "corrected checker validates exact raw inventory and stored/API execution contract",
+      "passed": true
+    },
+    {
+      "name": "only two documented derived display fields may differ",
+      "passed": true
+    },
+    {
+      "name": "reject changed stored revision",
+      "passed": true,
+      "expectedRefusal": "stored-history-contract-differs-from-public-witness"
+    },
+    {
+      "name": "reject changed stored output",
+      "passed": true,
+      "expectedRefusal": "stored-history-contract-differs-from-public-witness"
+    },
+    {
+      "name": "reject changed stored source digest",
+      "passed": true,
+      "expectedRefusal": "stored-history-contract-differs-from-public-witness"
+    },
+    {
+      "name": "reject changed stored source commit",
+      "passed": true,
+      "expectedRefusal": "stored-history-contract-differs-from-public-witness"
+    },
+    {
+      "name": "reject changed stored specification revision",
+      "passed": true,
+      "expectedRefusal": "stored-history-contract-differs-from-public-witness"
+    },
+    {
+      "name": "reject changed stored design digest",
+      "passed": true,
+      "expectedRefusal": "stored-history-contract-differs-from-public-witness"
+    },
+    {
+      "name": "reject changed stored allocation identity",
+      "passed": true,
+      "expectedRefusal": "stored-history-contract-differs-from-public-witness"
+    },
+    {
+      "name": "reject changed stored command exit",
+      "passed": true,
+      "expectedRefusal": "stored-history-contract-differs-from-public-witness"
+    },
+    {
+      "name": "reject changed stored command arguments",
+      "passed": true,
+      "expectedRefusal": "stored-history-contract-differs-from-public-witness"
+    },
+    {
+      "name": "reject changed stored historical timestamp",
+      "passed": true,
+      "expectedRefusal": "stored-history-contract-differs-from-public-witness"
+    },
+    {
+      "name": "raw inventory still rejects altered revision bytes",
+      "passed": true,
+      "expectedRefusal": "stored-history-bytes-differ-from-original-closure"
+    },
+    {
+      "name": "raw inventory still rejects altered evidenceStatus bytes",
+      "passed": true,
+      "expectedRefusal": "stored-history-bytes-differ-from-original-closure"
+    },
+    {
+      "name": "reject incomplete or changed original raw retention witness",
+      "passed": true,
+      "expectedRefusal": "original-raw-history-inventory-not-bound"
+    }
+  ],
+  "beforeSourceSHA256": "21468be668aaabede4e921b5913a8f0b8a5604b9abed67608d5642c80f3dd87b",
+  "afterSourceSHA256": "f0357901cdfa808e3693b6ee508627b5d3330c421cc87f8aab031ecad5b68e3c",
+  "privateDiagnosticSHA256": "c3a268ca5467209b6133f39d4c3af7be878c88587a73c1fc4bf4ec87e591313c",
+  "liveFixtureReads": 0,
+  "archiveOrMutation": false
+}

@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "passed": false,
+  "status": "cleanup-incomplete",
+  "stage": "explicit-current-owner-recovery",
+  "at": "2026-10-09T01:48:41.732Z",
+  "failure": null,
+  "originalReceiptComplete": false
+}

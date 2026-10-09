@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "passed": false,
+  "status": "cleanup-incomplete",
+  "stage": "consent-check-1",
+  "at": "2026-10-09T01:42:17.460Z",
+  "failure": {
+    "errorName": "AssertionError",
+    "errorCode": "ERR_ASSERTION",
+    "locations": [
+      {
+        "file": "recovery-scenario.mjs",
+        "line": 131,
+        "column": 10
+      },
+      {
+        "file": "installed-recovery.mjs",
+        "line": 401,
+        "column": 16
+      },
+      {
+        "file": "installed-recovery.mjs",
+        "line": 381,
+        "column": 5
+      },
+      {
+        "file": "installed-recovery.mjs",
+        "line": 425,
+        "column": 79
+      }
+    ]
+  },
+  "originalReceiptComplete": false
+}

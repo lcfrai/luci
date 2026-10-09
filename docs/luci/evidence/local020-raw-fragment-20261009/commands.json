@@ -1,0 +1,67 @@
+[
+  {
+    "label": "original-bound-regression",
+    "command": [
+      "node",
+      "--test",
+      "--test-timeout=30000",
+      "--test-reporter=spec",
+      "--test-name-pattern=known SDK check query guard rejects raw fragments|raw fragment guard preserves generic",
+      "scripts/acceptance/check-create-recovery/proxy-recovery.test.mjs"
+    ],
+    "cwd": "isolated frozen sources, original 2da proxy only",
+    "startedAtUTC": "2026-10-09T01:55:14.047756+00:00",
+    "durationSeconds": 0.41354107699589804,
+    "exitCode": 1,
+    "expectedExitCode": 1,
+    "stdoutSHA256": "3f8f1bb83b1c6c72780745c91fc358740823ed22e4853e3843963f29da8cf5cc",
+    "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "label": "final-proxy-affected",
+    "command": [
+      "node",
+      "--test",
+      "--test-timeout=30000",
+      "--test-reporter=spec",
+      "scripts/acceptance/check-create-recovery/proxy-recovery.test.mjs"
+    ],
+    "cwd": "repository root",
+    "startedAtUTC": "2026-10-09T01:55:14.461590+00:00",
+    "durationSeconds": 1.5788065009983256,
+    "exitCode": 0,
+    "expectedExitCode": 0,
+    "stdoutSHA256": "2621e8b31052227bc85a50141d84f82a6ac3764be626196313f67adefd444c5d",
+    "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "label": "syntax-fenced-docker-proxy.mjs",
+    "command": [
+      "node",
+      "--check",
+      "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs"
+    ],
+    "cwd": "repository root",
+    "startedAtUTC": "2026-10-09T01:55:16.040766+00:00",
+    "durationSeconds": 0.050062925001839176,
+    "exitCode": 0,
+    "expectedExitCode": 0,
+    "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "label": "syntax-proxy-recovery.test.mjs",
+    "command": [
+      "node",
+      "--check",
+      "scripts/acceptance/check-create-recovery/proxy-recovery.test.mjs"
+    ],
+    "cwd": "repository root",
+    "startedAtUTC": "2026-10-09T01:55:16.091086+00:00",
+    "durationSeconds": 0.04763250099495053,
+    "exitCode": 0,
+    "expectedExitCode": 0,
+    "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

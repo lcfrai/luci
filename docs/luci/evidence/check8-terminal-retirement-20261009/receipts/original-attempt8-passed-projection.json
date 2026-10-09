@@ -1,0 +1,174 @@
+{
+  "passed": true,
+  "mode": "installed-check-create-recovery",
+  "sourceCommit": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+  "helperSourceCommit": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+  "cleanup": [],
+  "cleanupPhases": [
+    {
+      "name": "controllers",
+      "status": "completed",
+      "result": true
+    },
+    {
+      "name": "proxy",
+      "status": "completed",
+      "result": {
+        "closedAt": "2026-10-09T01:48:42.278Z",
+        "pendingRequests": 0,
+        "activeHandlers": 0,
+        "pendingBodyBytes": 0,
+        "uncertainMutation": false,
+        "drained": true
+      }
+    },
+    {
+      "name": "browser",
+      "status": "completed"
+    }
+  ],
+  "startupResources": [
+    {
+      "name": "proxy",
+      "state": "closed",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "name": "controller",
+      "state": "closed",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "name": "browser",
+      "state": "closed",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "name": "browser-context",
+      "state": "closed",
+      "late": false,
+      "closeTimedOut": false,
+      "parent": "browser",
+      "closedByParent": true
+    },
+    {
+      "name": "browser-page",
+      "state": "closed",
+      "late": false,
+      "closeTimedOut": false,
+      "parent": "browser-context",
+      "closedByParent": true
+    }
+  ],
+  "proxyClosure": {
+    "closedAt": "2026-10-09T01:48:42.278Z",
+    "pendingRequests": 0,
+    "activeHandlers": 0,
+    "pendingBodyBytes": 0,
+    "uncertainMutation": false,
+    "drained": true
+  },
+  "controllersStopped": true,
+  "dockerRequestsDrained": true,
+  "independentClosure": {
+    "at": "2026-10-09T01:48:42.774Z",
+    "containers": [
+      "4b9b07e96a0f5afdd7e5aa3118c707544905a993212948c4064a360f874e8373"
+    ],
+    "volumes": [],
+    "ledgerSHA256": "30aafe64b8387f1681f447b1a1ffa4c13c242cd9710c0a71e0c9fe114cf6f8c1",
+    "activeChecks": [],
+    "retainedFences": [
+      {
+        "allocationId": "checkexec-1050be441a70586a2442be85",
+        "state": "retired",
+        "fenceRef": "4b9b07e96a0f5afdd7e5aa3118c707544905a993212948c4064a360f874e8373"
+      }
+    ]
+  },
+  "originalSHA256": "168842f53b85f23c9c4eac0d4d139325f743d635f594611246259fe0cbda5222",
+  "projectionOnly": true,
+  "transportCounts": {
+    "total": 501,
+    "create": 3,
+    "worker": 0,
+    "fence": 1,
+    "start": 1,
+    "check": 2
+  },
+  "transportFailures": [],
+  "phaseWitnesses": [
+    {
+      "phase": "real-history-created",
+      "at": "2026-10-09T01:48:06.084Z",
+      "checkId": "check-d2e8f78bfcd63fd36a3f3974",
+      "outputSHA256": "3b5878b74a0d0ad59f2da50e882d9686e971761717a53a34a1a5cd3ff21e85a5"
+    },
+    {
+      "phase": "real-create-ack-lost",
+      "at": "2026-10-09T01:48:33.730Z",
+      "checkId": "check-5a719faeb22b400c1678b25e",
+      "allocationId": "checkexec-1050be441a70586a2442be85",
+      "containerId": "d8d410410a198ff579f6b75eebd11701db1209a9f6f0643c1ce2d499ae5f6171",
+      "status": "unknown",
+      "reasonCode": "check_create_unconfirmed"
+    },
+    {
+      "phase": "positive-fence-proof",
+      "at": "2026-10-09T01:48:38.168Z",
+      "originalId": "d8d410410a198ff579f6b75eebd11701db1209a9f6f0643c1ce2d499ae5f6171",
+      "fenceId": "4b9b07e96a0f5afdd7e5aa3118c707544905a993212948c4064a360f874e8373",
+      "proof": {
+        "identity": {
+          "protocol": 1,
+          "engineId": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+          "instanceId": "7c6e1617-77e3-4de2-bd57-f90cb7f5cdb3",
+          "allocationId": "checkexec-1050be441a70586a2442be85",
+          "checkId": "check-5a719faeb22b400c1678b25e",
+          "commandIndex": 0,
+          "scopeDigest": "316e95d81c72234cbd7cd7549583bb59b728a6872e8de4c599cfe4965a930be7",
+          "projectId": "p-1cb2afc2",
+          "commandDigest": "a93524ee8b52941eb5a9d83b526a66fa6f00ae9af5e829eeeaafe12930d0a948"
+        },
+        "intentId": "e3f63696342c386fd729a0df8e82c78f",
+        "fenceRef": "4b9b07e96a0f5afdd7e5aa3118c707544905a993212948c4064a360f874e8373",
+        "configDigest": "945f752d48d9ebb4571808ee4fb16e6d83c63ad8e7e2277b9ed0eca6df9234d1",
+        "acknowledgedAt": "2026-10-09T01:48:37.713955631Z",
+        "observedAt": "2026-10-09T01:48:37.740796478Z"
+      },
+      "state": "retired"
+    },
+    {
+      "phase": "exact-target-charge-retired",
+      "at": "2026-10-09T01:48:38.260Z",
+      "checkId": "check-5a719faeb22b400c1678b25e",
+      "allocationId": "checkexec-1050be441a70586a2442be85",
+      "resourcesHeld": false,
+      "cleanupConfirmed": true,
+      "witnessAllocationId": null,
+      "fenceId": "4b9b07e96a0f5afdd7e5aa3118c707544905a993212948c4064a360f874e8373",
+      "fenceState": "retired",
+      "beforeCharge": {
+        "memoryMiB": 1024,
+        "cpuMillis": 1000
+      },
+      "afterCharge": {
+        "memoryMiB": 0,
+        "cpuMillis": 0
+      },
+      "concurrentChargedWitness": "not-exercised-single-allocation-scope"
+    },
+    {
+      "phase": "scenario-complete-marker-retained",
+      "at": "2026-10-09T01:48:41.513Z",
+      "witnessCheckId": null,
+      "retainedHistoryCheckId": "check-d2e8f78bfcd63fd36a3f3974",
+      "activeCheckLeases": 0,
+      "permanentFenceId": "4b9b07e96a0f5afdd7e5aa3118c707544905a993212948c4064a360f874e8373",
+      "scope": "Installed explicit check recovery only; recovery is not passing target-check evidence."
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "at": "2026-10-09T01:27:38.518015+00:00",
+  "scope": "Two exact stat/status/comm observations only; no environment or command-line read.",
+  "fixtureWrapperPID": 2124250,
+  "fixtureWrapperStartTicks": 25466319,
+  "observations": [
+    {
+      "pid": 260700,
+      "startTicks": "2331192",
+      "uid": 1000,
+      "comm": "gpg-agent",
+      "parentPid": 1,
+      "state": "S"
+    },
+    {
+      "pid": 260700,
+      "startTicks": "2331192",
+      "uid": 1000,
+      "comm": "gpg-agent",
+      "parentPid": 1,
+      "state": "S"
+    }
+  ]
+}

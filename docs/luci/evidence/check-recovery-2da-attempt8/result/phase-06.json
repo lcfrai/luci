@@ -1,0 +1,118 @@
+{
+  "phase": "check-preflight-ready",
+  "at": "2026-10-09T01:48:10.926Z",
+  "attempts": 2,
+  "requestedAt": "2026-10-09T01:48:10.922Z",
+  "observedAt": "2026-10-09T01:48:10.926Z",
+  "policy": {
+    "maxActive": 1,
+    "maxPerProject": 1,
+    "headroomPercent": 25,
+    "minHeadroomMiB": 2048,
+    "diskReserveMiB": 1024
+  },
+  "resources": {
+    "host": {
+      "observedAt": "2026-10-09T01:48:10.418023118Z",
+      "status": "partial",
+      "platform": "linux",
+      "scope": "control-plane-host",
+      "memory": {
+        "physicalTotalBytes": 35743784960,
+        "physicalAvailableBytes": 21777780736,
+        "effectiveTotalBytes": 34359738368,
+        "effectiveAvailableBytes": 15673593856,
+        "limitSource": "physical-and-control-plane-cgroup-v2",
+        "commitLimitBytes": null,
+        "commitAvailableBytes": null
+      },
+      "cpu": {
+        "logicalProcessors": 5,
+        "effectiveMillis": 4000,
+        "limitSource": "process-affinity-and-control-plane-cgroup-v2",
+        "utilizationPercent": 23.86587771203156,
+        "pressureSomeAvg10": null,
+        "memoryPressureSomeAvg10": null,
+        "ioPressureSomeAvg10": null
+      },
+      "disks": [
+        {
+          "observedAt": "2026-10-09T01:48:10.417849857Z",
+          "basis": "native-host-volume",
+          "role": "projects",
+          "totalBytes": 33770192896,
+          "availableBytes": 6649487360
+        },
+        {
+          "observedAt": "2026-10-09T01:48:10.417852781Z",
+          "basis": "native-host-volume",
+          "role": "state",
+          "totalBytes": 33770192896,
+          "availableBytes": 6649487360
+        }
+      ],
+      "processes": [
+        {
+          "pid": 2143190,
+          "role": "control-plane",
+          "startId": "linux-ticks:25651961",
+          "residentBytes": 183984128,
+          "privateCommitBytes": null
+        }
+      ],
+      "unavailable": [
+        {
+          "metric": "cpu.pressureSomeAvg10",
+          "reason": "Linux pressure observation is unavailable"
+        },
+        {
+          "metric": "memory.pressureSomeAvg10",
+          "reason": "Linux pressure observation is unavailable"
+        },
+        {
+          "metric": "io.pressureSomeAvg10",
+          "reason": "Linux pressure observation is unavailable"
+        }
+      ]
+    },
+    "execution": {
+      "cpuMillis": 5000,
+      "hostStorage": null,
+      "observedAt": "2026-10-09T01:48:10.431572258Z",
+      "scope": "execution-daemon",
+      "status": "ready",
+      "totalMemoryBytes": 35743784960,
+      "unavailable": []
+    },
+    "reservations": {
+      "status": "ready",
+      "observedAt": "2026-10-09T01:48:10.925433737Z",
+      "count": 0,
+      "memoryMiB": 0,
+      "cpuMillis": 0
+    }
+  },
+  "ledgerSummary": {
+    "sha256": "07dbe1f973d259c0a54627052ad09bc9783ebd37f74c7c72ce6526d2926253c9",
+    "digestEncoding": "SHA-256 of parsed JSON with recursively sorted object keys and preserved array order; not raw file bytes",
+    "version": 1,
+    "activeCheckCount": 0,
+    "workerLeaseCount": 0
+  },
+  "rootFreeBytes": 6649487360,
+  "assessment": {
+    "ready": true,
+    "charge": {
+      "count": 0,
+      "memoryMiB": 0,
+      "cpuMillis": 0
+    },
+    "prospective": {
+      "memoryMiB": 1024,
+      "cpuMillis": 1000
+    },
+    "cpuCeilingPercent": 75,
+    "utilizationPercent": 23.86587771203156
+  },
+  "projectId": "p-1cb2afc2"
+}

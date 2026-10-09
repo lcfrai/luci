@@ -1,0 +1,235 @@
+{
+  "at": "2026-10-09T01:53:47.067746+00:00",
+  "scope": "Independent read-only closure after overall passed helper; exact retired recovery proof/marker remains, not a whole-machine process absence claim.",
+  "recordedIdentities": [
+    {
+      "recorded": {
+        "pid": 2142972,
+        "startTicks": 25651533,
+        "role": "test-driver"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2143096,
+        "startTicks": 25651653,
+        "role": "other-owned-descendant"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2143190,
+        "startTicks": 25651961,
+        "role": "control-plane"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2143209,
+        "startTicks": 25652047,
+        "role": "control-plane"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2143440,
+        "startTicks": 25652225,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2143457,
+        "startTicks": 25652236,
+        "role": "browser"
+      },
+      "current": {
+        "pid": 2143457,
+        "startTicks": 25652236,
+        "state": "Z",
+        "ppid": 1
+      },
+      "observation": "exited-zombie"
+    },
+    {
+      "recorded": {
+        "pid": 2143460,
+        "startTicks": 25652236,
+        "role": "browser"
+      },
+      "current": {
+        "pid": 2143460,
+        "startTicks": 25652236,
+        "state": "Z",
+        "ppid": 1
+      },
+      "observation": "exited-zombie"
+    },
+    {
+      "recorded": {
+        "pid": 2143480,
+        "startTicks": 25652248,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2143510,
+        "startTicks": 25652290,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2143511,
+        "startTicks": 25652292,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2143541,
+        "startTicks": 25652307,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2143548,
+        "startTicks": 25652311,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2143550,
+        "startTicks": 25652311,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2142973,
+        "startTicks": 25651533,
+        "role": "observer"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2142971,
+        "startTicks": 25651528,
+        "role": "wrapper"
+      },
+      "current": null,
+      "observation": "absent"
+    }
+  ],
+  "ownedActiveProcesses": [],
+  "unreadableProcessEnvironments": [
+    {
+      "pid": 203,
+      "startTicks": 1521,
+      "state": "S",
+      "ppid": 1
+    },
+    {
+      "pid": 254,
+      "startTicks": 1534,
+      "state": "S",
+      "ppid": 203
+    },
+    {
+      "pid": 260700,
+      "startTicks": 2331192,
+      "state": "S",
+      "ppid": 1
+    }
+  ],
+  "dockerContainers": [
+    "4b9b07e96a0f5afdd7e5aa3118c707544905a993212948c4064a360f874e8373"
+  ],
+  "dockerVolumes": [],
+  "fence": {
+    "scope": "316e95d81c72234cbd7cd7549583bb59b728a6872e8de4c599cfe4965a930be7",
+    "identity": {
+      "protocol": 1,
+      "engineId": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+      "instanceId": "7c6e1617-77e3-4de2-bd57-f90cb7f5cdb3",
+      "allocationId": "checkexec-1050be441a70586a2442be85",
+      "checkId": "check-5a719faeb22b400c1678b25e",
+      "commandIndex": 0,
+      "scopeDigest": "316e95d81c72234cbd7cd7549583bb59b728a6872e8de4c599cfe4965a930be7",
+      "projectId": "p-1cb2afc2",
+      "commandDigest": "a93524ee8b52941eb5a9d83b526a66fa6f00ae9af5e829eeeaafe12930d0a948"
+    },
+    "actor": {
+      "userId": "user-6U_LoL_RBHyqbQcfBcNQfR",
+      "teamId": "team-Sfwpp1vcpaC5QG7-ERQdbh",
+      "projectId": "p-1cb2afc2"
+    },
+    "intentId": "e3f63696342c386fd729a0df8e82c78f",
+    "state": "retired",
+    "proof": {
+      "identity": {
+        "protocol": 1,
+        "engineId": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+        "instanceId": "7c6e1617-77e3-4de2-bd57-f90cb7f5cdb3",
+        "allocationId": "checkexec-1050be441a70586a2442be85",
+        "checkId": "check-5a719faeb22b400c1678b25e",
+        "commandIndex": 0,
+        "scopeDigest": "316e95d81c72234cbd7cd7549583bb59b728a6872e8de4c599cfe4965a930be7",
+        "projectId": "p-1cb2afc2",
+        "commandDigest": "a93524ee8b52941eb5a9d83b526a66fa6f00ae9af5e829eeeaafe12930d0a948"
+      },
+      "intentId": "e3f63696342c386fd729a0df8e82c78f",
+      "fenceRef": "4b9b07e96a0f5afdd7e5aa3118c707544905a993212948c4064a360f874e8373",
+      "configDigest": "945f752d48d9ebb4571808ee4fb16e6d83c63ad8e7e2277b9ed0eca6df9234d1",
+      "acknowledgedAt": "2026-10-09T01:48:37.713955631Z",
+      "observedAt": "2026-10-09T01:48:37.740796478Z"
+    },
+    "createdAt": "2026-10-09T01:48:36.585757232Z",
+    "updatedAt": "2026-10-09T01:48:37.764859527Z"
+  },
+  "markerShapeValidated": true,
+  "ledgerSHA256": "30aafe64b8387f1681f447b1a1ffa4c13c242cd9710c0a71e0c9fe114cf6f8c1",
+  "activeLeaseCount": 0,
+  "fixtureUnchanged": true,
+  "originalArtifactInputsUnchanged": true,
+  "noSignalsOrMutationsPerformed": true,
+  "privateReceiptSHA256": "d9e7a48f983471f2bceb0b8d9d95b210b93cbef3bc3aad15dee555c9bbc1dd79",
+  "fixtureInventory": {
+    "files": 110,
+    "bytes": 104924,
+    "sha256": "63e813e42a3fe4fa9d7ef96d478616ec8a5e02a6573524660e07a5feabbbdef3"
+  },
+  "scopeLimitations": [
+    "Raw private fixture rows, auth and ledger bytes are not exported.",
+    "This publisher did not independently inspect live processes or Docker; this is the root retained read-only closure.",
+    "Exited zombies and unreadable unrelated process environments remain explicit.",
+    "Terminal fixture archival/marker retirement, if later performed, is a separate receipt."
+  ]
+}

@@ -1,0 +1,374 @@
+{
+  "stage": "archive-verified",
+  "at": "2026-10-09T01:55:53.841891+00:00",
+  "archive": {
+    "path": "<PRIVATE_VERIFIED_FIXTURE_ARCHIVE>",
+    "bytes": 440320,
+    "sha256": "277be1bf6ce1daa0f8125e578b977405bbc4f44a918caed66bda350b0dd4ed65"
+  },
+  "closure": {
+    "at": "2026-10-09T01:55:53.262695+00:00",
+    "known": [
+      {
+        "expected": {
+          "pid": 2142972,
+          "startTicks": 25651533,
+          "role": "test-driver"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2143096,
+          "startTicks": 25651653,
+          "role": "other-owned-descendant"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2143190,
+          "startTicks": 25651961,
+          "role": "control-plane"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2143209,
+          "startTicks": 25652047,
+          "role": "control-plane"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2143440,
+          "startTicks": 25652225,
+          "role": "browser"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2143457,
+          "startTicks": 25652236,
+          "role": "browser"
+        },
+        "observation": {
+          "pid": 2143457,
+          "startTicks": "25652236",
+          "state": "Z",
+          "parentPid": 1
+        },
+        "result": "exited-zombie"
+      },
+      {
+        "expected": {
+          "pid": 2143460,
+          "startTicks": 25652236,
+          "role": "browser"
+        },
+        "observation": {
+          "pid": 2143460,
+          "startTicks": "25652236",
+          "state": "Z",
+          "parentPid": 1
+        },
+        "result": "exited-zombie"
+      },
+      {
+        "expected": {
+          "pid": 2143480,
+          "startTicks": 25652248,
+          "role": "browser"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2143510,
+          "startTicks": 25652290,
+          "role": "browser"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2143511,
+          "startTicks": 25652292,
+          "role": "browser"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2143541,
+          "startTicks": 25652307,
+          "role": "browser"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2143548,
+          "startTicks": 25652311,
+          "role": "browser"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2143550,
+          "startTicks": 25652311,
+          "role": "browser"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2142973,
+          "startTicks": 25651533,
+          "role": "observer"
+        },
+        "observation": null,
+        "result": "absent"
+      },
+      {
+        "expected": {
+          "pid": 2142971,
+          "startTicks": 25651528,
+          "role": "wrapper"
+        },
+        "observation": null,
+        "result": "absent"
+      }
+    ],
+    "ownedActive": [],
+    "preexistingUnreadable": [
+      {
+        "facts": {
+          "pid": 260700,
+          "startTicks": "2331192",
+          "state": "S",
+          "parentPid": 1,
+          "uid": 1000,
+          "comm": "gpg-agent"
+        },
+        "scope": "Exact live preexisting process; environment unreadable; predates this wrapper and is not an owned child. Not absence."
+      }
+    ],
+    "otherUidUninspectedCount": 2,
+    "scope": "Exact known identities and readable same-UID fixture ownership only; no whole-machine absence claim."
+  },
+  "marker": {
+    "at": "2026-10-09T01:55:53.841857+00:00",
+    "inspection": {
+      "Id": "4b9b07e96a0f5afdd7e5aa3118c707544905a993212948c4064a360f874e8373",
+      "Created": "2026-10-09T01:48:37.708038155Z",
+      "Path": "/",
+      "Args": [],
+      "State": {
+        "Status": "created",
+        "Running": false,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 0,
+        "ExitCode": 0,
+        "Error": "",
+        "StartedAt": "0001-01-01T00:00:00Z",
+        "FinishedAt": "0001-01-01T00:00:00Z"
+      },
+      "Image": "",
+      "ResolvConfPath": "",
+      "HostnamePath": "",
+      "HostsPath": "",
+      "LogPath": "",
+      "Name": "/luci-check-checkexec-1050be441a70586a2442be85",
+      "RestartCount": 0,
+      "Driver": "vfs",
+      "Platform": "linux",
+      "MountLabel": "",
+      "ProcessLabel": "",
+      "AppArmorProfile": "",
+      "ExecIDs": null,
+      "HostConfig": {
+        "Binds": null,
+        "ContainerIDFile": "",
+        "LogConfig": {
+          "Type": "none",
+          "Config": {}
+        },
+        "NetworkMode": "none",
+        "PortBindings": null,
+        "RestartPolicy": {
+          "Name": "no",
+          "MaximumRetryCount": 0
+        },
+        "AutoRemove": false,
+        "VolumeDriver": "",
+        "VolumesFrom": null,
+        "ConsoleSize": [
+          0,
+          0
+        ],
+        "CapAdd": null,
+        "CapDrop": [
+          "ALL"
+        ],
+        "CgroupnsMode": "private",
+        "Dns": null,
+        "DnsOptions": null,
+        "DnsSearch": null,
+        "ExtraHosts": null,
+        "GroupAdd": null,
+        "IpcMode": "none",
+        "Cgroup": "",
+        "Links": null,
+        "OomScoreAdj": 0,
+        "PidMode": "",
+        "Privileged": false,
+        "PublishAllPorts": false,
+        "ReadonlyRootfs": true,
+        "SecurityOpt": [
+          "no-new-privileges:true"
+        ],
+        "UTSMode": "",
+        "UsernsMode": "",
+        "ShmSize": 67108864,
+        "Runtime": "runc",
+        "Isolation": "",
+        "CpuShares": 0,
+        "Memory": 6291456,
+        "NanoCpus": 100000000,
+        "CgroupParent": "",
+        "BlkioWeight": 0,
+        "BlkioWeightDevice": null,
+        "BlkioDeviceReadBps": null,
+        "BlkioDeviceWriteBps": null,
+        "BlkioDeviceReadIOps": null,
+        "BlkioDeviceWriteIOps": null,
+        "CpuPeriod": 0,
+        "CpuQuota": 0,
+        "CpuRealtimePeriod": 0,
+        "CpuRealtimeRuntime": 0,
+        "CpusetCpus": "",
+        "CpusetMems": "",
+        "Devices": null,
+        "DeviceCgroupRules": null,
+        "DeviceRequests": null,
+        "MemoryReservation": 0,
+        "MemorySwap": 12582912,
+        "MemorySwappiness": null,
+        "OomKillDisable": false,
+        "PidsLimit": 1,
+        "Ulimits": null,
+        "CpuCount": 0,
+        "CpuPercent": 0,
+        "IOMaximumIOps": 0,
+        "IOMaximumBandwidth": 0,
+        "MaskedPaths": [
+          "/proc/asound",
+          "/proc/acpi",
+          "/proc/interrupts",
+          "/proc/kcore",
+          "/proc/keys",
+          "/proc/latency_stats",
+          "/proc/timer_list",
+          "/proc/timer_stats",
+          "/proc/sched_debug",
+          "/proc/scsi",
+          "/sys/firmware",
+          "/sys/devices/virtual/powercap"
+        ],
+        "ReadonlyPaths": [
+          "/proc/bus",
+          "/proc/fs",
+          "/proc/irq",
+          "/proc/sys",
+          "/proc/sysrq-trigger"
+        ]
+      },
+      "GraphDriver": {
+        "Data": {
+          "ID": "4b9b07e96a0f5afdd7e5aa3118c707544905a993212948c4064a360f874e8373"
+        },
+        "Name": "vfs"
+      },
+      "Mounts": [],
+      "Config": {
+        "Hostname": "4b9b07e96a0f",
+        "Domainname": "",
+        "User": "",
+        "AttachStdin": false,
+        "AttachStdout": false,
+        "AttachStderr": false,
+        "Tty": false,
+        "OpenStdin": false,
+        "StdinOnce": false,
+        "Env": null,
+        "Cmd": [
+          "/"
+        ],
+        "Image": "",
+        "Volumes": {},
+        "WorkingDir": "",
+        "Entrypoint": null,
+        "NetworkDisabled": true,
+        "OnBuild": null,
+        "Labels": {
+          "luci.check": "true",
+          "luci.check-allocation": "checkexec-1050be441a70586a2442be85",
+          "luci.check-command-digest": "a93524ee8b52941eb5a9d83b526a66fa6f00ae9af5e829eeeaafe12930d0a948",
+          "luci.check-command-index": "0",
+          "luci.check-engine": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+          "luci.check-id": "check-5a719faeb22b400c1678b25e",
+          "luci.check-project": "p-1cb2afc2",
+          "luci.check-protocol": "1",
+          "luci.check-scope": "316e95d81c72234cbd7cd7549583bb59b728a6872e8de4c599cfe4965a930be7",
+          "luci.fence-binding": "209773482a402ddc07474937e0f675c9605149ae9793a1fb59af9f2d4b12d2ed",
+          "luci.fence-intent": "e3f63696342c386fd729a0df8e82c78f",
+          "luci.instance": "7c6e1617-77e3-4de2-bd57-f90cb7f5cdb3",
+          "luci.launch-fence": "1"
+        }
+      },
+      "NetworkSettings": {
+        "Bridge": "",
+        "SandboxID": "",
+        "SandboxKey": "",
+        "Ports": {},
+        "HairpinMode": false,
+        "LinkLocalIPv6Address": "",
+        "LinkLocalIPv6PrefixLen": 0,
+        "SecondaryIPAddresses": null,
+        "SecondaryIPv6Addresses": null,
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "MacAddress": "",
+        "Networks": {}
+      }
+    },
+    "containers": [
+      "4b9b07e96a0f5afdd7e5aa3118c707544905a993212948c4064a360f874e8373"
+    ],
+    "volumes": []
+  }
+}

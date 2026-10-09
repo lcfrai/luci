@@ -1,0 +1,15 @@
+{
+  "at": "2026-10-09T01:40:56.439370+00:00",
+  "sourceCommit": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+  "sourceClean": true,
+  "dockerContainers": [],
+  "dockerVolumes": [],
+  "imageID": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+  "driverIdentity": {
+    "pid": 2136559,
+    "startTicks": 25595482
+  },
+  "driverObservation": "absent",
+  "rawResultSHA256": "b949714a6b68b1ef51fb2bae96b6af02fbd3a2158047b94ca2221ff7b6207637",
+  "scope": "Independent exact driver/source/daemon inventory; app/browser closure also relies on driver evidence, not whole-machine process absence."
+}

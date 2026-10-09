@@ -1,0 +1,7 @@
+{
+  "helperCommit": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+  "source": "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs",
+  "sha256": "2b6887af0bad7975c74bac42c8ed7988813e3c72ba615281c727c0ac268b1606",
+  "change": "CLOUD040/LOCAL019 only known-check SDK stats recognition and validated query receipt; idle hard-zero Create/Start prevents any check allocations. Frozen driver/workload/collector unchanged.",
+  "noCausalComparisonClaim": true
+}

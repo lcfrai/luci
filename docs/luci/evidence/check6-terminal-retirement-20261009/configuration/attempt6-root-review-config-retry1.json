@@ -1,0 +1,163 @@
+{
+  "partialAttempt6Retirement": {
+    "acknowledgeOriginalRunFailed": true,
+    "receiptSHA256": "f2b05ffcd3acad5228c5d3ab4681610cc2021e777b6771a74ab161f9b5e2118b",
+    "allowance": "exact-da8a-attempt6-final-stats-refusal-assertion-only"
+  },
+  "productCommit": "da8a6ff29d5f4b15b674087076855404456f2d9d",
+  "helperCommit": "da8a6ff29d5f4b15b674087076855404456f2d9d",
+  "targetCheckId": "check-9499b0b27457bc8ce99ee80b",
+  "allocationId": "checkexec-f37fa411f0b542f281f61d7d",
+  "originalContainerId": "71deb55a1d0bd1fa64b97105b1f2d5207fbb6c860fa5f101d3738610fd72b8c3",
+  "markerId": "f810ed45a390122637e062b2f0c79c603a49a80a135e9be7a890006bab85f12b",
+  "engineId": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+  "targetHistoryRelativePath": "state/control-plane/teams/team-MSyzSWC28BCwgwuFA75Mth/runtime/state/sessions/project-checks/p-b127f5a3.json",
+  "historyHistoryRelativePath": "state/control-plane/teams/team-MSyzSWC28BCwgwuFA75Mth/runtime/state/sessions/project-checks/p-f0038548.json",
+  "inputs": {
+    "recoveryReceipt": {
+      "path": "<CHECKOUT>/artifacts/quality-swarm/check-recovery-da8a6ff2-helper-da8a6ff2-attempt6/result/report.json",
+      "sha256": "f2b05ffcd3acad5228c5d3ab4681610cc2021e777b6771a74ab161f9b5e2118b"
+    },
+    "wrapperExit": {
+      "path": "<CHECKOUT>/artifacts/quality-swarm/check-recovery-da8a6ff2-helper-da8a6ff2-attempt6/wrapper-exit.json",
+      "sha256": "d2da8c7dbdce432266f449291d8e47be8cbd81f7836d4afb41f741f2ae619e89"
+    },
+    "wrapperLifecycle": {
+      "path": "<CHECKOUT>/artifacts/quality-swarm/check-recovery-da8a6ff2-helper-da8a6ff2-attempt6/observation-lifecycle.jsonl",
+      "sha256": "ec1aed4cfd706ccf012c10b02e11e612a4a4858ce709aa50641ab49f9d71b84d"
+    },
+    "wrapperStderr": {
+      "path": "<CHECKOUT>/artifacts/quality-swarm/check-recovery-da8a6ff2-helper-da8a6ff2-attempt6/wrapper.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "sourceBinding": {
+      "path": "<CHECKOUT>/artifacts/quality-swarm/check-recovery-da8a6ff2-helper-da8a6ff2-attempt6/source-binding.json",
+      "sha256": "7ffad5e400ee4413505706d8530bd71a113ad571a10c7895cf8afb924c41bc72"
+    },
+    "scenarioSource": {
+      "path": "<CHECKOUT>/artifacts/quality-swarm/check-recovery-da8a6ff2-helper-da8a6ff2-attempt6/result/accepted-harness/check-create-recovery_recovery-scenario.mjs",
+      "sha256": "f69a7d5bbf1fd1019106f5a24170f4946e182c78f741d6ad8415b5a90d386e24"
+    },
+    "installedSource": {
+      "path": "<CHECKOUT>/artifacts/quality-swarm/check-recovery-da8a6ff2-helper-da8a6ff2-attempt6/result/accepted-harness/check-create-recovery_installed-recovery.mjs",
+      "sha256": "1f4acfbe56c91daadbc8968ac5c1a8db0fbd75e1a066c0bae50c84d748ad1c81"
+    },
+    "guardSource": {
+      "path": "<CHECKOUT>/artifacts/quality-swarm/check-recovery-da8a6ff2-helper-da8a6ff2-attempt6/result/accepted-harness/check-create-recovery_fixture-guards.mjs",
+      "sha256": "5bb86009d73cdd158637a716c4a3a348edb30337e9e2a8cd93ebef82773e1b35"
+    },
+    "independentClosure": {
+      "path": "<PRIVATE_TOOL_ROOT>/check6-closure-private/independent-closure.json",
+      "sha256": "a5ee75e8e8aa9fefc7d96c3e7dfb9a6af78e48e8ac60c5005db9b429688e57d5"
+    },
+    "preexistingProcessProof": {
+      "path": "<PRIVATE_TOOL_ROOT>/terminal-retirement-preparation/preexisting-gpg-fix/preexisting-process-proof.json",
+      "sha256": "24648c97f3b4a5977283f7eceb7b8d1d49cdb11287762983d11f129f1cc85204"
+    }
+  },
+  "fixtureRoot": "<ORIGINAL_PRIVATE_FIXTURE>",
+  "output": "<PRIVATE_TOOL_ROOT>/check6-terminal-retirement-preflight-retry1",
+  "dockerHost": "unix:///var/run/docker.sock",
+  "knownIdentities": [
+    {
+      "pid": 2124251,
+      "startTicks": 25466327,
+      "role": "driver",
+      "evidenceKey": "independentClosure"
+    },
+    {
+      "pid": 2124375,
+      "startTicks": 25466433,
+      "role": "other-owned-descendant",
+      "evidenceKey": "independentClosure"
+    },
+    {
+      "pid": 2124434,
+      "startTicks": 25466655,
+      "role": "controller",
+      "evidenceKey": "independentClosure"
+    },
+    {
+      "pid": 2124454,
+      "startTicks": 25466707,
+      "role": "controller",
+      "evidenceKey": "independentClosure"
+    },
+    {
+      "pid": 2124670,
+      "startTicks": 25466876,
+      "role": "browser",
+      "evidenceKey": "independentClosure"
+    },
+    {
+      "pid": 2124697,
+      "startTicks": 25466888,
+      "role": "browser",
+      "evidenceKey": "independentClosure"
+    },
+    {
+      "pid": 2124698,
+      "startTicks": 25466889,
+      "role": "browser",
+      "evidenceKey": "independentClosure"
+    },
+    {
+      "pid": 2124718,
+      "startTicks": 25466899,
+      "role": "browser",
+      "evidenceKey": "independentClosure"
+    },
+    {
+      "pid": 2124740,
+      "startTicks": 25466941,
+      "role": "browser",
+      "evidenceKey": "independentClosure"
+    },
+    {
+      "pid": 2124741,
+      "startTicks": 25466946,
+      "role": "browser",
+      "evidenceKey": "independentClosure"
+    },
+    {
+      "pid": 2124772,
+      "startTicks": 25466958,
+      "role": "browser",
+      "evidenceKey": "independentClosure"
+    },
+    {
+      "pid": 2124779,
+      "startTicks": 25466961,
+      "role": "browser",
+      "evidenceKey": "independentClosure"
+    },
+    {
+      "pid": 2124781,
+      "startTicks": 25466962,
+      "role": "browser",
+      "evidenceKey": "independentClosure"
+    },
+    {
+      "pid": 2124252,
+      "startTicks": 25466327,
+      "role": "observer",
+      "evidenceKey": "independentClosure"
+    },
+    {
+      "pid": 2124250,
+      "startTicks": 25466319,
+      "role": "wrapper",
+      "evidenceKey": "independentClosure"
+    }
+  ],
+  "preexistingUnreadableExclusions": [
+    {
+      "pid": 260700,
+      "startTicks": "2331192",
+      "uid": 1000,
+      "comm": "gpg-agent",
+      "parentPid": 1,
+      "evidenceKey": "preexistingProcessProof"
+    }
+  ]
+}
