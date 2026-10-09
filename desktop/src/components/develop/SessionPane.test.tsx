@@ -7,6 +7,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SessionPane } from "./SessionPane";
+import { startPolling } from "../../api/poller";
+import type { CockpitClient } from "../../api/client";
 import { ApiError } from "../../api/client";
 import { attachLabel } from "./SessionPaneFooter";
 import { statusLabel } from "./SessionPaneHeader";
@@ -254,6 +256,25 @@ describe("SessionPane", () => {
     await userEvent.click(more);
     expect(useCockpit.getState().sessionMenuFor).toBeNull();
     expect(more.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("a deferred old poll cannot undo the actual exit-bar Restart response", async () => {
+    const old = seed({ status: "exited", exitReason: "exit status 0", executionGeneration: "a".repeat(64) });
+    let release!: (sessions: Session[]) => void;
+    const listSessions = vi.fn(() => new Promise<Session[]>(resolve => { release = resolve; }));
+    Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
+    const stop = startPolling({ listSessions } as unknown as CockpitClient, useCockpit);
+    const replacement = { ...old, status: "running" as const, exitReason: "", executionGeneration: "b".repeat(64) };
+    restartSessionMock.mockResolvedValue(replacement);
+    try {
+      render(<SessionPane sessionId={old.id} variant="column" />);
+      await userEvent.click(screen.getByRole("button", { name: /restart/i }));
+      expect(restartSessionMock).toHaveBeenCalledWith(old.id);
+      expect(useCockpit.getState().sessions[old.id]).toBe(replacement);
+      await act(async () => { release([old]); await Promise.resolve(); });
+      expect(useCockpit.getState().sessions[old.id]).toBe(replacement);
+      expect(screen.queryByRole("button", { name: /restart/i })).toBeNull();
+    } finally { stop(); }
   });
 
   it("an exited pane keeps its scrollback, prints exitReason verbatim and offers Restart", async () => {

@@ -41,7 +41,16 @@ func RelayHooked(ctx context.Context, client, upstream *websocket.Conn, h Hooks)
 		for {
 			typ, data, err := src.Read(ctx)
 			if err != nil {
-				if websocket.CloseStatus(err) == websocket.StatusTryAgainLater {
+				switch websocket.CloseStatus(err) {
+				case websocket.StatusNormalClosure:
+					// A normal upstream close must cross the relay before the
+					// sibling Read is cancelled: coder/websocket closes its
+					// underlying connection when that read context ends. Closing
+					// only after RelayHooked returns races this cancellation and
+					// exposes an abnormal EOF after an intact terminal Exit frame.
+					// Payloads remain opaque and peer-provided reasons stay private.
+					_ = dst.Close(websocket.StatusNormalClosure, "")
+				case websocket.StatusTryAgainLater:
 					// Canceling the sibling Read closes its connection immediately.
 					// Forward this overload boundary first, while the destination
 					// can still receive a close frame rather than an unexplained EOF.

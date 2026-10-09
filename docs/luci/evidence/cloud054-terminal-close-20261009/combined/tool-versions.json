@@ -1,0 +1,19 @@
+{
+  "at": "2026-10-09T11:18:27.304714+00:00",
+  "scope": "Current command tool versions during integrated validation; no dependency installation or Windows tool claim.",
+  "versions": {
+    "node": "v24.19.0",
+    "npm": "11.9.0",
+    "go": "go version go1.26.3 linux/amd64"
+  },
+  "inputs": {
+    "/workspace/luci/desktop/package-lock.json": {
+      "bytes": 247150,
+      "sha256": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a"
+    },
+    "/workspace/luci/desktop/node_modules/.package-lock.json": {
+      "bytes": 203736,
+      "sha256": "7426772e49589aaa6326920af535bb130ab61a7436c8a54569df5d320b817c10"
+    }
+  }
+}

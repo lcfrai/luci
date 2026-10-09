@@ -196,3 +196,173 @@ func TestRelayHookedToleratesNilHookFields(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
+
+// terminalRelayFixture keeps both real WebSocket read directions open. In
+// particular the downstream is waiting for input while upstream closes, which
+// exposes cancellation that destroys a socket before its close frame is sent.
+type terminalRelayFixture struct {
+	client, peer *websocket.Conn
+	cancel       context.CancelFunc
+	finished     <-chan error
+	peerFinished <-chan error
+}
+
+func terminalRelayNewFixture(t *testing.T) terminalRelayFixture {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+	peerReady := make(chan *websocket.Conn, 1)
+	peerFinished := make(chan error, 1)
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		peer, err := websocket.Accept(w, r, &websocket.AcceptOptions{InsecureSkipVerify: true})
+		if err != nil {
+			peerFinished <- err
+			return
+		}
+		defer peer.CloseNow()
+		peerReady <- peer
+		for {
+			if _, _, err := peer.Read(ctx); err != nil {
+				peerFinished <- err
+				return
+			}
+		}
+	}))
+	t.Cleanup(upstream.Close)
+	finished := make(chan error, 1)
+	relayCancel := make(chan context.CancelFunc, 1)
+	relay := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		client, err := websocket.Accept(w, r, &websocket.AcceptOptions{InsecureSkipVerify: true})
+		if err != nil {
+			finished <- err
+			return
+		}
+		defer client.CloseNow()
+		up, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(upstream.URL, "http"), nil)
+		if err != nil {
+			finished <- err
+			return
+		}
+		defer up.CloseNow()
+		relayCtx, stop := context.WithCancel(ctx)
+		defer stop()
+		relayCancel <- stop
+		finished <- proxy.RelayHooked(relayCtx, client, up, proxy.Hooks{})
+	}))
+	t.Cleanup(relay.Close)
+	client, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(relay.URL, "http"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = client.CloseNow() })
+	var peer *websocket.Conn
+	select {
+	case peer = <-peerReady:
+	case <-ctx.Done():
+		t.Fatal("upstream did not accept before bounded deadline")
+	}
+	t.Cleanup(func() { _ = peer.CloseNow() })
+	var stop context.CancelFunc
+	select {
+	case stop = <-relayCancel:
+	case <-ctx.Done():
+		t.Fatal("relay did not start before bounded deadline")
+	}
+	t.Cleanup(stop)
+	return terminalRelayFixture{client: client, peer: peer, cancel: stop, finished: finished, peerFinished: peerFinished}
+}
+
+func terminalRelayAwait(t *testing.T, done <-chan error) error {
+	t.Helper()
+	select {
+	case err := <-done:
+		return err
+	case <-time.After(2 * time.Second):
+		t.Fatal("relay operation did not settle within its bounded deadline")
+		return nil
+	}
+}
+
+func TestRelayNormalClosurePreservesTerminalFramesAndHidesPeerReason(t *testing.T) {
+	for _, exitPayload := range []string{"exit status 0", "exit status 23", "killed"} {
+		t.Run(exitPayload, func(t *testing.T) {
+			f := terminalRelayNewFixture(t)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			frames := [][]byte{[]byte("\x00final output"), append([]byte{3}, exitPayload...)}
+			for _, frame := range frames {
+				if err := f.peer.Write(ctx, websocket.MessageBinary, frame); err != nil {
+					t.Fatal(err)
+				}
+			}
+			closed := make(chan error, 1)
+			go func() { closed <- f.peer.Close(websocket.StatusNormalClosure, "private upstream details") }()
+			for _, want := range frames {
+				typ, got, err := f.client.Read(ctx)
+				if err != nil || typ != websocket.MessageBinary || string(got) != string(want) {
+					t.Fatalf("frame lost/reordered: got %q (%v), want %q: %v", got, typ, want, err)
+				}
+			}
+			_, _, err := f.client.Read(ctx)
+			if websocket.CloseStatus(err) != websocket.StatusNormalClosure {
+				t.Fatalf("normal close became transport failure after intact exit: %v", err)
+			}
+			if strings.Contains(err.Error(), "private upstream") {
+				t.Fatalf("peer's private reason reached downstream: %v", err)
+			}
+			terminalRelayAwait(t, closed)
+			terminalRelayAwait(t, f.finished)
+		})
+	}
+}
+
+func TestRelayNormalCloseWithoutExitDoesNotInventTerminalFrame(t *testing.T) {
+	f := terminalRelayNewFixture(t)
+	closed := make(chan error, 1)
+	go func() { closed <- f.peer.Close(websocket.StatusNormalClosure, "private details") }()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, data, err := f.client.Read(ctx)
+	if len(data) != 0 || websocket.CloseStatus(err) != websocket.StatusNormalClosure {
+		t.Fatalf("transport close invented a frame or lost its status: %q %v", data, err)
+	}
+	terminalRelayAwait(t, closed)
+	terminalRelayAwait(t, f.finished)
+}
+
+func TestRelayAbnormalUpstreamCloseDoesNotInventExitOrNormalClose(t *testing.T) {
+	f := terminalRelayNewFixture(t)
+	_ = f.peer.CloseNow()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, data, err := f.client.Read(ctx)
+	if len(data) != 0 || err == nil || websocket.CloseStatus(err) == websocket.StatusNormalClosure {
+		t.Fatalf("abrupt loss was converted into normal completion: %q %v", data, err)
+	}
+	terminalRelayAwait(t, f.finished)
+}
+
+func TestRelayParentCancellationBoundsAStalledNormalClose(t *testing.T) {
+	f := terminalRelayNewFixture(t)
+	closed := make(chan error, 1)
+	go func() { closed <- f.peer.Close(websocket.StatusNormalClosure, "") }()
+	// The upstream handshake completes after the relay reads it. The browser
+	// deliberately does not Read/acknowledge the forwarded close, so it cannot
+	// itself complete the relay's normal handshake.
+	terminalRelayAwait(t, closed)
+	f.cancel()
+	terminalRelayAwait(t, f.finished)
+	terminalRelayAwait(t, f.peerFinished)
+}
+
+func TestRelayParentCancellationWithoutExitStaysBounded(t *testing.T) {
+	f := terminalRelayNewFixture(t)
+	f.cancel()
+	terminalRelayAwait(t, f.finished)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	_, data, err := f.client.Read(ctx)
+	if len(data) != 0 || err == nil {
+		t.Fatalf("cancellation invented output or left socket live: %q %v", data, err)
+	}
+}

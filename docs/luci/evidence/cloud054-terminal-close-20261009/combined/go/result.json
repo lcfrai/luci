@@ -1,0 +1,36 @@
+{
+  "kind": "go",
+  "commands": [
+    {
+      "command": [
+        "go",
+        "test",
+        "-race",
+        "-p",
+        "1",
+        "-count=1",
+        "-timeout=5m",
+        "-json",
+        "./internal/proxy",
+        "./internal/api",
+        "./internal/management",
+        "-run",
+        "^(TestRelay|TestAttach|TestADroppedSocket|TestNewActuallyRoutesTheAttachRoute|TestIsWebSocketUpgrade|TestSessionExecutionGeneration|TestTeamOpaqueExecutionGeneration|TestRestartKeepsTheIDAndMintsANewSandboxAndANewToken|TestSessionJSON)"
+      ],
+      "cwd": "/workspace/luci/control-plane",
+      "startedAt": "2026-10-09T11:13:19.319867+00:00",
+      "exitCode": 0,
+      "finishedAt": "2026-10-09T11:13:46.794669+00:00",
+      "elapsedSeconds": 27.47408778796671
+    }
+  ],
+  "inputsCount": 1198,
+  "inputsStable": true,
+  "scope": "Integrated source validation; not installed/Windows/provider/performance acceptance.",
+  "outcomes": {
+    "pass": 74,
+    "fail": 0,
+    "skip": 0
+  },
+  "topLevel": 34
+}

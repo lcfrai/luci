@@ -1,0 +1,74 @@
+{
+  "command": [
+    "npm",
+    "test",
+    "--",
+    "src/seams.test.ts",
+    "--maxWorkers=1",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/cloud054-contract-followup/vitest.json"
+  ],
+  "startedAt": "2026-10-09T11:20:50.453828+00:00",
+  "elapsedSeconds": 6.810129645979032,
+  "exitCode": 0,
+  "before": {
+    "docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md": {
+      "sha256": "e1f61d53b94c256e0d874bcac1e5dba28a8038fe04da7f6dfce4923998527e53",
+      "bytes": 169253
+    },
+    "docs/SEAMS.md": {
+      "sha256": "4f07f3c9e0238ccaec4e8de958aa69f5baa5b6ee47c992642279248fc909123a",
+      "bytes": 31325
+    },
+    "desktop/src/seams.test.ts": {
+      "sha256": "4bd2fcb55a43e3e1f22d617bc1899edaec184189e46fdddc102f1627d7072769",
+      "bytes": 83440
+    },
+    "desktop/src/store/types.ts": {
+      "sha256": "1a22bcb0c91df435c87e6db2eab1b6d14c9a96172ec1a79646fca06b902b1e0b",
+      "bytes": 11380
+    },
+    "desktop/package-lock.json": {
+      "sha256": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a",
+      "bytes": 247150
+    },
+    "desktop/vitest.config.ts": {
+      "sha256": "61fe9ff43762dadeb5666eca997ea6c73ef40d4306996ae30294552e1ca7024f",
+      "bytes": 2265
+    }
+  },
+  "after": {
+    "docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md": {
+      "sha256": "e1f61d53b94c256e0d874bcac1e5dba28a8038fe04da7f6dfce4923998527e53",
+      "bytes": 169253
+    },
+    "docs/SEAMS.md": {
+      "sha256": "4f07f3c9e0238ccaec4e8de958aa69f5baa5b6ee47c992642279248fc909123a",
+      "bytes": 31325
+    },
+    "desktop/src/seams.test.ts": {
+      "sha256": "4bd2fcb55a43e3e1f22d617bc1899edaec184189e46fdddc102f1627d7072769",
+      "bytes": 83440
+    },
+    "desktop/src/store/types.ts": {
+      "sha256": "1a22bcb0c91df435c87e6db2eab1b6d14c9a96172ec1a79646fca06b902b1e0b",
+      "bytes": 11380
+    },
+    "desktop/package-lock.json": {
+      "sha256": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a",
+      "bytes": 247150
+    },
+    "desktop/vitest.config.ts": {
+      "sha256": "61fe9ff43762dadeb5666eca997ea6c73ef40d4306996ae30294552e1ca7024f",
+      "bytes": 2265
+    }
+  },
+  "inputsStable": true,
+  "counts": {
+    "numTotalTests": 24,
+    "numPassedTests": 24,
+    "numFailedTests": 0,
+    "numPendingTests": 0
+  },
+  "scope": "Update canonical domain-model documentation to match new optional executionGeneration. Test and application source unchanged from original full run; original full2826pass/1fail retained. This affected follow-up is not a second full-suite run."
+}

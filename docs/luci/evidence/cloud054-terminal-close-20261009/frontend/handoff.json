@@ -1,0 +1,455 @@
+{
+  "issue": "CLOUD-054",
+  "baseRevision": "d20ebd292f3f1de04d6726bab0998c210987bcb5",
+  "createdAt": "2026-10-09T11:06:00.742126+00:00",
+  "status": "External frontend correction ready for integration; controlled validation only",
+  "frontendFiles": [
+    {
+      "path": "desktop/src/api/attachRegistry.ts",
+      "before": {
+        "bytes": 35402,
+        "sha256": "80dd57e478f6d42b5e122831bb32f97ab4665230b4b5d818b628577ed5528ad5"
+      },
+      "after": {
+        "bytes": 38554,
+        "sha256": "1f3e299b787411b3b96f1e8af6866265ebdd372014000a0436d2dd7f4e094c82"
+      }
+    },
+    {
+      "path": "desktop/src/api/poller.ts",
+      "before": {
+        "bytes": 5120,
+        "sha256": "183b7672f7cc48a3f6241a95d1ce66e333558f52445ec8579f738ab226650c0a"
+      },
+      "after": {
+        "bytes": 5885,
+        "sha256": "23d5faa83acffd4d8b77899394d97b1606640f01d250a63d7551d5004b71f164"
+      }
+    },
+    {
+      "path": "desktop/src/store/types.ts",
+      "before": {
+        "bytes": 11246,
+        "sha256": "7fe756a7513b1edf1fdb5d7961f1ac7cfedba2431dac6a3d4044c0dff8f0a546"
+      },
+      "after": {
+        "bytes": 11380,
+        "sha256": "1a22bcb0c91df435c87e6db2eab1b6d14c9a96172ec1a79646fca06b902b1e0b"
+      }
+    },
+    {
+      "path": "desktop/src/components/develop/sessionVerbs.ts",
+      "before": {
+        "bytes": 35307,
+        "sha256": "e3e517ad215e50e2af71b6123db3f39be078a5b43d89888f609371fc04d51df9"
+      },
+      "after": {
+        "bytes": 35365,
+        "sha256": "afc817f0a8d23eb8ceee6c0d8cbcb092cc91d4716c4a6d8c09e134338a443e21"
+      }
+    },
+    {
+      "path": "desktop/src/api/attachRegistry.exit.test.ts",
+      "before": null,
+      "after": {
+        "bytes": 12091,
+        "sha256": "f54a91f769c5ca702077fafb993bd4606ca12733b579892653788f3be883f7d4"
+      }
+    },
+    {
+      "path": "desktop/src/api/poller.generation.test.ts",
+      "before": null,
+      "after": {
+        "bytes": 5426,
+        "sha256": "c9b2b37a78df0ea781c507991eecee91aa58bd7a17510cae63f8aa95e61c37f5"
+      }
+    },
+    {
+      "path": "desktop/src/components/develop/SessionPane.test.tsx",
+      "before": {
+        "bytes": 30856,
+        "sha256": "bb6cf54f9ff22556b67226e6bf3137803eacbe6c16ea9525567f90bbeabd1c1e"
+      },
+      "after": {
+        "bytes": 32214,
+        "sha256": "50fb89295a6425434a8d836225dac225913f54cca2c97a0c7e0cf551ed57103c"
+      }
+    },
+    {
+      "path": "desktop/src/components/develop/sessionVerbs.test.ts",
+      "before": {
+        "bytes": 53209,
+        "sha256": "ab38d388fcc122360a682455b7db0a1ebece74fd7fd9c092770d0f6435a2485e"
+      },
+      "after": {
+        "bytes": 53860,
+        "sha256": "e8c0ff7805cfef2b70d3853126111b5a9c51747dcd736611c7280cd12b39b633"
+      }
+    }
+  ],
+  "patch": {
+    "bytes": 34219,
+    "sha256": "a47eb9d77bdb5e3548b0c3cc636779d1931d4f161cf1c82d65bcc8365fd264ed"
+  },
+  "evidence": {
+    "before-complete-regressions": {
+      "files": {
+        "inputs-after.json": {
+          "bytes": 63929,
+          "sha256": "b155fbbc06d7bb98e1856214a2862d15f79d363d54bdfd933c9e3c08dfac6fab"
+        },
+        "inputs-before.json": {
+          "bytes": 63929,
+          "sha256": "b155fbbc06d7bb98e1856214a2862d15f79d363d54bdfd933c9e3c08dfac6fab"
+        },
+        "result.json": {
+          "bytes": 1338,
+          "sha256": "b69999abfa25aaeb0cdaac2d1c69aed42c82d0fce121494c1d6d714c3f7a7a51"
+        },
+        "stderr.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stdout.log": {
+          "bytes": 128,
+          "sha256": "3f1c7d386c7fc731870ba19066fbe9991a45b169ff8f310adfb063428f413840"
+        },
+        "vitest.json": {
+          "bytes": 36130,
+          "sha256": "c42374f6e2df9679c890e7008b53a22f3763eec8fc254b8e52af09a3f116e439"
+        }
+      },
+      "testCounts": {
+        "numTotalTests": 59,
+        "numPassedTests": 10,
+        "numFailedTests": 18,
+        "numPendingTests": 31
+      },
+      "configuredFiles": 3
+    },
+    "before-exit-order": {
+      "files": {
+        "inputs-after.json": {
+          "bytes": 63782,
+          "sha256": "399437a40cf34c80dab3dce2766ef7e016d13e255dbda049952a0d07f52d12b5"
+        },
+        "inputs-before.json": {
+          "bytes": 63782,
+          "sha256": "399437a40cf34c80dab3dce2766ef7e016d13e255dbda049952a0d07f52d12b5"
+        },
+        "result.json": {
+          "bytes": 1156,
+          "sha256": "74f9728c79fb49ba5b1e0406a815b0ae8ed0a899a6c387af1bba4ea90515ee97"
+        },
+        "stderr.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stdout.log": {
+          "bytes": 118,
+          "sha256": "24c0c57100eff324a086bfbdcb7f60dee4ac992dad52afa38576495e5c0cf55f"
+        },
+        "vitest.json": {
+          "bytes": 14292,
+          "sha256": "54b68beb405159d98eee2c3be4d23e86fbd0d479badcc377ab940f9068f1f888"
+        }
+      },
+      "testCounts": {
+        "numTotalTests": 14,
+        "numPassedTests": 6,
+        "numFailedTests": 8,
+        "numPendingTests": 0
+      },
+      "configuredFiles": 1
+    },
+    "before-generation-projection": {
+      "files": {
+        "overlay.json": {
+          "bytes": 588,
+          "sha256": "a50d988d15d1556feeaf0951179358ea79bb7cd9c5ec43b4aaede397fedb3264"
+        },
+        "result.json": {
+          "bytes": 2420,
+          "sha256": "34807d0e48ef6aaed7e52463e30c39f55857d68ede350a25a74cc5aa85fd5717"
+        },
+        "stderr.log": {
+          "bytes": 326,
+          "sha256": "259ec8558e1e8429308292d2248e9d92d4829616c04f6d758dcedd912dccde84"
+        },
+        "stdout.jsonl": {
+          "bytes": 11184,
+          "sha256": "4e81020d552a434241a14df746058ad0143c75cc21e87f5d36823d1c5c169d55"
+        }
+      }
+    },
+    "final-type-fixtures": {
+      "files": {
+        "inputs-after.json": {
+          "bytes": 64186,
+          "sha256": "0c07c221821ff0b5d758a441b00d5cb91b3d8d77e3c95536696990a4dfc0d478"
+        },
+        "inputs-before.json": {
+          "bytes": 64186,
+          "sha256": "0c07c221821ff0b5d758a441b00d5cb91b3d8d77e3c95536696990a4dfc0d478"
+        },
+        "result.json": {
+          "bytes": 1198,
+          "sha256": "88ceef2dfcc318a7633e1c2645bf70dd5a56d9bf2a6cd5776e85ee49ae3e85d0"
+        },
+        "stderr.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stdout.log": {
+          "bytes": 120,
+          "sha256": "92477d931166d7ac21d32f4ec8d64cdfa102fa5454882e9cc525eb46bfe54494"
+        },
+        "vitest.json": {
+          "bytes": 13371,
+          "sha256": "9679fed3d373182753d34b622ad415d1ee8ec61494d84145ee817b4a7358045d"
+        }
+      },
+      "testCounts": {
+        "numTotalTests": 30,
+        "numPassedTests": 30,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "configuredFiles": 2
+    },
+    "fixed-affected": {
+      "files": {
+        "inputs-after.json": {
+          "bytes": 63929,
+          "sha256": "1b784b2a0b3debdd3d0a6ef0a2a7455887562bac49fa8a6e02950a90d16cbb07"
+        },
+        "inputs-before.json": {
+          "bytes": 63929,
+          "sha256": "1b784b2a0b3debdd3d0a6ef0a2a7455887562bac49fa8a6e02950a90d16cbb07"
+        },
+        "result.json": {
+          "bytes": 1455,
+          "sha256": "bce92649fecfb5588c3d3f98e710ae2a497734d1f07f1200e3d2fce443ee3a7e"
+        },
+        "stderr.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stdout.log": {
+          "bytes": 115,
+          "sha256": "f28adadedbe5f00dedbbda3898a828a7f396b4b8dfdd1fff5e67462d40bd195d"
+        },
+        "vitest.json": {
+          "bytes": 182237,
+          "sha256": "0e04336fa4af5f9588ae5e16ec7f7eddc81e003b09c58f6f28db2b6a2fb24610"
+        }
+      },
+      "testCounts": {
+        "numTotalTests": 335,
+        "numPassedTests": 290,
+        "numFailedTests": 45,
+        "numPendingTests": 0
+      },
+      "configuredFiles": 8
+    },
+    "fixed-affected-final": {
+      "files": {
+        "inputs-after.json": {
+          "bytes": 63929,
+          "sha256": "4d685ea06e952b7a1eda4bb20f1a2e865d6a7c9c431b1a3afb48a43b563ca092"
+        },
+        "inputs-before.json": {
+          "bytes": 63929,
+          "sha256": "4d685ea06e952b7a1eda4bb20f1a2e865d6a7c9c431b1a3afb48a43b563ca092"
+        },
+        "result.json": {
+          "bytes": 1460,
+          "sha256": "998c7474d51961eec5582aee2e0d3c554796db3243365f9b5e46fea03bdd4d28"
+        },
+        "stderr.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stdout.log": {
+          "bytes": 121,
+          "sha256": "041222e8b4f657a9ca05ecfaf16185ec940d4ad07c43fc9a06d6d344b9fbc728"
+        },
+        "vitest.json": {
+          "bytes": 124002,
+          "sha256": "ebc7d23a7a78775f438769fcc82a946ed9ba548ffcd8e84dec4fdcb8390e1e16"
+        }
+      },
+      "testCounts": {
+        "numTotalTests": 336,
+        "numPassedTests": 336,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "configuredFiles": 8
+    },
+    "fixed-complete-regressions": {
+      "files": {
+        "inputs-after.json": {
+          "bytes": 63929,
+          "sha256": "60dd3e40a4a7a929bd98ba0b1c6c727bff74150806852f0d4cfb665068b8d1b9"
+        },
+        "inputs-before.json": {
+          "bytes": 63929,
+          "sha256": "60dd3e40a4a7a929bd98ba0b1c6c727bff74150806852f0d4cfb665068b8d1b9"
+        },
+        "result.json": {
+          "bytes": 1337,
+          "sha256": "f04dff7aa4b1bf0ce6736ea537e6b376f930816e68d4bb0ef78aa47877b59e8c"
+        },
+        "stderr.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stdout.log": {
+          "bytes": 127,
+          "sha256": "9417271f3a7a63ec3ee335b87db4577c7d632187d9540482c6b677b8b5579dbb"
+        },
+        "vitest.json": {
+          "bytes": 21253,
+          "sha256": "ecffde895271e5f225758a5db6b787c6e8b46571382e23e1b3c211c8cfef9147"
+        }
+      },
+      "testCounts": {
+        "numTotalTests": 59,
+        "numPassedTests": 28,
+        "numFailedTests": 0,
+        "numPendingTests": 31
+      },
+      "configuredFiles": 3
+    },
+    "fixed-exit-order": {
+      "files": {
+        "inputs-after.json": {
+          "bytes": 63782,
+          "sha256": "1d93282534bd3ac80f4b3a366a08f2535567e03b375654e10ddce01bef174b6e"
+        },
+        "inputs-before.json": {
+          "bytes": 63782,
+          "sha256": "1d93282534bd3ac80f4b3a366a08f2535567e03b375654e10ddce01bef174b6e"
+        },
+        "result.json": {
+          "bytes": 1154,
+          "sha256": "b643470adac1d0c05a5d154ebacb2b8bba9fc2f130f85e222164047ec3e80c08"
+        },
+        "stderr.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stdout.log": {
+          "bytes": 117,
+          "sha256": "af8d9c33c3ae66618aa90d6a813126961ae5cf5ffd5ba7262a6e68359e76dce4"
+        },
+        "vitest.json": {
+          "bytes": 6498,
+          "sha256": "5bed18778c0ced1e2511332adb48856a0841138a3e431f7659a5b687924ebab8"
+        }
+      },
+      "testCounts": {
+        "numTotalTests": 14,
+        "numPassedTests": 14,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "configuredFiles": 1
+    },
+    "fixed-generation-projection": {
+      "files": {
+        "overlay.json": {
+          "bytes": 616,
+          "sha256": "81579e7f206a2320973fba9717fea0213e31f08d3475abf5ec2f0c45e7e344c0"
+        },
+        "result.json": {
+          "bytes": 2474,
+          "sha256": "c1507be736c50cc9d8f78c7b28de3a9ff1ee64ed052e0503497676b2fd5a804a"
+        },
+        "stderr.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stdout.jsonl": {
+          "bytes": 18159,
+          "sha256": "ea39790390d0e6cf712ea5cc77f43f4154fdc3540d30f6fa6073379057b0d7b5"
+        }
+      }
+    },
+    "typecheck-corrected": {
+      "files": {
+        "inputs-after.json": {
+          "bytes": 64186,
+          "sha256": "0c07c221821ff0b5d758a441b00d5cb91b3d8d77e3c95536696990a4dfc0d478"
+        },
+        "inputs-before.json": {
+          "bytes": 64186,
+          "sha256": "0c07c221821ff0b5d758a441b00d5cb91b3d8d77e3c95536696990a4dfc0d478"
+        },
+        "result.json": {
+          "bytes": 764,
+          "sha256": "820398b4e4447a4cbb5eea8077a316f515c32fd92f24bcb68a1f2eed311137f8"
+        },
+        "stderr.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stdout.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      }
+    },
+    "typecheck-final": {
+      "files": {
+        "inputs-after.json": {
+          "bytes": 63929,
+          "sha256": "4d685ea06e952b7a1eda4bb20f1a2e865d6a7c9c431b1a3afb48a43b563ca092"
+        },
+        "inputs-before.json": {
+          "bytes": 63929,
+          "sha256": "4d685ea06e952b7a1eda4bb20f1a2e865d6a7c9c431b1a3afb48a43b563ca092"
+        },
+        "result.json": {
+          "bytes": 766,
+          "sha256": "6a2a78cd2c3434f45cc036d36a4cb3e166f4a440cc73961994e05dd3bbddf6d3"
+        },
+        "stderr.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stdout.log": {
+          "bytes": 880,
+          "sha256": "e70162b6926f3fbbb03b92dcf4e47e89d856db9910e8c3a3917b64b063c0f837"
+        }
+      }
+    }
+  },
+  "finalSourceManifest": {
+    "bytes": 64186,
+    "sha256": "0c07c221821ff0b5d758a441b00d5cb91b3d8d77e3c95536696990a4dfc0d478"
+  },
+  "dependencyPolicy": "Existing installed package directories symlinked read-only by convention; no npm ci executed. External cacheDir avoids repository cache writes; source lockfile is exact d20. No installed lockfile identity revalidation claim.",
+  "verificationSummary": [
+    "Original14 ordering test cases:8 expected failures,6 controls; retained.",
+    "Complete original ordering/poll/exit-bar regression set:18 failures,10 controls,31 unrelated component cases filtered; retained. Corrected same set28passes.",
+    "Later additional legacy-first-known/old-open-socket/1013 cases pass within affected validation.",
+    "Initial affected8-file attempt:290pass45fail; all45 were existing sessionVerbs mocks missing newly imported canReconnectEndedAttach. Retained, then mock wiring corrected and explicit legacy-menu regression added.",
+    "Affected8 files pass336/336,0filtered. This predates two test-only type annotations and addition of unchanged e2e fixture inputs. Production files unchanged thereafter.",
+    "Final two changed test files pass30/30. Final TypeScript exit0,430inputs stable across both commands. Counts overlap; no full frontend suite or installed/native test claimed.",
+    "Initial typecheck exit2 retained: generic vi.fn annotation, dynamic server problem-code type annotation, and missing original e2e fixture/d.ts staging. Corrected without product-behavior changes."
+  ],
+  "limitations": [
+    "An HMAC fingerprint identifies an allocation by equality, not temporal ordering or execution authority. Delayed list responses use immutable per-session object baselines, not token ordering.",
+    "Fresh403 poll failure still only records lastError; it does not itself clear existing private rows. Existing scope/authority removals and next fresh filtered list win. This preexisting policy is not changed or claimed fixed.",
+    "Terminal state means process ended, not success, verified output, review, integration, cleanup or clean WebSocket closure.",
+    "Legacy missing generation never automatically erases typed terminal evidence; explicit Retry attach is offered only for an ended attachment that has never acquired a trustworthy generation, with current authority and session not exited.",
+    "Backend HMAC/HTTP/team projection receipts and additional tests are owned by parent in sibling directories; this manifest does not combine their pass counts.",
+    "No app/build/provider/benchmark/window launched; no repository files written."
+  ],
+  "integration": [
+    "Copy only8 final/desktop files listed here; preserve other root work. External vitest.config cacheDir overlay and copied e2e fixture files are not product changes.",
+    "Include backend/control-plane/internal/api sessions.go, session_execution_generation.go, session_execution_generation_test.go plus parent generation-followup/session_execution_generation_http_test.go and corrected generation-followup-v2/team_session_execution_generation_test.go. Parent owns backend receipts."
+  ]
+}

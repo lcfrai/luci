@@ -45,13 +45,25 @@ export function startPolling(
     if (stopped || store.getState().projectCatalogueEpoch !== epoch || inFlight || document.visibilityState === "hidden") return;
     inFlight = true;
     let good = false;
+    // Store rows are immutable. A completed mutation/removal since this request
+    // began wins over its delayed response; opaque generation tokens are not clocks.
+    const requestedSessions = store.getState().sessions;
     try {
       const sessions = await client.listSessions();
       if (stopped || store.getState().projectCatalogueEpoch !== epoch) return;
       good = true;
       const state = store.getState();
-      const covered = coveredWorktreeIds(Object.keys(state.sessionIdsByWorktree), sessions);
-      state.replaceSessions(sessions, covered);
+      const changed = new Set([...Object.keys(requestedSessions), ...Object.keys(state.sessions)]
+        .filter(id => requestedSessions[id] !== state.sessions[id]));
+      const accepted = sessions.filter(session => !changed.has(session.id));
+      for (const id of changed) {
+        const current = state.sessions[id];
+        if (current) accepted.push(current);
+      }
+      // Fresh subsequent requests still remove records no longer visible. Scope
+      // resets above and records removed during this request can never be revived.
+      const covered = coveredWorktreeIds(Object.keys(state.sessionIdsByWorktree), accepted);
+      state.replaceSessions(accepted, covered);
       // AMENDED BY TASK 24: a good tick clears the error THIS POLLER raised, and nothing else.
       // It used to clear any non-null lastError, so a catalogue list that failed while sessions
       // answered was reported and then wiped by the next tick, 2 s later, leaving an empty rail

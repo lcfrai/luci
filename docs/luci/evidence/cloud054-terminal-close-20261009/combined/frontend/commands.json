@@ -1,0 +1,29 @@
+[
+  {
+    "command": [
+      "npm",
+      "test",
+      "--",
+      "--maxWorkers=2",
+      "--reporter=json",
+      "--outputFile=/workspace/.luci-tools/cloud054-combined-validation/frontend/vitest.json"
+    ],
+    "cwd": "/workspace/luci/desktop",
+    "startedAt": "2026-10-09T11:15:24.772709+00:00",
+    "exitCode": 1,
+    "finishedAt": "2026-10-09T11:19:48.066321+00:00",
+    "elapsedSeconds": 263.29361273295945
+  },
+  {
+    "command": [
+      "npm",
+      "run",
+      "typecheck"
+    ],
+    "cwd": "/workspace/luci/desktop",
+    "startedAt": "2026-10-09T11:19:48.067786+00:00",
+    "exitCode": 0,
+    "finishedAt": "2026-10-09T11:20:19.386411+00:00",
+    "elapsedSeconds": 31.31814684998244
+  }
+]

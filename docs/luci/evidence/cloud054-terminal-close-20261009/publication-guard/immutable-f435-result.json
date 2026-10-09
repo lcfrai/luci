@@ -1,0 +1,21 @@
+{
+  "at": "2026-10-09T11:14:37.443145+00:00",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "/workspace/luci/scripts/acceptance/verify-publication.py",
+    "--repo",
+    "/workspace/luci",
+    "--ref",
+    "f43542a84bd9cd81c2b263e680c36d8225e10024",
+    "--require-complete",
+    "docs/luci/evidence/cloud032-idle-d20ebd29-20261009",
+    "docs/luci/evidence/cloud032-cgroup-d20ebd29-20261009",
+    "docs/luci/evidence/sustained-d20ebd29-attempt8",
+    "docs/luci/evidence/cloud053-publication-guard-20261009"
+  ],
+  "exitCode": 0,
+  "guardSHA256": "bcfeef76d9595bc2732f8c4966d30b551e1a5e470e534e4568fa718f03fb31c8",
+  "stdoutSHA256": "b5737f3d372df302296150041fc6138fbe9a15a83ff53907146028a9728d055a",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "scope": "Bounded read-only verification of immutable Git blobs; no working-tree/index mutation."
+}

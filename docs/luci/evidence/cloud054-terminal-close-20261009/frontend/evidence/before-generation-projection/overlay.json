@@ -1,0 +1,7 @@
+{
+  "Replace": {
+    "/workspace/luci/control-plane/internal/api/sessions.go": "/workspace/.luci-tools/cloud054-terminal-close/frontend/sessions.before.go",
+    "/workspace/luci/control-plane/internal/api/session_execution_generation.go": "/workspace/.luci-tools/cloud054-terminal-close/frontend/backend/control-plane/internal/api/session_execution_generation.go",
+    "/workspace/luci/control-plane/internal/api/session_execution_generation_test.go": "/workspace/.luci-tools/cloud054-terminal-close/frontend/backend/control-plane/internal/api/session_execution_generation_test.go"
+  }
+}

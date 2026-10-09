@@ -1,0 +1,30 @@
+{
+  "command": [
+    "node",
+    "node_modules/typescript/bin/tsc",
+    "--noEmit"
+  ],
+  "startedAt": "2026-10-09T11:02:58.431282+00:00",
+  "elapsedSeconds": 28.13153129100101,
+  "exitCode": 2,
+  "inputCount": 428,
+  "inputsStable": true,
+  "inputsBefore": {
+    "bytes": 63929,
+    "sha256": "4d685ea06e952b7a1eda4bb20f1a2e865d6a7c9c431b1a3afb48a43b563ca092"
+  },
+  "inputsAfter": {
+    "bytes": 63929,
+    "sha256": "4d685ea06e952b7a1eda4bb20f1a2e865d6a7c9c431b1a3afb48a43b563ca092"
+  },
+  "logs": {
+    "stdout.log": {
+      "bytes": 880,
+      "sha256": "e70162b6926f3fbbb03b92dcf4e47e89d856db9910e8c3a3917b64b063c0f837"
+    },
+    "stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "issue": "CLOUD-054",
+  "scope": "Only pending controlled buffer-overflow plus allocation-replacement regression. No product source correction needed; no full-suite/typecheck/installed/runtime rerun.",
+  "createdAt": "2026-10-09T11:13:38.293421+00:00",
+  "priorFrozenHandoff": {
+    "path": "/workspace/.luci-tools/cloud054-terminal-close/frontend/handoff.json",
+    "bytes": 16902,
+    "sha256": "b3fa07be4ad668c557d0b48c716c567231b2fe472c01de893551f5e98c5e5465"
+  },
+  "baseInputComparison": {
+    "priorCount": 430,
+    "currentCount": 431,
+    "allPriorInputsUnchanged": true,
+    "extra": [
+      "src/api/attachRegistry.overload-generation.test.ts"
+    ]
+  },
+  "testMapping": {
+    "repositoryPath": "desktop/src/api/attachRegistry.overload-generation.test.ts",
+    "finalPath": "/workspace/.luci-tools/cloud054-terminal-close/frontend-overload-followup-v2/tree/desktop/src/api/attachRegistry.overload-generation.test.ts",
+    "final": {
+      "bytes": 2662,
+      "sha256": "6be6f383d83dc669bca26781382328844de4679fd8df3066f6cbc8f9374888f7"
+    },
+    "originalFailedFixturePath": "/workspace/.luci-tools/cloud054-terminal-close/frontend-overload-followup-v1/tree/desktop/src/api/attachRegistry.overload-generation.test.ts",
+    "originalFailedFixture": {
+      "bytes": 2598,
+      "sha256": "5783312a2994c1fdccc5de4d7212f281b9f73aed9f54a193ae38f1d12be95370"
+    }
+  },
+  "retainedFailure": {
+    "path": "/workspace/.luci-tools/cloud054-terminal-close/frontend-overload-followup-v1/evidence/overload-replacement",
+    "classification": "Test-driver timing: asserted parser reset before the declared100ms output flush. Paused-state retention, no auto-attach, correct new-generation openAttach and explicit retry already passed; not a demonstrated product defect.",
+    "changes": "v2 imports FLUSH_INTERVAL_MS and advances exactly that existing timer before inspecting reset bytes. Product source unchanged."
+  },
+  "verification": {
+    "pass": 1,
+    "fail": 0,
+    "skip": 0,
+    "covered": [
+      "Output overflow pauses display and records earlier-output uncertainty.",
+      "New known allocation retains the failed/paused state and transcript without any auto-attach for full retry budget.",
+      "Late old-socket Exit/close cannot erase pause or settle replacement.",
+      "Explicit retry opens exactly the current new-generation session and applies existing parser-reset sequence.",
+      "New attachment works; stale old Exit cannot change its attached phase."
+    ],
+    "notClaimed": [
+      "TypedExit followed by1013 plus replacement is not this case; existing focused cases cover typedExit/1013 separately.",
+      "No installed/native/server execution, cleanup, success or performance evidence."
+    ]
+  },
+  "files": {
+    "frontend-overload-followup-v1/evidence/overload-replacement/inputs-after.json": {
+      "bytes": 64349,
+      "sha256": "0137712f5280abf5460ebd689d7a4bbf50d9802a75683a49dd061e7519c0c29b"
+    },
+    "frontend-overload-followup-v1/evidence/overload-replacement/inputs-before.json": {
+      "bytes": 64349,
+      "sha256": "0137712f5280abf5460ebd689d7a4bbf50d9802a75683a49dd061e7519c0c29b"
+    },
+    "frontend-overload-followup-v1/evidence/overload-replacement/result.json": {
+      "bytes": 1215,
+      "sha256": "e00093741dabbe701a7604135108acd27081d55d7acae729533c3c254370e408"
+    },
+    "frontend-overload-followup-v1/evidence/overload-replacement/stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "frontend-overload-followup-v1/evidence/overload-replacement/stdout.log": {
+      "bytes": 142,
+      "sha256": "1d3e5da576df78d9c19ddda2e2dd790446f7f3610564fcacb5b75645ec382453"
+    },
+    "frontend-overload-followup-v1/evidence/overload-replacement/vitest.json": {
+      "bytes": 2066,
+      "sha256": "4f30aac1b25cf8465c1c3da51d6fc9089a41dccad0e7bf36b2fc2c5f9c2c0430"
+    },
+    "frontend-overload-followup-v2/evidence/overload-replacement/inputs-after.json": {
+      "bytes": 64349,
+      "sha256": "b465183798c45ab6e81be22454cb43c4e921c9113f3b2931ffad0b5ed7399673"
+    },
+    "frontend-overload-followup-v2/evidence/overload-replacement/inputs-before.json": {
+      "bytes": 64349,
+      "sha256": "b465183798c45ab6e81be22454cb43c4e921c9113f3b2931ffad0b5ed7399673"
+    },
+    "frontend-overload-followup-v2/evidence/overload-replacement/result.json": {
+      "bytes": 1216,
+      "sha256": "1dc14b69a230132d1e73596bb166f14c8ba62071ee378c8804b38a77e3315f9f"
+    },
+    "frontend-overload-followup-v2/evidence/overload-replacement/stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "frontend-overload-followup-v2/evidence/overload-replacement/stdout.log": {
+      "bytes": 142,
+      "sha256": "907bd365f2651274765eeb9ba0d48d4a019f655fad22f26fe3c4fb227c5f3a86"
+    },
+    "frontend-overload-followup-v2/evidence/overload-replacement/vitest.json": {
+      "bytes": 1088,
+      "sha256": "fb4e5a19a5a40d76eed4089db6805a7a2221c29c7f91c6daea7aaa8642a1c6f9"
+    },
+    "frontend-overload-followup-v1/tree/desktop/src/api/attachRegistry.overload-generation.test.ts": {
+      "bytes": 2598,
+      "sha256": "5783312a2994c1fdccc5de4d7212f281b9f73aed9f54a193ae38f1d12be95370"
+    },
+    "frontend-overload-followup-v2/tree/desktop/src/api/attachRegistry.overload-generation.test.ts": {
+      "bytes": 2662,
+      "sha256": "6be6f383d83dc669bca26781382328844de4679fd8df3066f6cbc8f9374888f7"
+    }
+  }
+}

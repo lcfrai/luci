@@ -1,0 +1,1272 @@
+{
+  "scope": "All copied originals are byte-exact. Tooling/source checkout locators and inert controlled fixture markers remain in raw records. No full isolated tree, installed private fixture, credentials, dependency tree or raw user session is published.",
+  "members": [
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/backend/README.md",
+      "publication": "backend/README.md",
+      "bytes": 3184,
+      "sha256": "23bc58b3b7e6424f244724ff2e6da726d0b54c5fa279a7cecb11b8a84fef8813",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/backend/after-overlay.json",
+      "publication": "backend/after-overlay.json",
+      "bytes": 444,
+      "sha256": "d1100e95c91e0ded0cfa833ae971206ed4f9d37e0f021e313a258b879eb8fd91",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/backend/before-overlay.json",
+      "publication": "backend/before-overlay.json",
+      "bytes": 310,
+      "sha256": "bf94821b0af6329ec8d10020503e31e3af06dcf5c846ce2436fdcbe4e21b0e23",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/backend/capture.py",
+      "publication": "backend/capture.py",
+      "bytes": 3390,
+      "sha256": "e733a61ffbd51dc64e1e810cf8e2202ccb2db96ea0ac13141bff92efde9777bc",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/backend/manifest.json",
+      "publication": "backend/manifest.json",
+      "bytes": 4300,
+      "sha256": "ad67cb9531f63e784d0df39cd073df503ec1955cf4069add83fe6702310d754b",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/backend/after/proxy.go",
+      "publication": "backend/after/proxy.go",
+      "bytes": 3031,
+      "sha256": "ebc02379306e5b555f317fc6d66a3f3ec3f9e6c29a5b93cd898165e65a8d565b",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/backend/before/proxy.go",
+      "publication": "backend/before/proxy.go",
+      "bytes": 2526,
+      "sha256": "07c19b8ca3183733178f05ed226843c59d6e128fd39f95825a57a3c45515d81d",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/backend/receipts/affected/inputs-after.json",
+      "publication": "backend/receipts/affected/inputs-after.json",
+      "bytes": 2267,
+      "sha256": "3a9f868e05731d4934e4b8c6351208d4cc2df17eeb5d22ecc9b81c15f59290ba",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/backend/receipts/affected/inputs-before.json",
+      "publication": "backend/receipts/affected/inputs-before.json",
+      "bytes": 2267,
+      "sha256": "3a9f868e05731d4934e4b8c6351208d4cc2df17eeb5d22ecc9b81c15f59290ba",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/backend/receipts/affected/result.json",
+      "publication": "backend/receipts/affected/result.json",
+      "bytes": 9346,
+      "sha256": "568b6cadab035036392be6ad9ec055cb5322a956e9fa5fb28d4e7e9d971f3aa0",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/backend/receipts/affected/stderr.log",
+      "publication": "backend/receipts/affected/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/backend/receipts/affected/stdout.jsonl",
+      "publication": "backend/receipts/affected/stdout.jsonl",
+      "bytes": 38256,
+      "sha256": "3ebadcd365b75544522c2e51c1a685d7671e42b9ba38570245469edfba08db7a",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/backend/receipts/after/inputs-after.json",
+      "publication": "backend/receipts/after/inputs-after.json",
+      "bytes": 2267,
+      "sha256": "3a9f868e05731d4934e4b8c6351208d4cc2df17eeb5d22ecc9b81c15f59290ba",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/backend/receipts/after/inputs-before.json",
+      "publication": "backend/receipts/after/inputs-before.json",
+      "bytes": 2267,
+      "sha256": "3a9f868e05731d4934e4b8c6351208d4cc2df17eeb5d22ecc9b81c15f59290ba",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/backend/receipts/after/result.json",
+      "publication": "backend/receipts/after/result.json",
+      "bytes": 3205,
+      "sha256": "8c75f0c866e8b9308defe3f1ada2d3bf8beba281e93073dbc9d6098e7cd95e19",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/backend/receipts/after/stderr.log",
+      "publication": "backend/receipts/after/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/backend/receipts/after/stdout.jsonl",
+      "publication": "backend/receipts/after/stdout.jsonl",
+      "bytes": 9997,
+      "sha256": "c680dc47888cd8796b8dab4d3b42370c45dda34d63860170a9cf194c1bc5f2df",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/backend/receipts/before/inputs-after.json",
+      "publication": "backend/receipts/before/inputs-after.json",
+      "bytes": 2267,
+      "sha256": "3a9f868e05731d4934e4b8c6351208d4cc2df17eeb5d22ecc9b81c15f59290ba",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/backend/receipts/before/inputs-before.json",
+      "publication": "backend/receipts/before/inputs-before.json",
+      "bytes": 2267,
+      "sha256": "3a9f868e05731d4934e4b8c6351208d4cc2df17eeb5d22ecc9b81c15f59290ba",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/backend/receipts/before/result.json",
+      "publication": "backend/receipts/before/result.json",
+      "bytes": 3171,
+      "sha256": "14f92fb1b57adadf9694731113a842589ca518f762ebee7ab2772cf2a8eb2552",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/backend/receipts/before/stderr.log",
+      "publication": "backend/receipts/before/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/backend/receipts/before/stdout.jsonl",
+      "publication": "backend/receipts/before/stdout.jsonl",
+      "bytes": 11698,
+      "sha256": "56181692a3a6be69ec442c5ea5efc9a4dd5c24e56d1c09af74377782006aca22",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/backend/tests/attach_test.go",
+      "publication": "backend/tests/attach_test.go",
+      "bytes": 37202,
+      "sha256": "ef0d651baa9a54a6a0354e1665f22273f4683c420c5f2c905a38987429db8234",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/backend/tests/proxy_test.go",
+      "publication": "backend/tests/proxy_test.go",
+      "bytes": 12075,
+      "sha256": "6e76c9bca68a80ab885fe704962b4856aa52ca061ae7523b11232cf27795a045",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/attachRegistry.before.ts",
+      "publication": "frontend/attachRegistry.before.ts",
+      "bytes": 35402,
+      "sha256": "80dd57e478f6d42b5e122831bb32f97ab4665230b4b5d818b628577ed5528ad5",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/attachRegistry.intermediate.ts",
+      "publication": "frontend/attachRegistry.intermediate.ts",
+      "bytes": 38231,
+      "sha256": "d5b7cb1c7d13d3b8f8c52a0b458cca474a350291f3ede9403dcb3a97ecf07fad",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/base-inputs.json",
+      "publication": "frontend/base-inputs.json",
+      "bytes": 76536,
+      "sha256": "783f1cc1e0c92e9ae431291544ae3b5c7429eabab2b51b7df329b3ced26bf903",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/frontend.patch",
+      "publication": "frontend/frontend.patch",
+      "bytes": 34219,
+      "sha256": "a47eb9d77bdb5e3548b0c3cc636779d1931d4f161cf1c82d65bcc8365fd264ed",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/handoff.json",
+      "publication": "frontend/handoff.json",
+      "bytes": 16902,
+      "sha256": "b3fa07be4ad668c557d0b48c716c567231b2fe472c01de893551f5e98c5e5465",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/poller.before.ts",
+      "publication": "frontend/poller.before.ts",
+      "bytes": 5120,
+      "sha256": "183b7672f7cc48a3f6241a95d1ce66e333558f52445ec8579f738ab226650c0a",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/run-focused.py",
+      "publication": "frontend/run-focused.py",
+      "bytes": 1555,
+      "sha256": "afbbdcb2e160298b63310a1b5e8878983c18bac0549497436ce0f6d30c338f22",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/run-go.py",
+      "publication": "frontend/run-go.py",
+      "bytes": 1929,
+      "sha256": "c94cd63882b62dcf8df4858c5f43707c6ff0da31919558b027ad2b0afe44124f",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/run-typecheck-corrected.py",
+      "publication": "frontend/run-typecheck-corrected.py",
+      "bytes": 1284,
+      "sha256": "b951cc994fbe96b7d1a94e1205a8c21d3ebb021ed3a2a365e08d88a67d8e5628",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/run-typecheck.py",
+      "publication": "frontend/run-typecheck.py",
+      "bytes": 1280,
+      "sha256": "c14432415ed7e59baf391beed486ea10cc163e0ace2aebd9592e46f61bd89dcf",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/sessions.before.go",
+      "publication": "frontend/sessions.before.go",
+      "bytes": 116876,
+      "sha256": "00e6edb0a98299a572345de9eb94841380f2223d4d314c65e1ccfa7740a43913",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/vitest.config.original.ts",
+      "publication": "frontend/vitest.config.original.ts",
+      "bytes": 2265,
+      "sha256": "61fe9ff43762dadeb5666eca997ea6c73ef40d4306996ae30294552e1ca7024f",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/backend/control-plane/internal/api/session_execution_generation.go",
+      "publication": "frontend/backend/control-plane/internal/api/session_execution_generation.go",
+      "bytes": 1038,
+      "sha256": "dbfaad94e2c5f111c390306375ff22e18a504a761e9c05ceef29dd62552945ff",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/backend/control-plane/internal/api/session_execution_generation_test.go",
+      "publication": "frontend/backend/control-plane/internal/api/session_execution_generation_test.go",
+      "bytes": 4353,
+      "sha256": "a3252a434f9b4c1b5b5ab54067cdd9af883f64a5e2873ccce8d5c4d04cfd7982",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/backend/control-plane/internal/api/sessions.go",
+      "publication": "frontend/backend/control-plane/internal/api/sessions.go",
+      "bytes": 117140,
+      "sha256": "1eface59027a5ca16b076cfc268025b9849ec4a69e42aaa462aaa514f602f99d",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/before-complete-regressions/inputs-after.json",
+      "publication": "frontend/evidence/before-complete-regressions/inputs-after.json",
+      "bytes": 63929,
+      "sha256": "b155fbbc06d7bb98e1856214a2862d15f79d363d54bdfd933c9e3c08dfac6fab",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/before-complete-regressions/inputs-before.json",
+      "publication": "frontend/evidence/before-complete-regressions/inputs-before.json",
+      "bytes": 63929,
+      "sha256": "b155fbbc06d7bb98e1856214a2862d15f79d363d54bdfd933c9e3c08dfac6fab",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/before-complete-regressions/result.json",
+      "publication": "frontend/evidence/before-complete-regressions/result.json",
+      "bytes": 1338,
+      "sha256": "b69999abfa25aaeb0cdaac2d1c69aed42c82d0fce121494c1d6d714c3f7a7a51",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/before-complete-regressions/stderr.log",
+      "publication": "frontend/evidence/before-complete-regressions/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/before-complete-regressions/stdout.log",
+      "publication": "frontend/evidence/before-complete-regressions/stdout.log",
+      "bytes": 128,
+      "sha256": "3f1c7d386c7fc731870ba19066fbe9991a45b169ff8f310adfb063428f413840",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/before-complete-regressions/vitest.json",
+      "publication": "frontend/evidence/before-complete-regressions/vitest.json",
+      "bytes": 36130,
+      "sha256": "c42374f6e2df9679c890e7008b53a22f3763eec8fc254b8e52af09a3f116e439",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/before-exit-order/inputs-after.json",
+      "publication": "frontend/evidence/before-exit-order/inputs-after.json",
+      "bytes": 63782,
+      "sha256": "399437a40cf34c80dab3dce2766ef7e016d13e255dbda049952a0d07f52d12b5",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/before-exit-order/inputs-before.json",
+      "publication": "frontend/evidence/before-exit-order/inputs-before.json",
+      "bytes": 63782,
+      "sha256": "399437a40cf34c80dab3dce2766ef7e016d13e255dbda049952a0d07f52d12b5",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/before-exit-order/result.json",
+      "publication": "frontend/evidence/before-exit-order/result.json",
+      "bytes": 1156,
+      "sha256": "74f9728c79fb49ba5b1e0406a815b0ae8ed0a899a6c387af1bba4ea90515ee97",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/before-exit-order/stderr.log",
+      "publication": "frontend/evidence/before-exit-order/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/before-exit-order/stdout.log",
+      "publication": "frontend/evidence/before-exit-order/stdout.log",
+      "bytes": 118,
+      "sha256": "24c0c57100eff324a086bfbdcb7f60dee4ac992dad52afa38576495e5c0cf55f",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/before-exit-order/vitest.json",
+      "publication": "frontend/evidence/before-exit-order/vitest.json",
+      "bytes": 14292,
+      "sha256": "54b68beb405159d98eee2c3be4d23e86fbd0d479badcc377ab940f9068f1f888",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/before-generation-projection/overlay.json",
+      "publication": "frontend/evidence/before-generation-projection/overlay.json",
+      "bytes": 588,
+      "sha256": "a50d988d15d1556feeaf0951179358ea79bb7cd9c5ec43b4aaede397fedb3264",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/before-generation-projection/result.json",
+      "publication": "frontend/evidence/before-generation-projection/result.json",
+      "bytes": 2420,
+      "sha256": "34807d0e48ef6aaed7e52463e30c39f55857d68ede350a25a74cc5aa85fd5717",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/before-generation-projection/stderr.log",
+      "publication": "frontend/evidence/before-generation-projection/stderr.log",
+      "bytes": 326,
+      "sha256": "259ec8558e1e8429308292d2248e9d92d4829616c04f6d758dcedd912dccde84",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/before-generation-projection/stdout.jsonl",
+      "publication": "frontend/evidence/before-generation-projection/stdout.jsonl",
+      "bytes": 11184,
+      "sha256": "4e81020d552a434241a14df746058ad0143c75cc21e87f5d36823d1c5c169d55",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/final-type-fixtures/inputs-after.json",
+      "publication": "frontend/evidence/final-type-fixtures/inputs-after.json",
+      "bytes": 64186,
+      "sha256": "0c07c221821ff0b5d758a441b00d5cb91b3d8d77e3c95536696990a4dfc0d478",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/final-type-fixtures/inputs-before.json",
+      "publication": "frontend/evidence/final-type-fixtures/inputs-before.json",
+      "bytes": 64186,
+      "sha256": "0c07c221821ff0b5d758a441b00d5cb91b3d8d77e3c95536696990a4dfc0d478",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/final-type-fixtures/result.json",
+      "publication": "frontend/evidence/final-type-fixtures/result.json",
+      "bytes": 1198,
+      "sha256": "88ceef2dfcc318a7633e1c2645bf70dd5a56d9bf2a6cd5776e85ee49ae3e85d0",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/final-type-fixtures/stderr.log",
+      "publication": "frontend/evidence/final-type-fixtures/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/final-type-fixtures/stdout.log",
+      "publication": "frontend/evidence/final-type-fixtures/stdout.log",
+      "bytes": 120,
+      "sha256": "92477d931166d7ac21d32f4ec8d64cdfa102fa5454882e9cc525eb46bfe54494",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/final-type-fixtures/vitest.json",
+      "publication": "frontend/evidence/final-type-fixtures/vitest.json",
+      "bytes": 13371,
+      "sha256": "9679fed3d373182753d34b622ad415d1ee8ec61494d84145ee817b4a7358045d",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-affected/inputs-after.json",
+      "publication": "frontend/evidence/fixed-affected/inputs-after.json",
+      "bytes": 63929,
+      "sha256": "1b784b2a0b3debdd3d0a6ef0a2a7455887562bac49fa8a6e02950a90d16cbb07",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-affected/inputs-before.json",
+      "publication": "frontend/evidence/fixed-affected/inputs-before.json",
+      "bytes": 63929,
+      "sha256": "1b784b2a0b3debdd3d0a6ef0a2a7455887562bac49fa8a6e02950a90d16cbb07",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-affected/result.json",
+      "publication": "frontend/evidence/fixed-affected/result.json",
+      "bytes": 1455,
+      "sha256": "bce92649fecfb5588c3d3f98e710ae2a497734d1f07f1200e3d2fce443ee3a7e",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-affected/stderr.log",
+      "publication": "frontend/evidence/fixed-affected/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-affected/stdout.log",
+      "publication": "frontend/evidence/fixed-affected/stdout.log",
+      "bytes": 115,
+      "sha256": "f28adadedbe5f00dedbbda3898a828a7f396b4b8dfdd1fff5e67462d40bd195d",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-affected/vitest.json",
+      "publication": "frontend/evidence/fixed-affected/vitest.json",
+      "bytes": 182237,
+      "sha256": "0e04336fa4af5f9588ae5e16ec7f7eddc81e003b09c58f6f28db2b6a2fb24610",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-affected-final/inputs-after.json",
+      "publication": "frontend/evidence/fixed-affected-final/inputs-after.json",
+      "bytes": 63929,
+      "sha256": "4d685ea06e952b7a1eda4bb20f1a2e865d6a7c9c431b1a3afb48a43b563ca092",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-affected-final/inputs-before.json",
+      "publication": "frontend/evidence/fixed-affected-final/inputs-before.json",
+      "bytes": 63929,
+      "sha256": "4d685ea06e952b7a1eda4bb20f1a2e865d6a7c9c431b1a3afb48a43b563ca092",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-affected-final/result.json",
+      "publication": "frontend/evidence/fixed-affected-final/result.json",
+      "bytes": 1460,
+      "sha256": "998c7474d51961eec5582aee2e0d3c554796db3243365f9b5e46fea03bdd4d28",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-affected-final/stderr.log",
+      "publication": "frontend/evidence/fixed-affected-final/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-affected-final/stdout.log",
+      "publication": "frontend/evidence/fixed-affected-final/stdout.log",
+      "bytes": 121,
+      "sha256": "041222e8b4f657a9ca05ecfaf16185ec940d4ad07c43fc9a06d6d344b9fbc728",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-affected-final/vitest.json",
+      "publication": "frontend/evidence/fixed-affected-final/vitest.json",
+      "bytes": 124002,
+      "sha256": "ebc7d23a7a78775f438769fcc82a946ed9ba548ffcd8e84dec4fdcb8390e1e16",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-complete-regressions/inputs-after.json",
+      "publication": "frontend/evidence/fixed-complete-regressions/inputs-after.json",
+      "bytes": 63929,
+      "sha256": "60dd3e40a4a7a929bd98ba0b1c6c727bff74150806852f0d4cfb665068b8d1b9",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-complete-regressions/inputs-before.json",
+      "publication": "frontend/evidence/fixed-complete-regressions/inputs-before.json",
+      "bytes": 63929,
+      "sha256": "60dd3e40a4a7a929bd98ba0b1c6c727bff74150806852f0d4cfb665068b8d1b9",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-complete-regressions/result.json",
+      "publication": "frontend/evidence/fixed-complete-regressions/result.json",
+      "bytes": 1337,
+      "sha256": "f04dff7aa4b1bf0ce6736ea537e6b376f930816e68d4bb0ef78aa47877b59e8c",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-complete-regressions/stderr.log",
+      "publication": "frontend/evidence/fixed-complete-regressions/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-complete-regressions/stdout.log",
+      "publication": "frontend/evidence/fixed-complete-regressions/stdout.log",
+      "bytes": 127,
+      "sha256": "9417271f3a7a63ec3ee335b87db4577c7d632187d9540482c6b677b8b5579dbb",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-complete-regressions/vitest.json",
+      "publication": "frontend/evidence/fixed-complete-regressions/vitest.json",
+      "bytes": 21253,
+      "sha256": "ecffde895271e5f225758a5db6b787c6e8b46571382e23e1b3c211c8cfef9147",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-exit-order/inputs-after.json",
+      "publication": "frontend/evidence/fixed-exit-order/inputs-after.json",
+      "bytes": 63782,
+      "sha256": "1d93282534bd3ac80f4b3a366a08f2535567e03b375654e10ddce01bef174b6e",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-exit-order/inputs-before.json",
+      "publication": "frontend/evidence/fixed-exit-order/inputs-before.json",
+      "bytes": 63782,
+      "sha256": "1d93282534bd3ac80f4b3a366a08f2535567e03b375654e10ddce01bef174b6e",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-exit-order/result.json",
+      "publication": "frontend/evidence/fixed-exit-order/result.json",
+      "bytes": 1154,
+      "sha256": "b643470adac1d0c05a5d154ebacb2b8bba9fc2f130f85e222164047ec3e80c08",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-exit-order/stderr.log",
+      "publication": "frontend/evidence/fixed-exit-order/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-exit-order/stdout.log",
+      "publication": "frontend/evidence/fixed-exit-order/stdout.log",
+      "bytes": 117,
+      "sha256": "af8d9c33c3ae66618aa90d6a813126961ae5cf5ffd5ba7262a6e68359e76dce4",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-exit-order/vitest.json",
+      "publication": "frontend/evidence/fixed-exit-order/vitest.json",
+      "bytes": 6498,
+      "sha256": "5bed18778c0ced1e2511332adb48856a0841138a3e431f7659a5b687924ebab8",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-generation-projection/overlay.json",
+      "publication": "frontend/evidence/fixed-generation-projection/overlay.json",
+      "bytes": 616,
+      "sha256": "81579e7f206a2320973fba9717fea0213e31f08d3475abf5ec2f0c45e7e344c0",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-generation-projection/result.json",
+      "publication": "frontend/evidence/fixed-generation-projection/result.json",
+      "bytes": 2474,
+      "sha256": "c1507be736c50cc9d8f78c7b28de3a9ff1ee64ed052e0503497676b2fd5a804a",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-generation-projection/stderr.log",
+      "publication": "frontend/evidence/fixed-generation-projection/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-generation-projection/stdout.jsonl",
+      "publication": "frontend/evidence/fixed-generation-projection/stdout.jsonl",
+      "bytes": 18159,
+      "sha256": "ea39790390d0e6cf712ea5cc77f43f4154fdc3540d30f6fa6073379057b0d7b5",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/typecheck-corrected/inputs-after.json",
+      "publication": "frontend/evidence/typecheck-corrected/inputs-after.json",
+      "bytes": 64186,
+      "sha256": "0c07c221821ff0b5d758a441b00d5cb91b3d8d77e3c95536696990a4dfc0d478",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/typecheck-corrected/inputs-before.json",
+      "publication": "frontend/evidence/typecheck-corrected/inputs-before.json",
+      "bytes": 64186,
+      "sha256": "0c07c221821ff0b5d758a441b00d5cb91b3d8d77e3c95536696990a4dfc0d478",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/typecheck-corrected/result.json",
+      "publication": "frontend/evidence/typecheck-corrected/result.json",
+      "bytes": 764,
+      "sha256": "820398b4e4447a4cbb5eea8077a316f515c32fd92f24bcb68a1f2eed311137f8",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/typecheck-corrected/stderr.log",
+      "publication": "frontend/evidence/typecheck-corrected/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/typecheck-corrected/stdout.log",
+      "publication": "frontend/evidence/typecheck-corrected/stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/typecheck-final/inputs-after.json",
+      "publication": "frontend/evidence/typecheck-final/inputs-after.json",
+      "bytes": 63929,
+      "sha256": "4d685ea06e952b7a1eda4bb20f1a2e865d6a7c9c431b1a3afb48a43b563ca092",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/typecheck-final/inputs-before.json",
+      "publication": "frontend/evidence/typecheck-final/inputs-before.json",
+      "bytes": 63929,
+      "sha256": "4d685ea06e952b7a1eda4bb20f1a2e865d6a7c9c431b1a3afb48a43b563ca092",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/typecheck-final/result.json",
+      "publication": "frontend/evidence/typecheck-final/result.json",
+      "bytes": 766,
+      "sha256": "6a2a78cd2c3434f45cc036d36a4cb3e166f4a440cc73961994e05dd3bbddf6d3",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/typecheck-final/stderr.log",
+      "publication": "frontend/evidence/typecheck-final/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/typecheck-final/stdout.log",
+      "publication": "frontend/evidence/typecheck-final/stdout.log",
+      "bytes": 880,
+      "sha256": "e70162b6926f3fbbb03b92dcf4e47e89d856db9910e8c3a3917b64b063c0f837",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/final/desktop/src/api/attachRegistry.exit.test.ts",
+      "publication": "frontend/final/desktop/src/api/attachRegistry.exit.test.ts",
+      "bytes": 12091,
+      "sha256": "f54a91f769c5ca702077fafb993bd4606ca12733b579892653788f3be883f7d4",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/final/desktop/src/api/attachRegistry.ts",
+      "publication": "frontend/final/desktop/src/api/attachRegistry.ts",
+      "bytes": 38554,
+      "sha256": "1f3e299b787411b3b96f1e8af6866265ebdd372014000a0436d2dd7f4e094c82",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/final/desktop/src/api/poller.generation.test.ts",
+      "publication": "frontend/final/desktop/src/api/poller.generation.test.ts",
+      "bytes": 5426,
+      "sha256": "c9b2b37a78df0ea781c507991eecee91aa58bd7a17510cae63f8aa95e61c37f5",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/final/desktop/src/api/poller.ts",
+      "publication": "frontend/final/desktop/src/api/poller.ts",
+      "bytes": 5885,
+      "sha256": "23d5faa83acffd4d8b77899394d97b1606640f01d250a63d7551d5004b71f164",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/final/desktop/src/components/develop/SessionPane.test.tsx",
+      "publication": "frontend/final/desktop/src/components/develop/SessionPane.test.tsx",
+      "bytes": 32214,
+      "sha256": "50fb89295a6425434a8d836225dac225913f54cca2c97a0c7e0cf551ed57103c",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/final/desktop/src/components/develop/sessionVerbs.test.ts",
+      "publication": "frontend/final/desktop/src/components/develop/sessionVerbs.test.ts",
+      "bytes": 53860,
+      "sha256": "e8c0ff7805cfef2b70d3853126111b5a9c51747dcd736611c7280cd12b39b633",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/final/desktop/src/components/develop/sessionVerbs.ts",
+      "publication": "frontend/final/desktop/src/components/develop/sessionVerbs.ts",
+      "bytes": 35365,
+      "sha256": "afc817f0a8d23eb8ceee6c0d8cbcb092cc91d4716c4a6d8c09e134338a443e21",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/final/desktop/src/store/types.ts",
+      "publication": "frontend/final/desktop/src/store/types.ts",
+      "bytes": 11380,
+      "sha256": "1a22bcb0c91df435c87e6db2eab1b6d14c9a96172ec1a79646fca06b902b1e0b",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/original/desktop/src/api/attachRegistry.ts",
+      "publication": "frontend/original/desktop/src/api/attachRegistry.ts",
+      "bytes": 35402,
+      "sha256": "80dd57e478f6d42b5e122831bb32f97ab4665230b4b5d818b628577ed5528ad5",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/original/desktop/src/api/poller.ts",
+      "publication": "frontend/original/desktop/src/api/poller.ts",
+      "bytes": 5120,
+      "sha256": "183b7672f7cc48a3f6241a95d1ce66e333558f52445ec8579f738ab226650c0a",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/original/desktop/src/components/develop/SessionPane.test.tsx",
+      "publication": "frontend/original/desktop/src/components/develop/SessionPane.test.tsx",
+      "bytes": 30856,
+      "sha256": "bb6cf54f9ff22556b67226e6bf3137803eacbe6c16ea9525567f90bbeabd1c1e",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/original/desktop/src/components/develop/sessionVerbs.test.ts",
+      "publication": "frontend/original/desktop/src/components/develop/sessionVerbs.test.ts",
+      "bytes": 53209,
+      "sha256": "ab38d388fcc122360a682455b7db0a1ebece74fd7fd9c092770d0f6435a2485e",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/original/desktop/src/components/develop/sessionVerbs.ts",
+      "publication": "frontend/original/desktop/src/components/develop/sessionVerbs.ts",
+      "bytes": 35307,
+      "sha256": "e3e517ad215e50e2af71b6123db3f39be078a5b43d89888f609371fc04d51df9",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/original/desktop/src/store/types.ts",
+      "publication": "frontend/original/desktop/src/store/types.ts",
+      "bytes": 11246,
+      "sha256": "7fe756a7513b1edf1fdb5d7961f1ac7cfedba2431dac6a3d4044c0dff8f0a546",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/generation-followup/run.py",
+      "publication": "generation-followup/run.py",
+      "bytes": 3035,
+      "sha256": "5cc4967b3b73f8fc48c60dd8dd2e4ef692cd696469af28b8103b19d6624ca64f",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/generation-followup/session_execution_generation_http_test.go",
+      "publication": "generation-followup/session_execution_generation_http_test.go",
+      "bytes": 1764,
+      "sha256": "cac297ad14598f951ffb77c51ad04a0eb7d0cc657ad64db579e3b8f488093bed",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/generation-followup/team_session_execution_generation_test.go",
+      "publication": "generation-followup/team_session_execution_generation_test.go",
+      "bytes": 2553,
+      "sha256": "fe2294e14bf502b2509f87ba66aab2b8746d3047693763ef19d663d42754168b",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/generation-followup/receipts/overlay.json",
+      "publication": "generation-followup/receipts/overlay.json",
+      "bytes": 1031,
+      "sha256": "df693fea62cf8540b9275e8477cd13c3e0293b1a54797bac9d64eb1a1a33ca72",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/generation-followup/receipts/result.json",
+      "publication": "generation-followup/receipts/result.json",
+      "bytes": 9961,
+      "sha256": "baf8ad9c005e52330b12003af29f9e04801a0189132db75fb68aa7cc6e82df43",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/generation-followup/receipts/stderr.log",
+      "publication": "generation-followup/receipts/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/generation-followup/receipts/stdout.jsonl",
+      "publication": "generation-followup/receipts/stdout.jsonl",
+      "bytes": 24775,
+      "sha256": "08a60d872b3b673af7bf65e59200d37a1a846c0cf93c197844f225f0976ffd54",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/generation-followup-v2/FIXTURE-CORRECTION.md",
+      "publication": "generation-followup-v2/FIXTURE-CORRECTION.md",
+      "bytes": 515,
+      "sha256": "0787411f29b2ca1a50808e1e7871a26f35656dbef6815ae81ebe4c67fb0e249a",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/generation-followup-v2/README.md",
+      "publication": "generation-followup-v2/README.md",
+      "bytes": 3204,
+      "sha256": "6ecefc26cfce76c3d071f6d5d6e36b18d32f0f114eac78852ba766da0eaed17d",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/generation-followup-v2/run.py",
+      "publication": "generation-followup-v2/run.py",
+      "bytes": 2849,
+      "sha256": "3ab1f1132bd9ce51ef65d2437c5fd5cc14dc109ef96d890acab87e946dd3e427",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/generation-followup-v2/session_execution_generation_http_test.go",
+      "publication": "generation-followup-v2/session_execution_generation_http_test.go",
+      "bytes": 1764,
+      "sha256": "cac297ad14598f951ffb77c51ad04a0eb7d0cc657ad64db579e3b8f488093bed",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/generation-followup-v2/team_session_execution_generation_test.go",
+      "publication": "generation-followup-v2/team_session_execution_generation_test.go",
+      "bytes": 2656,
+      "sha256": "75f230f9b9336983ef3431875e04931944d390677f42fb30beb67941eda58396",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/generation-followup-v2/receipts/overlay.json",
+      "publication": "generation-followup-v2/receipts/overlay.json",
+      "bytes": 1037,
+      "sha256": "633132deea849c8da3c7d192eba67009bbab02a3d4cea011e1e8cd073076d68f",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/generation-followup-v2/receipts/result.json",
+      "publication": "generation-followup-v2/receipts/result.json",
+      "bytes": 5073,
+      "sha256": "c748455bfd52e193e3363bae553d78a7bc8bba3c3b15662e73e934a76c68c3bb",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/generation-followup-v2/receipts/stderr.log",
+      "publication": "generation-followup-v2/receipts/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/generation-followup-v2/receipts/stdout.jsonl",
+      "publication": "generation-followup-v2/receipts/stdout.jsonl",
+      "bytes": 1571,
+      "sha256": "8d7d42c9fe6d2128144ebb2c0deedd22a5fc4ccf7eac8949d6ab629912b4255a",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend-overload-followup-v1/prior-handoff-binding.json",
+      "publication": "frontend-overload-followup-v1/prior-handoff-binding.json",
+      "bytes": 307,
+      "sha256": "a61e5f83a118b5477315e49afa499ff3b71fb4dcb85deedcf2f963bf4aefd798",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend-overload-followup-v1/run-focused.py",
+      "publication": "frontend-overload-followup-v1/run-focused.py",
+      "bytes": 1555,
+      "sha256": "afbbdcb2e160298b63310a1b5e8878983c18bac0549497436ce0f6d30c338f22",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend-overload-followup-v1/evidence/overload-replacement/inputs-after.json",
+      "publication": "frontend-overload-followup-v1/evidence/overload-replacement/inputs-after.json",
+      "bytes": 64349,
+      "sha256": "0137712f5280abf5460ebd689d7a4bbf50d9802a75683a49dd061e7519c0c29b",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend-overload-followup-v1/evidence/overload-replacement/inputs-before.json",
+      "publication": "frontend-overload-followup-v1/evidence/overload-replacement/inputs-before.json",
+      "bytes": 64349,
+      "sha256": "0137712f5280abf5460ebd689d7a4bbf50d9802a75683a49dd061e7519c0c29b",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend-overload-followup-v1/evidence/overload-replacement/result.json",
+      "publication": "frontend-overload-followup-v1/evidence/overload-replacement/result.json",
+      "bytes": 1215,
+      "sha256": "e00093741dabbe701a7604135108acd27081d55d7acae729533c3c254370e408",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend-overload-followup-v1/evidence/overload-replacement/stderr.log",
+      "publication": "frontend-overload-followup-v1/evidence/overload-replacement/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend-overload-followup-v1/evidence/overload-replacement/stdout.log",
+      "publication": "frontend-overload-followup-v1/evidence/overload-replacement/stdout.log",
+      "bytes": 142,
+      "sha256": "1d3e5da576df78d9c19ddda2e2dd790446f7f3610564fcacb5b75645ec382453",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend-overload-followup-v1/evidence/overload-replacement/vitest.json",
+      "publication": "frontend-overload-followup-v1/evidence/overload-replacement/vitest.json",
+      "bytes": 2066,
+      "sha256": "4f30aac1b25cf8465c1c3da51d6fc9089a41dccad0e7bf36b2fc2c5f9c2c0430",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend-overload-followup-v2/handoff.json",
+      "publication": "frontend-overload-followup-v2/handoff.json",
+      "bytes": 5507,
+      "sha256": "64ef134538ac704c63c9a64c2790d5ef25dc854601e910de8ac970ef19f2a295",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend-overload-followup-v2/run-focused.py",
+      "publication": "frontend-overload-followup-v2/run-focused.py",
+      "bytes": 1555,
+      "sha256": "afbbdcb2e160298b63310a1b5e8878983c18bac0549497436ce0f6d30c338f22",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend-overload-followup-v2/evidence/overload-replacement/inputs-after.json",
+      "publication": "frontend-overload-followup-v2/evidence/overload-replacement/inputs-after.json",
+      "bytes": 64349,
+      "sha256": "b465183798c45ab6e81be22454cb43c4e921c9113f3b2931ffad0b5ed7399673",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend-overload-followup-v2/evidence/overload-replacement/inputs-before.json",
+      "publication": "frontend-overload-followup-v2/evidence/overload-replacement/inputs-before.json",
+      "bytes": 64349,
+      "sha256": "b465183798c45ab6e81be22454cb43c4e921c9113f3b2931ffad0b5ed7399673",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend-overload-followup-v2/evidence/overload-replacement/result.json",
+      "publication": "frontend-overload-followup-v2/evidence/overload-replacement/result.json",
+      "bytes": 1216,
+      "sha256": "1dc14b69a230132d1e73596bb166f14c8ba62071ee378c8804b38a77e3315f9f",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend-overload-followup-v2/evidence/overload-replacement/stderr.log",
+      "publication": "frontend-overload-followup-v2/evidence/overload-replacement/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend-overload-followup-v2/evidence/overload-replacement/stdout.log",
+      "publication": "frontend-overload-followup-v2/evidence/overload-replacement/stdout.log",
+      "bytes": 142,
+      "sha256": "907bd365f2651274765eeb9ba0d48d4a019f655fad22f26fe3c4fb227c5f3a86",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend-overload-followup-v2/evidence/overload-replacement/vitest.json",
+      "publication": "frontend-overload-followup-v2/evidence/overload-replacement/vitest.json",
+      "bytes": 1088,
+      "sha256": "fb4e5a19a5a40d76eed4089db6805a7a2221c29c7f91c6daea7aaa8642a1c6f9",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend-overload-followup-v1/tree/desktop/src/api/attachRegistry.overload-generation.test.ts",
+      "publication": "frontend-overload-followup-v1/tree/desktop/src/api/attachRegistry.overload-generation.test.ts",
+      "bytes": 2598,
+      "sha256": "5783312a2994c1fdccc5de4d7212f281b9f73aed9f54a193ae38f1d12be95370",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend-overload-followup-v2/tree/desktop/src/api/attachRegistry.overload-generation.test.ts",
+      "publication": "frontend-overload-followup-v2/tree/desktop/src/api/attachRegistry.overload-generation.test.ts",
+      "bytes": 2662,
+      "sha256": "6be6f383d83dc669bca26781382328844de4679fd8df3066f6cbc8f9374888f7",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/tree/desktop/vitest.config.ts",
+      "publication": "frontend/tree/desktop/vitest.config.ts",
+      "bytes": 2298,
+      "sha256": "94dee46a84bd243e28cb139e623f3db62c581523c725a81791611f3de3a576df",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/DEFERRED-AUTHORITY-REVIEW.md",
+      "publication": "DEFERRED-AUTHORITY-REVIEW.md",
+      "bytes": 1550,
+      "sha256": "553504f987db95055760968f6a76d494877c8f78ff9aa3fafe6361c51403e9f1",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/root-integration.json",
+      "publication": "root-integration.json",
+      "bytes": 6050,
+      "sha256": "1b5de27f0a9af03e8d0ff18c4992e4a22d5d429be5e710f81be9fd6ce2a50aca",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-combined-validation/go/0.stderr.log",
+      "publication": "combined/go/0.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-combined-validation/go/0.stdout.log",
+      "publication": "combined/go/0.stdout.log",
+      "bytes": 72933,
+      "sha256": "7e9a76fbac37a8f5d2ce194cc23956879943f69a2669e8bd8f4f42d128f63b6d",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-combined-validation/go/commands.json",
+      "publication": "combined/go/commands.json",
+      "bytes": 703,
+      "sha256": "0dc278e7b8feaade85dfbb2e208c6562363df6a689c0a91d96870c7377b296bf",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-combined-validation/go/inputs-after.json",
+      "publication": "combined/go/inputs-after.json",
+      "bytes": 195558,
+      "sha256": "d879067c4e94d11b31bd475bdca0695a5ab58a67c3c5afdd9b28c862e37cbbea",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-combined-validation/go/inputs-before.json",
+      "publication": "combined/go/inputs-before.json",
+      "bytes": 195558,
+      "sha256": "d879067c4e94d11b31bd475bdca0695a5ab58a67c3c5afdd9b28c862e37cbbea",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-combined-validation/go/result.json",
+      "publication": "combined/go/result.json",
+      "bytes": 1013,
+      "sha256": "229eae5f8f778ae0833d3cd8fb3de9761b1e1a0c731b14d4db43444955d4e88b",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-combined-validation/go/running.json",
+      "publication": "combined/go/running.json",
+      "bytes": 547,
+      "sha256": "86f02e3762762f5cd4d5356d37f9f93da2ac372c1388d7791a656825168b9ebc",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-combined-validation/frontend/0.stderr.log",
+      "publication": "combined/frontend/0.stderr.log",
+      "bytes": 200,
+      "sha256": "ad9ef12f2f19d2532fbd05b9772e28e31d4b97c1b0de43e902d3b8edc87fcee5",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-combined-validation/frontend/0.stdout.log",
+      "publication": "combined/frontend/0.stdout.log",
+      "bytes": 260,
+      "sha256": "0deb89cfe6d9201dc22c272d1c92cbe5653924db4992de77f1de99f151859bbd",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-combined-validation/frontend/1.stderr.log",
+      "publication": "combined/frontend/1.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-combined-validation/frontend/1.stdout.log",
+      "publication": "combined/frontend/1.stdout.log",
+      "bytes": 54,
+      "sha256": "6d51e3ec9a9d283eee096e5e9403c5d963c9468e9756fd61f3e9e0d3df1bde71",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-combined-validation/frontend/commands.json",
+      "publication": "combined/frontend/commands.json",
+      "bytes": 704,
+      "sha256": "04d622933c6e7cc86d8aa29b176f1d098c89916289360ca29cbcec99cdf072a4",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-combined-validation/frontend/inputs-after.json",
+      "publication": "combined/frontend/inputs-after.json",
+      "bytes": 195729,
+      "sha256": "064fb1edb401d6a271013600ce02af2d309940b43d94c4556bc798e77010cc23",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-combined-validation/frontend/inputs-before.json",
+      "publication": "combined/frontend/inputs-before.json",
+      "bytes": 195729,
+      "sha256": "064fb1edb401d6a271013600ce02af2d309940b43d94c4556bc798e77010cc23",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-combined-validation/frontend/result.json",
+      "publication": "combined/frontend/result.json",
+      "bytes": 1149,
+      "sha256": "6ce9c706063636ca183bac610799a18503aeec1a875e7ba35f713d2b06c2be06",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-combined-validation/frontend/running.json",
+      "publication": "combined/frontend/running.json",
+      "bytes": 148,
+      "sha256": "fc4f38b380df9e507dbff20196c500d0e16ce49b5cb1edf0c7c3f32a95f12f5e",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-combined-validation/frontend/vitest.json",
+      "publication": "combined/frontend/vitest.json",
+      "bytes": 1227280,
+      "sha256": "65c3c8ee945393091e12f86e6bc1a200f461af23c187f0bd984654eaac024933",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-combined-validation/tool-versions.json",
+      "publication": "combined/tool-versions.json",
+      "bytes": 641,
+      "sha256": "908cab0c9cd65ba952ca0cd1354a8b08ff92b4486525356a93b58b869fa0ba86",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-combined-validation.py",
+      "publication": "combined/capture.py",
+      "bytes": 3637,
+      "sha256": "c4ca59593eca42bf8467006a8c0ce8e047dfc1ed70da16370054028121242ba5",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-contract-followup/contract.after.md",
+      "publication": "contract-followup/contract.after.md",
+      "bytes": 169253,
+      "sha256": "e1f61d53b94c256e0d874bcac1e5dba28a8038fe04da7f6dfce4923998527e53",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-contract-followup/contract.before.md",
+      "publication": "contract-followup/contract.before.md",
+      "bytes": 169119,
+      "sha256": "2745977d0df8e01e10473b027992e480dae87c9cf1a8528a2675b4c5758af909",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-contract-followup/result.json",
+      "publication": "contract-followup/result.json",
+      "bytes": 2562,
+      "sha256": "04a9a34e26f377ff79342d12ad2caa07bf04c5773c51cdbdfc0137abb3d90c6e",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-contract-followup/run.py",
+      "publication": "contract-followup/run.py",
+      "bytes": 1528,
+      "sha256": "bd92f6b0ab676fa3eb60d9b8ae9cf04ead06004f81a1fb1f83c9a8f77c4729a4",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-contract-followup/stderr.log",
+      "publication": "contract-followup/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-contract-followup/stdout.log",
+      "publication": "contract-followup/stdout.log",
+      "bytes": 256,
+      "sha256": "40bd1eb7f76a08eb3408cc2b4ed904e17b4dd5cb698f65f032c13d9b56897640",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud054-contract-followup/vitest.json",
+      "publication": "contract-followup/vitest.json",
+      "bytes": 11136,
+      "sha256": "7691783a627271fc70059450536630e18676e19047295f849d39df5da8399949",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud053-root-publication-checks/immutable-f435-result.json",
+      "publication": "publication-guard/immutable-f435-result.json",
+      "bytes": 944,
+      "sha256": "804a3aef17656a2e54fcd0dcf8d9a3b53640f54f934f60676ea39ea0bcde8338",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud053-root-publication-checks/immutable-f435.stdout.json",
+      "publication": "publication-guard/immutable-f435.stdout.json",
+      "bytes": 1152,
+      "sha256": "b5737f3d372df302296150041fc6138fbe9a15a83ff53907146028a9728d055a",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud053-root-publication-checks/immutable-f435.stderr.log",
+      "publication": "publication-guard/immutable-f435.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/luci/scripts/acceptance/verify-publication.py",
+      "publication": "publication-guard/verify-publication.py",
+      "bytes": 8552,
+      "sha256": "bcfeef76d9595bc2732f8c4966d30b551e1a5e470e534e4568fa718f03fb31c8",
+      "representation": "byte-exact"
+    },
+    {
+      "source": "/workspace/luci/docs/luci/API.md",
+      "publication": "documentation/API.after.md",
+      "bytes": 129602,
+      "sha256": "de5651269e21e3ac01cbae0e96c0d221050621aee6bddd7824d579206c8b7944",
+      "representation": "byte-exact"
+    }
+  ]
+}

@@ -1,0 +1,150 @@
+{
+  "issue": "CLOUD-054",
+  "scope": "External backend staged source and original/fixed real-WebSocket/HTTP regressions. No installed or Windows claim.",
+  "counts": {
+    "before": {
+      "named": 9,
+      "top": 6,
+      "sub": 3,
+      "pass": 3,
+      "fail": 6,
+      "skip": 0,
+      "exitCode": 1
+    },
+    "after": {
+      "named": 9,
+      "top": 6,
+      "sub": 3,
+      "pass": 9,
+      "fail": 0,
+      "skip": 0,
+      "exitCode": 0
+    },
+    "affected": {
+      "named": 40,
+      "top": 23,
+      "sub": 17,
+      "pass": 40,
+      "fail": 0,
+      "skip": 0,
+      "exitCode": 0
+    }
+  },
+  "members": [
+    {
+      "path": "README.md",
+      "bytes": 3184,
+      "sha256": "23bc58b3b7e6424f244724ff2e6da726d0b54c5fa279a7cecb11b8a84fef8813"
+    },
+    {
+      "path": "after/proxy.go",
+      "bytes": 3031,
+      "sha256": "ebc02379306e5b555f317fc6d66a3f3ec3f9e6c29a5b93cd898165e65a8d565b"
+    },
+    {
+      "path": "after-overlay.json",
+      "bytes": 444,
+      "sha256": "d1100e95c91e0ded0cfa833ae971206ed4f9d37e0f021e313a258b879eb8fd91"
+    },
+    {
+      "path": "before/proxy.go",
+      "bytes": 2526,
+      "sha256": "07c19b8ca3183733178f05ed226843c59d6e128fd39f95825a57a3c45515d81d"
+    },
+    {
+      "path": "before-overlay.json",
+      "bytes": 310,
+      "sha256": "bf94821b0af6329ec8d10020503e31e3af06dcf5c846ce2436fdcbe4e21b0e23"
+    },
+    {
+      "path": "capture.py",
+      "bytes": 3390,
+      "sha256": "e733a61ffbd51dc64e1e810cf8e2202ccb2db96ea0ac13141bff92efde9777bc"
+    },
+    {
+      "path": "receipts/affected/inputs-after.json",
+      "bytes": 2267,
+      "sha256": "3a9f868e05731d4934e4b8c6351208d4cc2df17eeb5d22ecc9b81c15f59290ba"
+    },
+    {
+      "path": "receipts/affected/inputs-before.json",
+      "bytes": 2267,
+      "sha256": "3a9f868e05731d4934e4b8c6351208d4cc2df17eeb5d22ecc9b81c15f59290ba"
+    },
+    {
+      "path": "receipts/affected/result.json",
+      "bytes": 9346,
+      "sha256": "568b6cadab035036392be6ad9ec055cb5322a956e9fa5fb28d4e7e9d971f3aa0"
+    },
+    {
+      "path": "receipts/affected/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "receipts/affected/stdout.jsonl",
+      "bytes": 38256,
+      "sha256": "3ebadcd365b75544522c2e51c1a685d7671e42b9ba38570245469edfba08db7a"
+    },
+    {
+      "path": "receipts/after/inputs-after.json",
+      "bytes": 2267,
+      "sha256": "3a9f868e05731d4934e4b8c6351208d4cc2df17eeb5d22ecc9b81c15f59290ba"
+    },
+    {
+      "path": "receipts/after/inputs-before.json",
+      "bytes": 2267,
+      "sha256": "3a9f868e05731d4934e4b8c6351208d4cc2df17eeb5d22ecc9b81c15f59290ba"
+    },
+    {
+      "path": "receipts/after/result.json",
+      "bytes": 3205,
+      "sha256": "8c75f0c866e8b9308defe3f1ada2d3bf8beba281e93073dbc9d6098e7cd95e19"
+    },
+    {
+      "path": "receipts/after/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "receipts/after/stdout.jsonl",
+      "bytes": 9997,
+      "sha256": "c680dc47888cd8796b8dab4d3b42370c45dda34d63860170a9cf194c1bc5f2df"
+    },
+    {
+      "path": "receipts/before/inputs-after.json",
+      "bytes": 2267,
+      "sha256": "3a9f868e05731d4934e4b8c6351208d4cc2df17eeb5d22ecc9b81c15f59290ba"
+    },
+    {
+      "path": "receipts/before/inputs-before.json",
+      "bytes": 2267,
+      "sha256": "3a9f868e05731d4934e4b8c6351208d4cc2df17eeb5d22ecc9b81c15f59290ba"
+    },
+    {
+      "path": "receipts/before/result.json",
+      "bytes": 3171,
+      "sha256": "14f92fb1b57adadf9694731113a842589ca518f762ebee7ab2772cf2a8eb2552"
+    },
+    {
+      "path": "receipts/before/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "receipts/before/stdout.jsonl",
+      "bytes": 11698,
+      "sha256": "56181692a3a6be69ec442c5ea5efc9a4dd5c24e56d1c09af74377782006aca22"
+    },
+    {
+      "path": "tests/attach_test.go",
+      "bytes": 37202,
+      "sha256": "ef0d651baa9a54a6a0354e1665f22273f4683c420c5f2c905a38987429db8234"
+    },
+    {
+      "path": "tests/proxy_test.go",
+      "bytes": 12075,
+      "sha256": "6e76c9bca68a80ab885fe704962b4856aa52ca061ae7523b11232cf27795a045"
+    }
+  ]
+}

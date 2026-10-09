@@ -751,12 +751,14 @@ func (a *API) sessionGitIdentity(ctx context.Context, worktreeID string) GitIden
 // review question. sessions_test.go proves it by searching the marshalled
 // bytes, not by checking a field it remembered.
 type sessionJSON struct {
-	ID         string `json:"id"`
-	Title      string `json:"title"`
-	MachineID  string `json:"machineId"`
-	ProjectID  string `json:"projectId"`
-	BranchID   string `json:"branchId"`
-	WorktreeID string `json:"worktreeId"`
+	// Opaque allocation identity for terminal display continuity, never authorization.
+	ExecutionGeneration string `json:"executionGeneration,omitempty"`
+	ID                  string `json:"id"`
+	Title               string `json:"title"`
+	MachineID           string `json:"machineId"`
+	ProjectID           string `json:"projectId"`
+	BranchID            string `json:"branchId"`
+	WorktreeID          string `json:"worktreeId"`
 
 	Harness                 string                          `json:"harness"`
 	Model                   string                          `json:"model"`
@@ -794,6 +796,7 @@ type sessionJSON struct {
 // built from; production passes sessionBasePath.
 func toJSON(s registry.Session, base string) sessionJSON {
 	return sessionJSON{
+		ExecutionGeneration:     sessionExecutionGeneration(s),
 		ID:                      s.ID,
 		Title:                   s.Title,
 		MachineID:               s.MachineID,

@@ -40,12 +40,13 @@ vi.mock("../../api", () => ({
   },
 }));
 
-// Only the two members sessionVerbs.ts imports. The registry function itself is proven in
+// Only the registry members sessionVerbs.ts imports. The registry function itself is proven in
 // `src/api/attachRegistry.test.ts` against task 19's FakeWebSocket harness — mocking it there
 // too would test the verb's wiring and leave the registry proven by nothing.
-const { attachPhaseMock, retryAttachMock } = vi.hoisted(() => ({
+const { attachPhaseMock, retryAttachMock, reconnectEndedMock } = vi.hoisted(() => ({
   attachPhaseMock: vi.fn(() => "detached"),
   retryAttachMock: vi.fn(() => true),
+  reconnectEndedMock: vi.fn(() => false),
 }));
 vi.mock("../../api/attachRegistry", () => ({
   getAttachState: (id: string) => ({
@@ -56,6 +57,7 @@ vi.mock("../../api/attachRegistry", () => ({
     id,
   }),
   retryAttach: retryAttachMock,
+  canReconnectEndedAttach: reconnectEndedMock,
 }));
 
 import {
@@ -101,6 +103,7 @@ beforeEach(() => {
   }
   attachPhaseMock.mockReturnValue("detached");
   retryAttachMock.mockReturnValue(true);
+  reconnectEndedMock.mockReturnValue(false);
 });
 
 afterEach(() => {
@@ -265,6 +268,16 @@ describe("sessionVerbs — the gates", () => {
 // forward from the pane itself, because `failed` is terminal and the exit bar is absent by
 // definition — the socket died while the session is NOT exited.
 describe("sessionVerbs — Retry attach", () => {
+  it("offers explicit reconnect only when the registry authorizes a legacy ended attachment", () => {
+    seed();
+    attachPhaseMock.mockReturnValue("ended");
+    expect(find(sessionVerbs(IDS.session, DEPS), "retry-attach")).toBeUndefined();
+    reconnectEndedMock.mockReturnValue(true);
+    const row = find(sessionVerbs(IDS.session, DEPS), "retry-attach");
+    expect(row?.label).toBe("Retry attach");
+    row?.run?.();
+    expect(retryAttachMock).toHaveBeenCalledWith(IDS.session);
+  });
   it("appears only while the attach ladder is spent", () => {
     seed({ status: "running" });
     expect(find(sessionVerbs(IDS.session, DEPS), "retry-attach")).toBeUndefined();

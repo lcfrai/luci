@@ -1,0 +1,59 @@
+{
+  "command": [
+    "/workspace/.luci-tools/go1.26.3/bin/go",
+    "test",
+    "-race",
+    "-p",
+    "2",
+    "-count=1",
+    "-timeout=180s",
+    "-json",
+    "-overlay=/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-generation-projection/overlay.json",
+    "./internal/api",
+    "-run",
+    "^(TestSessionExecutionGeneration.*|TestSessionJSONLeaksNeitherTheTokenNorTheEndpoint|TestSessionJSONCarriesExactlyTheContractsTwentyOneKeys)$"
+  ],
+  "startedAt": "2026-10-09T10:58:35.904400+00:00",
+  "elapsedSeconds": 15.323219601006713,
+  "exitCode": 0,
+  "sourceStable": true,
+  "inputsBefore": {
+    "/workspace/.luci-tools/cloud054-terminal-close/frontend/backend/control-plane/internal/api/sessions.go": {
+      "bytes": 117140,
+      "sha256": "1eface59027a5ca16b076cfc268025b9849ec4a69e42aaa462aaa514f602f99d"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/frontend/backend/control-plane/internal/api/session_execution_generation.go": {
+      "bytes": 1038,
+      "sha256": "dbfaad94e2c5f111c390306375ff22e18a504a761e9c05ceef29dd62552945ff"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/frontend/backend/control-plane/internal/api/session_execution_generation_test.go": {
+      "bytes": 4353,
+      "sha256": "a3252a434f9b4c1b5b5ab54067cdd9af883f64a5e2873ccce8d5c4d04cfd7982"
+    }
+  },
+  "inputsAfter": {
+    "/workspace/.luci-tools/cloud054-terminal-close/frontend/backend/control-plane/internal/api/sessions.go": {
+      "bytes": 117140,
+      "sha256": "1eface59027a5ca16b076cfc268025b9849ec4a69e42aaa462aaa514f602f99d"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/frontend/backend/control-plane/internal/api/session_execution_generation.go": {
+      "bytes": 1038,
+      "sha256": "dbfaad94e2c5f111c390306375ff22e18a504a761e9c05ceef29dd62552945ff"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/frontend/backend/control-plane/internal/api/session_execution_generation_test.go": {
+      "bytes": 4353,
+      "sha256": "a3252a434f9b4c1b5b5ab54067cdd9af883f64a5e2873ccce8d5c4d04cfd7982"
+    }
+  },
+  "logs": {
+    "stdout.jsonl": {
+      "bytes": 18159,
+      "sha256": "ea39790390d0e6cf712ea5cc77f43f4154fdc3540d30f6fa6073379057b0d7b5"
+    },
+    "stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "scope": "Selected API DTO projection and secret omission tests through external overlay; no app/runtime/provider"
+}

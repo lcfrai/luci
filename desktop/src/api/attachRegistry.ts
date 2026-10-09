@@ -104,6 +104,9 @@ interface Entry {
   opened: boolean;
   refs: number;
   readOnly: boolean;
+  /** Last known opaque allocation identity; omission cannot erase a terminal outcome. */
+  executionGeneration: string | null;
+  terminalExit: boolean;
   permitted: boolean;
   connectPermitted: boolean;
   ws: WebSocket | null;
@@ -167,6 +170,8 @@ export function acquireAttach(
       opened: false,
       refs: 0,
       readOnly: opts.readOnly,
+      executionGeneration: knownExecutionGeneration(session),
+      terminalExit: false,
       permitted: opts.permitted ?? true,
       connectPermitted: opts.connectPermitted ?? opts.permitted ?? true,
       ws: null,
@@ -190,7 +195,7 @@ export function acquireAttach(
     wireTerm(entry);
     openIfLive(entry);
   } else {
-    entry.session = session;
+    updateAttachSession(session);
     setAttachPermission(session.id, opts.permitted ?? true, opts.connectPermitted ?? opts.permitted ?? true);
   }
   // LAST ACQUIRER WINS, and this line runs on the shared path too — so read it as the
@@ -239,23 +244,63 @@ export function releaseAttach(sessionId: SessionId): void {
 
 /** The poller's view of the session. The registry cannot derive `status` or `attachPath` and
  *  must not run a fetch loop of its own to learn them. */
+/** Allocation fingerprints are opaque identities, never ordered timestamps or authority. */
+function knownExecutionGeneration(session: Session): string | null {
+  return typeof session.executionGeneration === "string" && /^[0-9a-f]{64}$/.test(session.executionGeneration)
+    ? session.executionGeneration : null;
+}
+
+function sameSessionScope(a: Session, b: Session): boolean {
+  return a.id === b.id && a.machineId === b.machineId && a.projectId === b.projectId &&
+    a.branchId === b.branchId && a.worktreeId === b.worktreeId && a.attachPath === b.attachPath;
+}
+
+function publishTerminalExit(entry: Entry): void {
+  clearRetry(entry);
+  entry.ladderStartedAt = 0;
+  publish(entry, {
+    phase: "ended", attempts: entry.attempts, ladderStartedAt: 0,
+    reason: entry.session.status === "exited" ? exitedReason(entry.session) : "The terminal process has ended.",
+  });
+}
+
 export function updateAttachSession(session: Session): void {
   const entry = entries.get(session.id);
-  if (!entry) return;
+  if (!entry || !sameSessionScope(entry.session, session)) return;
+  const generation = knownExecutionGeneration(session);
+  const replacement = generation !== null && entry.executionGeneration !== null && generation !== entry.executionGeneration;
   const wasExited = entry.session.status === "exited";
   entry.session = session;
-  if (session.status === "exited" && !wasExited) {
+  if (replacement) {
     clearRetry(entry);
-    entry.ladderStartedAt = 0; // the ladder stopped, so the pane's elapsed stops with it
-    if (!entry.ws) {
-      publish(entry, {
-        phase: "ended",
-        attempts: entry.attempts,
-        ladderStartedAt: 0,
-        reason: exitedReason(session),
-      });
-    }
+    entry.connectVersion += 1;
+    entry.opening = false;
+    const old = entry.ws;
+    entry.ws = null;
+    old?.close(1000, "session allocation changed");
+    entry.executionGeneration = generation;
+    entry.terminalExit = false;
+    entry.attempts = 0;
+    entry.ladderStartedAt = 0;
+    openIfLive(entry);
+    return;
   }
+  if (generation !== null && !(entry.terminalExit && entry.executionGeneration === null)) entry.executionGeneration = generation;
+  if (entry.terminalExit && !entry.overloaded) {
+    publishTerminalExit(entry);
+  } else if (session.status === "exited" && !wasExited) {
+    clearRetry(entry);
+    entry.ladderStartedAt = 0;
+    if (!entry.ws) publishTerminalExit(entry);
+  }
+}
+
+/** Older servers have no allocation identity. Reconnecting remains an explicit
+ * transport action; an exited session must instead be restarted by the user. */
+export function canReconnectEndedAttach(sessionId: SessionId): boolean {
+  const entry = entries.get(sessionId);
+  return !!entry && !entry.destroyed && entry.terminalExit && entry.executionGeneration === null &&
+    entry.session.status !== "exited" && entry.permitted && entry.connectPermitted && !entry.ws && !entry.opening;
 }
 
 export function setAttachReadOnly(
@@ -316,7 +361,7 @@ export function retryAttach(sessionId: SessionId): boolean {
   if (!entry || entry.destroyed || !entry.permitted || !entry.connectPermitted) return false;
   // An exited session has no sandbox to attach to; 409 is the only answer the attach route can
   // give, which is the rule `openIfLive` states.
-  if (entry.session.status === "exited") return false;
+  if (entry.session.status === "exited" || (entry.terminalExit && !canReconnectEndedAttach(sessionId))) return false;
   // A socket is open, or a handshake is already in flight: either way an attempt is running, so
   // there is no spent ladder to restart and zeroing the stamp would blank an elapsed the pane is
   // rendering. `connect()` would early-return on the same condition, so without this the call
@@ -360,6 +405,8 @@ export function retryAttach(sessionId: SessionId): boolean {
   // not only this comment:
   //     grep -A1 '^  entry.ladderStartedAt = 0;$' attachRegistry.ts | grep -c '^  connect(entry);$'
   entry.ladderStartedAt = 0;
+  entry.terminalExit = false; // Only an explicit legacy reconnect reaches this reset.
+  entry.executionGeneration = knownExecutionGeneration(entry.session) ?? entry.executionGeneration;
   connect(entry);
   return true;
 }
@@ -434,7 +481,7 @@ function exitedReason(session: Session): string {
 function wireTerm(entry: Entry): void {
   entry.disposables.push(
     entry.term.onData((data) => {
-      if (entry.readOnly || !entry.permitted) return; // exited or revoked: no input reaches the agent
+      if (entry.readOnly || entry.terminalExit || !entry.permitted) return; // exited or revoked: no input reaches the agent
       const ws = entry.ws;
       if (!ws || ws.readyState !== WS_OPEN) return;
       ws.send(encode(Kind.Stdin, ENCODER.encode(data)));
@@ -453,6 +500,10 @@ function wireTerm(entry: Entry): void {
 /** An exited session has no sandbox to attach to. Its reason shares the same
  * bounded parser queue as output, including an earlier write still completing. */
 function openIfLive(entry: Entry): void {
+  if (entry.terminalExit) {
+    if (!entry.overloaded) publishTerminalExit(entry);
+    return;
+  }
   if (entry.session.status === "exited") {
     const reason = exitedReason(entry.session);
     writeOut(entry, ENCODER.encode(`\r\n\x1b[2m[${reason}]\x1b[0m\r\n`));
@@ -467,7 +518,7 @@ function openIfLive(entry: Entry): void {
 }
 
 function connect(entry: Entry): void {
-  if (entry.destroyed || entry.overloaded || !entry.permitted || !entry.connectPermitted || entry.ws || entry.opening) return;
+  if (entry.destroyed || entry.terminalExit || entry.overloaded || !entry.permitted || !entry.connectPermitted || entry.ws || entry.opening) return;
   // Stamped on `ladderStartedAt === 0`, not on `attempts === 0`: a successful handshake resets
   // attempts to 0, so keying off it would re-stamp mid-ladder and the 60 s budget would never
   // expire. `onopen` clears the stamp, which is what makes a drop after an hour attached start
@@ -544,7 +595,13 @@ function bindSocket(entry: Entry, ws: WebSocket): void {
     if (!(ev.data instanceof ArrayBuffer)) return; // the attach protocol is binary-only
     const { kind, payload } = decode(new Uint8Array(ev.data));
     if (kind === Kind.Stdout) writeOut(entry, payload);
-    else if (kind === Kind.Exit) writeOut(entry, BANNER_ENDED);
+    else if (kind === Kind.Exit && !entry.terminalExit) {
+      // The typed frame ends this allocation, irrespective of its textual reason.
+      // It does not prove success, output verification, cleanup or integration.
+      entry.terminalExit = true;
+      writeOut(entry, BANNER_ENDED);
+      if (!entry.overloaded) publishTerminalExit(entry);
+    }
   };
 
   ws.onclose = (event) => {
@@ -597,7 +654,9 @@ function pauseOverloaded(entry: Entry): void {
   ws?.close(4008, "terminal output exceeded the display buffer");
   publish(entry, {
     phase: "failed", attempts: entry.attempts, ladderStartedAt: 0,
-    reason: "Terminal display paused because output arrived too quickly. The agent continues. Retry attach restores recent output only; earlier output may be missing.",
+    reason: entry.terminalExit
+      ? "Terminal display paused because output arrived too quickly. The terminal process has ended; earlier output may be missing."
+      : "Terminal display paused because output arrived too quickly. The agent continues. Retry attach restores recent output only; earlier output may be missing.",
   });
 }
 
@@ -640,6 +699,10 @@ function concatChunks(chunks: Uint8Array[], total: number): Uint8Array {
 /** §4.6's ladder. Called once per socket that died, whichever way it died. */
 function scheduleRetry(entry: Entry): void {
   if (entry.destroyed || entry.overloaded || !entry.permitted) return;
+  if (entry.terminalExit) {
+    publishTerminalExit(entry);
+    return;
+  }
   if (!entry.connectPermitted) {
     publish(entry, { phase: "detached", attempts: 0, ladderStartedAt: 0, reason: "Waiting for current project execution permission before reconnecting." });
     return;

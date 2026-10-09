@@ -1,0 +1,8 @@
+{"Time":"2026-10-09T11:01:55.367401237Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/management"}
+{"Time":"2026-10-09T11:01:55.461847828Z","Action":"run","Package":"github.com/lcfrai/luci/control-plane/internal/management","Test":"TestTeamOpaqueExecutionGenerationRemainsProjectScoped"}
+{"Time":"2026-10-09T11:01:55.462099428Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/management","Test":"TestTeamOpaqueExecutionGenerationRemainsProjectScoped","Output":"=== RUN   TestTeamOpaqueExecutionGenerationRemainsProjectScoped\n"}
+{"Time":"2026-10-09T11:01:57.789433181Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/management","Test":"TestTeamOpaqueExecutionGenerationRemainsProjectScoped","Output":"--- PASS: TestTeamOpaqueExecutionGenerationRemainsProjectScoped (2.32s)\n"}
+{"Time":"2026-10-09T11:01:57.790591907Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/management","Test":"TestTeamOpaqueExecutionGenerationRemainsProjectScoped","Elapsed":2.32}
+{"Time":"2026-10-09T11:01:57.790605588Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/management","Output":"PASS\n"}
+{"Time":"2026-10-09T11:01:58.818654457Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/management","Output":"ok  \tgithub.com/lcfrai/luci/control-plane/internal/management\t3.445s\n"}
+{"Time":"2026-10-09T11:01:58.819577387Z","Action":"pass","Package":"github.com/lcfrai/luci/control-plane/internal/management","Elapsed":3.452}

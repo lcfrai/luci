@@ -1,0 +1,45 @@
+{
+  "command": [
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--maxWorkers=1",
+    "src/api/attachRegistry.test.ts",
+    "src/api/attachRegistry.exit.test.ts",
+    "src/api/poller.test.ts",
+    "src/api/poller.generation.test.ts",
+    "src/components/Terminal.test.tsx",
+    "src/components/develop/SessionPane.test.tsx",
+    "src/components/develop/sessionVerbs.test.ts",
+    "src/components/develop/SessionMenu.test.tsx",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-affected/vitest.json"
+  ],
+  "cwd": "/workspace/.luci-tools/cloud054-terminal-close/frontend/tree/desktop",
+  "startedAt": "2026-10-09T11:01:38.286627+00:00",
+  "elapsedSeconds": 15.853860697010532,
+  "exitCode": 1,
+  "sourceStable": true,
+  "sourceCount": 428,
+  "scope": "Controlled Vitest fake socket/jsdom tests; no product app/Docker/provider runtime",
+  "inputs": {
+    "before": {
+      "bytes": 63929,
+      "sha256": "1b784b2a0b3debdd3d0a6ef0a2a7455887562bac49fa8a6e02950a90d16cbb07"
+    },
+    "after": {
+      "bytes": 63929,
+      "sha256": "1b784b2a0b3debdd3d0a6ef0a2a7455887562bac49fa8a6e02950a90d16cbb07"
+    }
+  },
+  "logs": {
+    "stdout": {
+      "bytes": 115,
+      "sha256": "f28adadedbe5f00dedbbda3898a828a7f396b4b8dfdd1fff5e67462d40bd195d"
+    },
+    "stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+}

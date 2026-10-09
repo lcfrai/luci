@@ -1,0 +1,9 @@
+{
+  "Replace": {
+    "/workspace/luci/control-plane/internal/api/sessions.go": "/workspace/.luci-tools/cloud054-terminal-close/frontend/backend/control-plane/internal/api/sessions.go",
+    "/workspace/luci/control-plane/internal/api/session_execution_generation.go": "/workspace/.luci-tools/cloud054-terminal-close/frontend/backend/control-plane/internal/api/session_execution_generation.go",
+    "/workspace/luci/control-plane/internal/api/session_execution_generation_test.go": "/workspace/.luci-tools/cloud054-terminal-close/frontend/backend/control-plane/internal/api/session_execution_generation_test.go",
+    "/workspace/luci/control-plane/internal/api/session_execution_generation_http_test.go": "/workspace/.luci-tools/cloud054-terminal-close/generation-followup/session_execution_generation_http_test.go",
+    "/workspace/luci/control-plane/internal/management/team_session_execution_generation_test.go": "/workspace/.luci-tools/cloud054-terminal-close/generation-followup/team_session_execution_generation_test.go"
+  }
+}

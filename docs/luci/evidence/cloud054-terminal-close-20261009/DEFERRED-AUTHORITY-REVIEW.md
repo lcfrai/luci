@@ -1,0 +1,7 @@
+# Separate pre-existing session-list denial behavior
+
+This is a source-review note for the root agent, **not a CLOUD-054 fix or a new assigned issue**. No runtime reproduction was performed.
+
+In both original d20 and the staged poller, `desktop/src/api/poller.ts` catches a failed listSessions response by recording `lastError`. The catch does not itself remove existing private session rows when the response is403. CLOUD-054's request-baseline guard preserves completed mutations against a delayed successful response while respecting rows already removed by an authority/scope path. Its tests verify an old response does not restore those removed rows and that the next fresh successful filtered list removes a previously protected row. They do not establish that403 alone clears private rows.
+
+The root explicitly retained this existing behavior for CLOUD-054 to avoid silently expanding authorization policy. A later review should trace real membership/project revocation through gateway response, browser auth handling, catalogue/session store invalidation and mounted terminal/context panes. If403 can leave accessible private UI after the user's read grant is known to be revoked, add a separate minimal reproduction and an appropriately scoped clearing policy. Distinguish forbidden-origin/host or transient request failures from a confirmed read-authority loss; do not destroy durable project state or erase user drafts based only on a generic network error. Existing workspace/actor epoch resets must continue to win over stale responses.

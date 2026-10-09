@@ -1,0 +1,284 @@
+{
+  "command": [
+    "go",
+    "test",
+    "-p",
+    "1",
+    "-count=1",
+    "-timeout=2m",
+    "-json",
+    "-race",
+    "-overlay=/workspace/.luci-tools/cloud054-terminal-close/backend/after-overlay.json",
+    "./control-plane/internal/proxy",
+    "./control-plane/internal/api",
+    "-run",
+    "^(TestRelay|TestAttach|TestADroppedSocketDestroysNothing)"
+  ],
+  "cwd": "/workspace/luci",
+  "environment": {
+    "GOMAXPROCS": "2",
+    "CGO_ENABLED": "1",
+    "GOARCH": "amd64",
+    "GOMODCACHE": "/tmp/luci-retained-tools/go-mod",
+    "GOOS": "linux",
+    "GOROOT": "/workspace/.luci-tools/go1.26.3",
+    "GOVERSION": "go1.26.3",
+    "GOWORK": "/workspace/.luci-tools/go.work"
+  },
+  "startedAt": "2026-10-09T10:55:08.906335+00:00",
+  "finishedAt": "2026-10-09T10:55:15.511092+00:00",
+  "elapsedSeconds": 6.604760852991603,
+  "exitCode": 0,
+  "sourceInputsStable": true,
+  "sourceScope": "Selected exact source/overlay files, module locks and capture helper; not a complete compiled dependency provenance claim.",
+  "outcomes": [
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/proxy",
+      "Test": "TestRelayCopiesBothDirections",
+      "Action": "pass",
+      "Elapsed": 0.03
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/proxy",
+      "Test": "TestRelayHookedCountsEachDirection",
+      "Action": "pass",
+      "Elapsed": 0.41
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/proxy",
+      "Test": "TestRelayHookedToleratesNilHookFields",
+      "Action": "pass",
+      "Elapsed": 0.02
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/proxy",
+      "Test": "TestRelayNormalClosurePreservesTerminalFramesAndHidesPeerReason/exit_status_0",
+      "Action": "pass",
+      "Elapsed": 0.02
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/proxy",
+      "Test": "TestRelayNormalClosurePreservesTerminalFramesAndHidesPeerReason/exit_status_23",
+      "Action": "pass",
+      "Elapsed": 0.02
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/proxy",
+      "Test": "TestRelayNormalClosurePreservesTerminalFramesAndHidesPeerReason/killed",
+      "Action": "pass",
+      "Elapsed": 0.02
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/proxy",
+      "Test": "TestRelayNormalClosurePreservesTerminalFramesAndHidesPeerReason",
+      "Action": "pass",
+      "Elapsed": 0.06
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/proxy",
+      "Test": "TestRelayNormalCloseWithoutExitDoesNotInventTerminalFrame",
+      "Action": "pass",
+      "Elapsed": 0.01
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/proxy",
+      "Test": "TestRelayAbnormalUpstreamCloseDoesNotInventExitOrNormalClose",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/proxy",
+      "Test": "TestRelayParentCancellationBoundsAStalledNormalClose",
+      "Action": "pass",
+      "Elapsed": 0.01
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/proxy",
+      "Test": "TestRelayParentCancellationWithoutExitStaysBounded",
+      "Action": "pass",
+      "Elapsed": 0.01
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAttachRejectsUnknownOriginBeforeAnythingElse",
+      "Action": "pass",
+      "Elapsed": 0.01
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAttachRejectsNonLoopbackHostBeforeTheSessionLookup",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAttachUnknownSessionIs404",
+      "Action": "pass",
+      "Elapsed": 0.01
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAttachExitedSessionIs409",
+      "Action": "pass",
+      "Elapsed": 0.01
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAttachBackendVerdictsBeforeTheUpgrade/sandbox_gone",
+      "Action": "pass",
+      "Elapsed": 0.01
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAttachBackendVerdictsBeforeTheUpgrade/backend_down",
+      "Action": "pass",
+      "Elapsed": 0.01
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAttachBackendVerdictsBeforeTheUpgrade/published_off_loopback",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAttachBackendVerdictsBeforeTheUpgrade/no_endpoint_yet",
+      "Action": "pass",
+      "Elapsed": 0.01
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAttachBackendVerdictsBeforeTheUpgrade/stopped",
+      "Action": "pass",
+      "Elapsed": 0.01
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAttachBackendVerdictsBeforeTheUpgrade",
+      "Action": "pass",
+      "Elapsed": 0.03
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAttachStartingSandboxIsAllowedThrough",
+      "Action": "pass",
+      "Elapsed": 0.02
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAttachWithoutUpgradeHeadersIs426",
+      "Action": "pass",
+      "Elapsed": 0.01
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAttachCarriesAMessageEightTimesTheDefaultReadLimit",
+      "Action": "pass",
+      "Elapsed": 0.09
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAttachRecordsOutputAndBalancesTheCounter",
+      "Action": "pass",
+      "Elapsed": 0.02
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAttachPreservesSlowConsumerCloseWithoutStoppingWorker",
+      "Action": "pass",
+      "Elapsed": 0.02
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAttachNaturalExitDrainsFramesAndPreservesNormalClose",
+      "Action": "pass",
+      "Elapsed": 0.02
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestADroppedSocketDestroysNothing",
+      "Action": "pass",
+      "Elapsed": 0.04
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAttachWritesNothingUntilTheOriginAndUpgradeChecksHavePassed/refused_at_the_origin_gate",
+      "Action": "pass",
+      "Elapsed": 0.01
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAttachWritesNothingUntilTheOriginAndUpgradeChecksHavePassed/refused_at_the_host_gate",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAttachWritesNothingUntilTheOriginAndUpgradeChecksHavePassed/refused_at_the_upgrade_gate",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAttachWritesNothingUntilTheOriginAndUpgradeChecksHavePassed",
+      "Action": "pass",
+      "Elapsed": 0.01
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAttachUpstreamDialFailureClosesTheSocketAndDestroysNothing",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAttachCloseStatusMapsEveryBackendSentinel/token_rejected",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAttachCloseStatusMapsEveryBackendSentinel/published_off_loopback",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAttachCloseStatusMapsEveryBackendSentinel/not_found",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAttachCloseStatusMapsEveryBackendSentinel/not_running",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAttachCloseStatusMapsEveryBackendSentinel/backend_unavailable",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAttachCloseStatusMapsEveryBackendSentinel/anything_else",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestAttachCloseStatusMapsEveryBackendSentinel",
+      "Action": "pass",
+      "Elapsed": 0
+    }
+  ],
+  "stdout": {
+    "bytes": 38256,
+    "sha256": "3ebadcd365b75544522c2e51c1a685d7671e42b9ba38570245469edfba08db7a"
+  },
+  "stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "command": [
+      "go",
+      "test",
+      "-race",
+      "-p",
+      "1",
+      "-count=1",
+      "-timeout=5m",
+      "-json",
+      "./internal/proxy",
+      "./internal/api",
+      "./internal/management",
+      "-run",
+      "^(TestRelay|TestAttach|TestADroppedSocket|TestNewActuallyRoutesTheAttachRoute|TestIsWebSocketUpgrade|TestSessionExecutionGeneration|TestTeamOpaqueExecutionGeneration|TestRestartKeepsTheIDAndMintsANewSandboxAndANewToken|TestSessionJSON)"
+    ],
+    "cwd": "/workspace/luci/control-plane",
+    "startedAt": "2026-10-09T11:13:19.319867+00:00",
+    "exitCode": 0,
+    "finishedAt": "2026-10-09T11:13:46.794669+00:00",
+    "elapsedSeconds": 27.47408778796671
+  }
+]

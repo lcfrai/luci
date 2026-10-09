@@ -1,0 +1,117 @@
+{
+  "base": "f43542a84bd9cd81c2b263e680c36d8225e10024",
+  "files": [
+    {
+      "path": "desktop/src/api/attachRegistry.ts",
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/final/desktop/src/api/attachRegistry.ts",
+      "beforeSHA256": "80dd57e478f6d42b5e122831bb32f97ab4665230b4b5d818b628577ed5528ad5",
+      "afterSHA256": "1f3e299b787411b3b96f1e8af6866265ebdd372014000a0436d2dd7f4e094c82",
+      "bytes": 38554
+    },
+    {
+      "path": "desktop/src/api/poller.ts",
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/final/desktop/src/api/poller.ts",
+      "beforeSHA256": "183b7672f7cc48a3f6241a95d1ce66e333558f52445ec8579f738ab226650c0a",
+      "afterSHA256": "23d5faa83acffd4d8b77899394d97b1606640f01d250a63d7551d5004b71f164",
+      "bytes": 5885
+    },
+    {
+      "path": "desktop/src/store/types.ts",
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/final/desktop/src/store/types.ts",
+      "beforeSHA256": "7fe756a7513b1edf1fdb5d7961f1ac7cfedba2431dac6a3d4044c0dff8f0a546",
+      "afterSHA256": "1a22bcb0c91df435c87e6db2eab1b6d14c9a96172ec1a79646fca06b902b1e0b",
+      "bytes": 11380
+    },
+    {
+      "path": "desktop/src/components/develop/sessionVerbs.ts",
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/final/desktop/src/components/develop/sessionVerbs.ts",
+      "beforeSHA256": "e3e517ad215e50e2af71b6123db3f39be078a5b43d89888f609371fc04d51df9",
+      "afterSHA256": "afc817f0a8d23eb8ceee6c0d8cbcb092cc91d4716c4a6d8c09e134338a443e21",
+      "bytes": 35365
+    },
+    {
+      "path": "desktop/src/api/attachRegistry.exit.test.ts",
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/final/desktop/src/api/attachRegistry.exit.test.ts",
+      "beforeSHA256": null,
+      "afterSHA256": "f54a91f769c5ca702077fafb993bd4606ca12733b579892653788f3be883f7d4",
+      "bytes": 12091
+    },
+    {
+      "path": "desktop/src/api/poller.generation.test.ts",
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/final/desktop/src/api/poller.generation.test.ts",
+      "beforeSHA256": null,
+      "afterSHA256": "c9b2b37a78df0ea781c507991eecee91aa58bd7a17510cae63f8aa95e61c37f5",
+      "bytes": 5426
+    },
+    {
+      "path": "desktop/src/components/develop/SessionPane.test.tsx",
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/final/desktop/src/components/develop/SessionPane.test.tsx",
+      "beforeSHA256": "bb6cf54f9ff22556b67226e6bf3137803eacbe6c16ea9525567f90bbeabd1c1e",
+      "afterSHA256": "50fb89295a6425434a8d836225dac225913f54cca2c97a0c7e0cf551ed57103c",
+      "bytes": 32214
+    },
+    {
+      "path": "desktop/src/components/develop/sessionVerbs.test.ts",
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/final/desktop/src/components/develop/sessionVerbs.test.ts",
+      "beforeSHA256": "ab38d388fcc122360a682455b7db0a1ebece74fd7fd9c092770d0f6435a2485e",
+      "afterSHA256": "e8c0ff7805cfef2b70d3853126111b5a9c51747dcd736611c7280cd12b39b633",
+      "bytes": 53860
+    },
+    {
+      "path": "control-plane/internal/proxy/proxy.go",
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/backend/after/proxy.go",
+      "beforeSHA256": "07c19b8ca3183733178f05ed226843c59d6e128fd39f95825a57a3c45515d81d",
+      "afterSHA256": "ebc02379306e5b555f317fc6d66a3f3ec3f9e6c29a5b93cd898165e65a8d565b",
+      "bytes": 3031
+    },
+    {
+      "path": "control-plane/internal/proxy/proxy_test.go",
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/backend/tests/proxy_test.go",
+      "beforeSHA256": "9e9bb8a7faa39344d2b7c0c0b12a896cc97bd5a2545caf96c776416cd7f68c26",
+      "afterSHA256": "6e76c9bca68a80ab885fe704962b4856aa52ca061ae7523b11232cf27795a045",
+      "bytes": 12075
+    },
+    {
+      "path": "control-plane/internal/api/attach_test.go",
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/backend/tests/attach_test.go",
+      "beforeSHA256": "f42bd513139b4c8d5826c5aca3be091ee5e1ef25df67460cfcc803b8439fb361",
+      "afterSHA256": "ef0d651baa9a54a6a0354e1665f22273f4683c420c5f2c905a38987429db8234",
+      "bytes": 37202
+    },
+    {
+      "path": "control-plane/internal/api/session_execution_generation_http_test.go",
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/generation-followup/session_execution_generation_http_test.go",
+      "beforeSHA256": null,
+      "afterSHA256": "cac297ad14598f951ffb77c51ad04a0eb7d0cc657ad64db579e3b8f488093bed",
+      "bytes": 1764
+    },
+    {
+      "path": "control-plane/internal/management/team_session_execution_generation_test.go",
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/generation-followup-v2/team_session_execution_generation_test.go",
+      "beforeSHA256": null,
+      "afterSHA256": "75f230f9b9336983ef3431875e04931944d390677f42fb30beb67941eda58396",
+      "bytes": 2656
+    },
+    {
+      "path": "control-plane/internal/api/sessions.go",
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/backend/control-plane/internal/api/sessions.go",
+      "beforeSHA256": "00e6edb0a98299a572345de9eb94841380f2223d4d314c65e1ccfa7740a43913",
+      "afterSHA256": "1eface59027a5ca16b076cfc268025b9849ec4a69e42aaa462aaa514f602f99d",
+      "bytes": 117140
+    },
+    {
+      "path": "control-plane/internal/api/session_execution_generation.go",
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/backend/control-plane/internal/api/session_execution_generation.go",
+      "beforeSHA256": null,
+      "afterSHA256": "dbfaad94e2c5f111c390306375ff22e18a504a761e9c05ceef29dd62552945ff",
+      "bytes": 1038
+    },
+    {
+      "path": "control-plane/internal/api/session_execution_generation_test.go",
+      "source": "/workspace/.luci-tools/cloud054-terminal-close/frontend/backend/control-plane/internal/api/session_execution_generation_test.go",
+      "beforeSHA256": null,
+      "afterSHA256": "a3252a434f9b4c1b5b5ab54067cdd9af883f64a5e2873ccce8d5c4d04cfd7982",
+      "bytes": 4353
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "Replace": {
+    "/workspace/luci/control-plane/internal/proxy/proxy_test.go": "/workspace/.luci-tools/cloud054-terminal-close/backend/tests/proxy_test.go",
+    "/workspace/luci/control-plane/internal/api/attach_test.go": "/workspace/.luci-tools/cloud054-terminal-close/backend/tests/attach_test.go"
+  }
+}

@@ -171,6 +171,8 @@ export interface StartFailure {
 }
 
 export interface Session {
+  /** Opaque current allocation fingerprint; absent on older/cleaned records. Never authorization. */
+  executionGeneration?: string;
   id: SessionId;
   title: string;
   machineId: MachineId;

@@ -11,7 +11,7 @@
 // not work, which is worse than no button.
 import { useSyncExternalStore } from "react";
 import { api } from "../../api";
-import { getAttachState, retryAttach } from "../../api/attachRegistry";
+import { canReconnectEndedAttach, getAttachState, retryAttach } from "../../api/attachRegistry";
 import { ApiError } from "../../api/client";
 import { classify } from "../../api/problems";
 import { teamScopeGeneration } from "../../api/teamScope";
@@ -505,7 +505,7 @@ function tailVerbs(
    *  why the verb lives here rather than in `SessionPane`, which would have needed a new surface
    *  in a file this task does not own. */
   const retryRow: MenuItem[] =
-    getAttachState(id).phase === "failed"
+    (getAttachState(id).phase === "failed" || canReconnectEndedAttach(id))
       ? [
           {
             id: "retry-attach",

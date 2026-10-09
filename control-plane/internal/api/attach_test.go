@@ -664,6 +664,34 @@ func TestAttachPreservesSlowConsumerCloseWithoutStoppingWorker(t *testing.T) {
 	}
 }
 
+func TestAttachNaturalExitDrainsFramesAndPreservesNormalClose(t *testing.T) {
+	f := attachNewFixture(t, nil, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	c := f.dial(ctx, t)
+	defer c.CloseNow()
+	for _, frame := range [][]byte{[]byte("\x00last task output"), []byte("\x03exit status 0")} {
+		f.sandboxd.push(frame)
+		typ, got, err := c.Read(ctx)
+		if err != nil || typ != websocket.MessageBinary || string(got) != string(frame) {
+			t.Fatalf("terminal frame lost or changed: %q %v", got, err)
+		}
+	}
+	f.sandboxd.close <- websocket.StatusNormalClosure
+	_, _, err := c.Read(ctx)
+	if websocket.CloseStatus(err) != websocket.StatusNormalClosure {
+		t.Fatalf("native exit transport did not close normally: %v", err)
+	}
+	attachWaitFor(t, 5*time.Second, func() bool {
+		row, err := f.store.Get(f.id)
+		return err == nil && row.AttachCount == 0
+	}, "normal attachment did not release its display counter")
+	row, err := f.store.Get(f.id)
+	if err != nil || row.Status != registry.StatusRunning || f.be.destroyCount() != 0 {
+		t.Fatalf("transport closure mutated lifecycle: %+v, %v", row, err)
+	}
+}
+
 // attachWaitFor polls until cond holds. It exists so the two genuinely
 // asynchronous assertions do not sleep a fixed interval and flake on a loaded
 // machine. The attach prefix is ruling 5: a bare waitFor in package api is a

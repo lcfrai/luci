@@ -1,0 +1,38 @@
+{
+  "command": [
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--maxWorkers=1",
+    "src/api/attachRegistry.overload-generation.test.ts",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/cloud054-terminal-close/frontend-overload-followup-v2/evidence/overload-replacement/vitest.json"
+  ],
+  "cwd": "/workspace/.luci-tools/cloud054-terminal-close/frontend-overload-followup-v2/tree/desktop",
+  "startedAt": "2026-10-09T11:13:06.397533+00:00",
+  "elapsedSeconds": 2.7620662950212136,
+  "exitCode": 0,
+  "sourceStable": true,
+  "sourceCount": 431,
+  "scope": "Controlled Vitest fake socket/jsdom tests; no product app/Docker/provider runtime",
+  "inputs": {
+    "before": {
+      "bytes": 64349,
+      "sha256": "b465183798c45ab6e81be22454cb43c4e921c9113f3b2931ffad0b5ed7399673"
+    },
+    "after": {
+      "bytes": 64349,
+      "sha256": "b465183798c45ab6e81be22454cb43c4e921c9113f3b2931ffad0b5ed7399673"
+    }
+  },
+  "logs": {
+    "stdout": {
+      "bytes": 142,
+      "sha256": "907bd365f2651274765eeb9ba0d48d4a019f655fad22f26fe3c4fb227c5f3a86"
+    },
+    "stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+}

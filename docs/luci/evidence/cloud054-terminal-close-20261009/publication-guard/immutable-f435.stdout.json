@@ -1,0 +1,30 @@
+{
+  "passed": true,
+  "mode": "ref",
+  "commit": "f43542a84bd9cd81c2b263e680c36d8225e10024",
+  "capsules": [
+    {
+      "root": "docs/luci/evidence/cloud032-idle-d20ebd29-20261009",
+      "verifiedBlobs": 67,
+      "manifestSHA256": "5990feedeb55ec25d806cfe989635f2ae97aa24d996dd6bb448dbc35e492bb52"
+    },
+    {
+      "root": "docs/luci/evidence/cloud032-cgroup-d20ebd29-20261009",
+      "verifiedBlobs": 33,
+      "manifestSHA256": "e66d86d3d0d31e9758e74515f36dc5b4657d1ac26924d668433a342f8b3c661f"
+    },
+    {
+      "root": "docs/luci/evidence/sustained-d20ebd29-attempt8",
+      "verifiedBlobs": 59,
+      "manifestSHA256": "55986178536058920f5da0fb68d3ca949ca9f5c1a73d7dbef6a8ccb234101a3c"
+    },
+    {
+      "root": "docs/luci/evidence/cloud053-publication-guard-20261009",
+      "verifiedBlobs": 24,
+      "manifestSHA256": "2066273c66e580184c6d4613acf0451944b200f4105073b4e573ae336233691c"
+    }
+  ],
+  "completeTrackedCoverage": true,
+  "selectedGitEntriesSHA256": "805211b27885c965a8b98babc16a855c1cf8bff07b84a5ceeb55f20059bfd856",
+  "scope": "Exact selected Git blobs; no working-tree, provenance, semantic or runtime acceptance claim."
+}

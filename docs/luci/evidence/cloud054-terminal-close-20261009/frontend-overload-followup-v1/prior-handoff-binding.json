@@ -1,0 +1,6 @@
+{
+  "path": "/workspace/.luci-tools/cloud054-terminal-close/frontend/handoff.json",
+  "bytes": 16902,
+  "sha256": "b3fa07be4ad668c557d0b48c716c567231b2fe472c01de893551f5e98c5e5465",
+  "note": "Prior frontend final tree and handoff remain unchanged. Only new regression added in this versioned follow-up."
+}

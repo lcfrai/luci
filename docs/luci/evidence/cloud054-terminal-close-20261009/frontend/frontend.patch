@@ -1,0 +1,654 @@
+--- a/desktop/src/api/attachRegistry.ts
++++ b/desktop/src/api/attachRegistry.ts
+@@ -104,6 +104,9 @@
+   opened: boolean;
+   refs: number;
+   readOnly: boolean;
++  /** Last known opaque allocation identity; omission cannot erase a terminal outcome. */
++  executionGeneration: string | null;
++  terminalExit: boolean;
+   permitted: boolean;
+   connectPermitted: boolean;
+   ws: WebSocket | null;
+@@ -167,6 +170,8 @@
+       opened: false,
+       refs: 0,
+       readOnly: opts.readOnly,
++      executionGeneration: knownExecutionGeneration(session),
++      terminalExit: false,
+       permitted: opts.permitted ?? true,
+       connectPermitted: opts.connectPermitted ?? opts.permitted ?? true,
+       ws: null,
+@@ -190,7 +195,7 @@
+     wireTerm(entry);
+     openIfLive(entry);
+   } else {
+-    entry.session = session;
++    updateAttachSession(session);
+     setAttachPermission(session.id, opts.permitted ?? true, opts.connectPermitted ?? opts.permitted ?? true);
+   }
+   // LAST ACQUIRER WINS, and this line runs on the shared path too — so read it as the
+@@ -239,23 +244,63 @@
+ 
+ /** The poller's view of the session. The registry cannot derive `status` or `attachPath` and
+  *  must not run a fetch loop of its own to learn them. */
++/** Allocation fingerprints are opaque identities, never ordered timestamps or authority. */
++function knownExecutionGeneration(session: Session): string | null {
++  return typeof session.executionGeneration === "string" && /^[0-9a-f]{64}$/.test(session.executionGeneration)
++    ? session.executionGeneration : null;
++}
++
++function sameSessionScope(a: Session, b: Session): boolean {
++  return a.id === b.id && a.machineId === b.machineId && a.projectId === b.projectId &&
++    a.branchId === b.branchId && a.worktreeId === b.worktreeId && a.attachPath === b.attachPath;
++}
++
++function publishTerminalExit(entry: Entry): void {
++  clearRetry(entry);
++  entry.ladderStartedAt = 0;
++  publish(entry, {
++    phase: "ended", attempts: entry.attempts, ladderStartedAt: 0,
++    reason: entry.session.status === "exited" ? exitedReason(entry.session) : "The terminal process has ended.",
++  });
++}
++
+ export function updateAttachSession(session: Session): void {
+   const entry = entries.get(session.id);
+-  if (!entry) return;
++  if (!entry || !sameSessionScope(entry.session, session)) return;
++  const generation = knownExecutionGeneration(session);
++  const replacement = generation !== null && entry.executionGeneration !== null && generation !== entry.executionGeneration;
+   const wasExited = entry.session.status === "exited";
+   entry.session = session;
+-  if (session.status === "exited" && !wasExited) {
++  if (replacement) {
+     clearRetry(entry);
+-    entry.ladderStartedAt = 0; // the ladder stopped, so the pane's elapsed stops with it
+-    if (!entry.ws) {
+-      publish(entry, {
+-        phase: "ended",
+-        attempts: entry.attempts,
+-        ladderStartedAt: 0,
+-        reason: exitedReason(session),
+-      });
+-    }
+-  }
++    entry.connectVersion += 1;
++    entry.opening = false;
++    const old = entry.ws;
++    entry.ws = null;
++    old?.close(1000, "session allocation changed");
++    entry.executionGeneration = generation;
++    entry.terminalExit = false;
++    entry.attempts = 0;
++    entry.ladderStartedAt = 0;
++    openIfLive(entry);
++    return;
++  }
++  if (generation !== null && !(entry.terminalExit && entry.executionGeneration === null)) entry.executionGeneration = generation;
++  if (entry.terminalExit && !entry.overloaded) {
++    publishTerminalExit(entry);
++  } else if (session.status === "exited" && !wasExited) {
++    clearRetry(entry);
++    entry.ladderStartedAt = 0;
++    if (!entry.ws) publishTerminalExit(entry);
++  }
++}
++
++/** Older servers have no allocation identity. Reconnecting remains an explicit
++ * transport action; an exited session must instead be restarted by the user. */
++export function canReconnectEndedAttach(sessionId: SessionId): boolean {
++  const entry = entries.get(sessionId);
++  return !!entry && !entry.destroyed && entry.terminalExit && entry.executionGeneration === null &&
++    entry.session.status !== "exited" && entry.permitted && entry.connectPermitted && !entry.ws && !entry.opening;
+ }
+ 
+ export function setAttachReadOnly(
+@@ -316,7 +361,7 @@
+   if (!entry || entry.destroyed || !entry.permitted || !entry.connectPermitted) return false;
+   // An exited session has no sandbox to attach to; 409 is the only answer the attach route can
+   // give, which is the rule `openIfLive` states.
+-  if (entry.session.status === "exited") return false;
++  if (entry.session.status === "exited" || (entry.terminalExit && !canReconnectEndedAttach(sessionId))) return false;
+   // A socket is open, or a handshake is already in flight: either way an attempt is running, so
+   // there is no spent ladder to restart and zeroing the stamp would blank an elapsed the pane is
+   // rendering. `connect()` would early-return on the same condition, so without this the call
+@@ -360,6 +405,8 @@
+   // not only this comment:
+   //     grep -A1 '^  entry.ladderStartedAt = 0;$' attachRegistry.ts | grep -c '^  connect(entry);$'
+   entry.ladderStartedAt = 0;
++  entry.terminalExit = false; // Only an explicit legacy reconnect reaches this reset.
++  entry.executionGeneration = knownExecutionGeneration(entry.session) ?? entry.executionGeneration;
+   connect(entry);
+   return true;
+ }
+@@ -434,7 +481,7 @@
+ function wireTerm(entry: Entry): void {
+   entry.disposables.push(
+     entry.term.onData((data) => {
+-      if (entry.readOnly || !entry.permitted) return; // exited or revoked: no input reaches the agent
++      if (entry.readOnly || entry.terminalExit || !entry.permitted) return; // exited or revoked: no input reaches the agent
+       const ws = entry.ws;
+       if (!ws || ws.readyState !== WS_OPEN) return;
+       ws.send(encode(Kind.Stdin, ENCODER.encode(data)));
+@@ -453,6 +500,10 @@
+ /** An exited session has no sandbox to attach to. Its reason shares the same
+  * bounded parser queue as output, including an earlier write still completing. */
+ function openIfLive(entry: Entry): void {
++  if (entry.terminalExit) {
++    if (!entry.overloaded) publishTerminalExit(entry);
++    return;
++  }
+   if (entry.session.status === "exited") {
+     const reason = exitedReason(entry.session);
+     writeOut(entry, ENCODER.encode(`\r\n\x1b[2m[${reason}]\x1b[0m\r\n`));
+@@ -467,7 +518,7 @@
+ }
+ 
+ function connect(entry: Entry): void {
+-  if (entry.destroyed || entry.overloaded || !entry.permitted || !entry.connectPermitted || entry.ws || entry.opening) return;
++  if (entry.destroyed || entry.terminalExit || entry.overloaded || !entry.permitted || !entry.connectPermitted || entry.ws || entry.opening) return;
+   // Stamped on `ladderStartedAt === 0`, not on `attempts === 0`: a successful handshake resets
+   // attempts to 0, so keying off it would re-stamp mid-ladder and the 60 s budget would never
+   // expire. `onopen` clears the stamp, which is what makes a drop after an hour attached start
+@@ -544,7 +595,13 @@
+     if (!(ev.data instanceof ArrayBuffer)) return; // the attach protocol is binary-only
+     const { kind, payload } = decode(new Uint8Array(ev.data));
+     if (kind === Kind.Stdout) writeOut(entry, payload);
+-    else if (kind === Kind.Exit) writeOut(entry, BANNER_ENDED);
++    else if (kind === Kind.Exit && !entry.terminalExit) {
++      // The typed frame ends this allocation, irrespective of its textual reason.
++      // It does not prove success, output verification, cleanup or integration.
++      entry.terminalExit = true;
++      writeOut(entry, BANNER_ENDED);
++      if (!entry.overloaded) publishTerminalExit(entry);
++    }
+   };
+ 
+   ws.onclose = (event) => {
+@@ -597,7 +654,9 @@
+   ws?.close(4008, "terminal output exceeded the display buffer");
+   publish(entry, {
+     phase: "failed", attempts: entry.attempts, ladderStartedAt: 0,
+-    reason: "Terminal display paused because output arrived too quickly. The agent continues. Retry attach restores recent output only; earlier output may be missing.",
++    reason: entry.terminalExit
++      ? "Terminal display paused because output arrived too quickly. The terminal process has ended; earlier output may be missing."
++      : "Terminal display paused because output arrived too quickly. The agent continues. Retry attach restores recent output only; earlier output may be missing.",
+   });
+ }
+ 
+@@ -640,6 +699,10 @@
+ /** §4.6's ladder. Called once per socket that died, whichever way it died. */
+ function scheduleRetry(entry: Entry): void {
+   if (entry.destroyed || entry.overloaded || !entry.permitted) return;
++  if (entry.terminalExit) {
++    publishTerminalExit(entry);
++    return;
++  }
+   if (!entry.connectPermitted) {
+     publish(entry, { phase: "detached", attempts: 0, ladderStartedAt: 0, reason: "Waiting for current project execution permission before reconnecting." });
+     return;
+--- a/desktop/src/api/poller.ts
++++ b/desktop/src/api/poller.ts
+@@ -45,13 +45,25 @@
+     if (stopped || store.getState().projectCatalogueEpoch !== epoch || inFlight || document.visibilityState === "hidden") return;
+     inFlight = true;
+     let good = false;
++    // Store rows are immutable. A completed mutation/removal since this request
++    // began wins over its delayed response; opaque generation tokens are not clocks.
++    const requestedSessions = store.getState().sessions;
+     try {
+       const sessions = await client.listSessions();
+       if (stopped || store.getState().projectCatalogueEpoch !== epoch) return;
+       good = true;
+       const state = store.getState();
+-      const covered = coveredWorktreeIds(Object.keys(state.sessionIdsByWorktree), sessions);
+-      state.replaceSessions(sessions, covered);
++      const changed = new Set([...Object.keys(requestedSessions), ...Object.keys(state.sessions)]
++        .filter(id => requestedSessions[id] !== state.sessions[id]));
++      const accepted = sessions.filter(session => !changed.has(session.id));
++      for (const id of changed) {
++        const current = state.sessions[id];
++        if (current) accepted.push(current);
++      }
++      // Fresh subsequent requests still remove records no longer visible. Scope
++      // resets above and records removed during this request can never be revived.
++      const covered = coveredWorktreeIds(Object.keys(state.sessionIdsByWorktree), accepted);
++      state.replaceSessions(accepted, covered);
+       // AMENDED BY TASK 24: a good tick clears the error THIS POLLER raised, and nothing else.
+       // It used to clear any non-null lastError, so a catalogue list that failed while sessions
+       // answered was reported and then wiped by the next tick, 2 s later, leaving an empty rail
+--- a/desktop/src/store/types.ts
++++ b/desktop/src/store/types.ts
+@@ -171,6 +171,8 @@
+ }
+ 
+ export interface Session {
++  /** Opaque current allocation fingerprint; absent on older/cleaned records. Never authorization. */
++  executionGeneration?: string;
+   id: SessionId;
+   title: string;
+   machineId: MachineId;
+--- a/desktop/src/components/develop/sessionVerbs.ts
++++ b/desktop/src/components/develop/sessionVerbs.ts
+@@ -11,7 +11,7 @@
+ // not work, which is worse than no button.
+ import { useSyncExternalStore } from "react";
+ import { api } from "../../api";
+-import { getAttachState, retryAttach } from "../../api/attachRegistry";
++import { canReconnectEndedAttach, getAttachState, retryAttach } from "../../api/attachRegistry";
+ import { ApiError } from "../../api/client";
+ import { classify } from "../../api/problems";
+ import { teamScopeGeneration } from "../../api/teamScope";
+@@ -505,7 +505,7 @@
+    *  why the verb lives here rather than in `SessionPane`, which would have needed a new surface
+    *  in a file this task does not own. */
+   const retryRow: MenuItem[] =
+-    getAttachState(id).phase === "failed"
++    (getAttachState(id).phase === "failed" || canReconnectEndedAttach(id))
+       ? [
+           {
+             id: "retry-attach",
+--- /dev/null
++++ b/desktop/src/api/attachRegistry.exit.test.ts
+@@ -0,0 +1,234 @@
++import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
++import { __resetAttachRegistry, acquireAttach, configureAttachRegistry, FLUSH_INTERVAL_MS, getAttachState, GRACE_MS, releaseAttach, RETRY_BUDGET_MS, retryAttach, setAttachPermission, setAttachReadOnly, updateAttachSession } from './attachRegistry';
++import { attachLabel } from '../components/develop/SessionPaneFooter';
++import { FakeTerm, FakeWebSocket } from '../test/fakes';
++import { aSession } from '../test/fixtures';
++import { encode, Kind } from '../lib/wire';
++import type { Session } from '../store/types';
++
++const encoder = new TextEncoder();
++const live = (over: Partial<Session> = {}) => aSession({ id: 'exit-session', status: 'running', executionGeneration: 'a'.repeat(64), ...over });
++const frame = (text: string) => encode(Kind.Exit, encoder.encode(text));
++let term: FakeTerm;
++let openAttach: ReturnType<typeof vi.fn<(session: Session) => WebSocket>>;
++const attach = (session = live()) => {
++  acquireAttach(session, { createTerm: () => (term = new FakeTerm()), readOnly: false });
++  const socket = FakeWebSocket.last()!;
++  socket.acceptOpen();
++  return socket;
++};
++
++beforeEach(() => {
++  vi.useFakeTimers();
++  FakeWebSocket.reset();
++  __resetAttachRegistry();
++  openAttach = vi.fn((session: Session) => new FakeWebSocket(`ws://localhost${session.attachPath}`) as unknown as WebSocket);
++  configureAttachRegistry({ client: { openAttach, getSession: async () => live() } });
++});
++afterEach(() => { __resetAttachRegistry(); vi.useRealTimers(); });
++
++describe('typed terminal outcome survives transport closure', () => {
++  it.each(['exit status 0', 'exit status 17', '', 'exit status unavailable'])('retains terminal state for reason %j before an abnormal close and stale running poll', (reason) => {
++    const socket = attach();
++    socket.emitBinary(encode(Kind.Stdout, encoder.encode('retained output')));
++    socket.emitBinary(frame(reason));
++    socket.emitError();
++    socket.emitClose(1006);
++    updateAttachSession(live());
++    vi.advanceTimersByTime(RETRY_BUDGET_MS);
++    expect(openAttach).toHaveBeenCalledTimes(1);
++    expect(getAttachState('exit-session').phase).toBe('ended');
++    expect(getAttachState('exit-session').ladderStartedAt).toBe(0);
++    expect(attachLabel(getAttachState('exit-session'), Date.now())).toBe('ended');
++    expect(retryAttach('exit-session')).toBe(false);
++    expect(term.written.join('')).toContain('retained output');
++    expect(term.written.join('')).toContain('[session ended]');
++    expect(getAttachState('exit-session').reason).not.toMatch(/success|passed|verified|integrated/i);
++  });
++
++  it('prevents stdin after a typed exit even before the socket closes or the status poll changes', () => {
++    const socket = attach();
++    socket.emitBinary(frame('exit status 0'));
++    const sent = socket.sent.length;
++    setAttachReadOnly('exit-session', false);
++    term.type('this must not reach the ended allocation');
++    expect(socket.sent).toHaveLength(sent);
++  });
++
++  it('does not let permission refresh reopen an ended allocation', () => {
++    const socket = attach();
++    socket.emitBinary(frame('exit status 0'));
++    socket.emitClose(1006);
++    setAttachPermission('exit-session', true, false);
++    setAttachPermission('exit-session', true, true);
++    vi.advanceTimersByTime(RETRY_BUDGET_MS);
++    expect(openAttach).toHaveBeenCalledTimes(1);
++    expect(getAttachState('exit-session').phase).toBe('ended');
++  });
++
++  it('retains terminal knowledge across release and reacquire inside the cache grace', () => {
++    const socket = attach();
++    socket.emitBinary(frame('exit status 0'));
++    socket.emitClose(1006);
++    const original = term;
++    releaseAttach('exit-session');
++    acquireAttach(live(), { createTerm: () => { throw new Error('must retain transcript'); }, readOnly: false });
++    vi.advanceTimersByTime(RETRY_BUDGET_MS);
++    expect(openAttach).toHaveBeenCalledTimes(1);
++    expect(original.disposed).toBe(false);
++    expect(getAttachState('exit-session').phase).toBe('ended');
++  });
++
++  it('preserves held parser output when terminal exit and transport close arrive', () => {
++    class HeldTerm extends FakeTerm {
++      callbacks: (() => void)[] = [];
++      override write(data: string | Uint8Array, callback?: () => void) {
++        this.written.push(typeof data === 'string' ? data : new TextDecoder().decode(data));
++        if (callback) this.callbacks.push(callback);
++      }
++    }
++    const held = new HeldTerm();
++    acquireAttach(live(), { createTerm: () => held, readOnly: false });
++    const socket = FakeWebSocket.last()!; socket.acceptOpen();
++    socket.emitBinary(encode(Kind.Stdout, encoder.encode('first')));
++    vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
++    socket.emitBinary(encode(Kind.Stdout, encoder.encode('second')));
++    socket.emitBinary(frame('exit status 0'));
++    socket.emitClose(1006);
++    held.callbacks.shift()?.();
++    vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
++    expect(held.written.join('')).toBe('firstsecond\r\n\x1b[2m[session ended]\x1b[0m\r\n');
++    expect(getAttachState('exit-session').phase).toBe('ended');
++    expect(openAttach).toHaveBeenCalledTimes(1);
++  });
++
++  it('no exit on controller disconnect still retries rather than inventing a terminal outcome', () => {
++    const socket = attach(); socket.emitError(); socket.emitClose(1006);
++    expect(getAttachState('exit-session').phase).toBe('reconnecting');
++    vi.advanceTimersByTime(250);
++    expect(openAttach).toHaveBeenCalledTimes(2);
++  });
++
++  it('stdout body text that resembles an exit frame never suppresses reconnect', () => {
++    const socket = attach();
++    socket.emitBinary(encode(Kind.Stdout, encoder.encode('exit status 0\n[session ended]\n\u0003')));
++    socket.emitClose(1006);
++    vi.advanceTimersByTime(250);
++    expect(openAttach).toHaveBeenCalledTimes(2);
++    expect(getAttachState('exit-session').phase).toBe('reconnecting');
++  });
++
++  it('a stale socket exit cannot end a replacement socket', () => {
++    const stale = attach(); stale.emitClose(1006);
++    vi.advanceTimersByTime(250);
++    const current = FakeWebSocket.last()!; current.acceptOpen();
++    stale.emitBinary(frame('exit status 0')); stale.emitClose(1006);
++    expect(getAttachState('exit-session').phase).toBe('attached');
++    current.emitClose(1006); vi.advanceTimersByTime(250);
++    expect(openAttach).toHaveBeenCalledTimes(3);
++  });
++
++  it('revocation keeps stale exit/close fenced and never opens an unauthorized socket', () => {
++    const socket = attach(); setAttachPermission('exit-session', false);
++    socket.emitBinary(frame('exit status 0')); socket.emitClose(1006);
++    vi.advanceTimersByTime(RETRY_BUDGET_MS);
++    expect(getAttachState('exit-session').phase).toBe('detached');
++    expect(openAttach).toHaveBeenCalledTimes(1);
++  });
++
++  it('teardown keeps a late exit and close from resurrecting the terminal', () => {
++    const socket = attach(); releaseAttach('exit-session'); vi.advanceTimersByTime(GRACE_MS);
++    socket.emitBinary(frame('exit status 0')); socket.emitClose(1006);
++    vi.advanceTimersByTime(RETRY_BUDGET_MS);
++    expect(getAttachState('exit-session').phase).toBe('detached');
++    expect(term.disposed).toBe(true);
++    expect(openAttach).toHaveBeenCalledTimes(1);
++  });
++
++  it('server1013 keeps the existing display-overload stop without automatic retry', () => {
++    const socket = attach(); socket.emitClose(1013);
++    vi.advanceTimersByTime(RETRY_BUDGET_MS);
++    expect(getAttachState('exit-session').phase).toBe('failed');
++    expect(getAttachState('exit-session').reason).toContain('display paused');
++    expect(openAttach).toHaveBeenCalledTimes(1);
++  });
++  it('accepts another client restarting the same session only when a different known allocation arrives', () => {
++    const old = attach(); old.emitBinary(frame('exit status 0')); old.emitClose(1006);
++    updateAttachSession(live({ executionGeneration: undefined, status: 'exited', exitReason: 'exit status 0' }));
++    expect(getAttachState('exit-session').phase).toBe('ended');
++    updateAttachSession(live({ executionGeneration: 'b'.repeat(64), status: 'running' }));
++    expect(openAttach).toHaveBeenCalledTimes(2);
++    const replacement = FakeWebSocket.last()!; replacement.acceptOpen();
++    old.emitBinary(frame('exit status 0')); old.emitClose(1006);
++    expect(getAttachState('exit-session').phase).toBe('attached');
++    replacement.emitClose(1006); vi.advanceTimersByTime(250);
++    expect(openAttach).toHaveBeenCalledTimes(3);
++  });
++
++  it.each([undefined, '', 'invalid-generation'])('does not infer a new allocation from missing/malformed generation %j', (executionGeneration) => {
++    const socket = attach(); socket.emitBinary(frame('exit status 17')); socket.emitClose(1006);
++    updateAttachSession(live({ executionGeneration }));
++    vi.advanceTimersByTime(RETRY_BUDGET_MS);
++    expect(getAttachState('exit-session').phase).toBe('ended');
++    expect(openAttach).toHaveBeenCalledTimes(1);
++    expect(retryAttach('exit-session')).toBe(false);
++  });
++
++  it('does not accept a replacement generation from another project scope', () => {
++    const socket = attach(); socket.emitBinary(frame('exit status 0')); socket.emitClose(1006);
++    updateAttachSession(live({ projectId: 'another-project', executionGeneration: 'b'.repeat(64) }));
++    vi.advanceTimersByTime(RETRY_BUDGET_MS);
++    expect(getAttachState('exit-session').phase).toBe('ended');
++    expect(openAttach).toHaveBeenCalledTimes(1);
++  });
++
++  it('requires explicit reconnect for an older server that cannot identify a new allocation', () => {
++    const socket = attach(live({ executionGeneration: undefined }));
++    socket.emitBinary(frame('exit status unavailable')); socket.emitClose(1006);
++    updateAttachSession(live({ executionGeneration: undefined }));
++    vi.advanceTimersByTime(RETRY_BUDGET_MS);
++    expect(openAttach).toHaveBeenCalledTimes(1);
++    expect(getAttachState('exit-session').phase).toBe('ended');
++    expect(retryAttach('exit-session')).toBe(true);
++    expect(openAttach).toHaveBeenCalledTimes(2);
++    FakeWebSocket.last()!.acceptOpen();
++    expect(getAttachState('exit-session').phase).toBe('attached');
++  });
++
++  it('a legacy exited record cannot be reconnected without an explicit restart', () => {
++    const socket = attach(live({ executionGeneration: undefined }));
++    socket.emitBinary(frame('exit status 0')); socket.emitClose(1006);
++    updateAttachSession(live({ executionGeneration: undefined, status: 'exited' }));
++    expect(retryAttach('exit-session')).toBe(false);
++    expect(openAttach).toHaveBeenCalledTimes(1);
++  });
++
++  it('keeps explicit reconnect available after a legacy exit first gains a known fingerprint', () => {
++    const socket = attach(live({ executionGeneration: undefined }));
++    socket.emitBinary(frame('exit status unavailable')); socket.emitClose(1006);
++    updateAttachSession(live({ executionGeneration: 'b'.repeat(64) }));
++    expect(openAttach).toHaveBeenCalledTimes(1);
++    expect(retryAttach('exit-session')).toBe(true);
++    expect(openAttach).toHaveBeenCalledTimes(2);
++  });
++
++  it('a new known generation replaces the old still-open socket and fences its late exit', () => {
++    const old = attach(); old.emitBinary(frame('exit status 0'));
++    updateAttachSession(live({ executionGeneration: 'b'.repeat(64) }));
++    expect(old.closedWith?.code).toBe(1000);
++    const replacement = FakeWebSocket.last()!; replacement.acceptOpen();
++    old.emitBinary(frame('exit status 0')); old.emitClose(1006);
++    expect(getAttachState('exit-session').phase).toBe('attached');
++    expect(openAttach).toHaveBeenCalledTimes(2);
++  });
++
++  it('typed exit followed by1013 retains display-overload status without claiming the agent continues', () => {
++    const socket = attach(); socket.emitBinary(frame('exit status 17')); socket.emitClose(1013);
++    vi.advanceTimersByTime(RETRY_BUDGET_MS);
++    expect(getAttachState('exit-session').phase).toBe('failed');
++    expect(getAttachState('exit-session').reason).toContain('display paused');
++    expect(getAttachState('exit-session').reason).not.toContain('agent continues');
++    expect(openAttach).toHaveBeenCalledTimes(1);
++  });
++
++});
+--- /dev/null
++++ b/desktop/src/api/poller.generation.test.ts
+@@ -0,0 +1,75 @@
++import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
++import { startPolling, POLL_INTERVAL_MS } from './poller';
++import type { CockpitClient, ProblemCode } from './client';
++import { ApiError } from './client';
++import { aSession } from '../test/fixtures';
++import { resetCockpit, useCockpit } from '../store/store';
++import type { Session } from '../store/types';
++import { acquireAttach, configureAttachRegistry, __resetAttachRegistry, updateAttachSession, getAttachState } from './attachRegistry';
++import { FakeTerm, FakeWebSocket } from '../test/fakes';
++import { Kind, encode } from '../lib/wire';
++
++let stop: () => void;
++const fixture = (over: Partial<Session> = {}) => aSession({ id: 'generation-session', executionGeneration: 'a'.repeat(64), ...over });
++beforeEach(() => {
++ vi.useFakeTimers(); resetCockpit(); FakeWebSocket.reset(); __resetAttachRegistry();
++ Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
++});
++afterEach(() => { stop?.(); __resetAttachRegistry(); vi.useRealTimers(); });
++function deferredPoll(next: Session[] = []) {
++ let release!: (sessions: Session[]) => void;
++ const listSessions = vi.fn().mockImplementationOnce(() => new Promise<Session[]>(resolve => { release=resolve; })).mockResolvedValue(next);
++ stop=startPolling({ listSessions } as unknown as CockpitClient,useCockpit);
++ return { release, listSessions };
++}
++
++describe('session polls preserve changes newer than the request', () => {
++ it('does not treat a late old-generation poll as a replacement after a completed same-ID restart',async()=>{
++  const old=fixture(); useCockpit.getState().upsertSession(old);
++  const openAttach=vi.fn((s:Session)=>new FakeWebSocket(`ws://localhost${s.attachPath}`) as unknown as WebSocket);
++  configureAttachRegistry({client:{openAttach,getSession:async()=>old}});
++  acquireAttach(old,{createTerm:()=>new FakeTerm(),readOnly:false});const stale=FakeWebSocket.last()!;stale.acceptOpen();
++  stale.emitBinary(encode(Kind.Exit,new TextEncoder().encode('exit status 0')));stale.emitClose(1006);
++  const fresh=fixture({executionGeneration:'b'.repeat(64)});
++  const poll=deferredPoll([fresh]);
++  useCockpit.getState().upsertSession(fresh);updateAttachSession(fresh);FakeWebSocket.last()!.acceptOpen();
++  poll.release([old]);await vi.advanceTimersByTimeAsync(0);
++  expect(useCockpit.getState().sessions[old.id]).toBe(fresh);
++  updateAttachSession(useCockpit.getState().sessions[old.id]);
++  stale.emitBinary(encode(Kind.Exit,new TextEncoder().encode('exit status 0')));
++  expect(openAttach).toHaveBeenCalledTimes(2);expect(getAttachState(old.id).phase).toBe('attached');
++  await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);expect(poll.listSessions).toHaveBeenCalledTimes(2);
++  expect(useCockpit.getState().sessions[old.id]).toBe(fresh);
++ });
++ it('preserves added and removed rows without resurrecting a deleted session',async()=>{
++  const removed=fixture();useCockpit.getState().upsertSession(removed);
++  const poll=deferredPoll();const added=fixture({id:'new-session'});
++  useCockpit.getState().removeSession(removed.id);useCockpit.getState().upsertSession(added);
++  poll.release([removed]);await vi.advanceTimersByTimeAsync(0);
++  expect(useCockpit.getState().sessions[removed.id]).toBeUndefined();expect(useCockpit.getState().sessions[added.id]).toBe(added);
++  await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
++  expect(Object.keys(useCockpit.getState().sessions)).toEqual([]);
++ });
++ it('the next fresh serial response can revoke read visibility after a protected changed row',async()=>{
++  const old=fixture();useCockpit.getState().upsertSession(old);const poll=deferredPoll([]);
++  const changed={...old,executionGeneration:'b'.repeat(64)};useCockpit.getState().upsertSession(changed);
++  poll.release([old]);await vi.advanceTimersByTimeAsync(0);expect(useCockpit.getState().sessions[old.id]).toBe(changed);
++  await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);expect(useCockpit.getState().sessions[old.id]).toBeUndefined();
++ });
++ it('scope reset and cleared private rows win over an old request',async()=>{
++  useCockpit.getState().bindProjectNavigation('owner:workspace-a');const old=fixture();useCockpit.getState().upsertSession(old);
++  const poll=deferredPoll();useCockpit.getState().bindProjectNavigation('member:workspace-b');
++  poll.release([old]);await vi.advanceTimersByTimeAsync(0);expect(useCockpit.getState().sessions[old.id]).toBeUndefined();
++ });
++ it('a fresh read denial does not restore a record already removed by authority change',async()=>{
++  const old=fixture();useCockpit.getState().upsertSession(old);
++  let reject!: (error:ApiError)=>void;
++  stop=startPolling({listSessions:()=>new Promise<Session[]>((_,r)=>{reject=r;})} as unknown as CockpitClient,useCockpit);
++  useCockpit.getState().removeSession(old.id);reject(new ApiError('forbidden' as ProblemCode,'Read access was removed',403));await vi.advanceTimersByTimeAsync(0);
++  expect(useCockpit.getState().sessions[old.id]).toBeUndefined();expect(useCockpit.getState().lastError?.code).toBe('forbidden');
++ });
++ it('unchanged request-baseline records accept a fresh external restart normally',async()=>{
++  const old=fixture();useCockpit.getState().upsertSession(old);const poll=deferredPoll();const fresh={...old,executionGeneration:'b'.repeat(64)};
++  poll.release([fresh]);await vi.advanceTimersByTimeAsync(0);expect(useCockpit.getState().sessions[old.id]).toBe(fresh);
++ });
++});
+--- a/desktop/src/components/develop/SessionPane.test.tsx
++++ b/desktop/src/components/develop/SessionPane.test.tsx
+@@ -7,6 +7,8 @@
+ import { act, render, screen, waitFor, within } from "@testing-library/react";
+ import userEvent from "@testing-library/user-event";
+ import { SessionPane } from "./SessionPane";
++import { startPolling } from "../../api/poller";
++import type { CockpitClient } from "../../api/client";
+ import { ApiError } from "../../api/client";
+ import { attachLabel } from "./SessionPaneFooter";
+ import { statusLabel } from "./SessionPaneHeader";
+@@ -254,6 +256,25 @@
+     await userEvent.click(more);
+     expect(useCockpit.getState().sessionMenuFor).toBeNull();
+     expect(more.getAttribute("aria-expanded")).toBe("false");
++  });
++
++  it("a deferred old poll cannot undo the actual exit-bar Restart response", async () => {
++    const old = seed({ status: "exited", exitReason: "exit status 0", executionGeneration: "a".repeat(64) });
++    let release!: (sessions: Session[]) => void;
++    const listSessions = vi.fn(() => new Promise<Session[]>(resolve => { release = resolve; }));
++    Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
++    const stop = startPolling({ listSessions } as unknown as CockpitClient, useCockpit);
++    const replacement = { ...old, status: "running" as const, exitReason: "", executionGeneration: "b".repeat(64) };
++    restartSessionMock.mockResolvedValue(replacement);
++    try {
++      render(<SessionPane sessionId={old.id} variant="column" />);
++      await userEvent.click(screen.getByRole("button", { name: /restart/i }));
++      expect(restartSessionMock).toHaveBeenCalledWith(old.id);
++      expect(useCockpit.getState().sessions[old.id]).toBe(replacement);
++      await act(async () => { release([old]); await Promise.resolve(); });
++      expect(useCockpit.getState().sessions[old.id]).toBe(replacement);
++      expect(screen.queryByRole("button", { name: /restart/i })).toBeNull();
++    } finally { stop(); }
+   });
+ 
+   it("an exited pane keeps its scrollback, prints exitReason verbatim and offers Restart", async () => {
+--- a/desktop/src/components/develop/sessionVerbs.test.ts
++++ b/desktop/src/components/develop/sessionVerbs.test.ts
+@@ -40,12 +40,13 @@
+   },
+ }));
+ 
+-// Only the two members sessionVerbs.ts imports. The registry function itself is proven in
++// Only the registry members sessionVerbs.ts imports. The registry function itself is proven in
+ // `src/api/attachRegistry.test.ts` against task 19's FakeWebSocket harness — mocking it there
+ // too would test the verb's wiring and leave the registry proven by nothing.
+-const { attachPhaseMock, retryAttachMock } = vi.hoisted(() => ({
++const { attachPhaseMock, retryAttachMock, reconnectEndedMock } = vi.hoisted(() => ({
+   attachPhaseMock: vi.fn(() => "detached"),
+   retryAttachMock: vi.fn(() => true),
++  reconnectEndedMock: vi.fn(() => false),
+ }));
+ vi.mock("../../api/attachRegistry", () => ({
+   getAttachState: (id: string) => ({
+@@ -56,6 +57,7 @@
+     id,
+   }),
+   retryAttach: retryAttachMock,
++  canReconnectEndedAttach: reconnectEndedMock,
+ }));
+ 
+ import {
+@@ -101,6 +103,7 @@
+   }
+   attachPhaseMock.mockReturnValue("detached");
+   retryAttachMock.mockReturnValue(true);
++  reconnectEndedMock.mockReturnValue(false);
+ });
+ 
+ afterEach(() => {
+@@ -265,6 +268,16 @@
+ // forward from the pane itself, because `failed` is terminal and the exit bar is absent by
+ // definition — the socket died while the session is NOT exited.
+ describe("sessionVerbs — Retry attach", () => {
++  it("offers explicit reconnect only when the registry authorizes a legacy ended attachment", () => {
++    seed();
++    attachPhaseMock.mockReturnValue("ended");
++    expect(find(sessionVerbs(IDS.session, DEPS), "retry-attach")).toBeUndefined();
++    reconnectEndedMock.mockReturnValue(true);
++    const row = find(sessionVerbs(IDS.session, DEPS), "retry-attach");
++    expect(row?.label).toBe("Retry attach");
++    row?.run?.();
++    expect(retryAttachMock).toHaveBeenCalledWith(IDS.session);
++  });
+   it("appears only while the attach ladder is spent", () => {
+     seed({ status: "running" });
+     expect(find(sessionVerbs(IDS.session, DEPS), "retry-attach")).toBeUndefined();

@@ -1,0 +1,38 @@
+{
+  "command": [
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--maxWorkers=1",
+    "src/api/attachRegistry.exit.test.ts",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/cloud054-terminal-close/frontend/evidence/fixed-exit-order/vitest.json"
+  ],
+  "cwd": "/workspace/.luci-tools/cloud054-terminal-close/frontend/tree/desktop",
+  "startedAt": "2026-10-09T10:57:48.638114+00:00",
+  "elapsedSeconds": 2.324244880990591,
+  "exitCode": 0,
+  "sourceStable": true,
+  "sourceCount": 427,
+  "scope": "Controlled Vitest fake socket/jsdom tests; no product app/Docker/provider runtime",
+  "inputs": {
+    "before": {
+      "bytes": 63782,
+      "sha256": "1d93282534bd3ac80f4b3a366a08f2535567e03b375654e10ddce01bef174b6e"
+    },
+    "after": {
+      "bytes": 63782,
+      "sha256": "1d93282534bd3ac80f4b3a366a08f2535567e03b375654e10ddce01bef174b6e"
+    }
+  },
+  "logs": {
+    "stdout": {
+      "bytes": 117,
+      "sha256": "af8d9c33c3ae66618aa90d6a813126961ae5cf5ffd5ba7262a6e68359e76dce4"
+    },
+    "stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+}

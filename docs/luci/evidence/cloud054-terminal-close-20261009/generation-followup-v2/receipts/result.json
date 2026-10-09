@@ -1,0 +1,113 @@
+{
+  "command": [
+    "go",
+    "test",
+    "-race",
+    "-p",
+    "1",
+    "-count=1",
+    "-timeout=2m",
+    "-json",
+    "-overlay=/workspace/.luci-tools/cloud054-terminal-close/generation-followup-v2/receipts/overlay.json",
+    "./control-plane/internal/management",
+    "-run",
+    "^TestTeamOpaqueExecutionGenerationRemainsProjectScoped$"
+  ],
+  "startedAt": "2026-10-09T11:01:46.210663+00:00",
+  "elapsedSeconds": 12.67148417799035,
+  "exitCode": 0,
+  "sourceInputsStable": true,
+  "inputsBefore": {
+    "/workspace/.luci-tools/cloud054-terminal-close/frontend/backend/control-plane/internal/api/sessions.go": {
+      "bytes": 117140,
+      "sha256": "1eface59027a5ca16b076cfc268025b9849ec4a69e42aaa462aaa514f602f99d"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/frontend/backend/control-plane/internal/api/session_execution_generation.go": {
+      "bytes": 1038,
+      "sha256": "dbfaad94e2c5f111c390306375ff22e18a504a761e9c05ceef29dd62552945ff"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/frontend/backend/control-plane/internal/api/session_execution_generation_test.go": {
+      "bytes": 4353,
+      "sha256": "a3252a434f9b4c1b5b5ab54067cdd9af883f64a5e2873ccce8d5c4d04cfd7982"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/generation-followup-v2/session_execution_generation_http_test.go": {
+      "bytes": 1764,
+      "sha256": "cac297ad14598f951ffb77c51ad04a0eb7d0cc657ad64db579e3b8f488093bed"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/generation-followup-v2/team_session_execution_generation_test.go": {
+      "bytes": 2656,
+      "sha256": "75f230f9b9336983ef3431875e04931944d390677f42fb30beb67941eda58396"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/generation-followup-v2/run.py": {
+      "bytes": 2849,
+      "sha256": "3ab1f1132bd9ce51ef65d2437c5fd5cc14dc109ef96d890acab87e946dd3e427"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/generation-followup-v2/receipts/overlay.json": {
+      "bytes": 1037,
+      "sha256": "633132deea849c8da3c7d192eba67009bbab02a3d4cea011e1e8cd073076d68f"
+    },
+    "/workspace/luci/control-plane/go.mod": {
+      "bytes": 3111,
+      "sha256": "46639d620d215ff94c6e6d2ea2bf52c74abdf501811248e8905aad3846ae0341"
+    },
+    "/workspace/luci/control-plane/go.sum": {
+      "bytes": 19122,
+      "sha256": "fad248c401dce6545f51ad4beba435f67999c8605be35232f5261b69c7b50344"
+    }
+  },
+  "inputsAfter": {
+    "/workspace/.luci-tools/cloud054-terminal-close/frontend/backend/control-plane/internal/api/sessions.go": {
+      "bytes": 117140,
+      "sha256": "1eface59027a5ca16b076cfc268025b9849ec4a69e42aaa462aaa514f602f99d"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/frontend/backend/control-plane/internal/api/session_execution_generation.go": {
+      "bytes": 1038,
+      "sha256": "dbfaad94e2c5f111c390306375ff22e18a504a761e9c05ceef29dd62552945ff"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/frontend/backend/control-plane/internal/api/session_execution_generation_test.go": {
+      "bytes": 4353,
+      "sha256": "a3252a434f9b4c1b5b5ab54067cdd9af883f64a5e2873ccce8d5c4d04cfd7982"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/generation-followup-v2/session_execution_generation_http_test.go": {
+      "bytes": 1764,
+      "sha256": "cac297ad14598f951ffb77c51ad04a0eb7d0cc657ad64db579e3b8f488093bed"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/generation-followup-v2/team_session_execution_generation_test.go": {
+      "bytes": 2656,
+      "sha256": "75f230f9b9336983ef3431875e04931944d390677f42fb30beb67941eda58396"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/generation-followup-v2/run.py": {
+      "bytes": 2849,
+      "sha256": "3ab1f1132bd9ce51ef65d2437c5fd5cc14dc109ef96d890acab87e946dd3e427"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/generation-followup-v2/receipts/overlay.json": {
+      "bytes": 1037,
+      "sha256": "633132deea849c8da3c7d192eba67009bbab02a3d4cea011e1e8cd073076d68f"
+    },
+    "/workspace/luci/control-plane/go.mod": {
+      "bytes": 3111,
+      "sha256": "46639d620d215ff94c6e6d2ea2bf52c74abdf501811248e8905aad3846ae0341"
+    },
+    "/workspace/luci/control-plane/go.sum": {
+      "bytes": 19122,
+      "sha256": "fad248c401dce6545f51ad4beba435f67999c8605be35232f5261b69c7b50344"
+    }
+  },
+  "outcomes": [
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/management",
+      "Test": "TestTeamOpaqueExecutionGenerationRemainsProjectScoped",
+      "Action": "pass",
+      "Elapsed": 2.32
+    }
+  ],
+  "stdout": {
+    "bytes": 1571,
+    "sha256": "8d7d42c9fe6d2128144ebb2c0deedd22a5fc4ccf7eac8949d6ab629912b4255a"
+  },
+  "stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "scope": "Corrected synthetic team-field fixture only. Distinct markers for authorized provider session and hidden project; actual HMAC/HTTP restart tests remain in prior unchanged API receipt. No Docker/native/provider or complete compiled-input provenance claim."
+}

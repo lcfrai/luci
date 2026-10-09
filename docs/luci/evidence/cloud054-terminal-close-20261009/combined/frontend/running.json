@@ -1,0 +1,9 @@
+{
+  "command": [
+    "npm",
+    "run",
+    "typecheck"
+  ],
+  "cwd": "/workspace/luci/desktop",
+  "startedAt": "2026-10-09T11:19:48.067786+00:00"
+}

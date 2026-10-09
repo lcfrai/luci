@@ -1,0 +1,9 @@
+# CLOUD-054 controlled source checkpoint
+
+CLOUD-054 now preserves typed terminal evidence across attach closure, delayed polling and allocation replacement. The API exposes an optional opaque allocation fingerprint; it is an equality identity, not authority or a success signal. Output-overload pause and explicit retry remain intact. See [the source and evidence capsule](cloud054-terminal-close-20261009/README.md).
+
+The integrated Go race batch passed 74 named outcomes (34 top + 40 sub). The full frontend run retained 2,826 passing assertions and one canonical-documentation mismatch across 161 files; updating that contract made all 24 affected seams assertions pass. TypeScript passed. No second full-suite pass or installed execution is claimed. Original failures, test-fixture corrections, exact helpers, 17 integrated source bindings and final broad input snapshots are published together.
+
+No runtime configuration or state migration is required. Build the exact containing source revision using the existing isolated Windows checkpoint instructions; do not pair an older d20 package with this new-source claim. Keep `LUCI_STATE_DIR`, `LUCI_PROJECTS_DIR` and a free `LUCI_ADDR` isolated from user data. Start native builds through the documented release script so guide staging is included. Do not launch new Windows workloads while the local tester's resource gate remains held.
+
+Next matching installed tests should retain process/task/lease identities while checking typed exit followed by socket close, delayed status reads, same-session restart with a new generation, old-socket events after replacement, output-overload pause plus explicit retry, current authority and legacy omission behavior. Terminal state must never announce verified work or imply reviewed integration/cleanup. Windows, live-provider quality, sustained responsiveness and remaining recovery/report gates remain open.

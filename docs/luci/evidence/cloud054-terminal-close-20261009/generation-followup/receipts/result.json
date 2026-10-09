@@ -1,0 +1,246 @@
+{
+  "command": [
+    "go",
+    "test",
+    "-race",
+    "-p",
+    "1",
+    "-count=1",
+    "-timeout=2m",
+    "-json",
+    "-overlay=/workspace/.luci-tools/cloud054-terminal-close/generation-followup/receipts/overlay.json",
+    "./control-plane/internal/api",
+    "./control-plane/internal/management",
+    "-run",
+    "^(TestSessionExecutionGeneration|TestSessionJSON|TestRestartKeepsTheIDAndMintsANewSandboxAndANewToken|TestTeamOpaqueExecutionGeneration|TestTeamProxyFiltersPrivateCataloguesAndNamespacesSessionAttachments|TestTeamProxyRechecks)"
+  ],
+  "startedAt": "2026-10-09T11:00:25.490214+00:00",
+  "elapsedSeconds": 29.804288484039716,
+  "exitCode": 1,
+  "sourceInputsStable": true,
+  "inputsBefore": {
+    "/workspace/.luci-tools/cloud054-terminal-close/frontend/backend/control-plane/internal/api/sessions.go": {
+      "bytes": 117140,
+      "sha256": "1eface59027a5ca16b076cfc268025b9849ec4a69e42aaa462aaa514f602f99d"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/frontend/backend/control-plane/internal/api/session_execution_generation.go": {
+      "bytes": 1038,
+      "sha256": "dbfaad94e2c5f111c390306375ff22e18a504a761e9c05ceef29dd62552945ff"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/frontend/backend/control-plane/internal/api/session_execution_generation_test.go": {
+      "bytes": 4353,
+      "sha256": "a3252a434f9b4c1b5b5ab54067cdd9af883f64a5e2873ccce8d5c4d04cfd7982"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/generation-followup/session_execution_generation_http_test.go": {
+      "bytes": 1764,
+      "sha256": "cac297ad14598f951ffb77c51ad04a0eb7d0cc657ad64db579e3b8f488093bed"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/generation-followup/team_session_execution_generation_test.go": {
+      "bytes": 2553,
+      "sha256": "fe2294e14bf502b2509f87ba66aab2b8746d3047693763ef19d663d42754168b"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/generation-followup/run.py": {
+      "bytes": 3035,
+      "sha256": "5cc4967b3b73f8fc48c60dd8dd2e4ef692cd696469af28b8103b19d6624ca64f"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/generation-followup/receipts/overlay.json": {
+      "bytes": 1031,
+      "sha256": "df693fea62cf8540b9275e8477cd13c3e0293b1a54797bac9d64eb1a1a33ca72"
+    },
+    "/workspace/luci/control-plane/go.mod": {
+      "bytes": 3111,
+      "sha256": "46639d620d215ff94c6e6d2ea2bf52c74abdf501811248e8905aad3846ae0341"
+    },
+    "/workspace/luci/control-plane/go.sum": {
+      "bytes": 19122,
+      "sha256": "fad248c401dce6545f51ad4beba435f67999c8605be35232f5261b69c7b50344"
+    }
+  },
+  "inputsAfter": {
+    "/workspace/.luci-tools/cloud054-terminal-close/frontend/backend/control-plane/internal/api/sessions.go": {
+      "bytes": 117140,
+      "sha256": "1eface59027a5ca16b076cfc268025b9849ec4a69e42aaa462aaa514f602f99d"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/frontend/backend/control-plane/internal/api/session_execution_generation.go": {
+      "bytes": 1038,
+      "sha256": "dbfaad94e2c5f111c390306375ff22e18a504a761e9c05ceef29dd62552945ff"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/frontend/backend/control-plane/internal/api/session_execution_generation_test.go": {
+      "bytes": 4353,
+      "sha256": "a3252a434f9b4c1b5b5ab54067cdd9af883f64a5e2873ccce8d5c4d04cfd7982"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/generation-followup/session_execution_generation_http_test.go": {
+      "bytes": 1764,
+      "sha256": "cac297ad14598f951ffb77c51ad04a0eb7d0cc657ad64db579e3b8f488093bed"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/generation-followup/team_session_execution_generation_test.go": {
+      "bytes": 2553,
+      "sha256": "fe2294e14bf502b2509f87ba66aab2b8746d3047693763ef19d663d42754168b"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/generation-followup/run.py": {
+      "bytes": 3035,
+      "sha256": "5cc4967b3b73f8fc48c60dd8dd2e4ef692cd696469af28b8103b19d6624ca64f"
+    },
+    "/workspace/.luci-tools/cloud054-terminal-close/generation-followup/receipts/overlay.json": {
+      "bytes": 1031,
+      "sha256": "df693fea62cf8540b9275e8477cd13c3e0293b1a54797bac9d64eb1a1a33ca72"
+    },
+    "/workspace/luci/control-plane/go.mod": {
+      "bytes": 3111,
+      "sha256": "46639d620d215ff94c6e6d2ea2bf52c74abdf501811248e8905aad3846ae0341"
+    },
+    "/workspace/luci/control-plane/go.sum": {
+      "bytes": 19122,
+      "sha256": "fad248c401dce6545f51ad4beba435f67999c8605be35232f5261b69c7b50344"
+    }
+  },
+  "outcomes": [
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestSessionExecutionGenerationChangesOnHTTPRestartButSurvivesPolling",
+      "Action": "pass",
+      "Elapsed": 0.01
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestSessionExecutionGenerationIsOpaqueStableAndAllocationBound/output",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestSessionExecutionGenerationIsOpaqueStableAndAllocationBound/poll-updates",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestSessionExecutionGenerationIsOpaqueStableAndAllocationBound/private-endpoint-ref",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestSessionExecutionGenerationIsOpaqueStableAndAllocationBound/status",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestSessionExecutionGenerationIsOpaqueStableAndAllocationBound/allocation",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestSessionExecutionGenerationIsOpaqueStableAndAllocationBound/restart-token",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestSessionExecutionGenerationIsOpaqueStableAndAllocationBound/session-alias",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestSessionExecutionGenerationIsOpaqueStableAndAllocationBound",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestSessionExecutionGenerationOmitsUnavailableLegacyOrErasedSecrets/missing-token",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestSessionExecutionGenerationOmitsUnavailableLegacyOrErasedSecrets/legacy-short-token",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestSessionExecutionGenerationOmitsUnavailableLegacyOrErasedSecrets/invalid-token",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestSessionExecutionGenerationOmitsUnavailableLegacyOrErasedSecrets/missing-allocation",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestSessionExecutionGenerationOmitsUnavailableLegacyOrErasedSecrets/missing-session",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestSessionExecutionGenerationOmitsUnavailableLegacyOrErasedSecrets/cleaned-terminal",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestSessionExecutionGenerationOmitsUnavailableLegacyOrErasedSecrets",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestSessionJSONLeaksNeitherTheTokenNorTheEndpoint",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestSessionJSONCarriesExactlyTheContractsTwentyOneKeys",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestSessionJSONBuildsTheAttachPathAndTheIsolation",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestSessionJSONFormatsTimesAndBlanksAZeroLastOutput",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+      "Test": "TestRestartKeepsTheIDAndMintsANewSandboxAndANewToken",
+      "Action": "pass",
+      "Elapsed": 0
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/management",
+      "Test": "TestTeamProxyFiltersPrivateCataloguesAndNamespacesSessionAttachments",
+      "Action": "pass",
+      "Elapsed": 2.82
+    },
+    {
+      "Package": "github.com/lcfrai/luci/control-plane/internal/management",
+      "Test": "TestTeamOpaqueExecutionGenerationRemainsProjectScoped",
+      "Action": "fail",
+      "Elapsed": 1.13
+    }
+  ],
+  "stdout": {
+    "bytes": 24775,
+    "sha256": "08a60d872b3b673af7bf65e59200d37a1a846c0cf93c197844f225f0976ffd54"
+  },
+  "stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "scope": "Controlled HTTP restart/projection and team gateway authorization with exact overlay. Synthetic team field tests gateway filtering; API tests actual HMAC projection. No Docker/native/provider or complete compiled-input provenance claim."
+}
