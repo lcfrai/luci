@@ -1,0 +1,48 @@
+{
+  "source": "Relayed local tester read-only audit; raw local audit files were not reread by cloud root.",
+  "revision": "abd2d8c9314d6b73d0c202c82de72f3c3acc0d9a",
+  "local019Cloud040": "Verified known-check stats defect and matching installed Linux recovery scope.",
+  "local020": "Verified controlled HTTP and exact-function scope.",
+  "auditSHA256": {
+    "attempt8": "631ec1483e7b91821eb2812f74e587e10f29dd302ca8ef4af2085a95580636fd",
+    "attempt7": "4992307df0261528d4e8c223b44c3ac3cc621afa2f69c05ce1952fe274b98cb7",
+    "retirements": "33076ccb03950aac2e6c5dc310d148f10215de2fa367dedf9305a6f63a7a6184",
+    "local020HTTP": "cb5fa2cb3912d85f4fe87d528e5f3f095c47fe05ff887db3fa422151bccd5469",
+    "local020VM": "07bd8a5b3ca8af10e5bb70546e96214b90989991542bc21709b5612e5f2e9a74",
+    "idle2da": "77263ea3bad5ea9b2c80117c23e1630c2fa18d54deffa8c000f7cff9e36d4a2d"
+  },
+  "attempt8": {
+    "overallPassed": true,
+    "targetStatus": "cancelled/unverified",
+    "targetStarts": 0,
+    "replays": 0,
+    "knownStats200": 7,
+    "samples": 91,
+    "observed": 68,
+    "cgroupRows": 136,
+    "formulaMismatches": 0,
+    "minimumEffectiveBytes": 10609967104,
+    "rssPeakBytes": 1250889728,
+    "cpuSeconds": 48.66,
+    "observerCores": 0.220312,
+    "checkIdentitySamples": 6,
+    "checkUsageSamples": 0,
+    "scope": "Successful UI raw POST body not serialized; exact pinned helper assertions and overall pass support its binding. Private file invariance remains publisher-held."
+  },
+  "retirementScope": "Separate operator retirement; exact nonforce CLI ID removal/exit0 and subsequent absence, not captured HTTP204. Original-path tombstones block that traversal, not every possible restored or relocated archive. Private archives/manifests/ledgers not locally retrieved. Two literal zombies and live unreadable preexisting gpg remain explicit.",
+  "open": [
+    "CLOUD-038 original review-before-first-observer ordering",
+    "CLOUD-039 installed terminal refusal branch",
+    "concurrent charged witness",
+    "Windows",
+    "live provider",
+    "sustained four-project workload/performance"
+  ],
+  "windows": {
+    "at": "2026-10-09T02:15:52Z",
+    "availableGiB": 0.349,
+    "runtimeLaunched": false,
+    "originalCheckoutsAndWorkloadsPreserved": true
+  },
+  "fullLocalAcceptancePassed": false
+}

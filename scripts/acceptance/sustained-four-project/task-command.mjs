@@ -1,5 +1,6 @@
 // Generates an explicit scripted native tool command. Import has no side effects.
 import assert from 'node:assert/strict';
+import {mixedReceiptLimits,mixedReceiptPrefix,encodeMixedObservation} from './receipt-transport.mjs';
 
 // Go's fuzz progress formats whole-second elapsed durations as 57s, 1m0s,
 // 2m30s, or 1h0m0s. Only those progress records establish active fuzz time;
@@ -26,9 +27,11 @@ export function parseGoFuzzProgress(output) {
 export function mixedTaskCommand({ task, operation, projectId, implementation, expectedOutput, authorityRoot, contextNames, durationSeconds=150 }) {
  assert(/^(build-[abcd]|amend-a)$/.test(task));assert(Number.isInteger(durationSeconds)&&durationSeconds>=0&&durationSeconds<=150);
  const config={task,operation,projectId,implementation,expectedOutput,authorityRoot,contextNames,durationSeconds};
- const script=String.raw`const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),crypto=require('node:crypto'),os=require('node:os'),assert=require('node:assert/strict');
+ const script=String.raw`const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),crypto=require('node:crypto'),zlib=require('node:zlib'),os=require('node:os'),assert=require('node:assert/strict');
 const config=JSON.parse(Buffer.from('${Buffer.from(JSON.stringify(config)).toString('base64')}','base64'));
 const hash=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
+const mixedReceiptLimits=${JSON.stringify(mixedReceiptLimits)},mixedReceiptPrefix=${JSON.stringify(mixedReceiptPrefix)};
+const encodeMixedObservation=${encodeMixedObservation.toString()};
 const parseGoFuzzProgress=${parseGoFuzzProgress.toString()};
 const events=[],commands=[];let active;
 function stopGroup(child,signal='SIGKILL'){if(!child?.pid||child.groupSettled)return;try{process.kill(-child.pid,signal);}catch(e){if(e.code!=='ESRCH')throw e;}}
@@ -68,7 +71,7 @@ function bytes(root){let total=0;for(const name of fs.readdirSync(root)){const f
   const resultFile=config.task+'-result.json',artifact={task:config.task,operation:config.operation,projectId:config.projectId,implementationSHA256:hash(config.implementation),expectedOutputSHA256:hash(config.expectedOutput),binarySHA256:hash(fs.readFileSync(path.join(scratch,'app'))),commands,cachePeakBytes:cachePeak,corpusPeakBytes:corpusPeak,toolchain:version.output.trim()};
   fs.writeFileSync(resultFile,JSON.stringify(artifact,null,2)+'\n',{flag:'wx'});git('add','--','engine.go',resultFile);git('-c','user.name=Luci mixed fixture','-c','user.email=mixed@example.invalid','commit','-m','Controlled mixed workload '+config.task);assert.equal(git('status','--porcelain'),'');
   const observed={task:config.task,operation:config.operation,uid:process.getuid(),cwd:process.cwd(),files,readOnly,base,commit:git('rev-parse','HEAD'),changed:git('diff','--name-only',base,'HEAD').split('\n'),outputSHA256:hash(fs.readFileSync(resultFile)),artifact,events};
-  console.log('LUCI_MIXED_OBSERVATION='+Buffer.from(JSON.stringify(observed)).toString('base64'));succeeded=true;
+  console.log(encodeMixedObservation(observed));succeeded=true;
  }finally{clearTimeout(overall);clearInterval(monitor);if(active){stopGroup(active);await new Promise(done=>{if(active.exitCode!==null||active.signalCode!==null)return done();const timer=setTimeout(()=>{console.error('Owned command group did not close within5seconds');done();},5000);active.once('close',()=>{clearTimeout(timer);done();});});}if(!succeeded){const retained={task:config.task,commands,events,files:{}};let budget=40*1024**2;function capture(root,prefix){if(!fs.existsSync(root))return;for(const name of fs.readdirSync(root)){const file=path.join(root,name),stat=fs.lstatSync(file);if(stat.isSymbolicLink())continue;if(stat.isDirectory())capture(file,prefix+name+'/');else if(stat.isFile()){if(stat.size>budget)throw Error('Failure diagnostic bound exceeded');budget-=stat.size;retained.files[prefix+name]=fs.readFileSync(file).toString('base64');}}}capture(path.join(scratch,'corpus'),'corpus/');capture(path.join(process.cwd(),'testdata/fuzz'),'testdata/fuzz/');for(const name of fs.readdirSync(scratch).filter(n=>n.endsWith('.log'))){const b=fs.readFileSync(path.join(scratch,name));assert(b.length<=budget);budget-=b.length;retained.files[name]=b.toString('base64');}fs.writeFileSync('.luci-mixed-failure-'+config.task+'.json',JSON.stringify(retained)+'\n',{flag:'wx'});}if(succeeded)fs.rmSync(scratch,{recursive:true});else console.error('LUCI_MIXED_FAILURE_SCRATCH='+scratch);}
 })().catch(e=>{console.error(e);process.exitCode=1;});`;
  return {cmd:'node -e "eval(Buffer.from(\''+Buffer.from(script).toString('base64')+'\',\'base64\').toString())"',workdir:'/home/dev/work',login:false,yield_time_ms:1000,max_output_tokens:16000};

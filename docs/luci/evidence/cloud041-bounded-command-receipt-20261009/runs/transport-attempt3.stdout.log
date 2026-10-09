@@ -1,0 +1,20 @@
+✔ retained initial exec and running poll establish the same exact native command (9.837732ms)
+✔ original native truncated output and complete bytes retain exact bindings (1.294929ms)
+✔ actual generated emission preserves the full receipt inside the observed 5000-character suffix (3.815495ms)
+✔ receipt before exit remains pending and only the exact original command may settle it (3.798278ms)
+✔ native failure missing status replay changed command and status spoofing cannot complete (2.90232ms)
+✔ changed pending receipt task operation and current-call identity are refused (4.891766ms)
+✔ decode rejects multiple malformed unsupported digest and noncanonical envelopes (2.015285ms)
+✔ compressed trailing streams bombs invalid JSON and oversized wire remain bounded (12.18141ms)
+✔ exact command polling retains the original 48-call bound (0.917451ms)
+✔ actual provider callback polls a receipt pending exit and accepts once only after exact exit zero (7.752011ms)
+✔ actual provider callback preserves native failure and full task validation refusals (15.127852ms)
+✔ actual provider callback conservatively refuses the retained truncated exit rather than re-executing (3.335632ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 191.121339

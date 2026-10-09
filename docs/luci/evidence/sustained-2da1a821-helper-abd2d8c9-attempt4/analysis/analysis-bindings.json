@@ -1,0 +1,30 @@
+{
+  "at": "2026-10-09T02:13:38.091920+00:00",
+  "scope": "Offline read-only extraction only; original receipts retained. No product/fixture/checkout mutation, tests, browser or runtime.",
+  "files": {
+    "resource-analysis.json": {
+      "sha256": "ca2c8d0c6253cc7bee58f6f507a338010c91a622f734a8247c72ff5e68423d10",
+      "bytes": 18378
+    },
+    "resource-analyze.py": {
+      "sha256": "9eae8d1464212f0279ef5d6bcb20a14dbadf46c2209bf1274a2bc1fd7c6ea67c",
+      "bytes": 8112
+    },
+    "interaction-analysis.json": {
+      "sha256": "caa5696628077d3b0231a4526ae4f202bc92a1c022066e29bd2bc601edfcb828",
+      "bytes": 1657560
+    },
+    "interaction-analyze.py": {
+      "sha256": "f04f3782a17f831032b6c73802ad35010e75f7a8f64e77de3350ce6bac9a2ef0",
+      "bytes": 5024
+    },
+    "interaction-summary.json": {
+      "sha256": "d8409e63feba902562bd257df5d17c5fb29e523e7f4a39240b602dd35d76647d",
+      "bytes": 3214
+    },
+    "source-review.md": {
+      "sha256": "fef8d8933b0ade8b5d824546616e6853b2657564f65d375d1fcb2eae6be38722",
+      "bytes": 6225
+    }
+  }
+}

@@ -1,5 +1,33 @@
 # Local Windows handoff and acceptance
 
+
+Latest published source checkpoint: `abd2d8c9314d6b73d0c202c82de72f3c3acc0d9a`
+on `codex/luci-production-runs`. This is a focused correction/evidence checkpoint,
+not the final local handoff. Product bytes for the matching Linux recovery and
+idle runs are `2da1a821`; `abd2d8c9` adds the LOCAL-020 acceptance-proxy guard and
+evidence. No new Windows configuration or secret names are required.
+
+The local tester has verified LOCAL-019/CLOUD-040 at the published known-check
+stats/installed Linux recovery scope and LOCAL-020 at controlled HTTP/exact-function
+scope. Those audits do not require repeating unaffected native builds. The actual
+unknown target ends cancelled/unverified, without Start/replay; its exact charge
+releases through explicit reviewed recovery. Original review-before-first-observer
+ordering, simultaneous charged-witness isolation, CLOUD-039's installed refusal
+branch, Windows runtime, live-provider quality and sustained four-project gates
+remain open. The cloud host's VFS disk budget cannot currently exercise the real
+concurrent-witness scenario without weakening guards; Windows copy-on-write storage
+must still meet fresh physical backing-volume and RAM admission.
+
+Keep the latest sustained attempt separate: product `2da1a821` / helper `abd2d8c9`
+fails after SDK truncation of a scripted completion receipt. Successful nested
+commands do not establish an accepted task or natural native exit. The original
+fixture retains its exact backend-settled charge under LOCAL-016. CLOUD-041 has 51 passing affected controlled helper tests and is ready for its
+matching installed transport retest; CLOUD-032 independently retains failed switching
+latency. See [current worklist](QUALITY-WORKLIST.md) for the next immutable revision.
+At the local tester's latest 02:15:52 UTC observation, 0.349 GiB available RAM kept
+runtime held. Preserve ordinary applications, existing checkouts and Docker data.
+
+
 **Integrated candidate pending; the local milestone is still open.** The native
 Windows corrections below passed at their named revisions. They do not establish
 that newer code, an installer, four-project sustained execution or a live model

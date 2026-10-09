@@ -1,0 +1,8 @@
+Chunk ID: 589959
+Wall time: 10.0037 seconds
+Process running with session ID 39517
+Original token count: 62
+Output:
+fuzz: elapsed: 1m45s, execs: 5018059 (45884/sec), new interesting: 77 (total: 80)
+fuzz: elapsed: 1m48s, execs: 5175498 (52476/sec), new interesting: 78 (total: 81)
+fuzz: elapsed: 1m51s, execs: 5285806 (36760/sec), new interesting: 78 (total: 81)

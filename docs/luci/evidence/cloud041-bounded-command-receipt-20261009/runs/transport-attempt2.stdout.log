@@ -1,0 +1,48 @@
+✔ original native truncated output and complete bytes retain exact bindings (4.540696ms)
+✔ actual generated emission preserves the full receipt inside the observed 5000-character suffix (6.986173ms)
+✔ receipt before exit remains pending and only the exact original command may settle it (4.244308ms)
+✔ native failure missing status replay changed command and status spoofing cannot complete (2.076641ms)
+✔ changed pending receipt task operation and current-call identity are refused (5.255904ms)
+✔ decode rejects multiple malformed unsupported digest and noncanonical envelopes (2.062639ms)
+✖ compressed trailing streams bombs invalid JSON and oversized wire remain bounded (1.267441ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 6
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 152.589781
+
+✖ failing tests:
+
+test at scripts/acceptance/sustained-four-project/receipt-transport.test.mjs:84:1
+✖ compressed trailing streams bombs invalid JSON and oversized wire remain bounded (1.267441ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Trailing compressed/. Input:
+  
+  'AssertionError [ERR_ASSERTION]: Receipt wire exceeds bound'
+  
+      at TestContext.<anonymous> (file:///workspace/luci/scripts/acceptance/sustained-four-project/receipt-transport.test.mjs:87:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: AssertionError [ERR_ASSERTION]: Receipt wire exceeds bound
+        at decodeMixedObservation (file:///workspace/luci/scripts/acceptance/sustained-four-project/receipt-transport.mjs:25:24)
+        at file:///workspace/luci/scripts/acceptance/sustained-four-project/receipt-transport.test.mjs:87:20
+        at getActual (node:assert:611:5)
+        at strict.throws (node:assert:759:24)
+        at TestContext.<anonymous> (file:///workspace/luci/scripts/acceptance/sustained-four-project/receipt-transport.test.mjs:87:9)
+        at Test.runInAsyncScope (node:async_hooks:227:14)
+        at Test.run (node:internal/test_runner/test:1382:25)
+        at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+        at Test.postRun (node:internal/test_runner/test:1522:19)
+        at Test.run (node:internal/test_runner/test:1447:12),
+    expected: /Trailing compressed/,
+    operator: 'throws',
+    diff: 'simple'
+  }

@@ -1,0 +1,56 @@
+{
+  "issue": "CLOUD-041",
+  "scope": "read-only retained task output diagnosis; original fixture unmodified",
+  "sourceCommit": "abd2d8c9314d6b73d0c202c82de72f3c3acc0d9a",
+  "productCommit": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+  "providerSourceSHA256": "6d9e4e1a45c778c5d2066738f3b34930a477d6cf8bcadeec10dab5c975792d32",
+  "privateRolloutSHA256": "91382b0e1c1725fe561c652361a978b12566df00c0edf5f346382ac8e47cb233",
+  "originalReportSHA256": "0c0ca278d68ed89b508440462930a470e5c8de4b6900eab2068c0146910ab555",
+  "toolCall": "call_swarm_build-a_op-b346a80fb605b9069466233e_23",
+  "requestedToolOutputTokens": 16000,
+  "nativeCommandStatus": "completed",
+  "nativeCommandExitCode": 0,
+  "nativeSessionExitObserved": false,
+  "acceptedTaskResults": 0,
+  "fullOutputHasReceipt": true,
+  "providerInputHasReceiptPrefix": false,
+  "providerInputHasLiveCommandId": false,
+  "providerInputReportsTruncation": true,
+  "originalTokenCount": 7082,
+  "printedOriginalReceiptJSONBytes": 8180,
+  "printedOriginalReceiptBase64Bytes": 10908,
+  "originalReceiptOffset": 26188,
+  "taskCommit": "e6b673061966409e8805e56aad472ddd02672507",
+  "taskArtifactMatchesCompletePrintedReceipt": true,
+  "fuzz": {
+    "label": "fuzz",
+    "elapsedMs": 188373.735112,
+    "code": 0,
+    "signal": null,
+    "activeFuzzSeconds": 150,
+    "fuzzExecutions": 6846700
+  },
+  "files": [
+    {
+      "path": "original-tool-output.txt",
+      "bytes": 10211,
+      "sha256": "3b0d9265d30c031b75f68407133dae3c84ff6738a4738caa2e1634bb43785ffa"
+    },
+    {
+      "path": "original-command-stdout.txt",
+      "bytes": 37120,
+      "sha256": "8733d6c82fd9aacbe7304c3bb05a9a775183934d16de0f39268a16e14484948b"
+    },
+    {
+      "path": "original-completion-receipt.json",
+      "bytes": 8180,
+      "sha256": "c927336fcd79084461fc8e224eea4de178e475768c9cd696bdee6822f876c555"
+    },
+    {
+      "path": "original-build-a-result.json",
+      "bytes": 3611,
+      "sha256": "8fb9d60ce5866622154a5c875b60feb18272a2d337c60dd24f566c0ecfec5cb6"
+    }
+  ],
+  "limitation": "Underlying effective model-facing truncation configuration not identified; the actual receipt/prefix loss is proven by both retained forms. No application quality, natural native-session completion, accepted task or cleanup/lease-release claim."
+}

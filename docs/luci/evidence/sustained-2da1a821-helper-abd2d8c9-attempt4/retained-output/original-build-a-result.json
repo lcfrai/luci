@@ -1,0 +1,124 @@
+{
+  "task": "build-a",
+  "operation": "op-b346a80fb605b9069466233e",
+  "projectId": "p-b6e34e18",
+  "implementationSHA256": "07f85fcf8496645e391e0e53edde402cc38c8264bfcf76275974b58cd96dee42",
+  "expectedOutputSHA256": "16402d587067ced3f44ad930655ce9e02b0e85608aea8e3d12dd4ef4e4cfd842",
+  "binarySHA256": "bc72853dd8a6de4fbaa49586035f9c1440945374ef4d828c7e00c40ff544ff83",
+  "commands": [
+    {
+      "label": "toolchain",
+      "executable": "go",
+      "args": [
+        "version"
+      ],
+      "startedAt": "2026-10-09T02:03:55.782Z",
+      "finishedAt": "2026-10-09T02:03:55.795Z",
+      "elapsedMs": 12.348002,
+      "code": 0,
+      "signal": null,
+      "outputBytes": 32,
+      "outputSHA256": "7e35a947feee25f89c2649aa041942db786be35c3d6c484ab2ba2da849e3dc00"
+    },
+    {
+      "label": "expected-red",
+      "executable": "go",
+      "args": [
+        "test",
+        "-run",
+        "^TestApprovedRequirement$",
+        "-count=1",
+        "./..."
+      ],
+      "startedAt": "2026-10-09T02:03:55.795Z",
+      "finishedAt": "2026-10-09T02:04:27.977Z",
+      "elapsedMs": 32182.261208,
+      "code": 1,
+      "signal": null,
+      "outputBytes": 333,
+      "outputSHA256": "35f356696441ca8ca1e2bbb5c2458dbd4be6b970c5b08b18173375a3cd6fcbdf"
+    },
+    {
+      "label": "build",
+      "executable": "go",
+      "args": [
+        "build",
+        "-trimpath",
+        "-buildvcs=false",
+        "-o",
+        "/tmp/luci-mixed-NVXXu0/app",
+        "./cmd/app"
+      ],
+      "startedAt": "2026-10-09T02:04:27.984Z",
+      "finishedAt": "2026-10-09T02:04:28.515Z",
+      "elapsedMs": 531.215059,
+      "code": 0,
+      "signal": null,
+      "outputBytes": 0,
+      "outputSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "fixed-tests",
+      "executable": "go",
+      "args": [
+        "test",
+        "-json",
+        "-count=1",
+        "./..."
+      ],
+      "startedAt": "2026-10-09T02:04:28.515Z",
+      "finishedAt": "2026-10-09T02:04:28.942Z",
+      "elapsedMs": 426.859648,
+      "code": 0,
+      "signal": null,
+      "outputBytes": 4665,
+      "outputSHA256": "339c8575fbb4dd5b656a416cddaeaa61900bef2e19b4dbb801291d9b84b47d4f",
+      "testsPassed": [
+        "TestApprovedRequirement",
+        "TestDeterministicRendering",
+        "FuzzApprovedInvariant/seed#0",
+        "FuzzApprovedInvariant/seed#1",
+        "FuzzApprovedInvariant/seed#2",
+        "FuzzApprovedInvariant"
+      ]
+    },
+    {
+      "label": "artifact-behavior",
+      "executable": "/tmp/luci-mixed-NVXXu0/app",
+      "args": [],
+      "startedAt": "2026-10-09T02:04:28.942Z",
+      "finishedAt": "2026-10-09T02:04:28.945Z",
+      "elapsedMs": 2.912684,
+      "code": 0,
+      "signal": null,
+      "outputBytes": 98,
+      "outputSHA256": "16402d587067ced3f44ad930655ce9e02b0e85608aea8e3d12dd4ef4e4cfd842"
+    },
+    {
+      "label": "fuzz",
+      "executable": "go",
+      "args": [
+        "test",
+        "-run",
+        "^$",
+        "-fuzz",
+        "^FuzzApprovedInvariant$",
+        "-fuzztime=150s",
+        "-parallel=1",
+        "-test.fuzzcachedir=/tmp/luci-mixed-NVXXu0/corpus"
+      ],
+      "startedAt": "2026-10-09T02:04:28.945Z",
+      "finishedAt": "2026-10-09T02:07:37.319Z",
+      "elapsedMs": 188373.735112,
+      "code": 0,
+      "signal": null,
+      "outputBytes": 4316,
+      "outputSHA256": "853f418a3fd03cf2ad48e2d5dadecc7f5365ef55fcc9c3b55f514436d04ba155",
+      "activeFuzzSeconds": 150,
+      "fuzzExecutions": 6846700
+    }
+  ],
+  "cachePeakBytes": 181360218,
+  "corpusPeakBytes": 7133,
+  "toolchain": "go version go1.26.8 linux/amd64"
+}

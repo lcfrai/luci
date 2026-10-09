@@ -1,0 +1,43 @@
+{
+  "issue": "CLOUD-041",
+  "readyFor": "separately pinned installed helper retest",
+  "productChanged": false,
+  "baseline": "abd2d8c9314d6b73d0c202c82de72f3c3acc0d9a",
+  "runtime": {
+    "node": "v24.19.0",
+    "acceptanceRepoOverridePresent": false,
+    "startupModuleOverridePresent": false
+  },
+  "finalAffected": {
+    "tests": 51,
+    "pass": 51,
+    "fail": 0,
+    "skip": 0,
+    "report": "runs/final-affected.stdout.log",
+    "stderr": "runs/final-affected.stderr.log"
+  },
+  "syntax": {
+    "commands": [
+      "node --check scripts/acceptance/sustained-four-project/sustained.mjs",
+      "node --check scripts/acceptance/sustained-four-project/task-command.mjs",
+      "node --check scripts/acceptance/sustained-four-project/receipt-transport.mjs"
+    ],
+    "exitCodes": [
+      0,
+      0,
+      0
+    ]
+  },
+  "oldProviderReproduction": "runs/original-and-corrected-replay.json",
+  "selectedPrePostInputs": 18,
+  "newWireBytes": 2651,
+  "newWireAndNewlineBytes": 2652,
+  "decodedReceiptBytes": 8180,
+  "observedRetainedSuffixCharacters": 5000,
+  "originalRequestedTokenLimit": 16000,
+  "originalInstalledAcceptedTasks": 0,
+  "newInstalledRun": false,
+  "nativeSessionExitClaim": false,
+  "originalSourcesMatchGit": true,
+  "frozenFinalSourcesMatchWorkingTree": true
+}

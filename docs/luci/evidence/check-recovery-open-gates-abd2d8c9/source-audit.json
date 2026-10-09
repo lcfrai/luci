@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "at": "2026-10-09T02:16:00.677702+00:00",
+  "sourceCommit": "abd2d8c9314d6b73d0c202c82de72f3c3acc0d9a",
+  "scope": "Read-only focused source feasibility audit; no runtime/compiler/tests/daemon calls and no shared source or fixture writes",
+  "paths": [
+    {
+      "path": "scripts/acceptance/check-create-recovery/installed-recovery.mjs",
+      "bytes": 48594,
+      "sha256": "1f4acfbe56c91daadbc8968ac5c1a8db0fbd75e1a066c0bae50c84d748ad1c81",
+      "matchesPinnedGit": true
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/recovery-scenario.mjs",
+      "bytes": 17076,
+      "sha256": "f69a7d5bbf1fd1019106f5a24170f4946e182c78f741d6ad8415b5a90d386e24",
+      "matchesPinnedGit": true
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/fixture-guards.mjs",
+      "bytes": 11868,
+      "sha256": "5bb86009d73cdd158637a716c4a3a348edb30337e9e2a8cd93ebef82773e1b35",
+      "matchesPinnedGit": true
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/scenario-flow.test.mjs",
+      "bytes": 20711,
+      "sha256": "0b79e273b060ce7ffd7e90ff810a33c478b1d3bcd2e5ce90af87d5a058ef7ad0",
+      "matchesPinnedGit": true
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs",
+      "bytes": 39518,
+      "sha256": "b965b9a5d03f8a4cbc19b6e065559e1d9b10a2812453bfafb992e3f0041e448f",
+      "matchesPinnedGit": true
+    },
+    {
+      "path": "control-plane/internal/product/project_check_runtime.go",
+      "bytes": 8392,
+      "sha256": "abc9190bbd641d5a217b1fb5c3e789e9ac30e17bb221eeb1636906fa67941070",
+      "matchesPinnedGit": true
+    },
+    {
+      "path": "control-plane/internal/api/check_observation.go",
+      "bytes": 10701,
+      "sha256": "cae1df9ea46ee487a620e7e84133f6cd7441ac39b5595b39e72899521870ab67",
+      "matchesPinnedGit": true
+    },
+    {
+      "path": "control-plane/internal/api/check_execution.go",
+      "bytes": 14707,
+      "sha256": "8e63303295c66179943c88d29c4c66f10596fbc3de3c8cac601a38b20cb2cf3f",
+      "matchesPinnedGit": true
+    },
+    {
+      "path": "control-plane/internal/api/check_recovery.go",
+      "bytes": 15106,
+      "sha256": "faaa1632d802e0b74f1fa6f7d6be03422c4712ff255cec0c7a72367d82069326",
+      "matchesPinnedGit": true
+    },
+    {
+      "path": "control-plane/internal/api/execution_lifecycle_lock.go",
+      "bytes": 5213,
+      "sha256": "9c1e1df8890ec6544bca6440fb01be4dce6e9f975c89ea3a08e5bccf54395a41",
+      "matchesPinnedGit": true
+    },
+    {
+      "path": "control-plane/internal/api/execution_check_leases.go",
+      "bytes": 15073,
+      "sha256": "10bd7e5ccb8039920340acead9ebb5a786dcc9d1113f668024160eae7017613c",
+      "matchesPinnedGit": true
+    },
+    {
+      "path": "control-plane/internal/api/execution_capacity.go",
+      "bytes": 6177,
+      "sha256": "a97113455a9da43a0d2402fde940cc07d357a85b4228fa552208b7c239d0b217",
+      "matchesPinnedGit": true
+    },
+    {
+      "path": "control-plane/internal/api/project_check_observation_review_test.go",
+      "bytes": 10818,
+      "sha256": "b1da3300ed46bba5033c3e147c30a751b82e42e4f1cebe7cadc45ca172ddcfcf",
+      "matchesPinnedGit": true
+    }
+  ],
+  "conclusions": {
+    "chargedWitnessFlagExists": true,
+    "pureDockerProxyCanForceCreatingObserverOrder": false,
+    "installedReviewBeforeFirstObserverUnverified": true,
+    "concurrentChargedWitnessInstalledUnverified": true
+  },
+  "proposalSHA256": "c1934cd3ba1289346dcffa9bf43617a98b932c502b3aa8422569c1d218454f51",
+  "planningCapacitySource": "Root-reported approximate current capacity; no new live-host/daemon probe by this audit."
+}

@@ -1,0 +1,316 @@
+TAP version 13
+# Subtest: Generated native worker programs parse with actual fixture strings, without execution
+ok 1 - Generated native worker programs parse with actual fixture strings, without execution
+  ---
+  duration_ms: 7.433308
+  type: 'test'
+  ...
+# Subtest: Command refuses unexpected task identity and unbounded duration
+ok 2 - Command refuses unexpected task identity and unbounded duration
+  ---
+  duration_ms: 10.558025
+  type: 'test'
+  ...
+# Subtest: Nearest rank summaries preserve slow failures instead of survivor-only quantiles
+ok 3 - Nearest rank summaries preserve slow failures instead of survivor-only quantiles
+  ---
+  duration_ms: 0.81633
+  type: 'test'
+  ...
+# Subtest: Failure on first All projects click is inside project-switch measurement
+ok 4 - Failure on first All projects click is inside project-switch measurement
+  ---
+  duration_ms: 3.835618
+  type: 'test'
+  ...
+# Subtest: stuck browser close cannot skip controller/proxy/provider cleanup or exact owned fallback
+ok 5 - stuck browser close cannot skip controller/proxy/provider cleanup or exact owned fallback
+  ---
+  duration_ms: 24.701781
+  type: 'test'
+  ...
+# Subtest: never-resolving or throwing proxy retains uncertainty and cannot gain authority from a late result
+ok 6 - never-resolving or throwing proxy retains uncertainty and cannot gain authority from a late result
+  ---
+  duration_ms: 14.011002
+  type: 'test'
+  ...
+# Subtest: transport failures refuse destructive authority even after a completed socket drain
+ok 7 - transport failures refuse destructive authority even after a completed socket drain
+  ---
+  duration_ms: 7.140576
+  type: 'test'
+  ...
+# Subtest: throwing controller/browser/provider cleanup still attempts every independent phase
+ok 8 - throwing controller/browser/provider cleanup still attempts every independent phase
+  ---
+  duration_ms: 5.020213
+  type: 'test'
+  ...
+# Subtest: missing browser handle still applies exact profile/process identity before fallback
+ok 9 - missing browser handle still applies exact profile/process identity before fallback
+  ---
+  duration_ms: 9.052617
+  type: 'test'
+  ...
+# Subtest: late workflow continuation cannot seed state after the deadline
+ok 10 - late workflow continuation cannot seed state after the deadline
+  ---
+  duration_ms: 11.761137
+  type: 'test'
+  ...
+# Subtest: intentional service restart is permitted while failure/cleanup still refuses a new child
+ok 11 - intentional service restart is permitted while failure/cleanup still refuses a new child
+  ---
+  duration_ms: 3.627765
+  type: 'test'
+  ...
+# Subtest: native provider progress survives intentional controller downtime but remains fenced on failure
+ok 12 - native provider progress survives intentional controller downtime but remains fenced on failure
+  ---
+  duration_ms: 1.981235
+  type: 'test'
+  ...
+# Subtest: a late socket ticket cannot create a connection after cleanup started
+ok 13 - a late socket ticket cannot create a connection after cleanup started
+  ---
+  duration_ms: 2.625886
+  type: 'test'
+  ...
+# Subtest: a late API response cannot resume the workflow after cleanup started
+ok 14 - a late API response cannot resume the workflow after cleanup started
+  ---
+  duration_ms: 6.783249
+  type: 'test'
+  ...
+# Subtest: a failed click observes its response promise even when the response rejects later
+ok 15 - a failed click observes its response promise even when the response rejects later
+  ---
+  duration_ms: 4.566119
+  type: 'test'
+  ...
+# Subtest: actual sustained startup cannot configure or spawn after a pending proxy resolves following cleanup
+ok 16 - actual sustained startup cannot configure or spawn after a pending proxy resolves following cleanup
+  ---
+  duration_ms: 13.102999
+  type: 'test'
+  ...
+# Subtest: actual sustained browser wiring cannot install routes or open a page after canceled timing setup
+ok 17 - actual sustained browser wiring cannot install routes or open a page after canceled timing setup
+  ---
+  duration_ms: 5.475819
+  type: 'test'
+  ...
+# Subtest: retained initial exec and running poll establish the same exact native command
+ok 18 - retained initial exec and running poll establish the same exact native command
+  ---
+  duration_ms: 12.790278
+  type: 'test'
+  ...
+# Subtest: original native truncated output and complete bytes retain exact bindings
+ok 19 - original native truncated output and complete bytes retain exact bindings
+  ---
+  duration_ms: 1.97777
+  type: 'test'
+  ...
+# Subtest: actual generated emission preserves the full receipt inside the observed 5000-character suffix
+ok 20 - actual generated emission preserves the full receipt inside the observed 5000-character suffix
+  ---
+  duration_ms: 4.725745
+  type: 'test'
+  ...
+# Subtest: receipt before exit remains pending and only the exact original command may settle it
+ok 21 - receipt before exit remains pending and only the exact original command may settle it
+  ---
+  duration_ms: 4.890241
+  type: 'test'
+  ...
+# Subtest: native failure missing status replay changed command and status spoofing cannot complete
+ok 22 - native failure missing status replay changed command and status spoofing cannot complete
+  ---
+  duration_ms: 2.31034
+  type: 'test'
+  ...
+# Subtest: changed pending receipt task operation and current-call identity are refused
+ok 23 - changed pending receipt task operation and current-call identity are refused
+  ---
+  duration_ms: 4.051964
+  type: 'test'
+  ...
+# Subtest: decode rejects multiple malformed unsupported digest and noncanonical envelopes
+ok 24 - decode rejects multiple malformed unsupported digest and noncanonical envelopes
+  ---
+  duration_ms: 2.110459
+  type: 'test'
+  ...
+# Subtest: compressed trailing streams bombs invalid JSON and oversized wire remain bounded
+ok 25 - compressed trailing streams bombs invalid JSON and oversized wire remain bounded
+  ---
+  duration_ms: 15.086517
+  type: 'test'
+  ...
+# Subtest: exact command polling retains the original 48-call bound
+ok 26 - exact command polling retains the original 48-call bound
+  ---
+  duration_ms: 4.187739
+  type: 'test'
+  ...
+# Subtest: new transport remains included in immutable installed helper archive bindings
+ok 27 - new transport remains included in immutable installed helper archive bindings
+  ---
+  duration_ms: 2.741981
+  type: 'test'
+  ...
+# Subtest: actual provider callback polls a receipt pending exit and accepts once only after exact exit zero
+ok 28 - actual provider callback polls a receipt pending exit and accepts once only after exact exit zero
+  ---
+  duration_ms: 11.157878
+  type: 'test'
+  ...
+# Subtest: actual provider callback preserves native failure and full task validation refusals
+ok 29 - actual provider callback preserves native failure and full task validation refusals
+  ---
+  duration_ms: 20.974907
+  type: 'test'
+  ...
+# Subtest: actual provider callback conservatively refuses the retained truncated exit rather than re-executing
+ok 30 - actual provider callback conservatively refuses the retained truncated exit rather than re-executing
+  ---
+  duration_ms: 4.784568
+  type: 'test'
+  ...
+# Subtest: default source binding requires the clean helper HEAD to equal the product revision
+ok 31 - default source binding requires the clean helper HEAD to equal the product revision
+  ---
+  duration_ms: 4.28816
+  type: 'test'
+  ...
+# Subtest: an explicit separate helper revision preserves the packaged product binding
+ok 32 - an explicit separate helper revision preserves the packaged product binding
+  ---
+  duration_ms: 0.229716
+  type: 'test'
+  ...
+# Subtest: an explicit helper revision equal to the product is recorded as the same revision
+ok 33 - an explicit helper revision equal to the product is recorded as the same revision
+  ---
+  duration_ms: 0.337519
+  type: 'test'
+  ...
+# Subtest: unknown arguments are ignored without mutating the original command line
+ok 34 - unknown arguments are ignored without mutating the original command line
+  ---
+  duration_ms: 0.183426
+  type: 'test'
+  ...
+# Subtest: duplicate source options preserve the existing first occurrence behavior
+ok 35 - duplicate source options preserve the existing first occurrence behavior
+  ---
+  duration_ms: 0.131007
+  type: 'test'
+  ...
+# Subtest: an absent product option fails validation instead of inferring trust from provenance
+ok 36 - an absent product option fails validation instead of inferring trust from provenance
+  ---
+  duration_ms: 0.20541
+  type: 'test'
+  ...
+# Subtest: each recognized option rejects a missing value or the following flag
+ok 37 - each recognized option rejects a missing value or the following flag
+  ---
+  duration_ms: 0.691151
+  type: 'test'
+  ...
+# Subtest: equal-sign option spellings retain the existing unknown-option behavior
+ok 38 - equal-sign option spellings retain the existing unknown-option behavior
+  ---
+  duration_ms: 0.154803
+  type: 'test'
+  ...
+# Subtest: missing or malformed product provenance cannot establish a source binding
+ok 39 - missing or malformed product provenance cannot establish a source binding
+  ---
+  duration_ms: 0.669208
+  type: 'test'
+  ...
+# Subtest: product provenance and expected product revisions require exact lowercase full hashes
+ok 40 - product provenance and expected product revisions require exact lowercase full hashes
+  ---
+  duration_ms: 1.085925
+  type: 'test'
+  ...
+# Subtest: explicit helper revisions and helper HEAD require exact lowercase full hashes
+ok 41 - explicit helper revisions and helper HEAD require exact lowercase full hashes
+  ---
+  duration_ms: 0.808939
+  type: 'test'
+  ...
+# Subtest: dirty or unknown product state is rejected even with a separately declared clean helper
+ok 42 - dirty or unknown product state is rejected even with a separately declared clean helper
+  ---
+  duration_ms: 0.456197
+  type: 'test'
+  ...
+# Subtest: dirty or unknown helper state is rejected for same and separate revisions
+ok 43 - dirty or unknown helper state is rejected for same and separate revisions
+  ---
+  duration_ms: 1.044814
+  type: 'test'
+  ...
+# Subtest: declaring the correct helper cannot override a product provenance mismatch
+ok 44 - declaring the correct helper cannot override a product provenance mismatch
+  ---
+  duration_ms: 0.23856
+  type: 'test'
+  ...
+# Subtest: a clean but undeclared helper HEAD fails exact revision binding
+ok 45 - a clean but undeclared helper HEAD fails exact revision binding
+  ---
+  duration_ms: 0.155104
+  type: 'test'
+  ...
+# Subtest: executed helper directory must belong to the declared clean checkout
+ok 46 - executed helper directory must belong to the declared clean checkout
+  ---
+  duration_ms: 0.353542
+  type: 'test'
+  ...
+# Subtest: Retained installed Go output has exact byte binding and150seconds of fuzz progress
+ok 47 - Retained installed Go output has exact byte binding and150seconds of fuzz progress
+  ---
+  duration_ms: 5.382018
+  type: 'test'
+  ...
+# Subtest: Seconds, minutes and hours preserve elapsed units
+ok 48 - Seconds, minutes and hours preserve elapsed units
+  ---
+  duration_ms: 0.281985
+  type: 'test'
+  ...
+# Subtest: Final newline is optional, CRLF is accepted and summaries preserve maxima
+ok 49 - Final newline is optional, CRLF is accepted and summaries preserve maxima
+  ---
+  duration_ms: 0.413553
+  type: 'test'
+  ...
+# Subtest: Baseline coverage and package/wall duration cannot stand in for active progress
+ok 50 - Baseline coverage and package/wall duration cannot stand in for active progress
+  ---
+  duration_ms: 13.36239
+  type: 'test'
+  ...
+# Subtest: Malformed progress, unsupported duration units and unsafe numbers are refused
+ok 51 - Malformed progress, unsupported duration units and unsafe numbers are refused
+  ---
+  duration_ms: 1.734593
+  type: 'test'
+  ...
+1..51
+# tests 51
+# suites 0
+# pass 51
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 326.751746

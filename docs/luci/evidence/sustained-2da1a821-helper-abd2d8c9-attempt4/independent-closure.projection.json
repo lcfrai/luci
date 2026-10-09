@@ -1,0 +1,232 @@
+{
+  "at": "2026-10-09T02:09:11.551839+00:00",
+  "scope": "Independent read-only closure after failed sustained run. Docker is empty but an exact backend-settled queue reservation remains charged. No automatic cleanup, capacity release or whole-machine process absence claim.",
+  "recordedIdentities": [
+    {
+      "recorded": {
+        "pid": 2148906,
+        "startTicks": 25733066,
+        "role": "test-driver"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2149031,
+        "startTicks": 25733237,
+        "role": "other-owned-descendant"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2149110,
+        "startTicks": 25733483,
+        "role": "control-plane"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2149618,
+        "startTicks": 25733733,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2149637,
+        "startTicks": 25733741,
+        "role": "browser"
+      },
+      "current": {
+        "pid": 2149637,
+        "startTicks": 25733741,
+        "state": "Z",
+        "ppid": 1
+      },
+      "observation": "exited-zombie"
+    },
+    {
+      "recorded": {
+        "pid": 2149639,
+        "startTicks": 25733741,
+        "role": "browser"
+      },
+      "current": {
+        "pid": 2149639,
+        "startTicks": 25733741,
+        "state": "Z",
+        "ppid": 1
+      },
+      "observation": "exited-zombie"
+    },
+    {
+      "recorded": {
+        "pid": 2149659,
+        "startTicks": 25733749,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2149674,
+        "startTicks": 25733784,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2149675,
+        "startTicks": 25733787,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2149704,
+        "startTicks": 25733798,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2149722,
+        "startTicks": 25733800,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2149723,
+        "startTicks": 25733801,
+        "role": "browser"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2155365,
+        "startTicks": 25754126,
+        "role": "control-plane"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2158447,
+        "startTicks": 25772764,
+        "role": "other-owned-descendant"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2148907,
+        "startTicks": 25733066,
+        "role": "observer"
+      },
+      "current": null,
+      "observation": "absent"
+    },
+    {
+      "recorded": {
+        "pid": 2148905,
+        "startTicks": 25733062,
+        "role": "wrapper"
+      },
+      "current": null,
+      "observation": "absent"
+    }
+  ],
+  "ownedActiveProcesses": [],
+  "unreadableProcessEnvironments": [
+    {
+      "pid": 203,
+      "startTicks": 1521,
+      "state": "S",
+      "ppid": 1
+    },
+    {
+      "pid": 254,
+      "startTicks": 1534,
+      "state": "S",
+      "ppid": 203
+    },
+    {
+      "pid": 260700,
+      "startTicks": 2331192,
+      "state": "S",
+      "ppid": 1
+    }
+  ],
+  "dockerContainers": [],
+  "dockerVolumes": [],
+  "retainedLease": {
+    "id": "queue-1b52e8733b6479438946f479",
+    "scope": "76392822e22ad9d4f8c73e52b4b30e1d986d5cdd32919fb6ff30e4c91c33849b",
+    "actor": {
+      "userId": "user-YpuUODYgZ-jVGDAyjl_3dl",
+      "projectId": "p-b6e34e18"
+    },
+    "projectId": "p-b6e34e18",
+    "provider": "agent-e576daba7290c710bf3b2597",
+    "providerLimit": 1,
+    "sessionId": "s-a692964a",
+    "sandboxId": "s-a692964a",
+    "state": "backend-settled",
+    "launchGuard": 1,
+    "fenceProtocol": 1,
+    "fenceEngineId": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+    "fenceInstanceId": "8be07c62-7f4b-4247-9327-3b32b746adb1",
+    "resources": {
+      "CPUMillis": 1000,
+      "MemoryMiB": 1024
+    },
+    "createdAt": "2026-10-09T02:03:29.927402086Z",
+    "updatedAt": "2026-10-09T02:03:55.324788259Z"
+  },
+  "ledgerSHA256": "a5f9d4a08b6ca56e726d6ce88ad1cf51bd489b39b1eff66de8a8194bfda10d82",
+  "activeLeaseCount": 1,
+  "fixtureUnchanged": true,
+  "originalArtifactInputsUnchanged": true,
+  "noSignalsOrMutationsPerformed": true,
+  "fixture": "<PRIVATE_FAILED_FIXTURE>",
+  "fixtureInventoryBefore": {
+    "files": 375,
+    "bytes": 6696976,
+    "sha256": "136bb942319c8aee00f85ae3d2f1bf699f719e41aa4f994c261f8d250f316f27"
+  },
+  "fixtureInventoryAfter": {
+    "files": 375,
+    "bytes": 6696976,
+    "sha256": "136bb942319c8aee00f85ae3d2f1bf699f719e41aa4f994c261f8d250f316f27"
+  },
+  "publication": {
+    "representation": "allowlisted independent read-only closure; private fixture root and inventory rows omitted",
+    "original": {
+      "sha256": "cf796db4ee9c98b4530cfb4070a2b562eb19fbe412a814c9cfbcd08bd9209eb4",
+      "bytes": 159745
+    },
+    "privateInventoryOriginalsRemainExternal": true,
+    "originalArtifactInputsVerifiedUnchangedByRoot": true
+  }
+}

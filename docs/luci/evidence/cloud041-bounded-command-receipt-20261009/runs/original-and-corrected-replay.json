@@ -1,0 +1,50 @@
+{
+  "issue": "CLOUD-041",
+  "scope": "Pure callback replay; corrected output uses actual generated receipt transport and observed edge envelope, not a native/installed rerun",
+  "inputs": {
+    "oldDriverSHA256": "6d9e4e1a45c778c5d2066738f3b34930a477d6cf8bcadeec10dab5c975792d32",
+    "newDriverSHA256": "5536748f74f7d34936d547ae403dc22875c8bf7d2ce9fc7bcc76d9e8ea076f86",
+    "harnessTestSHA256": "6b9c11261422cd3a0429cc8b612368e79bfdc98c796ce92227a7576153a01d8a",
+    "initialSHA256": "b05f0e530f28499a65e0974fb8d4974214dc173189d2114378fb53503674200f",
+    "truncatedSHA256": "3b0d9265d30c031b75f68407133dae3c84ff6738a4738caa2e1634bb43785ffa",
+    "fullStdoutSHA256": "8733d6c82fd9aacbe7304c3bb05a9a775183934d16de0f39268a16e14484948b"
+  },
+  "observedTailCharacters": 5000,
+  "actualReceiptBytes": 8180,
+  "newWireBytes": 2651,
+  "newWireAndNewlineBytes": 2652,
+  "originalFailure": {
+    "accepted": 0,
+    "dispatches": 1,
+    "failures": [
+      "Actual tool output must supply completion receipt or live command identity"
+    ],
+    "settlements": []
+  },
+  "originalStillConservativelyRefused": {
+    "accepted": 0,
+    "dispatches": 1,
+    "failures": [
+      "Successful native exit lacks a complete bound receipt"
+    ],
+    "settlements": []
+  },
+  "controlledCorrected": {
+    "accepted": 1,
+    "dispatches": 1,
+    "failures": [],
+    "settlements": [
+      {
+        "task": "build-a",
+        "operation": "op-b346a80fb605b9069466233e",
+        "callId": "call_swarm_build-a_op-b346a80fb605b9069466233e_2",
+        "commandId": 39517,
+        "commandExitCode": 0,
+        "receiptSHA256": "c927336fcd79084461fc8e224eea4de178e475768c9cd696bdee6822f876c555",
+        "wireBytes": 2651,
+        "decodedBytes": 8180
+      }
+    ]
+  },
+  "nativeSessionExitClaim": false
+}

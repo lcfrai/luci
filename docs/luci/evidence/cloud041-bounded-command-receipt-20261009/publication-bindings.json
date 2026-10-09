@@ -1,0 +1,36 @@
+{
+  "capturedAt": "2026-10-09T02:26:24.332201+00:00",
+  "scope": "Exact retained published fixtures; final-source manifests cover selected before/after inputs separately",
+  "bindings": [
+    {
+      "path": "scripts/acceptance/sustained-four-project/fixtures/native-full-command-stdout.txt",
+      "bytes": 37120,
+      "sha256": "8733d6c82fd9aacbe7304c3bb05a9a775183934d16de0f39268a16e14484948b"
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/fixtures/native-full-completion.json",
+      "bytes": 8180,
+      "sha256": "c927336fcd79084461fc8e224eea4de178e475768c9cd696bdee6822f876c555"
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/fixtures/native-initial-running.txt",
+      "bytes": 1229,
+      "sha256": "b05f0e530f28499a65e0974fb8d4974214dc173189d2114378fb53503674200f"
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/fixtures/native-poll-running.txt",
+      "bytes": 361,
+      "sha256": "43b8c2d5cd673f3b107f4c45c68302ecf16202e4fc3543738d0be68f3809d7f7"
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/fixtures/native-truncated-completion.txt",
+      "bytes": 10211,
+      "sha256": "3b0d9265d30c031b75f68407133dae3c84ff6738a4738caa2e1634bb43785ffa"
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/fixtures/go-fuzz-progress.txt",
+      "bytes": 4316,
+      "sha256": "506a10848d01b2bb297279b64634aef1bf641c3dcef52080f5683c8cf99161aa"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "originalReportMatchesTriage": true,
+  "printedReceiptBase64DecodesToExactIncludedReceipt": true,
+  "printedArtifactEqualsIncludedBuildResult": true,
+  "retainedFileHashesMatchTriage": true,
+  "nativeCommandExitCode": 0,
+  "nativeSessionExitObserved": false,
+  "acceptedTaskResults": 0,
+  "sourceCommit": "abd2d8c9314d6b73d0c202c82de72f3c3acc0d9a",
+  "productCommit": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+  "privateRolloutIncluded": false
+}
