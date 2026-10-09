@@ -1,0 +1,88 @@
+{
+  "at": "2026-10-09T09:00:53.775694+00:00",
+  "scope": "Only owned generated archive bytes copied, verified then atomically replaced with compatibility links. No fixture, ledger, source, manifests or application state changed. tmpfs uses host memory; not a RAM/performance gain.",
+  "before": {
+    "rootFreeBytes": 6222393344,
+    "tmpFreeBytes": 4165218304
+  },
+  "members": [
+    {
+      "originalPath": "/workspace/luci/artifacts/releases/0.4.18/luci-cloud-linux-amd64.tar.gz",
+      "retainedPath": "/tmp/luci-retained-tools/archive-preservation-20261009T0910/0.4.18/luci-cloud-linux-amd64.tar.gz",
+      "bytes": 31401275,
+      "sha256": "2c3b35b6857b16265fe3d58c158daecbc13a02c890aa9d368cb32649ec6a7676",
+      "sourceCommit": "50ea11cc4568676dc716687ddd9405782fe515c4",
+      "bytesUnchanged": true
+    },
+    {
+      "originalPath": "/workspace/luci/artifacts/releases/0.4.18/luci-linux-amd64.tar.gz",
+      "retainedPath": "/tmp/luci-retained-tools/archive-preservation-20261009T0910/0.4.18/luci-linux-amd64.tar.gz",
+      "bytes": 62663469,
+      "sha256": "c45b4ba255afae4618b099d6c15ddc4cfc3f21f1cf50c35a7c6d4fb7be7a9391",
+      "sourceCommit": "50ea11cc4568676dc716687ddd9405782fe515c4",
+      "bytesUnchanged": true
+    },
+    {
+      "originalPath": "/workspace/luci/artifacts/releases/0.5.0-99007404-preserved-before-67a5b7c7/luci-cloud-linux-amd64.tar.gz",
+      "retainedPath": "/tmp/luci-retained-tools/archive-preservation-20261009T0910/0.5.0-99007404-preserved-before-67a5b7c7/luci-cloud-linux-amd64.tar.gz",
+      "bytes": 34608456,
+      "sha256": "620246cf1f48a7a9b4f8df27a026dbd042d7cd84e4501b9afefa46e63e276e05",
+      "sourceCommit": "99007404a5ddd8592dee376ea00d99c6180d26fe",
+      "bytesUnchanged": true
+    },
+    {
+      "originalPath": "/workspace/luci/artifacts/releases/0.5.0-99007404-preserved-before-67a5b7c7/luci-linux-amd64.tar.gz",
+      "retainedPath": "/tmp/luci-retained-tools/archive-preservation-20261009T0910/0.5.0-99007404-preserved-before-67a5b7c7/luci-linux-amd64.tar.gz",
+      "bytes": 69027325,
+      "sha256": "9bf32d8ebe0c7c7d3297c81e91f0451f0035357cb77eb7abf06099920dd9f164",
+      "sourceCommit": "99007404a5ddd8592dee376ea00d99c6180d26fe",
+      "bytesUnchanged": true
+    },
+    {
+      "originalPath": "/workspace/luci/artifacts/releases/0.5.0/luci-cloud-linux-amd64.tar.gz",
+      "retainedPath": "/tmp/luci-retained-tools/archive-preservation-20261009T0910/0.5.0/luci-cloud-linux-amd64.tar.gz",
+      "bytes": 34616061,
+      "sha256": "180641ba23eda51b9e316186c1cad47ea42d8bf2c717b80e218a86f30a89a5f1",
+      "sourceCommit": "67a5b7c75ca6354d43085f5bb81ec53ee4291f34",
+      "bytesUnchanged": true
+    },
+    {
+      "originalPath": "/workspace/luci/artifacts/releases/0.5.0/luci-linux-amd64.tar.gz",
+      "retainedPath": "/tmp/luci-retained-tools/archive-preservation-20261009T0910/0.5.0/luci-linux-amd64.tar.gz",
+      "bytes": 69040919,
+      "sha256": "8d389ccc4a87d33e04dd7e3e96123bb105759b45535bd9077cccc3e3b6904157",
+      "sourceCommit": "67a5b7c75ca6354d43085f5bb81ec53ee4291f34",
+      "bytesUnchanged": true
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/obsolete-crosscompile-compressed-20261008T2207Z/0-luci-api.exe.gz",
+      "retainedPath": "/tmp/luci-retained-tools/archive-preservation-20261009T0910/obsolete-crosscompile/0-luci-api.exe.gz",
+      "bytes": 34331966,
+      "sha256": "79a05921df6633ef365bd02f5d837c034f4e7129d8a993283d9343fa85f1d42d",
+      "originalReceiptSHA256": "d5722f0ca232ece72dfafdd7cacd5da5571bb3f7c945b9e46bdbb9ed36e7a9c5",
+      "bytesUnchanged": true
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/obsolete-crosscompile-compressed-20261008T2207Z/1-luci-api-windows.exe.gz",
+      "retainedPath": "/tmp/luci-retained-tools/archive-preservation-20261009T0910/obsolete-crosscompile/1-luci-api-windows.exe.gz",
+      "bytes": 33899371,
+      "sha256": "f8018051a32675e5bfb7e0a4f253c8d9046225b9bbb1bfb45addca718e67776e",
+      "originalReceiptSHA256": "d5722f0ca232ece72dfafdd7cacd5da5571bb3f7c945b9e46bdbb9ed36e7a9c5",
+      "bytesUnchanged": true
+    },
+    {
+      "originalPath": "/workspace/.luci-tools/obsolete-crosscompile-compressed-20261008T2207Z/2-luci-darwin-api.gz",
+      "retainedPath": "/tmp/luci-retained-tools/archive-preservation-20261009T0910/obsolete-crosscompile/2-luci-darwin-api.gz",
+      "bytes": 33146796,
+      "sha256": "872369572bfc25cfe3b02f28ef5c39486f5c42e25e512a5da42a43c4d494d94f",
+      "originalReceiptSHA256": "d5722f0ca232ece72dfafdd7cacd5da5571bb3f7c945b9e46bdbb9ed36e7a9c5",
+      "bytesUnchanged": true
+    }
+  ],
+  "status": "preserved",
+  "after": {
+    "rootFreeBytes": 6625120256,
+    "tmpFreeBytes": 3762462720
+  },
+  "totalBytes": 402735638
+}

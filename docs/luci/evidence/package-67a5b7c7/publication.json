@@ -1,0 +1,138 @@
+{
+  "sourceCommit": "67a5b7c75ca6354d43085f5bb81ec53ee4291f34",
+  "sourceDirty": false,
+  "scope": "Recorded clean Linux package verification only; no installed workload/native/latency/recovery pass inferred.",
+  "portableArchive": {
+    "name": "luci-linux-amd64.tar.gz",
+    "bytes": 69040919,
+    "sha256": "8d389ccc4a87d33e04dd7e3e96123bb105759b45535bd9077cccc3e3b6904157"
+  },
+  "cloudArchive": {
+    "name": "luci-cloud-linux-amd64.tar.gz",
+    "bytes": 34616061,
+    "sha256": "180641ba23eda51b9e316186c1cad47ea42d8bf2c717b80e218a86f30a89a5f1"
+  },
+  "packageIdentity": "b6caa8a0c29598f86fd280cc6399943d975919b5c1b0c7882d1d77a63408a868",
+  "verifiedPackageFiles": 955,
+  "licenseComponents": 347,
+  "verifiedGuideFiles": 46,
+  "newHostedURLsBoundToExactGitObjects": 230,
+  "companionReport": {
+    "path": "2026-10-09-package-67a5b7c7.md",
+    "bytes": 1458,
+    "sha256": "2c8c9c2ab4781e76df39e8a5949d0cc6985054424c1c2b9c6774d49f3892b321"
+  },
+  "members": [
+    {
+      "path": "README.md",
+      "bytes": 5145,
+      "sha256": "e8f9d74c8010b32e05275fb9745543279c38611bc54dada0e27cbfffee2f3ec5"
+    },
+    {
+      "path": "REPRODUCE.md",
+      "bytes": 6171,
+      "sha256": "0c1392021d4c80a7b1df5fdb58fb5bc711221a622d2256073a40014151823720"
+    },
+    {
+      "path": "helpers/assemble-package-67a5.py",
+      "bytes": 14127,
+      "sha256": "ea8fb7a1bb18c14b159fb4f89a9da59341a436120d6298c24cf7e4a8b07e6b2b"
+    },
+    {
+      "path": "helpers/build-cloud048051-candidate.py",
+      "bytes": 3645,
+      "sha256": "22d6b4bef108e325b8fb70d13e771695786358f707cbb2654b8d8a1d7525a2a4"
+    },
+    {
+      "path": "helpers/verify-compact-local-package.py",
+      "bytes": 16170,
+      "sha256": "71336af992d082854d4e87062a6996400ef3f8a51ba1abb0780fc88f9c40e6bc"
+    },
+    {
+      "path": "helpers/verify-local-package.py",
+      "bytes": 2246,
+      "sha256": "b7985ac8f7687a3da9e232a20319c49f900bd8c8015c4bdc41a005f467ed4a8c"
+    },
+    {
+      "path": "original-bindings.json",
+      "bytes": 8499,
+      "sha256": "4aae5873741459cf37c23dc96a6b6564bd97383dbb71e34123e47f33a832abfa"
+    },
+    {
+      "path": "privacy-scan.json",
+      "bytes": 262,
+      "sha256": "15632fd4e3b02bfd2d0c89a02c7cf45d290a8699f58ebfac2b5e0a89f3f0afdb"
+    },
+    {
+      "path": "receipts/build-invocation.json",
+      "bytes": 420,
+      "sha256": "2504722f1bd46b4b866b7eeb542db5b9f2047aa5c05b4f5ba4c38b50bdddc72b"
+    },
+    {
+      "path": "receipts/build-result.json",
+      "bytes": 592,
+      "sha256": "dd4b66f989bd5dd1a81efae4fd925c2b3f443266f859e00deb6fd31389645a00"
+    },
+    {
+      "path": "receipts/build.log",
+      "bytes": 18758,
+      "sha256": "a8d933d9863ba124fc9af93efdaee3f3c77382855891de95e498583d29d86d26"
+    },
+    {
+      "path": "receipts/compact-package-integrity.json",
+      "bytes": 1980,
+      "sha256": "83bd266d519859e978956ee4bf5e72d8360fdab703742848499fe1fd983f013b"
+    },
+    {
+      "path": "receipts/package-integrity.json",
+      "bytes": 788,
+      "sha256": "06b41d9e18b99eebfdb01342662ab270f8c7103e18b3dc30ba9b4e700c3d3f5b"
+    },
+    {
+      "path": "receipts/package-provenance.json",
+      "bytes": 1039,
+      "sha256": "ed4d073040b828a3b9dc1a9baf6dba81137e8f8fe5d9af1febffac085cf5b1fe"
+    },
+    {
+      "path": "receipts/previous-release-preservation.json",
+      "bytes": 1126,
+      "sha256": "0bb492d4d25de1587df12ec4678b6f18dcdcaf0b236e87a3dd065cc2ae416662"
+    },
+    {
+      "path": "release/SHA256SUMS",
+      "bytes": 186,
+      "sha256": "c1c2cc61e52819f3b79e26ebaa4c7701d610c1293312c95ee5d25755d3d7f7e8"
+    },
+    {
+      "path": "release/release-manifest.json",
+      "bytes": 696,
+      "sha256": "a2e18d0e1fcf2c51df7ae474eb3883dfb447cc7b90a90b807173753cca20aad7"
+    },
+    {
+      "path": "source/scripts/build-release.sh",
+      "bytes": 6029,
+      "sha256": "20c6cb96e475066d5fb9a8ac934eb1262c3f324e4ac78ccda42fbd137d9e080d"
+    },
+    {
+      "path": "source/scripts/collect-licenses.py",
+      "bytes": 14817,
+      "sha256": "4a07489e31c417f8072cd94a3b1b596137a1faa78403311b74c48990c53110be"
+    },
+    {
+      "path": "source/scripts/launch-unix.sh",
+      "bytes": 5579,
+      "sha256": "e73094527f35dce3d10fe9fb72ea321df8e8890aaabb175c0816f292bdf32e53"
+    },
+    {
+      "path": "source/scripts/package.py",
+      "bytes": 2649,
+      "sha256": "9c3785eea32c597947395968a41f59ed973b05c0b955fea1067d3c0315fea9e5"
+    },
+    {
+      "path": "source/scripts/stage-release-docs.py",
+      "bytes": 20959,
+      "sha256": "cd520022c86ff25695faaaeed5aad512147b91f37342963e1cea2cc3252b8e26"
+    }
+  ],
+  "manifestConvention": "Members exclude publication.json and SHA256SUMS; SHA256SUMS also binds publication.json; companion report bound separately."
+}

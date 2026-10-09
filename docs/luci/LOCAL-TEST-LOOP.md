@@ -1,5 +1,12 @@
 # Windows testing and correction loop
 
+
+## Current focused handoff — 67a5b7c7
+
+Exact source `67a5b7c75ca6354d43085f5bb81ec53ee4291f34` integrates CLOUD-048/049/050/051 and has matching clean Linux package verification. [Pinned Windows steps and affected cases](TEST-CHECKPOINT-67A5B7C7.md) include unchanged configuration, source/native setup, phone drawer/draft focus, long contexts and retry consent. [Package originals](evidence/package-67a5b7c7/README.md) identify the private Linux archives; retrieve source for Windows, not an implied downloadable binary. This is a focused checkpoint, not final local acceptance.
+
+The prior 990 sustained run has five natural scripted completions and five reviewed integrations but remains failed on the original phone helper and unchanged switching thresholds. [Final phase counts, all measured rows, resource coverage and independent closure](evidence/sustained-99007404-attempt7/README.md) preserve 13 absent identities and two exited Chromium PID-1 zombies, plus unreadable unrelated scope. No new Windows process is requested under the latest relayed 36,548,608-byte headroom. Adopt this revision only between closed batches when the existing resource gates permit. Earlier native passes and current source-only 990 review keep their original scopes; older charged fixtures, real-provider and recovery-order/concurrent-witness gates stay open.
+
 The owner explicitly authorizes continuous two-way coordination between this
 cloud implementation task and local thread
 `01a1199f-7500-7843-b02b-081081e536fa` on host `local`. The local thread tests
