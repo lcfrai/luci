@@ -1,0 +1,15 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "header-delivery.test.mjs"
+  ],
+  "environmentOverrides": {
+    "GOMAXPROCS": "2"
+  },
+  "cwd": "/workspace/.luci-tools/cloud032-summary-delivery-v2-20261009",
+  "exitCode": 1,
+  "expectedFailure": "Missing exact requestSequence join in out-of-order cancellation evidence",
+  "sourceSHA256": "b3bc57a69f679c7e1b0363e4b947f4731ab661b6816bee38f976c5a58822a5ac",
+  "testSHA256": "7904d1a9d86af7cc2220eb634a592f32faefd9742d44bc6004e840d9639dbf66"
+}

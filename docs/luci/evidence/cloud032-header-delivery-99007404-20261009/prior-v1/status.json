@@ -1,0 +1,24 @@
+{
+  "state": "blocked-before-installed-experiment",
+  "installedExperimentRun": false,
+  "productEdited": false,
+  "generatedDriverPrepared": false,
+  "syntaxOrInertUnitTestsRun": false,
+  "transportProof": {
+    "checksPassed": 18,
+    "manifestSHA256": "d394b0dbbc99f07830d4a5b0efcc7b108e9530c396fd2f3681d2734e3e0d7fc0",
+    "scope": "Tiny original-routeguard/CDP response-stage coexistence; bounded successful capture and after-body abort only."
+  },
+  "additionalPrebodyProof": {
+    "cases": 1,
+    "passed": false,
+    "manifestSHA256": "8f032289ef8dba4686cf764147da1af16d2cdc56e2af27caf38ee0a56a7909e4",
+    "failure": "Fetch.getResponseBody did not settle after confirmed natural browser/network abort within2s; settled only after owned browser closure. Server received one original request and sent zero body bytes. No request replay or modifying Fetch command during capture."
+  },
+  "unrunDraft": {
+    "path": "summary-delivery.mjs",
+    "sha256": "d8a557aa63a04908a191ecd2c5c6bd4423f05d63922638a8593d38fb5175ccc4",
+    "status": "External draft only; no generateddriver imports it, no syntax/tests/application execution. Latches capture timeout but cannot make prebody capture settle without ownedbrowser closure; not accepted implementation."
+  },
+  "nextStep": "Root must review the failed validity gate before any different intervention design. Do not run the installed comparison, replace the originalguard, add replacementGETs, silently discard unjoined capture promises or claim a latency cause."
+}

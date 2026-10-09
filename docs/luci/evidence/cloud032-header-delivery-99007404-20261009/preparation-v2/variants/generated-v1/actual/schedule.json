@@ -1,0 +1,493 @@
+{
+  "seed": "0xC03220261009",
+  "fixedBeforeMeasurement": true,
+  "rounds": [
+    {
+      "round": 0,
+      "block": 0,
+      "projectIndex": 0,
+      "condition": "defer"
+    },
+    {
+      "round": 1,
+      "block": 0,
+      "projectIndex": 1,
+      "condition": "baseline"
+    },
+    {
+      "round": 2,
+      "block": 0,
+      "projectIndex": 2,
+      "condition": "baseline"
+    },
+    {
+      "round": 3,
+      "block": 0,
+      "projectIndex": 3,
+      "condition": "defer"
+    },
+    {
+      "round": 4,
+      "block": 0,
+      "projectIndex": 0,
+      "condition": "baseline"
+    },
+    {
+      "round": 5,
+      "block": 0,
+      "projectIndex": 1,
+      "condition": "defer"
+    },
+    {
+      "round": 6,
+      "block": 0,
+      "projectIndex": 2,
+      "condition": "defer"
+    },
+    {
+      "round": 7,
+      "block": 0,
+      "projectIndex": 3,
+      "condition": "baseline"
+    },
+    {
+      "round": 8,
+      "block": 1,
+      "projectIndex": 0,
+      "condition": "defer"
+    },
+    {
+      "round": 9,
+      "block": 1,
+      "projectIndex": 1,
+      "condition": "baseline"
+    },
+    {
+      "round": 10,
+      "block": 1,
+      "projectIndex": 2,
+      "condition": "baseline"
+    },
+    {
+      "round": 11,
+      "block": 1,
+      "projectIndex": 3,
+      "condition": "defer"
+    },
+    {
+      "round": 12,
+      "block": 1,
+      "projectIndex": 0,
+      "condition": "baseline"
+    },
+    {
+      "round": 13,
+      "block": 1,
+      "projectIndex": 1,
+      "condition": "defer"
+    },
+    {
+      "round": 14,
+      "block": 1,
+      "projectIndex": 2,
+      "condition": "defer"
+    },
+    {
+      "round": 15,
+      "block": 1,
+      "projectIndex": 3,
+      "condition": "baseline"
+    },
+    {
+      "round": 16,
+      "block": 2,
+      "projectIndex": 0,
+      "condition": "defer"
+    },
+    {
+      "round": 17,
+      "block": 2,
+      "projectIndex": 1,
+      "condition": "baseline"
+    },
+    {
+      "round": 18,
+      "block": 2,
+      "projectIndex": 2,
+      "condition": "defer"
+    },
+    {
+      "round": 19,
+      "block": 2,
+      "projectIndex": 3,
+      "condition": "baseline"
+    },
+    {
+      "round": 20,
+      "block": 2,
+      "projectIndex": 0,
+      "condition": "baseline"
+    },
+    {
+      "round": 21,
+      "block": 2,
+      "projectIndex": 1,
+      "condition": "defer"
+    },
+    {
+      "round": 22,
+      "block": 2,
+      "projectIndex": 2,
+      "condition": "baseline"
+    },
+    {
+      "round": 23,
+      "block": 2,
+      "projectIndex": 3,
+      "condition": "defer"
+    },
+    {
+      "round": 24,
+      "block": 3,
+      "projectIndex": 0,
+      "condition": "baseline"
+    },
+    {
+      "round": 25,
+      "block": 3,
+      "projectIndex": 1,
+      "condition": "baseline"
+    },
+    {
+      "round": 26,
+      "block": 3,
+      "projectIndex": 2,
+      "condition": "defer"
+    },
+    {
+      "round": 27,
+      "block": 3,
+      "projectIndex": 3,
+      "condition": "defer"
+    },
+    {
+      "round": 28,
+      "block": 3,
+      "projectIndex": 0,
+      "condition": "defer"
+    },
+    {
+      "round": 29,
+      "block": 3,
+      "projectIndex": 1,
+      "condition": "defer"
+    },
+    {
+      "round": 30,
+      "block": 3,
+      "projectIndex": 2,
+      "condition": "baseline"
+    },
+    {
+      "round": 31,
+      "block": 3,
+      "projectIndex": 3,
+      "condition": "baseline"
+    },
+    {
+      "round": 32,
+      "block": 4,
+      "projectIndex": 0,
+      "condition": "baseline"
+    },
+    {
+      "round": 33,
+      "block": 4,
+      "projectIndex": 1,
+      "condition": "defer"
+    },
+    {
+      "round": 34,
+      "block": 4,
+      "projectIndex": 2,
+      "condition": "baseline"
+    },
+    {
+      "round": 35,
+      "block": 4,
+      "projectIndex": 3,
+      "condition": "defer"
+    },
+    {
+      "round": 36,
+      "block": 4,
+      "projectIndex": 0,
+      "condition": "defer"
+    },
+    {
+      "round": 37,
+      "block": 4,
+      "projectIndex": 1,
+      "condition": "baseline"
+    },
+    {
+      "round": 38,
+      "block": 4,
+      "projectIndex": 2,
+      "condition": "defer"
+    },
+    {
+      "round": 39,
+      "block": 4,
+      "projectIndex": 3,
+      "condition": "baseline"
+    },
+    {
+      "round": 40,
+      "block": 5,
+      "projectIndex": 0,
+      "condition": "baseline"
+    },
+    {
+      "round": 41,
+      "block": 5,
+      "projectIndex": 1,
+      "condition": "baseline"
+    },
+    {
+      "round": 42,
+      "block": 5,
+      "projectIndex": 2,
+      "condition": "defer"
+    },
+    {
+      "round": 43,
+      "block": 5,
+      "projectIndex": 3,
+      "condition": "defer"
+    },
+    {
+      "round": 44,
+      "block": 5,
+      "projectIndex": 0,
+      "condition": "defer"
+    },
+    {
+      "round": 45,
+      "block": 5,
+      "projectIndex": 1,
+      "condition": "defer"
+    },
+    {
+      "round": 46,
+      "block": 5,
+      "projectIndex": 2,
+      "condition": "baseline"
+    },
+    {
+      "round": 47,
+      "block": 5,
+      "projectIndex": 3,
+      "condition": "baseline"
+    },
+    {
+      "round": 48,
+      "block": 6,
+      "projectIndex": 0,
+      "condition": "baseline"
+    },
+    {
+      "round": 49,
+      "block": 6,
+      "projectIndex": 1,
+      "condition": "defer"
+    },
+    {
+      "round": 50,
+      "block": 6,
+      "projectIndex": 2,
+      "condition": "defer"
+    },
+    {
+      "round": 51,
+      "block": 6,
+      "projectIndex": 3,
+      "condition": "baseline"
+    },
+    {
+      "round": 52,
+      "block": 6,
+      "projectIndex": 0,
+      "condition": "defer"
+    },
+    {
+      "round": 53,
+      "block": 6,
+      "projectIndex": 1,
+      "condition": "baseline"
+    },
+    {
+      "round": 54,
+      "block": 6,
+      "projectIndex": 2,
+      "condition": "baseline"
+    },
+    {
+      "round": 55,
+      "block": 6,
+      "projectIndex": 3,
+      "condition": "defer"
+    },
+    {
+      "round": 56,
+      "block": 7,
+      "projectIndex": 0,
+      "condition": "baseline"
+    },
+    {
+      "round": 57,
+      "block": 7,
+      "projectIndex": 1,
+      "condition": "defer"
+    },
+    {
+      "round": 58,
+      "block": 7,
+      "projectIndex": 2,
+      "condition": "defer"
+    },
+    {
+      "round": 59,
+      "block": 7,
+      "projectIndex": 3,
+      "condition": "baseline"
+    },
+    {
+      "round": 60,
+      "block": 7,
+      "projectIndex": 0,
+      "condition": "defer"
+    },
+    {
+      "round": 61,
+      "block": 7,
+      "projectIndex": 1,
+      "condition": "baseline"
+    },
+    {
+      "round": 62,
+      "block": 7,
+      "projectIndex": 2,
+      "condition": "baseline"
+    },
+    {
+      "round": 63,
+      "block": 7,
+      "projectIndex": 3,
+      "condition": "defer"
+    },
+    {
+      "round": 64,
+      "block": 8,
+      "projectIndex": 0,
+      "condition": "baseline"
+    },
+    {
+      "round": 65,
+      "block": 8,
+      "projectIndex": 1,
+      "condition": "defer"
+    },
+    {
+      "round": 66,
+      "block": 8,
+      "projectIndex": 2,
+      "condition": "baseline"
+    },
+    {
+      "round": 67,
+      "block": 8,
+      "projectIndex": 3,
+      "condition": "defer"
+    },
+    {
+      "round": 68,
+      "block": 8,
+      "projectIndex": 0,
+      "condition": "defer"
+    },
+    {
+      "round": 69,
+      "block": 8,
+      "projectIndex": 1,
+      "condition": "baseline"
+    },
+    {
+      "round": 70,
+      "block": 8,
+      "projectIndex": 2,
+      "condition": "defer"
+    },
+    {
+      "round": 71,
+      "block": 8,
+      "projectIndex": 3,
+      "condition": "baseline"
+    },
+    {
+      "round": 72,
+      "block": 9,
+      "projectIndex": 0,
+      "condition": "defer"
+    },
+    {
+      "round": 73,
+      "block": 9,
+      "projectIndex": 1,
+      "condition": "defer"
+    },
+    {
+      "round": 74,
+      "block": 9,
+      "projectIndex": 2,
+      "condition": "baseline"
+    },
+    {
+      "round": 75,
+      "block": 9,
+      "projectIndex": 3,
+      "condition": "baseline"
+    },
+    {
+      "round": 76,
+      "block": 9,
+      "projectIndex": 0,
+      "condition": "baseline"
+    },
+    {
+      "round": 77,
+      "block": 9,
+      "projectIndex": 1,
+      "condition": "baseline"
+    },
+    {
+      "round": 78,
+      "block": 9,
+      "projectIndex": 2,
+      "condition": "defer"
+    },
+    {
+      "round": 79,
+      "block": 9,
+      "projectIndex": 3,
+      "condition": "defer"
+    }
+  ],
+  "perCondition": {
+    "projectSwitches": 40,
+    "inputs": 80,
+    "draftResets": 40,
+    "totalOriginalActionRows": 160
+  },
+  "totalOriginalActionRows": 320
+}

@@ -1,0 +1,178 @@
+{
+  "passed": false,
+  "scope": "ONE additional pre-body natural-cancellation case; previous 18 checkpoints not repeated or counted here; main diagnostic NOT RUN",
+  "startedAt": "2026-10-09T08:46:15.716Z",
+  "sourceBinding": {
+    "original": "/workspace/.luci-tools/cloud032-idle-integrated-candidate-20261009/actual/sustained.mjs",
+    "sourceSHA256": "18429d2a6497cfec582c8565b572b3ca567b756f2f9d403efd79b6b405719dc2",
+    "guardSHA256": "f868cf0d881a7b6dcf3aef323971adb0fcff65ea77353daac20d65205a4b2885",
+    "runnerSHA256": "727692699f48842705d2d8321409a059f5feb2a1eace3e75de57ce7c9c60126e",
+    "previousManifestSHA256": "d394b0dbbc99f07830d4a5b0efcc7b108e9530c396fd2f3681d2734e3e0d7fc0",
+    "previousMemberHashes": {
+      "proof.mjs": "e0b438027d0620cd6f060cab06677b5be89364c475c3c80b76011a5dc96ec744",
+      "README.md": "866538266071161e51db74e5823016cb1576a753895459acec844defc3e886ca",
+      "COMMANDS.json": "f1f2bf7bee0d4e3e0a520a7c91bcee4f0af7c8618ef75a132e364bba0aae2af3",
+      "attempt-1.log": "847e09e815869563b2bb3566943aa8ee0c17c6087e2d80290462e84a83eadee3",
+      "attempt-1/proof.mjs": "e0b438027d0620cd6f060cab06677b5be89364c475c3c80b76011a5dc96ec744",
+      "attempt-1/frozen-route-guard.txt": "1ccf94936ff7a730ea049155574b493b78a013091d1beda334ba5f677dbadcb7",
+      "attempt-1/raw.jsonl": "f0d177577743390deeb46fd89ffca82d3c23bb56ea4729ca54db82313ac6d9dd",
+      "attempt-1/result.json": "24e69ce601ddb2704749f7d8382170ea5705588c04673e89e5ea1f24df0da295"
+    }
+  },
+  "caps": {
+    "requests": 4,
+    "declaredBodyBytes": 65536,
+    "workflowMs": 20000,
+    "hardStopMs": 88000,
+    "captureJoinAfterAbortMs": 2000
+  },
+  "browserMutations": [],
+  "guard": [
+    {
+      "url": "http://127.0.0.1:44745/",
+      "method": "GET"
+    },
+    {
+      "url": "http://127.0.0.1:44745/v1/product/projects/p-proof/overview?case=prebody-abort",
+      "method": "GET"
+    }
+  ],
+  "server": [
+    {
+      "url": "http://127.0.0.1:44745/",
+      "method": "GET",
+      "bodyBytesWritten": 124,
+      "headersSent": true,
+      "responseClosed": false,
+      "responseFinished": false
+    },
+    {
+      "url": "http://127.0.0.1:44745/v1/product/projects/p-proof/overview?case=prebody-abort",
+      "method": "GET",
+      "bodyBytesWritten": 0,
+      "headersSent": true,
+      "responseClosed": true,
+      "responseFinished": false,
+      "plannedBodyBytes": 82,
+      "bodyBytesWrittenAtClose": 0
+    }
+  ],
+  "checkpoints": [
+    {
+      "name": "headers-paused-body-capture-pending-before-browser-abort",
+      "browser": {
+        "started": true,
+        "settled": false,
+        "aborted": false
+      },
+      "networkId": "2302242.2",
+      "bodyBytesWritten": 0,
+      "captureSettled": false
+    }
+  ],
+  "networkFailures": [
+    {
+      "requestId": "2302242.2",
+      "timestamp": 281647.290171,
+      "type": "Fetch",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    }
+  ],
+  "errors": [
+    "Error: getResponseBody cancellation join timeout\n    at Timeout.<anonymous> (file:///workspace/.luci-tools/cloud032-summary-delivery-diagnostic-20261009/prebody-proof/proof.mjs:24:141)\n    at listOnTimeout (node:internal/timers:635:17)\n    at process.processTimers (node:internal/timers:571:7)",
+    "Error: Body capture did not join before cleanup; closing owned browser instead of modifying Fetch\n    at file:///workspace/.luci-tools/cloud032-summary-delivery-diagnostic-20261009/prebody-proof/proof.mjs:81:108"
+  ],
+  "cleanup": [
+    "Owned Chromium closed: capture promise still pending",
+    "Owned loopback server closed",
+    "Owned profile removed"
+  ],
+  "protocolCommands": [
+    {
+      "method": "Network.enable",
+      "captureInFlight": false
+    },
+    {
+      "method": "Fetch.enable",
+      "captureInFlight": false
+    },
+    {
+      "method": "Fetch.getResponseBody",
+      "requestId": "interception-job-3.0",
+      "captureInFlight": false
+    }
+  ],
+  "origin": "http://127.0.0.1:44745",
+  "targetURL": "http://127.0.0.1:44745/v1/product/projects/p-proof/overview?case=prebody-abort",
+  "browserVersion": "151.0.7922.173",
+  "pausedResponse": {
+    "id": "interception-job-3.0",
+    "networkId": "2302242.2",
+    "url": "http://127.0.0.1:44745/v1/product/projects/p-proof/overview?case=prebody-abort",
+    "status": 200,
+    "headers": [
+      {
+        "name": "Content-Type",
+        "value": "application/json; charset=utf-8"
+      },
+      {
+        "name": "Content-Length",
+        "value": "82"
+      },
+      {
+        "name": "Cache-Control",
+        "value": "no-store"
+      },
+      {
+        "name": "X-Proof-Identity",
+        "value": "original-prebody"
+      },
+      {
+        "name": "Connection",
+        "value": "close"
+      },
+      {
+        "name": "Date",
+        "value": "Fri, 09 Oct 2026 08:46:18 GMT"
+      }
+    ]
+  },
+  "abortOutcomes": [
+    {
+      "status": "fulfilled",
+      "value": {
+        "errorName": "AbortError",
+        "errorMessage": "signal is aborted without reason"
+      }
+    },
+    {
+      "status": "rejected",
+      "message": "getResponseBody cancellation join timeout"
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "requestId": "2302242.2",
+        "timestamp": 281647.290171,
+        "type": "Fetch",
+        "errorText": "net::ERR_ABORTED",
+        "canceled": true
+      }
+    }
+  ],
+  "captureJoinNeededBrowserClose": true,
+  "captureResult": {
+    "status": "rejected",
+    "name": "Error",
+    "message": "cdpSession.send: Target page, context or browser has been closed"
+  },
+  "captureJoinedAtCleanup": true,
+  "remainingOwnedBrowserPids": [],
+  "pausedResolution": "browser-closed-after-failed-proof",
+  "activePausedIDs": [],
+  "sourceUnchanged": true,
+  "runnerUnchanged": true,
+  "previousEvidenceUnchanged": true,
+  "finishedAt": "2026-10-09T08:46:20.691Z"
+}

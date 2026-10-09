@@ -1,0 +1,47 @@
+{
+  "initialManagerTests": {
+    "command": "GOMAXPROCS=2 node --test header-delivery.test.mjs > validation/unit-attempt-1.stdout.log 2> validation/unit-attempt-1.stderr.log",
+    "exitCode": 0,
+    "counts": {
+      "passed": 8,
+      "failed": 0
+    },
+    "frozenSourceDirectory": "variants/generated-v1"
+  },
+  "requestJoinRegressionBefore": {
+    "command": "GOMAXPROCS=2 node --test header-delivery.test.mjs > validation/request-join-before.stdout.log 2> validation/request-join-before.stderr.log",
+    "exitCode": 1,
+    "counts": {
+      "passed": 8,
+      "failed": 1
+    },
+    "binding": "validation/request-join-before.binding.json",
+    "frozenSourceDirectory": "variants/generated-v2"
+  },
+  "generationCommands": [
+    {
+      "command": "python3 prepare-v2.py",
+      "stdout": "validation/generation.stdout.log",
+      "stderr": "validation/generation.stderr.log",
+      "exitCode": 0
+    },
+    {
+      "command": "python3 prepare-v2.py",
+      "stdout": "validation/generation-attempt-2.stdout.log",
+      "stderr": "validation/generation-attempt-2.stderr.log",
+      "exitCode": 0
+    },
+    {
+      "command": "python3 prepare-v2.py",
+      "stdout": "validation/generation-attempt-3.stdout.log",
+      "stderr": "validation/generation-attempt-3.stderr.log",
+      "exitCode": 0
+    }
+  ],
+  "finalChecks": [
+    "validation/final-units/result.json",
+    "validation/final-syntax/result.json",
+    "validation/pinned-input-refusals/result.json"
+  ],
+  "limits": "Syntax/inert validation only; no installed app, Docker, native worker or model execution. Browser proof is separately labelled controlled loopback mechanism validation."
+}

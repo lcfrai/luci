@@ -1,0 +1,1 @@
+{"passed":true,"checks":18,"report":"/workspace/.luci-tools/cloud032-summary-delivery-diagnostic-20261009/transport-proof/attempt-1/result.json","errors":[],"cleanup":["Separate CDP response session disabled and detached","Owned Chromium closed","Owned loopback server closed","Owned profile removed"],"remainingOwnedBrowserPids":[],"pausedIDsAtCleanup":[]}

@@ -1,0 +1,212 @@
+{
+  "files": [
+    {
+      "member": "analysis.json",
+      "originalPath": "/workspace/.luci-tools/cloud032-idle-67a5b7c7-analysis/analysis.json",
+      "original": {
+        "sha256": "79c8a7757436d872936f55a594a5bed233db4aa19e81004144d6fe1047c9ba9a",
+        "bytes": 49366
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "trace.projection.json",
+      "originalPath": "/workspace/.luci-tools/cloud032-idle-67a5b7c7-analysis/trace.projection.json",
+      "original": {
+        "sha256": "fe8c7c6f4e3eff260bf0e0fab2656764466324fce399d013bd6233b3c23d3b36",
+        "bytes": 241379
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "timings.projection.json.gz",
+      "originalPath": "/workspace/.luci-tools/cloud032-idle-67a5b7c7-analysis/timings.projection.json.gz",
+      "original": {
+        "sha256": "7cec0c9488e50a940689d01ff0f08f9e096dcb1d79f194faf6a88739498fa952",
+        "bytes": 117439
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "independent-closure.json",
+      "originalPath": "/workspace/.luci-tools/cloud032-idle-67a5b7c7-analysis/independent-closure.json",
+      "original": {
+        "sha256": "d89c7243893799006dcd43e54bec653e79ae225849d5729a591b1b1daf539706",
+        "bytes": 5188
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "analyze.py",
+      "originalPath": "/workspace/.luci-tools/cloud032-idle-67a5b7c7-analysis/analyze.py",
+      "original": {
+        "sha256": "7dcdf624edd45d44213a0127bf90f93deed1f55f4a1174b472cf008312696271",
+        "bytes": 7994
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "closure.py",
+      "originalPath": "/workspace/.luci-tools/cloud032-idle-67a5b7c7-analysis/closure.py",
+      "original": {
+        "sha256": "b2fccd1d78a7d73d5c033cf07f457e2cf01e17af9de6e9b2255fb8973e1ef923",
+        "bytes": 3421
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "wrapper-result.original.json",
+      "originalPath": "/workspace/luci/artifacts/quality-swarm/idle-67a5b7c7-attempt1/wrapper-result.json",
+      "original": {
+        "sha256": "5a7bd9efa38dfa2188b9016b0a24fb97b577057669c899df7a148ef0f6d59ed2",
+        "bytes": 655
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "driver-identity.original.json",
+      "originalPath": "/workspace/luci/artifacts/quality-swarm/idle-67a5b7c7-attempt1/driver-identity.json",
+      "original": {
+        "sha256": "82b0c9237c06d899dbf428e00ef9909c36f2ab0c8693c20e1c270326b4e3d0d8",
+        "bytes": 63
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "diagnostic-journal.original.jsonl",
+      "originalPath": "/workspace/luci/artifacts/quality-swarm/idle-67a5b7c7-attempt1/driver/diagnostic-journal.jsonl",
+      "original": {
+        "sha256": "000e3c81fe2420cab8f34de91b5f75401a63dc374979072b7def7ad76e0b45c3",
+        "bytes": 6315
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "driver.stdout.original.log",
+      "originalPath": "/workspace/luci/artifacts/quality-swarm/idle-67a5b7c7-attempt1/driver.stdout.log",
+      "original": {
+        "sha256": "24eb4f0d4758b1b35d5e579efc503b6bb44cdc2b886fe4a68f911682ca985f14",
+        "bytes": 295
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "driver.stderr.original.log",
+      "originalPath": "/workspace/luci/artifacts/quality-swarm/idle-67a5b7c7-attempt1/driver.stderr.log",
+      "original": {
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "sources/preparation/prepare-idle.py",
+      "originalPath": "/workspace/.luci-tools/cloud032-idle-67a5b7c7/prepare-idle.py",
+      "original": {
+        "sha256": "af30789b19f8d63a09991928b58cf2650f639af07b041b3d8ea7cc3db2d38db9",
+        "bytes": 12349
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "sources/preparation/launch.py",
+      "originalPath": "/workspace/.luci-tools/cloud032-idle-67a5b7c7/launch.py",
+      "original": {
+        "sha256": "a1ffc1ee3e9674a2812ad569a301d4ad69402c8dfa690f543c1a0bc12b270a62",
+        "bytes": 8311
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "sources/preparation/idle-extraction.patch",
+      "originalPath": "/workspace/.luci-tools/cloud032-idle-67a5b7c7/idle-extraction.patch",
+      "original": {
+        "sha256": "f0c421e6a118e31d5f824c1dcff57f475ae5bfa8a133a53f54fb7db2c18dd890",
+        "bytes": 25674
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "sources/preparation/idle-extraction.json",
+      "originalPath": "/workspace/.luci-tools/cloud032-idle-67a5b7c7/idle-extraction.json",
+      "original": {
+        "sha256": "b2b29dec8b6f23987cf2ddf94edbd317944c8c9f495b413d69973986cc7e5519",
+        "bytes": 6185
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "sources/preparation/template-capture.json",
+      "originalPath": "/workspace/.luci-tools/cloud032-idle-67a5b7c7/template-capture.json",
+      "original": {
+        "sha256": "572937f1e69cc4a57a76482993837b89862712d57184be4c63d632fa10171cec",
+        "bytes": 3869
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "sources/preparation/current-template-vs-990.patch",
+      "originalPath": "/workspace/.luci-tools/cloud032-idle-67a5b7c7/current-template-vs-990.patch",
+      "original": {
+        "sha256": "04efc9501b17453bf1f1935fd0025f981bf00348287bc1fe65852cb3c76e4c76",
+        "bytes": 3972
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "sources/preparation/preparation-check-attempt1.json",
+      "originalPath": "/workspace/.luci-tools/cloud032-idle-67a5b7c7/preparation-check-attempt1.json",
+      "original": {
+        "sha256": "5f0c2f19b1aa183a4bfc48eb924d7950b7478ee6ac63f29e502942ba4d139a40",
+        "bytes": 1244
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "sources/preparation/preparation-check-initial.py",
+      "originalPath": "/workspace/.luci-tools/cloud032-idle-67a5b7c7/preparation-check-initial.py",
+      "original": {
+        "sha256": "c427dfb61185b56b23cc3d5c95da341e90280d8240d3fc95fc28c05eb3f11e8a",
+        "bytes": 5357
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "sources/preparation/preparation-verification.json",
+      "originalPath": "/workspace/.luci-tools/cloud032-idle-67a5b7c7/preparation-verification.json",
+      "original": {
+        "sha256": "1b468d36951143a7cab7600b7c571cc6fe2907ab88ef7a6c8f168629480926b3",
+        "bytes": 5928
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "sources/preparation/verify-preparation.py",
+      "originalPath": "/workspace/.luci-tools/cloud032-idle-67a5b7c7/verify-preparation.py",
+      "original": {
+        "sha256": "c427dfb61185b56b23cc3d5c95da341e90280d8240d3fc95fc28c05eb3f11e8a",
+        "bytes": 5357
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "sources/preparation/README.md",
+      "originalPath": "/workspace/.luci-tools/cloud032-idle-67a5b7c7/README.md",
+      "original": {
+        "sha256": "d866a2474a8d1e5e686cda74a3ecc4428fd33f5f8dff03256ab1f0a946259d31",
+        "bytes": 4382
+      },
+      "transformation": "none"
+    },
+    {
+      "member": "publish-idle-67a5.py",
+      "originalPath": "/workspace/.luci-tools/publish-idle-67a5.py",
+      "original": {
+        "sha256": "360011e49088fcdcc5c47db91e41c6319172f6aef507eb71f517d26b5b07c21b",
+        "bytes": 19681
+      },
+      "transformation": "none"
+    }
+  ],
+  "scope": "Exact published copies and source locations. Raw private result/trace/image/package originals are separately hash-bound or projected, not copied in full."
+}

@@ -1,0 +1,132 @@
+--- frozen-idle-reference/actual/sustained.mjs
++++ actual/sustained.mjs
+@@ -10,6 +10,7 @@
+ import { dirname, join, resolve, sep } from 'node:path';
+ import { fileURLToPath } from 'node:url';
+ import { setTimeout as delay } from 'node:timers/promises';
++import {createHeaderDelivery,installLongTaskCollector} from './header-delivery.mjs';
+ import { mixedTaskCommand } from './task-command.mjs';
+ import { consumeMixedToolResult } from './receipt-transport.mjs';
+ import { openQueueControls } from './queue-controls.mjs';
+@@ -53,6 +54,8 @@
+ assert(image, 'Supply an existing trusted --image'); assert.equal(process.platform, 'linux'); assert.notEqual(process.getuid(), 0);
+ assert(existsSync(binary)); assert(existsSync(join(web, 'index.html')));
+ const sha = bytes => createHash('sha256').update(bytes).digest('hex');
++assert(option('--archive'),'Exact retained package archive path is required');
++assert.equal(option('--trace-after','no'),'no','No actionability trace in matched headers-only comparison');
+ const provenancePath = option('--provenance'); assert(provenancePath, 'Matching clean package provenance is required');
+ const provenanceBytes = readFileSync(resolve(provenancePath)), provenance = JSON.parse(provenanceBytes);
+ // The source template belongs to the preserved installed attempt, while this
+@@ -91,7 +94,7 @@
+    while block:=stream.read(1024*1024): b.update(block)
+   if a.digest()!=b.digest(): raise ValueError('Installed package member differs: '+str(p))
+   count+=1
+-print(json.dumps({'archiveSHA256':digest.hexdigest(),'verifiedMembers':count,'allMembersMatch':True}))`, provenance.archive, provenance.archiveSHA256, dirname(binary)], { encoding: 'utf8', timeout: Math.ceil(commandBudget(60000)), maxBuffer: 1024 * 1024 }));
++print(json.dumps({'archiveSHA256':digest.hexdigest(),'verifiedMembers':count,'allMembersMatch':True}))`, resolve(option('--archive')), provenance.archiveSHA256, dirname(binary)], { encoding: 'utf8', timeout: Math.ceil(commandBudget(60000)), maxBuffer: 1024 * 1024 }));
+ assert.equal(realpathSync(web), realpathSync(join(dirname(binary), 'web')));
+ const rootFree = () => { const volume = statfsSync('/'); return Number(volume.bavail) * Number(volume.bsize); };
+ const initialRootFree = rootFree(); assert(initialRootFree >= 6 * 1024 ** 3, 'This fixture needs six GiB root free, including a conservative one GiB working reserve');
+@@ -106,7 +109,7 @@
+ assert.match(bridge, /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/);
+ writeFileSync(join(evidence, 'package-provenance.json'), provenanceBytes, { mode: 0o600, flag: 'wx' });
+ writeFileSync(join(evidence,'image-provenance.json'),readFileSync(resolve(imageEvidencePath)),{mode:0o600,flag:'wx'});
+-const driverNames=['sustained.mjs','external-source-binding.json','task-command.mjs','receipt-transport.mjs','workloads.mjs','interaction-metrics.mjs','latency-diagnostics.mjs','task-context.mjs','source-binding.mjs','queue-controls.mjs','run-with-observer.py'];
++const driverNames=['sustained.mjs','header-delivery.mjs','schedule.json','external-source-binding.json','task-command.mjs','receipt-transport.mjs','workloads.mjs','interaction-metrics.mjs','latency-diagnostics.mjs','task-context.mjs','source-binding.mjs','queue-controls.mjs','run-with-observer.py'];
+ const reusedHelpers=['four-project-queue/native-terminal-diagnostics.mjs','four-project-queue/sample-linux-owned.py','launch-recovery/fenced-docker-proxy.mjs','launch-recovery/worker-create-guard.mjs','launch-recovery/durable-acceptance-journal.mjs','launch-recovery/acceptance-lifecycle.mjs','launch-recovery/acceptance-startup.mjs'];
+ mkdirSync(join(evidence, 'accepted-harness'), { mode: 0o700 });
+ for (const name of driverNames) writeFileSync(join(evidence, 'accepted-harness', name), readFileSync(new URL(name, import.meta.url)), { mode: 0o600, flag: 'wx' });
+@@ -131,8 +134,8 @@
+ };
+ 
+ Object.assign(receipt,{
+- mode:'installed-four-project-idle-diagnostic',diagnosticOnly:true,fullSustainedAcceptance:false,
+- scope:'Fresh installed package, exact original four saved contexts and paused queues, original draft/warm setup and idle100 switches/200 inputs. No task execution or sustained completion claim.',
++ mode:'installed-header-delivery-diagnostic-v2',diagnosticOnly:true,fullSustainedAcceptance:false,
++ scope:'Exact installed990 package and original four saved contexts/paused queues. Forty switches/eighty inputs/forty resets per condition. Response HEADERS availability/backpressure intervention, not a natural performance, frontend-commit or upstream-completion claim.',
+  resourceScope:'One owned browser and installed app. Docker readiness/image inventory reads are required. Explicit guards reject every Create/Start before forwarding. No full Linux resource sampler; browser diagnostic collection is identical to the static control.',
+  limitations:[...receipt.limitations,'Diagnostic subset only; original sustained failure remains unchanged. No resource-cost subtraction.','No independent Linux observer in either prepared control arm; this is not a matched replay of the old observer load.'],
+  externalSourceBinding:externalBinding,dependencyCheckout:receipt.harnessCheckout,
+@@ -146,7 +149,7 @@
+ const sockets = new Set(), socketSessions = new Map(), ownedSessions = new Set(), bundles = new Map(), nativeHomes = new Map();
+ const terminalProbes = [];
+ let service, proxy, provider, base, env, token, project, projectRoute;const workspace='';
+-const controllerIdentities=[];let measuredPhase='setup',interactions,interactionRound=0;const taskEvents=new Map();
++const controllerIdentities=[];let headerDelivery;let measuredPhase='setup',interactions,interactionRound=0;const taskEvents=new Map();
+ let stage = 'startup', fixtureError, reserveTimer, closing = false, signalFailure,workflowControl,cleanupHardStop,cleanupDeadline=Infinity,checkpointWritten=false;
+ function setStage(value){health();stage=value;journal.record('driver-stage',{stage});}
+ let providerCalls = 0, auxiliaryCalls = 0; const observations=new Map(), taskData=new Map(), calls=new Map(); let browser, page, run;
+@@ -612,6 +615,7 @@
+ // BEGIN SUSTAINED CLEANUP WIRING: exercised with controlled resources only.
+ async function settleSustainedResources(){
+  const phases=await runBoundedCleanup({checkpoint:persistFailureCheckpoint,onFailure:cleanupFailure,onPhase:(name,status)=>journal.record('driver-stage',{stage:'cleanup-'+name+'-'+status}),phases:[
++  {name:'header-delivery',timeoutMs:8000,run:async()=>{if(!headerDelivery)return {notInstalled:true};assert(await headerDelivery.close(),'Header interception did not drain');return {closed:true};}},
+   {name:'controllers',timeoutMs:30000,run:async()=>{const stopped=await stopService(false);assert(stopped);assert(controllerIdentities.filter(Boolean).every(identity=>!stillOwned(identity)));return {stopped:true};}},
+   {name:'browser',timeoutMs:12000,run:async()=>{try{if(startupScope.has('browser'))await startupScope.close('browser',cleanupBudget(5000));}catch(error){cleanupFailure(error);}finally{await settleOwnedBrowser({browser:undefined,listOwned:()=>ownedProcesses('browser'),stillOwned,forceTerminate:identity=>{try{process.kill(identity.pid,'SIGKILL');}catch(error){if(error.code!=='ESRCH')throw error;}},onFailure:cleanupFailure,closeTimeoutMs:cleanupBudget(5000),settleTimeoutMs:cleanupBudget(5000)});}}},
+   {name:'provider',timeoutMs:3000,run:()=>startupScope.has('provider')?startupScope.close('provider',cleanupBudget(2500)):undefined},
+@@ -632,8 +636,8 @@
+  await workflowControl.run(async()=>{
+  reserveTimer=setInterval(()=>{try{const free=rootFree();(receipt.diskSamples??=[]).push({stage,at:new Date().toISOString(),rootFreeBytes:free});if(free<1024**3)stopOnFailure(Error('Hard one GiB reserve breached'));for(const worker of taskData.values())if(worker.finalReleased&&worker.session)observeTaskLease(worker);}catch(error){stopOnFailure(error);}},1000);
+  for(const name of ['SIGTERM','SIGINT'])process.on(name,()=>{signalFailure=name;try{journal.record('driver-signal',{stage,signal:name});}catch{}stopOnFailure(Error('Acceptance interrupted by '+name));});
+- receipt.bounds={preparationDeadlineMs:PREPARATION_MS,scenarioDeadlineMs:WORKFLOW_MS,cleanupDeadlineMs:CLEANUP_MS,totalDeadlineMs:DRIVER_TOTAL_MS,maxMeasuredActions:432,primaryMeasuredActions:400,optionalTraceMeasuredActions:32,actualFuzzSeconds:0,allowedCreates:0,allowedStarts:0,upstreamRequestMs:120000,maxCreates:1,maxStarts:1,preCreateFreeBytes:6*1024**3,runningReserveBytes:1024**3,proxyStructuralBudgetNote:'Existing proxy requires positive numeric maxima; unconditional guards refuse Create and Start before forwarding.'};
+- receipt.predeclaredTimingReason='Prepared idle subset:60s quiet,100 switches/200 inputs/100 resets;210s workflow,60s preparation and120s cleanup. No extension on failure.';
++ receipt.bounds={preparationDeadlineMs:PREPARATION_MS,scenarioDeadlineMs:WORKFLOW_MS,cleanupDeadlineMs:CLEANUP_MS,totalDeadlineMs:DRIVER_TOTAL_MS,maxMeasuredActions:320,primaryMeasuredActions:320,optionalTraceMeasuredActions:0,actualFuzzSeconds:0,allowedCreates:0,allowedStarts:0,upstreamRequestMs:120000,maxCreates:1,maxStarts:1,preCreateFreeBytes:6*1024**3,runningReserveBytes:1024**3,proxyStructuralBudgetNote:'Existing proxy requires positive numeric maxima; unconditional guards refuse Create and Start before forwarding.'};
++ receipt.predeclaredTimingReason='Headers-only diagnostic:60s quiet,40 switches/80 inputs/40 resets per condition;210s workflow,60s preparation and120s cleanup. No extension on failure.';
+  engineID=docker('info','--format','{{.ID}}');assert(engineID.length>0&&engineID.length<=256);receipt.engineIdentitySHA256=sha(engineID);
+  await startSustainedServices();
+  const bootstrap=readFileSync(join(fixture,'state/control-plane/bootstrap-token'),'utf8').trim();sensitive.push(bootstrap);
+@@ -652,28 +656,43 @@
+  await startAcceptanceBrowser({scope:startupScope,assertActive:assertWorkflowActive,
+   launch:()=>chromium.launch({headless:true,executablePath:option('--chromium','/usr/bin/chromium'),env:browserEnv,args:['--no-proxy-server']}),adoptBrowser:handle=>{browser=handle;},closeBrowser:handle=>handle.close(),
+   newContext:handle=>handle.newContext({viewport:{width:1440,height:1080},serviceWorkers:'block'}),
+-  installRoutes:async context=>{await installBrowserTiming(context);assertWorkflowActive();await context.route('**/*',async route=>{const request=route.request(),url=new URL(request.url());if(closing||fixtureError||workflowControl?.failed){await route.abort('blockedbyclient');return;}if(url.origin!==base){stopOnFailure(Error('Browser external request refused'));await route.abort('blockedbyclient');return;}if(!['GET','HEAD','OPTIONS'].includes(request.method()))receipt.browserMutations.push({stage,method:request.method(),path:url.pathname});await route.continue();});assertWorkflowActive();},
++  installRoutes:async context=>{await installBrowserTiming(context);await context.addInitScript(installLongTaskCollector);assertWorkflowActive();await context.route('**/*',async route=>{const request=route.request(),url=new URL(request.url());if(closing||fixtureError||workflowControl?.failed){await route.abort('blockedbyclient');return;}if(url.origin!==base){stopOnFailure(Error('Browser external request refused'));await route.abort('blockedbyclient');return;}if(!['GET','HEAD','OPTIONS'].includes(request.method()))receipt.browserMutations.push({stage,method:request.method(),path:url.pathname});await route.continue();});assertWorkflowActive();},
+   newPage:context=>context.newPage(),adoptPage:handle=>{page=handle;},
+  });
+  assertWorkflowActive();receipt.browserVersion=browser.version();page.setDefaultTimeout(15000);page.on('pageerror',error=>{receipt.browserErrors.push(scrub(error));stopOnFailure(Error('Browser script error'));});
+  // END SUSTAINED BROWSER WIRING
+  for(const owner of projectStates){setStage('prepare-and-queue-'+owner.task);await prepare(owner);await queueOwner(owner);}
+  await protectCancellation();assert.equal(effects().create,0);await functionalDrafts();interactions=interactionRunner({page,owners:projectStates,receipt,assertHealthy:health,phase:()=>measuredPhase,observe:passiveTiming});await interactions.warm();
+- setStage('idle-baseline');await quietPhase('quiet-app-open-idle');const idle=phaseStart('idle-interactive-calibration');await interactions.calibrate(100);phaseEnd(idle);await passiveTiming('end-idle-calibration');
++ setStage('header-delivery-quiet');await quietPhase('quiet-app-open-idle');
++ const schedule=JSON.parse(readFileSync(join(here,'schedule.json'),'utf8'));
++ assert.equal(schedule.rounds.length,80);
++ for(const condition of ['baseline','defer'])for(let projectIndex=0;projectIndex<4;projectIndex++)assert.equal(schedule.rounds.filter(row=>row.condition===condition&&row.projectIndex===projectIndex).length,10);
++ headerDelivery=await createHeaderDelivery({page,base,projectIDs:projectStates.map(owner=>owner.owner.id),receipt,onFailure:stopOnFailure});
++ const mutationBaseline=receipt.browserMutations.length;
++ receipt.headerDeliverySchedule=schedule;
++ for(const row of schedule.rounds){
++  assert.equal(row.projectIndex,row.round%4);health();setStage('header-delivery-'+row.condition+'-'+row.round);
++  const phase=phaseStart('diagnostic-header-'+row.condition);headerDelivery.enterRound(row);
++  try{await interactions.round(row.round);}
++  finally{phaseEnd(phase);await headerDelivery.endRound();await page.evaluate(()=>new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done))));await headerDelivery.longTasks(page,'after-round-'+row.round);}
++ }
++ assert(await headerDelivery.close(),'Header interception must drain before any diagnostic completion claim');
++ assert.equal(receipt.browserMutations.length,mutationBaseline,'Measurement must issue no browser mutation');
+  receipt.interactionSummary=summarizeInteractions(receipt.interactions);
+- receipt.latencyTargets={measurement:'Original All projects→open saved Define context→two frames; input→expected field→two frames; no physical-input claim',projectSwitchP95Ms:300,inputP95Ms:100,p99StrictlyBelowMs:1000};
+- receipt.targetComparison=Object.fromEntries(['project-switch','input'].map(kind=>{const value=receipt.interactionSummary['idle-interactive-calibration:'+kind];assert.equal(value.count,kind==='input'?200:100);assert.equal(value.failed,0);return[kind,{...value,withinReference:value.p95Ms<=(kind==='input'?100:300)&&value.p99Ms<1000}];}));
+- assert.equal(receipt.interactions.length,400);
+- const traceAfter=option('--trace-after','no');assert(['yes','no'].includes(traceAfter));
+- if(traceAfter==='yes'){
+-  const tracePhase=phaseStart('idle-actionability-trace-followup');receipt.traceScope='Eight extra rounds after the primary100; snapshots/screenshots/sources disabled; instrumentation differs and does not replace primary metrics.';
+-  await page.context().tracing.start({screenshots:false,snapshots:false,sources:false});
+-  try{for(let index=0;index<8;index++)await interactions.round(index);await passiveTiming('trace-followup-complete');phaseEnd(tracePhase);}
+-  finally{await boundedAttempt(()=>page.context().tracing.stop({path:join(evidence,'action-only-trace.zip')}),5000,'trace-stop-timeout');}
++ receipt.latencyTargets={measurement:'Unchanged original All projects→saved Define value→two frames and input witnesses, under matched diagnostic intervention',projectSwitchP95Ms:300,inputP95Ms:100,p99StrictlyBelowMs:1000};
++ receipt.targetComparison={};
++ for(const condition of ['baseline','defer']){
++  receipt.targetComparison[condition]={};
++  for(const [kind,count]of [['project-switch',40],['input',80],['draft-reset',40]]){
++   const value=receipt.interactionSummary['diagnostic-header-'+condition+':'+kind];assert.equal(value.count,count);assert.equal(value.failed,0);
++   receipt.targetComparison[condition][kind]={...value,...(kind==='draft-reset'?{}:{withinReference:value.p95Ms<=(kind==='input'?100:300)&&value.p99Ms<1000})};
++  }
+  }
++ assert.equal(receipt.interactions.length,320);assert.equal(receipt.headerDelivery.valid,true);
++ assert(receipt.headerDelivery.responses.some(row=>row.held===true),'No actual response hold means no intervention evidence');
+  assert.deepEqual(effects(),{create:0,start:0,destroy:0});assert.equal(proxy.observations.failures.length,0);assert.equal(receipt.browserErrors.length,0);assert.equal(providerCalls,0);assert.equal(auxiliaryCalls,0);assert.equal(workerContainers().length,0);
+  receipt.idleDiagnosticCompleted=true;receipt.passed=true;
+- check('Fresh installed idle diagnostic completed; no full sustained or latency-target success implied');
++ check('Headers-only conditional diagnostic completed; no natural performance, full sustained, frontend-only cause or backend completion claim');
+  });
+ }catch(error){
+  workflowControl?.fail(error);fixtureError??=error;

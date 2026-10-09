@@ -1,0 +1,16 @@
+{
+  "command": [
+    "python3",
+    "/workspace/.luci-tools/header-delivery-990-v2-analysis/capsule/analysis/analyze.py"
+  ],
+  "executionDirectoryDescription": "External capsule directory; script reads fixed private original path but retains only metadata and explicit projections.",
+  "completedAt": "2026-10-09T09:19:57.537823+00:00",
+  "exitCode": 0,
+  "scriptSHA256": "8e7c0e0bdc59394882e5ead384220330931ff6c54ee6cc02922a9e29744c0ca9",
+  "originalResultSHA256": "876c638211523c48f1657cc723169c0ce35b9dd24d065269b95a179488ad5bdd",
+  "stdout": "analysis/stdout.log",
+  "stderr": "analysis/stderr.log",
+  "scope": "Offline postprocessing only; no tests/browser/runtime. No original input mutated.",
+  "stdoutRedirect": "/workspace/.luci-tools/header-delivery-990-v2-analysis/capsule/analysis/stdout.log",
+  "stderrRedirect": "/workspace/.luci-tools/header-delivery-990-v2-analysis/capsule/analysis/stderr.log"
+}

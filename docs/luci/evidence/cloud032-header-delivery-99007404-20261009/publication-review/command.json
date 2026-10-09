@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "python3",
+    "/workspace/.luci-tools/header-delivery-990-v2-analysis/publication-prep/stage.py"
+  ],
+  "cwd": "/workspace",
+  "environmentOverrides": {},
+  "exitCode": 0,
+  "stdout": "stage.stdout.log",
+  "stderr": "stage.stderr.log",
+  "capture": "Original process stdout and stderr redirected separately by the shell.",
+  "invocation": "python3 /workspace/.luci-tools/header-delivery-990-v2-analysis/publication-prep/stage.py > /workspace/.luci-tools/header-delivery-990-v2-analysis/publication-prep/stage.stdout.log 2> /workspace/.luci-tools/header-delivery-990-v2-analysis/publication-prep/stage.stderr.log"
+}

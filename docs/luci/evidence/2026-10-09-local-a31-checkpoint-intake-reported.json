@@ -1,0 +1,44 @@
+{
+  "sourceThread": "01a1199f-7500-7843-b02b-081081e536fa",
+  "scope": "Relayed local tester report; no Windows command or independent local evidence retrieval was performed by this cloud session.",
+  "publicationCommit": "a31e1ac485c95bdbcc9ebb011581da5ce3f5c67a",
+  "productCommit": "67a5b7c75ca6354d43085f5bb81ec53ee4291f34",
+  "document": {
+    "path": "docs/luci/TEST-CHECKPOINT-67A5B7C7.md",
+    "bytes": 12089,
+    "gitBlob": "1c89bef931d78897a9b1b9fc1313cddcf75093d5",
+    "sha256": "b6bdaa7a6df648424ff6b880e0a71100e903e263715b3115ab7251cb8b41e82d",
+    "retrieval": "Existing authenticated GitHub API; unauthenticated web404 not classified as product defect"
+  },
+  "issueStates": {
+    "CLOUD-048": "published ready to retest; local source/runtime pending",
+    "CLOUD-049": "published ready to retest; local source/runtime pending",
+    "CLOUD-050": "published ready to retest; only first expansion deferred; nodes retained after collapse",
+    "CLOUD-051": "published ready to retest; dialog exit/unmount boundaries are review questions, not established defects",
+    "CLOUD-032": "open; latest 67a5 idle switch519.76/input114.25 fail unchanged300/100ms"
+  },
+  "verificationLimits": [
+    "Only pinned checkpoint document retrieved; new full source/package evidence/source diff not yet reviewed locally.",
+    "Pre-C0512787/158 vs final45 affected+TS distinction retained.",
+    "Prior990 sustained7 and package facts remain publisher claims until independent receipt audit."
+  ],
+  "availableRAMBytesReported": [
+    456749056,
+    890310656,
+    405577728
+  ],
+  "finalLedgerGuardBytes": 229199872,
+  "guardResult": "Stopped before ledger read/mutation; no tests, dependencies, app, browser, container workload or checkout launched.",
+  "preserved": [
+    "existing checkouts",
+    "normal state",
+    "shared Docker workloads",
+    "pending990 evidence journal"
+  ],
+  "remainingGates": [
+    "Windows",
+    "live provider",
+    "recovery",
+    "resource acceptance"
+  ]
+}

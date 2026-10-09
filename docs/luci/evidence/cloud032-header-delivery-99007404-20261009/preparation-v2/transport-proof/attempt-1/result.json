@@ -1,0 +1,751 @@
+{
+  "passed": true,
+  "scope": "V2 controlled headers-only transport proof; original proofs preserved; main installed diagnostic NOT RUN",
+  "interpretation": "Response availability and possible body-transfer/backpressure effects; not isolated frontend commit causality or preservation of upstream completion",
+  "startedAt": "2026-10-09T08:52:14.403Z",
+  "sourceBinding": {
+    "original": "/workspace/.luci-tools/cloud032-idle-integrated-candidate-20261009/actual/sustained.mjs",
+    "sourceSHA256": "18429d2a6497cfec582c8565b572b3ca567b756f2f9d403efd79b6b405719dc2",
+    "guardSHA256": "f868cf0d881a7b6dcf3aef323971adb0fcff65ea77353daac20d65205a4b2885",
+    "runnerSHA256": "9daab62b9d092e201c03ac1cbbe700459ac0b83c69ac819f122fcb959f1b999a",
+    "priorEvidence": {
+      "/workspace/.luci-tools/cloud032-summary-delivery-diagnostic-20261009/transport-proof/publication-manifest.json": "d394b0dbbc99f07830d4a5b0efcc7b108e9530c396fd2f3681d2734e3e0d7fc0",
+      "/workspace/.luci-tools/cloud032-summary-delivery-diagnostic-20261009/transport-proof/proof.mjs": "e0b438027d0620cd6f060cab06677b5be89364c475c3c80b76011a5dc96ec744",
+      "/workspace/.luci-tools/cloud032-summary-delivery-diagnostic-20261009/transport-proof/README.md": "866538266071161e51db74e5823016cb1576a753895459acec844defc3e886ca",
+      "/workspace/.luci-tools/cloud032-summary-delivery-diagnostic-20261009/transport-proof/COMMANDS.json": "f1f2bf7bee0d4e3e0a520a7c91bcee4f0af7c8618ef75a132e364bba0aae2af3",
+      "/workspace/.luci-tools/cloud032-summary-delivery-diagnostic-20261009/transport-proof/attempt-1.log": "847e09e815869563b2bb3566943aa8ee0c17c6087e2d80290462e84a83eadee3",
+      "/workspace/.luci-tools/cloud032-summary-delivery-diagnostic-20261009/transport-proof/attempt-1/proof.mjs": "e0b438027d0620cd6f060cab06677b5be89364c475c3c80b76011a5dc96ec744",
+      "/workspace/.luci-tools/cloud032-summary-delivery-diagnostic-20261009/transport-proof/attempt-1/frozen-route-guard.txt": "1ccf94936ff7a730ea049155574b493b78a013091d1beda334ba5f677dbadcb7",
+      "/workspace/.luci-tools/cloud032-summary-delivery-diagnostic-20261009/transport-proof/attempt-1/raw.jsonl": "f0d177577743390deeb46fd89ffca82d3c23bb56ea4729ca54db82313ac6d9dd",
+      "/workspace/.luci-tools/cloud032-summary-delivery-diagnostic-20261009/transport-proof/attempt-1/result.json": "24e69ce601ddb2704749f7d8382170ea5705588c04673e89e5ea1f24df0da295",
+      "/workspace/.luci-tools/cloud032-summary-delivery-diagnostic-20261009/prebody-proof/publication-manifest.json": "8f032289ef8dba4686cf764147da1af16d2cdc56e2af27caf38ee0a56a7909e4",
+      "/workspace/.luci-tools/cloud032-summary-delivery-diagnostic-20261009/prebody-proof/proof.mjs": "727692699f48842705d2d8321409a059f5feb2a1eace3e75de57ce7c9c60126e",
+      "/workspace/.luci-tools/cloud032-summary-delivery-diagnostic-20261009/prebody-proof/README.md": "ba5a91f7f50177a1a4f8e52a1e98cf8e585c06cf3fb9a7aca0df66fe13a9efa7",
+      "/workspace/.luci-tools/cloud032-summary-delivery-diagnostic-20261009/prebody-proof/COMMANDS.json": "6fe2bde203747a2796986fc9001b62b5b1be913925da2b6a06d96027c72d3b6d",
+      "/workspace/.luci-tools/cloud032-summary-delivery-diagnostic-20261009/prebody-proof/observations.json": "2ca27744929bd7e9f0ff331394fc0928c3c03d092454ccb614dc3f7bc1cf52d3",
+      "/workspace/.luci-tools/cloud032-summary-delivery-diagnostic-20261009/prebody-proof/attempt-1.log": "ab3b853f240df879eea10d6ccfde2e4ec7b95bfebf9c9c5eabf1c71b48131aae",
+      "/workspace/.luci-tools/cloud032-summary-delivery-diagnostic-20261009/prebody-proof/attempt-1/proof.mjs": "727692699f48842705d2d8321409a059f5feb2a1eace3e75de57ce7c9c60126e",
+      "/workspace/.luci-tools/cloud032-summary-delivery-diagnostic-20261009/prebody-proof/attempt-1/frozen-route-guard.txt": "1ccf94936ff7a730ea049155574b493b78a013091d1beda334ba5f677dbadcb7",
+      "/workspace/.luci-tools/cloud032-summary-delivery-diagnostic-20261009/prebody-proof/attempt-1/raw.jsonl": "cff5bee702668772ca591e72b9c3f5319be883c986f84a391216105b08e7237c",
+      "/workspace/.luci-tools/cloud032-summary-delivery-diagnostic-20261009/prebody-proof/attempt-1/result.json": "e57884b02434fbaaa200a0999f43ebe31b1059e0f98f9baf61637de204c130dd"
+    }
+  },
+  "caps": {
+    "requests": 16,
+    "responsePauses": 16,
+    "declaredBodyBytes": 65536,
+    "holdMs": 1000,
+    "continueMs": 600,
+    "hardStopMs": 88000
+  },
+  "browserMutations": [
+    {
+      "stage": "v2-headers-transport-proof",
+      "method": "POST",
+      "path": "/v1/product/projects/p-proof/overview"
+    }
+  ],
+  "guard": [
+    {
+      "url": "http://127.0.0.1:38205/",
+      "method": "GET",
+      "closing": false,
+      "fixtureError": false,
+      "workflowFailed": false
+    },
+    {
+      "url": "http://127.0.0.1:38205/v1/product/projects/p-proof/overview?case=baseline",
+      "method": "GET",
+      "closing": false,
+      "fixtureError": false,
+      "workflowFailed": false
+    },
+    {
+      "url": "http://127.0.0.1:38205/v1/product/projects/p-proof/overview?case=defer",
+      "method": "GET",
+      "closing": false,
+      "fixtureError": false,
+      "workflowFailed": false
+    },
+    {
+      "url": "http://127.0.0.1:38205/v1/product/swarm-scheduler?case=defer",
+      "method": "GET",
+      "closing": false,
+      "fixtureError": false,
+      "workflowFailed": false
+    },
+    {
+      "url": "http://127.0.0.1:38205/v1/product/projects/p-proof/overview?status=403",
+      "method": "GET",
+      "closing": false,
+      "fixtureError": false,
+      "workflowFailed": false
+    },
+    {
+      "url": "http://127.0.0.1:38205/v1/product/projects/p-proof/overview?case=post",
+      "method": "POST",
+      "closing": false,
+      "fixtureError": false,
+      "workflowFailed": false
+    },
+    {
+      "url": "http://127.0.0.1:38205/v1/product/projects/p-proof/overview-extra?case=wrong-path",
+      "method": "GET",
+      "closing": false,
+      "fixtureError": false,
+      "workflowFailed": false
+    },
+    {
+      "url": "http://127.0.0.1:38205/v1/product/projects/p-proof/overview?case=prebody-abort",
+      "method": "GET",
+      "closing": false,
+      "fixtureError": false,
+      "workflowFailed": false
+    },
+    {
+      "url": "http://localhost:38205/cross-origin",
+      "method": "GET",
+      "closing": false,
+      "fixtureError": false,
+      "workflowFailed": false
+    },
+    {
+      "url": "http://127.0.0.1:38205/v1/product/projects/p-proof/overview?guard=closing",
+      "method": "GET",
+      "closing": true,
+      "fixtureError": false,
+      "workflowFailed": false
+    },
+    {
+      "url": "http://127.0.0.1:38205/v1/product/projects/p-proof/overview?guard=fixtureError",
+      "method": "GET",
+      "closing": false,
+      "fixtureError": true,
+      "workflowFailed": false
+    },
+    {
+      "url": "http://127.0.0.1:38205/v1/product/projects/p-proof/overview?guard=workflowFailed",
+      "method": "GET",
+      "closing": false,
+      "fixtureError": false,
+      "workflowFailed": true
+    }
+  ],
+  "server": [
+    {
+      "url": "http://127.0.0.1:38205/",
+      "method": "GET",
+      "status": 200,
+      "plannedBodyBytes": 116,
+      "bodyBytesWritten": 116,
+      "responseFinished": true,
+      "responseClosed": true
+    },
+    {
+      "url": "http://127.0.0.1:38205/v1/product/projects/p-proof/overview?case=baseline",
+      "method": "GET",
+      "status": 200,
+      "plannedBodyBytes": 128,
+      "bodyBytesWritten": 128,
+      "responseFinished": true,
+      "responseClosed": true
+    },
+    {
+      "url": "http://127.0.0.1:38205/v1/product/projects/p-proof/overview?case=defer",
+      "method": "GET",
+      "status": 200,
+      "plannedBodyBytes": 125,
+      "bodyBytesWritten": 125,
+      "responseFinished": true,
+      "responseClosed": true
+    },
+    {
+      "url": "http://127.0.0.1:38205/v1/product/swarm-scheduler?case=defer",
+      "method": "GET",
+      "status": 200,
+      "plannedBodyBytes": 115,
+      "bodyBytesWritten": 115,
+      "responseFinished": true,
+      "responseClosed": true
+    },
+    {
+      "url": "http://127.0.0.1:38205/v1/product/projects/p-proof/overview?status=403",
+      "method": "GET",
+      "status": 403,
+      "plannedBodyBytes": 125,
+      "bodyBytesWritten": 125,
+      "responseFinished": true,
+      "responseClosed": true
+    },
+    {
+      "url": "http://127.0.0.1:38205/v1/product/projects/p-proof/overview?case=post",
+      "method": "POST",
+      "status": 200,
+      "plannedBodyBytes": 125,
+      "bodyBytesWritten": 125,
+      "responseFinished": true,
+      "responseClosed": true
+    },
+    {
+      "url": "http://127.0.0.1:38205/v1/product/projects/p-proof/overview-extra?case=wrong-path",
+      "method": "GET",
+      "status": 200,
+      "plannedBodyBytes": 136,
+      "bodyBytesWritten": 136,
+      "responseFinished": true,
+      "responseClosed": true
+    },
+    {
+      "url": "http://127.0.0.1:38205/v1/product/projects/p-proof/overview?case=prebody-abort",
+      "method": "GET",
+      "status": 200,
+      "plannedBodyBytes": 133,
+      "bodyBytesWritten": 0,
+      "responseFinished": false,
+      "responseClosed": true
+    }
+  ],
+  "pauses": [
+    {
+      "id": "interception-job-3.0",
+      "networkId": "2303230.2",
+      "url": "http://127.0.0.1:38205/v1/product/projects/p-proof/overview?case=baseline",
+      "method": "GET",
+      "status": 200,
+      "headers": [
+        {
+          "name": "cache-control",
+          "value": "no-store"
+        },
+        {
+          "name": "connection",
+          "value": "close"
+        },
+        {
+          "name": "content-length",
+          "value": "128"
+        },
+        {
+          "name": "content-type",
+          "value": "application/json; charset=utf-8"
+        },
+        {
+          "name": "date",
+          "value": "Wed, 01 Jan 2025 00:00:00 GMT"
+        },
+        {
+          "name": "x-proof-identity",
+          "value": "original-1"
+        }
+      ],
+      "arm": "baseline",
+      "began": 2147.930194,
+      "eligible": true,
+      "declaredBodyBytes": 128,
+      "releaseReason": "baseline-immediate",
+      "releaseResult": "continued-unchanged",
+      "elapsedMs": 4.892033999999967
+    },
+    {
+      "id": "interception-job-5.0",
+      "networkId": "2303230.3",
+      "url": "http://127.0.0.1:38205/v1/product/projects/p-proof/overview?case=defer",
+      "method": "GET",
+      "status": 200,
+      "headers": [
+        {
+          "name": "cache-control",
+          "value": "no-store"
+        },
+        {
+          "name": "connection",
+          "value": "close"
+        },
+        {
+          "name": "content-length",
+          "value": "125"
+        },
+        {
+          "name": "content-type",
+          "value": "application/json; charset=utf-8"
+        },
+        {
+          "name": "date",
+          "value": "Wed, 01 Jan 2025 00:00:00 GMT"
+        },
+        {
+          "name": "x-proof-identity",
+          "value": "original-2"
+        }
+      ],
+      "arm": "defer",
+      "began": 2192.300755,
+      "eligible": true,
+      "declaredBodyBytes": 125,
+      "deliveryHeld": true,
+      "releaseReason": "explicit-checkpoint-release",
+      "releaseResult": "continued-unchanged",
+      "elapsedMs": 9.032228999999916
+    },
+    {
+      "id": "interception-job-7.0",
+      "networkId": "2303230.4",
+      "url": "http://127.0.0.1:38205/v1/product/swarm-scheduler?case=defer",
+      "method": "GET",
+      "status": 200,
+      "headers": [
+        {
+          "name": "cache-control",
+          "value": "no-store"
+        },
+        {
+          "name": "connection",
+          "value": "close"
+        },
+        {
+          "name": "content-length",
+          "value": "115"
+        },
+        {
+          "name": "content-type",
+          "value": "application/json; charset=utf-8"
+        },
+        {
+          "name": "date",
+          "value": "Wed, 01 Jan 2025 00:00:00 GMT"
+        },
+        {
+          "name": "x-proof-identity",
+          "value": "original-3"
+        }
+      ],
+      "arm": "defer",
+      "began": 2238.280936,
+      "eligible": true,
+      "declaredBodyBytes": 115,
+      "deliveryHeld": true,
+      "releaseReason": "explicit-checkpoint-release",
+      "releaseResult": "continued-unchanged",
+      "elapsedMs": 3.0471130000000812
+    },
+    {
+      "id": "interception-job-9.0",
+      "networkId": "2303230.5",
+      "url": "http://127.0.0.1:38205/v1/product/projects/p-proof/overview?status=403",
+      "method": "GET",
+      "status": 403,
+      "headers": [
+        {
+          "name": "cache-control",
+          "value": "no-store"
+        },
+        {
+          "name": "connection",
+          "value": "close"
+        },
+        {
+          "name": "content-length",
+          "value": "125"
+        },
+        {
+          "name": "content-type",
+          "value": "application/json; charset=utf-8"
+        },
+        {
+          "name": "date",
+          "value": "Wed, 01 Jan 2025 00:00:00 GMT"
+        },
+        {
+          "name": "x-proof-identity",
+          "value": "original-4"
+        }
+      ],
+      "arm": "defer",
+      "began": 2270.918342,
+      "eligible": false,
+      "releaseReason": "non-target-immediate",
+      "releaseResult": "continued-unchanged",
+      "elapsedMs": 4.062672999999904
+    },
+    {
+      "id": "interception-job-11.0",
+      "networkId": "2303230.6",
+      "url": "http://127.0.0.1:38205/v1/product/projects/p-proof/overview?case=post",
+      "method": "POST",
+      "status": 200,
+      "headers": [
+        {
+          "name": "cache-control",
+          "value": "no-store"
+        },
+        {
+          "name": "connection",
+          "value": "close"
+        },
+        {
+          "name": "content-length",
+          "value": "125"
+        },
+        {
+          "name": "content-type",
+          "value": "application/json; charset=utf-8"
+        },
+        {
+          "name": "date",
+          "value": "Wed, 01 Jan 2025 00:00:00 GMT"
+        },
+        {
+          "name": "x-proof-identity",
+          "value": "original-5"
+        }
+      ],
+      "arm": "defer",
+      "began": 2299.737967,
+      "eligible": false,
+      "releaseReason": "non-target-immediate",
+      "releaseResult": "continued-unchanged",
+      "elapsedMs": 1.9521730000001298
+    },
+    {
+      "id": "interception-job-13.0",
+      "networkId": "2303230.7",
+      "url": "http://127.0.0.1:38205/v1/product/projects/p-proof/overview-extra?case=wrong-path",
+      "method": "GET",
+      "status": 200,
+      "headers": [
+        {
+          "name": "cache-control",
+          "value": "no-store"
+        },
+        {
+          "name": "connection",
+          "value": "close"
+        },
+        {
+          "name": "content-length",
+          "value": "136"
+        },
+        {
+          "name": "content-type",
+          "value": "application/json; charset=utf-8"
+        },
+        {
+          "name": "date",
+          "value": "Wed, 01 Jan 2025 00:00:00 GMT"
+        },
+        {
+          "name": "x-proof-identity",
+          "value": "original-6"
+        }
+      ],
+      "arm": "defer",
+      "began": 2320.951893,
+      "eligible": false,
+      "releaseReason": "non-target-immediate",
+      "releaseResult": "continued-unchanged",
+      "elapsedMs": 5.172617000000173
+    },
+    {
+      "id": "interception-job-15.0",
+      "networkId": "2303230.8",
+      "url": "http://127.0.0.1:38205/v1/product/projects/p-proof/overview?case=prebody-abort",
+      "method": "GET",
+      "status": 200,
+      "headers": [
+        {
+          "name": "cache-control",
+          "value": "no-store"
+        },
+        {
+          "name": "connection",
+          "value": "close"
+        },
+        {
+          "name": "content-length",
+          "value": "133"
+        },
+        {
+          "name": "content-type",
+          "value": "application/json; charset=utf-8"
+        },
+        {
+          "name": "date",
+          "value": "Wed, 01 Jan 2025 00:00:00 GMT"
+        },
+        {
+          "name": "x-proof-identity",
+          "value": "original-7"
+        }
+      ],
+      "arm": "defer",
+      "began": 2352.857896,
+      "eligible": true,
+      "declaredBodyBytes": 133,
+      "deliveryHeld": true,
+      "browserAbortError": true,
+      "correlatedCancellation": {
+        "requestId": "2303230.8",
+        "timestamp": 282005.889849,
+        "type": "Fetch",
+        "errorText": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      "releaseReason": "correlated-prebody-abort-resolution",
+      "releaseResult": "correlated-natural-cancel",
+      "releaseError": "cdpSession.send: Protocol error (Fetch.continueResponse): Invalid InterceptionId.",
+      "elapsedMs": 35.73619099999996
+    },
+    {
+      "id": "interception-job-19.0",
+      "networkId": "2303230.10",
+      "url": "http://127.0.0.1:38205/v1/product/projects/p-proof/overview?guard=closing",
+      "method": "GET",
+      "responseErrorReason": "BlockedByClient",
+      "arm": "defer",
+      "began": 2421.553608,
+      "eligible": false,
+      "releaseReason": "non-target-immediate",
+      "releaseResult": "continued-unchanged",
+      "elapsedMs": 1.9838399999998728
+    },
+    {
+      "id": "interception-job-21.0",
+      "networkId": "2303230.11",
+      "url": "http://127.0.0.1:38205/v1/product/projects/p-proof/overview?guard=fixtureError",
+      "method": "GET",
+      "responseErrorReason": "BlockedByClient",
+      "arm": "defer",
+      "began": 2439.027431,
+      "eligible": false,
+      "releaseReason": "non-target-immediate",
+      "releaseResult": "continued-unchanged",
+      "elapsedMs": 1.9898490000000493
+    },
+    {
+      "id": "interception-job-23.0",
+      "networkId": "2303230.12",
+      "url": "http://127.0.0.1:38205/v1/product/projects/p-proof/overview?guard=workflowFailed",
+      "method": "GET",
+      "responseErrorReason": "BlockedByClient",
+      "arm": "defer",
+      "began": 2448.434881,
+      "eligible": false,
+      "releaseReason": "non-target-immediate",
+      "releaseResult": "continued-unchanged",
+      "elapsedMs": 1.685059999999794
+    }
+  ],
+  "protocolCommands": [
+    {
+      "method": "Network.enable"
+    },
+    {
+      "method": "Fetch.enable"
+    },
+    {
+      "method": "Fetch.continueResponse",
+      "requestId": "interception-job-3.0"
+    },
+    {
+      "method": "Fetch.continueResponse",
+      "requestId": "interception-job-5.0"
+    },
+    {
+      "method": "Fetch.continueResponse",
+      "requestId": "interception-job-7.0"
+    },
+    {
+      "method": "Fetch.continueResponse",
+      "requestId": "interception-job-9.0"
+    },
+    {
+      "method": "Fetch.continueResponse",
+      "requestId": "interception-job-11.0"
+    },
+    {
+      "method": "Fetch.continueResponse",
+      "requestId": "interception-job-13.0"
+    },
+    {
+      "method": "Fetch.continueResponse",
+      "requestId": "interception-job-15.0"
+    },
+    {
+      "method": "Fetch.continueResponse",
+      "requestId": "interception-job-19.0"
+    },
+    {
+      "method": "Fetch.continueResponse",
+      "requestId": "interception-job-21.0"
+    },
+    {
+      "method": "Fetch.continueResponse",
+      "requestId": "interception-job-23.0"
+    },
+    {
+      "method": "Fetch.disable"
+    }
+  ],
+  "networkFailures": [
+    {
+      "requestId": "2303230.8",
+      "timestamp": 282005.889849,
+      "type": "Fetch",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    },
+    {
+      "requestId": "2303230.9",
+      "timestamp": 282005.929341,
+      "type": "Fetch",
+      "errorText": "net::ERR_BLOCKED_BY_CLIENT.Inspector",
+      "canceled": false,
+      "blockedReason": "inspector"
+    },
+    {
+      "requestId": "2303230.10",
+      "timestamp": 282005.948941,
+      "type": "Fetch",
+      "errorText": "net::ERR_BLOCKED_BY_CLIENT.Inspector",
+      "canceled": false,
+      "blockedReason": "inspector"
+    },
+    {
+      "requestId": "2303230.11",
+      "timestamp": 282005.966436,
+      "type": "Fetch",
+      "errorText": "net::ERR_BLOCKED_BY_CLIENT.Inspector",
+      "canceled": false,
+      "blockedReason": "inspector"
+    },
+    {
+      "requestId": "2303230.12",
+      "timestamp": 282005.975435,
+      "type": "Fetch",
+      "errorText": "net::ERR_BLOCKED_BY_CLIENT.Inspector",
+      "canceled": false,
+      "blockedReason": "inspector"
+    }
+  ],
+  "checks": [
+    {
+      "name": "unchanged-original-guard-and-separate-headers-session-active",
+      "documentGuardCalls": 1
+    },
+    {
+      "name": "baseline-exact-original-body-status-headers-after-continue"
+    },
+    {
+      "name": "overview-headers-held-browser-unsettled",
+      "networkId": "2303230.3",
+      "declaredBodyBytes": 125,
+      "bodyCapturePromises": 0,
+      "serverCount": 1,
+      "guardCount": 1
+    },
+    {
+      "name": "overview-exact-original-delivery-after-header-release",
+      "elapsedMs": 9.032228999999916,
+      "deliveredBodyBytes": 125,
+      "deliveredBodySHA256": "23476e753d4dce26e7f3de136810c978115b78c8ac6abcd1fd5ce5c30525e193"
+    },
+    {
+      "name": "scheduler-headers-held-browser-unsettled",
+      "networkId": "2303230.4",
+      "declaredBodyBytes": 115,
+      "bodyCapturePromises": 0,
+      "serverCount": 1,
+      "guardCount": 1
+    },
+    {
+      "name": "scheduler-exact-original-delivery-after-header-release",
+      "elapsedMs": 3.0471130000000812,
+      "deliveredBodyBytes": 115,
+      "deliveredBodySHA256": "5c874a987af2489a3bfdef04b054658b210bad91f8a8e5345461258f9c0b718c"
+    },
+    {
+      "name": "forbidden-never-held",
+      "status": 403,
+      "method": "GET"
+    },
+    {
+      "name": "post-never-held",
+      "status": 200,
+      "method": "POST"
+    },
+    {
+      "name": "wrong-path-never-held",
+      "status": 200,
+      "method": "GET"
+    },
+    {
+      "name": "original-guard-retains-POST-mutation-log"
+    },
+    {
+      "name": "prebody-headers-held-zero-server-body-bytes",
+      "networkId": "2303230.8",
+      "bodyCapturePromises": 0,
+      "serverBodyBytesWritten": 0
+    },
+    {
+      "name": "prebody-natural-cancellation-correlated-before-resolution",
+      "browserResult": {
+        "errorName": "AbortError",
+        "errorMessage": "signal is aborted without reason"
+      },
+      "networkFailure": {
+        "requestId": "2303230.8",
+        "timestamp": 282005.889849,
+        "type": "Fetch",
+        "errorText": "net::ERR_ABORTED",
+        "canceled": true
+      }
+    },
+    {
+      "name": "prebody-ID-bounded-settlement-with-no-replay",
+      "releaseResult": "correlated-natural-cancel",
+      "elapsedMs": 35.73619099999996,
+      "serverBodyBytesWritten": 0,
+      "serverResponseClosed": true,
+      "serverResponseFinished": false,
+      "originalServerRequests": 1,
+      "originalGuardCalls": 1
+    },
+    {
+      "name": "original-guard-blocks-cross-origin"
+    },
+    {
+      "name": "original-guard-blocks-closing"
+    },
+    {
+      "name": "original-guard-blocks-fixtureError"
+    },
+    {
+      "name": "original-guard-blocks-workflowFailed"
+    },
+    {
+      "name": "all-response-IDs-settled-within-caps",
+      "browserRequests": 12,
+      "responsePauses": 10,
+      "pendingIDs": [],
+      "bodyCapturePromises": 0,
+      "maximumDeclaredBodyBytes": 133,
+      "maximumPauseMs": 35.73619099999996
+    }
+  ],
+  "errors": [],
+  "cleanup": [
+    "Separate CDP Fetch disabled and detached after all IDs settled",
+    "Owned Chromium closed",
+    "Owned loopback server closed",
+    "Owned profile removed"
+  ],
+  "origin": "http://127.0.0.1:38205",
+  "browserVersion": "151.0.7922.173",
+  "pendingIDsBeforeBrowserClose": [],
+  "remainingOwnedBrowserPids": [],
+  "originalSourceUnchanged": true,
+  "runnerUnchanged": true,
+  "priorEvidenceUnchanged": true,
+  "finishedAt": "2026-10-09T08:52:17.053Z"
+}

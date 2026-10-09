@@ -1,0 +1,64 @@
+{
+  "source": "attempt-1/result.json",
+  "resultSHA256": "e57884b02434fbaaa200a0999f43ebe31b1059e0f98f9baf61637de204c130dd",
+  "affectedCases": 1,
+  "passed": false,
+  "checkpointCount": 1,
+  "originalTargetServerRequests": 1,
+  "originalTargetGuardCalls": 1,
+  "serverState": [
+    {
+      "url": "http://127.0.0.1:44745/v1/product/projects/p-proof/overview?case=prebody-abort",
+      "method": "GET",
+      "bodyBytesWritten": 0,
+      "headersSent": true,
+      "responseClosed": true,
+      "responseFinished": false,
+      "plannedBodyBytes": 82,
+      "bodyBytesWrittenAtClose": 0
+    }
+  ],
+  "abortOutcomes": [
+    {
+      "status": "fulfilled",
+      "value": {
+        "errorName": "AbortError",
+        "errorMessage": "signal is aborted without reason"
+      }
+    },
+    {
+      "status": "rejected",
+      "message": "getResponseBody cancellation join timeout"
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "requestId": "2302242.2",
+        "timestamp": 281647.290171,
+        "type": "Fetch",
+        "errorText": "net::ERR_ABORTED",
+        "canceled": true
+      }
+    }
+  ],
+  "commandsIssued": [
+    "Network.enable",
+    "Fetch.enable",
+    "Fetch.getResponseBody"
+  ],
+  "bodyCaptureRejectedOnlyAfterBrowserClose": {
+    "status": "rejected",
+    "name": "Error",
+    "message": "cdpSession.send: Target page, context or browser has been closed"
+  },
+  "cleanup": [
+    "Owned Chromium closed: capture promise still pending",
+    "Owned loopback server closed",
+    "Owned profile removed"
+  ],
+  "activePausedIDs": [],
+  "pausedResolution": "browser-closed-after-failed-proof",
+  "remainingOwnedBrowserPids": [],
+  "previousEvidenceUnchanged": true,
+  "mainDiagnosticRun": false
+}

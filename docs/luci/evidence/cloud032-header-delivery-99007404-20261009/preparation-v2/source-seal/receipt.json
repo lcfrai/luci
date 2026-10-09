@@ -1,0 +1,45 @@
+{
+  "sealedAt": "2026-10-09T09:09:22.833238+00:00",
+  "helperCommit": "a31e1ac485c95bdbcc9ebb011581da5ce3f5c67a",
+  "cleanCheckout": true,
+  "productCommit": "99007404a5ddd8592dee376ea00d99c6180d26fe",
+  "verifiedFrozenGitTemplates": 17,
+  "verifiedImportedDependencies": 7,
+  "verifiedGeneratedLocalSources": 12,
+  "routeGuardUnchanged": true,
+  "measurementModulesUnchanged": true,
+  "finalValidationSourceBytesUnchanged": true,
+  "packageProvenanceSHA256": "91efa3af18f26d877932aaa98a16a524c6820352af10b57bc74aa45a96134ff7",
+  "archive": "/workspace/luci/artifacts/releases/0.5.0-99007404-preserved-before-67a5b7c7/luci-linux-amd64.tar.gz",
+  "archiveExpectedSHA256": "9bf32d8ebe0c7c7d3297c81e91f0451f0035357cb77eb7abf06099920dd9f164",
+  "archiveBytesByStat": 69027325,
+  "archiveDigestVerifiedNow": false,
+  "archiveVerification": "Original root preservation receipt retained; complete archive/hash/member verification remains mandatory runtime preflight. No archive or image payload read by sealing.",
+  "imageExpectedID": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+  "validation": {
+    "final-units": {
+      "result": "validation/final-units/result.json",
+      "sha256": "533105f2856a7398d3629861bb6891385b11de04cb7109fd907b0bf24c2318ad",
+      "exitCode": 0
+    },
+    "final-syntax": {
+      "result": "validation/final-syntax/result.json",
+      "sha256": "2735a732b1d5813d47d1a0859dd49738b3c74d2b5311d50d118a320cc159d532",
+      "exitCode": 0
+    },
+    "pinned-input-refusals": {
+      "result": "validation/pinned-input-refusals/result.json",
+      "sha256": "047a8be049d0189dcc732a3e56b1b2a7812bced4d77039378d5c22417f24da43",
+      "exitCode": 0
+    }
+  },
+  "commands": [
+    "git rev-parse HEAD",
+    "git status --porcelain",
+    "git show <990>:<17 frozen template paths>",
+    "git show <a31>:<7 imported dependency paths>",
+    "small source/metadata SHA256 checks; archive stat only"
+  ],
+  "installedExperimentRun": false,
+  "limits": "Response availability/backpressure diagnostic only; no frontend commit causality or natural performance/acceptance claim."
+}

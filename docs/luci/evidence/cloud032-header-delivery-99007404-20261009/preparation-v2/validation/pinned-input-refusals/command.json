@@ -1,0 +1,24 @@
+{
+  "command": [
+    "python3",
+    "validation/verify-preflight.py"
+  ],
+  "cwd": "/workspace/.luci-tools/cloud032-summary-delivery-v2-20261009",
+  "environmentOverrides": {
+    "GOMAXPROCS": "2",
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  "timeoutSeconds": 30,
+  "startedAt": "2026-10-09T09:00:48.460144+00:00",
+  "inputsBefore": {
+    "header-delivery.mjs": "13ffc1a75f188ac577bfa67b31d220bf7f65a47eba37fa85b39687f4251a1cf5",
+    "header-delivery.test.mjs": "7904d1a9d86af7cc2220eb634a592f32faefd9742d44bc6004e840d9639dbf66",
+    "prepare-v2.py": "824dace0cba2b905c6b653f0aba9e80b108b1e43d524074c6d470741179d16f4",
+    "launch.py": "f5c6201ce4b57f3697d0613d9570f35eafa210beb8936a5b76ada4bd268a4269",
+    "actual/sustained.mjs": "4c1a57b8da378e1ac2000da0f016556f2a1c2081dcb231d686c09928a0fe769b",
+    "actual/header-delivery.mjs": "13ffc1a75f188ac577bfa67b31d220bf7f65a47eba37fa85b39687f4251a1cf5",
+    "actual/external-source-binding.json": "0a5a0669edc998c1fb4e23f5432ed98f4bd4dd3e4bed9e9f6979a99b6bb683f4",
+    "actual/schedule.json": "ce8a8b647f040a556be92ddbdd47654828e8b77bcfcf466d8fc8602525c5b9e1",
+    "validation/verify-preflight.py": "3a21e0be92880f69938a93db660d2ab20108c848240860d923140e9ba69833cc"
+  }
+}

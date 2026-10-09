@@ -1,0 +1,18 @@
+{
+  "preparation": {
+    "command": "node --check /workspace/.luci-tools/cloud032-summary-delivery-diagnostic-20261009/prebody-proof/proof.mjs",
+    "exitCode": 0
+  },
+  "attempts": [
+    {
+      "command": "GOMAXPROCS=2 node /workspace/.luci-tools/cloud032-summary-delivery-diagnostic-20261009/prebody-proof/proof.mjs /workspace/.luci-tools/cloud032-summary-delivery-diagnostic-20261009/prebody-proof/attempt-1 > /workspace/.luci-tools/cloud032-summary-delivery-diagnostic-20261009/prebody-proof/attempt-1.log 2>&1",
+      "exitCode": 1,
+      "rawMergedStdoutStderr": "attempt-1.log",
+      "result": "attempt-1/result.json",
+      "exactRunner": "attempt-1/proof.mjs",
+      "frozenGuard": "attempt-1/frozen-route-guard.txt"
+    }
+  ],
+  "mainDiagnosticRun": false,
+  "previous18CheckProofRerun": false
+}

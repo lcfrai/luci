@@ -1,0 +1,16 @@
+✔ matched baseline resumes original headers; defer waits for round release without reading body (22.734017ms)
+✔ 403, POST, wrong path, unknown project and foreign origin are never held (7.846883ms)
+✔ prebody natural cancellation resolves exact terminal ID without body capture, replay or disable during pending hold (7.187581ms)
+✔ unexplained invalid/protocol failure is not relabelled natural cancellation or successful drain (64.450453ms)
+✔ a response initiated before the active round cannot inherit its intervention condition (2.439833ms)
+✔ hold deadline invalidates the diagnostic and continues original response without cancellation or replacement (17.043555ms)
+✔ an oversized header is not retained as an eligible hold and invalidates the experiment (1.26197ms)
+✔ long-task observations preserve sequence and refuse dropped rows (1.799119ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 319.105387

@@ -1,0 +1,219 @@
+{
+  "rows": 320,
+  "groups": {
+    "baseline:project-switch": {
+      "count": 40,
+      "p50Ms": 250.2445519999892,
+      "p95Ms": 599.7787110000063,
+      "p99Ms": 613.5835030000017,
+      "maxMs": 613.5835030000017,
+      "meanMs": 290.9401633749985
+    },
+    "baseline:input": {
+      "count": 80,
+      "p50Ms": 49.65299699999741,
+      "p95Ms": 72.59908400000131,
+      "p99Ms": 295.59390500000154,
+      "maxMs": 295.59390500000154,
+      "meanMs": 54.61188846249934
+    },
+    "baseline:draft-reset": {
+      "count": 40,
+      "p50Ms": 269.47700999997323,
+      "p95Ms": 349.82938999999897,
+      "p99Ms": 834.0986419999972,
+      "maxMs": 834.0986419999972,
+      "meanMs": 288.64485300000086
+    },
+    "defer:project-switch": {
+      "count": 40,
+      "p50Ms": 246.57073199999286,
+      "p95Ms": 577.6141119999957,
+      "p99Ms": 780.4843539999856,
+      "maxMs": 780.4843539999856,
+      "meanMs": 300.33632010000036
+    },
+    "defer:input": {
+      "count": 80,
+      "p50Ms": 49.874033000000054,
+      "p95Ms": 69.69331400000374,
+      "p99Ms": 192.91235199999937,
+      "maxMs": 192.91235199999937,
+      "meanMs": 53.46977279999974
+    },
+    "defer:draft-reset": {
+      "count": 40,
+      "p50Ms": 266.94928299999447,
+      "p95Ms": 697.062545000008,
+      "p99Ms": 713.3447900000028,
+      "maxMs": 713.3447900000028,
+      "meanMs": 316.52493362500064
+    }
+  },
+  "matchedPairs": {
+    "count": 40,
+    "deferFaster": 22,
+    "deferSlower": 18,
+    "deltaMs": {
+      "count": 40,
+      "p50Ms": -5.353350999997929,
+      "p95Ms": 283.03650899999775,
+      "p99Ms": 375.46998299998813,
+      "maxMs": 375.46998299998813,
+      "meanMs": 9.396156725001855
+    },
+    "scope": "Descriptive paired order-block observations only. No independence, significance, generalization or causal mechanism claim."
+  },
+  "longTasks": {
+    "baseline": {
+      "project-switch": {
+        "observedActionIntervals": 40,
+        "intervalsWithLongTaskOverlap": 4,
+        "uniqueOverlappingLongTasks": 5,
+        "overlapMs": 514.0999999642372,
+        "observedBrowserSubspanMs": {
+          "count": 40,
+          "p50Ms": 195.60000002384186,
+          "p95Ms": 440.80000001192093,
+          "p99Ms": 574.6999999880791,
+          "maxMs": 574.6999999880791,
+          "meanMs": 236.58499999940395
+        }
+      },
+      "input": {
+        "observedActionIntervals": 80,
+        "intervalsWithLongTaskOverlap": 1,
+        "uniqueOverlappingLongTasks": 1,
+        "overlapMs": 111.19999998807907,
+        "observedBrowserSubspanMs": {
+          "count": 80,
+          "p50Ms": 39.39999997615814,
+          "p95Ms": 51.10000002384186,
+          "p99Ms": 261.39999997615814,
+          "maxMs": 261.39999997615814,
+          "meanMs": 41.59874999895692
+        }
+      },
+      "draft-reset": {
+        "observedActionIntervals": 40,
+        "intervalsWithLongTaskOverlap": 1,
+        "uniqueOverlappingLongTasks": 1,
+        "overlapMs": 121.69999998807907,
+        "observedBrowserSubspanMs": {
+          "count": 40,
+          "p50Ms": 225.69999998807907,
+          "p95Ms": 290.60000002384186,
+          "p99Ms": 464.69999998807907,
+          "maxMs": 464.69999998807907,
+          "meanMs": 232.14999999850988
+        }
+      }
+    },
+    "defer": {
+      "project-switch": {
+        "observedActionIntervals": 40,
+        "intervalsWithLongTaskOverlap": 8,
+        "uniqueOverlappingLongTasks": 9,
+        "overlapMs": 980.2000001072884,
+        "observedBrowserSubspanMs": {
+          "count": 40,
+          "p50Ms": 190.5,
+          "p95Ms": 428.5,
+          "p99Ms": 726.0,
+          "maxMs": 726.0,
+          "meanMs": 236.39249999672174
+        }
+      },
+      "input": {
+        "observedActionIntervals": 80,
+        "intervalsWithLongTaskOverlap": 0,
+        "uniqueOverlappingLongTasks": 0,
+        "overlapMs": 0,
+        "observedBrowserSubspanMs": {
+          "count": 80,
+          "p50Ms": 39.60000002384186,
+          "p95Ms": 54.09999996423721,
+          "p99Ms": 70.39999997615814,
+          "maxMs": 70.39999997615814,
+          "meanMs": 39.69749999567866
+        }
+      },
+      "draft-reset": {
+        "observedActionIntervals": 40,
+        "intervalsWithLongTaskOverlap": 4,
+        "uniqueOverlappingLongTasks": 4,
+        "overlapMs": 256.1000000834465,
+        "observedBrowserSubspanMs": {
+          "count": 40,
+          "p50Ms": 227.10000002384186,
+          "p95Ms": 398.30000001192093,
+          "p99Ms": 645.3000000119209,
+          "maxMs": 645.3000000119209,
+          "meanMs": 253.95500000715256
+        }
+      }
+    }
+  },
+  "longTasksOverlappingAny": 20,
+  "uncovered": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    9,
+    21
+  ],
+  "exposure": {
+    "baseline": {
+      "requests": 200,
+      "responses": 200,
+      "held": 0,
+      "responseOutcomes": {
+        "continued-original-headers": 200
+      },
+      "pauseMs": {
+        "count": 200,
+        "p50Ms": 2.082896999985678,
+        "p95Ms": 5.82223299999896,
+        "p99Ms": 6.740795999998227,
+        "maxMs": 8.517328999994788,
+        "meanMs": 2.495299669999731
+      },
+      "originalRequestUntilNetworkTerminalMs": {
+        "count": 200,
+        "p50Ms": 28.01399998134002,
+        "p95Ms": 67.06899998243898,
+        "p99Ms": 130.5419999989681,
+        "maxMs": 141.10800001071766,
+        "meanMs": 33.44173000077717
+      }
+    },
+    "defer": {
+      "requests": 200,
+      "responses": 200,
+      "held": 200,
+      "responseOutcomes": {
+        "original-network-cancelled-terminal-ID": 200
+      },
+      "pauseMs": {
+        "count": 200,
+        "p50Ms": 591.7552809999906,
+        "p95Ms": 1042.7020179999963,
+        "p99Ms": 1547.111109999998,
+        "maxMs": 1576.4220390000119,
+        "meanMs": 676.1838810149995
+      },
+      "originalRequestUntilNetworkTerminalMs": {
+        "count": 200,
+        "p50Ms": 94.58100004121661,
+        "p95Ms": 274.68899998348206,
+        "p99Ms": 346.22300002956763,
+        "maxMs": 451.0939999599941,
+        "meanMs": 123.19312499865191
+      }
+    }
+  },
+  "projectionSHA256": "6b6c4764a8e50b5a755ce35477e94f2003bd85f5bbe047efd112fc3c2c7eca5d"
+}

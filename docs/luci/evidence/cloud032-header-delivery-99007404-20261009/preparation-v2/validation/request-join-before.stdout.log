@@ -1,0 +1,42 @@
+✔ matched baseline resumes original headers; defer waits for round release without reading body (19.507586ms)
+✔ 403, POST, wrong path, unknown project and foreign origin are never held (6.203699ms)
+✔ prebody natural cancellation resolves exact terminal ID without body capture, replay or disable during pending hold (7.596837ms)
+✔ unexplained invalid/protocol failure is not relabelled natural cancellation or successful drain (65.647634ms)
+✔ a response initiated before the active round cannot inherit its intervention condition (4.612245ms)
+✔ hold deadline invalidates the diagnostic and continues original response without cancellation or replacement (16.740916ms)
+✔ an oversized header is not retained as an eligible hold and invalidates the experiment (1.680523ms)
+✔ long-task observations preserve sequence and refuse dropped rows (1.953654ms)
+✖ out-of-order responses retain an exact request-sequence join for cancellation evidence (7.722311ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 8
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 271.764198
+
+✖ failing tests:
+
+test at header-delivery.test.mjs:68:1
+✖ out-of-order responses retain an exact request-sequence join for cancellation evidence (7.722311ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   undefined,
+  +   undefined
+  -   2,
+  -   1
+    ]
+  
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud032-summary-delivery-v2-20261009/header-delivery.test.mjs:72:60)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ undefined, undefined ],
+    expected: [ 2, 1 ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

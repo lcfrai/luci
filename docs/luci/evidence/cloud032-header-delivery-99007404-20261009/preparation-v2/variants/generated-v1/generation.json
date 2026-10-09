@@ -1,0 +1,27 @@
+{
+  "templateProductCommit": "99007404a5ddd8592dee376ea00d99c6180d26fe",
+  "parentIdleDriverSHA256": "18429d2a6497cfec582c8565b572b3ca567b756f2f9d403efd79b6b405719dc2",
+  "generatedDriverSHA256": "778341cb8aaf846837cb32dab53c6b41b973d8109a875b4570aeb8f493a680ae",
+  "originalGuardUnchanged": true,
+  "routeGuardSHA256": "f868cf0d881a7b6dcf3aef323971adb0fcff65ea77353daac20d65205a4b2885",
+  "measurementFilesUnchanged": {
+    "interaction-metrics.mjs": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502",
+    "latency-diagnostics.mjs": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96"
+  },
+  "changes": [
+    "external headers-only diagnostic module",
+    "owned intervention lifecycle",
+    "retain exact new executed sources",
+    "same additive long-task observer in both arms; original route guard unchanged",
+    "bounded intervention cleanup before original controller/browser cleanup",
+    "fixed forty-switch-per-condition count",
+    "accurate fixed workload",
+    "explicit diagnostic identity",
+    "expanded intervention interpretation",
+    "explicit retained archive path; original provenance bytes/hash unchanged",
+    "reject undeclared archive/trace before runtime",
+    "replace old idle/trace tail with frozen balanced schedule; preserve each original round/span and thresholds",
+    "completion is conditional diagnostic only"
+  ],
+  "installedRun": false
+}

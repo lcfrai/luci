@@ -1,0 +1,551 @@
+{
+  "passed": true,
+  "scope": "Loopback HTTP/Chromium transport proof only; main C032 diagnostic NOT RUN",
+  "sourceBinding": {
+    "path": "/workspace/.luci-tools/cloud032-idle-integrated-candidate-20261009/actual/sustained.mjs",
+    "sha256": "18429d2a6497cfec582c8565b572b3ca567b756f2f9d403efd79b6b405719dc2",
+    "guardSHA256": "f868cf0d881a7b6dcf3aef323971adb0fcff65ea77353daac20d65205a4b2885",
+    "runnerSHA256": "e0b438027d0620cd6f060cab06677b5be89364c475c3c80b76011a5dc96ec744"
+  },
+  "caps": {
+    "browserRequests": 16,
+    "responseBodyBytes": 65536,
+    "responsePauseMs": 1000,
+    "hardStopMs": 88000
+  },
+  "browserMutations": [
+    {
+      "stage": "transport-proof",
+      "method": "POST",
+      "path": "/v1/product/projects/p-proof/overview"
+    }
+  ],
+  "server": [
+    {
+      "url": "http://127.0.0.1:41219/",
+      "method": "GET",
+      "status": 200,
+      "bodyBytes": 108,
+      "bodySHA256": "2759ee6ec563b0000946d71d528c7e1b22e5414be05f3a88c46191439d011771"
+    },
+    {
+      "url": "http://127.0.0.1:41219/v1/product/projects/p-proof/overview?case=baseline",
+      "method": "GET",
+      "status": 200,
+      "bodyBytes": 148,
+      "bodySHA256": "d4f0f7eb5e7021d3f8208bdbae06b59b6e8a2a4372371bbf2ffbf2ea6003a46e"
+    },
+    {
+      "url": "http://127.0.0.1:41219/v1/product/projects/p-proof/overview?case=defer",
+      "method": "GET",
+      "status": 200,
+      "bodyBytes": 145,
+      "bodySHA256": "218599a69205b83d3e825384a59058731c7e8399bf7b043039e9e2b20ba2387c"
+    },
+    {
+      "url": "http://127.0.0.1:41219/v1/product/swarm-scheduler?case=defer",
+      "method": "GET",
+      "status": 200,
+      "bodyBytes": 135,
+      "bodySHA256": "64f0a47c36a0c48637199567707d4bd3ed5d87494fcefb7f4e0f176cb6b59a93"
+    },
+    {
+      "url": "http://127.0.0.1:41219/v1/product/projects/p-proof/overview?status=403",
+      "method": "GET",
+      "status": 403,
+      "bodyBytes": 145,
+      "bodySHA256": "91ad3762dce04abcdd4f7eb754a2da40bbfa6ba7a901c623b864c698c8d9e1e6"
+    },
+    {
+      "url": "http://127.0.0.1:41219/v1/product/projects/p-proof/overview?case=post",
+      "method": "POST",
+      "status": 200,
+      "bodyBytes": 145,
+      "bodySHA256": "e6360c50c132cde9a605007aa8f9240540bb15c6e3529b5140fd7fe6b12bef59"
+    },
+    {
+      "url": "http://127.0.0.1:41219/v1/product/projects/p-proof/overview-extra?case=wrong-path",
+      "method": "GET",
+      "status": 200,
+      "bodyBytes": 156,
+      "bodySHA256": "7d01bd3730d7438a0554382f0f54d4591ea40cf97cff0e14e495f86e9cad81d9"
+    },
+    {
+      "url": "http://127.0.0.1:41219/v1/product/projects/p-proof/overview?case=natural-abort",
+      "method": "GET",
+      "status": 200,
+      "bodyBytes": 153,
+      "bodySHA256": "d76557bab4c536eafd7879e3da99731e8bafcdf681bce1c295154b76b2918d36"
+    }
+  ],
+  "guard": [
+    {
+      "url": "http://127.0.0.1:41219/",
+      "method": "GET",
+      "closing": false,
+      "fixtureError": false,
+      "workflowFailed": false
+    },
+    {
+      "url": "http://127.0.0.1:41219/v1/product/projects/p-proof/overview?case=baseline",
+      "method": "GET",
+      "closing": false,
+      "fixtureError": false,
+      "workflowFailed": false
+    },
+    {
+      "url": "http://127.0.0.1:41219/v1/product/projects/p-proof/overview?case=defer",
+      "method": "GET",
+      "closing": false,
+      "fixtureError": false,
+      "workflowFailed": false
+    },
+    {
+      "url": "http://127.0.0.1:41219/v1/product/swarm-scheduler?case=defer",
+      "method": "GET",
+      "closing": false,
+      "fixtureError": false,
+      "workflowFailed": false
+    },
+    {
+      "url": "http://127.0.0.1:41219/v1/product/projects/p-proof/overview?status=403",
+      "method": "GET",
+      "closing": false,
+      "fixtureError": false,
+      "workflowFailed": false
+    },
+    {
+      "url": "http://127.0.0.1:41219/v1/product/projects/p-proof/overview?case=post",
+      "method": "POST",
+      "closing": false,
+      "fixtureError": false,
+      "workflowFailed": false
+    },
+    {
+      "url": "http://127.0.0.1:41219/v1/product/projects/p-proof/overview-extra?case=wrong-path",
+      "method": "GET",
+      "closing": false,
+      "fixtureError": false,
+      "workflowFailed": false
+    },
+    {
+      "url": "http://127.0.0.1:41219/v1/product/projects/p-proof/overview?case=natural-abort",
+      "method": "GET",
+      "closing": false,
+      "fixtureError": false,
+      "workflowFailed": false
+    },
+    {
+      "url": "http://localhost:41219/cross-origin",
+      "method": "GET",
+      "closing": false,
+      "fixtureError": false,
+      "workflowFailed": false
+    },
+    {
+      "url": "http://127.0.0.1:41219/v1/product/projects/p-proof/overview?guard=closing",
+      "method": "GET",
+      "closing": true,
+      "fixtureError": false,
+      "workflowFailed": false
+    },
+    {
+      "url": "http://127.0.0.1:41219/v1/product/projects/p-proof/overview?guard=fixtureError",
+      "method": "GET",
+      "closing": false,
+      "fixtureError": true,
+      "workflowFailed": false
+    },
+    {
+      "url": "http://127.0.0.1:41219/v1/product/projects/p-proof/overview?guard=workflowFailed",
+      "method": "GET",
+      "closing": false,
+      "fixtureError": false,
+      "workflowFailed": true
+    }
+  ],
+  "pauses": [
+    {
+      "id": "interception-job-3.0",
+      "networkId": "2300875.2",
+      "url": "http://127.0.0.1:41219/v1/product/projects/p-proof/overview?case=baseline",
+      "method": "GET",
+      "status": 200,
+      "arm": "baseline",
+      "began": 1808.361601,
+      "target": true,
+      "bodyBytes": 148,
+      "bodySHA256": "d4f0f7eb5e7021d3f8208bdbae06b59b6e8a2a4372371bbf2ffbf2ea6003a46e",
+      "originalHeaders": [
+        {
+          "name": "cache-control",
+          "value": "no-store"
+        },
+        {
+          "name": "connection",
+          "value": "close"
+        },
+        {
+          "name": "content-length",
+          "value": "148"
+        },
+        {
+          "name": "content-type",
+          "value": "application/json; charset=utf-8"
+        },
+        {
+          "name": "date",
+          "value": "Wed, 01 Jan 2025 00:00:00 GMT"
+        },
+        {
+          "name": "x-proof-identity",
+          "value": "exact-original-1"
+        }
+      ],
+      "releaseReason": "baseline-immediate",
+      "releaseResult": "continued-unchanged",
+      "elapsedMs": 11.02225499999986
+    },
+    {
+      "id": "interception-job-5.0",
+      "networkId": "2300875.3",
+      "url": "http://127.0.0.1:41219/v1/product/projects/p-proof/overview?case=defer",
+      "method": "GET",
+      "status": 200,
+      "arm": "defer",
+      "began": 1871.414699,
+      "target": true,
+      "bodyBytes": 145,
+      "bodySHA256": "218599a69205b83d3e825384a59058731c7e8399bf7b043039e9e2b20ba2387c",
+      "originalHeaders": [
+        {
+          "name": "cache-control",
+          "value": "no-store"
+        },
+        {
+          "name": "connection",
+          "value": "close"
+        },
+        {
+          "name": "content-length",
+          "value": "145"
+        },
+        {
+          "name": "content-type",
+          "value": "application/json; charset=utf-8"
+        },
+        {
+          "name": "date",
+          "value": "Wed, 01 Jan 2025 00:00:00 GMT"
+        },
+        {
+          "name": "x-proof-identity",
+          "value": "exact-original-2"
+        }
+      ],
+      "deliveryHeld": true,
+      "releaseReason": "explicit-checkpoint-release",
+      "releaseResult": "continued-unchanged",
+      "elapsedMs": 14.09990700000003
+    },
+    {
+      "id": "interception-job-7.0",
+      "networkId": "2300875.4",
+      "url": "http://127.0.0.1:41219/v1/product/swarm-scheduler?case=defer",
+      "method": "GET",
+      "status": 200,
+      "arm": "defer",
+      "began": 1946.392646,
+      "target": true,
+      "bodyBytes": 135,
+      "bodySHA256": "64f0a47c36a0c48637199567707d4bd3ed5d87494fcefb7f4e0f176cb6b59a93",
+      "originalHeaders": [
+        {
+          "name": "cache-control",
+          "value": "no-store"
+        },
+        {
+          "name": "connection",
+          "value": "close"
+        },
+        {
+          "name": "content-length",
+          "value": "135"
+        },
+        {
+          "name": "content-type",
+          "value": "application/json; charset=utf-8"
+        },
+        {
+          "name": "date",
+          "value": "Wed, 01 Jan 2025 00:00:00 GMT"
+        },
+        {
+          "name": "x-proof-identity",
+          "value": "exact-original-3"
+        }
+      ],
+      "deliveryHeld": true,
+      "releaseReason": "explicit-checkpoint-release",
+      "releaseResult": "continued-unchanged",
+      "elapsedMs": 13.680114999999887
+    },
+    {
+      "id": "interception-job-9.0",
+      "networkId": "2300875.5",
+      "url": "http://127.0.0.1:41219/v1/product/projects/p-proof/overview?status=403",
+      "method": "GET",
+      "status": 403,
+      "arm": "defer",
+      "began": 1993.027051,
+      "target": false,
+      "releaseReason": "non-target-immediate",
+      "releaseResult": "continued-unchanged",
+      "elapsedMs": 2.7999700000000303
+    },
+    {
+      "id": "interception-job-11.0",
+      "networkId": "2300875.6",
+      "url": "http://127.0.0.1:41219/v1/product/projects/p-proof/overview?case=post",
+      "method": "POST",
+      "status": 200,
+      "arm": "defer",
+      "began": 2029.529584,
+      "target": false,
+      "releaseReason": "non-target-immediate",
+      "releaseResult": "continued-unchanged",
+      "elapsedMs": 3.228594999999814
+    },
+    {
+      "id": "interception-job-13.0",
+      "networkId": "2300875.7",
+      "url": "http://127.0.0.1:41219/v1/product/projects/p-proof/overview-extra?case=wrong-path",
+      "method": "GET",
+      "status": 200,
+      "arm": "defer",
+      "began": 2901.611371,
+      "target": false,
+      "releaseReason": "non-target-immediate",
+      "releaseResult": "continued-unchanged",
+      "elapsedMs": 37.720482000000175
+    },
+    {
+      "id": "interception-job-15.0",
+      "networkId": "2300875.8",
+      "url": "http://127.0.0.1:41219/v1/product/projects/p-proof/overview?case=natural-abort",
+      "method": "GET",
+      "status": 200,
+      "arm": "defer",
+      "began": 3066.451761,
+      "target": true,
+      "bodyBytes": 153,
+      "bodySHA256": "d76557bab4c536eafd7879e3da99731e8bafcdf681bce1c295154b76b2918d36",
+      "originalHeaders": [
+        {
+          "name": "cache-control",
+          "value": "no-store"
+        },
+        {
+          "name": "connection",
+          "value": "close"
+        },
+        {
+          "name": "content-length",
+          "value": "153"
+        },
+        {
+          "name": "content-type",
+          "value": "application/json; charset=utf-8"
+        },
+        {
+          "name": "date",
+          "value": "Wed, 01 Jan 2025 00:00:00 GMT"
+        },
+        {
+          "name": "x-proof-identity",
+          "value": "exact-original-7"
+        }
+      ],
+      "deliveryHeld": true,
+      "browserAborted": true,
+      "releaseReason": "natural-abort-cleanup",
+      "releaseResult": "browser-cancelled-before-release",
+      "releaseError": "cdpSession.send: Protocol error (Fetch.continueResponse): Invalid InterceptionId.",
+      "elapsedMs": 21.852526000000125
+    },
+    {
+      "id": "interception-job-19.0",
+      "networkId": "2300875.10",
+      "url": "http://127.0.0.1:41219/v1/product/projects/p-proof/overview?guard=closing",
+      "method": "GET",
+      "arm": "defer",
+      "began": 3118.573119,
+      "target": false,
+      "releaseReason": "non-target-immediate",
+      "releaseResult": "continued-unchanged",
+      "elapsedMs": 6.589701999999761
+    },
+    {
+      "id": "interception-job-21.0",
+      "networkId": "2300875.11",
+      "url": "http://127.0.0.1:41219/v1/product/projects/p-proof/overview?guard=fixtureError",
+      "method": "GET",
+      "arm": "defer",
+      "began": 3151.313416,
+      "target": false,
+      "releaseReason": "non-target-immediate",
+      "releaseResult": "continued-unchanged",
+      "elapsedMs": 9.86735200000021
+    },
+    {
+      "id": "interception-job-23.0",
+      "networkId": "2300875.12",
+      "url": "http://127.0.0.1:41219/v1/product/projects/p-proof/overview?guard=workflowFailed",
+      "method": "GET",
+      "arm": "defer",
+      "began": 3184.417741,
+      "target": false,
+      "releaseReason": "non-target-immediate",
+      "releaseResult": "continued-unchanged",
+      "elapsedMs": 4.289094999999634
+    }
+  ],
+  "networkFailures": [
+    {
+      "requestId": "2300875.8",
+      "timestamp": 281332.527157,
+      "type": "Fetch",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    },
+    {
+      "requestId": "2300875.9",
+      "timestamp": 281332.554435,
+      "type": "Fetch",
+      "errorText": "net::ERR_BLOCKED_BY_CLIENT.Inspector",
+      "canceled": false,
+      "blockedReason": "inspector"
+    },
+    {
+      "requestId": "2300875.10",
+      "timestamp": 281332.577631,
+      "type": "Fetch",
+      "errorText": "net::ERR_BLOCKED_BY_CLIENT.Inspector",
+      "canceled": false,
+      "blockedReason": "inspector"
+    },
+    {
+      "requestId": "2300875.11",
+      "timestamp": 281332.616803,
+      "type": "Fetch",
+      "errorText": "net::ERR_BLOCKED_BY_CLIENT.Inspector",
+      "canceled": false,
+      "blockedReason": "inspector"
+    },
+    {
+      "requestId": "2300875.12",
+      "timestamp": 281332.64102,
+      "type": "Fetch",
+      "errorText": "net::ERR_BLOCKED_BY_CLIENT.Inspector",
+      "canceled": false,
+      "blockedReason": "inspector"
+    }
+  ],
+  "checks": [
+    {
+      "name": "original-route-guard-and-separate-response-session-enabled"
+    },
+    {
+      "name": "document-delivered-through-original-guard",
+      "guardRequests": 1
+    },
+    {
+      "name": "baseline-exact-body-status-headers-original-request-once"
+    },
+    {
+      "name": "overview-checkpoint-body-captured-browser-unsettled",
+      "bodyBytes": 145,
+      "bodySHA256": "218599a69205b83d3e825384a59058731c7e8399bf7b043039e9e2b20ba2387c",
+      "guardCount": 1,
+      "serverCount": 1,
+      "pendingIDs": 1
+    },
+    {
+      "name": "overview-exact-unchanged-delivery-after-release",
+      "elapsedMs": 14.09990700000003
+    },
+    {
+      "name": "scheduler-checkpoint-body-captured-browser-unsettled",
+      "bodyBytes": 135,
+      "bodySHA256": "64f0a47c36a0c48637199567707d4bd3ed5d87494fcefb7f4e0f176cb6b59a93",
+      "guardCount": 1,
+      "serverCount": 1,
+      "pendingIDs": 1
+    },
+    {
+      "name": "scheduler-exact-unchanged-delivery-after-release",
+      "elapsedMs": 13.680114999999887
+    },
+    {
+      "name": "forbidden-never-held",
+      "status": 403,
+      "method": "GET"
+    },
+    {
+      "name": "post-never-held",
+      "status": 200,
+      "method": "POST"
+    },
+    {
+      "name": "wrong-path-never-held",
+      "status": 200,
+      "method": "GET"
+    },
+    {
+      "name": "original-guard-retains-mutation-log"
+    },
+    {
+      "name": "natural-abort-rejects-before-held-response-release",
+      "networkId": "2300875.8",
+      "pendingIDs": 1
+    },
+    {
+      "name": "natural-abort-no-replay",
+      "releaseResult": "browser-cancelled-before-release"
+    },
+    {
+      "name": "original-guard-blocks-cross-origin"
+    },
+    {
+      "name": "original-guard-blocks-closing"
+    },
+    {
+      "name": "original-guard-blocks-fixtureError"
+    },
+    {
+      "name": "original-guard-blocks-workflowFailed"
+    },
+    {
+      "name": "caps-and-final-paused-ID-check",
+      "browserRequests": 12,
+      "responsePauses": 10,
+      "pausedIDs": [],
+      "maximumBodyBytes": 153,
+      "maximumPauseMs": 37.720482000000175
+    }
+  ],
+  "errors": [],
+  "cleanup": [
+    "Separate CDP response session disabled and detached",
+    "Owned Chromium closed",
+    "Owned loopback server closed",
+    "Owned profile removed"
+  ],
+  "origin": "http://127.0.0.1:41219",
+  "browserVersion": "151.0.7922.173",
+  "pausedIDsAtCleanup": [],
+  "remainingOwnedBrowserPids": [],
+  "sourceUnchanged": true,
+  "runnerUnchanged": true,
+  "finishedAt": "2026-10-09T08:41:03.920Z"
+}

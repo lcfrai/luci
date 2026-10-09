@@ -1,0 +1,23 @@
+--- 990-template/sustained.mjs
++++ 67a5-template/sustained.mjs
+@@ -664,7 +664,19 @@
+  await openProject();await interactions.warm();setStage('settle');await quietPhase('quiet-app-open-settle');const settled=phaseStart('settled-interactive-calibration');await interactions.calibrate(100);phaseEnd(settled);await passiveTiming('final-calibration');
+  receipt.interactionSummary=summarizeInteractions(receipt.interactions);receipt.latencyTargets={measurement:'Full browser automation All projects→open saved Define context→two frames; input command→expected field→two frames; not physical display/input latency',projectSwitchP95Ms:300,inputP95Ms:100,p99Ms:1000,minimumSamples:{loadedSwitches:200,loadedInputs:400,idleSwitches:100,idleInputs:200,settledSwitches:100,settledInputs:200}};
+  const latencyFailures=[];for(const name of ['idle-interactive-calibration','loaded','settled-interactive-calibration'])for(const kind of ['project-switch','input']){const value=receipt.interactionSummary[name+':'+kind];assert(value);if(value.failed||value.p95Ms>(kind==='input'?100:300)||value.p99Ms>=1000)latencyFailures.push({phase:name,kind,...value});}receipt.latencyTargetsMet=latencyFailures.length===0;receipt.latencyFailures=latencyFailures;
+- await openProject(amended);await page.screenshot({path:join(evidence,'amended-project-desktop.png'),fullPage:true});await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'All projects',exact:true}).click();await page.getByRole('heading',{name:'Across your projects',exact:true}).waitFor();for(const owner of projectStates)await page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true}).waitFor();assert(await timed(page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),15000,'Phone document geometry'),'Phone overview must not horizontally overflow');await page.screenshot({path:join(evidence,'four-project-phone.png'),fullPage:true});
++ await openProject(amended);await page.screenshot({path:join(evidence,'amended-project-desktop.png'),fullPage:true});
++ // BEGIN SUSTAINED PHONE OVERVIEW: actual responsive shell regression extracts this block.
++ await page.setViewportSize({width:390,height:844});
++ // Compact navigation deliberately makes the closed rail inert. Open its user-facing
++ // Projects drawer before selecting All projects; never click hidden/inert DOM.
++ await page.getByRole('button',{name:'Projects',exact:true}).click();
++ await page.getByRole('button',{name:'Close projects',exact:true}).waitFor();
++ await page.getByRole('button',{name:'All projects',exact:true}).click();
++ await page.getByRole('heading',{name:'Across your projects',exact:true}).waitFor();
++ for(const owner of projectStates)await page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true}).waitFor();
++ assert(await timed(page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),15000,'Phone document geometry'),'Phone overview must not horizontally overflow');
++ await page.screenshot({path:join(evidence,'four-project-phone.png'),fullPage:true});
++ // END SUSTAINED PHONE OVERVIEW
+  assert.equal(proxy.observations.counts.create,5);assert.equal(proxy.observations.counts.start,5);assert.equal(proxy.observations.dropped,0);assert.equal(proxy.observations.failures.length,0);assert.equal(observations.size,5);assert.equal(receipt.browserErrors.length,0);assert.equal(receipt.naturalCompletions.length,5);assert.equal(receipt.preIntegrationProgress.length,3);assert.equal(workerContainers().length,0);assert.equal(docker('info','--format','{{.ID}}'),engineID);
+  check('Five actual native task commands across four projects finish naturally, with600seconds real fuzz work and browser-reviewed amendment');receipt.functionalPassed=true;assert(receipt.latencyTargetsMet,'Measured UI latency exceeded the declared candidate targets; retain actual timings without relabeling functional success as full acceptance');receipt.passed=true;
+  });

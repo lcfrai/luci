@@ -1,0 +1,75 @@
+{
+  "observedAt": "2026-10-09T09:12:58.493344+00:00",
+  "scope": "Independent read-only exact known driver/controller identity and exclusive daemon inventory check. No cleanup mutations or signals.",
+  "sourceHEAD": "a31e1ac485c95bdbcc9ebb011581da5ce3f5c67a",
+  "sourceStatus": [],
+  "originalResultSHA256": "876c638211523c48f1657cc723169c0ce35b9dd24d065269b95a179488ad5bdd",
+  "allOriginalArtifactsStable": true,
+  "originalArtifacts": {
+    "driver.stdout.log": "9aa8549ec4c306dad682310efde0d6d1c4cddb1cf8c5101337cced636388399c",
+    "driver.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "invocation.json": "de445ff7d6e779bf77d6590b0a1fb9cc54e4339fa6f5316646bbc39072eeb3f1",
+    "driver-identity.json": "c9de494ad91d36cfb4c5c3b538aac281beb7083fda7ffca8837a2449089ed5cb",
+    "wrapper-result.json": "c12f17e0cd9b84730924fa82769332ed813412d31a94b6b9a8296e46db8f928b",
+    "driver/package-provenance.json": "91efa3af18f26d877932aaa98a16a524c6820352af10b57bc74aa45a96134ff7",
+    "driver/image-provenance.json": "5af726e6670fd6f04c0f67cf3b26b3f6072ed89c1e1e3481c652a631ae6d0a3b",
+    "driver/result.json": "876c638211523c48f1657cc723169c0ce35b9dd24d065269b95a179488ad5bdd",
+    "driver/result.json.incomplete.json": "ee9ee67070d466eed13a13119a630ee8056e1aea2f7e10531339e483905f3d59",
+    "driver/diagnostic-journal.jsonl": "9978b76976a4f449a289674c572ac983ba8bbbfbebc4d4e4319cbd57b62c5e75",
+    "driver/accepted-harness/launch-recovery_acceptance-startup.mjs": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+    "driver/accepted-harness/four-project-queue_sample-linux-owned.py": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+    "driver/accepted-harness/interaction-metrics.mjs": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502",
+    "driver/accepted-harness/launch-recovery_fenced-docker-proxy.mjs": "b965b9a5d03f8a4cbc19b6e065559e1d9b10a2812453bfafb992e3f0041e448f",
+    "driver/accepted-harness/task-command.mjs": "7557cc863201e136a6ea0f4d039472d6e225a8efb0fb2afe267b9d65e01a541f",
+    "driver/accepted-harness/four-project-queue_native-terminal-diagnostics.mjs": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+    "driver/accepted-harness/task-context.mjs": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2",
+    "driver/accepted-harness/workloads.mjs": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306",
+    "driver/accepted-harness/queue-controls.mjs": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0",
+    "driver/accepted-harness/receipt-transport.mjs": "6a676eefc02c4be569e65f6c3a16da50f750be67acaf4f1380a86739791c34a1",
+    "driver/accepted-harness/launch-recovery_acceptance-lifecycle.mjs": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+    "driver/accepted-harness/source-binding.mjs": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796",
+    "driver/accepted-harness/run-with-observer.py": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a",
+    "driver/accepted-harness/launch-recovery_worker-create-guard.mjs": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+    "driver/accepted-harness/header-delivery.mjs": "13ffc1a75f188ac577bfa67b31d220bf7f65a47eba37fa85b39687f4251a1cf5",
+    "driver/accepted-harness/external-source-binding.json": "0a5a0669edc998c1fb4e23f5432ed98f4bd4dd3e4bed9e9f6979a99b6bb683f4",
+    "driver/accepted-harness/launch-recovery_durable-acceptance-journal.mjs": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+    "driver/accepted-harness/schedule.json": "ce8a8b647f040a556be92ddbdd47654828e8b77bcfcf466d8fc8602525c5b9e1",
+    "driver/accepted-harness/latency-diagnostics.mjs": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96",
+    "driver/accepted-harness/sustained.mjs": "4c1a57b8da378e1ac2000da0f016556f2a1c2081dcb231d686c09928a0fe769b"
+  },
+  "identities": [
+    {
+      "expected": {
+        "pid": 2310456,
+        "startTicks": 28308086
+      },
+      "observation": "absent",
+      "current": null
+    },
+    {
+      "expected": {
+        "pid": 2310671,
+        "startTicks": 28308552
+      },
+      "observation": "absent",
+      "current": null
+    }
+  ],
+  "containers": [],
+  "volumes": [],
+  "imageID": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+  "engineIdentitySHA256": "9ccbe65e5da6fcbddb4f24a682abf7d4e4ddf8dff3a453fca0c0dbd34de76de5",
+  "engineMatchesDriver": true,
+  "driverCleanupAssertions": {
+    "controllersStopped": true,
+    "dockerRequestsDrained": true,
+    "dockerMutationStateCertain": true,
+    "fixtureRemoved": true,
+    "cleanup": []
+  },
+  "limits": [
+    "Only journal-recorded driver and controller PID/start identities were independently observed. No browser PID/start census or independent Linux observer was captured in this idle diagnostic.",
+    "Browser/zombie absence and whole-machine closure are not established by empty Docker inventory or absent controller. Historical unrelated zombies are not assigned to this run.",
+    "Fixture removal is a retained driver assertion; the original private fixture path is not present in the successful final result. No retained failed fixture/lease was read or modified."
+  ]
+}

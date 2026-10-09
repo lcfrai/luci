@@ -1,0 +1,46 @@
+{
+  "payloadMemberCount": 8,
+  "manifestName": "publication-prep-manifest.json",
+  "members": [
+    {
+      "path": "README.md",
+      "bytes": 1482,
+      "sha256": "7f8775a8ed27b3708bb76d18b71df86ba423fdacd2a77da2d43bb3783ca0776b"
+    },
+    {
+      "path": "capsule-SHA256SUMS",
+      "bytes": 30395,
+      "sha256": "2ea86ab2498130c4f92368532ca0b19680dffb33b98ec99df65afdd4ad69d928"
+    },
+    {
+      "path": "capsule-allowlist.txt",
+      "bytes": 14225,
+      "sha256": "df745817acb4ff4b461c4136944fc82312d84089a08f0311f40a6f3012f8ec9a"
+    },
+    {
+      "path": "command.json",
+      "bytes": 634,
+      "sha256": "80b4236b0f5a3263cf62b3eb97be5355c15bc864d39d7e4e28ceae29c62cb00c"
+    },
+    {
+      "path": "inventory-privacy-receipt.json",
+      "bytes": 86348,
+      "sha256": "61a5e567d82ddfc55b45b5ac395a7b56af856e62988087700c29657ba49b8cb2"
+    },
+    {
+      "path": "stage.py",
+      "bytes": 9120,
+      "sha256": "2f803b056fdaa3ff3e425f523b8205be313b0dcecc9b5393acb8c7a62dd5baf6"
+    },
+    {
+      "path": "stage.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "stage.stdout.log",
+      "bytes": 295,
+      "sha256": "0043618506dbab1294956197251a9e9b51ce57e829839e68ad76f609747006d0"
+    }
+  ]
+}

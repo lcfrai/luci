@@ -1,0 +1,236 @@
+{
+  "status": "Source-only plan frozen for review; transport proof is separately retained; no installed experiment",
+  "memberCountExcludingThisManifest": 46,
+  "members": [
+    {
+      "path": "PLAN.md",
+      "bytes": 10600,
+      "sha256": "690350899c3b905ac8ac71736a8f45feffe53f81f244de83cd0c9c757058a508"
+    },
+    {
+      "path": "evidence-basis.json",
+      "bytes": 1074,
+      "sha256": "0ba6e4d9c6ec5742e273b0c567b29d98aa1642a461928db8ccdf427b2c983aeb"
+    },
+    {
+      "path": "frozen-idle-reference/README.md",
+      "bytes": 4853,
+      "sha256": "8d8ce2520d2eb62124bbca95e3605bf2c8e98a8fc4333337f0e7842dd94fa25a"
+    },
+    {
+      "path": "frozen-idle-reference/actual/external-source-binding.json",
+      "bytes": 6206,
+      "sha256": "fc0a29902240c639f4edb9e8e3599a7a4d5ef6ee0ca65d374022d05ac66d6518"
+    },
+    {
+      "path": "frozen-idle-reference/actual/four-project-queue_native-terminal-diagnostics.mjs",
+      "bytes": 6811,
+      "sha256": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6"
+    },
+    {
+      "path": "frozen-idle-reference/actual/four-project-queue_sample-linux-owned.py",
+      "bytes": 35379,
+      "sha256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d"
+    },
+    {
+      "path": "frozen-idle-reference/actual/interaction-metrics.mjs",
+      "bytes": 9846,
+      "sha256": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502"
+    },
+    {
+      "path": "frozen-idle-reference/actual/latency-diagnostics.mjs",
+      "bytes": 7545,
+      "sha256": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96"
+    },
+    {
+      "path": "frozen-idle-reference/actual/launch-recovery_acceptance-lifecycle.mjs",
+      "bytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+    },
+    {
+      "path": "frozen-idle-reference/actual/launch-recovery_acceptance-startup.mjs",
+      "bytes": 4637,
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680"
+    },
+    {
+      "path": "frozen-idle-reference/actual/launch-recovery_durable-acceptance-journal.mjs",
+      "bytes": 6670,
+      "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1"
+    },
+    {
+      "path": "frozen-idle-reference/actual/launch-recovery_fenced-docker-proxy.mjs",
+      "bytes": 39518,
+      "sha256": "b965b9a5d03f8a4cbc19b6e065559e1d9b10a2812453bfafb992e3f0041e448f"
+    },
+    {
+      "path": "frozen-idle-reference/actual/launch-recovery_worker-create-guard.mjs",
+      "bytes": 5545,
+      "sha256": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5"
+    },
+    {
+      "path": "frozen-idle-reference/actual/queue-controls.mjs",
+      "bytes": 711,
+      "sha256": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0"
+    },
+    {
+      "path": "frozen-idle-reference/actual/receipt-transport.mjs",
+      "bytes": 5857,
+      "sha256": "6a676eefc02c4be569e65f6c3a16da50f750be67acaf4f1380a86739791c34a1"
+    },
+    {
+      "path": "frozen-idle-reference/actual/run-with-observer.py",
+      "bytes": 17220,
+      "sha256": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a"
+    },
+    {
+      "path": "frozen-idle-reference/actual/source-binding.mjs",
+      "bytes": 2768,
+      "sha256": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796"
+    },
+    {
+      "path": "frozen-idle-reference/actual/sustained.mjs",
+      "bytes": 96527,
+      "sha256": "18429d2a6497cfec582c8565b572b3ca567b756f2f9d403efd79b6b405719dc2"
+    },
+    {
+      "path": "frozen-idle-reference/actual/task-command.mjs",
+      "bytes": 11762,
+      "sha256": "7557cc863201e136a6ea0f4d039472d6e225a8efb0fb2afe267b9d65e01a541f"
+    },
+    {
+      "path": "frozen-idle-reference/actual/task-context.mjs",
+      "bytes": 2439,
+      "sha256": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2"
+    },
+    {
+      "path": "frozen-idle-reference/actual/workloads.mjs",
+      "bytes": 18691,
+      "sha256": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306"
+    },
+    {
+      "path": "frozen-idle-reference/idle-extraction.json",
+      "bytes": 6206,
+      "sha256": "fc0a29902240c639f4edb9e8e3599a7a4d5ef6ee0ca65d374022d05ac66d6518"
+    },
+    {
+      "path": "frozen-idle-reference/idle-extraction.patch",
+      "bytes": 25210,
+      "sha256": "e5a6434d938600f5213a273e2c434980e4d5a95973a4d22f24726aa175526dc9"
+    },
+    {
+      "path": "frozen-idle-reference/launch.py",
+      "bytes": 8311,
+      "sha256": "a1ffc1ee3e9674a2812ad569a301d4ad69402c8dfa690f543c1a0bc12b270a62"
+    },
+    {
+      "path": "frozen-idle-reference/original/four-project-queue_native-terminal-diagnostics.mjs",
+      "bytes": 6811,
+      "sha256": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6"
+    },
+    {
+      "path": "frozen-idle-reference/original/four-project-queue_sample-linux-owned.py",
+      "bytes": 35379,
+      "sha256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d"
+    },
+    {
+      "path": "frozen-idle-reference/original/interaction-metrics.mjs",
+      "bytes": 9846,
+      "sha256": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502"
+    },
+    {
+      "path": "frozen-idle-reference/original/latency-diagnostics.mjs",
+      "bytes": 7545,
+      "sha256": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96"
+    },
+    {
+      "path": "frozen-idle-reference/original/launch-recovery_acceptance-lifecycle.mjs",
+      "bytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+    },
+    {
+      "path": "frozen-idle-reference/original/launch-recovery_acceptance-startup.mjs",
+      "bytes": 4637,
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680"
+    },
+    {
+      "path": "frozen-idle-reference/original/launch-recovery_durable-acceptance-journal.mjs",
+      "bytes": 6670,
+      "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1"
+    },
+    {
+      "path": "frozen-idle-reference/original/launch-recovery_fenced-docker-proxy.mjs",
+      "bytes": 39518,
+      "sha256": "b965b9a5d03f8a4cbc19b6e065559e1d9b10a2812453bfafb992e3f0041e448f"
+    },
+    {
+      "path": "frozen-idle-reference/original/launch-recovery_worker-create-guard.mjs",
+      "bytes": 5545,
+      "sha256": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5"
+    },
+    {
+      "path": "frozen-idle-reference/original/queue-controls.mjs",
+      "bytes": 711,
+      "sha256": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0"
+    },
+    {
+      "path": "frozen-idle-reference/original/receipt-transport.mjs",
+      "bytes": 5857,
+      "sha256": "6a676eefc02c4be569e65f6c3a16da50f750be67acaf4f1380a86739791c34a1"
+    },
+    {
+      "path": "frozen-idle-reference/original/run-with-observer.py",
+      "bytes": 17220,
+      "sha256": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a"
+    },
+    {
+      "path": "frozen-idle-reference/original/source-binding.mjs",
+      "bytes": 2768,
+      "sha256": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796"
+    },
+    {
+      "path": "frozen-idle-reference/original/sustained.mjs",
+      "bytes": 99404,
+      "sha256": "9c2b5cb28585603504453ee267982c519de1f057551839d8775525ac4729346c"
+    },
+    {
+      "path": "frozen-idle-reference/original/task-command.mjs",
+      "bytes": 11762,
+      "sha256": "7557cc863201e136a6ea0f4d039472d6e225a8efb0fb2afe267b9d65e01a541f"
+    },
+    {
+      "path": "frozen-idle-reference/original/task-context.mjs",
+      "bytes": 2439,
+      "sha256": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2"
+    },
+    {
+      "path": "frozen-idle-reference/original/workloads.mjs",
+      "bytes": 18691,
+      "sha256": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306"
+    },
+    {
+      "path": "frozen-idle-reference/preparation-manifest.json",
+      "bytes": 6792,
+      "sha256": "49e9025b4f258399992721c33fd0fc943d261da7028fb5b81fda6e2f6c00bcaa"
+    },
+    {
+      "path": "frozen-idle-reference/prepare-idle.py",
+      "bytes": 12349,
+      "sha256": "af30789b19f8d63a09991928b58cf2650f639af07b041b3d8ea7cc3db2d38db9"
+    },
+    {
+      "path": "frozen-idle-reference/template-capture.json",
+      "bytes": 3843,
+      "sha256": "2e6ded0ed50a5c7fca23535b164d32a3e0f10fd71191c496d074fc744624ede1"
+    },
+    {
+      "path": "schedule-40-per-condition.json",
+      "bytes": 8515,
+      "sha256": "ce8a8b647f040a556be92ddbdd47654828e8b77bcfcf466d8fc8602525c5b9e1"
+    },
+    {
+      "path": "source-binding-plan.json",
+      "bytes": 7289,
+      "sha256": "bd392ec784e8a3d84adf77b86d3ecc257acd71cd38ffbe0dd11193f10ce75a84"
+    }
+  ]
+}

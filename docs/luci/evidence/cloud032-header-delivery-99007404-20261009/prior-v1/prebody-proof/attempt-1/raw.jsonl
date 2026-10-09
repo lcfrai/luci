@@ -1,0 +1,16 @@
+{"at":"2026-10-09T08:46:17.906Z","monotonicMs":2310.350396,"kind":"protocol-command","method":"Network.enable","captureInFlight":false}
+{"at":"2026-10-09T08:46:17.912Z","monotonicMs":2315.898109,"kind":"protocol-command","method":"Fetch.enable","captureInFlight":false}
+{"at":"2026-10-09T08:46:17.947Z","monotonicMs":2350.995615,"kind":"original-guard-invoked","url":"http://127.0.0.1:44745/","method":"GET"}
+{"at":"2026-10-09T08:46:17.956Z","monotonicMs":2359.660977,"kind":"server-request","url":"http://127.0.0.1:44745/","method":"GET"}
+{"at":"2026-10-09T08:46:18.028Z","monotonicMs":2431.841001,"kind":"original-guard-invoked","url":"http://127.0.0.1:44745/v1/product/projects/p-proof/overview?case=prebody-abort","method":"GET"}
+{"at":"2026-10-09T08:46:18.033Z","monotonicMs":2437.128982,"kind":"server-request","url":"http://127.0.0.1:44745/v1/product/projects/p-proof/overview?case=prebody-abort","method":"GET"}
+{"at":"2026-10-09T08:46:18.034Z","monotonicMs":2437.745351,"kind":"server-headers-flushed","url":"http://127.0.0.1:44745/v1/product/projects/p-proof/overview?case=prebody-abort","plannedBodyBytes":82,"bodyBytesWritten":0}
+{"at":"2026-10-09T08:46:18.040Z","monotonicMs":2443.712486,"kind":"response-headers-paused","id":"interception-job-3.0","networkId":"2302242.2","url":"http://127.0.0.1:44745/v1/product/projects/p-proof/overview?case=prebody-abort","status":200,"headers":[{"name":"Content-Type","value":"application/json; charset=utf-8"},{"name":"Content-Length","value":"82"},{"name":"Cache-Control","value":"no-store"},{"name":"X-Proof-Identity","value":"original-prebody"},{"name":"Connection","value":"close"},{"name":"Date","value":"Fri, 09 Oct 2026 08:46:18 GMT"}]}
+{"at":"2026-10-09T08:46:18.040Z","monotonicMs":2444.099179,"kind":"protocol-command","method":"Fetch.getResponseBody","requestId":"interception-job-3.0","captureInFlight":false}
+{"at":"2026-10-09T08:46:18.047Z","monotonicMs":2451.597431,"kind":"checkpoint","name":"headers-paused-body-capture-pending-before-browser-abort","browser":{"started":true,"settled":false,"aborted":false},"networkId":"2302242.2","bodyBytesWritten":0,"captureSettled":false}
+{"at":"2026-10-09T08:46:18.053Z","monotonicMs":2457.174518,"kind":"browser-AbortSignal-triggered","networkId":"2302242.2"}
+{"at":"2026-10-09T08:46:18.053Z","monotonicMs":2457.430614,"kind":"network-loading-failed","requestId":"2302242.2","timestamp":281647.290171,"type":"Fetch","errorText":"net::ERR_ABORTED","canceled":true}
+{"at":"2026-10-09T08:46:18.054Z","monotonicMs":2458.086683,"kind":"server-response-closed","url":"http://127.0.0.1:44745/v1/product/projects/p-proof/overview?case=prebody-abort","bodyBytesWritten":0,"responseFinished":false}
+{"at":"2026-10-09T08:46:20.098Z","monotonicMs":4502.695689,"kind":"error","message":"Error: getResponseBody cancellation join timeout"}
+{"at":"2026-10-09T08:46:20.100Z","monotonicMs":4503.953355,"kind":"error","message":"Error: Body capture did not join before cleanup; closing owned browser instead of modifying Fetch"}
+{"at":"2026-10-09T08:46:20.243Z","monotonicMs":4647.524533,"kind":"body-capture-settled","status":"rejected","name":"Error","message":"cdpSession.send: Target page, context or browser has been closed"}

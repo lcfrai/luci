@@ -1,0 +1,47 @@
+{
+  "payloadMemberCount": 8,
+  "publicationMemberCountIncludingThisManifest": 9,
+  "manifestName": "publication-manifest.json",
+  "members": [
+    {
+      "path": "proof.mjs",
+      "bytes": 17192,
+      "sha256": "e0b438027d0620cd6f060cab06677b5be89364c475c3c80b76011a5dc96ec744"
+    },
+    {
+      "path": "README.md",
+      "bytes": 3367,
+      "sha256": "866538266071161e51db74e5823016cb1576a753895459acec844defc3e886ca"
+    },
+    {
+      "path": "COMMANDS.json",
+      "bytes": 778,
+      "sha256": "f1f2bf7bee0d4e3e0a520a7c91bcee4f0af7c8618ef75a132e364bba0aae2af3"
+    },
+    {
+      "path": "attempt-1.log",
+      "bytes": 358,
+      "sha256": "847e09e815869563b2bb3566943aa8ee0c17c6087e2d80290462e84a83eadee3"
+    },
+    {
+      "path": "attempt-1/proof.mjs",
+      "bytes": 17192,
+      "sha256": "e0b438027d0620cd6f060cab06677b5be89364c475c3c80b76011a5dc96ec744"
+    },
+    {
+      "path": "attempt-1/frozen-route-guard.txt",
+      "bytes": 482,
+      "sha256": "1ccf94936ff7a730ea049155574b493b78a013091d1beda334ba5f677dbadcb7"
+    },
+    {
+      "path": "attempt-1/raw.jsonl",
+      "bytes": 15035,
+      "sha256": "f0d177577743390deeb46fd89ffca82d3c23bb56ea4729ca54db82313ac6d9dd"
+    },
+    {
+      "path": "attempt-1/result.json",
+      "bytes": 16033,
+      "sha256": "24e69ce601ddb2704749f7d8382170ea5705588c04673e89e5ea1f24df0da295"
+    }
+  ]
+}

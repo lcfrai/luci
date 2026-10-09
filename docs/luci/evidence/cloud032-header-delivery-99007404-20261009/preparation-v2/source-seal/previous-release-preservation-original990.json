@@ -1,0 +1,30 @@
+{
+  "at": "2026-10-09T08:52:10.348385+00:00",
+  "oldSource": "99007404a5ddd8592dee376ea00d99c6180d26fe",
+  "originalPath": "/workspace/luci/artifacts/releases/0.5.0",
+  "preservedPath": "/workspace/luci/artifacts/releases/0.5.0-99007404-preserved-before-67a5b7c7",
+  "members": {
+    "luci-cloud-linux-amd64.tar.gz": {
+      "sha256": "620246cf1f48a7a9b4f8df27a026dbd042d7cd84e4501b9afefa46e63e276e05",
+      "bytes": 34608456,
+      "link": null
+    },
+    "luci-linux-amd64.tar.gz": {
+      "sha256": "9bf32d8ebe0c7c7d3297c81e91f0451f0035357cb77eb7abf06099920dd9f164",
+      "bytes": 69027325,
+      "link": null
+    },
+    "release-manifest.json": {
+      "sha256": "496daa3ce135dbf630281592fef3ccb6dd65167f08e5a9575a0cdf357ac9286f",
+      "bytes": 696,
+      "link": null
+    },
+    "SHA256SUMS": {
+      "sha256": "3eccd1ba78e685f3c4bb885191a4407d810f942cd2f427ba250743996bf94519",
+      "bytes": 186,
+      "link": null
+    }
+  },
+  "originalProvenanceUnchanged": true,
+  "scope": "Generated release directory rename only; old retained package, target archive bytes, original provenance and failed fixtures unchanged"
+}

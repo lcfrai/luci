@@ -1,0 +1,3 @@
+PASS changed internally-declared product990 provenance refused before package/Docker access
+PASS changed original image identity refused before package/Docker access
+Only bounded committed Git source reads executed; no installed fixture or workload

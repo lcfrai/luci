@@ -1,0 +1,23 @@
+{
+  "status": "Read-only existing evidence; no new measurement",
+  "inputs": [
+    {
+      "path": "docs/luci/evidence/cloud032-idle-99007404-20261009/analysis.json",
+      "sha256": "413ad90fb24382ad956394c67e2fb34c03eebe82de3955c2a8b19aa2c40bf41b",
+      "bytes": 61263
+    },
+    {
+      "path": "docs/luci/evidence/cloud032-idle-99007404-20261009/source-bindings.json",
+      "sha256": "509585c456df5ad8fab5bc62146da73d69edab073113ddaa34d507f77c8dbd8b",
+      "bytes": 9498
+    },
+    {
+      "path": "docs/luci/evidence/sustained-99007404-attempt7/analysis/interaction-summary.json",
+      "sha256": "ab24bc2677298673141ff1972ccf0c800749e9579045f79e0e71a6add2c4a7ad",
+      "bytes": 3521
+    }
+  ],
+  "originalIdleResultSHA256": "49bdf265402693d5af3d7d9e1dc38ce87b0e25fc048f594cbdf818fccd66f8e9",
+  "originalSustained7ResultSHA256": "5e008e470f8ed92b061454551c4c640b158888c13998be8619573d2d678cf386",
+  "finding": "Slow switches occupy different Node subspans. Resource overlap does not establish summary delivery as cause. Proposed intervention is diagnostic only."
+}
