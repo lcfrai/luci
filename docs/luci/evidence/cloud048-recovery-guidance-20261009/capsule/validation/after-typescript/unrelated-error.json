@@ -1,0 +1,16 @@
+{
+  "path": "desktop/src/components/definition/DefinitionWorkspace.test.tsx",
+  "sha256": "9bd90cabd0aabf3f4cb628a23c1874688fc84049810005bd8d97caf58a3e1961",
+  "excerpt": [
+    "  return screen.getByText(title, { selector: \"summary > span\" }).closest(\"details\")!;",
+    "}",
+    "async function disclose(details: HTMLDetailsElement, open = true) {",
+    "  await act(async () => { details.open = open; fireEvent(details, new Event(\"toggle\")); });",
+    "}",
+    "it(\"defers every initially closed record and journey editor while retaining the visible counts\", async () => {",
+    "  vi.spyOn(definitionApi, \"get\").mockResolvedValue(populatedGroups());"
+  ],
+  "matchesHEAD": false,
+  "action": "Reported unrelated TypeScript error to root; file not changed by C048 author.",
+  "observationBasis": "Post-run observation, concurrent owner had already changed the failing fireEvent.toggle line to fireEvent(details,new Event(toggle)); this is NOT a hash of the bytes tsc read. Original TypeScript diagnostic is preserved in stdout.log."
+}

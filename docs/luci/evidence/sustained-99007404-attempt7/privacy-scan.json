@@ -1,0 +1,12 @@
+{
+  "files": 49,
+  "decodedGzip": 8,
+  "jsonStrings": 1986298,
+  "base64DecodedValues": 13287,
+  "knownPrivatePatterns": 5,
+  "retainedCredentialValues": 4,
+  "privateMatches": 0,
+  "credentialMatches": 0,
+  "checkCodeSHA256": "2586e1c5c40c9ee70327cd15ea96f2855c52f6c7f51a1818b27d0acca3a79c21",
+  "scope": "Known private roots and owned-fixture password/session hashes checked in memory only; all JSON strings, decoded gzip and plausible base64 values scanned. Original private inventory/credentials excluded. Screenshot separately reviewed. No universal secret guarantee."
+}

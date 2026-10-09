@@ -1,0 +1,6 @@
+{
+  "scope": "Remove six unsupported Testing Library getByRole exact options. String accessible names already match exactly by default; production bytes and runtime expectations unchanged.",
+  "count": 6,
+  "beforeSHA256": "6d865fae7421601056a0d746fd18bd8a83e1df375f780a891600baffcbdf95c1",
+  "afterSHA256": "c2d8aa217b1fd9ebcb8139eaec422de5ee606b54e4cce691e0fd22ded6b9f60b"
+}

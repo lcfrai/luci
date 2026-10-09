@@ -1,0 +1,35 @@
+{
+  "scope": "Controlled actual-source component browser checks; no installed application, backend, Docker, agent or model runtime",
+  "preparation": {
+    "syntaxCommand": "node --check /workspace/.luci-tools/cloud048-recovery-guidance/browser/source-browser.mjs",
+    "exitCode": 0,
+    "appliedProjectSwarmSHA256": "fd3f328b7bc85a43f0dea6b2edf7eb156e17f16b8742824606741a1c2a03a464",
+    "appliedSwarmRunQueueSHA256": "a742e46e90f2cf386817c149829c0d4f2176f6f36c3aeae2c55f371e9e3d0648"
+  },
+  "attempts": [
+    {
+      "command": "GOMAXPROCS=2 LUCI_CLOUD048_SOURCE_APPLIED=yes node /workspace/.luci-tools/cloud048-recovery-guidance/browser/source-browser.mjs /workspace/.luci-tools/cloud048-recovery-guidance/browser/attempt-1 > /workspace/.luci-tools/cloud048-recovery-guidance/browser/attempt-1.log 2>&1",
+      "exitCode": 1,
+      "rawMergedStdoutStderr": "attempt-1.log",
+      "exactRunner": "attempt-1/source-browser.mjs",
+      "exactFixture": "attempt-1/fixture.tsx",
+      "result": "attempt-1/result.json",
+      "outcome": "Chromium launch failed before component mount: temporary Unix socket pathname too long. No component checks executed. Owned Vite closed and profile removed."
+    },
+    {
+      "command": "GOMAXPROCS=2 LUCI_CLOUD048_SOURCE_APPLIED=yes node /workspace/.luci-tools/cloud048-recovery-guidance/browser/source-browser.mjs /workspace/.luci-tools/cloud048-recovery-guidance/browser/attempt-2 > /workspace/.luci-tools/cloud048-recovery-guidance/browser/attempt-2.log 2>&1",
+      "exitCode": 0,
+      "rawMergedStdoutStderr": "attempt-2.log",
+      "exactRunner": "attempt-2/source-browser.mjs",
+      "exactFixture": "attempt-2/fixture.tsx",
+      "result": "attempt-2/result.json",
+      "outcome": "10 checks passed; zero errors; all recorded source, fixture and runner hashes unchanged; owned Chromium and Vite closed, owned profile removed, no owned browser PIDs remain."
+    }
+  ],
+  "postRunPortCheck": {
+    "command": "ss -lnt 'sport = :15148'",
+    "exitCode": 0,
+    "listenerCount": 0
+  },
+  "limits": {"port": 15148, "GOMAXPROCS": 2, "workflowTimeoutMs": 148000, "hardStopMs": 178000}
+}

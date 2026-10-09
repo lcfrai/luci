@@ -1,0 +1,5 @@
+{
+  "reviewer": "/root/context_scale/lazy_review",
+  "scope": "Source-only current product and test diff; no tests or browser commands run by reviewer",
+  "finding": "No actionable defect found. Lazy mounting preserves exact-question focus, missing-link repair, collapsed edits, and existing project/permission boundaries. Unit disclosure tests dispatch toggle directly; real browser native behavior is separately required."
+}

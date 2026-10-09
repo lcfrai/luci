@@ -1,0 +1,18 @@
+{
+  "command": [
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "src/components/definition/DefinitionWorkspace.test.tsx",
+    "--config",
+    "/workspace/.luci-tools/cloud050-context-scale/vitest-before.mts",
+    "-t",
+    "defers every|mounts a disclosed|defers the journey|scopes deferred",
+    "--maxWorkers=1",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/cloud050-context-scale/before-fixed-harness.json"
+  ],
+  "cwd": "/workspace/luci/desktop",
+  "startedAt": 1791534330.4602249,
+  "sourceBindingScope": "All Git-tracked desktop/src inputs plus manifest/lock and test/build/TypeScript configs. Other concurrent source changes are reported explicitly; dependency installation bytes not independently frozen."
+}

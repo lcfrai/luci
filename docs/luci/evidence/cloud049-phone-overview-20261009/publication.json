@@ -1,0 +1,290 @@
+{
+  "scope": "Hash-bound selected source, controlled source-browser and focused tests. No full installed/Windows/performance acceptance.",
+  "members": [
+    {
+      "path": "README.md",
+      "sha256": "996248072309a24edd4cd6a4ac08caa53cb6eac4a2d8632c092dab864107ffd9",
+      "bytes": 3833
+    },
+    {
+      "path": "controlled/controlled-attempt1/report.json",
+      "sha256": "c36a4f9a0eed9a2d58a397bcdc96f27da2e50dfe0a705d796937e22e2cfb5f17",
+      "bytes": 10504
+    },
+    {
+      "path": "controlled/controlled-attempt1/selected-input-publication.json",
+      "sha256": "a3c0761eb2ce403f1beab5ddf66be376247b4e2b7ae4a9bb7ccd6a963a05798b",
+      "bytes": 3906
+    },
+    {
+      "path": "controlled/controlled-attempt2/after/four-project-phone.png",
+      "sha256": "85c5e3c7f33d2fd964bffa1a598ab45202cf4146e9be4b5cdc870f48450343dd",
+      "bytes": 41273
+    },
+    {
+      "path": "controlled/controlled-attempt2/before-phone-failure-390.png",
+      "sha256": "a6f29ae30ac3fd7c7116ae5619f99c4862f92a977e07ace94699479bb1faf57d",
+      "bytes": 55589
+    },
+    {
+      "path": "controlled/controlled-attempt2/desktop-overview-1440.png",
+      "sha256": "e926216dbc68bdbde1c32877a1f3b9cac9ea82f93b83b4d61c14ed77722d34c9",
+      "bytes": 68741
+    },
+    {
+      "path": "controlled/controlled-attempt2/phone-kept-draft-390.png",
+      "sha256": "6eb035a8b4abb1e32d65613d699bd2af48d8bef5f2987b4606a106b2a44a398e",
+      "bytes": 58352
+    },
+    {
+      "path": "controlled/controlled-attempt2/phone-restored-draft-390.png",
+      "sha256": "22be40d76f8d1d617d78ce93a9cf0b2cdc5d849d9feed6854e89ccc570ee0a37",
+      "bytes": 58446
+    },
+    {
+      "path": "controlled/controlled-attempt2/report.json",
+      "sha256": "26bf1d0537dc430327395ec2f956f896a6853e0ac832491424f45b8ccced172c",
+      "bytes": 7819
+    },
+    {
+      "path": "controlled/controlled-attempt2/selected-input-publication.json",
+      "sha256": "7940b5701123f9b59a0964d619a500175516c7d76624e79e835e090a4c425aa9",
+      "bytes": 3906
+    },
+    {
+      "path": "controlled/controlled-attempt3/after/four-project-phone.png",
+      "sha256": "85c5e3c7f33d2fd964bffa1a598ab45202cf4146e9be4b5cdc870f48450343dd",
+      "bytes": 41273
+    },
+    {
+      "path": "controlled/controlled-attempt3/before-phone-failure-390.png",
+      "sha256": "2b4ac54b7865fb437aced4448afd0589dc7522c124d8198df4d0ac2aa690b6e9",
+      "bytes": 50664
+    },
+    {
+      "path": "controlled/controlled-attempt3/desktop-overview-1440.png",
+      "sha256": "02e35a6247b9cf855a6a9a3e5ba2be17568cfac43c18db64c12e5de462130d32",
+      "bytes": 68833
+    },
+    {
+      "path": "controlled/controlled-attempt3/missing-project-refusal-390.png",
+      "sha256": "2fb8840fd9aeb354ee8a1239b15ee8bcf81cf9900a2f2bb59e40d001196d005c",
+      "bytes": 40595
+    },
+    {
+      "path": "controlled/controlled-attempt3/phone-kept-draft-390.png",
+      "sha256": "6eb035a8b4abb1e32d65613d699bd2af48d8bef5f2987b4606a106b2a44a398e",
+      "bytes": 58352
+    },
+    {
+      "path": "controlled/controlled-attempt3/phone-restored-draft-390.png",
+      "sha256": "22be40d76f8d1d617d78ce93a9cf0b2cdc5d849d9feed6854e89ccc570ee0a37",
+      "bytes": 58446
+    },
+    {
+      "path": "controlled/controlled-attempt3/report.json",
+      "sha256": "122c4639ce2101c8557ab50b0ad8292007ee90e76223cdbdc1c3ed5bddab75b3",
+      "bytes": 7055
+    },
+    {
+      "path": "controlled/controlled-attempt3/selected-input-publication.json",
+      "sha256": "dfa01f056f336f460c50cbb0454251d6184e7c1b6621669f427a73721c531905",
+      "bytes": 3906
+    },
+    {
+      "path": "controlled/controlled-focus-diagnostic/failure.png",
+      "sha256": "b81baa69faf05ae6228d999edb26e82e762b7c533381ed86481a778ff3424452",
+      "bytes": 58811
+    },
+    {
+      "path": "controlled/controlled-focus-diagnostic/phone-drawer-focused-390.png",
+      "sha256": "a5e6e9d19aa3058c07a759f7bffe52bf7e6f7055c2dc5966059d7cdcb83f64d0",
+      "bytes": 22947
+    },
+    {
+      "path": "controlled/controlled-focus-diagnostic/report.json",
+      "sha256": "419e98da722d796fe7d8834072bf366b374447664410d0245b9033613caa2577",
+      "bytes": 7298
+    },
+    {
+      "path": "controlled/controlled-focus-diagnostic/returned-desktop-overview-1440.png",
+      "sha256": "96d51cedfb62384204e46c1d83a30890e14cf99cba0f27cf51f6d5b3324ec7b1",
+      "bytes": 69014
+    },
+    {
+      "path": "controlled/controlled-focus-diagnostic/selected-input-publication.json",
+      "sha256": "7c97abd8cc5a825b885a5dbdb7c4acda73905988461e28934804c442dc6883f8",
+      "bytes": 3906
+    },
+    {
+      "path": "controlled/controlled-followup1/report.json",
+      "sha256": "1cb12928a45a9ae7a97dc7d5340aa553b4120a674bb42c73866039693d08c47a",
+      "bytes": 5371
+    },
+    {
+      "path": "controlled/controlled-followup1/selected-input-publication.json",
+      "sha256": "a605e1e6bb79b6c3d5bc78d35439330687cf490d0f18c89064809a2d89a86250",
+      "bytes": 3906
+    },
+    {
+      "path": "controlled/controlled-followup2/failure.png",
+      "sha256": "b81baa69faf05ae6228d999edb26e82e762b7c533381ed86481a778ff3424452",
+      "bytes": 58811
+    },
+    {
+      "path": "controlled/controlled-followup2/phone-drawer-focused-390.png",
+      "sha256": "0cfb72ba3c27ea5a843f16b76f964195f5e739e64706418b66d8f58bab2e7ed4",
+      "bytes": 22945
+    },
+    {
+      "path": "controlled/controlled-followup2/report.json",
+      "sha256": "ab52d35b6af5a939a3f5f7bca92483abf7e4fa026b8c690f0af555216c0485a3",
+      "bytes": 7011
+    },
+    {
+      "path": "controlled/controlled-followup2/returned-desktop-overview-1440.png",
+      "sha256": "fb04175f0985708a557a583cca5d3856279dcda94e3cdcdf1a2a5e76226c86f2",
+      "bytes": 68833
+    },
+    {
+      "path": "controlled/controlled-followup2/selected-input-publication.json",
+      "sha256": "e28f4a4bd7a9def29cab3652f8b37dde37203901437c04a5ad23d4c6503ea83c",
+      "bytes": 3906
+    },
+    {
+      "path": "controlled-closure.json",
+      "sha256": "838f921799e13caebecb83de026645ef919beb72e2d387b52d221b3f197d1460",
+      "bytes": 377
+    },
+    {
+      "path": "corrected/sustained.mjs",
+      "sha256": "4dd9106d463e46cbcd6f038438959879ac16741670e49b0d01decf267566c911",
+      "bytes": 99856
+    },
+    {
+      "path": "current/phone-overview.browser.mjs",
+      "sha256": "ccb1ee381f4e83f536fdb0eaba448bcd9b66344a92edfb8010a49b8ec2187c91",
+      "bytes": 19462
+    },
+    {
+      "path": "current/phone-overview.fixture.tsx",
+      "sha256": "7fb426e90a4204cea384d2ae8498f9e9bf3da5786668db8d1c27312dc7529183",
+      "bytes": 2572
+    },
+    {
+      "path": "original/installed-failed-stage.png",
+      "sha256": "bdccd183f17377210f466e2f464a8a44b757dbc4c2737c5267c998e44cedeb30",
+      "bytes": 62782
+    },
+    {
+      "path": "original/sustained.mjs",
+      "sha256": "9c2b5cb28585603504453ee267982c519de1f057551839d8775525ac4729346c",
+      "bytes": 99404
+    },
+    {
+      "path": "original-failure.projection.json",
+      "sha256": "81c5775109c1bee8e8808cb13b68ed3e8ba5b42854943d5a2b5bb10f82763502",
+      "bytes": 1449
+    },
+    {
+      "path": "selected-sources/075dffb1e7352d034a3fb9dc40e0a8f1b336d12acec7bc89bee769db610f2025/phone-overview.browser.mjs",
+      "sha256": "075dffb1e7352d034a3fb9dc40e0a8f1b336d12acec7bc89bee769db610f2025",
+      "bytes": 18107
+    },
+    {
+      "path": "selected-sources/1cfd4cc0fc3ca1321a5ee9721d0d99f29bccfd2b22e569cbf6d58b0827af7ecb/shell.css",
+      "sha256": "1cfd4cc0fc3ca1321a5ee9721d0d99f29bccfd2b22e569cbf6d58b0827af7ecb",
+      "bytes": 5942
+    },
+    {
+      "path": "selected-sources/1dff7a4a904a5a82e5ea4686cf96edae44eb380f809dbf3a3282e97aec39aadf/phone-overview.fixture.tsx",
+      "sha256": "1dff7a4a904a5a82e5ea4686cf96edae44eb380f809dbf3a3282e97aec39aadf",
+      "bytes": 2366
+    },
+    {
+      "path": "selected-sources/380db2996d677f099da77e2702fabfe5391e4dd226404513db1e58546a59b48f/ProjectOverviewBoard.tsx",
+      "sha256": "380db2996d677f099da77e2702fabfe5391e4dd226404513db1e58546a59b48f",
+      "bytes": 23198
+    },
+    {
+      "path": "selected-sources/4867980dd1e698dce68b109e6789eaa3943105230175a03c28cc6cba5c8897b9/DraftNavigationDialog.tsx",
+      "sha256": "4867980dd1e698dce68b109e6789eaa3943105230175a03c28cc6cba5c8897b9",
+      "bytes": 1806
+    },
+    {
+      "path": "selected-sources/4dd9106d463e46cbcd6f038438959879ac16741670e49b0d01decf267566c911/sustained.mjs",
+      "sha256": "4dd9106d463e46cbcd6f038438959879ac16741670e49b0d01decf267566c911",
+      "bytes": 99856
+    },
+    {
+      "path": "selected-sources/5689b43729edd7a55871ef5f1933532745d925a0e1473080c7355970c9f669c6/topbar.css",
+      "sha256": "5689b43729edd7a55871ef5f1933532745d925a0e1473080c7355970c9f669c6",
+      "bytes": 4218
+    },
+    {
+      "path": "selected-sources/7c818e7e905d739f8dc8151f7b1e0d5abff3d58fe675635db68baeb531c1cfc6/phone-overview.browser.mjs",
+      "sha256": "7c818e7e905d739f8dc8151f7b1e0d5abff3d58fe675635db68baeb531c1cfc6",
+      "bytes": 13264
+    },
+    {
+      "path": "selected-sources/7fb426e90a4204cea384d2ae8498f9e9bf3da5786668db8d1c27312dc7529183/phone-overview.fixture.tsx",
+      "sha256": "7fb426e90a4204cea384d2ae8498f9e9bf3da5786668db8d1c27312dc7529183",
+      "bytes": 2572
+    },
+    {
+      "path": "selected-sources/878bd60c9a1df8068121e0cdce10ee96524013973f5fd8b72e2e0c05f76750e6/project-overview.css",
+      "sha256": "878bd60c9a1df8068121e0cdce10ee96524013973f5fd8b72e2e0c05f76750e6",
+      "bytes": 7227
+    },
+    {
+      "path": "selected-sources/8fb76ca0162eebfe29c3b589b07f5c6e19db8fe55f508a96354f37a79ea6b6e8/Rail.tsx",
+      "sha256": "8fb76ca0162eebfe29c3b589b07f5c6e19db8fe55f508a96354f37a79ea6b6e8",
+      "bytes": 8508
+    },
+    {
+      "path": "selected-sources/ab9d4930e7603b3ceb3f62ad483dbc66573f24fa15c89d476ae1a5d313299155/phone-overview.browser.mjs",
+      "sha256": "ab9d4930e7603b3ceb3f62ad483dbc66573f24fa15c89d476ae1a5d313299155",
+      "bytes": 13196
+    },
+    {
+      "path": "selected-sources/b318f96c825f8108409fe0d6bffd1cbde37a513c9db29a4ec54ef4007eaf42fb/rail.css",
+      "sha256": "b318f96c825f8108409fe0d6bffd1cbde37a513c9db29a4ec54ef4007eaf42fb",
+      "bytes": 5608
+    },
+    {
+      "path": "selected-sources/b3aaf4ce4302109c2c10b023ecbff249b96655955f4d29bf0bb4834b4fc8fcd4/AppShell.tsx",
+      "sha256": "b3aaf4ce4302109c2c10b023ecbff249b96655955f4d29bf0bb4834b4fc8fcd4",
+      "bytes": 6381
+    },
+    {
+      "path": "selected-sources/be050d87d96b76051f9d1836f603645bdd9da8b1116b0008773fccbe10619c7d/TopBar.tsx",
+      "sha256": "be050d87d96b76051f9d1836f603645bdd9da8b1116b0008773fccbe10619c7d",
+      "bytes": 3340
+    },
+    {
+      "path": "selected-sources/ccb1ee381f4e83f536fdb0eaba448bcd9b66344a92edfb8010a49b8ec2187c91/phone-overview.browser.mjs",
+      "sha256": "ccb1ee381f4e83f536fdb0eaba448bcd9b66344a92edfb8010a49b8ec2187c91",
+      "bytes": 19462
+    },
+    {
+      "path": "selected-sources/e76a55548d3b22fc7f067fdca0ad37f88a95be39df1bf2f4b859b80c5ac53402/phone-overview.browser.mjs",
+      "sha256": "e76a55548d3b22fc7f067fdca0ad37f88a95be39df1bf2f4b859b80c5ac53402",
+      "bytes": 18698
+    },
+    {
+      "path": "selected-sources/fb48cce1941ca613a14ec30fb78973bc73536bb444695eb27e99a10c5f4def0c/phone-overview.browser.mjs",
+      "sha256": "fb48cce1941ca613a14ec30fb78973bc73536bb444695eb27e99a10c5f4def0c",
+      "bytes": 13989
+    },
+    {
+      "path": "selected-sources/fe63aa3dcda3c5896ab13140ff2db74c492eda0e068a415cc560b7ec7777cfc7/DefinitionWorkspace.tsx",
+      "sha256": "fe63aa3dcda3c5896ab13140ff2db74c492eda0e068a415cc560b7ec7777cfc7",
+      "bytes": 31738
+    },
+    {
+      "path": "tail-preservation.json",
+      "sha256": "222432913364a99fa53a15d02b73151dfdca0db64bded95e3ccc3cecfbeab3ed",
+      "bytes": 2532
+    }
+  ]
+}

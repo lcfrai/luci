@@ -1,0 +1,3 @@
+{
+  "scope": "Wrapper used desktop-relative paths while already in desktop: cmp/cp failed before tests. Product source remained original, so this is another original affected run, not corrected validation. All raw outputs preserved; later patch applied from repository root."
+}

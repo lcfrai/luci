@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type Ref } from 'react';
 import { errorText } from '../../api/product';
 import { runOperationNeedsRecovery, type ProjectRun } from '../../api/projectRuns';
 import { swarmQueueApi, type ProjectSwarmQueue, type SwarmQueueItem, type QueuePriority } from '../../api/swarmQueue';
@@ -13,6 +13,7 @@ interface Props {
   onBusy(label: string): void;
   onQueueChange(queue: ProjectSwarmQueue): void;
   onConsentChange?(open: boolean): void;
+  reviewButtonRef?: Ref<HTMLButtonElement>;
 }
 /** Queue consent names saved task inputs. A read, tab switch or retrying a read never enqueues work. */
 export function SwarmRunQueue(props: Props) {
@@ -99,7 +100,7 @@ export function SwarmRunQueue(props: Props) {
   }
   return <section className="swarm-run-queue" aria-label="Background task queue">
     <div className="project-swarm-heading"><h4>Background queue</h4>
-      <Button disabled={!queue || !canEdit || !canExecute || busy || unconfirmed || sourceBlocked || !capability.allowed || !candidates.length} onClick={() => { setConfirm(true); setNotice(''); }}>Queue reviewed tasks{candidates.length ? ` (${candidates.length})` : ''}</Button>
+      <Button ref={props.reviewButtonRef} disabled={!queue || !canEdit || !canExecute || busy || unconfirmed || sourceBlocked || !capability.allowed || !candidates.length} onClick={() => { setConfirm(true); setNotice(''); }}>Queue reviewed tasks{candidates.length ? ` (${candidates.length})` : ''}</Button>
     </div>
     {!capability.allowed && <p className="journey-warning">{capability.reason}</p>}
     {error && <p role="status" className="journey-warning">Queue update unavailable: {error}</p>}

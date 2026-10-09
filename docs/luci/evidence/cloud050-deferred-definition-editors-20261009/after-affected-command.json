@@ -1,0 +1,17 @@
+{
+  "command": [
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "src/components/definition/DefinitionWorkspace.test.tsx",
+    "src/components/common/ProjectDraftRecovery.test.tsx",
+    "src/components/common/DraftRecoveryReview.test.tsx",
+    "src/components/definition/RepositoryAnalysisPanel.test.tsx",
+    "--maxWorkers=1",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/cloud050-context-scale/after-affected.json"
+  ],
+  "cwd": "/workspace/luci/desktop",
+  "startedAt": 1791534365.8004532,
+  "sourceBindingScope": "All Git-tracked desktop/src inputs plus manifest/lock and test/build/TypeScript configs. Other concurrent source changes are reported explicitly; dependency installation bytes not independently frozen."
+}

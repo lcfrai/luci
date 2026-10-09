@@ -1,0 +1,150 @@
+{
+  "scope": "Actual styled AppShell, Rail, TopBar, Home and Definition with controlled read-only providers. Linux Chromium; no backend/worker/provider/runtime or performance claim.",
+  "passed": false,
+  "sourceBefore": {
+    "scripts/acceptance/sustained-four-project/sustained.mjs": {
+      "sha256": "4dd9106d463e46cbcd6f038438959879ac16741670e49b0d01decf267566c911",
+      "bytes": 99856
+    },
+    "scripts/acceptance/sustained-four-project/phone-overview.browser.mjs": {
+      "sha256": "e76a55548d3b22fc7f067fdca0ad37f88a95be39df1bf2f4b859b80c5ac53402",
+      "bytes": 18698
+    },
+    "scripts/acceptance/sustained-four-project/phone-overview.fixture.tsx": {
+      "sha256": "7fb426e90a4204cea384d2ae8498f9e9bf3da5786668db8d1c27312dc7529183",
+      "bytes": 2572
+    },
+    "desktop/src/components/AppShell.tsx": {
+      "sha256": "b3aaf4ce4302109c2c10b023ecbff249b96655955f4d29bf0bb4834b4fc8fcd4",
+      "bytes": 6381
+    },
+    "desktop/src/components/shell.css": {
+      "sha256": "1cfd4cc0fc3ca1321a5ee9721d0d99f29bccfd2b22e569cbf6d58b0827af7ecb",
+      "bytes": 5942
+    },
+    "desktop/src/components/topbar/TopBar.tsx": {
+      "sha256": "be050d87d96b76051f9d1836f603645bdd9da8b1116b0008773fccbe10619c7d",
+      "bytes": 3340
+    },
+    "desktop/src/components/topbar/topbar.css": {
+      "sha256": "5689b43729edd7a55871ef5f1933532745d925a0e1473080c7355970c9f669c6",
+      "bytes": 4218
+    },
+    "desktop/src/components/rail/Rail.tsx": {
+      "sha256": "8fb76ca0162eebfe29c3b589b07f5c6e19db8fe55f508a96354f37a79ea6b6e8",
+      "bytes": 8508
+    },
+    "desktop/src/components/rail/rail.css": {
+      "sha256": "b318f96c825f8108409fe0d6bffd1cbde37a513c9db29a4ec54ef4007eaf42fb",
+      "bytes": 5608
+    },
+    "desktop/src/components/definition/DefinitionWorkspace.tsx": {
+      "sha256": "fe63aa3dcda3c5896ab13140ff2db74c492eda0e068a415cc560b7ec7777cfc7",
+      "bytes": 31738
+    },
+    "desktop/src/components/common/DraftNavigationDialog.tsx": {
+      "sha256": "4867980dd1e698dce68b109e6789eaa3943105230175a03c28cc6cba5c8897b9",
+      "bytes": 1806
+    },
+    "desktop/src/components/projects/ProjectOverviewBoard.tsx": {
+      "sha256": "380db2996d677f099da77e2702fabfe5391e4dd226404513db1e58546a59b48f",
+      "bytes": 23198
+    },
+    "desktop/src/components/projects/project-overview.css": {
+      "sha256": "878bd60c9a1df8068121e0cdce10ee96524013973f5fd8b72e2e0c05f76750e6",
+      "bytes": 7227
+    }
+  },
+  "correctedBlockSHA256": "93166928565eb998bd6ffaa6de1361a3ecce062b0315563f4bff37dc871776d3",
+  "checks": [
+    {
+      "name": "phone opening focuses Close projects",
+      "passed": true
+    },
+    {
+      "name": "phone Escape closes drawer and restores trigger focus",
+      "passed": true
+    },
+    {
+      "name": "explicit Close projects restores trigger focus",
+      "passed": true
+    },
+    {
+      "name": "390 to 1440 restores desktop rail and correct Home navigation",
+      "passed": true
+    },
+    {
+      "name": "1440 to 390 preserves current project and saved purpose",
+      "passed": true
+    },
+    {
+      "name": "compact draft guard receives modal focus",
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "requests": [],
+  "browserVersion": "151.0.7922.173",
+  "failure": "page.waitForFunction: Timeout 15000ms exceeded.\n    at /workspace/luci/scripts/acceptance/sustained-four-project/phone-overview.browser.mjs:141:14",
+  "failureDOM": "gamma\nDefine\nDesign\nDevelop\nDeploy\nProjects\nDefine\nDefine your project\n\nTurn an idea or existing application into a clear, testable product definition.\n\nUnsaved changes\n\nUse this definition to agree what will be built. Luci uses it to explain the next step and the effect of a change.\n\nDiscuss or request a change\n\nSave or resolve this draft first so Luci sees the context you intend to use.\n\nUnsaved changes · kept in this browser for up to 30 days. Save to share with your project.\n\nGuided interview\nSpecification\nRepository analysis\nRevision history\nProduct outline\nThe idea\nWho it is for\nBoundaries and constraints\nOut of scope\nOne exclusion per line.\nRequirements and acceptance\n\nKeep each ID through design, implementation and verification. Completing a task does not prove a requirement.\n\nREQ-1\nRequirement 1\nPriority\nMust have\nShould have\nCould have\nAcceptance scenario 1\nRemove requirement 1\nAdd requirement\nUser journeys\n0\nAccess roles\n0\nData entities\n0\nIntegrations\n0\nGlossary terms\n0\nDecisions\n0\nOpen questions\n0\nSave definition\n\n1 requirement · 0 definition questions\n\nContext storage and history\nProject understanding\n\nDesign · Saved context\n\nShow project overview",
+  "cleanup": {
+    "browserClosed": true,
+    "serverClosed": true,
+    "profileRemoved": true
+  },
+  "sourceAfter": {
+    "scripts/acceptance/sustained-four-project/sustained.mjs": {
+      "sha256": "4dd9106d463e46cbcd6f038438959879ac16741670e49b0d01decf267566c911",
+      "bytes": 99856
+    },
+    "scripts/acceptance/sustained-four-project/phone-overview.browser.mjs": {
+      "sha256": "e76a55548d3b22fc7f067fdca0ad37f88a95be39df1bf2f4b859b80c5ac53402",
+      "bytes": 18698
+    },
+    "scripts/acceptance/sustained-four-project/phone-overview.fixture.tsx": {
+      "sha256": "7fb426e90a4204cea384d2ae8498f9e9bf3da5786668db8d1c27312dc7529183",
+      "bytes": 2572
+    },
+    "desktop/src/components/AppShell.tsx": {
+      "sha256": "b3aaf4ce4302109c2c10b023ecbff249b96655955f4d29bf0bb4834b4fc8fcd4",
+      "bytes": 6381
+    },
+    "desktop/src/components/shell.css": {
+      "sha256": "1cfd4cc0fc3ca1321a5ee9721d0d99f29bccfd2b22e569cbf6d58b0827af7ecb",
+      "bytes": 5942
+    },
+    "desktop/src/components/topbar/TopBar.tsx": {
+      "sha256": "be050d87d96b76051f9d1836f603645bdd9da8b1116b0008773fccbe10619c7d",
+      "bytes": 3340
+    },
+    "desktop/src/components/topbar/topbar.css": {
+      "sha256": "5689b43729edd7a55871ef5f1933532745d925a0e1473080c7355970c9f669c6",
+      "bytes": 4218
+    },
+    "desktop/src/components/rail/Rail.tsx": {
+      "sha256": "8fb76ca0162eebfe29c3b589b07f5c6e19db8fe55f508a96354f37a79ea6b6e8",
+      "bytes": 8508
+    },
+    "desktop/src/components/rail/rail.css": {
+      "sha256": "b318f96c825f8108409fe0d6bffd1cbde37a513c9db29a4ec54ef4007eaf42fb",
+      "bytes": 5608
+    },
+    "desktop/src/components/definition/DefinitionWorkspace.tsx": {
+      "sha256": "fe63aa3dcda3c5896ab13140ff2db74c492eda0e068a415cc560b7ec7777cfc7",
+      "bytes": 31738
+    },
+    "desktop/src/components/common/DraftNavigationDialog.tsx": {
+      "sha256": "4867980dd1e698dce68b109e6789eaa3943105230175a03c28cc6cba5c8897b9",
+      "bytes": 1806
+    },
+    "desktop/src/components/projects/ProjectOverviewBoard.tsx": {
+      "sha256": "380db2996d677f099da77e2702fabfe5391e4dd226404513db1e58546a59b48f",
+      "bytes": 23198
+    },
+    "desktop/src/components/projects/project-overview.css": {
+      "sha256": "878bd60c9a1df8068121e0cdce10ee96524013973f5fd8b72e2e0c05f76750e6",
+      "bytes": 7227
+    }
+  },
+  "sourceUnchanged": true
+}

@@ -1,0 +1,2008 @@
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+ ✓ src/components/journey/ProjectSwarmQueue.test.tsx > disables a manual start already in the durable queue 346ms
+ ✓ src/components/journey/ProjectSwarmQueue.test.tsx > refreshes a background dispatch after an intervening UI operation and retries a failed read 167ms
+ ✓ src/components/journey/ProjectSwarmQueue.test.tsx > offers retirement after a cancelled queue leaves an unstarted reserved workspace 222ms
+ ✓ src/components/journey/ProjectSwarmQueue.test.tsx > keeps exact queue consent open while a manual task completes, then refreshes after close 240ms
+ × src/components/journey/ProjectSwarmQueue.test.tsx > guides a confirmed retired refusal to queue review without starting work or bypassing separate consent 1228ms
+   → Unable to find role="button" and name "Go to queue review"
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m""[39m
+[36m>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-label[39m=[32m"Agent team"[39m
+      [33mclass[39m=[32m"project-swarm"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"project-swarm-heading"[39m
+      [36m>[39m
+        [36m<h3>[39m
+          [0mAgent team[0m
+        [36m</h3>[39m
+        [36m<span>[39m
+          [0m0[0m
+          [0m of [0m
+          [0m1[0m
+          [0m integrated[0m
+        [36m</span>[39m
+      [36m</div>[39m
+      [36m<p[39m
+        [33mrole[39m=[32m"status"[39m
+      [36m>[39m
+        [0mAttempt retired. Output is retained. No new agent was started.[0m
+      [36m</p>[39m
+      [36m<p[39m
+        [33mclass[39m=[32m"project-swarm-permission"[39m
+      [36m>[39m
+        [0mcodex[0m
+        [0m · Permission: [0m
+        [0mBypass[0m
+        [0m. Commands run without interactive approvals inside Docker; results need review.[0m
+      [36m</p>[39m
+      [36m<p>[39m
+        [0mNew starts enabled[0m
+        [0m · [0m
+        [0m0[0m
+        [0m of [0m
+        [0m2[0m
+        [0m agent slots occupied[0m
+      [36m</p>[39m
+      [36m<div[39m
+        [33maria-label[39m=[32m"Task progress"[39m
+        [33mclass[39m=[32m"project-swarm-summary"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0m0[0m
+          [0m awaiting review · [0m
+          [0m0[0m
+          [0m ready to start[0m
+        [36m</span>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"outline"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mBackground queue[0m
+            [0m · 1 need attention[0m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"journey-actions"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-primary h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"default"[39m
+          [33mdisabled[39m=[32m""[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mStart ready tasks[0m
+          [36m</span>[39m
+        [36m</button>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"secondary"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mCheck team status[0m
+          [36m</span>[39m
+        [36m</button>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"outline"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mPause new starts[0m
+          [36m</span>[39m
+        [36m</button>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"outline"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mCancel remaining tasks[0m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<ol[39m
+        [33mclass[39m=[32m"project-swarm-tasks"[39m
+      [36m>[39m
+        [36m<li>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"project-swarm-heading"[39m
+          [36m>[39m
+            [36m<h4[39m
+              [33mdata-task-heading[39m=[32m"true"[39m
+              [33mtabindex[39m=[32m"-1"[39m
+            [36m>[39m
+              [0mBuild a[0m
+            [36m</h4>[39m
+            [36m<span>[39m
+              [0mStopped · inspect before retry[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<details[39m
+            [33mdata-task-scope[39m=[32m"true"[39m
+          [36m>[39m
+            [36m<summary>[39m
+              [0mTask scope and handoff[0m
+            [36m</summary>[39m
+            [36m<p>[39m
+              [0mVerify a behavior[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mIntended files: [0m
+              [0msrc/a.ts[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mDependencies: [0m
+              [0mNone[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mAttempt [0m
+              [0m1[0m
+              [0m · workspace [0m
+              [0misolated-refused[0m
+              [0m · session [0m
+              [0mchild-refused[0m
+            [36m</p>[39m
+          [36m</details>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"journey-actions"[39m
+          [36m/>[39m
+          [36m<details[39m
+            [33mclass[39m=[32m"project-swarm-more-actions"[39m
+            [33mopen[39m=[32m""[39m
+          [36m>[39m
+            [36m<summary>[39m
+              [0mMore task actions[0m
+            [36m</summary>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"journey-actions"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+                [33mdata-size[39m=[32m"default"[39m
+                [33mdata-slot[39m=[32m"button"[39m
+                [33mdata-variant[39m=[32m"secondary"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<span>[39m
+                  [0mOpen task session[0m
+                [36m</span>[39m
+              [36m</button>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+                [33mdata-size[39m=[32m"default"[39m
+                [33mdata-slot[39m=[32m"button"[39m
+                [33mdata-variant[39m=[32m"outline"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<span>[39m
+                  [0mInspect workspace output[0m
+                [36m</span>[39m
+              [36m</button>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+                [33mdata-size[39m=[32m"default"[39m
+                [33mdata-slot[39m=[32m"button"[39m
+                [33mdata-variant[39m=[32m"outline"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<span>[39m
+                  [0mRetain changes and retry[0m
+                [36m</span>[39m
+              [36m</button>[39m
+            [36m</div>[39m
+          [36m</details>[39m
+        [36m</li>[39m
+      [36m</ol>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"project-swarm-queue-region"[39m
+        [33mtabindex[39m=[32m"-1"[39m
+      [36m>[39m
+        [36m<section[39m
+          [33maria-label[39m=[32m"Background task queue"[39m
+          [33mclass[39m=[32m"swarm-run-queue"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"project-swarm-heading"[39m
+          [36m>[39m
+            [36m<h4>[39m
+              [0mBackground queue[0m
+            [36m</h4>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-primary h-9 px-4 py-2"[39m
+              [33mdata-size[39m=[32m"default"[39m
+              [33mdata-slot[39m=[32m"button"[39m
+              [33mdata-variant[39m=[32m"default"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<span>[39m
+                [0mQueue reviewed tasks[0m
+                [0m (1)[0m
+              [36m</span>[39m
+            [36m</button>[39m
+          [36m</div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"journey-warning"[39m
+          [36m>[39m
+            [0mQueued work needs attention. Open Queue status and controls to inspect it before continuing.[0m
+          [36m</p>[39m
+          [36m<details[39m
+            [33mclass[39m=[32m"swarm-queue-controls"[39m
+          [36m>[39m
+            [36m<summary>[39m
+              [0mQueue status and controls[0m
+            [36m</summary>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+              [33mdata-size[39m=[32m"default"[39m
+              [33mdata-slot[39m=[32m"button"[39m
+              [33mdata-variant[39m=[32m"outline"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<span>[39m
+                [0mRefresh queue[0m
+              [36m</span>[39m
+            [36m</button>[39m
+            [36m<p>[39m
+              [0mQueue reviewed tasks once. Luci waits for dependencies and capacity across projects. Review each result before integrating it.[0m
+            [36m</p>[39m
+            [36m<ul[39m
+              [33mclass[39m=[32m"swarm-run-queue-items"[39m
+            [36m>[39m
+              [36m<li>[39m
+                [36m<strong>[39m
+                  [0mBuild a[0m
+                [36m</strong>[39m
+                [0m · Failed[0m
+                [36m<p>[39m
+                  [0mMeasured CPU pressure prevented final admission. No sandbox allocation was attempted. Inspect this retained attempt before explicitly retrying.[0m
+                [36m</p>[39m
+                [36m<p>[39m
+                  [0mReview this attempt in the task list. A new start requires explicit recovery and fresh authorization.[0m
+                [36m</p>[39m
+              [36m</li>[39m
+            [36m</ul>[39m
+          [36m</details>[39m
+        [36m</section>[39m
+      [36m</div>[39m
+      [36m<details[39m
+        [33mclass[39m=[32m"project-swarm-guidance"[39m
+      [36m>[39m
+        [36m<summary>[39m
+          [0mAgent task permissions[0m
+        [36m</summary>[39m
+        [36m<p>[39m
+          [0mKeep Ask or Plan in an interactive agent if you want approvals during execution.[0m
+        [36m</p>[39m
+        [36m<p>[39m
+          [0mAutonomous tasks run commands without interactive approvals inside isolated Docker workspaces, then exit after their response. Outputs still need review, integration and verification; Luci does not accept them automatically.[0m
+        [36m</p>[39m
+        [36m<p>[39m
+          [0mFixture descriptor: unattended tasks require explicit Bypass; their outputs await review.[0m
+        [36m</p>[39m
+        [36m<p>[39m
+          [0mStatus is recorded, not a live process guarantee. Check team status after an interruption. Pausing future starts leaves existing agents running.[0m
+        [36m</p>[39m
+      [36m</details>[39m
+    [36m</section>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m""[39m
+[36m>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-label[39m=[32m"Agent team"[39m
+      [33mclass[39m=[32m"project-swarm"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"project-swarm-heading"[39m
+      [36m>[39m
+        [36m<h3>[39m
+          [0mAgent team[0m
+        [36m</h3>[39m
+        [36m<span>[39m
+          [0m0[0m
+          [0m of [0m
+          [0m1[0m
+          [0m integrated[0m
+        [36m</span>[39m
+      [36m</div>[39m
+      [36m<p[39m
+        [33mrole[39m=[32m"status"[39m
+      [36m>[39m
+        [0mAttempt retired. Output is retained. No new agent was started.[0m
+      [36m</p>[39m
+      [36m<p[39m
+        [33mclass[39m=[32m"project-swarm-permission"[39m
+      [36m>[39m
+        [0mcodex[0m
+        [0m · Permission: [0m
+        [0mBypass[0m
+        [0m. Commands run without interactive approvals inside Docker; results need review.[0m
+      [36m</p>[39m
+      [36m<p>[39m
+        [0mNew starts enabled[0m
+        [0m · [0m
+        [0m0[0m
+        [0m of [0m
+        [0m2[0m
+        [0m agent slots occupied[0m
+      [36m</p>[39m
+      [36m<div[39m
+        [33maria-label[39m=[32m"Task progress"[39m
+        [33mclass[39m=[32m"project-swarm-summary"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0m0[0m
+          [0m awaiting review · [0m
+          [0m0[0m
+          [0m ready to start[0m
+        [36m</span>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"outline"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mBackground queue[0m
+            [0m · 1 need attention[0m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"journey-actions"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-primary h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"default"[39m
+          [33mdisabled[39m=[32m""[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mStart ready tasks[0m
+          [36m</span>[39m
+        [36m</button>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"secondary"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mCheck team status[0m
+          [36m</span>[39m
+        [36m</button>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"outline"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mPause new starts[0m
+          [36m</span>[39m
+        [36m</button>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"outline"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mCancel remaining tasks[0m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<ol[39m
+        [33mclass[39m=[32m"project-swarm-tasks"[39m
+      [36m>[39m
+        [36m<li>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"project-swarm-heading"[39m
+          [36m>[39m
+            [36m<h4[39m
+              [33mdata-task-heading[39m=[32m"true"[39m
+              [33mtabindex[39m=[32m"-1"[39m
+            [36m>[39m
+              [0mBuild a[0m
+            [36m</h4>[39m
+            [36m<span>[39m
+              [0mStopped · inspect before retry[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<details[39m
+            [33mdata-task-scope[39m=[32m"true"[39m
+          [36m>[39m
+            [36m<summary>[39m
+              [0mTask scope and handoff[0m
+            [36m</summary>[39m
+            [36m<p>[39m
+              [0mVerify a behavior[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mIntended files: [0m
+              [0msrc/a.ts[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mDependencies: [0m
+              [0mNone[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mAttempt [0m
+              [0m1[0m
+              [0m · workspace [0m
+              [0misolated-refused[0m
+              [0m · session [0m
+              [0mchild-refused[0m
+            [36m</p>[39m
+          [36m</details>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"journey-actions"[39m
+          [36m/>[39m
+          [36m<details[39m
+            [33mclass[39m=[32m"project-swarm-more-actions"[39m
+            [33mopen[39m=[32m""[39m
+          [36m>[39m
+            [36m<summary>[39m
+              [0mMore task actions[0m
+            [36m</summary>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"journey-actions"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+                [33mdata-size[39m=[32m"default"[39m
+                [33mdata-slot[39m=[32m"button"[39m
+                [33mdata-variant[39m=[32m"secondary"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<span>[39m
+                  [0mOpen task session[0m
+                [36m</span>[39m
+              [36m</button>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+                [33mdata-size[39m=[32m"default"[39m
+                [33mdata-slot[39m=[32m"button"[39m
+                [33mdata-variant[39m=[32m"outline"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<span>[39m
+                  [0mInspect workspace output[0m
+                [36m</span>[39m
+              [36m</button>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+                [33mdata-size[39m=[32m"default"[39m
+                [33mdata-slot[39m=[32m"button"[39m
+                [33mdata-variant[39m=[32m"outline"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<span>[39m
+                  [0mRetain changes and retry[0m
+                [36m</span>[39m
+              [36m</button>[39m
+            [36m</div>[39m
+          [36m</details>[39m
+        [36m</li>[39m
+      [36m</ol>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"project-swarm-queue-region"[39m
+        [33mtabindex[39m=[32m"-1"[39m
+      [36m>[39m
+        [36m<section[39m
+          [33maria-label[39m=[32m"Background task queue"[39m
+          [33mclass[39m=[32m"swarm-run-queue"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"project-swarm-heading"[39m
+          [36m>[39m
+            [36m<h4>[39m
+              [0mBackground queue[0m
+            [36m</h4>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-primary h-9 px-4 py-2"[39m
+              [33mdata-size[39m=[32m"default"[39m
+              [33mdata-slot[39m=[32m"button"[39m
+              [33mdata-variant[39m=[32m"default"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<span>[39m
+                [0mQueue reviewed tasks[0m
+                [0m (1)[0m
+              [36m</span>[39m
+            [36m</button>[39m
+          [36m</div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"journey-warning"[39m
+          [36m>[39m
+            [0mQueued work needs attention. Open Queue status and controls to inspect it before continuing.[0m
+          [36m</p>[39m
+          [36m<details[39m
+            [33mclass[39m=[32m"swarm-queue-controls"[39m
+          [36m>[39m
+            [36m<summary>[39m
+              [0mQueue status and controls[0m
+            [36m</summary>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+              [33mdata-size[39m=[32m"default"[39m
+              [33mdata-slot[39m=[32m"button"[39m
+              [33mdata-variant[39m=[32m"outline"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<span>[39m
+                [0mRefresh queue[0m
+              [36m</span>[39m
+            [36m</button>[39m
+            [36m<p>[39m
+              [0mQueue reviewed tasks once. Luci waits for dependencies and capacity across projects. Review each result before integrating it.[0m
+            [36m</p>[39m
+            [36m<ul[39m
+              [33mclass[39m=[32m"swarm-run-queue-items"[39m
+            [36m>[39m
+              [36m<li>[39m
+                [36m<strong>[39m
+                  [0mBuild a[0m
+                [36m</strong>[39m
+                [0m · Failed[0m
+                [36m<p>[39m
+                  [0mMeasured CPU pressure prevented final admission. No sandbox allocation was attempted. Inspect this retained attempt before explicitly retrying.[0m
+                [36m</p>[39m
+                [36m<p>[39m
+                  [0mReview this attempt in the task list. A new start requires explicit recovery and fresh authorization.[0m
+                [36m</p>[39m
+              [36m</li>[39m
+            [36m</ul>[39m
+          [36m</details>[39m
+        [36m</section>[39m
+      [36m</div>[39m
+      [36m<details[39m
+        [33mclass[39m=[32m"project-swarm-guidance"[39m
+      [36m>[39m
+        [36m<summary>[39m
+          [0mAgent task permissions[0m
+        [36m</summary>[39m
+        [36m<p>[39m
+          [0mKeep Ask or Plan in an interactive agent if you want approvals during execution.[0m
+        [36m</p>[39m
+        [36m<p>[39m
+          [0mAutonomous tasks run commands without interactive approvals inside isolated Docker workspaces, then exit after their response. Outputs still need review, integration and verification; Luci does not accept them automatically.[0m
+        [36m</p>[39m
+        [36m<p>[39m
+          [0mFixture descriptor: unattended tasks require explicit Bypass; their outputs await review.[0m
+        [36m</p>[39m
+        [36m<p>[39m
+          [0mStatus is recorded, not a live process guarantee. Check team status after an interruption. Pausing future starts leaves existing agents running.[0m
+        [36m</p>[39m
+      [36m</details>[39m
+    [36m</section>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ × src/components/journey/ProjectSwarmQueue.test.tsx > keeps retired-refusal navigation informative when queue authorization is disabled by queued 110ms
+   → Unable to find an accessible element with the role "button" and name "Go to queue review"
+
+Here are the accessible roles:
+
+  region:
+
+  Name "Agent team":
+  [36m<section[39m
+    [33maria-label[39m=[32m"Agent team"[39m
+    [33mclass[39m=[32m"project-swarm"[39m
+  [36m/>[39m
+
+  Name "Background task queue":
+  [36m<section[39m
+    [33maria-label[39m=[32m"Background task queue"[39m
+    [33mclass[39m=[32m"swarm-run-queue"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  heading:
+
+  Name "Agent team":
+  [36m<h3 />[39m
+
+  Name "Build a":
+  [36m<h4[39m
+    [33mdata-task-heading[39m=[32m"true"[39m
+    [33mtabindex[39m=[32m"-1"[39m
+  [36m/>[39m
+
+  Name "Background queue":
+  [36m<h4 />[39m
+
+  --------------------------------------------------
+  paragraph:
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"project-swarm-permission"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  --------------------------------------------------
+  button:
+
+  Name "Background queue":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"outline"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Start ready tasks":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-primary h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"default"[39m
+    [33mdisabled[39m=[32m""[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Check team status":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"secondary"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Pause new starts":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"outline"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Cancel remaining tasks":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"outline"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Open task session":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"secondary"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Inspect workspace output":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"outline"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Retain changes and retry":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"outline"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Queue reviewed tasks":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-primary h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"default"[39m
+    [33mdisabled[39m=[32m""[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Refresh queue":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"outline"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Pause queued task":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"secondary"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Cancel queued task":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"outline"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  list:
+
+  Name "":
+  [36m<ol[39m
+    [33mclass[39m=[32m"project-swarm-tasks"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<ul[39m
+    [33mclass[39m=[32m"swarm-run-queue-items"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  listitem:
+
+  Name "":
+  [36m<li />[39m
+
+  Name "":
+  [36m<li />[39m
+
+  --------------------------------------------------
+  group:
+
+  Name "":
+  [36m<details[39m
+    [33mdata-task-scope[39m=[32m"true"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<details[39m
+    [33mclass[39m=[32m"project-swarm-more-actions"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<details[39m
+    [33mclass[39m=[32m"swarm-queue-controls"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<details[39m
+    [33mclass[39m=[32m"project-swarm-guidance"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  strong:
+
+  Name "":
+  [36m<strong />[39m
+
+  --------------------------------------------------
+  combobox:
+
+  Name "Priority for Build a":
+  [36m<select />[39m
+
+  --------------------------------------------------
+  option:
+
+  Name "High":
+  [36m<option[39m
+    [33mvalue[39m=[32m"high"[39m
+  [36m/>[39m
+
+  Name "Normal":
+  [36m<option[39m
+    [33mvalue[39m=[32m"normal"[39m
+  [36m/>[39m
+
+  Name "Low":
+  [36m<option[39m
+    [33mvalue[39m=[32m"low"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m""[39m
+[36m>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-label[39m=[32m"Agent team"[39m
+      [33mclass[39m=[32m"project-swarm"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"project-swarm-heading"[39m
+      [36m>[39m
+        [36m<h3>[39m
+          [0mAgent team[0m
+        [36m</h3>[39m
+        [36m<span>[39m
+          [0m0[0m
+          [0m of [0m
+          [0m1[0m
+          [0m integrated[0m
+        [36m</span>[39m
+      [36m</div>[39m
+      [36m<p[39m
+        [33mclass[39m=[32m"project-swarm-permission"[39m
+      [36m>[39m
+        [0mcodex[0m
+        [0m · Permission: [0m
+        [0mBypass[0m
+        [0m. Commands run without interactive approvals inside Docker; results need review.[0m
+      [36m</p>[39m
+      [36m<p>[39m
+        [0mNew starts enabled[0m
+        [0m · [0m
+        [0m0[0m
+        [0m of [0m
+        [0m2[0m
+        [0m agent slots occupied[0m
+      [36m</p>[39m
+      [36m<div[39m
+        [33maria-label[39m=[32m"Task progress"[39m
+        [33mclass[39m=[32m"project-swarm-summary"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0m0[0m
+          [0m awaiting review · [0m
+          [0m0[0m
+          [0m ready to start[0m
+        [36m</span>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"outline"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mBackground queue[0m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"journey-actions"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-primary h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"default"[39m
+          [33mdisabled[39m=[32m""[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mStart ready tasks[0m
+          [36m</span>[39m
+        [36m</button>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"secondary"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mCheck team status[0m
+          [36m</span>[39m
+        [36m</button>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"outline"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mPause new starts[0m
+          [36m</span>[39m
+        [36m</button>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"outline"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mCancel remaining tasks[0m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<ol[39m
+        [33mclass[39m=[32m"project-swarm-tasks"[39m
+      [36m>[39m
+        [36m<li>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"project-swarm-heading"[39m
+          [36m>[39m
+            [36m<h4[39m
+              [33mdata-task-heading[39m=[32m"true"[39m
+              [33mtabindex[39m=[32m"-1"[39m
+            [36m>[39m
+              [0mBuild a[0m
+            [36m</h4>[39m
+            [36m<span>[39m
+              [0mStopped · inspect before retry[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<details[39m
+            [33mdata-task-scope[39m=[32m"true"[39m
+          [36m>[39m
+            [36m<summary>[39m
+              [0mTask scope and handoff[0m
+            [36m</summary>[39m
+            [36m<p>[39m
+              [0mVerify a behavior[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mIntended files: [0m
+              [0msrc/a.ts[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mDependencies: [0m
+              [0mNone[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mAttempt [0m
+              [0m1[0m
+              [0m · workspace [0m
+              [0misolated-refused[0m
+              [0m · session [0m
+              [0mchild-refused[0m
+            [36m</p>[39m
+          [36m</details>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"journey-actions"[39m
+          [36m/>[39m
+          [36m<details[39m
+            [33mclass[39m=[32m"project-swarm-more-actions"[39m
+          [36m>[39m
+            [36m<summary>[39m
+              [0mMore task actions[0m
+            [36m</summary>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"journey-actions"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+                [33mdata-siz...
+ × src/components/journey/ProjectSwarmQueue.test.tsx > keeps retired-refusal navigation informative when queue authorization is disabled by execute-revoked 52ms
+   → Unable to find an accessible element with the role "button" and name "Go to queue review"
+
+Here are the accessible roles:
+
+  region:
+
+  Name "Agent team":
+  [36m<section[39m
+    [33maria-label[39m=[32m"Agent team"[39m
+    [33mclass[39m=[32m"project-swarm"[39m
+  [36m/>[39m
+
+  Name "Background task queue":
+  [36m<section[39m
+    [33maria-label[39m=[32m"Background task queue"[39m
+    [33mclass[39m=[32m"swarm-run-queue"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  heading:
+
+  Name "Agent team":
+  [36m<h3 />[39m
+
+  Name "Build a":
+  [36m<h4[39m
+    [33mdata-task-heading[39m=[32m"true"[39m
+    [33mtabindex[39m=[32m"-1"[39m
+  [36m/>[39m
+
+  Name "Background queue":
+  [36m<h4 />[39m
+
+  --------------------------------------------------
+  paragraph:
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"project-swarm-permission"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  --------------------------------------------------
+  button:
+
+  Name "Background queue":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"outline"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Start ready tasks":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-primary h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"default"[39m
+    [33mdisabled[39m=[32m""[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Check team status":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"secondary"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Pause new starts":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"outline"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Cancel remaining tasks":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"outline"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Open task session":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"secondary"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Inspect workspace output":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"outline"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Retain changes and retry":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"outline"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Queue reviewed tasks (1)":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-primary h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"default"[39m
+    [33mdisabled[39m=[32m""[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Refresh queue":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"outline"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  list:
+
+  Name "":
+  [36m<ol[39m
+    [33mclass[39m=[32m"project-swarm-tasks"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  listitem:
+
+  Name "":
+  [36m<li />[39m
+
+  --------------------------------------------------
+  group:
+
+  Name "":
+  [36m<details[39m
+    [33mdata-task-scope[39m=[32m"true"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<details[39m
+    [33mclass[39m=[32m"project-swarm-more-actions"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<details[39m
+    [33mclass[39m=[32m"swarm-queue-controls"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<details[39m
+    [33mclass[39m=[32m"project-swarm-guidance"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m""[39m
+[36m>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-label[39m=[32m"Agent team"[39m
+      [33mclass[39m=[32m"project-swarm"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"project-swarm-heading"[39m
+      [36m>[39m
+        [36m<h3>[39m
+          [0mAgent team[0m
+        [36m</h3>[39m
+        [36m<span>[39m
+          [0m0[0m
+          [0m of [0m
+          [0m1[0m
+          [0m integrated[0m
+        [36m</span>[39m
+      [36m</div>[39m
+      [36m<p[39m
+        [33mclass[39m=[32m"project-swarm-permission"[39m
+      [36m>[39m
+        [0mcodex[0m
+        [0m · Permission: [0m
+        [0mBypass[0m
+        [0m. Commands run without interactive approvals inside Docker; results need review.[0m
+      [36m</p>[39m
+      [36m<p>[39m
+        [0mNew starts enabled[0m
+        [0m · [0m
+        [0m0[0m
+        [0m of [0m
+        [0m2[0m
+        [0m agent slots occupied[0m
+      [36m</p>[39m
+      [36m<div[39m
+        [33maria-label[39m=[32m"Task progress"[39m
+        [33mclass[39m=[32m"project-swarm-summary"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0m0[0m
+          [0m awaiting review · [0m
+          [0m0[0m
+          [0m ready to start[0m
+        [36m</span>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"outline"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mBackground queue[0m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"journey-actions"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-primary h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"default"[39m
+          [33mdisabled[39m=[32m""[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mStart ready tasks[0m
+          [36m</span>[39m
+        [36m</button>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"secondary"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mCheck team status[0m
+          [36m</span>[39m
+        [36m</button>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"outline"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mPause new starts[0m
+          [36m</span>[39m
+        [36m</button>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"outline"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mCancel remaining tasks[0m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<ol[39m
+        [33mclass[39m=[32m"project-swarm-tasks"[39m
+      [36m>[39m
+        [36m<li>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"project-swarm-heading"[39m
+          [36m>[39m
+            [36m<h4[39m
+              [33mdata-task-heading[39m=[32m"true"[39m
+              [33mtabindex[39m=[32m"-1"[39m
+            [36m>[39m
+              [0mBuild a[0m
+            [36m</h4>[39m
+            [36m<span>[39m
+              [0mStopped · inspect before retry[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<details[39m
+            [33mdata-task-scope[39m=[32m"true"[39m
+          [36m>[39m
+            [36m<summary>[39m
+              [0mTask scope and handoff[0m
+            [36m</summary>[39m
+            [36m<p>[39m
+              [0mVerify a behavior[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mIntended files: [0m
+              [0msrc/a.ts[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mDependencies: [0m
+              [0mNone[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mAttempt [0m
+              [0m1[0m
+              [0m · workspace [0m
+              [0misolated-refused[0m
+              [0m · session [0m
+              [0mchild-refused[0m
+            [36m</p>[39m
+          [36m</details>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"journey-actions"[39m
+          [36m/>[39m
+          [36m<details[39m
+            [33mclass[39m=[32m"project-swarm-more-actions"[39m
+          [36m>[39m
+            [36m<summary>[39m
+              [0mMore task actions[0m
+            [36m</summary>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"journey-actions"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+                [33mdata-size[39m=[32m"default"[39m
+                [33mdata-slot[39m=[32m"button"[39m
+                [33mdata-variant[39m=[32m"secondary"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<span>[39m
+                  [0mOpen task session[0m
+                [36m</span>[39m
+              [36m</button>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+                [33mdata-size[39m=[32m"default"[39m
+                [33mdata-slot[39m=[32m"button"[39m
+                [33mdata-variant[39m=[32m"outline"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<span>[39m
+                  [0mInspect workspace output[0m
+                [36m</span>[39m
+              [36m</button>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+                [33mdata-size[39m=[32m"default"[39m
+                [33mdata-slot[39m=[32m"button"[39m
+                [33mdata-variant[39m=[32m"outline"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<span>[39m
+                  [0mRetain changes and retry[0m
+                [36m</span>[39m
+              [36m</button>[39m
+            [36m</div>[39m
+          [36m</details>[39m
+        [36m</li>[39m
+      [36m</ol>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"project-swarm-queue-region"[39m
+        [33mtabindex[39m=[32m"-1"[39m
+      [36m>[39m
+        [36m<section[39m
+          [33maria-label[39m=[32m"Background task queue"[39m
+          [33mclass[39m=[32m"swarm-run-queue"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"project-swarm-heading"[39m
+          [36m>[39m
+            [36m<h4>[39m
+              [0mBackground queue[0m
+            [36m</h4>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-primary h-9 px-4 py-2"[39m
+              [33mdata-size[39m=[32m"default"[39m
+              [33mdata-slot[39m=[32m"button"[39m
+              [33mdata-variant[39m=[32m"default"[39m
+              [33mdisabled[39m=[32m""[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<span>[39m
+                [0mQueue reviewed tasks[0m
+                [0m (1)[0m
+              [36m</span>[39m
+            [36m</button>[39m
+          [36m</div>[39m
+          [36m<details[39m
+            [33mclass[39m=[32m"swarm-queue-controls"[39m
+          [36m>[39m
+            [36m<summary>[39m
+              [0mQueue status and controls[0m
+            [36m</summary>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+              [33mdata-size[39m=[32m"default"[39m
+              [33mdata-slot[39m=[32m"button"[39m
+              [33mdata-variant[39m=[32m"outline"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<span>[39m
+                [0mRefresh queue[0m
+              [36m</span>[39m
+            [36m</button>[39m
+            [36m<p>[39m
+              [0mQueue reviewed tasks once. Luci waits for dependencies and capacity across projects. Review each result before integrating it.[0m
+            [36m</p>[39m
+          [36m</details>[39m
+        [36m</section>[39m
+      [36m</div>[39m
+      [36m<details[39m
+        [33mclass[39m=[32m"project-swarm-guidance"[39m
+      [36m>[39m
+        [36m<summary>[39m
+          [0mAgent task permissions[0m
+        [36m</summary>[39m
+        [36m<p>[39m
+          [0mKeep Ask or Plan in an interactive agent if you want approvals during execution.[0m
+        [36m</p>[39m
+        [36m<p>[39m
+          [0mAutonomous tasks run commands without interactive approvals inside isolated Docker workspaces, then exit after their response. Outputs still need review, integration and verification; Luci does not accept them automatically.[0m
+        [36m</p>[39m
+        [36m<p>[39m
+          [0mFixture descriptor: unattended tasks require explicit Bypass; their outputs await review.[0m
+        [36m</p>[39m
+        [36m<p>[39m
+          [0mStatus is recorded, not a live process guarantee. Check team status after an interruption. Pausing future starts leaves existing agents running.[0m
+        [36m</p>[39m
+      [36m</details>[39m
+    [36m</section>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ × src/components/journey/ProjectSwarmQueue.test.tsx > drops retired-refusal guidance on a project switch and never carries its navigation consent into the new project 47ms
+   → Unable to find an accessible element with the role "button" and name "Go to queue review"
+
+Here are the accessible roles:
+
+  region:
+
+  Name "Agent team":
+  [36m<section[39m
+    [33maria-label[39m=[32m"Agent team"[39m
+    [33mclass[39m=[32m"project-swarm"[39m
+  [36m/>[39m
+
+  Name "Background task queue":
+  [36m<section[39m
+    [33maria-label[39m=[32m"Background task queue"[39m
+    [33mclass[39m=[32m"swarm-run-queue"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  heading:
+
+  Name "Agent team":
+  [36m<h3 />[39m
+
+  Name "Build a":
+  [36m<h4[39m
+    [33mdata-task-heading[39m=[32m"true"[39m
+    [33mtabindex[39m=[32m"-1"[39m
+  [36m/>[39m
+
+  Name "Background queue":
+  [36m<h4 />[39m
+
+  --------------------------------------------------
+  paragraph:
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"project-swarm-permission"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  --------------------------------------------------
+  button:
+
+  Name "Background queue":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"outline"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Start ready tasks":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-primary h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"default"[39m
+    [33mdisabled[39m=[32m""[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Check team status":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"secondary"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Pause new starts":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"outline"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Cancel remaining tasks":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"outline"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Open task session":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"secondary"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Inspect workspace output":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"outline"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Retain changes and retry":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"outline"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Queue reviewed tasks (1)":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-primary h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"default"[39m
+    [33mdisabled[39m=[32m""[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Refresh queue":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"outline"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  list:
+
+  Name "":
+  [36m<ol[39m
+    [33mclass[39m=[32m"project-swarm-tasks"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  listitem:
+
+  Name "":
+  [36m<li />[39m
+
+  --------------------------------------------------
+  group:
+
+  Name "":
+  [36m<details[39m
+    [33mdata-task-scope[39m=[32m"true"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<details[39m
+    [33mclass[39m=[32m"project-swarm-more-actions"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<details[39m
+    [33mclass[39m=[32m"swarm-queue-controls"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<details[39m
+    [33mclass[39m=[32m"project-swarm-guidance"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m""[39m
+[36m>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-label[39m=[32m"Agent team"[39m
+      [33mclass[39m=[32m"project-swarm"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"project-swarm-heading"[39m
+      [36m>[39m
+        [36m<h3>[39m
+          [0mAgent team[0m
+        [36m</h3>[39m
+        [36m<span>[39m
+          [0m0[0m
+          [0m of [0m
+          [0m1[0m
+          [0m integrated[0m
+        [36m</span>[39m
+      [36m</div>[39m
+      [36m<p[39m
+        [33mclass[39m=[32m"project-swarm-permission"[39m
+      [36m>[39m
+        [0mcodex[0m
+        [0m · Permission: [0m
+        [0mBypass[0m
+        [0m. Commands run without interactive approvals inside Docker; results need review.[0m
+      [36m</p>[39m
+      [36m<p>[39m
+        [0mNew starts enabled[0m
+        [0m · [0m
+        [0m0[0m
+        [0m of [0m
+        [0m2[0m
+        [0m agent slots occupied[0m
+      [36m</p>[39m
+      [36m<div[39m
+        [33maria-label[39m=[32m"Task progress"[39m
+        [33mclass[39m=[32m"project-swarm-summary"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0m0[0m
+          [0m awaiting review · [0m
+          [0m0[0m
+          [0m ready to start[0m
+        [36m</span>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"outline"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mBackground queue[0m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"journey-actions"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-primary h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"default"[39m
+          [33mdisabled[39m=[32m""[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mStart ready tasks[0m
+          [36m</span>[39m
+        [36m</button>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"secondary"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mCheck team status[0m
+          [36m</span>[39m
+        [36m</button>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"outline"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mPause new starts[0m
+          [36m</span>[39m
+        [36m</button>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"outline"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mCancel remaining tasks[0m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<ol[39m
+        [33mclass[39m=[32m"project-swarm-tasks"[39m
+      [36m>[39m
+        [36m<li>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"project-swarm-heading"[39m
+          [36m>[39m
+            [36m<h4[39m
+              [33mdata-task-heading[39m=[32m"true"[39m
+              [33mtabindex[39m=[32m"-1"[39m
+            [36m>[39m
+              [0mBuild a[0m
+            [36m</h4>[39m
+            [36m<span>[39m
+              [0mStopped · inspect before retry[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<details[39m
+            [33mdata-task-scope[39m=[32m"true"[39m
+          [36m>[39m
+            [36m<summary>[39m
+              [0mTask scope and handoff[0m
+            [36m</summary>[39m
+            [36m<p>[39m
+              [0mVerify a behavior[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mIntended files: [0m
+              [0msrc/a.ts[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mDependencies: [0m
+              [0mNone[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mAttempt [0m
+              [0m1[0m
+              [0m · workspace [0m
+              [0misolated-refused[0m
+              [0m · session [0m
+              [0mchild-refused[0m
+            [36m</p>[39m
+          [36m</details>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"journey-actions"[39m
+          [36m/>[39m
+          [36m<details[39m
+            [33mclass[39m=[32m"project-swarm-more-actions"[39m
+          [36m>[39m
+            [36m<summary>[39m
+              [0mMore task actions[0m
+            [36m</summary>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"journey-actions"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+                [33mdata-size[39m=[32m"default"[39m
+                [33mdata-slot[39m=[32m"button"[39m
+                [33mdata-variant[39m=[32m"secondary"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<span>[39m
+                  [0mOpen task session[0m
+                [36m</span>[39m
+              [36m</button>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+                [33mdata-size[39m=[32m"default"[39m
+                [33mdata-slot[39m=[32m"button"[39m
+                [33mdata-variant[39m=[32m"outline"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<span>[39m
+                  [0mInspect workspace output[0m
+                [36m</span>[39m
+              [36m</button>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+                [33mdata-size[39m=[32m"default"[39m
+                [33mdata-slot[39m=[32m"button"[39m
+                [33mdata-variant[39m=[32m"outline"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<span>[39m
+                  [0mRetain changes and retry[0m
+                [36m</span>[39m
+              [36m</button>[39m
+            [36m</div>[39m
+          [36m</details>[39m
+        [36m</li>[39m
+      [36m</ol>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"project-swarm-queue-region"[39m
+        [33mtabindex[39m=[32m"-1"[39m
+      [36m>[39m
+        [36m<section[39m
+          [33maria-label[39m=[32m"Background task queue"[39m
+          [33mclass[39m=[32m"swarm-run-queue"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"project-swarm-heading"[39m
+          [36m>[39m
+            [36m<h4>[39m
+              [0mBackground queue[0m
+            [36m</h4>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-primary h-9 px-4 py-2"[39m
+              [33mdata-size[39m=[32m"default"[39m
+              [33mdata-slot[39m=[32m"button"[39m
+              [33mdata-variant[39m=[32m"default"[39m
+              [33mdisabled[39m=[32m""[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<span>[39m
+                [0mQueue reviewed tasks[0m
+                [0m (1)[0m
+              [36m</span>[39m
+            [36m</button>[39m
+          [36m</div>[39m
+          [36m<details[39m
+            [33mclass[39m=[32m"swarm-queue-controls"[39m
+          [36m>[39m
+            [36m<summary>[39m
+              [0mQueue status and controls[0m
+            [36m</summary>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-outline h-9 px-4 py-2"[39m
+              [33mdata-size[39m=[32m"default"[39m
+              [33mdata-slot[39m=[32m"button"[39m
+              [33mdata-variant[39m=[32m"outline"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<span>[39m
+                [0mRefresh queue[0m
+              [36m</span>[39m
+            [36m</button>[39m
+            [36m<p>[39m
+              [0mQueue reviewed tasks once. Luci waits for dependencies and capacity across projects. Review each result before integrating it.[0m
+            [36m</p>[39m
+          [36m</details>[39m
+        [36m</section>[39m
+      [36m</div>[39m
+      [36m<details[39m
+        [33mclass[39m=[32m"project-swarm-guidance"[39m
+      [36m>[39m
+        [36m<summary>[39m
+          [0mAgent task permissions[0m
+        [36m</summary>[39m
+        [36m<p>[39m
+          [0mKeep Ask or Plan in an interactive agent if you want approvals during execution.[0m
+        [36m</p>[39m
+        [36m<p>[39m
+          [0mAutonomous tasks run commands without interactive approvals inside isolated Docker workspaces, then exit after their response. Outputs still need review, integration and verification; Luci does not accept them automatically.[0m
+        [36m</p>[39m
+        [36m<p>[39m
+          [0mFixture descriptor: unattended tasks require explicit Bypass; their outputs await review.[0m
+        [36m</p>[39m
+        [36m<p>[39m
+          [0mStatus is recorded, not a live process guarantee. Check team status after an interruption. Pausing future starts leaves existing agents running.[0m
+        [36m</p>[39m
+      [36m</details>[39m
+    [36m</section>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 4 passed (8)
+   Start at  08:24:04
+   Duration  7.05s (tests 36%, environment 34%, transform 22%, import 4%, setup 3%)
+

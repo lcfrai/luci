@@ -1,0 +1,7 @@
+{
+  "head": "b81d6454778ddedb6c3102b202c1e2fa6f458a0a",
+  "files": {
+    "desktop/src/components/definition/DefinitionWorkspace.tsx": "d29e3ec45148351be72be7526496c11731725f8d4eff61e61dee7819a81b94a6",
+    "desktop/src/components/definition/DefinitionWorkspace.test.tsx": "dd66d40f5b0aa2272e18dbfa6acf13df36a0ecc15fc6224aba0922e3a8c5eb83"
+  }
+}

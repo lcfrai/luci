@@ -1,0 +1,10 @@
+{
+  "command": [
+    "node",
+    "node_modules/typescript/bin/tsc",
+    "--noEmit"
+  ],
+  "cwd": "/workspace/luci/desktop",
+  "startedAt": 1791534522.9477766,
+  "sourceBindingScope": "All Git-tracked desktop/src inputs plus manifest/lock and test/build/TypeScript configs. Other concurrent source changes are reported explicitly; dependency installation bytes not independently frozen."
+}

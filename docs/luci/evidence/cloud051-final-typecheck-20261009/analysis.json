@@ -1,0 +1,64 @@
+{
+  "scope": "Final C051 TypeScript only; earlier full2787-assertion run predates two changed files. Focused C051 tests remain separately recorded.",
+  "baseHEAD": "b81d6454778ddedb6c3102b202c1e2fa6f458a0a",
+  "capturedSourceDirty": true,
+  "inputsStable": true,
+  "capturedPathCounts": {
+    "repository": 1185,
+    "dependencies": 19369
+  },
+  "comparedAgainstPriorFullRun": "34080ca5b530cb2cc23eb68ccd052681f55888d759da467ea45640a5b6f7e04a",
+  "unchangedDependenciesSinceFullRun": true,
+  "addedOrRemovedCapturedPaths": [],
+  "exactChangedCapturedPaths": [
+    {
+      "path": "desktop/src/components/AppShell.test.tsx",
+      "priorSHA256": "50dae6f39011745e6f8d3dbbb227e7fd83c305465fef88b9a25558ef8edc4b0a",
+      "capturedSHA256": "c2d8aa217b1fd9ebcb8139eaec422de5ee606b54e4cce691e0fd22ded6b9f60b",
+      "capturedBytes": 18210,
+      "frozenSource": "changed-source/desktop/src/components/AppShell.test.tsx",
+      "currentMatchesAtPublication": true
+    },
+    {
+      "path": "desktop/src/components/common/DraftNavigationDialog.tsx",
+      "priorSHA256": "4867980dd1e698dce68b109e6789eaa3943105230175a03c28cc6cba5c8897b9",
+      "capturedSHA256": "8b15f26f9a21cc33b6978d9f8bbf8e7837689e51d9e296d212201e7e28c2369f",
+      "capturedBytes": 2809,
+      "frozenSource": "changed-source/desktop/src/components/common/DraftNavigationDialog.tsx",
+      "currentMatchesAtPublication": true
+    }
+  ],
+  "priorFullSuiteAppliesToLaterSource": false,
+  "linkedHistoricalEvidence": {
+    "originalFailureResult": {
+      "path": "docs/luci/evidence/cloud051-draft-navigation-focus-20261009/retained-typecheck-failure/result.json",
+      "bytes": 731,
+      "sha256": "7e9ddb57dd26951b1f37ff0b80cf2fff0a47318ddf993f2da4aca58d8236f615"
+    },
+    "originalFailureStdout": {
+      "path": "docs/luci/evidence/cloud051-draft-navigation-focus-20261009/retained-typecheck-failure/typecheck.stdout.log",
+      "bytes": 3288,
+      "sha256": "5164d2c8602ccef43c38ddda40e1c9333b7898e490bca31876d35c74c121a3a1"
+    },
+    "originalFailureStderr": {
+      "path": "docs/luci/evidence/cloud051-draft-navigation-focus-20261009/retained-typecheck-failure/typecheck.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "priorFullRun": {
+      "path": "../cloud048050-combined-frontend-20261009/result.json",
+      "bytes": 582,
+      "sha256": "34080ca5b530cb2cc23eb68ccd052681f55888d759da467ea45640a5b6f7e04a"
+    },
+    "priorFullGitBaseline": {
+      "path": "../cloud048050-combined-frontend-20261009/source-git-before.json",
+      "bytes": 496,
+      "sha256": "0aaac4abfa1a3b15f4d65bbbe8d2a0859562ce57a8a8a76e398d4a3853c931a0"
+    }
+  },
+  "limits": [
+    "The wrapper rehashes the previous explicitly captured inventory; it does not discover arbitrary additional files or claim complete transitive compiler/filesystem closure.",
+    "CurrentSHA equality is a publication-time comparison, not an additional typecheck.",
+    "No frontend tests, app, Docker, native Windows, live provider or performance run was executed by this publication task."
+  ]
+}

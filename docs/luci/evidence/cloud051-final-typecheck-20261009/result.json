@@ -1,0 +1,22 @@
+{
+  "command": [
+    "npm",
+    "run",
+    "typecheck"
+  ],
+  "startedAt": "2026-10-09T08:43:16.904286+00:00",
+  "elapsedSeconds": 19.553096782998182,
+  "exitCode": 0,
+  "timedOut": false,
+  "inputsStable": true,
+  "counts": {
+    "repository": 1185,
+    "dependencies": 19369
+  },
+  "changedSinceFullFrontend": [
+    "desktop/src/components/AppShell.test.tsx",
+    "desktop/src/components/common/DraftNavigationDialog.tsx"
+  ],
+  "fullFrontendReceiptSHA256": "34080ca5b530cb2cc23eb68ccd052681f55888d759da467ea45640a5b6f7e04a",
+  "scope": "Final combined TypeScript with CLOUD051; earlier full2787 assertion run predates these two changed files. Focused CLOUD051 tests are recorded separately; no new full-suite or runtime claim."
+}

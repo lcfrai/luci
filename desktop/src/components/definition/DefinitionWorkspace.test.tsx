@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { act, render, screen, waitFor, cleanup, within } from "@testing-library/react";
+import { act, render, screen, waitFor, cleanup, within, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { definitionApi, type ProjectSpecification } from "../../api/definition";
 import { DefinitionWorkspace } from "./DefinitionWorkspace";
@@ -342,4 +342,106 @@ it("queues the restored-Read baseline behind a pending definition save without c
   expect((screen.getByLabelText("The idea") as HTMLTextAreaElement).value).toBe(saved.purpose);
   expect((screen.getByRole("button", { name: "Approve definition" }) as HTMLButtonElement).disabled).toBe(false);
   expect(save.mock.calls[0]).toHaveLength(4); expect(save).toHaveBeenCalledOnce();
+});
+
+
+function populatedGroups(projectId = "p-1"): ProjectSpecification {
+  return {
+    ...twoOutcomes(), projectId, purpose: `Purpose of ${projectId}`,
+    roles: [{ id: `${projectId}-role`, name: `${projectId} reviewer`, canDo: "Review changes", cannotDo: "Deploy" }],
+    entities: [{ id: `${projectId}-entity`, name: "Result", fields: "Evidence", privacy: "Project only" }],
+    integrations: [{ id: `${projectId}-integration`, name: "Provider", purpose: "Build", constraint: "Budget" }],
+    glossary: [{ id: `${projectId}-term`, term: "Verified", meaning: "Check passed" }],
+    decisions: [{ id: `${projectId}-decision`, title: "Local", decision: "Local first", reason: "Control", alternatives: "Cloud" }],
+    questions: [{ id: `${projectId}-question`, question: "Who reviews?", answer: "" }],
+  };
+}
+function group(title: string): HTMLDetailsElement {
+  return screen.getByText(title, { selector: "summary > span" }).closest("details")!;
+}
+async function disclose(details: HTMLDetailsElement, open = true) {
+  await act(async () => { details.open = open; fireEvent(details, new Event("toggle")); });
+}
+it("defers every initially closed record and journey editor while retaining the visible counts", async () => {
+  vi.spyOn(definitionApi, "get").mockResolvedValue(populatedGroups());
+  render(<DefinitionWorkspace projectId="p-1" />);
+  await screen.findByLabelText("The idea");
+  for (const title of ["User journeys", "Access roles", "Data entities", "Integrations", "Glossary terms", "Decisions", "Open questions"]) {
+    const details = group(title);
+    expect(details.open).toBe(false);
+    expect(details.querySelector("summary")?.textContent).toContain("1");
+    expect(details.querySelector(".definition-group-body")).toBeNull();
+    expect(details.querySelectorAll("input, textarea, button")).toHaveLength(0);
+  }
+});
+it("mounts a disclosed record once and keeps edited values and controls through close and reopen", async () => {
+  vi.spyOn(definitionApi, "get").mockResolvedValue(populatedGroups());
+  const save = vi.spyOn(definitionApi, "save").mockImplementation(async (_id, value) => ({ ...value, revision: 3 }));
+  render(<DefinitionWorkspace projectId="p-1" />); await screen.findByLabelText("The idea");
+  const details = group("Access roles");
+  expect(details.querySelector("textarea")).toBeNull();
+  await disclose(details);
+  const role = screen.getByLabelText("Role name");
+  await userEvent.type(role, " amended");
+  await disclose(details, false);
+  expect(details.querySelector("textarea")).toBe(role);
+  await disclose(details);
+  expect(screen.getByLabelText("Role name")).toBe(role);
+  expect((role as HTMLTextAreaElement).value).toBe("p-1 reviewer amended");
+  await userEvent.click(screen.getByRole("button", { name: "Save definition" }));
+  expect(save.mock.calls[0][1].roles[0]).toEqual({ ...populatedGroups().roles[0], name: "p-1 reviewer amended" });
+});
+it("defers the journey requirement matrix then retains its edits while collapsed", async () => {
+  vi.spyOn(definitionApi, "get").mockResolvedValue(populatedGroups());
+  const save = vi.spyOn(definitionApi, "save").mockImplementation(async (_id, value) => ({ ...value, revision: 3 }));
+  render(<DefinitionWorkspace projectId="p-1" />); await screen.findByLabelText("The idea");
+  const details = group("User journeys");
+  expect(details.querySelectorAll('input[type="checkbox"]')).toHaveLength(0);
+  await disclose(details);
+  const journey = screen.getByLabelText("Journey name");
+  await userEvent.type(journey, " amended");
+  await userEvent.click(screen.getByRole("checkbox", { name: "AC-002 · Staff block availability" }));
+  await disclose(details, false); await disclose(details);
+  expect(screen.getByLabelText("Journey name")).toBe(journey);
+  expect((journey as HTMLInputElement).value).toBe("Booking amended");
+  expect((screen.getByRole("checkbox", { name: "AC-002 · Staff block availability" }) as HTMLInputElement).checked).toBe(false);
+  await userEvent.click(screen.getByRole("button", { name: "Save definition" }));
+  expect(save.mock.calls[0][1].journeys[0]).toMatchObject({ name: "Booking amended", requirementIds: ["AC-001"] });
+});
+it("reveals usable missing-link repair before saving without requiring a disclosure click", async () => {
+  const value = populatedGroups(); value.journeys[0].requirementIds.push("AC-removed");
+  vi.spyOn(definitionApi, "get").mockResolvedValue(value);
+  const save = vi.spyOn(definitionApi, "save").mockImplementation(async (_id, spec) => ({ ...spec, revision: 3 }));
+  render(<DefinitionWorkspace projectId="p-1" />);
+  const removed = await screen.findByRole("checkbox", { name: "Remove unavailable outcome AC-removed from journey 1" });
+  expect(group("User journeys").open).toBe(true);
+  expect(screen.getByRole("alert").textContent).toContain("outcome that was removed");
+  await userEvent.type(screen.getByLabelText("Journey name"), " preserved");
+  expect((screen.getByRole("button", { name: "Save definition" }) as HTMLButtonElement).disabled).toBe(true);
+  await userEvent.click(removed);
+  await userEvent.click(screen.getByRole("button", { name: "Save definition" }));
+  expect(save.mock.calls[0][1].journeys[0]).toMatchObject({ name: "Booking preserved", requirementIds: ["AC-001", "AC-002"] });
+});
+it("scopes deferred group state and retained edits to each project while respecting fresh read and edit grants", async () => {
+  vi.spyOn(definitionApi, "get").mockImplementation(async id => populatedGroups(id));
+  const save = vi.spyOn(definitionApi, "save");
+  const view = render(<DefinitionWorkspace projectId="p-1" />); await screen.findByLabelText("The idea");
+  await disclose(group("Access roles"));
+  await userEvent.type(screen.getByLabelText("Role name"), " retained");
+  view.rerender(<DefinitionWorkspace projectId="p-2" />);
+  await screen.findByDisplayValue("Purpose of p-2");
+  expect(group("Access roles").querySelector("textarea")).toBeNull();
+  await disclose(group("Access roles"));
+  expect((screen.getByLabelText("Role name") as HTMLTextAreaElement).value).toBe("p-2 reviewer");
+  teamAccess.permissions.edit = false; view.rerender(<DefinitionWorkspace projectId="p-2" />);
+  await userEvent.type(screen.getByLabelText("Role name"), " forbidden");
+  expect((screen.getByLabelText("Role name") as HTMLTextAreaElement).value).toBe("p-2 reviewer");
+  teamAccess.permissions.read = false; view.rerender(<DefinitionWorkspace projectId="p-2" />);
+  expect(screen.queryByLabelText("Role name")).toBeNull();
+  teamAccess.permissions.read = true; teamAccess.permissions.edit = true;
+  view.rerender(<DefinitionWorkspace projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("button", { name: "Restore draft" }));
+  await disclose(group("Access roles"));
+  expect((screen.getByLabelText("Role name") as HTMLTextAreaElement).value).toBe("p-1 reviewer retained");
+  expect(save).not.toHaveBeenCalled();
 });

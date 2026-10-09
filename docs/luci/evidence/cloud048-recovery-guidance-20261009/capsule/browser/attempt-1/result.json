@@ -1,0 +1,43 @@
+{
+  "passed": false,
+  "scope": "Actual styled ProjectSwarm and SwarmRunQueue in Chromium with controlled HTTP transport and actual API validation",
+  "limitations": [
+    "No installed backend, Docker, native agent, provider or model execution.",
+    "Fixture mounts the two real components in an explicit scroll container; it is not AppShell or full-product acceptance.",
+    "Initial failure and subsequent retirement/queue receipts are controlled state, not live admission evidence."
+  ],
+  "startedAt": "2026-10-09T08:25:17.508Z",
+  "checkout": "b81d6454778ddedb6c3102b202c1e2fa6f458a0a",
+  "sourceBefore": {
+    "/workspace/luci/desktop/src/components/journey/ProjectSwarm.tsx": "fd3f328b7bc85a43f0dea6b2edf7eb156e17f16b8742824606741a1c2a03a464",
+    "/workspace/luci/desktop/src/components/journey/SwarmRunQueue.tsx": "a742e46e90f2cf386817c149829c0d4f2176f6f36c3aeae2c55f371e9e3d0648",
+    "/workspace/luci/desktop/src/components/journey/ProjectSwarmQueue.test.tsx": "1e5217a7aa8cd79d505e6d9cb1e72a0a26b1220e1853d5eb5137426ead23ec44",
+    "/workspace/luci/desktop/src/components/journey/project-swarm.css": "22442bfed77c66ba6e685f5a9c4549654fa6c75022722369087e13ff99370ce5",
+    "/workspace/luci/desktop/src/components/journey/journey.css": "247a10959f05105bb2c5b98e58fb61034192e0c8a15c6e0e34b9bde23e3e6120",
+    "/workspace/luci/desktop/src/styles/app.css": "0b672e16997fbb7e2efec0cd1011fb08cbdcb3987169cedd7e86512e9c7329c0"
+  },
+  "fixtureBefore": "fb36c34fc6502d5f78846f6efb979b12cad247f32d816a26d3dc47aff693d2d5",
+  "runnerBefore": "810dd04e25cb45ba95db6af6ae8b686489f1a8d43322a8256cb28a60c5ecf5d7",
+  "checks": [],
+  "errors": [
+    "browserType.launch: Target page, context or browser has been closed\nBrowser logs:\n\n<launching> /usr/bin/chromium --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-proxy-server --user-data-dir=/tmp/playwright_chromiumdev_profile-22tqAw --remote-debugging-pipe --no-startup-window\n<launched> pid=2294910\n[pid=2294910][err] [2294910:2294910:1009/082519.971353:FATAL:chrome/browser/process_singleton_posix.cc:313] Socket path too long: /workspace/.luci-tools/cloud048-recovery-guidance/browser/profile-M4MM3o/org.chromium.Chromium.pqjLVG/SingletonSocket.\n[pid=2294910][err] [1009/082519.988142:ERROR:third_party/crashpad/crashpad/util/file/file_io_posix.cc:145] open /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq: No such file or directory (2)\n[pid=2294910][err] [1009/082519.988261:ERROR:third_party/crashpad/crashpad/util/file/file_io_posix.cc:145] open /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq: No such file or directory (2)\nCall log:\n\u001b[2m  - <launching> /usr/bin/chromium --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-proxy-server --user-data-dir=/tmp/playwright_chromiumdev_profile-22tqAw --remote-debugging-pipe --no-startup-window\u001b[22m\n\u001b[2m  - <launched> pid=2294910\u001b[22m\n\u001b[2m  - [pid=2294910][err] [2294910:2294910:1009/082519.971353:FATAL:chrome/browser/process_singleton_posix.cc:313] Socket path too long: /workspace/.luci-tools/cloud048-recovery-guidance/browser/profile-M4MM3o/org.chromium.Chromium.pqjLVG/SingletonSocket.\u001b[22m\n\u001b[2m  - [pid=2294910][err] [1009/082519.988142:ERROR:third_party/crashpad/crashpad/util/file/file_io_posix.cc:145] open /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq: No such file or directory (2)\u001b[22m\n\u001b[2m  - [pid=2294910][err] [1009/082519.988261:ERROR:third_party/crashpad/crashpad/util/file/file_io_posix.cc:145] open /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq: No such file or directory (2)\u001b[22m\n\u001b[2m  - [pid=2294910] <gracefully close start>\u001b[22m\n\u001b[2m  - [pid=2294910] <kill>\u001b[22m\n\u001b[2m  - [pid=2294910] <will force kill>\u001b[22m\n\u001b[2m  - [pid=2294910] <process did exit: exitCode=null, signal=SIGABRT>\u001b[22m\n\u001b[2m  - [pid=2294910] starting temporary directories cleanup\u001b[22m\n\u001b[2m  - [pid=2294910] finished temporary directories cleanup\u001b[22m\n\u001b[2m  - [pid=2294910] <gracefully close end>\u001b[22m\n\n    at workflow (/workspace/.luci-tools/cloud048-recovery-guidance/browser/source-browser.mjs:59:25)\n    at async timed (/workspace/.luci-tools/cloud048-recovery-guidance/browser/source-browser.mjs:22:60)\n    at async file:///workspace/.luci-tools/cloud048-recovery-guidance/browser/source-browser.mjs:89:5"
+  ],
+  "cleanup": [
+    "Owned Vite closed",
+    "Owned profile removed"
+  ],
+  "requests": [],
+  "remainingOwnedBrowserPids": [],
+  "sourceAfter": {
+    "/workspace/luci/desktop/src/components/journey/ProjectSwarm.tsx": "fd3f328b7bc85a43f0dea6b2edf7eb156e17f16b8742824606741a1c2a03a464",
+    "/workspace/luci/desktop/src/components/journey/SwarmRunQueue.tsx": "a742e46e90f2cf386817c149829c0d4f2176f6f36c3aeae2c55f371e9e3d0648",
+    "/workspace/luci/desktop/src/components/journey/ProjectSwarmQueue.test.tsx": "1e5217a7aa8cd79d505e6d9cb1e72a0a26b1220e1853d5eb5137426ead23ec44",
+    "/workspace/luci/desktop/src/components/journey/project-swarm.css": "22442bfed77c66ba6e685f5a9c4549654fa6c75022722369087e13ff99370ce5",
+    "/workspace/luci/desktop/src/components/journey/journey.css": "247a10959f05105bb2c5b98e58fb61034192e0c8a15c6e0e34b9bde23e3e6120",
+    "/workspace/luci/desktop/src/styles/app.css": "0b672e16997fbb7e2efec0cd1011fb08cbdcb3987169cedd7e86512e9c7329c0"
+  },
+  "fixtureAfter": "fb36c34fc6502d5f78846f6efb979b12cad247f32d816a26d3dc47aff693d2d5",
+  "runnerAfter": "810dd04e25cb45ba95db6af6ae8b686489f1a8d43322a8256cb28a60c5ecf5d7",
+  "sourceUnchanged": true,
+  "finishedAt": "2026-10-09T08:25:20.236Z"
+}

@@ -1,0 +1,229 @@
+{
+  "files": [
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud048050-combined-validation/source-git-before.json",
+      "originalBytes": 496,
+      "originalSHA256": "0aaac4abfa1a3b15f4d65bbbe8d2a0859562ce57a8a8a76e398d4a3853c931a0",
+      "publishedPath": "source-git-before.json",
+      "publishedBytes": 496,
+      "publishedSHA256": "0aaac4abfa1a3b15f4d65bbbe8d2a0859562ce57a8a8a76e398d4a3853c931a0",
+      "originalPreserved": true
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud048050-combined-validation/command.json",
+      "originalBytes": 412,
+      "originalSHA256": "03ea6d114a9caf9b969667b277ddc8385db41f98e5e65b94f366f8295cd7f974",
+      "publishedPath": "command.json",
+      "publishedBytes": 412,
+      "publishedSHA256": "03ea6d114a9caf9b969667b277ddc8385db41f98e5e65b94f366f8295cd7f974",
+      "originalPreserved": true
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud048050-combined-validation/timeout.json",
+      "originalBytes": 42,
+      "originalSHA256": "ae9f70d70719cf3ca2360f43087383d72dfe989970c2a5c9888613a8ecf9145e",
+      "publishedPath": "timeout.json",
+      "publishedBytes": 42,
+      "publishedSHA256": "ae9f70d70719cf3ca2360f43087383d72dfe989970c2a5c9888613a8ecf9145e",
+      "originalPreserved": true
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud048050-combined-validation/result.json",
+      "originalBytes": 582,
+      "originalSHA256": "34080ca5b530cb2cc23eb68ccd052681f55888d759da467ea45640a5b6f7e04a",
+      "publishedPath": "result.json",
+      "publishedBytes": 582,
+      "publishedSHA256": "34080ca5b530cb2cc23eb68ccd052681f55888d759da467ea45640a5b6f7e04a",
+      "originalPreserved": true
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud048050-combined-validation/typecheck-command.json",
+      "originalBytes": 273,
+      "originalSHA256": "d73f6225343a22c4c4fb133cd227f7ff336424da97e752687394904b0e68f82b",
+      "publishedPath": "typecheck-command.json",
+      "publishedBytes": 273,
+      "publishedSHA256": "d73f6225343a22c4c4fb133cd227f7ff336424da97e752687394904b0e68f82b",
+      "originalPreserved": true
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud048050-combined-validation/full.json",
+      "originalBytes": 1210427,
+      "originalSHA256": "5130b812d4eda23d70f8802f98efb6bc818053086f89e668b45cfb55a0dc731e",
+      "publishedPath": "full.json.gz",
+      "publishedBytes": 121806,
+      "publishedSHA256": "62f9a399842eeec59da0a76f4671b3d2c034aa0fc0165bccf950b34357ea9b89",
+      "originalPreserved": true,
+      "transformation": "Lossless gzip, mtime=0; decompress to recover exact original reporter bytes."
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud048050-combined-validation/full.stdout.log",
+      "originalBytes": 88,
+      "originalSHA256": "f4f4139fc93bbefb692414b30d79fd186d3c391b58ab4001534d94098a9bae22",
+      "publishedPath": "full.stdout.log",
+      "publishedBytes": 88,
+      "publishedSHA256": "f4f4139fc93bbefb692414b30d79fd186d3c391b58ab4001534d94098a9bae22",
+      "originalPreserved": true
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud048050-combined-validation/full.stderr.log",
+      "originalBytes": 200,
+      "originalSHA256": "ad9ef12f2f19d2532fbd05b9772e28e31d4b97c1b0de43e902d3b8edc87fcee5",
+      "publishedPath": "full.stderr.log",
+      "publishedBytes": 200,
+      "publishedSHA256": "ad9ef12f2f19d2532fbd05b9772e28e31d4b97c1b0de43e902d3b8edc87fcee5",
+      "originalPreserved": true
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud048050-combined-validation/typecheck.stdout.log",
+      "originalBytes": 54,
+      "originalSHA256": "6d51e3ec9a9d283eee096e5e9403c5d963c9468e9756fd61f3e9e0d3df1bde71",
+      "publishedPath": "typecheck.stdout.log",
+      "publishedBytes": 54,
+      "publishedSHA256": "6d51e3ec9a9d283eee096e5e9403c5d963c9468e9756fd61f3e9e0d3df1bde71",
+      "originalPreserved": true
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud048050-combined-validation/typecheck.stderr.log",
+      "originalBytes": 0,
+      "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publishedPath": "typecheck.stderr.log",
+      "publishedBytes": 0,
+      "publishedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "originalPreserved": true
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud048050-combined-validation/repository-before.json.gz",
+      "originalBytes": 61628,
+      "originalSHA256": "f871bf5fabe2f01842a60040fe5d11af5d800c4baf25e7e8e07d84fdfe513e97",
+      "publishedPath": "repository-before.json.gz",
+      "publishedBytes": 61628,
+      "publishedSHA256": "f871bf5fabe2f01842a60040fe5d11af5d800c4baf25e7e8e07d84fdfe513e97",
+      "originalPreserved": true,
+      "gzipDecodedBytes": 207025,
+      "gzipDecodedSHA256": "6ba96d4213b2df98b43079a0480316d3def7d7295e0b1538c1331c3df0b3d80a"
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud048050-combined-validation/repository-after.json.gz",
+      "originalBytes": 61628,
+      "originalSHA256": "f871bf5fabe2f01842a60040fe5d11af5d800c4baf25e7e8e07d84fdfe513e97",
+      "publishedPath": "repository-after.json.gz",
+      "publishedBytes": 61628,
+      "publishedSHA256": "f871bf5fabe2f01842a60040fe5d11af5d800c4baf25e7e8e07d84fdfe513e97",
+      "originalPreserved": true,
+      "gzipDecodedBytes": 207025,
+      "gzipDecodedSHA256": "6ba96d4213b2df98b43079a0480316d3def7d7295e0b1538c1331c3df0b3d80a"
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud048050-combined-validation/repository-after-typecheck.json.gz",
+      "originalBytes": 61628,
+      "originalSHA256": "f871bf5fabe2f01842a60040fe5d11af5d800c4baf25e7e8e07d84fdfe513e97",
+      "publishedPath": "repository-after-typecheck.json.gz",
+      "publishedBytes": 61628,
+      "publishedSHA256": "f871bf5fabe2f01842a60040fe5d11af5d800c4baf25e7e8e07d84fdfe513e97",
+      "originalPreserved": true,
+      "gzipDecodedBytes": 207025,
+      "gzipDecodedSHA256": "6ba96d4213b2df98b43079a0480316d3def7d7295e0b1538c1331c3df0b3d80a"
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud048050-combined-validation/dependencies-before.json.gz",
+      "originalBytes": 891231,
+      "originalSHA256": "ce05c088c4d9f301270195377d7080647c7023fb68be9c79a371e0ed93d556cb",
+      "publishedPath": "dependencies-before.json.gz",
+      "publishedBytes": 891231,
+      "publishedSHA256": "ce05c088c4d9f301270195377d7080647c7023fb68be9c79a371e0ed93d556cb",
+      "originalPreserved": true,
+      "gzipDecodedBytes": 3660772,
+      "gzipDecodedSHA256": "e165cc41ccc62681c7389ef123ac484bdf330fff9c4b5b4ee6ed189316318bc3"
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud048050-combined-validation/dependencies-after.json.gz",
+      "originalBytes": 891231,
+      "originalSHA256": "ce05c088c4d9f301270195377d7080647c7023fb68be9c79a371e0ed93d556cb",
+      "publishedPath": "dependencies-after.json.gz",
+      "publishedBytes": 891231,
+      "publishedSHA256": "ce05c088c4d9f301270195377d7080647c7023fb68be9c79a371e0ed93d556cb",
+      "originalPreserved": true,
+      "gzipDecodedBytes": 3660772,
+      "gzipDecodedSHA256": "e165cc41ccc62681c7389ef123ac484bdf330fff9c4b5b4ee6ed189316318bc3"
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud048050-combined-validation/dependencies-after-typecheck.json.gz",
+      "originalBytes": 891231,
+      "originalSHA256": "ce05c088c4d9f301270195377d7080647c7023fb68be9c79a371e0ed93d556cb",
+      "publishedPath": "dependencies-after-typecheck.json.gz",
+      "publishedBytes": 891231,
+      "publishedSHA256": "ce05c088c4d9f301270195377d7080647c7023fb68be9c79a371e0ed93d556cb",
+      "originalPreserved": true,
+      "gzipDecodedBytes": 3660772,
+      "gzipDecodedSHA256": "e165cc41ccc62681c7389ef123ac484bdf330fff9c4b5b4ee6ed189316318bc3"
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/run-cloud048050-combined-validation.py",
+      "originalBytes": 5118,
+      "originalSHA256": "beb0eafc45514c4e901e2f2553e75a30de81a0945d25db3e22b3073c21f4b13e",
+      "publishedPath": "run-cloud048050-combined-validation.py",
+      "publishedBytes": 5118,
+      "publishedSHA256": "beb0eafc45514c4e901e2f2553e75a30de81a0945d25db3e22b3073c21f4b13e",
+      "originalPreserved": true
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud048050-combined-frozen/desktop/src/components/definition/DefinitionWorkspace.tsx",
+      "originalBytes": 31738,
+      "originalSHA256": "fe63aa3dcda3c5896ab13140ff2db74c492eda0e068a415cc560b7ec7777cfc7",
+      "publishedPath": "tested-source/desktop/src/components/definition/DefinitionWorkspace.tsx",
+      "publishedBytes": 31738,
+      "publishedSHA256": "fe63aa3dcda3c5896ab13140ff2db74c492eda0e068a415cc560b7ec7777cfc7",
+      "originalPreserved": true,
+      "matchesCapturedRepositoryInput": true
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud048050-combined-frozen/desktop/src/components/journey/ProjectSwarm.tsx",
+      "originalBytes": 52614,
+      "originalSHA256": "fd3f328b7bc85a43f0dea6b2edf7eb156e17f16b8742824606741a1c2a03a464",
+      "publishedPath": "tested-source/desktop/src/components/journey/ProjectSwarm.tsx",
+      "publishedBytes": 52614,
+      "publishedSHA256": "fd3f328b7bc85a43f0dea6b2edf7eb156e17f16b8742824606741a1c2a03a464",
+      "originalPreserved": true,
+      "matchesCapturedRepositoryInput": true
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud048050-combined-frozen/desktop/src/components/journey/SwarmRunQueue.tsx",
+      "originalBytes": 12166,
+      "originalSHA256": "a742e46e90f2cf386817c149829c0d4f2176f6f36c3aeae2c55f371e9e3d0648",
+      "publishedPath": "tested-source/desktop/src/components/journey/SwarmRunQueue.tsx",
+      "publishedBytes": 12166,
+      "publishedSHA256": "a742e46e90f2cf386817c149829c0d4f2176f6f36c3aeae2c55f371e9e3d0648",
+      "originalPreserved": true,
+      "matchesCapturedRepositoryInput": true
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud048050-combined-frozen/desktop/src/components/definition/DefinitionWorkspace.test.tsx",
+      "originalBytes": 33098,
+      "originalSHA256": "9bd90cabd0aabf3f4cb628a23c1874688fc84049810005bd8d97caf58a3e1961",
+      "publishedPath": "tested-source/desktop/src/components/definition/DefinitionWorkspace.test.tsx",
+      "publishedBytes": 33098,
+      "publishedSHA256": "9bd90cabd0aabf3f4cb628a23c1874688fc84049810005bd8d97caf58a3e1961",
+      "originalPreserved": true,
+      "matchesCapturedRepositoryInput": true
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud048050-combined-frozen/desktop/src/components/journey/ProjectSwarmQueue.test.tsx",
+      "originalBytes": 13287,
+      "originalSHA256": "1e5217a7aa8cd79d505e6d9cb1e72a0a26b1220e1853d5eb5137426ead23ec44",
+      "publishedPath": "tested-source/desktop/src/components/journey/ProjectSwarmQueue.test.tsx",
+      "publishedBytes": 13287,
+      "publishedSHA256": "1e5217a7aa8cd79d505e6d9cb1e72a0a26b1220e1853d5eb5137426ead23ec44",
+      "originalPreserved": true,
+      "matchesCapturedRepositoryInput": true
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud048050-combined-frozen/bindings.json",
+      "originalBytes": 1385,
+      "originalSHA256": "d7811a11b6917896f60dce606041bb3e9a67fa2293645309a4296afe8cc349a1",
+      "publishedPath": "tested-source-bindings.json",
+      "publishedBytes": 1385,
+      "publishedSHA256": "d7811a11b6917896f60dce606041bb3e9a67fa2293645309a4296afe8cc349a1",
+      "originalPreserved": true
+    }
+  ]
+}

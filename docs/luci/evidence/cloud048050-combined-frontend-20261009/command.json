@@ -1,0 +1,15 @@
+{
+  "command": [
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--maxWorkers=2",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/cloud048050-combined-validation/full.json"
+  ],
+  "startedAt": "2026-10-09T08:29:24.456183+00:00",
+  "elapsedSeconds": 304.5685763749643,
+  "exitCode": 0,
+  "nodeVersion": "v24.19.0",
+  "repoHEADAtEnd": "b81d6454778ddedb6c3102b202c1e2fa6f458a0a"
+}

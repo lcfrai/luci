@@ -1,0 +1,201 @@
+{
+  "scope": "Controlled actual styled AppShell/DefinitionWorkspace with in-memory API fixtures. No installed backend, Docker, provider, Windows, persisted service restart or responsiveness acceptance. Same browser/helper/fixture and shared final C051 runtime inputs; only original DefinitionWorkspace load overlay differs. All raw failures retained.",
+  "base": {
+    "head": "b81d6454778ddedb6c3102b202c1e2fa6f458a0a",
+    "files": {
+      "desktop/src/components/definition/DefinitionWorkspace.tsx": "d29e3ec45148351be72be7526496c11731725f8d4eff61e61dee7819a81b94a6",
+      "desktop/src/components/definition/DefinitionWorkspace.test.tsx": "dd66d40f5b0aa2272e18dbfa6acf13df36a0ecc15fc6224aba0922e3a8c5eb83"
+    }
+  },
+  "beforeReportSHA256": "18ba22a09415ff52bd52ef481778ed62db9d32c41dc73c9ef00c6324d5d3708f",
+  "afterReportSHA256": "127f76a7bcc03aa524f73bb50cd83e4cc7650f5de6b44a11b9c4b75c2e62ad43",
+  "recordedCheckpoints": {
+    "before": 42,
+    "after": 42
+  },
+  "sameHelper": true,
+  "sameFixture": true,
+  "sameBroadCapturedInputs": true,
+  "broadInputCount": 424,
+  "comparisons": [
+    {
+      "label": "closed-alpha-1440",
+      "beforeDefinitionDOMElements": 6124,
+      "afterDefinitionDOMElements": 867,
+      "beforeHiddenGroupControls": 2307,
+      "afterHiddenGroupControls": 0,
+      "summaryCountEvidence": "Unchanged product summary expression, seven count-1 unit assertions and before/after large-count screenshots; this browser report does not serialize numeric summary text."
+    },
+    {
+      "label": "closed-beta-1440",
+      "beforeDefinitionDOMElements": 6124,
+      "afterDefinitionDOMElements": 867,
+      "beforeHiddenGroupControls": 2307,
+      "afterHiddenGroupControls": 0,
+      "summaryCountEvidence": "Unchanged product summary expression, seven count-1 unit assertions and before/after large-count screenshots; this browser report does not serialize numeric summary text."
+    },
+    {
+      "label": "closed-gamma-1440",
+      "beforeDefinitionDOMElements": 6124,
+      "afterDefinitionDOMElements": 867,
+      "beforeHiddenGroupControls": 2307,
+      "afterHiddenGroupControls": 0,
+      "summaryCountEvidence": "Unchanged product summary expression, seven count-1 unit assertions and before/after large-count screenshots; this browser report does not serialize numeric summary text."
+    },
+    {
+      "label": "closed-delta-1440",
+      "beforeDefinitionDOMElements": 6124,
+      "afterDefinitionDOMElements": 867,
+      "beforeHiddenGroupControls": 2307,
+      "afterHiddenGroupControls": 0,
+      "summaryCountEvidence": "Unchanged product summary expression, seven count-1 unit assertions and before/after large-count screenshots; this browser report does not serialize numeric summary text."
+    },
+    {
+      "label": "closed-alpha-390",
+      "beforeDefinitionDOMElements": 6124,
+      "afterDefinitionDOMElements": 867,
+      "beforeHiddenGroupControls": 2307,
+      "afterHiddenGroupControls": 0,
+      "summaryCountEvidence": "Unchanged product summary expression, seven count-1 unit assertions and before/after large-count screenshots; this browser report does not serialize numeric summary text."
+    },
+    {
+      "label": "closed-beta-390",
+      "beforeDefinitionDOMElements": 6124,
+      "afterDefinitionDOMElements": 867,
+      "beforeHiddenGroupControls": 2307,
+      "afterHiddenGroupControls": 0,
+      "summaryCountEvidence": "Unchanged product summary expression, seven count-1 unit assertions and before/after large-count screenshots; this browser report does not serialize numeric summary text."
+    },
+    {
+      "label": "closed-gamma-390",
+      "beforeDefinitionDOMElements": 6124,
+      "afterDefinitionDOMElements": 867,
+      "beforeHiddenGroupControls": 2307,
+      "afterHiddenGroupControls": 0,
+      "summaryCountEvidence": "Unchanged product summary expression, seven count-1 unit assertions and before/after large-count screenshots; this browser report does not serialize numeric summary text."
+    },
+    {
+      "label": "closed-delta-390",
+      "beforeDefinitionDOMElements": 6124,
+      "afterDefinitionDOMElements": 867,
+      "beforeHiddenGroupControls": 2307,
+      "afterHiddenGroupControls": 0,
+      "summaryCountEvidence": "Unchanged product summary expression, seven count-1 unit assertions and before/after large-count screenshots; this browser report does not serialize numeric summary text."
+    }
+  ],
+  "fourRetainedDraftBytes": 2445044,
+  "unchangedCombinedDraftLimitBytes": 4194304,
+  "resourceObservations": [
+    {
+      "mode": "before",
+      "checkpointObservations": 26,
+      "sampledChromiumRSSBytesMin": 823062528,
+      "sampledChromiumRSSBytesMax": 1302097920,
+      "scope": "CDP-reported browser process IDs observed sequentially through /proc; excludes Vite, shell, compiler, daemon, normal apps and any process never observed. Concurrent workloads and fixture data prevent a causal before/after RAM or CPU conclusion. Not a sustained whole-owned-process budget."
+    },
+    {
+      "mode": "after",
+      "checkpointObservations": 26,
+      "sampledChromiumRSSBytesMin": 788774912,
+      "sampledChromiumRSSBytesMax": 1072750592,
+      "scope": "CDP-reported browser process IDs observed sequentially through /proc; excludes Vite, shell, compiler, daemon, normal apps and any process never observed. Concurrent workloads and fixture data prevent a causal before/after RAM or CPU conclusion. Not a sustained whole-owned-process budget."
+    }
+  ],
+  "independentKnownBrowserClosure": [
+    {
+      "pid": 2300518,
+      "start": "28125569",
+      "result": "absent",
+      "current": {}
+    },
+    {
+      "pid": 2300612,
+      "start": "28125661",
+      "result": "absent",
+      "current": {}
+    },
+    {
+      "pid": 2300614,
+      "start": "28125662",
+      "result": "zombie",
+      "current": {
+        "state": "Z",
+        "ppid": 1,
+        "start": "28125662"
+      }
+    },
+    {
+      "pid": 2300605,
+      "start": "28125657",
+      "result": "absent",
+      "current": {}
+    },
+    {
+      "pid": 2300559,
+      "start": "28125599",
+      "result": "absent",
+      "current": {}
+    },
+    {
+      "pid": 2300574,
+      "start": "28125641",
+      "result": "absent",
+      "current": {}
+    },
+    {
+      "pid": 2300576,
+      "start": "28125646",
+      "result": "absent",
+      "current": {}
+    },
+    {
+      "pid": 2300942,
+      "start": "28133616",
+      "result": "absent",
+      "current": {}
+    },
+    {
+      "pid": 2301037,
+      "start": "28133693",
+      "result": "absent",
+      "current": {}
+    },
+    {
+      "pid": 2301042,
+      "start": "28133694",
+      "result": "absent",
+      "current": {}
+    },
+    {
+      "pid": 2301030,
+      "start": "28133688",
+      "result": "absent",
+      "current": {}
+    },
+    {
+      "pid": 2300983,
+      "start": "28133636",
+      "result": "absent",
+      "current": {}
+    },
+    {
+      "pid": 2300998,
+      "start": "28133669",
+      "result": "absent",
+      "current": {}
+    },
+    {
+      "pid": 2301000,
+      "start": "28133675",
+      "result": "absent",
+      "current": {}
+    }
+  ],
+  "controlledVitePort15150Free": true,
+  "limitations": [
+    "Mount once on first disclosure; collapsed visited groups remain mounted until normal component/project departure. No payload or cross-project cache added.",
+    "DOM count reduction does not establish a latency or RAM reduction, and is not a CLOUD-032 fix.",
+    "Original baseline has one exact observed zombie adopted by PID 1; no forced process cleanup or zero-PID claim. Candidate observed browser identities are absent.",
+    "Current combined root TypeScript/source checks are separate: the C051 AppShell.test.tsx test-only correction follows these browser captures and is not served by this fixture."
+  ]
+}

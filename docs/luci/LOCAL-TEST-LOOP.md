@@ -6,7 +6,11 @@ cloud implementation task and local thread
 Windows; the cloud thread implements and validates corrections. Neither waits
 unnecessarily for the other to finish a whole suite.
 
-Newest retrievable integrated source is `99007404a5ddd8592dee376ea00d99c6180d26fe`, including CLOUD-045/046 diagnostics and CLOUD-047 stable Home destinations. [Exact Windows test checkpoint](TEST-CHECKPOINT-99007404.md) preserves the same isolation and setup contract. Clean Linux build/archive verification passes; the matching idle diagnostic completes all400primary actions but switching p95 **561.358913ms fails300** (input81.122122ms passes100). Full matching sustained/native/provider acceptance remains open. Original failed preflight, measured failures and scoped test receipts are retained in the worklist.
+Newest retrievable integrated source is `99007404a5ddd8592dee376ea00d99c6180d26fe`, including CLOUD-045/046 diagnostics and CLOUD-047 stable Home destinations. [Exact Windows test checkpoint](TEST-CHECKPOINT-99007404.md) preserves the same isolation and setup contract. Clean Linux build/archive verification passes; the matching idle diagnostic completes all 400 primary actions but switching p95 **561.358913 ms fails 300** (input 81.122122 ms passes 100). Original failed preflight, measured failures and scoped test receipts are retained in the worklist.
+
+Matching sustained attempt 7 uses product `99007404` and helper `b81d6454` with a scripted provider. It records five natural task finishes and reviewed integrations across four projects plus the amendment, active-command restart and every required primary timing cohort. The whole run is still **failed**: idle/loaded/settled switch p95 is 516.833660/644.914572/569.890156 ms, and a later phone helper assertion tries All projects without first opening the compact Projects drawer. CLOUD-049 tracks that helper correction; `functionalPassed` is absent in the original receipt. Independent closure finds this fixture's exact ledger and Docker inventories empty; 13 recorded process identities are absent, two are PID-1 Chromium zombies, and three unrelated environments are unreadable. The original fixture and artifacts remain unchanged; older retained charges remain separate. [The exact failed capsule](evidence/sustained-99007404-attempt7/README.md) is published with all measured rows and closure limitations.
+
+The Windows tester's bounded review of `99007404` is source-only: CLOUD-045/046/047 stay ready to retest, without new local runtime results or complete broad-manifest recounts. Latest reported available RAM at 08:26:35.645 UTC is **36,548,608 bytes**, so all new local workload launches remain held. No existing processes or Docker workloads are stopped. CLOUD-048 retry guidance, CLOUD-049 phone helper navigation, CLOUD-050 deferred large-context editors and CLOUD-051 phone draft focus now have scoped source/browser corrections. The pre-C051 full frontend run passes 2,787 assertions; final affected C051 checks pass 45 assertions and final TypeScript passes. Exact original failures, source differences and selected browser scopes are retained in the worklist. These corrected bytes are not retroactively part of the pinned sustained run; the next immutable handoff will identify their integrated source and matching package.
 
 Prior full sustained product/helper is `0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f`.
 Sustained attempt 6 has three natural A/C/D completions with exact charge release
@@ -22,7 +26,7 @@ worker Stop/restart positives retain their separate source pins and scopes in
 QUALITY-WORKLIST.md. Original failures, charged fixtures and untested
 first-observer/concurrent-charge recovery cases remain explicit. This latest
 failed fixture has an empty ledger; it does not clear earlier fixtures.
-Windows runtime is currently RAM-held (latest relayed 0.015 GiB available at 07:27 UTC on 9 October);
+Windows runtime is currently RAM-held (latest observation above supersedes earlier headroom readings);
 no user workloads are stopped. Native/live-provider and full-product gates
 remain open. These results do not constitute LOCAL TEST HANDOFF READY.
 

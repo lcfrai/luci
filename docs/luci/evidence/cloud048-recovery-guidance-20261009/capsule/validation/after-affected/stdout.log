@@ -1,0 +1,88 @@
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+ ✓ src/components/journey/ProjectSwarm.test.tsx > keeps saved ask unchanged and requires a separately reviewed build before preparing autonomous tasks 498ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > keeps saved plan unchanged and requires a separately reviewed build before preparing autonomous tasks 73ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > waits for advertised task capability and refreshes it without preparing or dispatching 65ms
+ ✓ src/components/journey/ProjectSwarmQueue.test.tsx > disables a manual start already in the durable queue 644ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > discards preparation consent when task capabilities or the saved model route change 267ms
+ ✓ src/components/journey/ProjectSwarmQueue.test.tsx > refreshes a background dispatch after an intervening UI operation and retries a failed read 263ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > does not launch a delayed reservation after a task capability is revoked and restored 213ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > reconciles each acknowledged dispatch with a fresh revision before starting the next independent task 267ms
+ ✓ src/components/journey/ProjectSwarmQueue.test.tsx > offers retirement after a cancelled queue leaves an unstarted reserved workspace 585ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > retains the acknowledged child after get-failure without replaying or continuing the batch 288ms
+ ✓ src/components/journey/ProjectSwarmQueue.test.tsx > keeps exact queue consent open while a manual task completes, then refreshes after close 337ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > retains the acknowledged child after reconcile-failure without replaying or continuing the batch 401ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > retains the acknowledged child after reconcile-conflict without replaying or continuing the batch 200ms
+ ✓ src/components/journey/ProjectSwarmQueue.test.tsx > guides a confirmed retired refusal to queue review without starting work or bypassing separate consent 575ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > preserves authoritative terminal status when the acknowledged worker has already exited 127ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > refuses stale get observations without replacing a newer run or replaying 74ms
+ ✓ src/components/journey/ProjectSwarmQueue.test.tsx > keeps retired-refusal navigation informative when queue authorization is disabled by queued 142ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > refuses stale reconcile observations without replacing a newer run or replaying 66ms
+ ✓ src/components/journey/ProjectSwarmQueue.test.tsx > keeps retired-refusal navigation informative when queue authorization is disabled by execute-revoked 86ms
+ ✓ src/components/journey/ProjectSwarmQueue.test.tsx > drops retired-refusal guidance on a project switch and never carries its navigation consent into the new project 116ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > fences a late get response after execution authority is revoked and restored 152ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > fences a late reconcile response after execution authority is revoked and restored 113ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > does not inspect or upsert a late successful create after switching project and run 111ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > does not silently retry a lost start response and keeps the reserved child visible 101ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > does not acknowledge or reconcile a successful response for a different child 93ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > fences a delayed reservation after execution authority changes, even if later restored 95ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > fences a delayed reservation after leaving the team view 72ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > pause stops future starts without claiming existing agents stopped, and resume never launches them 166ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > requires exact-change review for review-required before integrating, and integration alone does not claim verification 429ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > requires exact-change review for succeeded before integrating, and integration alone does not claim verification 255ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > serializes unspecified or overlapping file scopes and blocks readers from execution 78ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > retains integrating integration uncertainty instead of releasing dependencies or claiming success 18ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > retains unknown integration uncertainty instead of releasing dependencies or claiming success 25ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > offers the saved subscription route only one slot and prepares without starting an agent 170ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > requires an explicit recovery choice, retains output and does not launch the retry 198ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > uses exact missing-child recovery for unknown without execution permission or launching work 154ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > uses exact missing-child recovery for dispatching without execution permission or launching work 798ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > uses exact missing-child recovery for cancelled without execution permission or launching work 277ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > keeps an uncertain attempt available for inspection when absence cannot be proved 244ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > discards recovery consent when a newer run replaces the inspected attempt 95ms
+ ✓ src/components/journey/ProjectSwarmRefresh.test.tsx > updates the visible manual task to review and questions without navigation, mutation or a focus jump 365ms
+ ✓ src/components/journey/ProjectSwarmRefresh.test.tsx > stops terminal refresh after the canonical captured report appears 26ms
+ ✓ src/components/journey/ProjectSwarmRefresh.test.tsx > stops terminal refresh after the canonical missing report appears 52ms
+ ✓ src/components/journey/ProjectSwarmRefresh.test.tsx > stops terminal refresh after the canonical invalid report appears 24ms
+ ✓ src/components/journey/ProjectSwarmRefresh.test.tsx > stops terminal refresh after the canonical unavailable report appears 33ms
+ ✓ src/components/journey/ProjectSwarmRefresh.test.tsx > does not poll an unstarted reservation or legacy terminal output without a modern pending report 53ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > reads back partial retirement once and requires a new explicit finalization action 212ms
+ ✓ src/components/journey/ProjectSwarmRefresh.test.tsx > does not wait indefinitely for a report from a cancelled unstarted attempt 99ms
+ ✓ src/components/journey/ProjectSwarmRefresh.test.tsx > does not wait indefinitely for a report from a cancelled absence-retired attempt 87ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > explains unconfirmed recovery when readback also fails and never replays it 170ms
+ ✓ src/components/journey/ProjectSwarmRefresh.test.tsx > does not wait indefinitely for a report from a cancelled launch-retired attempt 57ms
+ ✓ src/components/journey/ProjectSwarmRefresh.test.tsx > keeps one read in flight, cancels on hidden, and recovers on the first visible interval 41ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > discards checked integration consent across execution revocation and restoration 193ms
+ ✓ src/components/journey/ProjectSwarm.test.tsx > restores the exact review opener after asynchronous loading temporarily loses native focus 108ms
+ ✓ src/components/journey/ProjectSwarmRefresh.test.tsx > aborts pending observation while exact integration consent is open and resumes after close 202ms
+ ✓ src/components/journey/ProjectSwarmRefresh.test.tsx > cancels and discards a late private response after scope changes 26ms
+ ✓ src/components/journey/ProjectSwarmRefresh.test.tsx > cancels and discards a late private response after read changes 25ms
+ ✓ src/components/journey/ProjectSwarmRefresh.test.tsx > cancels and discards a late private response after unmount changes 20ms
+ ✓ src/components/journey/ProjectSwarmRefresh.test.tsx > never replaces a newer visible revision with a late recorded read 32ms
+ ✓ src/components/journey/ProjectSwarmRefresh.test.tsx > backs off between transient failures and stops repeating a confirmed permission refusal 31ms
+ ✓ src/components/journey/ProjectSwarmRefresh.test.tsx > does not carry a previous run refresh warning into another selected run 44ms
+ ✓ src/components/journey/ProjectSwarmRefresh.test.tsx > does not wait for a report from a positively recorded pre-launch failure and preserves explicit retirement 99ms
+ ✓ src/components/journey/ProjectSwarmRefresh.test.tsx > keeps a launched worker failure reviewable and waits for its canonical output report 64ms
+ ✓ src/components/journey/SwarmRunQueue.test.tsx > only reads on mount and requires explicit consent for independent and dependent tasks together 388ms
+ ✓ src/components/journey/SwarmRunQueue.test.tsx > blocks queueing and resume for saved ask while retaining cancellation controls 76ms
+ ✓ src/components/journey/SwarmRunQueue.test.tsx > blocks queueing and resume for saved plan while retaining cancellation controls 60ms
+ ✓ src/components/journey/SwarmRunQueue.test.tsx > discards queue consent when current task capability or saved route changes 116ms
+ ✓ src/components/journey/SwarmRunQueue.test.tsx > refreshes after a lost receipt without duplicating already accepted tasks 134ms
+ ✓ src/components/journey/SwarmRunQueue.test.tsx > closes consent when reviewed input or execution permission changes 94ms
+ ✓ src/components/journey/SwarmRunQueue.test.tsx > keeps waiting-task control separate from active-session stops and hides other runs 60ms
+ ✓ src/components/journey/SwarmRunQueue.test.tsx > leaves a viewer read-only and aborts an unfinished read on unmount 470ms
+ ✓ src/components/journey/SwarmRunQueue.test.tsx > offers an explicitly retired attempt for fresh queueing and keeps uncertain starts blocked 215ms
+ ✓ src/components/journey/SwarmRunQueue.test.tsx > waits for durable retirement finalization before offering the task for a new queue attempt 160ms
+ ✓ src/components/journey/SwarmRunQueue.test.tsx > keeps queue observation mounted while controls are collapsed and consent independently visible 125ms
+ ✓ src/components/journey/SwarmRunQueue.test.tsx > shows failed queue work separately and offers no queue replay or pending-item controls 40ms
+
+ Test Files  4 passed (4)
+      Tests  75 passed (75)
+   Start at  08:24:36
+   Duration  16.53s (tests 48%, environment 26%, transform 17%, import 7%, setup 2%)
+
+Environment  jsdom was created 4 times · 6.95s total, 26% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments
+

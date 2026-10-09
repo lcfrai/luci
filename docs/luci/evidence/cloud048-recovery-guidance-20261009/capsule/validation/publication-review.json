@@ -1,0 +1,14 @@
+{
+  "basis": "Explicit own-source/test/browser artifact allowlist; controlled fixture API and synthetic identities only. Browser caches/profiles and real runtime fixtures excluded.",
+  "textMembersScanned": 69,
+  "checks": [
+    "No bearer-token-like value, provider sk-token-like value or private-key PEM marker",
+    "No retained private sustained/installed fixture directory path markers"
+  ],
+  "flaggedMembers": [],
+  "visualInspection": [
+    "browser/attempt-2/enabled-navigation-390.png",
+    "browser/attempt-2/queued-navigation-1440.png"
+  ],
+  "limits": "Bounded textual markers plus explicit artifact provenance; not a general secret-scanner guarantee."
+}

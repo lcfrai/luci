@@ -1,0 +1,22 @@
+{
+  "desktop/src/components/common/DraftNavigationDialog.tsx": {
+    "sha256": "4867980dd1e698dce68b109e6789eaa3943105230175a03c28cc6cba5c8897b9",
+    "bytes": 1806
+  },
+  "desktop/src/components/AppShell.test.tsx": {
+    "sha256": "6d865fae7421601056a0d746fd18bd8a83e1df375f780a891600baffcbdf95c1",
+    "bytes": 18288
+  },
+  "desktop/src/components/common/WorkflowDialog.tsx": {
+    "sha256": "be1d8ebb8f56d92d5a8848bc2c1d870c7fdb55c4f8a0a691aa7f252021469978",
+    "bytes": 1884
+  },
+  "desktop/src/components/AppShell.tsx": {
+    "sha256": "b3aaf4ce4302109c2c10b023ecbff249b96655955f4d29bf0bb4834b4fc8fcd4",
+    "bytes": 6381
+  },
+  "desktop/src/components/rail/Rail.tsx": {
+    "sha256": "8fb76ca0162eebfe29c3b589b07f5c6e19db8fe55f508a96354f37a79ea6b6e8",
+    "bytes": 8508
+  }
+}

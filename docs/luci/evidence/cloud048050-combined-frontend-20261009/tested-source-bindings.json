@@ -1,0 +1,36 @@
+{
+  "scope": "Exactly3 changed C048/C050 production files and2 tests, frozen against the pre-C051 full-run captured input manifest. No current/future C051 correction included.",
+  "baseline": "b81d6454778ddedb6c3102b202c1e2fa6f458a0a",
+  "files": [
+    {
+      "path": "desktop/src/components/definition/DefinitionWorkspace.tsx",
+      "bytes": 31738,
+      "sha256": "fe63aa3dcda3c5896ab13140ff2db74c492eda0e068a415cc560b7ec7777cfc7",
+      "matchesCapturedInput": true
+    },
+    {
+      "path": "desktop/src/components/journey/ProjectSwarm.tsx",
+      "bytes": 52614,
+      "sha256": "fd3f328b7bc85a43f0dea6b2edf7eb156e17f16b8742824606741a1c2a03a464",
+      "matchesCapturedInput": true
+    },
+    {
+      "path": "desktop/src/components/journey/SwarmRunQueue.tsx",
+      "bytes": 12166,
+      "sha256": "a742e46e90f2cf386817c149829c0d4f2176f6f36c3aeae2c55f371e9e3d0648",
+      "matchesCapturedInput": true
+    },
+    {
+      "path": "desktop/src/components/definition/DefinitionWorkspace.test.tsx",
+      "bytes": 33098,
+      "sha256": "9bd90cabd0aabf3f4cb628a23c1874688fc84049810005bd8d97caf58a3e1961",
+      "matchesCapturedInput": true
+    },
+    {
+      "path": "desktop/src/components/journey/ProjectSwarmQueue.test.tsx",
+      "bytes": 13287,
+      "sha256": "1e5217a7aa8cd79d505e6d9cb1e72a0a26b1220e1853d5eb5137426ead23ec44",
+      "matchesCapturedInput": true
+    }
+  ]
+}

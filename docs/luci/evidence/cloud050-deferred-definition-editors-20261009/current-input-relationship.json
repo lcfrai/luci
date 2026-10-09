@@ -1,0 +1,13 @@
+{
+  "capturedInputCount": 424,
+  "changedInputsSinceBrowserPair": [
+    {
+      "path": "desktop/src/components/AppShell.test.tsx",
+      "capturedSHA256": "6d865fae7421601056a0d746fd18bd8a83e1df375f780a891600baffcbdf95c1",
+      "currentSHA256": "c2d8aa217b1fd9ebcb8139eaec422de5ee606b54e4cce691e0fd22ded6b9f60b",
+      "scope": "Unserved test file. C051 removes six unsupported Testing Library exact options; production dialog unchanged. Superseded by root separate final C051 test and TypeScript receipts."
+    }
+  ],
+  "runtimeProductDifference": [],
+  "note": "Original captured manifests are unchanged. All captured runtime modules still match current source; no claim that all captured test/config inputs match final Git."
+}

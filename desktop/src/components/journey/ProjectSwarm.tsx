@@ -63,6 +63,7 @@ function taskStatus(run: ProjectRun, task: SwarmTask, taskAllowed: boolean, star
   if (operation?.recovery?.state === 'fenced') return 'Old launch blocked · capacity release pending';
   if (operation?.recovery?.state === 'finalized') return 'Attempt retired · output retained';
   if (runOperationNeedsRecovery(operation)) return 'Recovery pending · finish recovery to release capacity';
+  if (operation?.startFailure && operation.status === 'cancelled') return 'Attempt retained';
   if (operation?.allocation === 'unknown') return 'Workspace outcome unconfirmed';
   if (operation?.allocation === 'allocating') return 'Preparing workspace';
   if (startAcknowledged && operation && ['reserved', 'dispatching', 'unknown'].includes(operation.status)) return 'Started · current status unconfirmed';
@@ -101,6 +102,7 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
   const [queueConsent, setQueueConsent] = useState<string | null>(null);
   const queueSignature = useRef('');
   const queueRegion = useRef<HTMLDivElement>(null);
+  const queueReviewButton = useRef<HTMLButtonElement>(null);
   const [queueAttention, setQueueAttention] = useState(0);
   const [error, setError] = useState(''), [notice, setNotice] = useState('');
   const [readNotice, setReadNotice] = useState(''), [readCycle, setReadCycle] = useState(0);
@@ -372,6 +374,12 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
       throw cause;
     }
   }
+  function goToQueueReview() {
+    const control = queueReviewButton.current;
+    const target = control && !control.disabled ? control : queueRegion.current;
+    target?.scrollIntoView?.({block:target === control ? 'nearest' : 'start'});
+    target?.focus({preventScroll:true});
+  }
   return <section className="project-swarm" aria-label="Agent team">
     <div className="project-swarm-heading"><h3>Agent team</h3>{run.swarm && <span>{tasks.filter(integrated).length} of {tasks.length} integrated</span>}</div>
     {error && <p role="alert" className="journey-error">{error}</p>}
@@ -387,7 +395,7 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
 
       <div className="project-swarm-summary" aria-label="Task progress">
         <span>{reviewTasks.length} awaiting review · {ready.length} ready to start</span>
-        <Button variant="tertiary" onClick={() => { queueRegion.current?.scrollIntoView?.({block:'nearest'}); queueRegion.current?.focus({preventScroll:true}); }}>Background queue{queueAttention ? ` · ${queueAttention} need attention` : ''}</Button>
+        <Button variant="tertiary" onClick={goToQueueReview}>Background queue{queueAttention ? ` · ${queueAttention} need attention` : ''}</Button>
       </div>
       {readNotice && <p role="status" className="journey-warning">{readNotice}</p>}
       <div className="journey-actions">
@@ -404,6 +412,7 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
         const resumable = operation?.status === 'reserved' && operation.allocation === 'ready' && !startAcknowledged;
         const queuedReservation = !!operation && resumable && queuedOperations.includes(operation.id);
         const retryable = operation && !operation.startFailure && !runOperationNeedsRecovery(operation) && ['failed', 'cancelled'].includes(operation.status);
+        const retiredStartFailure = operation?.status === 'cancelled' && !runOperationNeedsRecovery(operation) && !task.integration ? operation.startFailure : undefined;
         const retained = run.operations.filter(item => item.taskId === task.id && item.id !== task.operationId);
         const earlierQuestions = retained.reduce((count, item) => count + unansweredQuestions(item), 0);
         return <li key={task.id} data-review-task={reviewTasks.some(item => item.id === task.id) || undefined} ref={element => { if (element) taskRows.current.set(task.id, element); else taskRows.current.delete(task.id); }}>
@@ -413,6 +422,7 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
           {queuedReservation && <p>This reservation belongs to the background queue. Use its queue controls; if it cannot continue, retain its output and authorize a fresh attempt.</p>}
           {operation?.message && !operation.startFailure && !integrated(task) && <p className="journey-muted">{operation.message}</p>}
           {operation?.startFailure && operation.status === 'failed' && <p className="journey-warning">{operation.startFailure.message} Resolve the cause, then retain this attempt and review a new start. No replacement was started.</p>}
+          {retiredStartFailure && <><p className="journey-muted">Previous start: {retiredStartFailure.message}</p><p role="status">This attempt is retained. In Background queue, inspect existing work or choose Queue reviewed tasks to review a new start. Retiring this attempt did not start another agent.</p></>}
           {operation?.recovery && <p>{launchRecoveryStatus(operation)}</p>}
           {runOperationNeedsReview(operation) && !integrated(task) && !operation?.message && <p>Review the retained changes before integration, then verify the combined build.</p>}
           {unansweredQuestions(operation) > 0 && <p className="journey-warning">{unansweredQuestions(operation)} agent-reported {unansweredQuestions(operation) === 1 ? 'question needs' : 'questions need'} an answer. Open Task result and questions to review their impact; answering does not start an agent.</p>}
@@ -433,6 +443,7 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
             {retained.map(item => <p key={item.id}>Retained attempt {item.attempt} · {item.status} · {item.worktreeId}. {unansweredQuestions(item) > 0 && <strong>{unansweredQuestions(item)} agent-reported {unansweredQuestions(item) === 1 ? 'question remains' : 'questions remain'} unanswered. </strong>}<Button variant="tertiary" disabled={busy} onClick={() => setWorkspace(item)}>Inspect retained attempt {item.attempt}</Button> {!item.startFailure && <Button variant="tertiary" disabled={busy || !projectAccess.canRead} onClick={() => setHandoff({projectId: run.projectId, runId: run.id, operationId: item.id, childId: item.childId})}>Result and questions for attempt {item.attempt}</Button>}</p>)}
           </details>
           <div className="journey-actions">
+            {retiredStartFailure && <Button variant="secondary" disabled={busy || !projectAccess.canRead} onClick={goToQueueReview}>Go to queue review</Button>}
             {!task.integration && (!operation || resumable || retryable) && <Button data-task-start variant="secondary" disabled={!canEdit || !canExecute || busy || blocked || !capability.allowed || !!reason || uncertainStart || queuedTasks.includes(task.id) || queuedReservation} onClick={() => void operate('Starting task', epoch => startTask(run, task, epoch).then(() => undefined))}>{resumable ? 'Continue reserved task' : retryable ? 'Retry in a new workspace' : 'Start task'}</Button>}
             {operation && !operation.startFailure && !inFlight(operation) && !task.integration && <Button variant="secondary" disabled={busy} onClick={event => { const opener = event.currentTarget; void operate('Reading task changes', epoch => readReview(task, epoch, opener), 'read'); }}>Review task changes</Button>}
             {operation && !operation.startFailure && <Button variant="tertiary" disabled={busy || !projectAccess.canRead} onClick={() => setHandoff({projectId: run.projectId, runId: run.id, operationId: operation.id, childId: operation.childId})}>Task result and questions</Button>}
@@ -454,8 +465,9 @@ export function ProjectSwarm({run, canEdit, canExecute, busy, onBusy, onUpdate, 
           </details>}
         </li>;
       })}</ol>
-      <div ref={queueRegion} tabIndex={-1} className="project-swarm-queue-region">
+      <div ref={queueRegion} tabIndex={-1} role="region" aria-label="Background queue review" className="project-swarm-queue-region">
       <SwarmRunQueue key={`${run.projectId}:${run.id}`} run={run} canEdit={canEdit} canExecute={canExecute} busy={busy} onBusy={onBusy} onQueueChange={queueChanged}
+        reviewButtonRef={queueReviewButton}
         onConsentChange={open => setQueueConsent(previous => open ? queueScope : previous === queueScope ? null : previous)} />
       </div>
 

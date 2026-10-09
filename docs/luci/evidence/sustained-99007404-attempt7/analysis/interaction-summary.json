@@ -1,0 +1,125 @@
+{
+  "scope": "Nearest rank over every original duration; no instrumentation-cost subtraction. Idle, loaded, amendment and settled rows are included; the later failing phone action is outside these timed action rows. Full acceptance failed.",
+  "originalResult": {
+    "sha256": "5e008e470f8ed92b061454551c4c640b158888c13998be8619573d2d678cf386",
+    "bytes": 38486411
+  },
+  "summary": {
+    "idle-interactive-calibration:project-switch": {
+      "count": 100,
+      "successful": 100,
+      "failed": 0,
+      "p50Ms": 247.0262240000011,
+      "p95Ms": 516.8336600000039,
+      "p99Ms": 1013.5748359999998,
+      "maxMs": 1015.2326699999976
+    },
+    "idle-interactive-calibration:input": {
+      "count": 200,
+      "successful": 200,
+      "failed": 0,
+      "p50Ms": 49.759424999996554,
+      "p95Ms": 88.90649100000155,
+      "p99Ms": 281.9766949999903,
+      "maxMs": 399.0614420000056
+    },
+    "idle-interactive-calibration:draft-reset": {
+      "count": 100,
+      "successful": 100,
+      "failed": 0,
+      "p50Ms": 283.87069000001065,
+      "p95Ms": 584.799509000004,
+      "p99Ms": 652.6372660000052,
+      "maxMs": 734.0031480000034
+    },
+    "loaded:project-switch": {
+      "count": 321,
+      "successful": 321,
+      "failed": 0,
+      "p50Ms": 321.6754629999632,
+      "p95Ms": 644.9145719999215,
+      "p99Ms": 1233.2159570000076,
+      "maxMs": 1655.5359460000182
+    },
+    "loaded:input": {
+      "count": 642,
+      "successful": 642,
+      "failed": 0,
+      "p50Ms": 51.08604199998081,
+      "p95Ms": 82.25119600002654,
+      "p99Ms": 240.43501399992965,
+      "maxMs": 490.40772799996193
+    },
+    "loaded:draft-reset": {
+      "count": 321,
+      "successful": 321,
+      "failed": 0,
+      "p50Ms": 300.20499799994286,
+      "p95Ms": 666.8325600000098,
+      "p99Ms": 900.0773610000033,
+      "maxMs": 1765.1578309999895
+    },
+    "amendment:project-switch": {
+      "count": 11,
+      "successful": 11,
+      "failed": 0,
+      "p50Ms": 313.69120900006965,
+      "p95Ms": 998.4031569999643,
+      "p99Ms": 998.4031569999643,
+      "maxMs": 998.4031569999643
+    },
+    "amendment:input": {
+      "count": 22,
+      "successful": 22,
+      "failed": 0,
+      "p50Ms": 54.559135999996215,
+      "p95Ms": 116.70017900015227,
+      "p99Ms": 275.21513099991716,
+      "maxMs": 275.21513099991716
+    },
+    "amendment:draft-reset": {
+      "count": 11,
+      "successful": 11,
+      "failed": 0,
+      "p50Ms": 284.31639099982567,
+      "p95Ms": 349.5973469999153,
+      "p99Ms": 349.5973469999153,
+      "maxMs": 349.5973469999153
+    },
+    "settled-interactive-calibration:project-switch": {
+      "count": 100,
+      "successful": 100,
+      "failed": 0,
+      "p50Ms": 250.82305600005202,
+      "p95Ms": 569.8901559999213,
+      "p99Ms": 713.4118099999614,
+      "maxMs": 736.6078449999914
+    },
+    "settled-interactive-calibration:input": {
+      "count": 200,
+      "successful": 200,
+      "failed": 0,
+      "p50Ms": 50.5848779999651,
+      "p95Ms": 78.42907499987632,
+      "p99Ms": 213.62078899983317,
+      "maxMs": 582.7613450000063
+    },
+    "settled-interactive-calibration:draft-reset": {
+      "count": 100,
+      "successful": 100,
+      "failed": 0,
+      "p50Ms": 298.7377480000723,
+      "p95Ms": 598.7268540000077,
+      "p99Ms": 746.3460429999977,
+      "maxMs": 757.5211899999995
+    }
+  },
+  "rows": 2128,
+  "allSuccessful": true,
+  "targets": {
+    "switchP95Ms": 300,
+    "inputP95Ms": 100,
+    "p99StrictlyBelowMs": 1000
+  },
+  "noSustainedAcceptance": true
+}

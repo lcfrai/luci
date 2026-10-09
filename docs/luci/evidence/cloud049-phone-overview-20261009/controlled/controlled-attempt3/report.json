@@ -1,0 +1,195 @@
+{
+  "scope": "Actual styled AppShell, Rail, TopBar, Home and Definition with controlled read-only providers. Linux Chromium; no backend/worker/provider/runtime or performance claim.",
+  "passed": true,
+  "sourceBefore": {
+    "scripts/acceptance/sustained-four-project/sustained.mjs": {
+      "sha256": "4dd9106d463e46cbcd6f038438959879ac16741670e49b0d01decf267566c911",
+      "bytes": 99856
+    },
+    "scripts/acceptance/sustained-four-project/phone-overview.browser.mjs": {
+      "sha256": "fb48cce1941ca613a14ec30fb78973bc73536bb444695eb27e99a10c5f4def0c",
+      "bytes": 13989
+    },
+    "scripts/acceptance/sustained-four-project/phone-overview.fixture.tsx": {
+      "sha256": "7fb426e90a4204cea384d2ae8498f9e9bf3da5786668db8d1c27312dc7529183",
+      "bytes": 2572
+    },
+    "desktop/src/components/AppShell.tsx": {
+      "sha256": "b3aaf4ce4302109c2c10b023ecbff249b96655955f4d29bf0bb4834b4fc8fcd4",
+      "bytes": 6381
+    },
+    "desktop/src/components/shell.css": {
+      "sha256": "1cfd4cc0fc3ca1321a5ee9721d0d99f29bccfd2b22e569cbf6d58b0827af7ecb",
+      "bytes": 5942
+    },
+    "desktop/src/components/topbar/TopBar.tsx": {
+      "sha256": "be050d87d96b76051f9d1836f603645bdd9da8b1116b0008773fccbe10619c7d",
+      "bytes": 3340
+    },
+    "desktop/src/components/topbar/topbar.css": {
+      "sha256": "5689b43729edd7a55871ef5f1933532745d925a0e1473080c7355970c9f669c6",
+      "bytes": 4218
+    },
+    "desktop/src/components/rail/Rail.tsx": {
+      "sha256": "8fb76ca0162eebfe29c3b589b07f5c6e19db8fe55f508a96354f37a79ea6b6e8",
+      "bytes": 8508
+    },
+    "desktop/src/components/rail/rail.css": {
+      "sha256": "b318f96c825f8108409fe0d6bffd1cbde37a513c9db29a4ec54ef4007eaf42fb",
+      "bytes": 5608
+    },
+    "desktop/src/components/definition/DefinitionWorkspace.tsx": {
+      "sha256": "fe63aa3dcda3c5896ab13140ff2db74c492eda0e068a415cc560b7ec7777cfc7",
+      "bytes": 31738
+    },
+    "desktop/src/components/common/DraftNavigationDialog.tsx": {
+      "sha256": "4867980dd1e698dce68b109e6789eaa3943105230175a03c28cc6cba5c8897b9",
+      "bytes": 1806
+    },
+    "desktop/src/components/projects/ProjectOverviewBoard.tsx": {
+      "sha256": "380db2996d677f099da77e2702fabfe5391e4dd226404513db1e58546a59b48f",
+      "bytes": 23198
+    },
+    "desktop/src/components/projects/project-overview.css": {
+      "sha256": "878bd60c9a1df8068121e0cdce10ee96524013973f5fd8b72e2e0c05f76750e6",
+      "bytes": 7227
+    }
+  },
+  "correctedBlockSHA256": "93166928565eb998bd6ffaa6de1361a3ecce062b0315563f4bff37dc871776d3",
+  "checks": [
+    {
+      "name": "desktop actual rail opens overview",
+      "passed": true
+    },
+    {
+      "name": "original exact tail reproduces closed-rail timeout",
+      "passed": true,
+      "timeoutMs": 15000
+    },
+    {
+      "name": "exact corrected resize/drawer/home tail passes and closes drawer",
+      "passed": true
+    },
+    {
+      "name": "phone exact saved context alpha",
+      "passed": true
+    },
+    {
+      "name": "phone keyboard drawer/home alpha",
+      "passed": true
+    },
+    {
+      "name": "phone exact saved context beta",
+      "passed": true
+    },
+    {
+      "name": "phone keyboard drawer/home beta",
+      "passed": true
+    },
+    {
+      "name": "phone exact saved context gamma",
+      "passed": true
+    },
+    {
+      "name": "phone keyboard drawer/home gamma",
+      "passed": true
+    },
+    {
+      "name": "phone exact saved context delta",
+      "passed": true
+    },
+    {
+      "name": "phone keyboard drawer/home delta",
+      "passed": true
+    },
+    {
+      "name": "phone navigation retains draft guard and Keep editing",
+      "passed": true
+    },
+    {
+      "name": "phone retained draft remains alpha scoped across project switch/reopen",
+      "passed": true
+    },
+    {
+      "name": "corrected tail refuses missing fourth project",
+      "passed": true,
+      "failure": "TimeoutError: locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Open project delta', exact: true }) to be visible\u001b[22m\n",
+      "timeoutMs": 15000
+    }
+  ],
+  "errors": [],
+  "requests": [],
+  "browserVersion": "151.0.7922.173",
+  "original": {
+    "sourceSHA256": "9c2b5cb28585603504453ee267982c519de1f057551839d8775525ac4729346c",
+    "blockSHA256": "d5b4365d77c649827e0ed62e6b5d4dfc900e3230df99a3e54db1ea10935184eb",
+    "expectedFailure": true,
+    "failure": "TimeoutError: locator.click: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'All projects', exact: true })\u001b[22m\n",
+    "state": {
+      "project": "alpha",
+      "lens": "develop",
+      "railInert": true,
+      "drawerOpen": false
+    }
+  },
+  "cleanup": {
+    "browserClosed": true,
+    "serverClosed": true,
+    "profileRemoved": true
+  },
+  "sourceAfter": {
+    "scripts/acceptance/sustained-four-project/sustained.mjs": {
+      "sha256": "4dd9106d463e46cbcd6f038438959879ac16741670e49b0d01decf267566c911",
+      "bytes": 99856
+    },
+    "scripts/acceptance/sustained-four-project/phone-overview.browser.mjs": {
+      "sha256": "fb48cce1941ca613a14ec30fb78973bc73536bb444695eb27e99a10c5f4def0c",
+      "bytes": 13989
+    },
+    "scripts/acceptance/sustained-four-project/phone-overview.fixture.tsx": {
+      "sha256": "7fb426e90a4204cea384d2ae8498f9e9bf3da5786668db8d1c27312dc7529183",
+      "bytes": 2572
+    },
+    "desktop/src/components/AppShell.tsx": {
+      "sha256": "b3aaf4ce4302109c2c10b023ecbff249b96655955f4d29bf0bb4834b4fc8fcd4",
+      "bytes": 6381
+    },
+    "desktop/src/components/shell.css": {
+      "sha256": "1cfd4cc0fc3ca1321a5ee9721d0d99f29bccfd2b22e569cbf6d58b0827af7ecb",
+      "bytes": 5942
+    },
+    "desktop/src/components/topbar/TopBar.tsx": {
+      "sha256": "be050d87d96b76051f9d1836f603645bdd9da8b1116b0008773fccbe10619c7d",
+      "bytes": 3340
+    },
+    "desktop/src/components/topbar/topbar.css": {
+      "sha256": "5689b43729edd7a55871ef5f1933532745d925a0e1473080c7355970c9f669c6",
+      "bytes": 4218
+    },
+    "desktop/src/components/rail/Rail.tsx": {
+      "sha256": "8fb76ca0162eebfe29c3b589b07f5c6e19db8fe55f508a96354f37a79ea6b6e8",
+      "bytes": 8508
+    },
+    "desktop/src/components/rail/rail.css": {
+      "sha256": "b318f96c825f8108409fe0d6bffd1cbde37a513c9db29a4ec54ef4007eaf42fb",
+      "bytes": 5608
+    },
+    "desktop/src/components/definition/DefinitionWorkspace.tsx": {
+      "sha256": "fe63aa3dcda3c5896ab13140ff2db74c492eda0e068a415cc560b7ec7777cfc7",
+      "bytes": 31738
+    },
+    "desktop/src/components/common/DraftNavigationDialog.tsx": {
+      "sha256": "4867980dd1e698dce68b109e6789eaa3943105230175a03c28cc6cba5c8897b9",
+      "bytes": 1806
+    },
+    "desktop/src/components/projects/ProjectOverviewBoard.tsx": {
+      "sha256": "380db2996d677f099da77e2702fabfe5391e4dd226404513db1e58546a59b48f",
+      "bytes": 23198
+    },
+    "desktop/src/components/projects/project-overview.css": {
+      "sha256": "878bd60c9a1df8068121e0cdce10ee96524013973f5fd8b72e2e0c05f76750e6",
+      "bytes": 7227
+    }
+  },
+  "sourceUnchanged": true
+}

@@ -1,0 +1,439 @@
+{
+  "scope": "Exact selected retained-receipt proof fields, with private-path substitutions only if present. Five accepted task receipts, five natural completions and five reviewed integrations include the four initial projects and the A amendment. They overlap as observations of the same work, not fifteen results. The final phone selector still fails and functionalPassed is absent; missing handoff reports and whole-build verification remain explicit. Queue/allocation and cleanup fields are retained exactly; successful independent closure does not turn the failed workflow into a pass.",
+  "originalResult": {
+    "sha256": "5e008e470f8ed92b061454551c4c640b158888c13998be8619573d2d678cf386",
+    "bytes": 38486411
+  },
+  "fields": {
+    "taskReceiptSettlements": [
+      {
+        "task": "build-a",
+        "operation": "op-fee06b6224cafe5be5c7a2e0",
+        "callId": "call_swarm_build-a_op-fee06b6224cafe5be5c7a2e0_23",
+        "commandId": 14972,
+        "commandExitCode": 0,
+        "receiptSHA256": "fd323a787afc7974ceff7ad4396ae1389cfade3a5bdc7dc2e4b053579bbe77a2",
+        "wireBytes": 2647,
+        "decodedBytes": 8180
+      },
+      {
+        "task": "build-b",
+        "operation": "op-3fc669dff13aa0c16f443b07",
+        "callId": "call_swarm_build-b_op-3fc669dff13aa0c16f443b07_31",
+        "commandId": 28689,
+        "commandExitCode": 0,
+        "receiptSHA256": "cac385cfee35db2c2e744889e437bcb473c0607e65a98b6339e0d26c58b8c07f",
+        "wireBytes": 2651,
+        "decodedBytes": 8181
+      },
+      {
+        "task": "build-c",
+        "operation": "op-045037b1a0a1a3767582dd7a",
+        "callId": "call_swarm_build-c_op-045037b1a0a1a3767582dd7a_23",
+        "commandId": 5018,
+        "commandExitCode": 0,
+        "receiptSHA256": "9e560ce934d4040117037c477684ed4264564a5172315296b9d0e6d37cf95314",
+        "wireBytes": 2659,
+        "decodedBytes": 8182
+      },
+      {
+        "task": "build-d",
+        "operation": "op-0f702839a436d710a95f8416",
+        "callId": "call_swarm_build-d_op-0f702839a436d710a95f8416_23",
+        "commandId": 63505,
+        "commandExitCode": 0,
+        "receiptSHA256": "a1203a3af8752efacdd3e6f388063840cec56e20f13c03311341715c84155bb4",
+        "wireBytes": 2651,
+        "decodedBytes": 8182
+      },
+      {
+        "task": "amend-a",
+        "operation": "op-eb52b4de8efc99080bd984ad",
+        "callId": "call_swarm_amend-a_op-eb52b4de8efc99080bd984ad_5",
+        "commandId": 44536,
+        "commandExitCode": 0,
+        "receiptSHA256": "3e6e7d67a6f05a78cc433414aa8cec322fcadfd98ae0e3f71a82b458ced09003",
+        "wireBytes": 2407,
+        "decodedBytes": 6909
+      }
+    ],
+    "naturalCompletions": [
+      {
+        "task": "build-a",
+        "sessionID": "s-5b73c3c2",
+        "sessionStatus": "exited",
+        "recordedExitReason": "process exited",
+        "cleanNativeExitFrame": true,
+        "exitFrameObservedAt": "2026-10-09T08:00:56.871Z",
+        "stoppedAndAbsentObservedAt": "2026-10-09T08:01:01.178Z",
+        "queueCompletedObservedAt": "2026-10-09T08:01:04.993Z",
+        "leaseObservation": {
+          "scope": "Exact task session and sandbox in the fixture-owned private execution ledger",
+          "firstPresentAt": "2026-10-09T08:00:53.162Z",
+          "lastPresentAt": "2026-10-09T08:01:04.763Z",
+          "firstAbsentAt": "2026-10-09T08:01:04.993Z",
+          "samples": 50,
+          "unavailableSamples": 0
+        },
+        "queueState": "completed",
+        "codingDispatches": 1,
+        "finalResponseRequests": 1,
+        "finalResponseAborts": 0,
+        "finalResponseRetries": 0,
+        "integratedBeforeExit": false
+      },
+      {
+        "task": "build-b",
+        "sessionID": "s-d97cba0c",
+        "sessionStatus": "exited",
+        "recordedExitReason": "process exited",
+        "cleanNativeExitFrame": true,
+        "exitFrameObservedAt": "2026-10-09T08:06:40.939Z",
+        "stoppedAndAbsentObservedAt": "2026-10-09T08:07:03.380Z",
+        "queueCompletedObservedAt": "2026-10-09T08:07:03.849Z",
+        "leaseObservation": {
+          "scope": "Exact task session and sandbox in the fixture-owned private execution ledger",
+          "firstPresentAt": "2026-10-09T08:06:37.199Z",
+          "lastPresentAt": "2026-10-09T08:07:03.305Z",
+          "firstAbsentAt": "2026-10-09T08:07:03.849Z",
+          "samples": 150,
+          "unavailableSamples": 0
+        },
+        "queueState": "completed",
+        "codingDispatches": 1,
+        "finalResponseRequests": 1,
+        "finalResponseAborts": 0,
+        "finalResponseRetries": 0,
+        "integratedBeforeExit": false
+      },
+      {
+        "task": "build-c",
+        "sessionID": "s-d6d53586",
+        "sessionStatus": "exited",
+        "recordedExitReason": "process exited",
+        "cleanNativeExitFrame": true,
+        "exitFrameObservedAt": "2026-10-09T08:11:15.146Z",
+        "stoppedAndAbsentObservedAt": "2026-10-09T08:11:32.204Z",
+        "queueCompletedObservedAt": "2026-10-09T08:11:32.212Z",
+        "leaseObservation": {
+          "scope": "Exact task session and sandbox in the fixture-owned private execution ledger",
+          "firstPresentAt": "2026-10-09T08:11:11.463Z",
+          "lastPresentAt": "2026-10-09T08:11:31.882Z",
+          "firstAbsentAt": "2026-10-09T08:11:32.130Z",
+          "samples": 134,
+          "unavailableSamples": 0
+        },
+        "queueState": "completed",
+        "codingDispatches": 1,
+        "finalResponseRequests": 1,
+        "finalResponseAborts": 0,
+        "finalResponseRetries": 0,
+        "integratedBeforeExit": false
+      },
+      {
+        "task": "build-d",
+        "sessionID": "s-b39c685d",
+        "sessionStatus": "exited",
+        "recordedExitReason": "process exited",
+        "cleanNativeExitFrame": true,
+        "exitFrameObservedAt": "2026-10-09T08:15:54.034Z",
+        "stoppedAndAbsentObservedAt": "2026-10-09T08:16:01.831Z",
+        "queueCompletedObservedAt": "2026-10-09T08:16:02.011Z",
+        "leaseObservation": {
+          "scope": "Exact task session and sandbox in the fixture-owned private execution ledger",
+          "firstPresentAt": "2026-10-09T08:15:51.361Z",
+          "lastPresentAt": "2026-10-09T08:16:01.778Z",
+          "firstAbsentAt": "2026-10-09T08:16:01.977Z",
+          "samples": 58,
+          "unavailableSamples": 0
+        },
+        "queueState": "completed",
+        "codingDispatches": 1,
+        "finalResponseRequests": 1,
+        "finalResponseAborts": 0,
+        "finalResponseRetries": 0,
+        "integratedBeforeExit": false
+      },
+      {
+        "task": "amend-a",
+        "sessionID": "s-f7a7c177",
+        "sessionStatus": "exited",
+        "recordedExitReason": "process exited",
+        "cleanNativeExitFrame": true,
+        "exitFrameObservedAt": "2026-10-09T08:17:23.049Z",
+        "stoppedAndAbsentObservedAt": "2026-10-09T08:17:31.274Z",
+        "queueCompletedObservedAt": "2026-10-09T08:17:34.036Z",
+        "leaseObservation": {
+          "scope": "Exact task session and sandbox in the fixture-owned private execution ledger",
+          "firstPresentAt": "2026-10-09T08:17:18.084Z",
+          "lastPresentAt": "2026-10-09T08:17:33.810Z",
+          "firstAbsentAt": "2026-10-09T08:17:34.036Z",
+          "samples": 87,
+          "unavailableSamples": 0
+        },
+        "queueState": "completed",
+        "codingDispatches": 1,
+        "finalResponseRequests": 1,
+        "finalResponseAborts": 0,
+        "finalResponseRetries": 0,
+        "integratedBeforeExit": false
+      }
+    ],
+    "integrations": [
+      {
+        "task": "build-a",
+        "review": {
+          "taskId": "build-a",
+          "operationId": "op-fee06b6224cafe5be5c7a2e0",
+          "sourceCommit": "e695d14750a42a5fab7002c109996efecdea93ed",
+          "targetCommit": "117d18e5e70ab66dd5a5330ca0c76e15e01d8f73",
+          "reviewDigest": "84133d7b79d150fa77386e022dc41186a3f1df563ae5ca818b619dfc4cd8fb8b",
+          "paths": [
+            "build-a-result.json",
+            "engine.go"
+          ],
+          "patch": "diff --git a/build-a-result.json b/build-a-result.json\nnew file mode 100644\nindex 0000000000000000000000000000000000000000..f2f865989d06646a8e81bf81aed00210d78259dd\n--- /dev/null\n+++ b/build-a-result.json\n@@ -0,0 +1,124 @@\n+{\n+  \"task\": \"build-a\",\n+  \"operation\": \"op-fee06b6224cafe5be5c7a2e0\",\n+  \"projectId\": \"p-c82c7574\",\n+  \"implementationSHA256\": \"07f85fcf8496645e391e0e53edde402cc38c8264bfcf76275974b58cd96dee42\",\n+  \"expectedOutputSHA256\": \"16402d587067ced3f44ad930655ce9e02b0e85608aea8e3d12dd4ef4e4cfd842\",\n+  \"binarySHA256\": \"bc72853dd8a6de4fbaa49586035f9c1440945374ef4d828c7e00c40ff544ff83\",\n+  \"commands\": [\n+    {\n+      \"label\": \"toolchain\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"version\"\n+      ],\n+      \"startedAt\": \"2026-10-09T07:57:14.713Z\",\n+      \"finishedAt\": \"2026-10-09T07:57:14.728Z\",\n+      \"elapsedMs\": 14.832035,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 32,\n+      \"outputSHA256\": \"7e35a947feee25f89c2649aa041942db786be35c3d6c484ab2ba2da849e3dc00\"\n+    },\n+    {\n+      \"label\": \"expected-red\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"test\",\n+        \"-run\",\n+        \"^TestApprovedRequirement$\",\n+        \"-count=1\",\n+        \"./...\"\n+      ],\n+      \"startedAt\": \"2026-10-09T07:57:14.728Z\",\n+      \"finishedAt\": \"2026-10-09T07:57:46.498Z\",\n+      \"elapsedMs\": 31770.427325,\n+      \"code\": 1,\n+      \"signal\": null,\n+      \"outputBytes\": 333,\n+      \"outputSHA256\": \"f7c97a313950e23590358876bbc71abcdb0d79cb2d2adb0e150bce571371f225\"\n+    },\n+    {\n+      \"label\": \"build\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"build\",\n+        \"-trimpath\",\n+        \"-buildvcs=false\",\n+        \"-o\",\n+        \"/tmp/luci-mixed-CZkYLO/app\",\n+        \"./cmd/app\"\n+      ],\n+      \"startedAt\": \"2026-10-09T07:57:46.499Z\",\n+      \"finishedAt\": \"2026-10-09T07:57:46.879Z\",\n+      \"elapsedMs\": 379.267981,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 0,\n+      \"outputSHA256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n+    },\n+    {\n+      \"label\": \"fixed-tests\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"test\",\n+        \"-json\",\n+        \"-count=1\",\n+        \"./...\"\n+      ],\n+      \"startedAt\": \"2026-10-09T07:57:46.879Z\",\n+      \"finishedAt\": \"2026-10-09T07:57:47.331Z\",\n+      \"elapsedMs\": 451.611733,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 4665,\n+      \"outputSHA256\": \"c2e0af879bad9f0522f4e6ad9f2ab799a8463a7ec52d919748d7a37c99f4a81d\",\n+      \"testsPassed\": [\n+        \"TestApprovedRequirement\",\n+        \"TestDeterministicRendering\",\n+        \"FuzzApprovedInvariant/seed#0\",\n+        \"FuzzApprovedInvariant/seed#1\",\n+        \"FuzzApprovedInvariant/seed#2\",\n+        \"FuzzApprovedInvariant\"\n+      ]\n+    },\n+    {\n+      \"label\": \"artifact-behavior\",\n+      \"executable\": \"/tmp/luci-mixed-CZkYLO/app\",\n+      \"args\": [],\n+      \"startedAt\": \"2026-10-09T07:57:47.331Z\",\n+      \"finishedAt\": \"2026-10-09T07:57:47.335Z\",\n+      \"elapsedMs\": 3.515188,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 98,\n+      \"outputSHA256\": \"16402d587067ced3f44ad930655ce9e02b0e85608aea8e3d12dd4ef4e4cfd842\"\n+    },\n+    {\n+      \"label\": \"fuzz\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"test\",\n+        \"-run\",\n+        \"^$\",\n+        \"-fuzz\",\n+        \"^FuzzApprovedInvariant$\",\n+        \"-fuzztime=150s\",\n+        \"-parallel=1\",\n+        \"-test.fuzzcachedir=/tmp/luci-mixed-CZkYLO/corpus\"\n+      ],\n+      \"startedAt\": \"2026-10-09T07:57:47.335Z\",\n+      \"finishedAt\": \"2026-10-09T08:00:51.354Z\",\n+      \"elapsedMs\": 184019.548576,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 4312,\n+      \"outputSHA256\": \"96a83b79f4d4a2f2cb217db9ceef8711cfe116f426730b130e0e733aa4e17bc9\",\n+      \"activeFuzzSeconds\": 150,\n+      \"fuzzExecutions\": 6746362\n+    }\n+  ],\n+  \"cachePeakBytes\": 181359222,\n+  \"corpusPeakBytes\": 6137,\n+  \"toolchain\": \"go version go1.26.8 linux/amd64\"\n+}\ndiff --git a/engine.go b/engine.go\nindex cb76c2a8efe7b02fef09b81da001643121532cdd..e249764465c138c839a0e160df751d71f8e2c6bc 100644\n--- a/engine.go\n+++ b/engine.go\n@@ -1,2 +1,11 @@\n package workload\n-func Render(title string,items []string)string{return \"\"}\n+import (\"html\"; \"strings\")\n+// Render escapes every caller-controlled text node and preserves item order.\n+func Render(title string, items []string) string {\n+ var b strings.Builder\n+ b.WriteString(\"<section><h1>\"); b.WriteString(html.EscapeString(title)); b.WriteString(\"</h1><ul>\")\n+ for _, item := range items { b.WriteString(\"<li>\"); b.WriteString(html.EscapeString(item)); b.WriteString(\"</li>\") }\n+ b.WriteString(\"</ul>\"); \n+ b.WriteString(\"</section>\\n\")\n+ return b.String()\n+}\n",
+          "canIntegrate": true,
+          "reason": "Review this complete task diff. Integration combines these exact commits; run checks on the combined result before accepting it.",
+          "handoff": {
+            "digest": "38f042b1de2787651d6113675787785863dafa00c1450b40fba6e5556c04806a",
+            "status": "missing",
+            "summary": "",
+            "questions": 0,
+            "unanswered": 0,
+            "capturedAt": "2026-10-09T08:00:59.936591324Z"
+          }
+        },
+        "commit": "bff21ffd6ca5cdf111f2c8053c7c7a0c68eef553"
+      },
+      {
+        "task": "build-b",
+        "review": {
+          "taskId": "build-b",
+          "operationId": "op-3fc669dff13aa0c16f443b07",
+          "sourceCommit": "944eabc10994cc04b385f8e847d12ce5fe68059c",
+          "targetCommit": "09772dc1ac1c47f8d13f3c474a8981527e8adf82",
+          "reviewDigest": "7c5b6e3771a6885b1a90e295fb7a89edf16d888c5764e942228c30ee6de036a9",
+          "paths": [
+            "build-b-result.json",
+            "engine.go"
+          ],
+          "patch": "diff --git a/build-b-result.json b/build-b-result.json\nnew file mode 100644\nindex 0000000000000000000000000000000000000000..63e87f7bcd8973995255c4d57d871927d62ef420\n--- /dev/null\n+++ b/build-b-result.json\n@@ -0,0 +1,124 @@\n+{\n+  \"task\": \"build-b\",\n+  \"operation\": \"op-3fc669dff13aa0c16f443b07\",\n+  \"projectId\": \"p-0f670f18\",\n+  \"implementationSHA256\": \"f0ffcbee5d032248811fb10e07c31d03ed3c01aa7e4bdb4e980b02ba92633ed0\",\n+  \"expectedOutputSHA256\": \"fdc2bc2455603687139aa3290aa4557065678743f06f6d813e761ab7a7811dfd\",\n+  \"binarySHA256\": \"42abeebefc9966b7f63b3510c67e49f9f1f97fd7e78b7ba36507ace38d44d413\",\n+  \"commands\": [\n+    {\n+      \"label\": \"toolchain\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"version\"\n+      ],\n+      \"startedAt\": \"2026-10-09T08:01:40.032Z\",\n+      \"finishedAt\": \"2026-10-09T08:01:40.049Z\",\n+      \"elapsedMs\": 17.676094,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 32,\n+      \"outputSHA256\": \"7e35a947feee25f89c2649aa041942db786be35c3d6c484ab2ba2da849e3dc00\"\n+    },\n+    {\n+      \"label\": \"expected-red\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"test\",\n+        \"-run\",\n+        \"^TestApprovedRequirement$\",\n+        \"-count=1\",\n+        \"./...\"\n+      ],\n+      \"startedAt\": \"2026-10-09T08:01:40.050Z\",\n+      \"finishedAt\": \"2026-10-09T08:02:44.003Z\",\n+      \"elapsedMs\": 63953.206095,\n+      \"code\": 1,\n+      \"signal\": null,\n+      \"outputBytes\": 228,\n+      \"outputSHA256\": \"c641a596695c21c14f4dd36b3c2c2ebe94f4faddc72ba1fee75d37791aacd7bc\"\n+    },\n+    {\n+      \"label\": \"build\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"build\",\n+        \"-trimpath\",\n+        \"-buildvcs=false\",\n+        \"-o\",\n+        \"/tmp/luci-mixed-0zPEdr/app\",\n+        \"./cmd/app\"\n+      ],\n+      \"startedAt\": \"2026-10-09T08:02:44.011Z\",\n+      \"finishedAt\": \"2026-10-09T08:02:44.994Z\",\n+      \"elapsedMs\": 982.804241,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 0,\n+      \"outputSHA256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n+    },\n+    {\n+      \"label\": \"fixed-tests\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"test\",\n+        \"-json\",\n+        \"-count=1\",\n+        \"./...\"\n+      ],\n+      \"startedAt\": \"2026-10-09T08:02:44.994Z\",\n+      \"finishedAt\": \"2026-10-09T08:02:46.208Z\",\n+      \"elapsedMs\": 1213.66338,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 4668,\n+      \"outputSHA256\": \"d0745a19a3f955c2d3f2d9e68b6d35438d40320854d23907a5c18c04b1ba1689\",\n+      \"testsPassed\": [\n+        \"TestApprovedRequirement\",\n+        \"TestHandlerStateIsIsolated\",\n+        \"FuzzApprovedInvariant/seed#0\",\n+        \"FuzzApprovedInvariant/seed#1\",\n+        \"FuzzApprovedInvariant/seed#2\",\n+        \"FuzzApprovedInvariant\"\n+      ]\n+    },\n+    {\n+      \"label\": \"artifact-behavior\",\n+      \"executable\": \"/tmp/luci-mixed-0zPEdr/app\",\n+      \"args\": [],\n+      \"startedAt\": \"2026-10-09T08:02:46.212Z\",\n+      \"finishedAt\": \"2026-10-09T08:02:46.222Z\",\n+      \"elapsedMs\": 10.226832,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 21,\n+      \"outputSHA256\": \"fdc2bc2455603687139aa3290aa4557065678743f06f6d813e761ab7a7811dfd\"\n+    },\n+    {\n+      \"label\": \"fuzz\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"test\",\n+        \"-run\",\n+        \"^$\",\n+        \"-fuzz\",\n+        \"^FuzzApprovedInvariant$\",\n+        \"-fuzztime=150s\",\n+        \"-parallel=1\",\n+        \"-test.fuzzcachedir=/tmp/luci-mixed-0zPEdr/corpus\"\n+      ],\n+      \"startedAt\": \"2026-10-09T08:02:46.223Z\",\n+      \"finishedAt\": \"2026-10-09T08:06:35.443Z\",\n+      \"elapsedMs\": 229220.207027,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 4146,\n+      \"outputSHA256\": \"8e845a1fe15058b595b589ac653f7756be7fcb76a0e1e7eee9f4c8643f5c11c8\",\n+      \"activeFuzzSeconds\": 150,\n+      \"fuzzExecutions\": 230853\n+    }\n+  ],\n+  \"cachePeakBytes\": 351909958,\n+  \"corpusPeakBytes\": 4386,\n+  \"toolchain\": \"go version go1.26.8 linux/amd64\"\n+}\ndiff --git a/engine.go b/engine.go\nindex b85289fdba19cf844725b0aa4ed37900f981bdf9..17aeafc146c15709c8251bed8932000586491492 100644\n--- a/engine.go\n+++ b/engine.go\n@@ -1,3 +1,30 @@\n package workload\n-import \"net/http\"\n-func NewHandler()http.Handler{return http.HandlerFunc(func(w http.ResponseWriter,r *http.Request){http.Error(w,\"unimplemented\",501)})}\n+import (\"bytes\"; \"encoding/json\"; \"io\"; \"net/http\"; \"strings\"; \"sync\")\n+// NewHandler stores one note per handler and enforces role/method authorization.\n+func NewHandler() http.Handler {\n+ var mu sync.Mutex\n+ value:=\"\"\n+ return http.HandlerFunc(func(w http.ResponseWriter,r *http.Request){\n+  if r.URL.Path!=\"/note\" {http.NotFound(w,r);return}\n+  role:=r.Header.Get(\"X-Role\")\n+  if role!=\"reader\"&&role!=\"editor\" {http.Error(w,\"forbidden\",http.StatusForbidden);return}\n+  switch r.Method {\n+  case http.MethodGet:\n+   mu.Lock();current:=value;mu.Unlock()\n+   w.Header().Set(\"Content-Type\",\"application/json\");_ = json.NewEncoder(w).Encode(struct{Value string `json:\"value\"`}{current})\n+  case http.MethodPost:\n+   if role!=\"editor\" {http.Error(w,\"forbidden\",http.StatusForbidden);return}\n+   var body struct{Value string `json:\"value\"`}\n+   raw,err:=io.ReadAll(io.LimitReader(r.Body,1025));if err!=nil||len(raw)>1024 {http.Error(w,\"invalid\",http.StatusBadRequest);return}\n+   decoder:=json.NewDecoder(bytes.NewReader(raw));decoder.DisallowUnknownFields()\n+   if err:=decoder.Decode(&body);err!=nil||len(body.Value)>256 {http.Error(w,\"invalid\",http.StatusBadRequest);return}\n+   var trailing any\n+   if decoder.Decode(&trailing)!=io.EOF {http.Error(w,\"invalid\",http.StatusBadRequest);return}\n+   // The value is data; embedded markup and newlines are preserved, not run.\n+   mu.Lock();value=strings.Clone(body.Value);mu.Unlock()\n+   w.Header().Set(\"Content-Type\",\"application/json\");w.WriteHeader(http.StatusCreated)\n+   _ = json.NewEncoder(w).Encode(body)\n+  default: w.Header().Set(\"Allow\",\"GET, POST\");http.Error(w,\"method\",http.StatusMethodNotAllowed)\n+  }\n+ })\n+}\n",
+          "canIntegrate": true,
+          "reason": "Review this complete task diff. Integration combines these exact commits; run checks on the combined result before accepting it.",
+          "handoff": {
+            "digest": "cbf2367483acfb67ab09ab9c40365964cbcb9af08551c957bf6ae0d20e8542ac",
+            "status": "missing",
+            "summary": "",
+            "questions": 0,
+            "unanswered": 0,
+            "capturedAt": "2026-10-09T08:07:03.127279435Z"
+          }
+        },
+        "commit": "8428968ef065ce6900cda2ec8968b594465dfafd"
+      },
+      {
+        "task": "build-c",
+        "review": {
+          "taskId": "build-c",
+          "operationId": "op-045037b1a0a1a3767582dd7a",
+          "sourceCommit": "d78085eb049ce5eece6b4cadfd6702fc419eac4a",
+          "targetCommit": "ad706361e65de9b816b8aed477dbfef5b4383b45",
+          "reviewDigest": "35aec6f26fff6e16093a14ca86cf3d5da1724ac3effb66bb02fafbdbb23dacf7",
+          "paths": [
+            "build-c-result.json",
+            "engine.go"
+          ],
+          "patch": "diff --git a/build-c-result.json b/build-c-result.json\nnew file mode 100644\nindex 0000000000000000000000000000000000000000..1c8c54bda6502761db0841d71945d52663356d74\n--- /dev/null\n+++ b/build-c-result.json\n@@ -0,0 +1,124 @@\n+{\n+  \"task\": \"build-c\",\n+  \"operation\": \"op-045037b1a0a1a3767582dd7a\",\n+  \"projectId\": \"p-97bd653a\",\n+  \"implementationSHA256\": \"9e68815c1908230596eccad2261693eaf55c6badf4061490b46fc145927cf4eb\",\n+  \"expectedOutputSHA256\": \"4ce9bf3c01a5a99d73c84e3a2880581e00e4f97f676aa01522cca945824c9193\",\n+  \"binarySHA256\": \"8f4fbb08d2bad6d507aba4a1a782ee67cdc7cf879432635762e47685f9e2cdb3\",\n+  \"commands\": [\n+    {\n+      \"label\": \"toolchain\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"version\"\n+      ],\n+      \"startedAt\": \"2026-10-09T08:07:31.335Z\",\n+      \"finishedAt\": \"2026-10-09T08:07:31.352Z\",\n+      \"elapsedMs\": 16.154706,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 32,\n+      \"outputSHA256\": \"7e35a947feee25f89c2649aa041942db786be35c3d6c484ab2ba2da849e3dc00\"\n+    },\n+    {\n+      \"label\": \"expected-red\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"test\",\n+        \"-run\",\n+        \"^TestApprovedRequirement$\",\n+        \"-count=1\",\n+        \"./...\"\n+      ],\n+      \"startedAt\": \"2026-10-09T08:07:31.352Z\",\n+      \"finishedAt\": \"2026-10-09T08:08:03.856Z\",\n+      \"elapsedMs\": 32504.218531,\n+      \"code\": 1,\n+      \"signal\": null,\n+      \"outputBytes\": 249,\n+      \"outputSHA256\": \"7badb306b3294200be2f5b83a0f44d187b3ae880aa5644a44f8b65c6baf2d08f\"\n+    },\n+    {\n+      \"label\": \"build\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"build\",\n+        \"-trimpath\",\n+        \"-buildvcs=false\",\n+        \"-o\",\n+        \"/tmp/luci-mixed-7lyQqj/app\",\n+        \"./cmd/app\"\n+      ],\n+      \"startedAt\": \"2026-10-09T08:08:03.861Z\",\n+      \"finishedAt\": \"2026-10-09T08:08:04.161Z\",\n+      \"elapsedMs\": 300.337635,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 0,\n+      \"outputSHA256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n+    },\n+    {\n+      \"label\": \"fixed-tests\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"test\",\n+        \"-json\",\n+        \"-count=1\",\n+        \"./...\"\n+      ],\n+      \"startedAt\": \"2026-10-09T08:08:04.161Z\",\n+      \"finishedAt\": \"2026-10-09T08:08:04.636Z\",\n+      \"elapsedMs\": 474.978485,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 4677,\n+      \"outputSHA256\": \"09dd0d1fd987480f68c14bc475a8670708a9d88794c4e704d64bafeaa83f1a66\",\n+      \"testsPassed\": [\n+        \"TestApprovedRequirement\",\n+        \"TestMalformedInputIsRejected\",\n+        \"FuzzApprovedInvariant/seed#0\",\n+        \"FuzzApprovedInvariant/seed#1\",\n+        \"FuzzApprovedInvariant/seed#2\",\n+        \"FuzzApprovedInvariant\"\n+      ]\n+    },\n+    {\n+      \"label\": \"artifact-behavior\",\n+      \"executable\": \"/tmp/luci-mixed-7lyQqj/app\",\n+      \"args\": [],\n+      \"startedAt\": \"2026-10-09T08:08:04.637Z\",\n+      \"finishedAt\": \"2026-10-09T08:08:04.641Z\",\n+      \"elapsedMs\": 3.667217,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 13,\n+      \"outputSHA256\": \"4ce9bf3c01a5a99d73c84e3a2880581e00e4f97f676aa01522cca945824c9193\"\n+    },\n+    {\n+      \"label\": \"fuzz\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"test\",\n+        \"-run\",\n+        \"^$\",\n+        \"-fuzz\",\n+        \"^FuzzApprovedInvariant$\",\n+        \"-fuzztime=150s\",\n+        \"-parallel=1\",\n+        \"-test.fuzzcachedir=/tmp/luci-mixed-7lyQqj/corpus\"\n+      ],\n+      \"startedAt\": \"2026-10-09T08:08:04.641Z\",\n+      \"finishedAt\": \"2026-10-09T08:11:09.880Z\",\n+      \"elapsedMs\": 185239.223773,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 4305,\n+      \"outputSHA256\": \"59d7326629c4921664312da72e0b3157ba94de2d6d6bcd16de92e2adef9a6142\",\n+      \"activeFuzzSeconds\": 150,\n+      \"fuzzExecutions\": 2921502\n+    }\n+  ],\n+  \"cachePeakBytes\": 181197313,\n+  \"corpusPeakBytes\": 1095,\n+  \"toolchain\": \"go version go1.26.8 linux/amd64\"\n+}\ndiff --git a/engine.go b/engine.go\nindex 71f073cf945ea7ec8b65dd634843cf8ce4cebd22..f42b184f31b24bef02b108ef2243190e1426ae25 100644\n--- a/engine.go\n+++ b/engine.go\n@@ -1,3 +1,18 @@\n package workload\n-import \"errors\"\n-func AggregateCSV(input string)(string,error){return \"\",errors.New(\"unimplemented\")}\n+import (\"bytes\"; \"encoding/csv\"; \"errors\"; \"sort\"; \"strconv\"; \"strings\")\n+// AggregateCSV validates rows, keeps the first occurrence of each event ID,\n+// and emits group totals in lexical order. All accepted amounts fit the bound.\n+func AggregateCSV(input string)(string,error){\n+ reader:=csv.NewReader(strings.NewReader(input));reader.FieldsPerRecord=3\n+ rows,err:=reader.ReadAll();if err!=nil {return \"\",err}\n+ seen:=map[string]bool{};totals:=map[string]int64{}\n+ for _,row:=range rows {\n+  if row[0]==\"\"||row[1]==\"\" {return \"\",errors.New(\"missing event identity\")}\n+  amount,err:=strconv.ParseInt(row[2],10,64);if err!=nil||amount< -1000000||amount>1000000 {return \"\",errors.New(\"invalid amount\")}\n+  if seen[row[0]] {continue};seen[row[0]]=true;totals[row[1]]+=amount\n+ }\n+ groups:=make([]string,0,len(totals));for group:=range totals {groups=append(groups,group)};sort.Strings(groups)\n+ var out bytes.Buffer;writer:=csv.NewWriter(&out)\n+ for _,group:=range groups {if err:=writer.Write([]string{group,strconv.FormatInt(totals[group],10)});err!=nil{return \"\",err}}\n+ writer.Flush();if err:=writer.Error();err!=nil{return \"\",err};return out.String(),nil\n+}\n",
+          "canIntegrate": true,
+          "reason": "Review this complete task diff. Integration combines these exact commits; run checks on the combined result before accepting it.",
+          "handoff": {
+            "digest": "54524917886851f0546ec41e3ccd516a6710b57918e3466497501f4b42787ff2",
+            "status": "missing",
+            "summary": "",
+            "questions": 0,
+            "unanswered": 0,
+            "capturedAt": "2026-10-09T08:11:31.917066092Z"
+          }
+        },
+        "commit": "d1cf228cd71960735d2835f6dd6298ec9e7acdc7"
+      },
+      {
+        "task": "build-d",
+        "review": {
+          "taskId": "build-d",
+          "operationId": "op-0f702839a436d710a95f8416",
+          "sourceCommit": "0fb4521ffff06e049cf36da3155ffeca66fdd105",
+          "targetCommit": "b5d95a279d805c1a593c1f1038118d9ca69351e5",
+          "reviewDigest": "5dd7061c60001b3e66c446fe3a8658dde223c8fd33231ead8ecf3c8830406e9e",
+          "paths": [
+            "build-d-result.json",
+            "engine.go"
+          ],
+          "patch": "diff --git a/build-d-result.json b/build-d-result.json\nnew file mode 100644\nindex 0000000000000000000000000000000000000000..67b80b8eb49e9d3a275da00157fdeba71f5bc1a0\n--- /dev/null\n+++ b/build-d-result.json\n@@ -0,0 +1,124 @@\n+{\n+  \"task\": \"build-d\",\n+  \"operation\": \"op-0f702839a436d710a95f8416\",\n+  \"projectId\": \"p-a6c64987\",\n+  \"implementationSHA256\": \"2882b39c176a39f31e4e58a3066e34394d2045c8aae7827e43391389c717b583\",\n+  \"expectedOutputSHA256\": \"7e28ab68857f5f240e58d724aeee83d7591aa505c6f6a9f961589b768ed5f677\",\n+  \"binarySHA256\": \"fb7e8fc666ccef58c84b54982466d6db10267ba847ce0383fa858631e850aef2\",\n+  \"commands\": [\n+    {\n+      \"label\": \"toolchain\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"version\"\n+      ],\n+      \"startedAt\": \"2026-10-09T08:12:09.697Z\",\n+      \"finishedAt\": \"2026-10-09T08:12:09.713Z\",\n+      \"elapsedMs\": 15.979445,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 32,\n+      \"outputSHA256\": \"7e35a947feee25f89c2649aa041942db786be35c3d6c484ab2ba2da849e3dc00\"\n+    },\n+    {\n+      \"label\": \"expected-red\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"test\",\n+        \"-run\",\n+        \"^TestApprovedRequirement$\",\n+        \"-count=1\",\n+        \"./...\"\n+      ],\n+      \"startedAt\": \"2026-10-09T08:12:09.714Z\",\n+      \"finishedAt\": \"2026-10-09T08:12:43.232Z\",\n+      \"elapsedMs\": 33518.093495,\n+      \"code\": 1,\n+      \"signal\": null,\n+      \"outputBytes\": 257,\n+      \"outputSHA256\": \"ebbf391dd5c38d5163c5c3254e1e0f5cbf33ef5b0a4135061615ed03d9bec813\"\n+    },\n+    {\n+      \"label\": \"build\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"build\",\n+        \"-trimpath\",\n+        \"-buildvcs=false\",\n+        \"-o\",\n+        \"/tmp/luci-mixed-4mrmah/app\",\n+        \"./cmd/app\"\n+      ],\n+      \"startedAt\": \"2026-10-09T08:12:43.233Z\",\n+      \"finishedAt\": \"2026-10-09T08:12:43.516Z\",\n+      \"elapsedMs\": 283.351189,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 0,\n+      \"outputSHA256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n+    },\n+    {\n+      \"label\": \"fixed-tests\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"test\",\n+        \"-json\",\n+        \"-count=1\",\n+        \"./...\"\n+      ],\n+      \"startedAt\": \"2026-10-09T08:12:43.516Z\",\n+      \"finishedAt\": \"2026-10-09T08:12:43.907Z\",\n+      \"elapsedMs\": 390.518965,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 4676,\n+      \"outputSHA256\": \"e2eb8c805cdc3f7a2ef780f7683f271c486cfdfb2bc47a34a55d412c01f263df\",\n+      \"testsPassed\": [\n+        \"TestApprovedRequirement\",\n+        \"TestInvalidGraphsAreRejected\",\n+        \"FuzzApprovedInvariant/seed#0\",\n+        \"FuzzApprovedInvariant/seed#1\",\n+        \"FuzzApprovedInvariant/seed#2\",\n+        \"FuzzApprovedInvariant\"\n+      ]\n+    },\n+    {\n+      \"label\": \"artifact-behavior\",\n+      \"executable\": \"/tmp/luci-mixed-4mrmah/app\",\n+      \"args\": [],\n+      \"startedAt\": \"2026-10-09T08:12:43.907Z\",\n+      \"finishedAt\": \"2026-10-09T08:12:43.911Z\",\n+      \"elapsedMs\": 3.528209,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 11,\n+      \"outputSHA256\": \"7e28ab68857f5f240e58d724aeee83d7591aa505c6f6a9f961589b768ed5f677\"\n+    },\n+    {\n+      \"label\": \"fuzz\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"test\",\n+        \"-run\",\n+        \"^$\",\n+        \"-fuzz\",\n+        \"^FuzzApprovedInvariant$\",\n+        \"-fuzztime=150s\",\n+        \"-parallel=1\",\n+        \"-test.fuzzcachedir=/tmp/luci-mixed-4mrmah/corpus\"\n+      ],\n+      \"startedAt\": \"2026-10-09T08:12:43.911Z\",\n+      \"finishedAt\": \"2026-10-09T08:15:48.852Z\",\n+      \"elapsedMs\": 184940.787383,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 4313,\n+      \"outputSHA256\": \"625b8477e873f6f2307f648d553b60255c91a77385f963d3366f112ee04a9bf0\",\n+      \"activeFuzzSeconds\": 150,\n+      \"fuzzExecutions\": 5237009\n+    }\n+  ],\n+  \"cachePeakBytes\": 180587597,\n+  \"corpusPeakBytes\": 2006,\n+  \"toolchain\": \"go version go1.26.8 linux/amd64\"\n+}\ndiff --git a/engine.go b/engine.go\nindex 56294ad184278740285904a2b172750413ae8316..23fc2305885de41711953b054c2d6b09306ff5b6 100644\n--- a/engine.go\n+++ b/engine.go\n@@ -1,4 +1,15 @@\n package workload\n-import \"errors\"\n+import (\"errors\"; \"sort\")\n type Task struct { ID string; Depends []string }\n-func ReadyTasks(tasks []Task,completed []string)([]string,error){return nil,errors.New(\"unimplemented\")}\n+\n+// ReadyTasks validates the whole graph and returns a sorted ready frontier.\n+func ReadyTasks(tasks []Task,completed []string)([]string,error){\n+ byID:=map[string]Task{};for _,task:=range tasks {if task.ID==\"\" {return nil,errors.New(\"empty task\")};if _,ok:=byID[task.ID];ok {return nil,errors.New(\"duplicate task\")};byID[task.ID]=task}\n+ for _,task:=range tasks {for _,dep:=range task.Depends {if _,ok:=byID[dep];!ok{return nil,errors.New(\"unknown dependency\")}}}\n+ color:=map[string]int{};var visit func(string)bool\n+ visit=func(id string)bool {if color[id]==1 {return false};if color[id]==2 {return true};color[id]=1;for _,dep:=range byID[id].Depends {if !visit(dep){return false}};color[id]=2;return true}\n+ for id:=range byID {if !visit(id){return nil,errors.New(\"dependency cycle\")}}\n+ done:=map[string]bool{};for _,id:=range completed {if _,ok:=byID[id];!ok{return nil,errors.New(\"unknown completed task\")};done[id]=true}\n+ ready:=[]string{};for _,task:=range tasks {if done[task.ID] {continue};allowed:=true;for _,dep:=range task.Depends {if !done[dep]{allowed=false;break}};if allowed {ready=append(ready,task.ID)}}\n+ sort.Strings(ready);return ready,nil\n+}\n",
+          "canIntegrate": true,
+          "reason": "Review this complete task diff. Integration combines these exact commits; run checks on the combined result before accepting it.",
+          "handoff": {
+            "digest": "af8f25eb0b565ccc25ef0012033d8a10fbe1901734a22deec83ec54cd68c1ccd",
+            "status": "missing",
+            "summary": "",
+            "questions": 0,
+            "unanswered": 0,
+            "capturedAt": "2026-10-09T08:16:01.901362286Z"
+          }
+        },
+        "commit": "53454f189b5c783dd138c3a4a5fabc5ce82cd33d"
+      },
+      {
+        "task": "amend-a",
+        "review": {
+          "taskId": "amend-a",
+          "operationId": "op-eb52b4de8efc99080bd984ad",
+          "sourceCommit": "6a25f1dc10af5c58d2de48a4acdd0bd2ad0d81fa",
+          "targetCommit": "d9ec2aaf926b4d4e226dc58d6a6df5c9a42b7fb9",
+          "reviewDigest": "56a2ad7cf4ab40f2e41dc249397b028c90a638a117ffa079c2e3f9fb1b04c99a",
+          "paths": [
+            "amend-a-result.json",
+            "engine.go"
+          ],
+          "patch": "diff --git a/amend-a-result.json b/amend-a-result.json\nnew file mode 100644\nindex 0000000000000000000000000000000000000000..79b52c48e8cfcf865a7e58258a2d6bee9cd6de00\n--- /dev/null\n+++ b/amend-a-result.json\n@@ -0,0 +1,101 @@\n+{\n+  \"task\": \"amend-a\",\n+  \"operation\": \"op-eb52b4de8efc99080bd984ad\",\n+  \"projectId\": \"p-c82c7574\",\n+  \"implementationSHA256\": \"71d0686bd5feda0f417de8f1f3ae8a3c9c8f04a715d909b39b5b147cb55dea81\",\n+  \"expectedOutputSHA256\": \"84f7a3684f640b001726a499dec386bfcd718c9b1b5b74ec5009858e143a028c\",\n+  \"binarySHA256\": \"ff2652198ea1385d4f90728f26a9b7d2de8226a74b5291f6a999959e92c61b90\",\n+  \"commands\": [\n+    {\n+      \"label\": \"toolchain\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"version\"\n+      ],\n+      \"startedAt\": \"2026-10-09T08:16:44.219Z\",\n+      \"finishedAt\": \"2026-10-09T08:16:44.237Z\",\n+      \"elapsedMs\": 17.519909,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 32,\n+      \"outputSHA256\": \"7e35a947feee25f89c2649aa041942db786be35c3d6c484ab2ba2da849e3dc00\"\n+    },\n+    {\n+      \"label\": \"expected-red\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"test\",\n+        \"-run\",\n+        \"^TestApprovedRequirement$\",\n+        \"-count=1\",\n+        \"./...\"\n+      ],\n+      \"startedAt\": \"2026-10-09T08:16:44.237Z\",\n+      \"finishedAt\": \"2026-10-09T08:17:17.201Z\",\n+      \"elapsedMs\": 32964.103681,\n+      \"code\": 1,\n+      \"signal\": null,\n+      \"outputBytes\": 441,\n+      \"outputSHA256\": \"b82f71d82f2e53abc219dfc36eb1c13e5382405cb81faf7296d6aec2efb0b89b\"\n+    },\n+    {\n+      \"label\": \"build\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"build\",\n+        \"-trimpath\",\n+        \"-buildvcs=false\",\n+        \"-o\",\n+        \"/tmp/luci-mixed-ZWEJwZ/app\",\n+        \"./cmd/app\"\n+      ],\n+      \"startedAt\": \"2026-10-09T08:17:17.203Z\",\n+      \"finishedAt\": \"2026-10-09T08:17:17.452Z\",\n+      \"elapsedMs\": 249.029162,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 0,\n+      \"outputSHA256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n+    },\n+    {\n+      \"label\": \"fixed-tests\",\n+      \"executable\": \"go\",\n+      \"args\": [\n+        \"test\",\n+        \"-json\",\n+        \"-count=1\",\n+        \"./...\"\n+      ],\n+      \"startedAt\": \"2026-10-09T08:17:17.452Z\",\n+      \"finishedAt\": \"2026-10-09T08:17:17.861Z\",\n+      \"elapsedMs\": 409.195383,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 4663,\n+      \"outputSHA256\": \"1f6500d0a6d7a65ec8aba2844f1c65eee93b1170c4de69a84a239ab8ec3e1c0c\",\n+      \"testsPassed\": [\n+        \"TestApprovedRequirement\",\n+        \"TestDeterministicRendering\",\n+        \"FuzzApprovedInvariant/seed#0\",\n+        \"FuzzApprovedInvariant/seed#1\",\n+        \"FuzzApprovedInvariant/seed#2\",\n+        \"FuzzApprovedInvariant\"\n+      ]\n+    },\n+    {\n+      \"label\": \"artifact-behavior\",\n+      \"executable\": \"/tmp/luci-mixed-ZWEJwZ/app\",\n+      \"args\": [],\n+      \"startedAt\": \"2026-10-09T08:17:17.862Z\",\n+      \"finishedAt\": \"2026-10-09T08:17:17.866Z\",\n+      \"elapsedMs\": 3.837604,\n+      \"code\": 0,\n+      \"signal\": null,\n+      \"outputBytes\": 113,\n+      \"outputSHA256\": \"84f7a3684f640b001726a499dec386bfcd718c9b1b5b74ec5009858e143a028c\"\n+    }\n+  ],\n+  \"cachePeakBytes\": 117087673,\n+  \"corpusPeakBytes\": 0,\n+  \"toolchain\": \"go version go1.26.8 linux/amd64\"\n+}\ndiff --git a/engine.go b/engine.go\nindex e249764465c138c839a0e160df751d71f8e2c6bc..9aae1025a3ea5d00b902f0c4aeb4531599fa3845 100644\n--- a/engine.go\n+++ b/engine.go\n@@ -1,11 +1,11 @@\n package workload\n-import (\"html\"; \"strings\")\n+import (\"html\"; \"strings\"; \"strconv\")\n // Render escapes every caller-controlled text node and preserves item order.\n func Render(title string, items []string) string {\n  var b strings.Builder\n  b.WriteString(\"<section><h1>\"); b.WriteString(html.EscapeString(title)); b.WriteString(\"</h1><ul>\")\n  for _, item := range items { b.WriteString(\"<li>\"); b.WriteString(html.EscapeString(item)); b.WriteString(\"</li>\") }\n- b.WriteString(\"</ul>\"); \n+ b.WriteString(\"</ul>\"); b.WriteString(\"<p>Total: \"); b.WriteString(strconv.Itoa(len(items))); b.WriteString(\"</p>\")\n  b.WriteString(\"</section>\\n\")\n  return b.String()\n }\n",
+          "canIntegrate": true,
+          "reason": "Review this complete task diff. Integration combines these exact commits; run checks on the combined result before accepting it.",
+          "handoff": {
+            "digest": "e56ac690f2515ed8217f3aa664d400f47b01eb1e63c6b3431a0065636c82ba1f",
+            "status": "missing",
+            "summary": "",
+            "questions": 0,
+            "unanswered": 0,
+            "capturedAt": "2026-10-09T08:17:33.854117273Z"
+          }
+        },
+        "commit": "a5a258eb0eef9ff78d63f3998060ef2c57c23970"
+      }
+    ],
+    "preIntegrationProgress": [
+      {
+        "completedTask": "build-a",
+        "nextTask": "build-b",
+        "nextSessionID": "s-d97cba0c",
+        "observedAt": "2026-10-09T08:01:39.864Z"
+      },
+      {
+        "completedTask": "build-b",
+        "nextTask": "build-c",
+        "nextSessionID": "s-d6d53586",
+        "observedAt": "2026-10-09T08:07:31.177Z"
+      },
+      {
+        "completedTask": "build-c",
+        "nextTask": "build-d",
+        "nextSessionID": "s-b39c685d",
+        "observedAt": "2026-10-09T08:12:09.541Z"
+      }
+    ],
+    "activeRestarts": [
+      {
+        "task": "build-a",
+        "startedAt": "2026-10-09T07:57:58.950Z",
+        "finishedAt": "2026-10-09T07:58:02.742Z",
+        "sameContainer": true,
+        "samePID": true,
+        "sameContext": true,
+        "oneCommandDispatch": true
+      }
+    ],
+    "allocationOrder": [
+      {
+        "ordinal": 1,
+        "task": "build-a",
+        "projectID": "p-c82c7574",
+        "queueID": "queue-87dd417b4df7fb2e7b893858",
+        "sessionID": "s-5b73c3c2",
+        "operationID": "op-fee06b6224cafe5be5c7a2e0",
+        "observedAt": "2026-10-09T07:57:14.541Z"
+      },
+      {
+        "ordinal": 2,
+        "task": "build-b",
+        "projectID": "p-0f670f18",
+        "queueID": "queue-79a89687942b3fd70f472243",
+        "sessionID": "s-d97cba0c",
+        "operationID": "op-3fc669dff13aa0c16f443b07",
+        "observedAt": "2026-10-09T08:01:39.823Z"
+      },
+      {
+        "ordinal": 3,
+        "task": "build-c",
+        "projectID": "p-97bd653a",
+        "queueID": "queue-091a6974753b077fce144a1a",
+        "sessionID": "s-d6d53586",
+        "operationID": "op-045037b1a0a1a3767582dd7a",
+        "observedAt": "2026-10-09T08:07:31.157Z"
+      },
+      {
+        "ordinal": 4,
+        "task": "build-d",
+        "projectID": "p-a6c64987",
+        "queueID": "queue-de4e49beaa2b8b96efd598aa",
+        "sessionID": "s-b39c685d",
+        "operationID": "op-0f702839a436d710a95f8416",
+        "observedAt": "2026-10-09T08:12:09.521Z"
+      },
+      {
+        "ordinal": 5,
+        "task": "amend-a",
+        "projectID": "p-c82c7574",
+        "queueID": "queue-7f8a7b595b2c28809d5c0311",
+        "sessionID": "s-f7a7c177",
+        "operationID": "op-eb52b4de8efc99080bd984ad",
+        "observedAt": "2026-10-09T08:16:44.104Z"
+      }
+    ],
+    "queueControls": {
+      "activeTask": "build-a",
+      "cancelled": {
+        "projectID": "p-c82c7574",
+        "runID": "run-38dede9ca5c409ab203f5fb7",
+        "queueID": "queue-fa709d9964093e7b1aefeb68",
+        "task": "cancel-a"
+      },
+      "prioritized": {
+        "projectID": "p-0f670f18",
+        "runID": "run-1ceac3b6651baf605a67c48d",
+        "queueID": "queue-79a89687942b3fd70f472243",
+        "task": "build-b",
+        "priority": "high"
+      },
+      "observedAt": "2026-10-09T07:57:16.960Z"
+    },
+    "queueCancellationGuard": {
+      "projectID": "p-c82c7574",
+      "runID": "run-38dede9ca5c409ab203f5fb7",
+      "queueID": "queue-fa709d9964093e7b1aefeb68",
+      "task": "cancel-a",
+      "state": "paused",
+      "observedAt": "2026-10-09T07:54:16.907Z"
+    },
+    "cleanup": [],
+    "runtimeCleanup": {
+      "containers": 0,
+      "volumes": 0,
+      "ownedServiceProcesses": 0,
+      "ownedBrowserProcesses": 0,
+      "protectedImagePackageAndHelpersUnchanged": true,
+      "rootFreeBytes": 6562172928
+    }
+  },
+  "fieldPresence": {
+    "taskReceiptSettlements": true,
+    "naturalCompletions": true,
+    "integrations": true,
+    "preIntegrationProgress": true,
+    "activeRestarts": true,
+    "allocationOrder": true,
+    "queueControls": true,
+    "queueCancellationGuard": true,
+    "cleanup": true,
+    "runtimeCleanup": true
+  }
+}

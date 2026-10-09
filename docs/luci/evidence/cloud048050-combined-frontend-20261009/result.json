@@ -1,0 +1,19 @@
+{
+  "exitCode": 0,
+  "inputCounts": {
+    "repository": 1185,
+    "dependencies": 19369
+  },
+  "stableInputs": true,
+  "scope": "All desktop src/config, every configured external raw seam/contract/glob file and installed node_modules regular/symlink files, excluding generated .vite/.vite-temp cache directories; no product/performance runtime",
+  "report": {
+    "numTotalTests": 2787,
+    "numPassedTests": 2787,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTotalTestSuites": 266,
+    "numPassedTestSuites": 266,
+    "numFailedTestSuites": 0
+  },
+  "failures": []
+}

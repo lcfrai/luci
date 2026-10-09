@@ -1,0 +1,40 @@
+{
+  "command": [
+    "node",
+    "node_modules/typescript/bin/tsc",
+    "--noEmit"
+  ],
+  "cwd": "desktop",
+  "envOverrides": {
+    "GOMAXPROCS": "2"
+  },
+  "timeoutSeconds": 180,
+  "startedAt": "2026-10-09T08:24:35.321998+00:00",
+  "inputsBefore": {
+    "desktop/src/components/journey/ProjectSwarm.tsx": "fd3f328b7bc85a43f0dea6b2edf7eb156e17f16b8742824606741a1c2a03a464",
+    "desktop/src/components/journey/SwarmRunQueue.tsx": "a742e46e90f2cf386817c149829c0d4f2176f6f36c3aeae2c55f371e9e3d0648",
+    "desktop/src/components/journey/ProjectSwarmQueue.test.tsx": "1e5217a7aa8cd79d505e6d9cb1e72a0a26b1220e1853d5eb5137426ead23ec44",
+    "desktop/src/components/journey/ProjectSwarm.test.tsx": "ffcba47bc5cde06b65d7e612bd5ba949f75623ca62508281d897a40a2df324e9",
+    "desktop/src/components/journey/ProjectSwarmRefresh.test.tsx": "0dffcf866e6f71bdf7a4536fd78b12ec00fd939d93d28ef1acffded41c7c4817",
+    "desktop/src/components/journey/SwarmRunQueue.test.tsx": "49b95e52adc2089cd92afea7a58b0d9e60f97fe937a1a7f0b4daf54f2e35f69f",
+    "desktop/package.json": "2298a2e941314ff0f5dc82813a0b0edca0c66bccb7c766a80e46631fc8aa07b5",
+    "desktop/package-lock.json": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a",
+    "desktop/vitest.config.ts": "61fe9ff43762dadeb5666eca997ea6c73ef40d4306996ae30294552e1ca7024f",
+    "desktop/tsconfig.json": "65c82e3009d033dba271b9ce83a712bb4b934aeded98cb9d3e33472dd4d5f49c"
+  },
+  "exitCode": 2,
+  "elapsedSeconds": 31.788,
+  "endedAt": "2026-10-09T08:25:07.119083+00:00",
+  "inputsAfter": {
+    "desktop/src/components/journey/ProjectSwarm.tsx": "fd3f328b7bc85a43f0dea6b2edf7eb156e17f16b8742824606741a1c2a03a464",
+    "desktop/src/components/journey/SwarmRunQueue.tsx": "a742e46e90f2cf386817c149829c0d4f2176f6f36c3aeae2c55f371e9e3d0648",
+    "desktop/src/components/journey/ProjectSwarmQueue.test.tsx": "1e5217a7aa8cd79d505e6d9cb1e72a0a26b1220e1853d5eb5137426ead23ec44",
+    "desktop/src/components/journey/ProjectSwarm.test.tsx": "ffcba47bc5cde06b65d7e612bd5ba949f75623ca62508281d897a40a2df324e9",
+    "desktop/src/components/journey/ProjectSwarmRefresh.test.tsx": "0dffcf866e6f71bdf7a4536fd78b12ec00fd939d93d28ef1acffded41c7c4817",
+    "desktop/src/components/journey/SwarmRunQueue.test.tsx": "49b95e52adc2089cd92afea7a58b0d9e60f97fe937a1a7f0b4daf54f2e35f69f",
+    "desktop/package.json": "2298a2e941314ff0f5dc82813a0b0edca0c66bccb7c766a80e46631fc8aa07b5",
+    "desktop/package-lock.json": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a",
+    "desktop/vitest.config.ts": "61fe9ff43762dadeb5666eca997ea6c73ef40d4306996ae30294552e1ca7024f",
+    "desktop/tsconfig.json": "65c82e3009d033dba271b9ce83a712bb4b934aeded98cb9d3e33472dd4d5f49c"
+  }
+}

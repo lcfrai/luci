@@ -1,0 +1,826 @@
+{
+  "scope": "Publication analysis of completed source validation; no rerun or product/runtime/performance verification.",
+  "baseHEADAtEnd": "b81d6454778ddedb6c3102b202c1e2fa6f458a0a",
+  "sourceIdentity": "Combined candidate identified by captured repository/dependency hashes; base HEAD is not a clean whole-checkout claim. Later commit association must be verified separately.",
+  "frontendExitCode": 0,
+  "frontendTimedOut": false,
+  "frontendReportedSuccess": true,
+  "frontendAssertionsByStatus": {
+    "passed": 2787
+  },
+  "configuredResultFileCount": 158,
+  "configuredResultFiles": [
+    {
+      "name": "/workspace/luci/desktop/src/defects.test.tsx",
+      "status": "passed",
+      "assertionCount": 43
+    },
+    {
+      "name": "/workspace/luci/desktop/src/e2eC4Pinned.test.ts",
+      "status": "passed",
+      "assertionCount": 11
+    },
+    {
+      "name": "/workspace/luci/desktop/src/e2eDefect6.test.ts",
+      "status": "passed",
+      "assertionCount": 6
+    },
+    {
+      "name": "/workspace/luci/desktop/src/seams.test.ts",
+      "status": "passed",
+      "assertionCount": 24
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/attachRegistry.test.ts",
+      "status": "passed",
+      "assertionCount": 80
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/authTransport.test.ts",
+      "status": "passed",
+      "assertionCount": 2
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/billingReturn.test.ts",
+      "status": "passed",
+      "assertionCount": 12
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/browserAccess.test.ts",
+      "status": "passed",
+      "assertionCount": 4
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/client.test.ts",
+      "status": "passed",
+      "assertionCount": 44
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/contextHistory.test.ts",
+      "status": "passed",
+      "assertionCount": 12
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/dataDownloads.test.ts",
+      "status": "passed",
+      "assertionCount": 4
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/dataEmail.test.ts",
+      "status": "passed",
+      "assertionCount": 1
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/dataFunctions.test.ts",
+      "status": "passed",
+      "assertionCount": 1
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/definitionRepository.test.ts",
+      "status": "passed",
+      "assertionCount": 2
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/displayReads.test.ts",
+      "status": "passed",
+      "assertionCount": 8
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/executionStorage.test.ts",
+      "status": "passed",
+      "assertionCount": 5
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/orchestrator.test.ts",
+      "status": "passed",
+      "assertionCount": 33
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/platformBackups.test.ts",
+      "status": "passed",
+      "assertionCount": 4
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/platformBrowser.test.ts",
+      "status": "passed",
+      "assertionCount": 9
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/poller.test.ts",
+      "status": "passed",
+      "assertionCount": 13
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/product.test.ts",
+      "status": "passed",
+      "assertionCount": 7
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/projectCheckContracts.test.ts",
+      "status": "passed",
+      "assertionCount": 28
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/projectContext.test.ts",
+      "status": "passed",
+      "assertionCount": 1
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/projectContextEvents.test.ts",
+      "status": "passed",
+      "assertionCount": 5
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/projectImports.test.ts",
+      "status": "passed",
+      "assertionCount": 37
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/projectOverview.test.ts",
+      "status": "passed",
+      "assertionCount": 23
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/projectRuns.test.ts",
+      "status": "passed",
+      "assertionCount": 13
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/projectSwarm.test.ts",
+      "status": "passed",
+      "assertionCount": 7
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/swarmCheckpoint.test.ts",
+      "status": "passed",
+      "assertionCount": 22
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/swarmHandoff.test.ts",
+      "status": "passed",
+      "assertionCount": 38
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/swarmQueue.test.ts",
+      "status": "passed",
+      "assertionCount": 10
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/swarmScheduler.test.ts",
+      "status": "passed",
+      "assertionCount": 25
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/swarmWorkspace.test.ts",
+      "status": "passed",
+      "assertionCount": 10
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/teamAudit.test.ts",
+      "status": "passed",
+      "assertionCount": 7
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/teamDataLifecycle.test.ts",
+      "status": "passed",
+      "assertionCount": 9
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/teamInvitations.test.ts",
+      "status": "passed",
+      "assertionCount": 3
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/teamScope.test.ts",
+      "status": "passed",
+      "assertionCount": 13
+    },
+    {
+      "name": "/workspace/luci/desktop/src/api/transfers.test.ts",
+      "status": "passed",
+      "assertionCount": 7
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/AppShell.test.tsx",
+      "status": "passed",
+      "assertionCount": 12
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/Terminal.test.tsx",
+      "status": "passed",
+      "assertionCount": 98
+    },
+    {
+      "name": "/workspace/luci/desktop/src/lib/ids.test.ts",
+      "status": "passed",
+      "assertionCount": 6
+    },
+    {
+      "name": "/workspace/luci/desktop/src/lib/immutable.test.ts",
+      "status": "passed",
+      "assertionCount": 18
+    },
+    {
+      "name": "/workspace/luci/desktop/src/lib/keyboardPlatform.test.ts",
+      "status": "passed",
+      "assertionCount": 9
+    },
+    {
+      "name": "/workspace/luci/desktop/src/lib/time.test.ts",
+      "status": "passed",
+      "assertionCount": 10
+    },
+    {
+      "name": "/workspace/luci/desktop/src/store/defaults.test.ts",
+      "status": "passed",
+      "assertionCount": 31
+    },
+    {
+      "name": "/workspace/luci/desktop/src/store/draftRegistration.test.ts",
+      "status": "passed",
+      "assertionCount": 3
+    },
+    {
+      "name": "/workspace/luci/desktop/src/store/projectNavigation.test.ts",
+      "status": "passed",
+      "assertionCount": 12
+    },
+    {
+      "name": "/workspace/luci/desktop/src/store/selectors.test.ts",
+      "status": "passed",
+      "assertionCount": 18
+    },
+    {
+      "name": "/workspace/luci/desktop/src/store/sourceNavigation.test.ts",
+      "status": "passed",
+      "assertionCount": 4
+    },
+    {
+      "name": "/workspace/luci/desktop/src/store/store.test.ts",
+      "status": "passed",
+      "assertionCount": 54
+    },
+    {
+      "name": "/workspace/luci/desktop/src/hooks/heartbeat.test.ts",
+      "status": "passed",
+      "assertionCount": 6
+    },
+    {
+      "name": "/workspace/luci/desktop/src/hooks/useDismissable.test.ts",
+      "status": "passed",
+      "assertionCount": 8
+    },
+    {
+      "name": "/workspace/luci/desktop/src/hooks/useKeyboardMap.seam.test.ts",
+      "status": "passed",
+      "assertionCount": 1
+    },
+    {
+      "name": "/workspace/luci/desktop/src/hooks/useKeyboardMap.test.ts",
+      "status": "passed",
+      "assertionCount": 64
+    },
+    {
+      "name": "/workspace/luci/desktop/src/hooks/useKeyboardMap.xterm.test.tsx",
+      "status": "passed",
+      "assertionCount": 75
+    },
+    {
+      "name": "/workspace/luci/desktop/src/test/native-driver.test.ts",
+      "status": "passed",
+      "assertionCount": 19
+    },
+    {
+      "name": "/workspace/luci/desktop/src/preferences/appearance.test.ts",
+      "status": "passed",
+      "assertionCount": 3
+    },
+    {
+      "name": "/workspace/luci/desktop/src/preferences/onboarding.test.ts",
+      "status": "passed",
+      "assertionCount": 1
+    },
+    {
+      "name": "/workspace/luci/desktop/src/utils/projectDraftMerge.test.ts",
+      "status": "passed",
+      "assertionCount": 19
+    },
+    {
+      "name": "/workspace/luci/desktop/src/styles/designsystem.test.ts",
+      "status": "passed",
+      "assertionCount": 80
+    },
+    {
+      "name": "/workspace/luci/desktop/src/styles/tokens.test.ts",
+      "status": "passed",
+      "assertionCount": 9
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/auth/AdminInvitations.test.tsx",
+      "status": "passed",
+      "assertionCount": 2
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/auth/AdminPanel.test.tsx",
+      "status": "passed",
+      "assertionCount": 8
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/auth/AuthProvider.test.tsx",
+      "status": "passed",
+      "assertionCount": 22
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/auth/TeamBilling.test.tsx",
+      "status": "passed",
+      "assertionCount": 4
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/auth/TeamService.test.tsx",
+      "status": "passed",
+      "assertionCount": 5
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/auth/portableAccess.test.ts",
+      "status": "passed",
+      "assertionCount": 3
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/common/DraftRecoveryReview.test.tsx",
+      "status": "passed",
+      "assertionCount": 8
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/common/ProjectDraftRecovery.test.tsx",
+      "status": "passed",
+      "assertionCount": 22
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/common/StatusDot.test.tsx",
+      "status": "passed",
+      "assertionCount": 5
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/common/WorkflowDialog.test.tsx",
+      "status": "passed",
+      "assertionCount": 4
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/definition/DefinitionWorkspace.test.tsx",
+      "status": "passed",
+      "assertionCount": 25
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/definition/RepositoryAnalysisPanel.test.tsx",
+      "status": "passed",
+      "assertionCount": 36
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/definition/repositoryAnalysisRecovery.test.ts",
+      "status": "passed",
+      "assertionCount": 15
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/fluid/Fluid.test.tsx",
+      "status": "passed",
+      "assertionCount": 16
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/design/DesignWorkspace.test.tsx",
+      "status": "passed",
+      "assertionCount": 46
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/design/PrototypeReview.test.tsx",
+      "status": "passed",
+      "assertionCount": 9
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/lens/MergeLens.test.tsx",
+      "status": "passed",
+      "assertionCount": 26
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/menu/ContextMenu.test.tsx",
+      "status": "passed",
+      "assertionCount": 21
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/develop/CanvasLayout.test.tsx",
+      "status": "passed",
+      "assertionCount": 38
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/develop/ColumnsLayout.test.tsx",
+      "status": "passed",
+      "assertionCount": 21
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/develop/LinkedWorktreeNote.test.tsx",
+      "status": "passed",
+      "assertionCount": 10
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/develop/ReviewedContextInspector.test.tsx",
+      "status": "passed",
+      "assertionCount": 23
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/develop/SessionMenu.test.tsx",
+      "status": "passed",
+      "assertionCount": 9
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/develop/SessionPane.test.tsx",
+      "status": "passed",
+      "assertionCount": 31
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/develop/SessionPermissions.test.tsx",
+      "status": "passed",
+      "assertionCount": 6
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/develop/sessionVerbs.test.ts",
+      "status": "passed",
+      "assertionCount": 73
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/orchestrator/ConversationStorage.test.tsx",
+      "status": "passed",
+      "assertionCount": 4
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/orchestrator/OrchestratorPanel.test.tsx",
+      "status": "passed",
+      "assertionCount": 115
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/orchestrator/ProjectUnderstanding.test.tsx",
+      "status": "passed",
+      "assertionCount": 32
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/orchestrator/composerRecovery.test.ts",
+      "status": "passed",
+      "assertionCount": 8
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/palette/CommandPalette.test.tsx",
+      "status": "passed",
+      "assertionCount": 11
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/palette/commands.test.ts",
+      "status": "passed",
+      "assertionCount": 15
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/platform/DataClientSetup.test.tsx",
+      "status": "passed",
+      "assertionCount": 1
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/platform/DataEmail.test.tsx",
+      "status": "passed",
+      "assertionCount": 14
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/platform/DataFunctions.test.tsx",
+      "status": "passed",
+      "assertionCount": 13
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/platform/DataPublicDomain.test.tsx",
+      "status": "passed",
+      "assertionCount": 12
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/platform/DataWorkspace.test.tsx",
+      "status": "passed",
+      "assertionCount": 13
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/platform/PlatformWorkspace.test.tsx",
+      "status": "passed",
+      "assertionCount": 34
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/platform/StandaloneDatabase.test.tsx",
+      "status": "passed",
+      "assertionCount": 23
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/platform/data-permissions.test.tsx",
+      "status": "passed",
+      "assertionCount": 9
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/platform/deployment-permissions.test.tsx",
+      "status": "passed",
+      "assertionCount": 6
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/projects/HostCapacity.test.tsx",
+      "status": "passed",
+      "assertionCount": 16
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/projects/ProjectEntry.test.tsx",
+      "status": "passed",
+      "assertionCount": 19
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/projects/ProjectOverviewBoard.test.tsx",
+      "status": "passed",
+      "assertionCount": 37
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/BranchManager.test.tsx",
+      "status": "passed",
+      "assertionCount": 10
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/CheckRecoveryDialog.test.tsx",
+      "status": "passed",
+      "assertionCount": 11
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/ContextHistory.test.tsx",
+      "status": "passed",
+      "assertionCount": 10
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/ContextStorage.test.tsx",
+      "status": "passed",
+      "assertionCount": 21
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/DeploymentRecovery.test.tsx",
+      "status": "passed",
+      "assertionCount": 9
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/DeploymentWorkspace.test.tsx",
+      "status": "passed",
+      "assertionCount": 3
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/DesignEditor.test.tsx",
+      "status": "passed",
+      "assertionCount": 8
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/ProjectBackup.test.tsx",
+      "status": "passed",
+      "assertionCount": 17
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/ProjectChecks.test.tsx",
+      "status": "passed",
+      "assertionCount": 61
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/ProjectConfiguration.test.tsx",
+      "status": "passed",
+      "assertionCount": 17
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/ProjectDelivery.test.tsx",
+      "status": "passed",
+      "assertionCount": 26
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/ProjectPlan.test.tsx",
+      "status": "passed",
+      "assertionCount": 26
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/ProjectPlanLocation.test.tsx",
+      "status": "passed",
+      "assertionCount": 9
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/ProjectRuns.test.tsx",
+      "status": "passed",
+      "assertionCount": 62
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/ProjectSwarm.test.tsx",
+      "status": "passed",
+      "assertionCount": 36
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/ProjectSwarmQueue.test.tsx",
+      "status": "passed",
+      "assertionCount": 8
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/ProjectSwarmRefresh.test.tsx",
+      "status": "passed",
+      "assertionCount": 19
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/ProjectWork.test.tsx",
+      "status": "passed",
+      "assertionCount": 26
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/SwarmCheckpoint.test.tsx",
+      "status": "passed",
+      "assertionCount": 10
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/SwarmLaunchRecovery.test.tsx",
+      "status": "passed",
+      "assertionCount": 14
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/SwarmRunQueue.test.tsx",
+      "status": "passed",
+      "assertionCount": 12
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/SwarmTaskHandoff.test.tsx",
+      "status": "passed",
+      "assertionCount": 28
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/SwarmWorkspaceReview.test.tsx",
+      "status": "passed",
+      "assertionCount": 14
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/delivery.test.tsx",
+      "status": "passed",
+      "assertionCount": 11
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/deploy.test.tsx",
+      "status": "passed",
+      "assertionCount": 32
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/deployment-continuity.test.tsx",
+      "status": "passed",
+      "assertionCount": 26
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/journey.test.tsx",
+      "status": "passed",
+      "assertionCount": 3
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/pages-deploy.test.tsx",
+      "status": "passed",
+      "assertionCount": 6
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/requirements.test.tsx",
+      "status": "passed",
+      "assertionCount": 13
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/journey/workflow.test.tsx",
+      "status": "passed",
+      "assertionCount": 6
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/rail/MachineChip.test.tsx",
+      "status": "passed",
+      "assertionCount": 8
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/rail/Rail.test.tsx",
+      "status": "passed",
+      "assertionCount": 31
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/setup/AgentConnectionManager.test.tsx",
+      "status": "passed",
+      "assertionCount": 10
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/setup/AgentConnections.test.tsx",
+      "status": "passed",
+      "assertionCount": 5
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/setup/CloudManager.test.tsx",
+      "status": "passed",
+      "assertionCount": 3
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/setup/DependencySetup.test.tsx",
+      "status": "passed",
+      "assertionCount": 5
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/setup/DockerStorageConfirmation.test.tsx",
+      "status": "passed",
+      "assertionCount": 12
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/setup/LocalTools.test.tsx",
+      "status": "passed",
+      "assertionCount": 4
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/setup/RuntimePreparation.test.tsx",
+      "status": "passed",
+      "assertionCount": 19
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/setup/SetupPanel.storage.test.tsx",
+      "status": "passed",
+      "assertionCount": 5
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/setup/SetupPanel.test.tsx",
+      "status": "passed",
+      "assertionCount": 16
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/setup/SetupProvider.test.tsx",
+      "status": "passed",
+      "assertionCount": 5
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/setup/WorkspaceInstaller.test.tsx",
+      "status": "passed",
+      "assertionCount": 3
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/setup/WorkspaceSignIn.test.tsx",
+      "status": "passed",
+      "assertionCount": 2
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/teams/BillingReturnNavigation.test.tsx",
+      "status": "passed",
+      "assertionCount": 14
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/teams/TeamAudit.test.tsx",
+      "status": "passed",
+      "assertionCount": 3
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/teams/TeamDataLifecycle.test.tsx",
+      "status": "passed",
+      "assertionCount": 4
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/teams/TeamInvitations.test.tsx",
+      "status": "passed",
+      "assertionCount": 9
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/teams/TeamWorkspaceControl.test.tsx",
+      "status": "passed",
+      "assertionCount": 5
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/teams/TeamWorkspaceProvider.test.tsx",
+      "status": "passed",
+      "assertionCount": 28
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/topbar/NewSessionButton.test.tsx",
+      "status": "passed",
+      "assertionCount": 12
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/topbar/SessionPicker.test.tsx",
+      "status": "passed",
+      "assertionCount": 14
+    },
+    {
+      "name": "/workspace/luci/desktop/src/components/ui/controls.test.tsx",
+      "status": "passed",
+      "assertionCount": 3
+    }
+  ],
+  "reporterSuiteCounts": {
+    "numTotalTestSuites": 266,
+    "numPassedTestSuites": 266,
+    "numFailedTestSuites": 0
+  },
+  "typecheckExitCode": 0,
+  "inputCounts": {
+    "repository": 1185,
+    "dependencies": 19369
+  },
+  "allThreeCapturesEqual": {
+    "repository": true,
+    "dependencies": true
+  },
+  "wrapperReportedStable": {
+    "frontend": true,
+    "typecheck": true
+  },
+  "noFullCompilerInputClosureClaim": "Captured selected repository and installed dependency scopes are defined by the frozen wrapper; no universal compiler/transitive filesystem closure claim.",
+  "correctionBoundary": "Final C048+C050 captured source, before C051 DraftNavigationDialog/AppShell.test focus correction; no retroactive full-suite pass for later bytes.",
+  "frozenChangedProductionFiles": 3,
+  "frozenChangedTestFiles": 2
+}

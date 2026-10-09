@@ -1,0 +1,4 @@
+{"version":1,"event":"wrapper-start","at":"2026-10-09T07:53:57.152256+00:00","pid":2258288,"parentPid":2258274,"group":2258270,"session":2258270,"startTicks":27850631,"preparationSeconds":120,"workloadSeconds":1800,"cleanupSeconds":180,"totalSeconds":2100,"observerSeconds":2115}
+{"version":1,"event":"children-started","at":"2026-10-09T07:53:57.155992+00:00","driverPID":2258289,"observerPID":2258290}
+{"version":1,"event":"driver-returned","at":"2026-10-09T08:20:18.371379+00:00","returnCode":1}
+{"version":1,"event":"wrapper-settled","at":"2026-10-09T08:20:33.682715+00:00","returnCode":1,"driverPID":2258289,"observerPID":2258290}

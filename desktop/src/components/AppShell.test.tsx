@@ -8,7 +8,7 @@
 //
 // No jest-dom (shared-shape §3C): plain DOM property assertions only.
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AppShell } from "./AppShell";
 import { LENSES } from "./subrail/SubRail";
@@ -350,5 +350,68 @@ describe("AppShell", () => {
     } finally {
       media.mockRestore();
     }
+  });
+  it.each([
+    [true, "Keep editing"], [true, "Escape"],
+    [false, "Keep editing"], [false, "Escape"],
+  ] as const)("returns guarded navigation focus to a usable control (compact=%s, close=%s)", async (compact, close) => {
+    const media = vi.spyOn(window, "matchMedia").mockImplementation(query => ({
+      matches: compact && query === "(max-width: 760px)", media: query,
+      onchange: null, addEventListener: vi.fn(), removeEventListener: vi.fn(),
+      addListener: vi.fn(), removeListener: vi.fn(), dispatchEvent: () => false,
+    }));
+    try {
+      populate();
+      useCockpit.getState().setUnsavedProjectDraft("retained-definition", {
+        projectId: "p-1", label: "Definition", lens: "discover", retained: true,
+      });
+      render(<AppShell />);
+      const projects = screen.getByRole("button", { name: "Projects" });
+      if (compact) await userEvent.click(projects);
+      const allProjects = screen.getByRole("button", { name: "All projects" });
+      await userEvent.click(allProjects);
+      const dialog = await screen.findByRole("dialog", { name: "Keep your changes?" });
+      await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+      expect(useCockpit.getState().selection.projectId).toBe("p-1");
+      if (close === "Escape") await userEvent.keyboard("{Escape}");
+      else await userEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      await waitFor(() => expect(document.activeElement).toBe(compact ? projects : allProjects));
+      expect(document.activeElement?.closest("[inert]")).toBeNull();
+      expect(useCockpit.getState().selection.projectId).toBe("p-1");
+      expect(useCockpit.getState().pendingNavigation).toBeNull();
+      expect(useCockpit.getState().unsavedProjectDrafts["retained-definition"]).toEqual({
+        projectId: "p-1", label: "Definition", lens: "discover", retained: true,
+      });
+    } finally { media.mockRestore(); }
+  });
+
+  it.each(["disabled", "inert", "hidden"])("refuses an unusable compact focus fallback (%s)", async unavailable => {
+    const media = vi.spyOn(window, "matchMedia").mockImplementation(query => ({
+      matches: query === "(max-width: 760px)", media: query,
+      onchange: null, addEventListener: vi.fn(), removeEventListener: vi.fn(),
+      addListener: vi.fn(), removeListener: vi.fn(), dispatchEvent: () => false,
+    }));
+    try {
+      populate();
+      useCockpit.getState().setUnsavedProjectDraft("retained-definition", {
+        projectId: "p-1", label: "Definition", lens: "discover", retained: true,
+      });
+      render(<AppShell />);
+      const projects = screen.getByRole("button", { name: "Projects" });
+      await userEvent.click(projects);
+      await userEvent.click(screen.getByRole("button", { name: "All projects" }));
+      const dialog = await screen.findByRole("dialog", { name: "Keep your changes?" });
+      await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+      projects.setAttribute(unavailable, "");
+      const fallbackFocus = vi.spyOn(projects, "focus");
+      await userEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      // Radix close autofocus is deferred until its focus trap is removed.
+      await new Promise(resolve => setTimeout(resolve, 30));
+      expect(fallbackFocus).not.toHaveBeenCalled();
+      expect(useCockpit.getState().selection.projectId).toBe("p-1");
+      expect(useCockpit.getState().unsavedProjectDrafts["retained-definition"]?.retained).toBe(true);
+    } finally { media.mockRestore(); }
   });
 });

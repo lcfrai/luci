@@ -1,0 +1,191 @@
+diff --git a/desktop/src/components/journey/ProjectSwarm.tsx b/desktop/src/components/journey/ProjectSwarm.tsx
+--- a/desktop/src/components/journey/ProjectSwarm.tsx
++++ b/desktop/src/components/journey/ProjectSwarm.tsx
+@@ -63,6 +63,7 @@
+   if (operation?.recovery?.state === 'fenced') return 'Old launch blocked · capacity release pending';
+   if (operation?.recovery?.state === 'finalized') return 'Attempt retired · output retained';
+   if (runOperationNeedsRecovery(operation)) return 'Recovery pending · finish recovery to release capacity';
++  if (operation?.startFailure && operation.status === 'cancelled') return 'Attempt retained';
+   if (operation?.allocation === 'unknown') return 'Workspace outcome unconfirmed';
+   if (operation?.allocation === 'allocating') return 'Preparing workspace';
+   if (startAcknowledged && operation && ['reserved', 'dispatching', 'unknown'].includes(operation.status)) return 'Started · current status unconfirmed';
+@@ -101,6 +102,7 @@
+   const [queueConsent, setQueueConsent] = useState<string | null>(null);
+   const queueSignature = useRef('');
+   const queueRegion = useRef<HTMLDivElement>(null);
++  const queueReviewButton = useRef<HTMLButtonElement>(null);
+   const [queueAttention, setQueueAttention] = useState(0);
+   const [error, setError] = useState(''), [notice, setNotice] = useState('');
+   const [readNotice, setReadNotice] = useState(''), [readCycle, setReadCycle] = useState(0);
+@@ -372,6 +374,11 @@
+       throw cause;
+     }
+   }
++  function goToQueueReview() {
++    queueRegion.current?.scrollIntoView?.({block:'nearest'});
++    const control = queueReviewButton.current;
++    (control && !control.disabled ? control : queueRegion.current)?.focus({preventScroll:true});
++  }
+   return <section className="project-swarm" aria-label="Agent team">
+     <div className="project-swarm-heading"><h3>Agent team</h3>{run.swarm && <span>{tasks.filter(integrated).length} of {tasks.length} integrated</span>}</div>
+     {error && <p role="alert" className="journey-error">{error}</p>}
+@@ -387,7 +394,7 @@
+ 
+       <div className="project-swarm-summary" aria-label="Task progress">
+         <span>{reviewTasks.length} awaiting review · {ready.length} ready to start</span>
+-        <Button variant="tertiary" onClick={() => { queueRegion.current?.scrollIntoView?.({block:'nearest'}); queueRegion.current?.focus({preventScroll:true}); }}>Background queue{queueAttention ? ` · ${queueAttention} need attention` : ''}</Button>
++        <Button variant="tertiary" onClick={goToQueueReview}>Background queue{queueAttention ? ` · ${queueAttention} need attention` : ''}</Button>
+       </div>
+       {readNotice && <p role="status" className="journey-warning">{readNotice}</p>}
+       <div className="journey-actions">
+@@ -404,6 +411,7 @@
+         const resumable = operation?.status === 'reserved' && operation.allocation === 'ready' && !startAcknowledged;
+         const queuedReservation = !!operation && resumable && queuedOperations.includes(operation.id);
+         const retryable = operation && !operation.startFailure && !runOperationNeedsRecovery(operation) && ['failed', 'cancelled'].includes(operation.status);
++        const retiredStartFailure = operation?.status === 'cancelled' && !runOperationNeedsRecovery(operation) && !task.integration ? operation.startFailure : undefined;
+         const retained = run.operations.filter(item => item.taskId === task.id && item.id !== task.operationId);
+         const earlierQuestions = retained.reduce((count, item) => count + unansweredQuestions(item), 0);
+         return <li key={task.id} data-review-task={reviewTasks.some(item => item.id === task.id) || undefined} ref={element => { if (element) taskRows.current.set(task.id, element); else taskRows.current.delete(task.id); }}>
+@@ -413,6 +421,7 @@
+           {queuedReservation && <p>This reservation belongs to the background queue. Use its queue controls; if it cannot continue, retain its output and authorize a fresh attempt.</p>}
+           {operation?.message && !operation.startFailure && !integrated(task) && <p className="journey-muted">{operation.message}</p>}
+           {operation?.startFailure && operation.status === 'failed' && <p className="journey-warning">{operation.startFailure.message} Resolve the cause, then retain this attempt and review a new start. No replacement was started.</p>}
++          {retiredStartFailure && <><p className="journey-muted">Previous start: {retiredStartFailure.message}</p><p role="status">This attempt is retained. In Background queue, inspect existing work or choose Queue reviewed tasks to review a new start. Retiring this attempt did not start another agent.</p></>}
+           {operation?.recovery && <p>{launchRecoveryStatus(operation)}</p>}
+           {runOperationNeedsReview(operation) && !integrated(task) && !operation?.message && <p>Review the retained changes before integration, then verify the combined build.</p>}
+           {unansweredQuestions(operation) > 0 && <p className="journey-warning">{unansweredQuestions(operation)} agent-reported {unansweredQuestions(operation) === 1 ? 'question needs' : 'questions need'} an answer. Open Task result and questions to review their impact; answering does not start an agent.</p>}
+@@ -433,6 +442,7 @@
+             {retained.map(item => <p key={item.id}>Retained attempt {item.attempt} · {item.status} · {item.worktreeId}. {unansweredQuestions(item) > 0 && <strong>{unansweredQuestions(item)} agent-reported {unansweredQuestions(item) === 1 ? 'question remains' : 'questions remain'} unanswered. </strong>}<Button variant="tertiary" disabled={busy} onClick={() => setWorkspace(item)}>Inspect retained attempt {item.attempt}</Button> {!item.startFailure && <Button variant="tertiary" disabled={busy || !projectAccess.canRead} onClick={() => setHandoff({projectId: run.projectId, runId: run.id, operationId: item.id, childId: item.childId})}>Result and questions for attempt {item.attempt}</Button>}</p>)}
+           </details>
+           <div className="journey-actions">
++            {retiredStartFailure && <Button variant="secondary" disabled={busy || !projectAccess.canRead} onClick={goToQueueReview}>Go to queue review</Button>}
+             {!task.integration && (!operation || resumable || retryable) && <Button data-task-start variant="secondary" disabled={!canEdit || !canExecute || busy || blocked || !capability.allowed || !!reason || uncertainStart || queuedTasks.includes(task.id) || queuedReservation} onClick={() => void operate('Starting task', epoch => startTask(run, task, epoch).then(() => undefined))}>{resumable ? 'Continue reserved task' : retryable ? 'Retry in a new workspace' : 'Start task'}</Button>}
+             {operation && !operation.startFailure && !inFlight(operation) && !task.integration && <Button variant="secondary" disabled={busy} onClick={event => { const opener = event.currentTarget; void operate('Reading task changes', epoch => readReview(task, epoch, opener), 'read'); }}>Review task changes</Button>}
+             {operation && !operation.startFailure && <Button variant="tertiary" disabled={busy || !projectAccess.canRead} onClick={() => setHandoff({projectId: run.projectId, runId: run.id, operationId: operation.id, childId: operation.childId})}>Task result and questions</Button>}
+@@ -454,8 +464,9 @@
+           </details>}
+         </li>;
+       })}</ol>
+-      <div ref={queueRegion} tabIndex={-1} className="project-swarm-queue-region">
++      <div ref={queueRegion} tabIndex={-1} role="region" aria-label="Background queue review" className="project-swarm-queue-region">
+       <SwarmRunQueue key={`${run.projectId}:${run.id}`} run={run} canEdit={canEdit} canExecute={canExecute} busy={busy} onBusy={onBusy} onQueueChange={queueChanged}
++        reviewButtonRef={queueReviewButton}
+         onConsentChange={open => setQueueConsent(previous => open ? queueScope : previous === queueScope ? null : previous)} />
+       </div>
+ 
+diff --git a/desktop/src/components/journey/SwarmRunQueue.tsx b/desktop/src/components/journey/SwarmRunQueue.tsx
+--- a/desktop/src/components/journey/SwarmRunQueue.tsx
++++ b/desktop/src/components/journey/SwarmRunQueue.tsx
+@@ -1,4 +1,4 @@
+-import { useEffect, useRef, useState } from 'react';
++import { useEffect, useRef, useState, type Ref } from 'react';
+ import { errorText } from '../../api/product';
+ import { runOperationNeedsRecovery, type ProjectRun } from '../../api/projectRuns';
+ import { swarmQueueApi, type ProjectSwarmQueue, type SwarmQueueItem, type QueuePriority } from '../../api/swarmQueue';
+@@ -13,6 +13,7 @@
+   onBusy(label: string): void;
+   onQueueChange(queue: ProjectSwarmQueue): void;
+   onConsentChange?(open: boolean): void;
++  reviewButtonRef?: Ref<HTMLButtonElement>;
+ }
+ /** Queue consent names saved task inputs. A read, tab switch or retrying a read never enqueues work. */
+ export function SwarmRunQueue(props: Props) {
+@@ -99,7 +100,7 @@
+   }
+   return <section className="swarm-run-queue" aria-label="Background task queue">
+     <div className="project-swarm-heading"><h4>Background queue</h4>
+-      <Button disabled={!queue || !canEdit || !canExecute || busy || unconfirmed || sourceBlocked || !capability.allowed || !candidates.length} onClick={() => { setConfirm(true); setNotice(''); }}>Queue reviewed tasks{candidates.length ? ` (${candidates.length})` : ''}</Button>
++      <Button ref={props.reviewButtonRef} disabled={!queue || !canEdit || !canExecute || busy || unconfirmed || sourceBlocked || !capability.allowed || !candidates.length} onClick={() => { setConfirm(true); setNotice(''); }}>Queue reviewed tasks{candidates.length ? ` (${candidates.length})` : ''}</Button>
+     </div>
+     {!capability.allowed && <p className="journey-warning">{capability.reason}</p>}
+     {error && <p role="status" className="journey-warning">Queue update unavailable: {error}</p>}
+diff --git a/desktop/src/components/journey/ProjectSwarmQueue.test.tsx b/desktop/src/components/journey/ProjectSwarmQueue.test.tsx
+--- a/desktop/src/components/journey/ProjectSwarmQueue.test.tsx
++++ b/desktop/src/components/journey/ProjectSwarmQueue.test.tsx
+@@ -5,6 +5,7 @@
+ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+ import { projectRunsApi, type ProjectRun } from '../../api/projectRuns';
+ import { projectSwarmApi } from '../../api/projectSwarm';
++import { api } from '../../api';
+ import { swarmQueueApi } from '../../api/swarmQueue';
+ import { swarmHarnessFixture, swarmQueueFixture, swarmQueueItem, swarmRunFixture } from '../../test/swarmFixtures';
+ import { resetCockpit, useCockpit } from '../../store/store';
+@@ -83,3 +84,78 @@
+     expect(get).toHaveBeenCalledTimes(2);expect(screen.getByText('Awaiting review')).not.toBeNull();
+   } finally {cleanup();vi.useRealTimers();}
+ });
++
++function refusedStart(): ProjectRun {
++  const base = swarmRunFixture();
++  const operation = {id:'op-refused',kind:'session',taskId:'a',childId:'child-refused',worktreeId:'isolated-refused',attempt:1,status:'failed',allocation:'ready' as const,requestDigest:'digest',createdAt:base.createdAt,updatedAt:base.updatedAt,
++    startFailure:{stage:'admission' as const,reasonCode:'cpu_pressure',message:'Measured CPU pressure prevented final admission. No sandbox allocation was attempted. Inspect this retained attempt before explicitly retrying.'}};
++  return {...base,state:'blocked',operations:[operation],input:{...base.input,implementation:{...base.input.implementation,taskIds:['a'],taskTitles:['Build a']}},swarm:{...base.swarm!,tasks:[{...base.swarm!.tasks[0],operationId:operation.id}]}};
++}
++
++it('guides a confirmed retired refusal to queue review without starting work or bypassing separate consent', async () => {
++  const initial = refusedStart(), diagnosis = initial.operations[0].startFailure;
++  let current: ProjectRun = initial;
++  const failed = swarmQueueItem({state:'failed',operationId:'op-refused',childId:'child-refused',reasonCode:'cpu_pressure',reason:diagnosis!.message});
++  vi.spyOn(swarmQueueApi,'get').mockResolvedValue(swarmQueueFixture([failed]));
++  vi.spyOn(projectRunsApi,'get').mockImplementation(async () => current);
++  const abandon = vi.spyOn(projectSwarmApi,'abandon').mockImplementation(async () => {
++    current = {...initial,revision:2,operations:[{...initial.operations[0],status:'cancelled'}]};return current;
++  });
++  const queued = swarmQueueItem({id:'q-retry'}), enqueue = vi.spyOn(swarmQueueApi,'enqueueMany').mockResolvedValue({items:[queued],queue:swarmQueueFixture([failed,queued])});
++  const reserve = vi.spyOn(projectSwarmApi,'reserve'), create = vi.spyOn(api,'createSession');
++  function Selected() { const [value,setValue] = useState(initial); return <ProjectSwarm run={value} canEdit canExecute busy={false} onBusy={vi.fn()} onUpdate={setValue} onOpenSession={vi.fn()} />; }
++  render(<Selected />);
++  expect(screen.queryByRole('button',{name:'Go to queue review'})).toBeNull();
++  await openTaskActions();
++  await userEvent.click(screen.getByRole('button',{name:'Retain changes and retry'}));
++  await userEvent.click(screen.getByRole('button',{name:'Retain output and allow retry'}));
++  const next = await screen.findByRole('button',{name:'Go to queue review'});
++  const review = screen.getByRole('button',{name:'Queue reviewed tasks (1)'});
++  await waitFor(() => expect(review).toHaveProperty('disabled',false));
++  expect(screen.getByText('Previous start: '+diagnosis!.message)).not.toBeNull();
++  expect(screen.getByText(/Retiring this attempt did not start another agent/)).not.toBeNull();
++  expect(screen.queryByRole('button',{name:'Retry in a new workspace'})).toBeNull();
++  await userEvent.click(next);
++  expect(document.activeElement).toBe(review);expect(screen.queryByRole('dialog')).toBeNull();
++  expect(enqueue).not.toHaveBeenCalled();expect(reserve).not.toHaveBeenCalled();expect(create).not.toHaveBeenCalled();
++  await userEvent.click(review);
++  const consent = screen.getByRole('dialog',{name:'Queue reviewed work'});
++  expect(within(consent).getByText('Build a')).not.toBeNull();expect(enqueue).not.toHaveBeenCalled();
++  await userEvent.click(within(consent).getByRole('button',{name:'Authorize queued tasks'}));
++  await waitFor(() => expect(enqueue).toHaveBeenCalledOnce());
++  expect(enqueue).toHaveBeenCalledWith('p-1','run-1',['a'],2,expect.any(String),'normal');
++  expect(abandon).toHaveBeenCalledOnce();expect(abandon).toHaveBeenCalledWith('p-1','run-1','a',1);
++  expect(current.operations[0].startFailure).toEqual(diagnosis);expect(current.operations).toHaveLength(1);
++  expect(reserve).not.toHaveBeenCalled();expect(create).not.toHaveBeenCalled();
++});
++
++it.each(['queued','execute-revoked'] as const)('keeps retired-refusal navigation informative when queue authorization is disabled by %s', async reason => {
++  const initial = refusedStart(), retired = {...initial,revision:2,operations:[{...initial.operations[0],status:'cancelled'}]};
++  vi.spyOn(swarmQueueApi,'get').mockResolvedValue(swarmQueueFixture(reason==='queued'?[swarmQueueItem({id:'q-new-attempt'})]:[]));
++  const enqueue = vi.spyOn(swarmQueueApi,'enqueueMany'), reserve = vi.spyOn(projectSwarmApi,'reserve'), create = vi.spyOn(api,'createSession');
++  render(<ProjectSwarm run={retired} canEdit canExecute={reason!=='execute-revoked'} busy={false} onBusy={vi.fn()} onUpdate={vi.fn()} onOpenSession={vi.fn()} />);
++  const review = await screen.findByRole('button',{name:/^Queue reviewed tasks/});
++  if (reason==='queued') await waitFor(() => expect(screen.getByRole('button',{name:'Queue reviewed tasks'})).toBe(review));
++  await waitFor(() => expect(review).toHaveProperty('disabled',true));
++  await userEvent.click(screen.getByRole('button',{name:'Go to queue review'}));
++  expect(document.activeElement).toBe(screen.getByRole('region',{name:'Background queue review'}));
++  expect(screen.queryByRole('dialog')).toBeNull();expect(enqueue).not.toHaveBeenCalled();expect(reserve).not.toHaveBeenCalled();expect(create).not.toHaveBeenCalled();
++  expect(screen.getByText('Previous start: '+initial.operations[0].startFailure!.message)).not.toBeNull();
++});
++
++it('drops retired-refusal guidance on a project switch and never carries its navigation consent into the new project', async () => {
++  const initial = refusedStart(), retired = {...initial,revision:2,operations:[{...initial.operations[0],status:'cancelled'}]};
++  const next = {...swarmRunFixture(),id:'run-next',projectId:'p-next'};
++  next.input = {...next.input,implementation:{...next.input.implementation,projectId:next.projectId}};
++  vi.spyOn(swarmQueueApi,'get').mockResolvedValue(swarmQueueFixture());
++  const enqueue = vi.spyOn(swarmQueueApi,'enqueueMany');
++  const props = {canEdit:true,canExecute:true,busy:false,onBusy:vi.fn(),onUpdate:vi.fn(),onOpenSession:vi.fn()};
++  const view = render(<ProjectSwarm {...props} run={retired} />);
++  const oldAction = screen.getByRole('button',{name:'Go to queue review'});
++  view.rerender(<ProjectSwarm {...props} run={next} />);
++  expect(screen.queryByRole('button',{name:'Go to queue review'})).toBeNull();
++  expect(screen.queryByText('Previous start: '+initial.operations[0].startFailure!.message)).toBeNull();
++  fireEvent.click(oldAction);
++  expect(screen.queryByRole('dialog')).toBeNull();expect(enqueue).not.toHaveBeenCalled();
++  expect(document.activeElement).not.toBe(screen.getByRole('region',{name:'Background queue review'}));
++});

@@ -1,0 +1,80 @@
+[
+  {
+    "repositoryPath": "scripts/acceptance/sustained-four-project/sustained.mjs",
+    "sha256": "4dd9106d463e46cbcd6f038438959879ac16741670e49b0d01decf267566c911",
+    "bytes": 99856,
+    "member": "selected-sources/4dd9106d463e46cbcd6f038438959879ac16741670e49b0d01decf267566c911/sustained.mjs"
+  },
+  {
+    "repositoryPath": "scripts/acceptance/sustained-four-project/phone-overview.browser.mjs",
+    "sha256": "fb48cce1941ca613a14ec30fb78973bc73536bb444695eb27e99a10c5f4def0c",
+    "bytes": 13989,
+    "member": "selected-sources/fb48cce1941ca613a14ec30fb78973bc73536bb444695eb27e99a10c5f4def0c/phone-overview.browser.mjs"
+  },
+  {
+    "repositoryPath": "scripts/acceptance/sustained-four-project/phone-overview.fixture.tsx",
+    "sha256": "7fb426e90a4204cea384d2ae8498f9e9bf3da5786668db8d1c27312dc7529183",
+    "bytes": 2572,
+    "member": "selected-sources/7fb426e90a4204cea384d2ae8498f9e9bf3da5786668db8d1c27312dc7529183/phone-overview.fixture.tsx"
+  },
+  {
+    "repositoryPath": "desktop/src/components/AppShell.tsx",
+    "sha256": "b3aaf4ce4302109c2c10b023ecbff249b96655955f4d29bf0bb4834b4fc8fcd4",
+    "bytes": 6381,
+    "member": "selected-sources/b3aaf4ce4302109c2c10b023ecbff249b96655955f4d29bf0bb4834b4fc8fcd4/AppShell.tsx"
+  },
+  {
+    "repositoryPath": "desktop/src/components/shell.css",
+    "sha256": "1cfd4cc0fc3ca1321a5ee9721d0d99f29bccfd2b22e569cbf6d58b0827af7ecb",
+    "bytes": 5942,
+    "member": "selected-sources/1cfd4cc0fc3ca1321a5ee9721d0d99f29bccfd2b22e569cbf6d58b0827af7ecb/shell.css"
+  },
+  {
+    "repositoryPath": "desktop/src/components/topbar/TopBar.tsx",
+    "sha256": "be050d87d96b76051f9d1836f603645bdd9da8b1116b0008773fccbe10619c7d",
+    "bytes": 3340,
+    "member": "selected-sources/be050d87d96b76051f9d1836f603645bdd9da8b1116b0008773fccbe10619c7d/TopBar.tsx"
+  },
+  {
+    "repositoryPath": "desktop/src/components/topbar/topbar.css",
+    "sha256": "5689b43729edd7a55871ef5f1933532745d925a0e1473080c7355970c9f669c6",
+    "bytes": 4218,
+    "member": "selected-sources/5689b43729edd7a55871ef5f1933532745d925a0e1473080c7355970c9f669c6/topbar.css"
+  },
+  {
+    "repositoryPath": "desktop/src/components/rail/Rail.tsx",
+    "sha256": "8fb76ca0162eebfe29c3b589b07f5c6e19db8fe55f508a96354f37a79ea6b6e8",
+    "bytes": 8508,
+    "member": "selected-sources/8fb76ca0162eebfe29c3b589b07f5c6e19db8fe55f508a96354f37a79ea6b6e8/Rail.tsx"
+  },
+  {
+    "repositoryPath": "desktop/src/components/rail/rail.css",
+    "sha256": "b318f96c825f8108409fe0d6bffd1cbde37a513c9db29a4ec54ef4007eaf42fb",
+    "bytes": 5608,
+    "member": "selected-sources/b318f96c825f8108409fe0d6bffd1cbde37a513c9db29a4ec54ef4007eaf42fb/rail.css"
+  },
+  {
+    "repositoryPath": "desktop/src/components/definition/DefinitionWorkspace.tsx",
+    "sha256": "fe63aa3dcda3c5896ab13140ff2db74c492eda0e068a415cc560b7ec7777cfc7",
+    "bytes": 31738,
+    "member": "selected-sources/fe63aa3dcda3c5896ab13140ff2db74c492eda0e068a415cc560b7ec7777cfc7/DefinitionWorkspace.tsx"
+  },
+  {
+    "repositoryPath": "desktop/src/components/common/DraftNavigationDialog.tsx",
+    "sha256": "4867980dd1e698dce68b109e6789eaa3943105230175a03c28cc6cba5c8897b9",
+    "bytes": 1806,
+    "member": "selected-sources/4867980dd1e698dce68b109e6789eaa3943105230175a03c28cc6cba5c8897b9/DraftNavigationDialog.tsx"
+  },
+  {
+    "repositoryPath": "desktop/src/components/projects/ProjectOverviewBoard.tsx",
+    "sha256": "380db2996d677f099da77e2702fabfe5391e4dd226404513db1e58546a59b48f",
+    "bytes": 23198,
+    "member": "selected-sources/380db2996d677f099da77e2702fabfe5391e4dd226404513db1e58546a59b48f/ProjectOverviewBoard.tsx"
+  },
+  {
+    "repositoryPath": "desktop/src/components/projects/project-overview.css",
+    "sha256": "878bd60c9a1df8068121e0cdce10ee96524013973f5fd8b72e2e0c05f76750e6",
+    "bytes": 7227,
+    "member": "selected-sources/878bd60c9a1df8068121e0cdce10ee96524013973f5fd8b72e2e0c05f76750e6/project-overview.css"
+  }
+]

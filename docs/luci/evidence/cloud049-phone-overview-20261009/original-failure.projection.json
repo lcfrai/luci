@@ -1,0 +1,27 @@
+{
+  "originalResultSHA256": "5e008e470f8ed92b061454551c4c640b158888c13998be8619573d2d678cf386",
+  "originalResultBytes": 38486411,
+  "scope": "Relevant original final-phone failure projection only; private full fixture is preserved separately. No upgrade to a complete functional or responsiveness pass.",
+  "selected": {
+    "passed": false,
+    "failedStage": "settle",
+    "failure": "locator.click: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'All projects', exact: true })\u001b[22m\n\n    at /workspace/luci/scripts/acceptance/sustained-four-project/sustained.mjs:667:233\n    at async Object.run (/workspace/luci/scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs:29:19)\n    at async file:///workspace/luci/scripts/acceptance/sustained-four-project/sustained.mjs:617:2",
+    "latencyTargetsMet": false,
+    "latencyTargets": {
+      "measurement": "Full browser automation All projects\u2192open saved Define context\u2192two frames; input command\u2192expected field\u2192two frames; not physical display/input latency",
+      "projectSwitchP95Ms": 300,
+      "inputP95Ms": 100,
+      "p99Ms": 1000,
+      "minimumSamples": {
+        "loadedSwitches": 200,
+        "loadedInputs": 400,
+        "idleSwitches": 100,
+        "idleInputs": 200,
+        "settledSwitches": 100,
+        "settledInputs": 200
+      }
+    }
+  },
+  "naturalCompletionCount": 5,
+  "actualTaskResultCount": 5
+}

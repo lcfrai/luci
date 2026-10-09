@@ -1,0 +1,102 @@
+{
+  "files": [
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud051-final-typecheck-attempt2/changed-source/desktop/src/components/AppShell.test.tsx",
+      "publishedPath": "changed-source/desktop/src/components/AppShell.test.tsx",
+      "originalBytes": 18210,
+      "originalSHA256": "c2d8aa217b1fd9ebcb8139eaec422de5ee606b54e4cce691e0fd22ded6b9f60b",
+      "publishedBytes": 18210,
+      "publishedSHA256": "c2d8aa217b1fd9ebcb8139eaec422de5ee606b54e4cce691e0fd22ded6b9f60b",
+      "transformation": "none"
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud051-final-typecheck-attempt2/changed-source/desktop/src/components/common/DraftNavigationDialog.tsx",
+      "publishedPath": "changed-source/desktop/src/components/common/DraftNavigationDialog.tsx",
+      "originalBytes": 2809,
+      "originalSHA256": "8b15f26f9a21cc33b6978d9f8bbf8e7837689e51d9e296d212201e7e28c2369f",
+      "publishedBytes": 2809,
+      "publishedSHA256": "8b15f26f9a21cc33b6978d9f8bbf8e7837689e51d9e296d212201e7e28c2369f",
+      "transformation": "none"
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud051-final-typecheck-attempt2/dependencies-after.json.gz",
+      "publishedPath": "dependencies-after.json.gz",
+      "originalBytes": 891231,
+      "originalSHA256": "ce05c088c4d9f301270195377d7080647c7023fb68be9c79a371e0ed93d556cb",
+      "publishedBytes": 891231,
+      "publishedSHA256": "ce05c088c4d9f301270195377d7080647c7023fb68be9c79a371e0ed93d556cb",
+      "transformation": "none",
+      "decodedBytes": 3660772,
+      "decodedSHA256": "e165cc41ccc62681c7389ef123ac484bdf330fff9c4b5b4ee6ed189316318bc3"
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud051-final-typecheck-attempt2/dependencies-before.json.gz",
+      "publishedPath": "dependencies-before.json.gz",
+      "originalBytes": 891231,
+      "originalSHA256": "ce05c088c4d9f301270195377d7080647c7023fb68be9c79a371e0ed93d556cb",
+      "publishedBytes": 891231,
+      "publishedSHA256": "ce05c088c4d9f301270195377d7080647c7023fb68be9c79a371e0ed93d556cb",
+      "transformation": "none",
+      "decodedBytes": 3660772,
+      "decodedSHA256": "e165cc41ccc62681c7389ef123ac484bdf330fff9c4b5b4ee6ed189316318bc3"
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud051-final-typecheck-attempt2/repository-after.json.gz",
+      "publishedPath": "repository-after.json.gz",
+      "originalBytes": 61629,
+      "originalSHA256": "0d62c5521add893989b7bac9fa9762f187e4a01510d69dbf2508286428a177e6",
+      "publishedBytes": 61629,
+      "publishedSHA256": "0d62c5521add893989b7bac9fa9762f187e4a01510d69dbf2508286428a177e6",
+      "transformation": "none",
+      "decodedBytes": 207025,
+      "decodedSHA256": "09b0ff6782932d9bd81d4055d8a83c9bf7724f486ae8eb6e765f08b5ab4a5a36"
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud051-final-typecheck-attempt2/repository-before.json.gz",
+      "publishedPath": "repository-before.json.gz",
+      "originalBytes": 61629,
+      "originalSHA256": "0d62c5521add893989b7bac9fa9762f187e4a01510d69dbf2508286428a177e6",
+      "publishedBytes": 61629,
+      "publishedSHA256": "0d62c5521add893989b7bac9fa9762f187e4a01510d69dbf2508286428a177e6",
+      "transformation": "none",
+      "decodedBytes": 207025,
+      "decodedSHA256": "09b0ff6782932d9bd81d4055d8a83c9bf7724f486ae8eb6e765f08b5ab4a5a36"
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud051-final-typecheck-attempt2/result.json",
+      "publishedPath": "result.json",
+      "originalBytes": 733,
+      "originalSHA256": "6872793ff3f6dc4da180ea402e24f8a82c80b95141deb384d96e16fc1e90a7b5",
+      "publishedBytes": 733,
+      "publishedSHA256": "6872793ff3f6dc4da180ea402e24f8a82c80b95141deb384d96e16fc1e90a7b5",
+      "transformation": "none"
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud051-final-typecheck-attempt2/typecheck.stderr.log",
+      "publishedPath": "typecheck.stderr.log",
+      "originalBytes": 0,
+      "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publishedBytes": 0,
+      "publishedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "transformation": "none"
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/cloud051-final-typecheck-attempt2/typecheck.stdout.log",
+      "publishedPath": "typecheck.stdout.log",
+      "originalBytes": 54,
+      "originalSHA256": "6d51e3ec9a9d283eee096e5e9403c5d963c9468e9756fd61f3e9e0d3df1bde71",
+      "publishedBytes": 54,
+      "publishedSHA256": "6d51e3ec9a9d283eee096e5e9403c5d963c9468e9756fd61f3e9e0d3df1bde71",
+      "transformation": "none"
+    },
+    {
+      "originalTaskPath": "/workspace/.luci-tools/run-cloud051-final-typecheck-attempt2.py",
+      "publishedPath": "run-cloud051-final-typecheck-attempt2.py",
+      "originalBytes": 2754,
+      "originalSHA256": "9518b57da9a58006250a5e38165dc5fada4d49925ad6aa09deb0496f8e1cad8f",
+      "publishedBytes": 2754,
+      "publishedSHA256": "9518b57da9a58006250a5e38165dc5fada4d49925ad6aa09deb0496f8e1cad8f",
+      "transformation": "none"
+    }
+  ]
+}

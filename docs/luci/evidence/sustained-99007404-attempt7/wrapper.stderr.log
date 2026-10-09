@@ -1,0 +1,7 @@
+locator.click: Timeout 15000ms exceeded.
+Call log:
+[2m  - waiting for getByRole('button', { name: 'All projects', exact: true })[22m
+
+    at /workspace/luci/scripts/acceptance/sustained-four-project/sustained.mjs:667:233
+    at async Object.run (/workspace/luci/scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs:29:19)
+    at async file:///workspace/luci/scripts/acceptance/sustained-four-project/sustained.mjs:617:2

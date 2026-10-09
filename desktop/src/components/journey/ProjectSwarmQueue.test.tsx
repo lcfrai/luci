@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { projectRunsApi, type ProjectRun } from '../../api/projectRuns';
 import { projectSwarmApi } from '../../api/projectSwarm';
+import { api } from '../../api';
 import { swarmQueueApi } from '../../api/swarmQueue';
 import { swarmHarnessFixture, swarmQueueFixture, swarmQueueItem, swarmRunFixture } from '../../test/swarmFixtures';
 import { resetCockpit, useCockpit } from '../../store/store';
@@ -82,4 +83,79 @@ it('keeps exact queue consent open while a manual task completes, then refreshes
     await act(async()=>vi.advanceTimersByTimeAsync(5000));
     expect(get).toHaveBeenCalledTimes(2);expect(screen.getByText('Awaiting review')).not.toBeNull();
   } finally {cleanup();vi.useRealTimers();}
+});
+
+function refusedStart(): ProjectRun {
+  const base = swarmRunFixture();
+  const operation = {id:'op-refused',kind:'session',taskId:'a',childId:'child-refused',worktreeId:'isolated-refused',attempt:1,status:'failed',allocation:'ready' as const,requestDigest:'digest',createdAt:base.createdAt,updatedAt:base.updatedAt,
+    startFailure:{stage:'admission' as const,reasonCode:'cpu_pressure',message:'Measured CPU pressure prevented final admission. No sandbox allocation was attempted. Inspect this retained attempt before explicitly retrying.'}};
+  return {...base,state:'blocked',operations:[operation],input:{...base.input,implementation:{...base.input.implementation,taskIds:['a'],taskTitles:['Build a']}},swarm:{...base.swarm!,tasks:[{...base.swarm!.tasks[0],operationId:operation.id}]}};
+}
+
+it('guides a confirmed retired refusal to queue review without starting work or bypassing separate consent', async () => {
+  const initial = refusedStart(), diagnosis = initial.operations[0].startFailure;
+  let current: ProjectRun = initial;
+  const failed = swarmQueueItem({state:'failed',operationId:'op-refused',childId:'child-refused',reasonCode:'cpu_pressure',reason:diagnosis!.message});
+  vi.spyOn(swarmQueueApi,'get').mockResolvedValue(swarmQueueFixture([failed]));
+  vi.spyOn(projectRunsApi,'get').mockImplementation(async () => current);
+  const abandon = vi.spyOn(projectSwarmApi,'abandon').mockImplementation(async () => {
+    current = {...initial,revision:2,operations:[{...initial.operations[0],status:'cancelled'}]};return current;
+  });
+  const queued = swarmQueueItem({id:'q-retry'}), enqueue = vi.spyOn(swarmQueueApi,'enqueueMany').mockResolvedValue({items:[queued],queue:swarmQueueFixture([failed,queued])});
+  const reserve = vi.spyOn(projectSwarmApi,'reserve'), create = vi.spyOn(api,'createSession');
+  function Selected() { const [value,setValue] = useState(initial); return <ProjectSwarm run={value} canEdit canExecute busy={false} onBusy={vi.fn()} onUpdate={setValue} onOpenSession={vi.fn()} />; }
+  render(<Selected />);
+  expect(screen.queryByRole('button',{name:'Go to queue review'})).toBeNull();
+  await openTaskActions();
+  await userEvent.click(screen.getByRole('button',{name:'Retain changes and retry'}));
+  await userEvent.click(screen.getByRole('button',{name:'Retain output and allow retry'}));
+  const next = await screen.findByRole('button',{name:'Go to queue review'});
+  const review = screen.getByRole('button',{name:'Queue reviewed tasks (1)'});
+  await waitFor(() => expect(review).toHaveProperty('disabled',false));
+  expect(screen.getByText('Previous start: '+diagnosis!.message)).not.toBeNull();
+  expect(screen.getByText(/Retiring this attempt did not start another agent/)).not.toBeNull();
+  expect(screen.queryByRole('button',{name:'Retry in a new workspace'})).toBeNull();
+  await userEvent.click(next);
+  expect(document.activeElement).toBe(review);expect(screen.queryByRole('dialog')).toBeNull();
+  expect(enqueue).not.toHaveBeenCalled();expect(reserve).not.toHaveBeenCalled();expect(create).not.toHaveBeenCalled();
+  await userEvent.click(review);
+  const consent = screen.getByRole('dialog',{name:'Queue reviewed work'});
+  expect(within(consent).getByText('Build a')).not.toBeNull();expect(enqueue).not.toHaveBeenCalled();
+  await userEvent.click(within(consent).getByRole('button',{name:'Authorize queued tasks'}));
+  await waitFor(() => expect(enqueue).toHaveBeenCalledOnce());
+  expect(enqueue).toHaveBeenCalledWith('p-1','run-1',['a'],2,expect.any(String),'normal');
+  expect(abandon).toHaveBeenCalledOnce();expect(abandon).toHaveBeenCalledWith('p-1','run-1','a',1);
+  expect(current.operations[0].startFailure).toEqual(diagnosis);expect(current.operations).toHaveLength(1);
+  expect(reserve).not.toHaveBeenCalled();expect(create).not.toHaveBeenCalled();
+});
+
+it.each(['queued','execute-revoked'] as const)('keeps retired-refusal navigation informative when queue authorization is disabled by %s', async reason => {
+  const initial = refusedStart(), retired = {...initial,revision:2,operations:[{...initial.operations[0],status:'cancelled'}]};
+  vi.spyOn(swarmQueueApi,'get').mockResolvedValue(swarmQueueFixture(reason==='queued'?[swarmQueueItem({id:'q-new-attempt'})]:[]));
+  const enqueue = vi.spyOn(swarmQueueApi,'enqueueMany'), reserve = vi.spyOn(projectSwarmApi,'reserve'), create = vi.spyOn(api,'createSession');
+  render(<ProjectSwarm run={retired} canEdit canExecute={reason!=='execute-revoked'} busy={false} onBusy={vi.fn()} onUpdate={vi.fn()} onOpenSession={vi.fn()} />);
+  const review = await screen.findByRole('button',{name:/^Queue reviewed tasks/});
+  if (reason==='queued') await waitFor(() => expect(screen.getByRole('button',{name:'Queue reviewed tasks'})).toBe(review));
+  await waitFor(() => expect(review).toHaveProperty('disabled',true));
+  await userEvent.click(screen.getByRole('button',{name:'Go to queue review'}));
+  expect(document.activeElement).toBe(screen.getByRole('region',{name:'Background queue review'}));
+  expect(screen.queryByRole('dialog')).toBeNull();expect(enqueue).not.toHaveBeenCalled();expect(reserve).not.toHaveBeenCalled();expect(create).not.toHaveBeenCalled();
+  expect(screen.getByText('Previous start: '+initial.operations[0].startFailure!.message)).not.toBeNull();
+});
+
+it('drops retired-refusal guidance on a project switch and never carries its navigation consent into the new project', async () => {
+  const initial = refusedStart(), retired = {...initial,revision:2,operations:[{...initial.operations[0],status:'cancelled'}]};
+  const next = {...swarmRunFixture(),id:'run-next',projectId:'p-next'};
+  next.input = {...next.input,implementation:{...next.input.implementation,projectId:next.projectId}};
+  vi.spyOn(swarmQueueApi,'get').mockResolvedValue(swarmQueueFixture());
+  const enqueue = vi.spyOn(swarmQueueApi,'enqueueMany');
+  const props = {canEdit:true,canExecute:true,busy:false,onBusy:vi.fn(),onUpdate:vi.fn(),onOpenSession:vi.fn()};
+  const view = render(<ProjectSwarm {...props} run={retired} />);
+  const oldAction = screen.getByRole('button',{name:'Go to queue review'});
+  view.rerender(<ProjectSwarm {...props} run={next} />);
+  expect(screen.queryByRole('button',{name:'Go to queue review'})).toBeNull();
+  expect(screen.queryByText('Previous start: '+initial.operations[0].startFailure!.message)).toBeNull();
+  fireEvent.click(oldAction);
+  expect(screen.queryByRole('dialog')).toBeNull();expect(enqueue).not.toHaveBeenCalled();
+  expect(document.activeElement).not.toBe(screen.getByRole('region',{name:'Background queue review'}));
 });

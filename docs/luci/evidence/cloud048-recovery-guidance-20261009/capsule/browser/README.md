@@ -1,0 +1,13 @@
+# C048 source-component browser evidence
+
+Attempt 2 passed 10 checks in Chromium at 1440×1080 and 390×844. It mounted the actual styled ProjectSwarm and SwarmRunQueue components and preserved their API response validation, with controlled HTTP responses replacing product transport.
+
+The controlled state began with a pre-allocation admission failure. The enabled scenario used the existing retirement consent and response to retain that attempt, then checked its original diagnosis and new navigation. All scenarios expanded 24 paused queue entries so the queue exceeded two viewports. Enabled navigation focused the existing native Queue reviewed tasks button with its bounding box visible (1 CSS pixel tolerance for browser fractional scroll rounding). Disabled scenarios, from an already queued task or revoked Execute prop, focused the labelled Background queue review region with its top visible. Navigation opened no consent and issued no mutation. Keyboard activation opened the existing separate consent; one explicit Authorize action emitted exactly one validated queue POST. A project switch removed the old guidance and left no consent open.
+
+Attempt 1 is retained as a setup failure: Chromium could not create a Unix socket under the long temporary path and stopped before any component check. The runner was corrected to use an explicitly owned persistent browser profile and Chromium's short `/tmp` socket location. No product code changed between browser attempts.
+
+`COMMANDS.json` records the exact invocations and their observed exits. Each attempt retains the exact runner/fixture and result. Raw stdout and stderr are merged in the corresponding `.log`; attempt 2 also retains API, console and check events in `raw.jsonl`, plus eight viewport screenshots. Each result contains source hashes and cleanup observations. Attempt 2 recorded zero errors and unchanged source/fixture/runner hashes. Chromium and Vite closed, the owned profile was removed, no owned browser processes remained, and a subsequent socket listing found no listener on port 15148.
+
+These are controlled source-component checks. They do not validate installed backend behavior, Docker allocation, native execution, model quality, full AppShell navigation, or performance. The failure/retirement/queue states are controlled examples, not new live admission evidence. The Execute-revoked case supplies `canExecute=false` to the components in their personal-workspace context; it does not exercise gateway permission revocation.
+
+Publication is limited to the explicit manifest members. Vite caches and browser profiles are excluded. Original attempt results, logs and screenshots remain unchanged.

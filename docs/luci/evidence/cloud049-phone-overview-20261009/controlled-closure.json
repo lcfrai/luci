@@ -1,0 +1,11 @@
+{
+  "scope": "Post-run port/profile/process environment checks scoped to these controlled browser helpers only. No exact prelaunch browser PID/start census, no universal zombie or whole-machine absence claim.",
+  "ports": {
+    "15149": {
+      "accepting": false
+    }
+  },
+  "matchingLiveProcessIdentities": [],
+  "unreadableEnvironmentCount": 3,
+  "temporaryProfiles": []
+}

@@ -32,8 +32,12 @@ function RecordGroup<T extends { id: string }>({ title, help, items, fields, cre
 }) {
   const group = useRef<HTMLDetailsElement>(null);
   const inputs = useRef(new Map<string, HTMLTextAreaElement>());
+  // Keep closed editor trees out of the DOM until requested, then preserve
+  // their controls through ordinary collapse/reopen. Values remain in spec.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { if (focusTarget) setMounted(true); }, [focusTarget?.id, focusTarget?.field]);
   useEffect(() => {
-    if (!focusTarget || !group.current) return;
+    if (!mounted || !focusTarget || !group.current) return;
     group.current.open = true;
     // Finish navigation layout and the draft dialog's focus restoration first.
     let secondFrame = 0;
@@ -44,10 +48,10 @@ function RecordGroup<T extends { id: string }>({ title, help, items, fields, cre
       onFocused?.(!!input);
     }); });
     return () => { cancelAnimationFrame(firstFrame); cancelAnimationFrame(secondFrame); };
-  }, [focusTarget?.id, focusTarget?.field, onFocused]);
-  return <details ref={group} className="definition-group">
+  }, [mounted, focusTarget?.id, focusTarget?.field, onFocused]);
+  return <details ref={group} className="definition-group" onToggle={event => { if (event.currentTarget.open) setMounted(true); }}>
     <summary><span>{title}</span><span className="journey-muted">{items.length}</span></summary>
-    <div className="definition-group-body"><p className="journey-muted">{help}</p>
+    {mounted && <div className="definition-group-body"><p className="journey-muted">{help}</p>
       {items.map((item, index) => <fieldset className="definition-record" key={item.id}>
         <legend>{title.replace(/s$/, "")} {index + 1}</legend>
         {fields.map(({ key, label }) => <label className="luci-field" key={String(key)}>{label}
@@ -56,7 +60,7 @@ function RecordGroup<T extends { id: string }>({ title, help, items, fields, cre
         <Button type="button" variant="secondary" onClick={() => onChange(items.filter((old) => old.id !== item.id))}>Remove {title.toLowerCase().replace(/s$/, "")} {index + 1}</Button>
       </fieldset>)}
       <Button type="button" variant="secondary" onClick={() => onChange([...items, create()])}>Add {title.toLowerCase().replace(/s$/, "")}</Button>
-    </div>
+    </div>}
   </details>;
 }
 
@@ -72,6 +76,7 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
   const [base, setBase] = useState<{ revision: number; briefRevision: number } | null>(null);
   const [tab, setTab] = useState<Tab>("interview");
   const [step, setStep] = useState(0);
+  const [journeysMounted, setJourneysMounted] = useState(false);
   const [questionTarget, setQuestionTarget] = useState<string | null>(null);
   const [questionNotice, setQuestionNotice] = useState("");
   useEffect(() => {
@@ -263,7 +268,7 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
                 </fieldset>)}
                 <Button type="button" variant="secondary" onClick={addRequirement}>Add requirement</Button>
               </section>
-              <details className="definition-group" open={missingJourneyLinks || undefined}><summary><span>User journeys</span><span className="journey-muted">{spec.journeys.length}</span></summary><div className="definition-group-body">
+              <details className="definition-group" open={missingJourneyLinks || undefined} onToggle={event => { if (event.currentTarget.open) setJourneysMounted(true); }}><summary><span>User journeys</span><span className="journey-muted">{spec.journeys.length}</span></summary>{(journeysMounted || missingJourneyLinks) && <div className="definition-group-body">
                 {spec.journeys.map((j, index) => <fieldset className="definition-record" key={j.id}><legend>Journey {index + 1}</legend>
                   <label className="luci-field">Journey name<input value={j.name} onChange={(e) => patch({ journeys: spec.journeys.map((old) => old.id === j.id ? { ...old, name: e.target.value } : old) })} /></label>
                   <label className="luci-field">Person or role<input value={j.actor} onChange={(e) => patch({ journeys: spec.journeys.map((old) => old.id === j.id ? { ...old, actor: e.target.value } : old) })} /></label>
@@ -273,7 +278,7 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
                   </fieldset>
                   <Button type="button" variant="secondary" onClick={() => patch({ journeys: spec.journeys.filter((old) => old.id !== j.id) })}>Remove journey {index + 1}</Button>
                 </fieldset>)}<Button type="button" variant="secondary" onClick={() => patch({ journeys: [...spec.journeys, { id: recordId("journey"), name: "", actor: "", steps: "", requirementIds: [] }] })}>Add user journey</Button>
-              </div></details>
+              </div>}</details>
               <RecordGroup title="Access roles" help="Describe what each person can do and what they must not access." items={spec.roles} fields={[{ key: "name", label: "Role name" }, { key: "canDo", label: "Can do" }, { key: "cannotDo", label: "Cannot do or access" }]} create={() => ({ id: recordId("role"), name: "", canDo: "", cannotDo: "" })} onChange={(roles) => patch({ roles })} />
               <RecordGroup title="Data entities" help="Name the data, fields, privacy and retention expectations." items={spec.entities} fields={[{ key: "name", label: "Entity name" }, { key: "fields", label: "Fields and relationships" }, { key: "privacy", label: "Privacy and retention" }]} create={() => ({ id: recordId("entity"), name: "", fields: "", privacy: "" })} onChange={(entities) => patch({ entities })} />
               <RecordGroup title="Integrations" help="Record external systems and their cost, credential or data boundaries." items={spec.integrations} fields={[{ key: "name", label: "Integration name" }, { key: "purpose", label: "Purpose" }, { key: "constraint", label: "Boundaries and requirements" }]} create={() => ({ id: recordId("integration"), name: "", purpose: "", constraint: "" })} onChange={(integrations) => patch({ integrations })} />

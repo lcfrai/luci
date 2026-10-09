@@ -1,0 +1,52 @@
+{"at":"2026-10-09T08:26:00.225Z","kind":"console","type":"debug","text":"[vite] connecting..."}
+{"at":"2026-10-09T08:26:00.289Z","kind":"console","type":"debug","text":"[vite] connected."}
+{"at":"2026-10-09T08:26:00.826Z","kind":"console","type":"info","text":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"at":"2026-10-09T08:26:00.854Z","kind":"api","mode":"enabled","method":"GET","path":"/controlled/bootstrap"}
+{"at":"2026-10-09T08:26:01.034Z","kind":"api","mode":"enabled","method":"GET","path":"/v1/product/projects/p-1/swarm-queue"}
+{"at":"2026-10-09T08:26:01.078Z","kind":"api","mode":"enabled","method":"GET","path":"/v1/product/projects/p-1/runs/run-1"}
+{"at":"2026-10-09T08:26:01.644Z","kind":"api","mode":"enabled","method":"POST","path":"/v1/product/projects/p-1/runs/run-1/swarm/tasks/a/abandon","body":{"expectedRevision":1}}
+{"at":"2026-10-09T08:26:02.742Z","kind":"check","label":"navigation-enabled-1440","position":{"tag":"BUTTON","focused":true,"x":1045.375,"y":1043.5625,"width":194.625,"height":36,"bottom":1079.5625,"right":1240,"viewportWidth":1440,"viewportHeight":1080},"expandedQueueHeight":3202,"mutationsBefore":1,"mutationsAfter":1,"consentOpened":false}
+{"at":"2026-10-09T08:26:03.127Z","kind":"api","mode":"enabled","method":"POST","path":"/v1/product/projects/p-1/runs/run-1/swarm/queue","body":{"expectedRevision":2,"idempotencyKey":"2bd7dcd0-b54e-45d0-9d7b-6360972464b5","priority":"normal","taskIds":["a"]}}
+{"at":"2026-10-09T08:26:03.234Z","kind":"check","label":"separate-single-authorization-1440","mutations":[{"method":"POST","path":"/v1/product/projects/p-1/runs/run-1/swarm/tasks/a/abandon","body":{"expectedRevision":1}},{"method":"POST","path":"/v1/product/projects/p-1/runs/run-1/swarm/queue","body":{"expectedRevision":2,"idempotencyKey":"2bd7dcd0-b54e-45d0-9d7b-6360972464b5","priority":"normal","taskIds":["a"]}}]}
+{"at":"2026-10-09T08:26:03.266Z","kind":"api","mode":"enabled","method":"GET","path":"/v1/product/projects/p-next/swarm-queue"}
+{"at":"2026-10-09T08:26:03.276Z","kind":"check","label":"project-switch-clears-guidance-1440"}
+{"at":"2026-10-09T08:26:03.479Z","kind":"console","type":"debug","text":"[vite] connecting..."}
+{"at":"2026-10-09T08:26:03.498Z","kind":"console","type":"debug","text":"[vite] connected."}
+{"at":"2026-10-09T08:26:03.852Z","kind":"console","type":"info","text":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"at":"2026-10-09T08:26:03.869Z","kind":"api","mode":"queued","method":"GET","path":"/controlled/bootstrap"}
+{"at":"2026-10-09T08:26:03.982Z","kind":"api","mode":"queued","method":"GET","path":"/v1/product/projects/p-1/swarm-queue"}
+{"at":"2026-10-09T08:26:04.006Z","kind":"api","mode":"queued","method":"GET","path":"/v1/product/projects/p-1/runs/run-1"}
+{"at":"2026-10-09T08:26:05.009Z","kind":"check","label":"navigation-queued-1440","position":{"tag":"DIV","focused":true,"x":187,"y":-0.4375,"width":1066,"height":3271,"bottom":3270.5625,"right":1253,"viewportWidth":1440,"viewportHeight":1080},"expandedQueueHeight":3271,"mutationsBefore":0,"mutationsAfter":0,"consentOpened":false}
+{"at":"2026-10-09T08:26:05.318Z","kind":"console","type":"debug","text":"[vite] connecting..."}
+{"at":"2026-10-09T08:26:05.329Z","kind":"console","type":"debug","text":"[vite] connected."}
+{"at":"2026-10-09T08:26:05.651Z","kind":"console","type":"info","text":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"at":"2026-10-09T08:26:05.673Z","kind":"api","mode":"execute-revoked","method":"GET","path":"/controlled/bootstrap"}
+{"at":"2026-10-09T08:26:05.768Z","kind":"api","mode":"execute-revoked","method":"GET","path":"/v1/product/projects/p-1/swarm-queue"}
+{"at":"2026-10-09T08:26:05.805Z","kind":"api","mode":"execute-revoked","method":"GET","path":"/v1/product/projects/p-1/runs/run-1"}
+{"at":"2026-10-09T08:26:06.353Z","kind":"check","label":"navigation-execute-revoked-1440","position":{"tag":"DIV","focused":true,"x":187,"y":-0.4375,"width":1066,"height":3202,"bottom":3201.5625,"right":1253,"viewportWidth":1440,"viewportHeight":1080},"expandedQueueHeight":3202,"mutationsBefore":0,"mutationsAfter":0,"consentOpened":false}
+{"at":"2026-10-09T08:26:06.602Z","kind":"console","type":"debug","text":"[vite] connecting..."}
+{"at":"2026-10-09T08:26:06.614Z","kind":"console","type":"debug","text":"[vite] connected."}
+{"at":"2026-10-09T08:26:07.158Z","kind":"console","type":"info","text":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"at":"2026-10-09T08:26:07.179Z","kind":"api","mode":"enabled","method":"GET","path":"/controlled/bootstrap"}
+{"at":"2026-10-09T08:26:07.277Z","kind":"api","mode":"enabled","method":"GET","path":"/v1/product/projects/p-1/swarm-queue"}
+{"at":"2026-10-09T08:26:07.308Z","kind":"api","mode":"enabled","method":"GET","path":"/v1/product/projects/p-1/runs/run-1"}
+{"at":"2026-10-09T08:26:07.794Z","kind":"api","mode":"enabled","method":"POST","path":"/v1/product/projects/p-1/runs/run-1/swarm/tasks/a/abandon","body":{"expectedRevision":1}}
+{"at":"2026-10-09T08:26:08.257Z","kind":"check","label":"navigation-enabled-390","position":{"tag":"BUTTON","focused":true,"x":46,"y":800.0625,"width":194.625,"height":44,"bottom":844.0625,"right":240.625,"viewportWidth":390,"viewportHeight":844},"expandedQueueHeight":7637,"mutationsBefore":1,"mutationsAfter":1,"consentOpened":false}
+{"at":"2026-10-09T08:26:08.607Z","kind":"api","mode":"enabled","method":"POST","path":"/v1/product/projects/p-1/runs/run-1/swarm/queue","body":{"expectedRevision":2,"idempotencyKey":"73fb509c-e55b-4ad6-aa87-ccbae51c9b46","priority":"normal","taskIds":["a"]}}
+{"at":"2026-10-09T08:26:08.731Z","kind":"check","label":"separate-single-authorization-390","mutations":[{"method":"POST","path":"/v1/product/projects/p-1/runs/run-1/swarm/tasks/a/abandon","body":{"expectedRevision":1}},{"method":"POST","path":"/v1/product/projects/p-1/runs/run-1/swarm/queue","body":{"expectedRevision":2,"idempotencyKey":"73fb509c-e55b-4ad6-aa87-ccbae51c9b46","priority":"normal","taskIds":["a"]}}]}
+{"at":"2026-10-09T08:26:08.750Z","kind":"api","mode":"enabled","method":"GET","path":"/v1/product/projects/p-next/swarm-queue"}
+{"at":"2026-10-09T08:26:08.765Z","kind":"check","label":"project-switch-clears-guidance-390"}
+{"at":"2026-10-09T08:26:09.140Z","kind":"console","type":"debug","text":"[vite] connecting..."}
+{"at":"2026-10-09T08:26:09.174Z","kind":"console","type":"debug","text":"[vite] connected."}
+{"at":"2026-10-09T08:26:09.521Z","kind":"console","type":"info","text":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"at":"2026-10-09T08:26:09.538Z","kind":"api","mode":"queued","method":"GET","path":"/controlled/bootstrap"}
+{"at":"2026-10-09T08:26:09.620Z","kind":"api","mode":"queued","method":"GET","path":"/v1/product/projects/p-1/swarm-queue"}
+{"at":"2026-10-09T08:26:09.641Z","kind":"api","mode":"queued","method":"GET","path":"/v1/product/projects/p-1/runs/run-1"}
+{"at":"2026-10-09T08:26:10.090Z","kind":"check","label":"navigation-queued-390","position":{"tag":"DIV","focused":true,"x":33,"y":0.0625,"width":324,"height":7797,"bottom":7797.0625,"right":357,"viewportWidth":390,"viewportHeight":844},"expandedQueueHeight":7797,"mutationsBefore":0,"mutationsAfter":0,"consentOpened":false}
+{"at":"2026-10-09T08:26:10.202Z","kind":"console","type":"debug","text":"[vite] connecting..."}
+{"at":"2026-10-09T08:26:10.252Z","kind":"console","type":"debug","text":"[vite] connected."}
+{"at":"2026-10-09T08:26:10.597Z","kind":"console","type":"info","text":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"at":"2026-10-09T08:26:10.612Z","kind":"api","mode":"execute-revoked","method":"GET","path":"/controlled/bootstrap"}
+{"at":"2026-10-09T08:26:10.713Z","kind":"api","mode":"execute-revoked","method":"GET","path":"/v1/product/projects/p-1/swarm-queue"}
+{"at":"2026-10-09T08:26:10.745Z","kind":"api","mode":"execute-revoked","method":"GET","path":"/v1/product/projects/p-1/runs/run-1"}
+{"at":"2026-10-09T08:26:11.175Z","kind":"check","label":"navigation-execute-revoked-390","position":{"tag":"DIV","focused":true,"x":33,"y":0.0625,"width":324,"height":7637,"bottom":7637.0625,"right":357,"viewportWidth":390,"viewportHeight":844},"expandedQueueHeight":7637,"mutationsBefore":0,"mutationsAfter":0,"consentOpened":false}
