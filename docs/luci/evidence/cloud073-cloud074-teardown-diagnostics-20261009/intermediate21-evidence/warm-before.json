@@ -1,0 +1,53 @@
+{
+  "name": "warm-before",
+  "node": "v24.19.0",
+  "command": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "--test-name-pattern=exact local session poll aborts during actual finally",
+    "/workspace/.luci-tools/cloud073-teardown-route/route.test.mjs"
+  ],
+  "sourceRoot": "/workspace/.luci-tools/cloud073-teardown-route/before",
+  "variant": "warm",
+  "elapsedSeconds": 0.2711751461029053,
+  "exitCode": 1,
+  "expectedExitCode": 1,
+  "sourceBefore": {
+    "/workspace/.luci-tools/cloud073-teardown-route/before/warm/launch.mjs": {
+      "bytes": 72373,
+      "sha256": "205f99a26e4c5d0692f91bed0a1e1eeba10bc666571d3cdb86ef5fcf31980c79"
+    },
+    "/workspace/.luci-tools/cloud073-teardown-route/route.test.mjs": {
+      "bytes": 9816,
+      "sha256": "3cfee28e7b053cdf9e0fb567d818a974daddcb36556b02d2bd26089aceba133e"
+    },
+    "/workspace/.luci-tools/cloud073-teardown-route/support/acceptance-lifecycle.mjs": {
+      "bytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+    }
+  },
+  "sourceAfter": {
+    "/workspace/.luci-tools/cloud073-teardown-route/before/warm/launch.mjs": {
+      "bytes": 72373,
+      "sha256": "205f99a26e4c5d0692f91bed0a1e1eeba10bc666571d3cdb86ef5fcf31980c79"
+    },
+    "/workspace/.luci-tools/cloud073-teardown-route/route.test.mjs": {
+      "bytes": 9816,
+      "sha256": "3cfee28e7b053cdf9e0fb567d818a974daddcb36556b02d2bd26089aceba133e"
+    },
+    "/workspace/.luci-tools/cloud073-teardown-route/support/acceptance-lifecycle.mjs": {
+      "bytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+    }
+  },
+  "stdout": {
+    "bytes": 903,
+    "sha256": "373b7a45f8f655b1c918b2056850f44edf21a4f5d005f4bff1fc641ec140642c"
+  },
+  "stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "scope": "Inert Node callbacks and temporary private-writer fixture only. No browser, Docker, product server, or compiler."
+}

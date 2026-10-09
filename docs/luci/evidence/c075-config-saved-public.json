@@ -1,0 +1,14 @@
+{
+  "status": "saved-readback-verified",
+  "previousRevision": 42,
+  "revision": 43,
+  "preparedSource": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "compiledSource": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "mountPath": "luci",
+  "repositories": 1,
+  "otherFieldsPreserved": true,
+  "requiresPublish": true,
+  "published": false,
+  "freshTaskRestoreVerified": false,
+  "discoverySHA256": "99e62fb8b426f490fba7041adf72428abcbebac78ebc8c970684352135b1bb79"
+}

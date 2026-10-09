@@ -1,0 +1,53 @@
+{
+  "name": "cold-before",
+  "node": "v24.19.0",
+  "command": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "--test-name-pattern=exact local session poll aborts during actual finally",
+    "/workspace/.luci-tools/cloud073-teardown-route/route.test.mjs"
+  ],
+  "sourceRoot": "/workspace/.luci-tools/cloud073-teardown-route/before",
+  "variant": "cold",
+  "elapsedSeconds": 0.14194154739379883,
+  "exitCode": 1,
+  "expectedExitCode": 1,
+  "sourceBefore": {
+    "/workspace/.luci-tools/cloud073-teardown-route/before/cold/launch.mjs": {
+      "bytes": 73345,
+      "sha256": "7789d0f5e89fdd643cf433dc8786f44fba16a3e24884c12aad738ab4935b75cc"
+    },
+    "/workspace/.luci-tools/cloud073-teardown-route/route.test.mjs": {
+      "bytes": 9816,
+      "sha256": "3cfee28e7b053cdf9e0fb567d818a974daddcb36556b02d2bd26089aceba133e"
+    },
+    "/workspace/.luci-tools/cloud073-teardown-route/support/acceptance-lifecycle.mjs": {
+      "bytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+    }
+  },
+  "sourceAfter": {
+    "/workspace/.luci-tools/cloud073-teardown-route/before/cold/launch.mjs": {
+      "bytes": 73345,
+      "sha256": "7789d0f5e89fdd643cf433dc8786f44fba16a3e24884c12aad738ab4935b75cc"
+    },
+    "/workspace/.luci-tools/cloud073-teardown-route/route.test.mjs": {
+      "bytes": 9816,
+      "sha256": "3cfee28e7b053cdf9e0fb567d818a974daddcb36556b02d2bd26089aceba133e"
+    },
+    "/workspace/.luci-tools/cloud073-teardown-route/support/acceptance-lifecycle.mjs": {
+      "bytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+    }
+  },
+  "stdout": {
+    "bytes": 904,
+    "sha256": "0c4171c06b8f5a8697c33a647c6715a52a7d6e27722744ff24b34f20838a8d15"
+  },
+  "stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "scope": "Inert Node callbacks and temporary private-writer fixture only. No browser, Docker, product server, or compiler."
+}

@@ -1,0 +1,32 @@
+{
+  "kind": "restart-response-authentic-body-held",
+  "observation": {
+    "kind": "restart-response-gate",
+    "mode": "real-CDP-response-stage",
+    "budgetMs": 8000,
+    "entered": {
+      "wall": "2026-10-09T17:24:39.313Z",
+      "monotonicMs": 104212.556765,
+      "deadlineMonotonicMs": 112212.556765
+    },
+    "body": {
+      "status": 200,
+      "bytes": 628,
+      "sha256": "0e5edc62c5b938618783229494f4dabeedc78c2acdf81b6f1d939e301b9c8df6",
+      "sessionJSONSHA256": "f996864073263a3d80b57ac0e6fb84e81161cc6b87b7e2c9406ef08d83235b7c",
+      "session": {
+        "id": "s-7f6416a8",
+        "projectId": "p-19a2a816",
+        "status": "starting",
+        "executionGeneration": "1a44edb6e9328de365c67064d981438ca9bbbb1535ffa0e74cdb568b5a2fec65"
+      }
+    },
+    "settlement": {
+      "attempted": null,
+      "acknowledged": false
+    },
+    "disposed": false
+  },
+  "failure": null,
+  "observedAt": "2026-10-09T17:24:39.317Z"
+}

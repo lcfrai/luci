@@ -1,0 +1,119 @@
+{
+  "stableID": "CLOUD-073",
+  "revision": "follow-up2",
+  "priority": "P2",
+  "scope": "External helper correction only",
+  "triggerActualReceipt": {
+    "path": "/workspace/.luci-tools/cloud073-installed-78665270/evidence/cold-attempt1/driver/result.json",
+    "sha256": "f14784401c03a0b26376c0455516806a083363115ecdbd0bb5caebfa009f9bf2",
+    "productSource": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+    "scenarioPassed": true,
+    "overallPassed": false,
+    "firstFailure": {
+      "origin": "callback",
+      "stage": "product-settlement",
+      "phase": "cleanup",
+      "observedAt": "2026-10-09T17:13:25.514Z",
+      "monotonicMs": 129189.466317,
+      "reportingFailed": false,
+      "privateRecord": {
+        "file": "private-first-failure.json",
+        "bytes": 660,
+        "sha256": "e4f790dce7b419c1b97276d5d5c252583cf810b484946ca3ee77d059fb252738",
+        "maxBytes": 65536,
+        "truncated": false,
+        "retention": "durable"
+      },
+      "errorName": "Error",
+      "sourceLabel": "workflow-closing",
+      "messageCodeUnits": 16,
+      "stackCodeUnits": 602
+    },
+    "failingRequestMethodPathKnown": false,
+    "separateClosingReadCount": 1,
+    "separateReadDoesNotIdentifyFailingRequest": true,
+    "monitorDisposalWait": {
+      "state": "fulfilled",
+      "at": {
+        "wall": "2026-10-09T17:13:25.521Z",
+        "monotonicMs": 129196.540545
+      }
+    },
+    "cleanupErrors": []
+  },
+  "sources": [
+    {
+      "variant": "warm",
+      "name": "launch.mjs",
+      "originalSHA256": "9ef944fa14c86512ae0e00c0c3f154f68118c3e2afed58a0e48bceb0b4bc5a3f",
+      "finalSHA256": "5f5eb8a8bc016e36932e4b8ac0649671e37e68284b31196ad42ce56d5c341524",
+      "bytes": 75917,
+      "changed": true
+    },
+    {
+      "variant": "warm",
+      "name": "scenario.mjs",
+      "originalSHA256": "cc0b1a4ebad01758008502368fdcdfabd3ffc36c8d1e5f6fb6e53f168788b82b",
+      "finalSHA256": "cc0b1a4ebad01758008502368fdcdfabd3ffc36c8d1e5f6fb6e53f168788b82b",
+      "bytes": 41178,
+      "changed": false
+    },
+    {
+      "variant": "warm",
+      "name": "outer-run.py",
+      "originalSHA256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49",
+      "finalSHA256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49",
+      "bytes": 22954,
+      "changed": false
+    },
+    {
+      "variant": "cold",
+      "name": "launch.mjs",
+      "originalSHA256": "7abcaeebed205bc83344497498a27fa84c83dc1dfc78367a667b190fe61c160b",
+      "finalSHA256": "5312bf202104ba1316272c5e05594547bc3538208e57d3eb8adb9ae346ec83e4",
+      "bytes": 76889,
+      "changed": true
+    },
+    {
+      "variant": "cold",
+      "name": "scenario.mjs",
+      "originalSHA256": "7af700a6e90262629e1ea5687b883430b4acfd966ec41e305319c963ba3bcf5e",
+      "finalSHA256": "7af700a6e90262629e1ea5687b883430b4acfd966ec41e305319c963ba3bcf5e",
+      "bytes": 45408,
+      "changed": false
+    },
+    {
+      "variant": "cold",
+      "name": "outer-run.py",
+      "originalSHA256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49",
+      "finalSHA256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49",
+      "bytes": 22954,
+      "changed": false
+    }
+  ],
+  "patchSHA256": "c88bff88d4279d4befdc153337f1b0b1e016070941c8a29a7531f2052f973cda",
+  "controlledTests": {
+    "warmOriginal": {
+      "expectedFail": 1
+    },
+    "coldOriginal": {
+      "expectedFail": 1
+    },
+    "warmFinal": {
+      "pass": 31,
+      "fail": 0
+    },
+    "coldFinal": {
+      "pass": 31,
+      "fail": 0
+    }
+  },
+  "carriedC074Tests": {
+    "rerun": false,
+    "scenarioBytesUnchanged": true,
+    "originalCapsulePublicationSHA256": "53df2056a4f251ad952838ca661a5be6a9deae23e8dc6f3127e4d8615338b178"
+  },
+  "installedValidation": false,
+  "runtimeLaunched": false,
+  "worklistRow": "CLOUD-073 | P2 | Helper teardown-read cancellation |786 cold1 passed its scenario but failed on a cleanup workflow-closing callback; failing method/path unknown. Follow-up cancels exactly the same-origin GET/HEAD/OPTIONS allowed during workflow, before health/forwarding, retaining bounded tracked aborts and method/class/path-hash metadata. Same regression fails originals; final31/31 each. No installed follow-up acceptance yet."
+}

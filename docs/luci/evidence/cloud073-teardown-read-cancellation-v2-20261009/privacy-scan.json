@@ -1,0 +1,5 @@
+{
+  "boundedPatternFindings": [],
+  "privateRawFilesAbsent": true,
+  "scope": "Controlled code/TAP and existing public failure metadata only; no private raw logs/auth/first-error contents read or exported."
+}

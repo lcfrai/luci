@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "intendedDestination": "docs/luci/evidence/cloud075-installed-78665270-20261009",
+  "originalPreparationManifestSHA256": "86791bcda8bda705c49241cf18b7bd8d6d38864e41489ecc3c70ac5bb060c9be",
+  "originalResultSHA256": "cb2c704902d2cd9c1e0fe537601405ab6cc58dacdb2d60f99003b18dee0febdf",
+  "originalJournalSHA256": "3bb9675848a248ba80db62bc179c4a198318334848dc84daef1cf37c36b14347",
+  "independentClosureSHA256": "ed16f19579c61ac5e9cee657153ce6b5934268c1842058db663ee0a8d06b4ad6",
+  "carriedSourceCapsule": "../cloud075-project-authority-reads-20261009/REPORT.md",
+  "excluded": [
+    "private run state",
+    "credentials and bootstrap tokens",
+    "raw stdout/stderr/private failures",
+    "screenshots",
+    "raw API bodies",
+    "raw full result/journal",
+    "unrelated process identities/environment samples",
+    "node_modules and package binary/web payload"
+  ],
+  "projectionSource": "publication-extract.py"
+}

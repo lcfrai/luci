@@ -1,0 +1,52 @@
+{
+  "name": "cold-untracked",
+  "command": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "--test-name-pattern=unawaited accepted closing read",
+    "/workspace/.luci-tools/cloud073-teardown-route/route.test.mjs"
+  ],
+  "sourceRoot": "/workspace/.luci-tools/cloud073-teardown-route/counterexample-untracked",
+  "variant": "cold",
+  "exitCode": 1,
+  "expectedExitCode": 1,
+  "elapsedSeconds": 2.2682292461395264,
+  "sourceBefore": {
+    "/workspace/.luci-tools/cloud073-teardown-route/counterexample-untracked/cold/launch.mjs": {
+      "bytes": 74533,
+      "sha256": "cd765ed76e0a89f110984faead847ba6d12af310f1361ab05704cb42906da138"
+    },
+    "/workspace/.luci-tools/cloud073-teardown-route/route.test.mjs": {
+      "bytes": 11443,
+      "sha256": "eba65b2378a211db21333a71091f02f71387ce3fea6f1193181398dae8c9db83"
+    },
+    "/workspace/.luci-tools/cloud073-teardown-route/support/acceptance-lifecycle.mjs": {
+      "bytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+    }
+  },
+  "sourceAfter": {
+    "/workspace/.luci-tools/cloud073-teardown-route/counterexample-untracked/cold/launch.mjs": {
+      "bytes": 74533,
+      "sha256": "cd765ed76e0a89f110984faead847ba6d12af310f1361ab05704cb42906da138"
+    },
+    "/workspace/.luci-tools/cloud073-teardown-route/route.test.mjs": {
+      "bytes": 11443,
+      "sha256": "eba65b2378a211db21333a71091f02f71387ce3fea6f1193181398dae8c9db83"
+    },
+    "/workspace/.luci-tools/cloud073-teardown-route/support/acceptance-lifecycle.mjs": {
+      "bytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+    }
+  },
+  "stdout": {
+    "bytes": 883,
+    "sha256": "c30330bf7f86df7a880e8b31e139947f0bf7ebedbd0d232dc35222a8bad51c26"
+  },
+  "stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "scope": "Same final frozen route test body against exact earlier C073 launcher. Review-discovered untracked abort finalization counterexample; no runtime operations."
+}

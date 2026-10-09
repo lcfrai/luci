@@ -1,0 +1,157 @@
+{
+  "sourceCommit": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "files": {
+    ".gitattributes": {
+      "sha256": "705fd4d6451a31d36b3df7de96f83f30ac976c9b4a6d1e51671d8e2f33e2d0da",
+      "bytes": 8
+    },
+    ".gitignore": {
+      "sha256": "e027cf8ebf80d6dcdacced8a4dbd1c440e2436fb1868ec851db4061cb67bb787",
+      "bytes": 7
+    },
+    "README.md": {
+      "sha256": "425fb5b8484481c8838f32d01ee042ce5c7a99efce2bf0279de95b9949ab99dd",
+      "bytes": 4687
+    },
+    "REPRODUCE.md": {
+      "sha256": "3b36dc3cd6cc8250668e109a17e624a7cf2125f0b2aebc0b538b6b59f9ea8c5b",
+      "bytes": 2034
+    },
+    "assemble.py": {
+      "sha256": "6bfe66cb71fb8e58b0763edb74c50c76f793dc7463db6531992b5cf230171e1b",
+      "bytes": 11229
+    },
+    "helpers/build-package-next-v1/README.md": {
+      "sha256": "72004c3b121d534f4a307e9c6369bb1374d92b34495d766e1d7f7fb61a0e0d2f",
+      "bytes": 2609
+    },
+    "helpers/build-package-next-v1/build-package.original.py": {
+      "sha256": "150b7e999d7238eb765f3025e9e42f904001828e37defdde39e780a937d463f1",
+      "bytes": 5334
+    },
+    "helpers/build-package-next-v1/build-package.py": {
+      "sha256": "8771e5c661745b4cb4bfefc9aea0839f947dec534d3a438459bda0ecc409e418",
+      "bytes": 5804
+    },
+    "helpers/build-package-next-v1/controls-result.json": {
+      "sha256": "b47738bfeb15fee55f618baea52cf75d1c4e73bc8e6b226cdebd55808cd65c37",
+      "bytes": 1183
+    },
+    "helpers/build-package-next-v1/controls.py": {
+      "sha256": "e81f991bee124bfbf68a294101cffbae2f4ca27d0efe101749ca6900d8b68104",
+      "bytes": 4765
+    },
+    "helpers/build-package-next-v1/manifest.json": {
+      "sha256": "44a82b98855e8c3d7c82d4b2055dda5fdfe5918d8abbdae18cafd5e659cd2a8f",
+      "bytes": 1161
+    },
+    "helpers/build-package-next-v1/parameterization.patch": {
+      "sha256": "ca795219a2595c3f960b32a90ac378313969c082f9d01810a5b41886e2bd64eb",
+      "bytes": 5689
+    },
+    "helpers/build-package-next-v1/unchanged-build-inputs.json": {
+      "sha256": "57772ba53f2f0b0ae2092b1ced1d3ef488e0da89b15edc14bc098b99107d1e35",
+      "bytes": 752
+    },
+    "helpers/verify-local-package.py": {
+      "sha256": "b7985ac8f7687a3da9e232a20319c49f900bd8c8015c4bdc41a005f467ed4a8c",
+      "bytes": 2246
+    },
+    "original-bindings.json": {
+      "sha256": "49a43a8d4b6fa68f4417744b1dfa7b9821921f58ca3144f3ee59874a8ce526fc",
+      "bytes": 6811
+    },
+    "original-immutability.json": {
+      "sha256": "ca5da3302e2f55301ab4a666ee90aa63fbd7ace6a6719fcbc2f3fc946a5da803",
+      "bytes": 139
+    },
+    "receipts/build-invocation.json": {
+      "sha256": "046420cfcb12eb5bad5a4dc9bd3ae9606cd8abadb0d6ebb64bfa78524e6c2571",
+      "bytes": 579
+    },
+    "receipts/build-result.json": {
+      "sha256": "46658b1d33171bad78f7ee60ea8d48601a6efa174c493887b44b83a102b69112",
+      "bytes": 752
+    },
+    "receipts/build.log": {
+      "sha256": "4b430eb8c333a4f692826ec2c17b6fddf370ef08bdced8856efff57643a32330",
+      "bytes": 21865
+    },
+    "receipts/c070-controlled-source-parity.json": {
+      "sha256": "9db1fb073cc4e6edb6096da908d2db3baab4cb3574d150642929b87c8cf3e569",
+      "bytes": 241549
+    },
+    "receipts/c075-immutable-commit-binding.json": {
+      "sha256": "2414aff7f54d0cba4990ed006910ac40a43e70f73ef1a6b1966b1976b3e5ddd0",
+      "bytes": 5922
+    },
+    "receipts/c075-original-integrated-parity.json": {
+      "sha256": "6a680233b470d9587273767985cf085c5a9b41ef887f0fa58f8d61c7344ba498",
+      "bytes": 993
+    },
+    "receipts/original-runtime-build-provenance.json": {
+      "sha256": "a6fb7d93c1ce81b726923a155e44a5adbd53ed6da1198bafb76e4a82da009331",
+      "bytes": 35099
+    },
+    "receipts/package-integrity.json": {
+      "sha256": "33425f5c0cf77b54af36c2574a7ca14fc81520d64b1a4cd7c17a856090c509da",
+      "bytes": 788
+    },
+    "receipts/package-provenance.json": {
+      "sha256": "f65e8e48149fc495c91ad340cf4e31711fb12f38ac4a9ec8829ed43e0e956a2f",
+      "bytes": 1039
+    },
+    "receipts/previous-release-preservation.json": {
+      "sha256": "ba0e5bbd2494c8da9738cef2b5cf2bff7e85c11dc17a4a56f32a9f0bee586242",
+      "bytes": 1183
+    },
+    "receipts/runtime-input-parity.json": {
+      "sha256": "85928dc798516da01d6b6373ab85bf39f222689c88643805ee79aa785f90d985",
+      "bytes": 54595
+    },
+    "release/SHA256SUMS": {
+      "sha256": "f78066da03b1642df6de9830c3baeb4f7e66eeabd45c9a745a455d38e3b7553e",
+      "bytes": 186
+    },
+    "release/release-manifest.json": {
+      "sha256": "a236d4361e4b9861b6606eebccaa5d6fb1ad4435084e9ab293e834d0f131ad36",
+      "bytes": 696
+    },
+    "scope.json": {
+      "sha256": "7bba8cdef341569d8386e6870bc1cbaea807b62b65970def0b7f90d2347964b6",
+      "bytes": 2234
+    },
+    "selected-source/scripts/build-release.sh": {
+      "sha256": "20c6cb96e475066d5fb9a8ac934eb1262c3f324e4ac78ccda42fbd137d9e080d",
+      "bytes": 6029
+    },
+    "selected-source/scripts/collect-licenses.py": {
+      "sha256": "4a07489e31c417f8072cd94a3b1b596137a1faa78403311b74c48990c53110be",
+      "bytes": 14817
+    },
+    "selected-source/scripts/launch-unix.sh": {
+      "sha256": "e73094527f35dce3d10fe9fb72ea321df8e8890aaabb175c0816f292bdf32e53",
+      "bytes": 5579
+    },
+    "selected-source/scripts/package.py": {
+      "sha256": "9c3785eea32c597947395968a41f59ed973b05c0b955fea1067d3c0315fea9e5",
+      "bytes": 2649
+    },
+    "selected-source/scripts/stage-release-docs.py": {
+      "sha256": "cd520022c86ff25695faaaeed5aad512147b91f37342963e1cea2cc3252b8e26",
+      "bytes": 20959
+    },
+    "source-bindings.json": {
+      "sha256": "59758011e7de29d54929bf2ee8471671d3dd1cc3dfc59c55d24d649d131bf949",
+      "bytes": 1013
+    },
+    "windows-source-parity.json": {
+      "sha256": "7cd1113447719c21dc13eb0fc69e0ba427d4afc44470fbac4a044d6d95fc10d7",
+      "bytes": 1158
+    },
+    "privacy-review.json": {
+      "sha256": "bca20ebbb374add06354e072b7db69e33248559a3a781c1a57b468131c3f1a6d",
+      "bytes": 317
+    }
+  }
+}

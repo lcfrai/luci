@@ -1,0 +1,24 @@
+[
+  {
+    "variant": "warm",
+    "beforeC074": {
+      "sha256": "5154b05260a13d1d4ea61c973aeac89d9a7672705d9dd5d46e8a79ea4038087a",
+      "bytes": 74357
+    },
+    "final": {
+      "sha256": "9ef944fa14c86512ae0e00c0c3f154f68118c3e2afed58a0e48bceb0b4bc5a3f",
+      "bytes": 75799
+    }
+  },
+  {
+    "variant": "cold",
+    "beforeC074": {
+      "sha256": "4d99458fa3ad1431402f808f9c3ea9bb715b52df0c3b58dd2d0aa4a8d7cebd71",
+      "bytes": 75329
+    },
+    "final": {
+      "sha256": "7abcaeebed205bc83344497498a27fa84c83dc1dfc78367a667b190fe61c160b",
+      "bytes": 76771
+    }
+  }
+]

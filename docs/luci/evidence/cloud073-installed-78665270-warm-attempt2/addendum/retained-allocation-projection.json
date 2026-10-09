@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "observedAt": "2026-10-09T17:38:15.445063+00:00",
+  "sourceCommit": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "originalResultSHA256": "aa1b7d2976ad0c3425be604d3bf46394376adda06a3c6b164f64ff86735de3dc",
+  "pendingMutation": {
+    "method": "POST",
+    "path": "/v1/sessions/s-fa96251d/restart",
+    "startedAt": "2026-10-09T17:28:39.838Z"
+  },
+  "registry": {
+    "id": "s-fa96251d",
+    "projectId": "p-348a4870",
+    "worktreeId": "w-348a4870",
+    "backend": "docker",
+    "sandboxId": "s-b176ccfc",
+    "status": "starting",
+    "sandboxRefPresent": false,
+    "endpointPresent": false,
+    "attachTokenPresent": true,
+    "executionGeneration": "522e98273ba5e10d181cf472243720f1a2decd003301cc822f221ad610c9a76b"
+  },
+  "lease": {
+    "id": "restart-2fd46470",
+    "projectId": "p-348a4870",
+    "sessionId": "s-fa96251d",
+    "sandboxId": "s-b176ccfc",
+    "state": "backend-dispatching",
+    "resources": {
+      "CPUMillis": 1000,
+      "MemoryMiB": 1024
+    },
+    "createdAt": "2026-10-09T17:28:39.880079456Z",
+    "updatedAt": "2026-10-09T17:28:39.959066299Z"
+  },
+  "container": {
+    "id": "78a90473d0b49f1934e5fe5942d0a3167c47a7bd68db8cd1e4385cf8e59dfcaf",
+    "name": "/luci-s-b176ccfc",
+    "status": "created",
+    "running": false,
+    "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+    "memoryBytes": 1073741824,
+    "nanoCPUs": 1000000000,
+    "managed": "true",
+    "instance": "141ee2b3-4d1b-49a5-85c8-614493b395bf",
+    "sandboxId": "s-b176ccfc",
+    "sessionId": "s-fa96251d"
+  },
+  "exactScopeMatches": {
+    "managed": true,
+    "instance": true,
+    "sandbox": true,
+    "session": true,
+    "name": true,
+    "image": true,
+    "project": true
+  },
+  "privateFileBindings": {
+    "ledger": {
+      "bytes": 503,
+      "sha256": "ecbd4c2ee5b97005643503eb5d01d3c8d77736113eac643bb7d853fcf41f3a9a"
+    },
+    "registry": {
+      "bytes": 1099,
+      "sha256": "9c954aa3005774bc3043454fc5c2a4592c90a3396106306e0f7ea408bd3edf18"
+    },
+    "instance": {
+      "bytes": 37,
+      "sha256": "8b14bfde68a58775972b239b52f3092440028c49672ebf89a2def078ef660159"
+    }
+  },
+  "privateInputsUnchanged": true,
+  "scope": "Read-only exact immutable-container inspect projection and selected private registry/lease/instance metadata. No token, endpoint value, environment, mount source, command, body or private file content exported. No cleanup mutation, lease repair, inferred remote POST acknowledgement, or whole-daemon transport quiescence claim."
+}

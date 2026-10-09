@@ -1,0 +1,30 @@
+{
+  "commit": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "inputs": [
+    {
+      "path": "scripts/start-local-acceptance.ps1",
+      "sha256": "e9648e58d6b1eb25560ab9268e317a0a34e95384813638c58d4cc0aba56e5c1a",
+      "bytes": 7403,
+      "unchangedFrom": "b94ad37e53181e360ac8910ee980570de622728c"
+    },
+    {
+      "path": "scripts/build-release.ps1",
+      "sha256": "42c7f005d6644881bc34fed76d42860d4b701bf4d169bf5657b59cf43c280c16",
+      "bytes": 17249,
+      "unchangedFrom": "b94ad37e53181e360ac8910ee980570de622728c"
+    },
+    {
+      "path": "scripts/test-installed-windows.ps1",
+      "sha256": "b5e55a8069cbe6411f97878a0447ca10db6adc62423316de424646d3b6e4252d",
+      "bytes": 15138,
+      "unchangedFrom": "b94ad37e53181e360ac8910ee980570de622728c"
+    },
+    {
+      "path": "docs/luci/LOCAL-WINDOWS-ACCEPTANCE.md",
+      "sha256": "3c07d86ac87128dc64ec6472d15192d866671126c9d9264676df0124e6ba04a3",
+      "bytes": 54655,
+      "unchangedFrom": "b94ad37e53181e360ac8910ee980570de622728c"
+    }
+  ],
+  "scope": "Read-only immutable source equality only. Commands unchanged; no Windows/native/setup execution or configuration publication."
+}

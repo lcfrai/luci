@@ -1,0 +1,39 @@
+{
+  "sourceBefore": {
+    "scenario": {
+      "path": "/workspace/.luci-tools/cloud073-teardown-route/warm/scenario.mjs",
+      "bytes": 41178,
+      "sha256": "cc0b1a4ebad01758008502368fdcdfabd3ffc36c8d1e5f6fb6e53f168788b82b"
+    },
+    "lifecycle": {
+      "path": "/workspace/.luci-tools/cloud072-installed-b94ad37e/evidence/cold-attempt2/driver/accepted-harness/launch-recovery/acceptance-lifecycle.mjs",
+      "bytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+    }
+  },
+  "sourceAfter": {
+    "scenario": {
+      "path": "/workspace/.luci-tools/cloud073-teardown-route/warm/scenario.mjs",
+      "bytes": 41178,
+      "sha256": "cc0b1a4ebad01758008502368fdcdfabd3ffc36c8d1e5f6fb6e53f168788b82b"
+    },
+    "lifecycle": {
+      "path": "/workspace/.luci-tools/cloud072-installed-b94ad37e/evidence/cold-attempt2/driver/accepted-harness/launch-recovery/acceptance-lifecycle.mjs",
+      "bytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+    }
+  },
+  "allUnchanged": true,
+  "testSource": {
+    "path": "/workspace/.luci-tools/cloud073-teardown-route/transport-triage/cloud074/disposal.test.mjs",
+    "bytes": 19721,
+    "sha256": "a0c9878fd2fa5888e7fd1f8138f4e8390018d9932f90a7a793be667356cf313d"
+  },
+  "importedExports": [
+    "installTransportDiagnostics",
+    "installTerminalMonitor",
+    "boundedAttempt"
+  ],
+  "sourceRewritten": false,
+  "scope": "Imports reference unchanged C072 or candidate C074 scenario files directly plus accepted cold-attempt2 lifecycle helper. No helper edits, extraction, source rewriting, or browser/CDP runtime."
+}

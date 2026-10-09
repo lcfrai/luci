@@ -1,0 +1,5 @@
+{
+  "command": "python3 inspect.py --parent /workspace/.luci-tools/cloud075-private-runs --run-root /workspace/.luci-tools/cloud075-private-runs/attempt-001 --output /workspace/.luci-tools/cloud075-installed-closure/attempt-001.json",
+  "exitCode": 2,
+  "reason": "Inspection completed; two same-identity browser zombies prevent strict original-PID absence. All seven known originals are quiescent; five are absent. No cleanup mutation performed."
+}

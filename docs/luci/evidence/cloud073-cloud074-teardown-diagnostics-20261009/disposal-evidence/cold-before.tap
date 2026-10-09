@@ -1,0 +1,33 @@
+TAP version 13
+# Subtest: actual browser cleanup boundary retains bounded disposal result
+not ok 1 - actual browser cleanup boundary retains bounded disposal result
+  ---
+  duration_ms: 3.249818
+  type: 'test'
+  location: '/workspace/.luci-tools/cloud073-teardown-route/disposal-boundary.test.mjs:18:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - 'fulfilled'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'fulfilled'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/.luci-tools/cloud073-teardown-route/disposal-boundary.test.mjs:18:155)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 80.220354

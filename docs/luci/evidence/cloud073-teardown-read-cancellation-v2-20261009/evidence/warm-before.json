@@ -1,0 +1,53 @@
+{
+  "name": "warm-before",
+  "node": "v24.19.0",
+  "command": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "--test-name-pattern=same-origin background read cancellation mirrors the active guard",
+    "/workspace/.luci-tools/cloud073-teardown-route-v2/route.test.mjs"
+  ],
+  "sourceRoot": "/workspace/.luci-tools/cloud073-teardown-route-v2/before",
+  "variant": "warm",
+  "elapsedSeconds": 0.37979817390441895,
+  "exitCode": 1,
+  "expectedExitCode": 1,
+  "sourceBefore": {
+    "/workspace/.luci-tools/cloud073-teardown-route-v2/before/warm/launch.mjs": {
+      "bytes": 75799,
+      "sha256": "9ef944fa14c86512ae0e00c0c3f154f68118c3e2afed58a0e48bceb0b4bc5a3f"
+    },
+    "/workspace/.luci-tools/cloud073-teardown-route-v2/route.test.mjs": {
+      "bytes": 13579,
+      "sha256": "74accfb81ad00db3dfafdcd1745bae16c28ef50ba44b5b763d446e31e3a28de2"
+    },
+    "/workspace/.luci-tools/cloud073-teardown-route-v2/support/acceptance-lifecycle.mjs": {
+      "bytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+    }
+  },
+  "sourceAfter": {
+    "/workspace/.luci-tools/cloud073-teardown-route-v2/before/warm/launch.mjs": {
+      "bytes": 75799,
+      "sha256": "9ef944fa14c86512ae0e00c0c3f154f68118c3e2afed58a0e48bceb0b4bc5a3f"
+    },
+    "/workspace/.luci-tools/cloud073-teardown-route-v2/route.test.mjs": {
+      "bytes": 13579,
+      "sha256": "74accfb81ad00db3dfafdcd1745bae16c28ef50ba44b5b763d446e31e3a28de2"
+    },
+    "/workspace/.luci-tools/cloud073-teardown-route-v2/support/acceptance-lifecycle.mjs": {
+      "bytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+    }
+  },
+  "stdout": {
+    "bytes": 958,
+    "sha256": "e0ba524ae2c6140d600435121bf0b810fc8a033c5ba730fc757646266296c264"
+  },
+  "stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "scope": "Inert Node callbacks and temporary private-writer fixture only. No browser, Docker, product server, or compiler."
+}

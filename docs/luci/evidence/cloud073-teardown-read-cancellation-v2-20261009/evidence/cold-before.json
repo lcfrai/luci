@@ -1,0 +1,53 @@
+{
+  "name": "cold-before",
+  "node": "v24.19.0",
+  "command": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "--test-name-pattern=same-origin background read cancellation mirrors the active guard",
+    "/workspace/.luci-tools/cloud073-teardown-route-v2/route.test.mjs"
+  ],
+  "sourceRoot": "/workspace/.luci-tools/cloud073-teardown-route-v2/before",
+  "variant": "cold",
+  "elapsedSeconds": 0.3007936477661133,
+  "exitCode": 1,
+  "expectedExitCode": 1,
+  "sourceBefore": {
+    "/workspace/.luci-tools/cloud073-teardown-route-v2/before/cold/launch.mjs": {
+      "bytes": 76771,
+      "sha256": "7abcaeebed205bc83344497498a27fa84c83dc1dfc78367a667b190fe61c160b"
+    },
+    "/workspace/.luci-tools/cloud073-teardown-route-v2/route.test.mjs": {
+      "bytes": 13579,
+      "sha256": "74accfb81ad00db3dfafdcd1745bae16c28ef50ba44b5b763d446e31e3a28de2"
+    },
+    "/workspace/.luci-tools/cloud073-teardown-route-v2/support/acceptance-lifecycle.mjs": {
+      "bytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+    }
+  },
+  "sourceAfter": {
+    "/workspace/.luci-tools/cloud073-teardown-route-v2/before/cold/launch.mjs": {
+      "bytes": 76771,
+      "sha256": "7abcaeebed205bc83344497498a27fa84c83dc1dfc78367a667b190fe61c160b"
+    },
+    "/workspace/.luci-tools/cloud073-teardown-route-v2/route.test.mjs": {
+      "bytes": 13579,
+      "sha256": "74accfb81ad00db3dfafdcd1745bae16c28ef50ba44b5b763d446e31e3a28de2"
+    },
+    "/workspace/.luci-tools/cloud073-teardown-route-v2/support/acceptance-lifecycle.mjs": {
+      "bytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+    }
+  },
+  "stdout": {
+    "bytes": 957,
+    "sha256": "b02296beb1bd9a40edd8dd4737973df5a208456dd38cd74698c1df3905d757e7"
+  },
+  "stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "scope": "Inert Node callbacks and temporary private-writer fixture only. No browser, Docker, product server, or compiler."
+}

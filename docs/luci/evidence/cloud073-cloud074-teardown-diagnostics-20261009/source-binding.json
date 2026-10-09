@@ -1,0 +1,26 @@
+[
+  {
+    "variant": "warm",
+    "originalSource": "/workspace/.luci-tools/cloud072-late-failure-diagnostic/warm/launch.mjs",
+    "original": {
+      "sha256": "205f99a26e4c5d0692f91bed0a1e1eeba10bc666571d3cdb86ef5fcf31980c79",
+      "bytes": 72373
+    },
+    "fixed": {
+      "sha256": "5154b05260a13d1d4ea61c973aeac89d9a7672705d9dd5d46e8a79ea4038087a",
+      "bytes": 74357
+    }
+  },
+  {
+    "variant": "cold",
+    "originalSource": "/workspace/.luci-tools/cloud072-late-failure-diagnostic/cold/launch.mjs",
+    "original": {
+      "sha256": "7789d0f5e89fdd643cf433dc8786f44fba16a3e24884c12aad738ab4935b75cc",
+      "bytes": 73345
+    },
+    "fixed": {
+      "sha256": "4d99458fa3ad1431402f808f9c3ea9bb715b52df0c3b58dd2d0aa4a8d7cebd71",
+      "bytes": 75329
+    }
+  }
+]

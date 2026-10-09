@@ -1,0 +1,17 @@
+{
+  "reviewer": "/root/performance_source_review/runtime_api_review",
+  "mode": "Independent read-only selected result and frozen scenario review; no runtime or edits",
+  "supported": [
+    "Four actual project selections, one permission GET per explicitly delayed overlap window, correct isolated purpose",
+    "Full-browser reload gives one fresh GET; restored grant entry gives one fresh GET",
+    "Held real 200 was fulfilled after workspace denial; membership-only recovery shows no private purposes and actual member spec GET is 403",
+    "Only browser login POST observed; actual session lists empty before/after"
+  ],
+  "limits": [
+    "300 ms transport gates are request-count instrumentation, not latency acceptance",
+    "Exact unpublished microtask race remains source-test-only",
+    "Provider/dispatch zero fields are scenario declarations, not measured independent counters",
+    "No native desktop-window acceptance",
+    "Independent closure preserves two browser zombies and makes no whole-machine claim"
+  ]
+}

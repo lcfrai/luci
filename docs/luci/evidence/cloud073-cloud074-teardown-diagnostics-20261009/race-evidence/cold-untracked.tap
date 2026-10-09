@@ -1,0 +1,32 @@
+TAP version 13
+# Subtest: unawaited accepted closing read is drained before final success
+not ok 1 - unawaited accepted closing read is drained before final success
+  ---
+  duration_ms: 11.931484
+  type: 'test'
+  location: '/workspace/.luci-tools/cloud073-teardown-route/route.test.mjs:56:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    true !== false
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/.luci-tools/cloud073-teardown-route/route.test.mjs:56:380)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2164.154526

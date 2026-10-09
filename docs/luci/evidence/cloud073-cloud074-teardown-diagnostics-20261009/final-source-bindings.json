@@ -1,0 +1,80 @@
+[
+  {
+    "variant": "warm",
+    "name": "launch.mjs",
+    "original": {
+      "bytes": 72373,
+      "sha256": "205f99a26e4c5d0692f91bed0a1e1eeba10bc666571d3cdb86ef5fcf31980c79"
+    },
+    "final": {
+      "bytes": 75799,
+      "sha256": "9ef944fa14c86512ae0e00c0c3f154f68118c3e2afed58a0e48bceb0b4bc5a3f"
+    },
+    "changed": true
+  },
+  {
+    "variant": "warm",
+    "name": "scenario.mjs",
+    "original": {
+      "bytes": 39222,
+      "sha256": "bee434c538872680e4abd652022041b2516b63c4dddb79e9910efe16a3fa0742"
+    },
+    "final": {
+      "bytes": 41178,
+      "sha256": "cc0b1a4ebad01758008502368fdcdfabd3ffc36c8d1e5f6fb6e53f168788b82b"
+    },
+    "changed": true
+  },
+  {
+    "variant": "warm",
+    "name": "outer-run.py",
+    "original": {
+      "bytes": 22954,
+      "sha256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49"
+    },
+    "final": {
+      "bytes": 22954,
+      "sha256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49"
+    },
+    "changed": false
+  },
+  {
+    "variant": "cold",
+    "name": "launch.mjs",
+    "original": {
+      "bytes": 73345,
+      "sha256": "7789d0f5e89fdd643cf433dc8786f44fba16a3e24884c12aad738ab4935b75cc"
+    },
+    "final": {
+      "bytes": 76771,
+      "sha256": "7abcaeebed205bc83344497498a27fa84c83dc1dfc78367a667b190fe61c160b"
+    },
+    "changed": true
+  },
+  {
+    "variant": "cold",
+    "name": "scenario.mjs",
+    "original": {
+      "bytes": 43452,
+      "sha256": "e96058d031f8d46b9ab4c4fcb4e14c485bacc939044bf1592a8ec24497a7d7f7"
+    },
+    "final": {
+      "bytes": 45408,
+      "sha256": "7af700a6e90262629e1ea5687b883430b4acfd966ec41e305319c963ba3bcf5e"
+    },
+    "changed": true
+  },
+  {
+    "variant": "cold",
+    "name": "outer-run.py",
+    "original": {
+      "bytes": 22954,
+      "sha256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49"
+    },
+    "final": {
+      "bytes": 22954,
+      "sha256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49"
+    },
+    "changed": false
+  }
+]

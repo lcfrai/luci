@@ -1,0 +1,58 @@
+TAP version 13
+# Subtest: actual browser cleanup boundary retains bounded disposal result
+ok 1 - actual browser cleanup boundary retains bounded disposal result
+  ---
+  duration_ms: 4.188263
+  type: 'test'
+  ...
+# Subtest: timeout records pending uncertainty and preserves cleanup failure
+ok 2 - timeout records pending uncertainty and preserves cleanup failure
+  ---
+  duration_ms: 1.190164
+  type: 'test'
+  ...
+# Subtest: late acknowledgement cannot mutate retained timeout observation or promote success
+ok 3 - late acknowledgement cannot mutate retained timeout observation or promote success
+  ---
+  duration_ms: 1.231076
+  type: 'test'
+  ...
+# Subtest: late rejection remains separate from immutable outer timeout
+ok 4 - late rejection remains separate from immutable outer timeout
+  ---
+  duration_ms: 1.478248
+  type: 'test'
+  ...
+# Subtest: ordinary rejection preserves failure and does not retain private error payload
+ok 5 - ordinary rejection preserves failure and does not retain private error payload
+  ---
+  duration_ms: 1.095952
+  type: 'test'
+  ...
+# Subtest: snapshot failure is explicit and does not skip disposal or cleanup recording
+ok 6 - snapshot failure is explicit and does not skip disposal or cleanup recording
+  ---
+  duration_ms: 1.155772
+  type: 'test'
+  ...
+# Subtest: final safe snapshot is independent of later source state and external edits
+ok 7 - final safe snapshot is independent of later source state and external edits
+  ---
+  duration_ms: 0.180772
+  type: 'test'
+  ...
+# Subtest: launcher success and original1500/2000 disposal limits are unchanged
+ok 8 - launcher success and original1500/2000 disposal limits are unchanged
+  ---
+  duration_ms: 0.609579
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 111.663897

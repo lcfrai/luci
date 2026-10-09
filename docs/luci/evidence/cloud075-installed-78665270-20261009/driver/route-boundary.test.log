@@ -1,0 +1,13 @@
+✔ normal admitted mutation remains pending until an actual request terminal event (46.996093ms)
+✔ sealed arbitrary same-origin read methods abort and every abort promise is tracked (44.120112ms)
+✔ a delayed teardown abort rejection remains a recorded failure before final snapshot (1.837389ms)
+✔ foreign reads and even previously admitted mutation methods fail after sealing (5.114979ms)
+✔ external scenario callback rejection is tracked and propagated to failure retention (1.167539ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 243.285284

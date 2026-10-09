@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "inputs": [
+    {
+      "source": "/workspace/.luci-tools/cloud073-installed-78665270/evidence/warm-attempt2/private-error-status-projection.json",
+      "publishedPath": "private-error-status-projection.json",
+      "bytes": 6433,
+      "sha256": "ea963a36a3e2121a34516ad942ec7029f826ac3455ceb081233b59b5fa571ce4",
+      "representation": "exact-safe-projection"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud073-installed-78665270/evidence/warm-attempt2/retained-allocation-projection.json",
+      "publishedPath": "retained-allocation-projection.json",
+      "bytes": 2528,
+      "sha256": "ca9302b95985567100b0c54cde55ef3fc382c49dfa96bffda3ccffed3968f935",
+      "representation": "exact-safe-projection"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud073-installed-78665270/project-warm2-private-error-status.py",
+      "publishedPath": "sources/project-warm2-private-error-status.py",
+      "bytes": 2633,
+      "sha256": "929b0b3ad3a4051cebcb7a21448693acf67d3c9362075addf1e5441be8b29ae6",
+      "representation": "exact-extractor-source"
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud073-installed-78665270/project-warm2-retained-allocation.py",
+      "publishedPath": "sources/project-warm2-retained-allocation.py",
+      "bytes": 4245,
+      "sha256": "a7a7cefa0e09abd9ad279299c0400bfe4f716c106da8f007495b1fcf433ad1f6",
+      "representation": "exact-extractor-source"
+    }
+  ],
+  "basePublicationSHA256": "724c345a4f94075e22d2cd73073ef19281226d16ce0d56ada73a45d2001ac41d",
+  "scope": "Safe outputs and exact readers only; publisher did not execute readers or read their private inputs."
+}

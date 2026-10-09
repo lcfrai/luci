@@ -1,0 +1,154 @@
+TAP version 13
+# Subtest: exact local session poll aborts during actual finally without false failure
+ok 1 - exact local session poll aborts during actual finally without false failure
+  ---
+  duration_ms: 5.381672
+  type: 'test'
+  ...
+# Subtest: owned session read has separate bounded route class
+ok 2 - owned session read has separate bounded route class
+  ---
+  duration_ms: 1.61218
+  type: 'test'
+  ...
+# Subtest: active exact poll is forwarded through unchanged health guard
+ok 3 - active exact poll is forwarded through unchanged health guard
+  ---
+  duration_ms: 2.71361
+  type: 'test'
+  ...
+# Subtest: closing foreign-origin remains a strict failed workflow with no forwarding or settlement
+ok 4 - closing foreign-origin remains a strict failed workflow with no forwarding or settlement
+  ---
+  duration_ms: 2.230261
+  type: 'test'
+  ...
+# Subtest: closing unknown-route remains a strict failed workflow with no forwarding or settlement
+ok 5 - closing unknown-route remains a strict failed workflow with no forwarding or settlement
+  ---
+  duration_ms: 1.509975
+  type: 'test'
+  ...
+# Subtest: closing different-session remains a strict failed workflow with no forwarding or settlement
+ok 6 - closing different-session remains a strict failed workflow with no forwarding or settlement
+  ---
+  duration_ms: 1.435744
+  type: 'test'
+  ...
+# Subtest: closing query remains a strict failed workflow with no forwarding or settlement
+ok 7 - closing query remains a strict failed workflow with no forwarding or settlement
+  ---
+  duration_ms: 1.365528
+  type: 'test'
+  ...
+# Subtest: closing fragment remains a strict failed workflow with no forwarding or settlement
+ok 8 - closing fragment remains a strict failed workflow with no forwarding or settlement
+  ---
+  duration_ms: 1.481804
+  type: 'test'
+  ...
+# Subtest: closing userinfo remains a strict failed workflow with no forwarding or settlement
+ok 9 - closing userinfo remains a strict failed workflow with no forwarding or settlement
+  ---
+  duration_ms: 1.428113
+  type: 'test'
+  ...
+# Subtest: closing nested-action remains a strict failed workflow with no forwarding or settlement
+ok 10 - closing nested-action remains a strict failed workflow with no forwarding or settlement
+  ---
+  duration_ms: 1.726517
+  type: 'test'
+  ...
+# Subtest: closing create-mutation remains a strict failed workflow with no forwarding or settlement
+ok 11 - closing create-mutation remains a strict failed workflow with no forwarding or settlement
+  ---
+  duration_ms: 1.235582
+  type: 'test'
+  ...
+# Subtest: closing restart-mutation remains a strict failed workflow with no forwarding or settlement
+ok 12 - closing restart-mutation remains a strict failed workflow with no forwarding or settlement
+  ---
+  duration_ms: 1.530447
+  type: 'test'
+  ...
+# Subtest: closing delete-mutation remains a strict failed workflow with no forwarding or settlement
+ok 13 - closing delete-mutation remains a strict failed workflow with no forwarding or settlement
+  ---
+  duration_ms: 1.169633
+  type: 'test'
+  ...
+# Subtest: closing head-method remains a strict failed workflow with no forwarding or settlement
+ok 14 - closing head-method remains a strict failed workflow with no forwarding or settlement
+  ---
+  duration_ms: 1.402755
+  type: 'test'
+  ...
+# Subtest: closing options-method remains a strict failed workflow with no forwarding or settlement
+ok 15 - closing options-method remains a strict failed workflow with no forwarding or settlement
+  ---
+  duration_ms: 2.269761
+  type: 'test'
+  ...
+# Subtest: allowed closing poll never clears an earlier failure or pending mutation
+ok 16 - allowed closing poll never clears an earlier failure or pending mutation
+  ---
+  duration_ms: 1.533171
+  type: 'test'
+  ...
+# Subtest: abort rejection remains explicit and conservatively fails
+ok 17 - abort rejection remains explicit and conservatively fails
+  ---
+  duration_ms: 3.163799
+  type: 'test'
+  ...
+# Subtest: actual2000ms abort timeout retains unconfirmed outcome and records failure while its callback remains unsettled
+ok 18 - actual2000ms abort timeout retains unconfirmed outcome and records failure while its callback remains unsettled
+  ---
+  duration_ms: 2103.842081
+  type: 'test'
+  ...
+# Subtest: bounded closing poll overflow retains strict failure
+ok 19 - bounded closing poll overflow retains strict failure
+  ---
+  duration_ms: 4.933376
+  type: 'test'
+  ...
+# Subtest: independent disposal error is not erased by accepted read teardown
+ok 20 - independent disposal error is not erased by accepted read teardown
+  ---
+  duration_ms: 2.464585
+  type: 'test'
+  ...
+# Subtest: no mutation guard, pending state, response handler or final condition changed
+ok 21 - no mutation guard, pending state, response handler or final condition changed
+  ---
+  duration_ms: 0.798544
+  type: 'test'
+  ...
+# Subtest: unawaited accepted closing read is drained before final success
+ok 22 - unawaited accepted closing read is drained before final success
+  ---
+  duration_ms: 3.121645
+  type: 'test'
+  ...
+# Subtest: unawaited closing abort rejection is captured before final failure snapshot
+ok 23 - unawaited closing abort rejection is captured before final failure snapshot
+  ---
+  duration_ms: 2.270031
+  type: 'test'
+  ...
+# Subtest: closing-read final drain seals new observations and preserves strict failure
+ok 24 - closing-read final drain seals new observations and preserves strict failure
+  ---
+  duration_ms: 1.709226
+  type: 'test'
+  ...
+1..24
+# tests 24
+# suites 0
+# pass 24
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2261.413007

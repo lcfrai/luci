@@ -1,0 +1,79 @@
+{
+  "at": "2026-10-09T17:35:34.038661+00:00",
+  "sourceCommit": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "passedWorkflow": false,
+  "originalFailedStage": "terminal-scenario",
+  "originalResultSHA256": "aa1b7d2976ad0c3425be604d3bf46394376adda06a3c6b164f64ff86735de3dc",
+  "originalWrapperSHA256": "ab15caacf6c7441548fb9c672083cec98e17ac29561838038cee8ed1e3aa4389",
+  "capturedProblems": [],
+  "identities": [
+    {
+      "pid": 2573198,
+      "expectedStartTicks": "31292048",
+      "family": "launcher",
+      "now": {
+        "status": "absent"
+      }
+    },
+    {
+      "pid": 2573373,
+      "expectedStartTicks": "31292333",
+      "family": "controller",
+      "now": {
+        "status": "absent"
+      }
+    },
+    {
+      "pid": 2573937,
+      "expectedStartTicks": "31295811",
+      "family": "browser",
+      "now": {
+        "status": "absent"
+      }
+    },
+    {
+      "pid": 2573952,
+      "expectedStartTicks": "31295826",
+      "family": "browser",
+      "now": {
+        "status": "observed",
+        "startTicks": "31295826",
+        "state": "Z",
+        "parentPID": 1
+      }
+    },
+    {
+      "pid": 2573956,
+      "expectedStartTicks": "31295827",
+      "family": "browser",
+      "now": {
+        "status": "observed",
+        "startTicks": "31295827",
+        "state": "Z",
+        "parentPID": 1
+      }
+    }
+  ],
+  "containers": [
+    "78a90473d0b49f1934e5fe5942d0a3167c47a7bd68db8cd1e4385cf8e59dfcaf"
+  ],
+  "volumes": [],
+  "sameEngine": true,
+  "ledger": {
+    "sha256": "ecbd4c2ee5b97005643503eb5d01d3c8d77736113eac643bb7d853fcf41f3a9a",
+    "bytes": 503,
+    "counts": {
+      "leases": 1,
+      "checks": 0,
+      "fences": 0,
+      "checkFences": 0
+    }
+  },
+  "fixtureFilesCount": 31,
+  "fixtureManifestSHA256": "86b420812d65bba55f26cc2864976e86e5e960e4c19079d8ccf3bf2cefc2dd45",
+  "fixtureLinks": [],
+  "originalFilesUnchanged": true,
+  "fixtureFilesUnchanged": true,
+  "scriptSHA256": "43e51c28eca8a888712db26a60c0dd3ce68ebbad98f66be811b790fe874d3fe0",
+  "scope": "Read-only exact recorded process identities, selected daemon inventories and private ledger counts. No signals, cleanup mutation, whole-machine census, historical charge release, numeric admission reconstruction or Docker wire counts. Private files remain unchanged; original transient/zombie and unreadable observations remain in their receipts."
+}

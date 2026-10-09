@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "product": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "runRoot": "/workspace/.luci-tools/cloud075-private-runs/attempt-001",
+  "pid": 2572682,
+  "identity": {
+    "pid": 2572682,
+    "start": "31280923",
+    "group": 2572676,
+    "status": "R"
+  },
+  "packageProvenanceSHA256": "f65e8e48149fc495c91ad340cf4e31711fb12f38ac4a9ec8829ed43e0e956a2f"
+}

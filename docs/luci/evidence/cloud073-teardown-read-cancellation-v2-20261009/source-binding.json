@@ -1,0 +1,32 @@
+{
+  "originalActualReceipt": {
+    "path": "/workspace/.luci-tools/cloud073-installed-78665270/evidence/cold-attempt1/driver/result.json",
+    "sha256": "f14784401c03a0b26376c0455516806a083363115ecdbd0bb5caebfa009f9bf2"
+  },
+  "helpers": [
+    {
+      "variant": "warm",
+      "originalSource": "/workspace/.luci-tools/cloud073-teardown-route/warm/launch.mjs",
+      "original": {
+        "bytes": 75799,
+        "sha256": "9ef944fa14c86512ae0e00c0c3f154f68118c3e2afed58a0e48bceb0b4bc5a3f"
+      },
+      "fixed": {
+        "bytes": 75917,
+        "sha256": "5f5eb8a8bc016e36932e4b8ac0649671e37e68284b31196ad42ce56d5c341524"
+      }
+    },
+    {
+      "variant": "cold",
+      "originalSource": "/workspace/.luci-tools/cloud073-teardown-route/cold/launch.mjs",
+      "original": {
+        "bytes": 76771,
+        "sha256": "7abcaeebed205bc83344497498a27fa84c83dc1dfc78367a667b190fe61c160b"
+      },
+      "fixed": {
+        "bytes": 76889,
+        "sha256": "5312bf202104ba1316272c5e05594547bc3538208e57d3eb8adb9ae346ec83e4"
+      }
+    }
+  ]
+}

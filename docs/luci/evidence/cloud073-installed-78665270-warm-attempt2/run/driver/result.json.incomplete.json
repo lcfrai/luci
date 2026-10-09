@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "passed": false,
+  "status": "cleanup-incomplete",
+  "stage": "terminal-scenario",
+  "failure": {
+    "name": "Error",
+    "code": null,
+    "message": "Private transport error capture failed: invalid_error_observation"
+  },
+  "pendingMutations": [
+    {
+      "method": "POST",
+      "path": "/v1/sessions/s-fa96251d/restart",
+      "startedAt": "2026-10-09T17:28:39.838Z"
+    }
+  ],
+  "knownController": {
+    "pid": 2573373,
+    "start": "31292333",
+    "parent": 2573198,
+    "status": "R"
+  },
+  "knownContainers": [
+    {
+      "id": "74f88eb9ae9edf43ddbdbe4a2189ad7faaf1b6a86b3403228f26359e6df8000b",
+      "sandboxId": "s-fa96251d",
+      "sessionId": "s-fa96251d",
+      "instanceId": "141ee2b3-4d1b-49a5-85c8-614493b395bf",
+      "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+      "name": "/luci-s-fa96251d",
+      "status": "removing",
+      "pid": 0,
+      "created": "2026-10-09T17:27:35.315436682Z",
+      "startedAt": "2026-10-09T17:28:06.620666972Z",
+      "memoryBytes": 1073741824,
+      "cpuNano": 1000000000,
+      "pidsLimit": 256
+    }
+  ]
+}

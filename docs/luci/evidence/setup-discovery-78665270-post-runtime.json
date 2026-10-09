@@ -1,0 +1,63 @@
+{
+  "observedAt": "2026-10-09T17:18:00.345997+00:00",
+  "discoveryStartedAt": "2026-10-09T17:17:06.676028+00:00",
+  "discoveryCompletedAt": "2026-10-09T17:17:14.094437+00:00",
+  "scope": "All reachable physical directories from /workspace including directory-symlink targets scanned once by device/inode. Git metadata stores are explicit metadata exclusions; candidate roots independently read through Git. Ordinary files are not read by traversal; only Git config/pointer bytes are hashed and remote identities sanitized.",
+  "selectedRepository": {
+    "actualRoot": "/workspace/luci",
+    "realpath": "/workspace/luci",
+    "head": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+    "sanitizedFetchIdentity": "github.com/lcfrai/luci",
+    "chosenFetchRemote": "origin",
+    "repositoryDeclaration": {
+      "name": "lcfrai/luci",
+      "host": "github.com",
+      "commit": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+      "mount_path": "luci"
+    }
+  },
+  "repositories": [
+    {
+      "name": "lcfrai/luci",
+      "host": "github.com",
+      "commit": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+      "mount_path": "luci"
+    }
+  ],
+  "counts": {
+    "canonicalGitRoots": 380,
+    "selectedProjectCheckouts": 1,
+    "explicitlyClassifiedGeneratedRoots": 379,
+    "priorGeneratedRootIdentitiesUnchanged": 377,
+    "newReceiptAssociatedRoots": 2,
+    "newExactFixtureGroups": 2,
+    "gitDirectories": 338,
+    "linkedGitFiles": 42,
+    "positivelyUnbornGeneratedRoots": 132,
+    "directorySymlinksTraversedOrDeduplicated": 269,
+    "ordinaryFileSymlinks": 206,
+    "explicitlyClassifiedDanglingNoncheckoutAliases": 79,
+    "newOrChangedAliasesExplicitlyClassified": 3,
+    "externalGitRootsViaAliases": 0,
+    "selectedSubmodules": 0,
+    "bareCandidates": 0,
+    "physicalDirectoriesRead": 25671,
+    "entriesRead": 166740,
+    "traversalErrors": 0,
+    "unknownOrUnreadable": 0
+  },
+  "declarationReady": true,
+  "errorStageCounts": {},
+  "privateClassificationSHA256": "dbafcb961c960bd6a3c195e77f80b89241bd339c2122357db2aaea9ebb31d42d",
+  "privateDiscoverySHA256": "f7a81518cef578a09db797eda87f0efd11d91d4a5d42a570ed945ff2fab8d2a5",
+  "limitations": [
+    "Read-only filesystem and Git metadata discovery; configuration was not read, saved, applied, or published.",
+    "All reachable physical directories and aliases were scanned without name-based pruning, apart from explicitly recorded Git metadata stores.",
+    "No active application or compiler was present; this is a bounded discovery observation, not an atomic filesystem snapshot. No traversal error was silently discarded.",
+    "Previously classified generated roots require equality of every fresh recorded Git metadata field, including sanitized remotes, configuration and linked-worktree pointer hashes.",
+    "The seven added roots are associated with exact original private warm/cold fixture pointers and the retained failed trace result fixture path. This does not establish test success, runtime cleanup, lease release, or deletion.",
+    "Live directory aliases were scanned or inode-deduplicated. Previously classified dangling aliases retain exact path, raw target, canonical target, kind and owner identity.",
+    "No network, archive-content verification, remote reproducibility or fresh-task restoration was attempted.",
+    "Private receipts preserve exact fixture paths with mode0600 inside a mode0700 directory. The public summary contains only selected checkout identity, aggregate counts and receipt hashes."
+  ]
+}

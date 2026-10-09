@@ -1,0 +1,11 @@
+{
+  "path": "/workspace/.luci-tools/cloud073-installed-78665270/evidence/warm-attempt2/independent-closure.json",
+  "sha256": "0ea8c0282b3ded8b588d65fa15af5a23893c3e05927dbbae6356c038e2a8aac7",
+  "additional": [
+    {
+      "path": "/workspace/.luci-tools/cloud073-installed-78665270/independent-warm-closure.py",
+      "sha256": "43e51c28eca8a888712db26a60c0dd3ce68ebbad98f66be811b790fe874d3fe0",
+      "publishedPath": "sources/independent-warm-closure.py"
+    }
+  ]
+}

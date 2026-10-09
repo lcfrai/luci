@@ -1,0 +1,17 @@
+{
+  "kind": "initial-settlement-lifecycle",
+  "elapsedMs": 178.92502100000274,
+  "statuses": [
+    {
+      "status": "exited",
+      "type": "string",
+      "bytes": 6,
+      "sha256": "b251994ca8108bbfdac92861ce8d3c5c82c8e62de03cd9f44a3e338643bb98cc"
+    }
+  ],
+  "containerCount": 1,
+  "heldLeaseCount": 1,
+  "ledgerSHA256": "df5163a09392873ea0fc3d5729db2d6cff168aa90334dfe4debffb8d886cfbee",
+  "scope": "Exact identity and held-charge checked; lifecycle classification and settlement remain unconfirmed.",
+  "observedAt": "2026-10-09T17:28:18.882Z"
+}

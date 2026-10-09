@@ -1,0 +1,162 @@
+{
+  "version": 1,
+  "passed": false,
+  "startedAt": "2026-10-09T17:11:16.288854+00:00",
+  "budgets": {
+    "preparationSeconds": 120,
+    "workflowSeconds": 480,
+    "cooperativeCommandOverhangSeconds": 60,
+    "cleanupSeconds": 80,
+    "launcherSeconds": 740,
+    "termGraceSeconds": 20,
+    "killSettlementSeconds": 5,
+    "finalObservationSeconds": 5,
+    "nominalMaximumSeconds": 770,
+    "note": "Monotonic supervisor; synchronous kernel/file reads are cooperative, not preempted. No signal is sent to controllers, browsers, process groups or Docker."
+  },
+  "sourceBefore": {
+    "/workspace/.luci-tools/cloud073-teardown-route/cold/outer-run.py": {
+      "bytes": 22954,
+      "sha256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49"
+    },
+    "/workspace/.luci-tools/cloud073-teardown-route/cold/launch.mjs": {
+      "bytes": 76771,
+      "sha256": "7abcaeebed205bc83344497498a27fa84c83dc1dfc78367a667b190fe61c160b"
+    },
+    "/workspace/.luci-tools/cloud073-teardown-route/cold/scenario.mjs": {
+      "bytes": 45408,
+      "sha256": "7af700a6e90262629e1ea5687b883430b4acfd966ec41e305319c963ba3bcf5e"
+    }
+  },
+  "limitations": [
+    "This wrapper observes exact fixture process identities only, not memory/CPU/performance or whole-machine closure.",
+    "Driver receipt may attest Docker/ledger closure; this wrapper does not independently query Docker or repair retained charges.",
+    "Only the exact launcher PID is signalled through its pidfd. Surviving controller/browser identities remain open for independent reviewed cleanup.",
+    "Absent unobserved ephemeral processes cannot be inferred; unreadable environment scans and zombies stay explicit."
+  ],
+  "driverReport": {
+    "sha256": "f14784401c03a0b26376c0455516806a083363115ecdbd0bb5caebfa009f9bf2",
+    "bytes": 206027,
+    "passed": false
+  },
+  "launcherExitCode": 1,
+  "failure": null,
+  "signals": [],
+  "wrapperSignals": [],
+  "identities": [
+    {
+      "expected": {
+        "status": "observed",
+        "pid": 2553124,
+        "startTicks": "31194552",
+        "parentPid": 2553119,
+        "state": "R",
+        "family": "launcher",
+        "source": "owned-Popen",
+        "firstObservedAt": "2026-10-09T17:11:16.290540+00:00"
+      },
+      "current": {
+        "status": "absent",
+        "pid": 2553124
+      }
+    },
+    {
+      "expected": {
+        "status": "observed",
+        "pid": 2553300,
+        "startTicks": "31194929",
+        "parentPid": 2553124,
+        "state": "S",
+        "family": "controller",
+        "firstObservedAt": "2026-10-09T17:11:21.125982+00:00",
+        "source": "outer-environment"
+      },
+      "current": {
+        "status": "absent",
+        "pid": 2553300
+      }
+    },
+    {
+      "expected": {
+        "status": "observed",
+        "pid": 2553887,
+        "startTicks": "31197952",
+        "parentPid": 2553124,
+        "state": "S",
+        "family": "browser",
+        "firstObservedAt": "2026-10-09T17:11:50.832267+00:00",
+        "source": "outer-environment"
+      },
+      "current": {
+        "status": "absent",
+        "pid": 2553887
+      }
+    },
+    {
+      "expected": {
+        "status": "observed",
+        "pid": 2553902,
+        "startTicks": "31197964",
+        "parentPid": 1,
+        "state": "S",
+        "family": "browser",
+        "firstObservedAt": "2026-10-09T17:11:50.832343+00:00",
+        "source": "outer-environment"
+      },
+      "current": {
+        "status": "observed",
+        "pid": 2553902,
+        "startTicks": "31197964",
+        "parentPid": 1,
+        "state": "Z"
+      }
+    },
+    {
+      "expected": {
+        "status": "observed",
+        "pid": 2553905,
+        "startTicks": "31197964",
+        "parentPid": 1,
+        "state": "S",
+        "family": "browser",
+        "firstObservedAt": "2026-10-09T17:11:50.832411+00:00",
+        "source": "outer-environment"
+      },
+      "current": {
+        "status": "observed",
+        "pid": 2553905,
+        "startTicks": "31197964",
+        "parentPid": 1,
+        "state": "Z"
+      }
+    }
+  ],
+  "sourceAfter": {
+    "/workspace/.luci-tools/cloud073-teardown-route/cold/outer-run.py": {
+      "bytes": 22954,
+      "sha256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49"
+    },
+    "/workspace/.luci-tools/cloud073-teardown-route/cold/launch.mjs": {
+      "bytes": 76771,
+      "sha256": "7abcaeebed205bc83344497498a27fa84c83dc1dfc78367a667b190fe61c160b"
+    },
+    "/workspace/.luci-tools/cloud073-teardown-route/cold/scenario.mjs": {
+      "bytes": 45408,
+      "sha256": "7af700a6e90262629e1ea5687b883430b4acfd966ec41e305319c963ba3bcf5e"
+    }
+  },
+  "samples": 106,
+  "unreadableEnvironmentObservations": 699208,
+  "outputBytesObserved": {
+    "stdout": 198,
+    "stderr": 0
+  },
+  "outputTruncated": {
+    "stdout": false,
+    "stderr": false
+  },
+  "settlementErrors": [],
+  "finishedAt": "2026-10-09T17:13:30.046291+00:00",
+  "elapsedSeconds": 133.75747671502177,
+  "receiptDurable": true
+}

@@ -1,0 +1,173 @@
+{
+  "version": 1,
+  "projection": "Selected actual result fields; excludes private paths and unrelated process identities/environment diagnostics. Owned process proof is retained separately in closure.",
+  "originalResultSHA256": "cb2c704902d2cd9c1e0fe537601405ab6cc58dacdb2d60f99003b18dee0febdf",
+  "originalResultBytes": 18364,
+  "passed": true,
+  "executed": true,
+  "product": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "packageProvenanceSHA256": "f65e8e48149fc495c91ad340cf4e31711fb12f38ac4a9ec8829ed43e0e956a2f",
+  "packageIntegrity": {
+    "sourceCommit": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+    "archiveSHA256": "265b41aa1eb18334035e08b9dd0e500787f31a008988ebe5c4ca559c9a77b4aa",
+    "verifiedMembers": 964,
+    "allMembersMatch": true
+  },
+  "binarySHA256": "fd2da8762ebe87f29a9cd999e830c0e578b70ce90658135e809456ae1c8e8cf7",
+  "webIndexSHA256": "47798bd5802b0c5a6ae1a8f3234c80f6c1d26e836d3af3404c8cdccc28f0c42b",
+  "startedAt": "2026-10-09T17:25:41.962Z",
+  "endedAt": "2026-10-09T17:25:56.718Z",
+  "browserVersion": "151.0.7922.173",
+  "scenario": {
+    "passed": true,
+    "projectCount": 4,
+    "permissionReads": [
+      {
+        "phase": "select-c075-project-1",
+        "at": 1791566748326,
+        "status": 200,
+        "delivery": "fulfilled",
+        "bodySHA256": "7d9aec35f5b436e9517922ad53f8ddf9bde9a9cfd6a4645668d70f6446aeb5b7",
+        "project": "project-1"
+      },
+      {
+        "phase": "select-c075-project-2",
+        "at": 1791566749400,
+        "status": 200,
+        "delivery": "fulfilled",
+        "bodySHA256": "badf6cca888c1d5f22f4260b06f43002d2392457cabca29460a88c3d565fa4b0",
+        "project": "project-2"
+      },
+      {
+        "phase": "select-c075-project-3",
+        "at": 1791566750041,
+        "status": 200,
+        "delivery": "fulfilled",
+        "bodySHA256": "222e6e8c043f2bd91ebded56e9089b7910bdf4cdd34a3bbcf81a55a27302e23b",
+        "project": "project-3"
+      },
+      {
+        "phase": "select-c075-project-4",
+        "at": 1791566750810,
+        "status": 200,
+        "delivery": "fulfilled",
+        "bodySHA256": "de2693fe3e9eab297dcfd09745648967319263eaceb370eb1d7ba50c981c1ed2",
+        "project": "project-4"
+      },
+      {
+        "phase": "same-project-browser-reload",
+        "at": 1791566752073,
+        "status": 200,
+        "delivery": "fulfilled",
+        "bodySHA256": "de2693fe3e9eab297dcfd09745648967319263eaceb370eb1d7ba50c981c1ed2",
+        "project": "project-4"
+      },
+      {
+        "phase": "pre-denial-held-grant",
+        "at": 1791566753105,
+        "status": 200,
+        "delivery": "fulfilled",
+        "bodySHA256": "7d9aec35f5b436e9517922ad53f8ddf9bde9a9cfd6a4645668d70f6446aeb5b7",
+        "project": "project-1"
+      },
+      {
+        "phase": "restored-current-project",
+        "at": 1791566755082,
+        "status": 200,
+        "delivery": "fulfilled",
+        "bodySHA256": "34e26afeac1dbd7abf1f6576067fcfff29e099a466ec7214d4645d48c3d330e7",
+        "project": "project-1"
+      }
+    ],
+    "allowedBrowserMutationsAndReadinessProbes": [
+      {
+        "method": "POST",
+        "path": "/v1/auth/login"
+      }
+    ],
+    "agentSessionsBefore": 0,
+    "agentSessionsAfter": 0,
+    "transportGating": {
+      "normalReadDelayMs": 300,
+      "manualPreDenial": true
+    },
+    "latencyAcceptance": false,
+    "nativeDesktopAcceptance": false,
+    "zeroExecutionEvidence": "Empty actual session lists before/after; browser/operator mutation allowlists reject execution and no provider is configured. The scenario providerCalls and agentOrCheckDispatches zero fields are declarations, not independent counters, and are intentionally not projected as measurements.",
+    "scope": "Installed Linux web/API; four isolated project selections; later same-project full browser refresh; real delayed permission body across membership removal/recovery; exact unpublished microtask race remains source-test-only"
+  },
+  "operatorHTTP": {
+    "count": 35,
+    "methodStatusCounts": {
+      "POST 201": 7,
+      "POST 200": 8,
+      "GET 200": 13,
+      "PUT 200": 5,
+      "DELETE 200": 1,
+      "GET 403": 1
+    }
+  },
+  "cleanup": {
+    "errors": [],
+    "phaseStatuses": [
+      {
+        "name": "browser",
+        "status": "completed"
+      },
+      {
+        "name": "controller",
+        "status": "completed"
+      },
+      {
+        "name": "final-observations",
+        "status": "completed"
+      }
+    ],
+    "startup": [
+      {
+        "name": "controller",
+        "state": "closed",
+        "late": false,
+        "closeTimedOut": false
+      },
+      {
+        "name": "browser",
+        "state": "closed",
+        "late": false,
+        "closeTimedOut": false
+      },
+      {
+        "name": "browser-context",
+        "state": "closed",
+        "late": false,
+        "closeTimedOut": false,
+        "parent": "browser",
+        "closedByParent": true
+      },
+      {
+        "name": "browser-page",
+        "state": "closed",
+        "late": false,
+        "closeTimedOut": false,
+        "parent": "browser-context",
+        "closedByParent": true
+      }
+    ],
+    "notWholeMachineClosure": true,
+    "unreadableEnvironmentDiagnosticSamples": {
+      "retainedCount": 128,
+      "retentionCap": 128,
+      "codes": {
+        "EACCES": 128
+      },
+      "note": "Retained capped scanner diagnostic samples, potentially repeated across scans; not a unique-process or total inventory. No PID or environment values published."
+    }
+  },
+  "routeBoundary": {
+    "sealed": true,
+    "pendingCallbacks": 0,
+    "pendingMutations": [],
+    "closingReads": 0
+  },
+  "firstFailure": null
+}

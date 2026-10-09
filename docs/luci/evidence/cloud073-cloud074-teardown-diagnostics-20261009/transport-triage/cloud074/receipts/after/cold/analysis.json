@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "actualAttempt": "CLOUD-072 installed b94 cold-attempt2",
+  "actualRetained": {
+    "cleanupCode": "transport-observer-dispose-timeout",
+    "outerBudgetMs": 2000,
+    "innerDetachBudgetMs": 1500,
+    "disposalEntryTimestampRetained": false,
+    "detachInvocationTimestampRetained": false,
+    "innerTimerRegistrationTimestampRetained": false,
+    "detachSettlementTimestampRetained": false,
+    "postDisposeProtocolSnapshotRetained": false
+  },
+  "conclusions": [
+    "With prompt entry and a pending detach promise, the exact inner 1500ms race rejects before the 2000ms outer waiter.",
+    "The outer timer is registered before monitor execution. CDP detach is invoked eagerly before its inner timer is registered.",
+    "Controlled delayed entry or eager-call delay can produce the outer code while both configured budgets remain unchanged; this is a mechanism characterization, not attribution of the real attempt.",
+    "Neither timeout cancels detach. Late acknowledgement or rejection does not erase the already-observed outer failure.",
+    "The actual receipts lack the disposal timings and final transport observation needed to distinguish causes. No budget increase is justified by these results."
+  ],
+  "limits": [
+    "All CDP/page behavior is controlled in-process; no actual Chromium latency or event-loop scheduling was measured.",
+    "The separate workflow-closing first callback has no retained original request method; no GET claim.",
+    "Candidate C074 adds first-call disposal state/timing only; the before stage imports unchanged C072. No product/runtime fix or budget change is applied. Actual cold2 cause remains unknown."
+  ]
+}

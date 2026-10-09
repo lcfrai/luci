@@ -1,0 +1,13 @@
+{
+  "kind": "scenario-failure-observation-unavailable",
+  "step": "single-ui-restart",
+  "error": {
+    "name": "Error",
+    "code": null,
+    "messageSHA256": "e191aac66572642f085bb4439ee9d9d57715d5d94acd18c5b7d9c3e265286016",
+    "messageBytes": 62,
+    "messageRetained": false,
+    "kind": "other"
+  },
+  "observedAt": "2026-10-09T17:29:00.039Z"
+}

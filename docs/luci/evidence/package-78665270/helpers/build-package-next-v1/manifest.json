@@ -1,0 +1,41 @@
+{
+  "preparationOnly": true,
+  "actualBuildOrRenameExecuted": false,
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "72004c3b121d534f4a307e9c6369bb1374d92b34495d766e1d7f7fb61a0e0d2f",
+      "bytes": 2609
+    },
+    {
+      "path": "build-package.original.py",
+      "sha256": "150b7e999d7238eb765f3025e9e42f904001828e37defdde39e780a937d463f1",
+      "bytes": 5334
+    },
+    {
+      "path": "build-package.py",
+      "sha256": "8771e5c661745b4cb4bfefc9aea0839f947dec534d3a438459bda0ecc409e418",
+      "bytes": 5804
+    },
+    {
+      "path": "controls-result.json",
+      "sha256": "b47738bfeb15fee55f618baea52cf75d1c4e73bc8e6b226cdebd55808cd65c37",
+      "bytes": 1183
+    },
+    {
+      "path": "controls.py",
+      "sha256": "e81f991bee124bfbf68a294101cffbae2f4ca27d0efe101749ca6900d8b68104",
+      "bytes": 4765
+    },
+    {
+      "path": "parameterization.patch",
+      "sha256": "ca795219a2595c3f960b32a90ac378313969c082f9d01810a5b41886e2bd64eb",
+      "bytes": 5689
+    },
+    {
+      "path": "unchanged-build-inputs.json",
+      "sha256": "57772ba53f2f0b0ae2092b1ced1d3ef488e0da89b15edc14bc098b99107d1e35",
+      "bytes": 752
+    }
+  ]
+}

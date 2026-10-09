@@ -1,0 +1,9 @@
+{
+  "exactPrivateRootAbsent": true,
+  "boundedPatternFindings": [],
+  "screenshotsManuallyReviewed": [
+    "first-ended-poll-held.png",
+    "failure.png"
+  ],
+  "scope": "Common credential scan and screenshot review, not exhaustive. No raw private error/log/auth/fixture read by publisher; separately supplied allowlisted diagnostic projection retains its own extraction scope."
+}

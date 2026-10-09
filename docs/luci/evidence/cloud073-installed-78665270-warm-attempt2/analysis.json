@@ -1,0 +1,1345 @@
+{
+  "productSource": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "overallPassed": false,
+  "scenarioCompleted": false,
+  "launcherExitCode": 1,
+  "elapsedSeconds": 102.44129173900001,
+  "failure": {
+    "name": "Error",
+    "code": null,
+    "message": "Private transport error capture failed: invalid_error_observation"
+  },
+  "failedStage": "terminal-scenario",
+  "failureObservation": {
+    "version": 1,
+    "afterCleanup": true,
+    "snapshotAt": "2026-10-09T17:29:13.380Z",
+    "failurePresent": true,
+    "first": {
+      "origin": "callback",
+      "stage": "terminal-scenario",
+      "phase": "workflow",
+      "observedAt": "2026-10-09T17:28:59.595Z",
+      "monotonicMs": 88329.210677,
+      "reportingFailed": false,
+      "privateRecord": {
+        "file": "private-first-failure.json",
+        "bytes": 1282,
+        "sha256": "7c6f16faabf81baa96e8f6a3fff221f088b55ca68db2746caf688923b12e576d",
+        "maxBytes": 65536,
+        "truncated": false,
+        "retention": "durable"
+      },
+      "errorName": "Error",
+      "sourceLabel": null,
+      "messageCodeUnits": 65,
+      "stackCodeUnits": 1172
+    }
+  },
+  "pendingMutations": [
+    {
+      "method": "POST",
+      "path": "/v1/sessions/s-fa96251d/restart",
+      "startedAt": "2026-10-09T17:28:39.838Z"
+    }
+  ],
+  "cleanupErrors": [
+    {
+      "name": "AssertionError",
+      "code": "ERR_ASSERTION",
+      "message": "Remote mutation settlement unknown; retain allocation\n\n1 !== 0\n"
+    },
+    {
+      "name": "AssertionError",
+      "code": "ERR_ASSERTION",
+      "message": "Pending mutation remains\n\n1 !== 0\n"
+    }
+  ],
+  "cleanupPhaseOutcomes": [
+    {
+      "name": "browser",
+      "status": "completed"
+    },
+    {
+      "name": "supported-session-stop",
+      "status": "completed"
+    },
+    {
+      "name": "controller",
+      "status": "completed"
+    },
+    {
+      "name": "private-controller-log",
+      "status": "completed"
+    },
+    {
+      "name": "exact-container-leftovers",
+      "status": "failed-or-unsettled"
+    },
+    {
+      "name": "final-source-and-inventory",
+      "status": "failed-or-unsettled"
+    }
+  ],
+  "closingReadObservations": [],
+  "firstTerminal": {
+    "phase": 22,
+    "exitCode": 0,
+    "browserClose": {
+      "code": 1000,
+      "wasClean": true,
+      "wall": "2026-10-09T17:28:14.852Z",
+      "monotonicMs": 3729.399999976158
+    }
+  },
+  "firstNaturalRelease": {
+    "phase": 33,
+    "polls": 29,
+    "loopElapsedMs": 20504.15051600001,
+    "observedAt": "2026-10-09T17:28:39.208Z"
+  },
+  "oldResponseOrdering": {
+    "heldBeforeRestartPOST": true,
+    "heldBodySHA256": "d101a76e4a946a8f4a186fd6e1b5911504b624dac5f51220e6fe3dd34aa472aa",
+    "releaseRequest": {
+      "kind": "second-poll-release-requested",
+      "reason": "bounded-before-attachment",
+      "releaseRequestedMonotonicMs": 74027.998849,
+      "acknowledgedMonotonicMs": null,
+      "attachedMonotonicMs": null,
+      "originalDeadlineMonotonicMs": 76004.89286,
+      "observedAt": "2026-10-09T17:28:45.299Z"
+    },
+    "released": {
+      "kind": "poll-released",
+      "entry": {
+        "at": "2026-10-09T17:28:39.271Z",
+        "monotonicMs": 68004.89286,
+        "deadlineMonotonicMs": 76004.89286,
+        "budgetMs": 8000
+      },
+      "at": "2026-10-09T17:28:39.271Z",
+      "monotonicMs": 68004.89286,
+      "deadlineMonotonicMs": 76004.89286,
+      "budgetMs": 8000,
+      "bodyObservedMonotonicMs": 68071.852125,
+      "bodySHA256": "d101a76e4a946a8f4a186fd6e1b5911504b624dac5f51220e6fe3dd34aa472aa",
+      "bodyBytes": 566,
+      "session": {
+        "id": "s-fa96251d",
+        "status": "exited",
+        "executionGeneration": null
+      },
+      "released": "2026-10-09T17:28:45.380Z",
+      "expired": false,
+      "releasedMonotonicMs": 74113.571084,
+      "settlement": {
+        "attempted": "fulfill",
+        "acknowledged": true,
+        "requestFailed": false
+      },
+      "observedAt": "2026-10-09T17:28:45.380Z"
+    },
+    "restartAcknowledgementObserved": false,
+    "oldResponseAfterRestartAcknowledgementEstablished": false,
+    "scope": "The recorded acknowledgement is GET route.fulfill only. No completed Restart status/body/generation acknowledgement or full warm ordering is established."
+  },
+  "protocol": {
+    "setupComplete": true,
+    "rows": [
+      {
+        "ordinal": 1,
+        "created": {
+          "wall": "2026-10-09T17:28:13.485Z",
+          "monotonicMs": 42219.04188
+        },
+        "handshakes": [
+          {
+            "wall": "2026-10-09T17:28:13.504Z",
+            "monotonicMs": 42237.894319,
+            "available": true,
+            "status": 101,
+            "upgradeWebSocket": true,
+            "connectionUpgrade": true,
+            "protocolPresent": false,
+            "protocolEmpty": false,
+            "extensionPresent": false,
+            "perMessageDeflate": false,
+            "headerValuesRetained": false
+          }
+        ],
+        "errors": [],
+        "closeFrames": [],
+        "closed": {
+          "wall": "2026-10-09T17:28:14.856Z",
+          "monotonicMs": 43590.098178
+        }
+      },
+      {
+        "ordinal": 2,
+        "created": {
+          "wall": "2026-10-09T17:28:46.719Z",
+          "monotonicMs": 75452.769565
+        },
+        "handshakes": [],
+        "errors": [
+          {
+            "wall": "2026-10-09T17:28:46.735Z",
+            "monotonicMs": 75469.273588,
+            "available": true,
+            "bytes": 63,
+            "sha256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+            "kind": "unclassified",
+            "rawTextRetained": false,
+            "classificationIsTextOnly": true,
+            "privateError": {
+              "record": 2,
+              "errorBytes": 63,
+              "errorSHA256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+              "retainedPrivately": true
+            }
+          }
+        ],
+        "closeFrames": [],
+        "closed": {
+          "wall": "2026-10-09T17:28:46.735Z",
+          "monotonicMs": 75469.432377
+        }
+      },
+      {
+        "ordinal": 3,
+        "created": {
+          "wall": "2026-10-09T17:28:46.998Z",
+          "monotonicMs": 75731.807688
+        },
+        "handshakes": [],
+        "errors": [
+          {
+            "wall": "2026-10-09T17:28:47.004Z",
+            "monotonicMs": 75737.608546,
+            "available": true,
+            "bytes": 63,
+            "sha256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+            "kind": "unclassified",
+            "rawTextRetained": false,
+            "classificationIsTextOnly": true,
+            "privateError": {
+              "record": 4,
+              "errorBytes": 63,
+              "errorSHA256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+              "retainedPrivately": true
+            }
+          }
+        ],
+        "closeFrames": [],
+        "closed": {
+          "wall": "2026-10-09T17:28:47.004Z",
+          "monotonicMs": 75737.961529
+        }
+      },
+      {
+        "ordinal": 4,
+        "created": {
+          "wall": "2026-10-09T17:28:48.397Z",
+          "monotonicMs": 77130.764427
+        },
+        "handshakes": [],
+        "errors": [
+          {
+            "wall": "2026-10-09T17:28:48.421Z",
+            "monotonicMs": 77154.72092,
+            "available": true,
+            "bytes": 63,
+            "sha256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+            "kind": "unclassified",
+            "rawTextRetained": false,
+            "classificationIsTextOnly": true,
+            "privateError": {
+              "record": 6,
+              "errorBytes": 63,
+              "errorSHA256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+              "retainedPrivately": true
+            }
+          }
+        ],
+        "closeFrames": [],
+        "closed": {
+          "wall": "2026-10-09T17:28:48.421Z",
+          "monotonicMs": 77155.298561
+        }
+      },
+      {
+        "ordinal": 5,
+        "created": {
+          "wall": "2026-10-09T17:28:49.434Z",
+          "monotonicMs": 78167.963184
+        },
+        "handshakes": [],
+        "errors": [
+          {
+            "wall": "2026-10-09T17:28:49.441Z",
+            "monotonicMs": 78174.788679,
+            "available": true,
+            "bytes": 63,
+            "sha256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+            "kind": "unclassified",
+            "rawTextRetained": false,
+            "classificationIsTextOnly": true,
+            "privateError": {
+              "record": 8,
+              "errorBytes": 63,
+              "errorSHA256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+              "retainedPrivately": true
+            }
+          }
+        ],
+        "closeFrames": [],
+        "closed": {
+          "wall": "2026-10-09T17:28:49.441Z",
+          "monotonicMs": 78175.032406
+        }
+      },
+      {
+        "ordinal": 6,
+        "created": {
+          "wall": "2026-10-09T17:28:51.694Z",
+          "monotonicMs": 80427.579564
+        },
+        "handshakes": [],
+        "errors": [
+          {
+            "wall": "2026-10-09T17:28:51.710Z",
+            "monotonicMs": 80443.9138,
+            "available": true,
+            "bytes": 63,
+            "sha256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+            "kind": "unclassified",
+            "rawTextRetained": false,
+            "classificationIsTextOnly": true,
+            "privateError": {
+              "record": 10,
+              "errorBytes": 63,
+              "errorSHA256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+              "retainedPrivately": true
+            }
+          }
+        ],
+        "closeFrames": [],
+        "closed": {
+          "wall": "2026-10-09T17:28:51.711Z",
+          "monotonicMs": 80444.580225
+        }
+      },
+      {
+        "ordinal": 7,
+        "created": {
+          "wall": "2026-10-09T17:28:54.259Z",
+          "monotonicMs": 82993.005373
+        },
+        "handshakes": [],
+        "errors": [
+          {
+            "wall": "2026-10-09T17:28:54.295Z",
+            "monotonicMs": 83028.975079,
+            "available": true,
+            "bytes": 63,
+            "sha256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+            "kind": "unclassified",
+            "rawTextRetained": false,
+            "classificationIsTextOnly": true,
+            "privateError": {
+              "record": 12,
+              "errorBytes": 63,
+              "errorSHA256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+              "retainedPrivately": true
+            }
+          }
+        ],
+        "closeFrames": [],
+        "closed": {
+          "wall": "2026-10-09T17:28:54.295Z",
+          "monotonicMs": 83029.166548
+        }
+      },
+      {
+        "ordinal": 8,
+        "created": {
+          "wall": "2026-10-09T17:28:56.880Z",
+          "monotonicMs": 85613.895788
+        },
+        "handshakes": [],
+        "errors": [
+          {
+            "wall": "2026-10-09T17:28:56.891Z",
+            "monotonicMs": 85625.07858,
+            "available": true,
+            "bytes": 63,
+            "sha256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+            "kind": "unclassified",
+            "rawTextRetained": false,
+            "classificationIsTextOnly": true,
+            "privateError": {
+              "record": 14,
+              "errorBytes": 63,
+              "errorSHA256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+              "retainedPrivately": true
+            }
+          }
+        ],
+        "closeFrames": [],
+        "closed": {
+          "wall": "2026-10-09T17:28:56.891Z",
+          "monotonicMs": 85625.332743
+        }
+      }
+    ],
+    "failures": [
+      "cdp-socket-limit"
+    ],
+    "scope": "Passive exact-path CDP observation only; request identifiers and URLs remain private. No stdout frame capture, direction/causality inference or performance claim."
+  },
+  "monitorDisposal": {
+    "version": 1,
+    "entry": {
+      "wall": "2026-10-09T17:28:59.805Z",
+      "monotonicMs": 88538.608055
+    },
+    "operationEntered": {
+      "wall": "2026-10-09T17:28:59.806Z",
+      "monotonicMs": 88539.606752
+    },
+    "wait": {
+      "state": "fulfilled",
+      "at": {
+        "wall": "2026-10-09T17:28:59.811Z",
+        "monotonicMs": 88545.276813
+      }
+    },
+    "before": {
+      "at": {
+        "wall": "2026-10-09T17:28:59.805Z",
+        "monotonicMs": 88538.708817
+      },
+      "available": true,
+      "observation": {
+        "version": 1,
+        "monitor": {
+          "calls": 0,
+          "additionalCalls": false,
+          "first": null
+        },
+        "transport": {
+          "calls": 0,
+          "additionalCalls": false,
+          "first": null
+        },
+        "protocol": {
+          "setupComplete": true,
+          "rows": [
+            {
+              "ordinal": 1,
+              "created": {
+                "wall": "2026-10-09T17:28:13.485Z",
+                "monotonicMs": 42219.04188
+              },
+              "handshakes": [
+                {
+                  "wall": "2026-10-09T17:28:13.504Z",
+                  "monotonicMs": 42237.894319,
+                  "available": true,
+                  "status": 101,
+                  "upgradeWebSocket": true,
+                  "connectionUpgrade": true,
+                  "protocolPresent": false,
+                  "protocolEmpty": false,
+                  "extensionPresent": false,
+                  "perMessageDeflate": false,
+                  "headerValuesRetained": false
+                }
+              ],
+              "errors": [],
+              "closeFrames": [],
+              "closed": {
+                "wall": "2026-10-09T17:28:14.856Z",
+                "monotonicMs": 43590.098178
+              }
+            },
+            {
+              "ordinal": 2,
+              "created": {
+                "wall": "2026-10-09T17:28:46.719Z",
+                "monotonicMs": 75452.769565
+              },
+              "handshakes": [],
+              "errors": [
+                {
+                  "wall": "2026-10-09T17:28:46.735Z",
+                  "monotonicMs": 75469.273588,
+                  "available": true,
+                  "bytes": 63,
+                  "sha256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                  "kind": "unclassified",
+                  "rawTextRetained": false,
+                  "classificationIsTextOnly": true,
+                  "privateError": {
+                    "record": 2,
+                    "errorBytes": 63,
+                    "errorSHA256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                    "retainedPrivately": true
+                  }
+                }
+              ],
+              "closeFrames": [],
+              "closed": {
+                "wall": "2026-10-09T17:28:46.735Z",
+                "monotonicMs": 75469.432377
+              }
+            },
+            {
+              "ordinal": 3,
+              "created": {
+                "wall": "2026-10-09T17:28:46.998Z",
+                "monotonicMs": 75731.807688
+              },
+              "handshakes": [],
+              "errors": [
+                {
+                  "wall": "2026-10-09T17:28:47.004Z",
+                  "monotonicMs": 75737.608546,
+                  "available": true,
+                  "bytes": 63,
+                  "sha256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                  "kind": "unclassified",
+                  "rawTextRetained": false,
+                  "classificationIsTextOnly": true,
+                  "privateError": {
+                    "record": 4,
+                    "errorBytes": 63,
+                    "errorSHA256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                    "retainedPrivately": true
+                  }
+                }
+              ],
+              "closeFrames": [],
+              "closed": {
+                "wall": "2026-10-09T17:28:47.004Z",
+                "monotonicMs": 75737.961529
+              }
+            },
+            {
+              "ordinal": 4,
+              "created": {
+                "wall": "2026-10-09T17:28:48.397Z",
+                "monotonicMs": 77130.764427
+              },
+              "handshakes": [],
+              "errors": [
+                {
+                  "wall": "2026-10-09T17:28:48.421Z",
+                  "monotonicMs": 77154.72092,
+                  "available": true,
+                  "bytes": 63,
+                  "sha256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                  "kind": "unclassified",
+                  "rawTextRetained": false,
+                  "classificationIsTextOnly": true,
+                  "privateError": {
+                    "record": 6,
+                    "errorBytes": 63,
+                    "errorSHA256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                    "retainedPrivately": true
+                  }
+                }
+              ],
+              "closeFrames": [],
+              "closed": {
+                "wall": "2026-10-09T17:28:48.421Z",
+                "monotonicMs": 77155.298561
+              }
+            },
+            {
+              "ordinal": 5,
+              "created": {
+                "wall": "2026-10-09T17:28:49.434Z",
+                "monotonicMs": 78167.963184
+              },
+              "handshakes": [],
+              "errors": [
+                {
+                  "wall": "2026-10-09T17:28:49.441Z",
+                  "monotonicMs": 78174.788679,
+                  "available": true,
+                  "bytes": 63,
+                  "sha256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                  "kind": "unclassified",
+                  "rawTextRetained": false,
+                  "classificationIsTextOnly": true,
+                  "privateError": {
+                    "record": 8,
+                    "errorBytes": 63,
+                    "errorSHA256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                    "retainedPrivately": true
+                  }
+                }
+              ],
+              "closeFrames": [],
+              "closed": {
+                "wall": "2026-10-09T17:28:49.441Z",
+                "monotonicMs": 78175.032406
+              }
+            },
+            {
+              "ordinal": 6,
+              "created": {
+                "wall": "2026-10-09T17:28:51.694Z",
+                "monotonicMs": 80427.579564
+              },
+              "handshakes": [],
+              "errors": [
+                {
+                  "wall": "2026-10-09T17:28:51.710Z",
+                  "monotonicMs": 80443.9138,
+                  "available": true,
+                  "bytes": 63,
+                  "sha256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                  "kind": "unclassified",
+                  "rawTextRetained": false,
+                  "classificationIsTextOnly": true,
+                  "privateError": {
+                    "record": 10,
+                    "errorBytes": 63,
+                    "errorSHA256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                    "retainedPrivately": true
+                  }
+                }
+              ],
+              "closeFrames": [],
+              "closed": {
+                "wall": "2026-10-09T17:28:51.711Z",
+                "monotonicMs": 80444.580225
+              }
+            },
+            {
+              "ordinal": 7,
+              "created": {
+                "wall": "2026-10-09T17:28:54.259Z",
+                "monotonicMs": 82993.005373
+              },
+              "handshakes": [],
+              "errors": [
+                {
+                  "wall": "2026-10-09T17:28:54.295Z",
+                  "monotonicMs": 83028.975079,
+                  "available": true,
+                  "bytes": 63,
+                  "sha256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                  "kind": "unclassified",
+                  "rawTextRetained": false,
+                  "classificationIsTextOnly": true,
+                  "privateError": {
+                    "record": 12,
+                    "errorBytes": 63,
+                    "errorSHA256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                    "retainedPrivately": true
+                  }
+                }
+              ],
+              "closeFrames": [],
+              "closed": {
+                "wall": "2026-10-09T17:28:54.295Z",
+                "monotonicMs": 83029.166548
+              }
+            },
+            {
+              "ordinal": 8,
+              "created": {
+                "wall": "2026-10-09T17:28:56.880Z",
+                "monotonicMs": 85613.895788
+              },
+              "handshakes": [],
+              "errors": [
+                {
+                  "wall": "2026-10-09T17:28:56.891Z",
+                  "monotonicMs": 85625.07858,
+                  "available": true,
+                  "bytes": 63,
+                  "sha256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                  "kind": "unclassified",
+                  "rawTextRetained": false,
+                  "classificationIsTextOnly": true,
+                  "privateError": {
+                    "record": 14,
+                    "errorBytes": 63,
+                    "errorSHA256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                    "retainedPrivately": true
+                  }
+                }
+              ],
+              "closeFrames": [],
+              "closed": {
+                "wall": "2026-10-09T17:28:56.891Z",
+                "monotonicMs": 85625.332743
+              }
+            }
+          ],
+          "failures": [
+            "cdp-socket-limit"
+          ],
+          "scope": "Passive exact-path CDP observation only; request identifiers and URLs remain private. No stdout frame capture, direction/causality inference or performance claim."
+        }
+      }
+    },
+    "after": {
+      "at": {
+        "wall": "2026-10-09T17:28:59.811Z",
+        "monotonicMs": 88545.280519
+      },
+      "available": true,
+      "observation": {
+        "version": 1,
+        "monitor": {
+          "calls": 1,
+          "additionalCalls": false,
+          "first": {
+            "entry": {
+              "wall": "2026-10-09T17:28:59.806Z",
+              "monotonicMs": 88539.690328
+            },
+            "listenerRemoved": {
+              "wall": "2026-10-09T17:28:59.806Z",
+              "monotonicMs": 88539.717469
+            },
+            "settlement": {
+              "state": "fulfilled",
+              "at": {
+                "wall": "2026-10-09T17:28:59.811Z",
+                "monotonicMs": 88545.271164
+              }
+            }
+          }
+        },
+        "transport": {
+          "calls": 1,
+          "additionalCalls": false,
+          "first": {
+            "entry": {
+              "wall": "2026-10-09T17:28:59.806Z",
+              "monotonicMs": 88539.802477
+            },
+            "detachInvoked": {
+              "wall": "2026-10-09T17:28:59.806Z",
+              "monotonicMs": 88539.865572
+            },
+            "detachReturned": {
+              "wall": "2026-10-09T17:28:59.806Z",
+              "monotonicMs": 88540.13646
+            },
+            "detachSettlement": {
+              "state": "fulfilled",
+              "at": {
+                "wall": "2026-10-09T17:28:59.811Z",
+                "monotonicMs": 88545.257524
+              }
+            },
+            "waitSettlement": {
+              "state": "fulfilled",
+              "at": {
+                "wall": "2026-10-09T17:28:59.811Z",
+                "monotonicMs": 88545.267058
+              }
+            }
+          }
+        },
+        "protocol": {
+          "setupComplete": true,
+          "rows": [
+            {
+              "ordinal": 1,
+              "created": {
+                "wall": "2026-10-09T17:28:13.485Z",
+                "monotonicMs": 42219.04188
+              },
+              "handshakes": [
+                {
+                  "wall": "2026-10-09T17:28:13.504Z",
+                  "monotonicMs": 42237.894319,
+                  "available": true,
+                  "status": 101,
+                  "upgradeWebSocket": true,
+                  "connectionUpgrade": true,
+                  "protocolPresent": false,
+                  "protocolEmpty": false,
+                  "extensionPresent": false,
+                  "perMessageDeflate": false,
+                  "headerValuesRetained": false
+                }
+              ],
+              "errors": [],
+              "closeFrames": [],
+              "closed": {
+                "wall": "2026-10-09T17:28:14.856Z",
+                "monotonicMs": 43590.098178
+              }
+            },
+            {
+              "ordinal": 2,
+              "created": {
+                "wall": "2026-10-09T17:28:46.719Z",
+                "monotonicMs": 75452.769565
+              },
+              "handshakes": [],
+              "errors": [
+                {
+                  "wall": "2026-10-09T17:28:46.735Z",
+                  "monotonicMs": 75469.273588,
+                  "available": true,
+                  "bytes": 63,
+                  "sha256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                  "kind": "unclassified",
+                  "rawTextRetained": false,
+                  "classificationIsTextOnly": true,
+                  "privateError": {
+                    "record": 2,
+                    "errorBytes": 63,
+                    "errorSHA256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                    "retainedPrivately": true
+                  }
+                }
+              ],
+              "closeFrames": [],
+              "closed": {
+                "wall": "2026-10-09T17:28:46.735Z",
+                "monotonicMs": 75469.432377
+              }
+            },
+            {
+              "ordinal": 3,
+              "created": {
+                "wall": "2026-10-09T17:28:46.998Z",
+                "monotonicMs": 75731.807688
+              },
+              "handshakes": [],
+              "errors": [
+                {
+                  "wall": "2026-10-09T17:28:47.004Z",
+                  "monotonicMs": 75737.608546,
+                  "available": true,
+                  "bytes": 63,
+                  "sha256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                  "kind": "unclassified",
+                  "rawTextRetained": false,
+                  "classificationIsTextOnly": true,
+                  "privateError": {
+                    "record": 4,
+                    "errorBytes": 63,
+                    "errorSHA256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                    "retainedPrivately": true
+                  }
+                }
+              ],
+              "closeFrames": [],
+              "closed": {
+                "wall": "2026-10-09T17:28:47.004Z",
+                "monotonicMs": 75737.961529
+              }
+            },
+            {
+              "ordinal": 4,
+              "created": {
+                "wall": "2026-10-09T17:28:48.397Z",
+                "monotonicMs": 77130.764427
+              },
+              "handshakes": [],
+              "errors": [
+                {
+                  "wall": "2026-10-09T17:28:48.421Z",
+                  "monotonicMs": 77154.72092,
+                  "available": true,
+                  "bytes": 63,
+                  "sha256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                  "kind": "unclassified",
+                  "rawTextRetained": false,
+                  "classificationIsTextOnly": true,
+                  "privateError": {
+                    "record": 6,
+                    "errorBytes": 63,
+                    "errorSHA256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                    "retainedPrivately": true
+                  }
+                }
+              ],
+              "closeFrames": [],
+              "closed": {
+                "wall": "2026-10-09T17:28:48.421Z",
+                "monotonicMs": 77155.298561
+              }
+            },
+            {
+              "ordinal": 5,
+              "created": {
+                "wall": "2026-10-09T17:28:49.434Z",
+                "monotonicMs": 78167.963184
+              },
+              "handshakes": [],
+              "errors": [
+                {
+                  "wall": "2026-10-09T17:28:49.441Z",
+                  "monotonicMs": 78174.788679,
+                  "available": true,
+                  "bytes": 63,
+                  "sha256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                  "kind": "unclassified",
+                  "rawTextRetained": false,
+                  "classificationIsTextOnly": true,
+                  "privateError": {
+                    "record": 8,
+                    "errorBytes": 63,
+                    "errorSHA256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                    "retainedPrivately": true
+                  }
+                }
+              ],
+              "closeFrames": [],
+              "closed": {
+                "wall": "2026-10-09T17:28:49.441Z",
+                "monotonicMs": 78175.032406
+              }
+            },
+            {
+              "ordinal": 6,
+              "created": {
+                "wall": "2026-10-09T17:28:51.694Z",
+                "monotonicMs": 80427.579564
+              },
+              "handshakes": [],
+              "errors": [
+                {
+                  "wall": "2026-10-09T17:28:51.710Z",
+                  "monotonicMs": 80443.9138,
+                  "available": true,
+                  "bytes": 63,
+                  "sha256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                  "kind": "unclassified",
+                  "rawTextRetained": false,
+                  "classificationIsTextOnly": true,
+                  "privateError": {
+                    "record": 10,
+                    "errorBytes": 63,
+                    "errorSHA256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                    "retainedPrivately": true
+                  }
+                }
+              ],
+              "closeFrames": [],
+              "closed": {
+                "wall": "2026-10-09T17:28:51.711Z",
+                "monotonicMs": 80444.580225
+              }
+            },
+            {
+              "ordinal": 7,
+              "created": {
+                "wall": "2026-10-09T17:28:54.259Z",
+                "monotonicMs": 82993.005373
+              },
+              "handshakes": [],
+              "errors": [
+                {
+                  "wall": "2026-10-09T17:28:54.295Z",
+                  "monotonicMs": 83028.975079,
+                  "available": true,
+                  "bytes": 63,
+                  "sha256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                  "kind": "unclassified",
+                  "rawTextRetained": false,
+                  "classificationIsTextOnly": true,
+                  "privateError": {
+                    "record": 12,
+                    "errorBytes": 63,
+                    "errorSHA256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                    "retainedPrivately": true
+                  }
+                }
+              ],
+              "closeFrames": [],
+              "closed": {
+                "wall": "2026-10-09T17:28:54.295Z",
+                "monotonicMs": 83029.166548
+              }
+            },
+            {
+              "ordinal": 8,
+              "created": {
+                "wall": "2026-10-09T17:28:56.880Z",
+                "monotonicMs": 85613.895788
+              },
+              "handshakes": [],
+              "errors": [
+                {
+                  "wall": "2026-10-09T17:28:56.891Z",
+                  "monotonicMs": 85625.07858,
+                  "available": true,
+                  "bytes": 63,
+                  "sha256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                  "kind": "unclassified",
+                  "rawTextRetained": false,
+                  "classificationIsTextOnly": true,
+                  "privateError": {
+                    "record": 14,
+                    "errorBytes": 63,
+                    "errorSHA256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                    "retainedPrivately": true
+                  }
+                }
+              ],
+              "closeFrames": [],
+              "closed": {
+                "wall": "2026-10-09T17:28:56.891Z",
+                "monotonicMs": 85625.332743
+              }
+            }
+          ],
+          "failures": [
+            "cdp-socket-limit"
+          ],
+          "scope": "Passive exact-path CDP observation only; request identifiers and URLs remain private. No stdout frame capture, direction/causality inference or performance claim."
+        }
+      }
+    }
+  },
+  "monitorDisposalFinal": {
+    "at": {
+      "wall": "2026-10-09T17:29:13.379Z",
+      "monotonicMs": 102113.140641
+    },
+    "available": true,
+    "observation": {
+      "version": 1,
+      "monitor": {
+        "calls": 1,
+        "additionalCalls": false,
+        "first": {
+          "entry": {
+            "wall": "2026-10-09T17:28:59.806Z",
+            "monotonicMs": 88539.690328
+          },
+          "listenerRemoved": {
+            "wall": "2026-10-09T17:28:59.806Z",
+            "monotonicMs": 88539.717469
+          },
+          "settlement": {
+            "state": "fulfilled",
+            "at": {
+              "wall": "2026-10-09T17:28:59.811Z",
+              "monotonicMs": 88545.271164
+            }
+          }
+        }
+      },
+      "transport": {
+        "calls": 1,
+        "additionalCalls": false,
+        "first": {
+          "entry": {
+            "wall": "2026-10-09T17:28:59.806Z",
+            "monotonicMs": 88539.802477
+          },
+          "detachInvoked": {
+            "wall": "2026-10-09T17:28:59.806Z",
+            "monotonicMs": 88539.865572
+          },
+          "detachReturned": {
+            "wall": "2026-10-09T17:28:59.806Z",
+            "monotonicMs": 88540.13646
+          },
+          "detachSettlement": {
+            "state": "fulfilled",
+            "at": {
+              "wall": "2026-10-09T17:28:59.811Z",
+              "monotonicMs": 88545.257524
+            }
+          },
+          "waitSettlement": {
+            "state": "fulfilled",
+            "at": {
+              "wall": "2026-10-09T17:28:59.811Z",
+              "monotonicMs": 88545.267058
+            }
+          }
+        }
+      },
+      "protocol": {
+        "setupComplete": true,
+        "rows": [
+          {
+            "ordinal": 1,
+            "created": {
+              "wall": "2026-10-09T17:28:13.485Z",
+              "monotonicMs": 42219.04188
+            },
+            "handshakes": [
+              {
+                "wall": "2026-10-09T17:28:13.504Z",
+                "monotonicMs": 42237.894319,
+                "available": true,
+                "status": 101,
+                "upgradeWebSocket": true,
+                "connectionUpgrade": true,
+                "protocolPresent": false,
+                "protocolEmpty": false,
+                "extensionPresent": false,
+                "perMessageDeflate": false,
+                "headerValuesRetained": false
+              }
+            ],
+            "errors": [],
+            "closeFrames": [],
+            "closed": {
+              "wall": "2026-10-09T17:28:14.856Z",
+              "monotonicMs": 43590.098178
+            }
+          },
+          {
+            "ordinal": 2,
+            "created": {
+              "wall": "2026-10-09T17:28:46.719Z",
+              "monotonicMs": 75452.769565
+            },
+            "handshakes": [],
+            "errors": [
+              {
+                "wall": "2026-10-09T17:28:46.735Z",
+                "monotonicMs": 75469.273588,
+                "available": true,
+                "bytes": 63,
+                "sha256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                "kind": "unclassified",
+                "rawTextRetained": false,
+                "classificationIsTextOnly": true,
+                "privateError": {
+                  "record": 2,
+                  "errorBytes": 63,
+                  "errorSHA256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                  "retainedPrivately": true
+                }
+              }
+            ],
+            "closeFrames": [],
+            "closed": {
+              "wall": "2026-10-09T17:28:46.735Z",
+              "monotonicMs": 75469.432377
+            }
+          },
+          {
+            "ordinal": 3,
+            "created": {
+              "wall": "2026-10-09T17:28:46.998Z",
+              "monotonicMs": 75731.807688
+            },
+            "handshakes": [],
+            "errors": [
+              {
+                "wall": "2026-10-09T17:28:47.004Z",
+                "monotonicMs": 75737.608546,
+                "available": true,
+                "bytes": 63,
+                "sha256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                "kind": "unclassified",
+                "rawTextRetained": false,
+                "classificationIsTextOnly": true,
+                "privateError": {
+                  "record": 4,
+                  "errorBytes": 63,
+                  "errorSHA256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                  "retainedPrivately": true
+                }
+              }
+            ],
+            "closeFrames": [],
+            "closed": {
+              "wall": "2026-10-09T17:28:47.004Z",
+              "monotonicMs": 75737.961529
+            }
+          },
+          {
+            "ordinal": 4,
+            "created": {
+              "wall": "2026-10-09T17:28:48.397Z",
+              "monotonicMs": 77130.764427
+            },
+            "handshakes": [],
+            "errors": [
+              {
+                "wall": "2026-10-09T17:28:48.421Z",
+                "monotonicMs": 77154.72092,
+                "available": true,
+                "bytes": 63,
+                "sha256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                "kind": "unclassified",
+                "rawTextRetained": false,
+                "classificationIsTextOnly": true,
+                "privateError": {
+                  "record": 6,
+                  "errorBytes": 63,
+                  "errorSHA256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                  "retainedPrivately": true
+                }
+              }
+            ],
+            "closeFrames": [],
+            "closed": {
+              "wall": "2026-10-09T17:28:48.421Z",
+              "monotonicMs": 77155.298561
+            }
+          },
+          {
+            "ordinal": 5,
+            "created": {
+              "wall": "2026-10-09T17:28:49.434Z",
+              "monotonicMs": 78167.963184
+            },
+            "handshakes": [],
+            "errors": [
+              {
+                "wall": "2026-10-09T17:28:49.441Z",
+                "monotonicMs": 78174.788679,
+                "available": true,
+                "bytes": 63,
+                "sha256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                "kind": "unclassified",
+                "rawTextRetained": false,
+                "classificationIsTextOnly": true,
+                "privateError": {
+                  "record": 8,
+                  "errorBytes": 63,
+                  "errorSHA256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                  "retainedPrivately": true
+                }
+              }
+            ],
+            "closeFrames": [],
+            "closed": {
+              "wall": "2026-10-09T17:28:49.441Z",
+              "monotonicMs": 78175.032406
+            }
+          },
+          {
+            "ordinal": 6,
+            "created": {
+              "wall": "2026-10-09T17:28:51.694Z",
+              "monotonicMs": 80427.579564
+            },
+            "handshakes": [],
+            "errors": [
+              {
+                "wall": "2026-10-09T17:28:51.710Z",
+                "monotonicMs": 80443.9138,
+                "available": true,
+                "bytes": 63,
+                "sha256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                "kind": "unclassified",
+                "rawTextRetained": false,
+                "classificationIsTextOnly": true,
+                "privateError": {
+                  "record": 10,
+                  "errorBytes": 63,
+                  "errorSHA256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                  "retainedPrivately": true
+                }
+              }
+            ],
+            "closeFrames": [],
+            "closed": {
+              "wall": "2026-10-09T17:28:51.711Z",
+              "monotonicMs": 80444.580225
+            }
+          },
+          {
+            "ordinal": 7,
+            "created": {
+              "wall": "2026-10-09T17:28:54.259Z",
+              "monotonicMs": 82993.005373
+            },
+            "handshakes": [],
+            "errors": [
+              {
+                "wall": "2026-10-09T17:28:54.295Z",
+                "monotonicMs": 83028.975079,
+                "available": true,
+                "bytes": 63,
+                "sha256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                "kind": "unclassified",
+                "rawTextRetained": false,
+                "classificationIsTextOnly": true,
+                "privateError": {
+                  "record": 12,
+                  "errorBytes": 63,
+                  "errorSHA256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                  "retainedPrivately": true
+                }
+              }
+            ],
+            "closeFrames": [],
+            "closed": {
+              "wall": "2026-10-09T17:28:54.295Z",
+              "monotonicMs": 83029.166548
+            }
+          },
+          {
+            "ordinal": 8,
+            "created": {
+              "wall": "2026-10-09T17:28:56.880Z",
+              "monotonicMs": 85613.895788
+            },
+            "handshakes": [],
+            "errors": [
+              {
+                "wall": "2026-10-09T17:28:56.891Z",
+                "monotonicMs": 85625.07858,
+                "available": true,
+                "bytes": 63,
+                "sha256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                "kind": "unclassified",
+                "rawTextRetained": false,
+                "classificationIsTextOnly": true,
+                "privateError": {
+                  "record": 14,
+                  "errorBytes": 63,
+                  "errorSHA256": "84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45",
+                  "retainedPrivately": true
+                }
+              }
+            ],
+            "closeFrames": [],
+            "closed": {
+              "wall": "2026-10-09T17:28:56.891Z",
+              "monotonicMs": 85625.332743
+            }
+          }
+        ],
+        "failures": [
+          "cdp-socket-limit"
+        ],
+        "scope": "Passive exact-path CDP observation only; request identifiers and URLs remain private. No stdout frame capture, direction/causality inference or performance claim."
+      }
+    }
+  },
+  "disposalDurationsMs": {
+    "monitorFirstCallToSettlement": 5.580836000008276,
+    "outerOperationEnteredToWaitSettlement": 5.670060999997077,
+    "detachInvocationToUnderlyingSettlement": 5.3919520000054035
+  },
+  "browserRestartCount": 1,
+  "apiRestartCount": 0,
+  "stopOrDeleteCount": 0,
+  "originalResult": {
+    "bytes": 146160,
+    "sha256": "aa1b7d2976ad0c3425be604d3bf46394376adda06a3c6b164f64ff86735de3dc"
+  },
+  "originalWrapper": {
+    "bytes": 4990,
+    "sha256": "ab15caacf6c7441548fb9c672083cec98e17ac29561838038cee8ed1e3aa4389"
+  },
+  "independentClosureSHA256": "0ea8c0282b3ded8b588d65fa15af5a23893c3e05927dbbae6356c038e2a8aac7",
+  "scope": "Partial failed installed diagnostic. Protocol cap and private-capture failure do not identify the underlying replacement connection or Restart cause. No performance, Windows, provider or full-product claim."
+}

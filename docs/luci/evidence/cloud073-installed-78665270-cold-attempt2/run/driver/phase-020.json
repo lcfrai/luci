@@ -1,0 +1,52 @@
+{
+  "kind": "initial-settlement-observation",
+  "pin": {
+    "allocation": {
+      "id": "971e9cfbb582bd65aa51234075c1647d0e0fd8a68db40d25ecb09b95443317a4",
+      "sandboxId": "s-7f6416a8",
+      "sessionId": "s-7f6416a8",
+      "instanceId": "430aaba0-4ea3-45eb-9308-d888c52b67d7",
+      "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+      "name": "/luci-s-7f6416a8"
+    },
+    "lease": {
+      "id": "manual-0f633ae6",
+      "sessionId": "s-7f6416a8",
+      "projectId": "p-19a2a816",
+      "sandboxId": "s-7f6416a8",
+      "state": "backend-settled",
+      "resources": {
+        "CPUMillis": 1000,
+        "MemoryMiB": 1024
+      }
+    }
+  },
+  "observation": {
+    "at": "2026-10-09T17:24:00.304Z",
+    "elapsedMs": 29949.359709999997,
+    "containers": [],
+    "ledger": {
+      "present": true,
+      "sha256": "27283caa916eb73c44763606eb950e2fcaf32d1ac631b346f329280b97b05291",
+      "bytes": 498,
+      "leases": [
+        {
+          "id": "manual-0f633ae6",
+          "sessionId": "s-7f6416a8",
+          "sandboxId": "s-7f6416a8",
+          "projectId": "p-19a2a816",
+          "state": "backend-settled",
+          "resources": {
+            "CPUMillis": 1000,
+            "MemoryMiB": 1024
+          }
+        }
+      ],
+      "checks": [],
+      "fences": [],
+      "checkFences": []
+    },
+    "rootFreeBytes": 6816284672
+  },
+  "observedAt": "2026-10-09T17:24:00.304Z"
+}

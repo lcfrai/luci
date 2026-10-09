@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "runRoot": "/workspace/.luci-tools/cloud075-private-runs/attempt-001",
+  "product": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "scopes": [
+    {
+      "kind": "user",
+      "id": "user-QnkRla3_jFNsmkAg8hU3I5",
+      "stateDir": "/workspace/.luci-tools/cloud075-private-runs/attempt-001/state/control-plane/users/user-QnkRla3_jFNsmkAg8hU3I5/runtime/state"
+    },
+    {
+      "kind": "user",
+      "id": "user-G2thgqBAXjTn3PyS6i_HOq",
+      "stateDir": "/workspace/.luci-tools/cloud075-private-runs/attempt-001/state/control-plane/users/user-G2thgqBAXjTn3PyS6i_HOq/runtime/state"
+    },
+    {
+      "kind": "team",
+      "id": "team-03WNG4-5fo7YRDvF-l-fky",
+      "stateDir": "/workspace/.luci-tools/cloud075-private-runs/attempt-001/state/control-plane/teams/team-03WNG4-5fo7YRDvF-l-fky/runtime/state"
+    }
+  ]
+}

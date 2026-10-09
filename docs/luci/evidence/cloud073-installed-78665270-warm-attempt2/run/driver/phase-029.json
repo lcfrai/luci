@@ -1,0 +1,68 @@
+{
+  "kind": "initial-settlement-observation",
+  "pin": {
+    "allocation": {
+      "id": "74f88eb9ae9edf43ddbdbe4a2189ad7faaf1b6a86b3403228f26359e6df8000b",
+      "sandboxId": "s-fa96251d",
+      "sessionId": "s-fa96251d",
+      "instanceId": "141ee2b3-4d1b-49a5-85c8-614493b395bf",
+      "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+      "name": "/luci-s-fa96251d"
+    },
+    "lease": {
+      "id": "manual-9fcb76a2",
+      "sessionId": "s-fa96251d",
+      "projectId": "p-348a4870",
+      "sandboxId": "s-fa96251d",
+      "state": "backend-settled",
+      "resources": {
+        "CPUMillis": 1000,
+        "MemoryMiB": 1024
+      }
+    }
+  },
+  "observation": {
+    "at": "2026-10-09T17:28:35.049Z",
+    "elapsedMs": 16345.509552000003,
+    "containers": [
+      {
+        "id": "74f88eb9ae9edf43ddbdbe4a2189ad7faaf1b6a86b3403228f26359e6df8000b",
+        "sandboxId": "s-fa96251d",
+        "sessionId": "s-fa96251d",
+        "instanceId": "141ee2b3-4d1b-49a5-85c8-614493b395bf",
+        "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+        "name": "/luci-s-fa96251d",
+        "status": "removing",
+        "pid": 0,
+        "created": "2026-10-09T17:27:35.315436682Z",
+        "startedAt": "2026-10-09T17:28:06.620666972Z",
+        "memoryBytes": 1073741824,
+        "cpuNano": 1000000000,
+        "pidsLimit": 256
+      }
+    ],
+    "ledger": {
+      "present": true,
+      "sha256": "df5163a09392873ea0fc3d5729db2d6cff168aa90334dfe4debffb8d886cfbee",
+      "bytes": 498,
+      "leases": [
+        {
+          "id": "manual-9fcb76a2",
+          "sessionId": "s-fa96251d",
+          "sandboxId": "s-fa96251d",
+          "projectId": "p-348a4870",
+          "state": "backend-settled",
+          "resources": {
+            "CPUMillis": 1000,
+            "MemoryMiB": 1024
+          }
+        }
+      ],
+      "checks": [],
+      "fences": [],
+      "checkFences": []
+    },
+    "rootFreeBytes": 3702263808
+  },
+  "observedAt": "2026-10-09T17:28:35.049Z"
+}

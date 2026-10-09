@@ -1,0 +1,28 @@
+--- before/cold/launch.mjs
++++ cold/launch.mjs
+@@ -221,12 +221,13 @@
+  return {observe,snapshot(failurePresent){return {version:1,afterCleanup:true,snapshotAt:new Date().toISOString(),failurePresent:!!failurePresent,first:first?structuredClone(first):null};}};
+ }
+ 
+-// CLOUD-073: only these exact local read polls may be aborted during declared teardown.
++// CLOUD-073: cancel the reads already allowed by the normal same-origin route guard.
++// Teardown never forwards them; path/query/credentials are not retained in public rows.
+ export function closingReadRoute(method,url,base,sessionId){
+- if(method!=='GET'||url.origin!==base||url.username||url.password||url.search||url.hash)return null;
++ if(!['GET','HEAD','OPTIONS'].includes(method)||url.origin!==base)return null;
+  if(url.pathname==='/v1/sessions')return 'session-list';
+  if(typeof sessionId==='string'&&url.pathname==='/v1/sessions/'+encodeURIComponent(sessionId))return 'owned-session';
+- return null;
++ return 'other-local-read';
+ }
+ 
+ // CLOUD-074: disposal diagnostics only; preserve the existing outer wait and failure.
+@@ -279,7 +280,7 @@
+  const abortClosingRead=(route,req,url)=>{
+   const routeClass=closingReadRoute(req.method(),url,base,session?.id);if(!routeClass)return false;
+   assert(acceptClosingReads,'Closing read observation sealed');assert(closingReadObservations.length<16,'Closing read observation limit');
+-  const row={method:'GET',routeClass,startedAt:new Date().toISOString(),abort:'pending'};closingReadObservations.push(row);
++  const row={method:req.method(),routeClass,pathnameSHA256:sha(url.pathname),startedAt:new Date().toISOString(),abort:'pending'};closingReadObservations.push(row);
+   const observation=(async()=>{
+    try{await boundedAttempt(()=>route.abort('blockedbyclient'),2000,'closing-read-abort-timeout');row.abort='acknowledged';}
+    catch(error){row.abort='unconfirmed';fail(error);throw error;}

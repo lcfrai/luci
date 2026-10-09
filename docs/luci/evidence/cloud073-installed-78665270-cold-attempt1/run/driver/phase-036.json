@@ -1,0 +1,32 @@
+{
+  "kind": "restart-response-gate-disposed",
+  "observation": {
+    "kind": "restart-response-gate",
+    "mode": "real-CDP-response-stage",
+    "budgetMs": 8000,
+    "entered": {
+      "wall": "2026-10-09T17:13:05.884Z",
+      "monotonicMs": 109560.048284,
+      "deadlineMonotonicMs": 117560.048284
+    },
+    "body": {
+      "status": 200,
+      "bytes": 628,
+      "sha256": "fe4dea948a4e7d565e82cc764537d314f22a36e4455a14ddb6b279c129808d92",
+      "sessionJSONSHA256": "8149f39299c43c0639e71ce068f21cb92fb820f0d8efa4de60000d723629e5f3",
+      "session": {
+        "id": "s-e7be40d5",
+        "projectId": "p-870ec94d",
+        "status": "starting",
+        "executionGeneration": "493c934d679e1342395877ac285359f16a48a7dcfade546e24d5c1e6f484d518"
+      }
+    },
+    "settlement": {
+      "attempted": "Fetch.continueResponse",
+      "acknowledged": true
+    },
+    "disposed": true
+  },
+  "failure": null,
+  "observedAt": "2026-10-09T17:13:06.669Z"
+}

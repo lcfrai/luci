@@ -1,0 +1,1359 @@
+{
+  "version": 1,
+  "stage": "before",
+  "variant": "warm",
+  "mode": "C074-inert-controlled-CDP-counter-and-final",
+  "passed": false,
+  "cases": [
+    {
+      "name": "direct CDP detach resolves before both deadlines",
+      "passed": true,
+      "kind": "transport",
+      "controlledOptions": {},
+      "counts": {
+        "detach": 1,
+        "networkEnable": 1,
+        "cdpOff": 6,
+        "pageOff": 0,
+        "privateErrorRecords": 0,
+        "evaluate": 0
+      },
+      "outcome": {
+        "state": "fulfilled"
+      },
+      "installationTrace": [
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 1,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "timer-cleared",
+          "atMs": 0,
+          "id": 1
+        },
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 2,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "timer-cleared",
+          "atMs": 0,
+          "id": 2
+        }
+      ],
+      "disposalTrace": [
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 3,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "detach-invoked",
+          "atMs": 0
+        },
+        {
+          "kind": "detach-returned-promise",
+          "atMs": 0
+        },
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 4,
+          "delayMs": 1500,
+          "dueMs": 1500
+        },
+        {
+          "kind": "timer-cleared",
+          "atMs": 250,
+          "id": 4
+        },
+        {
+          "kind": "timer-cleared",
+          "atMs": 250,
+          "id": 3
+        },
+        {
+          "kind": "outer-wait-fulfilled",
+          "atMs": 250
+        }
+      ],
+      "snapshot": {
+        "setupComplete": true,
+        "rows": [],
+        "failures": [],
+        "scope": "Passive exact-path CDP observation only; request identifiers and URLs remain private. No stdout frame capture, direction/causality inference or performance claim."
+      }
+    },
+    {
+      "name": "full terminal monitor removes page and CDP listeners then resolves",
+      "passed": true,
+      "kind": "monitor",
+      "controlledOptions": {},
+      "counts": {
+        "detach": 1,
+        "networkEnable": 1,
+        "cdpOff": 6,
+        "pageOff": 1,
+        "privateErrorRecords": 0,
+        "evaluate": 1
+      },
+      "outcome": {
+        "state": "fulfilled"
+      },
+      "installationTrace": [
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 1,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "timer-cleared",
+          "atMs": 0,
+          "id": 1
+        },
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 2,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "timer-cleared",
+          "atMs": 0,
+          "id": 2
+        }
+      ],
+      "disposalTrace": [
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 3,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "page-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "detach-invoked",
+          "atMs": 0
+        },
+        {
+          "kind": "detach-returned-promise",
+          "atMs": 0
+        },
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 4,
+          "delayMs": 1500,
+          "dueMs": 1500
+        },
+        {
+          "kind": "timer-cleared",
+          "atMs": 0,
+          "id": 4
+        },
+        {
+          "kind": "timer-cleared",
+          "atMs": 0,
+          "id": 3
+        },
+        {
+          "kind": "outer-wait-fulfilled",
+          "atMs": 0
+        }
+      ],
+      "snapshot": {
+        "browser": {
+          "version": 1,
+          "failures": [],
+          "rows": []
+        },
+        "sent": [],
+        "protocol": {
+          "setupComplete": true,
+          "rows": [],
+          "failures": [],
+          "scope": "Passive exact-path CDP observation only; request identifiers and URLs remain private. No stdout frame capture, direction/causality inference or performance claim."
+        },
+        "observerFailure": null
+      }
+    },
+    {
+      "name": "asynchronous detach rejection preserves inner failure classification",
+      "passed": true,
+      "kind": "transport",
+      "controlledOptions": {},
+      "counts": {
+        "detach": 1,
+        "networkEnable": 1,
+        "cdpOff": 6,
+        "pageOff": 0,
+        "privateErrorRecords": 0,
+        "evaluate": 0
+      },
+      "outcome": {
+        "state": "rejected",
+        "name": "Error",
+        "code": null,
+        "message": "Passive transport detach unconfirmed"
+      },
+      "installationTrace": [
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 1,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "timer-cleared",
+          "atMs": 0,
+          "id": 1
+        },
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 2,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "timer-cleared",
+          "atMs": 0,
+          "id": 2
+        }
+      ],
+      "disposalTrace": [
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 3,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "detach-invoked",
+          "atMs": 0
+        },
+        {
+          "kind": "detach-returned-promise",
+          "atMs": 0
+        },
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 4,
+          "delayMs": 1500,
+          "dueMs": 1500
+        },
+        {
+          "kind": "timer-cleared",
+          "atMs": 0,
+          "id": 4
+        },
+        {
+          "kind": "timer-cleared",
+          "atMs": 0,
+          "id": 3
+        },
+        {
+          "kind": "outer-wait-rejected",
+          "atMs": 0,
+          "code": null
+        }
+      ],
+      "snapshot": {
+        "setupComplete": true,
+        "rows": [],
+        "failures": [
+          "cdp-detach-unconfirmed"
+        ],
+        "scope": "Passive exact-path CDP observation only; request identifiers and URLs remain private. No stdout frame capture, direction/causality inference or performance claim."
+      }
+    },
+    {
+      "name": "never-settling detach reaches inner 1500 before outer 2000",
+      "passed": true,
+      "kind": "monitor",
+      "controlledOptions": {},
+      "counts": {
+        "detach": 1,
+        "networkEnable": 1,
+        "cdpOff": 6,
+        "pageOff": 1,
+        "privateErrorRecords": 0,
+        "evaluate": 2
+      },
+      "outcome": {
+        "state": "rejected",
+        "name": "Error",
+        "code": null,
+        "message": "Passive transport detach unconfirmed"
+      },
+      "installationTrace": [
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 1,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "timer-cleared",
+          "atMs": 0,
+          "id": 1
+        },
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 2,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "timer-cleared",
+          "atMs": 0,
+          "id": 2
+        }
+      ],
+      "disposalTrace": [
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 3,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "page-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "detach-invoked",
+          "atMs": 0
+        },
+        {
+          "kind": "detach-returned-promise",
+          "atMs": 0
+        },
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 4,
+          "delayMs": 1500,
+          "dueMs": 1500
+        },
+        {
+          "kind": "timer-fired",
+          "atMs": 1500,
+          "id": 4,
+          "dueMs": 1500
+        },
+        {
+          "kind": "timer-cleared",
+          "atMs": 1500,
+          "id": 3
+        },
+        {
+          "kind": "outer-wait-rejected",
+          "atMs": 1500,
+          "code": null
+        }
+      ],
+      "snapshot": {
+        "browser": {
+          "version": 1,
+          "failures": [],
+          "rows": []
+        },
+        "sent": [],
+        "protocol": {
+          "setupComplete": true,
+          "rows": [],
+          "failures": [
+            "cdp-detach-unconfirmed"
+          ],
+          "scope": "Passive exact-path CDP observation only; request identifiers and URLs remain private. No stdout frame capture, direction/causality inference or performance claim."
+        },
+        "observerFailure": "transport-observation-failed"
+      }
+    },
+    {
+      "name": "controlled entry delay lets outer deadline precede inner; late ack cannot erase outer failure",
+      "passed": true,
+      "kind": "monitor",
+      "controlledOptions": {
+        "pageOffDelay": 700
+      },
+      "counts": {
+        "detach": 1,
+        "networkEnable": 1,
+        "cdpOff": 6,
+        "pageOff": 1,
+        "privateErrorRecords": 0,
+        "evaluate": 2
+      },
+      "outcome": {
+        "state": "rejected",
+        "name": "Error",
+        "code": "transport-observer-dispose-timeout",
+        "message": "transport-observer-dispose-timeout"
+      },
+      "installationTrace": [
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 1,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "timer-cleared",
+          "atMs": 0,
+          "id": 1
+        },
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 2,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "timer-cleared",
+          "atMs": 0,
+          "id": 2
+        }
+      ],
+      "disposalTrace": [
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 3,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "page-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "controlled-synchronous-elapse",
+          "atMs": 700,
+          "ms": 700
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 700
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 700
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 700
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 700
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 700
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 700
+        },
+        {
+          "kind": "detach-invoked",
+          "atMs": 700
+        },
+        {
+          "kind": "detach-returned-promise",
+          "atMs": 700
+        },
+        {
+          "kind": "timer-registered",
+          "atMs": 700,
+          "id": 4,
+          "delayMs": 1500,
+          "dueMs": 2200
+        },
+        {
+          "kind": "timer-fired",
+          "atMs": 2000,
+          "id": 3,
+          "dueMs": 2000
+        },
+        {
+          "kind": "outer-wait-rejected",
+          "atMs": 2000,
+          "code": "transport-observer-dispose-timeout"
+        },
+        {
+          "kind": "timer-cleared",
+          "atMs": 2100,
+          "id": 4
+        }
+      ],
+      "snapshot": {
+        "browser": {
+          "version": 1,
+          "failures": [],
+          "rows": []
+        },
+        "sent": [],
+        "protocol": {
+          "setupComplete": true,
+          "rows": [],
+          "failures": [],
+          "scope": "Passive exact-path CDP observation only; request identifiers and URLs remain private. No stdout frame capture, direction/causality inference or performance claim."
+        },
+        "observerFailure": null
+      }
+    },
+    {
+      "name": "eager detach invocation precedes timer; late rejection preserves outer timeout",
+      "passed": true,
+      "kind": "transport",
+      "controlledOptions": {
+        "detachDelay": 700
+      },
+      "counts": {
+        "detach": 1,
+        "networkEnable": 1,
+        "cdpOff": 6,
+        "pageOff": 0,
+        "privateErrorRecords": 0,
+        "evaluate": 0
+      },
+      "outcome": {
+        "state": "rejected",
+        "name": "Error",
+        "code": "transport-observer-dispose-timeout",
+        "message": "transport-observer-dispose-timeout"
+      },
+      "installationTrace": [
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 1,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "timer-cleared",
+          "atMs": 0,
+          "id": 1
+        },
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 2,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "timer-cleared",
+          "atMs": 0,
+          "id": 2
+        }
+      ],
+      "disposalTrace": [
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 3,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "detach-invoked",
+          "atMs": 0
+        },
+        {
+          "kind": "controlled-synchronous-elapse",
+          "atMs": 700,
+          "ms": 700
+        },
+        {
+          "kind": "detach-returned-promise",
+          "atMs": 700
+        },
+        {
+          "kind": "timer-registered",
+          "atMs": 700,
+          "id": 4,
+          "delayMs": 1500,
+          "dueMs": 2200
+        },
+        {
+          "kind": "timer-fired",
+          "atMs": 2000,
+          "id": 3,
+          "dueMs": 2000
+        },
+        {
+          "kind": "outer-wait-rejected",
+          "atMs": 2000,
+          "code": "transport-observer-dispose-timeout"
+        },
+        {
+          "kind": "timer-cleared",
+          "atMs": 2100,
+          "id": 4
+        }
+      ],
+      "snapshot": {
+        "setupComplete": true,
+        "rows": [],
+        "failures": [
+          "cdp-detach-unconfirmed"
+        ],
+        "scope": "Passive exact-path CDP observation only; request identifiers and URLs remain private. No stdout frame capture, direction/causality inference or performance claim."
+      }
+    },
+    {
+      "name": "outer then inner deadlines remain failures after eventual detach acknowledgement",
+      "passed": true,
+      "kind": "transport",
+      "controlledOptions": {
+        "detachDelay": 700
+      },
+      "counts": {
+        "detach": 1,
+        "networkEnable": 1,
+        "cdpOff": 6,
+        "pageOff": 0,
+        "privateErrorRecords": 0,
+        "evaluate": 0
+      },
+      "outcome": {
+        "state": "rejected",
+        "name": "Error",
+        "code": "transport-observer-dispose-timeout",
+        "message": "transport-observer-dispose-timeout"
+      },
+      "installationTrace": [
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 1,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "timer-cleared",
+          "atMs": 0,
+          "id": 1
+        },
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 2,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "timer-cleared",
+          "atMs": 0,
+          "id": 2
+        }
+      ],
+      "disposalTrace": [
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 3,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "detach-invoked",
+          "atMs": 0
+        },
+        {
+          "kind": "controlled-synchronous-elapse",
+          "atMs": 700,
+          "ms": 700
+        },
+        {
+          "kind": "detach-returned-promise",
+          "atMs": 700
+        },
+        {
+          "kind": "timer-registered",
+          "atMs": 700,
+          "id": 4,
+          "delayMs": 1500,
+          "dueMs": 2200
+        },
+        {
+          "kind": "timer-fired",
+          "atMs": 2000,
+          "id": 3,
+          "dueMs": 2000
+        },
+        {
+          "kind": "outer-wait-rejected",
+          "atMs": 2000,
+          "code": "transport-observer-dispose-timeout"
+        },
+        {
+          "kind": "timer-fired",
+          "atMs": 2200,
+          "id": 4,
+          "dueMs": 2200
+        }
+      ],
+      "snapshot": {
+        "setupComplete": true,
+        "rows": [],
+        "failures": [
+          "cdp-detach-unconfirmed"
+        ],
+        "scope": "Passive exact-path CDP observation only; request identifiers and URLs remain private. No stdout frame capture, direction/causality inference or performance claim."
+      }
+    },
+    {
+      "name": "synchronous detach throw occurs before inner timer registration",
+      "passed": true,
+      "kind": "transport",
+      "controlledOptions": {
+        "detachThrows": true
+      },
+      "counts": {
+        "detach": 1,
+        "networkEnable": 1,
+        "cdpOff": 6,
+        "pageOff": 0,
+        "privateErrorRecords": 0,
+        "evaluate": 0
+      },
+      "outcome": {
+        "state": "rejected",
+        "name": "Error",
+        "code": null,
+        "message": "Passive transport detach unconfirmed"
+      },
+      "installationTrace": [
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 1,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "timer-cleared",
+          "atMs": 0,
+          "id": 1
+        },
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 2,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "timer-cleared",
+          "atMs": 0,
+          "id": 2
+        }
+      ],
+      "disposalTrace": [
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 3,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "detach-invoked",
+          "atMs": 0
+        },
+        {
+          "kind": "timer-cleared",
+          "atMs": 0,
+          "id": 3
+        },
+        {
+          "kind": "outer-wait-rejected",
+          "atMs": 0,
+          "code": null
+        }
+      ],
+      "snapshot": {
+        "setupComplete": true,
+        "rows": [],
+        "failures": [
+          "cdp-detach-unconfirmed"
+        ],
+        "scope": "Passive exact-path CDP observation only; request identifiers and URLs remain private. No stdout frame capture, direction/causality inference or performance claim."
+      }
+    },
+    {
+      "name": "C074 records successful monitor, eager detach and wait chronology without page evaluation",
+      "passed": false,
+      "error": {
+        "name": "Error",
+        "code": "C074-MISSING-DIAGNOSTIC",
+        "message": "C074 disposalSnapshot is missing"
+      },
+      "disposalTrace": [
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 3,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "page-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "detach-invoked",
+          "atMs": 0
+        },
+        {
+          "kind": "detach-returned-promise",
+          "atMs": 0
+        },
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 4,
+          "delayMs": 1500,
+          "dueMs": 1500
+        }
+      ]
+    },
+    {
+      "name": "C074 outer timeout snapshot stays pending and immutable after late acknowledgement",
+      "passed": false,
+      "error": {
+        "name": "Error",
+        "code": "C074-MISSING-DIAGNOSTIC",
+        "message": "C074 disposalSnapshot is missing"
+      },
+      "disposalTrace": [
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 3,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "page-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "controlled-synchronous-elapse",
+          "atMs": 700,
+          "ms": 700
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 700
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 700
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 700
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 700
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 700
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 700
+        },
+        {
+          "kind": "detach-invoked",
+          "atMs": 700
+        },
+        {
+          "kind": "detach-returned-promise",
+          "atMs": 700
+        },
+        {
+          "kind": "timer-registered",
+          "atMs": 700,
+          "id": 4,
+          "delayMs": 1500,
+          "dueMs": 2200
+        }
+      ]
+    },
+    {
+      "name": "C074 outer timeout snapshot survives late rejection without public error payload",
+      "passed": false,
+      "error": {
+        "name": "Error",
+        "code": "C074-MISSING-DIAGNOSTIC",
+        "message": "C074 disposalSnapshot is missing"
+      },
+      "disposalTrace": [
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 3,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "page-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "detach-invoked",
+          "atMs": 0
+        },
+        {
+          "kind": "controlled-synchronous-elapse",
+          "atMs": 700,
+          "ms": 700
+        },
+        {
+          "kind": "detach-returned-promise",
+          "atMs": 700
+        },
+        {
+          "kind": "timer-registered",
+          "atMs": 700,
+          "id": 4,
+          "delayMs": 1500,
+          "dueMs": 2200
+        }
+      ]
+    },
+    {
+      "name": "C074 inner timeout remains rejected after late detach acknowledgement",
+      "passed": false,
+      "error": {
+        "name": "Error",
+        "code": "C074-MISSING-DIAGNOSTIC",
+        "message": "C074 disposalSnapshot is missing"
+      },
+      "disposalTrace": [
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 3,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "page-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "detach-invoked",
+          "atMs": 0
+        },
+        {
+          "kind": "detach-returned-promise",
+          "atMs": 0
+        },
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 4,
+          "delayMs": 1500,
+          "dueMs": 1500
+        }
+      ]
+    },
+    {
+      "name": "C074 synchronous detach throw is explicit without inventing a returned promise",
+      "passed": false,
+      "error": {
+        "name": "Error",
+        "code": "C074-MISSING-DIAGNOSTIC",
+        "message": "C074 disposalSnapshot is missing"
+      },
+      "disposalTrace": [
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 3,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "page-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "detach-invoked",
+          "atMs": 0
+        },
+        {
+          "kind": "timer-cleared",
+          "atMs": 0,
+          "id": 3
+        },
+        {
+          "kind": "outer-wait-rejected",
+          "atMs": 0,
+          "code": null
+        }
+      ]
+    },
+    {
+      "name": "C074 repeated disposal preserves behavior, caps counters and retains first-call history",
+      "passed": false,
+      "error": {
+        "name": "Error",
+        "code": "C074-MISSING-DIAGNOSTIC",
+        "message": "C074 disposalSnapshot is missing"
+      },
+      "disposalTrace": [
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 3,
+          "delayMs": 2000,
+          "dueMs": 2000
+        },
+        {
+          "kind": "page-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "cdp-listener-removed",
+          "atMs": 0
+        },
+        {
+          "kind": "detach-invoked",
+          "atMs": 0
+        },
+        {
+          "kind": "detach-returned-promise",
+          "atMs": 0
+        },
+        {
+          "kind": "timer-registered",
+          "atMs": 0,
+          "id": 4,
+          "delayMs": 1500,
+          "dueMs": 1500
+        }
+      ]
+    }
+  ],
+  "unhandledRejections": [],
+  "scope": "Exact exported selected scenario helper and frozen boundedAttempt; fake page/CDP and manual timers. Synthetic 700ms clock advancement models delayed timer registration, not measured runtime delay. No product/browser/Docker run and no claim about actual timeout cause."
+}

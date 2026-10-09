@@ -1,0 +1,196 @@
+TAP version 13
+# Subtest: exact local session poll aborts during actual finally without false failure
+ok 1 - exact local session poll aborts during actual finally without false failure
+  ---
+  duration_ms: 9.46598
+  type: 'test'
+  ...
+# Subtest: owned session read has separate bounded route class
+ok 2 - owned session read has separate bounded route class
+  ---
+  duration_ms: 2.234579
+  type: 'test'
+  ...
+# Subtest: active exact poll is forwarded through unchanged health guard
+ok 3 - active exact poll is forwarded through unchanged health guard
+  ---
+  duration_ms: 6.888764
+  type: 'test'
+  ...
+# Subtest: closing foreign-origin remains a strict failed workflow with no forwarding or settlement
+ok 4 - closing foreign-origin remains a strict failed workflow with no forwarding or settlement
+  ---
+  duration_ms: 4.442707
+  type: 'test'
+  ...
+# Subtest: closing foreign-scheme remains a strict failed workflow with no forwarding or settlement
+ok 5 - closing foreign-scheme remains a strict failed workflow with no forwarding or settlement
+  ---
+  duration_ms: 2.904308
+  type: 'test'
+  ...
+# Subtest: closing create-mutation remains a strict failed workflow with no forwarding or settlement
+ok 6 - closing create-mutation remains a strict failed workflow with no forwarding or settlement
+  ---
+  duration_ms: 3.215587
+  type: 'test'
+  ...
+# Subtest: closing restart-mutation remains a strict failed workflow with no forwarding or settlement
+ok 7 - closing restart-mutation remains a strict failed workflow with no forwarding or settlement
+  ---
+  duration_ms: 3.020863
+  type: 'test'
+  ...
+# Subtest: closing delete-mutation remains a strict failed workflow with no forwarding or settlement
+ok 8 - closing delete-mutation remains a strict failed workflow with no forwarding or settlement
+  ---
+  duration_ms: 3.157009
+  type: 'test'
+  ...
+# Subtest: closing put-mutation remains a strict failed workflow with no forwarding or settlement
+ok 9 - closing put-mutation remains a strict failed workflow with no forwarding or settlement
+  ---
+  duration_ms: 4.051136
+  type: 'test'
+  ...
+# Subtest: closing patch-mutation remains a strict failed workflow with no forwarding or settlement
+ok 10 - closing patch-mutation remains a strict failed workflow with no forwarding or settlement
+  ---
+  duration_ms: 3.446986
+  type: 'test'
+  ...
+# Subtest: closing connect-method remains a strict failed workflow with no forwarding or settlement
+ok 11 - closing connect-method remains a strict failed workflow with no forwarding or settlement
+  ---
+  duration_ms: 3.080574
+  type: 'test'
+  ...
+# Subtest: closing trace-method remains a strict failed workflow with no forwarding or settlement
+ok 12 - closing trace-method remains a strict failed workflow with no forwarding or settlement
+  ---
+  duration_ms: 3.102096
+  type: 'test'
+  ...
+# Subtest: already-permitted local background-permission-read is cancelled only during closing
+ok 13 - already-permitted local background-permission-read is cancelled only during closing
+  ---
+  duration_ms: 13.675795
+  type: 'test'
+  ...
+# Subtest: already-permitted local other-session is cancelled only during closing
+ok 14 - already-permitted local other-session is cancelled only during closing
+  ---
+  duration_ms: 5.346329
+  type: 'test'
+  ...
+# Subtest: already-permitted local query is cancelled only during closing
+ok 15 - already-permitted local query is cancelled only during closing
+  ---
+  duration_ms: 4.149134
+  type: 'test'
+  ...
+# Subtest: already-permitted local fragment is cancelled only during closing
+ok 16 - already-permitted local fragment is cancelled only during closing
+  ---
+  duration_ms: 4.831493
+  type: 'test'
+  ...
+# Subtest: already-permitted local userinfo is cancelled only during closing
+ok 17 - already-permitted local userinfo is cancelled only during closing
+  ---
+  duration_ms: 4.755759
+  type: 'test'
+  ...
+# Subtest: already-permitted local head-read is cancelled only during closing
+ok 18 - already-permitted local head-read is cancelled only during closing
+  ---
+  duration_ms: 5.690337
+  type: 'test'
+  ...
+# Subtest: already-permitted local options-read is cancelled only during closing
+ok 19 - already-permitted local options-read is cancelled only during closing
+  ---
+  duration_ms: 5.926794
+  type: 'test'
+  ...
+# Subtest: already-permitted local local-asset is cancelled only during closing
+ok 20 - already-permitted local local-asset is cancelled only during closing
+  ---
+  duration_ms: 5.941665
+  type: 'test'
+  ...
+# Subtest: already-permitted local read-method-action-path is cancelled only during closing
+ok 21 - already-permitted local read-method-action-path is cancelled only during closing
+  ---
+  duration_ms: 5.445498
+  type: 'test'
+  ...
+# Subtest: allowed closing poll never clears an earlier failure or pending mutation
+ok 22 - allowed closing poll never clears an earlier failure or pending mutation
+  ---
+  duration_ms: 3.235116
+  type: 'test'
+  ...
+# Subtest: abort rejection remains explicit and conservatively fails
+ok 23 - abort rejection remains explicit and conservatively fails
+  ---
+  duration_ms: 2.281089
+  type: 'test'
+  ...
+# Subtest: actual2000ms abort timeout retains unconfirmed outcome and records failure while its callback remains unsettled
+ok 24 - actual2000ms abort timeout retains unconfirmed outcome and records failure while its callback remains unsettled
+  ---
+  duration_ms: 2106.442139
+  type: 'test'
+  ...
+# Subtest: bounded closing poll overflow retains strict failure
+ok 25 - bounded closing poll overflow retains strict failure
+  ---
+  duration_ms: 6.554435
+  type: 'test'
+  ...
+# Subtest: independent disposal error is not erased by accepted read teardown
+ok 26 - independent disposal error is not erased by accepted read teardown
+  ---
+  duration_ms: 5.029351
+  type: 'test'
+  ...
+# Subtest: no mutation guard, pending state, response handler or final condition changed
+ok 27 - no mutation guard, pending state, response handler or final condition changed
+  ---
+  duration_ms: 1.781345
+  type: 'test'
+  ...
+# Subtest: unawaited accepted closing read is drained before final success
+ok 28 - unawaited accepted closing read is drained before final success
+  ---
+  duration_ms: 6.138403
+  type: 'test'
+  ...
+# Subtest: unawaited closing abort rejection is captured before final failure snapshot
+ok 29 - unawaited closing abort rejection is captured before final failure snapshot
+  ---
+  duration_ms: 4.448772
+  type: 'test'
+  ...
+# Subtest: closing-read final drain seals new observations and preserves strict failure
+ok 30 - closing-read final drain seals new observations and preserves strict failure
+  ---
+  duration_ms: 3.884766
+  type: 'test'
+  ...
+# Subtest: same-origin background read cancellation mirrors the active guard without guessed poll enumeration
+ok 31 - same-origin background read cancellation mirrors the active guard without guessed poll enumeration
+  ---
+  duration_ms: 3.894541
+  type: 'test'
+  ...
+1..31
+# tests 31
+# suites 0
+# pass 31
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2529.758501

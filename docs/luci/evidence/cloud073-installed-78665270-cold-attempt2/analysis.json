@@ -1,0 +1,465 @@
+{
+  "productSource": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+  "launcherSHA256": "5312bf202104ba1316272c5e05594547bc3538208e57d3eb8adb9ae346ec83e4",
+  "scenarioSHA256": "7af700a6e90262629e1ea5687b883430b4acfd966ec41e305319c963ba3bcf5e",
+  "scenarioPassed": true,
+  "overallPassed": true,
+  "launcherExitCode": 0,
+  "recordedMainCatchFailure": null,
+  "recordedFailedStage": null,
+  "failureObservation": {
+    "version": 1,
+    "afterCleanup": true,
+    "snapshotAt": "2026-10-09T17:25:06.956Z",
+    "failurePresent": false,
+    "first": null
+  },
+  "cleanupErrors": [],
+  "pendingMutations": [],
+  "closingReadObservations": [
+    {
+      "method": "GET",
+      "routeClass": "session-list",
+      "pathnameSHA256": "7383f8056aab77dcb32bb7a5cd252830f41f75486b2250c65aba210324678c3c",
+      "startedAt": "2026-10-09T17:25:03.115Z",
+      "abort": "acknowledged",
+      "settledAt": "2026-10-09T17:25:03.122Z"
+    }
+  ],
+  "failedCallbackMethodPath": "no callback failure recorded in this run; earlier failed callbacks remain unclassified",
+  "monitorDisposal": {
+    "version": 1,
+    "entry": {
+      "wall": "2026-10-09T17:25:02.937Z",
+      "monotonicMs": 127836.492092
+    },
+    "operationEntered": {
+      "wall": "2026-10-09T17:25:02.939Z",
+      "monotonicMs": 127837.98936
+    },
+    "wait": {
+      "state": "fulfilled",
+      "at": {
+        "wall": "2026-10-09T17:25:02.944Z",
+        "monotonicMs": 127843.55956
+      }
+    },
+    "before": {
+      "at": {
+        "wall": "2026-10-09T17:25:02.938Z",
+        "monotonicMs": 127836.765955
+      },
+      "available": true,
+      "observation": {
+        "version": 1,
+        "monitor": {
+          "calls": 0,
+          "additionalCalls": false,
+          "first": null
+        },
+        "transport": {
+          "calls": 0,
+          "additionalCalls": false,
+          "first": null
+        },
+        "protocol": {
+          "setupComplete": true,
+          "rows": [
+            {
+              "ordinal": 1,
+              "created": {
+                "wall": "2026-10-09T17:23:29.380Z",
+                "monotonicMs": 34279.351225
+              },
+              "handshakes": [
+                {
+                  "wall": "2026-10-09T17:23:29.397Z",
+                  "monotonicMs": 34296.314607,
+                  "available": true,
+                  "status": 101,
+                  "upgradeWebSocket": true,
+                  "connectionUpgrade": true,
+                  "protocolPresent": false,
+                  "protocolEmpty": false,
+                  "extensionPresent": false,
+                  "perMessageDeflate": false,
+                  "headerValuesRetained": false
+                }
+              ],
+              "errors": [],
+              "closeFrames": [],
+              "closed": {
+                "wall": "2026-10-09T17:23:30.266Z",
+                "monotonicMs": 35165.017289
+              }
+            },
+            {
+              "ordinal": 2,
+              "created": {
+                "wall": "2026-10-09T17:24:41.117Z",
+                "monotonicMs": 106015.823214
+              },
+              "handshakes": [
+                {
+                  "wall": "2026-10-09T17:24:41.124Z",
+                  "monotonicMs": 106023.274549,
+                  "available": true,
+                  "status": 101,
+                  "upgradeWebSocket": true,
+                  "connectionUpgrade": true,
+                  "protocolPresent": false,
+                  "protocolEmpty": false,
+                  "extensionPresent": false,
+                  "perMessageDeflate": false,
+                  "headerValuesRetained": false
+                }
+              ],
+              "errors": [],
+              "closeFrames": [],
+              "closed": {
+                "wall": "2026-10-09T17:24:41.610Z",
+                "monotonicMs": 106509.179647
+              }
+            }
+          ],
+          "failures": [],
+          "scope": "Passive exact-path CDP observation only; request identifiers and URLs remain private. No stdout frame capture, direction/causality inference or performance claim."
+        }
+      }
+    },
+    "after": {
+      "at": {
+        "wall": "2026-10-09T17:25:02.944Z",
+        "monotonicMs": 127843.563035
+      },
+      "available": true,
+      "observation": {
+        "version": 1,
+        "monitor": {
+          "calls": 1,
+          "additionalCalls": false,
+          "first": {
+            "entry": {
+              "wall": "2026-10-09T17:25:02.939Z",
+              "monotonicMs": 127838.20173
+            },
+            "listenerRemoved": {
+              "wall": "2026-10-09T17:25:02.939Z",
+              "monotonicMs": 127838.348271
+            },
+            "settlement": {
+              "state": "fulfilled",
+              "at": {
+                "wall": "2026-10-09T17:25:02.944Z",
+                "monotonicMs": 127843.553571
+              }
+            }
+          }
+        },
+        "transport": {
+          "calls": 1,
+          "additionalCalls": false,
+          "first": {
+            "entry": {
+              "wall": "2026-10-09T17:25:02.939Z",
+              "monotonicMs": 127838.626461
+            },
+            "detachInvoked": {
+              "wall": "2026-10-09T17:25:02.940Z",
+              "monotonicMs": 127838.749266
+            },
+            "detachReturned": {
+              "wall": "2026-10-09T17:25:02.940Z",
+              "monotonicMs": 127839.166335
+            },
+            "detachSettlement": {
+              "state": "fulfilled",
+              "at": {
+                "wall": "2026-10-09T17:25:02.944Z",
+                "monotonicMs": 127843.538048
+              }
+            },
+            "waitSettlement": {
+              "state": "fulfilled",
+              "at": {
+                "wall": "2026-10-09T17:25:02.944Z",
+                "monotonicMs": 127843.549154
+              }
+            }
+          }
+        },
+        "protocol": {
+          "setupComplete": true,
+          "rows": [
+            {
+              "ordinal": 1,
+              "created": {
+                "wall": "2026-10-09T17:23:29.380Z",
+                "monotonicMs": 34279.351225
+              },
+              "handshakes": [
+                {
+                  "wall": "2026-10-09T17:23:29.397Z",
+                  "monotonicMs": 34296.314607,
+                  "available": true,
+                  "status": 101,
+                  "upgradeWebSocket": true,
+                  "connectionUpgrade": true,
+                  "protocolPresent": false,
+                  "protocolEmpty": false,
+                  "extensionPresent": false,
+                  "perMessageDeflate": false,
+                  "headerValuesRetained": false
+                }
+              ],
+              "errors": [],
+              "closeFrames": [],
+              "closed": {
+                "wall": "2026-10-09T17:23:30.266Z",
+                "monotonicMs": 35165.017289
+              }
+            },
+            {
+              "ordinal": 2,
+              "created": {
+                "wall": "2026-10-09T17:24:41.117Z",
+                "monotonicMs": 106015.823214
+              },
+              "handshakes": [
+                {
+                  "wall": "2026-10-09T17:24:41.124Z",
+                  "monotonicMs": 106023.274549,
+                  "available": true,
+                  "status": 101,
+                  "upgradeWebSocket": true,
+                  "connectionUpgrade": true,
+                  "protocolPresent": false,
+                  "protocolEmpty": false,
+                  "extensionPresent": false,
+                  "perMessageDeflate": false,
+                  "headerValuesRetained": false
+                }
+              ],
+              "errors": [],
+              "closeFrames": [],
+              "closed": {
+                "wall": "2026-10-09T17:24:41.610Z",
+                "monotonicMs": 106509.179647
+              }
+            }
+          ],
+          "failures": [],
+          "scope": "Passive exact-path CDP observation only; request identifiers and URLs remain private. No stdout frame capture, direction/causality inference or performance claim."
+        }
+      }
+    }
+  },
+  "monitorDisposalFinal": {
+    "at": {
+      "wall": "2026-10-09T17:25:06.955Z",
+      "monotonicMs": 131854.069504
+    },
+    "available": true,
+    "observation": {
+      "version": 1,
+      "monitor": {
+        "calls": 1,
+        "additionalCalls": false,
+        "first": {
+          "entry": {
+            "wall": "2026-10-09T17:25:02.939Z",
+            "monotonicMs": 127838.20173
+          },
+          "listenerRemoved": {
+            "wall": "2026-10-09T17:25:02.939Z",
+            "monotonicMs": 127838.348271
+          },
+          "settlement": {
+            "state": "fulfilled",
+            "at": {
+              "wall": "2026-10-09T17:25:02.944Z",
+              "monotonicMs": 127843.553571
+            }
+          }
+        }
+      },
+      "transport": {
+        "calls": 1,
+        "additionalCalls": false,
+        "first": {
+          "entry": {
+            "wall": "2026-10-09T17:25:02.939Z",
+            "monotonicMs": 127838.626461
+          },
+          "detachInvoked": {
+            "wall": "2026-10-09T17:25:02.940Z",
+            "monotonicMs": 127838.749266
+          },
+          "detachReturned": {
+            "wall": "2026-10-09T17:25:02.940Z",
+            "monotonicMs": 127839.166335
+          },
+          "detachSettlement": {
+            "state": "fulfilled",
+            "at": {
+              "wall": "2026-10-09T17:25:02.944Z",
+              "monotonicMs": 127843.538048
+            }
+          },
+          "waitSettlement": {
+            "state": "fulfilled",
+            "at": {
+              "wall": "2026-10-09T17:25:02.944Z",
+              "monotonicMs": 127843.549154
+            }
+          }
+        }
+      },
+      "protocol": {
+        "setupComplete": true,
+        "rows": [
+          {
+            "ordinal": 1,
+            "created": {
+              "wall": "2026-10-09T17:23:29.380Z",
+              "monotonicMs": 34279.351225
+            },
+            "handshakes": [
+              {
+                "wall": "2026-10-09T17:23:29.397Z",
+                "monotonicMs": 34296.314607,
+                "available": true,
+                "status": 101,
+                "upgradeWebSocket": true,
+                "connectionUpgrade": true,
+                "protocolPresent": false,
+                "protocolEmpty": false,
+                "extensionPresent": false,
+                "perMessageDeflate": false,
+                "headerValuesRetained": false
+              }
+            ],
+            "errors": [],
+            "closeFrames": [],
+            "closed": {
+              "wall": "2026-10-09T17:23:30.266Z",
+              "monotonicMs": 35165.017289
+            }
+          },
+          {
+            "ordinal": 2,
+            "created": {
+              "wall": "2026-10-09T17:24:41.117Z",
+              "monotonicMs": 106015.823214
+            },
+            "handshakes": [
+              {
+                "wall": "2026-10-09T17:24:41.124Z",
+                "monotonicMs": 106023.274549,
+                "available": true,
+                "status": 101,
+                "upgradeWebSocket": true,
+                "connectionUpgrade": true,
+                "protocolPresent": false,
+                "protocolEmpty": false,
+                "extensionPresent": false,
+                "perMessageDeflate": false,
+                "headerValuesRetained": false
+              }
+            ],
+            "errors": [],
+            "closeFrames": [],
+            "closed": {
+              "wall": "2026-10-09T17:24:41.610Z",
+              "monotonicMs": 106509.179647
+            }
+          }
+        ],
+        "failures": [],
+        "scope": "Passive exact-path CDP observation only; request identifiers and URLs remain private. No stdout frame capture, direction/causality inference or performance claim."
+      }
+    }
+  },
+  "disposalDurationsMs": {
+    "monitorFirstCallToSettlement": 5.351840999996057,
+    "outerOperationEnteredToWaitSettlement": 5.570199999987381,
+    "detachInvocationToUnderlyingSettlement": 4.788782000003266
+  },
+  "terminal": [
+    {
+      "phase": 11,
+      "exitCode": 0,
+      "outputExitCloseSequence": [
+        75,
+        76,
+        77
+      ],
+      "browserClose": {
+        "code": 1000,
+        "wasClean": true,
+        "wall": "2026-10-09T17:23:30.255Z",
+        "monotonicMs": 3180.699999988079
+      }
+    },
+    {
+      "phase": 42,
+      "exitCode": 7,
+      "outputExitCloseSequence": [
+        78,
+        79,
+        80
+      ],
+      "browserClose": {
+        "code": 1000,
+        "wasClean": true,
+        "wall": "2026-10-09T17:24:41.608Z",
+        "monotonicMs": 40778.80000001192
+      }
+    }
+  ],
+  "firstNaturalRelease": {
+    "phase": 22,
+    "elapsedMs": 30449.179295,
+    "polls": 53,
+    "observedAt": "2026-10-09T17:24:00.804Z"
+  },
+  "secondNaturalRelease": {
+    "phase": 44,
+    "observedAt": "2026-10-09T17:25:02.930Z"
+  },
+  "browserRestartCount": 1,
+  "apiRestartCount": 0,
+  "stopOrDeleteCount": 0,
+  "coldExecutionFingerprintOmitted": true,
+  "realNewGenerationPollBeforeAcknowledgement": true,
+  "identicalParsedSessionJSON": false,
+  "noReplacementAttachBeforeAcknowledgement": true,
+  "acknowledgementAt": "2026-10-09T17:24:41.099Z",
+  "replacementSocketCreatedAt": "2026-10-09T17:24:41.115Z",
+  "installedRestartStatus": 200,
+  "installed409DiagnosticExercised": false,
+  "originalResult": {
+    "bytes": 206725,
+    "sha256": "cc5b94e025462b829faf016756f832260aa1cd4792dfea3680cffd630e953fa2"
+  },
+  "originalWrapper": {
+    "bytes": 4989,
+    "sha256": "c868f33fe16b99dd1fbe6192e842399b041c984b1771d2fe8bd5ac7818dcda83"
+  },
+  "closure": {
+    "originalSHA256": "8b463fead6625e34fc506ac758bb6c274f54e5e9eae977203718ab32aede3325",
+    "absentIdentities": 3,
+    "pid1Zombies": 2,
+    "containers": 0,
+    "volumes": 0,
+    "ledgerCounts": {
+      "leases": 0,
+      "checks": 0,
+      "fences": 0,
+      "checkFences": 0
+    },
+    "fixtureFilesUnchanged": 31
+  },
+  "scope": "Retained Linux shell/browser/Docker evidence, not a new run. No retrospective method/path inference for earlier failed callbacks; successful disposal here does not explain the earlier timeout. No model, performance, Windows, raw Close-frame direction/count or full-product acceptance claim."
+}

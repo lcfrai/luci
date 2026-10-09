@@ -1,0 +1,34 @@
+[
+  {
+    "path": "/workspace/.luci-tools/cloud060-real-browser-v4/launch.mjs",
+    "sha256": "3d821c97681b24c3d20f60804f58ff19ca3ffc37256b8f3c6c06a769f9a8fbc4"
+  },
+  {
+    "path": "/workspace/.luci-tools/cloud060-real-browser-v4/capture.mjs",
+    "sha256": "18b980891c89162c3336217d85adc544b4ed24547e0f3d3f2602be68c8b8f431"
+  },
+  {
+    "path": "/workspace/.luci-tools/cloud060-real-browser-v4/navigation.mjs",
+    "sha256": "42ecc2e1406c88b2f88e1ec81641ce40a4e2e6a743dbb97b9a0b7d72758f95e0"
+  },
+  {
+    "path": "/workspace/.luci-tools/cloud060-real-browser-v4/purpose.mjs",
+    "sha256": "c35e4aa4a604b8ba3bb2aeeaa9354159a8ce06a9d36a503973e79efcbac84cb7"
+  },
+  {
+    "path": "/workspace/luci/scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs",
+    "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+  },
+  {
+    "path": "/workspace/luci/scripts/acceptance/launch-recovery/acceptance-startup.mjs",
+    "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680"
+  },
+  {
+    "path": "/workspace/luci/scripts/acceptance/four-project-queue/verify-package.py",
+    "sha256": "e4754d0d9db7424abdd76826c390e55bcddd5b6f55fd5ad716c3cfb5af8befd5"
+  },
+  {
+    "path": "/workspace/luci/scripts/acceptance/check-create-recovery/installed-recovery.mjs",
+    "sha256": "1f4acfbe56c91daadbc8968ac5c1a8db0fbd75e1a066c0bae50c84d748ad1c81"
+  }
+]

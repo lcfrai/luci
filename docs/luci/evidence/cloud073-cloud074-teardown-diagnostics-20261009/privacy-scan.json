@@ -1,0 +1,5 @@
+{
+  "boundedPatternFindings": [],
+  "actualPrivateFilesAbsent": true,
+  "scope": "Controlled source/test/receipt capsule only; no real private error/auth/controller/transport contents read or exported. Common credential pattern scan, not exhaustive detection."
+}

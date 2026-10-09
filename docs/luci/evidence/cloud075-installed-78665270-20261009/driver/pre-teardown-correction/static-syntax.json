@@ -1,0 +1,7 @@
+{
+  "status": "passed",
+  "scope": "node --check of all prepared .mjs; Python compile() of copied package verifier, no imports or execution",
+  "runtimeStarted": false,
+  "testsRun": false,
+  "helperFiles": 10
+}

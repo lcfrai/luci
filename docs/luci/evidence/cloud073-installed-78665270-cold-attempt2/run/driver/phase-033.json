@@ -1,0 +1,5 @@
+{
+  "kind": "cold-restart-step",
+  "step": "release-exact-acknowledgement",
+  "observedAt": "2026-10-09T17:24:41.097Z"
+}

@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "boundAt": "2026-10-09T16:55:48.813399+00:00",
+  "command": [
+    "node",
+    "/workspace/.luci-tools/cloud073-teardown-route/transport-triage/characterize.mjs"
+  ],
+  "exitCode": 0,
+  "runTimestampRetained": false,
+  "passedCases": 8,
+  "failedCases": 0,
+  "originalAcceptedResult": {
+    "path": "/workspace/.luci-tools/cloud072-installed-b94ad37e/evidence/cold-attempt2/driver/result.json",
+    "sha256": "b4e737097c6cd7a21c591109cbc970c36e1419244b9807ef707b51863fba8b20",
+    "bytes": 195467
+  },
+  "sourceCommit": "b94ad37e53181e360ac8910ee980570de622728c",
+  "helperSourceCommit": "b94ad37e53181e360ac8910ee980570de622728c",
+  "frozenSourceBindingsMatchAcceptedRun": true,
+  "sourceRewritten": false,
+  "stdout": {
+    "sha256": "8acde7bedade9c4d4d377c2bb2d35bac8bb047392973385005f146d6e1d1d51c",
+    "bytes": 246
+  },
+  "stderr": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  "report": {
+    "sha256": "78637bae74f7aa8ca69b0bf3b9260d7f6070656bb9df4d82ea9186194b18d67a",
+    "bytes": 22519
+  },
+  "scope": "Post-run binding of the retained controlled characterization output; boundAt is not a claimed execution timestamp. No product runtime, browser, Docker, compiler, private log or source helper rewrite."
+}

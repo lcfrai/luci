@@ -1,0 +1,225 @@
+{
+  "version": 1,
+  "at": "2026-10-09T17:28:01.753958+00:00",
+  "product": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "inspectionCompleted": true,
+  "postrunClosureConfirmed": false,
+  "workflowPassed": true,
+  "originalFailedStage": null,
+  "driverFirstFailure": null,
+  "originalDriverResultSHA256": "cb2c704902d2cd9c1e0fe537601405ab6cc58dacdb2d60f99003b18dee0febdf",
+  "missingReceipts": [],
+  "observedIdentities": [
+    {
+      "pid": 2572690,
+      "expectedStartTicks": "31281122",
+      "role": "controller",
+      "now": {
+        "status": "original-absent"
+      }
+    },
+    {
+      "pid": 2572703,
+      "expectedStartTicks": "31281291",
+      "role": "controller",
+      "now": {
+        "status": "original-absent"
+      }
+    },
+    {
+      "pid": 2572845,
+      "expectedStartTicks": "31281675",
+      "role": "controller",
+      "now": {
+        "status": "original-absent"
+      }
+    },
+    {
+      "pid": 2572725,
+      "expectedStartTicks": "31281432",
+      "role": "browser",
+      "now": {
+        "status": "original-absent"
+      }
+    },
+    {
+      "pid": 2572740,
+      "expectedStartTicks": "31281444",
+      "role": "browser",
+      "now": {
+        "status": "same-original-identity",
+        "observedStartTicks": "31281444",
+        "observedState": "Z",
+        "quiescentZombie": true
+      }
+    },
+    {
+      "pid": 2572743,
+      "expectedStartTicks": "31281445",
+      "role": "browser",
+      "now": {
+        "status": "same-original-identity",
+        "observedStartTicks": "31281445",
+        "observedState": "Z",
+        "quiescentZombie": true
+      }
+    },
+    {
+      "pid": 2572682,
+      "expectedStartTicks": "31280923",
+      "role": "driver",
+      "now": {
+        "status": "original-absent"
+      }
+    }
+  ],
+  "allKnownOriginalIdentitiesAbsent": false,
+  "allKnownOriginalIdentitiesQuiescent": true,
+  "driverFinalRegistryCovered": true,
+  "managedScopes": [
+    {
+      "kind": "user",
+      "id": "user-QnkRla3_jFNsmkAg8hU3I5",
+      "relativeStateDir": "state/control-plane/users/user-QnkRla3_jFNsmkAg8hU3I5/runtime/state"
+    },
+    {
+      "kind": "user",
+      "id": "user-G2thgqBAXjTn3PyS6i_HOq",
+      "relativeStateDir": "state/control-plane/users/user-G2thgqBAXjTn3PyS6i_HOq/runtime/state"
+    },
+    {
+      "kind": "team",
+      "id": "team-03WNG4-5fo7YRDvF-l-fky",
+      "relativeStateDir": "state/control-plane/teams/team-03WNG4-5fo7YRDvF-l-fky/runtime/state"
+    }
+  ],
+  "routeBoundaryDrainedAsRecorded": true,
+  "privateDockerSocketAbsentBeforeAndAfter": true,
+  "selectedStateBefore": {
+    "state/sessions/sessions.json": {
+      "exists": false
+    },
+    "state/control-plane/execution/leases.json": {
+      "exists": false
+    },
+    "state/control-plane/users/user-QnkRla3_jFNsmkAg8hU3I5/runtime/state/sessions/sessions.json": {
+      "exists": false
+    },
+    "state/control-plane/users/user-QnkRla3_jFNsmkAg8hU3I5/runtime/worker-address.json": {
+      "exists": false
+    },
+    "state/control-plane/users/user-G2thgqBAXjTn3PyS6i_HOq/runtime/state/sessions/sessions.json": {
+      "exists": false
+    },
+    "state/control-plane/users/user-G2thgqBAXjTn3PyS6i_HOq/runtime/worker-address.json": {
+      "exists": true,
+      "bytes": 36,
+      "sha256": "b224db05d5e33ee36fc54b4563e4895ded5b450328b7b946880e25695104a6bd"
+    },
+    "state/control-plane/teams/team-03WNG4-5fo7YRDvF-l-fky/runtime/state/sessions/sessions.json": {
+      "exists": false
+    },
+    "state/control-plane/teams/team-03WNG4-5fo7YRDvF-l-fky/runtime/worker-address.json": {
+      "exists": true,
+      "bytes": 36,
+      "sha256": "4ae3fe1da31b958fd004d6e7c8b54b701130513eec231029ab968b5dd3796427"
+    }
+  },
+  "selectedStateAfter": {
+    "state/sessions/sessions.json": {
+      "exists": false
+    },
+    "state/control-plane/execution/leases.json": {
+      "exists": false
+    },
+    "state/control-plane/users/user-QnkRla3_jFNsmkAg8hU3I5/runtime/state/sessions/sessions.json": {
+      "exists": false
+    },
+    "state/control-plane/users/user-QnkRla3_jFNsmkAg8hU3I5/runtime/worker-address.json": {
+      "exists": false
+    },
+    "state/control-plane/users/user-G2thgqBAXjTn3PyS6i_HOq/runtime/state/sessions/sessions.json": {
+      "exists": false
+    },
+    "state/control-plane/users/user-G2thgqBAXjTn3PyS6i_HOq/runtime/worker-address.json": {
+      "exists": true,
+      "bytes": 36,
+      "sha256": "b224db05d5e33ee36fc54b4563e4895ded5b450328b7b946880e25695104a6bd"
+    },
+    "state/control-plane/teams/team-03WNG4-5fo7YRDvF-l-fky/runtime/state/sessions/sessions.json": {
+      "exists": false
+    },
+    "state/control-plane/teams/team-03WNG4-5fo7YRDvF-l-fky/runtime/worker-address.json": {
+      "exists": true,
+      "bytes": 36,
+      "sha256": "4ae3fe1da31b958fd004d6e7c8b54b701130513eec231029ab968b5dd3796427"
+    }
+  },
+  "selectedReceiptsBefore": {
+    "driver-start.json": {
+      "exists": true,
+      "bytes": 370,
+      "sha256": "aeb7b5e8574204dcbe33bb632ea6de1ae390933dfe8d83b5f623687931afb796"
+    },
+    "driver-owned-identities.json": {
+      "exists": true,
+      "bytes": 669,
+      "sha256": "0608d101fbe72e45d6f8ba2cc55f7ed4e7115ff2905ce8a00ee558a595acca62"
+    },
+    "driver-managed-scopes.json": {
+      "exists": true,
+      "bytes": 836,
+      "sha256": "d8d2cc25b20374556af4672c61266f077c5f1b0699c54e8f583b0e6cc0527a06"
+    },
+    "driver-result.json": {
+      "exists": true,
+      "bytes": 15432,
+      "sha256": "bebc4056e277e7ce1adecca5f7334edcb167576e7c543b966f8f2f6b737c59ad"
+    },
+    "evidence/result.json": {
+      "exists": true,
+      "bytes": 18364,
+      "sha256": "cb2c704902d2cd9c1e0fe537601405ab6cc58dacdb2d60f99003b18dee0febdf"
+    },
+    "evidence/events.jsonl": {
+      "exists": true,
+      "bytes": 19806,
+      "sha256": "3bb9675848a248ba80db62bc179c4a198318334848dc84daef1cf37c36b14347"
+    }
+  },
+  "selectedReceiptsAfter": {
+    "driver-start.json": {
+      "exists": true,
+      "bytes": 370,
+      "sha256": "aeb7b5e8574204dcbe33bb632ea6de1ae390933dfe8d83b5f623687931afb796"
+    },
+    "driver-owned-identities.json": {
+      "exists": true,
+      "bytes": 669,
+      "sha256": "0608d101fbe72e45d6f8ba2cc55f7ed4e7115ff2905ce8a00ee558a595acca62"
+    },
+    "driver-managed-scopes.json": {
+      "exists": true,
+      "bytes": 836,
+      "sha256": "d8d2cc25b20374556af4672c61266f077c5f1b0699c54e8f583b0e6cc0527a06"
+    },
+    "driver-result.json": {
+      "exists": true,
+      "bytes": 15432,
+      "sha256": "bebc4056e277e7ce1adecca5f7334edcb167576e7c543b966f8f2f6b737c59ad"
+    },
+    "evidence/result.json": {
+      "exists": true,
+      "bytes": 18364,
+      "sha256": "cb2c704902d2cd9c1e0fe537601405ab6cc58dacdb2d60f99003b18dee0febdf"
+    },
+    "evidence/events.jsonl": {
+      "exists": true,
+      "bytes": 19806,
+      "sha256": "3bb9675848a248ba80db62bc179c4a198318334848dc84daef1cf37c36b14347"
+    }
+  },
+  "selectedFilesUnchanged": true,
+  "scriptSHA256": "176a14fcd916f4bdbab9e5af2244704d8871e9892f7e49967fad888a063d1f64",
+  "scope": "Independent post-join read-only inspection of exact fixture-recorded PID/start identities and selected owned state/receipt hashes. No process census, proc environments, unrelated credentials, signals, network or Docker access. File before/after means before/after this inspection, not before/after the workflow. No discovery of unrecorded processes or whole-machine closure claim. Zombies remain explicitly present and prevent strict originals-absent closure confirmation."
+}

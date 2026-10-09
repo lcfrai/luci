@@ -1,0 +1,53 @@
+{
+  "originals": [
+    {
+      "source": "/workspace/.luci-tools/cloud072-late-failure-diagnostic/warm/launch.mjs",
+      "original": {
+        "bytes": 72373,
+        "sha256": "205f99a26e4c5d0692f91bed0a1e1eeba10bc666571d3cdb86ef5fcf31980c79"
+      },
+      "unchanged": true
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud072-late-failure-diagnostic/warm/scenario.mjs",
+      "original": {
+        "bytes": 39222,
+        "sha256": "bee434c538872680e4abd652022041b2516b63c4dddb79e9910efe16a3fa0742"
+      },
+      "unchanged": true
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud072-late-failure-diagnostic/warm/outer-run.py",
+      "original": {
+        "bytes": 22954,
+        "sha256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49"
+      },
+      "unchanged": true
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud072-late-failure-diagnostic/cold/launch.mjs",
+      "original": {
+        "bytes": 73345,
+        "sha256": "7789d0f5e89fdd643cf433dc8786f44fba16a3e24884c12aad738ab4935b75cc"
+      },
+      "unchanged": true
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud072-late-failure-diagnostic/cold/scenario.mjs",
+      "original": {
+        "bytes": 43452,
+        "sha256": "e96058d031f8d46b9ab4c4fcb4e14c485bacc939044bf1592a8ec24497a7d7f7"
+      },
+      "unchanged": true
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud072-late-failure-diagnostic/cold/outer-run.py",
+      "original": {
+        "bytes": 22954,
+        "sha256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49"
+      },
+      "unchanged": true
+    }
+  ],
+  "scope": "Six C072 helper originals unchanged; no original failed runtime fixture read or modified by this source capsule."
+}

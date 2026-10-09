@@ -1,0 +1,66 @@
+{
+  "product": "786652704fa8bebd1ba1af41cfa1d414d7def100",
+  "mode": "external-frozen-helper-with-installed-package-verification",
+  "helperInputs": [
+    {
+      "path": "acceptance-lifecycle.mjs",
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+    },
+    {
+      "path": "acceptance-startup.mjs",
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680"
+    },
+    {
+      "path": "capture.mjs",
+      "sha256": "18b980891c89162c3336217d85adc544b4ed24547e0f3d3f2602be68c8b8f431"
+    },
+    {
+      "path": "guards.mjs",
+      "sha256": "276ef81ec22bd12d280e375cb2f400aa0f8bc60060965673e5060b4c8f131bfb"
+    },
+    {
+      "path": "launch.mjs",
+      "sha256": "bbb1110c58935468de15eb1997fccd88109e6b0912315dde75ddca7c69b760f1"
+    },
+    {
+      "path": "navigation.mjs",
+      "sha256": "42ecc2e1406c88b2f88e1ec81641ce40a4e2e6a743dbb97b9a0b7d72758f95e0"
+    },
+    {
+      "path": "owned-processes.mjs",
+      "sha256": "0e9767f845b508fbf551631711942ea729554def9614759395a70ad8d3cb1c8b"
+    },
+    {
+      "path": "purpose.mjs",
+      "sha256": "c35e4aa4a604b8ba3bb2aeeaa9354159a8ce06a9d36a503973e79efcbac84cb7"
+    },
+    {
+      "path": "scenario.mjs",
+      "sha256": "79e7af72dcc9034120572383db78b199f28c557701d6bb4bdfc7c22d187c235e"
+    },
+    {
+      "path": "verify-package.py",
+      "sha256": "e4754d0d9db7424abdd76826c390e55bcddd5b6f55fd5ad716c3cfb5af8befd5"
+    }
+  ],
+  "runtimeDependencyInputs": [
+    {
+      "path": "desktop/node_modules/playwright/index.mjs",
+      "sha256": "a0f5715ea22354f922791a9c53dc012d5d5c067ff9cc4cd35ffb7cd272071a9f"
+    },
+    {
+      "path": "desktop/node_modules/playwright/package.json",
+      "sha256": "8bc2ddebe8d9b051b9ecb87d62c6c63877e59d08617f32c3215681ca8bb70998"
+    },
+    {
+      "path": "desktop/node_modules/playwright-core/package.json",
+      "sha256": "f061c58427e47e843e26d201f0a57076c734e57c734ecbbd87d4a23b7a20db9b"
+    },
+    {
+      "path": "desktop/package-lock.json",
+      "sha256": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a"
+    }
+  ],
+  "packageProvenanceSHA256": "f65e8e48149fc495c91ad340cf4e31711fb12f38ac4a9ec8829ed43e0e956a2f",
+  "preparedOnly": true
+}

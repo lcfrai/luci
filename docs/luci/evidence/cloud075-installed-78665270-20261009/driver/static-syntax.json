@@ -1,0 +1,12 @@
+{
+  "status": "passed",
+  "scope": "node --check of all prepared .mjs; Python compile() of copied package verifier, no imports or installed execution",
+  "runtimeStarted": false,
+  "sourceOnlyTests": {
+    "file": "route-boundary.test.mjs",
+    "passed": 5,
+    "failed": 0,
+    "exit": 0
+  },
+  "helperFiles": 12
+}

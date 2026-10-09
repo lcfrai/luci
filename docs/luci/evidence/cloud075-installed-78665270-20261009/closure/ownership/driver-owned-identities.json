@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "runRoot": "/workspace/.luci-tools/cloud075-private-runs/attempt-001",
+  "identities": [
+    {
+      "pid": 2572690,
+      "startTicks": "31281122",
+      "role": "controller"
+    },
+    {
+      "pid": 2572703,
+      "startTicks": "31281291",
+      "role": "controller"
+    },
+    {
+      "pid": 2572845,
+      "startTicks": "31281675",
+      "role": "controller"
+    },
+    {
+      "pid": 2572725,
+      "startTicks": "31281432",
+      "role": "browser"
+    },
+    {
+      "pid": 2572740,
+      "startTicks": "31281444",
+      "role": "browser"
+    },
+    {
+      "pid": 2572743,
+      "startTicks": "31281445",
+      "role": "browser"
+    }
+  ]
+}

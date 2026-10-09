@@ -1,0 +1,9 @@
+{
+  "exactPrivateRootAbsent": true,
+  "boundedPatternFindings": [],
+  "screenshotsManuallyReviewed": [
+    "cold-exited-before-restart.png",
+    "cold-restarted-nonzero-ended.png"
+  ],
+  "scope": "Common credential scan and visual screenshot review, not exhaustive detection. No raw private error/log/auth/fixture content read. Fixed allowlist matches C072 capsule categories with additive safe C073/C074 metadata."
+}

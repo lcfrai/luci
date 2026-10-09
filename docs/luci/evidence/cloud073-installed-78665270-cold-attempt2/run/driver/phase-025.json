@@ -1,0 +1,22 @@
+{
+  "kind": "cold-restart-before-request-list",
+  "ordinal": 1,
+  "response": {
+    "session": {
+      "id": "s-7f6416a8",
+      "projectId": "p-19a2a816",
+      "status": "exited",
+      "executionGeneration": null
+    },
+    "sessionJSONSHA256": "683f6492c230486de7c1e7eb0fca5befc0ba7b6a9cda14e2cde3ae12544626ff",
+    "bytes": 566,
+    "sha256": "2da183dd9390358fed86b1b27226e56a6bd5d12fabac25f4145f0ccb42d3aa88"
+  },
+  "ui": {
+    "label": "c054-terminal-fixture — exited",
+    "footer": "/bin/bash · 1m · ended",
+    "overlay": null,
+    "restartCount": 1
+  },
+  "observedAt": "2026-10-09T17:24:06.131Z"
+}

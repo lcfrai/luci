@@ -1,0 +1,9 @@
+# Warm attempt2 — additive read-only classifications
+
+This supplement preserves the frozen [failed-run capsule](../README.md); its publication SHA256 is `724c345a4f94075e22d2cd73073ef19281226d16ce0d56ada73a45d2001ac41d`. No base receipt, source or outcome is rewritten.
+
+The authorized diagnostic reader produced14 safe rows: seven CDP and seven Playwright observations, each an anchored Chromium unexpected-handshake status409 classification. Every source error is63bytes with SHA256 `84f76179cded37834529a365d836b2bdcdce89f74bf27c4a4d5c2b1426895f45`. This is **error-text classification only**. No raw URL/query/token/error, captured HTTP response body, server reason or successful Restart acknowledgement is provided. It does not establish a cause for the still-pending POST.
+
+The later exact retained-allocation projection observes the selected container **created, not running**, the registry **starting** without endpoint/reference, and its lease **backend-dispatching**. Immutable container ID, name, image, managed/instance/session/sandbox labels and project checks match. One Restart remains pending. Endpoint/token values, environment, mount sources, commands and private registry/ledger contents are excluded; only allowlisted metadata and hashes are exported. Selected private inputs remained unchanged. This verifies selected ownership, not daemon-internal quiescence, remote acknowledgement or successful cleanup.
+
+Exact safe projections and their reader source are included. Those readers performed the original authorized read-only inspection; publication copied their outputs and source without executing them or reading raw private errors/fixture state. The original sources remain bound in `input-bindings.json`. No runtime, mutation, repair, retry or acceptance upgrade was performed. `sha256sum -c SHA256SUMS` verifies this supplement independently of the frozen base.

@@ -1,0 +1,391 @@
+#!/usr/bin/env node
+// External CLOUD-054 installed adapter. No side effects on import; runtime needs explicit pins/window.
+import assert from 'node:assert/strict';
+import {createHash,randomUUID} from 'node:crypto';
+import {spawn,execFileSync} from 'node:child_process';
+import {createServer} from 'node:net';
+import {readFileSync,writeFileSync,mkdirSync,mkdtempSync,lstatSync,realpathSync,existsSync,readdirSync,statfsSync,openSync,closeSync,fsyncSync,writeSync,constants} from 'node:fs';
+import {resolve,dirname,join,sep} from 'node:path';
+import {fileURLToPath,pathToFileURL} from 'node:url';
+import {setTimeout as delay} from 'node:timers/promises';
+// BEGIN exact inline private-log module
+import * as controllerLogFS from 'node:fs';
+import {createHash as controllerLogHash} from 'node:crypto';
+import {dirname as controllerLogDirname,resolve as controllerLogResolve} from 'node:path';
+
+const controllerLogLimit=256*1024,controllerLogLineLimit=16*1024,controllerLogRelayLimit=16;
+const controllerLogDigest=bytes=>controllerLogHash('sha256').update(bytes).digest('hex');
+const controllerLogSame=(a,b)=>a.dev===b.dev&&a.ino===b.ino;
+
+// Decode Go slog/strconv quoted values to bytes. In particular, \\x escapes are
+// bytes, not JavaScript Unicode code points. Raw/error text never leaves this module.
+function controllerLogQuoted(token){
+ if(token[0]!=='"'||token.at(-1)!=='"')return null;
+ const parts=[];let text='';const flush=()=>{if(text){parts.push(Buffer.from(text));text='';}};
+ const simple={a:7,b:8,f:12,n:10,r:13,t:9,v:11,'\\':92,'"':34};
+ for(let i=1;i<token.length-1;i++){
+  const c=token[i];if(c!=='\\'){if(c==='"'||c.charCodeAt(0)<32)return null;text+=c;continue;}
+  flush();const e=token[++i];if(e in simple){parts.push(Buffer.from([simple[e]]));continue;}
+  const count=e==='x'?2:e==='u'?4:e==='U'?8:0;if(!count)return null;
+  const value=token.slice(i+1,i+1+count);if(value.length!==count||!new RegExp('^[0-9a-fA-F]{'+count+'}$').test(value))return null;i+=count;
+  const n=parseInt(value,16);if(e==='x')parts.push(Buffer.from([n]));else{if(n>0x10ffff||(n>=0xd800&&n<=0xdfff))return null;parts.push(Buffer.from(String.fromCodePoint(n)));}
+ }
+ flush();return Buffer.concat(parts);
+}
+function controllerLogFields(line){
+ let text;try{text=new TextDecoder('utf-8',{fatal:true}).decode(line);}catch{return null;}
+ const fields=new Map();let i=0;
+ while(i<text.length){
+  while(text[i]===' ')i++;if(i===text.length)break;
+  const keyStart=i;while(i<text.length&&text[i]!=='='&&text[i]!==' ')i++;
+  if(text[i]!=='=')return null;const key=text.slice(keyStart,i++);if(!/^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(key)||fields.has(key)||fields.size>=64)return null;
+  const start=i;let bytes;
+  if(text[i]==='"'){
+   i++;let closed=false;while(i<text.length){if(text[i]==='\\'){i+=2;continue;}if(text[i++]==='"'){closed=true;break;}}
+   if(!closed)return null;bytes=controllerLogQuoted(text.slice(start,i));if(!bytes)return null;
+  }else{while(i<text.length&&text[i]!==' ')i++;if(start===i)return null;bytes=Buffer.from(text.slice(start,i));}
+  if(i<text.length&&text[i]!==' ')return null;fields.set(key,{bytes,token:Buffer.from(text.slice(start,i))});
+ }
+ return fields;
+}
+export function projectAttachRelayLine(line,expectedSession){
+ if(!Buffer.isBuffer(line)||line.length>controllerLogLineLimit||!/^[s]-[a-f0-9]{8}$/.test(expectedSession??''))return null;
+ const fields=controllerLogFields(line);if(!fields)return null;
+ const value=k=>fields.get(k)?.bytes.toString('utf8');
+ if(value('msg')!=='attach relay ended'||value('route')!=='attach'||value('session')!==expectedSession)return null;
+ const time=value('time'),level=value('level'),error=fields.get('err');
+ if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/.test(time??'')||!Number.isFinite(Date.parse(time))||!['DEBUG','INFO','WARN','ERROR'].includes(level)||!error)return null;
+ let errorText;try{errorText=new TextDecoder('utf-8',{fatal:true}).decode(error.bytes);}catch{errorText='';}
+ // Conservative classification of fixed terminal forms only. Quoted close
+ // reasons are not searched for context/EOF text or retained in the projection.
+ const terminal=/^(?:[a-z][a-z -]{0,80}: ){0,8}(context canceled|context deadline exceeded|EOF|unexpected EOF)$/.exec(errorText);
+ const statuses={StatusNormalClosure:1000,StatusGoingAway:1001,StatusProtocolError:1002,StatusUnsupportedData:1003,StatusNoStatusRcvd:1005,StatusAbnormalClosure:1006,StatusInvalidFramePayloadData:1007,StatusPolicyViolation:1008,StatusMessageTooBig:1009,StatusMandatoryExtension:1010,StatusInternalError:1011,StatusServiceRestart:1012,StatusTryAgainLater:1013,StatusBadGateway:1014,StatusTLSHandshake:1015};
+ const close=/^(?:[a-z][a-z -]{0,80}: ){0,8}status = (Status[A-Za-z]+) and reason = ("(?:[^"\\]|\\.)*")$/.exec(errorText);
+ const status=close&&Object.hasOwn(statuses,close[1])&&controllerLogQuoted(close[2])?statuses[close[1]]:null;
+ return {kind:'attach-relay-ended',time,level,session:expectedSession,route:'attach',lineBytes:line.length,lineSHA256:controllerLogDigest(line),errorBytes:error.bytes.length,errorSHA256:controllerLogDigest(error.bytes),errorTokenBytes:error.token.length,errorTokenSHA256:controllerLogDigest(error.token),rawErrorRetained:false,classificationIsTextOnly:true,flags:{contextCanceled:terminal?.[1]==='context canceled',deadlineExceeded:terminal?.[1]==='context deadline exceeded',eof:terminal?.[1]==='EOF',unexpectedEOF:terminal?.[1]==='unexpected EOF',websocketStatus:status,unclassified:!terminal&&status===null}};
+}
+
+export function createControllerLogCapture({path,expectedSession,onFailure=()=>{},onRelay=()=>{}}){
+ if(typeof expectedSession!=='function'||typeof onFailure!=='function'||typeof onRelay!=='function')throw Error('Invalid private controller log callbacks.');
+ let fd,parentIdentity,fileIdentity;
+ const directory=typeof path==='string'?controllerLogDirname(path):'';
+ const privateParent=()=>{const p=controllerLogFS.lstatSync(directory);if(!p.isDirectory()||p.isSymbolicLink()||p.uid!==process.getuid()||(p.mode&0o077)!==0||controllerLogFS.realpathSync(directory)!==directory)throw Error('Private controller log parent refused.');return p;};
+ const fileOK=stat=>stat.isFile()&&stat.uid===process.getuid()&&stat.nlink===1&&(stat.mode&0o777)===0o600;
+ try{
+  if(typeof process.getuid!=='function'||typeof path!=='string'||path.length>4096||path.includes('\0')||controllerLogResolve(path)!==path)throw Error('Invalid private path.');
+  parentIdentity=privateParent();const c=controllerLogFS.constants;fd=controllerLogFS.openSync(path,c.O_WRONLY|c.O_CREAT|c.O_EXCL|c.O_NOFOLLOW|c.O_APPEND|c.O_NONBLOCK,0o600);fileIdentity=controllerLogFS.fstatSync(fd);
+  if(!fileOK(fileIdentity)||!controllerLogSame(fileIdentity,controllerLogFS.lstatSync(path))||!controllerLogSame(parentIdentity,privateParent()))throw Error('Private log identity changed.');
+ }catch{if(fd!==undefined)try{controllerLogFS.closeSync(fd);}catch{}throw Error('Private controller log initialization failed.');}
+ const observedHash=controllerLogHash('sha256'),retainedHash=controllerLogHash('sha256');
+ const state={attached:false,endObserved:false,closeObserved:false,errorObserved:false,settlementTimedOut:false,hashCoverageComplete:true,observedBytes:0,retainedBytes:0,truncated:false,retentionClosedEarly:false,closed:false,fsyncSucceeded:null,identityVerified:null,completeLines:0,trailingPartialLine:false,oversizedLines:0,unprojectedLines:0,matchingLines:0,omittedRelayRows:0,relayRows:[],failures:[]};
+ let finishResolve;const finished=new Promise(resolve=>{finishResolve=resolve;});let lineParts=[],lineBytes=0,discardLine=false,settlePromise;
+ const failure=code=>{if(!state.failures.includes(code)){state.failures.push(code);try{onFailure({kind:'controller-log-capture-failure',code});}catch{if(!state.failures.includes('failure_callback_failed'))state.failures.push('failure_callback_failed');}}};
+ function closeFile(){
+  if(state.closed)return;
+  try{const stat=controllerLogFS.fstatSync(fd),named=controllerLogFS.lstatSync(path),parent=privateParent();if(!fileOK(stat)||!fileOK(named)||!controllerLogSame(fileIdentity,stat)||!controllerLogSame(stat,named)||!controllerLogSame(parentIdentity,parent)||stat.size!==state.retainedBytes)throw Error('Identity mismatch');state.identityVerified=true;}catch{state.identityVerified=false;failure('private_file_identity_changed');}
+  try{controllerLogFS.fsyncSync(fd);state.fsyncSucceeded=true;}catch{state.fsyncSucceeded=false;failure('private_file_sync_failed');}
+  try{controllerLogFS.closeSync(fd);}catch{failure('private_file_close_failed');}state.closed=true;
+  // File bytes are synced; directory entry durability is checked separately.
+  let dirFD;try{dirFD=controllerLogFS.openSync(directory,controllerLogFS.constants.O_RDONLY|controllerLogFS.constants.O_DIRECTORY|controllerLogFS.constants.O_NOFOLLOW);if(!controllerLogSame(parentIdentity,controllerLogFS.fstatSync(dirFD)))throw Error('Parent changed');controllerLogFS.fsyncSync(dirFD);}catch{failure('private_parent_sync_failed');}finally{if(dirFD!==undefined)try{controllerLogFS.closeSync(dirFD);}catch{failure('private_parent_close_failed');}}
+ }
+ function emitLine(line){
+  let id;try{id=expectedSession();}catch{failure('expected_session_unavailable');state.unprojectedLines++;return;}
+  const projection=projectAttachRelayLine(line,id);if(!projection){state.unprojectedLines++;return;}
+  state.matchingLines++;if(state.relayRows.length>=controllerLogRelayLimit){state.omittedRelayRows++;failure('relay_row_limit');return;}
+  state.relayRows.push(projection);try{onRelay(structuredClone(projection));}catch{failure('relay_callback_failed');}
+ }
+ function processLines(chunk){
+  let start=0;
+  while(start<chunk.length){const newline=chunk.indexOf(10,start),end=newline===-1?chunk.length:newline,piece=chunk.subarray(start,end);
+   if(!discardLine){if(lineBytes+piece.length>controllerLogLineLimit){discardLine=true;lineParts=[];lineBytes=0;state.oversizedLines++;failure('line_byte_limit');}else if(piece.length){lineParts.push(Buffer.from(piece));lineBytes+=piece.length;}}
+   if(newline===-1)break;state.completeLines++;if(!discardLine)emitLine(Buffer.concat(lineParts,lineBytes));lineParts=[];lineBytes=0;discardLine=false;start=newline+1;
+  }
+ }
+ function data(chunk){
+  if(!Buffer.isBuffer(chunk)&&!(chunk instanceof Uint8Array)){state.hashCoverageComplete=false;failure('non_byte_stream_chunk');return;}
+  const bytes=Buffer.isBuffer(chunk)?chunk:Buffer.from(chunk.buffer,chunk.byteOffset,chunk.byteLength);observedHash.update(bytes);state.observedBytes+=bytes.length;
+  if(!state.closed){const amount=Math.min(bytes.length,controllerLogLimit-state.retainedBytes);let offset=0;try{while(offset<amount){const n=controllerLogFS.writeSync(fd,bytes,offset,amount-offset);if(n<=0)throw Error('No progress');retainedHash.update(bytes.subarray(offset,offset+n));state.retainedBytes+=n;offset+=n;}}catch{failure('private_file_write_failed');closeFile();}}
+  if(state.observedBytes>state.retainedBytes){state.truncated=true;failure(state.retainedBytes===controllerLogLimit?'private_log_byte_limit':'private_log_prefix_incomplete');}
+  try{processLines(bytes);}catch{failure('line_observer_failed');}
+ }
+ function end(){state.endObserved=true;if(lineBytes||discardLine){state.trailingPartialLine=true;lineParts=[];lineBytes=0;discardLine=false;failure('unterminated_log_line');}closeFile();finishResolve();}
+ function streamError(){state.errorObserved=true;failure('stderr_stream_error');closeFile();finishResolve();}
+ function streamClose(){state.closeObserved=true;if(!state.endObserved){failure('stderr_closed_without_end');closeFile();finishResolve();}}
+ function snapshot(){
+  const complete=state.endObserved&&!state.errorObserved&&state.hashCoverageComplete;
+  return {version:1,scope:'Attached controller stderr only; private exact bounded prefix; hashes cover observed bytes, not unobserved process output',...structuredClone(state),observedSHA256:observedHash.copy().digest('hex'),completeStreamSHA256:complete?observedHash.copy().digest('hex'):null,retainedPrefixSHA256:retainedHash.copy().digest('hex'),maxRetainedBytes:controllerLogLimit,maxLineBytes:controllerLogLineLimit,maxRelayRows:controllerLogRelayLimit,passed:complete&&state.closed&&state.identityVerified===true&&state.fsyncSucceeded===true&&state.failures.length===0};
+ }
+ return {attach(stream){if(state.attached||state.closed)throw Error('Controller log capture already attached or closed.');if(!stream||typeof stream.on!=='function'||typeof stream.listenerCount!=='function'||stream.readableEnded||stream.destroyed||stream.readableFlowing===true||stream.listenerCount('data')){failure('stderr_attachment_unavailable');closeFile();finishResolve();throw Error('Controller stderr attachment unavailable.');}state.attached=true;stream.on('data',data);stream.once('end',end);stream.on('error',streamError);stream.once('close',streamClose);},snapshot,settle(ms=2000){if(!Number.isInteger(ms)||ms<1||ms>3000)throw Error('Controller log settlement budget must be1..3000ms.');if(settlePromise)return settlePromise;settlePromise=(async()=>{if(!state.attached){failure('stderr_not_attached');closeFile();finishResolve();}let timer;const timeout=new Promise(resolve=>{timer=setTimeout(()=>{state.settlementTimedOut=true;state.retentionClosedEarly=!state.endObserved;failure('stderr_settlement_timeout');closeFile();resolve();},ms);});try{await Promise.race([finished,timeout]);}finally{clearTimeout(timer);}return snapshot();})();return settlePromise;}};
+}
+// END exact inline private-log module
+
+// BEGIN exact inline private transport error module
+import * as transportPrivateFS from 'node:fs';
+import {createHash as transportPrivateHash} from 'node:crypto';
+import {dirname as transportPrivateDirname,resolve as transportPrivateResolve} from 'node:path';
+
+// Private JSONL contains reversible JSON escaping of original error strings.
+// Public callers receive only record ordinal/length/hash, never the raw text/path.
+export function createPrivateTransportErrors({path,onFailure=()=>{}}){
+ const limit=128*1024,maxTextBytes=2048,maxRows=32,parent=transportPrivateDirname(path),f=transportPrivateFS,c=f.constants;
+ const same=(a,b)=>a.dev===b.dev&&a.ino===b.ino;let fd,fileIdentity,parentIdentity,closed=false,failed=false,rows=0,bytes=0;
+ const digest=transportPrivateHash('sha256'),failures=[];
+ const fail=code=>{failed=true;if(!failures.includes(code)){failures.push(code);try{onFailure({kind:'private-transport-error-capture-failure',code});}catch{failures.push('failure_callback_failed');}}};
+ const validParent=()=>{const s=f.lstatSync(parent);if(!s.isDirectory()||s.isSymbolicLink()||s.uid!==process.getuid()||(s.mode&0o077)||f.realpathSync(parent)!==parent)throw Error('Private parent refused');return s;};
+ const validFile=s=>s.isFile()&&s.nlink===1&&s.uid===process.getuid()&&(s.mode&0o777)===0o600;
+ try{if(typeof process.getuid!=='function'||typeof path!=='string'||path.length>4096||path.includes('\0')||transportPrivateResolve(path)!==path)throw Error('Invalid private path');parentIdentity=validParent();fd=f.openSync(path,c.O_WRONLY|c.O_CREAT|c.O_EXCL|c.O_NOFOLLOW|c.O_APPEND|c.O_NONBLOCK,0o600);fileIdentity=f.fstatSync(fd);if(!validFile(fileIdentity)||!same(fileIdentity,f.lstatSync(path)))throw Error('Invalid private file');}catch{if(fd!==undefined)try{f.closeSync(fd);}catch{}throw Error('Private transport error file initialization failed');}
+ const state={fsyncSucceeded:null,identityVerified:null,closeAcknowledged:false};
+ function snapshot(){return {version:1,scope:'Private browser error text records only; no URLs, headers, stdout or credentials deliberately collected; arbitrary error strings may themselves contain secrets and remain private.',rows,bytes,sha256:digest.copy().digest('hex'),maxBytes:limit,maxTextBytes,maxRows,closed,failed,failures:[...failures],...state,passed:closed&&!failed&&state.identityVerified===true&&state.fsyncSucceeded===true&&state.closeAcknowledged};}
+ return {record({channel,ordinal,error}){
+  if(closed||failed){fail('private_capture_not_writable');throw Error('Private transport capture unavailable');}
+  if(!['playwright','cdp'].includes(channel)||!Number.isInteger(ordinal)||ordinal<1||ordinal>8||typeof error!=='string'){fail('invalid_error_observation');throw Error('Private transport error observation invalid');}
+  const raw=Buffer.from(error);if(raw.length>maxTextBytes||rows>=maxRows){fail(raw.length>maxTextBytes?'private_error_text_limit':'private_error_row_limit');throw Error('Private transport error capture limit');}
+  const row={record:rows+1,channel,ordinal,wall:new Date().toISOString(),monotonicMs:performance.now(),errorBytes:raw.length,errorSHA256:transportPrivateHash('sha256').update(raw).digest('hex'),error};
+  const data=Buffer.from(JSON.stringify(row)+'\n');if(bytes+data.length>limit){fail('private_error_file_limit');throw Error('Private transport error file limit');}
+  let written=0;try{while(written<data.length){const n=f.writeSync(fd,data,written,data.length-written);if(n<=0)throw Error('No progress');digest.update(data.subarray(written,written+n));bytes+=n;written+=n;}f.fsyncSync(fd);}catch{fail('private_error_write_unconfirmed');throw Error('Private transport error write unconfirmed');}
+  rows++;return {record:row.record,errorBytes:row.errorBytes,errorSHA256:row.errorSHA256,retainedPrivately:true};
+ },snapshot,close(){if(closed)return snapshot();try{const named=f.lstatSync(path),current=f.fstatSync(fd);if(!validFile(named)||!validFile(current)||!same(fileIdentity,current)||!same(current,named)||current.size!==bytes||!same(parentIdentity,validParent()))throw Error('Identity changed');state.identityVerified=true;}catch{state.identityVerified=false;fail('private_error_identity_changed');}
+  try{f.fsyncSync(fd);state.fsyncSucceeded=true;}catch{state.fsyncSucceeded=false;fail('private_error_sync_failed');}try{f.closeSync(fd);state.closeAcknowledged=true;}catch{fail('private_error_close_failed');}closed=true;let parentFD;try{parentFD=f.openSync(parent,c.O_RDONLY|c.O_DIRECTORY|c.O_NOFOLLOW);if(!same(parentIdentity,f.fstatSync(parentFD)))throw Error('Parent changed');f.fsyncSync(parentFD);}catch{fail('private_error_parent_sync_failed');}finally{if(parentFD!==undefined)try{f.closeSync(parentFD);}catch{fail('private_error_parent_close_failed');}}return snapshot();}};
+}
+// END exact inline private transport error module
+
+const here=dirname(fileURLToPath(import.meta.url)), sha=b=>createHash('sha256').update(b).digest('hex');
+const WORKFLOW_MS=8*60_000;
+// Pure transport descriptor: inherited context/TLS/config never overrides the selected Unix socket.
+export function isolatedDockerTransport({endpoint,fixture,inherited={}}){
+ assert.equal(typeof endpoint,'string');assert(!/[\0\r\n]/.test(endpoint),'Invalid Docker endpoint');
+ const url=new URL(endpoint);assert(url.protocol==='unix:'&&url.host===''&&url.username===''&&url.password===''&&url.search===''&&url.hash===''&&endpoint.startsWith('unix:///'),'Only an absolute local Unix Docker socket is supported');
+ assert.equal(resolve(fixture),fixture,'Absolute fixture required');
+ const env=Object.fromEntries(['PATH','LANG','LC_ALL','TZ'].filter(key=>typeof inherited[key]==='string').map(key=>[key,inherited[key]]));
+ Object.assign(env,{HOME:join(fixture,'home'),DOCKER_CONFIG:join(fixture,'docker')});
+ return {endpoint,prefix:['--host',endpoint],env,controller:{DOCKER_HOST:endpoint,LUCI_DOCKER_HOST:endpoint}};
+}
+// CLOUD-057: bounded projection only; the original response bytes are hash-bound,
+// not exported. Unknown messages/details never become public diagnostics.
+export function problemProjection({status,expected,bytes,value,parsed}) {
+ const codes=new Set(["backend_unavailable", "bad_request", "conflict", "forbidden_host", "forbidden_origin", "harness_disabled", "harness_unavailable", "internal", "invalid_json", "invalid_request", "managed_team_required", "non_loopback_publish", "permission_denied", "project_not_found", "sandbox_not_running", "session_limit", "session_not_found", "sign_in_required", "unknown_harness", "unsupported_option", "upgrade_required", "worktree_not_found"]),reasons=new Set(["account_session_limit", "admission_unavailable", "cpu_capacity", "cpu_pressure", "disk_observation_unavailable", "disk_pressure", "dispatch_paused", "dispatch_policy_unavailable", "execution_authority_changed", "execution_disk_estimate_unavailable", "execution_disk_pressure", "execution_disk_unavailable", "execution_launch_unconfirmed", "execution_limits_unknown", "global_slot_limit", "host_storage_confirmation_required", "host_storage_insufficient_capacity", "host_storage_unavailable", "launch_record_unavailable", "lifecycle_unavailable", "memory_pressure", "project_slot_limit", "provider_limit", "provider_reservation_failed", "resource_limits_unsupported", "resource_observation_unavailable", "resource_policy_changed", "resource_policy_unavailable", "reviewed_run_changed"]),messages=new Set(["A host administrator must confirm the active and pending local Docker storage locations.", "A running workload had neither verified limits nor fresh resource usage.", "A running workload has neither verified worker limits nor fresh resource usage. Waiting for a bounded observation before starting another task.", "A session with that id already exists.", "Available disk is below the configured working reserve.", "Available memory cannot preserve the configured headroom for another worker.", "Available memory could not preserve the configured worker headroom.", "Backing infrastructure is managed by an administrator.", "Body could not be read as JSON.", "Body ended in the middle of a JSON value.", "Body is empty; a JSON object is required.", "Body must contain exactly one JSON object.", "Choose Codex, Claude Code or OpenCode for the assistant.", "Cloud provisioning is disabled by instance policy.", "Configure an explicit local or compatible model in Settings before starting OpenCode.", "Configured worker CPU limits exceed the available execution capacity.", "Current CPU pressure needs to fall before another worker starts.", "Current execution access could not be confirmed. Review the project's access and account policy.", "Current execution storage capacity is not available. Waiting for a fresh observation.", "Current host storage capacity is unavailable. Waiting for a fresh observation.", "Current machine capacity is not available.", "Current machine capacity is not available. The task remains queued.", "Current session usage could not be checked.", "Device sign-in cannot use an API or gateway route. Start a fresh subscription sign-in instead.", "Device sign-in requires a fresh Codex session without an opening prompt.", "Disk capacity must be measured before another worker starts.", "Execution policy is not available. Try again after the workspace finishes starting.", "Execution storage cannot preserve the working reserve for the pending sandbox copies.", "Execution storage capacity and sandbox image demand must be observed before another worker starts.", "Execution storage could not preserve the reserve for pending sandbox copies.", "Fresh confirmed Docker backing-storage capacity was unavailable.", "Fresh execution storage capacity or sandbox image demand was unavailable.", "Fresh host disk capacity was unavailable at final admission.", "Fresh, complete machine capacity observations were unavailable at final admission.", "Host commands require a Super Admin and an enabled policy.", "Host disk capacity could not preserve the working reserve.", "Managed users keep their projects inside their assigned workspace.", "Measured CPU pressure prevented final admission.", "New queued dispatch was paused before allocation.", "No harness with that id.", "No session with that id.", "No worktree with that id.", "Nothing has been said in that session yet, so there is no conversation to continue. Start a new session instead.", "Only a Super Admin can reconfigure the initial host workspace.", "Only a Super Admin can stop the main service.", "Pending execution storage demand exceeds supported capacity accounting.", "Public repository creation is disabled by instance policy.", "Reserve a new coding operation in the project run before retrying. The original attempt remains in the run history.", "Send a bounded JSON request.", "Stop a running session before starting another; your instance session limit has been reached.", "Stop this provider session before resuming or forking it so its saved database can be copied consistently.", "Team access changed before the operation could start.", "Team projects stay inside the team's dedicated workspace.", "That harness is not installed in the sandbox image.", "That sandbox already exists.", "That session has no saved conversation to continue: it was started before the app recorded one. Start a new session instead.", "The account session limit is occupied. Stop a session or wait for its confirmed exit.", "The account session limit was occupied at final admission.", "The backend cannot honour part of that request.", "The backend returned a different allocation identity; the expected child remains unconfirmed.", "The child execution remains active or unconfirmed; its capacity reservation is retained.", "The configured global agent limit is occupied.", "The configured global agent limit was occupied at final admission.", "The control plane failed to encode its own response.", "The current dispatch policy could not be read.", "The current worker resource policy could not be read.", "The exact worker lifecycle could not be reserved.", "The final execution admission could not be confirmed.", "The model connection concurrency limit was occupied at final admission.", "The observed Docker backing-storage bound could not cover this worker and its reserve.", "The pending sandbox storage demand could not be safely estimated.", "The prepared session has no matching durable execution identity.", "The private Docker storage confirmation is missing, unreadable or invalid; a host Super Admin must review local storage in Settings.", "The project agent limit was occupied at final admission.", "The registry rejected the session id.", "The reserved project run changed before allocation.", "The reviewed monthly budget exceeds instance policy. Ask a Super Admin to update the policy if required.", "The sandbox backend is unavailable.", "The sandbox exit and capacity release are not yet confirmed. Its session record remains available; retry Forget after recovery.", "The sandbox is not running.", "The saved model connection could not be reserved.", "The session is starting, restarting or being copied; wait before stopping or forgetting it.", "The session to resume is no longer in the list, so there is no conversation to continue. Start a new session instead.", "The session was ended while its sandbox was being created.", "The source session is already changing; try after it stops.", "The worker launch was retired or its durable claim could not be recorded.", "The worker resource limits changed after admission.", "The worker resource policy changed before allocation.", "The worktree changed before the session could start. Refresh the project and try again.", "The worktree this session was created in no longer resolves.", "This agent is disabled by instance policy.", "This control-plane API route does not exist.", "This installation serves its assigned team. Select that team workspace; personal workspaces are disabled.", "This model connection has reached its concurrency limit.", "This older session has no saved branch. Start a fresh session on the selected branch instead.", "This project has reached its active agent limit.", "This session is already starting or restarting. Wait for its current operation before retrying.", "This session is already starting, stopping or restarting.", "This task checkout belongs to another reviewed operation.", "This task is owned by the durable queue. Use its queue controls; its exact child will start when admitted.", "Use the dedicated key in your own workspace. Other host keys require an enabled Super Admin host-command policy.", "Worker CPU limits exceeded the available execution capacity.", "Worker capacity reserved.", "Your private workspace could not start. Ask an administrator to inspect its runtime status."]),stages=new Set(["provider-reservation", "run-revalidation", "lifecycle-lock", "launch-journal", "admission"]);
+ const body=parsed&&value&&typeof value==='object'&&!Array.isArray(value)?value:null;
+ const detail=body?.details&&typeof body.details==='object'&&!Array.isArray(body.details)?body.details:null;
+ const kept={};let accepted=0;
+ if(detail){
+  if(typeof detail.reasonCode==='string'&&reasons.has(detail.reasonCode)){kept.reasonCode=detail.reasonCode;accepted++;}
+  if(typeof detail.stage==='string'&&stages.has(detail.stage)){kept.stage=detail.stage;accepted++;}
+  if(typeof detail.id==='string'&&/^s-[a-f0-9]{8}$/.test(detail.id)){kept.id=detail.id;accepted++;}
+ }
+ const result={version:1,representation:'allowlisted-transformed-problem',status,expectedStatus:expected,originalBodySHA256:sha(bytes),originalBodyBytes:bytes.length,originalBodyRetained:false,parsedJSON:parsed,problemShape:!!body,error:typeof body?.error==='string'&&codes.has(body.error)?body.error:null,message:typeof body?.message==='string'&&messages.has(body.message)?body.message:null,messageOmitted:typeof body?.message==='string'&&!messages.has(body.message),details:kept,omittedDetailsCount:detail?Object.keys(detail).length-accepted:0,numericAdmissionOperands:'unavailable-in-this-POST-problem-schema'};
+ assert(Buffer.byteLength(JSON.stringify(result))<=4096,'Problem projection limit');return result;
+}
+
+// CLOUD-058: this fixture launches the primary Git worktree. Its exact metadata
+// guard is a production read-only bind, not permission for arbitrary descendants.
+export function assertPrimaryGitAdminMount(m,projectPath) {
+ const git=join(projectPath,'.git'),admin=join(git,'worktrees');
+ assert.equal(m.Type,'bind');assert.equal(m.Source,admin,'Unexpected primary Git guard source');
+ assert.equal(m.Destination,'/home/dev/work/.git/worktrees','Unexpected primary Git guard destination');
+ assert.equal(m.RW,false,'Primary Git guard must be read-only');
+ assert.equal(realpathSync(projectPath),projectPath,'Primary project must be canonical');
+ for(const p of [git,admin]){const info=lstatSync(p);assert(!info.isSymbolicLink()&&info.isDirectory(),'Primary Git guard must be an ordinary directory');assert.equal(realpathSync(p),p,'Primary Git guard must not resolve through links');}
+}
+function stableFile(path,max=8*1024**2){const a=lstatSync(path);assert(a.isFile()&&!a.isSymbolicLink()&&a.nlink===1&&a.size<=max,'Expected bounded ordinary file');const b=readFileSync(path),z=lstatSync(path);assert.equal(z.ino,a.ino);assert.equal(z.dev,a.dev);assert.equal(z.mtimeMs,a.mtimeMs);assert.equal(z.size,a.size);assert.equal(b.length,a.size);return b;}
+function privateDirectory(path){assert.equal(realpathSync(path),path);const s=lstatSync(path);assert(s.isDirectory()&&s.uid===process.getuid()&&(s.mode&0o077)===0,'Parent must be owned/private/nonlinked');}
+function durable(path,value){const data=Buffer.from(JSON.stringify(value,null,2)+'\n');assert(data.length<=4*1024**2,'Receipt limit');const fd=openSync(path,constants.O_WRONLY|constants.O_CREAT|constants.O_EXCL|constants.O_NOFOLLOW,0o600);try{let offset=0;while(offset<data.length){const n=writeSync(fd,data,offset,data.length-offset);assert(n>0);offset+=n;}fsyncSync(fd);}finally{closeSync(fd);}const parent=openSync(dirname(path),constants.O_RDONLY|constants.O_DIRECTORY|constants.O_NOFOLLOW);try{fsyncSync(parent);}finally{closeSync(parent);}}
+function identity(pid){try{const raw=readFileSync(`/proc/${pid}/stat`,'utf8'),f=raw.slice(raw.lastIndexOf(')')+2).trim().split(/\s+/);return {pid:Number(pid),start:f[19],parent:Number(f[1]),status:f[0]};}catch(e){if(['ENOENT','ESRCH'].includes(e.code))return null;throw e;}}
+const live=id=>{const now=identity(id.pid);return now&&now.start===id.start&&now.status!=='Z';};
+async function responseBytes(response,max=2*1024**2){const reader=response.body?.getReader();if(!reader)return Buffer.alloc(0);const parts=[];let size=0;try{for(;;){const {done,value}=await reader.read();if(done)break;size+=value.length;assert(size<=max,'HTTP response limit');parts.push(value);}}finally{reader.releaseLock();}return Buffer.concat(parts);}
+// CLOUD-072: first failure only; raw message/stack stay in one exclusive private file.
+export function createFinalFailureObservation({retain}){
+ let first=null;
+ const stageNames=new Set(['preflight','controller-start','shell-create','browser-start','terminal-scenario','product-settlement']);
+ const phaseNames=new Set(['workflow','main-catch','response-drain','cleanup']);
+ const errorNames=new Set(['Error','AssertionError','TypeError','RangeError','AbortError','TimeoutError']);
+ const labels=new Map([['Workflow closing','workflow-closing'],['Owned controller exited','owned-controller-exited'],['Browser page error','browser-page-error']]);
+ function observe(error,{origin,stage,phase}){
+  if(first)return;
+  first={origin:origin==='main-catch'?'main-catch':'callback',stage:stageNames.has(stage)?stage:'unknown',phase:phaseNames.has(phase)?phase:'unknown',observedAt:new Date().toISOString(),monotonicMs:performance.now(),reportingFailed:false,privateRecord:{file:'private-first-failure.json',retention:'not-attempted'}};
+  try{
+   const read=key=>{try{return error?.[key];}catch{return undefined;}};
+   const messageValue=read('message'),stackValue=read('stack'),nameValue=read('name');
+   const message=typeof messageValue==='string'?messageValue:typeof error==='string'?error:'';
+   const stack=typeof stackValue==='string'?stackValue:'';
+   const record={message:message.slice(0,2048),stack:stack.slice(0,8192)};
+   const bytes=Buffer.from(JSON.stringify(record,null,2)+'\n');
+   if(bytes.length>64*1024)throw Error('Private failure record bound');
+   first.errorName=errorNames.has(nameValue)?nameValue:'unknown';
+   first.sourceLabel=labels.get(message)??null;
+   first.messageCodeUnits=message.length;first.stackCodeUnits=stack.length;
+   first.privateRecord={file:'private-first-failure.json',bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex'),maxBytes:64*1024,truncated:message.length>record.message.length||stack.length>record.stack.length,retention:'unconfirmed'};
+   retain(record);
+   first.privateRecord.retention='durable';
+  }catch{first.reportingFailed=true;}
+ }
+ return {observe,snapshot(failurePresent){return {version:1,afterCleanup:true,snapshotAt:new Date().toISOString(),failurePresent:!!failurePresent,first:first?structuredClone(first):null};}};
+}
+
+// CLOUD-073: only these exact local read polls may be aborted during declared teardown.
+export function closingReadRoute(method,url,base,sessionId){
+ if(method!=='GET'||url.origin!==base||url.username||url.password||url.search||url.hash)return null;
+ if(url.pathname==='/v1/sessions')return 'session-list';
+ if(typeof sessionId==='string'&&url.pathname==='/v1/sessions/'+encodeURIComponent(sessionId))return 'owned-session';
+ return null;
+}
+
+// CLOUD-074: disposal diagnostics only; preserve the existing outer wait and failure.
+export function monitorDisposalSnapshot(monitor,onFailure){
+ const at={wall:new Date().toISOString(),monotonicMs:performance.now()};
+ try{return {at,available:true,observation:structuredClone(monitor.disposalSnapshot())};}
+ catch{onFailure(Error('Monitor disposal snapshot unavailable'));return {at,available:false,observation:null};}
+}
+export async function observeMonitorDisposal(monitor,{boundedAttempt,onFailure}){
+ const observation={version:1,entry:{wall:new Date().toISOString(),monotonicMs:performance.now()},operationEntered:null,wait:{state:'pending',at:null},before:monitorDisposalSnapshot(monitor,onFailure),after:null};
+ try{await boundedAttempt(()=>{observation.operationEntered={wall:new Date().toISOString(),monotonicMs:performance.now()};return monitor.dispose();},2000,'transport-observer-dispose-timeout');observation.wait={state:'fulfilled',at:{wall:new Date().toISOString(),monotonicMs:performance.now()}};}
+ catch(error){observation.wait={state:error?.code==='transport-observer-dispose-timeout'?'timeout':'rejected',at:{wall:new Date().toISOString(),monotonicMs:performance.now()}};onFailure(error);}
+ finally{observation.after=monitorDisposalSnapshot(monitor,onFailure);}
+ return structuredClone(observation);
+}
+
+export async function main(args=process.argv.slice(2)){
+ const values=new Set(['--repo','--binary','--web','--provenance','--image-provenance','--expected-source','--helper-source','--expected-image-id','--report','--fixture-root','--chromium','--expected-launcher-sha256','--expected-scenario-sha256']),flags=new Set(['--window-granted','--exclusive-daemon','--help']),parsed={};
+ for(let i=0;i<args.length;i++){const key=args[i];assert(values.has(key)||flags.has(key),'Unknown argument');assert(!(key in parsed),'Duplicate argument');if(flags.has(key))parsed[key]=true;else{assert(args[i+1]&&!args[i+1].startsWith('--'),'Missing argument');parsed[key]=args[++i];}}
+ if(parsed['--help']){console.log('See README-setup.md. Requires explicit --window-granted --exclusive-daemon and all source/package/image/helper hash pins. Linux only; never run against shared Docker.');return;}
+ for(const k of values)assert(parsed[k],`Missing ${k}`);
+ assert(parsed['--window-granted']&&parsed['--exclusive-daemon'],'Explicit root runtime window and exclusive daemon required');assert.equal(process.platform,'linux');assert.notEqual(process.getuid(),0,'Run as an ordinary task user');
+ const repo=realpathSync(resolve(parsed['--repo'])),binary=realpathSync(resolve(parsed['--binary'])),web=realpathSync(resolve(parsed['--web'])),report=resolve(parsed['--report']),evidence=dirname(report),fixtureParent=resolve(parsed['--fixture-root']);
+ const product=parsed['--expected-source'],helperSource=parsed['--helper-source'],imageID=parsed['--expected-image-id'];assert.match(product,/^[a-f0-9]{40}$/);assert.match(helperSource,/^[a-f0-9]{40}$/);assert.match(imageID,/^sha256:[a-f0-9]{64}$/);
+ for(const k of ['--expected-launcher-sha256','--expected-scenario-sha256'])assert.match(parsed[k],/^[a-f0-9]{64}$/);
+ const ownBytes=stableFile(fileURLToPath(import.meta.url)),scenarioPath=join(here,'scenario.mjs'),scenarioBytes=stableFile(scenarioPath);
+ assert.equal(sha(ownBytes),parsed['--expected-launcher-sha256']);assert.equal(sha(scenarioBytes),parsed['--expected-scenario-sha256']);privateDirectory(fixtureParent);privateDirectory(dirname(evidence));assert(!existsSync(evidence),'Fresh evidence directory required');mkdirSync(evidence,{mode:0o700});
+ const frozen=join(evidence,'accepted-harness');mkdirSync(frozen,{mode:0o700});
+ for(const [name,bytes]of [['launch.mjs',ownBytes],['scenario.mjs',scenarioBytes]])writeFileSync(join(frozen,name),bytes,{mode:0o600,flag:'wx'});
+ // Import reviewed helpers from exact Git bytes, independent of a changing working tree.
+ const helperPaths=['launch-recovery/acceptance-lifecycle.mjs','launch-recovery/acceptance-startup.mjs','check-create-recovery/provenance.mjs','check-create-recovery/fixture-guards.mjs'];const sourceBindings=[];
+ for(const rel of helperPaths){const bytes=execFileSync('git',['show',helperSource+':scripts/acceptance/'+rel],{cwd:repo,timeout:10000,maxBuffer:2*1024**2});mkdirSync(dirname(join(frozen,rel)),{recursive:true,mode:0o700});writeFileSync(join(frozen,rel),bytes,{mode:0o600,flag:'wx'});sourceBindings.push({path:'scripts/acceptance/'+rel,commit:helperSource,sha256:sha(bytes),bytes:bytes.length});}
+ const {createWorkflowDeadline,runBoundedCleanup,boundedAttempt}=await import(pathToFileURL(join(frozen,'launch-recovery/acceptance-lifecycle.mjs')));
+ const {createStartupScope,startAcceptanceBrowser}=await import(pathToFileURL(join(frozen,'launch-recovery/acceptance-startup.mjs')));
+ const {verifyPackage}=await import(pathToFileURL(join(frozen,'check-create-recovery/provenance.mjs')));
+ const {fixtureMarkers,installTerminalMonitor,runTerminalScenario}=await import(pathToFileURL(join(frozen,'scenario.mjs')));
+ const receipt={version:1,passed:false,mode:'installed-CLOUD-065-cold-terminal-restart',startedAt:new Date().toISOString(),sourceCommit:product,helperSourceCommit:helperSource,helperBindings:sourceBindings,launcherSHA256:sha(ownBytes),scenarioSHA256:sha(scenarioBytes),apiActions:[],browserMutations:[],phases:[],cleanup:[],scope:'One actual shell Create, confirmed initial cleanup, full browser document reopen, one UI same-ID Restart with authentic response-stage pacing, two natural terminal exits. No model/provider calls, no performance/Windows/permission-revocation claim. Direct Docker transport: no proxy wire count or unknown-Create fence/drain claim.',limitations:['Exclusive empty Linux daemon only; not suitable for the shared Windows daemon.','No app-owned process census outside exact retained identities and fixture environment matches; unreadable foreign environments and observed zombies are reported.','If any mutation loses its response, remote settlement is unverified and acceptance fails even if inventory later becomes empty.','Failed-fixture immutable-ID removal does not release or repair private product ledgers.']};
+ const password=randomUUID()+randomUUID(),lifecycle=randomUUID()+randomUUID(),secrets=[password,lifecycle];let token,stage='preflight',failure,closing=false,workflow,service,serviceIdentity,browser,page,monitor,controllerLog,privateTransportErrors,base,session,project,worktree,machine,engine,instance;
+ const fixture=mkdtempSync(join(fixtureParent,'luci-c054-'));for(const name of ['state','projects','home','docker'])mkdirSync(join(fixture,name),{mode:0o700});writeFileSync(join(evidence,'private-fixture-path'),fixture+'\n',{mode:0o600,flag:'wx'});
+ const state=join(fixture,'state'),registryPath=join(state,'sessions/sessions.json'),ledgerPath=join(state,'control-plane/execution/leases.json');
+ const known={controller:new Map(),browser:new Map()},containers=new Map(),pendingMutations=new Map(),browserResponseObservations=new Set(),browserResponseRequests=new WeakSet();let acceptRestartResponses=true;let mutationSeq=0,cleanupDeadline=Infinity,unknownScan=0;
+ const safeError=e=>({name:String(e?.name??'Error').slice(0,50),code:typeof e?.code==='string'?e.code.slice(0,100):null,message:secrets.reduce((s,v)=>s.replaceAll(v,'[redacted]'),String(e?.message??e)).replaceAll(fixture,'[private-fixture]').replace(/(?:https?|wss?):\/\/[^\s]+/g,'[url]').slice(0,1200)});
+ const checked=value=>{const s=JSON.stringify(value);assert(s.length<=4*1024**2);for(const secret of secrets)assert(!s.includes(secret),'Private credential in receipt');return value;};
+ const record=row=>{assert(receipt.phases.length<128,'Phase limit');row=checked({...row,observedAt:new Date().toISOString()});receipt.phases.push(row);durable(join(evidence,'phase-'+String(receipt.phases.length).padStart(3,'0')+'.json'),row);};
+ let failurePhase='workflow';
+ const finalFailure=createFinalFailureObservation({retain:value=>durable(join(evidence,'private-first-failure.json'),value)});
+ const rememberFailure=(e,origin)=>{const first=failure==null;failure??=e;if(first)try{finalFailure.observe(e,{origin,stage,phase:failurePhase});}catch{}};
+ const fail=e=>{rememberFailure(e,'callback');workflow?.fail(e);};
+ const closingReadObservations=[],closingReadSettlements=new Set();let acceptClosingReads=true;receipt.closingReadObservations=closingReadObservations;
+ const abortClosingRead=(route,req,url)=>{
+  const routeClass=closingReadRoute(req.method(),url,base,session?.id);if(!routeClass)return false;
+  assert(acceptClosingReads,'Closing read observation sealed');assert(closingReadObservations.length<16,'Closing read observation limit');
+  const row={method:'GET',routeClass,startedAt:new Date().toISOString(),abort:'pending'};closingReadObservations.push(row);
+  const observation=(async()=>{
+   try{await boundedAttempt(()=>route.abort('blockedbyclient'),2000,'closing-read-abort-timeout');row.abort='acknowledged';}
+   catch(error){row.abort='unconfirmed';fail(error);throw error;}
+   finally{row.settledAt=new Date().toISOString();}
+  })();closingReadSettlements.add(observation);observation.then(()=>closingReadSettlements.delete(observation),()=>closingReadSettlements.delete(observation));return observation.then(()=>true);
+ };
+ const health=()=>{if(closing)throw Error('Workflow closing');workflow?.assertActive();if(failure)throw failure;if(service&&(service.exitCode!==null||service.signalCode!==null))throw Error('Owned controller exited');};
+ const stageTo=s=>{health();stage=s;record({kind:'stage',stage});};
+ const remaining=ms=>{const left=closing?cleanupDeadline-Date.now():WORKFLOW_MS;assert(left>0,'Cleanup hard budget exhausted');return Math.max(1,Math.min(ms,left));};
+ const dockerTransport=isolatedDockerTransport({endpoint:process.env.DOCKER_HOST??'unix:///var/run/docker.sock',fixture,inherited:process.env});
+ let settlementObservationDeadline=Infinity;
+ const docker=(...a)=>{const budget=Math.min(remaining(10000),Math.floor(settlementObservationDeadline-Date.now()));assert(budget>0,'Owned settlement Docker observation budget exhausted');return execFileSync('docker',[...dockerTransport.prefix,...a],{env:dockerTransport.env,encoding:'utf8',timeout:budget,maxBuffer:2*1024**2}).trim();};
+ const ids=()=>docker('ps','-aq','--no-trunc').split(/\s+/).filter(Boolean);
+ const free=()=>{const s=statfsSync('/');return Number(s.bavail)*Number(s.bsize);};
+ function readRegistry(){if(!existsSync(registryPath))return [];const rows=JSON.parse(stableFile(registryPath)).sessions;assert(Array.isArray(rows)&&rows.length<=1,'Fresh fixture must have at most its one shell');for(const row of rows){assert.equal(row.projectId,project.id);assert.equal(row.worktreeId,worktree.id);assert.equal(row.harness,'shell');assert.equal(row.title,'C054 installed shell');assert.match(row.id,/^s-[a-f0-9]{8}$/);if(session)assert.equal(row.id,session.id);}return rows;}
+ function readLedger(){if(!existsSync(ledgerPath))return {present:false,leases:[],checks:[],fences:[]};const bytes=stableFile(ledgerPath);const v=JSON.parse(bytes);assert(Array.isArray(v.leases)&&Array.isArray(v.checks??[]));return {present:true,sha256:sha(bytes),bytes:bytes.length,leases:v.leases.map(x=>({id:x.id,sessionId:x.sessionId,sandboxId:x.sandboxId,projectId:x.projectId,state:x.state,resources:x.resources})),checks:(v.checks??[]).map(x=>({id:x.id,state:x.state,resources:x.resources})),fences:(v.fences??[]).map(x=>({state:x.state})),checkFences:(v.checkFences??[]).map(x=>({state:x.state}))};}
+ function inspectOwned(id){assert.match(id,/^[a-f0-9]{64}$/);const v=JSON.parse(docker('inspect',id))[0],labels=v.Config?.Labels;assert.equal(v.Id,id);assert.equal(v.Image,imageID);assert.equal(labels?.['luci.instance'],instance);assert.equal(labels['luci.managed'],'true');const row=readRegistry()[0];assert(row,'Owned registry session required');assert.equal(labels['luci.session-id'],row.id);const saved=containers.get(id);assert(saved?labels['luci.sandbox-id']===saved.sandboxId:labels['luci.sandbox-id']===row.sandboxId,'Allocation changed or unknown');assert.equal(v.Name,'/luci-'+labels['luci.sandbox-id']);const work=v.Mounts.filter(m=>m.Destination==='/home/dev/work');assert.equal(work.length,1);assert.equal(realpathSync(work[0].Source),realpathSync(project.path));assert(work[0].RW);assert.equal(v.Mounts.filter(m=>m.Destination==='/home/dev/work/.git/worktrees').length,1,'Exactly one primary Git guard bind required');for(const m of v.Mounts){assert.equal(m.Type,'bind');assert(!m.Source.includes('docker.sock'));const p=realpathSync(m.Source);if(m.Destination==='/home/dev/work/.git/worktrees'||m.Source===join(project.path,'.git','worktrees')||p===join(project.path,'.git','worktrees'))assertPrimaryGitAdminMount(m,project.path);else assert(p===project.path||p.startsWith(state+sep),'Unowned mount');}assert.equal(v.HostConfig.Memory,1024*1024**2);assert.equal(v.HostConfig.MemorySwap,1024*1024**2);assert.equal(v.HostConfig.NanoCpus,1_000_000_000);assert.equal(v.HostConfig.PidsLimit,256);assert.equal(v.HostConfig.Privileged,false);assert(v.HostConfig.SecurityOpt.includes('no-new-privileges:true'));assert.equal(v.HostConfig.RestartPolicy.Name,'no');assert.equal(v.HostConfig.AutoRemove,false);for(const ports of Object.values(v.HostConfig.PortBindings??{}))for(const p of ports)assert(['127.0.0.1','::1'].includes(p.HostIp));const safe={id,sandboxId:labels['luci.sandbox-id'],sessionId:row.id,instanceId:instance,imageID:v.Image,name:v.Name,status:v.State.Status,pid:v.State.Pid,created:v.Created,startedAt:v.State.StartedAt,memoryBytes:v.HostConfig.Memory,cpuNano:v.HostConfig.NanoCpus,pidsLimit:v.HostConfig.PidsLimit};containers.set(id,safe);assert(containers.size<=2,'At most initial and restarted shell allocation');return safe;}
+ function inventory(){assert.equal(JSON.parse(docker('info','--format','{{json .}}')).ID,engine.ID,'Daemon changed');assert.equal(docker('volume','ls','-q'),'','Unexpected volume');return ids().map(inspectOwned);}
+ function scan(kind){const rows=[],names=readdirSync('/proc').filter(x=>/^\d+$/.test(x));assert(names.length<=65536);for(const name of names){const id=identity(name);if(!id)continue;try{const env=readFileSync(`/proc/${name}/environ`);assert(env.length<=1024**2);const values=env.toString().split('\0'),owns=kind==='browser'?values.includes('LUCI_C054_BROWSER='+fixture):values.some(v=>v==='LUCI_STATE_DIR='+state||v.startsWith('LUCI_STATE_DIR='+state+'/control-plane/'));if(owns){assert.equal(identity(id.pid)?.start,id.start);known[kind].set(id.pid+':'+id.start,id);}}catch(e){if(['EACCES','EPERM'].includes(e.code)){unknownScan++;continue;}if(['ENOENT','ESRCH'].includes(e.code))continue;throw e;}}
+ for(const previous of known[kind].values()){const now=identity(previous.pid);if(now?.start===previous.start)rows.push(now);}return rows;}
+ async function stopFamily(kind){if(kind==='controller'&&serviceIdentity)known.controller.set(serviceIdentity.pid+':'+serviceIdentity.start,serviceIdentity);let rows=scan(kind);for(const id of rows.filter(x=>x.status!=='Z'))if(live(id)){try{process.kill(id.pid,'SIGTERM');}catch(e){if(e.code!=='ESRCH'||live(id))throw e;}}
+ const end=Date.now()+(kind==='controller'?20000:4000);while(Date.now()<end&&scan(kind).some(x=>x.status!=='Z'))await delay(100);rows=scan(kind);const left=rows.filter(x=>x.status!=='Z');if(left.length){receipt.cleanup.push({kind:'forced-process-stop',family:kind,identities:left});for(const id of left)if(live(id))process.kill(id.pid,'SIGKILL');const final=Date.now()+3000;while(Date.now()<final&&scan(kind).some(x=>x.status!=='Z'))await delay(100);}const last=scan(kind);assert(!last.some(x=>x.status!=='Z'),'Owned processes unsettled');assert.equal(left.length,0,'Forced process cleanup is failure');return {identities:[...known[kind].values()],final:last,unreadableEnvironmentObservations:unknownScan};}
+ async function request(method,path,body,expected=200,timeout=15000,cleanup=false){if(cleanup){assert(closing);assert(method==='DELETE'&&path==='/v1/sessions/'+session?.id,'Only exact known-session Stop during cleanup');}else health();assert(path.startsWith('/v1/')&&!path.includes('://')&&!path.includes('#'));assert(receipt.apiActions.length<600);const seq=++mutationSeq,mutation=!['GET','HEAD'].includes(method);if(mutation)pendingMutations.set('api-'+seq,{method,path,startedAt:new Date().toISOString()});let response;
+ try{response=await fetch(base+path,{method,redirect:'error',signal:AbortSignal.timeout(remaining(timeout)),headers:{Origin:base,...(token?{Authorization:'Bearer '+token}:{}),...(body===undefined?{}:{'Content-Type':'application/json'})},body:body===undefined?undefined:JSON.stringify(body)});const bytes=await responseBytes(response);let value,parseError;try{value=bytes.length?JSON.parse(bytes):{};}catch(error){parseError=error;}const action={method,path,status:response.status,at:new Date().toISOString()};if(response.status!==expected||parseError){const diagnostic=problemProjection({status:response.status,expected,bytes,value,parsed:bytes.length>0&&!parseError});action.problem=diagnostic;record({kind:'http-problem-diagnostic',stage,method,path,problem:diagnostic});}receipt.apiActions.push(action);if(parseError)throw new Error('API response body was not valid JSON; bounded diagnostic retained.');if(mutation)pendingMutations.delete('api-'+seq);assert.equal(response.status,expected,`Unexpected HTTP status ${response.status} for ${method} ${path}`);if(!cleanup)health();if(!cleanup&&session&&method==='GET'&&path==='/v1/sessions/'+session.id&&value.status==='running'){const count=containers.size,current=inventory();if(containers.size!==count)record({kind:'replacement-allocation-observed',sessionId:session.id,executionGeneration:value.executionGeneration,containers:current,ledger:readLedger()});}return value;}catch(e){if(mutation&&!response)receipt.cleanup.push({kind:'mutation-outcome-uncertain',method,path});throw e;}}
+ async function until(name,fn,ms=30000,cleanup=false){const end=Date.now()+ms;while(Date.now()<end){if(!cleanup)health();const value=await fn();if(value)return value;await delay(150);}throw Error(name+' deadline');}
+ async function freePort(){health();const s=createServer();await new Promise((done,reject)=>s.once('error',reject).listen(0,'127.0.0.1',done));let port;try{health();port=s.address().port;}finally{await new Promise(done=>s.close(done));}health();return port;}
+ async function admission(label){health();assert(free()>=6*1024**3,'Six GiB fixture root floor');const view=await request('GET','/v1/product/swarm-scheduler');record({kind:'admission-advisory',label,rootFreeBytes:free(),policy:view.policy,resources:view.resources,ledger:readLedger(),containers:inventory(),authority:'Read-only advisory; actual product atomic CPU/memory/disk/lease admission is unchanged and authoritative.'});}
+ const startup=createStartupScope({assertActive:health,onFailure:fail});let timer;const signals=[];
+ try{
+  workflow=createWorkflowDeadline({timeoutMs:WORKFLOW_MS,onFailure:fail});for(const name of ['SIGINT','SIGTERM']){const fn=()=>fail(Object.assign(Error('Interrupted'),{code:'fixture-interrupted'}));process.on(name,fn);signals.push([name,fn]);}
+  await workflow.run(async()=>{
+   const pins={product,image:imageID};const provenance=verifyPackage({binary,web,provenancePath:resolve(parsed['--provenance']),imageProvenancePath:resolve(parsed['--image-provenance']),pins,repo});receipt.packageIntegrity=provenance.verified;receipt.package={sourceCommit:product,binarySHA256:sha(readFileSync(binary)),webIndexSHA256:sha(stableFile(join(web,'index.html'))),archiveSHA256:provenance.package.archiveSHA256};for(const [name,path]of [['package-provenance.json',parsed['--provenance']],['image-provenance.json',parsed['--image-provenance']]])writeFileSync(join(evidence,name),stableFile(resolve(path)),{mode:0o600,flag:'wx'});
+   assert.deepEqual(ids(),[],'Exclusive daemon must have no containers');assert.equal(docker('volume','ls','-q'),'','Exclusive daemon must have no volumes');engine=JSON.parse(docker('info','--format','{{json .}}'));const image=JSON.parse(docker('image','inspect',imageID))[0];assert.equal(image.Id,imageID);assert.equal(image.Os,'linux');receipt.daemon={id:engine.ID,os:engine.OSType,imageID,initialContainers:[],initialVolumes:[]};assert(free()>=6*1024**3);
+   const port=await freePort(),preview=await freePort();base='http://127.0.0.1:'+port;
+   const env=Object.fromEntries(['PATH','LANG','LC_ALL','TZ'].filter(k=>process.env[k]).map(k=>[k,process.env[k]]));Object.assign(env,{HOME:join(fixture,'home'),DOCKER_CONFIG:join(fixture,'docker'),...dockerTransport.controller,LUCI_ADDR:'127.0.0.1:'+port,LUCI_STATE_DIR:state,LUCI_PROJECTS_DIR:join(fixture,'projects'),LUCI_WEB_DIR:web,LUCI_RUNTIME_DIR:join(dirname(binary),'runtime'),LUCI_SANDBOX_IMAGE:imageID,LUCI_BACKEND:'docker',LUCI_SESSION_MEMORY_MIB:'1024',LUCI_SESSION_CPU_MILLIS:'1000',LUCI_MANAGED_SHUTDOWN_TOKEN:lifecycle,LUCI_LOG_LEVEL:'info',LUCI_BROWSER_PREVIEW_ADDR:'127.0.0.1:'+preview,LUCI_BROWSER_PREVIEW_PORT:String(preview),GIT_CONFIG_GLOBAL:join(fixture,'home/.gitconfig'),GIT_CONFIG_NOSYSTEM:'1'});
+   stageTo('controller-start');privateTransportErrors=createPrivateTransportErrors({path:join(evidence,'private-transport-errors.jsonl'),onFailure:row=>{fail(Error('Private transport error capture failed: '+row.code));record(row);}});controllerLog=createControllerLogCapture({path:join(evidence,'private-controller.stderr'),expectedSession:()=>session?.id,onFailure:row=>{fail(Error('Private controller log capture failed: '+row.code));record(row);},onRelay:row=>record({kind:'controller-relay-observation',relay:row})});await startup.acquire('controller',{start:()=>{health();const h=spawn(binary,[],{cwd:fixture,env,detached:true,stdio:['ignore','ignore','pipe']});h.on('error',fail);service=h;serviceIdentity=identity(h.pid);assert(serviceIdentity);known.controller.set(serviceIdentity.pid+':'+serviceIdentity.start,serviceIdentity);return h;},close:()=>stopFamily('controller')});controllerLog.attach(service.stderr);
+   await until('Controller ready',async()=>{try{const r=await fetch(base+'/v1/control-plane/status',{signal:AbortSignal.timeout(1000)});if(!r.ok)return false;const v=await r.json();assert.equal(v.product,'Luci');assert.equal(v.version,'0.5.0');return true;}catch{return false;}},45000);
+   const account=await request('POST','/v1/auth/bootstrap',{bootstrapToken:readFileSync(join(state,'control-plane/bootstrap-token'),'utf8').trim(),username:'terminalowner',displayName:'Terminal Fixture Owner',password},201);token=account.token;assert(token);secrets.push(token);
+   await request('POST','/v1/setup/git/identity',{name:'Terminal Fixture',email:'terminal@example.invalid'});
+   receipt.policy=await request('PATCH','/v1/admin/policy',{maxSessionsPerUser:1,sessionMemoryMiB:1024,sessionCPUMillis:1000,allowCloudProvisioning:false,allowPublicPublishing:false});const scheduler=await request('GET','/v1/product/swarm-scheduler');await request('PUT','/v1/product/swarm-scheduler',{expectedRevision:scheduler.revision,policy:{...scheduler.policy,maxActive:1,maxPerProject:1},dispatchPaused:true});
+   project=await request('POST','/v1/product/projects',{name:'c054-terminal-fixture'},201);assert.equal(realpathSync(project.path),project.path);assert(project.path.startsWith(join(fixture,'projects')+sep));
+   const branches=(await request('GET','/v1/projects/'+project.id+'/branches')).branches;assert.equal(branches.length,1);const worktrees=(await request('GET','/v1/projects/'+project.id+'/worktrees?branchId='+encodeURIComponent(branches[0].id))).worktrees;assert.equal(worktrees.length,1);worktree=worktrees[0];assert(worktree.isPrimary);
+   const machines=(await request('GET','/v1/machines')).machines;assert.equal(machines.length,1);machine=machines[0];assert((await request('GET','/v1/harnesses')).harnesses.some(h=>h.id==='shell'));instance=readFileSync(join(state,'instance/instance-id'),'utf8').trim();assert(instance);
+   stageTo('shell-create');await admission('initial-shell');session=await request('POST','/v1/sessions',{machineId:machine.id,worktreeId:worktree.id,harness:'shell',title:'C054 installed shell'},201,150000);assert.equal(session.projectId,project.id);assert.equal(session.harness,'shell');assert(['starting','running'].includes(session.status),'Unexpected acknowledged Create lifecycle status');assert.match(session.executionGeneration,/^[a-f0-9]{64}$/);record({kind:'initial-allocation',sessionId:session.id,createResponseStatus:session.status,executionGeneration:session.executionGeneration,containers:inventory(),ledger:readLedger()});await until('Acknowledged shell reaches running',async()=>{const current=await request('GET','/v1/sessions/'+session.id);assert.equal(current.id,session.id);assert.equal(current.projectId,project.id);assert.equal(current.executionGeneration,session.executionGeneration);assert(['starting','running'].includes(current.status),'Acknowledged shell became terminal before readiness');return current.status==='running';},65000);record({kind:'initial-session-running',sessionId:session.id,executionGeneration:session.executionGeneration});
+   stageTo('browser-start');const {chromium}=await import(pathToFileURL(join(repo,'desktop/node_modules/playwright/index.mjs')));const browserEnv=Object.fromEntries(['PATH','LANG','LC_ALL','TZ'].filter(k=>process.env[k]).map(k=>[k,process.env[k]]));browserEnv.LUCI_C054_BROWSER=fixture;
+   const browserPending=new Map();await startAcceptanceBrowser({scope:startup,assertActive:health,launch:()=>chromium.launch({headless:true,timeout:20000,executablePath:resolve(parsed['--chromium']),env:browserEnv,args:['--no-proxy-server']}),adoptBrowser:b=>{browser=b;},closeBrowser:async b=>{scan('browser');await b.close();},newContext:b=>b.newContext({viewport:{width:1440,height:1080},serviceWorkers:'block'}),installRoutes:context=>context.route('**/*',async route=>{const req=route.request(),url=new URL(req.url());try{if(closing&&await abortClosingRead(route,req,url))return;health();assert.equal(url.origin,base,'External browser request refused');if(!['GET','HEAD','OPTIONS'].includes(req.method())){assert(receipt.browserMutations.length<64);const path=url.pathname;assert(req.method()==='POST'&&['/v1/auth/login','/v1/auth/socket-ticket','/v1/sessions/'+session.id+'/restart'].includes(path),'Unexpected browser mutation');if(path.endsWith('/restart')){assert(!receipt.browserMutations.some(x=>x.path===path),'Only one UI Restart');await admission('ui-restart');}receipt.browserMutations.push({method:req.method(),path,at:new Date().toISOString()});if(path.endsWith('/restart')){const key='browser-'+(++mutationSeq);browserPending.set(req,key);pendingMutations.set(key,{method:'POST',path,startedAt:new Date().toISOString()});}}health();await route.continue();}catch(e){fail(e);try{await route.abort('blockedbyclient');}catch{}}}),newPage:c=>c.newPage(),adoptPage:p=>{page=p;}});
+   page.setDefaultTimeout(15000);page.on('pageerror',()=>fail(Error('Browser page error')));page.on('response',r=>{const request=r.request(),key=browserPending.get(request);if(key&&acceptRestartResponses&&!browserResponseRequests.has(request)){browserResponseRequests.add(request);const observation=(async()=>{
+    assert(!closing,'Browser Restart observation is closed');
+    const sessionId=session.id,projectId=project.id,path='/v1/sessions/'+sessionId+'/restart',url=new URL(request.url()),status=r.status();
+    const current=(diagnostic=false)=>{assert(!closing,'Browser Restart observation is closed');if(!diagnostic)health();assert.equal(browserPending.get(request),key,'Restart response request changed');assert.equal(pendingMutations.get(key)?.method,'POST');assert.equal(pendingMutations.get(key)?.path,path);assert.equal(session.id,sessionId);assert.equal(project.id,projectId);};
+    assert.equal(request.method(),'POST');assert.equal(url.origin,base);assert.equal(url.pathname,path);assert.equal(url.search,'');assert.equal(url.hash,'');current(true);
+    let raw;
+    try{raw=await boundedAttempt(()=>r.body(),remaining(5000),'browser-restart-response-body-deadline');}
+    catch{current(true);record({kind:'restart-http-body-unavailable',stage,method:'POST',path,status,bodyState:'unavailable',mutationSettlement:'unconfirmed'});throw Error('Browser Restart response body unavailable; mutation remains unconfirmed.');}
+    current(true);assert(Buffer.isBuffer(raw),'Unexpected Browser Restart response body type');
+    const limit=2*1024**2;
+    if(raw.length>limit){record({kind:'restart-http-body-unavailable',stage,method:'POST',path,status,bodyState:'oversized',observedBodyBytes:raw.length,hashedPrefixBytes:limit,hashedPrefixSHA256:sha(raw.subarray(0,limit)),originalBodyRetained:false,mutationSettlement:'unconfirmed'});throw Error('Browser Restart response exceeds bounded diagnostic limit; mutation remains unconfirmed.');}
+    let value,parseError;try{value=raw.length?JSON.parse(raw):{};}catch{parseError=true;}
+    if(status!==200||parseError){const problem=problemProjection({status,expected:200,bytes:raw,value,parsed:raw.length>0&&!parseError});record({kind:'http-problem-diagnostic',stage,method:'POST',path,transport:'browser',problem});}
+    if(parseError)throw Error('Browser Restart response was not valid JSON; bounded diagnostic retained.');
+    assert.equal(status,200,'Restart response was not successful');
+    assert(value&&typeof value==='object'&&!Array.isArray(value),'Unexpected Restart acknowledgment shape');assert(value.id===sessionId,'Restart session identity mismatch');assert(value.projectId===projectId,'Restart project identity mismatch');assert(value.harness==='shell','Restart harness identity mismatch');assert(['starting','running'].includes(value.status),'Unexpected acknowledged Restart lifecycle status');assert(typeof value.executionGeneration==='string'&&/^[a-f0-9]{64}$/.test(value.executionGeneration),'Restart execution generation is invalid');
+    current();record({kind:'restart-http-response',status,returnedSessionStatus:value.status,sessionId:value.id,executionGeneration:value.executionGeneration});pendingMutations.delete(key);browserPending.delete(request);
+   })().catch(fail);browserResponseObservations.add(observation);void observation.then(()=>browserResponseObservations.delete(observation));}});receipt.browserVersion=browser.version();const browserProcesses=scan('browser');assert(known.browser.size>0,'Owned browser identity observation unavailable');record({kind:'browser-identities',processes:browserProcesses});const markers=fixtureMarkers();monitor=await installTerminalMonitor(page,{base,attachPath:session.attachPath,markers,retainTransportError:row=>privateTransportErrors.record(row)});health();
+   await page.goto(base,{waitUntil:'domcontentloaded',timeout:20000});const username=page.getByLabel('Username',{exact:true});await username.waitFor();await username.fill('terminalowner');await page.getByLabel('Password',{exact:true}).fill(password);const login=page.waitForResponse(r=>new URL(r.url()).pathname==='/v1/auth/login'&&r.request().method()==='POST',{timeout:15000});await page.getByRole('button',{name:'Sign in',exact:true}).click();assert.equal((await login).status(),200);
+   const enter=page.getByRole('button',{name:'Continue to projects',exact:true}),all=page.getByRole('button',{name:'All projects',exact:true});await until('Project entry',async()=>await enter.isVisible()||await all.isVisible());if(await enter.isVisible())await enter.click();await all.click();await page.getByRole('button',{name:'Open project '+project.name,exact:true}).click();await page.getByRole('button',{name:'Develop',exact:true}).click();const projectRow=page.locator('[role="treeitem"][data-kind="project"][data-id="'+project.id+'"]');await projectRow.waitFor();if(await projectRow.getAttribute('aria-expanded')!=='true')await projectRow.getByRole('button',{name:'Expand '+project.name,exact:true}).click();await page.locator('[role="treeitem"][data-kind="branch"][data-id="'+branches[0].id+'"]').click();await page.locator('section.pane[data-session-id="'+session.id+'"]').waitFor({state:'visible'});
+   stageTo('terminal-scenario');receipt.scenario=await runTerminalScenario({page,base,workspace:'',sessionId:session.id,projectId:project.id,request,record,health,monitor,markers,evidenceDir:evidence,observeSettlement:({budgetMs})=>{
+    health();assert(Number.isInteger(budgetMs)&&budgetMs>0&&budgetMs<=35000);const previousDeadline=settlementObservationDeadline;settlementObservationDeadline=Math.min(previousDeadline,Date.now()+budgetMs);
+    try{
+     const initial=receipt.phases.filter(row=>row.kind==='initial-allocation');assert.equal(initial.length,1,'Exact original allocation receipt required');assert.equal(initial[0].containers.length,1);const originalID=initial[0].containers[0].id;
+     const rows=readRegistry();assert.equal(rows.length,1,'Exact terminal registry record required');const row=rows[0];
+     // Ledger first: natural removal after this read remains conservatively
+     // charged until the next observation, never a fabricated uncharged worker.
+     const ledger=readLedger();let containers;
+     try{containers=inventory();}catch(error){
+      const stderr=Buffer.isBuffer(error?.stderr)?error.stderr.toString('utf8'):String(error?.stderr??'');
+      if(error?.status!==1||!['Error: No such object: '+originalID,'Error response from daemon: No such container: '+originalID].includes(stderr.trim()))throw error;
+      assert.equal(JSON.parse(docker('info','--format','{{json .}}')).ID,engine.ID,'Daemon changed during exact disappearance observation');assert.deepEqual(ids(),[],'Other allocation remains after exact inspect disappearance');assert.equal(docker('volume','ls','-q'),'','Unexpected volume');containers=[];
+      record({kind:'initial-allocation-disappeared-during-inspection',id:originalID,scope:'Bounded read-only confirmation of exact natural absence; no removal or lease mutation.'});
+     }
+     return {initial:initial[0],current:{session:{id:row.id,projectId:row.projectId,status:row.status,sandboxId:row.sandboxId,sandboxRef:row.sandboxRef,credentialsCleared:row.endpoint===''&&row.attachToken===''},containers,ledger,rootFreeBytes:free()}};
+    }finally{settlementObservationDeadline=previousDeadline;}
+
+   },reopenPane:async()=>{
+    health();await page.reload({waitUntil:'domcontentloaded',timeout:20000});health();
+    const overview=page.getByRole('button',{name:'All projects',exact:true});await overview.waitFor({state:'visible',timeout:20000});await overview.click();await page.getByRole('button',{name:'Open project '+project.name,exact:true}).click();await page.getByRole('button',{name:'Develop',exact:true}).click();
+    const row=page.locator('[role="treeitem"][data-kind="project"][data-id="'+project.id+'"]');await row.waitFor();if(await row.getAttribute('aria-expanded')!=='true')await row.getByRole('button',{name:'Expand '+project.name,exact:true}).click();await page.locator('[role="treeitem"][data-kind="branch"][data-id="'+branches[0].id+'"]').click();await page.locator('section.pane[data-session-id="'+session.id+'"]').waitFor({state:'visible'});health();
+   }});
+   stageTo('product-settlement');await until('Product removes exact exited allocations and releases charge',async()=>{const view=await request('GET','/v1/sessions/'+session.id);const current=inventory(),ledger=readLedger();return view.status==='exited'&&current.length===0&&ledger.leases.length===0&&ledger.checks.length===0;},35000);record({kind:'product-settled',knownAllocations:[...containers.values()],ledger:readLedger(),containers:inventory()});
+  });
+ }catch(e){failurePhase='main-catch';rememberFailure(e,'main-catch');receipt.failedStage=stage;receipt.failure=safeError(e);if(page)try{await boundedAttempt(()=>page.screenshot({path:join(evidence,'failure.png'),fullPage:true}),3000,'failure-screenshot-timeout');}catch{}}
+ finally{
+  failurePhase='response-drain';
+  acceptRestartResponses=false;
+  try{await boundedAttempt(()=>Promise.allSettled([...browserResponseObservations]),5500,'browser-restart-observation-drain-deadline');}catch(e){receipt.cleanup.push(safeError(e));}
+  failurePhase='cleanup';
+  closing=true;workflow?.close();clearInterval(timer);for(const [s,h]of signals)process.off(s,h);cleanupDeadline=Date.now()+80000;
+  receipt.cleanupPhases=await runBoundedCleanup({checkpoint:()=>durable(report+'.incomplete.json',checked({version:1,passed:false,status:'cleanup-incomplete',stage,failure:receipt.failure??null,pendingMutations:[...pendingMutations.values()],knownController:serviceIdentity??null,knownContainers:[...containers.values()]})),onFailure:e=>receipt.cleanup.push(safeError(e)),phases:[
+   {name:'browser',timeoutMs:12000,run:async()=>{if(monitor)receipt.monitorDisposal=await observeMonitorDisposal(monitor,{boundedAttempt,onFailure:error=>receipt.cleanup.push(safeError(error))});if(startup.has('browser'))try{await startup.close('browser',5000);}catch(e){receipt.cleanup.push(safeError(e));}return stopFamily('browser');}},
+   {name:'supported-session-stop',timeoutMs:12000,run:async()=>{if(!session||!service||!live(serviceIdentity))return {skipped:true};const current=inventory();if(current.length){receipt.cleanup.push({kind:'failed-scenario-supported-stop',sessionId:session.id});await request('DELETE','/v1/sessions/'+session.id,undefined,200,8000,true);}return {ledger:readLedger(),containers:inventory()};}},
+   {name:'controller',timeoutMs:26000,run:async()=>startup.has('controller')?startup.close('controller',25000):{skipped:true}},
+   {name:'private-controller-log',timeoutMs:3000,run:async()=>{const privateErrors=privateTransportErrors?.close();if(privateErrors){receipt.privateTransportErrors=privateErrors;record({kind:'private-transport-errors-settled',observation:privateErrors});if(!privateErrors.passed)fail(Error('Private transport error capture incomplete'));}if(!controllerLog)return {skipped:true};const log=await controllerLog.settle(2000);receipt.controllerLog=log;record({kind:'controller-log-settled',log});assert(log.passed,'Private controller log observation incomplete');return log;}},
+   {name:'exact-container-leftovers',timeoutMs:12000,run:async()=>{if(!engine||!instance||!project||!worktree)return {skipped:true};assert(!serviceIdentity||!live(serviceIdentity),'Refuse cleanup while controller lives');assert.equal(pendingMutations.size,0,'Remote mutation settlement unknown; retain allocation');const rows=inventory();for(const row of rows){inspectOwned(row.id);receipt.cleanup.push({kind:'failed-fixture-exact-removal',id:row.id,notProductRelease:true});docker('stop','--time','2',row.id);inspectOwned(row.id);docker('rm',row.id);}return {containers:inventory(),ledger:readLedger()};}},
+   {name:'final-source-and-inventory',timeoutMs:12000,run:async()=>{for(const row of sourceBindings)assert.equal(sha(stableFile(join(frozen,row.path.replace('scripts/acceptance/','')))),row.sha256,'Frozen helper changed');assert.equal(sha(stableFile(join(frozen,'scenario.mjs'))),sha(scenarioBytes));assert.equal(sha(stableFile(join(frozen,'launch.mjs'))),sha(ownBytes));assert.equal(sha(stableFile(fileURLToPath(import.meta.url))),sha(ownBytes),'Launcher source changed');assert.equal(sha(stableFile(scenarioPath)),sha(scenarioBytes),'Scenario source changed');assert.equal(pendingMutations.size,0,'Pending mutation remains');const processes={controller:scan('controller'),browser:scan('browser')};assert(![...processes.controller,...processes.browser].some(x=>x.status!=='Z'),'Owned live process remains');const final={processes,knownProcessIdentities:{controller:[...known.controller.values()],browser:[...known.browser.values()]},unreadableEnvironmentObservations:unknownScan,startup:startup.snapshot(),containers:engine?ids():null,volumes:engine?docker('volume','ls','-q'):null,ledger:readLedger()};if(engine){assert.deepEqual(final.containers,[],'Unexpected/retained container');assert.equal(final.volumes,'');}assert.equal(final.ledger.leases.length,0,'Retained charge');assert.equal(final.ledger.checks.length,0,'Retained check charge');assert.equal(final.ledger.fences.length,0,'Unexpected launch fence');assert.equal(final.ledger.checkFences?.length??0,0,'Unexpected check fence');receipt.final=final;return final;}}
+  ]});acceptClosingReads=false;try{await boundedAttempt(()=>Promise.allSettled([...closingReadSettlements]),2000,'closing-read-drain-timeout');}catch(error){fail(error);receipt.cleanup.push(safeError(error));}if(closingReadObservations.some(row=>row.abort!=='acknowledged'))receipt.cleanup.push({name:'Error',code:'closing-read-abort-unsettled',message:'closing-read-abort-unsettled'});receipt.closingReadObservations=structuredClone(closingReadObservations);if(monitor)receipt.monitorDisposalFinal=monitorDisposalSnapshot(monitor,error=>receipt.cleanup.push(safeError(error)));receipt.failureObservation=finalFailure.snapshot(!!failure);receipt.endedAt=new Date().toISOString();receipt.pendingMutations=[...pendingMutations.values()];receipt.passed=!failure&&receipt.scenario?.passed===true&&receipt.cleanup.length===0&&receipt.cleanupPhases.every(x=>x.status==='completed');durable(report,checked(receipt));console.log(JSON.stringify({passed:receipt.passed,report,sourceCommit:product,failedStage:receipt.failedStage??null}));if(!receipt.passed)process.exitCode=1;
+ }
+ return receipt;
+}
+if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url))main().catch(e=>{console.error(JSON.stringify({passed:false,stage:'launcher-preflight',name:e.name,message:String(e.message).slice(0,800)}));process.exitCode=1;});

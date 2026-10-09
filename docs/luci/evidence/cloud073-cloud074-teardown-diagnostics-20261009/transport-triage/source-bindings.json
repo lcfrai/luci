@@ -1,0 +1,49 @@
+{
+  "sourceBefore": {
+    "scenario": {
+      "path": "/workspace/.luci-tools/cloud072-installed-b94ad37e/evidence/cold-attempt2/driver/accepted-harness/scenario.mjs",
+      "bytes": 43452,
+      "sha256": "e96058d031f8d46b9ab4c4fcb4e14c485bacc939044bf1592a8ec24497a7d7f7"
+    },
+    "lifecycle": {
+      "path": "/workspace/.luci-tools/cloud072-installed-b94ad37e/evidence/cold-attempt2/driver/accepted-harness/launch-recovery/acceptance-lifecycle.mjs",
+      "bytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+    },
+    "launcher": {
+      "path": "/workspace/.luci-tools/cloud072-installed-b94ad37e/evidence/cold-attempt2/driver/accepted-harness/launch.mjs",
+      "bytes": 73345,
+      "sha256": "7789d0f5e89fdd643cf433dc8786f44fba16a3e24884c12aad738ab4935b75cc"
+    }
+  },
+  "sourceAfter": {
+    "scenario": {
+      "path": "/workspace/.luci-tools/cloud072-installed-b94ad37e/evidence/cold-attempt2/driver/accepted-harness/scenario.mjs",
+      "bytes": 43452,
+      "sha256": "e96058d031f8d46b9ab4c4fcb4e14c485bacc939044bf1592a8ec24497a7d7f7"
+    },
+    "lifecycle": {
+      "path": "/workspace/.luci-tools/cloud072-installed-b94ad37e/evidence/cold-attempt2/driver/accepted-harness/launch-recovery/acceptance-lifecycle.mjs",
+      "bytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+    },
+    "launcher": {
+      "path": "/workspace/.luci-tools/cloud072-installed-b94ad37e/evidence/cold-attempt2/driver/accepted-harness/launch.mjs",
+      "bytes": 73345,
+      "sha256": "7789d0f5e89fdd643cf433dc8786f44fba16a3e24884c12aad738ab4935b75cc"
+    }
+  },
+  "allUnchanged": true,
+  "testSource": {
+    "path": "/workspace/.luci-tools/cloud073-teardown-route/transport-triage/characterize.mjs",
+    "bytes": 13426,
+    "sha256": "5186097d50ce15f7d0af2943b3bb535933f9b46555a4607bd89ffb0b04826736"
+  },
+  "importedExports": [
+    "installTransportDiagnostics",
+    "installTerminalMonitor",
+    "boundedAttempt"
+  ],
+  "sourceRewritten": false,
+  "scope": "Imports reference accepted cold-attempt2 files directly. No helper edits, extraction, source rewriting, or browser/CDP runtime."
+}

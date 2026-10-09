@@ -1,0 +1,32 @@
+TAP version 13
+# Subtest: exact local session poll aborts during actual finally without false failure
+not ok 1 - exact local session poll aborts during actual finally without false failure
+  ---
+  duration_ms: 9.123075
+  type: 'test'
+  location: '/workspace/.luci-tools/cloud073-teardown-route/route.test.mjs:39:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/.luci-tools/cloud073-teardown-route/route.test.mjs:41:9)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 210.007245

@@ -1,0 +1,53 @@
+{
+  "originals": [
+    {
+      "source": "/workspace/.luci-tools/cloud073-teardown-route/warm/launch.mjs",
+      "original": {
+        "bytes": 75799,
+        "sha256": "9ef944fa14c86512ae0e00c0c3f154f68118c3e2afed58a0e48bceb0b4bc5a3f"
+      },
+      "unchanged": true
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud073-teardown-route/warm/scenario.mjs",
+      "original": {
+        "bytes": 41178,
+        "sha256": "cc0b1a4ebad01758008502368fdcdfabd3ffc36c8d1e5f6fb6e53f168788b82b"
+      },
+      "unchanged": true
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud073-teardown-route/warm/outer-run.py",
+      "original": {
+        "bytes": 22954,
+        "sha256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49"
+      },
+      "unchanged": true
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud073-teardown-route/cold/launch.mjs",
+      "original": {
+        "bytes": 76771,
+        "sha256": "7abcaeebed205bc83344497498a27fa84c83dc1dfc78367a667b190fe61c160b"
+      },
+      "unchanged": true
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud073-teardown-route/cold/scenario.mjs",
+      "original": {
+        "bytes": 45408,
+        "sha256": "7af700a6e90262629e1ea5687b883430b4acfd966ec41e305319c963ba3bcf5e"
+      },
+      "unchanged": true
+    },
+    {
+      "source": "/workspace/.luci-tools/cloud073-teardown-route/cold/outer-run.py",
+      "original": {
+        "bytes": 22954,
+        "sha256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49"
+      },
+      "unchanged": true
+    }
+  ],
+  "scope": "Six prior helper files unchanged. Actual private fixtures were not modified or read by publisher."
+}

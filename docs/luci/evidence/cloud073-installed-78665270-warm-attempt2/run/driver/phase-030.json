@@ -1,0 +1,10 @@
+{
+  "kind": "initial-settlement-lifecycle",
+  "elapsedMs": 17434.35147,
+  "statuses": [],
+  "containerCount": 0,
+  "heldLeaseCount": 1,
+  "ledgerSHA256": "df5163a09392873ea0fc3d5729db2d6cff168aa90334dfe4debffb8d886cfbee",
+  "scope": "Exact identity and held-charge checked; lifecycle classification and settlement remain unconfirmed.",
+  "observedAt": "2026-10-09T17:28:36.138Z"
+}

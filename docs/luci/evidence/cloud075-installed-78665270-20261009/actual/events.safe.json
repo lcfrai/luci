@@ -1,0 +1,820 @@
+{
+  "version": 1,
+  "projection": "Explicit field allowlist; fixture project IDs aliased, authority paths normalized; seven rail DOM metadata rows omitted. Sequence numbers and timestamps retained.",
+  "originalSHA256": "3bb9675848a248ba80db62bc179c4a198318334848dc84daef1cf37c36b14347",
+  "originalBytes": 19806,
+  "originalRows": 103,
+  "omittedByKind": {
+    "rail-navigation": 7
+  },
+  "rows": [
+    {
+      "sequence": 1,
+      "at": "2026-10-09T17:25:41.980Z",
+      "kind": "stage",
+      "stage": "controller-start"
+    },
+    {
+      "sequence": 2,
+      "at": "2026-10-09T17:25:41.981Z",
+      "kind": "startup",
+      "name": "controller",
+      "state": "starting",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "sequence": 3,
+      "at": "2026-10-09T17:25:41.985Z",
+      "kind": "controller-start"
+    },
+    {
+      "sequence": 4,
+      "at": "2026-10-09T17:25:41.985Z",
+      "kind": "startup",
+      "name": "controller",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "sequence": 5,
+      "at": "2026-10-09T17:25:42.238Z",
+      "kind": "stage",
+      "stage": "fixture-authority"
+    },
+    {
+      "sequence": 6,
+      "at": "2026-10-09T17:25:42.878Z",
+      "kind": "operator-http",
+      "method": "POST",
+      "path": "/v1/auth/bootstrap",
+      "status": 201
+    },
+    {
+      "sequence": 7,
+      "at": "2026-10-09T17:25:43.226Z",
+      "kind": "operator-http",
+      "method": "POST",
+      "path": "/v1/admin/users",
+      "status": 201
+    },
+    {
+      "sequence": 8,
+      "at": "2026-10-09T17:25:43.641Z",
+      "kind": "operator-http",
+      "method": "POST",
+      "path": "/v1/auth/login",
+      "status": 200
+    },
+    {
+      "sequence": 9,
+      "at": "2026-10-09T17:25:43.655Z",
+      "kind": "operator-http",
+      "method": "POST",
+      "path": "/v1/teams",
+      "status": 201
+    },
+    {
+      "sequence": 10,
+      "at": "2026-10-09T17:25:43.665Z",
+      "kind": "operator-http",
+      "method": "POST",
+      "path": "/v1/teams/{team}/members",
+      "status": 200
+    },
+    {
+      "sequence": 11,
+      "at": "2026-10-09T17:25:43.667Z",
+      "kind": "exact-managed-scopes-published",
+      "count": 3
+    },
+    {
+      "sequence": 12,
+      "at": "2026-10-09T17:25:43.892Z",
+      "kind": "operator-http",
+      "method": "POST",
+      "path": "/v1/teams/{team}/workspace/v1/setup/git/identity",
+      "status": 200
+    },
+    {
+      "sequence": 13,
+      "at": "2026-10-09T17:25:43.905Z",
+      "kind": "operator-http",
+      "method": "POST",
+      "path": "/v1/teams/{team}/workspace/v1/product/projects",
+      "status": 201
+    },
+    {
+      "sequence": 14,
+      "at": "2026-10-09T17:25:43.914Z",
+      "kind": "operator-http",
+      "method": "GET",
+      "path": "/v1/teams/{team}/workspace/v1/product/projects/project-1/specification",
+      "status": 200
+    },
+    {
+      "sequence": 15,
+      "at": "2026-10-09T17:25:43.937Z",
+      "kind": "operator-http",
+      "method": "POST",
+      "path": "/v1/teams/{team}/workspace/v1/product/projects/project-1/specification",
+      "status": 200
+    },
+    {
+      "sequence": 16,
+      "at": "2026-10-09T17:25:43.940Z",
+      "kind": "operator-http",
+      "method": "GET",
+      "path": "/v1/teams/{team}",
+      "status": 200
+    },
+    {
+      "sequence": 17,
+      "at": "2026-10-09T17:25:43.950Z",
+      "kind": "operator-http",
+      "method": "PUT",
+      "path": "/v1/teams/{team}/projects/project-1/members/{member}",
+      "status": 200
+    },
+    {
+      "sequence": 18,
+      "at": "2026-10-09T17:25:43.968Z",
+      "kind": "operator-http",
+      "method": "POST",
+      "path": "/v1/teams/{team}/workspace/v1/product/projects",
+      "status": 201
+    },
+    {
+      "sequence": 19,
+      "at": "2026-10-09T17:25:43.972Z",
+      "kind": "operator-http",
+      "method": "GET",
+      "path": "/v1/teams/{team}/workspace/v1/product/projects/project-2/specification",
+      "status": 200
+    },
+    {
+      "sequence": 20,
+      "at": "2026-10-09T17:25:44.153Z",
+      "kind": "operator-http",
+      "method": "POST",
+      "path": "/v1/teams/{team}/workspace/v1/product/projects/project-2/specification",
+      "status": 200
+    },
+    {
+      "sequence": 21,
+      "at": "2026-10-09T17:25:44.156Z",
+      "kind": "operator-http",
+      "method": "GET",
+      "path": "/v1/teams/{team}",
+      "status": 200
+    },
+    {
+      "sequence": 22,
+      "at": "2026-10-09T17:25:44.163Z",
+      "kind": "operator-http",
+      "method": "PUT",
+      "path": "/v1/teams/{team}/projects/project-2/members/{member}",
+      "status": 200
+    },
+    {
+      "sequence": 23,
+      "at": "2026-10-09T17:25:44.177Z",
+      "kind": "operator-http",
+      "method": "POST",
+      "path": "/v1/teams/{team}/workspace/v1/product/projects",
+      "status": 201
+    },
+    {
+      "sequence": 24,
+      "at": "2026-10-09T17:25:44.181Z",
+      "kind": "operator-http",
+      "method": "GET",
+      "path": "/v1/teams/{team}/workspace/v1/product/projects/project-3/specification",
+      "status": 200
+    },
+    {
+      "sequence": 25,
+      "at": "2026-10-09T17:25:44.196Z",
+      "kind": "operator-http",
+      "method": "POST",
+      "path": "/v1/teams/{team}/workspace/v1/product/projects/project-3/specification",
+      "status": 200
+    },
+    {
+      "sequence": 26,
+      "at": "2026-10-09T17:25:44.199Z",
+      "kind": "operator-http",
+      "method": "GET",
+      "path": "/v1/teams/{team}",
+      "status": 200
+    },
+    {
+      "sequence": 27,
+      "at": "2026-10-09T17:25:44.209Z",
+      "kind": "operator-http",
+      "method": "PUT",
+      "path": "/v1/teams/{team}/projects/project-3/members/{member}",
+      "status": 200
+    },
+    {
+      "sequence": 28,
+      "at": "2026-10-09T17:25:44.223Z",
+      "kind": "operator-http",
+      "method": "POST",
+      "path": "/v1/teams/{team}/workspace/v1/product/projects",
+      "status": 201
+    },
+    {
+      "sequence": 29,
+      "at": "2026-10-09T17:25:44.228Z",
+      "kind": "operator-http",
+      "method": "GET",
+      "path": "/v1/teams/{team}/workspace/v1/product/projects/project-4/specification",
+      "status": 200
+    },
+    {
+      "sequence": 30,
+      "at": "2026-10-09T17:25:44.241Z",
+      "kind": "operator-http",
+      "method": "POST",
+      "path": "/v1/teams/{team}/workspace/v1/product/projects/project-4/specification",
+      "status": 200
+    },
+    {
+      "sequence": 31,
+      "at": "2026-10-09T17:25:44.244Z",
+      "kind": "operator-http",
+      "method": "GET",
+      "path": "/v1/teams/{team}",
+      "status": 200
+    },
+    {
+      "sequence": 32,
+      "at": "2026-10-09T17:25:44.255Z",
+      "kind": "operator-http",
+      "method": "PUT",
+      "path": "/v1/teams/{team}/projects/project-4/members/{member}",
+      "status": 200
+    },
+    {
+      "sequence": 33,
+      "at": "2026-10-09T17:25:44.255Z",
+      "kind": "stage",
+      "stage": "browser"
+    },
+    {
+      "sequence": 34,
+      "at": "2026-10-09T17:25:44.875Z",
+      "kind": "startup",
+      "name": "browser",
+      "state": "starting",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "sequence": 35,
+      "at": "2026-10-09T17:25:45.871Z",
+      "kind": "startup",
+      "name": "browser",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "sequence": 36,
+      "at": "2026-10-09T17:25:45.874Z",
+      "kind": "startup",
+      "name": "browser-context",
+      "state": "starting",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "sequence": 37,
+      "at": "2026-10-09T17:25:46.113Z",
+      "kind": "startup",
+      "name": "browser-context",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "sequence": 38,
+      "at": "2026-10-09T17:25:46.117Z",
+      "kind": "startup",
+      "name": "browser-page",
+      "state": "starting",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "sequence": 39,
+      "at": "2026-10-09T17:25:46.307Z",
+      "kind": "startup",
+      "name": "browser-page",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "sequence": 40,
+      "at": "2026-10-09T17:25:46.586Z",
+      "kind": "stage",
+      "stage": "authority-scenario"
+    },
+    {
+      "sequence": 41,
+      "at": "2026-10-09T17:25:46.766Z",
+      "kind": "stage",
+      "stage": "scenario:real-ui-member-sign-in"
+    },
+    {
+      "sequence": 42,
+      "at": "2026-10-09T17:25:47.378Z",
+      "kind": "browser-mutation-or-probe",
+      "method": "POST",
+      "path": "/v1/auth/login"
+    },
+    {
+      "sequence": 43,
+      "at": "2026-10-09T17:25:47.472Z",
+      "kind": "browser-mutation-terminal",
+      "method": "POST",
+      "path": "/v1/auth/login",
+      "failed": false
+    },
+    {
+      "sequence": 45,
+      "at": "2026-10-09T17:25:48.060Z",
+      "kind": "operator-http",
+      "method": "GET",
+      "path": "/v1/teams/{team}/workspace/v1/sessions",
+      "status": 200
+    },
+    {
+      "sequence": 46,
+      "at": "2026-10-09T17:25:48.061Z",
+      "kind": "measurement-boundary",
+      "initialAccountReadinessExcluded": true,
+      "projectCount": 4
+    },
+    {
+      "sequence": 47,
+      "at": "2026-10-09T17:25:48.061Z",
+      "kind": "stage",
+      "stage": "scenario:four-current-project-permission-reads"
+    },
+    {
+      "sequence": 49,
+      "at": 1791566748326,
+      "kind": "project-permission-read",
+      "projectId": "project-1",
+      "path": "/v1/teams/{team}/projects/project-1/members",
+      "phase": "select-c075-project-1",
+      "status": null,
+      "delivery": null
+    },
+    {
+      "sequence": 50,
+      "at": "2026-10-09T17:25:48.343Z",
+      "kind": "explicit-read-transport-gate",
+      "phase": "select-c075-project-1",
+      "status": 200,
+      "bodySHA256": "7d9aec35f5b436e9517922ad53f8ddf9bde9a9cfd6a4645668d70f6446aeb5b7",
+      "delayMs": 300
+    },
+    {
+      "sequence": 51,
+      "at": 1791566748326,
+      "kind": "project-permission-read-delivery",
+      "projectId": "project-1",
+      "path": "/v1/teams/{team}/projects/project-1/members",
+      "phase": "select-c075-project-1",
+      "status": 200,
+      "delivery": "fulfilled",
+      "bodySHA256": "7d9aec35f5b436e9517922ad53f8ddf9bde9a9cfd6a4645668d70f6446aeb5b7"
+    },
+    {
+      "sequence": 52,
+      "at": "2026-10-09T17:25:49.285Z",
+      "kind": "current-project-one-read",
+      "phase": "select-c075-project-1",
+      "projectId": "project-1",
+      "count": 1,
+      "scopedPurposeSHA256": "c457fb2ee3aa71cd79f5f1d6d342dd81d5007dc49cf974fb15fa1481f096bcfe",
+      "transportDelayedMs": 300
+    },
+    {
+      "sequence": 54,
+      "at": 1791566749400,
+      "kind": "project-permission-read",
+      "projectId": "project-2",
+      "path": "/v1/teams/{team}/projects/project-2/members",
+      "phase": "select-c075-project-2",
+      "status": null,
+      "delivery": null
+    },
+    {
+      "sequence": 55,
+      "at": "2026-10-09T17:25:49.410Z",
+      "kind": "explicit-read-transport-gate",
+      "phase": "select-c075-project-2",
+      "status": 200,
+      "bodySHA256": "badf6cca888c1d5f22f4260b06f43002d2392457cabca29460a88c3d565fa4b0",
+      "delayMs": 300
+    },
+    {
+      "sequence": 56,
+      "at": 1791566749400,
+      "kind": "project-permission-read-delivery",
+      "projectId": "project-2",
+      "path": "/v1/teams/{team}/projects/project-2/members",
+      "phase": "select-c075-project-2",
+      "status": 200,
+      "delivery": "fulfilled",
+      "bodySHA256": "badf6cca888c1d5f22f4260b06f43002d2392457cabca29460a88c3d565fa4b0"
+    },
+    {
+      "sequence": 57,
+      "at": "2026-10-09T17:25:49.896Z",
+      "kind": "current-project-one-read",
+      "phase": "select-c075-project-2",
+      "projectId": "project-2",
+      "count": 1,
+      "scopedPurposeSHA256": "c6c42502940d402a6c19f951ffa8d35308effc318d6b4b0f9fd51f8098f0ead7",
+      "transportDelayedMs": 300
+    },
+    {
+      "sequence": 59,
+      "at": 1791566750041,
+      "kind": "project-permission-read",
+      "projectId": "project-3",
+      "path": "/v1/teams/{team}/projects/project-3/members",
+      "phase": "select-c075-project-3",
+      "status": null,
+      "delivery": null
+    },
+    {
+      "sequence": 60,
+      "at": "2026-10-09T17:25:50.089Z",
+      "kind": "explicit-read-transport-gate",
+      "phase": "select-c075-project-3",
+      "status": 200,
+      "bodySHA256": "222e6e8c043f2bd91ebded56e9089b7910bdf4cdd34a3bbcf81a55a27302e23b",
+      "delayMs": 300
+    },
+    {
+      "sequence": 61,
+      "at": 1791566750041,
+      "kind": "project-permission-read-delivery",
+      "projectId": "project-3",
+      "path": "/v1/teams/{team}/projects/project-3/members",
+      "phase": "select-c075-project-3",
+      "status": 200,
+      "delivery": "fulfilled",
+      "bodySHA256": "222e6e8c043f2bd91ebded56e9089b7910bdf4cdd34a3bbcf81a55a27302e23b"
+    },
+    {
+      "sequence": 62,
+      "at": "2026-10-09T17:25:50.494Z",
+      "kind": "current-project-one-read",
+      "phase": "select-c075-project-3",
+      "projectId": "project-3",
+      "count": 1,
+      "scopedPurposeSHA256": "a5babfba8d79d73e6072ec916f5597d56253611e775f6a85a27b6e85c8d6a320",
+      "transportDelayedMs": 300
+    },
+    {
+      "sequence": 64,
+      "at": 1791566750810,
+      "kind": "project-permission-read",
+      "projectId": "project-4",
+      "path": "/v1/teams/{team}/projects/project-4/members",
+      "phase": "select-c075-project-4",
+      "status": null,
+      "delivery": null
+    },
+    {
+      "sequence": 65,
+      "at": "2026-10-09T17:25:50.815Z",
+      "kind": "explicit-read-transport-gate",
+      "phase": "select-c075-project-4",
+      "status": 200,
+      "bodySHA256": "de2693fe3e9eab297dcfd09745648967319263eaceb370eb1d7ba50c981c1ed2",
+      "delayMs": 300
+    },
+    {
+      "sequence": 66,
+      "at": 1791566750810,
+      "kind": "project-permission-read-delivery",
+      "projectId": "project-4",
+      "path": "/v1/teams/{team}/projects/project-4/members",
+      "phase": "select-c075-project-4",
+      "status": 200,
+      "delivery": "fulfilled",
+      "bodySHA256": "de2693fe3e9eab297dcfd09745648967319263eaceb370eb1d7ba50c981c1ed2"
+    },
+    {
+      "sequence": 67,
+      "at": "2026-10-09T17:25:51.790Z",
+      "kind": "current-project-one-read",
+      "phase": "select-c075-project-4",
+      "projectId": "project-4",
+      "count": 1,
+      "scopedPurposeSHA256": "fcd72ea4c3a30e8416e84c14b03aa22ad4e1e032884ce55b881e59f8b5bd7747",
+      "transportDelayedMs": 300
+    },
+    {
+      "sequence": 68,
+      "at": "2026-10-09T17:25:51.791Z",
+      "kind": "stage",
+      "stage": "scenario:same-project-browser-refresh"
+    },
+    {
+      "sequence": 69,
+      "at": 1791566752073,
+      "kind": "project-permission-read",
+      "projectId": "project-4",
+      "path": "/v1/teams/{team}/projects/project-4/members",
+      "phase": "same-project-browser-reload",
+      "status": null,
+      "delivery": null
+    },
+    {
+      "sequence": 70,
+      "at": "2026-10-09T17:25:52.084Z",
+      "kind": "explicit-read-transport-gate",
+      "phase": "same-project-browser-reload",
+      "status": 200,
+      "bodySHA256": "de2693fe3e9eab297dcfd09745648967319263eaceb370eb1d7ba50c981c1ed2",
+      "delayMs": 300
+    },
+    {
+      "sequence": 71,
+      "at": 1791566752073,
+      "kind": "project-permission-read-delivery",
+      "projectId": "project-4",
+      "path": "/v1/teams/{team}/projects/project-4/members",
+      "phase": "same-project-browser-reload",
+      "status": 200,
+      "delivery": "fulfilled",
+      "bodySHA256": "de2693fe3e9eab297dcfd09745648967319263eaceb370eb1d7ba50c981c1ed2"
+    },
+    {
+      "sequence": 72,
+      "at": "2026-10-09T17:25:52.880Z",
+      "kind": "current-project-one-read",
+      "phase": "same-project-browser-reload",
+      "projectId": "project-4",
+      "count": 1,
+      "scopedPurposeSHA256": "fcd72ea4c3a30e8416e84c14b03aa22ad4e1e032884ce55b881e59f8b5bd7747",
+      "transportDelayedMs": 300
+    },
+    {
+      "sequence": 73,
+      "at": "2026-10-09T17:25:52.883Z",
+      "kind": "stage",
+      "stage": "scenario:unpublished-real-grant-held"
+    },
+    {
+      "sequence": 75,
+      "at": 1791566753105,
+      "kind": "project-permission-read",
+      "projectId": "project-1",
+      "path": "/v1/teams/{team}/projects/project-1/members",
+      "phase": "pre-denial-held-grant",
+      "status": null,
+      "delivery": null
+    },
+    {
+      "sequence": 76,
+      "at": "2026-10-09T17:25:53.354Z",
+      "kind": "explicit-read-transport-gate",
+      "phase": "pre-denial-held-grant",
+      "status": 200,
+      "bodySHA256": "7d9aec35f5b436e9517922ad53f8ddf9bde9a9cfd6a4645668d70f6446aeb5b7",
+      "manual": true
+    },
+    {
+      "sequence": 77,
+      "at": "2026-10-09T17:25:53.409Z",
+      "kind": "stage",
+      "stage": "scenario:real-team-authority-revoked"
+    },
+    {
+      "sequence": 78,
+      "at": "2026-10-09T17:25:53.414Z",
+      "kind": "operator-http",
+      "method": "GET",
+      "path": "/v1/teams/{team}",
+      "status": 200
+    },
+    {
+      "sequence": 79,
+      "at": "2026-10-09T17:25:53.421Z",
+      "kind": "operator-http",
+      "method": "DELETE",
+      "path": "/v1/teams/{team}/members/{member}",
+      "status": 200
+    },
+    {
+      "sequence": 80,
+      "at": "2026-10-09T17:25:54.324Z",
+      "kind": "workspace-denial-before-grant-delivery",
+      "targetProjectId": "project-1",
+      "privatePurposeVisible": false
+    },
+    {
+      "sequence": 81,
+      "at": 1791566753105,
+      "kind": "project-permission-read-delivery",
+      "projectId": "project-1",
+      "path": "/v1/teams/{team}/projects/project-1/members",
+      "phase": "pre-denial-held-grant",
+      "status": 200,
+      "delivery": "fulfilled",
+      "bodySHA256": "7d9aec35f5b436e9517922ad53f8ddf9bde9a9cfd6a4645668d70f6446aeb5b7"
+    },
+    {
+      "sequence": 82,
+      "at": "2026-10-09T17:25:54.377Z",
+      "kind": "stage",
+      "stage": "scenario:membership-restored-without-project-grants"
+    },
+    {
+      "sequence": 83,
+      "at": "2026-10-09T17:25:54.381Z",
+      "kind": "operator-http",
+      "method": "GET",
+      "path": "/v1/teams/{team}",
+      "status": 200
+    },
+    {
+      "sequence": 84,
+      "at": "2026-10-09T17:25:54.386Z",
+      "kind": "operator-http",
+      "method": "POST",
+      "path": "/v1/teams/{team}/members",
+      "status": 200
+    },
+    {
+      "sequence": 85,
+      "at": "2026-10-09T17:25:54.500Z",
+      "kind": "operator-http",
+      "method": "GET",
+      "path": "/v1/teams/{team}/workspace/v1/product/projects/project-1/specification",
+      "status": 403
+    },
+    {
+      "sequence": 86,
+      "at": "2026-10-09T17:25:54.502Z",
+      "kind": "no-stale-project-content-after-membership-only-recovery",
+      "projectCount": 4,
+      "realMemberSpecificationStatus": 403,
+      "heldResponseDelivery": "fulfilled"
+    },
+    {
+      "sequence": 87,
+      "at": "2026-10-09T17:25:54.503Z",
+      "kind": "stage",
+      "stage": "scenario:fresh-project-grant-restored"
+    },
+    {
+      "sequence": 88,
+      "at": "2026-10-09T17:25:54.506Z",
+      "kind": "operator-http",
+      "method": "GET",
+      "path": "/v1/teams/{team}",
+      "status": 200
+    },
+    {
+      "sequence": 89,
+      "at": "2026-10-09T17:25:54.514Z",
+      "kind": "operator-http",
+      "method": "PUT",
+      "path": "/v1/teams/{team}/projects/project-1/members/{member}",
+      "status": 200
+    },
+    {
+      "sequence": 91,
+      "at": 1791566755082,
+      "kind": "project-permission-read",
+      "projectId": "project-1",
+      "path": "/v1/teams/{team}/projects/project-1/members",
+      "phase": "restored-current-project",
+      "status": null,
+      "delivery": null
+    },
+    {
+      "sequence": 92,
+      "at": "2026-10-09T17:25:55.088Z",
+      "kind": "explicit-read-transport-gate",
+      "phase": "restored-current-project",
+      "status": 200,
+      "bodySHA256": "34e26afeac1dbd7abf1f6576067fcfff29e099a466ec7214d4645d48c3d330e7",
+      "delayMs": 300
+    },
+    {
+      "sequence": 93,
+      "at": 1791566755082,
+      "kind": "project-permission-read-delivery",
+      "projectId": "project-1",
+      "path": "/v1/teams/{team}/projects/project-1/members",
+      "phase": "restored-current-project",
+      "status": 200,
+      "delivery": "fulfilled",
+      "bodySHA256": "34e26afeac1dbd7abf1f6576067fcfff29e099a466ec7214d4645d48c3d330e7"
+    },
+    {
+      "sequence": 94,
+      "at": "2026-10-09T17:25:55.512Z",
+      "kind": "current-project-one-read",
+      "phase": "restored-current-project",
+      "projectId": "project-1",
+      "count": 1,
+      "scopedPurposeSHA256": "c457fb2ee3aa71cd79f5f1d6d342dd81d5007dc49cf974fb15fa1481f096bcfe",
+      "transportDelayedMs": 300
+    },
+    {
+      "sequence": 95,
+      "at": "2026-10-09T17:25:55.519Z",
+      "kind": "operator-http",
+      "method": "GET",
+      "path": "/v1/teams/{team}/workspace/v1/sessions",
+      "status": 200
+    },
+    {
+      "sequence": 96,
+      "at": "2026-10-09T17:25:55.523Z",
+      "kind": "browser-routes-sealed",
+      "sealed": true,
+      "pendingCallbacks": 0,
+      "pendingMutations": [],
+      "closingReads": 0
+    },
+    {
+      "sequence": 97,
+      "at": "2026-10-09T17:25:55.528Z",
+      "kind": "startup",
+      "name": "browser",
+      "state": "closing",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "sequence": 98,
+      "at": "2026-10-09T17:25:55.743Z",
+      "kind": "startup",
+      "name": "browser-context",
+      "state": "closed",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "sequence": 99,
+      "at": "2026-10-09T17:25:55.744Z",
+      "kind": "startup",
+      "name": "browser-page",
+      "state": "closed",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "sequence": 100,
+      "at": "2026-10-09T17:25:55.744Z",
+      "kind": "startup",
+      "name": "browser",
+      "state": "closed",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "sequence": 101,
+      "at": "2026-10-09T17:25:56.077Z",
+      "kind": "browser-routes-drained",
+      "sealed": true,
+      "pendingCallbacks": 0,
+      "pendingMutations": [],
+      "closingReads": 0
+    },
+    {
+      "sequence": 102,
+      "at": "2026-10-09T17:25:56.078Z",
+      "kind": "startup",
+      "name": "controller",
+      "state": "closing",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "sequence": 103,
+      "at": "2026-10-09T17:25:56.420Z",
+      "kind": "startup",
+      "name": "controller",
+      "state": "closed",
+      "late": false,
+      "closeTimedOut": false
+    }
+  ]
+}

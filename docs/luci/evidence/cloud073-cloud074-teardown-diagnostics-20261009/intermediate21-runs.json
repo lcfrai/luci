@@ -1,0 +1,212 @@
+[
+  {
+    "name": "warm-before",
+    "node": "v24.19.0",
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "--test-name-pattern=exact local session poll aborts during actual finally",
+      "/workspace/.luci-tools/cloud073-teardown-route/route.test.mjs"
+    ],
+    "sourceRoot": "/workspace/.luci-tools/cloud073-teardown-route/before",
+    "variant": "warm",
+    "elapsedSeconds": 0.2711751461029053,
+    "exitCode": 1,
+    "expectedExitCode": 1,
+    "sourceBefore": {
+      "/workspace/.luci-tools/cloud073-teardown-route/before/warm/launch.mjs": {
+        "bytes": 72373,
+        "sha256": "205f99a26e4c5d0692f91bed0a1e1eeba10bc666571d3cdb86ef5fcf31980c79"
+      },
+      "/workspace/.luci-tools/cloud073-teardown-route/route.test.mjs": {
+        "bytes": 9816,
+        "sha256": "3cfee28e7b053cdf9e0fb567d818a974daddcb36556b02d2bd26089aceba133e"
+      },
+      "/workspace/.luci-tools/cloud073-teardown-route/support/acceptance-lifecycle.mjs": {
+        "bytes": 4176,
+        "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+      }
+    },
+    "sourceAfter": {
+      "/workspace/.luci-tools/cloud073-teardown-route/before/warm/launch.mjs": {
+        "bytes": 72373,
+        "sha256": "205f99a26e4c5d0692f91bed0a1e1eeba10bc666571d3cdb86ef5fcf31980c79"
+      },
+      "/workspace/.luci-tools/cloud073-teardown-route/route.test.mjs": {
+        "bytes": 9816,
+        "sha256": "3cfee28e7b053cdf9e0fb567d818a974daddcb36556b02d2bd26089aceba133e"
+      },
+      "/workspace/.luci-tools/cloud073-teardown-route/support/acceptance-lifecycle.mjs": {
+        "bytes": 4176,
+        "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+      }
+    },
+    "stdout": {
+      "bytes": 903,
+      "sha256": "373b7a45f8f655b1c918b2056850f44edf21a4f5d005f4bff1fc641ec140642c"
+    },
+    "stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "scope": "Inert Node callbacks and temporary private-writer fixture only. No browser, Docker, product server, or compiler."
+  },
+  {
+    "name": "warm-after",
+    "node": "v24.19.0",
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "/workspace/.luci-tools/cloud073-teardown-route/route.test.mjs"
+    ],
+    "sourceRoot": "/workspace/.luci-tools/cloud073-teardown-route",
+    "variant": "warm",
+    "elapsedSeconds": 2.4203948974609375,
+    "exitCode": 0,
+    "expectedExitCode": 0,
+    "sourceBefore": {
+      "/workspace/.luci-tools/cloud073-teardown-route/warm/launch.mjs": {
+        "bytes": 73561,
+        "sha256": "448d7f8a78f1df256c00ad319949e79f930c36bd20794cbb67ad16daa8969868"
+      },
+      "/workspace/.luci-tools/cloud073-teardown-route/route.test.mjs": {
+        "bytes": 9816,
+        "sha256": "3cfee28e7b053cdf9e0fb567d818a974daddcb36556b02d2bd26089aceba133e"
+      },
+      "/workspace/.luci-tools/cloud073-teardown-route/support/acceptance-lifecycle.mjs": {
+        "bytes": 4176,
+        "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+      }
+    },
+    "sourceAfter": {
+      "/workspace/.luci-tools/cloud073-teardown-route/warm/launch.mjs": {
+        "bytes": 73561,
+        "sha256": "448d7f8a78f1df256c00ad319949e79f930c36bd20794cbb67ad16daa8969868"
+      },
+      "/workspace/.luci-tools/cloud073-teardown-route/route.test.mjs": {
+        "bytes": 9816,
+        "sha256": "3cfee28e7b053cdf9e0fb567d818a974daddcb36556b02d2bd26089aceba133e"
+      },
+      "/workspace/.luci-tools/cloud073-teardown-route/support/acceptance-lifecycle.mjs": {
+        "bytes": 4176,
+        "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+      }
+    },
+    "stdout": {
+      "bytes": 4947,
+      "sha256": "74cf35e57135954ba3b667b6f3f38caf309f01d0469ab3dbb6c787b070c72f5e"
+    },
+    "stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "scope": "Inert Node callbacks and temporary private-writer fixture only. No browser, Docker, product server, or compiler."
+  },
+  {
+    "name": "cold-before",
+    "node": "v24.19.0",
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "--test-name-pattern=exact local session poll aborts during actual finally",
+      "/workspace/.luci-tools/cloud073-teardown-route/route.test.mjs"
+    ],
+    "sourceRoot": "/workspace/.luci-tools/cloud073-teardown-route/before",
+    "variant": "cold",
+    "elapsedSeconds": 0.14194154739379883,
+    "exitCode": 1,
+    "expectedExitCode": 1,
+    "sourceBefore": {
+      "/workspace/.luci-tools/cloud073-teardown-route/before/cold/launch.mjs": {
+        "bytes": 73345,
+        "sha256": "7789d0f5e89fdd643cf433dc8786f44fba16a3e24884c12aad738ab4935b75cc"
+      },
+      "/workspace/.luci-tools/cloud073-teardown-route/route.test.mjs": {
+        "bytes": 9816,
+        "sha256": "3cfee28e7b053cdf9e0fb567d818a974daddcb36556b02d2bd26089aceba133e"
+      },
+      "/workspace/.luci-tools/cloud073-teardown-route/support/acceptance-lifecycle.mjs": {
+        "bytes": 4176,
+        "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+      }
+    },
+    "sourceAfter": {
+      "/workspace/.luci-tools/cloud073-teardown-route/before/cold/launch.mjs": {
+        "bytes": 73345,
+        "sha256": "7789d0f5e89fdd643cf433dc8786f44fba16a3e24884c12aad738ab4935b75cc"
+      },
+      "/workspace/.luci-tools/cloud073-teardown-route/route.test.mjs": {
+        "bytes": 9816,
+        "sha256": "3cfee28e7b053cdf9e0fb567d818a974daddcb36556b02d2bd26089aceba133e"
+      },
+      "/workspace/.luci-tools/cloud073-teardown-route/support/acceptance-lifecycle.mjs": {
+        "bytes": 4176,
+        "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+      }
+    },
+    "stdout": {
+      "bytes": 904,
+      "sha256": "0c4171c06b8f5a8697c33a647c6715a52a7d6e27722744ff24b34f20838a8d15"
+    },
+    "stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "scope": "Inert Node callbacks and temporary private-writer fixture only. No browser, Docker, product server, or compiler."
+  },
+  {
+    "name": "cold-after",
+    "node": "v24.19.0",
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "/workspace/.luci-tools/cloud073-teardown-route/route.test.mjs"
+    ],
+    "sourceRoot": "/workspace/.luci-tools/cloud073-teardown-route",
+    "variant": "cold",
+    "elapsedSeconds": 2.313109874725342,
+    "exitCode": 0,
+    "expectedExitCode": 0,
+    "sourceBefore": {
+      "/workspace/.luci-tools/cloud073-teardown-route/cold/launch.mjs": {
+        "bytes": 74533,
+        "sha256": "cd765ed76e0a89f110984faead847ba6d12af310f1361ab05704cb42906da138"
+      },
+      "/workspace/.luci-tools/cloud073-teardown-route/route.test.mjs": {
+        "bytes": 9816,
+        "sha256": "3cfee28e7b053cdf9e0fb567d818a974daddcb36556b02d2bd26089aceba133e"
+      },
+      "/workspace/.luci-tools/cloud073-teardown-route/support/acceptance-lifecycle.mjs": {
+        "bytes": 4176,
+        "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+      }
+    },
+    "sourceAfter": {
+      "/workspace/.luci-tools/cloud073-teardown-route/cold/launch.mjs": {
+        "bytes": 74533,
+        "sha256": "cd765ed76e0a89f110984faead847ba6d12af310f1361ab05704cb42906da138"
+      },
+      "/workspace/.luci-tools/cloud073-teardown-route/route.test.mjs": {
+        "bytes": 9816,
+        "sha256": "3cfee28e7b053cdf9e0fb567d818a974daddcb36556b02d2bd26089aceba133e"
+      },
+      "/workspace/.luci-tools/cloud073-teardown-route/support/acceptance-lifecycle.mjs": {
+        "bytes": 4176,
+        "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+      }
+    },
+    "stdout": {
+      "bytes": 4945,
+      "sha256": "88d87e62ab91011cd757a46e7828385dfcf388c3bc80300a321c8dfa09784299"
+    },
+    "stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "scope": "Inert Node callbacks and temporary private-writer fixture only. No browser, Docker, product server, or compiler."
+  }
+]

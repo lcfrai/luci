@@ -1,0 +1,120 @@
+--- before/warm/scenario.mjs
++++ warm/scenario.mjs
+@@ -31,9 +31,15 @@
+   const upgrade=value('upgrade'),connection=value('connection'),protocol=value('sec-websocket-protocol'),extensions=value('sec-websocket-extensions');
+   return {available:true,status:Number.isSafeInteger(response.status)?response.status:null,upgradeWebSocket:upgrade.length===1&&upgrade[0]?.trim().toLowerCase()==='websocket',connectionUpgrade:connection.length===1&&!!connection[0]?.split(',').some(v=>v.trim().toLowerCase()==='upgrade'),protocolPresent:protocol.length>0,protocolEmpty:protocol.length===1&&protocol[0]==='',extensionPresent:extensions.length>0,perMessageDeflate:extensions.length===1&&typeof extensions[0]==='string'&&/^permessage-deflate(?:\s*;\s*(?:server_no_context_takeover|client_no_context_takeover|(?:server_max_window_bits|client_max_window_bits)(?:=(?:[89]|1[0-5]))?))*$/i.test(extensions[0]),headerValuesRetained:false};
+ }
++// CLOUD-074: bounded first-call diagnostics only. No disposal budget or outcome changes.
++const disposalAt=()=>({wall:new Date().toISOString(),monotonicMs:performance.now()});
++const disposalState=()=>({calls:0,additionalCalls:false,first:null});
++function beginDisposal(state,fields){state.calls=Math.min(16,state.calls+1);if(state.first){state.additionalCalls=true;return null;}state.first={entry:disposalAt(),...fields};return state.first;}
++const disposalSettlement=(first,key,state)=>{if(first)first[key]={state,at:disposalAt()};};
++
+ export async function installTransportDiagnostics(page,{origin,attachPath,retainTransportError}) {
+   assert.equal(typeof retainTransportError,'function','Private transport error capture required before traffic');
+-  let client,closed=false,setupComplete=false;const rows=[],known=new Map(),failures=[],listeners=[];
++  let client,closed=false,setupComplete=false;const rows=[],known=new Map(),failures=[],listeners=[],disposal=disposalState();
+   const fail=code=>{if(failures.length<16&&!failures.includes(code))failures.push(code);};
+   const bounded=async(promise,ms,code)=>{let timer;try{return await Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error(code)),ms);})]);}finally{clearTimeout(timer);}};
+   const at=()=>({wall:new Date().toISOString(),monotonicMs:performance.now()});
+@@ -49,7 +55,17 @@
+     add('Network.webSocketClosed',event=>{const row=known.get(event.requestId);if(row)row.closed=at();});
+     await bounded(client.send('Network.enable'),2000,'cdp-enable-deadline');setupComplete=true;
+   }catch{fail('transport-setup-unavailable');closed=true;if(client){for(const [name,fn]of listeners)client.off(name,fn);try{await bounded(client.detach(),1500,'cdp-detach-deadline');}catch{fail('cdp-detach-unconfirmed');}}}
+-  return {snapshot:()=>({setupComplete,rows:structuredClone(rows),failures:[...failures],scope:'Passive exact-path CDP observation only; request identifiers and URLs remain private. No stdout frame capture, direction/causality inference or performance claim.'}),dispose:async()=>{closed=true;if(!client)return;for(const [name,fn]of listeners)client.off(name,fn);try{await bounded(client.detach(),1500,'cdp-detach-deadline');}catch{fail('cdp-detach-unconfirmed');throw Error('Passive transport detach unconfirmed');}}};
++  return {snapshot:()=>({setupComplete,rows:structuredClone(rows),failures:[...failures],scope:'Passive exact-path CDP observation only; request identifiers and URLs remain private. No stdout frame capture, direction/causality inference or performance claim.'}),disposalSnapshot:()=>structuredClone(disposal),dispose:async()=>{
++    const first=beginDisposal(disposal,{detachInvoked:null,detachReturned:null,detachSettlement:{state:'not-started',at:null},waitSettlement:{state:'pending',at:null}});
++    closed=true;if(!client){disposalSettlement(first,'waitSettlement','no-client');return;}
++    try{for(const [name,fn]of listeners)client.off(name,fn);}catch(error){disposalSettlement(first,'waitSettlement','rejected');throw error;}
++    try{
++      if(first){first.detachInvoked=disposalAt();first.detachSettlement={state:'pending',at:null};}
++      let operation;try{operation=client.detach();}catch(error){disposalSettlement(first,'detachSettlement','invocation-threw');throw error;}
++      if(first){first.detachReturned=disposalAt();void Promise.resolve(operation).then(()=>disposalSettlement(first,'detachSettlement','fulfilled'),()=>disposalSettlement(first,'detachSettlement','rejected'));}
++      await bounded(operation,1500,'cdp-detach-deadline');disposalSettlement(first,'waitSettlement','fulfilled');
++    }catch{disposalSettlement(first,'waitSettlement','rejected');fail('cdp-detach-unconfirmed');throw Error('Passive transport detach unconfirmed');}
++  }};
+ }
+ 
+ // Serialized into the actual page before navigation. Listener-only native sockets;
+@@ -106,7 +122,7 @@
+   const target=new URL(base);target.protocol=target.protocol==='https:'?'wss:':'ws:';
+   await page.addInitScript(terminalMonitor,{origin:target.origin,attachPath,markers});
+   const transport=await installTransportDiagnostics(page,{origin:target.origin,attachPath,retainTransportError});
+-  const sent=[];let observerFailure=transport.snapshot().setupComplete?null:'transport-setup-unavailable';
++  const sent=[],disposal=disposalState();let observerFailure=transport.snapshot().setupComplete?null:'transport-setup-unavailable';
+   const hook=socket=>{
+     const url=new URL(socket.url());if(url.origin!==target.origin||url.pathname!==attachPath)return;
+     const row={ordinal:sent.length+1,stdinFrames:0,stdinBytes:0,resizeFrames:0,otherFrames:0,socketErrors:[],sendEvents:[]};sent.push(row);
+@@ -122,7 +138,11 @@
+     });
+   };
+   page.on('websocket',hook);
+-  return {snapshot:async()=>{const protocol=transport.snapshot();return {browser:await page.evaluate(()=>globalThis.__luciC054Terminal()),sent:structuredClone(sent),protocol,observerFailure:observerFailure??(protocol.failures.length?'transport-observation-failed':null)};},dispose:async()=>{page.off('websocket',hook);await transport.dispose();}};
++  return {snapshot:async()=>{const protocol=transport.snapshot();return {browser:await page.evaluate(()=>globalThis.__luciC054Terminal()),sent:structuredClone(sent),protocol,observerFailure:observerFailure??(protocol.failures.length?'transport-observation-failed':null)};},disposalSnapshot:()=>structuredClone({version:1,monitor:disposal,transport:transport.disposalSnapshot(),protocol:transport.snapshot()}),dispose:async()=>{
++    const first=beginDisposal(disposal,{listenerRemoved:null,settlement:{state:'pending',at:null}});
++    try{page.off('websocket',hook);if(first)first.listenerRemoved=disposalAt();await transport.dispose();disposalSettlement(first,'settlement','fulfilled');}
++    catch(error){disposalSettlement(first,'settlement','rejected');throw error;}
++  }};
+ }
+ 
+ // One real read-only response held for <=8s, below the existing10s client budget.
+--- before/cold/scenario.mjs
++++ cold/scenario.mjs
+@@ -31,9 +31,15 @@
+   const upgrade=value('upgrade'),connection=value('connection'),protocol=value('sec-websocket-protocol'),extensions=value('sec-websocket-extensions');
+   return {available:true,status:Number.isSafeInteger(response.status)?response.status:null,upgradeWebSocket:upgrade.length===1&&upgrade[0]?.trim().toLowerCase()==='websocket',connectionUpgrade:connection.length===1&&!!connection[0]?.split(',').some(v=>v.trim().toLowerCase()==='upgrade'),protocolPresent:protocol.length>0,protocolEmpty:protocol.length===1&&protocol[0]==='',extensionPresent:extensions.length>0,perMessageDeflate:extensions.length===1&&typeof extensions[0]==='string'&&/^permessage-deflate(?:\s*;\s*(?:server_no_context_takeover|client_no_context_takeover|(?:server_max_window_bits|client_max_window_bits)(?:=(?:[89]|1[0-5]))?))*$/i.test(extensions[0]),headerValuesRetained:false};
+ }
++// CLOUD-074: bounded first-call diagnostics only. No disposal budget or outcome changes.
++const disposalAt=()=>({wall:new Date().toISOString(),monotonicMs:performance.now()});
++const disposalState=()=>({calls:0,additionalCalls:false,first:null});
++function beginDisposal(state,fields){state.calls=Math.min(16,state.calls+1);if(state.first){state.additionalCalls=true;return null;}state.first={entry:disposalAt(),...fields};return state.first;}
++const disposalSettlement=(first,key,state)=>{if(first)first[key]={state,at:disposalAt()};};
++
+ export async function installTransportDiagnostics(page,{origin,attachPath,retainTransportError}) {
+   assert.equal(typeof retainTransportError,'function','Private transport error capture required before traffic');
+-  let client,closed=false,setupComplete=false;const rows=[],known=new Map(),failures=[],listeners=[];
++  let client,closed=false,setupComplete=false;const rows=[],known=new Map(),failures=[],listeners=[],disposal=disposalState();
+   const fail=code=>{if(failures.length<16&&!failures.includes(code))failures.push(code);};
+   const bounded=async(promise,ms,code)=>{let timer;try{return await Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error(code)),ms);})]);}finally{clearTimeout(timer);}};
+   const at=()=>({wall:new Date().toISOString(),monotonicMs:performance.now()});
+@@ -49,7 +55,17 @@
+     add('Network.webSocketClosed',event=>{const row=known.get(event.requestId);if(row)row.closed=at();});
+     await bounded(client.send('Network.enable'),2000,'cdp-enable-deadline');setupComplete=true;
+   }catch{fail('transport-setup-unavailable');closed=true;if(client){for(const [name,fn]of listeners)client.off(name,fn);try{await bounded(client.detach(),1500,'cdp-detach-deadline');}catch{fail('cdp-detach-unconfirmed');}}}
+-  return {snapshot:()=>({setupComplete,rows:structuredClone(rows),failures:[...failures],scope:'Passive exact-path CDP observation only; request identifiers and URLs remain private. No stdout frame capture, direction/causality inference or performance claim.'}),dispose:async()=>{closed=true;if(!client)return;for(const [name,fn]of listeners)client.off(name,fn);try{await bounded(client.detach(),1500,'cdp-detach-deadline');}catch{fail('cdp-detach-unconfirmed');throw Error('Passive transport detach unconfirmed');}}};
++  return {snapshot:()=>({setupComplete,rows:structuredClone(rows),failures:[...failures],scope:'Passive exact-path CDP observation only; request identifiers and URLs remain private. No stdout frame capture, direction/causality inference or performance claim.'}),disposalSnapshot:()=>structuredClone(disposal),dispose:async()=>{
++    const first=beginDisposal(disposal,{detachInvoked:null,detachReturned:null,detachSettlement:{state:'not-started',at:null},waitSettlement:{state:'pending',at:null}});
++    closed=true;if(!client){disposalSettlement(first,'waitSettlement','no-client');return;}
++    try{for(const [name,fn]of listeners)client.off(name,fn);}catch(error){disposalSettlement(first,'waitSettlement','rejected');throw error;}
++    try{
++      if(first){first.detachInvoked=disposalAt();first.detachSettlement={state:'pending',at:null};}
++      let operation;try{operation=client.detach();}catch(error){disposalSettlement(first,'detachSettlement','invocation-threw');throw error;}
++      if(first){first.detachReturned=disposalAt();void Promise.resolve(operation).then(()=>disposalSettlement(first,'detachSettlement','fulfilled'),()=>disposalSettlement(first,'detachSettlement','rejected'));}
++      await bounded(operation,1500,'cdp-detach-deadline');disposalSettlement(first,'waitSettlement','fulfilled');
++    }catch{disposalSettlement(first,'waitSettlement','rejected');fail('cdp-detach-unconfirmed');throw Error('Passive transport detach unconfirmed');}
++  }};
+ }
+ 
+ // Serialized into the actual page before navigation. Listener-only native sockets;
+@@ -106,7 +122,7 @@
+   const target=new URL(base);target.protocol=target.protocol==='https:'?'wss:':'ws:';
+   await page.addInitScript(terminalMonitor,{origin:target.origin,attachPath,markers});
+   const transport=await installTransportDiagnostics(page,{origin:target.origin,attachPath,retainTransportError});
+-  const sent=[];let observerFailure=transport.snapshot().setupComplete?null:'transport-setup-unavailable';
++  const sent=[],disposal=disposalState();let observerFailure=transport.snapshot().setupComplete?null:'transport-setup-unavailable';
+   const hook=socket=>{
+     const url=new URL(socket.url());if(url.origin!==target.origin||url.pathname!==attachPath)return;
+     const row={ordinal:sent.length+1,stdinFrames:0,stdinBytes:0,resizeFrames:0,otherFrames:0,socketErrors:[],sendEvents:[]};sent.push(row);
+@@ -122,7 +138,11 @@
+     });
+   };
+   page.on('websocket',hook);
+-  return {snapshot:async()=>{const protocol=transport.snapshot();return {browser:await page.evaluate(()=>globalThis.__luciC054Terminal()),sent:structuredClone(sent),protocol,observerFailure:observerFailure??(protocol.failures.length?'transport-observation-failed':null)};},dispose:async()=>{page.off('websocket',hook);await transport.dispose();}};
++  return {snapshot:async()=>{const protocol=transport.snapshot();return {browser:await page.evaluate(()=>globalThis.__luciC054Terminal()),sent:structuredClone(sent),protocol,observerFailure:observerFailure??(protocol.failures.length?'transport-observation-failed':null)};},disposalSnapshot:()=>structuredClone({version:1,monitor:disposal,transport:transport.disposalSnapshot(),protocol:transport.snapshot()}),dispose:async()=>{
++    const first=beginDisposal(disposal,{listenerRemoved:null,settlement:{state:'pending',at:null}});
++    try{page.off('websocket',hook);if(first)first.listenerRemoved=disposalAt();await transport.dispose();disposalSettlement(first,'settlement','fulfilled');}
++    catch(error){disposalSettlement(first,'settlement','rejected');throw error;}
++  }};
+ }
+ 
+ // One real read-only response held for <=8s, below the existing10s client budget.
