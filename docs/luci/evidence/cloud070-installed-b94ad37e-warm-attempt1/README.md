@@ -1,0 +1,11 @@
+# Installed b94 warm attempt 1
+
+The installed shell-create request returned HTTP 409 before an acknowledged session, worker, or browser. The existing allowlisted problem receipt identifies conflict/memory_pressure; its original 153-byte body is hash-bound and not exported. No numeric admission operands were captured. There was no Restart or terminal recovery exercise. The later independent closure found two known identities absent, no live or zombie identities, and empty container, volume, and ledger inventories. This later absence does not erase the controller zombie observation in original cleanup.
+
+Product and Git utility source: `b94ad37e53181e360ac8910ee980570de622728c`. The accepted external warm launcher and scenario are the original CLOUD-069 v11 helpers, before the CLOUD-071 diagnostic fix. The product package receipt reports 963 matching members. Frozen helpers, original wrapper before/after hashes, four immutable Git utility bindings, and 106 carried-image runtime input bindings are retained. Publication did not rerun the product or independently reverify package binaries.
+
+Copied evidence bytes are unchanged except exact substitution of the one private fixture root with `[PRIVATE_FIXTURE_WARM_ATTEMPT_1]`. `original-bindings.json` retains original and public hashes, byte counts, and substitution counts. Original raw log hashes, where listed, come only from existing safe receipts; those logs were not reread. All stdout/stderr and raw private diagnostic or fixture files are excluded. Screenshots were previously visually reviewed by the supervising agent and are copied unchanged.
+
+`run/` contains original run evidence; `closure/` contains separately timed independent closure and its original manifest. Original manifests refer to original bytes; `publication.json` and `SHA256SUMS` bind the public bytes. `analysis.json` contains derived, explicitly scoped summaries. Receipt fields describing historical inventories are not current live allocations. Neither a 409 refusal nor later empty inventory proves permanent leakage or remote mutation settlement.
+
+The bounded credential-pattern scan is not exhaustive. Scope is the retained local-shell/browser evidence, known process identities, and selected daemon; no whole-machine, provider/model, native service-crash, Windows, or latency/performance acceptance is claimed.

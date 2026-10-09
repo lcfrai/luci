@@ -1,0 +1,441 @@
+{
+  "startedAt": "2026-10-09T16:23:14.978221+00:00",
+  "finishedAt": "2026-10-09T16:23:29.221088+00:00",
+  "passed": true,
+  "packages": [
+    {
+      "name": "0dcafb14",
+      "path": "/tmp/luci-retained-tools/package-0.5.0-0dcafb14",
+      "startedAt": "2026-10-09T16:23:14.978269+00:00",
+      "status": "passed",
+      "errors": [],
+      "sourceCommit": "0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f",
+      "provenance": {
+        "path": "/workspace/luci/artifacts/quality-swarm/candidate-0dcafb14/package/package-provenance.json",
+        "sha256": "d272f8bfcb955ecabafd1f674a628360074acb8fd591192cfe2d6f6699fc17a7"
+      },
+      "integrity": {
+        "path": "/workspace/luci/artifacts/quality-swarm/candidate-0dcafb14/package/package-integrity.json",
+        "sha256": "0002457352bdb26dca5c731acfe09eae5c0b3cb5076e055251139a63fe1d2c57"
+      },
+      "archive": {
+        "alias": "/workspace/luci/artifacts/releases/0.5.0-0dcafb14-preserved-before-99007404/luci-linux-amd64.tar.gz",
+        "aliasMetadataBefore": {
+          "mode": 511,
+          "uid": 1000,
+          "gid": 1000,
+          "size": 74,
+          "allocatedBytes": 4096,
+          "device": 27,
+          "inode": 661399,
+          "nlink": 1,
+          "mtimeNS": 1791517137637459951,
+          "atimeNS": 1791517174970116501,
+          "ctimeNS": 1791517137637459951,
+          "kind": "symlink"
+        },
+        "aliasLink": "/tmp/luci-retained-tools/release-payloads-0dcafb14/luci-linux-amd64.tar.gz",
+        "path": "/tmp/luci-retained-tools/release-payloads-0dcafb14/luci-linux-amd64.tar.gz",
+        "sha256": "501a29e3c920173b99041797f794564b433e9d9b6c45036509165a4092a00b25",
+        "bytes": 69000975,
+        "metadataBefore": {
+          "mode": 384,
+          "uid": 1000,
+          "gid": 1000,
+          "size": 69000975,
+          "allocatedBytes": 69001216,
+          "device": 34,
+          "inode": 2713441,
+          "nlink": 1,
+          "mtimeNS": 1791517009855236456,
+          "atimeNS": 1791517137569067146,
+          "ctimeNS": 1791517137561458619,
+          "kind": "file"
+        }
+      },
+      "manifest": {
+        "path": "/workspace/.luci-tools/old-extracted-packages-retirement-plan/verification-v2/manifests/0dcafb14.json",
+        "sha256": "d2130ca28f599dfb90beebca4dbb05abd3521120204333ddf9dd8392d1dae72e",
+        "bytes": 1396534
+      },
+      "files": 953,
+      "directories": 538,
+      "logicalBytes": 123006633,
+      "allocatedFileBytes": 125378560,
+      "allocatedDirectoryBytes": 0,
+      "allContentsMatch": true,
+      "allOriginalMetadataStable": true,
+      "modeDifferenceCount": 537,
+      "mtimeDifferenceCount": 1483,
+      "ownershipDifferenceCount": 1490,
+      "implicitDirectories": [
+        "."
+      ],
+      "finishedAt": "2026-10-09T16:23:16.800549+00:00",
+      "elapsedSeconds": 1.8223320090328343
+    },
+    {
+      "name": "2da1a821",
+      "path": "/tmp/luci-retained-tools/package-0.5.0-2da1a821",
+      "startedAt": "2026-10-09T16:23:16.801409+00:00",
+      "status": "passed",
+      "errors": [],
+      "sourceCommit": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+      "provenance": {
+        "path": "/workspace/luci/artifacts/quality-swarm/candidate-2da1a821/package/package-provenance.json",
+        "sha256": "5b6ba87386b908ad4145e1f676de7fdad8958ec511757bdaf533e352f45a9810"
+      },
+      "integrity": {
+        "path": "/workspace/luci/artifacts/quality-swarm/candidate-2da1a821/package/package-integrity.json",
+        "sha256": "2ffc98c8292f9404a47908130ff58a41070f7fbbeb5b9ccb0275d42b153dd85a"
+      },
+      "archive": {
+        "alias": "/workspace/luci/artifacts/releases/0.5.0-2da1a821-preserved-before-0dcafb14/luci-linux-amd64.tar.gz",
+        "aliasMetadataBefore": {
+          "mode": 511,
+          "uid": 1000,
+          "gid": 1000,
+          "size": 74,
+          "allocatedBytes": 4096,
+          "device": 27,
+          "inode": 671693,
+          "nlink": 1,
+          "mtimeNS": 1791509875263424563,
+          "atimeNS": 1791509887535641202,
+          "ctimeNS": 1791509875263424563,
+          "kind": "symlink"
+        },
+        "aliasLink": "/tmp/luci-retained-tools/release-payloads-2da1a821/luci-linux-amd64.tar.gz",
+        "path": "/tmp/luci-retained-tools/release-payloads-2da1a821/luci-linux-amd64.tar.gz",
+        "sha256": "078f0689489d51583fb58f46846da9d13156845e6f647e90b744696aa3c7c09e",
+        "bytes": 134313689,
+        "metadataBefore": {
+          "mode": 384,
+          "uid": 1000,
+          "gid": 1000,
+          "size": 134313689,
+          "allocatedBytes": 134316032,
+          "device": 34,
+          "inode": 2647453,
+          "nlink": 1,
+          "mtimeNS": 1791509875111421899,
+          "atimeNS": 1791509875116463501,
+          "ctimeNS": 1791509875111421899,
+          "kind": "file"
+        }
+      },
+      "manifest": {
+        "path": "/workspace/.luci-tools/old-extracted-packages-retirement-plan/verification-v2/manifests/2da1a821.json",
+        "sha256": "73464a5b895bfabfc21f2ce948c05e87096714e156ca23b22686a3ad5882f228",
+        "bytes": 4730518
+      },
+      "files": 3587,
+      "directories": 1011,
+      "logicalBytes": 223470105,
+      "allocatedFileBytes": 231940096,
+      "allocatedDirectoryBytes": 0,
+      "allContentsMatch": true,
+      "allOriginalMetadataStable": true,
+      "modeDifferenceCount": 1010,
+      "mtimeDifferenceCount": 4577,
+      "ownershipDifferenceCount": 4597,
+      "implicitDirectories": [
+        "."
+      ],
+      "finishedAt": "2026-10-09T16:23:20.578022+00:00",
+      "elapsedSeconds": 3.776670607039705
+    },
+    {
+      "name": "67a5b7c7",
+      "path": "/tmp/luci-retained-tools/package-0.5.0-67a5b7c7",
+      "startedAt": "2026-10-09T16:23:20.579230+00:00",
+      "status": "passed",
+      "errors": [],
+      "sourceCommit": "67a5b7c75ca6354d43085f5bb81ec53ee4291f34",
+      "provenance": {
+        "path": "/workspace/luci/artifacts/quality-swarm/candidate-67a5b7c7/package/package-provenance.json",
+        "sha256": "ed4d073040b828a3b9dc1a9baf6dba81137e8f8fe5d9af1febffac085cf5b1fe"
+      },
+      "integrity": {
+        "path": "/workspace/luci/artifacts/quality-swarm/candidate-67a5b7c7/package/package-integrity.json",
+        "sha256": "06b41d9e18b99eebfdb01342662ab270f8c7103e18b3dc30ba9b4e700c3d3f5b"
+      },
+      "archive": {
+        "alias": "/workspace/luci/artifacts/releases/0.5.0-67a5b7c7-preserved-before-d20ebd29/luci-linux-amd64.tar.gz",
+        "aliasMetadataBefore": {
+          "mode": 511,
+          "uid": 1000,
+          "gid": 1000,
+          "size": 89,
+          "allocatedBytes": 4096,
+          "device": 27,
+          "inode": 664934,
+          "nlink": 1,
+          "mtimeNS": 1791536456075836061,
+          "atimeNS": 1791536456183837916,
+          "ctimeNS": 1791536456075836061,
+          "kind": "symlink"
+        },
+        "aliasLink": "/tmp/luci-retained-tools/archive-preservation-20261009T0910/0.5.0/luci-linux-amd64.tar.gz",
+        "path": "/tmp/luci-retained-tools/archive-preservation-20261009T0910/0.5.0/luci-linux-amd64.tar.gz",
+        "sha256": "8d389ccc4a87d33e04dd7e3e96123bb105759b45535bd9077cccc3e3b6904157",
+        "bytes": 69040919,
+        "metadataBefore": {
+          "mode": 384,
+          "uid": 1000,
+          "gid": 1000,
+          "size": 69040919,
+          "allocatedBytes": 69042176,
+          "device": 34,
+          "inode": 2759271,
+          "nlink": 1,
+          "mtimeNS": 1791535999856215751,
+          "atimeNS": 1791536455936524390,
+          "ctimeNS": 1791536455931833588,
+          "kind": "file"
+        }
+      },
+      "manifest": {
+        "path": "/workspace/.luci-tools/old-extracted-packages-retirement-plan/verification-v2/manifests/67a5b7c7.json",
+        "sha256": "8f60152393c00ec1b7a4509a07fd5b4fd738b96b522f5586a9586ace91601e00",
+        "bytes": 1397757
+      },
+      "files": 955,
+      "directories": 538,
+      "logicalBytes": 123085782,
+      "allocatedFileBytes": 125464576,
+      "allocatedDirectoryBytes": 0,
+      "allContentsMatch": true,
+      "allOriginalMetadataStable": true,
+      "modeDifferenceCount": 537,
+      "mtimeDifferenceCount": 1481,
+      "ownershipDifferenceCount": 1492,
+      "implicitDirectories": [
+        "."
+      ],
+      "finishedAt": "2026-10-09T16:23:23.313470+00:00",
+      "elapsedSeconds": 2.734378736000508
+    },
+    {
+      "name": "99007404",
+      "path": "/tmp/luci-retained-tools/package-0.5.0-99007404",
+      "startedAt": "2026-10-09T16:23:23.314851+00:00",
+      "status": "passed",
+      "errors": [],
+      "sourceCommit": "99007404a5ddd8592dee376ea00d99c6180d26fe",
+      "provenance": {
+        "path": "/workspace/luci/artifacts/quality-swarm/candidate-99007404/package/package-provenance.json",
+        "sha256": "91efa3af18f26d877932aaa98a16a524c6820352af10b57bc74aa45a96134ff7"
+      },
+      "integrity": {
+        "path": "/workspace/luci/artifacts/quality-swarm/candidate-99007404/package/package-integrity.json",
+        "sha256": "ea6fff19d7bec52a368e9126e98d44ca5ce4abea0d811c5d7ee7eb28167e3a82"
+      },
+      "archive": {
+        "alias": "/workspace/luci/artifacts/releases/0.5.0-99007404-preserved-before-67a5b7c7/luci-linux-amd64.tar.gz",
+        "aliasMetadataBefore": {
+          "mode": 511,
+          "uid": 1000,
+          "gid": 1000,
+          "size": 124,
+          "allocatedBytes": 4096,
+          "device": 27,
+          "inode": 663813,
+          "nlink": 1,
+          "mtimeNS": 1791536455591827749,
+          "atimeNS": 1791536455611828092,
+          "ctimeNS": 1791536455591827749,
+          "kind": "symlink"
+        },
+        "aliasLink": "/tmp/luci-retained-tools/archive-preservation-20261009T0910/0.5.0-99007404-preserved-before-67a5b7c7/luci-linux-amd64.tar.gz",
+        "path": "/tmp/luci-retained-tools/archive-preservation-20261009T0910/0.5.0-99007404-preserved-before-67a5b7c7/luci-linux-amd64.tar.gz",
+        "sha256": "9bf32d8ebe0c7c7d3297c81e91f0451f0035357cb77eb7abf06099920dd9f164",
+        "bytes": 69027325,
+        "metadataBefore": {
+          "mode": 384,
+          "uid": 1000,
+          "gid": 1000,
+          "size": 69027325,
+          "allocatedBytes": 69029888,
+          "device": 34,
+          "inode": 2759268,
+          "nlink": 1,
+          "mtimeNS": 1791531626530355302,
+          "atimeNS": 1791536455462775806,
+          "ctimeNS": 1791536455459825482,
+          "kind": "file"
+        }
+      },
+      "manifest": {
+        "path": "/workspace/.luci-tools/old-extracted-packages-retirement-plan/verification-v2/manifests/99007404.json",
+        "sha256": "126582b7231469b922f75240f1f854bce9524e6346fb4f8997df3274f3d6c6f0",
+        "bytes": 1397572
+      },
+      "files": 954,
+      "directories": 538,
+      "logicalBytes": 123053558,
+      "allocatedFileBytes": 125427712,
+      "allocatedDirectoryBytes": 0,
+      "allContentsMatch": true,
+      "allOriginalMetadataStable": true,
+      "modeDifferenceCount": 537,
+      "mtimeDifferenceCount": 1484,
+      "ownershipDifferenceCount": 1491,
+      "implicitDirectories": [
+        "."
+      ],
+      "finishedAt": "2026-10-09T16:23:25.928089+00:00",
+      "elapsedSeconds": 2.613294976996258
+    },
+    {
+      "name": "d20ebd29",
+      "path": "/tmp/luci-retained-tools/package-0.5.0-d20ebd29",
+      "startedAt": "2026-10-09T16:23:25.928978+00:00",
+      "status": "passed",
+      "errors": [],
+      "sourceCommit": "d20ebd292f3f1de04d6726bab0998c210987bcb5",
+      "provenance": {
+        "path": "/workspace/luci/artifacts/quality-swarm/candidate-d20ebd29/package/package-provenance.json",
+        "sha256": "7819fdfa0d7a3c5c938b0e94a6d0351c02717fa31f0877b759d5defa33399450"
+      },
+      "integrity": {
+        "path": "/workspace/luci/artifacts/quality-swarm/candidate-d20ebd29/package/package-integrity.json",
+        "sha256": "2308c879f107b99d59a000a56e35575f95ca0cd638560cce6e9aa9bf18b416f5"
+      },
+      "archive": {
+        "alias": "/workspace/luci/artifacts/releases/0.5.0-d20ebd29-preserved-before-edd0cb12/luci-linux-amd64.tar.gz",
+        "aliasMetadataBefore": {
+          "mode": 511,
+          "uid": 1000,
+          "gid": 1000,
+          "size": 78,
+          "allocatedBytes": 4096,
+          "device": 27,
+          "inode": 672080,
+          "nlink": 1,
+          "mtimeNS": 1791539381908724296,
+          "atimeNS": 1791539381916724431,
+          "ctimeNS": 1791539381908724296,
+          "kind": "symlink"
+        },
+        "aliasLink": "/tmp/luci-retained-tools/archive-preservation-d20ebd29/luci-linux-amd64.tar.gz",
+        "path": "/tmp/luci-retained-tools/archive-preservation-d20ebd29/luci-linux-amd64.tar.gz",
+        "sha256": "5e4e0a2a380268f0d17cbbf2cf7cfb41f5aa64abc8f454864fdb7eb0bdb6400c",
+        "bytes": 69055452,
+        "metadataBefore": {
+          "mode": 384,
+          "uid": 1000,
+          "gid": 1000,
+          "size": 69055452,
+          "allocatedBytes": 69058560,
+          "device": 34,
+          "inode": 2773820,
+          "nlink": 1,
+          "mtimeNS": 1791539269594979006,
+          "atimeNS": 1791539381852783306,
+          "ctimeNS": 1791539381848723289,
+          "kind": "file"
+        }
+      },
+      "manifest": {
+        "path": "/workspace/.luci-tools/old-extracted-packages-retirement-plan/verification-v2/manifests/d20ebd29.json",
+        "sha256": "363ad3a2747a6451580f906003270089a7b0388099bc90b8b573c954752e9351",
+        "bytes": 1398925
+      },
+      "files": 956,
+      "directories": 538,
+      "logicalBytes": 123125969,
+      "allocatedFileBytes": 125505536,
+      "allocatedDirectoryBytes": 0,
+      "allContentsMatch": true,
+      "allOriginalMetadataStable": true,
+      "modeDifferenceCount": 537,
+      "mtimeDifferenceCount": 1484,
+      "ownershipDifferenceCount": 1493,
+      "implicitDirectories": [
+        "."
+      ],
+      "finishedAt": "2026-10-09T16:23:27.370476+00:00",
+      "elapsedSeconds": 1.441539486986585
+    },
+    {
+      "name": "edd0cb12",
+      "path": "/tmp/luci-retained-tools/package-0.5.0-edd0cb12",
+      "startedAt": "2026-10-09T16:23:27.370868+00:00",
+      "status": "passed",
+      "errors": [],
+      "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+      "provenance": {
+        "path": "/workspace/luci/artifacts/quality-swarm/candidate-edd0cb12/package/package-provenance.json",
+        "sha256": "5ea084d505e292d418b7ab9b2d3fa97d83a0510158fbb3ef8ef66096603aa5f6"
+      },
+      "integrity": {
+        "path": "/workspace/luci/artifacts/quality-swarm/candidate-edd0cb12/package/package-integrity.json",
+        "sha256": "2785616aebd647f61084b074cf20d28a58c8983c63bd6e0f8cb49d8ab870b1db"
+      },
+      "archive": {
+        "alias": "/workspace/luci/artifacts/releases/0.5.0-edd0cb12-preserved-before-5f4a966f/luci-linux-amd64.tar.gz",
+        "aliasMetadataBefore": {
+          "mode": 511,
+          "uid": 1000,
+          "gid": 1000,
+          "size": 78,
+          "allocatedBytes": 4096,
+          "device": 27,
+          "inode": 695708,
+          "nlink": 1,
+          "mtimeNS": 1791545936171781155,
+          "atimeNS": 1791545936187781434,
+          "ctimeNS": 1791545936171781155,
+          "kind": "symlink"
+        },
+        "aliasLink": "/tmp/luci-retained-tools/archive-preservation-edd0cb12/luci-linux-amd64.tar.gz",
+        "path": "/tmp/luci-retained-tools/archive-preservation-edd0cb12/luci-linux-amd64.tar.gz",
+        "sha256": "477d48fb6e6ce58f0acb801fbf6ba9046e8721a1f6fff9c1b5bc20a40b80d2c8",
+        "bytes": 69065419,
+        "metadataBefore": {
+          "mode": 384,
+          "uid": 1000,
+          "gid": 1000,
+          "size": 69065419,
+          "allocatedBytes": 69066752,
+          "device": 34,
+          "inode": 2857058,
+          "nlink": 1,
+          "mtimeNS": 1791545889534969222,
+          "atimeNS": 1791545936119550570,
+          "ctimeNS": 1791545936115780164,
+          "kind": "file"
+        }
+      },
+      "manifest": {
+        "path": "/workspace/.luci-tools/old-extracted-packages-retirement-plan/verification-v2/manifests/edd0cb12.json",
+        "sha256": "e359b8fcbf70294e1b6fd2b23dc850968ca54df4aa51ffc0dfb109ef5f27edeb",
+        "bytes": 1400725
+      },
+      "files": 957,
+      "directories": 538,
+      "logicalBytes": 123151282,
+      "allocatedFileBytes": 125538304,
+      "allocatedDirectoryBytes": 0,
+      "allContentsMatch": true,
+      "allOriginalMetadataStable": true,
+      "modeDifferenceCount": 537,
+      "mtimeDifferenceCount": 1490,
+      "ownershipDifferenceCount": 1494,
+      "implicitDirectories": [
+        "."
+      ],
+      "finishedAt": "2026-10-09T16:23:29.220545+00:00",
+      "elapsedSeconds": 1.8497133479686454
+    }
+  ],
+  "allocatedFileBytes": 859254784,
+  "logicalBytes": 838893329,
+  "kept": [
+    "b94ad37e",
+    "29931afc",
+    "5f4a966f"
+  ],
+  "operation": "read-only verification; no removal, archive mutation, runtime, Docker or private-state read"
+}

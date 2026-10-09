@@ -1,0 +1,24 @@
+{
+  "members": [
+    {
+      "path": "closure.json",
+      "bytes": 14385,
+      "sha256": "d26a41c62c7eeba7c6b912b1a300fa0a73e6fea5fc8644553cb60875e8a32b96"
+    },
+    {
+      "path": "failure.json",
+      "bytes": 5048,
+      "sha256": "ddc8370220ece5d253c552b6821e63e2380ee33862a9f61671286d69cd9b4239"
+    },
+    {
+      "path": "failure.png",
+      "bytes": 190645,
+      "sha256": "9c2625cfe5ca0f0b8546bad2f839965d90006efc8c587a014d4ca814f16e039b"
+    },
+    {
+      "path": "initial-settlement-confirmed.json",
+      "bytes": 2604,
+      "sha256": "7ccc5608c8befa70432d3730b06f893708ef76110f9f358b0d0ece6f75a2a6d1"
+    }
+  ]
+}

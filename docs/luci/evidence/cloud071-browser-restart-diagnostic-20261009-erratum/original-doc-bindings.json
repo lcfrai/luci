@@ -1,0 +1,14 @@
+{
+  "originalCapsule": "/workspace/.luci-tools/cloud071-browser-restart-diagnostic/publication/cloud071-browser-restart-diagnostic-20261009-final",
+  "originalFiles": {
+    "README.md": {
+      "bytes": 2701,
+      "sha256": "7881c2824b0b6269598bb2fa8a23d05d7f49c4873db400c3286592241e9c3c39"
+    },
+    "MANIFEST.json": {
+      "bytes": 5613,
+      "sha256": "1068a17a1952f08e84dad2c69db1f50bab76123bf03cec559a51f313f2ccaf21"
+    }
+  },
+  "change": "Documentation-only companion; original files untouched."
+}

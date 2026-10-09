@@ -1,0 +1,27 @@
+# Proposed focused renderer attribution — prepared, not executed
+
+The retained 29931afc run proves forced style/layout during some actual navigation handlers. The slowest switch's Home event contains an app-attributed 211.1 ms script with 91.8 ms forced style/layout. Its packaged offset maps only to React's discrete-event dispatch wrapper. This does not authorize a component change. No generic rerender, CSS, cache, or memoization change follows from that wrapper.
+
+Use one fresh, identity-bound, idle-only fixture and the exact original All projects → Open saved Define context journey in **eight existing switch rounds**, preserving the existing locators, actionability, saved-draft assertions and two-frame completion. Capture diagnostic results and failures for every attempted round. No 400-action trace run, workload, provider call, Docker Create/Start, arbitrary sleep, direct-rail substitution or latency acceptance. The instrumented short cohort is solely for caller attribution; its timings cannot replace the retained 100-switch/200-input metrics.
+
+Before navigation, create one Chromium CDP session. Query the available trace categories and retain the exact result/hash. Require `devtools.timeline`, `disabled-by-default-devtools.timeline`, `disabled-by-default-devtools.timeline.stack`, and `disabled-by-default-devtools.timeline.invalidationTracking`; add `blink.user_timing` for fixed numeric round markers. A category appearing in the category list is not proof a Layout event has a usable stack. Refuse attribution if no corresponding task/Layout stack is present. Do not enable CPU sampling, screenshots, network payloads, heap/object snapshots or broad profiler categories.
+
+Use a finite `recordUntilFull` trace buffer (32 MiB), `ReturnAsStream`, uncompressed JSON and periodic buffer-usage reporting. Stop at the first of eight completed rounds, 30 seconds, assertion/transport failure, or 75% reported buffer capacity. Enforce an independent absolute workflow deadline and bounded stop/read/close cleanup, with rejection handlers installed before starting each async operation. Request `Tracing.end` exactly once in `finally`; await `Tracing.tracingComplete` with a 5-second fence. Read its stream in bounded chunks with a 64 MiB total and 10-second drain limit, then `IO.close` and detach the session. Preserve all complete bytes and explicit incomplete/error metadata on failure. Any data-loss flag, missing completion, limit breach or malformed/truncated JSON rejects complete attribution; never silently discard events, retry a journey, normalize durations or call a partial trace a pass. Precise protocol-option support must be confirmed against the pinned Chromium/CDP schema in implementation.
+
+Treat the full trace as private even with these categories: stack URLs, script names and diagnostic arguments may identify private fixture data. Publish only a strict allowlist of task/event timestamps, durations, frame identifiers, invalidation reason enums and app-script hash + line/column/offset. Unknown sources remain unattributed. Keep original raw SHA, category/buffer configuration, requested/completed round counts, losses, stop reason and cleanup receipt. Join Layout events to the exact trusted Home/Open click intervals in the same renderer document/task; preserve all captured decisions and unmatched events. Invalidation is supporting context, not proof of cause by itself.
+
+A useful result identifies the nested layout-reading app callsite in the slow handler, permitting one focused source review and correction. A React wrapper alone, missing stack or framework-only stack is explicitly inconclusive; it does not justify another generic optimization.
+
+## Hidden maps, only after a bounded build window is granted
+
+From an isolated clean `29931afc5b31ae9b9bd7b8973a7e3fdb840609a3` desktop tree with pinned lock/dependencies:
+
+```sh
+npm run build -- --sourcemap hidden --outDir /workspace/.luci-tools/cloud032-renderer-299-maps-v1/dist
+```
+
+This frontend-only command retains the existing `prebuild` font preparation, `tsc`, Vite production plugins and minification; no config/product/package installation changes. Record actual Node/npm executable versions and hashes, dependency/tool versions, lockfile, configs, preparation script, frontend/public input manifests and relevant environment identities before/after. The captured package log establishes Vite 8.3.0, but its wrapper inherited the environment and did not record complete old Node/npm/environment identity. Keep that provenance gap explicit and sensitive environment values private.
+
+Accept a generated map **only if every emitted JavaScript path and byte SHA equals the captured package** `/tmp/luci-retained-tools/package-0.5.0-29931afc/web`, with identical JS inventory. Also compare index/CSS/public outputs; additions may only be `.map` files. No stripping, normalization or rewriting to obtain equality. Keep maps separate from installed web bytes and bind each to its generated-JS SHA. The Excalidraw plugin returns `map:null`, so complete chaining through that transform is not established. Hidden maps map positions; they cannot recover a missing nested stack.
+
+Preparation review covered `desktop/package.json`, `desktop/vite.config.ts`, `desktop/scripts/prepare-design-assets.mjs` and `scripts/build-release.sh`; no map build or runtime executed. This is a plan, not an already validated trace harness or ready-to-launch command.

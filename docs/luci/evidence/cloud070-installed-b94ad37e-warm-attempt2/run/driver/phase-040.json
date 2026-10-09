@@ -1,0 +1,1891 @@
+{
+  "kind": "scenario-failure-observation",
+  "step": "single-ui-restart",
+  "wire": {
+    "browser": {
+      "version": 1,
+      "failures": [],
+      "rows": [
+        {
+          "ordinal": 1,
+          "created": {
+            "wall": "2026-10-09T16:13:51.116Z",
+            "monotonicMs": 2129.599999964237
+          },
+          "open": {
+            "wall": "2026-10-09T16:13:51.129Z",
+            "monotonicMs": 2142.399999976158
+          },
+          "stdoutFrames": 71,
+          "stdoutBytes": 411,
+          "receivedFrames": 72,
+          "otherFrames": 0,
+          "exit": [
+            {
+              "reason": {
+                "kind": "exit-status",
+                "code": 0
+              },
+              "payload": {
+                "bytes": 13,
+                "sha256": "7146fc872b9a9dba5098f80e211bc7a8af3d9b2fbf8a3e5d9447db130fcaa3b2",
+                "knownStaticRepresentation": "exit status 0",
+                "unclassifiedTextRetained": false
+              },
+              "wall": "2026-10-09T16:13:54.527Z",
+              "monotonicMs": 5540.699999988079,
+              "sequence": 73
+            }
+          ],
+          "markers": {
+            "ready": {
+              "wall": "2026-10-09T16:13:51.868Z",
+              "monotonicMs": 2882,
+              "sequence": 68
+            },
+            "body": {
+              "wall": "2026-10-09T16:13:52.226Z",
+              "monotonicMs": 3239.5,
+              "sequence": 70
+            },
+            "first": {
+              "wall": "2026-10-09T16:13:54.526Z",
+              "monotonicMs": 5540.099999964237,
+              "sequence": 72
+            }
+          },
+          "closed": {
+            "code": 1000,
+            "wasClean": true,
+            "wall": "2026-10-09T16:13:54.529Z",
+            "monotonicMs": 5542.599999964237
+          },
+          "error": false,
+          "pending": 0,
+          "events": [
+            {
+              "sequence": 1,
+              "kind": "open",
+              "wall": "2026-10-09T16:13:51.129Z",
+              "monotonicMs": 2142.5
+            },
+            {
+              "sequence": 2,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.152Z",
+              "monotonicMs": 2165.599999964237,
+              "bytes": 42
+            },
+            {
+              "sequence": 3,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.152Z",
+              "monotonicMs": 2166.199999988079,
+              "bytes": 39
+            },
+            {
+              "sequence": 4,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.660Z",
+              "monotonicMs": 2673.7999999523163,
+              "bytes": 1
+            },
+            {
+              "sequence": 5,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.661Z",
+              "monotonicMs": 2674.5,
+              "bytes": 1
+            },
+            {
+              "sequence": 6,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.805Z",
+              "monotonicMs": 2818.899999976158,
+              "bytes": 1
+            },
+            {
+              "sequence": 7,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.823Z",
+              "monotonicMs": 2836.699999988079,
+              "bytes": 1
+            },
+            {
+              "sequence": 8,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.858Z",
+              "monotonicMs": 2872.099999964237,
+              "bytes": 1
+            },
+            {
+              "sequence": 9,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.859Z",
+              "monotonicMs": 2872.899999976158,
+              "bytes": 1
+            },
+            {
+              "sequence": 10,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.859Z",
+              "monotonicMs": 2873.199999988079,
+              "bytes": 1
+            },
+            {
+              "sequence": 11,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.860Z",
+              "monotonicMs": 2873.2999999523163,
+              "bytes": 1
+            },
+            {
+              "sequence": 12,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.860Z",
+              "monotonicMs": 2873.5,
+              "bytes": 1
+            },
+            {
+              "sequence": 13,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.860Z",
+              "monotonicMs": 2873.599999964237,
+              "bytes": 1
+            },
+            {
+              "sequence": 14,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.860Z",
+              "monotonicMs": 2873.699999988079,
+              "bytes": 1
+            },
+            {
+              "sequence": 15,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.860Z",
+              "monotonicMs": 2873.899999976158,
+              "bytes": 1
+            },
+            {
+              "sequence": 16,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.860Z",
+              "monotonicMs": 2874,
+              "bytes": 1
+            },
+            {
+              "sequence": 17,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.860Z",
+              "monotonicMs": 2874.199999988079,
+              "bytes": 1
+            },
+            {
+              "sequence": 18,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.861Z",
+              "monotonicMs": 2874.2999999523163,
+              "bytes": 1
+            },
+            {
+              "sequence": 19,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.861Z",
+              "monotonicMs": 2874.2999999523163,
+              "bytes": 1
+            },
+            {
+              "sequence": 20,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.861Z",
+              "monotonicMs": 2874.2999999523163,
+              "bytes": 1
+            },
+            {
+              "sequence": 21,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.861Z",
+              "monotonicMs": 2874.2999999523163,
+              "bytes": 1
+            },
+            {
+              "sequence": 22,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.861Z",
+              "monotonicMs": 2874.399999976158,
+              "bytes": 1
+            },
+            {
+              "sequence": 23,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.861Z",
+              "monotonicMs": 2874.5,
+              "bytes": 1
+            },
+            {
+              "sequence": 24,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.861Z",
+              "monotonicMs": 2874.7999999523163,
+              "bytes": 1
+            },
+            {
+              "sequence": 25,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.861Z",
+              "monotonicMs": 2874.899999976158,
+              "bytes": 1
+            },
+            {
+              "sequence": 26,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.861Z",
+              "monotonicMs": 2874.899999976158,
+              "bytes": 1
+            },
+            {
+              "sequence": 27,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.861Z",
+              "monotonicMs": 2874.899999976158,
+              "bytes": 1
+            },
+            {
+              "sequence": 28,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.862Z",
+              "monotonicMs": 2875.399999976158,
+              "bytes": 1
+            },
+            {
+              "sequence": 29,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.862Z",
+              "monotonicMs": 2875.399999976158,
+              "bytes": 3
+            },
+            {
+              "sequence": 30,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.862Z",
+              "monotonicMs": 2875.399999976158,
+              "bytes": 1
+            },
+            {
+              "sequence": 31,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.862Z",
+              "monotonicMs": 2875.599999964237,
+              "bytes": 1
+            },
+            {
+              "sequence": 32,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.862Z",
+              "monotonicMs": 2875.699999988079,
+              "bytes": 1
+            },
+            {
+              "sequence": 33,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.862Z",
+              "monotonicMs": 2875.7999999523163,
+              "bytes": 1
+            },
+            {
+              "sequence": 34,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.862Z",
+              "monotonicMs": 2875.899999976158,
+              "bytes": 1
+            },
+            {
+              "sequence": 35,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.862Z",
+              "monotonicMs": 2876.099999964237,
+              "bytes": 1
+            },
+            {
+              "sequence": 36,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.863Z",
+              "monotonicMs": 2876.2999999523163,
+              "bytes": 1
+            },
+            {
+              "sequence": 37,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.863Z",
+              "monotonicMs": 2876.2999999523163,
+              "bytes": 1
+            },
+            {
+              "sequence": 38,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.863Z",
+              "monotonicMs": 2876.5,
+              "bytes": 1
+            },
+            {
+              "sequence": 39,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.863Z",
+              "monotonicMs": 2876.599999964237,
+              "bytes": 1
+            },
+            {
+              "sequence": 40,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.863Z",
+              "monotonicMs": 2876.599999964237,
+              "bytes": 1
+            },
+            {
+              "sequence": 41,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.863Z",
+              "monotonicMs": 2876.699999988079,
+              "bytes": 1
+            },
+            {
+              "sequence": 42,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.863Z",
+              "monotonicMs": 2876.699999988079,
+              "bytes": 1
+            },
+            {
+              "sequence": 43,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.863Z",
+              "monotonicMs": 2876.899999976158,
+              "bytes": 1
+            },
+            {
+              "sequence": 44,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.863Z",
+              "monotonicMs": 2876.899999976158,
+              "bytes": 1
+            },
+            {
+              "sequence": 45,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.863Z",
+              "monotonicMs": 2876.899999976158,
+              "bytes": 1
+            },
+            {
+              "sequence": 46,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.863Z",
+              "monotonicMs": 2876.899999976158,
+              "bytes": 1
+            },
+            {
+              "sequence": 47,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.863Z",
+              "monotonicMs": 2876.899999976158,
+              "bytes": 1
+            },
+            {
+              "sequence": 48,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.863Z",
+              "monotonicMs": 2877.099999964237,
+              "bytes": 1
+            },
+            {
+              "sequence": 49,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.863Z",
+              "monotonicMs": 2877.099999964237,
+              "bytes": 1
+            },
+            {
+              "sequence": 50,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.863Z",
+              "monotonicMs": 2877.099999964237,
+              "bytes": 1
+            },
+            {
+              "sequence": 51,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.863Z",
+              "monotonicMs": 2877.2999999523163,
+              "bytes": 1
+            },
+            {
+              "sequence": 52,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.864Z",
+              "monotonicMs": 2877.599999964237,
+              "bytes": 1
+            },
+            {
+              "sequence": 53,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.864Z",
+              "monotonicMs": 2877.699999988079,
+              "bytes": 1
+            },
+            {
+              "sequence": 54,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.864Z",
+              "monotonicMs": 2877.899999976158,
+              "bytes": 1
+            },
+            {
+              "sequence": 55,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.864Z",
+              "monotonicMs": 2878,
+              "bytes": 1
+            },
+            {
+              "sequence": 56,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.864Z",
+              "monotonicMs": 2878.099999964237,
+              "bytes": 1
+            },
+            {
+              "sequence": 57,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.864Z",
+              "monotonicMs": 2878.199999988079,
+              "bytes": 1
+            },
+            {
+              "sequence": 58,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.864Z",
+              "monotonicMs": 2878.199999988079,
+              "bytes": 1
+            },
+            {
+              "sequence": 59,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.865Z",
+              "monotonicMs": 2878.2999999523163,
+              "bytes": 1
+            },
+            {
+              "sequence": 60,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.865Z",
+              "monotonicMs": 2878.2999999523163,
+              "bytes": 1
+            },
+            {
+              "sequence": 61,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.867Z",
+              "monotonicMs": 2881,
+              "bytes": 1
+            },
+            {
+              "sequence": 62,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.867Z",
+              "monotonicMs": 2881.099999964237,
+              "bytes": 1
+            },
+            {
+              "sequence": 63,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.868Z",
+              "monotonicMs": 2881.599999964237,
+              "bytes": 1
+            },
+            {
+              "sequence": 64,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.868Z",
+              "monotonicMs": 2881.699999988079,
+              "bytes": 1
+            },
+            {
+              "sequence": 65,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.868Z",
+              "monotonicMs": 2881.699999988079,
+              "bytes": 1
+            },
+            {
+              "sequence": 66,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.868Z",
+              "monotonicMs": 2881.7999999523163,
+              "bytes": 1
+            },
+            {
+              "sequence": 67,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.868Z",
+              "monotonicMs": 2882,
+              "bytes": 11
+            },
+            {
+              "sequence": 68,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:51.868Z",
+              "monotonicMs": 2882,
+              "bytes": 79
+            },
+            {
+              "sequence": 69,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:52.226Z",
+              "monotonicMs": 3239.2999999523163,
+              "bytes": 11
+            },
+            {
+              "sequence": 70,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:52.226Z",
+              "monotonicMs": 3239.599999964237,
+              "bytes": 66
+            },
+            {
+              "sequence": 71,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:52.226Z",
+              "monotonicMs": 3239.699999988079,
+              "bytes": 42
+            },
+            {
+              "sequence": 72,
+              "kind": "stdout",
+              "wall": "2026-10-09T16:13:54.526Z",
+              "monotonicMs": 5540.199999988079,
+              "bytes": 56
+            },
+            {
+              "sequence": 73,
+              "kind": "typed-exit",
+              "wall": "2026-10-09T16:13:54.528Z",
+              "monotonicMs": 5541.399999976158,
+              "reason": {
+                "kind": "exit-status",
+                "code": 0
+              },
+              "payload": {
+                "bytes": 13,
+                "sha256": "7146fc872b9a9dba5098f80e211bc7a8af3d9b2fbf8a3e5d9447db130fcaa3b2",
+                "knownStaticRepresentation": "exit status 0",
+                "unclassifiedTextRetained": false
+              }
+            },
+            {
+              "sequence": 74,
+              "kind": "close",
+              "wall": "2026-10-09T16:13:54.529Z",
+              "monotonicMs": 5542.599999964237,
+              "code": 1000,
+              "wasClean": true
+            }
+          ]
+        }
+      ]
+    },
+    "sent": [
+      {
+        "ordinal": 1,
+        "stdinFrames": 205,
+        "stdinBytes": 205,
+        "resizeFrames": 1,
+        "otherFrames": 0,
+        "socketErrors": [],
+        "sendEvents": [
+          {
+            "wall": "2026-10-09T16:13:51.137Z",
+            "monotonicMs": 44452.714454,
+            "kind": "resize",
+            "bytes": 4
+          },
+          {
+            "wall": "2026-10-09T16:13:51.652Z",
+            "monotonicMs": 44967.117154,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.656Z",
+            "monotonicMs": 44971.124013,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.664Z",
+            "monotonicMs": 44979.154107,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.667Z",
+            "monotonicMs": 44982.258726,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.673Z",
+            "monotonicMs": 44988.075008,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.678Z",
+            "monotonicMs": 44993.365577,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.682Z",
+            "monotonicMs": 44997.198864,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.685Z",
+            "monotonicMs": 45000.005294,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.687Z",
+            "monotonicMs": 45002.052159,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.689Z",
+            "monotonicMs": 45004.918329,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.691Z",
+            "monotonicMs": 45006.568566,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.694Z",
+            "monotonicMs": 45009.917955,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.696Z",
+            "monotonicMs": 45011.867919,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.699Z",
+            "monotonicMs": 45014.273925,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.700Z",
+            "monotonicMs": 45015.732549,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.703Z",
+            "monotonicMs": 45018.484056,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.708Z",
+            "monotonicMs": 45023.19711,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.710Z",
+            "monotonicMs": 45024.939536,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.718Z",
+            "monotonicMs": 45033.729725,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.722Z",
+            "monotonicMs": 45037.687195,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.728Z",
+            "monotonicMs": 45043.474678,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.730Z",
+            "monotonicMs": 45045.579656,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.732Z",
+            "monotonicMs": 45047.532794,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.735Z",
+            "monotonicMs": 45050.196975,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.737Z",
+            "monotonicMs": 45052.709066,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.743Z",
+            "monotonicMs": 45058.909256,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.749Z",
+            "monotonicMs": 45064.224577,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.751Z",
+            "monotonicMs": 45066.911267,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.755Z",
+            "monotonicMs": 45070.401387,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.761Z",
+            "monotonicMs": 45076.394891,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.763Z",
+            "monotonicMs": 45078.766321,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.766Z",
+            "monotonicMs": 45081.423766,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.767Z",
+            "monotonicMs": 45082.800536,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.769Z",
+            "monotonicMs": 45084.333607,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.770Z",
+            "monotonicMs": 45085.47706,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.774Z",
+            "monotonicMs": 45089.793256,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.777Z",
+            "monotonicMs": 45092.271967,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.779Z",
+            "monotonicMs": 45094.336118,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.781Z",
+            "monotonicMs": 45096.143717,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.783Z",
+            "monotonicMs": 45097.935678,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.785Z",
+            "monotonicMs": 45100.706765,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.787Z",
+            "monotonicMs": 45102.371985,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.792Z",
+            "monotonicMs": 45107.503654,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.794Z",
+            "monotonicMs": 45109.582813,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.796Z",
+            "monotonicMs": 45111.681527,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.799Z",
+            "monotonicMs": 45114.004448,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.800Z",
+            "monotonicMs": 45115.872914,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.803Z",
+            "monotonicMs": 45118.57054,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.804Z",
+            "monotonicMs": 45119.251726,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.807Z",
+            "monotonicMs": 45122.427013,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.809Z",
+            "monotonicMs": 45124.067395,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.811Z",
+            "monotonicMs": 45126.666252,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.814Z",
+            "monotonicMs": 45129.276917,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.814Z",
+            "monotonicMs": 45129.90915,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.816Z",
+            "monotonicMs": 45131.461029,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.819Z",
+            "monotonicMs": 45134.106937,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.821Z",
+            "monotonicMs": 45136.476774,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.825Z",
+            "monotonicMs": 45141.018193,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.829Z",
+            "monotonicMs": 45144.698581,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.834Z",
+            "monotonicMs": 45149.022403,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.835Z",
+            "monotonicMs": 45150.6761,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.839Z",
+            "monotonicMs": 45154.50444,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.849Z",
+            "monotonicMs": 45164.56557,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.853Z",
+            "monotonicMs": 45168.057428,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.964Z",
+            "monotonicMs": 45279.077316,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.965Z",
+            "monotonicMs": 45280.572199,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.967Z",
+            "monotonicMs": 45282.270959,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.969Z",
+            "monotonicMs": 45284.175805,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.970Z",
+            "monotonicMs": 45285.463702,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.973Z",
+            "monotonicMs": 45288.76299,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.976Z",
+            "monotonicMs": 45291.032325,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.979Z",
+            "monotonicMs": 45293.927874,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.981Z",
+            "monotonicMs": 45296.302964,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.984Z",
+            "monotonicMs": 45299.356307,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.986Z",
+            "monotonicMs": 45300.930869,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.987Z",
+            "monotonicMs": 45302.50036,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.992Z",
+            "monotonicMs": 45307.084625,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.994Z",
+            "monotonicMs": 45309.140013,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.996Z",
+            "monotonicMs": 45311.005655,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:51.998Z",
+            "monotonicMs": 45313.753646,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.000Z",
+            "monotonicMs": 45315.874302,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.002Z",
+            "monotonicMs": 45317.900356,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.006Z",
+            "monotonicMs": 45321.115402,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.010Z",
+            "monotonicMs": 45325.520051,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.014Z",
+            "monotonicMs": 45329.464576,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.017Z",
+            "monotonicMs": 45332.006648,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.020Z",
+            "monotonicMs": 45335.003054,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.029Z",
+            "monotonicMs": 45344.625273,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.030Z",
+            "monotonicMs": 45345.506701,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.033Z",
+            "monotonicMs": 45348.232089,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.035Z",
+            "monotonicMs": 45350.719463,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.038Z",
+            "monotonicMs": 45353.236301,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.042Z",
+            "monotonicMs": 45357.568776,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.044Z",
+            "monotonicMs": 45359.304267,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.046Z",
+            "monotonicMs": 45361.323039,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.049Z",
+            "monotonicMs": 45364.308279,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.051Z",
+            "monotonicMs": 45366.593068,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.053Z",
+            "monotonicMs": 45368.853459,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.057Z",
+            "monotonicMs": 45372.505499,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.059Z",
+            "monotonicMs": 45374.901896,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.061Z",
+            "monotonicMs": 45376.069661,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.063Z",
+            "monotonicMs": 45378.751839,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.065Z",
+            "monotonicMs": 45380.206767,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.067Z",
+            "monotonicMs": 45382.416522,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.069Z",
+            "monotonicMs": 45384.407829,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.073Z",
+            "monotonicMs": 45388.068016,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.076Z",
+            "monotonicMs": 45391.871578,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.078Z",
+            "monotonicMs": 45393.481044,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.081Z",
+            "monotonicMs": 45396.032891,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.082Z",
+            "monotonicMs": 45397.454994,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.083Z",
+            "monotonicMs": 45398.77931,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.086Z",
+            "monotonicMs": 45401.108931,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.088Z",
+            "monotonicMs": 45403.247524,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.090Z",
+            "monotonicMs": 45405.679009,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.092Z",
+            "monotonicMs": 45407.074783,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.093Z",
+            "monotonicMs": 45408.630307,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.095Z",
+            "monotonicMs": 45410.21135,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.097Z",
+            "monotonicMs": 45412.421532,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.099Z",
+            "monotonicMs": 45414.302467,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.116Z",
+            "monotonicMs": 45430.973795,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.120Z",
+            "monotonicMs": 45435.240631,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.152Z",
+            "monotonicMs": 45467.692918,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.154Z",
+            "monotonicMs": 45469.456707,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.157Z",
+            "monotonicMs": 45472.650751,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.159Z",
+            "monotonicMs": 45474.886686,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.162Z",
+            "monotonicMs": 45477.369033,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.165Z",
+            "monotonicMs": 45480.023704,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.166Z",
+            "monotonicMs": 45481.764708,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.168Z",
+            "monotonicMs": 45483.710311,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.170Z",
+            "monotonicMs": 45485.654947,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.173Z",
+            "monotonicMs": 45488.366273,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.175Z",
+            "monotonicMs": 45490.462468,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.177Z",
+            "monotonicMs": 45492.116821,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.178Z",
+            "monotonicMs": 45493.916429,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.180Z",
+            "monotonicMs": 45495.626291,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.182Z",
+            "monotonicMs": 45497.220775,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.185Z",
+            "monotonicMs": 45500.201728,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.187Z",
+            "monotonicMs": 45502.053163,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.189Z",
+            "monotonicMs": 45504.194285,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.191Z",
+            "monotonicMs": 45506.631709,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.194Z",
+            "monotonicMs": 45509.358749,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.196Z",
+            "monotonicMs": 45511.663298,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.209Z",
+            "monotonicMs": 45524.005631,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.212Z",
+            "monotonicMs": 45526.966854,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:52.215Z",
+            "monotonicMs": 45530.09557,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.360Z",
+            "monotonicMs": 47675.86722,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.363Z",
+            "monotonicMs": 47678.120496,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.364Z",
+            "monotonicMs": 47679.30388,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.366Z",
+            "monotonicMs": 47681.484191,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.368Z",
+            "monotonicMs": 47683.184434,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.369Z",
+            "monotonicMs": 47684.780785,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.373Z",
+            "monotonicMs": 47688.216238,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.376Z",
+            "monotonicMs": 47691.588431,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.380Z",
+            "monotonicMs": 47695.258703,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.382Z",
+            "monotonicMs": 47696.990418,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.383Z",
+            "monotonicMs": 47698.24596,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.384Z",
+            "monotonicMs": 47699.660166,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.386Z",
+            "monotonicMs": 47701.408471,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.389Z",
+            "monotonicMs": 47704.749207,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.394Z",
+            "monotonicMs": 47709.651356,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.396Z",
+            "monotonicMs": 47711.622982,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.399Z",
+            "monotonicMs": 47714.182135,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.403Z",
+            "monotonicMs": 47718.068001,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.405Z",
+            "monotonicMs": 47720.744621,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.409Z",
+            "monotonicMs": 47724.314511,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.411Z",
+            "monotonicMs": 47726.012095,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.412Z",
+            "monotonicMs": 47727.717425,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.414Z",
+            "monotonicMs": 47729.32598,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.415Z",
+            "monotonicMs": 47730.913613,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.418Z",
+            "monotonicMs": 47733.245818,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.419Z",
+            "monotonicMs": 47734.68663,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.423Z",
+            "monotonicMs": 47738.851297,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.426Z",
+            "monotonicMs": 47741.178715,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.428Z",
+            "monotonicMs": 47743.075503,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.430Z",
+            "monotonicMs": 47745.395715,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.432Z",
+            "monotonicMs": 47747.431939,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.434Z",
+            "monotonicMs": 47749.492836,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.435Z",
+            "monotonicMs": 47750.428816,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.437Z",
+            "monotonicMs": 47752.537645,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.440Z",
+            "monotonicMs": 47755.176232,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.442Z",
+            "monotonicMs": 47757.181214,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.444Z",
+            "monotonicMs": 47759.105034,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.448Z",
+            "monotonicMs": 47763.621652,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.450Z",
+            "monotonicMs": 47764.935121,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.451Z",
+            "monotonicMs": 47766.472008,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.453Z",
+            "monotonicMs": 47768.027432,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.454Z",
+            "monotonicMs": 47769.088782,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.457Z",
+            "monotonicMs": 47772.495136,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.459Z",
+            "monotonicMs": 47774.785438,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.462Z",
+            "monotonicMs": 47777.643666,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.464Z",
+            "monotonicMs": 47779.474526,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.467Z",
+            "monotonicMs": 47782.078205,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.470Z",
+            "monotonicMs": 47784.968641,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.473Z",
+            "monotonicMs": 47788.567045,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.476Z",
+            "monotonicMs": 47791.49284,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.479Z",
+            "monotonicMs": 47794.722102,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.482Z",
+            "monotonicMs": 47797.424255,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.486Z",
+            "monotonicMs": 47801.677481,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.492Z",
+            "monotonicMs": 47807.59835,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.495Z",
+            "monotonicMs": 47810.075128,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.497Z",
+            "monotonicMs": 47811.952142,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.501Z",
+            "monotonicMs": 47816.330807,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.506Z",
+            "monotonicMs": 47821.118603,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.511Z",
+            "monotonicMs": 47826.893477,
+            "kind": "stdin",
+            "bytes": 1
+          },
+          {
+            "wall": "2026-10-09T16:13:54.516Z",
+            "monotonicMs": 47831.726762,
+            "kind": "stdin",
+            "bytes": 1
+          }
+        ]
+      }
+    ],
+    "protocol": {
+      "setupComplete": true,
+      "rows": [
+        {
+          "ordinal": 1,
+          "created": {
+            "wall": "2026-10-09T16:13:51.130Z",
+            "monotonicMs": 44444.999691
+          },
+          "handshakes": [
+            {
+              "wall": "2026-10-09T16:13:51.138Z",
+              "monotonicMs": 44452.938101,
+              "available": true,
+              "status": 101,
+              "upgradeWebSocket": true,
+              "connectionUpgrade": true,
+              "protocolPresent": false,
+              "protocolEmpty": false,
+              "extensionPresent": false,
+              "perMessageDeflate": false,
+              "headerValuesRetained": false
+            }
+          ],
+          "errors": [],
+          "closeFrames": [],
+          "closed": {
+            "wall": "2026-10-09T16:13:54.531Z",
+            "monotonicMs": 47845.986194
+          }
+        }
+      ],
+      "failures": [],
+      "scope": "Passive exact-path CDP observation only; request identifiers and URLs remain private. No stdout frame capture, direction/causality inference or performance claim."
+    },
+    "observerFailure": null
+  },
+  "ui": {
+    "label": "c054-terminal-fixture — exited",
+    "footer": "/bin/bash · 1m · ended",
+    "overlay": null,
+    "termPresent": true,
+    "restartCount": 1
+  },
+  "passive": true,
+  "observedAt": "2026-10-09T16:14:14.854Z"
+}

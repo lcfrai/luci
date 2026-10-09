@@ -1,0 +1,19 @@
+{
+  "sourceCommit": "b94ad37e53181e360ac8910ee980570de622728c",
+  "scope": "controlled-source",
+  "observedAt": "2026-10-09T16:02:31.663083+00:00",
+  "controlledChecksWereRunOn": "original29931afc with exact C070 overlay, not a direct rerun at this commit",
+  "compiledRepositorySourceCount": 944,
+  "compiledManifestSHA256": "33db8aeb71b0b3e36f3f4d45f86b104bf671a9b6f65f71ce004b0d13f6eafb1f",
+  "allCapturedRepositoryInputsMatch": true,
+  "unrelatedReservationCase": "TestManualLeaseBackgroundReopenRetiresConfirmedAbsenceWithoutAdmission",
+  "controlledResultSHA256": "f56cb82ea4b14427492ecce688659a4c7d4da5453976ee6d58654d7c3f7469f0",
+  "runtimeInputCount": 106,
+  "runtimeSourcesMatch": true,
+  "image": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+  "imageProvenanceSHA256": "a6fb7d93c1ce81b726923a155e44a5adbd53ed6da1198bafb76e4a82da009331",
+  "limitations": [
+    "External module cache file contents are not individually bound.",
+    "No matching installed or Windows execution from this parity check."
+  ]
+}

@@ -1,0 +1,600 @@
+{
+  "version": 1,
+  "passed": false,
+  "mode": "installed-CLOUD-054-interactive-shell",
+  "startedAt": "2026-10-09T16:07:39.532Z",
+  "sourceCommit": "b94ad37e53181e360ac8910ee980570de622728c",
+  "helperSourceCommit": "b94ad37e53181e360ac8910ee980570de622728c",
+  "helperBindings": [
+    {
+      "path": "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs",
+      "commit": "b94ad37e53181e360ac8910ee980570de622728c",
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "bytes": 4176
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/acceptance-startup.mjs",
+      "commit": "b94ad37e53181e360ac8910ee980570de622728c",
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "bytes": 4637
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/provenance.mjs",
+      "commit": "b94ad37e53181e360ac8910ee980570de622728c",
+      "sha256": "6b41954f56052d167954018018c79f561722a80497856d135d403904bfd9c08e",
+      "bytes": 4889
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/fixture-guards.mjs",
+      "commit": "b94ad37e53181e360ac8910ee980570de622728c",
+      "sha256": "5bb86009d73cdd158637a716c4a3a348edb30337e9e2a8cd93ebef82773e1b35",
+      "bytes": 11868
+    }
+  ],
+  "launcherSHA256": "b83db056209c27bdc0dac5df9805cdb4c87dee817f0bda5130644261cbad02e5",
+  "scenarioSHA256": "bee434c538872680e4abd652022041b2516b63c4dddb79e9910efe16a3fa0742",
+  "apiActions": [
+    {
+      "method": "POST",
+      "path": "/v1/auth/bootstrap",
+      "status": 201,
+      "at": "2026-10-09T16:07:44.534Z"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/setup/git/identity",
+      "status": 200,
+      "at": "2026-10-09T16:07:44.553Z"
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/admin/policy",
+      "status": 200,
+      "at": "2026-10-09T16:07:44.558Z"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/product/swarm-scheduler",
+      "status": 200,
+      "at": "2026-10-09T16:07:44.566Z"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/product/swarm-scheduler",
+      "status": 200,
+      "at": "2026-10-09T16:07:44.579Z"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/product/projects",
+      "status": 201,
+      "at": "2026-10-09T16:07:44.591Z"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/projects/p-88ec2a93/branches",
+      "status": 200,
+      "at": "2026-10-09T16:07:44.610Z"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/projects/p-88ec2a93/worktrees?branchId=b-88ec2a93-main-0d6e4079",
+      "status": 200,
+      "at": "2026-10-09T16:07:44.620Z"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/machines",
+      "status": 200,
+      "at": "2026-10-09T16:07:44.625Z"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/harnesses",
+      "status": 200,
+      "at": "2026-10-09T16:07:44.629Z"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/product/swarm-scheduler",
+      "status": 200,
+      "at": "2026-10-09T16:07:44.636Z"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/sessions",
+      "status": 409,
+      "at": "2026-10-09T16:07:44.896Z",
+      "problem": {
+        "version": 1,
+        "representation": "allowlisted-transformed-problem",
+        "status": 409,
+        "expectedStatus": 201,
+        "originalBodySHA256": "497a5046e4083669e1a5bdcec47710398a1c9a99a5c9432c39bd2150da9ad913",
+        "originalBodyBytes": 153,
+        "originalBodyRetained": false,
+        "parsedJSON": true,
+        "problemShape": true,
+        "error": "conflict",
+        "message": "Available memory cannot preserve the configured headroom for another worker.",
+        "messageOmitted": false,
+        "details": {
+          "reasonCode": "memory_pressure"
+        },
+        "omittedDetailsCount": 0,
+        "numericAdmissionOperands": "unavailable-in-this-POST-problem-schema"
+      }
+    }
+  ],
+  "browserMutations": [],
+  "phases": [
+    {
+      "kind": "stage",
+      "stage": "controller-start",
+      "observedAt": "2026-10-09T16:07:43.583Z"
+    },
+    {
+      "kind": "stage",
+      "stage": "shell-create",
+      "observedAt": "2026-10-09T16:07:44.629Z"
+    },
+    {
+      "kind": "admission-advisory",
+      "label": "initial-shell",
+      "rootFreeBytes": 7173410816,
+      "policy": {
+        "maxActive": 1,
+        "maxPerProject": 1,
+        "headroomPercent": 25,
+        "minHeadroomMiB": 2048,
+        "diskReserveMiB": 2048
+      },
+      "resources": {
+        "host": {
+          "observedAt": "2026-10-09T16:07:43.646122115Z",
+          "status": "partial",
+          "platform": "linux",
+          "scope": "control-plane-host",
+          "memory": {
+            "physicalTotalBytes": 35743784960,
+            "physicalAvailableBytes": 17465810944,
+            "effectiveTotalBytes": 34359738368,
+            "effectiveAvailableBytes": 9222864896,
+            "limitSource": "physical-and-control-plane-cgroup-v2",
+            "commitLimitBytes": null,
+            "commitAvailableBytes": null
+          },
+          "cpu": {
+            "logicalProcessors": 5,
+            "effectiveMillis": 4000,
+            "limitSource": "process-affinity-and-control-plane-cgroup-v2",
+            "utilizationPercent": null,
+            "pressureSomeAvg10": null,
+            "memoryPressureSomeAvg10": null,
+            "ioPressureSomeAvg10": null
+          },
+          "disks": [
+            {
+              "observedAt": "2026-10-09T16:07:43.645013003Z",
+              "basis": "native-host-volume",
+              "role": "projects",
+              "totalBytes": 33770192896,
+              "availableBytes": 7173562368
+            },
+            {
+              "observedAt": "2026-10-09T16:07:43.645015927Z",
+              "basis": "native-host-volume",
+              "role": "state",
+              "totalBytes": 33770192896,
+              "availableBytes": 7173562368
+            }
+          ],
+          "processes": [
+            {
+              "pid": 2513371,
+              "role": "control-plane",
+              "startId": "linux-ticks:30813282",
+              "residentBytes": 44040192,
+              "privateCommitBytes": null
+            }
+          ],
+          "unavailable": [
+            {
+              "metric": "cpu.pressureSomeAvg10",
+              "reason": "Linux pressure observation is unavailable"
+            },
+            {
+              "metric": "memory.pressureSomeAvg10",
+              "reason": "Linux pressure observation is unavailable"
+            },
+            {
+              "metric": "io.pressureSomeAvg10",
+              "reason": "Linux pressure observation is unavailable"
+            },
+            {
+              "metric": "cpu.utilizationPercent",
+              "reason": "two increasing CPU observations are required"
+            }
+          ]
+        },
+        "execution": {
+          "cpuMillis": 5000,
+          "hostStorage": null,
+          "observedAt": "2026-10-09T16:07:43.676187718Z",
+          "scope": "execution-daemon",
+          "status": "ready",
+          "totalMemoryBytes": 35743784960,
+          "unavailable": []
+        },
+        "reservations": {
+          "status": "unavailable"
+        }
+      },
+      "ledger": {
+        "present": false,
+        "leases": [],
+        "checks": [],
+        "fences": []
+      },
+      "containers": [],
+      "authority": "Read-only advisory; actual product atomic CPU/memory/disk/lease admission is unchanged and authoritative.",
+      "observedAt": "2026-10-09T16:07:44.868Z"
+    },
+    {
+      "kind": "http-problem-diagnostic",
+      "stage": "shell-create",
+      "method": "POST",
+      "path": "/v1/sessions",
+      "problem": {
+        "version": 1,
+        "representation": "allowlisted-transformed-problem",
+        "status": 409,
+        "expectedStatus": 201,
+        "originalBodySHA256": "497a5046e4083669e1a5bdcec47710398a1c9a99a5c9432c39bd2150da9ad913",
+        "originalBodyBytes": 153,
+        "originalBodyRetained": false,
+        "parsedJSON": true,
+        "problemShape": true,
+        "error": "conflict",
+        "message": "Available memory cannot preserve the configured headroom for another worker.",
+        "messageOmitted": false,
+        "details": {
+          "reasonCode": "memory_pressure"
+        },
+        "omittedDetailsCount": 0,
+        "numericAdmissionOperands": "unavailable-in-this-POST-problem-schema"
+      },
+      "observedAt": "2026-10-09T16:07:44.897Z"
+    },
+    {
+      "kind": "private-transport-errors-settled",
+      "observation": {
+        "version": 1,
+        "scope": "Private browser error text records only; no URLs, headers, stdout or credentials deliberately collected; arbitrary error strings may themselves contain secrets and remain private.",
+        "rows": 0,
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "maxBytes": 131072,
+        "maxTextBytes": 2048,
+        "maxRows": 32,
+        "closed": true,
+        "failed": false,
+        "failures": [],
+        "fsyncSucceeded": true,
+        "identityVerified": true,
+        "closeAcknowledged": true,
+        "passed": true
+      },
+      "observedAt": "2026-10-09T16:07:46.632Z"
+    },
+    {
+      "kind": "controller-log-settled",
+      "log": {
+        "version": 1,
+        "scope": "Attached controller stderr only; private exact bounded prefix; hashes cover observed bytes, not unobserved process output",
+        "attached": true,
+        "endObserved": true,
+        "closeObserved": false,
+        "errorObserved": false,
+        "settlementTimedOut": false,
+        "hashCoverageComplete": true,
+        "observedBytes": 1811,
+        "retainedBytes": 1811,
+        "truncated": false,
+        "retentionClosedEarly": false,
+        "closed": true,
+        "fsyncSucceeded": true,
+        "identityVerified": true,
+        "completeLines": 5,
+        "trailingPartialLine": false,
+        "oversizedLines": 0,
+        "unprojectedLines": 5,
+        "matchingLines": 0,
+        "omittedRelayRows": 0,
+        "relayRows": [],
+        "failures": [],
+        "observedSHA256": "4f7047b809b9544e32d2f7fba55f1c5ed6320b8f1dbb3c250b2e30490d389463",
+        "completeStreamSHA256": "4f7047b809b9544e32d2f7fba55f1c5ed6320b8f1dbb3c250b2e30490d389463",
+        "retainedPrefixSHA256": "4f7047b809b9544e32d2f7fba55f1c5ed6320b8f1dbb3c250b2e30490d389463",
+        "maxRetainedBytes": 262144,
+        "maxLineBytes": 16384,
+        "maxRelayRows": 16,
+        "passed": true
+      },
+      "observedAt": "2026-10-09T16:07:46.673Z"
+    }
+  ],
+  "cleanup": [],
+  "scope": "One actual shell Create, one UI same-ID Restart, two natural terminal exits. No model/provider calls, no performance/Windows/permission-revocation claim. Direct Docker transport: no proxy wire count or unknown-Create fence/drain claim.",
+  "limitations": [
+    "Exclusive empty Linux daemon only; not suitable for the shared Windows daemon.",
+    "No app-owned process census outside exact retained identities and fixture environment matches; unreadable foreign environments and observed zombies are reported.",
+    "If any mutation loses its response, remote settlement is unverified and acceptance fails even if inventory later becomes empty.",
+    "Failed-fixture immutable-ID removal does not release or repair private product ledgers."
+  ],
+  "packageIntegrity": {
+    "verifiedMembers": 963,
+    "allMembersMatch": true
+  },
+  "package": {
+    "sourceCommit": "b94ad37e53181e360ac8910ee980570de622728c",
+    "binarySHA256": "c9816ced2db72fb508ccbcb2880c55f36049ca0d581c66fafc8a40bd65ca5a66",
+    "webIndexSHA256": "f99796b77f74be2fed35d0fa5b0dbf6729b6552905831e402f9a6515a231825b",
+    "archiveSHA256": "4a5ab15e2cbb926f6ad70609507429641dc65ee4719ef462c50df96f04cffe0f"
+  },
+  "daemon": {
+    "id": "ff40514f-d7cc-4ee7-8a1a-1cfafaeaf259",
+    "os": "linux",
+    "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+    "initialContainers": [],
+    "initialVolumes": []
+  },
+  "policy": {
+    "allowHostCommands": false,
+    "allowCloudProvisioning": false,
+    "allowPublicPublishing": false,
+    "maxSessionsPerUser": 1,
+    "maxConcurrentChecksPerUser": 1,
+    "sessionMemoryMiB": 1024,
+    "sessionCPUMillis": 1000,
+    "checkMemoryMiB": 1024,
+    "checkCPUMillis": 1000,
+    "monthlyBudgetUsd": 30,
+    "allowedHarnesses": [
+      "claude-code",
+      "codex",
+      "opencode",
+      "shell"
+    ],
+    "backingMode": "docker",
+    "instanceName": "Luci"
+  },
+  "failedStage": "shell-create",
+  "failure": {
+    "name": "AssertionError",
+    "code": "ERR_ASSERTION",
+    "message": "Unexpected HTTP status 409 for POST /v1/sessions\n\n409 !== 201\n"
+  },
+  "privateTransportErrors": {
+    "version": 1,
+    "scope": "Private browser error text records only; no URLs, headers, stdout or credentials deliberately collected; arbitrary error strings may themselves contain secrets and remain private.",
+    "rows": 0,
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "maxBytes": 131072,
+    "maxTextBytes": 2048,
+    "maxRows": 32,
+    "closed": true,
+    "failed": false,
+    "failures": [],
+    "fsyncSucceeded": true,
+    "identityVerified": true,
+    "closeAcknowledged": true,
+    "passed": true
+  },
+  "controllerLog": {
+    "version": 1,
+    "scope": "Attached controller stderr only; private exact bounded prefix; hashes cover observed bytes, not unobserved process output",
+    "attached": true,
+    "endObserved": true,
+    "closeObserved": false,
+    "errorObserved": false,
+    "settlementTimedOut": false,
+    "hashCoverageComplete": true,
+    "observedBytes": 1811,
+    "retainedBytes": 1811,
+    "truncated": false,
+    "retentionClosedEarly": false,
+    "closed": true,
+    "fsyncSucceeded": true,
+    "identityVerified": true,
+    "completeLines": 5,
+    "trailingPartialLine": false,
+    "oversizedLines": 0,
+    "unprojectedLines": 5,
+    "matchingLines": 0,
+    "omittedRelayRows": 0,
+    "relayRows": [],
+    "failures": [],
+    "observedSHA256": "4f7047b809b9544e32d2f7fba55f1c5ed6320b8f1dbb3c250b2e30490d389463",
+    "completeStreamSHA256": "4f7047b809b9544e32d2f7fba55f1c5ed6320b8f1dbb3c250b2e30490d389463",
+    "retainedPrefixSHA256": "4f7047b809b9544e32d2f7fba55f1c5ed6320b8f1dbb3c250b2e30490d389463",
+    "maxRetainedBytes": 262144,
+    "maxLineBytes": 16384,
+    "maxRelayRows": 16,
+    "passed": true
+  },
+  "final": {
+    "processes": {
+      "controller": [],
+      "browser": []
+    },
+    "knownProcessIdentities": {
+      "controller": [
+        {
+          "pid": 2513371,
+          "start": "30813282",
+          "parent": 2513188,
+          "status": "S"
+        }
+      ],
+      "browser": []
+    },
+    "unreadableEnvironmentObservations": 66283,
+    "startup": [
+      {
+        "name": "controller",
+        "state": "closed",
+        "late": false,
+        "closeTimedOut": false
+      }
+    ],
+    "containers": [],
+    "volumes": "",
+    "ledger": {
+      "present": true,
+      "sha256": "c0022f0995797c072d8097729ea90e74487bcefb911576c91e4af0665403a49e",
+      "bytes": 25,
+      "leases": [],
+      "checks": [],
+      "fences": [],
+      "checkFences": []
+    }
+  },
+  "cleanupPhases": [
+    {
+      "name": "browser",
+      "status": "completed",
+      "result": {
+        "identities": [],
+        "final": [],
+        "unreadableEnvironmentObservations": 26512
+      }
+    },
+    {
+      "name": "supported-session-stop",
+      "status": "completed",
+      "result": {
+        "skipped": true
+      }
+    },
+    {
+      "name": "controller",
+      "status": "completed",
+      "result": {
+        "identities": [
+          {
+            "pid": 2513371,
+            "start": "30813282",
+            "parent": 2513188,
+            "status": "S"
+          }
+        ],
+        "final": [
+          {
+            "pid": 2513371,
+            "start": "30813282",
+            "parent": 2513188,
+            "status": "Z"
+          }
+        ],
+        "unreadableEnvironmentObservations": 53027
+      }
+    },
+    {
+      "name": "private-controller-log",
+      "status": "completed",
+      "result": {
+        "version": 1,
+        "scope": "Attached controller stderr only; private exact bounded prefix; hashes cover observed bytes, not unobserved process output",
+        "attached": true,
+        "endObserved": true,
+        "closeObserved": false,
+        "errorObserved": false,
+        "settlementTimedOut": false,
+        "hashCoverageComplete": true,
+        "observedBytes": 1811,
+        "retainedBytes": 1811,
+        "truncated": false,
+        "retentionClosedEarly": false,
+        "closed": true,
+        "fsyncSucceeded": true,
+        "identityVerified": true,
+        "completeLines": 5,
+        "trailingPartialLine": false,
+        "oversizedLines": 0,
+        "unprojectedLines": 5,
+        "matchingLines": 0,
+        "omittedRelayRows": 0,
+        "relayRows": [],
+        "failures": [],
+        "observedSHA256": "4f7047b809b9544e32d2f7fba55f1c5ed6320b8f1dbb3c250b2e30490d389463",
+        "completeStreamSHA256": "4f7047b809b9544e32d2f7fba55f1c5ed6320b8f1dbb3c250b2e30490d389463",
+        "retainedPrefixSHA256": "4f7047b809b9544e32d2f7fba55f1c5ed6320b8f1dbb3c250b2e30490d389463",
+        "maxRetainedBytes": 262144,
+        "maxLineBytes": 16384,
+        "maxRelayRows": 16,
+        "passed": true
+      }
+    },
+    {
+      "name": "exact-container-leftovers",
+      "status": "completed",
+      "result": {
+        "containers": [],
+        "ledger": {
+          "present": true,
+          "sha256": "c0022f0995797c072d8097729ea90e74487bcefb911576c91e4af0665403a49e",
+          "bytes": 25,
+          "leases": [],
+          "checks": [],
+          "fences": [],
+          "checkFences": []
+        }
+      }
+    },
+    {
+      "name": "final-source-and-inventory",
+      "status": "completed",
+      "result": {
+        "processes": {
+          "controller": [],
+          "browser": []
+        },
+        "knownProcessIdentities": {
+          "controller": [
+            {
+              "pid": 2513371,
+              "start": "30813282",
+              "parent": 2513188,
+              "status": "S"
+            }
+          ],
+          "browser": []
+        },
+        "unreadableEnvironmentObservations": 66283,
+        "startup": [
+          {
+            "name": "controller",
+            "state": "closed",
+            "late": false,
+            "closeTimedOut": false
+          }
+        ],
+        "containers": [],
+        "volumes": "",
+        "ledger": {
+          "present": true,
+          "sha256": "c0022f0995797c072d8097729ea90e74487bcefb911576c91e4af0665403a49e",
+          "bytes": 25,
+          "leases": [],
+          "checks": [],
+          "fences": [],
+          "checkFences": []
+        }
+      }
+    }
+  ],
+  "endedAt": "2026-10-09T16:07:47.466Z",
+  "pendingMutations": []
+}

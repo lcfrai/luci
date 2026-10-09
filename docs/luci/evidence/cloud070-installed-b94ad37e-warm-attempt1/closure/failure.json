@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "sourceCommit": "b94ad37e53181e360ac8910ee980570de622728c",
+  "helperSourceCommit": "b94ad37e53181e360ac8910ee980570de622728c",
+  "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+  "passed": false,
+  "failedStage": "shell-create",
+  "failure": {
+    "name": "AssertionError",
+    "code": "ERR_ASSERTION",
+    "message": "Unexpected HTTP status 409 for POST /v1/sessions\n\n409 !== 201\n"
+  },
+  "elapsedSeconds": 8.4244481039932,
+  "refusedAction": {
+    "method": "POST",
+    "path": "/v1/sessions",
+    "status": 409,
+    "at": "2026-10-09T16:07:44.896Z",
+    "problem": {
+      "version": 1,
+      "representation": "allowlisted-transformed-problem",
+      "status": 409,
+      "expectedStatus": 201,
+      "originalBodySHA256": "497a5046e4083669e1a5bdcec47710398a1c9a99a5c9432c39bd2150da9ad913",
+      "originalBodyBytes": 153,
+      "originalBodyRetained": false,
+      "parsedJSON": true,
+      "problemShape": true,
+      "error": "conflict",
+      "message": "Available memory cannot preserve the configured headroom for another worker.",
+      "messageOmitted": false,
+      "details": {
+        "reasonCode": "memory_pressure"
+      },
+      "omittedDetailsCount": 0,
+      "numericAdmissionOperands": "unavailable-in-this-POST-problem-schema"
+    }
+  },
+  "startupHandles": [
+    {
+      "name": "controller",
+      "state": "closed",
+      "late": false,
+      "closeTimedOut": false
+    }
+  ],
+  "browserMutations": [],
+  "knownWorkerAllocations": 0,
+  "pendingMutationCount": 0,
+  "finalLedger": {
+    "present": true,
+    "sha256": "c0022f0995797c072d8097729ea90e74487bcefb911576c91e4af0665403a49e",
+    "bytes": 25,
+    "leases": [],
+    "checks": [],
+    "fences": [],
+    "checkFences": []
+  },
+  "scope": "Actual installed guard refusal before acknowledged session/worker/browser. Not a C070 runtime pass. Original numeric admission operands unavailable; no later-sample causal attribution.",
+  "originalResultSHA256": "55d4d5ca3e1365439b8ba0918965ede0985017684fa3932ec1856f53a03db36f",
+  "originalWrapperSHA256": "3dac3153a744395aa6051d31a8e3090cffdd2cc00927ac011ec0a2d8107df71f"
+}

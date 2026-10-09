@@ -1,0 +1,20 @@
+{
+  "source": "29931afc5b31ae9b9bd7b8973a7e3fdb840609a3",
+  "originalTemplateSource": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "packageDirectory": "/tmp/luci-retained-tools/package-0.5.0-29931afc",
+  "packageProvenanceSHA256": "5c2870a873d49177863f9a16e0cf366fba41bae80684ceb3c4ddd9732ff6068a",
+  "archiveSHA256": "0b6eb1719c1ce4051eeb1cec55eef8625961f79cd2ffc1e14fb953a568fcefa0",
+  "binarySHA256": "d35e990d90f663772aa951bf19150e996680974cd5c627b8c8b7ce0da26314dd",
+  "webIndexSHA256": "f99796b77f74be2fed35d0fa5b0dbf6729b6552905831e402f9a6515a231825b",
+  "bundleCount": 170,
+  "bundleMapSHA256": "285b517520507c62474d521c730c6d3be06b570e1f0855c60f81b3df9d760695",
+  "image": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+  "imageReceiptSHA256": "a6fb7d93c1ce81b726923a155e44a5adbd53ed6da1198bafb76e4a82da009331",
+  "imageInputsUnchangedFrom5f4": true,
+  "selectedRepositoryInputs": 17,
+  "all17RepositoryInputsUnchanged": true,
+  "originalActionModulesUnchanged": true,
+  "templateDriverSHA256": "336f10fff8cf9694e5d1f137314879514de407fd52e4179ba7abbcf9fa22dbfe",
+  "driverSHA256": "82eacd50a9dea2c8c9ff1499a33f7d23f5799295d7fe0fa07874515304aae055",
+  "runtimeLaunched": false
+}

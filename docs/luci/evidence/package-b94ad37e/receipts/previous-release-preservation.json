@@ -1,0 +1,32 @@
+{
+  "at": "2026-10-09T16:00:59.446676+00:00",
+  "oldSource": "29931afc5b31ae9b9bd7b8973a7e3fdb840609a3",
+  "newSource": "b94ad37e53181e360ac8910ee980570de622728c",
+  "originalPath": "/workspace/luci/artifacts/releases/0.5.0",
+  "preservedPath": "/workspace/luci/artifacts/releases/0.5.0-29931afc-preserved-before-b94ad37e",
+  "members": {
+    "luci-cloud-linux-amd64.tar.gz": {
+      "sha256": "85d91fd12ece7d6edbaa4ec5d364526ee0c73c4af731202c366a4a1b38f2c5da",
+      "bytes": 34651655,
+      "link": null
+    },
+    "luci-linux-amd64.tar.gz": {
+      "sha256": "0b6eb1719c1ce4051eeb1cec55eef8625961f79cd2ffc1e14fb953a568fcefa0",
+      "bytes": 69117092,
+      "link": null
+    },
+    "release-manifest.json": {
+      "sha256": "fa68f997a3f1db984b1fd6e6284e3e0d36c11e7ee9148eb977c99cfb095e7b77",
+      "bytes": 696,
+      "link": null
+    },
+    "SHA256SUMS": {
+      "sha256": "d760db7caf3fa21ad8991a5771aa42f68b53defe8d3482048a3be146219dc1d8",
+      "bytes": 186,
+      "link": null
+    }
+  },
+  "status": "preserved-verified",
+  "scope": "Generated directory rename only; target archive bytes, retained package/fixtures/ledgers unchanged",
+  "originalProvenanceUnchanged": true
+}

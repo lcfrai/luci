@@ -1,0 +1,9 @@
+{
+  "kind": "second-poll-release-requested",
+  "reason": "scenario-teardown",
+  "releaseRequestedMonotonicMs": 68172.488291,
+  "acknowledgedMonotonicMs": null,
+  "attachedMonotonicMs": null,
+  "originalDeadlineMonotonicMs": 75750.831467,
+  "observedAt": "2026-10-09T16:14:14.857Z"
+}

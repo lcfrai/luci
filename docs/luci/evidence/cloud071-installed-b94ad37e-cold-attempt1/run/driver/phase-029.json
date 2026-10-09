@@ -1,0 +1,21 @@
+{
+  "kind": "restart-response-gate-entered",
+  "observation": {
+    "kind": "restart-response-gate",
+    "mode": "real-CDP-response-stage",
+    "budgetMs": 8000,
+    "entered": {
+      "wall": "2026-10-09T16:29:50.306Z",
+      "monotonicMs": 111369.054241,
+      "deadlineMonotonicMs": 119369.054241
+    },
+    "body": null,
+    "settlement": {
+      "attempted": null,
+      "acknowledged": false
+    },
+    "disposed": false
+  },
+  "failure": null,
+  "observedAt": "2026-10-09T16:29:50.306Z"
+}

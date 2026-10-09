@@ -1,0 +1,115 @@
+{
+  "startedAt": "2026-10-09T16:31:12.083764+00:00",
+  "status": "passed",
+  "helperSHA256": "9e2e7f71f45bca645a5a50aee600db8e7093ae23b860aca4bdbb0def4a1243e6",
+  "planSHA256": "c7e298a50984471954939b0d0f3f01e7f96a2e881cfb0252fcfaec5cf61287cd",
+  "scope": "Only six exact generated extracted trees. No Docker, archive, fixture, ledger, model/module/tool-source or current-package mutation. Root-coordinated closed task window; exact known unreadable identities accepted without a universal idle claim.",
+  "freeBefore": {
+    "/workspace": 7145111552,
+    "/tmp": 1502429184
+  },
+  "memoryBefore": {
+    "MemFreeBytes": 11601182720,
+    "MemAvailableBytes": 18014584832,
+    "ShmemBytes": 16369479680,
+    "memory.current": "23360712704",
+    "memory.max": "34359738368",
+    "memory.swap.current": "0",
+    "scope": "Sequential visible host/root-cgroup observations only; not atomic effective admission operands."
+  },
+  "packages": [
+    "0dcafb14",
+    "2da1a821",
+    "67a5b7c7",
+    "99007404",
+    "d20ebd29",
+    "edd0cb12"
+  ],
+  "completed": [
+    {
+      "name": "0dcafb14",
+      "at": "2026-10-09T16:31:18.049220+00:00",
+      "removedFiles": 953,
+      "originalArchiveUnchanged": true,
+      "rootAbsent": true,
+      "free": {
+        "/workspace": 7138299904,
+        "/tmp": 1627807744
+      }
+    },
+    {
+      "name": "2da1a821",
+      "at": "2026-10-09T16:31:22.041465+00:00",
+      "removedFiles": 3587,
+      "originalArchiveUnchanged": true,
+      "rootAbsent": true,
+      "free": {
+        "/workspace": 7134892032,
+        "/tmp": 1859747840
+      }
+    },
+    {
+      "name": "67a5b7c7",
+      "at": "2026-10-09T16:31:24.669144+00:00",
+      "removedFiles": 955,
+      "originalArchiveUnchanged": true,
+      "rootAbsent": true,
+      "free": {
+        "/workspace": 7131475968,
+        "/tmp": 1985212416
+      }
+    },
+    {
+      "name": "99007404",
+      "at": "2026-10-09T16:31:26.865963+00:00",
+      "removedFiles": 954,
+      "originalArchiveUnchanged": true,
+      "rootAbsent": true,
+      "free": {
+        "/workspace": 7128064000,
+        "/tmp": 2110640128
+      }
+    },
+    {
+      "name": "d20ebd29",
+      "at": "2026-10-09T16:31:29.476331+00:00",
+      "removedFiles": 956,
+      "originalArchiveUnchanged": true,
+      "rootAbsent": true,
+      "free": {
+        "/workspace": 7124656128,
+        "/tmp": 2236145664
+      }
+    },
+    {
+      "name": "edd0cb12",
+      "at": "2026-10-09T16:31:32.482410+00:00",
+      "removedFiles": 957,
+      "originalArchiveUnchanged": true,
+      "rootAbsent": true,
+      "free": {
+        "/workspace": 7121248256,
+        "/tmp": 2361683968
+      }
+    }
+  ],
+  "finishedAt": "2026-10-09T16:31:33.095317+00:00",
+  "elapsedSeconds": 21.011600521975197,
+  "removedFiles": 8362,
+  "freeAfter": {
+    "/workspace": 7121244160,
+    "/tmp": 2361683968
+  },
+  "memoryAfter": {
+    "MemFreeBytes": 12356882432,
+    "MemAvailableBytes": 18806620160,
+    "ShmemBytes": 15510224896,
+    "memory.current": "22569447424",
+    "memory.max": "34359738368",
+    "memory.swap.current": "0",
+    "scope": "Sequential visible host/root-cgroup observations only; not atomic effective admission operands."
+  },
+  "originalArchivesUnchanged": true,
+  "keptRootMetadataUnchanged": true,
+  "historyNotice": "Old extracted package paths are intentionally absent until restored from their exact retained original archives. Original historical receipt paths and archives are unchanged. No admission or RAM-release success inferred."
+}

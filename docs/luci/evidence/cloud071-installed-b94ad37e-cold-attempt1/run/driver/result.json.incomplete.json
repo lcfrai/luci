@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "passed": false,
+  "status": "cleanup-incomplete",
+  "stage": "product-settlement",
+  "failure": null,
+  "pendingMutations": [],
+  "knownController": {
+    "pid": 2518638,
+    "start": "30935362",
+    "parent": 2518443,
+    "status": "R"
+  },
+  "knownContainers": [
+    {
+      "id": "fba35953f00ded09f01d68e030f36fcb298e00c7df86f255cc84ac47ed552df0",
+      "sandboxId": "s-7d614ce8",
+      "sessionId": "s-7d614ce8",
+      "instanceId": "d1b48282-89f6-48c3-a77f-591ecc5d1140",
+      "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+      "name": "/luci-s-7d614ce8",
+      "status": "removing",
+      "pid": 0,
+      "created": "2026-10-09T16:28:05.299141915Z",
+      "startedAt": "2026-10-09T16:28:32.735077819Z",
+      "memoryBytes": 1073741824,
+      "cpuNano": 1000000000,
+      "pidsLimit": 256
+    },
+    {
+      "id": "a8717978877e06086ce45bab1e4acd84a9f8fdb0c45be09f3e2b61de822ea805",
+      "sandboxId": "s-cb56f820",
+      "sessionId": "s-7d614ce8",
+      "instanceId": "d1b48282-89f6-48c3-a77f-591ecc5d1140",
+      "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+      "name": "/luci-s-cb56f820",
+      "status": "removing",
+      "pid": 0,
+      "created": "2026-10-09T16:29:17.210513206Z",
+      "startedAt": "2026-10-09T16:29:49.871977689Z",
+      "memoryBytes": 1073741824,
+      "cpuNano": 1000000000,
+      "pidsLimit": 256
+    }
+  ]
+}

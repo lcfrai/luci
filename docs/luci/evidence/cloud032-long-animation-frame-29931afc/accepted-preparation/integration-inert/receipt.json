@@ -1,0 +1,26 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "/workspace/.luci-tools/cloud032-long-frame-29931afc/integration-source.test.mjs"
+  ],
+  "startedAt": "2026-10-09T15:30:42.801540+00:00",
+  "finishedAt": "2026-10-09T15:30:43.817633+00:00",
+  "exitCode": 1,
+  "before": {
+    "actual/sustained.mjs": "82eacd50a9dea2c8c9ff1499a33f7d23f5799295d7fe0fa07874515304aae055",
+    "actual/long-frame-observer.mjs": "db87926aa8fccb4db7df4391e789adb557d3920f78672baaac609d13ee9328c8",
+    "actual/external-source-binding.json": "fe80e45280a651e3a78d3d3da19334f6c466607820a764bda0b119699c8927b8",
+    "launch.py": "c8e8692f72e73f7546e05710539d913394d2e610ff3ba8f978e28e0889f780b5",
+    "integration-source.test.mjs": "62639bf2c350bb98965eaaf4000e2274563acefa814982567eb57140a4a8c745"
+  },
+  "after": {
+    "actual/sustained.mjs": "82eacd50a9dea2c8c9ff1499a33f7d23f5799295d7fe0fa07874515304aae055",
+    "actual/long-frame-observer.mjs": "db87926aa8fccb4db7df4391e789adb557d3920f78672baaac609d13ee9328c8",
+    "actual/external-source-binding.json": "fe80e45280a651e3a78d3d3da19334f6c466607820a764bda0b119699c8927b8",
+    "launch.py": "c8e8692f72e73f7546e05710539d913394d2e610ff3ba8f978e28e0889f780b5",
+    "integration-source.test.mjs": "62639bf2c350bb98965eaaf4000e2274563acefa814982567eb57140a4a8c745"
+  },
+  "unchanged": true,
+  "scope": "Three exact-source integration controls only; syntax parse does not execute driver/launcher or start browser/app/Docker."
+}

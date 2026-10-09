@@ -1,0 +1,162 @@
+{
+  "version": 1,
+  "passed": false,
+  "startedAt": "2026-10-09T16:27:58.914468+00:00",
+  "budgets": {
+    "preparationSeconds": 120,
+    "workflowSeconds": 480,
+    "cooperativeCommandOverhangSeconds": 60,
+    "cleanupSeconds": 80,
+    "launcherSeconds": 740,
+    "termGraceSeconds": 20,
+    "killSettlementSeconds": 5,
+    "finalObservationSeconds": 5,
+    "nominalMaximumSeconds": 770,
+    "note": "Monotonic supervisor; synchronous kernel/file reads are cooperative, not preempted. No signal is sent to controllers, browsers, process groups or Docker."
+  },
+  "sourceBefore": {
+    "/workspace/.luci-tools/cloud071-browser-restart-diagnostic/cold/outer-run.py": {
+      "bytes": 22954,
+      "sha256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49"
+    },
+    "/workspace/.luci-tools/cloud071-browser-restart-diagnostic/cold/launch.mjs": {
+      "bytes": 70543,
+      "sha256": "1d6e0005e0ca4719677a514fa5a9b3a120716910e0d8874fe9aa70c816092cf9"
+    },
+    "/workspace/.luci-tools/cloud071-browser-restart-diagnostic/cold/scenario.mjs": {
+      "bytes": 43452,
+      "sha256": "e96058d031f8d46b9ab4c4fcb4e14c485bacc939044bf1592a8ec24497a7d7f7"
+    }
+  },
+  "limitations": [
+    "This wrapper observes exact fixture process identities only, not memory/CPU/performance or whole-machine closure.",
+    "Driver receipt may attest Docker/ledger closure; this wrapper does not independently query Docker or repair retained charges.",
+    "Only the exact launcher PID is signalled through its pidfd. Surviving controller/browser identities remain open for independent reviewed cleanup.",
+    "Absent unobserved ephemeral processes cannot be inferred; unreadable environment scans and zombies stay explicit."
+  ],
+  "driverReport": {
+    "sha256": "265b910107b830064995b4a8fc76fd8e5e965de0fda46eccf4240dcd160e3002",
+    "bytes": 193826,
+    "passed": false
+  },
+  "launcherExitCode": 1,
+  "failure": null,
+  "signals": [],
+  "wrapperSignals": [],
+  "identities": [
+    {
+      "expected": {
+        "status": "observed",
+        "pid": 2518443,
+        "startTicks": "30934815",
+        "parentPid": 2518422,
+        "state": "R",
+        "family": "launcher",
+        "source": "owned-Popen",
+        "firstObservedAt": "2026-10-09T16:27:58.915081+00:00"
+      },
+      "current": {
+        "status": "absent",
+        "pid": 2518443
+      }
+    },
+    {
+      "expected": {
+        "status": "observed",
+        "pid": 2518638,
+        "startTicks": "30935362",
+        "parentPid": 2518443,
+        "state": "S",
+        "family": "controller",
+        "firstObservedAt": "2026-10-09T16:28:05.138055+00:00",
+        "source": "outer-environment"
+      },
+      "current": {
+        "status": "absent",
+        "pid": 2518638
+      }
+    },
+    {
+      "expected": {
+        "status": "observed",
+        "pid": 2519217,
+        "startTicks": "30938333",
+        "parentPid": 2518443,
+        "state": "S",
+        "family": "browser",
+        "firstObservedAt": "2026-10-09T16:28:35.211536+00:00",
+        "source": "outer-environment"
+      },
+      "current": {
+        "status": "absent",
+        "pid": 2519217
+      }
+    },
+    {
+      "expected": {
+        "status": "observed",
+        "pid": 2519232,
+        "startTicks": "30938342",
+        "parentPid": 1,
+        "state": "S",
+        "family": "browser",
+        "firstObservedAt": "2026-10-09T16:28:35.211612+00:00",
+        "source": "outer-environment"
+      },
+      "current": {
+        "status": "observed",
+        "pid": 2519232,
+        "startTicks": "30938342",
+        "parentPid": 1,
+        "state": "Z"
+      }
+    },
+    {
+      "expected": {
+        "status": "observed",
+        "pid": 2519234,
+        "startTicks": "30938342",
+        "parentPid": 1,
+        "state": "S",
+        "family": "browser",
+        "firstObservedAt": "2026-10-09T16:28:35.211679+00:00",
+        "source": "outer-environment"
+      },
+      "current": {
+        "status": "observed",
+        "pid": 2519234,
+        "startTicks": "30938342",
+        "parentPid": 1,
+        "state": "Z"
+      }
+    }
+  ],
+  "sourceAfter": {
+    "/workspace/.luci-tools/cloud071-browser-restart-diagnostic/cold/outer-run.py": {
+      "bytes": 22954,
+      "sha256": "e7eddf9d3eb3edaca5930bc50f3eb7079836ba22cc158d5de3aa6e51dea31a49"
+    },
+    "/workspace/.luci-tools/cloud071-browser-restart-diagnostic/cold/launch.mjs": {
+      "bytes": 70543,
+      "sha256": "1d6e0005e0ca4719677a514fa5a9b3a120716910e0d8874fe9aa70c816092cf9"
+    },
+    "/workspace/.luci-tools/cloud071-browser-restart-diagnostic/cold/scenario.mjs": {
+      "bytes": 43452,
+      "sha256": "e96058d031f8d46b9ab4c4fcb4e14c485bacc939044bf1592a8ec24497a7d7f7"
+    }
+  },
+  "samples": 105,
+  "unreadableEnvironmentObservations": 689950,
+  "outputBytesObserved": {
+    "stdout": 198,
+    "stderr": 0
+  },
+  "outputTruncated": {
+    "stdout": false,
+    "stderr": false
+  },
+  "settlementErrors": [],
+  "finishedAt": "2026-10-09T16:30:15.308206+00:00",
+  "elapsedSeconds": 136.39377136703115,
+  "receiptDurable": true
+}

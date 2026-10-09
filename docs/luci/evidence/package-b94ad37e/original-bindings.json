@@ -1,0 +1,143 @@
+{
+  "originals": [
+    {
+      "source": "/workspace/luci/artifacts/quality-swarm/candidate-b94ad37e/package/build-result.json",
+      "publishedPath": "receipts/build-result.json",
+      "sha256": "b8623eacecd92736b7ec09b3867cbea9fe12af0370933fed319354e07263a3a1",
+      "bytes": 750
+    },
+    {
+      "source": "/workspace/luci/artifacts/quality-swarm/candidate-b94ad37e/package/build-invocation.json",
+      "publishedPath": "receipts/build-invocation.json",
+      "sha256": "31d867024e5618c221f36c12b8ca6e49a86c3f75b32911782d31da35a0db81d3",
+      "bytes": 579
+    },
+    {
+      "source": "/workspace/luci/artifacts/quality-swarm/candidate-b94ad37e/package/build.log",
+      "publishedPath": "receipts/build.log",
+      "sha256": "e25553bedfb8acf863e9b656ef70c456d1619a95e30db8feda293dc2f1e60391",
+      "bytes": 18758
+    },
+    {
+      "source": "/workspace/luci/artifacts/quality-swarm/candidate-b94ad37e/package/previous-release-preservation.json",
+      "publishedPath": "receipts/previous-release-preservation.json",
+      "sha256": "120257ad99d53b20fb61c58577d49838e2324469d3eec993b08be4b4f5119a1e",
+      "bytes": 1183
+    },
+    {
+      "source": "/workspace/luci/artifacts/quality-swarm/candidate-b94ad37e/package/package-integrity.json",
+      "publishedPath": "receipts/package-integrity.json",
+      "sha256": "c5698c78923816ef3b3723440c503192d35ec0d30afbfba2ff650b85a33de48c",
+      "bytes": 788
+    },
+    {
+      "source": "/workspace/luci/artifacts/quality-swarm/candidate-b94ad37e/package/package-provenance.json",
+      "publishedPath": "receipts/package-provenance.json",
+      "sha256": "b9e151cb6825c92ad013c7421fdbb76ed43b075a366107bbd83c1d6ebbb4d9d4",
+      "bytes": 1039
+    },
+    {
+      "source": "/workspace/.luci-tools/b94ad37e-package-preflight-refusal.json",
+      "publishedPath": "receipts/first-preflight-refusal.json",
+      "sha256": "0450935a4abb39ee803e20cec31bf50febacc9de2c6d2d27160854c6845ffa87",
+      "bytes": 509
+    },
+    {
+      "source": "/workspace/.luci-tools/c070-b94ad37e-source-parity.json",
+      "publishedPath": "receipts/controlled-source-and-runtime-parity.json",
+      "sha256": "df93f88046a71da0c83c5d45401b0ec2da473686df98de6a00bf6ead741d2370",
+      "bytes": 1047
+    },
+    {
+      "source": "/workspace/.luci-tools/build-package-next-v1/README.md",
+      "publishedPath": "helpers/build-package-next-v1/README.md",
+      "sha256": "72004c3b121d534f4a307e9c6369bb1374d92b34495d766e1d7f7fb61a0e0d2f",
+      "bytes": 2609
+    },
+    {
+      "source": "/workspace/.luci-tools/build-package-next-v1/build-package.original.py",
+      "publishedPath": "helpers/build-package-next-v1/build-package.original.py",
+      "sha256": "150b7e999d7238eb765f3025e9e42f904001828e37defdde39e780a937d463f1",
+      "bytes": 5334
+    },
+    {
+      "source": "/workspace/.luci-tools/build-package-next-v1/build-package.py",
+      "publishedPath": "helpers/build-package-next-v1/build-package.py",
+      "sha256": "8771e5c661745b4cb4bfefc9aea0839f947dec534d3a438459bda0ecc409e418",
+      "bytes": 5804
+    },
+    {
+      "source": "/workspace/.luci-tools/build-package-next-v1/controls-result.json",
+      "publishedPath": "helpers/build-package-next-v1/controls-result.json",
+      "sha256": "b47738bfeb15fee55f618baea52cf75d1c4e73bc8e6b226cdebd55808cd65c37",
+      "bytes": 1183
+    },
+    {
+      "source": "/workspace/.luci-tools/build-package-next-v1/controls.py",
+      "publishedPath": "helpers/build-package-next-v1/controls.py",
+      "sha256": "e81f991bee124bfbf68a294101cffbae2f4ca27d0efe101749ca6900d8b68104",
+      "bytes": 4765
+    },
+    {
+      "source": "/workspace/.luci-tools/build-package-next-v1/parameterization.patch",
+      "publishedPath": "helpers/build-package-next-v1/parameterization.patch",
+      "sha256": "ca795219a2595c3f960b32a90ac378313969c082f9d01810a5b41886e2bd64eb",
+      "bytes": 5689
+    },
+    {
+      "source": "/workspace/.luci-tools/build-package-next-v1/unchanged-build-inputs.json",
+      "publishedPath": "helpers/build-package-next-v1/unchanged-build-inputs.json",
+      "sha256": "57772ba53f2f0b0ae2092b1ced1d3ef488e0da89b15edc14bc098b99107d1e35",
+      "bytes": 752
+    },
+    {
+      "source": "/workspace/.luci-tools/build-package-next-v1/manifest.json",
+      "publishedPath": "helpers/build-package-next-v1/manifest.json",
+      "sha256": "44a82b98855e8c3d7c82d4b2055dda5fdfe5918d8abbdae18cafd5e659cd2a8f",
+      "bytes": 1161
+    },
+    {
+      "source": "/workspace/.luci-tools/verify-local-package.py",
+      "publishedPath": "helpers/verify-local-package.py",
+      "sha256": "b7985ac8f7687a3da9e232a20319c49f900bd8c8015c4bdc41a005f467ed4a8c",
+      "bytes": 2246
+    },
+    {
+      "source": "/workspace/luci/artifacts/releases/0.5.0/release-manifest.json",
+      "publishedPath": "release/release-manifest.json",
+      "sha256": "10c16c8668e677937c5f7595307bb240daa77063c26c36b105f806ebcaa76983",
+      "bytes": 696
+    },
+    {
+      "source": "/workspace/luci/artifacts/releases/0.5.0/SHA256SUMS",
+      "publishedPath": "release/SHA256SUMS",
+      "sha256": "70f4818101b0b8b5b29aaf845b5d27e72ecfd6c2ca39397d85835c78e92590e8",
+      "bytes": 186
+    },
+    {
+      "source": "/workspace/.luci-tools/publish-package-b94ad37e/README.prepared.md",
+      "publishedPath": "README.md",
+      "sha256": "bd2c149712b6aedcc1cc770b4338ce21a1ac7f9c4b7c48d3494ebf104683bcb4",
+      "bytes": 2894
+    },
+    {
+      "source": "/workspace/.luci-tools/publish-package-b94ad37e/REPRODUCE.prepared.md",
+      "publishedPath": "REPRODUCE.md",
+      "sha256": "a8e1da04e1320b5d5d6e7f7655d5547de6a1b8d620a33fc3265fd860f2c7b703",
+      "bytes": 1885
+    },
+    {
+      "source": "/workspace/.luci-tools/publish-package-b94ad37e/assemble.py",
+      "publishedPath": "assemble.py",
+      "sha256": "80c06a38c9fcf3b2583c4685b2970cc6f24e468888a951fcfc90249207417062",
+      "bytes": 7523
+    }
+  ],
+  "representation": "Exact retained small source/report bytes. Supplementary environment metadata is separately labelled; original receipts are not rewritten.",
+  "excluded": [
+    "Binary/package/image archives and extracted payloads",
+    "Private fixture state and ledgers",
+    "Credentials, private configuration and raw controller logs"
+  ],
+  "historicalPaths": "Task-local historical artifact/helper paths remain as provenance; they do not imply availability in a fresh clone."
+}

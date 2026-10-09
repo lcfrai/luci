@@ -1,0 +1,27 @@
+{
+  "at": "2026-10-09T15:59:14.435438+00:00",
+  "scripts": [
+    {
+      "name": "analyze.py",
+      "originalSHA256": "bb80614d5bbca38545dcf45dc1e816da3dcf572c045acaca73cd23b8626a69c4",
+      "executedSHA256": "260ff8fbbcba4b6d36d57a3a983676b5f99723c37757b313282c789427175926",
+      "changes": "Input run path and exact raw hash only; calculations/assertions unchanged",
+      "exitCode": 0
+    },
+    {
+      "name": "event-timing-analysis.py",
+      "originalSHA256": "d881484b2191d97b384796176f0721cf938f7f65a4e3a903d2eaa91f8a48a0ab",
+      "executedSHA256": "6a5a823f8d10069a0a164df71238a9505811af3effc107757046ab2a9b14f550",
+      "changes": "Input run path and exact raw hash only; calculations/assertions unchanged",
+      "exitCode": 0
+    },
+    {
+      "name": "trace-analysis.py",
+      "originalSHA256": "8958d171f4287a740082861c3eb755104f5a9b19b36b79636e72a9788fc05cfa",
+      "executedSHA256": "166c27ce5f4158c719670ac089bb83dbe451719d94b8405d2a9860ea0fdddeb1",
+      "changes": "Input run path and exact raw hash only; calculations/assertions unchanged",
+      "exitCode": 0
+    }
+  ],
+  "runtimeOrProductChanged": false
+}

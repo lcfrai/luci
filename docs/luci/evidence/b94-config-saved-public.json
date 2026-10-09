@@ -1,0 +1,19 @@
+{
+  "status": "saved-and-readback-verified",
+  "revision": 42,
+  "repository": {
+    "name": "lcfrai/luci",
+    "host": "github.com",
+    "mount_path": "luci",
+    "commit": "b94ad37e53181e360ac8910ee980570de622728c"
+  },
+  "changedFields": [
+    "repositories",
+    "start_skill"
+  ],
+  "installNetworkCredentialAndRuntimeRequirementsSemanticallyUnchanged": true,
+  "requiresPublish": true,
+  "published": false,
+  "scope": "Draft persistence only. No runtime apply or new-task restore claim.",
+  "comparisonNote": "Initial raw JSON string comparison flagged network object key ordering; canonical recursive key comparison confirms unchanged values."
+}

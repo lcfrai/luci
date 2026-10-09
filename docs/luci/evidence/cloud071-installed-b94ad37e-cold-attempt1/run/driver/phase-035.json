@@ -1,0 +1,8 @@
+{
+  "kind": "restart-http-response",
+  "status": 200,
+  "returnedSessionStatus": "starting",
+  "sessionId": "s-7d614ce8",
+  "executionGeneration": "90fe848c8b44b65e84cf4258ec5eff6ca95229728072e5cbaa89122fc14e14d1",
+  "observedAt": "2026-10-09T16:29:51.219Z"
+}

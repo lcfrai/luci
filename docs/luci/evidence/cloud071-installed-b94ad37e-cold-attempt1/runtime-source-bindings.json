@@ -1,0 +1,539 @@
+{
+  "selectedProductSource": "b94ad37e53181e360ac8910ee980570de622728c",
+  "imageBuildSource": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+  "count": 106,
+  "inputs": [
+    {
+      "path": "images/sandbox/Dockerfile",
+      "bytes": 1914,
+      "sha256": "c8ad0734f827a277ac40b1e604229c49a2d0c898e1bfcd060b02d3203d901eb8"
+    },
+    {
+      "path": "images/sandbox/entrypoint.sh",
+      "bytes": 2228,
+      "sha256": "c3d925a1b08874079c44820cbc70e50fa370c4af26ecddfbb656687a04eebe3a"
+    },
+    {
+      "path": "sandboxd/cmd/sandboxd/main.go",
+      "bytes": 6317,
+      "sha256": "ea0f7f0f0642e4717b8cd0bc2e3c08a46b20b0020552ce36152bc51b4d0ada9a"
+    },
+    {
+      "path": "sandboxd/cmd/sandboxd/main_test.go",
+      "bytes": 1854,
+      "sha256": "57fdea3ce20cacdb3b1409b19c0851f2a18ed5f179cc0fc6154b7bb44340e338"
+    },
+    {
+      "path": "sandboxd/cmd/sandboxd/serve_other.go",
+      "bytes": 413,
+      "sha256": "043eee35b0a3caf66cd0e519c5eac411b420eb358ae90b5a33f184d321f0fbab"
+    },
+    {
+      "path": "sandboxd/cmd/sandboxd/serve_posix.go",
+      "bytes": 397,
+      "sha256": "39941a0a02f86acb0ec09f15fd66aa9b4fee55486d05ffffba2250c7372d799c"
+    },
+    {
+      "path": "sandboxd/cmd/sandboxd/serve_test.go",
+      "bytes": 7087,
+      "sha256": "b1e1c936db28fd92a9cf1f7a691189782bb2a094dd22d24ca3703d04256b6bd7"
+    },
+    {
+      "path": "sandboxd/go.mod",
+      "bytes": 152,
+      "sha256": "729defcdf4013ecccfa8ba2f5f985eb6655e90e31d15595c7d396edcfb800292"
+    },
+    {
+      "path": "sandboxd/go.sum",
+      "bytes": 509,
+      "sha256": "48236c5190f2aa0ad9ecc672ed5749dfc083921633445122061a290f1aa43729"
+    },
+    {
+      "path": "sandboxd/internal/hub/hub.go",
+      "bytes": 5629,
+      "sha256": "8715c17ae86ac1fe6e4cb1d90f01f5ba25e3fb2818eff46bb438c8bcf8785ee6"
+    },
+    {
+      "path": "sandboxd/internal/hub/hub_internal_test.go",
+      "bytes": 4517,
+      "sha256": "cc5f2bfc8746ae9e2d7604613d1606ff16236374150addf00e3d95108f10e57a"
+    },
+    {
+      "path": "sandboxd/internal/hub/hub_test.go",
+      "bytes": 5282,
+      "sha256": "be865725ee9b34d7cbbde985c5f24ded01a52c4e9e8d67b3c62549908e50681d"
+    },
+    {
+      "path": "sandboxd/internal/hub/subscriber.go",
+      "bytes": 3255,
+      "sha256": "d186f7d8e192a97d34a2345e72d8eb0467eabd715d67500d2b89de27e9ed11d1"
+    },
+    {
+      "path": "sandboxd/internal/hub/subscriber_test.go",
+      "bytes": 5028,
+      "sha256": "d92865cdabf097a258fd4db877c571d2ee882b4d775737940f9edf937a5f2803"
+    },
+    {
+      "path": "sandboxd/internal/ptysession/session.go",
+      "bytes": 1670,
+      "sha256": "2b2a7f7db3791119e91e88a397709ea94e1ff32107c2470a86bd948766f6c95c"
+    },
+    {
+      "path": "sandboxd/internal/ptysession/session_test.go",
+      "bytes": 2673,
+      "sha256": "60c69ec89a33c55e6abe69f44906536ce6ea48da86dbc668428a36066e741b98"
+    },
+    {
+      "path": "sandboxd/internal/ring/ring.go",
+      "bytes": 2801,
+      "sha256": "de860e16a21334e5c2e64ebd846a13917d5ab24f9662dc070de6405977a8ff7b"
+    },
+    {
+      "path": "sandboxd/internal/ring/ring_test.go",
+      "bytes": 2464,
+      "sha256": "cb2765ca2ceb5933f22d6aec1ff362173761be78082781de4b81bc62542ccd79"
+    },
+    {
+      "path": "sandboxd/internal/server/server.go",
+      "bytes": 9183,
+      "sha256": "f918586cacb68eed8b4fcbc11801c49d2ca6aa64421163eaf861b40870d41b47"
+    },
+    {
+      "path": "sandboxd/internal/server/server_internal_test.go",
+      "bytes": 5400,
+      "sha256": "62ef0a04eefc70830d8dfa26d370ca81f21e9730aa03c495f0b0c41c24e0d2f7"
+    },
+    {
+      "path": "sandboxd/internal/server/server_test.go",
+      "bytes": 11274,
+      "sha256": "51e0a8e59aa1d3d584fceebe0983cea83eed2d798dd67a8c9bf9897418126276"
+    },
+    {
+      "path": "sandboxd/internal/wire/frame.go",
+      "bytes": 1789,
+      "sha256": "8e3bb117f30526b89d1a7b101e34e0361ed29ebd6e95ee727ac43fe310e9abce"
+    },
+    {
+      "path": "sandboxd/internal/wire/frame_test.go",
+      "bytes": 2449,
+      "sha256": "882d5c192bcf779750119509191c1a5c12a9f64319eed6aef644504beb46b7c1"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/.gitignore",
+      "bytes": 8,
+      "sha256": "ed6cfbce214958ad4dfe1f387ebb95caa900597410363397763d5179b1736e6c"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/AGENTS.md",
+      "bytes": 9661,
+      "sha256": "4f18e644c5ea375e6df74def90e0b0a5c3d53af651363dee21cc92c78263e82d"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/LICENSE.txt",
+      "bytes": 720,
+      "sha256": "cc0975a5f6305145bdd7b41ce9479632fdac3870e6ac4281f28017f18c767c4e"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/Makefile",
+      "bytes": 166,
+      "sha256": "258058f087ba86c2b191d48c7fff25e6c8c3d5e9320c15f0a2d614fd7052d157"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/README.md",
+      "bytes": 6657,
+      "sha256": "5fd5393d4d3095741658019bf7e86ebbe4a5272cfcffeae6c7e9032e3fc4c97f"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/accept.go",
+      "bytes": 11682,
+      "sha256": "3578bc97e032fdee9ff5fbcecf4e02f2f9d0928184b92466702858de76d8b6af"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/close.go",
+      "bytes": 7853,
+      "sha256": "2cee606147172e5ac31731ae1846bdceae2d1e8a25dc9990cb46de75dd41b948"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/compress.go",
+      "bytes": 5837,
+      "sha256": "dfca27c32fd9109279ea248193c2203546a28dbbc647a5c2b4c207f8ae08bf54"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/conn.go",
+      "bytes": 6672,
+      "sha256": "f5aabddca411a9ccbf2938f976d9152f373e52bb1de138c305110807e1c7b0e4"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/dial.go",
+      "bytes": 9928,
+      "sha256": "613ea3bb251a13de7c0f47839947a7e5f867acb9555bad1499d1a514b9a772d7"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/doc.go",
+      "bytes": 1041,
+      "sha256": "58ee6f20e5baed220eaae3999651d97dc5aa97499ab69b81ded421af94b70e90"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/errors.go",
+      "bytes": 176,
+      "sha256": "7664ab90db0687f0834fd25561e950cc0ba4ae3c4d616fde6ae186bb7bcef230"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/frame.go",
+      "bytes": 3287,
+      "sha256": "ee8a805dd226f4e3b461fc5699c58a00e5a45cc35d0e56542ca96773c2d61d8a"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/hijack.go",
+      "bytes": 848,
+      "sha256": "971691793739eae342309998ed96f22194c37439a868c9d48fd434245f8ee8b2"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/internal/bpool/bpool.go",
+      "bytes": 370,
+      "sha256": "0806d6ed46c48d3b2b3af68138e4f5d80f466eb8e9ce85d9786f7bc86a849c7f"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/internal/errd/wrap.go",
+      "bytes": 318,
+      "sha256": "0e70ac99d7bb75692509b1eeb4c921c281f18c24a3bdcc86e7e57dcbfc3fdab5"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/internal/util/util.go",
+      "bytes": 346,
+      "sha256": "384c5982c8854cd041a930586580bff71478be939a4c9c0f6d4870263de199bc"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/internal/wsjs/wsjs_js.go",
+      "bytes": 4020,
+      "sha256": "d477d40a1e50a66e59224009343740b1e8f5d82648d368788e29b98ff68f0de1"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/mask.go",
+      "bytes": 4321,
+      "sha256": "4b910cc40e42d5268682ce14395027f5936f3b5b4ad3f8b0c511b87f176702b4"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/mask_amd64.s",
+      "bytes": 2003,
+      "sha256": "3ff45361b7376aacf750c3d75aee213ab2a39c6ba96f4e298ebe83ea64696733"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/mask_arm64.s",
+      "bytes": 1413,
+      "sha256": "8a9703306ce9ced3056b9a41e63d10c4c266731259c51b8a57f94e8e1d043e50"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/mask_asm.go",
+      "bytes": 874,
+      "sha256": "1858a7bb3ffd4b643fb1e683a6b1f30f28ac904f970611c4e3f865df6e3a4924"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/mask_go.go",
+      "bytes": 121,
+      "sha256": "90b7f1a3969fe810d1e598ce4a5f909c392855f2eb95862d7e3e4a7e5c57caee"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/netconn.go",
+      "bytes": 5474,
+      "sha256": "3ffff33c5c0caeb5b5be8b272edc20649f834514bf99d256e4a5dc163f4f06c3"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/netconn_js.go",
+      "bytes": 171,
+      "sha256": "3d24e9796a6d87a49917adf4b08f1e7cdb3617f2ce6f522addc14676e32be520"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/netconn_notjs.go",
+      "bytes": 326,
+      "sha256": "25053a79f57498a87c6f610214b0ee71d225d7f3af1d2719607eeba5a5266ec7"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/read.go",
+      "bytes": 12226,
+      "sha256": "bc8fe2d1003a6acdd078da05e490edc5f0b5a5df69b28ae6f5004c7c526cfeb6"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/stringer.go",
+      "bytes": 2943,
+      "sha256": "7c1120b8b7f24a5a9ef9e779add7c482dbf2d48908de7501227fcb405ec685fe"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/write.go",
+      "bytes": 9027,
+      "sha256": "c867336502e341f18d5c8a8c484da1115dd84659f40ee8aed64fcba1d412aa21"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/ws_js.go",
+      "bytes": 15019,
+      "sha256": "afde6fe4b98c1d28a9cb2f0e27203e8d8fa2c14cc779947698040bf9bc7decb7"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/.editorconfig",
+      "bytes": 980,
+      "sha256": "544d4410f2878d4f63031ec1321e8036a8835a7c3f0351ba4a11aa7f5564e2a1"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/.gitignore",
+      "bytes": 27,
+      "sha256": "1fdb0076500d848f995d28487f62701a891530b3144ed220a2e52c564c1acd5a"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/.golangci.yml",
+      "bytes": 18922,
+      "sha256": "8329f937486d2ab18511990a45e373ce9aa3b498392dd041048a3c6e92599fc2"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/Dockerfile.golang",
+      "bytes": 329,
+      "sha256": "a0db8b2c167fdc64027546831e39cf5258ff5f5ad49af46091eb25ee86b443f1"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/LICENSE",
+      "bytes": 1056,
+      "sha256": "a2a1cea59d9c2d71908082f516f86bb560abf857646ecf69d70c121ead14aef4"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/README.md",
+      "bytes": 2484,
+      "sha256": "8d2b68ba7de825fc77d2201aa41eaa46ececf86713f76f12466b09fa590d8047"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/asm_solaris_amd64.s",
+      "bytes": 435,
+      "sha256": "541b477a795633bb6e245e2c8b7f8002f48a942fd92d6fc544c7ab753c93ff13"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/doc.go",
+      "bytes": 348,
+      "sha256": "1db45dcdfe55d8816a977b5af689ed6e1af920759aaed342f0f8b3b7f62ae2b0"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/ioctl.go",
+      "bytes": 590,
+      "sha256": "b75ead9353a9642838911a1d2a220bc8f05a7ee43208c6fd697d8202721893ad"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/ioctl_bsd.go",
+      "bytes": 1166,
+      "sha256": "cb7e8b2dcb76f6ba1ba140437526b78d62ca9b2d6b93e91f96648870b8203cde"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/ioctl_inner.go",
+      "bytes": 361,
+      "sha256": "d7da2e3a727eff5155dd0850a5a43a1c671ee60ce285e509f9b01ce111e176ad"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/ioctl_legacy.go",
+      "bytes": 216,
+      "sha256": "e49f0275ba8b305a71ba7531f5a2f511524977bee3161bf4f2dcf0317bcace72"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/ioctl_solaris.go",
+      "bytes": 1095,
+      "sha256": "5c2ee7764728951370942ad43228cbfbf7fcc6265dbcc9bee43d6eb8b1854291"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/ioctl_unsupported.go",
+      "bytes": 157,
+      "sha256": "758abd4b73f61ccfbcf297515d0f7ccf91039bb59a76a397bae71f9fbec0e224"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/mktypes.bash",
+      "bytes": 336,
+      "sha256": "ccc41d3844a69b3159fe058a1ac40e979848dd5a96e65eb3e6da96640cf6c447"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/pty_darwin.go",
+      "bytes": 1281,
+      "sha256": "657a7b99591f75407c71d31a8eaeb76deb5ecbc6557a84cd9bf4760d6af24c54"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/pty_dragonfly.go",
+      "bytes": 1607,
+      "sha256": "a04a1696be992bc902a296c02971b3081235890c7ed14c28a5c6c004d50de270"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/pty_freebsd.go",
+      "bytes": 1567,
+      "sha256": "2ebe035d937de67934c8cadff9f2775b3124e1d32896a2adf6c0b04426376b2d"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/pty_linux.go",
+      "bytes": 1198,
+      "sha256": "2a4f03abb902d4d66e7ce091d9c27d712ffafc270826e0594b84c821b3b50518"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/pty_netbsd.go",
+      "bytes": 1409,
+      "sha256": "611d6d797c3ce2a971ce5bde745851ac4b7c278b00cd8729c76299e92baa2ccc"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/pty_openbsd.go",
+      "bytes": 987,
+      "sha256": "889b4d904044e7c629543e08fae1b8aa4cbd98ff5deaf92eb88cd12e072476cb"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/pty_solaris.go",
+      "bytes": 3676,
+      "sha256": "65629329e5a83cafa37de9a13de0981dd62837d46dba040956c567e94d77c861"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/pty_unsupported.go",
+      "bytes": 286,
+      "sha256": "e6645b13adae0bef8a991cc53aa8ccd0d46785814e346fcc737e13c19958374e"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/pty_zos.go",
+      "bytes": 2828,
+      "sha256": "45e263a9e689911f5c37d5ba7e6b67fc69b6ec844c772516139808b1e0343447"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/run.go",
+      "bytes": 1428,
+      "sha256": "bde6bf3d33532c173275337b32e619d499ef6eb0636cfc5f796922454b51a779"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/start.go",
+      "bytes": 670,
+      "sha256": "d01c0e29e4466eed8dc9791f434e419648d82f0651e5aa44217d70ffacf75444"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/start_windows.go",
+      "bytes": 498,
+      "sha256": "cb24024da516e92f3b1d3e7b986015a4bb19fddc14425254022c066bbeeecd9f"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/test_crosscompile.sh",
+      "bytes": 1974,
+      "sha256": "22ed2938e02eb003d68f24edaf33dcca36c9bf24f80ad4b11981342c991efb7e"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/winsize.go",
+      "bytes": 636,
+      "sha256": "5967234343abebbc2c1d8951489f1f6e512a7d07e83441ca4f387d10e010f473"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/winsize_unix.go",
+      "bytes": 873,
+      "sha256": "b2392f3372afccbed6d5979d46d75eb0650f88ab22ccfb7ac171856c02d6cfc5"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/winsize_unsupported.go",
+      "bytes": 426,
+      "sha256": "ee30c3197840ca731076a26916195d0135b89ad1d1bcfc1efd6978ffb960ed01"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/ztypes_386.go",
+      "bytes": 148,
+      "sha256": "bccc243cfe5ed89a374a422c7f649f80e8b652c8d434244f5cba11263813fe60"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/ztypes_amd64.go",
+      "bytes": 152,
+      "sha256": "adbe848c70adab8b33dc9992a05a862d98288f2d53435a371191a5c3be9bc873"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/ztypes_arm.go",
+      "bytes": 148,
+      "sha256": "3dc122db676d4257a0fa28b749641da83795417b80ac9af24ff051209c907d94"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/ztypes_arm64.go",
+      "bytes": 152,
+      "sha256": "d3d96527511e3ef5f3005aa489040393a4a6892de064caa410bc5b6ec44621cd"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/ztypes_dragonfly_amd64.go",
+      "bytes": 262,
+      "sha256": "ddfb1b48504ad6caf0358e8e220dba8bb34b7c22f1416178d70fa786c106860b"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/ztypes_freebsd_386.go",
+      "bytes": 220,
+      "sha256": "09c2baf9630e414077f061c8ca1a3badb99abebc53147edd90a523b031c393ed"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/ztypes_freebsd_amd64.go",
+      "bytes": 255,
+      "sha256": "15c417407917d56a16b00539750780f58d42a00844d0bceaa3ddf03a1ab570c4"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/ztypes_freebsd_arm.go",
+      "bytes": 220,
+      "sha256": "5f628cdfdd4b2a3c14917093691f89bf222bd6bc4d27a425af31aa440e5c124b"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/ztypes_freebsd_arm64.go",
+      "bytes": 235,
+      "sha256": "315a02158b5dc9138b0416a86779e6a5254a17ee8c0314f4005d5e9b73928887"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/ztypes_freebsd_ppc64.go",
+      "bytes": 202,
+      "sha256": "52b53a714b9e01f4f00fc3fc2bbd2ab23e61707d7aff3c1b802cd788b2c59d5b"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/ztypes_freebsd_riscv64.go",
+      "bytes": 182,
+      "sha256": "2fa74f7a8c5b67a4768314769beccf4655b59e0a850579f46a87e0f8b06543aa"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/ztypes_loong64.go",
+      "bytes": 156,
+      "sha256": "4f41a020591a39cab7cace25d046cebc96a30cb0152d1fc042d285610604a5e0"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/ztypes_mipsx.go",
+      "bytes": 232,
+      "sha256": "2b8088c1c463dd71bcf24388028089ff2289adecfadc2e007eb09c4221010828"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/ztypes_netbsd_32bit_int.go",
+      "bytes": 263,
+      "sha256": "653a3438bd4c2cf2a324c433cac33a58e75c23f748742738f7f217e935d360f5"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/ztypes_openbsd_32bit_int.go",
+      "bytes": 155,
+      "sha256": "856fd622f69aff7b02676b9492b9b1eb4936352a3971ea955f9b0745b5636ac4"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/ztypes_ppc.go",
+      "bytes": 118,
+      "sha256": "98bbaa92b6aeb6350f01c8d747c0105ab94e86743e3fd77d8a374877360691db"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/ztypes_ppc64.go",
+      "bytes": 152,
+      "sha256": "4662fc6fbfe1d8baa40c9388f72322d5f6f5207a2d5e258fb40a72419bc7353c"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/ztypes_ppc64le.go",
+      "bytes": 156,
+      "sha256": "c2d1620f69ab2e52a1e6747c61323f41b9b6e767386d0079e7190c2e042c0ebd"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/ztypes_riscvx.go",
+      "bytes": 182,
+      "sha256": "1c3390ae86c274a2a8c0185bd10256124af23118997d0c4169fb8a558d533966"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/ztypes_s390x.go",
+      "bytes": 152,
+      "sha256": "3ca6205b617671c02be922ed05ed86c7c2c4da55881414544f1e101dd2b38b14"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/creack/pty/ztypes_sparcx.go",
+      "bytes": 182,
+      "sha256": "d278512718e06ca449e0ed5f7722e345a880ff9fc9643c06a6b48ced6bdff8d6"
+    },
+    {
+      "path": "sandboxd/vendor/modules.txt",
+      "bytes": 325,
+      "sha256": "4acf388d7544a8b3c9246105e4db533f71f02fd1a503d9882d5acf35a6b43ccb"
+    }
+  ],
+  "scope": "All captured runtime inputs match immutable b94 source. Package integrity (963 members) and artifact hashes are retained writer receipts, not an independent publication-time binary reread or rebuild."
+}

@@ -1,0 +1,9 @@
+{
+  "boundedPatternFindings": [],
+  "exactPrivateRootAbsent": true,
+  "screenshotsPreviouslyReviewedBySupervisingAgent": [
+    "run/driver/failure.png",
+    "run/driver/first-ended-poll-held.png"
+  ],
+  "scope": "Exact-root absence and bounded common credential-signature scan. Safe structured receipt field review and previously reported visual review; not exhaustive secret detection. All raw logs/stdout/stderr and private fixture contents excluded without reading."
+}

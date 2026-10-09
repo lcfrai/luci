@@ -1,0 +1,105 @@
+{
+  "productSource": "b94ad37e53181e360ac8910ee980570de622728c",
+  "attempt": 1,
+  "overallPassed": false,
+  "originalResult": {
+    "sha256": "55d4d5ca3e1365439b8ba0918965ede0985017684fa3932ec1856f53a03db36f",
+    "bytes": 18861
+  },
+  "originalWrapper": {
+    "sha256": "3dac3153a744395aa6051d31a8e3090cffdd2cc00927ac011ec0a2d8107df71f",
+    "bytes": 3680
+  },
+  "counts": {
+    "phases": 6,
+    "browserRestart": 0,
+    "apiRestart": 0,
+    "recordedStop": 0,
+    "pendingMutations": 0
+  },
+  "failureStage": "shell-create",
+  "failure": {
+    "name": "AssertionError",
+    "code": "ERR_ASSERTION",
+    "message": "Unexpected HTTP status 409 for POST /v1/sessions\n\n409 !== 201\n"
+  },
+  "automaticCleanup": {
+    "finalPresent": true,
+    "phaseStatuses": [
+      {
+        "name": "browser",
+        "status": "completed"
+      },
+      {
+        "name": "supported-session-stop",
+        "status": "completed"
+      },
+      {
+        "name": "controller",
+        "status": "completed"
+      },
+      {
+        "name": "private-controller-log",
+        "status": "completed"
+      },
+      {
+        "name": "exact-container-leftovers",
+        "status": "completed"
+      },
+      {
+        "name": "final-source-and-inventory",
+        "status": "completed"
+      }
+    ]
+  },
+  "independentClosure": {
+    "observedAt": "2026-10-09T16:12:47.510635+00:00",
+    "counts": {
+      "absent": 2,
+      "reused": 0,
+      "zombie": 0,
+      "live": 0,
+      "unknown": 0
+    },
+    "sameDaemon": true,
+    "containerCount": 0,
+    "volumeCount": 0,
+    "ledgerCounts": {
+      "leases": 0,
+      "checks": 0,
+      "fences": 0,
+      "checkFences": 0
+    },
+    "original": {
+      "sha256": "2f84ff0590e280e402996770baa8ea6d1cc17158d6cc15e35c8b60be81b47ba1",
+      "bytes": 7252
+    }
+  },
+  "limits": [
+    "Both original driver and wrapper remain failed.",
+    "Independent later closure is a separate observation and does not rewrite original cleanup or settle an ambiguous mutation.",
+    "Known process identities and selected daemon only; historical unreadable process observations preclude an exhaustive process census.",
+    "No numeric refusal-time admission operands; later or advisory memory/disk values cannot establish the refusal-time cause.",
+    "No permanent-leak, model/provider, native app/service crash, Windows, or performance acceptance claim.",
+    "Raw controller, transport-error, authentication, stdout/stderr, and fixture state contents were not read or published by this assembler."
+  ],
+  "refusal": {
+    "version": 1,
+    "representation": "allowlisted-transformed-problem",
+    "status": 409,
+    "expectedStatus": 201,
+    "originalBodySHA256": "497a5046e4083669e1a5bdcec47710398a1c9a99a5c9432c39bd2150da9ad913",
+    "originalBodyBytes": 153,
+    "originalBodyRetained": false,
+    "parsedJSON": true,
+    "problemShape": true,
+    "error": "conflict",
+    "message": "Available memory cannot preserve the configured headroom for another worker.",
+    "messageOmitted": false,
+    "details": {
+      "reasonCode": "memory_pressure"
+    },
+    "omittedDetailsCount": 0,
+    "numericAdmissionOperands": "unavailable-in-this-POST-problem-schema"
+  }
+}

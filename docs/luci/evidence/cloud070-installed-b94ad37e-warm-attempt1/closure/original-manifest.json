@@ -1,0 +1,14 @@
+{
+  "members": [
+    {
+      "path": "closure.json",
+      "bytes": 7252,
+      "sha256": "2f84ff0590e280e402996770baa8ea6d1cc17158d6cc15e35c8b60be81b47ba1"
+    },
+    {
+      "path": "failure.json",
+      "bytes": 2159,
+      "sha256": "d8ea0d677e5b3ed69b7ef76da52b7348f8a1f09043bd200a26f5815b4e4461ee"
+    }
+  ]
+}

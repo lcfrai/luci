@@ -1,0 +1,9 @@
+{
+  "source": "prepared/active-usage-summary.json",
+  "priorIncompleteReceipt": {
+    "path": "active-usage.json",
+    "sha256": "c05823a014b2b66998980ff7cab69a45c773810be015caf0494028afe3ecaa3d",
+    "scope": "4096-process cap reached before newer live identities; not an idle result"
+  },
+  "scope": "Retained original first scan reached its4096-process cap. This incomplete preparation attempt is not an idle/pass claim; the corrected scan is separately bound. Original full snapshot remains retained privately and excluded from this compact capsule."
+}

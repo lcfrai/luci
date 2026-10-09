@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "passed": false,
+  "status": "cleanup-incomplete",
+  "stage": "terminal-scenario",
+  "failure": {
+    "name": "AssertionError",
+    "code": "ERR_ASSERTION",
+    "message": "Restart response was not successful\n\n409 !== 200\n"
+  },
+  "pendingMutations": [
+    {
+      "method": "POST",
+      "path": "/v1/sessions/s-cecf7cf2/restart",
+      "startedAt": "2026-10-09T16:14:14.774Z"
+    }
+  ],
+  "knownController": {
+    "pid": 2514152,
+    "start": "30845928",
+    "parent": 2513974,
+    "status": "R"
+  },
+  "knownContainers": [
+    {
+      "id": "7fcce4320b8c32a593385abe1effa46cf224a6de329d7df2b424fa608f4995a8",
+      "sandboxId": "s-cecf7cf2",
+      "sessionId": "s-cecf7cf2",
+      "instanceId": "609dabde-a2b3-4e99-863f-aa6a8b818d60",
+      "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+      "name": "/luci-s-cecf7cf2",
+      "status": "removing",
+      "pid": 0,
+      "created": "2026-10-09T16:13:10.912216499Z",
+      "startedAt": "2026-10-09T16:13:45.763759883Z",
+      "memoryBytes": 1073741824,
+      "cpuNano": 1000000000,
+      "pidsLimit": 256
+    }
+  ]
+}

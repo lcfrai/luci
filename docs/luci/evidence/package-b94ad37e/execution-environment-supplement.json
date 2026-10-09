@@ -1,0 +1,10 @@
+{
+  "sourceCommit": "b94ad37e53181e360ac8910ee980570de622728c",
+  "environment": {
+    "GOCACHE": "/workspace/.luci-tools/c070-go-build-cache",
+    "GOTMPDIR": "/workspace/.t"
+  },
+  "provenance": "Root supplied these exact execution-environment settings for this successful build. They supplement the original wrapper receipt, which captures only GOMAXPROCS and GOFLAGS. No retrospective process-environment read was performed by this publisher.",
+  "originalWrapperMetadataUnchanged": true,
+  "scope": "Build cache/temp placement only. This is not a compiled dependency inventory or performance comparison."
+}

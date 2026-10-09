@@ -1,0 +1,35 @@
+{
+  "scope": "Preparation source syntax and exact input pins only. No operation/restore/control or process scan executed during runtime window.",
+  "files": [
+    {
+      "path": "plan.json",
+      "bytes": 11259,
+      "sha256": "c7e298a50984471954939b0d0f3f01e7f96a2e881cfb0252fcfaec5cf61287cd"
+    },
+    {
+      "path": "retire.py",
+      "bytes": 10759,
+      "sha256": "9e2e7f71f45bca645a5a50aee600db8e7093ae23b860aca4bdbb0def4a1243e6"
+    },
+    {
+      "path": "restore.py",
+      "bytes": 5620,
+      "sha256": "2b889ab208b28fca96341dc767885bbb9333c9fbc8b747fcef92f9dfee7b76a4"
+    },
+    {
+      "path": "check_active_usage_v2.py",
+      "bytes": 8411,
+      "sha256": "60e7b78132c903bdea14ebf4b7a5311c1193f2abc10ca3920811a517df71654e"
+    },
+    {
+      "path": "verification-v2/verification.json",
+      "bytes": 16839,
+      "sha256": "72f6cfbfb75cee75a7ebdfc9a68591da0a88968f992f163852ce302be3b1798d"
+    },
+    {
+      "path": "active-usage-summary.json",
+      "bytes": 8661,
+      "sha256": "e7e2708f3bbd48eb8245e3e4afc598fde9b631d48a219f6f1c1daf8c4e329ea2"
+    }
+  ]
+}

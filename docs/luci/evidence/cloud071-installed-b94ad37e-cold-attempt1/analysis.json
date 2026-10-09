@@ -1,0 +1,70 @@
+{
+  "productSource": "b94ad37e53181e360ac8910ee980570de622728c",
+  "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+  "scenarioPassed": true,
+  "overallPassed": false,
+  "launcherExitCode": 1,
+  "recordedFailure": null,
+  "recordedFailedStage": null,
+  "overallFailureCause": "Unrecorded. Final boolean requires no hidden failure. All other recorded operands pass. Two PID 1 Chromium zombies are observed residue, not a demonstrated cause.",
+  "originalResult": {
+    "bytes": 193826,
+    "sha256": "265b910107b830064995b4a8fc76fd8e5e965de0fda46eccf4240dcd160e3002"
+  },
+  "originalWrapper": {
+    "bytes": 5045,
+    "sha256": "372fdaf81f0282e2b3fd482b318bd5e516f297742dc333a3ccb1578fbddd64b6"
+  },
+  "firstTerminal": {
+    "exitCode": 0,
+    "outputExitCloseSequence": [
+      76,
+      77,
+      78
+    ],
+    "browserCloseCode": 1000,
+    "clean": true
+  },
+  "secondTerminal": {
+    "exitCode": 7,
+    "outputExitCloseSequence": [
+      77,
+      78,
+      79
+    ],
+    "browserCloseCode": 1000,
+    "clean": true
+  },
+  "firstNaturalRelease": {
+    "phase": 22,
+    "elapsedMs": 32332.788356000005,
+    "polls": 44
+  },
+  "secondNaturalRelease": {
+    "phase": 44
+  },
+  "browserRestartCount": 1,
+  "apiRestartCount": 0,
+  "stopOrDeleteCount": 0,
+  "pendingMutationCount": 0,
+  "coldExecutionFingerprintOmitted": true,
+  "realNewGenerationPollBeforeAcknowledgement": true,
+  "identicalParsedSessionJSON": false,
+  "noReplacementAttachBeforeAcknowledgement": true,
+  "installedC071Status": 200,
+  "installed409DiagnosticExercised": false,
+  "closure": {
+    "absentIdentities": 3,
+    "pid1Zombies": 2,
+    "containers": 0,
+    "volumes": 0,
+    "ledgerCounts": {
+      "leases": 0,
+      "checks": 0,
+      "fences": 0,
+      "checkFences": 0
+    },
+    "fixtureFilesUnchanged": 31
+  },
+  "scope": "Read-only retained local Linux Docker/browser shell evidence. No runtime launch, cleanup mutation, private raw log read, admission-capacity benchmark, model/provider validation, Windows certification, raw Close-frame direction/count, or overall acceptance."
+}

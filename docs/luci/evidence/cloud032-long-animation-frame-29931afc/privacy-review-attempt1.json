@@ -1,0 +1,14 @@
+{
+  "rawResultSHA256": "d71194560d8c6852b2561062a236ef2af92d32feb917f624a507e28d0977e73f",
+  "privateTraceSHA256": "1a954cca6e7a4565dd3b6c4a447fd28753ec60915532fedb5b2a26bbc630e5ea",
+  "filesScanned": 97,
+  "credentialNeedleCount": 0,
+  "privateOpaqueIDNeedleCount": 1,
+  "literalNeedleHitFiles": [
+    "accepted-preparation/actual/sustained.mjs"
+  ],
+  "forbiddenPrivateArtifactFiles": [],
+  "acceptedHarnessMatchesFrozenPreparation": true,
+  "passed": false,
+  "scope": "Known credentials/opaque IDs from private retained result/trace searched literally, plus explicit raw-artifact exclusion and allowlisted numeric projections. Negative scan is not a universal secret detector. Runtime source includes credential-handling code, never captured values."
+}

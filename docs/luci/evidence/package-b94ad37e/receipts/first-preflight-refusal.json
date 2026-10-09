@@ -1,0 +1,8 @@
+{
+  "sourceCommit": "b94ad37e53181e360ac8910ee980570de622728c",
+  "observedAt": "2026-10-09T16:00:52.163007+00:00",
+  "error": "Source must be retrievable from origin",
+  "stage": "preflight-before-output-or-preservation",
+  "reason": "Push and named FETCH_HEAD succeeded; configured fetch mapping did not update a refs/remotes/origin ref for this branch. Explicit tracking-ref fetch requested before retry.",
+  "scope": "Build helper guard refusal, not build or product failure; original guard unchanged."
+}

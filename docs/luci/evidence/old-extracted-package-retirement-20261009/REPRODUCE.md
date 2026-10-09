@@ -1,0 +1,11 @@
+# Reproduction and retention limits
+
+Run `python3 -B verify-publication.py` or `sha256sum -c SHA256SUMS` inside the capsule to check published bytes. The Python verifier additionally checks the bounded decompression and original SHA256/length for all six generated member metadata manifests. `representations.json` identifies exactly which original JSON bytes were compressed; no metadata values were rewritten.
+
+The original `plan.json` references historical cloud paths. Decode the member manifests to their declared `decodedPath` when inspecting them; this does not reconstruct the package payload. Replaying the original retirement is inappropriate: all six extracted paths are already absent. The original retirement helper should refuse replay rather than delete another target. The frozen command and plan are historical evidence, not fresh authorization or an active cleanup instruction.
+
+For a later exact restoration, root must inspect the still-retained original archive and the matching metadata manifest, verify current space/ownership and run the prepared restoration helper in a separately bounded window. Recreate the required original path layout only after checking its absence. A fresh clone does not include the binary archives or cloud tool paths. Any path-only adaptation must be separately disclosed; do not rewrite historical receipts or claim identical private inputs.
+
+The restoration source was syntax-checked, not executed. It restores bytes, expected uid/gid, modes and modification times using the exact original archive. It leaves a partial destination and failure receipt on error. New inode and creation/change identities are unavoidable; access times can change with observation. It uses a cooperative internal deadline and requires an external bounded watchdog for blocking operations.
+
+Large process snapshots and all package/image binary archives are excluded. Their stored hashes in retained receipts are provenance claims, not independently supplied raw objects. No private fixture state, ledger, credential/configuration fields, unredacted runtime wrapper arguments or raw controller logs were imported. Generated package/tool artifact paths remain where needed to preserve exact source and receipt bytes. The operation preserves archive aliases without claiming that TMP payloads survive a fresh environment snapshot.

@@ -1,0 +1,24 @@
+✔ joins exact browser-clock click/ready/pre-Open intervals and retains unrelated frames (6.05974ms)
+✔ never joins another document and marks incomplete snapshot coverage explicitly (2.355062ms)
+✔ missing original join is retained and ambiguous or wrong EventTiming identity refuses attribution (8.442663ms)
+✔ invalid capture, incomplete cohort, duplicate identity and reversed ready interval refuse derivation (1.533904ms)
+✔ captures exact safe frame/script scalars while preserving original snapshot and privacy (34.832869ms)
+✔ drains pending records once and keeps continuous sequence across snapshots (12.978629ms)
+✔ init-script ordering can attach once at DOMContentLoaded without timers (2.684814ms)
+✔ unsupported and failed-install observations are retained before explicit refusal (18.281086ms)
+✔ pagehide flushes existing records and late callbacks cannot add old document data (3.413068ms)
+✔ browser frame bound preserves retained prefix and exposes dropped observation (4.495681ms)
+✔ script/byte bounds and malformed timing refuse capture without exposing raw text (44.680783ms)
+✔ unknown, cross-origin and queried source identities never inherit app bundle authority (6.211479ms)
+✔ ledger rejects missing, wrong-document, duplicate, gap and counter-regression windows (12.784744ms)
+✔ ledger fails closed on bounded storage and keeps original failure window (8.854165ms)
+✔ setup adds one init script and reuses existing snapshot/append without action RPCs (17.361076ms)
+✔ setup rejects unbound asset identity and preserves an original ledger exception (5.417842ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 447.626892

@@ -1,0 +1,71 @@
+{
+  "name": "99007404",
+  "path": "/tmp/luci-retained-tools/package-0.5.0-99007404",
+  "startedAt": "2026-10-09T16:23:23.314851+00:00",
+  "status": "passed",
+  "errors": [],
+  "sourceCommit": "99007404a5ddd8592dee376ea00d99c6180d26fe",
+  "provenance": {
+    "path": "/workspace/luci/artifacts/quality-swarm/candidate-99007404/package/package-provenance.json",
+    "sha256": "91efa3af18f26d877932aaa98a16a524c6820352af10b57bc74aa45a96134ff7"
+  },
+  "integrity": {
+    "path": "/workspace/luci/artifacts/quality-swarm/candidate-99007404/package/package-integrity.json",
+    "sha256": "ea6fff19d7bec52a368e9126e98d44ca5ce4abea0d811c5d7ee7eb28167e3a82"
+  },
+  "archive": {
+    "alias": "/workspace/luci/artifacts/releases/0.5.0-99007404-preserved-before-67a5b7c7/luci-linux-amd64.tar.gz",
+    "aliasMetadataBefore": {
+      "mode": 511,
+      "uid": 1000,
+      "gid": 1000,
+      "size": 124,
+      "allocatedBytes": 4096,
+      "device": 27,
+      "inode": 663813,
+      "nlink": 1,
+      "mtimeNS": 1791536455591827749,
+      "atimeNS": 1791536455611828092,
+      "ctimeNS": 1791536455591827749,
+      "kind": "symlink"
+    },
+    "aliasLink": "/tmp/luci-retained-tools/archive-preservation-20261009T0910/0.5.0-99007404-preserved-before-67a5b7c7/luci-linux-amd64.tar.gz",
+    "path": "/tmp/luci-retained-tools/archive-preservation-20261009T0910/0.5.0-99007404-preserved-before-67a5b7c7/luci-linux-amd64.tar.gz",
+    "sha256": "9bf32d8ebe0c7c7d3297c81e91f0451f0035357cb77eb7abf06099920dd9f164",
+    "bytes": 69027325,
+    "metadataBefore": {
+      "mode": 384,
+      "uid": 1000,
+      "gid": 1000,
+      "size": 69027325,
+      "allocatedBytes": 69029888,
+      "device": 34,
+      "inode": 2759268,
+      "nlink": 1,
+      "mtimeNS": 1791531626530355302,
+      "atimeNS": 1791536455462775806,
+      "ctimeNS": 1791536455459825482,
+      "kind": "file"
+    }
+  },
+  "manifest": {
+    "path": "/workspace/.luci-tools/old-extracted-packages-retirement-plan/verification-v2/manifests/99007404.json",
+    "sha256": "126582b7231469b922f75240f1f854bce9524e6346fb4f8997df3274f3d6c6f0",
+    "bytes": 1397572
+  },
+  "files": 954,
+  "directories": 538,
+  "logicalBytes": 123053558,
+  "allocatedFileBytes": 125427712,
+  "allocatedDirectoryBytes": 0,
+  "allContentsMatch": true,
+  "allOriginalMetadataStable": true,
+  "modeDifferenceCount": 537,
+  "mtimeDifferenceCount": 1484,
+  "ownershipDifferenceCount": 1491,
+  "implicitDirectories": [
+    "."
+  ],
+  "finishedAt": "2026-10-09T16:23:25.928089+00:00",
+  "elapsedSeconds": 2.613294976996258
+}

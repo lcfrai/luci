@@ -1,0 +1,31 @@
+{
+  "commit": "b94ad37e53181e360ac8910ee980570de622728c",
+  "inputs": [
+    {
+      "path": "scripts/build-release.sh",
+      "sha256": "20c6cb96e475066d5fb9a8ac934eb1262c3f324e4ac78ccda42fbd137d9e080d",
+      "bytes": 6029
+    },
+    {
+      "path": "scripts/package.py",
+      "sha256": "9c3785eea32c597947395968a41f59ed973b05c0b955fea1067d3c0315fea9e5",
+      "bytes": 2649
+    },
+    {
+      "path": "scripts/stage-release-docs.py",
+      "sha256": "cd520022c86ff25695faaaeed5aad512147b91f37342963e1cea2cc3252b8e26",
+      "bytes": 20959
+    },
+    {
+      "path": "scripts/collect-licenses.py",
+      "sha256": "4a07489e31c417f8072cd94a3b1b596137a1faa78403311b74c48990c53110be",
+      "bytes": 14817
+    },
+    {
+      "path": "scripts/launch-unix.sh",
+      "sha256": "e73094527f35dce3d10fe9fb72ea321df8e8890aaabb175c0816f292bdf32e53",
+      "bytes": 5579
+    }
+  ],
+  "scope": "Five selected packaging sources match immutable Git and the current files. This is not a full compiler-input or external dependency inventory."
+}

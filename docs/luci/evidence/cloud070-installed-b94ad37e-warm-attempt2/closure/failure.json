@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "sourceCommit": "b94ad37e53181e360ac8910ee980570de622728c",
+  "helperSourceCommit": "b94ad37e53181e360ac8910ee980570de622728c",
+  "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+  "passed": false,
+  "failedStage": "terminal-scenario",
+  "failure": {
+    "name": "AssertionError",
+    "code": "ERR_ASSERTION",
+    "message": "Restart response was not successful\n\n409 !== 200\n"
+  },
+  "elapsedSeconds": 75.57499659701716,
+  "restart": {
+    "observedStatus": 409,
+    "responseBodyRetained": false,
+    "numericAdmissionOperands": "unavailable",
+    "uiWitness": {
+      "status": "root-reported viewed screenshot; independent visual review separate",
+      "file": "failure.png",
+      "sha256": "9c2625cfe5ca0f0b8546bad2f839965d90006efc8c587a014d4ca814f16e039b",
+      "reportedText": "Available memory cannot preserve the configured headroom for another worker."
+    }
+  },
+  "naturalSettlement": {
+    "kind": "initial-settlement-confirmed",
+    "pin": {
+      "allocation": {
+        "id": "7fcce4320b8c32a593385abe1effa46cf224a6de329d7df2b424fa608f4995a8",
+        "sandboxId": "s-cecf7cf2",
+        "sessionId": "s-cecf7cf2",
+        "instanceId": "609dabde-a2b3-4e99-863f-aa6a8b818d60",
+        "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+        "name": "/luci-s-cecf7cf2"
+      },
+      "lease": {
+        "id": "manual-85edd474",
+        "sessionId": "s-cecf7cf2",
+        "projectId": "p-3f0b4cad",
+        "sandboxId": "s-cecf7cf2",
+        "state": "backend-settled",
+        "resources": {
+          "CPUMillis": 1000,
+          "MemoryMiB": 1024
+        }
+      }
+    },
+    "polls": 24,
+    "elapsedMs": 16009.196027999998,
+    "first": {
+      "at": "2026-10-09T16:13:58.571Z",
+      "elapsedMs": 175.95251400000416,
+      "containers": [
+        {
+          "id": "7fcce4320b8c32a593385abe1effa46cf224a6de329d7df2b424fa608f4995a8",
+          "sandboxId": "s-cecf7cf2",
+          "sessionId": "s-cecf7cf2",
+          "instanceId": "609dabde-a2b3-4e99-863f-aa6a8b818d60",
+          "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+          "name": "/luci-s-cecf7cf2",
+          "status": "exited",
+          "pid": 0,
+          "created": "2026-10-09T16:13:10.912216499Z",
+          "startedAt": "2026-10-09T16:13:45.763759883Z",
+          "memoryBytes": 1073741824,
+          "cpuNano": 1000000000,
+          "pidsLimit": 256
+        }
+      ],
+      "ledger": {
+        "present": true,
+        "sha256": "4103a79db0869d25c19d08474e155c1c1e7d7c8a78beea70db6dc347ad914d6f",
+        "bytes": 498,
+        "leases": [
+          {
+            "id": "manual-85edd474",
+            "sessionId": "s-cecf7cf2",
+            "sandboxId": "s-cecf7cf2",
+            "projectId": "p-3f0b4cad",
+            "state": "backend-settled",
+            "resources": {
+              "CPUMillis": 1000,
+              "MemoryMiB": 1024
+            }
+          }
+        ],
+        "checks": [],
+        "fences": [],
+        "checkFences": []
+      },
+      "rootFreeBytes": 2436591616
+    },
+    "last": {
+      "at": "2026-10-09T16:14:14.399Z",
+      "elapsedMs": 16004.066887,
+      "containers": [],
+      "ledger": {
+        "present": true,
+        "sha256": "c0022f0995797c072d8097729ea90e74487bcefb911576c91e4af0665403a49e",
+        "bytes": 25,
+        "leases": [],
+        "checks": [],
+        "fences": [],
+        "checkFences": []
+      },
+      "rootFreeBytes": 7171702784
+    },
+    "scope": "Observed exact natural allocation absence and charge release only. Actual Restart admission and six GiB root floor remain authoritative.",
+    "observedAt": "2026-10-09T16:14:14.405Z"
+  },
+  "pendingMutations": [
+    {
+      "method": "POST",
+      "path": "/v1/sessions/s-cecf7cf2/restart",
+      "startedAt": "2026-10-09T16:14:14.774Z"
+    }
+  ],
+  "automaticCleanupPassed": false,
+  "failedCleanupPhases": [
+    {
+      "name": "exact-container-leftovers",
+      "status": "failed-or-unsettled",
+      "code": "ERR_ASSERTION"
+    },
+    {
+      "name": "final-source-and-inventory",
+      "status": "failed-or-unsettled",
+      "code": "ERR_ASSERTION"
+    }
+  ],
+  "independentCurrentLedger": {
+    "present": true,
+    "bytes": 25,
+    "sha256": "c0022f0995797c072d8097729ea90e74487bcefb911576c91e4af0665403a49e",
+    "counts": {
+      "leases": 0,
+      "checks": 0,
+      "fences": 0,
+      "checkFences": 0
+    }
+  },
+  "scope": "Actual natural first allocation absence and exact manual lease release preceded UI Restart. Restart409 body is missing; screenshot witness is separate. No successful Restart, second exit7, or complete C070 installed acceptance. Pending mutation retained. Independent later empty inventory does not certify remote mutation settlement or retroactively pass automatic cleanup.",
+  "originalResultSHA256": "9653c7ccb7275312ac6739c2ecb0a294a24471d1e4c55a6516dfe41ded1753a9",
+  "originalWrapperSHA256": "6312ea6812e9e74995b751b34c867dc3a6b1881b9ac58047e04d09e08c6023ef"
+}

@@ -1,0 +1,119 @@
+{
+  "packages": [
+    {
+      "name": "0dcafb14",
+      "sourceCommit": "0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f",
+      "archive": {
+        "alias": "/workspace/luci/artifacts/releases/0.5.0-0dcafb14-preserved-before-99007404/luci-linux-amd64.tar.gz",
+        "path": "/tmp/luci-retained-tools/release-payloads-0dcafb14/luci-linux-amd64.tar.gz",
+        "sha256": "501a29e3c920173b99041797f794564b433e9d9b6c45036509165a4092a00b25",
+        "bytes": 69000975
+      },
+      "files": 953,
+      "directories": 538,
+      "logicalBytes": 123006633,
+      "allocatedFileBytes": 125378560,
+      "manifest": {
+        "path": "/workspace/.luci-tools/old-extracted-packages-retirement-plan/verification-v2/manifests/0dcafb14.json",
+        "sha256": "d2130ca28f599dfb90beebca4dbb05abd3521120204333ddf9dd8392d1dae72e",
+        "bytes": 1396534
+      }
+    },
+    {
+      "name": "2da1a821",
+      "sourceCommit": "2da1a821b8456c20a858fb86ef87649ea917d9de",
+      "archive": {
+        "alias": "/workspace/luci/artifacts/releases/0.5.0-2da1a821-preserved-before-0dcafb14/luci-linux-amd64.tar.gz",
+        "path": "/tmp/luci-retained-tools/release-payloads-2da1a821/luci-linux-amd64.tar.gz",
+        "sha256": "078f0689489d51583fb58f46846da9d13156845e6f647e90b744696aa3c7c09e",
+        "bytes": 134313689
+      },
+      "files": 3587,
+      "directories": 1011,
+      "logicalBytes": 223470105,
+      "allocatedFileBytes": 231940096,
+      "manifest": {
+        "path": "/workspace/.luci-tools/old-extracted-packages-retirement-plan/verification-v2/manifests/2da1a821.json",
+        "sha256": "73464a5b895bfabfc21f2ce948c05e87096714e156ca23b22686a3ad5882f228",
+        "bytes": 4730518
+      }
+    },
+    {
+      "name": "67a5b7c7",
+      "sourceCommit": "67a5b7c75ca6354d43085f5bb81ec53ee4291f34",
+      "archive": {
+        "alias": "/workspace/luci/artifacts/releases/0.5.0-67a5b7c7-preserved-before-d20ebd29/luci-linux-amd64.tar.gz",
+        "path": "/tmp/luci-retained-tools/archive-preservation-20261009T0910/0.5.0/luci-linux-amd64.tar.gz",
+        "sha256": "8d389ccc4a87d33e04dd7e3e96123bb105759b45535bd9077cccc3e3b6904157",
+        "bytes": 69040919
+      },
+      "files": 955,
+      "directories": 538,
+      "logicalBytes": 123085782,
+      "allocatedFileBytes": 125464576,
+      "manifest": {
+        "path": "/workspace/.luci-tools/old-extracted-packages-retirement-plan/verification-v2/manifests/67a5b7c7.json",
+        "sha256": "8f60152393c00ec1b7a4509a07fd5b4fd738b96b522f5586a9586ace91601e00",
+        "bytes": 1397757
+      }
+    },
+    {
+      "name": "99007404",
+      "sourceCommit": "99007404a5ddd8592dee376ea00d99c6180d26fe",
+      "archive": {
+        "alias": "/workspace/luci/artifacts/releases/0.5.0-99007404-preserved-before-67a5b7c7/luci-linux-amd64.tar.gz",
+        "path": "/tmp/luci-retained-tools/archive-preservation-20261009T0910/0.5.0-99007404-preserved-before-67a5b7c7/luci-linux-amd64.tar.gz",
+        "sha256": "9bf32d8ebe0c7c7d3297c81e91f0451f0035357cb77eb7abf06099920dd9f164",
+        "bytes": 69027325
+      },
+      "files": 954,
+      "directories": 538,
+      "logicalBytes": 123053558,
+      "allocatedFileBytes": 125427712,
+      "manifest": {
+        "path": "/workspace/.luci-tools/old-extracted-packages-retirement-plan/verification-v2/manifests/99007404.json",
+        "sha256": "126582b7231469b922f75240f1f854bce9524e6346fb4f8997df3274f3d6c6f0",
+        "bytes": 1397572
+      }
+    },
+    {
+      "name": "d20ebd29",
+      "sourceCommit": "d20ebd292f3f1de04d6726bab0998c210987bcb5",
+      "archive": {
+        "alias": "/workspace/luci/artifacts/releases/0.5.0-d20ebd29-preserved-before-edd0cb12/luci-linux-amd64.tar.gz",
+        "path": "/tmp/luci-retained-tools/archive-preservation-d20ebd29/luci-linux-amd64.tar.gz",
+        "sha256": "5e4e0a2a380268f0d17cbbf2cf7cfb41f5aa64abc8f454864fdb7eb0bdb6400c",
+        "bytes": 69055452
+      },
+      "files": 956,
+      "directories": 538,
+      "logicalBytes": 123125969,
+      "allocatedFileBytes": 125505536,
+      "manifest": {
+        "path": "/workspace/.luci-tools/old-extracted-packages-retirement-plan/verification-v2/manifests/d20ebd29.json",
+        "sha256": "363ad3a2747a6451580f906003270089a7b0388099bc90b8b573c954752e9351",
+        "bytes": 1398925
+      }
+    },
+    {
+      "name": "edd0cb12",
+      "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+      "archive": {
+        "alias": "/workspace/luci/artifacts/releases/0.5.0-edd0cb12-preserved-before-5f4a966f/luci-linux-amd64.tar.gz",
+        "path": "/tmp/luci-retained-tools/archive-preservation-edd0cb12/luci-linux-amd64.tar.gz",
+        "sha256": "477d48fb6e6ce58f0acb801fbf6ba9046e8721a1f6fff9c1b5bc20a40b80d2c8",
+        "bytes": 69065419
+      },
+      "files": 957,
+      "directories": 538,
+      "logicalBytes": 123151282,
+      "allocatedFileBytes": 125538304,
+      "manifest": {
+        "path": "/workspace/.luci-tools/old-extracted-packages-retirement-plan/verification-v2/manifests/edd0cb12.json",
+        "sha256": "e359b8fcbf70294e1b6fd2b23dc850968ca54df4aa51ffc0dfb109ef5f27edeb",
+        "bytes": 1400725
+      }
+    }
+  ],
+  "scope": "Read-only full compressed-archive hash plus every extracted member proof preceded the completed retirement; this publication reuses those retained receipts, not new archive/payload reads."
+}

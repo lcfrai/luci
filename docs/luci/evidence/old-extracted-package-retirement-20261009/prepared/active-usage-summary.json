@@ -1,0 +1,346 @@
+{
+  "version": 2,
+  "rawReceipt": {
+    "path": "/workspace/.luci-tools/old-extracted-packages-retirement-plan/active-usage-v2.json",
+    "bytes": 3387731,
+    "sha256": "8611014cc67ac19af61f9391f72109587c3e1b1208468ac9a32a1e5cc0934ca1"
+  },
+  "source": {
+    "path": "/workspace/.luci-tools/old-extracted-packages-retirement-plan/check_active_usage_v2.py",
+    "bytes": 8411,
+    "sha256": "60e7b78132c903bdea14ebf4b7a5311c1193f2abc10ca3920811a517df71654e",
+    "stableBeforeAfter": true
+  },
+  "observedAtUTC": "2026-10-09T16:23:33.453663+00:00",
+  "targets": [
+    "/tmp/luci-retained-tools/package-0.5.0-0dcafb14",
+    "/tmp/luci-retained-tools/package-0.5.0-2da1a821",
+    "/tmp/luci-retained-tools/package-0.5.0-67a5b7c7",
+    "/tmp/luci-retained-tools/package-0.5.0-99007404",
+    "/tmp/luci-retained-tools/package-0.5.0-d20ebd29",
+    "/tmp/luci-retained-tools/package-0.5.0-edd0cb12"
+  ],
+  "inspector": {
+    "pid": 2517774,
+    "startTicks": "30908235",
+    "state": "R",
+    "ppid": 473
+  },
+  "result": "no-target-reference-observed-in-readable-fields",
+  "busy": [],
+  "unknown": [
+    {
+      "pid": 2517774,
+      "startTicks": "30908235",
+      "state": "R",
+      "identityStable": true,
+      "reasons": [
+        {
+          "field": "fd",
+          "descriptor": "3",
+          "reason": "absent-during-observation"
+        }
+      ]
+    },
+    {
+      "pid": 203,
+      "startTicks": "1521",
+      "state": "S",
+      "identityStable": true,
+      "reasons": [
+        {
+          "field": "exe",
+          "reason": "permission-denied"
+        },
+        {
+          "field": "cwd",
+          "reason": "permission-denied"
+        },
+        {
+          "field": "maps",
+          "reason": "permission-denied"
+        },
+        {
+          "field": "fd",
+          "reason": "permission-denied"
+        }
+      ]
+    },
+    {
+      "pid": 254,
+      "startTicks": "1534",
+      "state": "S",
+      "identityStable": true,
+      "reasons": [
+        {
+          "field": "exe",
+          "reason": "permission-denied"
+        },
+        {
+          "field": "cwd",
+          "reason": "permission-denied"
+        },
+        {
+          "field": "maps",
+          "reason": "permission-denied"
+        },
+        {
+          "field": "fd",
+          "reason": "permission-denied"
+        }
+      ]
+    },
+    {
+      "pid": 260700,
+      "startTicks": "2331192",
+      "state": "S",
+      "identityStable": true,
+      "reasons": [
+        {
+          "field": "exe",
+          "reason": "permission-denied"
+        },
+        {
+          "field": "cwd",
+          "reason": "permission-denied"
+        },
+        {
+          "field": "maps",
+          "reason": "permission-denied"
+        },
+        {
+          "field": "fd",
+          "reason": "permission-denied"
+        }
+      ]
+    }
+  ],
+  "liveProcesses": [
+    {
+      "pid": 2517774,
+      "identityBefore": {
+        "pid": 2517774,
+        "startTicks": "30908235",
+        "state": "R",
+        "ppid": 473
+      },
+      "identityAfter": {
+        "pid": 2517774,
+        "startTicks": "30908235",
+        "state": "R",
+        "ppid": 473
+      },
+      "identityStable": true,
+      "matches": [],
+      "unavailable": [
+        {
+          "field": "fd",
+          "descriptor": "3",
+          "reason": "absent-during-observation"
+        }
+      ],
+      "inspector": true
+    },
+    {
+      "pid": 1,
+      "identityBefore": {
+        "pid": 1,
+        "startTicks": "28",
+        "state": "S",
+        "ppid": 0
+      },
+      "identityAfter": {
+        "pid": 1,
+        "startTicks": "28",
+        "state": "S",
+        "ppid": 0
+      },
+      "identityStable": true,
+      "matches": [],
+      "unavailable": [],
+      "inspector": false
+    },
+    {
+      "pid": 2,
+      "identityBefore": {
+        "pid": 2,
+        "startTicks": "31",
+        "state": "S",
+        "ppid": 1
+      },
+      "identityAfter": {
+        "pid": 2,
+        "startTicks": "31",
+        "state": "S",
+        "ppid": 1
+      },
+      "identityStable": true,
+      "matches": [],
+      "unavailable": [],
+      "inspector": false
+    },
+    {
+      "pid": 203,
+      "identityBefore": {
+        "pid": 203,
+        "startTicks": "1521",
+        "state": "S",
+        "ppid": 1
+      },
+      "identityAfter": {
+        "pid": 203,
+        "startTicks": "1521",
+        "state": "S",
+        "ppid": 1
+      },
+      "identityStable": true,
+      "matches": [],
+      "unavailable": [
+        {
+          "field": "exe",
+          "reason": "permission-denied"
+        },
+        {
+          "field": "cwd",
+          "reason": "permission-denied"
+        },
+        {
+          "field": "maps",
+          "reason": "permission-denied"
+        },
+        {
+          "field": "fd",
+          "reason": "permission-denied"
+        }
+      ],
+      "inspector": false
+    },
+    {
+      "pid": 254,
+      "identityBefore": {
+        "pid": 254,
+        "startTicks": "1534",
+        "state": "S",
+        "ppid": 203
+      },
+      "identityAfter": {
+        "pid": 254,
+        "startTicks": "1534",
+        "state": "S",
+        "ppid": 203
+      },
+      "identityStable": true,
+      "matches": [],
+      "unavailable": [
+        {
+          "field": "exe",
+          "reason": "permission-denied"
+        },
+        {
+          "field": "cwd",
+          "reason": "permission-denied"
+        },
+        {
+          "field": "maps",
+          "reason": "permission-denied"
+        },
+        {
+          "field": "fd",
+          "reason": "permission-denied"
+        }
+      ],
+      "inspector": false
+    },
+    {
+      "pid": 473,
+      "identityBefore": {
+        "pid": 473,
+        "startTicks": "1608",
+        "state": "S",
+        "ppid": 0
+      },
+      "identityAfter": {
+        "pid": 473,
+        "startTicks": "1608",
+        "state": "S",
+        "ppid": 0
+      },
+      "identityStable": true,
+      "matches": [],
+      "unavailable": [],
+      "inspector": false
+    },
+    {
+      "pid": 260700,
+      "identityBefore": {
+        "pid": 260700,
+        "startTicks": "2331192",
+        "state": "S",
+        "ppid": 1
+      },
+      "identityAfter": {
+        "pid": 260700,
+        "startTicks": "2331192",
+        "state": "S",
+        "ppid": 1
+      },
+      "identityStable": true,
+      "matches": [],
+      "unavailable": [
+        {
+          "field": "exe",
+          "reason": "permission-denied"
+        },
+        {
+          "field": "cwd",
+          "reason": "permission-denied"
+        },
+        {
+          "field": "maps",
+          "reason": "permission-denied"
+        },
+        {
+          "field": "fd",
+          "reason": "permission-denied"
+        }
+      ],
+      "inspector": false
+    }
+  ],
+  "literalZombieCount": 6630,
+  "literalZombieIdentitiesLocation": "active-usage-v2.json/literalZombieIdentities; original literal Z identities preserved, not inferred absent",
+  "bounds": {
+    "secondsCooperative": 20,
+    "maxProcesses": 8192,
+    "maxFDsPerProcess": 512,
+    "maxStatBytes": 8192,
+    "maxCmdlineBytes": 65536,
+    "maxMapsBytes": 2097152,
+    "maxTotalReadBytes": 16777216,
+    "reached": []
+  },
+  "cost": {
+    "elapsedSeconds": 0.2623511700076051,
+    "processesListed": 6637,
+    "identitiesAttempted": 6637,
+    "processesObserved": 6637,
+    "initialLiveIdentities": 7,
+    "bytesRead": 1148199,
+    "readCalls": 6659,
+    "readlinkCalls": 42
+  },
+  "priorIncompleteReceipt": {
+    "path": "active-usage.json",
+    "sha256": "c05823a014b2b66998980ff7cab69a45c773810be015caf0494028afe3ecaa3d",
+    "scope": "4096-process cap reached before newer live identities; not an idle result"
+  },
+  "limits": [
+    "Point-in-time readable /proc evidence only; no universal idle/no-future-launch proof.",
+    "Unknown/missing/changing observations remain explicit. No unobserved process is treated as absent or safe.",
+    "Positive references remain listed if another field is unreadable; exact identity instability limits attribution.",
+    "Zombie states are literal observed Z, not absence. Inspector identity is recorded separately. Fields are deliberately not read for initial Z/X identities; they are not included in readable active-field coverage.",
+    "No environ, private file contents, descriptor contents, package trees or archive payloads were read.",
+    "Exact string/path matches can miss application-retained or later-created references; current root coordination and separate full retention/member proof remain necessary.",
+    "All reads have cooperative bounds; synchronous proc read scheduling is not preemptively bounded. No signals, Docker, storage changes, tests or application starts."
+  ]
+}

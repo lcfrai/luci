@@ -1,0 +1,29 @@
+{
+  "startedAt": "2026-10-09T16:31:12.083764+00:00",
+  "status": "pending",
+  "helperSHA256": "9e2e7f71f45bca645a5a50aee600db8e7093ae23b860aca4bdbb0def4a1243e6",
+  "planSHA256": "c7e298a50984471954939b0d0f3f01e7f96a2e881cfb0252fcfaec5cf61287cd",
+  "scope": "Only six exact generated extracted trees. No Docker, archive, fixture, ledger, model/module/tool-source or current-package mutation. Root-coordinated closed task window; exact known unreadable identities accepted without a universal idle claim.",
+  "freeBefore": {
+    "/workspace": 7145111552,
+    "/tmp": 1502429184
+  },
+  "memoryBefore": {
+    "MemFreeBytes": 11601182720,
+    "MemAvailableBytes": 18014584832,
+    "ShmemBytes": 16369479680,
+    "memory.current": "23360712704",
+    "memory.max": "34359738368",
+    "memory.swap.current": "0",
+    "scope": "Sequential visible host/root-cgroup observations only; not atomic effective admission operands."
+  },
+  "packages": [
+    "0dcafb14",
+    "2da1a821",
+    "67a5b7c7",
+    "99007404",
+    "d20ebd29",
+    "edd0cb12"
+  ],
+  "completed": []
+}

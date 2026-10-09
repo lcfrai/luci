@@ -1,0 +1,101 @@
+{
+  "id": "CLOUD-071",
+  "priority": "P2",
+  "status": "External helper corrected; inert exact-listener validation complete; installed browser validation remains pending.",
+  "scope": "No repository, browser, Docker, compiler, original failed fixture or product behavior changes.",
+  "validation": [
+    {
+      "variant": "warm",
+      "mode": "before",
+      "exitCode": 1,
+      "counts": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "sourceStable": true,
+      "stderrBytes": 0
+    },
+    {
+      "variant": "warm",
+      "mode": "after",
+      "exitCode": 0,
+      "counts": {
+        "tests": 35,
+        "pass": 35,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "sourceStable": true,
+      "stderrBytes": 0
+    },
+    {
+      "variant": "cold",
+      "mode": "before",
+      "exitCode": 1,
+      "counts": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "sourceStable": true,
+      "stderrBytes": 0
+    },
+    {
+      "variant": "cold",
+      "mode": "after",
+      "exitCode": 0,
+      "counts": {
+        "tests": 35,
+        "pass": 35,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "sourceStable": true,
+      "stderrBytes": 0
+    }
+  ],
+  "controls": [
+    "Known exact POST/origin/path and request-object binding; one listener claim per request.",
+    "Bounded body observation; bounded parsing/retention and full-body hash for accepted-size bodies; oversized bodies retain only prefix hash and byte count.",
+    "Non-200/malformed/error/timeout responses never clear pending state; a 409 never implies absent allocation or lease release.",
+    "Exact 200 identity/harness/lifecycle/generation remains required, with active workflow at settlement and durable record before pending deletion.",
+    "Accepted refusal diagnoses can finish despite scenario failure; bounded drain precedes browser closure, then late callbacks cannot record or settle.",
+    "No mutation replay, new request, cleanup privilege, allocation, or permission bypass."
+  ],
+  "materializationLimit": "Playwright response.body() materializes the response before its actual-size check. The 2 MiB bound limits parsing, retained diagnostic bytes/hash work, and projection size; it is not a streaming transport-memory cap.",
+  "originalActualFailure": {
+    "path": "/workspace/.luci-tools/cloud070-installed-b94ad37e/evidence/warm-attempt2/driver",
+    "unchangedBindings": {
+      "accepted-harness/launch.mjs": {
+        "sha256": "b83db056209c27bdc0dac5df9805cdb4c87dee817f0bda5130644261cbad02e5",
+        "bytes": 66718
+      },
+      "accepted-harness/scenario.mjs": {
+        "sha256": "bee434c538872680e4abd652022041b2516b63c4dddb79e9910efe16a3fa0742",
+        "bytes": 39222
+      },
+      "result.json": {
+        "sha256": "9653c7ccb7275312ac6739c2ecb0a294a24471d1e4c55a6516dfe41ded1753a9",
+        "bytes": 172433
+      },
+      "phase-033.json": {
+        "sha256": "7ccc5608c8befa70432d3730b06f893708ef76110f9f358b0d0ece6f75a2a6d1",
+        "bytes": 2604
+      }
+    },
+    "note": "Actual result remains a failure; no raw private response/error bytes copied or published."
+  },
+  "worklistRow": "CLOUD-071 | P2 | Browser Restart refusal diagnostic lost before body read | External helper fixed; 35 inert cases pass per warm/cold variant, matching installed validation pending | Original exact listener fails the same 409 diagnosis assertion in both variants. Bounded allowlisted problem projection precedes non-200 failure; accepted observations drain before browser closure. Refusal/ambiguous outcomes retain pending mutation, and no allocation-absence or automatic-cleanup claim follows.",
+  "supplementalDrainBoundary": {
+    "warm": "1 pass",
+    "cold": "1 pass",
+    "scope": "Executes the exact final finally-block drain. A known response arriving after drain starts cannot acquire observation while an older accepted observation remains pending."
+  }
+}

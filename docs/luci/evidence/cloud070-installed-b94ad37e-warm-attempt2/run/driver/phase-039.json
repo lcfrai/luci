@@ -1,0 +1,70 @@
+{
+  "kind": "scenario-failure",
+  "step": "single-ui-restart",
+  "error": {
+    "name": "AssertionError",
+    "code": "ERR_ASSERTION",
+    "messageSHA256": "7f6b7c72604ec0e68839fdb3708ec7ea25fd9a0f6e27d230c0dec26437b45b4e",
+    "messageBytes": 51,
+    "messageRetained": false,
+    "kind": "other"
+  },
+  "gates": [
+    {
+      "entry": {
+        "at": "2026-10-09T16:13:54.316Z",
+        "monotonicMs": 47631.886501,
+        "deadlineMonotonicMs": 55631.886501,
+        "budgetMs": 8000
+      },
+      "at": "2026-10-09T16:13:54.316Z",
+      "monotonicMs": 47631.886501,
+      "deadlineMonotonicMs": 55631.886501,
+      "budgetMs": 8000,
+      "bodyObservedMonotonicMs": 47648.46572,
+      "bodySHA256": "cd777081f810b5edb4ce006cbb955423ef9972e3d07463936058b388178276c4",
+      "bodyBytes": 642,
+      "session": {
+        "id": "s-cecf7cf2",
+        "status": "running",
+        "executionGeneration": "e53a0dca61c6ebe79c7bf83027d522e43703425ed129c2b0ec02ba6cae4f14aa"
+      },
+      "released": "2026-10-09T16:13:57.230Z",
+      "expired": false,
+      "releasedMonotonicMs": 50545.708099,
+      "settlement": {
+        "attempted": "fulfill",
+        "acknowledged": true,
+        "requestFailed": false
+      }
+    },
+    {
+      "entry": {
+        "at": "2026-10-09T16:14:14.435Z",
+        "monotonicMs": 67750.831467,
+        "deadlineMonotonicMs": 75750.831467,
+        "budgetMs": 8000
+      },
+      "at": "2026-10-09T16:14:14.435Z",
+      "monotonicMs": 67750.831467,
+      "deadlineMonotonicMs": 75750.831467,
+      "budgetMs": 8000,
+      "bodyObservedMonotonicMs": 67786.956966,
+      "bodySHA256": "bfd9487472baa8b3f88f6e5c1589c9e5d58a0c7326bd380ffefe8071d2035368",
+      "bodyBytes": 566,
+      "session": {
+        "id": "s-cecf7cf2",
+        "status": "exited",
+        "executionGeneration": null
+      },
+      "released": null,
+      "expired": false,
+      "settlement": {
+        "attempted": null,
+        "acknowledged": false,
+        "requestFailed": false
+      }
+    }
+  ],
+  "observedAt": "2026-10-09T16:14:14.821Z"
+}

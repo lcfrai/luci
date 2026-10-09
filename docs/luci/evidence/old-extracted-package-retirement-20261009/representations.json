@@ -1,0 +1,95 @@
+{
+  "members": [
+    {
+      "source": "/workspace/.luci-tools/old-extracted-packages-retirement-plan/verification-v2/manifests/0dcafb14.json",
+      "publishedPath": "member-manifests/0dcafb14.json.gz",
+      "encoding": "gzip",
+      "original": {
+        "sha256": "d2130ca28f599dfb90beebca4dbb05abd3521120204333ddf9dd8392d1dae72e",
+        "bytes": 1396534
+      },
+      "stored": {
+        "sha256": "5e31e1944bf81c30080fdddf4774a9fb5662afa17368710ccc1c26e720b59ed1",
+        "bytes": 190082
+      },
+      "decodedPath": "prepared/verification-v2/manifests/0dcafb14.json",
+      "transformation": "Lossless gzip only; exact original JSON bytes recoverable. No field redaction or content rewrite."
+    },
+    {
+      "source": "/workspace/.luci-tools/old-extracted-packages-retirement-plan/verification-v2/manifests/2da1a821.json",
+      "publishedPath": "member-manifests/2da1a821.json.gz",
+      "encoding": "gzip",
+      "original": {
+        "sha256": "73464a5b895bfabfc21f2ce948c05e87096714e156ca23b22686a3ad5882f228",
+        "bytes": 4730518
+      },
+      "stored": {
+        "sha256": "a8fb6b7d47e158b5fe6bd7f082e51cfd336610c9ef94ef5d955b167d26bad13d",
+        "bytes": 592915
+      },
+      "decodedPath": "prepared/verification-v2/manifests/2da1a821.json",
+      "transformation": "Lossless gzip only; exact original JSON bytes recoverable. No field redaction or content rewrite."
+    },
+    {
+      "source": "/workspace/.luci-tools/old-extracted-packages-retirement-plan/verification-v2/manifests/67a5b7c7.json",
+      "publishedPath": "member-manifests/67a5b7c7.json.gz",
+      "encoding": "gzip",
+      "original": {
+        "sha256": "8f60152393c00ec1b7a4509a07fd5b4fd738b96b522f5586a9586ace91601e00",
+        "bytes": 1397757
+      },
+      "stored": {
+        "sha256": "8f6867a4361394a03686edeec3ba4c4ea5859b6853b7631e926557aaf0291c89",
+        "bytes": 190045
+      },
+      "decodedPath": "prepared/verification-v2/manifests/67a5b7c7.json",
+      "transformation": "Lossless gzip only; exact original JSON bytes recoverable. No field redaction or content rewrite."
+    },
+    {
+      "source": "/workspace/.luci-tools/old-extracted-packages-retirement-plan/verification-v2/manifests/99007404.json",
+      "publishedPath": "member-manifests/99007404.json.gz",
+      "encoding": "gzip",
+      "original": {
+        "sha256": "126582b7231469b922f75240f1f854bce9524e6346fb4f8997df3274f3d6c6f0",
+        "bytes": 1397572
+      },
+      "stored": {
+        "sha256": "20007be806f4f4e0a62b71505f6acc966e6ba125c27f84d38d18e5f48f76ff59",
+        "bytes": 189855
+      },
+      "decodedPath": "prepared/verification-v2/manifests/99007404.json",
+      "transformation": "Lossless gzip only; exact original JSON bytes recoverable. No field redaction or content rewrite."
+    },
+    {
+      "source": "/workspace/.luci-tools/old-extracted-packages-retirement-plan/verification-v2/manifests/d20ebd29.json",
+      "publishedPath": "member-manifests/d20ebd29.json.gz",
+      "encoding": "gzip",
+      "original": {
+        "sha256": "363ad3a2747a6451580f906003270089a7b0388099bc90b8b573c954752e9351",
+        "bytes": 1398925
+      },
+      "stored": {
+        "sha256": "5a1108f123a955caf2f6897981e9172a595fe97e439cf931e2ce5e57296895f3",
+        "bytes": 189040
+      },
+      "decodedPath": "prepared/verification-v2/manifests/d20ebd29.json",
+      "transformation": "Lossless gzip only; exact original JSON bytes recoverable. No field redaction or content rewrite."
+    },
+    {
+      "source": "/workspace/.luci-tools/old-extracted-packages-retirement-plan/verification-v2/manifests/edd0cb12.json",
+      "publishedPath": "member-manifests/edd0cb12.json.gz",
+      "encoding": "gzip",
+      "original": {
+        "sha256": "e359b8fcbf70294e1b6fd2b23dc850968ca54df4aa51ffc0dfb109ef5f27edeb",
+        "bytes": 1400725
+      },
+      "stored": {
+        "sha256": "7a74a0fbf2b5969a9d3c0bf56e1267633061f504fac6e00674a66dd2e4db7495",
+        "bytes": 190211
+      },
+      "decodedPath": "prepared/verification-v2/manifests/edd0cb12.json",
+      "transformation": "Lossless gzip only; exact original JSON bytes recoverable. No field redaction or content rewrite."
+    }
+  ],
+  "scope": "Only the six generated member metadata manifests are losslessly compressed. Original/stored hashes are distinct. Other copied receipt/source bytes are exact."
+}

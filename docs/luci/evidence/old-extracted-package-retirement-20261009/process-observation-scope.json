@@ -1,0 +1,64 @@
+{
+  "runtimeOperationScans": [
+    {
+      "operationReceipt": "002-all-targets-preflight-passed.json",
+      "path": "/workspace/.luci-tools/old-extracted-package-retirement-operation-root1/usage-1/active-usage-v2.json",
+      "sha256": "3217b753dc6771bab29eca1a3f9e856b91e5a084e8086e0d09fb0c63b2809d99",
+      "unknownCount": 4,
+      "literalZombieCount": 6636,
+      "sourceKind": "Exact small retained operation receipt; full process snapshot excluded and not reread by this publication."
+    },
+    {
+      "operationReceipt": "003-target-pending-0dcafb14.json",
+      "path": "/workspace/.luci-tools/old-extracted-package-retirement-operation-root1/usage-2/active-usage-v2.json",
+      "sha256": "d3a1dcb02657f618a76f24c50104f78b68457b99046cff68564447c53058b10a",
+      "unknownCount": 4,
+      "literalZombieCount": 6636,
+      "sourceKind": "Exact small retained operation receipt; full process snapshot excluded and not reread by this publication."
+    },
+    {
+      "operationReceipt": "005-target-pending-2da1a821.json",
+      "path": "/workspace/.luci-tools/old-extracted-package-retirement-operation-root1/usage-3/active-usage-v2.json",
+      "sha256": "21d8b7a7cf8bb31c5258ab3ccb41abae22dbc9b569d3442a3bbd7f0ed247038a",
+      "unknownCount": 4,
+      "literalZombieCount": 6636,
+      "sourceKind": "Exact small retained operation receipt; full process snapshot excluded and not reread by this publication."
+    },
+    {
+      "operationReceipt": "007-target-pending-67a5b7c7.json",
+      "path": "/workspace/.luci-tools/old-extracted-package-retirement-operation-root1/usage-4/active-usage-v2.json",
+      "sha256": "5890067e708f3b299c4ec45994d5a7839a83b3e96b2af4b1f0c4fb3e6065f57e",
+      "unknownCount": 4,
+      "literalZombieCount": 6636,
+      "sourceKind": "Exact small retained operation receipt; full process snapshot excluded and not reread by this publication."
+    },
+    {
+      "operationReceipt": "009-target-pending-99007404.json",
+      "path": "/workspace/.luci-tools/old-extracted-package-retirement-operation-root1/usage-5/active-usage-v2.json",
+      "sha256": "1b4fefc57fbbd93b2b0e2b514b473473ad56e73d38e2e5560c9acac778bb42e2",
+      "unknownCount": 4,
+      "literalZombieCount": 6636,
+      "sourceKind": "Exact small retained operation receipt; full process snapshot excluded and not reread by this publication."
+    },
+    {
+      "operationReceipt": "011-target-pending-d20ebd29.json",
+      "path": "/workspace/.luci-tools/old-extracted-package-retirement-operation-root1/usage-6/active-usage-v2.json",
+      "sha256": "efceb6511a7039df992274a6c35e5c1f64b7b42fc83cd80b0f6e14f29bfab8e6",
+      "unknownCount": 4,
+      "literalZombieCount": 6636,
+      "sourceKind": "Exact small retained operation receipt; full process snapshot excluded and not reread by this publication."
+    },
+    {
+      "operationReceipt": "013-target-pending-edd0cb12.json",
+      "path": "/workspace/.luci-tools/old-extracted-package-retirement-operation-root1/usage-7/active-usage-v2.json",
+      "sha256": "f384c4ecb8d00e1673d3908595e4beaa0a66e990ffb0a24dab3dce7a35479954",
+      "unknownCount": 4,
+      "literalZombieCount": 6636,
+      "sourceKind": "Exact small retained operation receipt; full process snapshot excluded and not reread by this publication."
+    }
+  ],
+  "unknownPolicy": "Exact accepted PID/start identities203/1521,254/1534,260700/2331192 have unreadable exe/cwd/maps/fd. Inspector disappearing fd may also remain. No universal idle assertion.",
+  "preparedScan": "prepared/active-usage-summary.json",
+  "fullProcessSnapshotsPublished": false,
+  "omittedOriginals": "Thousands of literal unrelated zombie/process identities per snapshot are excluded. Their original hashes remain in exact operation receipts. These exclusions do not mean zero processes."
+}

@@ -1,0 +1,13 @@
+{
+  "kind": "second-poll-release-cleanup-failure",
+  "step": "single-ui-restart",
+  "error": {
+    "name": "AssertionError",
+    "code": "ERR_ASSERTION",
+    "messageSHA256": "b0e3cfabf2cb49aff8a8555c962dd738b04218b9365146c5aa167715bd6c4759",
+    "messageBytes": 49,
+    "messageRetained": false,
+    "kind": "other"
+  },
+  "observedAt": "2026-10-09T16:14:14.858Z"
+}

@@ -1,0 +1,40 @@
+✔ exact known 409 retains bounded allowlisted refusal before failing without clearing pending (10.800498ms)
+✔ exact 200 starting acknowledgment retains generation and settles only known request (3.006831ms)
+✔ exact 200 running acknowledgment retains generation and settles only known request (2.412496ms)
+✔ 200 wrong session retains unresolved mutation (2.703345ms)
+✔ 200 wrong project retains unresolved mutation (2.415941ms)
+✔ 200 wrong harness retains unresolved mutation (2.353067ms)
+✔ 200 wrong status retains unresolved mutation (4.145478ms)
+✔ 200 wrong generation retains unresolved mutation (1.920855ms)
+✔ malformed 200 retains hash-only bounded diagnosis and pending (2.738558ms)
+✔ malformed 409 retains hash-only bounded diagnosis and pending (2.579989ms)
+✔ empty refusal body retains an exact empty hash and unparsed diagnosis (1.97068ms)
+✔ oversized response records only bounded prefix hash and never parses or settles (11.468095ms)
+✔ body transport rejection retains safe unavailability and pending without raw error (2.224723ms)
+✔ bounded body timeout cannot later record or clear a successful late body (3.705465ms)
+✔ late body rejection after timeout is consumed without a second failure or raw publication (2.195469ms)
+✔ response arriving after workflow close does not read or settle (2.449081ms)
+✔ body resolving after workflow close does not record or settle (2.254157ms)
+✔ changed request map during body observation refuses stale acknowledgment (2.305204ms)
+✔ changed pending path during body observation refuses stale acknowledgment (3.759597ms)
+✔ changed session during body observation refuses stale acknowledgment (1.922467ms)
+✔ changed project during body observation refuses stale acknowledgment (1.543987ms)
+✔ known object with wrong method refuses before body read (1.996559ms)
+✔ known object with wrong origin refuses before body read (1.604248ms)
+✔ known object with wrong path refuses before body read (1.656357ms)
+✔ known object with wrong query refuses before body read (1.962859ms)
+✔ unknown response is ignored without reading or mutating known pending (1.59891ms)
+✔ durable acknowledgment record failure retains pending instead of certifying cleanup (1.858391ms)
+✔ handler has no request, replay, Docker, cleanup, or pending-clear refusal path (0.463549ms)
+✔ accepted refusal survives concurrent scenario failure and drains before browser closes (2.172885ms)
+✔ accepted success after scenario failure cannot certify mutation settlement (2.030961ms)
+✔ duplicate response event reads and records exactly once (2.14348ms)
+✔ sealed response gate ignores new events without body observation (1.511368ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 230.030861

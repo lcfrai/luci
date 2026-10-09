@@ -1,0 +1,220 @@
+TAP version 13
+# Subtest: exact known 409 retains bounded allowlisted refusal before failing without clearing pending
+ok 1 - exact known 409 retains bounded allowlisted refusal before failing without clearing pending
+  ---
+  duration_ms: 22.904251
+  type: 'test'
+  ...
+# Subtest: exact 200 starting acknowledgment retains generation and settles only known request
+ok 2 - exact 200 starting acknowledgment retains generation and settles only known request
+  ---
+  duration_ms: 5.140318
+  type: 'test'
+  ...
+# Subtest: exact 200 running acknowledgment retains generation and settles only known request
+ok 3 - exact 200 running acknowledgment retains generation and settles only known request
+  ---
+  duration_ms: 5.994935
+  type: 'test'
+  ...
+# Subtest: 200 wrong session retains unresolved mutation
+ok 4 - 200 wrong session retains unresolved mutation
+  ---
+  duration_ms: 5.863668
+  type: 'test'
+  ...
+# Subtest: 200 wrong project retains unresolved mutation
+ok 5 - 200 wrong project retains unresolved mutation
+  ---
+  duration_ms: 3.657292
+  type: 'test'
+  ...
+# Subtest: 200 wrong harness retains unresolved mutation
+ok 6 - 200 wrong harness retains unresolved mutation
+  ---
+  duration_ms: 3.359333
+  type: 'test'
+  ...
+# Subtest: 200 wrong status retains unresolved mutation
+ok 7 - 200 wrong status retains unresolved mutation
+  ---
+  duration_ms: 7.389277
+  type: 'test'
+  ...
+# Subtest: 200 wrong generation retains unresolved mutation
+ok 8 - 200 wrong generation retains unresolved mutation
+  ---
+  duration_ms: 2.840261
+  type: 'test'
+  ...
+# Subtest: malformed 200 retains hash-only bounded diagnosis and pending
+ok 9 - malformed 200 retains hash-only bounded diagnosis and pending
+  ---
+  duration_ms: 11.7303
+  type: 'test'
+  ...
+# Subtest: malformed 409 retains hash-only bounded diagnosis and pending
+ok 10 - malformed 409 retains hash-only bounded diagnosis and pending
+  ---
+  duration_ms: 5.015734
+  type: 'test'
+  ...
+# Subtest: empty refusal body retains an exact empty hash and unparsed diagnosis
+ok 11 - empty refusal body retains an exact empty hash and unparsed diagnosis
+  ---
+  duration_ms: 5.087524
+  type: 'test'
+  ...
+# Subtest: oversized response records only bounded prefix hash and never parses or settles
+ok 12 - oversized response records only bounded prefix hash and never parses or settles
+  ---
+  duration_ms: 24.929094
+  type: 'test'
+  ...
+# Subtest: body transport rejection retains safe unavailability and pending without raw error
+ok 13 - body transport rejection retains safe unavailability and pending without raw error
+  ---
+  duration_ms: 4.382205
+  type: 'test'
+  ...
+# Subtest: bounded body timeout cannot later record or clear a successful late body
+ok 14 - bounded body timeout cannot later record or clear a successful late body
+  ---
+  duration_ms: 7.145465
+  type: 'test'
+  ...
+# Subtest: late body rejection after timeout is consumed without a second failure or raw publication
+ok 15 - late body rejection after timeout is consumed without a second failure or raw publication
+  ---
+  duration_ms: 3.649571
+  type: 'test'
+  ...
+# Subtest: response arriving after workflow close does not read or settle
+ok 16 - response arriving after workflow close does not read or settle
+  ---
+  duration_ms: 4.145649
+  type: 'test'
+  ...
+# Subtest: body resolving after workflow close does not record or settle
+ok 17 - body resolving after workflow close does not record or settle
+  ---
+  duration_ms: 4.94963
+  type: 'test'
+  ...
+# Subtest: changed request map during body observation refuses stale acknowledgment
+ok 18 - changed request map during body observation refuses stale acknowledgment
+  ---
+  duration_ms: 6.341298
+  type: 'test'
+  ...
+# Subtest: changed pending path during body observation refuses stale acknowledgment
+ok 19 - changed pending path during body observation refuses stale acknowledgment
+  ---
+  duration_ms: 10.801866
+  type: 'test'
+  ...
+# Subtest: changed session during body observation refuses stale acknowledgment
+ok 20 - changed session during body observation refuses stale acknowledgment
+  ---
+  duration_ms: 4.928308
+  type: 'test'
+  ...
+# Subtest: changed project during body observation refuses stale acknowledgment
+ok 21 - changed project during body observation refuses stale acknowledgment
+  ---
+  duration_ms: 3.43651
+  type: 'test'
+  ...
+# Subtest: known object with wrong method refuses before body read
+ok 22 - known object with wrong method refuses before body read
+  ---
+  duration_ms: 3.451382
+  type: 'test'
+  ...
+# Subtest: known object with wrong origin refuses before body read
+ok 23 - known object with wrong origin refuses before body read
+  ---
+  duration_ms: 3.033492
+  type: 'test'
+  ...
+# Subtest: known object with wrong path refuses before body read
+ok 24 - known object with wrong path refuses before body read
+  ---
+  duration_ms: 2.529718
+  type: 'test'
+  ...
+# Subtest: known object with wrong query refuses before body read
+ok 25 - known object with wrong query refuses before body read
+  ---
+  duration_ms: 2.777987
+  type: 'test'
+  ...
+# Subtest: unknown response is ignored without reading or mutating known pending
+ok 26 - unknown response is ignored without reading or mutating known pending
+  ---
+  duration_ms: 2.332816
+  type: 'test'
+  ...
+# Subtest: durable acknowledgment record failure retains pending instead of certifying cleanup
+ok 27 - durable acknowledgment record failure retains pending instead of certifying cleanup
+  ---
+  duration_ms: 2.730616
+  type: 'test'
+  ...
+# Subtest: handler has no request, replay, Docker, cleanup, or pending-clear refusal path
+ok 28 - handler has no request, replay, Docker, cleanup, or pending-clear refusal path
+  ---
+  duration_ms: 0.415927
+  type: 'test'
+  ...
+# Subtest: accepted refusal survives concurrent scenario failure and drains before browser closes
+ok 29 - accepted refusal survives concurrent scenario failure and drains before browser closes
+  ---
+  duration_ms: 6.664249
+  type: 'test'
+  ...
+# Subtest: accepted success after scenario failure cannot certify mutation settlement
+ok 30 - accepted success after scenario failure cannot certify mutation settlement
+  ---
+  duration_ms: 3.073863
+  type: 'test'
+  ...
+# Subtest: duplicate response event reads and records exactly once
+ok 31 - duplicate response event reads and records exactly once
+  ---
+  duration_ms: 2.99848
+  type: 'test'
+  ...
+# Subtest: sealed response gate ignores new events without body observation
+ok 32 - sealed response gate ignores new events without body observation
+  ---
+  duration_ms: 2.13667
+  type: 'test'
+  ...
+# Subtest: private problem message and details stay omitted while original bounded bytes remain hash-bound
+ok 33 - private problem message and details stay omitted while original bounded bytes remain hash-bound
+  ---
+  duration_ms: 6.11054
+  type: 'test'
+  ...
+# Subtest: malicious 200 identity cannot leak raw values through assertion diagnostics
+ok 34 - malicious 200 identity cannot leak raw values through assertion diagnostics
+  ---
+  duration_ms: 4.287872
+  type: 'test'
+  ...
+# Subtest: known refusal event after scenario failure still records diagnosis before the gate seals
+ok 35 - known refusal event after scenario failure still records diagnosis before the gate seals
+  ---
+  duration_ms: 3.996393
+  type: 'test'
+  ...
+1..35
+# tests 35
+# suites 0
+# pass 35
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 362.948275

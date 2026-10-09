@@ -1,0 +1,71 @@
+{
+  "name": "edd0cb12",
+  "path": "/tmp/luci-retained-tools/package-0.5.0-edd0cb12",
+  "startedAt": "2026-10-09T16:23:27.370868+00:00",
+  "status": "passed",
+  "errors": [],
+  "sourceCommit": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "provenance": {
+    "path": "/workspace/luci/artifacts/quality-swarm/candidate-edd0cb12/package/package-provenance.json",
+    "sha256": "5ea084d505e292d418b7ab9b2d3fa97d83a0510158fbb3ef8ef66096603aa5f6"
+  },
+  "integrity": {
+    "path": "/workspace/luci/artifacts/quality-swarm/candidate-edd0cb12/package/package-integrity.json",
+    "sha256": "2785616aebd647f61084b074cf20d28a58c8983c63bd6e0f8cb49d8ab870b1db"
+  },
+  "archive": {
+    "alias": "/workspace/luci/artifacts/releases/0.5.0-edd0cb12-preserved-before-5f4a966f/luci-linux-amd64.tar.gz",
+    "aliasMetadataBefore": {
+      "mode": 511,
+      "uid": 1000,
+      "gid": 1000,
+      "size": 78,
+      "allocatedBytes": 4096,
+      "device": 27,
+      "inode": 695708,
+      "nlink": 1,
+      "mtimeNS": 1791545936171781155,
+      "atimeNS": 1791545936187781434,
+      "ctimeNS": 1791545936171781155,
+      "kind": "symlink"
+    },
+    "aliasLink": "/tmp/luci-retained-tools/archive-preservation-edd0cb12/luci-linux-amd64.tar.gz",
+    "path": "/tmp/luci-retained-tools/archive-preservation-edd0cb12/luci-linux-amd64.tar.gz",
+    "sha256": "477d48fb6e6ce58f0acb801fbf6ba9046e8721a1f6fff9c1b5bc20a40b80d2c8",
+    "bytes": 69065419,
+    "metadataBefore": {
+      "mode": 384,
+      "uid": 1000,
+      "gid": 1000,
+      "size": 69065419,
+      "allocatedBytes": 69066752,
+      "device": 34,
+      "inode": 2857058,
+      "nlink": 1,
+      "mtimeNS": 1791545889534969222,
+      "atimeNS": 1791545936119550570,
+      "ctimeNS": 1791545936115780164,
+      "kind": "file"
+    }
+  },
+  "manifest": {
+    "path": "/workspace/.luci-tools/old-extracted-packages-retirement-plan/verification-v2/manifests/edd0cb12.json",
+    "sha256": "e359b8fcbf70294e1b6fd2b23dc850968ca54df4aa51ffc0dfb109ef5f27edeb",
+    "bytes": 1400725
+  },
+  "files": 957,
+  "directories": 538,
+  "logicalBytes": 123151282,
+  "allocatedFileBytes": 125538304,
+  "allocatedDirectoryBytes": 0,
+  "allContentsMatch": true,
+  "allOriginalMetadataStable": true,
+  "modeDifferenceCount": 537,
+  "mtimeDifferenceCount": 1490,
+  "ownershipDifferenceCount": 1494,
+  "implicitDirectories": [
+    "."
+  ],
+  "finishedAt": "2026-10-09T16:23:29.220545+00:00",
+  "elapsedSeconds": 1.8497133479686454
+}

@@ -1,0 +1,26 @@
+{
+  "kind": "http-problem-diagnostic",
+  "stage": "shell-create",
+  "method": "POST",
+  "path": "/v1/sessions",
+  "problem": {
+    "version": 1,
+    "representation": "allowlisted-transformed-problem",
+    "status": 409,
+    "expectedStatus": 201,
+    "originalBodySHA256": "497a5046e4083669e1a5bdcec47710398a1c9a99a5c9432c39bd2150da9ad913",
+    "originalBodyBytes": 153,
+    "originalBodyRetained": false,
+    "parsedJSON": true,
+    "problemShape": true,
+    "error": "conflict",
+    "message": "Available memory cannot preserve the configured headroom for another worker.",
+    "messageOmitted": false,
+    "details": {
+      "reasonCode": "memory_pressure"
+    },
+    "omittedDetailsCount": 0,
+    "numericAdmissionOperands": "unavailable-in-this-POST-problem-schema"
+  },
+  "observedAt": "2026-10-09T16:07:44.897Z"
+}

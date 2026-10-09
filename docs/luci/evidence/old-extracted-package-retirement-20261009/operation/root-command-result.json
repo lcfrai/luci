@@ -1,0 +1,9 @@
+{
+  "commandExit": 0,
+  "operation": "/workspace/.luci-tools/old-extracted-package-retirement-operation-root1",
+  "final": "/workspace/.luci-tools/old-extracted-package-retirement-operation-root1/015-final.json",
+  "finalSHA256": "e0898724b9854af115272f9c302cc25a5b45f79d85b9ff1ce2d3525614d2b6e8",
+  "stdoutSHA256": "d01f50c4d5fa00c406e0bf6850ceb90277537badd726016d03dea9fc43c55df9",
+  "stderrBytes": 0,
+  "scope": "Observed root PTY command exit and helper durable final; exact generated old copies removed, archives retained. Restoration source prepared, not executed."
+}

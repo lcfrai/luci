@@ -1,0 +1,20 @@
+✔ captures exact safe frame/script scalars while preserving original snapshot and privacy (22.249917ms)
+✔ drains pending records once and keeps continuous sequence across snapshots (7.203438ms)
+✔ init-script ordering can attach once at DOMContentLoaded without timers (4.582137ms)
+✔ unsupported and failed-install observations are retained before explicit refusal (11.222365ms)
+✔ pagehide flushes existing records and late callbacks cannot add old document data (4.4645ms)
+✔ browser frame bound preserves retained prefix and exposes dropped observation (2.651897ms)
+✔ script/byte bounds and malformed timing refuse capture without exposing raw text (13.026665ms)
+✔ unknown, cross-origin and queried source identities never inherit app bundle authority (2.333187ms)
+✔ ledger rejects missing, wrong-document, duplicate, gap and counter-regression windows (3.614999ms)
+✔ ledger fails closed on bounded storage and keeps original failure window (3.615961ms)
+✔ setup adds one init script and reuses existing snapshot/append without action RPCs (10.665907ms)
+✔ setup rejects unbound asset identity and preserves an original ledger exception (0.455576ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 326.764929

@@ -1,0 +1,23 @@
+{
+  "at": "2026-10-09T16:31:20.353645+00:00",
+  "name": "2da1a821",
+  "root": "/tmp/luci-retained-tools/package-0.5.0-2da1a821",
+  "manifest": {
+    "path": "/workspace/.luci-tools/old-extracted-packages-retirement-plan/verification-v2/manifests/2da1a821.json",
+    "sha256": "73464a5b895bfabfc21f2ce948c05e87096714e156ca23b22686a3ad5882f228",
+    "bytes": 4730518
+  },
+  "archive": {
+    "alias": "/workspace/luci/artifacts/releases/0.5.0-2da1a821-preserved-before-0dcafb14/luci-linux-amd64.tar.gz",
+    "path": "/tmp/luci-retained-tools/release-payloads-2da1a821/luci-linux-amd64.tar.gz",
+    "sha256": "078f0689489d51583fb58f46846da9d13156845e6f647e90b744696aa3c7c09e",
+    "bytes": 134313689
+  },
+  "usage": {
+    "path": "/workspace/.luci-tools/old-extracted-package-retirement-operation-root1/usage-3/active-usage-v2.json",
+    "sha256": "21d8b7a7cf8bb31c5258ab3ccb41abae22dbc9b569d3442a3bbd7f0ed247038a",
+    "unknownCount": 4,
+    "literalZombieCount": 6636
+  },
+  "verifiedFiles": 3587
+}

@@ -1,0 +1,7 @@
+{
+  "status": "publication-guard-preflight-refusal-then-checksum-adapter",
+  "originalGuardError": "Missing Git blob: docs/luci/evidence/cloud071-browser-restart-diagnostic-20261009/SHA256SUMS",
+  "originalCapsuleMembersUnchanged": 56,
+  "note": "Original capsule used MANIFEST.json; added SHA256SUMS for repository publication guard without changing those original bytes. No test or runtime rerun.",
+  "sha256SumsSHA256": "c7ef2ef1126ad43d0c3ef46d7218a9247a1d34827a0114640f78ec8dfa0c0f1f"
+}

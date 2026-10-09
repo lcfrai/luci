@@ -1,0 +1,35 @@
+{
+  "variant": "warm",
+  "mode": "before",
+  "argv": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "--test-name-pattern=^exact known 409 retains",
+    "/workspace/.luci-tools/cloud071-browser-restart-diagnostic/response.test.mjs"
+  ],
+  "cwd": "/workspace/.luci-tools/cloud071-browser-restart-diagnostic",
+  "startedAt": 1791563132.4160402,
+  "beforeSHA256": {
+    "response.test.mjs": "465360c68fc6a7e8c5516f1aa1ebb98a3240ffed474368b17471d1ef2430b60e",
+    "before/warm/launch.mjs": "b83db056209c27bdc0dac5df9805cdb4c87dee817f0bda5130644261cbad02e5",
+    "before/warm/scenario.mjs": "bee434c538872680e4abd652022041b2516b63c4dddb79e9910efe16a3fa0742"
+  },
+  "exitCode": 1,
+  "endedAt": 1791563132.6963587,
+  "afterSHA256": {
+    "response.test.mjs": "465360c68fc6a7e8c5516f1aa1ebb98a3240ffed474368b17471d1ef2430b60e",
+    "before/warm/launch.mjs": "b83db056209c27bdc0dac5df9805cdb4c87dee817f0bda5130644261cbad02e5",
+    "before/warm/scenario.mjs": "bee434c538872680e4abd652022041b2516b63c4dddb79e9910efe16a3fa0742"
+  },
+  "counts": {
+    "tests": 1,
+    "pass": 0,
+    "fail": 1,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "expectedOriginalFailure": true,
+  "tapSHA256": "4b0148160adf5f50edcdf93f5fe9581bc0a8c9054b5efbb81b03393278ac80ab",
+  "stderrBytes": 0
+}

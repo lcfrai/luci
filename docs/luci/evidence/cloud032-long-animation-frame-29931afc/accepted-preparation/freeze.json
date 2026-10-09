@@ -1,0 +1,16 @@
+{
+  "frozenAt": "2026-10-09T15:32:08.395201+00:00",
+  "status": "prepared-only-no-browser-or-app-runtime",
+  "productSource": "29931afc5b31ae9b9bd7b8973a7e3fdb840609a3",
+  "helperSource": "29931afc5b31ae9b9bd7b8973a7e3fdb840609a3",
+  "uniqueInertControlsPassed": 19,
+  "preservedFailure": "integration-inert:2pass1test-onlyfailure; corrected3pass with runtime bytes unchanged",
+  "originalActionModulesUnchanged": true,
+  "runtimeDriverSHA256": "82eacd50a9dea2c8c9ff1499a33f7d23f5799295d7fe0fa07874515304aae055",
+  "observerSHA256": "db87926aa8fccb4db7df4391e789adb557d3920f78672baaac609d13ee9328c8",
+  "joinSHA256": "d824b6e7e5481e541db2cd6731571e7c0043e24d36c1cb67c0928ec8fac6a76c",
+  "launcherSHA256": "c8e8692f72e73f7546e05710539d913394d2e610ff3ba8f978e28e0889f780b5",
+  "launchCommandSHA256": "6a0e4f75311d581bf8ebe67a8c586459ba9bd41b6b02bf8a2abdfcdbffbecdde",
+  "newRuntimeCallsInsideMeasuredSpans": 0,
+  "repositoryEditsByThisPreparation": false
+}

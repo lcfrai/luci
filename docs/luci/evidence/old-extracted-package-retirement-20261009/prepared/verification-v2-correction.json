@@ -1,0 +1,6 @@
+{
+  "original": "verify.py",
+  "originalResult": "verification.json",
+  "correction": "Directory modes differ because the original tarfile data filter omits directory mode restoration. Verify all file modes and all content; retain actual extracted directory mode/uid/gid/timestamps for restoration instead of incorrectly requiring archive directory mode equality.",
+  "scope": "Verifier-only expectation correction. Original failure retained; no package, archive or original metadata change."
+}

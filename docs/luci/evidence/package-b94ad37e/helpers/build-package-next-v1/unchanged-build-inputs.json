@@ -1,0 +1,21 @@
+{
+  "expectedPreviousSource": "5f4a966f6d70264c92ee2176dde912e1b43fc3c7",
+  "scope": "Read-only selected existing helper/script hashes; not new package/source completeness or runtime identity verification.",
+  "inputs": [
+    {
+      "path": "/workspace/.luci-tools/verify-local-package.py",
+      "sha256": "b7985ac8f7687a3da9e232a20319c49f900bd8c8015c4bdc41a005f467ed4a8c",
+      "bytes": 2246
+    },
+    {
+      "path": "/workspace/luci/scripts/build-release.sh",
+      "sha256": "20c6cb96e475066d5fb9a8ac934eb1262c3f324e4ac78ccda42fbd137d9e080d",
+      "bytes": 6029
+    },
+    {
+      "path": "/workspace/luci/scripts/package.py",
+      "sha256": "9c3785eea32c597947395968a41f59ed973b05c0b955fea1067d3c0315fea9e5",
+      "bytes": 2649
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "/workspace/.luci-tools/cloud032-long-frame-29931afc/long-frame-observer.test.mjs",
+    "/workspace/.luci-tools/cloud032-long-frame-29931afc/long-frame-joins.test.mjs"
+  ],
+  "startedAt": "2026-10-09T15:26:43.258530+00:00",
+  "finishedAt": "2026-10-09T15:26:43.942601+00:00",
+  "exitCode": 0,
+  "before": {
+    "long-frame-observer.mjs": "db87926aa8fccb4db7df4391e789adb557d3920f78672baaac609d13ee9328c8",
+    "long-frame-observer.test.mjs": "d320bcd07ad38ed34b23481f677b4f5353e52c71aeefc684647cde40b1506b5a",
+    "long-frame-joins.mjs": "d824b6e7e5481e541db2cd6731571e7c0043e24d36c1cb67c0928ec8fac6a76c",
+    "long-frame-joins.test.mjs": "d81363245974e5eafb109696eb3584471e84b59ab8c8024d89084e94e5697732"
+  },
+  "after": {
+    "long-frame-observer.mjs": "db87926aa8fccb4db7df4391e789adb557d3920f78672baaac609d13ee9328c8",
+    "long-frame-observer.test.mjs": "d320bcd07ad38ed34b23481f677b4f5353e52c71aeefc684647cde40b1506b5a",
+    "long-frame-joins.mjs": "d824b6e7e5481e541db2cd6731571e7c0043e24d36c1cb67c0928ec8fac6a76c",
+    "long-frame-joins.test.mjs": "d81363245974e5eafb109696eb3584471e84b59ab8c8024d89084e94e5697732"
+  },
+  "unchanged": true,
+  "scope": "Inert Node observer/ledger and exact browser-clock join tests only. No browser/app/Docker/network/compiler/product changes."
+}

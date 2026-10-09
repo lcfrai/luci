@@ -1,0 +1,27 @@
+{
+  "scope": "Post-run read-only analysis; no browser, app restart, Docker mutation or source change.",
+  "initialClosureFailure": {
+    "preservedBy": "Original tool output; this note is a later record, not a contemporaneous captured traceback artifact.",
+    "observationsBeforeFailure": "Read recorded PID/start identities and explicit Docker inventory/info.",
+    "failure": "TypeError: expected str, bytes or os.PathLike object, not dict",
+    "cause": "Inline script passed the image metadata object rather than its id string to docker image inspect.",
+    "effects": "No signals or mutations. No completed closure receipt written by that failed inline script.",
+    "correction": "closure.py uses result.image.id; independent-closure.json records the successful bounded reread. Inline failed script did not have an executed source-file hash."
+  },
+  "exploratoryIntrospectionFailure": {
+    "failure": "AttributeError: 'list' object has no attribute 'items'",
+    "cause": "Read-only summary printer treated switch-callback-joins.json (an array) as a dictionary.",
+    "effects": "No input mutation or failed diagnostic acceptance. Later bounded derivation reads the declared array shape."
+  },
+  "joinExecution": {
+    "command": "node /workspace/.luci-tools/cloud032-long-frame-29931afc/long-frame-joins.mjs --result /workspace/luci/artifacts/quality-swarm/idle-29931afc-long-frame-attempt1/driver/result.json --clicks /workspace/.luci-tools/cloud032-loaf-299-analysis/event-timing-click-joins.json --output /workspace/.luci-tools/cloud032-loaf-299-analysis/long-frame-joins.json",
+    "exitCode": 0,
+    "stdout": "{\"status\":\"derived\",\"clicks\":200,\"frames\":66}"
+  },
+  "summaryExecution": {
+    "command": "python3 /workspace/.luci-tools/cloud032-loaf-299-analysis/summarize-long-frames.py",
+    "exitCode": 0,
+    "stdout": "summarize-long-frames.stdout.log",
+    "stderr": "summarize-long-frames.stderr.log"
+  }
+}

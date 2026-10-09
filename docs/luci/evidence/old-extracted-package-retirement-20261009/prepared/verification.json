@@ -1,0 +1,70 @@
+{
+  "startedAt": "2026-10-09T16:22:10.705025+00:00",
+  "finishedAt": "2026-10-09T16:22:12.822211+00:00",
+  "passed": false,
+  "packages": [
+    {
+      "name": "0dcafb14",
+      "path": "/tmp/luci-retained-tools/package-0.5.0-0dcafb14",
+      "startedAt": "2026-10-09T16:22:10.705083+00:00",
+      "status": "failed",
+      "errors": [
+        "AssertionError: [{'path': 'cloud', 'archive': 493, 'extracted': 448}, {'path': 'docs', 'archive': 493, 'extracted': 448}, {'path': 'docs/luci', 'archive': 493, 'extracted': 448}]"
+      ],
+      "sourceCommit": "0dcafb14da7d1f7e2eedaf70366f1e3cf4f4303f",
+      "provenance": {
+        "path": "/workspace/luci/artifacts/quality-swarm/candidate-0dcafb14/package/package-provenance.json",
+        "sha256": "d272f8bfcb955ecabafd1f674a628360074acb8fd591192cfe2d6f6699fc17a7"
+      },
+      "integrity": {
+        "path": "/workspace/luci/artifacts/quality-swarm/candidate-0dcafb14/package/package-integrity.json",
+        "sha256": "0002457352bdb26dca5c731acfe09eae5c0b3cb5076e055251139a63fe1d2c57"
+      },
+      "archive": {
+        "alias": "/workspace/luci/artifacts/releases/0.5.0-0dcafb14-preserved-before-99007404/luci-linux-amd64.tar.gz",
+        "aliasMetadataBefore": {
+          "mode": 511,
+          "uid": 1000,
+          "gid": 1000,
+          "size": 74,
+          "allocatedBytes": 4096,
+          "device": 27,
+          "inode": 661399,
+          "nlink": 1,
+          "mtimeNS": 1791517137637459951,
+          "atimeNS": 1791517174970116501,
+          "ctimeNS": 1791517137637459951,
+          "kind": "symlink"
+        },
+        "aliasLink": "/tmp/luci-retained-tools/release-payloads-0dcafb14/luci-linux-amd64.tar.gz",
+        "path": "/tmp/luci-retained-tools/release-payloads-0dcafb14/luci-linux-amd64.tar.gz",
+        "sha256": "501a29e3c920173b99041797f794564b433e9d9b6c45036509165a4092a00b25",
+        "bytes": 69000975,
+        "metadataBefore": {
+          "mode": 384,
+          "uid": 1000,
+          "gid": 1000,
+          "size": 69000975,
+          "allocatedBytes": 69001216,
+          "device": 34,
+          "inode": 2713441,
+          "nlink": 1,
+          "mtimeNS": 1791517009855236456,
+          "atimeNS": 1791517137569067146,
+          "ctimeNS": 1791517137561458619,
+          "kind": "file"
+        }
+      },
+      "finishedAt": "2026-10-09T16:22:12.821696+00:00",
+      "elapsedSeconds": 2.116671649971977
+    }
+  ],
+  "allocatedFileBytes": 0,
+  "logicalBytes": 0,
+  "kept": [
+    "b94ad37e",
+    "29931afc",
+    "5f4a966f"
+  ],
+  "operation": "read-only verification; no removal, archive mutation, runtime, Docker or private-state read"
+}

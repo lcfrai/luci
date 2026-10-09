@@ -1,0 +1,26 @@
+[
+  {
+    "variant": "warm",
+    "argv": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "/workspace/.luci-tools/cloud071-browser-restart-diagnostic/drain-boundary.test.mjs"
+    ],
+    "exitCode": 0,
+    "launcherSHA256": "626e741119bc9d3bfd07b1ce30b170365d1b5bbc9b7ca775960cffa229c3fd84",
+    "testSHA256": "93b7bbb929c1628b0e214dd8a6ca2dbd07c8cceb63ef5011c82763ab3d2907a4"
+  },
+  {
+    "variant": "cold",
+    "argv": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "/workspace/.luci-tools/cloud071-browser-restart-diagnostic/drain-boundary.test.mjs"
+    ],
+    "exitCode": 0,
+    "launcherSHA256": "1d6e0005e0ca4719677a514fa5a9b3a120716910e0d8874fe9aa70c816092cf9",
+    "testSHA256": "93b7bbb929c1628b0e214dd8a6ca2dbd07c8cceb63ef5011c82763ab3d2907a4"
+  }
+]

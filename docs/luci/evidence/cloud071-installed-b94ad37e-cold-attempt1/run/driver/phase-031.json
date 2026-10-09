@@ -1,0 +1,5 @@
+{
+  "kind": "cold-restart-step",
+  "step": "real-new-allocation-poll-before-acknowledgement",
+  "observedAt": "2026-10-09T16:29:50.312Z"
+}

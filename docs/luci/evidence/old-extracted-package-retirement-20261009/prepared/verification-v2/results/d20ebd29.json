@@ -1,0 +1,71 @@
+{
+  "name": "d20ebd29",
+  "path": "/tmp/luci-retained-tools/package-0.5.0-d20ebd29",
+  "startedAt": "2026-10-09T16:23:25.928978+00:00",
+  "status": "passed",
+  "errors": [],
+  "sourceCommit": "d20ebd292f3f1de04d6726bab0998c210987bcb5",
+  "provenance": {
+    "path": "/workspace/luci/artifacts/quality-swarm/candidate-d20ebd29/package/package-provenance.json",
+    "sha256": "7819fdfa0d7a3c5c938b0e94a6d0351c02717fa31f0877b759d5defa33399450"
+  },
+  "integrity": {
+    "path": "/workspace/luci/artifacts/quality-swarm/candidate-d20ebd29/package/package-integrity.json",
+    "sha256": "2308c879f107b99d59a000a56e35575f95ca0cd638560cce6e9aa9bf18b416f5"
+  },
+  "archive": {
+    "alias": "/workspace/luci/artifacts/releases/0.5.0-d20ebd29-preserved-before-edd0cb12/luci-linux-amd64.tar.gz",
+    "aliasMetadataBefore": {
+      "mode": 511,
+      "uid": 1000,
+      "gid": 1000,
+      "size": 78,
+      "allocatedBytes": 4096,
+      "device": 27,
+      "inode": 672080,
+      "nlink": 1,
+      "mtimeNS": 1791539381908724296,
+      "atimeNS": 1791539381916724431,
+      "ctimeNS": 1791539381908724296,
+      "kind": "symlink"
+    },
+    "aliasLink": "/tmp/luci-retained-tools/archive-preservation-d20ebd29/luci-linux-amd64.tar.gz",
+    "path": "/tmp/luci-retained-tools/archive-preservation-d20ebd29/luci-linux-amd64.tar.gz",
+    "sha256": "5e4e0a2a380268f0d17cbbf2cf7cfb41f5aa64abc8f454864fdb7eb0bdb6400c",
+    "bytes": 69055452,
+    "metadataBefore": {
+      "mode": 384,
+      "uid": 1000,
+      "gid": 1000,
+      "size": 69055452,
+      "allocatedBytes": 69058560,
+      "device": 34,
+      "inode": 2773820,
+      "nlink": 1,
+      "mtimeNS": 1791539269594979006,
+      "atimeNS": 1791539381852783306,
+      "ctimeNS": 1791539381848723289,
+      "kind": "file"
+    }
+  },
+  "manifest": {
+    "path": "/workspace/.luci-tools/old-extracted-packages-retirement-plan/verification-v2/manifests/d20ebd29.json",
+    "sha256": "363ad3a2747a6451580f906003270089a7b0388099bc90b8b573c954752e9351",
+    "bytes": 1398925
+  },
+  "files": 956,
+  "directories": 538,
+  "logicalBytes": 123125969,
+  "allocatedFileBytes": 125505536,
+  "allocatedDirectoryBytes": 0,
+  "allContentsMatch": true,
+  "allOriginalMetadataStable": true,
+  "modeDifferenceCount": 537,
+  "mtimeDifferenceCount": 1484,
+  "ownershipDifferenceCount": 1493,
+  "implicitDirectories": [
+    "."
+  ],
+  "finishedAt": "2026-10-09T16:23:27.370476+00:00",
+  "elapsedSeconds": 1.441539486986585
+}

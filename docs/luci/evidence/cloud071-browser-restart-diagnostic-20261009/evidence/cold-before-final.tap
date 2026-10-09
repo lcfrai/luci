@@ -1,0 +1,27 @@
+TAP version 13
+# Subtest: exact known 409 retains bounded allowlisted refusal before failing without clearing pending
+not ok 1 - exact known 409 retains bounded allowlisted refusal before failing without clearing pending
+  ---
+  duration_ms: 8.217065
+  type: 'test'
+  location: '/workspace/.luci-tools/cloud071-browser-restart-diagnostic/response.test.mjs:32:1'
+  failureType: 'testCodeFailure'
+  error: 'known browser refusal lost its diagnostic before success assertion'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/.luci-tools/cloud071-browser-restart-diagnostic/response.test.mjs:34:2)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 170.656536

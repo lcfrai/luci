@@ -1,0 +1,83 @@
+{
+  "kind": "controller-log-settled",
+  "log": {
+    "version": 1,
+    "scope": "Attached controller stderr only; private exact bounded prefix; hashes cover observed bytes, not unobserved process output",
+    "attached": true,
+    "endObserved": true,
+    "closeObserved": false,
+    "errorObserved": false,
+    "settlementTimedOut": false,
+    "hashCoverageComplete": true,
+    "observedBytes": 2662,
+    "retainedBytes": 2662,
+    "truncated": false,
+    "retentionClosedEarly": false,
+    "closed": true,
+    "fsyncSucceeded": true,
+    "identityVerified": true,
+    "completeLines": 9,
+    "trailingPartialLine": false,
+    "oversizedLines": 0,
+    "unprojectedLines": 7,
+    "matchingLines": 2,
+    "omittedRelayRows": 0,
+    "relayRows": [
+      {
+        "kind": "attach-relay-ended",
+        "time": "2026-10-09T16:28:38.217Z",
+        "level": "INFO",
+        "session": "s-7d614ce8",
+        "route": "attach",
+        "lineBytes": 194,
+        "lineSHA256": "f4d6d72c337d0d0d7ba4a18005c2fb631c0e2f7befc7ddeeb22d89116aca06d2",
+        "errorBytes": 88,
+        "errorSHA256": "1e788f9e38fb00c2461b4d68cc0edf98891e02edc8593034081089e455df5a23",
+        "errorTokenBytes": 92,
+        "errorTokenSHA256": "b89e546f59f1ecd71e90b318c7199a2b48581cf49aa29d5e09e909c62d60e964",
+        "rawErrorRetained": false,
+        "classificationIsTextOnly": true,
+        "flags": {
+          "contextCanceled": false,
+          "deadlineExceeded": false,
+          "eof": false,
+          "unexpectedEOF": false,
+          "websocketStatus": 1000,
+          "unclassified": false
+        }
+      },
+      {
+        "kind": "attach-relay-ended",
+        "time": "2026-10-09T16:29:51.792Z",
+        "level": "INFO",
+        "session": "s-7d614ce8",
+        "route": "attach",
+        "lineBytes": 194,
+        "lineSHA256": "e4f1931f02245adee9f50b08048c8542d36b66d45808d4cf16f4d67d16e4efe0",
+        "errorBytes": 88,
+        "errorSHA256": "1e788f9e38fb00c2461b4d68cc0edf98891e02edc8593034081089e455df5a23",
+        "errorTokenBytes": 92,
+        "errorTokenSHA256": "b89e546f59f1ecd71e90b318c7199a2b48581cf49aa29d5e09e909c62d60e964",
+        "rawErrorRetained": false,
+        "classificationIsTextOnly": true,
+        "flags": {
+          "contextCanceled": false,
+          "deadlineExceeded": false,
+          "eof": false,
+          "unexpectedEOF": false,
+          "websocketStatus": 1000,
+          "unclassified": false
+        }
+      }
+    ],
+    "failures": [],
+    "observedSHA256": "8528baee2688042b0f7457d3e25018ff6cab75a8328b2666db90abb32736f934",
+    "completeStreamSHA256": "8528baee2688042b0f7457d3e25018ff6cab75a8328b2666db90abb32736f934",
+    "retainedPrefixSHA256": "8528baee2688042b0f7457d3e25018ff6cab75a8328b2666db90abb32736f934",
+    "maxRetainedBytes": 262144,
+    "maxLineBytes": 16384,
+    "maxRelayRows": 16,
+    "passed": true
+  },
+  "observedAt": "2026-10-09T16:30:14.278Z"
+}

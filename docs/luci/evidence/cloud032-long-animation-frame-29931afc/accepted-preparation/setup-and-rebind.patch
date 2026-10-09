@@ -1,0 +1,45 @@
+--- original5f4/actual/sustained.mjs
++++ long-frame299/actual/sustained.mjs
+@@ -19,6 +19,7 @@
+ import { installBrowserTiming, timingSnapshot, interactionRunner, summarizeInteractions, createTimingLedger } from './interaction-metrics.mjs';
+ import {beginReadiness,drainReadiness,endReadiness} from './autonomous-readiness.mjs';
+ import {createReadinessLedger} from './readiness-ledger.mjs';
++import {installLongFrameTiming} from './long-frame-observer.mjs';
+ 
+ const here=dirname(fileURLToPath(import.meta.url)),repo=resolve(process.env.LUCI_ACCEPTANCE_REPO??'/workspace/luci'),args=process.argv.slice(2);
+ const option = (name, fallback) => { const i = args.indexOf(name); if (i < 0) return fallback; assert(args[i + 1] && !args[i + 1].startsWith('--'), 'Missing value for ' + name); return args[i + 1]; };
+@@ -116,7 +117,7 @@
+ assert.match(bridge, /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/);
+ writeFileSync(join(evidence, 'package-provenance.json'), provenanceBytes, { mode: 0o600, flag: 'wx' });
+ writeFileSync(join(evidence,'image-provenance.json'),readFileSync(resolve(imageEvidencePath)),{mode:0o600,flag:'wx'});
+-const driverNames=['checkout-binding.py','template-capture.json','dependency-binding.py','dependency-manifest.json','navigation-verifier.mjs','sustained.mjs','external-source-binding.json','autonomous-readiness.mjs','readiness-ledger.mjs','task-command.mjs','receipt-transport.mjs','workloads.mjs','interaction-metrics.mjs','latency-diagnostics.mjs','task-context.mjs','source-binding.mjs','queue-controls.mjs','run-with-observer.py'];
++const driverNames=['long-frame-observer.mjs','long-frame-bundles.json','checkout-binding.py','template-capture.json','dependency-binding.py','dependency-manifest.json','navigation-verifier.mjs','sustained.mjs','external-source-binding.json','autonomous-readiness.mjs','readiness-ledger.mjs','task-command.mjs','receipt-transport.mjs','workloads.mjs','interaction-metrics.mjs','latency-diagnostics.mjs','task-context.mjs','source-binding.mjs','queue-controls.mjs','run-with-observer.py'];
+ const reusedHelpers=['four-project-queue/native-terminal-diagnostics.mjs','four-project-queue/sample-linux-owned.py','launch-recovery/fenced-docker-proxy.mjs','launch-recovery/worker-create-guard.mjs','launch-recovery/durable-acceptance-journal.mjs','launch-recovery/acceptance-lifecycle.mjs','launch-recovery/acceptance-startup.mjs'];
+ mkdirSync(join(evidence, 'accepted-harness'), { mode: 0o700 });
+ for (const name of driverNames) writeFileSync(join(evidence, 'accepted-harness', name), readFileSync(new URL(name, import.meta.url)), { mode: 0o600, flag: 'wx' });
+@@ -662,7 +663,7 @@
+  await startAcceptanceBrowser({scope:startupScope,assertActive:assertWorkflowActive,
+   launch:()=>chromium.launch({headless:true,executablePath:option('--chromium','/usr/bin/chromium'),env:browserEnv,args:['--no-proxy-server']}),adoptBrowser:handle=>{browser=handle;},closeBrowser:handle=>handle.close(),
+   newContext:handle=>handle.newContext({viewport:{width:1440,height:1080},serviceWorkers:'block'}),
+-  installRoutes:async context=>{await installBrowserTiming(context);assertWorkflowActive();await context.route('**/*',async route=>{const request=route.request(),url=new URL(request.url());if(closing||fixtureError||workflowControl?.failed){await route.abort('blockedbyclient');return;}if(url.origin!==base){stopOnFailure(Error('Browser external request refused'));await route.abort('blockedbyclient');return;}if(!['GET','HEAD','OPTIONS'].includes(request.method()))receipt.browserMutations.push({stage,method:request.method(),path:url.pathname});await route.continue();});assertWorkflowActive();},
++  installRoutes:async context=>{await installBrowserTiming(context);await installLongFrameTiming(context,{receipt,timingLedger,bundles:JSON.parse(readFileSync(join(here,'long-frame-bundles.json'),'utf8'))});assertWorkflowActive();await context.route('**/*',async route=>{const request=route.request(),url=new URL(request.url());if(closing||fixtureError||workflowControl?.failed){await route.abort('blockedbyclient');return;}if(url.origin!==base){stopOnFailure(Error('Browser external request refused'));await route.abort('blockedbyclient');return;}if(!['GET','HEAD','OPTIONS'].includes(request.method()))receipt.browserMutations.push({stage,method:request.method(),path:url.pathname});await route.continue();});assertWorkflowActive();},
+   newPage:context=>context.newPage(),adoptPage:handle=>{page=handle;},
+  });
+  assertWorkflowActive();receipt.browserVersion=browser.version();receipt.browserProcessIdentitiesAtSetup=ownedProcesses('browser');page.setDefaultTimeout(15000);page.on('pageerror',error=>{receipt.browserErrors.push(scrub(error));stopOnFailure(Error('Browser script error'));});
+--- original5f4/launch.py
++++ long-frame299/launch.py
+@@ -46,10 +46,10 @@
+     assert args.window_granted,'Parent-coordinated exclusive runtime window required'
+     runtime_env=controlled_environment(os.environ,args.docker_host)
+     docker=lambda values:docker_command(values,runtime_env)
+-    assert args.source=='5f4a966f6d70264c92ee2176dde912e1b43fc3c7' and helper=='5f4a966f6d70264c92ee2176dde912e1b43fc3c7','Frozen matching5f4 product and helper binding required'
+-    assert args.package.resolve()==Path('/tmp/luci-retained-tools/package-0.5.0-5f4a966f').resolve()
+-    assert args.provenance.resolve()==Path('/workspace/luci/artifacts/quality-swarm/candidate-5f4a966f/package/package-provenance.json').resolve()
+-    assert sha(args.provenance)=='2e378e550fa41a68af2477f472c92f6c15cd1bbe4048e453c769db2e08dca8be','Original matching5f4 provenance bytes required'
++    assert args.source=='29931afc5b31ae9b9bd7b8973a7e3fdb840609a3' and helper=='29931afc5b31ae9b9bd7b8973a7e3fdb840609a3','Frozen matching299 product and helper binding required'
++    assert args.package.resolve()==Path('/tmp/luci-retained-tools/package-0.5.0-29931afc').resolve()
++    assert args.provenance.resolve()==Path('/workspace/luci/artifacts/quality-swarm/candidate-29931afc/package/package-provenance.json').resolve()
++    assert sha(args.provenance)=='5c2870a873d49177863f9a16e0cf366fba41bae80684ceb3c4ddd9732ff6068a','Original matching299 provenance bytes required'
+     assert args.expected_image_id=='sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8' and args.image==args.expected_image_id
+     assert args.image_provenance.resolve()==Path('/workspace/.luci-tools/sandbox-candidate-20261009T134118Z-4a347241/receipt.json').resolve()
+     assert sha(args.image_provenance)=='a6fb7d93c1ce81b726923a155e44a5adbd53ed6da1198bafb76e4a82da009331','Exact retained image evidence required'

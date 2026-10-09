@@ -1,0 +1,26 @@
+{
+  "status": "retirement-passed",
+  "filesRemoved": 8362,
+  "elapsedSeconds": 21.011600521975197,
+  "tmpFreeBefore": 1502429184,
+  "tmpFreeAfter": 2361683968,
+  "tmpDelta": 859254784,
+  "rootFreeBefore": 7145111552,
+  "rootFreeAfter": 7121244160,
+  "rootDelta": -23867392,
+  "rootCostScope": "The operation emitted retained member/process journals; root-free delta is a sequential observation, not an exclusive allocation attribution.",
+  "restoration": "Source prepared and syntax checked; no restoration execution or disposable restore control result exists.",
+  "protectedCurrentPackages": [
+    "b94ad37e",
+    "29931afc",
+    "5f4a966f"
+  ],
+  "protectionProof": "Operation allowlist excludes these trees; final receipt verifies their root metadata only, not a new full byte census.",
+  "archives": "All six retained original archives and aliases unchanged according to operation checks; package payloads are intentionally absent.",
+  "limits": [
+    "No product memory/admission or causal responsiveness success follows from these storage/memory observations.",
+    "No fixture, ledger, source, module/model or Docker mutation.",
+    "No global idle or Windows claim.",
+    "Prepared failure receipts are preserved; no new control suite or runtime was executed for publication."
+  ]
+}
