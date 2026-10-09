@@ -1,0 +1,598 @@
+TAP version 13
+# Subtest: Generated native worker programs parse with actual fixture strings, without execution
+ok 1 - Generated native worker programs parse with actual fixture strings, without execution
+  ---
+  duration_ms: 8.671925
+  type: 'test'
+  ...
+# Subtest: Command refuses unexpected task identity and unbounded duration
+ok 2 - Command refuses unexpected task identity and unbounded duration
+  ---
+  duration_ms: 12.174118
+  type: 'test'
+  ...
+# Subtest: Nearest rank summaries preserve slow failures instead of survivor-only quantiles
+ok 3 - Nearest rank summaries preserve slow failures instead of survivor-only quantiles
+  ---
+  duration_ms: 0.974737
+  type: 'test'
+  ...
+# Subtest: Failure on first All projects click is inside project-switch measurement
+ok 4 - Failure on first All projects click is inside project-switch measurement
+  ---
+  duration_ms: 4.379432
+  type: 'test'
+  ...
+# Subtest: stuck browser close cannot skip controller/proxy/provider cleanup or exact owned fallback
+ok 5 - stuck browser close cannot skip controller/proxy/provider cleanup or exact owned fallback
+  ---
+  duration_ms: 55.673953
+  type: 'test'
+  ...
+# Subtest: never-resolving or throwing proxy retains uncertainty and cannot gain authority from a late result
+ok 6 - never-resolving or throwing proxy retains uncertainty and cannot gain authority from a late result
+  ---
+  duration_ms: 27.453439
+  type: 'test'
+  ...
+# Subtest: transport failures refuse destructive authority even after a completed socket drain
+ok 7 - transport failures refuse destructive authority even after a completed socket drain
+  ---
+  duration_ms: 10.167446
+  type: 'test'
+  ...
+# Subtest: throwing controller/browser/provider cleanup still attempts every independent phase
+ok 8 - throwing controller/browser/provider cleanup still attempts every independent phase
+  ---
+  duration_ms: 6.555063
+  type: 'test'
+  ...
+# Subtest: missing browser handle still applies exact profile/process identity before fallback
+ok 9 - missing browser handle still applies exact profile/process identity before fallback
+  ---
+  duration_ms: 9.38013
+  type: 'test'
+  ...
+# Subtest: late workflow continuation cannot seed state after the deadline
+ok 10 - late workflow continuation cannot seed state after the deadline
+  ---
+  duration_ms: 11.770965
+  type: 'test'
+  ...
+# Subtest: intentional service restart is permitted while failure/cleanup still refuses a new child
+ok 11 - intentional service restart is permitted while failure/cleanup still refuses a new child
+  ---
+  duration_ms: 4.986166
+  type: 'test'
+  ...
+# Subtest: native provider progress survives intentional controller downtime but remains fenced on failure
+ok 12 - native provider progress survives intentional controller downtime but remains fenced on failure
+  ---
+  duration_ms: 2.699684
+  type: 'test'
+  ...
+# Subtest: a late socket ticket cannot create a connection after cleanup started
+ok 13 - a late socket ticket cannot create a connection after cleanup started
+  ---
+  duration_ms: 2.783992
+  type: 'test'
+  ...
+# Subtest: a late API response cannot resume the workflow after cleanup started
+ok 14 - a late API response cannot resume the workflow after cleanup started
+  ---
+  duration_ms: 5.820682
+  type: 'test'
+  ...
+# Subtest: a failed click observes its response promise even when the response rejects later
+ok 15 - a failed click observes its response promise even when the response rejects later
+  ---
+  duration_ms: 4.5572
+  type: 'test'
+  ...
+# Subtest: actual sustained startup cannot configure or spawn after a pending proxy resolves following cleanup
+ok 16 - actual sustained startup cannot configure or spawn after a pending proxy resolves following cleanup
+  ---
+  duration_ms: 13.322466
+  type: 'test'
+  ...
+# Subtest: actual sustained browser wiring cannot install routes or open a page after canceled timing setup
+ok 17 - actual sustained browser wiring cannot install routes or open a page after canceled timing setup
+  ---
+  duration_ms: 7.01468
+  type: 'test'
+  ...
+# Subtest: retained D-before-C allocation is selected without changing its queue or issuing work
+ok 18 - retained D-before-C allocation is selected without changing its queue or issuing work
+  ---
+  duration_ms: 6.973308
+  type: 'test'
+  ...
+# Subtest: empty and ambiguous active candidates refuse instead of choosing or launching a worker
+ok 19 - empty and ambiguous active candidates refuse instead of choosing or launching a worker
+  ---
+  duration_ms: 11.770489
+  type: 'test'
+  ...
+# Subtest: foreign task project run enqueue identity and missing child cannot establish an owned allocation
+ok 20 - foreign task project run enqueue identity and missing child cannot establish an owned allocation
+  ---
+  duration_ms: 12.735312
+  type: 'test'
+  ...
+# Subtest: cancelled waiting fixture cannot allocate and duplicate candidate sets remain bounded
+ok 21 - cancelled waiting fixture cannot allocate and duplicate candidate sets remain bounded
+  ---
+  duration_ms: 3.269042
+  type: 'test'
+  ...
+# Subtest: high priority within B does not predict its cross-project turn
+ok 22 - high priority within B does not predict its cross-project turn
+  ---
+  duration_ms: 2.185901
+  type: 'test'
+  ...
+# Subtest: actual child helper retains owned context and single-container checks after peer selection
+ok 23 - actual child helper retains owned context and single-container checks after peer selection
+  ---
+  duration_ms: 45.056629
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-a → build-b → build-c → build-d
+ok 24 - actual startup and completion loop visits each project once with scheduler order build-a → build-b → build-c → build-d
+  ---
+  duration_ms: 14.332757
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-a → build-b → build-d → build-c
+ok 25 - actual startup and completion loop visits each project once with scheduler order build-a → build-b → build-d → build-c
+  ---
+  duration_ms: 10.328028
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-a → build-c → build-b → build-d
+ok 26 - actual startup and completion loop visits each project once with scheduler order build-a → build-c → build-b → build-d
+  ---
+  duration_ms: 4.519553
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-a → build-c → build-d → build-b
+ok 27 - actual startup and completion loop visits each project once with scheduler order build-a → build-c → build-d → build-b
+  ---
+  duration_ms: 4.427626
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-a → build-d → build-b → build-c
+ok 28 - actual startup and completion loop visits each project once with scheduler order build-a → build-d → build-b → build-c
+  ---
+  duration_ms: 4.796671
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-a → build-d → build-c → build-b
+ok 29 - actual startup and completion loop visits each project once with scheduler order build-a → build-d → build-c → build-b
+  ---
+  duration_ms: 5.511397
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-b → build-a → build-c → build-d
+ok 30 - actual startup and completion loop visits each project once with scheduler order build-b → build-a → build-c → build-d
+  ---
+  duration_ms: 8.202478
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-b → build-a → build-d → build-c
+ok 31 - actual startup and completion loop visits each project once with scheduler order build-b → build-a → build-d → build-c
+  ---
+  duration_ms: 12.990746
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-b → build-c → build-a → build-d
+ok 32 - actual startup and completion loop visits each project once with scheduler order build-b → build-c → build-a → build-d
+  ---
+  duration_ms: 9.322635
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-b → build-c → build-d → build-a
+ok 33 - actual startup and completion loop visits each project once with scheduler order build-b → build-c → build-d → build-a
+  ---
+  duration_ms: 5.325236
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-b → build-d → build-a → build-c
+ok 34 - actual startup and completion loop visits each project once with scheduler order build-b → build-d → build-a → build-c
+  ---
+  duration_ms: 4.240754
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-b → build-d → build-c → build-a
+ok 35 - actual startup and completion loop visits each project once with scheduler order build-b → build-d → build-c → build-a
+  ---
+  duration_ms: 4.088045
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-c → build-a → build-b → build-d
+ok 36 - actual startup and completion loop visits each project once with scheduler order build-c → build-a → build-b → build-d
+  ---
+  duration_ms: 5.761303
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-c → build-a → build-d → build-b
+ok 37 - actual startup and completion loop visits each project once with scheduler order build-c → build-a → build-d → build-b
+  ---
+  duration_ms: 6.792315
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-c → build-b → build-a → build-d
+ok 38 - actual startup and completion loop visits each project once with scheduler order build-c → build-b → build-a → build-d
+  ---
+  duration_ms: 4.518373
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-c → build-b → build-d → build-a
+ok 39 - actual startup and completion loop visits each project once with scheduler order build-c → build-b → build-d → build-a
+  ---
+  duration_ms: 10.757544
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-c → build-d → build-a → build-b
+ok 40 - actual startup and completion loop visits each project once with scheduler order build-c → build-d → build-a → build-b
+  ---
+  duration_ms: 4.230199
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-c → build-d → build-b → build-a
+ok 41 - actual startup and completion loop visits each project once with scheduler order build-c → build-d → build-b → build-a
+  ---
+  duration_ms: 5.870988
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-d → build-a → build-b → build-c
+ok 42 - actual startup and completion loop visits each project once with scheduler order build-d → build-a → build-b → build-c
+  ---
+  duration_ms: 4.320784
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-d → build-a → build-c → build-b
+ok 43 - actual startup and completion loop visits each project once with scheduler order build-d → build-a → build-c → build-b
+  ---
+  duration_ms: 4.705985
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-d → build-b → build-a → build-c
+ok 44 - actual startup and completion loop visits each project once with scheduler order build-d → build-b → build-a → build-c
+  ---
+  duration_ms: 7.97101
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-d → build-b → build-c → build-a
+ok 45 - actual startup and completion loop visits each project once with scheduler order build-d → build-b → build-c → build-a
+  ---
+  duration_ms: 4.282978
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-d → build-c → build-a → build-b
+ok 46 - actual startup and completion loop visits each project once with scheduler order build-d → build-c → build-a → build-b
+  ---
+  duration_ms: 5.301151
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-d → build-c → build-b → build-a
+ok 47 - actual startup and completion loop visits each project once with scheduler order build-d → build-c → build-b → build-a
+  ---
+  duration_ms: 6.01203
+  type: 'test'
+  ...
+# Subtest: actual initial discovery rejects the canceled child before exercise even when D starts first
+ok 48 - actual initial discovery rejects the canceled child before exercise even when D starts first
+  ---
+  duration_ms: 17.886968
+  type: 'test'
+  ...
+# Subtest: actual queue controls protect exact A then cancel under load with build-a active
+ok 49 - actual queue controls protect exact A then cancel under load with build-a active
+  ---
+  duration_ms: 6.113123
+  type: 'test'
+  ...
+# Subtest: actual queue controls protect exact A then cancel under load with build-b active
+ok 50 - actual queue controls protect exact A then cancel under load with build-b active
+  ---
+  duration_ms: 2.866435
+  type: 'test'
+  ...
+# Subtest: actual queue controls protect exact A then cancel under load with build-c active
+ok 51 - actual queue controls protect exact A then cancel under load with build-c active
+  ---
+  duration_ms: 2.960457
+  type: 'test'
+  ...
+# Subtest: actual queue controls protect exact A then cancel under load with build-d active
+ok 52 - actual queue controls protect exact A then cancel under load with build-d active
+  ---
+  duration_ms: 4.791894
+  type: 'test'
+  ...
+# Subtest: queue control observations reject wrong scope duplicate identity and allocated targets before action
+ok 53 - queue control observations reject wrong scope duplicate identity and allocated targets before action
+  ---
+  duration_ms: 11.221372
+  type: 'test'
+  ...
+# Subtest: queue priority requires another current waiting owner and exact high readback
+ok 54 - queue priority requires another current waiting owner and exact high readback
+  ---
+  duration_ms: 6.169979
+  type: 'test'
+  ...
+# Subtest: retained initial exec and running poll establish the same exact native command
+ok 55 - retained initial exec and running poll establish the same exact native command
+  ---
+  duration_ms: 22.257688
+  type: 'test'
+  ...
+# Subtest: original native truncated output and complete bytes retain exact bindings
+ok 56 - original native truncated output and complete bytes retain exact bindings
+  ---
+  duration_ms: 2.33865
+  type: 'test'
+  ...
+# Subtest: actual generated emission preserves the full receipt inside the observed 5000-character suffix
+ok 57 - actual generated emission preserves the full receipt inside the observed 5000-character suffix
+  ---
+  duration_ms: 7.378408
+  type: 'test'
+  ...
+# Subtest: receipt before exit remains pending and only the exact original command may settle it
+ok 58 - receipt before exit remains pending and only the exact original command may settle it
+  ---
+  duration_ms: 7.532961
+  type: 'test'
+  ...
+# Subtest: native failure missing status replay changed command and status spoofing cannot complete
+ok 59 - native failure missing status replay changed command and status spoofing cannot complete
+  ---
+  duration_ms: 4.196217
+  type: 'test'
+  ...
+# Subtest: changed pending receipt task operation and current-call identity are refused
+ok 60 - changed pending receipt task operation and current-call identity are refused
+  ---
+  duration_ms: 15.717982
+  type: 'test'
+  ...
+# Subtest: decode rejects multiple malformed unsupported digest and noncanonical envelopes
+ok 61 - decode rejects multiple malformed unsupported digest and noncanonical envelopes
+  ---
+  duration_ms: 2.239091
+  type: 'test'
+  ...
+# Subtest: compressed trailing streams bombs invalid JSON and oversized wire remain bounded
+ok 62 - compressed trailing streams bombs invalid JSON and oversized wire remain bounded
+  ---
+  duration_ms: 12.754431
+  type: 'test'
+  ...
+# Subtest: exact command polling retains the original 48-call bound
+ok 63 - exact command polling retains the original 48-call bound
+  ---
+  duration_ms: 1.033927
+  type: 'test'
+  ...
+# Subtest: new transport remains included in immutable installed helper archive bindings
+ok 64 - new transport remains included in immutable installed helper archive bindings
+  ---
+  duration_ms: 1.817647
+  type: 'test'
+  ...
+# Subtest: actual provider callback polls a receipt pending exit and accepts once only after exact exit zero
+ok 65 - actual provider callback polls a receipt pending exit and accepts once only after exact exit zero
+  ---
+  duration_ms: 10.204342
+  type: 'test'
+  ...
+# Subtest: actual provider callback preserves native failure and full task validation refusals
+ok 66 - actual provider callback preserves native failure and full task validation refusals
+  ---
+  duration_ms: 19.274506
+  type: 'test'
+  ...
+# Subtest: actual provider callback conservatively refuses the retained truncated exit rather than re-executing
+ok 67 - actual provider callback conservatively refuses the retained truncated exit rather than re-executing
+  ---
+  duration_ms: 4.330869
+  type: 'test'
+  ...
+# Subtest: default source binding requires the clean helper HEAD to equal the product revision
+ok 68 - default source binding requires the clean helper HEAD to equal the product revision
+  ---
+  duration_ms: 6.287856
+  type: 'test'
+  ...
+# Subtest: an explicit separate helper revision preserves the packaged product binding
+ok 69 - an explicit separate helper revision preserves the packaged product binding
+  ---
+  duration_ms: 0.256676
+  type: 'test'
+  ...
+# Subtest: an explicit helper revision equal to the product is recorded as the same revision
+ok 70 - an explicit helper revision equal to the product is recorded as the same revision
+  ---
+  duration_ms: 0.238439
+  type: 'test'
+  ...
+# Subtest: unknown arguments are ignored without mutating the original command line
+ok 71 - unknown arguments are ignored without mutating the original command line
+  ---
+  duration_ms: 1.02962
+  type: 'test'
+  ...
+# Subtest: duplicate source options preserve the existing first occurrence behavior
+ok 72 - duplicate source options preserve the existing first occurrence behavior
+  ---
+  duration_ms: 0.157097
+  type: 'test'
+  ...
+# Subtest: an absent product option fails validation instead of inferring trust from provenance
+ok 73 - an absent product option fails validation instead of inferring trust from provenance
+  ---
+  duration_ms: 0.604991
+  type: 'test'
+  ...
+# Subtest: each recognized option rejects a missing value or the following flag
+ok 74 - each recognized option rejects a missing value or the following flag
+  ---
+  duration_ms: 1.736174
+  type: 'test'
+  ...
+# Subtest: equal-sign option spellings retain the existing unknown-option behavior
+ok 75 - equal-sign option spellings retain the existing unknown-option behavior
+  ---
+  duration_ms: 0.466533
+  type: 'test'
+  ...
+# Subtest: missing or malformed product provenance cannot establish a source binding
+ok 76 - missing or malformed product provenance cannot establish a source binding
+  ---
+  duration_ms: 4.617516
+  type: 'test'
+  ...
+# Subtest: product provenance and expected product revisions require exact lowercase full hashes
+ok 77 - product provenance and expected product revisions require exact lowercase full hashes
+  ---
+  duration_ms: 1.372336
+  type: 'test'
+  ...
+# Subtest: explicit helper revisions and helper HEAD require exact lowercase full hashes
+ok 78 - explicit helper revisions and helper HEAD require exact lowercase full hashes
+  ---
+  duration_ms: 2.302005
+  type: 'test'
+  ...
+# Subtest: dirty or unknown product state is rejected even with a separately declared clean helper
+ok 79 - dirty or unknown product state is rejected even with a separately declared clean helper
+  ---
+  duration_ms: 1.064172
+  type: 'test'
+  ...
+# Subtest: dirty or unknown helper state is rejected for same and separate revisions
+ok 80 - dirty or unknown helper state is rejected for same and separate revisions
+  ---
+  duration_ms: 0.771822
+  type: 'test'
+  ...
+# Subtest: declaring the correct helper cannot override a product provenance mismatch
+ok 81 - declaring the correct helper cannot override a product provenance mismatch
+  ---
+  duration_ms: 0.397588
+  type: 'test'
+  ...
+# Subtest: a clean but undeclared helper HEAD fails exact revision binding
+ok 82 - a clean but undeclared helper HEAD fails exact revision binding
+  ---
+  duration_ms: 0.202485
+  type: 'test'
+  ...
+# Subtest: executed helper directory must belong to the declared clean checkout
+ok 83 - executed helper directory must belong to the declared clean checkout
+  ---
+  duration_ms: 0.695737
+  type: 'test'
+  ...
+# Subtest: Retained installed Go output has exact byte binding and150seconds of fuzz progress
+ok 84 - Retained installed Go output has exact byte binding and150seconds of fuzz progress
+  ---
+  duration_ms: 5.73294
+  type: 'test'
+  ...
+# Subtest: Seconds, minutes and hours preserve elapsed units
+ok 85 - Seconds, minutes and hours preserve elapsed units
+  ---
+  duration_ms: 0.268655
+  type: 'test'
+  ...
+# Subtest: Final newline is optional, CRLF is accepted and summaries preserve maxima
+ok 86 - Final newline is optional, CRLF is accepted and summaries preserve maxima
+  ---
+  duration_ms: 0.139981
+  type: 'test'
+  ...
+# Subtest: Baseline coverage and package/wall duration cannot stand in for active progress
+ok 87 - Baseline coverage and package/wall duration cannot stand in for active progress
+  ---
+  duration_ms: 11.592988
+  type: 'test'
+  ...
+# Subtest: Malformed progress, unsupported duration units and unsafe numbers are refused
+ok 88 - Malformed progress, unsupported duration units and unsafe numbers are refused
+  ---
+  duration_ms: 2.796109
+  type: 'test'
+  ...
+# Subtest: exactV1 file/binding fixture accepted
+ok 89 - exactV1 file/binding fixture accepted
+  ---
+  duration_ms: 4.215366
+  type: 'test'
+  ...
+# Subtest: exactV2 file/binding fixture accepted
+ok 90 - exactV2 file/binding fixture accepted
+  ---
+  duration_ms: 0.799744
+  type: 'test'
+  ...
+# Subtest: trustedV1 refuses V2 context rather than guessing upgrade
+ok 91 - trustedV1 refuses V2 context rather than guessing upgrade
+  ---
+  duration_ms: 2.700035
+  type: 'test'
+  ...
+# Subtest: V2 refuses missing packet
+ok 92 - V2 refuses missing packet
+  ---
+  duration_ms: 2.952334
+  type: 'test'
+  ...
+# Subtest: V2 refuses wrong attempt
+ok 93 - V2 refuses wrong attempt
+  ---
+  duration_ms: 0.758743
+  type: 'test'
+  ...
+# Subtest: V2 refuses wrong child
+ok 94 - V2 refuses wrong child
+  ---
+  duration_ms: 0.525631
+  type: 'test'
+  ...
+# Subtest: V2 refuses changed frozen bytes
+ok 95 - V2 refuses changed frozen bytes
+  ---
+  duration_ms: 1.400548
+  type: 'test'
+  ...
+# Subtest: V2 refuses manifest authority changed
+ok 96 - V2 refuses manifest authority changed
+  ---
+  duration_ms: 0.420773
+  type: 'test'
+  ...
+# Subtest: V2 refuses typed packet digest differs
+ok 97 - V2 refuses typed packet digest differs
+  ---
+  duration_ms: 0.766915
+  type: 'test'
+  ...
+# Subtest: V2 refuses unexpected dependency count
+ok 98 - V2 refuses unexpected dependency count
+  ---
+  duration_ms: 0.83658
+  type: 'test'
+  ...
+1..98
+# tests 98
+# suites 0
+# pass 98
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 621.981645

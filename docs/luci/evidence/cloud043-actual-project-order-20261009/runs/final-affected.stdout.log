@@ -1,0 +1,430 @@
+TAP version 13
+# node:internal/modules/esm/resolve:271
+#     throw new ERR_MODULE_NOT_FOUND(
+#           ^
+# Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/workspace/.luci-tools/cloud043-queue-order/files/latency-diagnostics.mjs' imported from /workspace/.luci-tools/cloud043-queue-order/files/interaction-metrics.mjs
+#     at finalizeResolution (node:internal/modules/esm/resolve:271:11)
+#     at moduleResolve (node:internal/modules/esm/resolve:865:10)
+#     at defaultResolve (node:internal/modules/esm/resolve:992:11)
+#     at \#cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+#     at \#resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+#     at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+#     at \#resolve (node:internal/modules/esm/loader:683:17)
+#     at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+#     at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33)
+#     at ModuleJob.link (node:internal/modules/esm/module_job:253:17) {
+#   code: 'ERR_MODULE_NOT_FOUND',
+#   url: 'file:///workspace/.luci-tools/cloud043-queue-order/files/latency-diagnostics.mjs'
+# }
+# Node.js v24.19.0
+# Subtest: /workspace/.luci-tools/cloud043-queue-order/files/helper.test.mjs
+not ok 1 - /workspace/.luci-tools/cloud043-queue-order/files/helper.test.mjs
+  ---
+  duration_ms: 187.834527
+  type: 'test'
+  location: '/workspace/.luci-tools/cloud043-queue-order/files/helper.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: stuck browser close cannot skip controller/proxy/provider cleanup or exact owned fallback
+ok 2 - stuck browser close cannot skip controller/proxy/provider cleanup or exact owned fallback
+  ---
+  duration_ms: 71.325215
+  type: 'test'
+  ...
+# Subtest: never-resolving or throwing proxy retains uncertainty and cannot gain authority from a late result
+ok 3 - never-resolving or throwing proxy retains uncertainty and cannot gain authority from a late result
+  ---
+  duration_ms: 21.57511
+  type: 'test'
+  ...
+# Subtest: transport failures refuse destructive authority even after a completed socket drain
+ok 4 - transport failures refuse destructive authority even after a completed socket drain
+  ---
+  duration_ms: 6.394814
+  type: 'test'
+  ...
+# Subtest: throwing controller/browser/provider cleanup still attempts every independent phase
+ok 5 - throwing controller/browser/provider cleanup still attempts every independent phase
+  ---
+  duration_ms: 6.693334
+  type: 'test'
+  ...
+# Subtest: missing browser handle still applies exact profile/process identity before fallback
+ok 6 - missing browser handle still applies exact profile/process identity before fallback
+  ---
+  duration_ms: 10.457115
+  type: 'test'
+  ...
+# Subtest: late workflow continuation cannot seed state after the deadline
+ok 7 - late workflow continuation cannot seed state after the deadline
+  ---
+  duration_ms: 11.859973
+  type: 'test'
+  ...
+# Subtest: intentional service restart is permitted while failure/cleanup still refuses a new child
+ok 8 - intentional service restart is permitted while failure/cleanup still refuses a new child
+  ---
+  duration_ms: 5.975002
+  type: 'test'
+  ...
+# Subtest: native provider progress survives intentional controller downtime but remains fenced on failure
+ok 9 - native provider progress survives intentional controller downtime but remains fenced on failure
+  ---
+  duration_ms: 5.167816
+  type: 'test'
+  ...
+# Subtest: a late socket ticket cannot create a connection after cleanup started
+ok 10 - a late socket ticket cannot create a connection after cleanup started
+  ---
+  duration_ms: 6.899345
+  type: 'test'
+  ...
+# Subtest: a late API response cannot resume the workflow after cleanup started
+ok 11 - a late API response cannot resume the workflow after cleanup started
+  ---
+  duration_ms: 26.420315
+  type: 'test'
+  ...
+# Subtest: a failed click observes its response promise even when the response rejects later
+ok 12 - a failed click observes its response promise even when the response rejects later
+  ---
+  duration_ms: 6.9365
+  type: 'test'
+  ...
+# Subtest: actual sustained startup cannot configure or spawn after a pending proxy resolves following cleanup
+ok 13 - actual sustained startup cannot configure or spawn after a pending proxy resolves following cleanup
+  ---
+  duration_ms: 17.797614
+  type: 'test'
+  ...
+# Subtest: actual sustained browser wiring cannot install routes or open a page after canceled timing setup
+ok 14 - actual sustained browser wiring cannot install routes or open a page after canceled timing setup
+  ---
+  duration_ms: 7.305847
+  type: 'test'
+  ...
+# Subtest: retained D-before-C allocation is selected without changing its queue or issuing work
+ok 15 - retained D-before-C allocation is selected without changing its queue or issuing work
+  ---
+  duration_ms: 10.388722
+  type: 'test'
+  ...
+# Subtest: empty and ambiguous active candidates refuse instead of choosing or launching a worker
+ok 16 - empty and ambiguous active candidates refuse instead of choosing or launching a worker
+  ---
+  duration_ms: 5.923515
+  type: 'test'
+  ...
+# Subtest: foreign task project run enqueue identity and missing child cannot establish an owned allocation
+ok 17 - foreign task project run enqueue identity and missing child cannot establish an owned allocation
+  ---
+  duration_ms: 34.099679
+  type: 'test'
+  ...
+# Subtest: cancelled waiting fixture cannot allocate and duplicate candidate sets remain bounded
+ok 18 - cancelled waiting fixture cannot allocate and duplicate candidate sets remain bounded
+  ---
+  duration_ms: 3.880156
+  type: 'test'
+  ...
+# Subtest: a known high-priority successor is still required before equal-priority peers
+ok 19 - a known high-priority successor is still required before equal-priority peers
+  ---
+  duration_ms: 2.873289
+  type: 'test'
+  ...
+# Subtest: actual child helper retains owned context and single-container checks after peer selection
+ok 20 - actual child helper retains owned context and single-container checks after peer selection
+  ---
+  duration_ms: 19.259927
+  type: 'test'
+  ...
+# Subtest: actual completion loop visits each project once with scheduler order build-a → build-b → build-d → build-c
+ok 21 - actual completion loop visits each project once with scheduler order build-a → build-b → build-d → build-c
+  ---
+  duration_ms: 8.07117
+  type: 'test'
+  ...
+# Subtest: actual completion loop visits each project once with scheduler order build-a → build-b → build-c → build-d
+ok 22 - actual completion loop visits each project once with scheduler order build-a → build-b → build-c → build-d
+  ---
+  duration_ms: 12.613674
+  type: 'test'
+  ...
+# Subtest: retained initial exec and running poll establish the same exact native command
+ok 23 - retained initial exec and running poll establish the same exact native command
+  ---
+  duration_ms: 16.562633
+  type: 'test'
+  ...
+# Subtest: original native truncated output and complete bytes retain exact bindings
+ok 24 - original native truncated output and complete bytes retain exact bindings
+  ---
+  duration_ms: 4.079055
+  type: 'test'
+  ...
+# Subtest: actual generated emission preserves the full receipt inside the observed 5000-character suffix
+ok 25 - actual generated emission preserves the full receipt inside the observed 5000-character suffix
+  ---
+  duration_ms: 14.330641
+  type: 'test'
+  ...
+# Subtest: receipt before exit remains pending and only the exact original command may settle it
+ok 26 - receipt before exit remains pending and only the exact original command may settle it
+  ---
+  duration_ms: 13.222591
+  type: 'test'
+  ...
+# Subtest: native failure missing status replay changed command and status spoofing cannot complete
+ok 27 - native failure missing status replay changed command and status spoofing cannot complete
+  ---
+  duration_ms: 3.7174
+  type: 'test'
+  ...
+# Subtest: changed pending receipt task operation and current-call identity are refused
+ok 28 - changed pending receipt task operation and current-call identity are refused
+  ---
+  duration_ms: 8.094535
+  type: 'test'
+  ...
+# Subtest: decode rejects multiple malformed unsupported digest and noncanonical envelopes
+ok 29 - decode rejects multiple malformed unsupported digest and noncanonical envelopes
+  ---
+  duration_ms: 2.610293
+  type: 'test'
+  ...
+# Subtest: compressed trailing streams bombs invalid JSON and oversized wire remain bounded
+ok 30 - compressed trailing streams bombs invalid JSON and oversized wire remain bounded
+  ---
+  duration_ms: 37.014026
+  type: 'test'
+  ...
+# Subtest: exact command polling retains the original 48-call bound
+ok 31 - exact command polling retains the original 48-call bound
+  ---
+  duration_ms: 4.253679
+  type: 'test'
+  ...
+# Subtest: new transport remains included in immutable installed helper archive bindings
+ok 32 - new transport remains included in immutable installed helper archive bindings
+  ---
+  duration_ms: 2.555911
+  type: 'test'
+  ...
+# Subtest: actual provider callback polls a receipt pending exit and accepts once only after exact exit zero
+ok 33 - actual provider callback polls a receipt pending exit and accepts once only after exact exit zero
+  ---
+  duration_ms: 13.457514
+  type: 'test'
+  ...
+# Subtest: actual provider callback preserves native failure and full task validation refusals
+ok 34 - actual provider callback preserves native failure and full task validation refusals
+  ---
+  duration_ms: 23.648388
+  type: 'test'
+  ...
+# Subtest: actual provider callback conservatively refuses the retained truncated exit rather than re-executing
+ok 35 - actual provider callback conservatively refuses the retained truncated exit rather than re-executing
+  ---
+  duration_ms: 5.745786
+  type: 'test'
+  ...
+# Subtest: default source binding requires the clean helper HEAD to equal the product revision
+ok 36 - default source binding requires the clean helper HEAD to equal the product revision
+  ---
+  duration_ms: 20.686085
+  type: 'test'
+  ...
+# Subtest: an explicit separate helper revision preserves the packaged product binding
+ok 37 - an explicit separate helper revision preserves the packaged product binding
+  ---
+  duration_ms: 0.369958
+  type: 'test'
+  ...
+# Subtest: an explicit helper revision equal to the product is recorded as the same revision
+ok 38 - an explicit helper revision equal to the product is recorded as the same revision
+  ---
+  duration_ms: 0.182335
+  type: 'test'
+  ...
+# Subtest: unknown arguments are ignored without mutating the original command line
+ok 39 - unknown arguments are ignored without mutating the original command line
+  ---
+  duration_ms: 0.226321
+  type: 'test'
+  ...
+# Subtest: duplicate source options preserve the existing first occurrence behavior
+ok 40 - duplicate source options preserve the existing first occurrence behavior
+  ---
+  duration_ms: 0.175545
+  type: 'test'
+  ...
+# Subtest: an absent product option fails validation instead of inferring trust from provenance
+ok 41 - an absent product option fails validation instead of inferring trust from provenance
+  ---
+  duration_ms: 0.620314
+  type: 'test'
+  ...
+# Subtest: each recognized option rejects a missing value or the following flag
+ok 42 - each recognized option rejects a missing value or the following flag
+  ---
+  duration_ms: 1.412108
+  type: 'test'
+  ...
+# Subtest: equal-sign option spellings retain the existing unknown-option behavior
+ok 43 - equal-sign option spellings retain the existing unknown-option behavior
+  ---
+  duration_ms: 0.177938
+  type: 'test'
+  ...
+# Subtest: missing or malformed product provenance cannot establish a source binding
+ok 44 - missing or malformed product provenance cannot establish a source binding
+  ---
+  duration_ms: 1.140087
+  type: 'test'
+  ...
+# Subtest: product provenance and expected product revisions require exact lowercase full hashes
+ok 45 - product provenance and expected product revisions require exact lowercase full hashes
+  ---
+  duration_ms: 1.487431
+  type: 'test'
+  ...
+# Subtest: explicit helper revisions and helper HEAD require exact lowercase full hashes
+ok 46 - explicit helper revisions and helper HEAD require exact lowercase full hashes
+  ---
+  duration_ms: 2.904125
+  type: 'test'
+  ...
+# Subtest: dirty or unknown product state is rejected even with a separately declared clean helper
+ok 47 - dirty or unknown product state is rejected even with a separately declared clean helper
+  ---
+  duration_ms: 0.842128
+  type: 'test'
+  ...
+# Subtest: dirty or unknown helper state is rejected for same and separate revisions
+ok 48 - dirty or unknown helper state is rejected for same and separate revisions
+  ---
+  duration_ms: 1.272257
+  type: 'test'
+  ...
+# Subtest: declaring the correct helper cannot override a product provenance mismatch
+ok 49 - declaring the correct helper cannot override a product provenance mismatch
+  ---
+  duration_ms: 0.236606
+  type: 'test'
+  ...
+# Subtest: a clean but undeclared helper HEAD fails exact revision binding
+ok 50 - a clean but undeclared helper HEAD fails exact revision binding
+  ---
+  duration_ms: 0.295405
+  type: 'test'
+  ...
+# Subtest: executed helper directory must belong to the declared clean checkout
+ok 51 - executed helper directory must belong to the declared clean checkout
+  ---
+  duration_ms: 0.673655
+  type: 'test'
+  ...
+# Subtest: Retained installed Go output has exact byte binding and150seconds of fuzz progress
+ok 52 - Retained installed Go output has exact byte binding and150seconds of fuzz progress
+  ---
+  duration_ms: 8.709792
+  type: 'test'
+  ...
+# Subtest: Seconds, minutes and hours preserve elapsed units
+ok 53 - Seconds, minutes and hours preserve elapsed units
+  ---
+  duration_ms: 0.957253
+  type: 'test'
+  ...
+# Subtest: Final newline is optional, CRLF is accepted and summaries preserve maxima
+ok 54 - Final newline is optional, CRLF is accepted and summaries preserve maxima
+  ---
+  duration_ms: 0.202305
+  type: 'test'
+  ...
+# Subtest: Baseline coverage and package/wall duration cannot stand in for active progress
+ok 55 - Baseline coverage and package/wall duration cannot stand in for active progress
+  ---
+  duration_ms: 20.170789
+  type: 'test'
+  ...
+# Subtest: Malformed progress, unsupported duration units and unsafe numbers are refused
+ok 56 - Malformed progress, unsupported duration units and unsafe numbers are refused
+  ---
+  duration_ms: 3.681366
+  type: 'test'
+  ...
+# Subtest: exactV1 file/binding fixture accepted
+ok 57 - exactV1 file/binding fixture accepted
+  ---
+  duration_ms: 3.852795
+  type: 'test'
+  ...
+# Subtest: exactV2 file/binding fixture accepted
+ok 58 - exactV2 file/binding fixture accepted
+  ---
+  duration_ms: 0.82939
+  type: 'test'
+  ...
+# Subtest: trustedV1 refuses V2 context rather than guessing upgrade
+ok 59 - trustedV1 refuses V2 context rather than guessing upgrade
+  ---
+  duration_ms: 3.865424
+  type: 'test'
+  ...
+# Subtest: V2 refuses missing packet
+ok 60 - V2 refuses missing packet
+  ---
+  duration_ms: 0.625863
+  type: 'test'
+  ...
+# Subtest: V2 refuses wrong attempt
+ok 61 - V2 refuses wrong attempt
+  ---
+  duration_ms: 0.628156
+  type: 'test'
+  ...
+# Subtest: V2 refuses wrong child
+ok 62 - V2 refuses wrong child
+  ---
+  duration_ms: 0.579423
+  type: 'test'
+  ...
+# Subtest: V2 refuses changed frozen bytes
+ok 63 - V2 refuses changed frozen bytes
+  ---
+  duration_ms: 0.96935
+  type: 'test'
+  ...
+# Subtest: V2 refuses manifest authority changed
+ok 64 - V2 refuses manifest authority changed
+  ---
+  duration_ms: 0.401394
+  type: 'test'
+  ...
+# Subtest: V2 refuses typed packet digest differs
+ok 65 - V2 refuses typed packet digest differs
+  ---
+  duration_ms: 0.850271
+  type: 'test'
+  ...
+# Subtest: V2 refuses unexpected dependency count
+ok 66 - V2 refuses unexpected dependency count
+  ---
+  duration_ms: 0.601266
+  type: 'test'
+  ...
+1..66
+# tests 66
+# suites 0
+# pass 65
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 625.557486

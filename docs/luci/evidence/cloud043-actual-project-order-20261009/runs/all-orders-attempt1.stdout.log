@@ -1,0 +1,232 @@
+TAP version 13
+# Subtest: retained D-before-C allocation is selected without changing its queue or issuing work
+ok 1 - retained D-before-C allocation is selected without changing its queue or issuing work
+  ---
+  duration_ms: 9.923389
+  type: 'test'
+  ...
+# Subtest: empty and ambiguous active candidates refuse instead of choosing or launching a worker
+ok 2 - empty and ambiguous active candidates refuse instead of choosing or launching a worker
+  ---
+  duration_ms: 15.429749
+  type: 'test'
+  ...
+# Subtest: foreign task project run enqueue identity and missing child cannot establish an owned allocation
+ok 3 - foreign task project run enqueue identity and missing child cannot establish an owned allocation
+  ---
+  duration_ms: 11.824501
+  type: 'test'
+  ...
+# Subtest: cancelled waiting fixture cannot allocate and duplicate candidate sets remain bounded
+ok 4 - cancelled waiting fixture cannot allocate and duplicate candidate sets remain bounded
+  ---
+  duration_ms: 5.66551
+  type: 'test'
+  ...
+# Subtest: high priority within B does not predict its cross-project turn
+ok 5 - high priority within B does not predict its cross-project turn
+  ---
+  duration_ms: 2.593133
+  type: 'test'
+  ...
+# Subtest: actual child helper retains owned context and single-container checks after peer selection
+ok 6 - actual child helper retains owned context and single-container checks after peer selection
+  ---
+  duration_ms: 23.621762
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-a → build-b → build-c → build-d
+ok 7 - actual startup and completion loop visits each project once with scheduler order build-a → build-b → build-c → build-d
+  ---
+  duration_ms: 9.254602
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-a → build-b → build-d → build-c
+ok 8 - actual startup and completion loop visits each project once with scheduler order build-a → build-b → build-d → build-c
+  ---
+  duration_ms: 7.995227
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-a → build-c → build-b → build-d
+ok 9 - actual startup and completion loop visits each project once with scheduler order build-a → build-c → build-b → build-d
+  ---
+  duration_ms: 3.877959
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-a → build-c → build-d → build-b
+ok 10 - actual startup and completion loop visits each project once with scheduler order build-a → build-c → build-d → build-b
+  ---
+  duration_ms: 4.666615
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-a → build-d → build-b → build-c
+ok 11 - actual startup and completion loop visits each project once with scheduler order build-a → build-d → build-b → build-c
+  ---
+  duration_ms: 6.671564
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-a → build-d → build-c → build-b
+ok 12 - actual startup and completion loop visits each project once with scheduler order build-a → build-d → build-c → build-b
+  ---
+  duration_ms: 5.789326
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-b → build-a → build-c → build-d
+ok 13 - actual startup and completion loop visits each project once with scheduler order build-b → build-a → build-c → build-d
+  ---
+  duration_ms: 5.556105
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-b → build-a → build-d → build-c
+ok 14 - actual startup and completion loop visits each project once with scheduler order build-b → build-a → build-d → build-c
+  ---
+  duration_ms: 7.814766
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-b → build-c → build-a → build-d
+ok 15 - actual startup and completion loop visits each project once with scheduler order build-b → build-c → build-a → build-d
+  ---
+  duration_ms: 3.529514
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-b → build-c → build-d → build-a
+ok 16 - actual startup and completion loop visits each project once with scheduler order build-b → build-c → build-d → build-a
+  ---
+  duration_ms: 4.771614
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-b → build-d → build-a → build-c
+ok 17 - actual startup and completion loop visits each project once with scheduler order build-b → build-d → build-a → build-c
+  ---
+  duration_ms: 4.305832
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-b → build-d → build-c → build-a
+ok 18 - actual startup and completion loop visits each project once with scheduler order build-b → build-d → build-c → build-a
+  ---
+  duration_ms: 5.508252
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-c → build-a → build-b → build-d
+ok 19 - actual startup and completion loop visits each project once with scheduler order build-c → build-a → build-b → build-d
+  ---
+  duration_ms: 4.267354
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-c → build-a → build-d → build-b
+ok 20 - actual startup and completion loop visits each project once with scheduler order build-c → build-a → build-d → build-b
+  ---
+  duration_ms: 6.990069
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-c → build-b → build-a → build-d
+ok 21 - actual startup and completion loop visits each project once with scheduler order build-c → build-b → build-a → build-d
+  ---
+  duration_ms: 4.525373
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-c → build-b → build-d → build-a
+ok 22 - actual startup and completion loop visits each project once with scheduler order build-c → build-b → build-d → build-a
+  ---
+  duration_ms: 11.045925
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-c → build-d → build-a → build-b
+ok 23 - actual startup and completion loop visits each project once with scheduler order build-c → build-d → build-a → build-b
+  ---
+  duration_ms: 4.567155
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-c → build-d → build-b → build-a
+ok 24 - actual startup and completion loop visits each project once with scheduler order build-c → build-d → build-b → build-a
+  ---
+  duration_ms: 4.945365
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-d → build-a → build-b → build-c
+ok 25 - actual startup and completion loop visits each project once with scheduler order build-d → build-a → build-b → build-c
+  ---
+  duration_ms: 3.87918
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-d → build-a → build-c → build-b
+ok 26 - actual startup and completion loop visits each project once with scheduler order build-d → build-a → build-c → build-b
+  ---
+  duration_ms: 3.799771
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-d → build-b → build-a → build-c
+ok 27 - actual startup and completion loop visits each project once with scheduler order build-d → build-b → build-a → build-c
+  ---
+  duration_ms: 4.124719
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-d → build-b → build-c → build-a
+ok 28 - actual startup and completion loop visits each project once with scheduler order build-d → build-b → build-c → build-a
+  ---
+  duration_ms: 3.687823
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-d → build-c → build-a → build-b
+ok 29 - actual startup and completion loop visits each project once with scheduler order build-d → build-c → build-a → build-b
+  ---
+  duration_ms: 3.755033
+  type: 'test'
+  ...
+# Subtest: actual startup and completion loop visits each project once with scheduler order build-d → build-c → build-b → build-a
+ok 30 - actual startup and completion loop visits each project once with scheduler order build-d → build-c → build-b → build-a
+  ---
+  duration_ms: 9.46569
+  type: 'test'
+  ...
+# Subtest: actual initial discovery rejects the canceled child before exercise even when D starts first
+ok 31 - actual initial discovery rejects the canceled child before exercise even when D starts first
+  ---
+  duration_ms: 5.681534
+  type: 'test'
+  ...
+# Subtest: actual queue controls protect exact A then cancel under load with build-a active
+ok 32 - actual queue controls protect exact A then cancel under load with build-a active
+  ---
+  duration_ms: 10.313957
+  type: 'test'
+  ...
+# Subtest: actual queue controls protect exact A then cancel under load with build-b active
+ok 33 - actual queue controls protect exact A then cancel under load with build-b active
+  ---
+  duration_ms: 4.667106
+  type: 'test'
+  ...
+# Subtest: actual queue controls protect exact A then cancel under load with build-c active
+ok 34 - actual queue controls protect exact A then cancel under load with build-c active
+  ---
+  duration_ms: 4.665799
+  type: 'test'
+  ...
+# Subtest: actual queue controls protect exact A then cancel under load with build-d active
+ok 35 - actual queue controls protect exact A then cancel under load with build-d active
+  ---
+  duration_ms: 4.107223
+  type: 'test'
+  ...
+# Subtest: queue control observations reject wrong scope duplicate identity and allocated targets before action
+ok 36 - queue control observations reject wrong scope duplicate identity and allocated targets before action
+  ---
+  duration_ms: 14.189222
+  type: 'test'
+  ...
+# Subtest: queue priority requires another current waiting owner and exact high readback
+ok 37 - queue priority requires another current waiting owner and exact high readback
+  ---
+  duration_ms: 3.602764
+  type: 'test'
+  ...
+1..37
+# tests 37
+# suites 0
+# pass 37
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 420.02153

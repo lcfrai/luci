@@ -1,0 +1,58 @@
+TAP version 13
+# Subtest: retained D-before-C allocation is selected without changing its queue or issuing work
+ok 1 - retained D-before-C allocation is selected without changing its queue or issuing work
+  ---
+  duration_ms: 6.195862
+  type: 'test'
+  ...
+# Subtest: empty and ambiguous active candidates refuse instead of choosing or launching a worker
+ok 2 - empty and ambiguous active candidates refuse instead of choosing or launching a worker
+  ---
+  duration_ms: 4.965659
+  type: 'test'
+  ...
+# Subtest: foreign task project run enqueue identity and missing child cannot establish an owned allocation
+ok 3 - foreign task project run enqueue identity and missing child cannot establish an owned allocation
+  ---
+  duration_ms: 15.241808
+  type: 'test'
+  ...
+# Subtest: cancelled waiting fixture cannot allocate and duplicate candidate sets remain bounded
+ok 4 - cancelled waiting fixture cannot allocate and duplicate candidate sets remain bounded
+  ---
+  duration_ms: 6.186172
+  type: 'test'
+  ...
+# Subtest: a known high-priority successor is still required before equal-priority peers
+ok 5 - a known high-priority successor is still required before equal-priority peers
+  ---
+  duration_ms: 1.941745
+  type: 'test'
+  ...
+# Subtest: actual child helper retains owned context and single-container checks after peer selection
+ok 6 - actual child helper retains owned context and single-container checks after peer selection
+  ---
+  duration_ms: 6.084855
+  type: 'test'
+  ...
+# Subtest: actual completion loop visits each project once with scheduler order build-a → build-b → build-d → build-c
+ok 7 - actual completion loop visits each project once with scheduler order build-a → build-b → build-d → build-c
+  ---
+  duration_ms: 6.104946
+  type: 'test'
+  ...
+# Subtest: actual completion loop visits each project once with scheduler order build-a → build-b → build-c → build-d
+ok 8 - actual completion loop visits each project once with scheduler order build-a → build-b → build-c → build-d
+  ---
+  duration_ms: 3.082392
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 178.022174
