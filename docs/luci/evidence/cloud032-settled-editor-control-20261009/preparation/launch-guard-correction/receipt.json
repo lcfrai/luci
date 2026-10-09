@@ -1,0 +1,50 @@
+{
+  "scope": "Small synthetic Git/validator controls and bounded read-only actual source check; no app/browser/runtime or unchanged DOM-test rerun.",
+  "commands": [
+    {
+      "command": [
+        "python3",
+        "/workspace/.luci-tools/cloud032-settled-evaluate-control-v1/launch-guard-correction/controlled.py"
+      ],
+      "exitCode": 0,
+      "stdout": "0.stdout",
+      "stderr": "0.stderr"
+    },
+    {
+      "command": [
+        "node",
+        "--test",
+        "/workspace/.luci-tools/cloud032-settled-evaluate-control-v1/launch-guard-correction/validator.test.mjs"
+      ],
+      "exitCode": 0,
+      "stdout": "1.stdout",
+      "stderr": "1.stderr"
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "/workspace/.luci-tools/cloud032-settled-evaluate-control-v1/actual/sustained.mjs"
+      ],
+      "exitCode": 0,
+      "stdout": "2.stdout",
+      "stderr": "2.stderr"
+    },
+    {
+      "command": [
+        "python3",
+        "/workspace/.luci-tools/cloud032-settled-evaluate-control-v1/actual/checkout-binding.py",
+        "--repo",
+        "/workspace/luci",
+        "--helper",
+        "4d6595072888bfa06fed0070d9c63b4cc1e6d1a9",
+        "--capture",
+        "/workspace/.luci-tools/cloud032-settled-evaluate-control-v1/actual/template-capture.json"
+      ],
+      "exitCode": 0,
+      "stdout": "3.stdout",
+      "stderr": "3.stderr"
+    }
+  ],
+  "pythonSyntaxPassed": true
+}

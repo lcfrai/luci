@@ -1,0 +1,7 @@
+{
+  "scope": "Publication assembly and Python syntax only; no runtime or controlled-test rerun and no network/archive reconstruction.",
+  "reproductionScriptSyntaxPassed": true,
+  "reproductionScriptSHA256": "800676020a1093b593a6d0f49ac33768a2252ede939ed6cbe9a2215ceea48d5f",
+  "archiveReconstructionExecuted": false,
+  "originalCapsulesUnchanged": true
+}

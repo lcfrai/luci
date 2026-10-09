@@ -1,0 +1,11 @@
+{
+  "scope": "No rerun of unchanged tests; final source copies, manifest and all local binding hashes checked after the tested native-label fix.",
+  "allLocalHashesMatch": true,
+  "testedControlEqualsExecutedControl": true,
+  "controlledAfterReceiptSHA256": "171556f3fa4712aa41a435f6090ea0edfaf61275b4728858a6dc2fef79d32775",
+  "controlSHA256": "e9d12300dfeb41d7408599738f02b416281f509c6dff96c80b86631180ea0537",
+  "driverSHA256": "e4add061203e515a55af8a15c2d61290e03e8c3a50f67e1a324488b3b8440208",
+  "launcherSHA256": "544c96154ba3e811b06e052b53e62300799b594768cc14f041fa16f4e9b80097",
+  "bindingSHA256": "748c2b834c5f3a20f50f47ba052db16363cfc04fa178e668b6867c6cae263cc7",
+  "dependencyManifestSHA256": "377518398482124b8f74c7619b52ca2d21c023fc851b377ab9bb2cb3eecec785"
+}

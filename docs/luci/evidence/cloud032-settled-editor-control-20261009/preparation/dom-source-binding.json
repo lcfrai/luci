@@ -1,0 +1,26 @@
+{
+  "source": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "scope": "Immutable product source for actual DOM/navigation contracts; not current working tree.",
+  "files": [
+    {
+      "path": "desktop/src/components/definition/DefinitionWorkspace.tsx",
+      "sha256": "fe63aa3dcda3c5896ab13140ff2db74c492eda0e068a415cc560b7ec7777cfc7",
+      "bytes": 31738
+    },
+    {
+      "path": "desktop/src/components/projects/ProjectOverviewBoard.tsx",
+      "sha256": "380db2996d677f099da77e2702fabfe5391e4dd226404513db1e58546a59b48f",
+      "bytes": 23198
+    },
+    {
+      "path": "desktop/src/components/AppShell.tsx",
+      "sha256": "b3aaf4ce4302109c2c10b023ecbff249b96655955f4d29bf0bb4834b4fc8fcd4",
+      "bytes": 6381
+    },
+    {
+      "path": "desktop/src/store/slices/uiSlice.ts",
+      "sha256": "4da15890388c23ac657ffe99311b5a1155001b78400f1b40846061372f1a5b0b",
+      "bytes": 17032
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+ setStage('idle-baseline');await quietPhase('quiet-app-open-idle');readinessAttempted=true;readinessLedger.attempt();readinessLedger.begin(await timed(beginReadiness(page,projectStates),3000,'Autonomous DOM witness setup'));readinessStarted=true;const idle=phaseStart('idle-interactive-calibration');await interactions.calibrate(100);phaseEnd(idle);await passiveTiming('end-idle-calibration');readinessLedger.append(await timed(endReadiness(page),3000,'Autonomous DOM witness close'));readinessClosed=true;
+ receipt.interactionSummary=summarizeInteractions(receipt.interactions);
+ receipt.latencyTargets={measurement:'Original All projects→open saved Define context→two frames; input→expected field→two frames; no physical-input claim',projectSwitchP95Ms:300,inputP95Ms:100,p99StrictlyBelowMs:1000};
+ receipt.targetComparison=Object.fromEntries(['project-switch','input'].map(kind=>{const value=receipt.interactionSummary['idle-interactive-calibration:'+kind];assert.equal(value.count,kind==='input'?200:100);assert.equal(value.failed,0);return[kind,{...value,withinReference:value.p95Ms<=(kind==='input'?100:300)&&value.p99Ms<1000}];}));
+ assert.equal(receipt.interactions.length,400);
+ const traceAfter=option('--trace-after','no');assert(['yes','no'].includes(traceAfter));
+ if(traceAfter==='yes'){
+  const tracePhase=phaseStart('idle-actionability-trace-followup');receipt.traceScope='Eight extra rounds after the primary100; snapshots/screenshots/sources disabled; instrumentation differs and does not replace primary metrics.';
+  await page.context().tracing.start({screenshots:false,snapshots:false,sources:false});
+  try{for(let index=0;index<8;index++)await interactions.round(index);await passiveTiming('trace-followup-complete');phaseEnd(tracePhase);}
+  finally{await boundedAttempt(()=>page.context().tracing.stop({path:join(evidence,'action-only-trace.zip')}),5000,'trace-stop-timeout');}
+ }

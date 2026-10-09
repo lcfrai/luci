@@ -1,0 +1,27 @@
+{
+  "kind": "controller-relay-observation",
+  "relay": {
+    "kind": "attach-relay-ended",
+    "time": "2026-10-09T12:56:47.266Z",
+    "level": "INFO",
+    "session": "s-bde9c2c3",
+    "route": "attach",
+    "lineBytes": 194,
+    "lineSHA256": "04a4be4a06db35604977f7b305115ac9c8370126d051756110e3a774bca02948",
+    "errorBytes": 88,
+    "errorSHA256": "1e788f9e38fb00c2461b4d68cc0edf98891e02edc8593034081089e455df5a23",
+    "errorTokenBytes": 92,
+    "errorTokenSHA256": "b89e546f59f1ecd71e90b318c7199a2b48581cf49aa29d5e09e909c62d60e964",
+    "rawErrorRetained": false,
+    "classificationIsTextOnly": true,
+    "flags": {
+      "contextCanceled": false,
+      "deadlineExceeded": false,
+      "eof": false,
+      "unexpectedEOF": false,
+      "websocketStatus": 1000,
+      "unclassified": false
+    }
+  },
+  "observedAt": "2026-10-09T12:56:47.269Z"
+}

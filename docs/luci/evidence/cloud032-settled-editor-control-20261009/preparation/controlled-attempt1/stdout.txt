@@ -1,0 +1,19 @@
+✔ real DOM contract sets exact retained reference; callback returns only allowed metadata; close removes owned registry (288.670726ms)
+✔ refuses same-value replacement without polling/reacquire (58.377008ms)
+✔ refuses wrong project without polling/reacquire (35.806938ms)
+✔ refuses changed saved value without polling/reacquire (41.928012ms)
+✔ refuses lost native permission without polling/reacquire (35.934385ms)
+✔ refuses readonly editor without polling/reacquire (34.250388ms)
+✔ refuses hidden ancestor without polling/reacquire (69.286179ms)
+✔ generation, per-block call cap and page-leaving refuse late use (17.862775ms)
+✔ 32 balanced exact same-callback comparisons preserve surrounding reads and release eight handles (48.268973ms)
+✔ same-value replacement ends the phase on the failed first call; retains row and releases handle (21.145329ms)
+✔ timed-out wait cannot issue evaluation later; virtual deadline only, not a performance test (35.775045ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2573.243346

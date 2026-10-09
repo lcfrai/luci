@@ -1,0 +1,37 @@
+✔ delayed fetch shares one absolute8s deadline and cannot forward after it (18.926304ms)
+✔ body read consuming remaining deadline cannot publish a ready stale response (2.981193ms)
+✔ within-budget real response bytes fulfill once and retain exact body hash (6.341367ms)
+✔ dispose settles owned handler before removing route interception (13.200283ms)
+✔ checkpoint failure after acknowledged fulfill never attempts a second terminal operation (3.626345ms)
+✔ rejected fulfill remains unknown and is never followed by abort or replay (4.092247ms)
+✔ actual owned-request cancellation is recorded and leaves ordering unexercised without handling it again (4.295814ms)
+✔ successful release and repeated disposal retain exactly one fulfillment and removal (2.958028ms)
+✔ real scenario primary failure survives later route disposal failure (6.015395ms)
+✔ real scenario records primary step and passive failure observation before gate cleanup (4.779723ms)
+✔ diagnostic projection hashes arbitrary errors without retaining raw private messages (0.546954ms)
+✔ handler selected before async unroute cannot begin a late owned fetch (19.588531ms)
+✔ requestfailed checkpoint error cannot escape listener or prevent gate settlement (4.374914ms)
+✔ passive observer preserves native construction/send and excludes other paths (5.982215ms)
+✔ stdout lookalike never becomes typed exit; ordered typed zero and clean1000 retained without private reason (7.753776ms)
+✔ nonzero native exit remains nonzero, abrupt transport does not invent exit (2.447508ms)
+✔ nonbinary and oversized frames are explicit observation failures (2.312896ms)
+✔ socket count bound remains explicit and opaque markers are fresh (2.328208ms)
+✔ observer pending queue is bounded before decoding (12.044713ms)
+✔ typed exit exact known representation and byte hash are retained without changing exit expectation (8.294119ms)
+✔ unclassified typed exit preserves exact bytes/hash while arbitrary private text is omitted (5.42106ms)
+✔ error evidence hashes unknown/private text without publishing it (1.722476ms)
+✔ close frame retains exact bytes digest and code, never private reason (0.412872ms)
+✔ close frame empty, one-byte, malformed and oversized bounds stay explicit (0.442096ms)
+✔ handshake allows static booleans only and no unknown protocol/header values (0.533374ms)
+✔ passive exact socket receives close metadata, excludes foreign/full stdout, removes listeners (4.909348ms)
+✔ socket and event caps fail explicitly instead of accepting truncated success (1.912162ms)
+✔ setup unavailable and failed detach are explicit and do not leak error text (1.387971ms)
+✔ same pre-attach listener records bounded send timing and socketerror with no keystrokes or hashes (3.33047ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 29
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 628.835114

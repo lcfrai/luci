@@ -1,0 +1,55 @@
+{
+  "artifacts": {
+    "dependencies/README.md": {
+      "bytes": 2739,
+      "sha256": "b4afbb897e65a2fb6ff0f9f64982e59c3fc39650793b416dd8a7330a7c42fe1f"
+    },
+    "dependencies/capture-verification.json": {
+      "bytes": 1285,
+      "sha256": "9f6b6b41bacf89d2ff95290199a220349b5af94812063a4cfc2490e55f5d7199"
+    },
+    "dependencies/manifest.json": {
+      "bytes": 72521,
+      "sha256": "377518398482124b8f74c7619b52ca2d21c023fc851b377ab9bb2cb3eecec785"
+    },
+    "dependency-binding.py": {
+      "bytes": 15560,
+      "sha256": "0966ad866420f28747e8a8799a4434bc63dc733b84011780022b4d159ddebf76"
+    }
+  },
+  "commands": [
+    {
+      "argv": [
+        "python3",
+        "/workspace/.luci-tools/cloud032-settled-evaluate-control-v1/dependency-binding.py",
+        "capture",
+        "/workspace/.luci-tools/cloud032-settled-evaluate-control-v1/dependencies"
+      ],
+      "exitCode": 0,
+      "finishedAt": "2026-10-09T12:31:52.597128+00:00",
+      "startedAt": "2026-10-09T12:31:51.939031+00:00"
+    },
+    {
+      "argv": [
+        "python3",
+        "/workspace/.luci-tools/cloud032-settled-evaluate-control-v1/dependency-binding.py",
+        "verify",
+        "/workspace/.luci-tools/cloud032-settled-evaluate-control-v1/dependencies/manifest.json",
+        "/workspace/.luci-tools/cloud032-settled-evaluate-control-v1/dependencies/capture-verification.json"
+      ],
+      "exitCode": 0,
+      "finishedAt": "2026-10-09T12:33:00.755763+00:00",
+      "startedAt": "2026-10-09T12:33:00.144049+00:00"
+    }
+  ],
+  "schema": "luci.playwright-dependency-capture-receipt.v1",
+  "scope": "Current installed package capture and read-only verification only; no historical-run dependency claim.",
+  "snapshotIndependentlyRehashed": true,
+  "sourceCaptureStable": true,
+  "totals": {
+    "bytes": 18547881,
+    "directories": 39,
+    "files": 176
+  },
+  "verificationPassed": true
+}

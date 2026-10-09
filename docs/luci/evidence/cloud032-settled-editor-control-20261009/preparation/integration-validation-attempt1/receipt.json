@@ -1,0 +1,35 @@
+{
+  "scope": "Inert syntax and complete source-binding equality checks; no app/browser/Docker/benchmark.",
+  "commands": [
+    {
+      "command": [
+        "node",
+        "--check",
+        "/workspace/.luci-tools/cloud032-settled-evaluate-control-v1/actual/sustained.mjs"
+      ],
+      "exitCode": 0
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "/workspace/.luci-tools/cloud032-settled-evaluate-control-v1/actual/settled-control.mjs"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "pythonCompile": [
+    "launch.py",
+    "prepare-integration.py",
+    "actual/dependency-binding.py"
+  ],
+  "allLocalHashesMatch": true,
+  "controlAndDependencyCopiesExact": true,
+  "sourceSHA256": {
+    "launch.py": "544c96154ba3e811b06e052b53e62300799b594768cc14f041fa16f4e9b80097",
+    "prepare-integration.py": "8a54f177bceb6958673ba7e84d57395cb749bba211b8981b54001630ec8d19de",
+    "actual/sustained.mjs": "e4add061203e515a55af8a15c2d61290e03e8c3a50f67e1a324488b3b8440208",
+    "actual/settled-control.mjs": "73909378debcb54f0e40e2dc245a423be4bb7370bec2ab123fcccc24c4515fe7",
+    "actual/external-source-binding.json": "18182aa0a1d17cbd3492de8deca125c98d545fd6551562841ac23f9a2df71236"
+  }
+}

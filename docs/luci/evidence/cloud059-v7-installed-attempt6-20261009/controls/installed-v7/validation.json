@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "createdAt": "2026-10-09T12:54:58.252834+00:00",
+  "installedRunPerformed": false,
+  "productSource": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "laterWorkingTreeNotExecuted": true,
+  "launcher": "be1bf738325edf9e5bdb40fbcbf1949991253bf2f16b9d99ffad7f067d5b987a",
+  "scenario": "65365bed749e93b18e3bf863420d23a505d3d441669c20a2ccba4e2a72c11b25",
+  "previousLauncher": "78a2aa7c168601f6569f20af153b73728543f0dee6bd78f48a0069fe46ee9a8a",
+  "previousScenario": "11e619bccc1ec06882a5a0fdb378b37a8cd182b865964ea1a729a6105e36c225",
+  "inlineLogModule": "d60c41b61919c6d317c55824f8a39f71c849ef77103224900ae4fa0e933c57fa",
+  "checks": [
+    {
+      "kind": "final selected built-in Node inert controls",
+      "passed": 32,
+      "failed": 0,
+      "skipped": 0,
+      "reportSHA256": "f2ec6edbc1f350f512f76d9b6938bf3936559b23d4846e58d2eed85c716ab442",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "scope": "8 passive protocol +8 existing terminal monitor +10 existing route +3 gate budget +3 wiring controls. Earlier29 and7/8-case batches overlap."
+    },
+    {
+      "kind": "private log builtin Node inert stream/filesystem controls",
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0,
+      "reportSHA256": "260deef53b9d6485f997cbe22b6d804785684db2293fb5791e15ccd108030b46",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "scope": "No real controller or process signals; pass scopes distinct from installed private logging."
+    },
+    {
+      "kind": "node --check launch.mjs and scenario.mjs",
+      "exitCodes": [
+        0,
+        0
+      ]
+    }
+  ],
+  "privateRawFiles": [
+    "private-controller.stderr",
+    "private-fixture-path"
+  ],
+  "limits": {
+    "retainedLogBytes": 262144,
+    "logLineBytes": 16384,
+    "logRelayRows": 16,
+    "CDPSockets": 8,
+    "CDPCloseRowsPerSocket": 8,
+    "closeFrameBytes": 256,
+    "sendTimingRowsPerSocket": 256,
+    "logSettlementMs": 2000,
+    "overallCleanupMs": 80000,
+    "outerHardEnvelopeSeconds": 770
+  },
+  "assertionsUnchanged": [
+    "actual first/second native exit0/7",
+    "close1000/wasClean",
+    "no browser error",
+    "read gate8s and client timeout unchanged",
+    "single explicit UI restart, no retry/replay",
+    "admission thresholds",
+    "same source/package/image"
+  ],
+  "limitations": [
+    "CDP/header/error projections are passive diagnostic metadata, not proof of backend direction or causality.",
+    "Node and browser-native monotonic origins differ; no cross-origin subtraction.",
+    "Private raw stderr must not be exported; prefix and complete observed stream are separate hash scopes.",
+    "Unknown/capped/failed observations fail diagnosis and cannot certify cleanup.",
+    "No runtime, benchmark, live provider, Windows or new product pass."
+  ]
+}

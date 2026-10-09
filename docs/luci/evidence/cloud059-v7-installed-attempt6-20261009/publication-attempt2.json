@@ -1,0 +1,6 @@
+{
+  "failed": true,
+  "stage": "browser-mutation-scope",
+  "cause": "Asserted no browser mutation at all; normal browser login/attachment traffic is not Restart. Limit assertion to Restart count without dropping original entries. Original evidence unchanged.",
+  "retainedDraft": "draft-before-ticket-scope"
+}

@@ -1,0 +1,15 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-name-pattern=actual edd0 four-field",
+    "/workspace/.luci-tools/cloud032-settled-evaluate-control-v1/controlled.test.mjs"
+  ],
+  "exitCode": 1,
+  "expectedFailure": true,
+  "scope": "Source-grounded four-textarea regression against original prepared control; not an installed runtime/product failure.",
+  "sourceSHA256": {
+    "settled-control.mjs": "73909378debcb54f0e40e2dc245a423be4bb7370bec2ab123fcccc24c4515fe7",
+    "controlled.test.mjs": "49a2021429ec95a2733cb87dcc965eebc90043c235f4fad1f5f110d01c4ab04f"
+  }
+}

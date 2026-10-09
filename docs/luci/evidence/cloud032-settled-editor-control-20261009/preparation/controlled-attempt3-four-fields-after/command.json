@@ -1,0 +1,13 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "/workspace/.luci-tools/cloud032-settled-evaluate-control-v1/controlled.test.mjs"
+  ],
+  "exitCode": 0,
+  "scope": "In-memory DOM/fake-page contract against source-grounded four-field Definition, after native-label narrowing. No installed run or performance measurement.",
+  "sourceSHA256": {
+    "settled-control.mjs": "e9d12300dfeb41d7408599738f02b416281f509c6dff96c80b86631180ea0537",
+    "controlled.test.mjs": "bd8d26c44b81a5a3618c7cba0f6186331c130aa257f91ea374b4db00c8675587"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "failed": true,
+  "stage": "wrapper-driverReport-schema",
+  "cause": "Compared entire driverReport object to two-field byte metadata; original has additional fields. No evidence changed.",
+  "retainedDraft": "draft-before-wrapper-schema"
+}

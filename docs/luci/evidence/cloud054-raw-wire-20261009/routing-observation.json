@@ -1,0 +1,17 @@
+{
+  "kind": "allowlisted-private-retained-state-routing-observation",
+  "observedAt": "2026-10-09T13:06:03.953963+00:00",
+  "privateIdentity": {
+    "bytes": 1645,
+    "sha256": "66fa94939325ae55e585fd1fdbaf7d19e3c2729c10d253294051fb72ff9787d9",
+    "ownerId": "user-O43f4zhV6ri3f20wGBr6iN",
+    "userCount": 1,
+    "ownerExists": true,
+    "otherUserCount": 0
+  },
+  "userRuntimeDirectoryExists": false,
+  "workspaceSettingsFileCount": 0,
+  "launcherSHA256": "be1bf738325edf9e5bdb40fbcbf1949991253bf2f16b9d99ffad7f067d5b987a",
+  "scenarioSHA256": "65365bed749e93b18e3bf863420d23a505d3d441669c20a2ccba4e2a72c11b25",
+  "conclusion": "Retained first owner follows InitialHandler, with local-mode ProxyWorkspace pass-through. This is post-run source/state analysis; no original request direction trace was reconstructed, no private identity file exported."
+}

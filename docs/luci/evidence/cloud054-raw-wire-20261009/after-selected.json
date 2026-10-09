@@ -1,0 +1,120 @@
+{
+  "entries": [
+    {
+      "path": "control-plane/internal/api/attach.go",
+      "bytes": 15418,
+      "sha256": "405d96bb411197d9c227c3cbad3ad83592f1dd50944b9af3be9a039f2a63e9ee"
+    },
+    {
+      "path": "control-plane/internal/api/attach_test.go",
+      "bytes": 37202,
+      "sha256": "ef0d651baa9a54a6a0354e1665f22273f4683c420c5f2c905a38987429db8234"
+    },
+    {
+      "path": "control-plane/internal/proxy/proxy.go",
+      "bytes": 3031,
+      "sha256": "ebc02379306e5b555f317fc6d66a3f3ec3f9e6c29a5b93cd898165e65a8d565b"
+    },
+    {
+      "path": "control-plane/internal/backend/dial.go",
+      "bytes": 4961,
+      "sha256": "1610e84e64884210c2b7deaaf6615f5d81d8858c48d8ac6ebb857915230f0f5f"
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/docker.go",
+      "bytes": 31285,
+      "sha256": "b865a8eea8a313ad818686f372724e2a97874ba8532c0041ad6cc5d3b0d0d46c"
+    },
+    {
+      "path": "control-plane/internal/management/management.go",
+      "bytes": 18394,
+      "sha256": "ebc33dbb061d32f0d30f162b76eb89f1996986aab43faa85cbd350664585ce68"
+    },
+    {
+      "path": "control-plane/internal/management/sockets.go",
+      "bytes": 2848,
+      "sha256": "f786c7b911feebb19a7170754da7b49cb74a9ae81dc0efe842b1635f5ec0f1e3"
+    },
+    {
+      "path": "control-plane/internal/management/runtime.go",
+      "bytes": 17394,
+      "sha256": "cbc15063b7dedffbe408662028c66bd9ac25eefad9fca1943d9cdc0e698b605e"
+    },
+    {
+      "path": "control-plane/internal/management/team_runtime.go",
+      "bytes": 8447,
+      "sha256": "38fcb0563e1bbe96c87c6a8dda357720cb04a0f077375fe0ceeeab04a8d32983"
+    },
+    {
+      "path": "control-plane/cmd/api/main.go",
+      "bytes": 33653,
+      "sha256": "938181421cd34020ac593eabc810b713113eab268db23c53d4f3286defd184b3"
+    },
+    {
+      "path": "control-plane/go.mod",
+      "bytes": 3111,
+      "sha256": "46639d620d215ff94c6e6d2ea2bf52c74abdf501811248e8905aad3846ae0341"
+    },
+    {
+      "path": "control-plane/go.sum",
+      "bytes": 19122,
+      "sha256": "fad248c401dce6545f51ad4beba435f67999c8605be35232f5261b69c7b50344"
+    },
+    {
+      "path": "sandboxd/internal/server/server.go",
+      "bytes": 9183,
+      "sha256": "f918586cacb68eed8b4fcbc11801c49d2ca6aa64421163eaf861b40870d41b47"
+    },
+    {
+      "path": "sandboxd/internal/server/server_test.go",
+      "bytes": 11274,
+      "sha256": "51e0a8e59aa1d3d584fceebe0983cea83eed2d798dd67a8c9bf9897418126276"
+    },
+    {
+      "path": "sandboxd/internal/hub/hub.go",
+      "bytes": 5629,
+      "sha256": "8715c17ae86ac1fe6e4cb1d90f01f5ba25e3fb2818eff46bb438c8bcf8785ee6"
+    },
+    {
+      "path": "sandboxd/cmd/sandboxd/main.go",
+      "bytes": 6317,
+      "sha256": "ea0f7f0f0642e4717b8cd0bc2e3c08a46b20b0020552ce36152bc51b4d0ada9a"
+    },
+    {
+      "path": "sandboxd/go.mod",
+      "bytes": 152,
+      "sha256": "3738aaeb484df43a75cbafe9c1144da5362854a4c7a97d94e5a4089cb329e3b8"
+    },
+    {
+      "path": "sandboxd/go.sum",
+      "bytes": 336,
+      "sha256": "f9e8a4f159db3ca23aa77a1d62fcf714bbc1a5276d7cfbe12d776372d2a77d8d"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/accept.go",
+      "bytes": 10392,
+      "sha256": "542cd01513dc6a08506b566f8700d6c9be637e495166e42003b117c5faf29a43"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/dial.go",
+      "bytes": 8957,
+      "sha256": "f8fd4c04d56245d541734e5e7598475baf06b52662acf2693767e95820a86913"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/compress.go",
+      "bytes": 5847,
+      "sha256": "d7a8e02ab6de36fa3554d33c2354029dbee0e65a5393e0091fccbf5cf1b173d7"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/close.go",
+      "bytes": 8077,
+      "sha256": "f48f0e8c4c52185e8347774e54714a83081f083572e77af886096d795d2e949c"
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/read.go",
+      "bytes": 11137,
+      "sha256": "93c6547673e3087d0b631a1948cbe90d4e5a38cb0898af8d634912492c8bc6e6"
+    }
+  ],
+  "unchanged": true
+}

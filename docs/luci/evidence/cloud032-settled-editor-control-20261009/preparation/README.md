@@ -1,0 +1,55 @@
+# Settled real-DOM Locator/handle control, prepared only
+
+This is a separate **32-evaluation diagnostic**, not an acceptance workload. It explicitly selects installed product **edd0cb121ff6847f681ab6bf41509a497f043d41**, `/tmp/luci-retained-tools/package-0.5.0-edd0cb12`, its unchanged original provenance, and clean helper **4d6595072888bfa06fed0070d9c63b4cc1e6d1a9**. The newer helper revision is not represented as the installed product. No browser, installed application, Docker workload or timing run has been launched for this preparation.
+
+`launch-command.json` is the exact reviewable manual invocation. Run the declared live `launch.py` only after root coordinates an exclusive window and grants `--window-granted`; the source binding deliberately pins the live `actual/` directory. Do not execute the relocated capsule directly or silently substitute a new helper/product/provenance. A changed legacy archive path must fail its original provenance hash checks, not be rebased.
+
+## Question and interpretation
+
+The preceding edd0 diagnostic located some observed-ready-to-driver delay inside `Locator.evaluate`. Current Playwright source shows that this method includes fresh strict attached-element resolution, evaluation on a handle, and awaited disposal. This control asks whether that route has a reproducible cost relative to direct evaluation on **the same retained DOM element**, in a fresh, already-settled real editor.
+
+Both arms retain the same preceding textbox `waitFor` and following `inputValue` equality check. The middle operation alone changes between `field.evaluate(sharedCallback, generation)` and `retainedHandle.evaluate(sharedCallback, generation)`. The callback bytes are identical across arms. It returns browser entry/first-sample/finish times, sample count and boolean identity/context checks in that same response; no extra per-arm identity RPC is added.
+
+The shared callback is explicitly a **settled-state diagnostic predicate**. It is not silently substituted for the original navigation-time Promise/rAF-polling verifier: a false settled predicate refuses immediately instead of waiting for a later context. This prevents a stale/replaced editor or changed context from being accepted after a retry. No original full metric is adjusted or replaced. A result could narrow repeated lookup/handle-lifecycle versus callback waiting under this condition; it cannot establish a universal transport floor, network-only delay, continuous readiness, physical paint or an app improvement. No time is subtracted from original switch spans.
+
+There is no static-page arm in this version. The same actual DOM better matches the specific lookup-versus-retained-handle question without changing DOM complexity or foreground behavior. This choice leaves a pure transport floor unresolved.
+
+## Finite protocol and identity
+
+The inherited installed fixture prepares four saved contexts and paused queues using its existing setup, consent and cancellation guards. It preserves the original warm-up and 60-second quiet period. Then it visits four real Define destinations through normal UI navigation, outside timed comparisons. Each destination uses two blocks: **ABBA then BAAB**, with A=Locator and B=retained handle. This gives 32 evaluations, 16 per arm and balanced positions.
+
+Each block freshly waits for the exact saved value and obtains one handle outside timed calls. Setup validates the actual edd0 native-label and shell/selection contracts and stores the element reference only in a scoped diagnostic browser registry. That registry does not edit DOM attributes, product state, storage, contexts or permissions. Every callback requires `el === retainedReference`, connected captured roots, the same selected project, exact saved value, visible document and native editability. Setup and per-callback reads avoid forced-layout queries. No request interception, DOM mutation observer or background sampling loop is added.
+
+Replacement, disconnect, changed context/selection, lost editability, inactive generation or deadline refusal ends the phase. Failed rows and block cleanup outcomes remain retained; there is no reacquire, dropped observation, automatic retry or relaunch. A final block identity check catches changes after the callback. Handles and the diagnostic registry have bounded teardown. Timed-out Node continuations cannot issue another evaluation or subsequent inputValue call; failures remain failures even if a late callback settles.
+
+Bounds: four destinations, two blocks each, four calls each, **five seconds per call**, **60 seconds for the phase**, 15 seconds of browser time per block, 32 rows/128 KiB, and two seconds each for registry cleanup and handle disposal. Setup traversals are bounded to 512 nodes per scan and 32 ancestors. The original preparation/workflow/cleanup budgets remain 60/210/120 seconds; the wrapper retains its 450-second driver wait, 30-second TERM grace and 10-second KILL settlement, plus a declared 30-second post-driver dependency check. All failure paths retain evidence and allow the existing owned-resource cleanup to run.
+
+The comparison uses a fixed isolated fixture principal and known saved contexts. DOM selection/native editability are checks, not independent server authorization provenance or proof of uninterrupted state between samples. No external actor, project amendment or authority mutation is introduced. Any observed state change refuses the affected block.
+
+## Source, package, dependency and process binding
+
+All 17 original helper inputs match committed 4d6595 bytes. The original 400+32 action cohort is explicitly **not executed** in this variant; its 300/100 ms p95 and <1,000 ms p99 targets are retained only as unmeasured reference metadata. The old helper, old rows and old failure outcomes remain unchanged. `removed-original-cohort.txt` and `integration.patch` make this scope replacement reviewable. No result from this control can pass CLOUD-032 or replace full acceptance.
+
+The existing origin/request, zero-provider, paused-queue, source-context, Create/Start refusal and lifecycle guards remain in the complete helper. The Docker CLI and fenced proxy use the same explicit Unix endpoint, with inherited context/TLS overrides removed. The controller still sees only its private proxy socket. No image pull, task execution, worker allocation or external model request is allowed.
+
+The launcher and driver preserve exact edd0 package/provenance/image checks. The complete archive and all extracted archive members are checked before startup and again after the control/cleanup. Binary/index/helper/provenance hashes and the immutable image/daemon checks remain. The launcher records and rechecks its own/helper/provenance inputs, preserving a durable failure if its final checks time out or fail.
+
+`dependencies/` preserves **176 ordinary files / 18,547,881 bytes** from the actual resolved installed `playwright` and `playwright-core`, both version **1.63.0**, including licences, versions, ESM/CJS entrypoints, relative inventories and SHA256 values. Capture required two stable content/metadata passes and an independent snapshot rehash. The unchanged checker verifies those installed bytes before the driver imports Playwright, after the control in driver cleanup, and after the driver exits. Missing, extra, changed-content/mode or changed-type files and inner symlinks fail. These are current captured bytes; they are not retroactively assigned to earlier runs. Browser native binaries, unrelated dependencies and process memory are not claimed fully captured.
+
+The existing owned-browser identity helper now records live PID/start values once during setup, outside timed comparisons. This permits later exact-identity inspection of absence, PID reuse or literal zombies. It does not certify unknown/unreadable processes or whole-machine absence. The post-run analysis must preserve those distinctions and all raw control rows.
+
+## Controlled proof and retained failures
+
+`controlled-attempt1/`: **11 passing in-memory DOM/fake-page tests**, initially with a limited single-field fixture. These are not an installed-app or styled-browser proof. Independent source review then found that actual edd0 Definition has four textarea fields.
+
+`controlled-attempt2-four-fields-before/`: the source-grounded four-field regression **fails as expected** against the prepared broad uniqueness selector; exact before sources and raw outputs are retained. This is a diagnostic-preparation defect, not a product or latency finding.
+
+`controlled-attempt3-four-fields-after/`: **13 tests pass** after narrowing to the exact native “The idea” label. All fixture paths now use the real four-field structure. Other labels are ignored; duplicate exact target labels remain ambiguous. Tests cover same-element equality and privacy, selection/value/editability refusals, caps/generation/page-leaving, all 32 balanced calls with unchanged surrounding reads, phase termination and handle release after same-value replacement, and a virtual-deadline test proving late waits cannot initiate evaluation. Virtual time is not performance evidence.
+
+`dom-source/` and its binding preserve the relevant immutable edd0 source contracts. `review-resolution.json` records the independent finding and narrow resolution. Syntax/source-binding checks are preparation evidence only. No installed runtime result exists yet, and the actual DOM/transport behavior remains to be tested in the explicitly approved window.
+
+## Launch guard correction
+
+The original frozen `capsule/` remains immutable. Its whole-HEAD equality blocked a clean docs-only descendant checkout; the external driver repeated that requirement. `launch-guard-correction/before/` preserves the exact old guard sources. The corrected launcher and driver use the same read-only checker: clean descendant HEAD, only `docs/luci/` changes from declared helper4d6595, and all17 selected sources equal in working bytes and immutable blobs at both helper and observed HEAD. The installed product remains edd0 and its archive/provenance/image guards are unchanged. Any non-doc source delta is refused. Observed checkout identity is recorded separately from declared helper input identity and must remain identical after the run. This does not claim the whole checkout equals4d6595. No installed run has occurred for this correction.
+
+The correction has six passing synthetic Git tests and four passing external-validator tests, including reproduced original docs-HEAD refusal, dirty and hidden selected-source rejection, product-source commit rejection, unchanged default strict mode, and distinct observed/declared identity. `launch-guard-correction/receipt.json` retains exact commands and raw outputs. The actual read-only17-input check passed at db8faad86f2e8e5cbbbe87b8710928c0a5c22a0a. Earlier DOM13 passes are unchanged and are not counted as newly rerun. `prepare-integration.py` and `correct-launch-guard.py` remain historical preparation steps; frozen final sources plus the correction patch are authoritative, not rerunning an earlier generator.

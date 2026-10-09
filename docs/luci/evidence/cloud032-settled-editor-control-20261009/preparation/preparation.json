@@ -1,0 +1,16 @@
+{
+  "productSource": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "helperSource": "4d6595072888bfa06fed0070d9c63b4cc1e6d1a9",
+  "same17CommittedHelperInputs": true,
+  "originalProductSourceUnchanged": true,
+  "newControlCalls": 32,
+  "originalFullActionCohortExecuted": false,
+  "removedOriginalCohortSHA256": "f9910f06f2f734785219e7342d4f2599a85ba0f6688e26f27cc889ab0372391b",
+  "originalGuardsAndLifecycleOtherwiseRetained": true,
+  "installedRun": false,
+  "dependencyManifestSHA256": "377518398482124b8f74c7619b52ca2d21c023fc851b377ab9bb2cb3eecec785",
+  "driverSHA256": "e4add061203e515a55af8a15c2d61290e03e8c3a50f67e1a324488b3b8440208",
+  "launcherSHA256": "544c96154ba3e811b06e052b53e62300799b594768cc14f041fa16f4e9b80097",
+  "bindingSHA256": "748c2b834c5f3a20f50f47ba052db16363cfc04fa178e668b6867c6cae263cc7",
+  "controlSourceSHA256": "e9d12300dfeb41d7408599738f02b416281f509c6dff96c80b86631180ea0537"
+}

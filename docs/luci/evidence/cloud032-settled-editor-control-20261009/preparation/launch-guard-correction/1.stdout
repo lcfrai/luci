@@ -1,0 +1,12 @@
+✔ ordinary strict validator still refuses different checkout (5.840323ms)
+✔ explicit proven input mode preserves actual checkout and helper separately (0.428225ms)
+✔ wrong observed identity and incomplete inputs refuse (1.603967ms)
+✔ product mismatch and non-doc delta still refuse (21.2846ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 307.19226

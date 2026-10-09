@@ -1,0 +1,11 @@
+test_dirty_docs_rejected (__main__.BindingTests.test_dirty_docs_rejected) ... ok
+test_exact_head_pass (__main__.BindingTests.test_exact_head_pass) ... ok
+test_hidden_selected_mutation_rejected (__main__.BindingTests.test_hidden_selected_mutation_rejected) ... ok
+test_original_whole_head_guard_reproduced_and_corrected_docs_pass (__main__.BindingTests.test_original_whole_head_guard_reproduced_and_corrected_docs_pass) ... ok
+test_product_commit_rejected (__main__.BindingTests.test_product_commit_rejected) ... ok
+test_untracked_rejected (__main__.BindingTests.test_untracked_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.247s
+
+OK

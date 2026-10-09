@@ -1,0 +1,14 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "/workspace/.luci-tools/cloud032-settled-evaluate-control-v1/controlled.test.mjs"
+  ],
+  "exitCode": 0,
+  "scope": "In-memory JSDOM/fake-page contract checks only; no Chromium, Docker, installed app or benchmark. Virtual timeout test accelerates only test timers.",
+  "sourceSHA256": {
+    "settled-control.mjs": "73909378debcb54f0e40e2dc245a423be4bb7370bec2ab123fcccc24c4515fe7",
+    "controlled.test.mjs": "50314dc0222d5247233cd3ba607fd249a799500b3a73653c6c0e2efd59b38162"
+  },
+  "completedAt": "2026-10-09T12:35:41.818117+00:00"
+}

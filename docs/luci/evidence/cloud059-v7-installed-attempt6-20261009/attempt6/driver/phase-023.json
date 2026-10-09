@@ -1,0 +1,60 @@
+{
+  "kind": "controller-log-settled",
+  "log": {
+    "version": 1,
+    "scope": "Attached controller stderr only; private exact bounded prefix; hashes cover observed bytes, not unobserved process output",
+    "attached": true,
+    "endObserved": true,
+    "closeObserved": false,
+    "errorObserved": false,
+    "settlementTimedOut": false,
+    "hashCoverageComplete": true,
+    "observedBytes": 2039,
+    "retainedBytes": 2039,
+    "truncated": false,
+    "retentionClosedEarly": false,
+    "closed": true,
+    "fsyncSucceeded": true,
+    "identityVerified": true,
+    "completeLines": 6,
+    "trailingPartialLine": false,
+    "oversizedLines": 0,
+    "unprojectedLines": 5,
+    "matchingLines": 1,
+    "omittedRelayRows": 0,
+    "relayRows": [
+      {
+        "kind": "attach-relay-ended",
+        "time": "2026-10-09T12:56:47.266Z",
+        "level": "INFO",
+        "session": "s-bde9c2c3",
+        "route": "attach",
+        "lineBytes": 194,
+        "lineSHA256": "04a4be4a06db35604977f7b305115ac9c8370126d051756110e3a774bca02948",
+        "errorBytes": 88,
+        "errorSHA256": "1e788f9e38fb00c2461b4d68cc0edf98891e02edc8593034081089e455df5a23",
+        "errorTokenBytes": 92,
+        "errorTokenSHA256": "b89e546f59f1ecd71e90b318c7199a2b48581cf49aa29d5e09e909c62d60e964",
+        "rawErrorRetained": false,
+        "classificationIsTextOnly": true,
+        "flags": {
+          "contextCanceled": false,
+          "deadlineExceeded": false,
+          "eof": false,
+          "unexpectedEOF": false,
+          "websocketStatus": 1000,
+          "unclassified": false
+        }
+      }
+    ],
+    "failures": [],
+    "observedSHA256": "10632b42054bbc4605b2708b4845670080517fd7c165538a5ddaa8275d713c28",
+    "completeStreamSHA256": "10632b42054bbc4605b2708b4845670080517fd7c165538a5ddaa8275d713c28",
+    "retainedPrefixSHA256": "10632b42054bbc4605b2708b4845670080517fd7c165538a5ddaa8275d713c28",
+    "maxRetainedBytes": 262144,
+    "maxLineBytes": 16384,
+    "maxRelayRows": 16,
+    "passed": true
+  },
+  "observedAt": "2026-10-09T12:56:51.769Z"
+}

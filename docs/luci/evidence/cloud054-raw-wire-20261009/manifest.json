@@ -1,0 +1,65 @@
+{
+  "scope": "CLOUD-054 controlled raw wire + read-only installed routing analysis; no product patch",
+  "entries": [
+    {
+      "path": "README.md",
+      "bytes": 4203,
+      "sha256": "a8608569c11d7de0787d4b2b8b99896321c825bff351ee60d2c9961603837e7b"
+    },
+    {
+      "path": "after-selected.json",
+      "bytes": 4027,
+      "sha256": "d9b3c1d860444e009fddd1c9471fd410dacad347d9977fd91a0c684cd37954fc"
+    },
+    {
+      "path": "before-selected.json",
+      "bytes": 4194,
+      "sha256": "481f01a8bf7acff5cdde39b076a6c08ce71e3761e3360b27a53e158c57c811aa"
+    },
+    {
+      "path": "bridge.go",
+      "bytes": 413,
+      "sha256": "0beabc18a380bd5ce1bd7ece2c67c8ec28d674dd564cbdd7946be206a84e2e06"
+    },
+    {
+      "path": "command.json",
+      "bytes": 469,
+      "sha256": "f2dd6322794ef3c3e90245f0d9e19d8ba948842f16845b139833313c34807cf2"
+    },
+    {
+      "path": "exit.json",
+      "bytes": 66,
+      "sha256": "6a450e061ec775f47860cba82cb484481f751dc6850d3491cf23f5b01cf15126"
+    },
+    {
+      "path": "overlay.json",
+      "bytes": 279,
+      "sha256": "7cbe95d3db356d868d8795386213ebbe3fcfa0bd8621e9d285fdbfadd4834e57"
+    },
+    {
+      "path": "raw_test.go",
+      "bytes": 6707,
+      "sha256": "c618c9c5bad95ffbe8b8de3db0349fc3d2245587cf81b2421b139f1fbd215cff"
+    },
+    {
+      "path": "routing-observation.json",
+      "bytes": 856,
+      "sha256": "46e365e2336ccbc697be1bccc7062855605dda002552a37b7c28220bd126026f"
+    },
+    {
+      "path": "routing-source-bindings.json",
+      "bytes": 3361,
+      "sha256": "68109f7aa620a0f0c2bd589275b76a0f16b146f882268a3c51db305c3b3e0936"
+    },
+    {
+      "path": "stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "test.jsonl",
+      "bytes": 3845,
+      "sha256": "c6db85aea79ca4b401be0112c0d9b7f347fd3649e243aa976755786b59e30c9c"
+    }
+  ]
+}

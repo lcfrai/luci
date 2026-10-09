@@ -1,0 +1,14 @@
+{
+  "kind": "initial-session",
+  "sessionId": "s-bde9c2c3",
+  "projectId": "p-9fb2c4bb",
+  "executionGeneration": "c6e135909efbebd32d4fcf6d2fdb0d2d9a803247f08de3c0edf9c125df0c5a26",
+  "ui": {
+    "label": "c054-terminal-fixture — running",
+    "footer": "/bin/bash · 0m · attached",
+    "overlay": null,
+    "termPresent": true,
+    "restartCount": 0
+  },
+  "observedAt": "2026-10-09T12:56:46.076Z"
+}

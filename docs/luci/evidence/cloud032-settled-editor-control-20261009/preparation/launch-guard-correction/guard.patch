@@ -1,0 +1,133 @@
+--- before/launch.py
++++ after/launch.py
+@@ -55,8 +55,7 @@
+     assert re.fullmatch('[0-9a-f]{40}',args.source) and re.fullmatch('[0-9a-f]{40}',helper),'Exact immutable source revisions required'
+     assert re.fullmatch('sha256:[0-9a-f]{64}',args.expected_image_id)
+     assert os.getuid()!=0 and sys.platform=='linux'
+-    assert command(['git','rev-parse','HEAD'],cwd=REPO)==helper
+-    assert command(['git','status','--porcelain'],cwd=REPO)=='','Clean committed source required'
++    observed_checkout=json.loads(command(['python3',str(HERE/'actual/checkout-binding.py'),'--repo',str(REPO),'--helper',helper,'--capture',str(HERE/'actual/template-capture.json')]))
+     capture=json.loads((HERE/'template-capture.json').read_text())
+     for name,expected in capture['sources'].items():
+         path=REPO/name;assert path.is_file() and sha(path)==expected['sha256'] and path.stat().st_size==expected['bytes'],name+' changed after preparation'
+@@ -83,7 +82,7 @@
+     protected={name:sha(path) for name,path in {'launcher':Path(__file__),'binding':HERE/'actual/external-source-binding.json','capture':HERE/'template-capture.json','provenance':args.provenance,'image-provenance':args.image_provenance,**{'source/'+name:HERE/'actual'/name for name in binding['localSources']}}.items()}
+     result_dir=output/'driver';result=result_dir/'result.json'
+     cmd=['node',str(HERE/'actual/sustained.mjs'),'--task-context-version','2','--binary',str(package/'luci'),'--web',str(package/'web'),'--provenance',str(args.provenance.resolve()),'--expected-source',args.source,'--expected-helper-source',helper,'--image',args.image,'--expected-image-id',args.expected_image_id,'--image-provenance',str(args.image_provenance.resolve()),'--fixture-root',str(args.fixture_root.resolve()),'--report',str(result)]
+-    invocation={'version':1,'preparedAt':now(),'command':cmd,'productSource':args.source,'helperSource':helper,'sourceBinding':capture,'driverSHA256':sha(HERE/'actual/sustained.mjs'),'bindingSHA256':sha(HERE/'actual/external-source-binding.json'),'launcherSHA256':sha(Path(__file__)),'provenanceSHA256':sha(args.provenance),'dependencyBeforeSHA256':sha(dependency_before),'protectedInputSHA256':protected,'environment':{'LUCI_ACCEPTANCE_REPO':str(REPO),'DOCKER_HOST':args.docker_host,'DockerContextTLSOverridesRemoved':True,'DockerCLIHostExplicit':True},'scope':'Fresh installed idle diagnostic only; no runtime allocation, no full sustained pass, no model quality or Windows acceptance.','fixedScope':{'quietSeconds':60,'primarySwitches':0,'primaryInputs':0,'primaryResets':0,'extraTraceRounds':0,'originalActionCohortExecuted':False,'settledControlCalls':32,'settledControlPhaseSeconds':60,'settledControlCallSeconds':5,'switchP95Ms':300,'inputP95Ms':100,'p99StrictlyBelowMs':1000,'allowedCreates':0,'allowedStarts':0,'preparationSeconds':60,'workflowSeconds':210,'cleanupSeconds':120,'outerDriverWaitSeconds':450,'outerTermGraceSeconds':30,'outerKillWaitSeconds':10,'postDriverDependencyCheckSeconds':30,'linuxSampler':False},'engineIdentitySHA256':hashlib.sha256(engine.encode()).hexdigest(),'rootFreeBytes':free,'rawEvidence':'Retain result interactions and node/browser spans verbatim. Raw trace/private fixture may contain context; publish only separately bound allowlisted projections.'}
++    invocation={'version':1,'preparedAt':now(),'command':cmd,'productSource':args.source,'helperSource':helper,'observedCheckout':observed_checkout,'sourceBinding':capture,'driverSHA256':sha(HERE/'actual/sustained.mjs'),'bindingSHA256':sha(HERE/'actual/external-source-binding.json'),'launcherSHA256':sha(Path(__file__)),'provenanceSHA256':sha(args.provenance),'dependencyBeforeSHA256':sha(dependency_before),'protectedInputSHA256':protected,'environment':{'LUCI_ACCEPTANCE_REPO':str(REPO),'DOCKER_HOST':args.docker_host,'DockerContextTLSOverridesRemoved':True,'DockerCLIHostExplicit':True},'scope':'Fresh installed idle diagnostic only; no runtime allocation, no full sustained pass, no model quality or Windows acceptance.','fixedScope':{'quietSeconds':60,'primarySwitches':0,'primaryInputs':0,'primaryResets':0,'extraTraceRounds':0,'originalActionCohortExecuted':False,'settledControlCalls':32,'settledControlPhaseSeconds':60,'settledControlCallSeconds':5,'switchP95Ms':300,'inputP95Ms':100,'p99StrictlyBelowMs':1000,'allowedCreates':0,'allowedStarts':0,'preparationSeconds':60,'workflowSeconds':210,'cleanupSeconds':120,'outerDriverWaitSeconds':450,'outerTermGraceSeconds':30,'outerKillWaitSeconds':10,'postDriverDependencyCheckSeconds':30,'linuxSampler':False},'engineIdentitySHA256':hashlib.sha256(engine.encode()).hexdigest(),'rootFreeBytes':free,'rawEvidence':'Retain result interactions and node/browser spans verbatim. Raw trace/private fixture may contain context; publish only separately bound allowlisted projections.'}
+     write(output/'invocation.json',invocation)
+     env=runtime_env;start=time.monotonic();started=now();timeout=False;forced=False;events=[]
+     with (output/'driver.stdout.log').open('w') as stdout,(output/'driver.stderr.log').open('w') as stderr:
+@@ -111,8 +110,9 @@
+         dependency_check=subprocess.run(['python3',str(HERE/'actual/dependency-binding.py'),'verify',str(HERE/'actual/dependency-manifest.json'),str(dependency_after)],timeout=30,capture_output=True)
+         dependency_passed=dependency_check.returncode==0
+         after={name:sha(path) for name,path in {'launcher':Path(__file__),'binding':HERE/'actual/external-source-binding.json','capture':HERE/'template-capture.json','provenance':args.provenance,'image-provenance':args.image_provenance,**{'source/'+name:HERE/'actual'/name for name in binding['localSources']}}.items()}
+-        protected_unchanged=after==protected
+-    except (OSError,subprocess.TimeoutExpired,ValueError) as error:
++        observed_checkout_after=json.loads(command(['python3',str(HERE/'actual/checkout-binding.py'),'--repo',str(REPO),'--helper',helper,'--capture',str(HERE/'actual/template-capture.json')]))
++        protected_unchanged=after==protected and observed_checkout_after==observed_checkout
++    except (OSError,subprocess.TimeoutExpired,subprocess.CalledProcessError,ValueError) as error:
+         postcheck_error=type(error).__name__
+     inputs_stable=protected_unchanged and dependency_passed
+     receipt={'protectedInputsUnchanged':protected_unchanged,'dependencyAfterPassed':dependency_passed,'postcheckErrorType':postcheck_error,'dependencyAfterSHA256':sha(dependency_after) if dependency_after.is_file() else None,'startedAt':started,'finishedAt':now(),'elapsedSeconds':time.monotonic()-start,'exitCode':child.poll(),'externalMonitorTimeout':timeout,'forcedExactDriver':forced,'driverIdentity':driver,'finalDriverObservation':identity(child.pid),'events':events,'ownedCleanupRequiresFinalReceipt':True,'cleanupUnconfirmedByWrapper':True,'resultExists':result.is_file(),'rawResultSHA256':sha(result) if result.is_file() else None,'noAutomaticFixtureOrLedgerMutation':True}
+--- before/actual/sustained.mjs
++++ after/actual/sustained.mjs
+@@ -66,7 +66,12 @@
+ for(const [name,expected] of Object.entries(externalBinding.repositoryDependencies)) assert.equal(sha(readFileSync(join(repo,name))),expected,'Captured repository dependency changed: '+name);
+ const sourceBindingOptions=parseSourceBindingOptions(args);
+ assert.equal(sourceBindingOptions.expectedProduct,externalBinding.prospectiveProduct);assert.equal(sourceBindingOptions.expectedHelper,externalBinding.prospectiveHelper);assert.equal(provenance.sourceCommit,externalBinding.prospectiveProduct);
+-function verifySourceBinding(){return validateSourceBinding({provenance,...sourceBindingOptions,helperCommit:execFileSync('git',['rev-parse','HEAD'],{cwd:repo,encoding:'utf8',timeout:Math.ceil(commandBudget(15000))}).trim(),helperDirty:!!execFileSync('git',['status','--porcelain'],{cwd:repo,encoding:'utf8',timeout:Math.ceil(commandBudget(15000))}).trim()});}
++function verifySourceBinding(){
++ const selected=JSON.parse(execFileSync('python3',[join(here,'checkout-binding.py'),'--repo',repo,'--helper',sourceBindingOptions.expectedHelper,'--capture',join(here,'template-capture.json')],{encoding:'utf8',timeout:Math.ceil(commandBudget(15000)),maxBuffer:1024*1024}));
++ // Record the actual checkout HEAD; selected input identity is a distinct, explicitly proven binding mode.
++ const bound=validateSourceBinding({provenance,...sourceBindingOptions,helperCommit:selected.observedCheckoutCommit,helperDirty:selected.observedCheckoutDirty,selectedHelperEvidence:selected});
++ return {...bound,bindingMode:selected.bindingMode,observedCheckoutCommit:selected.observedCheckoutCommit,observedCheckoutDirty:selected.observedCheckoutDirty,docsOnlyChangedPaths:selected.docsOnlyChangedPaths,selectedSources:selected.selectedSources};
++}
+ const harnessCheckout=verifySourceBinding();
+ for(const [path,expected] of Object.entries(imageEvidence.sourcesBefore??{})){
+  assert(/^(sandboxd\/|images\/sandbox\/)/.test(path)&&!path.split('/').includes('..'));
+@@ -112,7 +117,7 @@
+ assert.match(bridge, /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/);
+ writeFileSync(join(evidence, 'package-provenance.json'), provenanceBytes, { mode: 0o600, flag: 'wx' });
+ writeFileSync(join(evidence,'image-provenance.json'),readFileSync(resolve(imageEvidencePath)),{mode:0o600,flag:'wx'});
+-const driverNames=['settled-control.mjs','dependency-binding.py','dependency-manifest.json','sustained.mjs','external-source-binding.json','autonomous-readiness.mjs','readiness-ledger.mjs','task-command.mjs','receipt-transport.mjs','workloads.mjs','interaction-metrics.mjs','latency-diagnostics.mjs','task-context.mjs','source-binding.mjs','queue-controls.mjs','run-with-observer.py'];
++const driverNames=['checkout-binding.py','template-capture.json','settled-control.mjs','dependency-binding.py','dependency-manifest.json','sustained.mjs','external-source-binding.json','autonomous-readiness.mjs','readiness-ledger.mjs','task-command.mjs','receipt-transport.mjs','workloads.mjs','interaction-metrics.mjs','latency-diagnostics.mjs','task-context.mjs','source-binding.mjs','queue-controls.mjs','run-with-observer.py'];
+ const reusedHelpers=['four-project-queue/native-terminal-diagnostics.mjs','four-project-queue/sample-linux-owned.py','launch-recovery/fenced-docker-proxy.mjs','launch-recovery/worker-create-guard.mjs','launch-recovery/durable-acceptance-journal.mjs','launch-recovery/acceptance-lifecycle.mjs','launch-recovery/acceptance-startup.mjs'];
+ mkdirSync(join(evidence, 'accepted-harness'), { mode: 0o700 });
+ for (const name of driverNames) writeFileSync(join(evidence, 'accepted-harness', name), readFileSync(new URL(name, import.meta.url)), { mode: 0o600, flag: 'wx' });
+--- before/actual/source-binding.mjs
++++ after/actual/source-binding.mjs
+@@ -25,7 +25,7 @@
+ }
+ 
+ /** Validate already-read values without inspecting a checkout or changing provenance. */
+-export function validateSourceBinding({provenance, expectedProduct, expectedHelper, helperCommit, helperDirty}) {
++export function validateSourceBinding({provenance, expectedProduct, expectedHelper, helperCommit, helperDirty, selectedHelperEvidence}) {
+   assert(provenance && typeof provenance === 'object' && !Array.isArray(provenance),
+     'Matching clean package provenance is required');
+   assert.equal(provenance.sourceDirty, false, 'Packaged product source must be clean');
+@@ -37,12 +37,24 @@
+   const expectedSource = expectedHelper === undefined ? provenance.sourceCommit : expectedHelper;
+   exactCommit(expectedSource, '--expected-helper-source');
+   exactCommit(helperCommit, 'Acceptance helper checkout HEAD');
+-  assert.equal(helperCommit, expectedSource,
+-    'Acceptance helper checkout must match its separately declared source');
++  if (selectedHelperEvidence === undefined) {
++    assert.equal(helperCommit, expectedSource,
++      'Acceptance helper checkout must match its separately declared source');
++  } else {
++    const selected = selectedHelperEvidence;
++    assert.equal(selected.bindingMode, 'exact-selected-helper-inputs-with-docs-only-descendant-checkout');
++    assert.equal(selected.helperSource, expectedSource);
++    assert.equal(selected.observedCheckoutCommit, helperCommit);
++    assert.equal(selected.observedCheckoutDirty, false);
++    assert(Array.isArray(selected.docsOnlyChangedPaths) && selected.docsOnlyChangedPaths.length <= 4096);
++    assert(selected.docsOnlyChangedPaths.every(path => typeof path === 'string' && path.startsWith('docs/luci/')));
++    assert.equal(Object.keys(selected.selectedSources).length, 17, 'Exactly17 proven selected helper inputs required');
++  }
+   assert.equal(helperDirty, false, 'Acceptance helper source must be clean');
+ 
+   return {
+     commit: helperCommit,
++    ...(selectedHelperEvidence === undefined ? {} : {selectedHelperSource: expectedSource, bindingMode: selectedHelperEvidence.bindingMode}),
+     dirty: helperDirty,
+     expectedSource,
+     productSource: provenance.sourceCommit,
+--- before/actual/external-source-binding.json
++++ after/actual/external-source-binding.json
+@@ -4,21 +4,23 @@
+   "scope": "Separate32-call settled real-DOM control. Original432 action acceptance cohort unexecuted; no adjustment/replacement. Same callback/element identity, balanced orders, explicit endpoint, package/dependency before/after. Original remaining guards/lifecycle retained.",
+   "templateSourceSHA256": "4dd9106d463e46cbcd6f038438959879ac16741670e49b0d01decf267566c911",
+   "localSources": {
+-    "sustained.mjs": "e4add061203e515a55af8a15c2d61290e03e8c3a50f67e1a324488b3b8440208",
++    "sustained.mjs": "ce4c78b4e62250ccfc33968c547f15e517a1926d5720ea736d067866aa3f60e6",
+     "task-command.mjs": "7557cc863201e136a6ea0f4d039472d6e225a8efb0fb2afe267b9d65e01a541f",
+     "receipt-transport.mjs": "6a676eefc02c4be569e65f6c3a16da50f750be67acaf4f1380a86739791c34a1",
+     "workloads.mjs": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306",
+     "interaction-metrics.mjs": "437de00f5f82655415ae25ed8a6d09cb4c97b81eaf44d8aca340169dfabab0b4",
+     "latency-diagnostics.mjs": "4d1c0f75f15c01444c22133f360f10700af58c6dfebd3906700e67dc9407313f",
+     "task-context.mjs": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2",
+-    "source-binding.mjs": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796",
++    "source-binding.mjs": "03005d0a5f0f74da4c96f1c3c4d2051faaecc1a693d68ee9720ba0121e2f3a61",
+     "queue-controls.mjs": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0",
+     "run-with-observer.py": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a",
+     "autonomous-readiness.mjs": "7f534431a37a0bd599c2de48870d3c9e8badfd1e33b2d48e47078782aa74467b",
+     "readiness-ledger.mjs": "0a6db6505273c685d1281d039fd50f05c42e44d5312309ac4267f57ae05fd1ff",
+     "settled-control.mjs": "e9d12300dfeb41d7408599738f02b416281f509c6dff96c80b86631180ea0537",
+     "dependency-binding.py": "0966ad866420f28747e8a8799a4434bc63dc733b84011780022b4d159ddebf76",
+-    "dependency-manifest.json": "377518398482124b8f74c7619b52ca2d21c023fc851b377ab9bb2cb3eecec785"
++    "dependency-manifest.json": "377518398482124b8f74c7619b52ca2d21c023fc851b377ab9bb2cb3eecec785",
++    "checkout-binding.py": "06579c8f37b579acf7f57bed4187d0c46ebf4f5883d1eacad04c1021a8b773e7",
++    "template-capture.json": "9fe98f123a4464998dfbc4c6028800e49ec43875b2b914458f6226c89edd7b94"
+   },
+   "repositoryDependencies": {
+     "scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+@@ -167,5 +169,6 @@
+   "controlSourceSHA256": "e9d12300dfeb41d7408599738f02b416281f509c6dff96c80b86631180ea0537",
+   "dependencyManifestSHA256": "377518398482124b8f74c7619b52ca2d21c023fc851b377ab9bb2cb3eecec785",
+   "dependencyCheckerSHA256": "0966ad866420f28747e8a8799a4434bc63dc733b84011780022b4d159ddebf76",
+-  "originalFullActionCohortExecuted": false
++  "originalFullActionCohortExecuted": false,
++  "checkoutBinding": "Declared selected helper remains4d6595; observed clean descendant checkout is separately recorded and only docs/luci differences permitted. Exact17 working/declared/observed helper inputs must all match."
+ }

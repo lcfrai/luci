@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "scope": "External source and inert controls only; no installed execution",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 528,
+      "sha256": "e4f04af1eaa315151232397f9aa21d8c0f8810b8eff21931d439f03aff9513d2"
+    },
+    {
+      "path": "RUN.sh",
+      "bytes": 1426,
+      "sha256": "dede62ee10af5881a8767c99d56f6e7d1442d68b122bc737490bc281f3a512b9"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "scope": "External historical references only; these capsules and omitted dependency sources are not members of this publication. Publication checksums cover only files actually present here.",
+  "references": [
+    {
+      "kind": "complete-preparation-capsule",
+      "externalPath": "/workspace/.luci-tools/cloud032-settled-evaluate-control-v1/capsule-launch-guard-v2",
+      "manifestSHA256": "d6423f5d170f03169305fcedd27464ce3012563352cce52216cc54dc197dd628",
+      "payloadMembers": 260,
+      "payloadBytes": 19467400
+    },
+    {
+      "kind": "complete-analysis-capsule",
+      "externalPath": "/workspace/.luci-tools/cloud032-settled-evaluate-analysis-v1/capsule",
+      "manifestSHA256": "c3152017ef2064ccc5ca2642aff50c78d4ef356e27c6328114620f4a9369f921",
+      "payloadMembers": 40,
+      "payloadBytes": 608188
+    }
+  ],
+  "dependencySnapshot": {
+    "capturedAndVerifiedLocally": true,
+    "ordinaryFiles": 176,
+    "bytes": 18547881,
+    "directories": 39,
+    "inventorySHA256": "c49a27bd78518d76caa1ba4d49414cf3034050e074e7be6301b6c341f3caf863",
+    "originalManifestSHA256": "377518398482124b8f74c7619b52ca2d21c023fc851b377ab9bb2cb3eecec785",
+    "republished": "Exact inventory, metadata and12 licence/notice files; executable library source omitted.",
+    "modeMeaning": "Recorded installed modes are600/700 rather than assuming npm tar modes; reconstruction applies exact recorded file modes after verifying bytes."
+  }
+}

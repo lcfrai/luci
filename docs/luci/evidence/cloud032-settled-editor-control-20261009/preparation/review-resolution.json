@@ -1,0 +1,10 @@
+{
+  "independentReview": "Bounded child read-only review of callback identity/lifecycle/dependency wiring.",
+  "finding": "The prepared broad selector matched four real Definition textareas, so setup would refuse the real DOM.",
+  "initialLimitedFixture": "controlled-attempt1:11passes with one textarea; retained, not a real-app proof.",
+  "sourceGroundedBefore": "controlled-attempt2-four-fields-before:1 expected failure, exact source and raw output retained.",
+  "fixedAfter": "controlled-attempt3-four-fields-after:13passes, same-value replacement and duplicate exact label remain refused.",
+  "resolution": "Filter exact native The idea label before enforcing uniqueness in both setup wait and block registry installation.",
+  "otherConcreteReviewBlockers": [],
+  "runtimeExecuted": false
+}

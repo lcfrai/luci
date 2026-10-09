@@ -1,0 +1,1736 @@
+{
+  "schema": 1,
+  "productSource": "edd0cb121ff6847f681ab6bf41509a497f043d41",
+  "declaredHelperSource": "4d6595072888bfa06fed0070d9c63b4cc1e6d1a9",
+  "observedCheckout": "db8faad86f2e8e5cbbbe87b8710928c0a5c22a0a",
+  "rawResultSHA256": "b1b04e879105e641702f9ae37652847e912f9515f31ce70c2062b7980223cd18",
+  "originalFullCohortExecuted": false,
+  "acceptanceReplacement": false,
+  "status": "completed",
+  "rows": [
+    {
+      "index": 0,
+      "destination": 0,
+      "block": 0,
+      "generation": 1,
+      "position": 0,
+      "arm": "locator",
+      "success": true,
+      "elapsedMs": 37.96684200000891,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.24508000000787433
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 12.788226000004215
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 32.501571000000695
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 37.95552499999758
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 67644.89999997616,
+        "firstSampleAt": 67644.89999997616,
+        "finishedAt": 67645.09999996424,
+        "samples": 1,
+        "generation": 1,
+        "call": 1,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 12.54314599999634,
+      "evaluateMs": 19.71334499999648,
+      "inputValueMs": 5.453953999996884,
+      "callbackMs": 0.19999998807907104,
+      "sampleOffsetMs": 0.0
+    },
+    {
+      "index": 1,
+      "destination": 0,
+      "block": 0,
+      "generation": 1,
+      "position": 1,
+      "arm": "handle",
+      "success": true,
+      "elapsedMs": 14.778558999998495,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.020710999990114942
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 6.268150999996578
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 10.262526999998954
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 14.76784200000111
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 67661.5,
+        "firstSampleAt": 67661.5,
+        "finishedAt": 67661.59999996424,
+        "samples": 1,
+        "generation": 1,
+        "call": 2,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 6.247440000006463,
+      "evaluateMs": 3.994376000002376,
+      "inputValueMs": 4.505315000002156,
+      "callbackMs": 0.09999996423721313,
+      "sampleOffsetMs": 0.0
+    },
+    {
+      "index": 2,
+      "destination": 0,
+      "block": 0,
+      "generation": 1,
+      "position": 2,
+      "arm": "handle",
+      "success": true,
+      "elapsedMs": 12.564964000004693,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.002854000005754642
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 6.117869000008795
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 8.795031000001472
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 12.555789999998524
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 67675.39999997616,
+        "firstSampleAt": 67675.39999997616,
+        "finishedAt": 67675.5,
+        "samples": 1,
+        "generation": 1,
+        "call": 3,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 6.115015000003041,
+      "evaluateMs": 2.677161999992677,
+      "inputValueMs": 3.7607589999970514,
+      "callbackMs": 0.10000002384185791,
+      "sampleOffsetMs": 0.0
+    },
+    {
+      "index": 3,
+      "destination": 0,
+      "block": 0,
+      "generation": 1,
+      "position": 3,
+      "arm": "locator",
+      "success": true,
+      "elapsedMs": 20.44100599999365,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.006810000006225891
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 5.237192999993567
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 17.19516800000565
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 20.431832999995095
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 67696.39999997616,
+        "firstSampleAt": 67696.39999997616,
+        "finishedAt": 67696.59999996424,
+        "samples": 1,
+        "generation": 1,
+        "call": 4,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 5.2303829999873415,
+      "evaluateMs": 11.957975000012084,
+      "inputValueMs": 3.2366649999894435,
+      "callbackMs": 0.19999998807907104,
+      "sampleOffsetMs": 0.0
+    },
+    {
+      "index": 4,
+      "destination": 0,
+      "block": 1,
+      "generation": 2,
+      "position": 0,
+      "arm": "handle",
+      "success": true,
+      "elapsedMs": 11.943688999992446,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.003304999991087243
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 5.383628999989014
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 8.074861999994027
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 11.933632999993279
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 67759.39999997616,
+        "firstSampleAt": 67759.39999997616,
+        "finishedAt": 67759.59999996424,
+        "samples": 1,
+        "generation": 2,
+        "call": 1,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 5.380323999997927,
+      "evaluateMs": 2.6912330000050133,
+      "inputValueMs": 3.858770999999251,
+      "callbackMs": 0.19999998807907104,
+      "sampleOffsetMs": 0.0
+    },
+    {
+      "index": 5,
+      "destination": 0,
+      "block": 1,
+      "generation": 2,
+      "position": 1,
+      "arm": "locator",
+      "success": true,
+      "elapsedMs": 20.403816000005463,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.0018830000044545159
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 4.984607999998843
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 16.176915000003646
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 20.393339999995078
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 67778.89999997616,
+        "firstSampleAt": 67778.89999997616,
+        "finishedAt": 67778.89999997616,
+        "samples": 1,
+        "generation": 2,
+        "call": 2,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 4.982724999994389,
+      "evaluateMs": 11.192307000004803,
+      "inputValueMs": 4.216424999991432,
+      "callbackMs": 0.0,
+      "sampleOffsetMs": 0.0
+    },
+    {
+      "index": 6,
+      "destination": 0,
+      "block": 1,
+      "generation": 2,
+      "position": 2,
+      "arm": "locator",
+      "success": true,
+      "elapsedMs": 27.73379999998724,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.0013519999920390546
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 5.184883999987505
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 14.54215199999453
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 27.720068999988143
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 67798,
+        "firstSampleAt": 67798,
+        "finishedAt": 67798.09999996424,
+        "samples": 1,
+        "generation": 2,
+        "call": 3,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 5.183531999995466,
+      "evaluateMs": 9.357268000007025,
+      "inputValueMs": 13.177916999993613,
+      "callbackMs": 0.09999996423721313,
+      "sampleOffsetMs": 0
+    },
+    {
+      "index": 7,
+      "destination": 0,
+      "block": 1,
+      "generation": 2,
+      "position": 3,
+      "arm": "handle",
+      "success": true,
+      "elapsedMs": 16.03360199999588,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.0015819999971427023
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 10.021286999995937
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 12.329192999997758
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 16.02431799999613
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 67824.19999998808,
+        "firstSampleAt": 67824.19999998808,
+        "finishedAt": 67824.30000001192,
+        "samples": 1,
+        "generation": 2,
+        "call": 4,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 10.019704999998794,
+      "evaluateMs": 2.3079060000018217,
+      "inputValueMs": 3.69512499999837,
+      "callbackMs": 0.10000002384185791,
+      "sampleOffsetMs": 0.0
+    },
+    {
+      "index": 8,
+      "destination": 1,
+      "block": 0,
+      "generation": 3,
+      "position": 0,
+      "arm": "locator",
+      "success": true,
+      "elapsedMs": 21.714590000003227,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.0036949999921489507
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 7.983624000000418
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 16.694623000003048
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 21.68718799999624
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 68083,
+        "firstSampleAt": 68083,
+        "finishedAt": 68083.09999996424,
+        "samples": 1,
+        "generation": 3,
+        "call": 1,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 7.979929000008269,
+      "evaluateMs": 8.71099900000263,
+      "inputValueMs": 4.992564999993192,
+      "callbackMs": 0.09999996423721313,
+      "sampleOffsetMs": 0
+    },
+    {
+      "index": 9,
+      "destination": 1,
+      "block": 0,
+      "generation": 3,
+      "position": 1,
+      "arm": "handle",
+      "success": true,
+      "elapsedMs": 11.296111999996356,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.0022729999909643084
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 4.994991999992635
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 7.1201729999884265
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 11.284174000000348
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 68094.89999997616,
+        "firstSampleAt": 68094.89999997616,
+        "finishedAt": 68095,
+        "samples": 1,
+        "generation": 3,
+        "call": 2,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 4.992719000001671,
+      "evaluateMs": 2.1251809999957914,
+      "inputValueMs": 4.164001000011922,
+      "callbackMs": 0.10000002384185791,
+      "sampleOffsetMs": 0.0
+    },
+    {
+      "index": 10,
+      "destination": 1,
+      "block": 0,
+      "generation": 3,
+      "position": 2,
+      "arm": "handle",
+      "success": true,
+      "elapsedMs": 11.17192100000102,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.002043000000412576
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 6.124694000012823
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 7.627492000014172
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 11.161164000004646
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 68107.30000001192,
+        "firstSampleAt": 68107.30000001192,
+        "finishedAt": 68107.30000001192,
+        "samples": 1,
+        "generation": 3,
+        "call": 3,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 6.122651000012411,
+      "evaluateMs": 1.5027980000013486,
+      "inputValueMs": 3.5336719999904744,
+      "callbackMs": 0.0,
+      "sampleOffsetMs": 0.0
+    },
+    {
+      "index": 11,
+      "destination": 1,
+      "block": 0,
+      "generation": 3,
+      "position": 3,
+      "arm": "locator",
+      "success": true,
+      "elapsedMs": 16.410271000000648,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.001412999990861863
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 4.047315999996499
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 14.249716999998782
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 16.400305999995908
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 68123.80000001192,
+        "firstSampleAt": 68123.80000001192,
+        "finishedAt": 68123.89999997616,
+        "samples": 1,
+        "generation": 3,
+        "call": 4,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 4.045903000005637,
+      "evaluateMs": 10.202401000002283,
+      "inputValueMs": 2.150588999997126,
+      "callbackMs": 0.09999996423721313,
+      "sampleOffsetMs": 0.0
+    },
+    {
+      "index": 12,
+      "destination": 1,
+      "block": 1,
+      "generation": 4,
+      "position": 0,
+      "arm": "handle",
+      "success": true,
+      "elapsedMs": 21.505480000007083,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.00444699999934528
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 15.7802270000102
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 17.71819100000721
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 21.495074000005843
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 68159.30000001192,
+        "firstSampleAt": 68159.30000001192,
+        "finishedAt": 68159.5,
+        "samples": 1,
+        "generation": 4,
+        "call": 1,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 15.775780000010855,
+      "evaluateMs": 1.9379639999970095,
+      "inputValueMs": 3.7768829999986337,
+      "callbackMs": 0.19999998807907104,
+      "sampleOffsetMs": 0.0
+    },
+    {
+      "index": 13,
+      "destination": 1,
+      "block": 1,
+      "generation": 4,
+      "position": 1,
+      "arm": "locator",
+      "success": true,
+      "elapsedMs": 32.35567099999753,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.0011519999970914796
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 7.651123999996344
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 27.393381999994745
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 32.34691799999564
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 68190.30000001192,
+        "firstSampleAt": 68190.30000001192,
+        "finishedAt": 68190.5,
+        "samples": 1,
+        "generation": 4,
+        "call": 2,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 7.649971999999252,
+      "evaluateMs": 19.7422579999984,
+      "inputValueMs": 4.953536000000895,
+      "callbackMs": 0.19999998807907104,
+      "sampleOffsetMs": 0.0
+    },
+    {
+      "index": 14,
+      "destination": 1,
+      "block": 1,
+      "generation": 4,
+      "position": 2,
+      "arm": "locator",
+      "success": true,
+      "elapsedMs": 19.091708999985713,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.0014019999944139272
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 6.968059999999241
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 16.113403999988805
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 19.085379999989527
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 68211.69999998808,
+        "firstSampleAt": 68211.69999998808,
+        "finishedAt": 68211.89999997616,
+        "samples": 1,
+        "generation": 4,
+        "call": 3,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 6.966658000004827,
+      "evaluateMs": 9.145343999989564,
+      "inputValueMs": 2.9719760000007227,
+      "callbackMs": 0.19999998807907104,
+      "sampleOffsetMs": 0.0
+    },
+    {
+      "index": 15,
+      "destination": 1,
+      "block": 1,
+      "generation": 4,
+      "position": 3,
+      "arm": "handle",
+      "success": true,
+      "elapsedMs": 8.748921999998856,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.0012819999974453822
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 4.338694000005489
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 5.74182799999835
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 8.743474000002607
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 68220.89999997616,
+        "firstSampleAt": 68220.89999997616,
+        "finishedAt": 68221,
+        "samples": 1,
+        "generation": 4,
+        "call": 4,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 4.337412000008044,
+      "evaluateMs": 1.4031339999928605,
+      "inputValueMs": 3.001646000004257,
+      "callbackMs": 0.10000002384185791,
+      "sampleOffsetMs": 0.0
+    },
+    {
+      "index": 16,
+      "destination": 2,
+      "block": 0,
+      "generation": 5,
+      "position": 0,
+      "arm": "locator",
+      "success": true,
+      "elapsedMs": 21.085124999997788,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.004535999993095174
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 4.65051899998798
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 17.089787999997498
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 21.079085999997915
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 68470.30000001192,
+        "firstSampleAt": 68470.30000001192,
+        "finishedAt": 68470.5,
+        "samples": 1,
+        "generation": 5,
+        "call": 1,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 4.645982999994885,
+      "evaluateMs": 12.439269000009517,
+      "inputValueMs": 3.9892980000004172,
+      "callbackMs": 0.19999998807907104,
+      "sampleOffsetMs": 0.0
+    },
+    {
+      "index": 17,
+      "destination": 2,
+      "block": 0,
+      "generation": 5,
+      "position": 1,
+      "arm": "handle",
+      "success": true,
+      "elapsedMs": 9.313216999988072,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.0012819999974453822
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 3.124705999987782
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 5.796550999992178
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 9.194006999998237
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 68480.19999998808,
+        "firstSampleAt": 68480.19999998808,
+        "finishedAt": 68480.30000001192,
+        "samples": 1,
+        "generation": 5,
+        "call": 2,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 3.1234239999903366,
+      "evaluateMs": 2.671845000004396,
+      "inputValueMs": 3.397456000006059,
+      "callbackMs": 0.10000002384185791,
+      "sampleOffsetMs": 0.0
+    },
+    {
+      "index": 18,
+      "destination": 2,
+      "block": 0,
+      "generation": 5,
+      "position": 2,
+      "arm": "handle",
+      "success": true,
+      "elapsedMs": 8.276183999987552,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.0035449999995762482
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 4.064801999993506
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 5.8315829999919515
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 8.271206999997958
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 68489.80000001192,
+        "firstSampleAt": 68489.80000001192,
+        "finishedAt": 68490,
+        "samples": 1,
+        "generation": 5,
+        "call": 3,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 4.06125699999393,
+      "evaluateMs": 1.7667809999984456,
+      "inputValueMs": 2.439624000006006,
+      "callbackMs": 0.19999998807907104,
+      "sampleOffsetMs": 0.0
+    },
+    {
+      "index": 19,
+      "destination": 2,
+      "block": 0,
+      "generation": 5,
+      "position": 3,
+      "arm": "locator",
+      "success": true,
+      "elapsedMs": 13.846063999997568,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.0008209999941755086
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 3.0019309999916004
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 10.735539000001154
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 13.841356999997515
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 68503.09999996424,
+        "firstSampleAt": 68503.09999996424,
+        "finishedAt": 68503.19999998808,
+        "samples": 1,
+        "generation": 5,
+        "call": 4,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 3.001109999997425,
+      "evaluateMs": 7.7336080000095535,
+      "inputValueMs": 3.1058179999963613,
+      "callbackMs": 0.10000002384185791,
+      "sampleOffsetMs": 0.0
+    },
+    {
+      "index": 20,
+      "destination": 2,
+      "block": 1,
+      "generation": 6,
+      "position": 0,
+      "arm": "handle",
+      "success": true,
+      "elapsedMs": 11.874995000005583,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.004275999992387369
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 3.926699000003282
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 5.288079000005382
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 11.869686999998521
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 68522.89999997616,
+        "firstSampleAt": 68523,
+        "finishedAt": 68523,
+        "samples": 1,
+        "generation": 6,
+        "call": 1,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 3.9224230000108946,
+      "evaluateMs": 1.3613800000021001,
+      "inputValueMs": 6.581607999993139,
+      "callbackMs": 0.10000002384185791,
+      "sampleOffsetMs": 0.10000002384185791
+    },
+    {
+      "index": 21,
+      "destination": 2,
+      "block": 1,
+      "generation": 6,
+      "position": 1,
+      "arm": "locator",
+      "success": true,
+      "elapsedMs": 20.52583400000003,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.00165200000628829
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 8.56758400000399
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 17.964587000009487
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 20.52078600000823
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 68547.5,
+        "firstSampleAt": 68547.5,
+        "finishedAt": 68547.5,
+        "samples": 1,
+        "generation": 6,
+        "call": 2,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 8.565931999997701,
+      "evaluateMs": 9.397003000005498,
+      "inputValueMs": 2.556198999998742,
+      "callbackMs": 0.0,
+      "sampleOffsetMs": 0.0
+    },
+    {
+      "index": 22,
+      "destination": 2,
+      "block": 1,
+      "generation": 6,
+      "position": 2,
+      "arm": "locator",
+      "success": true,
+      "elapsedMs": 21.015941999998176,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.0009120000031543896
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 5.015614999996615
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 18.084977999998955
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 21.01058400000329
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 68567.89999997616,
+        "firstSampleAt": 68567.89999997616,
+        "finishedAt": 68568,
+        "samples": 1,
+        "generation": 6,
+        "call": 3,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 5.01470299999346,
+      "evaluateMs": 13.06936300000234,
+      "inputValueMs": 2.9256060000043362,
+      "callbackMs": 0.10000002384185791,
+      "sampleOffsetMs": 0.0
+    },
+    {
+      "index": 23,
+      "destination": 2,
+      "block": 1,
+      "generation": 6,
+      "position": 3,
+      "arm": "handle",
+      "success": true,
+      "elapsedMs": 8.099239000002854,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.0010920000058831647
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 3.1140400000003865
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 5.046361000000616
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 8.09459200000856
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 68575.89999997616,
+        "firstSampleAt": 68575.89999997616,
+        "finishedAt": 68576,
+        "samples": 1,
+        "generation": 6,
+        "call": 4,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 3.1129479999945033,
+      "evaluateMs": 1.932321000000229,
+      "inputValueMs": 3.048231000007945,
+      "callbackMs": 0.10000002384185791,
+      "sampleOffsetMs": 0.0
+    },
+    {
+      "index": 24,
+      "destination": 3,
+      "block": 0,
+      "generation": 7,
+      "position": 0,
+      "arm": "locator",
+      "success": true,
+      "elapsedMs": 18.471635000008973,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.004496000008657575
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 3.557477000009385
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 14.613844999999856
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 18.465295000001788
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 68822.80000001192,
+        "firstSampleAt": 68822.80000001192,
+        "finishedAt": 68822.89999997616,
+        "samples": 1,
+        "generation": 7,
+        "call": 1,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 3.5529810000007274,
+      "evaluateMs": 11.05636799999047,
+      "inputValueMs": 3.8514500000019325,
+      "callbackMs": 0.09999996423721313,
+      "sampleOffsetMs": 0.0
+    },
+    {
+      "index": 25,
+      "destination": 3,
+      "block": 0,
+      "generation": 7,
+      "position": 1,
+      "arm": "handle",
+      "success": true,
+      "elapsedMs": 12.783477999997558,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.0010110000002896413
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 4.16786200000206
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 8.881210999999894
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 12.778269999995246
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 68833.09999996424,
+        "firstSampleAt": 68833.09999996424,
+        "finishedAt": 68833.09999996424,
+        "samples": 1,
+        "generation": 7,
+        "call": 2,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 4.1668510000017704,
+      "evaluateMs": 4.713348999997834,
+      "inputValueMs": 3.8970589999953518,
+      "callbackMs": 0.0,
+      "sampleOffsetMs": 0.0
+    },
+    {
+      "index": 26,
+      "destination": 3,
+      "block": 0,
+      "generation": 7,
+      "position": 2,
+      "arm": "handle",
+      "success": true,
+      "elapsedMs": 9.894087000007858,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.0010020000045187771
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 4.099485000013374
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 6.0094110000063665
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 9.887237000002642
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 68845.80000001192,
+        "firstSampleAt": 68845.80000001192,
+        "finishedAt": 68845.80000001192,
+        "samples": 1,
+        "generation": 7,
+        "call": 3,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 4.098483000008855,
+      "evaluateMs": 1.9099259999929927,
+      "inputValueMs": 3.8778259999962756,
+      "callbackMs": 0.0,
+      "sampleOffsetMs": 0.0
+    },
+    {
+      "index": 27,
+      "destination": 3,
+      "block": 0,
+      "generation": 7,
+      "position": 3,
+      "arm": "locator",
+      "success": true,
+      "elapsedMs": 14.413778000001912,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.00167199999850709
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 4.048628000004101
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 11.61474299999827
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 14.40838999999687
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 68860.69999998808,
+        "firstSampleAt": 68860.69999998808,
+        "finishedAt": 68860.80000001192,
+        "samples": 1,
+        "generation": 7,
+        "call": 4,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 4.0469560000055935,
+      "evaluateMs": 7.56611499999417,
+      "inputValueMs": 2.7936469999986002,
+      "callbackMs": 0.10000002384185791,
+      "sampleOffsetMs": 0.0
+    },
+    {
+      "index": 28,
+      "destination": 3,
+      "block": 1,
+      "generation": 8,
+      "position": 0,
+      "arm": "handle",
+      "success": true,
+      "elapsedMs": 13.759829000002355,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.004165999998804182
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 5.6892339999903925
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 8.957866999990074
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 13.753148999996483
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 68910.30000001192,
+        "firstSampleAt": 68910.30000001192,
+        "finishedAt": 68910.39999997616,
+        "samples": 1,
+        "generation": 8,
+        "call": 1,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 5.685067999991588,
+      "evaluateMs": 3.2686329999996815,
+      "inputValueMs": 4.795282000006409,
+      "callbackMs": 0.09999996423721313,
+      "sampleOffsetMs": 0.0
+    },
+    {
+      "index": 29,
+      "destination": 3,
+      "block": 1,
+      "generation": 8,
+      "position": 1,
+      "arm": "locator",
+      "success": true,
+      "elapsedMs": 18.00930900000094,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.0014119999977992848
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 5.445686999999452
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 14.02530399999523
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 18.0034799999994
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 68929.30000001192,
+        "firstSampleAt": 68929.30000001192,
+        "finishedAt": 68929.39999997616,
+        "samples": 1,
+        "generation": 8,
+        "call": 2,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 5.444275000001653,
+      "evaluateMs": 8.579616999995778,
+      "inputValueMs": 3.9781760000041686,
+      "callbackMs": 0.09999996423721313,
+      "sampleOffsetMs": 0.0
+    },
+    {
+      "index": 30,
+      "destination": 3,
+      "block": 1,
+      "generation": 8,
+      "position": 2,
+      "arm": "locator",
+      "success": true,
+      "elapsedMs": 20.37199299999338,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.022322999997413717
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 5.613554999988992
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 16.59976199999801
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 20.352243999994243
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 68949.69999998808,
+        "firstSampleAt": 68949.69999998808,
+        "finishedAt": 68949.80000001192,
+        "samples": 1,
+        "generation": 8,
+        "call": 3,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 5.591231999991578,
+      "evaluateMs": 10.986207000009017,
+      "inputValueMs": 3.7524819999962347,
+      "callbackMs": 0.10000002384185791,
+      "sampleOffsetMs": 0.0
+    },
+    {
+      "index": 31,
+      "destination": 3,
+      "block": 1,
+      "generation": 8,
+      "position": 3,
+      "arm": "handle",
+      "success": true,
+      "elapsedMs": 10.816891000009491,
+      "nodeStages": [
+        {
+          "stage": "wait-start",
+          "offsetMs": 0.0013420000032056123
+        },
+        {
+          "stage": "wait-end",
+          "offsetMs": 4.599616999999853
+        },
+        {
+          "stage": "evaluate-end",
+          "offsetMs": 7.2882360000076005
+        },
+        {
+          "stage": "input-value-end",
+          "offsetMs": 10.798462999999174
+        }
+      ],
+      "callback": {
+        "status": "observed",
+        "reason": null,
+        "timeOrigin": 1791550345651.5,
+        "enteredAt": 68961.30000001192,
+        "firstSampleAt": 68961.30000001192,
+        "finishedAt": 68961.39999997616,
+        "samples": 1,
+        "generation": 8,
+        "call": 4,
+        "sameElement": true,
+        "connected": true,
+        "valueMatches": true,
+        "nativeEditable": true
+      },
+      "waitMs": 4.598274999996647,
+      "evaluateMs": 2.6886190000077477,
+      "inputValueMs": 3.5102269999915734,
+      "callbackMs": 0.09999996423721313,
+      "sampleOffsetMs": 0.0
+    }
+  ],
+  "blocks": [
+    {
+      "destination": 0,
+      "block": 0,
+      "generation": 1,
+      "status": "completed",
+      "setup": {
+        "generation": 1,
+        "authorityGeneration": 1,
+        "timeOrigin": 1791550345651.5,
+        "readyAt": 67613.80000001192,
+        "sameElement": true,
+        "connected": true,
+        "nativeEditable": true
+      },
+      "close": {
+        "closed": true,
+        "reason": null,
+        "calls": 4,
+        "generation": 1,
+        "timeOrigin": 1791550345651.5
+      }
+    },
+    {
+      "destination": 0,
+      "block": 1,
+      "generation": 2,
+      "status": "completed",
+      "setup": {
+        "generation": 2,
+        "authorityGeneration": 1,
+        "timeOrigin": 1791550345651.5,
+        "readyAt": 67751.69999998808,
+        "sameElement": true,
+        "connected": true,
+        "nativeEditable": true
+      },
+      "close": {
+        "closed": true,
+        "reason": null,
+        "calls": 4,
+        "generation": 2,
+        "timeOrigin": 1791550345651.5
+      }
+    },
+    {
+      "destination": 1,
+      "block": 0,
+      "generation": 3,
+      "status": "completed",
+      "setup": {
+        "generation": 3,
+        "authorityGeneration": 1,
+        "timeOrigin": 1791550345651.5,
+        "readyAt": 68066.5,
+        "sameElement": true,
+        "connected": true,
+        "nativeEditable": true
+      },
+      "close": {
+        "closed": true,
+        "reason": null,
+        "calls": 4,
+        "generation": 3,
+        "timeOrigin": 1791550345651.5
+      }
+    },
+    {
+      "destination": 1,
+      "block": 1,
+      "generation": 4,
+      "status": "completed",
+      "setup": {
+        "generation": 4,
+        "authorityGeneration": 1,
+        "timeOrigin": 1791550345651.5,
+        "readyAt": 68140.80000001192,
+        "sameElement": true,
+        "connected": true,
+        "nativeEditable": true
+      },
+      "close": {
+        "closed": true,
+        "reason": null,
+        "calls": 4,
+        "generation": 4,
+        "timeOrigin": 1791550345651.5
+      }
+    },
+    {
+      "destination": 2,
+      "block": 0,
+      "generation": 5,
+      "status": "completed",
+      "setup": {
+        "generation": 5,
+        "authorityGeneration": 1,
+        "timeOrigin": 1791550345651.5,
+        "readyAt": 68450.09999996424,
+        "sameElement": true,
+        "connected": true,
+        "nativeEditable": true
+      },
+      "close": {
+        "closed": true,
+        "reason": null,
+        "calls": 4,
+        "generation": 5,
+        "timeOrigin": 1791550345651.5
+      }
+    },
+    {
+      "destination": 2,
+      "block": 1,
+      "generation": 6,
+      "status": "completed",
+      "setup": {
+        "generation": 6,
+        "authorityGeneration": 1,
+        "timeOrigin": 1791550345651.5,
+        "readyAt": 68516.80000001192,
+        "sameElement": true,
+        "connected": true,
+        "nativeEditable": true
+      },
+      "close": {
+        "closed": true,
+        "reason": null,
+        "calls": 4,
+        "generation": 6,
+        "timeOrigin": 1791550345651.5
+      }
+    },
+    {
+      "destination": 3,
+      "block": 0,
+      "generation": 7,
+      "status": "completed",
+      "setup": {
+        "generation": 7,
+        "authorityGeneration": 1,
+        "timeOrigin": 1791550345651.5,
+        "readyAt": 68808.59999996424,
+        "sameElement": true,
+        "connected": true,
+        "nativeEditable": true
+      },
+      "close": {
+        "closed": true,
+        "reason": null,
+        "calls": 4,
+        "generation": 7,
+        "timeOrigin": 1791550345651.5
+      }
+    },
+    {
+      "destination": 3,
+      "block": 1,
+      "generation": 8,
+      "status": "completed",
+      "setup": {
+        "generation": 8,
+        "authorityGeneration": 1,
+        "timeOrigin": 1791550345651.5,
+        "readyAt": 68901.89999997616,
+        "sameElement": true,
+        "connected": true,
+        "nativeEditable": true
+      },
+      "close": {
+        "closed": true,
+        "reason": null,
+        "calls": 4,
+        "generation": 8,
+        "timeOrigin": 1791550345651.5
+      }
+    }
+  ],
+  "failures": [],
+  "lateCallbacks": 0,
+  "phaseElapsedMs": 1916.6321279999975,
+  "originalReferenceTargets": {
+    "projectSwitchP95Ms": 300,
+    "inputP95Ms": 100,
+    "p99StrictlyBelowMs": 1000,
+    "measuredHere": false
+  },
+  "originalInteractionCount": 0
+}

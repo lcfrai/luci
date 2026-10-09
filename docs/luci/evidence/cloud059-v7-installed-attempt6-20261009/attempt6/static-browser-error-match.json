@@ -1,0 +1,12 @@
+{
+  "kind": "static-chromium-string-hash-match",
+  "runtimeStarted": false,
+  "originalRawErrorRetained": false,
+  "binary": "/usr/lib/chromium/chromium",
+  "targetSHA256": "c0d5bdb43e2d05cd4b10a62baba283c23fc955eafb8a5aff5dcacfaa589dcb1a",
+  "candidateLength": 26,
+  "tested26ByteStrings": 5771,
+  "matches": [],
+  "elapsedSeconds": 2.4878973420127295,
+  "scope": "Static binary strings matching the already observed error digest; not an original raw error receipt."
+}

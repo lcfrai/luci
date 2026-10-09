@@ -1,0 +1,24 @@
+✖ actual edd0 four-field Definition permits only the exact The idea target (405.296471ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1912.204179
+
+✖ failing tests:
+
+test at .luci-tools/cloud032-settled-evaluate-control-v1/controlled.test.mjs:48:1
+✖ actual edd0 four-field Definition permits only the exact The idea target (405.296471ms)
+  Error: Control editor identity unavailable
+      at installSettledBlock (eval at execute (file:///workspace/.luci-tools/cloud032-settled-evaluate-control-v1/controlled.test.mjs:10:69), <anonymous>:19:85)
+      at eval (eval at execute (file:///workspace/.luci-tools/cloud032-settled-evaluate-control-v1/controlled.test.mjs:10:69), <anonymous>:42:3)
+      at eval (<anonymous>)
+      at Object.execute (file:///workspace/.luci-tools/cloud032-settled-evaluate-control-v1/controlled.test.mjs:10:69)
+      at TestContext.<anonymous> (file:///workspace/.luci-tools/cloud032-settled-evaluate-control-v1/controlled.test.mjs:53:17)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)

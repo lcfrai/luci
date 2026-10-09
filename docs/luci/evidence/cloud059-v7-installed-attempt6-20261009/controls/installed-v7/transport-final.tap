@@ -1,0 +1,16 @@
+✔ error evidence hashes unknown/private text without publishing it (2.656123ms)
+✔ close frame retains exact bytes digest and code, never private reason (0.912114ms)
+✔ close frame empty, one-byte, malformed and oversized bounds stay explicit (0.539202ms)
+✔ handshake allows static booleans only and no unknown protocol/header values (1.388834ms)
+✔ passive exact socket receives close metadata, excludes foreign/full stdout, removes listeners (8.222222ms)
+✔ socket and event caps fail explicitly instead of accepting truncated success (3.671454ms)
+✔ setup unavailable and failed detach are explicit and do not leak error text (1.327351ms)
+✔ same pre-attach listener records bounded send timing and socketerror with no keystrokes or hashes (4.326801ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 192.852706

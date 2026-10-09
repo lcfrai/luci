@@ -1,0 +1,15 @@
+{
+  "scope": "After launcher/driver docs-only checkout correction; old frozen capsule immutable. No unchanged DOM test rerun. Guard controls6 Python+4 Node pass; actual17-source checkout proof and syntax pass.",
+  "allLocalHashesMatch": true,
+  "testedControlEqualsExecutedControl": true,
+  "controlledAfterReceiptSHA256": "171556f3fa4712aa41a435f6090ea0edfaf61275b4728858a6dc2fef79d32775",
+  "controlSHA256": "e9d12300dfeb41d7408599738f02b416281f509c6dff96c80b86631180ea0537",
+  "driverSHA256": "ce4c78b4e62250ccfc33968c547f15e517a1926d5720ea736d067866aa3f60e6",
+  "launcherSHA256": "2eed0c3788f8a6b3b461f0bb41a45398e6e78b3999c03234b6e89f00f31b4396",
+  "bindingSHA256": "36bb3c69b89aa3e7680cc2eb7d76ffe691f3e1866bcf91e7c9e4d3b1155cf39c",
+  "dependencyManifestSHA256": "377518398482124b8f74c7619b52ca2d21c023fc851b377ab9bb2cb3eecec785",
+  "guardControlReceiptSHA256": "d6efae880ddb32a29740625c337966d568ada2b9006d0d1e06672c9f80d0a7d9",
+  "observedCheckoutCommit": "db8faad86f2e8e5cbbbe87b8710928c0a5c22a0a",
+  "helperSource": "4d6595072888bfa06fed0070d9c63b4cc1e6d1a9",
+  "originalFrozenManifestSHA256": "c00ad08151a8114d70b4dd3b7b0d48c3b91834b0c5cf8eb9a4590ff4cb0ef9a8"
+}

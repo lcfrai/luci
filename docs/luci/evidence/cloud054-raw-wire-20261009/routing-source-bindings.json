@@ -1,0 +1,101 @@
+{
+  "scope": "selected post-run routing review, not complete compiler inventory",
+  "entries": [
+    {
+      "path": "control-plane/internal/management/runtime.go",
+      "bytes": 17394,
+      "sha256": "cbc15063b7dedffbe408662028c66bd9ac25eefad9fca1943d9cdc0e698b605e",
+      "matchesEdd0": true
+    },
+    {
+      "path": "control-plane/internal/management/management.go",
+      "bytes": 18394,
+      "sha256": "ebc33dbb061d32f0d30f162b76eb89f1996986aab43faa85cbd350664585ce68",
+      "matchesEdd0": true
+    },
+    {
+      "path": "control-plane/internal/management/policy.go",
+      "bytes": 10468,
+      "sha256": "990c650e0819628c15503b54d6753aad7228a20fd728c427eb2b63a5c389a7a6",
+      "matchesEdd0": true
+    },
+    {
+      "path": "control-plane/internal/management/auth.go",
+      "bytes": 14382,
+      "sha256": "8c8e07dead188b9037538308d30bb65e4e125b21cb422793e841a5bf629a503d",
+      "matchesEdd0": true
+    },
+    {
+      "path": "control-plane/internal/management/sockets.go",
+      "bytes": 2848,
+      "sha256": "f786c7b911feebb19a7170754da7b49cb74a9ae81dc0efe842b1635f5ec0f1e3",
+      "matchesEdd0": true
+    },
+    {
+      "path": "control-plane/internal/product/workspace.go",
+      "bytes": 32062,
+      "sha256": "9cf1a425121d2f40e26209800dbc02ce141dd0c230471ae840a4c89142139801",
+      "matchesEdd0": true
+    },
+    {
+      "path": "control-plane/internal/api/api.go",
+      "bytes": 26756,
+      "sha256": "40ec330e52d1f3151713c6a4e85fd9c753bfc230ecc5571fd49661a656e09bab",
+      "matchesEdd0": true
+    },
+    {
+      "path": "control-plane/internal/api/attach.go",
+      "bytes": 15418,
+      "sha256": "405d96bb411197d9c227c3cbad3ad83592f1dd50944b9af3be9a039f2a63e9ee",
+      "matchesEdd0": true
+    },
+    {
+      "path": "control-plane/internal/proxy/proxy.go",
+      "bytes": 3031,
+      "sha256": "ebc02379306e5b555f317fc6d66a3f3ec3f9e6c29a5b93cd898165e65a8d565b",
+      "matchesEdd0": true
+    },
+    {
+      "path": "control-plane/cmd/api/main.go",
+      "bytes": 33653,
+      "sha256": "938181421cd34020ac593eabc810b713113eab268db23c53d4f3286defd184b3",
+      "matchesEdd0": true
+    },
+    {
+      "path": "control-plane/cmd/api/web.go",
+      "bytes": 2611,
+      "sha256": "33f40467517ca41d7a665a178de65310403892225f2c14f178a0a8998db92695",
+      "matchesEdd0": true
+    },
+    {
+      "path": "control-plane/cmd/api/managed_shutdown.go",
+      "bytes": 1102,
+      "sha256": "82a6f4ffffa1395dc9d04a3a7fb909cfac8fed731b1a7811ffdc45b81e15752c",
+      "matchesEdd0": true
+    },
+    {
+      "path": "control-plane/internal/httpx/origin.go",
+      "bytes": 11114,
+      "sha256": "e4ec34486d2d1b2e73d9ff1c0d8ba7aae2e1e39827324b25bd53733daed8047e",
+      "matchesEdd0": true
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/accept.go",
+      "bytes": 10392,
+      "sha256": "542cd01513dc6a08506b566f8700d6c9be637e495166e42003b117c5faf29a43",
+      "matchesEdd0": true
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/conn.go",
+      "bytes": 5981,
+      "sha256": "f47deff7e4f1f59fa01e82f2b347b4909ff46f089afa74eff93ff67c4a885080",
+      "matchesEdd0": true
+    },
+    {
+      "path": "sandboxd/vendor/github.com/coder/websocket/write.go",
+      "bytes": 7613,
+      "sha256": "5f7a6d8f50e80086310b792ea66dd74c00f768d16c1ebf87c6bbf215bf9a414f",
+      "matchesEdd0": true
+    }
+  ]
+}
