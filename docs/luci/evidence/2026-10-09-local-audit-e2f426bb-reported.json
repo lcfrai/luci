@@ -1,0 +1,52 @@
+{
+  "publication": "e2f426bb50267a7cceac1f53eb1e00a0a4cc278e",
+  "receivedAt": "2026-10-09T02:50:12.771154+00:00",
+  "sourceThread": "01a1199f-7500-7843-b02b-081081e536fa",
+  "scope": "Relayed independent Windows tester audit; local private evidence not independently retrieved by cloud. No native app/browser/build/Docker workflow run.",
+  "CLOUD-041": {
+    "state": "verified-controlled-scope",
+    "rootExactFunctionCases": 15,
+    "originalRefusalReproduced": true,
+    "recordedHelperPasses": 51,
+    "checksumEntries": 28,
+    "stableInputs": 18,
+    "fixtures": 6,
+    "controlledReceiptSHA256": "ed5c7dee03307c456f406f1f9be90ba0ea92414eef2bf50356987cbafef8d9a9",
+    "sourceAuditSHA256": "93bfbd8cf57f16d567714883af2b9ad994b3caf804de6035bb2f148b33bf72ee",
+    "limits": "Matching installed/native receipt and sustained gates remain open."
+  },
+  "sustainedAttempt4": {
+    "auditSHA256": "75c6548c21627d24bbd715d430358c994a29d27c872b3b8767deda4756f84c2a",
+    "members": 54,
+    "checksums": 53,
+    "helpers": 16,
+    "imageInputs": 104,
+    "interactionRows": 696,
+    "acceptedTasks": 0,
+    "nativeExitFrames": 0,
+    "idleSwitchP95Ms": 385.298971,
+    "loadedSwitchP95Ms": 550.770057,
+    "loadedSwitchP99Ms": 1445.939623,
+    "idleInputP95Ms": 64.824527,
+    "loadedInputP95Ms": 68.005099,
+    "loadedSwitchCount": 74,
+    "loadedInputCount": 148,
+    "commandFuzzSeconds": 150,
+    "commandFuzzExecutions": 6846700,
+    "singleDispatchRestartIdentitySupported": true,
+    "heldLease": "queue-1b52e8733b6479438946f479",
+    "heldState": "backend-settled",
+    "memoryMiB": 1024,
+    "cpuMillis": 1000,
+    "originalFixtureUnchanged": true
+  },
+  "openRecoveryGates": {
+    "pinnedInputsVerified": 13,
+    "freshOrderingWitness": false,
+    "freshConcurrentChargeWitness": false,
+    "freshTerminalRefusalWitness": false,
+    "proxyOnlyOrderingInsufficient": true
+  },
+  "WindowsRuntime": "Held below physical RAM launch gates; unrelated workloads unchanged.",
+  "fullLocalAcceptance": "open"
+}

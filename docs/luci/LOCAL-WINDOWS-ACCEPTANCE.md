@@ -565,3 +565,8 @@ responsiveness, permitted exact probe tracing, live-provider usefulness and
 clean-host installer behavior. Historical Linux and native receipts remain valid
 for their named scopes. These limitations do not wait on cloud billing or public
 deployment, and they do not turn the local milestone into a completed product.
+
+
+## 9 October: sustained helper order remains a correction gate
+
+Product `2da1a821` / helper `e2f426bb` attempt 5 is failed, with two natural scripted native completions, two exact lease releases and one reviewed integration. Its third allocation was project D while the helper waited for C: LOCAL-021 / CLOUD-043 is a confirmed acceptance-helper ordering defect, not a diagnosed product scheduler fault. CLOUD-041 has scoped installed compact-receipt evidence; full sustained and native Windows acceptance are open. Preserve the failed D fixture and its charge under LOCAL-016. The helper correction must follow actual eligible project allocation and keep all four-project, context, priority, review, recovery and timing requirements. Exact original evidence is in [the published failed run](evidence/sustained-2da1a821-helper-e2f426bb-attempt5/README.md). Do not run this Linux-exclusive Docker harness against the owner’s shared Windows engine.

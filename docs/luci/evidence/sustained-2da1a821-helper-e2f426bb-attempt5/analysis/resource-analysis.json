@@ -1,0 +1,1016 @@
+{
+  "source": "Derived read-only analysis of byte-bound raw attempt 5 receipts, not a new run or atomic admission snapshot",
+  "observedSampleCount": 923,
+  "overall": {
+    "samples": 923,
+    "statusCounts": {
+      "not-observed": 25,
+      "observed": 897,
+      "partial": 1
+    },
+    "validObservationCount": 897,
+    "effectiveAvailableMinBytes": 10006720512,
+    "effectiveAvailableMaxBytes": 17272963072,
+    "physicalAvailableMinBytes": 21323038720,
+    "physicalAvailableMaxBytes": 22513692672,
+    "firstObservedAt": "2026-10-09T02:35:03.203549+00:00",
+    "lastObservedAt": "2026-10-09T02:50:41.098662+00:00"
+  },
+  "controlPlaneIdentities": [
+    [
+      2165509,
+      25937662
+    ],
+    [
+      2172282,
+      25959695
+    ]
+  ],
+  "cgroupObservationDurationSeconds": {
+    "p50": 0.0005662839976139367,
+    "p95": 0.0018288239953108132,
+    "max": 0.0623737929854542
+  },
+  "phaseSummaries": [
+    {
+      "name": "quiet-app-open-idle",
+      "intervalStart": "2026-10-09T02:35:25.684Z",
+      "intervalEnd": "2026-10-09T02:36:25.938Z",
+      "endBasis": "Recorded phase end",
+      "samples": 60,
+      "statusCounts": {
+        "observed": 60
+      },
+      "validObservationCount": 60,
+      "effectiveAvailableMinBytes": 16667172864,
+      "effectiveAvailableMaxBytes": 16916992000,
+      "physicalAvailableMinBytes": 21551575040,
+      "physicalAvailableMaxBytes": 21972099072,
+      "firstObservedAt": "2026-10-09T02:35:26.219493+00:00",
+      "lastObservedAt": "2026-10-09T02:36:25.500782+00:00"
+    },
+    {
+      "name": "idle-interactive-calibration",
+      "intervalStart": "2026-10-09T02:36:25.938Z",
+      "intervalEnd": "2026-10-09T02:37:36.113Z",
+      "endBasis": "Recorded phase end",
+      "samples": 70,
+      "statusCounts": {
+        "observed": 70
+      },
+      "validObservationCount": 70,
+      "effectiveAvailableMinBytes": 16728928256,
+      "effectiveAvailableMaxBytes": 16893542400,
+      "physicalAvailableMinBytes": 21726908416,
+      "physicalAvailableMaxBytes": 21963218944,
+      "firstObservedAt": "2026-10-09T02:36:26.278455+00:00",
+      "lastObservedAt": "2026-10-09T02:37:35.302551+00:00"
+    },
+    {
+      "name": "loaded",
+      "intervalStart": "2026-10-09T02:37:36.116Z",
+      "intervalEnd": "2026-10-09T02:50:19.040Z",
+      "endBasis": "Driver-caught-failure journal event; incomplete loaded phase",
+      "samples": 750,
+      "statusCounts": {
+        "observed": 749,
+        "partial": 1
+      },
+      "validObservationCount": 749,
+      "effectiveAvailableMinBytes": 10006720512,
+      "effectiveAvailableMaxBytes": 16787013632,
+      "physicalAvailableMinBytes": 21323038720,
+      "physicalAvailableMaxBytes": 21935947776,
+      "firstObservedAt": "2026-10-09T02:37:36.287798+00:00",
+      "lastObservedAt": "2026-10-09T02:50:18.940477+00:00"
+    }
+  ],
+  "eventBrackets": [
+    {
+      "name": "create-requestedAt",
+      "at": "2026-10-09T02:37:36.500Z",
+      "requestSequence": 466,
+      "bracket": {
+        "before": {
+          "sampleIndex": 153,
+          "observedAt": "2026-10-09T02:37:36.287798+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0005404709954746068,
+          "physicalAvailableBytes": 21812875264,
+          "summedProcessRSSBytes": 1186689024,
+          "controlPlaneRSSBytes": 56217600,
+          "observations": [
+            {
+              "pid": 2165509,
+              "startTicks": 25937662,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 16787013632,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -212.202
+        },
+        "after": {
+          "sampleIndex": 154,
+          "observedAt": "2026-10-09T02:37:37.297449+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0006883829773869365,
+          "physicalAvailableBytes": 21840396288,
+          "summedProcessRSSBytes": 1184706560,
+          "controlPlaneRSSBytes": 56217600,
+          "observations": [
+            {
+              "pid": 2165509,
+              "startTicks": 25937662,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 16584093696,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 797.449
+        }
+      }
+    },
+    {
+      "name": "create-respondedAt",
+      "at": "2026-10-09T02:38:00.139Z",
+      "requestSequence": 466,
+      "bracket": {
+        "before": {
+          "sampleIndex": 176,
+          "observedAt": "2026-10-09T02:37:59.307050+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0005611850065179169,
+          "physicalAvailableBytes": 21832675328,
+          "summedProcessRSSBytes": 1148235776,
+          "controlPlaneRSSBytes": 56479744,
+          "observations": [
+            {
+              "pid": 2165509,
+              "startTicks": 25937662,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 11287064576,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -831.9499999999999
+        },
+        "after": {
+          "sampleIndex": 177,
+          "observedAt": "2026-10-09T02:38:00.391580+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0009603850194253027,
+          "physicalAvailableBytes": 21822873600,
+          "summedProcessRSSBytes": 1148235776,
+          "controlPlaneRSSBytes": 56479744,
+          "observations": [
+            {
+              "pid": 2165509,
+              "startTicks": 25937662,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10856665088,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 252.58000000000004
+        }
+      }
+    },
+    {
+      "name": "create-deliveredAt",
+      "at": "2026-10-09T02:38:00.141Z",
+      "requestSequence": 466,
+      "bracket": {
+        "before": {
+          "sampleIndex": 176,
+          "observedAt": "2026-10-09T02:37:59.307050+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0005611850065179169,
+          "physicalAvailableBytes": 21832675328,
+          "summedProcessRSSBytes": 1148235776,
+          "controlPlaneRSSBytes": 56479744,
+          "observations": [
+            {
+              "pid": 2165509,
+              "startTicks": 25937662,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 11287064576,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -833.9499999999999
+        },
+        "after": {
+          "sampleIndex": 177,
+          "observedAt": "2026-10-09T02:38:00.391580+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0009603850194253027,
+          "physicalAvailableBytes": 21822873600,
+          "summedProcessRSSBytes": 1148235776,
+          "controlPlaneRSSBytes": 56479744,
+          "observations": [
+            {
+              "pid": 2165509,
+              "startTicks": 25937662,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10856665088,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 250.58
+        }
+      }
+    },
+    {
+      "name": "start-requestedAt",
+      "at": "2026-10-09T02:38:00.186Z",
+      "requestSequence": 540,
+      "bracket": {
+        "before": {
+          "sampleIndex": 176,
+          "observedAt": "2026-10-09T02:37:59.307050+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0005611850065179169,
+          "physicalAvailableBytes": 21832675328,
+          "summedProcessRSSBytes": 1148235776,
+          "controlPlaneRSSBytes": 56479744,
+          "observations": [
+            {
+              "pid": 2165509,
+              "startTicks": 25937662,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 11287064576,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -878.95
+        },
+        "after": {
+          "sampleIndex": 177,
+          "observedAt": "2026-10-09T02:38:00.391580+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0009603850194253027,
+          "physicalAvailableBytes": 21822873600,
+          "summedProcessRSSBytes": 1148235776,
+          "controlPlaneRSSBytes": 56479744,
+          "observations": [
+            {
+              "pid": 2165509,
+              "startTicks": 25937662,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10856665088,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 205.58
+        }
+      }
+    },
+    {
+      "name": "start-respondedAt",
+      "at": "2026-10-09T02:38:00.383Z",
+      "requestSequence": 540,
+      "bracket": {
+        "before": {
+          "sampleIndex": 176,
+          "observedAt": "2026-10-09T02:37:59.307050+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0005611850065179169,
+          "physicalAvailableBytes": 21832675328,
+          "summedProcessRSSBytes": 1148235776,
+          "controlPlaneRSSBytes": 56479744,
+          "observations": [
+            {
+              "pid": 2165509,
+              "startTicks": 25937662,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 11287064576,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -1075.95
+        },
+        "after": {
+          "sampleIndex": 177,
+          "observedAt": "2026-10-09T02:38:00.391580+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0009603850194253027,
+          "physicalAvailableBytes": 21822873600,
+          "summedProcessRSSBytes": 1148235776,
+          "controlPlaneRSSBytes": 56479744,
+          "observations": [
+            {
+              "pid": 2165509,
+              "startTicks": 25937662,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10856665088,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 8.58
+        }
+      }
+    },
+    {
+      "name": "create-requestedAt",
+      "at": "2026-10-09T02:42:27.032Z",
+      "requestSequence": 1932,
+      "bracket": {
+        "before": {
+          "sampleIndex": 438,
+          "observedAt": "2026-10-09T02:42:26.929516+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0005978400004096329,
+          "physicalAvailableBytes": 21914566656,
+          "summedProcessRSSBytes": 1096105984,
+          "controlPlaneRSSBytes": 56750080,
+          "observations": [
+            {
+              "pid": 2172282,
+              "startTicks": 25959695,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 15903633408,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -102.48400000000001
+        },
+        "after": {
+          "sampleIndex": 439,
+          "observedAt": "2026-10-09T02:42:27.924448+00:00",
+          "status": "observed",
+          "durationSeconds": 0.00041647799662314355,
+          "physicalAvailableBytes": 21928894464,
+          "summedProcessRSSBytes": 1096237056,
+          "controlPlaneRSSBytes": 56881152,
+          "observations": [
+            {
+              "pid": 2172282,
+              "startTicks": 25959695,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 15150530560,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 892.448
+        }
+      }
+    },
+    {
+      "name": "create-respondedAt",
+      "at": "2026-10-09T02:42:50.193Z",
+      "requestSequence": 1932,
+      "bracket": {
+        "before": {
+          "sampleIndex": 461,
+          "observedAt": "2026-10-09T02:42:49.939233+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0004206740122754127,
+          "physicalAvailableBytes": 21890895872,
+          "summedProcessRSSBytes": 1096794112,
+          "controlPlaneRSSBytes": 56057856,
+          "observations": [
+            {
+              "pid": 2172282,
+              "startTicks": 25959695,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10915074048,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -253.76700000000002
+        },
+        "after": {
+          "sampleIndex": 462,
+          "observedAt": "2026-10-09T02:42:50.943589+00:00",
+          "status": "observed",
+          "durationSeconds": 0.000514635001309216,
+          "physicalAvailableBytes": 21846142976,
+          "summedProcessRSSBytes": 1097056256,
+          "controlPlaneRSSBytes": 56057856,
+          "observations": [
+            {
+              "pid": 2172282,
+              "startTicks": 25959695,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10848346112,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 750.5889999999999
+        }
+      }
+    },
+    {
+      "name": "create-deliveredAt",
+      "at": "2026-10-09T02:42:50.194Z",
+      "requestSequence": 1932,
+      "bracket": {
+        "before": {
+          "sampleIndex": 461,
+          "observedAt": "2026-10-09T02:42:49.939233+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0004206740122754127,
+          "physicalAvailableBytes": 21890895872,
+          "summedProcessRSSBytes": 1096794112,
+          "controlPlaneRSSBytes": 56057856,
+          "observations": [
+            {
+              "pid": 2172282,
+              "startTicks": 25959695,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10915074048,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -254.76700000000002
+        },
+        "after": {
+          "sampleIndex": 462,
+          "observedAt": "2026-10-09T02:42:50.943589+00:00",
+          "status": "observed",
+          "durationSeconds": 0.000514635001309216,
+          "physicalAvailableBytes": 21846142976,
+          "summedProcessRSSBytes": 1097056256,
+          "controlPlaneRSSBytes": 56057856,
+          "observations": [
+            {
+              "pid": 2172282,
+              "startTicks": 25959695,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10848346112,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 749.5889999999999
+        }
+      }
+    },
+    {
+      "name": "start-requestedAt",
+      "at": "2026-10-09T02:42:50.224Z",
+      "requestSequence": 2006,
+      "bracket": {
+        "before": {
+          "sampleIndex": 461,
+          "observedAt": "2026-10-09T02:42:49.939233+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0004206740122754127,
+          "physicalAvailableBytes": 21890895872,
+          "summedProcessRSSBytes": 1096794112,
+          "controlPlaneRSSBytes": 56057856,
+          "observations": [
+            {
+              "pid": 2172282,
+              "startTicks": 25959695,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10915074048,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -284.767
+        },
+        "after": {
+          "sampleIndex": 462,
+          "observedAt": "2026-10-09T02:42:50.943589+00:00",
+          "status": "observed",
+          "durationSeconds": 0.000514635001309216,
+          "physicalAvailableBytes": 21846142976,
+          "summedProcessRSSBytes": 1097056256,
+          "controlPlaneRSSBytes": 56057856,
+          "observations": [
+            {
+              "pid": 2172282,
+              "startTicks": 25959695,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10848346112,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 719.589
+        }
+      }
+    },
+    {
+      "name": "start-respondedAt",
+      "at": "2026-10-09T02:42:50.387Z",
+      "requestSequence": 2006,
+      "bracket": {
+        "before": {
+          "sampleIndex": 461,
+          "observedAt": "2026-10-09T02:42:49.939233+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0004206740122754127,
+          "physicalAvailableBytes": 21890895872,
+          "summedProcessRSSBytes": 1096794112,
+          "controlPlaneRSSBytes": 56057856,
+          "observations": [
+            {
+              "pid": 2172282,
+              "startTicks": 25959695,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10915074048,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -447.76700000000005
+        },
+        "after": {
+          "sampleIndex": 462,
+          "observedAt": "2026-10-09T02:42:50.943589+00:00",
+          "status": "observed",
+          "durationSeconds": 0.000514635001309216,
+          "physicalAvailableBytes": 21846142976,
+          "summedProcessRSSBytes": 1097056256,
+          "controlPlaneRSSBytes": 56057856,
+          "observations": [
+            {
+              "pid": 2172282,
+              "startTicks": 25959695,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10848346112,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 556.589
+        }
+      }
+    },
+    {
+      "name": "create-requestedAt",
+      "at": "2026-10-09T02:47:56.255Z",
+      "requestSequence": 3693,
+      "bracket": {
+        "before": {
+          "sampleIndex": 759,
+          "observedAt": "2026-10-09T02:47:55.926022+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0005291970155667514,
+          "physicalAvailableBytes": 21846376448,
+          "summedProcessRSSBytes": 1147105280,
+          "controlPlaneRSSBytes": 56971264,
+          "observations": [
+            {
+              "pid": 2172282,
+              "startTicks": 25959695,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 15838617600,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -328.978
+        },
+        "after": {
+          "sampleIndex": 760,
+          "observedAt": "2026-10-09T02:47:56.877250+00:00",
+          "status": "observed",
+          "durationSeconds": 0.00045351398875936866,
+          "physicalAvailableBytes": 21846036480,
+          "summedProcessRSSBytes": 1146859520,
+          "controlPlaneRSSBytes": 56725504,
+          "observations": [
+            {
+              "pid": 2172282,
+              "startTicks": 25959695,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 15182671872,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 622.25
+        }
+      }
+    },
+    {
+      "name": "create-respondedAt",
+      "at": "2026-10-09T02:48:18.362Z",
+      "requestSequence": 3693,
+      "bracket": {
+        "before": {
+          "sampleIndex": 781,
+          "observedAt": "2026-10-09T02:48:17.938063+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0006115820142440498,
+          "physicalAvailableBytes": 21828861952,
+          "summedProcessRSSBytes": 1141096448,
+          "controlPlaneRSSBytes": 56987648,
+          "observations": [
+            {
+              "pid": 2172282,
+              "startTicks": 25959695,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10894405632,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -423.937
+        },
+        "after": {
+          "sampleIndex": 782,
+          "observedAt": "2026-10-09T02:48:18.938689+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0005663040210492909,
+          "physicalAvailableBytes": 21810216960,
+          "summedProcessRSSBytes": 1140944896,
+          "controlPlaneRSSBytes": 56987648,
+          "observations": [
+            {
+              "pid": 2172282,
+              "startTicks": 25959695,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10787041280,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 576.689
+        }
+      }
+    },
+    {
+      "name": "create-deliveredAt",
+      "at": "2026-10-09T02:48:18.363Z",
+      "requestSequence": 3693,
+      "bracket": {
+        "before": {
+          "sampleIndex": 781,
+          "observedAt": "2026-10-09T02:48:17.938063+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0006115820142440498,
+          "physicalAvailableBytes": 21828861952,
+          "summedProcessRSSBytes": 1141096448,
+          "controlPlaneRSSBytes": 56987648,
+          "observations": [
+            {
+              "pid": 2172282,
+              "startTicks": 25959695,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10894405632,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -424.937
+        },
+        "after": {
+          "sampleIndex": 782,
+          "observedAt": "2026-10-09T02:48:18.938689+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0005663040210492909,
+          "physicalAvailableBytes": 21810216960,
+          "summedProcessRSSBytes": 1140944896,
+          "controlPlaneRSSBytes": 56987648,
+          "observations": [
+            {
+              "pid": 2172282,
+              "startTicks": 25959695,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10787041280,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 575.689
+        }
+      }
+    },
+    {
+      "name": "start-requestedAt",
+      "at": "2026-10-09T02:48:18.401Z",
+      "requestSequence": 3764,
+      "bracket": {
+        "before": {
+          "sampleIndex": 781,
+          "observedAt": "2026-10-09T02:48:17.938063+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0006115820142440498,
+          "physicalAvailableBytes": 21828861952,
+          "summedProcessRSSBytes": 1141096448,
+          "controlPlaneRSSBytes": 56987648,
+          "observations": [
+            {
+              "pid": 2172282,
+              "startTicks": 25959695,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10894405632,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -462.937
+        },
+        "after": {
+          "sampleIndex": 782,
+          "observedAt": "2026-10-09T02:48:18.938689+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0005663040210492909,
+          "physicalAvailableBytes": 21810216960,
+          "summedProcessRSSBytes": 1140944896,
+          "controlPlaneRSSBytes": 56987648,
+          "observations": [
+            {
+              "pid": 2172282,
+              "startTicks": 25959695,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10787041280,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 537.689
+        }
+      }
+    },
+    {
+      "name": "start-respondedAt",
+      "at": "2026-10-09T02:48:18.565Z",
+      "requestSequence": 3764,
+      "bracket": {
+        "before": {
+          "sampleIndex": 781,
+          "observedAt": "2026-10-09T02:48:17.938063+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0006115820142440498,
+          "physicalAvailableBytes": 21828861952,
+          "summedProcessRSSBytes": 1141096448,
+          "controlPlaneRSSBytes": 56987648,
+          "observations": [
+            {
+              "pid": 2172282,
+              "startTicks": 25959695,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10894405632,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -626.937
+        },
+        "after": {
+          "sampleIndex": 782,
+          "observedAt": "2026-10-09T02:48:18.938689+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0005663040210492909,
+          "physicalAvailableBytes": 21810216960,
+          "summedProcessRSSBytes": 1140944896,
+          "controlPlaneRSSBytes": 56987648,
+          "observations": [
+            {
+              "pid": 2172282,
+              "startTicks": 25959695,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10787041280,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 373.689
+        }
+      }
+    },
+    {
+      "name": "active-restart-startedAt",
+      "at": "2026-10-09T02:38:47.101Z",
+      "bracket": {
+        "before": {
+          "sampleIndex": 220,
+          "observedAt": "2026-10-09T02:38:44.443956+00:00",
+          "status": "observed",
+          "durationSeconds": 0.000429178006015718,
+          "physicalAvailableBytes": 21558603776,
+          "summedProcessRSSBytes": 1246199808,
+          "controlPlaneRSSBytes": 56541184,
+          "observations": [
+            {
+              "pid": 2165509,
+              "startTicks": 25937662,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10601140224,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -2657.044
+        },
+        "after": {
+          "sampleIndex": 221,
+          "observedAt": "2026-10-09T02:38:47.107440+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0012638010084629059,
+          "physicalAvailableBytes": 21594824704,
+          "summedProcessRSSBytes": 1245433856,
+          "controlPlaneRSSBytes": 56541184,
+          "observations": [
+            {
+              "pid": 2165509,
+              "startTicks": 25937662,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10597167104,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 6.44
+        }
+      }
+    },
+    {
+      "name": "active-restart-finishedAt",
+      "at": "2026-10-09T02:38:50.610Z",
+      "bracket": {
+        "before": {
+          "sampleIndex": 225,
+          "observedAt": "2026-10-09T02:38:50.375286+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0006341440021060407,
+          "physicalAvailableBytes": 21482885120,
+          "summedProcessRSSBytes": 1339817984,
+          "controlPlaneRSSBytes": 128094208,
+          "observations": [
+            {
+              "pid": 2172282,
+              "startTicks": 25959695,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10477404160,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": -234.714
+        },
+        "after": {
+          "sampleIndex": 226,
+          "observedAt": "2026-10-09T02:38:51.410204+00:00",
+          "status": "observed",
+          "durationSeconds": 0.0005887960141990334,
+          "physicalAvailableBytes": 21459804160,
+          "summedProcessRSSBytes": 1352450048,
+          "controlPlaneRSSBytes": 132943872,
+          "observations": [
+            {
+              "pid": 2172282,
+              "startTicks": 25959695,
+              "status": "observed",
+              "identityAndTopologyStable": true,
+              "productComparableEffectiveTotalBytes": 34359738368,
+              "productComparableEffectiveAvailableBytes": 10424381440,
+              "issues": []
+            }
+          ],
+          "deltaMsFromEvent": 800.2040000000001
+        }
+      }
+    }
+  ],
+  "limitations": [
+    "Samples are sequential approximately 1 Hz observations; nearest bracketing counters are not the actual admission decision or an atomic measurement.",
+    "The cgroup and physical counters measure different scopes. The effective formula clamps physical available against visible cgroup limits minus current; no reclaimable-cache discount is applied.",
+    "The host cgroup includes unrelated workload, retained RAM-backed files and observation work. It is not memory attributable solely to Luci.",
+    "Process RSS sums include test driver/browser and double-count shared pages. Container memory is separate; do not add overlapping values indiscriminately.",
+    "Missing/identity-only rows are explicitly retained. Visible ancestors only; no claim about hidden cgroups.",
+    "No matched no-observer run or causal observer overhead estimate is available. No whole-computer or Windows responsiveness is established."
+  ],
+  "bindings": {
+    "observer/samples.jsonl": {
+      "bytes": 5969457,
+      "sha256": "da35dc5f74417db32870bfbcfbcd0f8baca1bdd85b56ff8f6a8d4de935f8e563"
+    },
+    "observer/metadata.json": {
+      "bytes": 2951,
+      "sha256": "f6d9b1fa903127351561411406f47a5bc31d81357896aef2e79a09609fc7ff3a"
+    },
+    "observer/summary.json": {
+      "bytes": 3009,
+      "sha256": "eede457fb26c40f8aa09b15d893cf68ac3cd90f168336da6caa8debfb3c39c62"
+    },
+    "result/result.json": {
+      "bytes": 20151593,
+      "sha256": "16f8f311d9cb0aca7a8d8b38c3be7eb3e1a8b4806e4b4c9247d8315dccc20ff9"
+    },
+    "result/diagnostic-journal.jsonl": {
+      "bytes": 17922,
+      "sha256": "cbf9739c995e05b9cac88c4c1337d6946f8b4c9c859cfd619d917b9a2df5d66e"
+    },
+    "observer-observer-self-cost.json": {
+      "bytes": 934,
+      "sha256": "9d215e99f9758738d4edf5bc439dfd151a335255a72e7dcb452785423372b3d9"
+    }
+  },
+  "formulaRecomputation": {
+    "observations": 897,
+    "mismatches": [],
+    "method": "Minimum physical and each visible finite ancestor; no cache discount or atomic admission claim."
+  },
+  "wholeSamplerDurationSeconds": {
+    "p50": 0.16573408400290646,
+    "p95": 0.4487284909992013,
+    "max": 2.8938648710027337
+  },
+  "containerSampleCoverage": [
+    {
+      "containerId": "02fbf9c4fc0d21e3c3f688274abd2e89503bd609ed5a34943db0dd813e7205dc",
+      "identityRows": 255,
+      "usageRows": 225,
+      "peakCgroupUsageBytes": 455933952
+    },
+    {
+      "containerId": "60a466def0c157278a18d0179ccc0d74b85b40f4093e384587326ba2ac515106",
+      "identityRows": 294,
+      "usageRows": 289,
+      "peakCgroupUsageBytes": 683999232
+    },
+    {
+      "containerId": "fdbcbcd92bdb58af66ddcd257e132355bc77613c0a0ecaacbc7b67ad2d1bf4f5",
+      "identityRows": 123,
+      "usageRows": 122,
+      "peakCgroupUsageBytes": 43225088
+    }
+  ],
+  "observerSelfCost": {
+    "version": 1,
+    "status": "completed",
+    "exitCode": 0,
+    "pid": 2165310,
+    "signalNumber": null,
+    "finishedAt": "2026-10-09T02:50:41.104620+00:00",
+    "scope": "Observer interpreter RUSAGE_SELF, including interpreter imports and launcher; excludes spawned Docker CLI/helpers and all Docker daemon work.",
+    "wallSeconds": 938.1634381870099,
+    "launcherWallSeconds": 938.1243893240171,
+    "processStartClockTicks": 25937218,
+    "clockTicksPerSecond": 100,
+    "userCPUSeconds": 112.182296,
+    "systemCPUSeconds": 77.346669,
+    "cpuSecondsPerWallSecond": 0.20202126546975926,
+    "maxRSSBytes": 19480576,
+    "inputBlockOperations": 16,
+    "outputBlockOperations": 11968,
+    "voluntaryContextSwitches": 3144,
+    "involuntaryContextSwitches": 47164,
+    "units": "Linux ru_maxrss KiB converted to bytes; block counts are I/O operations, not bytes. Lifetime wall uses CLOCK_BOOTTIME minus /proc creation ticks, with tick-resolution uncertainty."
+  },
+  "sampledOwnedProcessRSSPeakBytes": 1397080064,
+  "sampledRSSByRolePeaksBytes": {
+    "browser": 1058123776,
+    "control-plane": 175411200,
+    "other-owned-descendant": 17219584,
+    "test-driver": 380985344
+  },
+  "analysisProducedAt": "2026-10-09T02:53:44.197212+00:00",
+  "analyzerSHA256": "7c3acee1d594aedc1ebb1f4a8cf5c0b3e55744d767451ae223721bff5dddc6f8"
+}

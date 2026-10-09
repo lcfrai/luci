@@ -1,0 +1,30 @@
+{
+  "at": "2026-10-09T02:57:50.747046+00:00",
+  "scope": "Offline retained-file computation. Analyzers ran before next primary profiling window; documentation/binding preparation continued without runtime, tests or compiler. No original fixture, receipt or checkout mutation.",
+  "files": {
+    "resource-analysis.json": {
+      "sha256": "6717c0505d2ca5e0f9d6c22d852774c8ba6c76a424d46c8b92895246eaf1381a",
+      "bytes": 35696
+    },
+    "resource-analyze.py": {
+      "sha256": "7c3acee1d594aedc1ebb1f4a8cf5c0b3e55744d767451ae223721bff5dddc6f8",
+      "bytes": 8112
+    },
+    "interaction-analysis.json": {
+      "sha256": "a3cbe1ab577128471cd8b9cdeee4a513ed951448d072e18cc3f515439ecc81b4",
+      "bytes": 2583887
+    },
+    "interaction-analyze.py": {
+      "sha256": "4f541cc354a35a6573de578fef613a875de481f9f3e87463921d44a7b445fe09",
+      "bytes": 5026
+    },
+    "interaction-summary.json": {
+      "sha256": "77b4b62debf82634c723b5162a4eac1fb5004cede1947735666cb1bf4cdf0b7b",
+      "bytes": 3225
+    },
+    "source-review.md": {
+      "sha256": "4e729ddc8af58b4bdb10b547b6e8d49aa037a611ea0c73c020fe112987977f8f",
+      "bytes": 6948
+    }
+  }
+}
