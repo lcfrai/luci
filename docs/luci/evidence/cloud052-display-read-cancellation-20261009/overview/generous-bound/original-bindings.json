@@ -1,0 +1,32 @@
+[
+  {
+    "path": "control-plane/internal/product/project_overview.go",
+    "sha256": "921ee4c4d54780ddde843f6933af51fe65fbcd6e368b843f553a328dae3ab335",
+    "bytes": 11763,
+    "adaptation": null
+  },
+  {
+    "path": "control-plane/internal/product/project_overview_cache.go",
+    "sha256": "8dff3e0a559955748d87665063c30eef517f47200b8d67ea6156114f25ead1bf",
+    "bytes": 4460,
+    "adaptation": null
+  },
+  {
+    "path": "control-plane/internal/product/project_overview_runs.go",
+    "sha256": "ca768381b0cfe9562366109685964c0671e7456bbacbf05113506221d87798be",
+    "bytes": 11236,
+    "adaptation": null
+  },
+  {
+    "path": "control-plane/internal/product/project_overview_questions.go",
+    "sha256": "754f71d8ac4b07a5b8a538ca5f11e222f1db8c183b3fcaf8391c4bc8e90a77ae",
+    "bytes": 8036,
+    "adaptation": null
+  },
+  {
+    "path": "control-plane/internal/product/project_overview_test.go",
+    "sha256": "f0102c548aae851a1f4855376d09483e437b5e20b0a547c27478d6464b4fe87f",
+    "bytes": 17642,
+    "adaptation": "Only unrelated scheduler Resources fixture callback takes context to compile against current scheduler seam; selected original overview production bytes unchanged."
+  }
+]

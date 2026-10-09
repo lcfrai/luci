@@ -1,0 +1,33 @@
+{
+  "issue": "CLOUD-052",
+  "scope": "Controlled Linux source HTTP/lock fixtures; no app/browser/provider/Docker runtime or UI latency measurement",
+  "originalProduct": "67a5b7c75ca6354d43085f5bb81ec53ee4291f34",
+  "selectedRepositoryInputs": 6,
+  "compiledInputClosure": "Selected changed overview sources/tests only, not complete Go/module/workspace/compiler closure",
+  "regressionByteIdentical": true,
+  "regressionSHA256": "fd28e147b6ad4cae39f49014c64d8b90926fb126db2feb3a63e503dbc69223f8",
+  "before": {
+    "exitCode": 1,
+    "topLevelFailed": 2,
+    "subtests": 0
+  },
+  "intermediateFocused": {
+    "exitCode": 0,
+    "topLevelPassed": 2,
+    "supersededScope": "Pre-final cache eviction checkpoint placement; overlaps final race and not added to it"
+  },
+  "finalAffected": {
+    "command": "source /workspace/.luci-tools/activate.sh; GOMAXPROCS=2 go test -race -p 1 -count=1 -timeout=5m -run '^(TestProjectOverview|TestOverview)' -json ./internal/product",
+    "exitCode": 0,
+    "topLevelPassed": 18,
+    "subtestsPassed": 2,
+    "failed": 0,
+    "skipped": 0
+  },
+  "limitations": [
+    "The fill admission gate is cancellable; already-started ordinary store/scheduler mutex waits and synchronous bounded reads are not forcibly preempted.",
+    "No changes to source exclusion, project permissions, queue admission, worker lifecycle, capacity ceilings or sample freshness.",
+    "Cancellation between successful response checks and serialization is cooperative, not a transaction with transport teardown.",
+    "The initial wrong-PATH shell failed before running Go; logs preserved."
+  ]
+}

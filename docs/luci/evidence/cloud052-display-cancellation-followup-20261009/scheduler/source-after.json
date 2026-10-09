@@ -1,0 +1,77 @@
+{
+  "scope": "selected source, not complete compiler closure",
+  "allDeclaredBeforeInputsUnchanged": true,
+  "sources": [
+    {
+      "path": "control-plane/internal/api/execution_reservation_wait_cancellation_test.go",
+      "bytes": 4773,
+      "sha256": "48275bd5439bfb9759a055912d78377b37ef78b896cf0d619e9db4cf5f877788"
+    },
+    {
+      "path": "control-plane/internal/api/execution_reservation_view.go",
+      "bytes": 3483,
+      "sha256": "50a2ea9692ed692137edd290d813039cceb0b9164cd6e680a587bdb2f4bfbbb4"
+    },
+    {
+      "path": "control-plane/internal/api/execution_lease_lock_unix.go",
+      "bytes": 554,
+      "sha256": "da94406dfc3ce76751a499079c140204ed535baf0483b45f370c027e80ce2370"
+    },
+    {
+      "path": "control-plane/internal/api/execution_lease_lock_windows.go",
+      "bytes": 681,
+      "sha256": "8408925c60e0a51a3952849ce90ed7552b31cd85f142dddad72e76e7f3d5901d"
+    },
+    {
+      "path": "control-plane/internal/api/execution_leases.go",
+      "bytes": 28162,
+      "sha256": "539dff31c1c9c06f4f0c6250d392ac5f72a0e52d34bad69bb5e73221ef9f7a3d"
+    },
+    {
+      "path": "control-plane/internal/api/execution_fence_store.go",
+      "bytes": 8531,
+      "sha256": "a36c61a87bad1369f94b70427f158ebcfd92e2e9432e29063caf7997cadb1195"
+    },
+    {
+      "path": "control-plane/internal/api/execution_leases_test.go",
+      "bytes": 19729,
+      "sha256": "fb71d25e4f11adf3b3a16bd8eb8c0a4d3f00cbf45726b014dc2bf675ecd48a2b"
+    },
+    {
+      "path": "control-plane/internal/api/execution_reservation_view_test.go",
+      "bytes": 18283,
+      "sha256": "7e5f646100dfa46ff468b7e20a2165d1ccfb917da07b7d2168b6104457f4aa8a"
+    },
+    {
+      "path": "control-plane/internal/api/swarm_scheduler_cancellation_test.go",
+      "bytes": 7626,
+      "sha256": "df693fe82151bf330afc202500fa9ccdf78b8f464125294ce286435f0b36658f"
+    },
+    {
+      "path": "control-plane/internal/api/sessions_test.go",
+      "bytes": 73232,
+      "sha256": "df5ab26dd6bcc8b7c8ce85ec0a453dd81f7959a3ee74d6403a327f61ba5ad327"
+    },
+    {
+      "path": "control-plane/internal/api/execution_launch_fence_test.go",
+      "bytes": 11341,
+      "sha256": "ee8a00c0ad3b6e9fbb99832235c238953327364af300a3a62c5ca87666e4950d"
+    },
+    {
+      "path": "control-plane/go.mod",
+      "bytes": 3111,
+      "sha256": "46639d620d215ff94c6e6d2ea2bf52c74abdf501811248e8905aad3846ae0341"
+    },
+    {
+      "path": "control-plane/go.sum",
+      "bytes": 19122,
+      "sha256": "fad248c401dce6545f51ad4beba435f67999c8605be35232f5261b69c7b50344"
+    }
+  ],
+  "additionalFixtureDependencyObservedAfterRun": {
+    "path": "control-plane/internal/api/swarm_dispatch_admission_test.go",
+    "bytes": 4088,
+    "sha256": "23381beb354dad46f4697a64bf39673400c05e720ea632ee8f92c91fce4783d6",
+    "matchesOriginalHead": true
+  }
+}

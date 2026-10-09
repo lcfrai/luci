@@ -1,0 +1,12 @@
+{
+  "CGO_ENABLED": "1",
+  "GOARCH": "amd64",
+  "GOFLAGS": "-mod=readonly",
+  "GOMODCACHE": "/tmp/luci-retained-tools/go-mod",
+  "GOOS": "linux",
+  "GOROOT": "/workspace/.luci-tools/go1.26.3",
+  "GOTOOLCHAIN": "local",
+  "GOVERSION": "go1.26.3",
+  "GOWORK": "/workspace/.luci-tools/go.work",
+  "goExecutableSHA256": "d68b7abbc40d0844f673f6cf06ae3cded225c50437c6454fa37ef178d079fe65"
+}

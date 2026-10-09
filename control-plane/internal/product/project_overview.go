@@ -1,6 +1,7 @@
 package product
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"time"
@@ -88,12 +89,21 @@ func (s *Server) getProjectOverview(w http.ResponseWriter, r *http.Request) {
 		problem(w, http.StatusForbidden, "project_unavailable", "This project is not available in the current workspace.")
 		return
 	}
+	if r.Context().Err() != nil {
+		return
+	}
 	p, ok := s.requestProject(w, r)
 	if !ok {
 		return
 	}
-	view := s.cachedProjectOverview(p)
+	view, err := s.cachedProjectOverview(r.Context(), p)
+	if err != nil || r.Context().Err() != nil {
+		return
+	}
 	queue, err := s.ProjectSwarmQueueSnapshot(p.ID)
+	if r.Context().Err() != nil {
+		return
+	}
 	view.Execution = ProjectOverviewExecution{Scope: "swarm-queue", Status: "unavailable"}
 	if err != nil {
 		view.Limitations = append(view.Limitations, "Queued work could not be read. Open this project's work queue to retry; its counts are unknown.")
@@ -115,7 +125,9 @@ func (s *Server) getProjectOverview(w http.ResponseWriter, r *http.Request) {
 			view.NextAction = OrchestratorAction{ID: "inspect-queue", Label: "Follow queued work", Lens: "develop", Reason: "Open the project's queue to inspect recorded progress or change its priority."}
 		}
 	}
-	writeJSON(w, http.StatusOK, view)
+	if r.Context().Err() == nil {
+		writeJSON(w, http.StatusOK, view)
+	}
 }
 
 func overviewText(value string, limit int) (string, bool) {
@@ -148,22 +160,34 @@ func overviewTimestamp(value string) string {
 func unavailableProjectOverview(id string) ProjectOverview {
 	return ProjectOverview{ProjectID: id, ObservedAt: time.Now().UTC().Format(time.RFC3339Nano), Status: "unavailable", Phase: ProjectOverviewPhase{ID: "unknown", Label: "Context unavailable"}, Questions: ProjectOverviewQuestions{Status: "unavailable", Items: []ProjectOverviewQuestion{}}, LatestRun: ProjectOverviewRun{Status: "unavailable"}, Attention: ProjectOverviewAttention{Status: "unavailable", Items: []ProjectRunAttention{}}, NextAction: OrchestratorAction{ID: "review-context", Label: "Open project context", Lens: "discover", Reason: "The saved project context could not be summarized."}, Limitations: []string{}}
 }
-func (s *Server) readProjectOverview(p project.Project) ProjectOverview {
+func (s *Server) readProjectOverview(ctx context.Context, p project.Project) (ProjectOverview, error) {
 	view := unavailableProjectOverview(p.ID)
+	if err := ctx.Err(); err != nil {
+		return view, err
+	}
 	// Invalid private authority remains unapproved. In particular, refuse a
 	// non-regular authority entry before a read could open a named pipe/device.
 	state, err := readJourney(p.Path, p.ID)
+	if cancelled := ctx.Err(); cancelled != nil {
+		return view, cancelled
+	}
 	if err == nil && overviewStamp(s.stateDir, "review-approvals/"+p.ID+".json").state == "present" {
 		if authority, authorityErr := s.readApprovalStore(p.Path, p.ID); authorityErr == nil {
 			state.approvalAuthority = &authority
 		}
 	}
+	if cancelled := ctx.Err(); cancelled != nil {
+		return view, cancelled
+	}
 	if err != nil {
 		view.Limitations = append(view.Limitations, "Saved project context is unavailable or invalid. Open the project to inspect it; no progress has been inferred.")
-		return view
+		return view, nil
 	}
 	spec, design := currentSpecification(state), currentDesignPlan(state)
 	plan := currentPlan(state, p.ID)
+	if err := ctx.Err(); err != nil {
+		return view, err
+	}
 	text, truncated := overviewText(state.Brief.Purpose, projectOverviewTextLimit)
 	view.Goal = &ProjectOverviewGoal{Text: text, Revision: state.Brief.Revision, UpdatedAt: overviewTimestamp(state.Brief.UpdatedAt), Truncated: truncated}
 	view.Context = &ProjectOverviewContext{BriefRevision: state.Brief.Revision, SpecificationRevision: spec.Revision, DefinitionStatus: spec.Status, DesignRevision: design.Revision, DesignStatus: design.Status, PlanRevision: plan.Revision, Tasks: ProjectOverviewTasks{Total: len(plan.Tasks)}}
@@ -186,7 +210,10 @@ func (s *Server) readProjectOverview(p project.Project) ProjectOverview {
 			view.NextAction = OrchestratorAction{ID: "review-plan", Label: "Review implementation work", Lens: "develop", Reason: "Review the task plan, agent work and verification evidence. Recorded task completion alone is not verification."}
 		}
 	}
-	latestRun, attention, runErr := s.readOverviewRuns(p, state)
+	latestRun, attention, runErr := s.readOverviewRuns(ctx, p, state)
+	if err := ctx.Err(); err != nil {
+		return view, err
+	}
 	view.Attention = attention
 	applyOverviewRunProgress(&view, latestRun)
 	// Keep latest phase/scope intact. An older review obligation has its own
@@ -214,7 +241,10 @@ func (s *Server) readProjectOverview(p project.Project) ProjectOverview {
 			view.Questions.Items = append(view.Questions.Items, ProjectOverviewQuestion{ID: question.ID, Source: "definition", Text: text, Truncated: truncated})
 		}
 	}
-	questions, err := s.readOverviewQuestions(p)
+	questions, err := s.readOverviewQuestions(ctx, p)
+	if cancelled := ctx.Err(); cancelled != nil {
+		return view, cancelled
+	}
 	if err != nil {
 		view.Status = "partial"
 		view.Questions.Status = "partial"
@@ -233,5 +263,5 @@ func (s *Server) readProjectOverview(p project.Project) ProjectOverview {
 	if len(view.Questions.Items) > 0 {
 		view.NextAction = OrchestratorAction{ID: "answer-question", Label: "Review open questions", Lens: "discover", Reason: "Resolve the open decisions before starting new implementation work."}
 	}
-	return view
+	return view, ctx.Err()
 }

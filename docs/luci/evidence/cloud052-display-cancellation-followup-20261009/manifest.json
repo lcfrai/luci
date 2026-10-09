@@ -1,0 +1,226 @@
+{
+  "issue": "CLOUD-052",
+  "kind": "separate boundary follow-up",
+  "members": [
+    {
+      "path": "README.md",
+      "bytes": 3163,
+      "sha256": "693725fa65d1c1c28fc0485f6b8eb527eac3e69c81d804ecb2315d9cdfdd82e3"
+    },
+    {
+      "path": "overview/after.jsonl",
+      "bytes": 2573,
+      "sha256": "39e0f9480b902bfd46bfdfb4ae08b17e1cd3093eb0d30d375e53bce840496993"
+    },
+    {
+      "path": "overview/after.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "overview/before-pre-refusal-assertion.jsonl",
+      "bytes": 2888,
+      "sha256": "9a3860611b9c0fadd9bdcd30f708ec8c70164a559de60191c580ee985c91e7db"
+    },
+    {
+      "path": "overview/before-pre-refusal-assertion.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "overview/before.jsonl",
+      "bytes": 2894,
+      "sha256": "bd50f7f6ee87ae4f135e42a8d03b3178ba0725a3256881024d1bfd056bc7dd15"
+    },
+    {
+      "path": "overview/before.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "overview/final-bindings.json",
+      "bytes": 1485,
+      "sha256": "1993da578ca6eb0d53c4772fde4fc5209cb61fd65ae3b7b05b6ec28734b97d43"
+    },
+    {
+      "path": "overview/initial-overlay-compile-failure-regression.go",
+      "bytes": 4112,
+      "sha256": "9bf91068b6bb2318cac4d54faeab8d8766b856c1f5f4f970647c015e40f0f8ce"
+    },
+    {
+      "path": "overview/initial-overlay-compile-failure.jsonl",
+      "bytes": 1375,
+      "sha256": "5edd64c603ca0229d21a483ac978e749ee1a73a137d5b4b2f899402afa7eec73"
+    },
+    {
+      "path": "overview/initial-overlay-compile-failure.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "overview/original-bindings.json",
+      "bytes": 1188,
+      "sha256": "764d48f14ab3bb8d72779f34e5fdfa33839e68dd270fa63391fcd94137e4d782"
+    },
+    {
+      "path": "overview/original-source/project_overview.go",
+      "bytes": 11763,
+      "sha256": "921ee4c4d54780ddde843f6933af51fe65fbcd6e368b843f553a328dae3ab335"
+    },
+    {
+      "path": "overview/original-source/project_overview_cache.go",
+      "bytes": 4460,
+      "sha256": "8dff3e0a559955748d87665063c30eef517f47200b8d67ea6156114f25ead1bf"
+    },
+    {
+      "path": "overview/original-source/project_overview_questions.go",
+      "bytes": 8036,
+      "sha256": "754f71d8ac4b07a5b8a538ca5f11e222f1db8c183b3fcaf8391c4bc8e90a77ae"
+    },
+    {
+      "path": "overview/original-source/project_overview_runs.go",
+      "bytes": 11236,
+      "sha256": "ca768381b0cfe9562366109685964c0671e7456bbacbf05113506221d87798be"
+    },
+    {
+      "path": "overview/original-source/project_overview_test.go",
+      "bytes": 17642,
+      "sha256": "f0102c548aae851a1f4855376d09483e437b5e20b0a547c27478d6464b4fe87f"
+    },
+    {
+      "path": "overview/overlay.json",
+      "bytes": 1024,
+      "sha256": "00770d3dba49e23876db4d2381d60aa9f2dee39ba4ffe988f320e87a7fb33908"
+    },
+    {
+      "path": "overview/regression-pre-refusal-assertion.go",
+      "bytes": 4079,
+      "sha256": "d11b0450278519ce284d865e1e2f34f7b058329ea69d7f4df38743c8fdcc5f1b"
+    },
+    {
+      "path": "overview/regression.go",
+      "bytes": 4509,
+      "sha256": "5c14a06c8bb2fe718c943826920873e6b32a762dd137fc1f441f12bac388efdc"
+    },
+    {
+      "path": "overview/summary.json",
+      "bytes": 1990,
+      "sha256": "6284e0710e56797aba38de4656225e2571691a7905fb5a43d5736a4a5c8ecafe"
+    },
+    {
+      "path": "scheduler/README.md",
+      "bytes": 2635,
+      "sha256": "94c1a5aaa8b4ca7fabe2cd917915b64e5785785e5bb7fe599477bc5ee1bac941"
+    },
+    {
+      "path": "scheduler/command.json",
+      "bytes": 381,
+      "sha256": "b06c7152702d687ebe8f486c3ef76a2d32a8765669ac5c528c824e0ef02edf73"
+    },
+    {
+      "path": "scheduler/exit.json",
+      "bytes": 16,
+      "sha256": "982b9e9bfb10ffe83cad665807abcfd3fa97b37822db5ab7831157a499548a9e"
+    },
+    {
+      "path": "scheduler/frozen/control-plane/go.mod",
+      "bytes": 3111,
+      "sha256": "46639d620d215ff94c6e6d2ea2bf52c74abdf501811248e8905aad3846ae0341"
+    },
+    {
+      "path": "scheduler/frozen/control-plane/go.sum",
+      "bytes": 19122,
+      "sha256": "fad248c401dce6545f51ad4beba435f67999c8605be35232f5261b69c7b50344"
+    },
+    {
+      "path": "scheduler/frozen/control-plane/internal/api/execution_fence_store.go",
+      "bytes": 8531,
+      "sha256": "a36c61a87bad1369f94b70427f158ebcfd92e2e9432e29063caf7997cadb1195"
+    },
+    {
+      "path": "scheduler/frozen/control-plane/internal/api/execution_launch_fence_test.go",
+      "bytes": 11341,
+      "sha256": "ee8a00c0ad3b6e9fbb99832235c238953327364af300a3a62c5ca87666e4950d"
+    },
+    {
+      "path": "scheduler/frozen/control-plane/internal/api/execution_lease_lock_unix.go",
+      "bytes": 554,
+      "sha256": "da94406dfc3ce76751a499079c140204ed535baf0483b45f370c027e80ce2370"
+    },
+    {
+      "path": "scheduler/frozen/control-plane/internal/api/execution_lease_lock_windows.go",
+      "bytes": 681,
+      "sha256": "8408925c60e0a51a3952849ce90ed7552b31cd85f142dddad72e76e7f3d5901d"
+    },
+    {
+      "path": "scheduler/frozen/control-plane/internal/api/execution_leases.go",
+      "bytes": 28162,
+      "sha256": "539dff31c1c9c06f4f0c6250d392ac5f72a0e52d34bad69bb5e73221ef9f7a3d"
+    },
+    {
+      "path": "scheduler/frozen/control-plane/internal/api/execution_leases_test.go",
+      "bytes": 19729,
+      "sha256": "fb71d25e4f11adf3b3a16bd8eb8c0a4d3f00cbf45726b014dc2bf675ecd48a2b"
+    },
+    {
+      "path": "scheduler/frozen/control-plane/internal/api/execution_reservation_view.go",
+      "bytes": 3483,
+      "sha256": "50a2ea9692ed692137edd290d813039cceb0b9164cd6e680a587bdb2f4bfbbb4"
+    },
+    {
+      "path": "scheduler/frozen/control-plane/internal/api/execution_reservation_view_test.go",
+      "bytes": 18283,
+      "sha256": "7e5f646100dfa46ff468b7e20a2165d1ccfb917da07b7d2168b6104457f4aa8a"
+    },
+    {
+      "path": "scheduler/frozen/control-plane/internal/api/execution_reservation_wait_cancellation_test.go",
+      "bytes": 4773,
+      "sha256": "48275bd5439bfb9759a055912d78377b37ef78b896cf0d619e9db4cf5f877788"
+    },
+    {
+      "path": "scheduler/frozen/control-plane/internal/api/sessions_test.go",
+      "bytes": 73232,
+      "sha256": "df5ab26dd6bcc8b7c8ce85ec0a453dd81f7959a3ee74d6403a327f61ba5ad327"
+    },
+    {
+      "path": "scheduler/frozen/control-plane/internal/api/swarm_dispatch_admission_test.go",
+      "bytes": 4088,
+      "sha256": "23381beb354dad46f4697a64bf39673400c05e720ea632ee8f92c91fce4783d6"
+    },
+    {
+      "path": "scheduler/frozen/control-plane/internal/api/swarm_scheduler_cancellation_test.go",
+      "bytes": 7626,
+      "sha256": "df693fe82151bf330afc202500fa9ccdf78b8f464125294ce286435f0b36658f"
+    },
+    {
+      "path": "scheduler/manifest.json",
+      "bytes": 3972,
+      "sha256": "713990849b56874409b169d8ef09f3e2fce42e99df901a8d1d4babcab8f80e7b"
+    },
+    {
+      "path": "scheduler/source-after.json",
+      "bytes": 2805,
+      "sha256": "5c59c90d4144fcf8cc201cb2aea389c97007de3e9a51170b31c11c41441090fd"
+    },
+    {
+      "path": "scheduler/source-before.json",
+      "bytes": 2566,
+      "sha256": "85c8b32a9c18d165e3f4e36b6aa349bcf301049478dcbd4bcd82749b73f144a4"
+    },
+    {
+      "path": "scheduler/summary.json",
+      "bytes": 716,
+      "sha256": "3dbe04bae210d19ed8ea0c853631ac7dbc360d049e9700062af22be153385a19"
+    },
+    {
+      "path": "scheduler/test.jsonl",
+      "bytes": 1997,
+      "sha256": "91d3dc5d0fdbe4f205fe017390a4403eedef9db4c5395f9e762bb964577d54ad"
+    },
+    {
+      "path": "scheduler/test.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

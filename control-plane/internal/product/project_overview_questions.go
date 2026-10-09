@@ -2,6 +2,7 @@ package product
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -104,10 +105,16 @@ func (s *Server) writeOverviewQuestions(saved orchestratorLedger, ledgerPath str
 	}
 	return syncProjectRunDirectory(filepath.Dir(path))
 }
-func (s *Server) readOverviewQuestions(p project.Project) (overviewQuestionProjection, error) {
+func (s *Server) readOverviewQuestions(ctx context.Context, p project.Project) (overviewQuestionProjection, error) {
+	if err := ctx.Err(); err != nil {
+		return overviewQuestionProjection{}, err
+	}
 	scope, err := s.approvalScopes(p.Path, p.ID)
 	if err != nil {
 		return overviewQuestionProjection{}, errOverviewQuestions
+	}
+	if err := ctx.Err(); err != nil {
+		return overviewQuestionProjection{}, err
 	}
 	ledgerPath, err := s.orchestratorPath(p.ID, false)
 	if errors.Is(err, os.ErrNotExist) {
@@ -128,6 +135,9 @@ func (s *Server) readOverviewQuestions(p project.Project) (overviewQuestionProje
 	if err != nil || !info.Mode().IsRegular() || info.Size() > orchestratorFileLimit {
 		return overviewQuestionProjection{}, errOverviewQuestions
 	}
+	if err := ctx.Err(); err != nil {
+		return overviewQuestionProjection{}, err
+	}
 	identity, identityErr := projectOverviewFileIdentity(ledger)
 	path, pathErr := s.overviewQuestionsPath(p.ID, false)
 	if identityErr == nil && pathErr == nil && hostpath.OneName(path) == nil {
@@ -135,6 +145,9 @@ func (s *Server) readOverviewQuestions(p project.Project) (overviewQuestionProje
 		if openErr == nil {
 			data, readErr := io.ReadAll(io.LimitReader(file, overviewQuestionProjectionLimit+1))
 			file.Close()
+			if err := ctx.Err(); err != nil {
+				return overviewQuestionProjection{}, err
+			}
 			var row overviewQuestionProjection
 			decoder := json.NewDecoder(bytes.NewReader(data))
 			decoder.DisallowUnknownFields()
@@ -149,9 +162,15 @@ func (s *Server) readOverviewQuestions(p project.Project) (overviewQuestionProje
 	if info.Size() > overviewLegacyConversationLimit {
 		return overviewQuestionProjection{}, errOverviewQuestions
 	}
+	if err := ctx.Err(); err != nil {
+		return overviewQuestionProjection{}, err
+	}
 	data, err := io.ReadAll(io.LimitReader(ledger, overviewLegacyConversationLimit+1))
 	if err != nil || len(data) > overviewLegacyConversationLimit {
 		return overviewQuestionProjection{}, errOverviewQuestions
+	}
+	if err := ctx.Err(); err != nil {
+		return overviewQuestionProjection{}, err
 	}
 	saved, err := decodeOrchestratorLedger(data, orchestratorLedger{Version: 1, AccountScope: scope.AccountScope, ProjectScope: scope.ProjectScope, ProjectID: p.ID})
 	if err != nil {

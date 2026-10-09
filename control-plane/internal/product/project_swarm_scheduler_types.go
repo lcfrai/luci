@@ -47,7 +47,7 @@ type SwarmSchedulerRuntime struct {
 	Release      func(context.Context, string) error
 	// Resources returns an already-observed, credential-free runtime snapshot.
 	// A read must not sample the host, reserve capacity, or reconcile children.
-	Resources func() any
+	Resources func(context.Context) any
 }
 type SwarmSchedulerPolicy struct {
 	MaxActive       int `json:"maxActive"`

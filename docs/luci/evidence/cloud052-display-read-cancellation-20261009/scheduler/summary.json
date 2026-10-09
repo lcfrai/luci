@@ -1,0 +1,102 @@
+{
+  "original": {
+    "path": "before/test.jsonl",
+    "sha256": "004f162c96b6739a455bc46251df76008cbdb7497a987e98a04a6d354eb489e2",
+    "topLevel": {
+      "pass": 0,
+      "fail": 1,
+      "skip": 0
+    },
+    "subtests": {
+      "pass": 0,
+      "fail": 2,
+      "skip": 0
+    },
+    "outcomes": {
+      "pass": [],
+      "fail": [
+        "TestSwarmSchedulerDisplayCancellationPreservesSharedCharge/before-request",
+        "TestSwarmSchedulerDisplayCancellationPreservesSharedCharge/after-cached-snapshot",
+        "TestSwarmSchedulerDisplayCancellationPreservesSharedCharge"
+      ],
+      "skip": []
+    },
+    "observations": [
+      "swarm_scheduler_cancellation_test.go:107: cancelled stage=before-request elapsed=101.597971ms snapshotCalls=1 responseBytes=1300; exact reservation lock remains held",
+      "swarm_scheduler_cancellation_test.go:107: cancelled stage=after-cached-snapshot elapsed=100.596246ms snapshotCalls=1 responseBytes=1300; exact reservation lock remains held"
+    ]
+  },
+  "apiRace": {
+    "path": "after/test.jsonl",
+    "sha256": "a125b5f186e6939f4abc386dba8aef00845ee66d1a8bb1f2561df723e32cc9bc",
+    "topLevel": {
+      "pass": 9,
+      "fail": 0,
+      "skip": 0
+    },
+    "subtests": {
+      "pass": 16,
+      "fail": 0,
+      "skip": 0
+    },
+    "outcomes": {
+      "pass": [
+        "TestExecutionReservationViewPausedOwnerObservesTeamCheck",
+        "TestExecutionReservationViewUnavailableAndReadOnly/missing-root",
+        "TestExecutionReservationViewUnavailableAndReadOnly/missing-ledger",
+        "TestExecutionReservationViewUnavailableAndReadOnly/missing-lock",
+        "TestExecutionReservationViewUnavailableAndReadOnly/invalid-json",
+        "TestExecutionReservationViewUnavailableAndReadOnly/invalid-foreign-owner",
+        "TestExecutionReservationViewUnavailableAndReadOnly/oversized",
+        "TestExecutionReservationViewUnavailableAndReadOnly/lock-directory",
+        "TestExecutionReservationViewUnavailableAndReadOnly/linked-lock",
+        "TestExecutionReservationViewUnavailableAndReadOnly/linked-ledger",
+        "TestExecutionReservationViewUnavailableAndReadOnly/hardlinked-lock",
+        "TestExecutionReservationViewUnavailableAndReadOnly/hardlinked-ledger",
+        "TestExecutionReservationViewUnavailableAndReadOnly/project-owned-ledger",
+        "TestExecutionReservationViewUnavailableAndReadOnly/relative-path",
+        "TestExecutionReservationViewUnavailableAndReadOnly/ordinary-read-preserves-modes-and-bytes",
+        "TestExecutionReservationViewUnavailableAndReadOnly",
+        "TestExecutionReservationViewBoundedLockAndCancellation",
+        "TestExecutionReservationViewConcurrentPeerMutation",
+        "TestExecutionReservationViewDoesNotWidenSchedulerAuthority",
+        "TestExecutionReservationViewFinishedChecksAndNoHostSampler",
+        "TestExecutionStorageSchedulerHTTPPublishesPathFreeHostBound",
+        "TestSwarmSchedulerDisplayReservationWaitUsesRequestContext",
+        "TestSwarmSchedulerDisplayCancellationPreservesSharedCharge/before-request",
+        "TestSwarmSchedulerDisplayCancellationPreservesSharedCharge/after-cached-snapshot",
+        "TestSwarmSchedulerDisplayCancellationPreservesSharedCharge"
+      ],
+      "fail": [],
+      "skip": []
+    },
+    "observations": [
+      "swarm_scheduler_cancellation_test.go:100: real request cancellation settled attached bounded reservation read in 168.484\u00b5s while exact lock remained held",
+      "swarm_scheduler_cancellation_test.go:186: cancelled stage=before-request elapsed=13.5\u00b5s snapshotCalls=0 responseBytes=0; exact reservation lock remains held",
+      "swarm_scheduler_cancellation_test.go:186: cancelled stage=after-cached-snapshot elapsed=177.117\u00b5s snapshotCalls=1 responseBytes=0; exact reservation lock remains held"
+    ]
+  },
+  "productRace": {
+    "path": "after/product-test.jsonl",
+    "sha256": "dad1c5a6aa645616928236b625d6478ce6c292d965e25be6d32d7df43ddfdb5e",
+    "topLevel": {
+      "pass": 2,
+      "fail": 0,
+      "skip": 0
+    },
+    "subtests": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0
+    },
+    "outcomes": {
+      "pass": [
+        "TestSwarmSchedulerCancelledResponseKeepsSettledPolicyMutation",
+        "TestSwarmSchedulerSharedHostPolicySerializesWorkersAndKeepsReadsInert"
+      ],
+      "fail": [],
+      "skip": []
+    },
+    "observations": []
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "scope": "selected frozen source, not complete compiler closure",
+  "files": {
+    "execution_reservation_view.go": {
+      "bytes": 3483,
+      "sha256": "50a2ea9692ed692137edd290d813039cceb0b9164cd6e680a587bdb2f4bfbbb4"
+    },
+    "project_swarm_scheduler_http.go": {
+      "bytes": 12439,
+      "sha256": "2190baf5128fd28f5c14f5a89cc81c8ddd05eb65f297e758ccd6592fb1a0e1e2"
+    },
+    "project_swarm_scheduler_types.go": {
+      "bytes": 4709,
+      "sha256": "a0e4f325a511545da9e40b2d5661414c7808878aebd02c079fbf526a37e46d15"
+    },
+    "swarm_dispatch.go": {
+      "bytes": 17372,
+      "sha256": "ddf39c0404225c8daa8f492b7172f6b766ccd2f7d87808d34edc059e055459da"
+    },
+    "swarm_scheduler_cancellation_test.go": {
+      "bytes": 5005,
+      "sha256": "b29d6b4dfe9925c125b2d357b570d82db62223d11e30a5cf68cf7638b20bcac0"
+    }
+  }
+}

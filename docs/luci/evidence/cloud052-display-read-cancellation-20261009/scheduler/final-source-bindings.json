@@ -1,0 +1,71 @@
+{
+  "scope": "selected source only; integrated compiler closure owned by parent",
+  "originalRevision": "a31e1ac485c95bdbcc9ebb011581da5ce3f5c67a",
+  "overlayOriginals": [
+    {
+      "path": "control-plane/internal/api/swarm_dispatch.go",
+      "bytes": 17372,
+      "sha256": "ddf39c0404225c8daa8f492b7172f6b766ccd2f7d87808d34edc059e055459da",
+      "matchesOriginalRevision": true
+    },
+    {
+      "path": "control-plane/internal/product/project_swarm_scheduler_http.go",
+      "bytes": 12439,
+      "sha256": "2190baf5128fd28f5c14f5a89cc81c8ddd05eb65f297e758ccd6592fb1a0e1e2",
+      "matchesOriginalRevision": true
+    },
+    {
+      "path": "control-plane/internal/product/project_swarm_scheduler_types.go",
+      "bytes": 4709,
+      "sha256": "a0e4f325a511545da9e40b2d5661414c7808878aebd02c079fbf526a37e46d15",
+      "matchesOriginalRevision": true
+    },
+    {
+      "path": "control-plane/internal/api/execution_reservation_view_test.go",
+      "bytes": 18263,
+      "sha256": "3897572c82a2678b3e48280df9876260138a760013e2b3ec9587c9e80152cd00",
+      "matchesOriginalRevision": true
+    }
+  ],
+  "pairedRegressionIdentical": true,
+  "pairedTestSha256": "f66abffe3a0018ac7e6085de248bd773722251683df5fc8965a085f78127d989",
+  "currentTestSha256": "df693fe82151bf330afc202500fa9ccdf78b8f464125294ce286435f0b36658f",
+  "onlyPostPairChange": "comment-only.patch; executable assertions unchanged",
+  "finalCurrent": [
+    {
+      "path": "control-plane/internal/api/swarm_dispatch.go",
+      "bytes": 17577,
+      "sha256": "9e3ea083a867973fec61dbef91c91cdd05e7c9ae5d1919f9a9751b7e909b32c7"
+    },
+    {
+      "path": "control-plane/internal/api/execution_reservation_view.go",
+      "bytes": 3483,
+      "sha256": "50a2ea9692ed692137edd290d813039cceb0b9164cd6e680a587bdb2f4bfbbb4"
+    },
+    {
+      "path": "control-plane/internal/api/execution_reservation_view_test.go",
+      "bytes": 18283,
+      "sha256": "7e5f646100dfa46ff468b7e20a2165d1ccfb917da07b7d2168b6104457f4aa8a"
+    },
+    {
+      "path": "control-plane/internal/api/swarm_scheduler_cancellation_test.go",
+      "bytes": 7626,
+      "sha256": "df693fe82151bf330afc202500fa9ccdf78b8f464125294ce286435f0b36658f"
+    },
+    {
+      "path": "control-plane/internal/product/project_swarm_scheduler_http.go",
+      "bytes": 12785,
+      "sha256": "e44624f7ae97dd65b260941db830ec34640ffb47cf730c7ff9bbf02fdf64ce11"
+    },
+    {
+      "path": "control-plane/internal/product/project_swarm_scheduler_types.go",
+      "bytes": 4724,
+      "sha256": "c2e339507cc76c90a31c157109c0f94218424df4bbe76806f1ac0d18870d9fa3"
+    },
+    {
+      "path": "control-plane/internal/product/project_swarm_scheduler_cancellation_test.go",
+      "bytes": 2850,
+      "sha256": "9155f5ce24011b257f9e0d1d51a0b602d7981d7e706d0d96ab0283aad03ad0ad"
+    }
+  ]
+}

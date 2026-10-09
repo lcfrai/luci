@@ -1,0 +1,7 @@
+{
+  "command": "source /workspace/.luci-tools/activate.sh; GOMAXPROCS=2 go test -p 1 -count=1 -timeout=2m -run ^TestProjectOverviewCanceled -json ./internal/product",
+  "cwd": "/workspace/luci/control-plane",
+  "exitCode": 1,
+  "scope": "2 original HTTP cancellation counterexamples fail; fixture cleanup completes",
+  "setupFailure": "Prior shell omitted pinned tool activation: gofmt absent and PATH go was another executable. Its empty JSONL and stderr are retained separately; no Go tests ran in that attempt."
+}

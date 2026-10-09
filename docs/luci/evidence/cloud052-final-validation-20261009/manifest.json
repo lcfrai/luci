@@ -1,0 +1,80 @@
+{
+  "issue": "CLOUD-052",
+  "members": [
+    {
+      "path": "README.md",
+      "bytes": 3142,
+      "sha256": "f97e6ee678521f32e74cf53a2c4d65b7cce9674fd6533313fa3850066cf35610"
+    },
+    {
+      "path": "capture-bindings.json",
+      "bytes": 4188,
+      "sha256": "d167d30a8be6fbdb4a5b9728f1961f619aceb7ea3c46e3ce9c0c22a9e0b67d1f"
+    },
+    {
+      "path": "command-1.jsonl.gz",
+      "bytes": 4444,
+      "sha256": "cf0f1ffa482d9fefc9fe5d3047efa63f05fe6d7e31bf8c58740e0aaae2e1877a"
+    },
+    {
+      "path": "command-2.jsonl.gz",
+      "bytes": 2244,
+      "sha256": "2469a504e21634fa3bfb1965bdd2c536acf9920458d2eb13bd8631a71095afa8"
+    },
+    {
+      "path": "compiled-after.json.gz",
+      "bytes": 388518,
+      "sha256": "8a5de230baf7d54d5a9f69271f0fc642c15a86da0148c1160b68e9f237a42658"
+    },
+    {
+      "path": "compiled-before.json.gz",
+      "bytes": 388518,
+      "sha256": "8a5de230baf7d54d5a9f69271f0fc642c15a86da0148c1160b68e9f237a42658"
+    },
+    {
+      "path": "compiled-scope.json.gz",
+      "bytes": 5205,
+      "sha256": "3be4edbdc3e4fb3391926c7fedf3b6f789f92f63749b28f947a8056ea6519511"
+    },
+    {
+      "path": "execution-go.work",
+      "bytes": 76,
+      "sha256": "0ac5f5af6697615a6cad94517240e18a750fe8f0160b22e755e2c9b348c18cd7"
+    },
+    {
+      "path": "original-capsule-audit.json",
+      "bytes": 402,
+      "sha256": "8dabdb47d7f2df04197c8392cdd23dee99e85a7733ef5f92dfaa82567c4d44b9"
+    },
+    {
+      "path": "progress.json",
+      "bytes": 1343,
+      "sha256": "d426eb600b534c82d8c63cbe46c3cae60ac8e19e9574a35b1daf49757a5a09a4"
+    },
+    {
+      "path": "report.json",
+      "bytes": 1883,
+      "sha256": "123f17193df2e094fae5e4dbe6a89a44a5595c9ba5756b9425858908f511a714"
+    },
+    {
+      "path": "repository-after.json.gz",
+      "bytes": 42256,
+      "sha256": "e5861241ebb4d763724c737e13de96eda34fa1f2409bce21dbba5af0abd5b47d"
+    },
+    {
+      "path": "repository-before.json.gz",
+      "bytes": 42256,
+      "sha256": "e5861241ebb4d763724c737e13de96eda34fa1f2409bce21dbba5af0abd5b47d"
+    },
+    {
+      "path": "run.py",
+      "bytes": 5718,
+      "sha256": "dd3d651d88b551546d54b8a8c6dedaa492ab8dc1a22c25794028baed7cd92099"
+    },
+    {
+      "path": "toolchain.json",
+      "bytes": 384,
+      "sha256": "08d2ecd3eed96f48919eda383ff775c3b5b6290c662d813c1bc9728470c4e9f4"
+    }
+  ]
+}

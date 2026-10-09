@@ -1,0 +1,34 @@
+{
+  "environment": "source /workspace/.luci-tools/activate.sh then override GOMAXPROCS=2; retained Go 1.26.3, Linux; -p 1; private temporary test fixtures",
+  "workingDirectory": "/workspace/luci",
+  "commands": {
+    "before/test.jsonl": {
+      "command": "GOMAXPROCS=2 go test -p 1 -count=1 -timeout=2m -json ./control-plane/internal/api -run ^TestSwarmSchedulerDisplayCancellationPreservesSharedCharge$",
+      "scope": "initial original production, initial two-subcase regression"
+    },
+    "after/test.jsonl": {
+      "command": "GOMAXPROCS=2 go test -p 1 -race -count=1 -timeout=3m -json ./control-plane/internal/api -run ^(TestSwarmSchedulerDisplay|TestExecutionReservationView|TestExecutionStorageSchedulerHTTPPublishesPathFreeHostBound)",
+      "scope": "first corrected selected API race batch, initial timing assertions"
+    },
+    "after/product-test.jsonl": {
+      "command": "GOMAXPROCS=2 go test -p 1 -race -count=1 -timeout=2m -json ./control-plane/internal/product -run ^(TestSwarmSchedulerCancelledResponseKeepsSettledPolicyMutation|TestSwarmSchedulerSharedHostPolicySerializesWorkersAndKeepsReadsInert)$",
+      "scope": "corrected selected product race batch"
+    },
+    "revised-before/test.jsonl": {
+      "command": "GOMAXPROCS=2 go test -p 1 -count=1 -timeout=2m -overlay=/workspace/.luci-tools/cloud052-display-cancellation/scheduler/revised-before/overlay.json -json ./control-plane/internal/api -run ^TestSwarmSchedulerDisplay",
+      "scope": "exact old three production sources plus old mechanical fixture call via Go overlay; revised test file from working source"
+    },
+    "revised-after/test.jsonl": {
+      "command": "GOMAXPROCS=2 go test -p 1 -race -count=1 -timeout=2m -json ./control-plane/internal/api -run ^TestSwarmSchedulerDisplay",
+      "scope": "corrected production; byte-identical revised test file"
+    },
+    "final-before/test.jsonl": {
+      "command": "GOMAXPROCS=2 go test -p 1 -count=1 -timeout=2m -overlay=/workspace/.luci-tools/cloud052-display-cancellation/scheduler/final-before/overlay.json -json ./control-plane/internal/api -run ^TestSwarmSchedulerDisplay",
+      "scope": "exact original selected sources via overlay, final synchronous-attachment test"
+    },
+    "final-after/test.jsonl": {
+      "command": "GOMAXPROCS=2 go test -p 1 -race -count=1 -timeout=2m -json ./control-plane/internal/api -run ^TestSwarmSchedulerDisplay",
+      "scope": "corrected production, byte-identical final synchronous-attachment test"
+    }
+  }
+}

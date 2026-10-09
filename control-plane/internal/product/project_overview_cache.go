@@ -1,6 +1,7 @@
 package product
 
 import (
+	"context"
 	"errors"
 	"os"
 	"sync"
@@ -28,6 +29,8 @@ type projectOverviewCacheEntry struct {
 // repeated calls for a project share the same compact result. No model input,
 // full dialogue, source tree, or run ledger is retained in this cache.
 type projectOverviewCache struct {
+	fillOnce sync.Once
+	fill     chan struct{}
 	mu       sync.Mutex
 	entries  map[string]projectOverviewCacheEntry
 	sequence uint64
@@ -64,8 +67,20 @@ func sameOverviewStamps(a, b [6]overviewFileStamp) bool {
 	}
 	return true
 }
-func (s *Server) overviewStamps(p project.Project) [6]overviewFileStamp {
-	return [6]overviewFileStamp{overviewStamp(p.Path, ".luci/state.json"), overviewStamp(s.stateDir, "review-approvals/"+p.ID+".json"), overviewStamp(s.stateDir, "orchestrator/"+p.ID+".json"), overviewStamp(s.stateDir, "project-overview-questions/"+p.ID+".json"), overviewStamp(s.stateDir, "project-overview-runs/"+p.ID+".json"), overviewRunDirectoryStamp(s.stateDir, "project-runs/"+p.ID)}
+func (s *Server) overviewStamps(ctx context.Context, p project.Project) ([6]overviewFileStamp, error) {
+	var stamps [6]overviewFileStamp
+	paths := [][2]string{{p.Path, ".luci/state.json"}, {s.stateDir, "review-approvals/" + p.ID + ".json"}, {s.stateDir, "orchestrator/" + p.ID + ".json"}, {s.stateDir, "project-overview-questions/" + p.ID + ".json"}, {s.stateDir, "project-overview-runs/" + p.ID + ".json"}, {s.stateDir, "project-runs/" + p.ID}}
+	for index, path := range paths {
+		if err := ctx.Err(); err != nil {
+			return stamps, err
+		}
+		if index == len(stamps)-1 {
+			stamps[index] = overviewRunDirectoryStamp(path[0], path[1])
+		} else {
+			stamps[index] = overviewStamp(path[0], path[1])
+		}
+	}
+	return stamps, ctx.Err()
 }
 func copyProjectOverview(value ProjectOverview) ProjectOverview {
 	value.Questions.Items = append([]ProjectOverviewQuestion{}, value.Questions.Items...)
@@ -73,28 +88,60 @@ func copyProjectOverview(value ProjectOverview) ProjectOverview {
 	value.Limitations = append([]string{}, value.Limitations...)
 	return value
 }
-func (s *Server) cachedProjectOverview(p project.Project) ProjectOverview {
+func (s *Server) cachedProjectOverview(ctx context.Context, p project.Project) (ProjectOverview, error) {
 	cache := &s.projectOverview
+	if err := ctx.Err(); err != nil {
+		return ProjectOverview{}, err
+	}
+	// Keep one globally bounded fill, but let obsolete display requests leave
+	// its wait without retaining their project's shared source admission.
+	cache.fillOnce.Do(func() { cache.fill = make(chan struct{}, 1) })
+	select {
+	case <-ctx.Done():
+		return ProjectOverview{}, ctx.Err()
+	case cache.fill <- struct{}{}:
+	}
+	defer func() { <-cache.fill }()
+	if err := ctx.Err(); err != nil {
+		return ProjectOverview{}, err
+	}
+	// The fill gate serializes every production owner of this map mutex.
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return ProjectOverview{}, err
+	}
 	now := time.Now()
 	key := p.ID + "\x00" + p.Path
-	stamps := s.overviewStamps(p)
+	stamps, err := s.overviewStamps(ctx, p)
+	if err != nil {
+		return ProjectOverview{}, err
+	}
 	cache.sequence++
 	if entry, ok := cache.entries[key]; ok && now.Sub(entry.loaded) < projectOverviewCacheTTL && sameOverviewStamps(entry.stamps, stamps) {
 		entry.used = cache.sequence
 		cache.entries[key] = entry
-		return copyProjectOverview(entry.view)
+		return copyProjectOverview(entry.view), nil
 	}
 	s.mu.RLock()
-	view := s.readProjectOverview(p)
-	after := s.overviewStamps(p)
+	view, err := s.readProjectOverview(ctx, p)
+	if err != nil {
+		s.mu.RUnlock()
+		return ProjectOverview{}, err
+	}
+	after, err := s.overviewStamps(ctx, p)
 	s.mu.RUnlock()
+	if err != nil {
+		return ProjectOverview{}, err
+	}
 	if !sameOverviewStamps(stamps, after) {
 		delete(cache.entries, key)
 		view = unavailableProjectOverview(p.ID)
 		view.Limitations = append(view.Limitations, "Project context changed while being summarized. Refresh the overview before relying on its stage.")
-		return view
+		return view, nil
+	}
+	if err := ctx.Err(); err != nil {
+		return ProjectOverview{}, err
 	}
 	if cache.entries == nil {
 		cache.entries = make(map[string]projectOverviewCacheEntry)
@@ -111,7 +158,7 @@ func (s *Server) cachedProjectOverview(p project.Project) ProjectOverview {
 		delete(cache.entries, oldest)
 	}
 	cache.entries[key] = projectOverviewCacheEntry{stamps: after, view: view, loaded: now, used: cache.sequence}
-	return copyProjectOverview(view)
+	return copyProjectOverview(view), nil
 }
 
 func overviewRunDirectoryStamp(root, relative string) overviewFileStamp {

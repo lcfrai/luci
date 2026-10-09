@@ -1,0 +1,521 @@
+{
+  "issue": "CLOUD-052",
+  "scope": "Selected source + controlled Linux HTTP/file-lock tests; no installed/native/UI performance acceptance",
+  "members": [
+    {
+      "path": "README.md",
+      "bytes": 5785,
+      "sha256": "5884b1b4ddc591b42b3534252105115fa8a18d34ce16c8fb016a4e6ffeb927eb"
+    },
+    {
+      "path": "final-repository-bindings.json",
+      "bytes": 2702,
+      "sha256": "0d3e6b3f32514dd70f46b2469aa1f18907af088fef95125576301c3ab2385804"
+    },
+    {
+      "path": "overview/after/control-plane/internal/product/project_overview.go",
+      "bytes": 12422,
+      "sha256": "68b93f4719aa18d1e8633aa97cefd763ab90226570f1eb866300e91e5a84ee9b"
+    },
+    {
+      "path": "overview/after/control-plane/internal/product/project_overview_cache.go",
+      "bytes": 5733,
+      "sha256": "0ff7119fba0511cb6856097310640693ab140957eca255995b676174812d5ddd"
+    },
+    {
+      "path": "overview/after/control-plane/internal/product/project_overview_cancellation_test.go",
+      "bytes": 5608,
+      "sha256": "fd28e147b6ad4cae39f49014c64d8b90926fb126db2feb3a63e503dbc69223f8"
+    },
+    {
+      "path": "overview/after/control-plane/internal/product/project_overview_questions.go",
+      "bytes": 8560,
+      "sha256": "c7ada2cea999cfb60604fef16590e8dd877349410cd77239e340c7139ac4cffe"
+    },
+    {
+      "path": "overview/after/control-plane/internal/product/project_overview_runs.go",
+      "bytes": 11691,
+      "sha256": "b328e9de9b9782f08bea533c54bc9a2b808ebe4aa1b8f945b392d6755db36ef8"
+    },
+    {
+      "path": "overview/after/control-plane/internal/product/project_overview_test.go",
+      "bytes": 17810,
+      "sha256": "d494d446d897356bc487589112c6e93b523fe4b820a9b8a1157e6bd6cfafff1c"
+    },
+    {
+      "path": "overview/after-focused.jsonl",
+      "bytes": 2579,
+      "sha256": "68b0ee050e522e967e91e8fedb1dc7cf0edc08d235f5d8826b9a2fff58b7b909"
+    },
+    {
+      "path": "overview/after-focused.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "overview/after-race.jsonl",
+      "bytes": 20472,
+      "sha256": "a8f6c0632e946a9c8c98c052329ab49eb3aa49c2e182d768d7ec17af9c81c920"
+    },
+    {
+      "path": "overview/after-race.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "overview/after-sources.json",
+      "bytes": 1100,
+      "sha256": "9fe831411ff3323888a74b957a35bb2567d71ed4289c63a744de508d81c81588"
+    },
+    {
+      "path": "overview/before/control-plane/internal/product/project_overview.go",
+      "bytes": 11763,
+      "sha256": "921ee4c4d54780ddde843f6933af51fe65fbcd6e368b843f553a328dae3ab335"
+    },
+    {
+      "path": "overview/before/control-plane/internal/product/project_overview_cache.go",
+      "bytes": 4460,
+      "sha256": "8dff3e0a559955748d87665063c30eef517f47200b8d67ea6156114f25ead1bf"
+    },
+    {
+      "path": "overview/before/control-plane/internal/product/project_overview_cancellation_test.go",
+      "bytes": 5608,
+      "sha256": "fd28e147b6ad4cae39f49014c64d8b90926fb126db2feb3a63e503dbc69223f8"
+    },
+    {
+      "path": "overview/before/control-plane/internal/product/project_overview_questions.go",
+      "bytes": 8036,
+      "sha256": "754f71d8ac4b07a5b8a538ca5f11e222f1db8c183b3fcaf8391c4bc8e90a77ae"
+    },
+    {
+      "path": "overview/before/control-plane/internal/product/project_overview_runs.go",
+      "bytes": 11236,
+      "sha256": "ca768381b0cfe9562366109685964c0671e7456bbacbf05113506221d87798be"
+    },
+    {
+      "path": "overview/before/control-plane/internal/product/project_overview_test.go",
+      "bytes": 17627,
+      "sha256": "d5b9ca70b96f369d03bb05b998da94a1ae84a3522f4338d19a3ae5f93f82da5a"
+    },
+    {
+      "path": "overview/before-command.json",
+      "bytes": 517,
+      "sha256": "ae52aa2243f7a318f200ddf854ab1987042013f245eeab4247480887f75c8adf"
+    },
+    {
+      "path": "overview/before-sources.json",
+      "bytes": 1100,
+      "sha256": "790f75123cd909afe2ca6ac5f1669c9606ea6ab24e0d05295c35eddcaad74c81"
+    },
+    {
+      "path": "overview/before.jsonl",
+      "bytes": 4597,
+      "sha256": "b4fb1dded2138119e38a90a9da5dda25466ee5522b0837a7ce31c3edd825ca07"
+    },
+    {
+      "path": "overview/before.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "overview/generous-bound/after.jsonl",
+      "bytes": 2592,
+      "sha256": "ec3031d4ae5042810961b097d420bb8077e735439e809c33203b3ccde9e675a5"
+    },
+    {
+      "path": "overview/generous-bound/after.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "overview/generous-bound/before.jsonl",
+      "bytes": 4598,
+      "sha256": "02f6278a7d3d7a63ddc7f1d47f76406483fd2d11cd808064298683c2e523411c"
+    },
+    {
+      "path": "overview/generous-bound/before.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "overview/generous-bound/final-source-bindings.json",
+      "bytes": 1100,
+      "sha256": "653ce504882f34ac34a8a5461694bd84fc30c874bbc4e34e2803bb1874035ac2"
+    },
+    {
+      "path": "overview/generous-bound/original-bindings.json",
+      "bytes": 1188,
+      "sha256": "764d48f14ab3bb8d72779f34e5fdfa33839e68dd270fa63391fcd94137e4d782"
+    },
+    {
+      "path": "overview/generous-bound/original-source/project_overview.go",
+      "bytes": 11763,
+      "sha256": "921ee4c4d54780ddde843f6933af51fe65fbcd6e368b843f553a328dae3ab335"
+    },
+    {
+      "path": "overview/generous-bound/original-source/project_overview_cache.go",
+      "bytes": 4460,
+      "sha256": "8dff3e0a559955748d87665063c30eef517f47200b8d67ea6156114f25ead1bf"
+    },
+    {
+      "path": "overview/generous-bound/original-source/project_overview_questions.go",
+      "bytes": 8036,
+      "sha256": "754f71d8ac4b07a5b8a538ca5f11e222f1db8c183b3fcaf8391c4bc8e90a77ae"
+    },
+    {
+      "path": "overview/generous-bound/original-source/project_overview_runs.go",
+      "bytes": 11236,
+      "sha256": "ca768381b0cfe9562366109685964c0671e7456bbacbf05113506221d87798be"
+    },
+    {
+      "path": "overview/generous-bound/original-source/project_overview_test.go",
+      "bytes": 17642,
+      "sha256": "f0102c548aae851a1f4855376d09483e437b5e20b0a547c27478d6464b4fe87f"
+    },
+    {
+      "path": "overview/generous-bound/overlay.json",
+      "bytes": 1024,
+      "sha256": "00770d3dba49e23876db4d2381d60aa9f2dee39ba4ffe988f320e87a7fb33908"
+    },
+    {
+      "path": "overview/generous-bound/regression.go",
+      "bytes": 5601,
+      "sha256": "4c9630d1a06f2f77068ad79e0c1bf2cdb2f03db658b8205334b89b8fba5eb440"
+    },
+    {
+      "path": "overview/generous-bound/summary.json",
+      "bytes": 1349,
+      "sha256": "39cc59ff85881cd03c9318f755363334dfd7f36ebf7db3fe11fb455ecb0a96a3"
+    },
+    {
+      "path": "overview/setup-shell-failure.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "overview/setup-shell-failure.stderr.log",
+      "bytes": 25,
+      "sha256": "b4f22f86748478559956c9bbc295b449bc939f2bebff95847b3a65d9c1c47a64"
+    },
+    {
+      "path": "overview/summary.json",
+      "bytes": 1604,
+      "sha256": "5ddd6e8b2b232b56c0c7678c35da74f37de63f94fc30a9f1201f8a6f769186b9"
+    },
+    {
+      "path": "scheduler/README.md",
+      "bytes": 4775,
+      "sha256": "91420d48f416c4da138c43dad2a734d393750a8c0361265a00646516682c5b61"
+    },
+    {
+      "path": "scheduler/after/execution_reservation_view.go",
+      "bytes": 3483,
+      "sha256": "50a2ea9692ed692137edd290d813039cceb0b9164cd6e680a587bdb2f4bfbbb4"
+    },
+    {
+      "path": "scheduler/after/execution_reservation_view_test.go",
+      "bytes": 18283,
+      "sha256": "7e5f646100dfa46ff468b7e20a2165d1ccfb917da07b7d2168b6104457f4aa8a"
+    },
+    {
+      "path": "scheduler/after/exit.json",
+      "bytes": 16,
+      "sha256": "982b9e9bfb10ffe83cad665807abcfd3fa97b37822db5ab7831157a499548a9e"
+    },
+    {
+      "path": "scheduler/after/product-exit.json",
+      "bytes": 16,
+      "sha256": "982b9e9bfb10ffe83cad665807abcfd3fa97b37822db5ab7831157a499548a9e"
+    },
+    {
+      "path": "scheduler/after/product-test.jsonl",
+      "bytes": 2615,
+      "sha256": "dad1c5a6aa645616928236b625d6478ce6c292d965e25be6d32d7df43ddfdb5e"
+    },
+    {
+      "path": "scheduler/after/product-test.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "scheduler/after/project_swarm_scheduler_cancellation_test.go",
+      "bytes": 2850,
+      "sha256": "9155f5ce24011b257f9e0d1d51a0b602d7981d7e706d0d96ab0283aad03ad0ad"
+    },
+    {
+      "path": "scheduler/after/project_swarm_scheduler_http.go",
+      "bytes": 12785,
+      "sha256": "e44624f7ae97dd65b260941db830ec34640ffb47cf730c7ff9bbf02fdf64ce11"
+    },
+    {
+      "path": "scheduler/after/project_swarm_scheduler_types.go",
+      "bytes": 4724,
+      "sha256": "c2e339507cc76c90a31c157109c0f94218424df4bbe76806f1ac0d18870d9fa3"
+    },
+    {
+      "path": "scheduler/after/selected-source-bindings.json",
+      "bytes": 1161,
+      "sha256": "ba3b79f9d3086c5ebefaa833e2e1020c2debf0ecb0211aa8977c3c3506295e44"
+    },
+    {
+      "path": "scheduler/after/swarm_dispatch.go",
+      "bytes": 17577,
+      "sha256": "9e3ea083a867973fec61dbef91c91cdd05e7c9ae5d1919f9a9751b7e909b32c7"
+    },
+    {
+      "path": "scheduler/after/swarm_scheduler_cancellation_test.go",
+      "bytes": 7689,
+      "sha256": "ac642a0290a0362b4cb6bf282e2ca8df81701c8fd3dc1501a184ab43015d539a"
+    },
+    {
+      "path": "scheduler/after/test.jsonl",
+      "bytes": 26103,
+      "sha256": "a125b5f186e6939f4abc386dba8aef00845ee66d1a8bb1f2561df723e32cc9bc"
+    },
+    {
+      "path": "scheduler/after/test.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "scheduler/before/execution_reservation_view.go",
+      "bytes": 3483,
+      "sha256": "50a2ea9692ed692137edd290d813039cceb0b9164cd6e680a587bdb2f4bfbbb4"
+    },
+    {
+      "path": "scheduler/before/exit.json",
+      "bytes": 16,
+      "sha256": "e153f5bd2ee7416d77570b30ba1de5bb9196c55f8d145e34df9dab12190ffe43"
+    },
+    {
+      "path": "scheduler/before/project_swarm_scheduler_http.go",
+      "bytes": 12439,
+      "sha256": "2190baf5128fd28f5c14f5a89cc81c8ddd05eb65f297e758ccd6592fb1a0e1e2"
+    },
+    {
+      "path": "scheduler/before/project_swarm_scheduler_types.go",
+      "bytes": 4709,
+      "sha256": "a0e4f325a511545da9e40b2d5661414c7808878aebd02c079fbf526a37e46d15"
+    },
+    {
+      "path": "scheduler/before/selected-source-bindings.json",
+      "bytes": 840,
+      "sha256": "95472dd34799d71b6829ae6cc1ac336c3d1961145d2e38f6fecb4d0d2350608d"
+    },
+    {
+      "path": "scheduler/before/swarm_dispatch.go",
+      "bytes": 17372,
+      "sha256": "ddf39c0404225c8daa8f492b7172f6b766ccd2f7d87808d34edc059e055459da"
+    },
+    {
+      "path": "scheduler/before/swarm_scheduler_cancellation_test.go",
+      "bytes": 5005,
+      "sha256": "b29d6b4dfe9925c125b2d357b570d82db62223d11e30a5cf68cf7638b20bcac0"
+    },
+    {
+      "path": "scheduler/before/test.jsonl",
+      "bytes": 6052,
+      "sha256": "004f162c96b6739a455bc46251df76008cbdb7497a987e98a04a6d354eb489e2"
+    },
+    {
+      "path": "scheduler/before/test.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "scheduler/commands.json",
+      "bytes": 2498,
+      "sha256": "5075bbb61359c6170dfb04d61ff66e64c87e9e4c18581f0f5d285622cf4d80ee"
+    },
+    {
+      "path": "scheduler/comment-only.patch",
+      "bytes": 580,
+      "sha256": "dd920a5a70eec9f92b9618536c6609e0211fa4f60461d0337c63023d360e2f8e"
+    },
+    {
+      "path": "scheduler/final-after/exit.json",
+      "bytes": 16,
+      "sha256": "982b9e9bfb10ffe83cad665807abcfd3fa97b37822db5ab7831157a499548a9e"
+    },
+    {
+      "path": "scheduler/final-after/swarm_scheduler_cancellation_test.go",
+      "bytes": 7572,
+      "sha256": "f66abffe3a0018ac7e6085de248bd773722251683df5fc8965a085f78127d989"
+    },
+    {
+      "path": "scheduler/final-after/test.jsonl",
+      "bytes": 5772,
+      "sha256": "b8ca245e391ad89be6ec76a1543a16dfa67d25e6e45841673aebcd28e6bff55f"
+    },
+    {
+      "path": "scheduler/final-after/test.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "scheduler/final-before/execution_reservation_view_test.go",
+      "bytes": 18263,
+      "sha256": "3897572c82a2678b3e48280df9876260138a760013e2b3ec9587c9e80152cd00"
+    },
+    {
+      "path": "scheduler/final-before/exit.json",
+      "bytes": 16,
+      "sha256": "e153f5bd2ee7416d77570b30ba1de5bb9196c55f8d145e34df9dab12190ffe43"
+    },
+    {
+      "path": "scheduler/final-before/overlay.json",
+      "bytes": 782,
+      "sha256": "d9bfcd0fa019b4993eb2f83656261029ac0f95789c68f8238a5e39239b980af5"
+    },
+    {
+      "path": "scheduler/final-before/project_swarm_scheduler_http.go",
+      "bytes": 12439,
+      "sha256": "2190baf5128fd28f5c14f5a89cc81c8ddd05eb65f297e758ccd6592fb1a0e1e2"
+    },
+    {
+      "path": "scheduler/final-before/project_swarm_scheduler_types.go",
+      "bytes": 4709,
+      "sha256": "a0e4f325a511545da9e40b2d5661414c7808878aebd02c079fbf526a37e46d15"
+    },
+    {
+      "path": "scheduler/final-before/swarm_dispatch.go",
+      "bytes": 17372,
+      "sha256": "ddf39c0404225c8daa8f492b7172f6b766ccd2f7d87808d34edc059e055459da"
+    },
+    {
+      "path": "scheduler/final-before/swarm_scheduler_cancellation_test.go",
+      "bytes": 7572,
+      "sha256": "f66abffe3a0018ac7e6085de248bd773722251683df5fc8965a085f78127d989"
+    },
+    {
+      "path": "scheduler/final-before/test.jsonl",
+      "bytes": 6656,
+      "sha256": "b5c296511233f81abb2cbbee9ad1ed0e53004279eec2e9a1e65bb5a2997127a9"
+    },
+    {
+      "path": "scheduler/final-before/test.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "scheduler/final-current/execution_reservation_view.go",
+      "bytes": 3483,
+      "sha256": "50a2ea9692ed692137edd290d813039cceb0b9164cd6e680a587bdb2f4bfbbb4"
+    },
+    {
+      "path": "scheduler/final-current/execution_reservation_view_test.go",
+      "bytes": 18283,
+      "sha256": "7e5f646100dfa46ff468b7e20a2165d1ccfb917da07b7d2168b6104457f4aa8a"
+    },
+    {
+      "path": "scheduler/final-current/project_swarm_scheduler_cancellation_test.go",
+      "bytes": 2850,
+      "sha256": "9155f5ce24011b257f9e0d1d51a0b602d7981d7e706d0d96ab0283aad03ad0ad"
+    },
+    {
+      "path": "scheduler/final-current/project_swarm_scheduler_http.go",
+      "bytes": 12785,
+      "sha256": "e44624f7ae97dd65b260941db830ec34640ffb47cf730c7ff9bbf02fdf64ce11"
+    },
+    {
+      "path": "scheduler/final-current/project_swarm_scheduler_types.go",
+      "bytes": 4724,
+      "sha256": "c2e339507cc76c90a31c157109c0f94218424df4bbe76806f1ac0d18870d9fa3"
+    },
+    {
+      "path": "scheduler/final-current/swarm_dispatch.go",
+      "bytes": 17577,
+      "sha256": "9e3ea083a867973fec61dbef91c91cdd05e7c9ae5d1919f9a9751b7e909b32c7"
+    },
+    {
+      "path": "scheduler/final-current/swarm_scheduler_cancellation_test.go",
+      "bytes": 7626,
+      "sha256": "df693fe82151bf330afc202500fa9ccdf78b8f464125294ce286435f0b36658f"
+    },
+    {
+      "path": "scheduler/final-source-bindings.json",
+      "bytes": 2799,
+      "sha256": "8371ac2cd0e9c8b62b3773a5e532f245044894c6733b39cf654ca5b21f89fb8a"
+    },
+    {
+      "path": "scheduler/final-summary.json",
+      "bytes": 2093,
+      "sha256": "2636ffbbd2607717eb36551a5baac220b08e7b65666549dabe9d677f00c93526"
+    },
+    {
+      "path": "scheduler/revised-after/exit.json",
+      "bytes": 16,
+      "sha256": "982b9e9bfb10ffe83cad665807abcfd3fa97b37822db5ab7831157a499548a9e"
+    },
+    {
+      "path": "scheduler/revised-after/swarm_scheduler_cancellation_test.go",
+      "bytes": 7486,
+      "sha256": "e3045f0abd4b61e3adfd1ac03a4e085cdf0343f1ac4e7f80c96cfed5609334b9"
+    },
+    {
+      "path": "scheduler/revised-after/test.jsonl",
+      "bytes": 5727,
+      "sha256": "a2501d927dce9c51e66ab9338283dbd91a4fc7e3f5a217cdc0c1c9310f9b012b"
+    },
+    {
+      "path": "scheduler/revised-after/test.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "scheduler/revised-before/execution_reservation_view_test.go",
+      "bytes": 18263,
+      "sha256": "3897572c82a2678b3e48280df9876260138a760013e2b3ec9587c9e80152cd00"
+    },
+    {
+      "path": "scheduler/revised-before/exit.json",
+      "bytes": 16,
+      "sha256": "e153f5bd2ee7416d77570b30ba1de5bb9196c55f8d145e34df9dab12190ffe43"
+    },
+    {
+      "path": "scheduler/revised-before/overlay.json",
+      "bytes": 790,
+      "sha256": "c893d505221f50ac35803a064c1155cc5fec86ad63eaeff93cbe40d2a2288bdf"
+    },
+    {
+      "path": "scheduler/revised-before/project_swarm_scheduler_http.go",
+      "bytes": 12439,
+      "sha256": "2190baf5128fd28f5c14f5a89cc81c8ddd05eb65f297e758ccd6592fb1a0e1e2"
+    },
+    {
+      "path": "scheduler/revised-before/project_swarm_scheduler_types.go",
+      "bytes": 4709,
+      "sha256": "a0e4f325a511545da9e40b2d5661414c7808878aebd02c079fbf526a37e46d15"
+    },
+    {
+      "path": "scheduler/revised-before/swarm_dispatch.go",
+      "bytes": 17372,
+      "sha256": "ddf39c0404225c8daa8f492b7172f6b766ccd2f7d87808d34edc059e055459da"
+    },
+    {
+      "path": "scheduler/revised-before/swarm_scheduler_cancellation_test.go",
+      "bytes": 7486,
+      "sha256": "e3045f0abd4b61e3adfd1ac03a4e085cdf0343f1ac4e7f80c96cfed5609334b9"
+    },
+    {
+      "path": "scheduler/revised-before/test.jsonl",
+      "bytes": 6605,
+      "sha256": "475e4b82051fb402a0f55fb76fc8753cf68f4ced04168310089daa8d413e98da"
+    },
+    {
+      "path": "scheduler/revised-before/test.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "scheduler/source-bindings.json",
+      "bytes": 3524,
+      "sha256": "995f79a56e578dc8a3ce483c539a40ac2b295c79d7d055fb1e66eced18c2c7f2"
+    },
+    {
+      "path": "scheduler/summary.json",
+      "bytes": 4367,
+      "sha256": "0ac9bec11fb12fc2e7915c362095cced4ecd3166f7e8a393bcbff9b43ebf1793"
+    }
+  ]
+}

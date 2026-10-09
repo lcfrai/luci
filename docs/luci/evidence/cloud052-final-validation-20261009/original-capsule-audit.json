@@ -1,0 +1,14 @@
+[
+  {
+    "capsule": "cloud052-display-read-cancellation-20261009",
+    "members": 103,
+    "manifestSHA256": "350a3851cfc49da10e012f78d2b3764414cb6e1e54fad773e44608b03fafbb4c",
+    "errors": []
+  },
+  {
+    "capsule": "cloud052-display-cancellation-followup-20261009",
+    "members": 44,
+    "manifestSHA256": "683e03eb90b8c16fdcaf71d4b51792e4057fd2c97fb128e2b02415dfc10261bc",
+    "errors": []
+  }
+]

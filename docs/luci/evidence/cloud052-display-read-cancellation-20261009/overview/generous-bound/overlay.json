@@ -1,0 +1,9 @@
+{
+  "Replace": {
+    "/workspace/luci/control-plane/internal/product/project_overview.go": "/workspace/.luci-tools/cloud052-display-cancellation/overview/generous-bound/original-source/project_overview.go",
+    "/workspace/luci/control-plane/internal/product/project_overview_cache.go": "/workspace/.luci-tools/cloud052-display-cancellation/overview/generous-bound/original-source/project_overview_cache.go",
+    "/workspace/luci/control-plane/internal/product/project_overview_runs.go": "/workspace/.luci-tools/cloud052-display-cancellation/overview/generous-bound/original-source/project_overview_runs.go",
+    "/workspace/luci/control-plane/internal/product/project_overview_questions.go": "/workspace/.luci-tools/cloud052-display-cancellation/overview/generous-bound/original-source/project_overview_questions.go",
+    "/workspace/luci/control-plane/internal/product/project_overview_test.go": "/workspace/.luci-tools/cloud052-display-cancellation/overview/generous-bound/original-source/project_overview_test.go"
+  }
+}

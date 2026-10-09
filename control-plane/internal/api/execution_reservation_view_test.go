@@ -456,7 +456,7 @@ func TestExecutionReservationViewFinishedChecksAndNoHostSampler(t *testing.T) {
 		t.Fatal("finished receipt missing", err)
 	}
 	g.api.deps.ResourceSnapshot = nil
-	data, err := json.Marshal(g.api.queuedResourceView())
+	data, err := json.Marshal(g.api.queuedResourceView(context.Background()))
 	if err != nil {
 		t.Fatal(err)
 	}

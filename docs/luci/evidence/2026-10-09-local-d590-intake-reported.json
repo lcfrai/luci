@@ -1,0 +1,20 @@
+{
+  "sourceThread": "01a1199f-7500-7843-b02b-081081e536fa",
+  "scope": "Relayed Windows tester intake and proposed oracles, not independently executed Windows evidence in this cloud session.",
+  "publicationCommit": "d5901cd542ac5125cc325b7b019251f16c1467b9",
+  "productCommit": "67a5b7c75ca6354d43085f5bb81ec53ee4291f34",
+  "queuedAudits": ["67a5 idle measurement", "separate990 header diagnostic"],
+  "speedupOrAcceptanceClaim": false,
+  "availableRAMBytesAtLedgerGuard": 251482112,
+  "guardOutcome": "Refused before ledger read/mutation; prior journals and checkpoint intake remain authoritative. No new workload launched.",
+  "cloud052StateAtIntake": "fixing, unpublished",
+  "suggestedBoundaries": [
+    "Already-canceled request starts no fill or lookup.",
+    "Cancel one blocked waiter without affecting a valid fill or reader.",
+    "Cancel an initiating reader with another reader present; state the ownership policy.",
+    "Preserve bounded concurrency, current authorization/source protection and cache validity across cancellation/completion.",
+    "Cancel a read-only reservation waiter without affecting a live peer or releasing retained demand.",
+    "Do not publish cancellation as a successful empty result; distinguish waiter latency, fill duration and valid-reader latency."
+  ],
+  "limits": "These are proposed acceptance oracles, not additional locally confirmed defects or an explanation of CLOUD-032. Full Windows/live-provider/recovery/resource acceptance remains open."
+}

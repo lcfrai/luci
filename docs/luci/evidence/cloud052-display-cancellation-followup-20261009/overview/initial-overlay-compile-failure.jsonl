@@ -1,0 +1,6 @@
+{"ImportPath":"github.com/lcfrai/luci/control-plane/internal/product [github.com/lcfrai/luci/control-plane/internal/product.test]","Action":"build-output","Output":"# github.com/lcfrai/luci/control-plane/internal/product [github.com/lcfrai/luci/control-plane/internal/product.test]\n"}
+{"ImportPath":"github.com/lcfrai/luci/control-plane/internal/product [github.com/lcfrai/luci/control-plane/internal/product.test]","Action":"build-output","Output":"internal/product/project_overview_cancellation_followup_test.go:25:51: s.projectOverview.fill undefined (type projectOverviewCache has no field or method fill)\n"}
+{"ImportPath":"github.com/lcfrai/luci/control-plane/internal/product [github.com/lcfrai/luci/control-plane/internal/product.test]","Action":"build-fail"}
+{"Time":"2026-10-09T09:34:57.173931289Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/product"}
+{"Time":"2026-10-09T09:34:57.174014605Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/product","Output":"FAIL\tgithub.com/lcfrai/luci/control-plane/internal/product [build failed]\n"}
+{"Time":"2026-10-09T09:34:57.174112903Z","Action":"fail","Package":"github.com/lcfrai/luci/control-plane/internal/product","Elapsed":0,"FailedBuild":"github.com/lcfrai/luci/control-plane/internal/product [github.com/lcfrai/luci/control-plane/internal/product.test]"}

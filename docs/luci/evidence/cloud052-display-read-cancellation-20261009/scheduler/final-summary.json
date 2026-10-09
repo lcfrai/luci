@@ -1,0 +1,108 @@
+{
+  "before": {
+    "sha256": "004f162c96b6739a455bc46251df76008cbdb7497a987e98a04a6d354eb489e2",
+    "topLevel": {
+      "pass": 0,
+      "fail": 1,
+      "skip": 0
+    },
+    "subtests": {
+      "pass": 0,
+      "fail": 2,
+      "skip": 0
+    },
+    "exit": {
+      "exitCode": 1
+    }
+  },
+  "after": {
+    "sha256": "a125b5f186e6939f4abc386dba8aef00845ee66d1a8bb1f2561df723e32cc9bc",
+    "topLevel": {
+      "pass": 9,
+      "fail": 0,
+      "skip": 0
+    },
+    "subtests": {
+      "pass": 16,
+      "fail": 0,
+      "skip": 0
+    },
+    "exit": {
+      "exitCode": 0
+    }
+  },
+  "revised-before": {
+    "sha256": "475e4b82051fb402a0f55fb76fc8753cf68f4ced04168310089daa8d413e98da",
+    "topLevel": {
+      "pass": 0,
+      "fail": 2,
+      "skip": 0
+    },
+    "subtests": {
+      "pass": 0,
+      "fail": 2,
+      "skip": 0
+    },
+    "exit": {
+      "exitCode": 1
+    }
+  },
+  "revised-after": {
+    "sha256": "a2501d927dce9c51e66ab9338283dbd91a4fc7e3f5a217cdc0c1c9310f9b012b",
+    "topLevel": {
+      "pass": 2,
+      "fail": 0,
+      "skip": 0
+    },
+    "subtests": {
+      "pass": 2,
+      "fail": 0,
+      "skip": 0
+    },
+    "exit": {
+      "exitCode": 0
+    }
+  },
+  "final-before": {
+    "sha256": "b5c296511233f81abb2cbbee9ad1ed0e53004279eec2e9a1e65bb5a2997127a9",
+    "topLevel": {
+      "pass": 0,
+      "fail": 2,
+      "skip": 0
+    },
+    "subtests": {
+      "pass": 0,
+      "fail": 2,
+      "skip": 0
+    },
+    "exit": {
+      "exitCode": 1
+    }
+  },
+  "final-after": {
+    "sha256": "b8ca245e391ad89be6ec76a1543a16dfa67d25e6e45841673aebcd28e6bff55f",
+    "topLevel": {
+      "pass": 2,
+      "fail": 0,
+      "skip": 0
+    },
+    "subtests": {
+      "pass": 2,
+      "fail": 0,
+      "skip": 0
+    },
+    "exit": {
+      "exitCode": 0
+    }
+  },
+  "productRace": {
+    "sha256": "dad1c5a6aa645616928236b625d6478ce6c292d965e25be6d32d7df43ddfdb5e",
+    "passed": [
+      "TestSwarmSchedulerCancelledResponseKeepsSettledPolicyMutation",
+      "TestSwarmSchedulerSharedHostPolicySerializesWorkersAndKeepsReadsInert"
+    ],
+    "exit": {
+      "exitCode": 0
+    }
+  }
+}

@@ -1,38 +1,46 @@
 # Local Windows handoff and acceptance
 
 
-Latest audited source checkpoint: `765fcaadeee7de1cf2ba3a3fb7b295d0af445b70`
-on `codex/luci-production-runs`; the next correction is recorded below and in the
-[current worklist](QUALITY-WORKLIST.md). This is not the final local handoff.
-Product bytes for completed Linux recovery, idle and sustained attempt 5 remain
-`2da1a821`. No new Windows configuration or secret names are required.
+Latest integrated test checkpoint: [`67a5b7c75ca6354d43085f5bb81ec53ee4291f34`](TEST-CHECKPOINT-67A5B7C7.md)
+on `codex/luci-production-runs`, with a matching clean Linux package. The Windows
+tester has byte-verified that checkpoint document through authenticated access;
+new source/package evidence and runtime checks remain pending locally. Later
+`d5901cd542ac5125cc325b7b019251f16c1467b9` publishes evidence/docs only. Use an
+immutable revision between test batches; do not silently adopt a moving tip.
 
-CLOUD-043 / LOCAL-021 is source-corrected for all 24 project orders, with 98 affected
-helper tests and eight actual-component HTTP cases. Matching installed retest is
-pending. CLOUD-041's original compact-receipt defect is verified at controlled and
-matching installed Linux scope: A/B have native exit 0 and exact lease release,
-while their WebSocket closures are 1006. Attempt 5 remains failed overall, with
-only two results, one integration and the original D charge retained under LOCAL-016.
+CLOUD-048–051 are ready for their focused Windows cases: explicit retry review,
+real compact Projects drawer navigation, editor bodies deferred only until first
+expansion, and usable focus after draft-dialog exits. The checkpoint distinguishes
+the pre-final-C051 full frontend suite from the final affected tests/TypeScript.
+The newer CLOUD-052 cancellation correction has separate [original/fixed HTTP
+and reservation evidence](evidence/cloud052-display-read-cancellation-20261009/README.md)
+and [initiator/live-peer boundaries](evidence/cloud052-display-cancellation-followup-20261009/README.md).
+Its native/installed check requires the exact correction revision supplied in its
+fix handoff; these controlled Linux cases are not a Windows pass.
 
-LOCAL-019/CLOUD-040 and LOCAL-020 retain their previously reported scoped passes.
+Five scripted native completions and reviewed integrations were observed in the
+99007404 sustained attempt, but its final compact-navigation helper failed and
+switching missed the unchanged latency target. The later exact `67a5` idle run
+also fails both targets: switch p95 519.762309 ms and input 114.250714 ms against
+300/100 ms. [Current measured failures and source bindings](evidence/cloud032-idle-67a5b7c7-20261009/README.md)
+remain separate from functional/source checks. No live-model quality, Windows
+throughput or whole-computer responsiveness pass follows from these results.
+
 Original review-before-first-observer ordering, simultaneous charged-witness
 isolation, CLOUD-039's installed refusal branch, Windows runtime, live-provider
-quality and sustained four-project/performance gates remain open. The cloud host's
-VFS disk budget cannot exercise the real concurrent witness without weakening
-guards. Windows still requires fresh physical backing-volume and RAM admission.
+quality and full sustained/resource acceptance remain open. The VFS cloud host
+cannot exercise the real concurrent witness within its current disk budget;
+guards remain intact. Old failed fixtures and charged ledgers are preserved.
 
-At the local tester's 03:12 UTC observation, 0.045 GiB available RAM kept application,
-browser and build workloads held. Preserve ordinary applications, existing checkouts
-and Docker data. Do not run the Linux-exclusive Docker helper against shared Windows
-workloads. Prior failed fixtures and charged ledgers remain unchanged.
+The latest local ledger guard refused before read/mutation at 251,482,112 available
+RAM bytes. No new Windows workload ran, and prior journals remain authoritative.
+Retain the source 2 GiB / native-browser 2.5 GiB launch gates and ordinary applications,
+existing checkouts and shared Docker workloads. Do not run Linux-exclusive Docker
+helpers on the owner's shared Windows engine.
 
-
-**Integrated candidate pending; the local milestone is still open.** The native
-Windows corrections below passed at their named revisions. They do not establish
-that newer code, an installer, four-project sustained execution or a live model
-meets the release standard. The implementation thread must supply the exact
-published commit and matching package before the next integrated batch; do not
-substitute a moving branch tip or invent a future revision.
+**The final local milestone remains open.** Prior native passes retain their
+named revisions and narrow scopes. The available checkpoint is useful for the
+listed tests; it is not a finished-product or full-release acceptance claim.
 
 The originating local testing thread, `01a1199f-7500-7843-b02b-081081e536fa`, owns
 execution on Dylan's machine. The cloud thread supplies source, helpers, fixes

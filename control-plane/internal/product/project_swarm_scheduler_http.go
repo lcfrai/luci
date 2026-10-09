@@ -50,17 +50,33 @@ func (s *Server) getSwarmScheduler(w http.ResponseWriter, r *http.Request) {
 		problem(w, 403, "scheduler_policy_forbidden", "Only the workspace administrator can inspect machine-wide scheduling settings.")
 		return
 	}
+	ctx := r.Context()
+	if ctx.Err() != nil {
+		return
+	}
 	s.swarmScheduler.mu.Lock()
+	// This short shared mutex also protects mutations. Cancellation cannot
+	// interrupt an existing waiter, but must prevent any read after it acquires.
+	if ctx.Err() != nil {
+		s.swarmScheduler.mu.Unlock()
+		return
+	}
 	row, err := s.readSwarmScheduler()
 	resources := s.swarmScheduler.runtime.Resources
 	s.swarmScheduler.mu.Unlock()
+	if ctx.Err() != nil {
+		return
+	}
 	if err != nil {
 		projectRunProblem(w, err)
 		return
 	}
 	var observed any
 	if resources != nil {
-		observed = resources()
+		observed = resources(ctx)
+	}
+	if ctx.Err() != nil {
+		return
 	}
 	journeyJSON(w, 200, map[string]any{"revision": row.PolicyRevision, "observedAt": row.ObservedAt, "dispatchPaused": row.Paused, "policy": row.Policy, "resources": observed})
 }

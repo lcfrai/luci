@@ -1,0 +1,21 @@
+{
+  "scope": "Linux controlled low-level production reader/lock; asynchronous external cancellation after failed acquisition reached wait select, plus independent live peer; not HTTP, Windows, installed or latency evidence",
+  "passed": 1,
+  "failed": 0,
+  "skipped": 0,
+  "outcomes": {
+    "pass": [
+      "TestExecutionReservationLedgerCancelledWaitPreservesLivePeer"
+    ],
+    "fail": [],
+    "skip": []
+  },
+  "exit": {
+    "exitCode": 0
+  },
+  "sourceStable": true,
+  "newTestSha256": "48275bd5439bfb9759a055912d78377b37ef78b896cf0d619e9db4cf5f877788",
+  "rawLogSha256": "91d3dc5d0fdbe4f205fe017390a4403eedef9db4c5395f9e762bb964577d54ad",
+  "productionChange": false,
+  "historicalMainCapsuleChanged": false
+}

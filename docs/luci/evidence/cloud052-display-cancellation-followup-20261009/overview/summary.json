@@ -1,0 +1,28 @@
+{
+  "scope": "Two controlled Linux route tests; no new production edits",
+  "before": {
+    "exit": 1,
+    "pass": 1,
+    "fail": 1,
+    "command": "GOMAXPROCS=2 go test -race -p 1 -count=1 -timeout=2m -overlay=overlay.json -run '^TestProjectOverview(AlreadyCancelled|CancelledInitiator)' -json ./internal/product"
+  },
+  "after": {
+    "exit": 0,
+    "pass": 2,
+    "fail": 0,
+    "command": "GOMAXPROCS=2 go test -race -p 1 -count=1 -timeout=2m -run '^TestProjectOverview(AlreadyCancelled|CancelledInitiator)' -json ./internal/product"
+  },
+  "pairedTestSHA256": "5c14a06c8bb2fe718c943826920873e6b32a762dd137fc1f441f12bac388efdc",
+  "pairedTestByteIdentical": true,
+  "originalRefusalControl": "Already-canceled registered request returns existing409 branch_busy before source/cache entry; not fixed by this patch. Oracles: no branch guard, sequence0, no cache entries, unchanged saved state; no syscall trace claim.",
+  "additionalCounterexample": "Canceled initiating reader originally serializes a response despite a still-live admitted same-project waiter. Fixed initiator returns no response; live peer independently fills current projection/cache and both source admissions release.",
+  "policy": "Fill computation belongs to its initiating request; cancellation stops it at checkpoints and lets a live waiter start a fresh fill. It is not continued shared computation owned by multiple readers.",
+  "preservedPreparatoryFailures": [
+    "Initial old-overlay compile failure referenced new fill field absent in old production. Removed that version-specific oracle, retained source/log; no behavioral test ran.",
+    "First corrected-overlay pass/fail pair predates explicit409 branch_busy assertion on the existing refusal control; retained separately. Final pair uses exact identical source."
+  ],
+  "limitations": [
+    "No exact internal fill-count instrumentation beyond one compact result and unchanged serialization bounds.",
+    "No Windows/runtime/performance claim."
+  ]
+}

@@ -1,0 +1,12 @@
+--- paired-test.go
++++ final-current-test.go
+@@ -25,7 +25,8 @@
+ // Cancel synchronously when the bounded observation attaches the request's
+ // Done channel after the cached snapshot. There is no test scheduling race
+ // against the production 100 ms budget. Existing reservation tests separately
+-// exercise cancellation while waiting for the real filesystem lock.
++// cover a real held-lock timeout and a pre-cancelled read, not asynchronous
++// cancellation of an already-blocked reader.
+ type schedulerDisplayContext struct {
+ 	context.Context
+ 	snapshotReturned atomic.Bool

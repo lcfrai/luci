@@ -1,0 +1,6 @@
+{
+  "cwd": "/workspace/luci",
+  "setup": "source /workspace/.luci-tools/activate.sh",
+  "command": "GOMAXPROCS=2 go test -p 1 -race -count=1 -timeout=2m -json ./control-plane/internal/api -run ^TestExecutionReservationLedgerCancelledWaitPreservesLivePeer$",
+  "scope": "unchanged production reader; one new controlled low-level boundary regression; no original failure expected"
+}

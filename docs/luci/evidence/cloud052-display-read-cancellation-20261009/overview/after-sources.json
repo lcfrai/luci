@@ -1,0 +1,32 @@
+[
+  {
+    "path": "control-plane/internal/product/project_overview.go",
+    "sha256": "68b93f4719aa18d1e8633aa97cefd763ab90226570f1eb866300e91e5a84ee9b",
+    "bytes": 12422
+  },
+  {
+    "path": "control-plane/internal/product/project_overview_cache.go",
+    "sha256": "0ff7119fba0511cb6856097310640693ab140957eca255995b676174812d5ddd",
+    "bytes": 5733
+  },
+  {
+    "path": "control-plane/internal/product/project_overview_runs.go",
+    "sha256": "b328e9de9b9782f08bea533c54bc9a2b808ebe4aa1b8f945b392d6755db36ef8",
+    "bytes": 11691
+  },
+  {
+    "path": "control-plane/internal/product/project_overview_questions.go",
+    "sha256": "c7ada2cea999cfb60604fef16590e8dd877349410cd77239e340c7139ac4cffe",
+    "bytes": 8560
+  },
+  {
+    "path": "control-plane/internal/product/project_overview_test.go",
+    "sha256": "d494d446d897356bc487589112c6e93b523fe4b820a9b8a1157e6bd6cfafff1c",
+    "bytes": 17810
+  },
+  {
+    "path": "control-plane/internal/product/project_overview_cancellation_test.go",
+    "sha256": "fd28e147b6ad4cae39f49014c64d8b90926fb126db2feb3a63e503dbc69223f8",
+    "bytes": 5608
+  }
+]

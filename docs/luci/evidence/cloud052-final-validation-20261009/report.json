@@ -1,0 +1,71 @@
+{
+  "at": "2026-10-09T09:43:47.115285+00:00",
+  "head": "d5901cd542ac5125cc325b7b019251f16c1467b9",
+  "commands": [
+    {
+      "command": [
+        "go",
+        "test",
+        "-race",
+        "-p",
+        "1",
+        "-count=1",
+        "-timeout=5m",
+        "-json",
+        "-run",
+        "^(TestProjectOverview|TestOverview|TestSwarmSchedulerDisplay|TestSwarmSchedulerCancelledResponse|TestSwarmSchedulerSharedHostPolicy|TestExecutionReservation)",
+        "./internal/product",
+        "./internal/api"
+      ],
+      "startedAt": "2026-10-09T09:39:31.063854+00:00",
+      "finishedAt": "2026-10-09T09:39:48.990174+00:00",
+      "elapsedSeconds": 17.926317722012755,
+      "exitCode": 0,
+      "counts": {
+        "top": {
+          "pass": 31
+        },
+        "sub": {
+          "pass": 18
+        },
+        "packages": {
+          "pass": 2
+        }
+      },
+      "logSHA256": "808a17165f2104f7302746b933172a583b62d9ad5c4a4841981c683f02d33c1a"
+    },
+    {
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "-count=1",
+        "-timeout=5m",
+        "-json",
+        "-run",
+        "^$",
+        "./..."
+      ],
+      "startedAt": "2026-10-09T09:39:48.991219+00:00",
+      "finishedAt": "2026-10-09T09:43:44.931403+00:00",
+      "elapsedSeconds": 235.9401955670328,
+      "exitCode": 0,
+      "counts": {
+        "top": {},
+        "sub": {},
+        "packages": {
+          "pass": 27,
+          "skip": 2
+        }
+      },
+      "logSHA256": "327a002129fbcf0428e7b6bef753d6a7c66a3117e1b23b504c52df57ad507b2f"
+    }
+  ],
+  "repositoryInputs": 820,
+  "compiledInputs": 7723,
+  "repositoryChanged": [],
+  "compiledChanged": [],
+  "scope": "Affected Linux race checks plus all control-plane package compile/no-test run. Not full test-suite execution, Windows, installed, latency or live-provider acceptance.",
+  "passed": true
+}

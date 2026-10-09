@@ -66,8 +66,8 @@ func TestProjectOverviewFourProjectsKeepContextAndQuestionsSeparate(t *testing.T
 			wg.Add(1)
 			go func(p project.Project) {
 				defer wg.Done()
-				got := s.cachedProjectOverview(p)
-				if got.ProjectID != p.ID {
+				got, err := s.cachedProjectOverview(context.Background(), p)
+				if err != nil || got.ProjectID != p.ID {
 					t.Errorf("cross-project cache result")
 				}
 			}(p)
@@ -252,7 +252,10 @@ func TestProjectOverviewCacheAndTextAreBounded(t *testing.T) {
 		if err := writeJourney(dir, state); err != nil {
 			t.Fatal(err)
 		}
-		got := s.cachedProjectOverview(p)
+		got, err := s.cachedProjectOverview(context.Background(), p)
+		if err != nil {
+			t.Fatal(err)
+		}
 		if got.Goal == nil || !got.Goal.Truncated || len(got.Goal.Text) > projectOverviewTextLimit {
 			t.Fatalf("unbounded goal: %+v", got.Goal)
 		}
@@ -362,7 +365,10 @@ func TestProjectOverviewQuestionAndResponseBounds(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer other.Close()
-	scoped := other.cachedProjectOverview(p)
+	scoped, err := other.cachedProjectOverview(context.Background(), p)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if scoped.Context.DefinitionStatus == "approved" || scoped.ProjectID != p.ID {
 		t.Fatal("account cached authority crossed scopes")
 	}
@@ -385,7 +391,7 @@ func TestProjectOverviewQueueCountsStayProjectScopedAndRefreshOutsideContextCach
 	if err = s.saveSwarmScheduler(&row); err != nil {
 		t.Fatal(err)
 	}
-	s.swarmScheduler.runtime.Resources = func() any { t.Fatal("project overview sampled machine resources"); return nil }
+	s.swarmScheduler.runtime.Resources = func(context.Context) any { t.Fatal("project overview sampled machine resources"); return nil }
 	for i, p := range projects {
 		got := overviewGet(t, mux, p.ID)
 		counts := []*int{got.Execution.Queued, got.Execution.Running, got.Execution.Blocked, got.Execution.Unknown}

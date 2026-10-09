@@ -1,0 +1,19 @@
+{
+  "issue": "CLOUD-052",
+  "reason": "Replace the original200ms cancellation-settlement bound with a generous2s bounded wait. No production change or responsiveness threshold change. Tests prove cancellation while an unrelated fill is deliberately held; elapsed is not an app-performance gate.",
+  "regressionSHA256": "4c9630d1a06f2f77068ad79e0c1bf2cdb2f03db658b8205334b89b8fba5eb440",
+  "regressionByteIdenticalAcrossBeforeAfter": true,
+  "before": {
+    "command": "GOMAXPROCS=2 go test -race -p 1 -count=1 -timeout=2m -overlay=overlay.json -run ^TestProjectOverviewCanceled -json ./internal/product",
+    "exitCode": 1,
+    "topLevelFailed": 2,
+    "scope": "Four exact original67a5 overview production files overlaid onto current workspace. Original overview test fixture adapted only for current scheduler Resources context signature; new2s regressions unchanged."
+  },
+  "after": {
+    "command": "GOMAXPROCS=2 go test -race -p 1 -count=1 -timeout=2m -run ^TestProjectOverviewCanceled -json ./internal/product",
+    "exitCode": 0,
+    "topLevelPassed": 2,
+    "scope": "Final current overview production and exact same regression."
+  },
+  "overlap": "Both cases overlap the20 passing outcomes in original affected race run. That earlier run used the200ms test timeout; its production source matches final. No cumulative unique-pass claim."
+}

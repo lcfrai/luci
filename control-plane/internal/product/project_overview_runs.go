@@ -2,6 +2,7 @@ package product
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -197,11 +198,17 @@ func updateOverviewRunAttention(head *overviewRunHead, run ProjectRun) {
 	}
 }
 
-func (s *Server) readOverviewRuns(p project.Project, state journeyState) (ProjectOverviewRun, ProjectOverviewAttention, error) {
+func (s *Server) readOverviewRuns(ctx context.Context, p project.Project, state journeyState) (ProjectOverviewRun, ProjectOverviewAttention, error) {
 	attention := ProjectOverviewAttention{Status: "unavailable", Items: []ProjectRunAttention{}}
+	if err := ctx.Err(); err != nil {
+		return ProjectOverviewRun{}, attention, err
+	}
 	store := s.projectRuns
 	store.mu.Lock()
 	defer store.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return ProjectOverviewRun{}, attention, err
+	}
 	scope, err := store.projectScope(p.ID, p.Path)
 	if err != nil {
 		return ProjectOverviewRun{Status: "unavailable"}, attention, err
@@ -212,12 +219,18 @@ func (s *Server) readOverviewRuns(p project.Project, state journeyState) (Projec
 	} else if err != nil {
 		return ProjectOverviewRun{Status: "unavailable"}, attention, err
 	}
+	if err := ctx.Err(); err != nil {
+		return ProjectOverviewRun{}, attention, err
+	}
 	head, err := store.readOverviewRunHead(p.ID, scope)
 	if err != nil {
 		return ProjectOverviewRun{Status: "unavailable"}, attention, err
 	}
 	// One latest run plus at most three indexed attention runs, each <=1MiB.
 	// No historical scan, check/release files, source commands or observations.
+	if err := ctx.Err(); err != nil {
+		return ProjectOverviewRun{}, attention, err
+	}
 	row, err := store.read(p.ID, scope, head.RunID)
 	if err != nil || row.Run.CreatedAt != head.CreatedAt {
 		return ProjectOverviewRun{Status: "unavailable"}, attention, ErrProjectRunInvalid
@@ -241,6 +254,9 @@ func (s *Server) readOverviewRuns(p project.Project, state journeyState) (Projec
 		return latest, attention, ErrProjectRunInvalid
 	}
 	for _, id := range head.AttentionIDs {
+		if err := ctx.Err(); err != nil {
+			return ProjectOverviewRun{}, attention, err
+		}
 		if len(attention.Items) == overviewRunAttentionLimit {
 			break
 		}

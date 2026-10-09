@@ -1,0 +1,113 @@
+{
+  "scope": "Exact originals or lossless gzip. Final frozen Go source validation; documentation changed during execution and is outside these inventories.",
+  "members": [
+    {
+      "path": "command-1.jsonl.gz",
+      "bytes": 4444,
+      "sha256": "cf0f1ffa482d9fefc9fe5d3047efa63f05fe6d7e31bf8c58740e0aaae2e1877a",
+      "originalName": "command-1.jsonl",
+      "originalBytes": 51040,
+      "originalSHA256": "808a17165f2104f7302746b933172a583b62d9ad5c4a4841981c683f02d33c1a",
+      "encoding": "gzip"
+    },
+    {
+      "path": "command-2.jsonl.gz",
+      "bytes": 2244,
+      "sha256": "2469a504e21634fa3bfb1965bdd2c536acf9920458d2eb13bd8631a71095afa8",
+      "originalName": "command-2.jsonl",
+      "originalBytes": 23034,
+      "originalSHA256": "327a002129fbcf0428e7b6bef753d6a7c66a3117e1b23b504c52df57ad507b2f",
+      "encoding": "gzip"
+    },
+    {
+      "path": "compiled-after.json.gz",
+      "bytes": 388518,
+      "sha256": "8a5de230baf7d54d5a9f69271f0fc642c15a86da0148c1160b68e9f237a42658",
+      "originalName": "compiled-after.json",
+      "originalBytes": 1379612,
+      "originalSHA256": "20b252cb0fbb0b35da2b01d1da545c50d3f44701cba5e1129a5cd5a65d8bdbcd",
+      "encoding": "gzip"
+    },
+    {
+      "path": "compiled-before.json.gz",
+      "bytes": 388518,
+      "sha256": "8a5de230baf7d54d5a9f69271f0fc642c15a86da0148c1160b68e9f237a42658",
+      "originalName": "compiled-before.json",
+      "originalBytes": 1379612,
+      "originalSHA256": "20b252cb0fbb0b35da2b01d1da545c50d3f44701cba5e1129a5cd5a65d8bdbcd",
+      "encoding": "gzip"
+    },
+    {
+      "path": "compiled-scope.json.gz",
+      "bytes": 5205,
+      "sha256": "3be4edbdc3e4fb3391926c7fedf3b6f789f92f63749b28f947a8056ea6519511",
+      "originalName": "compiled-scope.json",
+      "originalBytes": 38439,
+      "originalSHA256": "320e0de46fc40f781d904e760dcf5f0222504676701df0a4627274d0d74393c9",
+      "encoding": "gzip"
+    },
+    {
+      "path": "progress.json",
+      "bytes": 1343,
+      "sha256": "d426eb600b534c82d8c63cbe46c3cae60ac8e19e9574a35b1daf49757a5a09a4",
+      "originalName": "progress.json",
+      "originalBytes": 1343,
+      "originalSHA256": "d426eb600b534c82d8c63cbe46c3cae60ac8e19e9574a35b1daf49757a5a09a4",
+      "encoding": "identity"
+    },
+    {
+      "path": "report.json",
+      "bytes": 1883,
+      "sha256": "123f17193df2e094fae5e4dbe6a89a44a5595c9ba5756b9425858908f511a714",
+      "originalName": "report.json",
+      "originalBytes": 1883,
+      "originalSHA256": "123f17193df2e094fae5e4dbe6a89a44a5595c9ba5756b9425858908f511a714",
+      "encoding": "identity"
+    },
+    {
+      "path": "repository-after.json.gz",
+      "bytes": 42256,
+      "sha256": "e5861241ebb4d763724c737e13de96eda34fa1f2409bce21dbba5af0abd5b47d",
+      "originalName": "repository-after.json",
+      "originalBytes": 135750,
+      "originalSHA256": "f3ca8e1491de38dc8f6a2764329f4f2a28ca6010e39ea847b6b3452043a1b8ef",
+      "encoding": "gzip"
+    },
+    {
+      "path": "repository-before.json.gz",
+      "bytes": 42256,
+      "sha256": "e5861241ebb4d763724c737e13de96eda34fa1f2409bce21dbba5af0abd5b47d",
+      "originalName": "repository-before.json",
+      "originalBytes": 135750,
+      "originalSHA256": "f3ca8e1491de38dc8f6a2764329f4f2a28ca6010e39ea847b6b3452043a1b8ef",
+      "encoding": "gzip"
+    },
+    {
+      "path": "toolchain.json",
+      "bytes": 384,
+      "sha256": "08d2ecd3eed96f48919eda383ff775c3b5b6290c662d813c1bc9728470c4e9f4",
+      "originalName": "toolchain.json",
+      "originalBytes": 384,
+      "originalSHA256": "08d2ecd3eed96f48919eda383ff775c3b5b6290c662d813c1bc9728470c4e9f4",
+      "encoding": "identity"
+    },
+    {
+      "path": "run.py",
+      "bytes": 5718,
+      "sha256": "dd3d651d88b551546d54b8a8c6dedaa492ab8dc1a22c25794028baed7cd92099",
+      "encoding": "identity"
+    },
+    {
+      "path": "original-capsule-audit.json",
+      "bytes": 402,
+      "sha256": "8dabdb47d7f2df04197c8392cdd23dee99e85a7733ef5f92dfaa82567c4d44b9",
+      "encoding": "identity"
+    },
+    {
+      "path": "execution-go.work",
+      "bytes": 76,
+      "sha256": "0ac5f5af6697615a6cad94517240e18a750fe8f0160b22e755e2c9b348c18cd7",
+      "encoding": "identity"
+    }
+  ]
+}

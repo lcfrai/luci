@@ -330,16 +330,30 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 	return result, nil
 }
 
-func (a *API) queuedResourceView() any {
+func (a *API) queuedResourceView(ctx context.Context) any {
+	if ctx.Err() != nil {
+		return nil
+	}
 	if a.deps.ResourceSnapshot == nil {
-		return map[string]any{"status": "unavailable", "reservations": a.execution.reservationObservation(context.Background())}
+		reservations := a.execution.reservationObservation(ctx)
+		if ctx.Err() != nil {
+			return nil
+		}
+		return map[string]any{"status": "unavailable", "reservations": reservations}
 	}
 	snapshot := a.deps.ResourceSnapshot()
+	if ctx.Err() != nil {
+		return nil
+	}
+	reservations := a.execution.reservationObservation(ctx)
+	if ctx.Err() != nil {
+		return nil
+	}
 	return struct {
 		Host         any                             `json:"host"`
 		Execution    any                             `json:"execution"`
 		Reservations executionReservationObservation `json:"reservations"`
-	}{snapshot.Host, map[string]any{"observedAt": snapshot.Execution.ObservedAt, "status": snapshot.Execution.Status, "scope": snapshot.Execution.Scope, "totalMemoryBytes": snapshot.Execution.TotalMemoryBytes, "cpuMillis": snapshot.Execution.CPUMillis, "hostStorage": snapshot.Execution.HostStorage, "unavailable": snapshot.Execution.Unavailable}, a.execution.reservationObservation(context.Background())}
+	}{snapshot.Host, map[string]any{"observedAt": snapshot.Execution.ObservedAt, "status": snapshot.Execution.Status, "scope": snapshot.Execution.Scope, "totalMemoryBytes": snapshot.Execution.TotalMemoryBytes, "cpuMillis": snapshot.Execution.CPUMillis, "hostStorage": snapshot.Execution.HostStorage, "unavailable": snapshot.Execution.Unavailable}, reservations}
 }
 
 func existingQueuedDispatch(row registry.Session) product.SwarmDispatchResult {
