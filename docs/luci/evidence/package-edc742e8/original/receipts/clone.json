@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "git",
+    "clone",
+    "--shared",
+    "--no-checkout",
+    "/workspace/luci",
+    "/workspace/.luci-tools/package-preview-cancel/source"
+  ],
+  "cwd": "/workspace/.luci-tools/package-preview-cancel",
+  "exitCode": 0
+}

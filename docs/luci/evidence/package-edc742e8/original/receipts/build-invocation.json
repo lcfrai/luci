@@ -1,0 +1,30 @@
+{
+  "argv": [
+    "bash",
+    "scripts/build-release.sh",
+    "0.5.0",
+    "linux-amd64"
+  ],
+  "cwd": "/workspace/.luci-tools/package-preview-cancel/source",
+  "environmentOverrides": {
+    "PATH": "/workspace/.luci-tools/bin:/workspace/.luci-tools/go1.26.3/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+    "GOMAXPROCS": "2",
+    "GOFLAGS": "-mod=readonly -p=1",
+    "GOTOOLCHAIN": "local",
+    "GOPROXY": "off",
+    "GOWORK": "/workspace/.luci-tools/package-preview-cancel/go.work",
+    "GOCACHE": "/tmp/luci-go-build-cache",
+    "GOTMPDIR": "/workspace/.luci-tools/package-preview-cancel/go-tmp",
+    "TMPDIR": "/workspace/.luci-tools/package-preview-cancel/tmp",
+    "npm_config_cache": "/tmp/luci-npm-cache-recovery",
+    "GOMODCACHE": "/tmp/luci-retained-tools/go-mod",
+    "GOPATH": "/tmp/luci-gopath",
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  "startedUTC": "2026-10-11T13:46:52.577074+00:00",
+  "sourceCommit": "edc742e8b6ce4216a1726e74cceef892663ce3d5",
+  "workspaceFloorBytes": 1610612736,
+  "tmpFloorBytes": 402653184,
+  "wallTimeoutSeconds": 1800,
+  "terminationGraceSeconds": 15
+}

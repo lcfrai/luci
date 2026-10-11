@@ -3,7 +3,7 @@
 
 ## Current source checkpoint — edc742e8
 
-[Exact retrieval, setup and remaining checks](TEST-CHECKPOINT-EDC742E8.md) accompany CLOUD-080/082 live preview cancellation. The correction is pushed and retrievable; selected source/API/UI checks and the narrow restart-observation follow-up are [published separately](evidence/cloud080-preview-cancel/README.md). Matching packaging and real Docker cancellation remain in progress. No setup variable, credential or runtime-image source changed. Adopt only between batches; older native passes retain their original scopes.
+[Exact retrieval, setup and remaining checks](TEST-CHECKPOINT-EDC742E8.md) accompany CLOUD-080/082 live preview cancellation. The correction is pushed and retrievable; selected source/API/UI checks and the narrow restart-observation follow-up are [published separately](evidence/cloud080-preview-cancel/README.md). The [matching clean Linux package](evidence/package-edc742e8/README.md) now passes build/archive/identity verification; real Docker cancellation remains in progress. No setup variable, credential or runtime-image source changed. Adopt only between batches; older native passes retain their original scopes.
 
 ## Prior source/package checkpoint — 80462898
 

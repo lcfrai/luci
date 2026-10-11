@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "git",
+    "-C",
+    "/workspace/.luci-tools/package-preview-cancel/source",
+    "remote",
+    "set-url",
+    "origin",
+    "https://github.com/lcfrai/luci.git"
+  ],
+  "cwd": "/workspace/.luci-tools/package-preview-cancel",
+  "exitCode": 0
+}

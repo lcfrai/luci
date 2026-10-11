@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "git",
+    "-C",
+    "/workspace/.luci-tools/package-preview-cancel/source",
+    "fetch",
+    "--no-tags",
+    "origin",
+    "+refs/heads/codex/luci-production-runs:refs/remotes/origin/codex/luci-production-runs"
+  ],
+  "cwd": "/workspace/.luci-tools/package-preview-cancel",
+  "exitCode": 0
+}

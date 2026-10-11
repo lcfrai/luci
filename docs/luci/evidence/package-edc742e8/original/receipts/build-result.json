@@ -1,0 +1,10 @@
+{
+  "exitCode": 0,
+  "stopReason": null,
+  "forced": false,
+  "finishedUTC": "2026-10-11T13:50:58.524852+00:00",
+  "elapsedSeconds": 245.948,
+  "sourceCommit": "edc742e8b6ce4216a1726e74cceef892663ce3d5",
+  "minimumWorkspaceFreeBytes": 1933430784,
+  "minimumTmpFreeBytes": 802725888
+}

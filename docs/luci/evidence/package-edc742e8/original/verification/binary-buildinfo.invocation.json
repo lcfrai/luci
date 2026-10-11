@@ -1,0 +1,9 @@
+{
+  "argv": [
+    "/workspace/.luci-tools/go1.26.3/bin/go",
+    "version",
+    "-m",
+    "/workspace/.luci-tools/package-preview-cancel/verification/luci"
+  ],
+  "exitCode": 0
+}

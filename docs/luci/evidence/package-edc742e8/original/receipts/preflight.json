@@ -1,0 +1,13 @@
+{
+  "startedUTC": "2026-10-11T13:46:46.727466+00:00",
+  "sourceCommit": "edc742e8b6ce4216a1726e74cceef892663ce3d5",
+  "disk": {
+    "workspace_free_bytes": 3698151424,
+    "tmp_free_bytes": 802725888
+  },
+  "workspaceFloorBytes": 1610612736,
+  "tmpFloorBytes": 402653184,
+  "runtimeProductFloorsChanged": false,
+  "serviceExecuted": false,
+  "dockerInvoked": false
+}

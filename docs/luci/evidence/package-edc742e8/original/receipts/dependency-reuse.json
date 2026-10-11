@@ -1,0 +1,18 @@
+{
+  "ignoredSymlink": "/workspace/.luci-tools/package-preview-cancel/source/desktop/node_modules",
+  "target": "/workspace/luci/desktop/node_modules",
+  "matchingRepositoryInputs": [
+    {
+      "path": "desktop/package.json",
+      "sha256": "3423464851fd487363f89beca7a27df2654a94f6b70a74935841a851c9c66bd3",
+      "bytes": 1967
+    },
+    {
+      "path": "desktop/package-lock.json",
+      "sha256": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a",
+      "bytes": 247150
+    }
+  ],
+  "completeInstalledByteInventoryClaimed": false,
+  "dependencyInstallationRun": false
+}

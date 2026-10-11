@@ -1,0 +1,80 @@
+{
+  "schema": "isolated-official-linux-package-result-v1",
+  "createdUTC": "2026-10-11T13:51:39.503809+00:00",
+  "sourceCommit": "edc742e8b6ce4216a1726e74cceef892663ce3d5",
+  "version": "0.5.0",
+  "target": "linux-amd64",
+  "officialCommand": [
+    "bash",
+    "scripts/build-release.sh",
+    "0.5.0",
+    "linux-amd64"
+  ],
+  "sourceDirectory": "source",
+  "installedDirectory": "installed",
+  "installedBinary": "installed/luci",
+  "installedWebDirectory": "installed/web",
+  "packageIdentity": "778a3f34b2a7a181e7dec7bfdfddd909c5f78b385f501d1510ac53b02b0383c3",
+  "compactReleaseDirectory": "source/artifacts/releases/0.5.0",
+  "compactArchives": {
+    "luci-cloud-linux-amd64.tar.gz": {
+      "name": "luci-cloud-linux-amd64.tar.gz",
+      "sha256": "6645ceb915c11d4bd75d3f0c7e9ada49b74ca76446ca333378fd443df6eb4ecc",
+      "bytes": 34887013,
+      "members": 1502,
+      "unpackedFileBytes": 89335300,
+      "binarySHA256": "7a370a2a67e836564f053b4991d8ee5b30acedfbeba8ea9f9e5ef41c533408a2",
+      "webIndexSHA256": "b5522b6f687ae04a8598cc22a14b9e4332577bbe31d38dac1f3bee2d80989a32",
+      "packageIdentity": "778a3f34b2a7a181e7dec7bfdfddd909c5f78b385f501d1510ac53b02b0383c3",
+      "licenseComponents": 347,
+      "verifiedLicenseAndSourceFiles": 374,
+      "missingLicenses": [],
+      "documentationMode": "compact",
+      "evidenceMembers": 0
+    },
+    "luci-linux-amd64.tar.gz": {
+      "name": "luci-linux-amd64.tar.gz",
+      "sha256": "d7c1df74a402c781cb19ac422f6448ca8ddc741709cbba33db82cf339cf19ba5",
+      "bytes": 69588055,
+      "members": 1504,
+      "unpackedFileBytes": 124222313,
+      "binarySHA256": "7a370a2a67e836564f053b4991d8ee5b30acedfbeba8ea9f9e5ef41c533408a2",
+      "webIndexSHA256": "b5522b6f687ae04a8598cc22a14b9e4332577bbe31d38dac1f3bee2d80989a32",
+      "packageIdentity": "778a3f34b2a7a181e7dec7bfdfddd909c5f78b385f501d1510ac53b02b0383c3",
+      "licenseComponents": 347,
+      "verifiedLicenseAndSourceFiles": 374,
+      "missingLicenses": [],
+      "documentationMode": "compact",
+      "evidenceMembers": 0
+    }
+  },
+  "compactVerification": {
+    "path": "verification/verification.json",
+    "bytes": 2764,
+    "sha256": "f68791b2bf375fe201b0627bd78a803927375d1a5550c7e31f019d833554754a"
+  },
+  "sourcePreservation": {
+    "pinnedCommit": "edc742e8b6ce4216a1726e74cceef892663ce3d5",
+    "trackedFileCount": 13216,
+    "allTrackedHashesUnchanged": true,
+    "sourceClean": true,
+    "original577and8046ArchivesUnchanged": true
+  },
+  "buildResult": {
+    "exitCode": 0,
+    "stopReason": null,
+    "forced": false,
+    "finishedUTC": "2026-10-11T13:50:58.524852+00:00",
+    "elapsedSeconds": 245.948,
+    "sourceCommit": "edc742e8b6ce4216a1726e74cceef892663ce3d5",
+    "minimumWorkspaceFreeBytes": 1933430784,
+    "minimumTmpFreeBytes": 802725888
+  },
+  "embeddedVCS": {
+    "present": true,
+    "sourceBinding": "embedded Go VCS metadata"
+  },
+  "serviceExecuted": false,
+  "dockerInvoked": false,
+  "binaryArchivePublication": "Private execution workspace only; exact source commit and build receipts published separately"
+}

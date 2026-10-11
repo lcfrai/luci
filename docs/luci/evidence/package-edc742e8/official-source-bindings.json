@@ -1,0 +1,65 @@
+{
+  "sourceCommit": "edc742e8b6ce4216a1726e74cceef892663ce3d5",
+  "files": [
+    {
+      "sourcePath": "scripts/build-release.sh",
+      "bytes": 6029,
+      "sha256": "20c6cb96e475066d5fb9a8ac934eb1262c3f324e4ac78ccda42fbd137d9e080d",
+      "publishedPath": "official-source/scripts/build-release.sh"
+    },
+    {
+      "sourcePath": "scripts/release-integrity.py",
+      "bytes": 7000,
+      "sha256": "262c815deb4a07ec5d7db3442b4614a0efbfcc1b74d0e8b46e1228c5ac66dc39",
+      "publishedPath": "official-source/scripts/release-integrity.py"
+    },
+    {
+      "sourcePath": "scripts/stage-release-docs.py",
+      "bytes": 20959,
+      "sha256": "cd520022c86ff25695faaaeed5aad512147b91f37342963e1cea2cc3252b8e26",
+      "publishedPath": "official-source/scripts/stage-release-docs.py"
+    },
+    {
+      "sourcePath": "scripts/package.py",
+      "bytes": 2649,
+      "sha256": "9c3785eea32c597947395968a41f59ed973b05c0b955fea1067d3c0315fea9e5",
+      "publishedPath": "official-source/scripts/package.py"
+    },
+    {
+      "sourcePath": "scripts/collect-licenses.py",
+      "bytes": 14817,
+      "sha256": "4a07489e31c417f8072cd94a3b1b596137a1faa78403311b74c48990c53110be",
+      "publishedPath": "official-source/scripts/collect-licenses.py"
+    },
+    {
+      "sourcePath": "scripts/release-version.py",
+      "bytes": 3906,
+      "sha256": "04d083139ce6f5f88e5fa39ffc5945573d5c23fe2471de041736c3ac2853a5dc",
+      "publishedPath": "official-source/scripts/release-version.py"
+    },
+    {
+      "sourcePath": "scripts/retained_ui.py",
+      "bytes": 4424,
+      "sha256": "81140a34847288831479fdc0b9588999eb274ee47aba1d6195fdc59b3e5af94a",
+      "publishedPath": "official-source/scripts/retained_ui.py"
+    },
+    {
+      "sourcePath": "scripts/launch-unix.sh",
+      "bytes": 5579,
+      "sha256": "e73094527f35dce3d10fe9fb72ea321df8e8890aaabb175c0816f292bdf32e53",
+      "publishedPath": "official-source/scripts/launch-unix.sh"
+    },
+    {
+      "sourcePath": "desktop/package.json",
+      "bytes": 1967,
+      "sha256": "3423464851fd487363f89beca7a27df2654a94f6b70a74935841a851c9c66bd3",
+      "publishedPath": "official-source/desktop/package.json"
+    },
+    {
+      "sourcePath": "desktop/package-lock.json",
+      "bytes": 247150,
+      "sha256": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a",
+      "publishedPath": "official-source/desktop/package-lock.json"
+    }
+  ]
+}

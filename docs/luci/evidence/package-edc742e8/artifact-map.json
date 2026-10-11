@@ -1,0 +1,446 @@
+{
+  "sourceCommit": "edc742e8b6ce4216a1726e74cceef892663ce3d5",
+  "originals": [
+    {
+      "originalPath": "run-package.py",
+      "originalBytes": 9936,
+      "originalSHA256": "7730c565d95285b10bc5f6e7640be20e6acf2a179b6174496fc1337d9ced8ca4",
+      "publishedPath": "original/run-package.py",
+      "encoding": "identity",
+      "publishedBytes": 9936,
+      "publishedSHA256": "7730c565d95285b10bc5f6e7640be20e6acf2a179b6174496fc1337d9ced8ca4"
+    },
+    {
+      "originalPath": "verify-package-build.py",
+      "originalBytes": 15909,
+      "originalSHA256": "11cd61ce4940fb8f010295436062bbf39515924c6bbbaca154fa62a3a4628d6d",
+      "publishedPath": "original/verify-package-build.py",
+      "encoding": "identity",
+      "publishedBytes": 15909,
+      "publishedSHA256": "11cd61ce4940fb8f010295436062bbf39515924c6bbbaca154fa62a3a4628d6d"
+    },
+    {
+      "originalPath": "verify-config.json",
+      "originalBytes": 127,
+      "originalSHA256": "a145c0c6fc8c28c4ec227fc12b45b5c45400f0c144f72ecddb2efc80c1a62f8b",
+      "publishedPath": "original/verify-config.json",
+      "encoding": "identity",
+      "publishedBytes": 127,
+      "publishedSHA256": "a145c0c6fc8c28c4ec227fc12b45b5c45400f0c144f72ecddb2efc80c1a62f8b"
+    },
+    {
+      "originalPath": "go.work",
+      "originalBytes": 150,
+      "originalSHA256": "870992f357e2e42e45d343140bc1dfca7df27f8539293742d782e7dec3d33ea7",
+      "publishedPath": "original/go.work",
+      "encoding": "identity",
+      "publishedBytes": 150,
+      "publishedSHA256": "870992f357e2e42e45d343140bc1dfca7df27f8539293742d782e7dec3d33ea7"
+    },
+    {
+      "originalPath": "go.work.sum",
+      "originalBytes": 2499,
+      "originalSHA256": "cebe32be8573f52246bc5d2e8daac3d204fae0bea61f35fe569ed4e9ca18785e",
+      "publishedPath": "original/go.work.sum",
+      "encoding": "identity",
+      "publishedBytes": 2499,
+      "publishedSHA256": "cebe32be8573f52246bc5d2e8daac3d204fae0bea61f35fe569ed4e9ca18785e"
+    },
+    {
+      "originalPath": "package-result.json",
+      "originalBytes": 3070,
+      "originalSHA256": "4e939d5fc7772d30f100039a30d6b2bd9e0c2187453d19afda7d676c5982a3f3",
+      "publishedPath": "original/package-result.json",
+      "encoding": "identity",
+      "publishedBytes": 3070,
+      "publishedSHA256": "4e939d5fc7772d30f100039a30d6b2bd9e0c2187453d19afda7d676c5982a3f3"
+    },
+    {
+      "originalPath": "receipts/build-disk-samples.json",
+      "originalBytes": 5459,
+      "originalSHA256": "b8c66a38c771d4384355b4a456e9f2bd8418bf39151218003adb4dece59042de",
+      "publishedPath": "original/receipts/build-disk-samples.json",
+      "encoding": "identity",
+      "publishedBytes": 5459,
+      "publishedSHA256": "b8c66a38c771d4384355b4a456e9f2bd8418bf39151218003adb4dece59042de"
+    },
+    {
+      "originalPath": "receipts/build-invocation.json",
+      "originalBytes": 1503,
+      "originalSHA256": "09aecb8426c6b71a31be096847191dc93cbe84e428e624b2def6881c051afc9f",
+      "publishedPath": "original/receipts/build-invocation.json",
+      "encoding": "identity",
+      "publishedBytes": 1503,
+      "publishedSHA256": "09aecb8426c6b71a31be096847191dc93cbe84e428e624b2def6881c051afc9f"
+    },
+    {
+      "originalPath": "receipts/build-process.json",
+      "originalBytes": 377,
+      "originalSHA256": "69df39c7057aa5ab0760f09a36c50f85dd5da26df280625264297d45885e23ad",
+      "publishedPath": "original/receipts/build-process.json",
+      "encoding": "identity",
+      "publishedBytes": 377,
+      "publishedSHA256": "69df39c7057aa5ab0760f09a36c50f85dd5da26df280625264297d45885e23ad"
+    },
+    {
+      "originalPath": "receipts/build-progress.json",
+      "originalBytes": 101,
+      "originalSHA256": "8eed22e7c3789022458148ee52de6ac629b0982340f3d248704bd7bc0d3ca041",
+      "publishedPath": "original/receipts/build-progress.json",
+      "encoding": "identity",
+      "publishedBytes": 101,
+      "publishedSHA256": "8eed22e7c3789022458148ee52de6ac629b0982340f3d248704bd7bc0d3ca041"
+    },
+    {
+      "originalPath": "receipts/build-result.json",
+      "originalBytes": 284,
+      "originalSHA256": "c7bc83d7aeefe1bdeee6baa48af8a9b1fbd39b3fe5ce2b2f551780a706312432",
+      "publishedPath": "original/receipts/build-result.json",
+      "encoding": "identity",
+      "publishedBytes": 284,
+      "publishedSHA256": "c7bc83d7aeefe1bdeee6baa48af8a9b1fbd39b3fe5ce2b2f551780a706312432"
+    },
+    {
+      "originalPath": "receipts/build.stderr",
+      "originalBytes": 360,
+      "originalSHA256": "351b524197fb492920789369e7f1a271420c757633fbb553b280a181ac4c31a4",
+      "publishedPath": "original/receipts/build.stderr",
+      "encoding": "identity",
+      "publishedBytes": 360,
+      "publishedSHA256": "351b524197fb492920789369e7f1a271420c757633fbb553b280a181ac4c31a4"
+    },
+    {
+      "originalPath": "receipts/build.stdout",
+      "originalBytes": 18435,
+      "originalSHA256": "f63e1fa54b4d0f3e834885b38a092847ba60dd0f8067257a1cab849e35676d1f",
+      "publishedPath": "original/receipts/build.stdout",
+      "encoding": "identity",
+      "publishedBytes": 18435,
+      "publishedSHA256": "f63e1fa54b4d0f3e834885b38a092847ba60dd0f8067257a1cab849e35676d1f"
+    },
+    {
+      "originalPath": "receipts/checkout.json",
+      "originalBytes": 255,
+      "originalSHA256": "ee0720d2d0acb26bb5346e46b3870539caa57d1725843bab24376253f97c9fce",
+      "publishedPath": "original/receipts/checkout.json",
+      "encoding": "identity",
+      "publishedBytes": 255,
+      "publishedSHA256": "ee0720d2d0acb26bb5346e46b3870539caa57d1725843bab24376253f97c9fce"
+    },
+    {
+      "originalPath": "receipts/checkout.stderr",
+      "originalBytes": 94,
+      "originalSHA256": "d10b86d97fe97c8977fdc0ad6408c9bc99c5040b74861c182058909e8d19fbea",
+      "publishedPath": "original/receipts/checkout.stderr",
+      "encoding": "identity",
+      "publishedBytes": 94,
+      "publishedSHA256": "d10b86d97fe97c8977fdc0ad6408c9bc99c5040b74861c182058909e8d19fbea"
+    },
+    {
+      "originalPath": "receipts/checkout.stdout",
+      "originalBytes": 0,
+      "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publishedPath": "original/receipts/checkout.stdout",
+      "encoding": "identity",
+      "publishedBytes": 0,
+      "publishedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "originalPath": "receipts/clone.json",
+      "originalBytes": 238,
+      "originalSHA256": "17a271153f550c1ef956a19feef6e35ad406340b0733eed4ed73eddbcec5212c",
+      "publishedPath": "original/receipts/clone.json",
+      "encoding": "identity",
+      "publishedBytes": 238,
+      "publishedSHA256": "17a271153f550c1ef956a19feef6e35ad406340b0733eed4ed73eddbcec5212c"
+    },
+    {
+      "originalPath": "receipts/clone.stderr",
+      "originalBytes": 77,
+      "originalSHA256": "86727dda74bcf4248d76f4dac7a0888a04aa9085fa038f4a2a38c4619c6b5233",
+      "publishedPath": "original/receipts/clone.stderr",
+      "encoding": "identity",
+      "publishedBytes": 77,
+      "publishedSHA256": "86727dda74bcf4248d76f4dac7a0888a04aa9085fa038f4a2a38c4619c6b5233"
+    },
+    {
+      "originalPath": "receipts/clone.stdout",
+      "originalBytes": 0,
+      "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publishedPath": "original/receipts/clone.stdout",
+      "encoding": "identity",
+      "publishedBytes": 0,
+      "publishedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "originalPath": "receipts/dependency-reuse.json",
+      "originalBytes": 593,
+      "originalSHA256": "faee2ea373e55f2faa48aab68a87ef66259827a88ba205448f3fb9057bf5723c",
+      "publishedPath": "original/receipts/dependency-reuse.json",
+      "encoding": "identity",
+      "publishedBytes": 593,
+      "publishedSHA256": "faee2ea373e55f2faa48aab68a87ef66259827a88ba205448f3fb9057bf5723c"
+    },
+    {
+      "originalPath": "receipts/documentation-preflight.json",
+      "originalBytes": 158,
+      "originalSHA256": "c0b642546b91d2c1d3285d360bc1818fb9afbccf7ead5c8e85ad35876e70be17",
+      "publishedPath": "original/receipts/documentation-preflight.json",
+      "encoding": "identity",
+      "publishedBytes": 158,
+      "publishedSHA256": "c0b642546b91d2c1d3285d360bc1818fb9afbccf7ead5c8e85ad35876e70be17"
+    },
+    {
+      "originalPath": "receipts/official-origin.json",
+      "originalBytes": 260,
+      "originalSHA256": "94e7a6326d7091c08068f3fa631ffa245376157693863859034a4445fab3f479",
+      "publishedPath": "original/receipts/official-origin.json",
+      "encoding": "identity",
+      "publishedBytes": 260,
+      "publishedSHA256": "94e7a6326d7091c08068f3fa631ffa245376157693863859034a4445fab3f479"
+    },
+    {
+      "originalPath": "receipts/official-origin.stderr",
+      "originalBytes": 0,
+      "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publishedPath": "original/receipts/official-origin.stderr",
+      "encoding": "identity",
+      "publishedBytes": 0,
+      "publishedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "originalPath": "receipts/official-origin.stdout",
+      "originalBytes": 0,
+      "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publishedPath": "original/receipts/official-origin.stdout",
+      "encoding": "identity",
+      "publishedBytes": 0,
+      "publishedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "originalPath": "receipts/preflight.json",
+      "originalBytes": 367,
+      "originalSHA256": "b3db80ad0ee473cbfb8e1907b845b929c6350e981316293c7504d0f4d275551d",
+      "publishedPath": "original/receipts/preflight.json",
+      "encoding": "identity",
+      "publishedBytes": 367,
+      "publishedSHA256": "b3db80ad0ee473cbfb8e1907b845b929c6350e981316293c7504d0f4d275551d"
+    },
+    {
+      "originalPath": "receipts/previous-release-after.json",
+      "originalBytes": 849,
+      "originalSHA256": "40c422abb9c5a6242dc2a8f17c6847fdb7cae86c4c03609a15e77e0623124401",
+      "publishedPath": "original/receipts/previous-release-after.json",
+      "encoding": "identity",
+      "publishedBytes": 849,
+      "publishedSHA256": "40c422abb9c5a6242dc2a8f17c6847fdb7cae86c4c03609a15e77e0623124401"
+    },
+    {
+      "originalPath": "receipts/previous-release-before.json",
+      "originalBytes": 849,
+      "originalSHA256": "40c422abb9c5a6242dc2a8f17c6847fdb7cae86c4c03609a15e77e0623124401",
+      "publishedPath": "original/receipts/previous-release-before.json",
+      "encoding": "identity",
+      "publishedBytes": 849,
+      "publishedSHA256": "40c422abb9c5a6242dc2a8f17c6847fdb7cae86c4c03609a15e77e0623124401"
+    },
+    {
+      "originalPath": "receipts/source-preservation.json",
+      "originalBytes": 201,
+      "originalSHA256": "766942612b9401f5c508377d067f507a9cc3974a482b7ad240d59d3055be240b",
+      "publishedPath": "original/receipts/source-preservation.json",
+      "encoding": "identity",
+      "publishedBytes": 201,
+      "publishedSHA256": "766942612b9401f5c508377d067f507a9cc3974a482b7ad240d59d3055be240b"
+    },
+    {
+      "originalPath": "receipts/tracked-inputs-after.json",
+      "originalBytes": 2775717,
+      "originalSHA256": "1d43a07a2fc5ccefbb01069dbfc12d1176a792df0ee6e2f551b48c82c00d29ad",
+      "publishedPath": "objects/1d43a07a2fc5ccefbb01069dbfc12d1176a792df0ee6e2f551b48c82c00d29ad.gz",
+      "encoding": "gzip",
+      "publishedBytes": 563856,
+      "publishedSHA256": "5e3b00a7980bce2928f4dc5b00cc4efaf7450ab561d8246d5dacac4a105ac38a"
+    },
+    {
+      "originalPath": "receipts/tracked-inputs-before.json",
+      "originalBytes": 2775717,
+      "originalSHA256": "1d43a07a2fc5ccefbb01069dbfc12d1176a792df0ee6e2f551b48c82c00d29ad",
+      "publishedPath": "objects/1d43a07a2fc5ccefbb01069dbfc12d1176a792df0ee6e2f551b48c82c00d29ad.gz",
+      "encoding": "gzip",
+      "publishedBytes": 563856,
+      "publishedSHA256": "5e3b00a7980bce2928f4dc5b00cc4efaf7450ab561d8246d5dacac4a105ac38a"
+    },
+    {
+      "originalPath": "receipts/tracking-fetch.json",
+      "originalBytes": 312,
+      "originalSHA256": "60c4fa1c7e0465d74e73c876977cbcb31f5f471a5bbdbb4afb0b0d4324cc2d30",
+      "publishedPath": "original/receipts/tracking-fetch.json",
+      "encoding": "identity",
+      "publishedBytes": 312,
+      "publishedSHA256": "60c4fa1c7e0465d74e73c876977cbcb31f5f471a5bbdbb4afb0b0d4324cc2d30"
+    },
+    {
+      "originalPath": "receipts/tracking-fetch.stderr",
+      "originalBytes": 0,
+      "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publishedPath": "original/receipts/tracking-fetch.stderr",
+      "encoding": "identity",
+      "publishedBytes": 0,
+      "publishedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "originalPath": "receipts/tracking-fetch.stdout",
+      "originalBytes": 0,
+      "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publishedPath": "original/receipts/tracking-fetch.stdout",
+      "encoding": "identity",
+      "publishedBytes": 0,
+      "publishedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "originalPath": "receipts/verification.stderr",
+      "originalBytes": 0,
+      "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publishedPath": "original/receipts/verification.stderr",
+      "encoding": "identity",
+      "publishedBytes": 0,
+      "publishedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "originalPath": "receipts/verification.stdout",
+      "originalBytes": 2764,
+      "originalSHA256": "f68791b2bf375fe201b0627bd78a803927375d1a5550c7e31f019d833554754a",
+      "publishedPath": "original/receipts/verification.stdout",
+      "encoding": "identity",
+      "publishedBytes": 2764,
+      "publishedSHA256": "f68791b2bf375fe201b0627bd78a803927375d1a5550c7e31f019d833554754a"
+    },
+    {
+      "originalPath": "verification/SHA256SUMS",
+      "originalBytes": 186,
+      "originalSHA256": "4e60957bc1e2ab7a947d4f45401483bf9aee6131fd19c358a91d02799c718050",
+      "publishedPath": "original/verification/SHA256SUMS",
+      "encoding": "identity",
+      "publishedBytes": 186,
+      "publishedSHA256": "4e60957bc1e2ab7a947d4f45401483bf9aee6131fd19c358a91d02799c718050"
+    },
+    {
+      "originalPath": "verification/binary-buildinfo.invocation.json",
+      "originalBytes": 178,
+      "originalSHA256": "88705f780cb251fb79a51d62315c693ec9f1ea9ee030d887a4215cbaeeabb954",
+      "publishedPath": "original/verification/binary-buildinfo.invocation.json",
+      "encoding": "identity",
+      "publishedBytes": 178,
+      "publishedSHA256": "88705f780cb251fb79a51d62315c693ec9f1ea9ee030d887a4215cbaeeabb954"
+    },
+    {
+      "originalPath": "verification/binary-buildinfo.stderr.txt",
+      "originalBytes": 0,
+      "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "publishedPath": "original/verification/binary-buildinfo.stderr.txt",
+      "encoding": "identity",
+      "publishedBytes": 0,
+      "publishedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "originalPath": "verification/binary-buildinfo.stdout.txt",
+      "originalBytes": 5820,
+      "originalSHA256": "14937139ce82387cf5040d6eca68ab8c93c5a0eabda4b45bbdf88bed6670f24d",
+      "publishedPath": "original/verification/binary-buildinfo.stdout.txt",
+      "encoding": "identity",
+      "publishedBytes": 5820,
+      "publishedSHA256": "14937139ce82387cf5040d6eca68ab8c93c5a0eabda4b45bbdf88bed6670f24d"
+    },
+    {
+      "originalPath": "verification/luci-cloud-linux-amd64.tar.gz.PACKAGE-VALIDATION.md",
+      "originalBytes": 790,
+      "originalSHA256": "be36693a5e6b874585ffd3881cdd7dc2235c474aaa6ddf6f39df69aac2136983",
+      "publishedPath": "original/verification/luci-cloud-linux-amd64.tar.gz.PACKAGE-VALIDATION.md",
+      "encoding": "identity",
+      "publishedBytes": 790,
+      "publishedSHA256": "be36693a5e6b874585ffd3881cdd7dc2235c474aaa6ddf6f39df69aac2136983"
+    },
+    {
+      "originalPath": "verification/luci-cloud-linux-amd64.tar.gz.licenses.json",
+      "originalBytes": 211302,
+      "originalSHA256": "10888761e5ee3b65675801198ba7cbe7198647a2d53715e20587d0bee266de8c",
+      "publishedPath": "objects/10888761e5ee3b65675801198ba7cbe7198647a2d53715e20587d0bee266de8c.gz",
+      "encoding": "gzip",
+      "publishedBytes": 35343,
+      "publishedSHA256": "89c85da0c4e66e8dea8d83fa586b9db4c552ce241de49136ddd82d262ed050c9"
+    },
+    {
+      "originalPath": "verification/luci-cloud-linux-amd64.tar.gz.members.json",
+      "originalBytes": 267979,
+      "originalSHA256": "79e4297dc66304b461565a42e3bd26e8e8b039bb2584923115f0718b7c308f1b",
+      "publishedPath": "objects/79e4297dc66304b461565a42e3bd26e8e8b039bb2584923115f0718b7c308f1b.gz",
+      "encoding": "gzip",
+      "publishedBytes": 53220,
+      "publishedSHA256": "92eee88c82d0a9ae2dfaf26bf122b6dfbbb897918fe3bdcf326d81c3ec86ee26"
+    },
+    {
+      "originalPath": "verification/luci-linux-amd64.tar.gz.PACKAGE-VALIDATION.md",
+      "originalBytes": 790,
+      "originalSHA256": "be36693a5e6b874585ffd3881cdd7dc2235c474aaa6ddf6f39df69aac2136983",
+      "publishedPath": "original/verification/luci-linux-amd64.tar.gz.PACKAGE-VALIDATION.md",
+      "encoding": "identity",
+      "publishedBytes": 790,
+      "publishedSHA256": "be36693a5e6b874585ffd3881cdd7dc2235c474aaa6ddf6f39df69aac2136983"
+    },
+    {
+      "originalPath": "verification/luci-linux-amd64.tar.gz.licenses.json",
+      "originalBytes": 211302,
+      "originalSHA256": "10888761e5ee3b65675801198ba7cbe7198647a2d53715e20587d0bee266de8c",
+      "publishedPath": "objects/10888761e5ee3b65675801198ba7cbe7198647a2d53715e20587d0bee266de8c.gz",
+      "encoding": "gzip",
+      "publishedBytes": 35343,
+      "publishedSHA256": "89c85da0c4e66e8dea8d83fa586b9db4c552ce241de49136ddd82d262ed050c9"
+    },
+    {
+      "originalPath": "verification/luci-linux-amd64.tar.gz.members.json",
+      "originalBytes": 268253,
+      "originalSHA256": "8b5614d4c2d03443a78d3831a71eeae67f910f95ae2ed4477fa252253efb3cf5",
+      "publishedPath": "objects/8b5614d4c2d03443a78d3831a71eeae67f910f95ae2ed4477fa252253efb3cf5.gz",
+      "encoding": "gzip",
+      "publishedBytes": 53305,
+      "publishedSHA256": "3ea41483d6e41b5e2b311282df2a81667329b402c70aa33a6ce84ef72c75bc49"
+    },
+    {
+      "originalPath": "verification/official-release-integrity.json",
+      "originalBytes": 494,
+      "originalSHA256": "df9aea7c46a5d07116735a4012a7b64726eb1cacacdc1b51f7ba9ff578d628f5",
+      "publishedPath": "original/verification/official-release-integrity.json",
+      "encoding": "identity",
+      "publishedBytes": 494,
+      "publishedSHA256": "df9aea7c46a5d07116735a4012a7b64726eb1cacacdc1b51f7ba9ff578d628f5"
+    },
+    {
+      "originalPath": "verification/release-manifest.json",
+      "originalBytes": 696,
+      "originalSHA256": "229738a4bd7962eb22e9627353c98bf53296de758a3e64a7b24001dd3c45d6c8",
+      "publishedPath": "original/verification/release-manifest.json",
+      "encoding": "identity",
+      "publishedBytes": 696,
+      "publishedSHA256": "229738a4bd7962eb22e9627353c98bf53296de758a3e64a7b24001dd3c45d6c8"
+    },
+    {
+      "originalPath": "verification/verification.json",
+      "originalBytes": 2764,
+      "originalSHA256": "f68791b2bf375fe201b0627bd78a803927375d1a5550c7e31f019d833554754a",
+      "publishedPath": "original/verification/verification.json",
+      "encoding": "identity",
+      "publishedBytes": 2764,
+      "publishedSHA256": "f68791b2bf375fe201b0627bd78a803927375d1a5550c7e31f019d833554754a"
+    },
+    {
+      "originalPath": "installed/package-identity",
+      "originalBytes": 65,
+      "originalSHA256": "e4e0eb1f9736c03f000cb158e81a50a807942ad63c30af990ca7ce2f8a44f418",
+      "publishedPath": "original/installed/package-identity",
+      "encoding": "identity",
+      "publishedBytes": 65,
+      "publishedSHA256": "e4e0eb1f9736c03f000cb158e81a50a807942ad63c30af990ca7ce2f8a44f418"
+    }
+  ]
+}
