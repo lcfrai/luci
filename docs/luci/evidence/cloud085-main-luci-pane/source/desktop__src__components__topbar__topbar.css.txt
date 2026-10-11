@@ -1,0 +1,229 @@
+@import "../../styles/tokens.css";
+.pick-inputs {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-inline-size: 0;
+  display: contents;
+}
+.top-tools {
+  display: flex;
+  gap: 3px;
+}
+.top-tools [aria-current] {
+  color: var(--accent-hi);
+  background: var(--accent-tint);
+}
+.top-title {
+  font-weight: 550;
+  color: var(--ink-2);
+}
+
+/* The top bar, and the panel the session picker renders into. Owns .top-* and .pick-*. */
+.top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--page);
+  box-shadow: inset 0 -1px 0 var(--line);
+}
+.top-spacer {
+  margin-inline-start: auto;
+}
+.top-seg {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--r-ctl);
+  box-shadow: var(--e-hair);
+}
+.top-seg-btn {
+  padding: 3px 10px;
+  background: none;
+  border: 0;
+  border-radius: var(--r-chip);
+  color: var(--ink-2);
+  cursor: pointer;
+  font: inherit;
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+.top-seg-btn[aria-pressed="true"] {
+  background: var(--inset);
+  color: var(--ink);
+}
+.top-btn {
+  padding: 4px 10px;
+  background: var(--surface);
+  border: 0;
+  border-radius: var(--r-ctl);
+  box-shadow: var(--e-btn);
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+.top-btn:disabled {
+  color: var(--ink-3);
+  cursor: default;
+  opacity: 0.7;
+}
+.top-split {
+  display: flex;
+}
+.top-split-main {
+  padding: 4px 12px;
+  background: var(--accent);
+  border: 0;
+  border-start-start-radius: var(--r-ctl);
+  border-end-start-radius: var(--r-ctl);
+  color: var(--accent-ink);
+  cursor: pointer;
+  font: inherit;
+  transition: background-color var(--dur-fast) var(--ease);
+}
+.top-split-main:hover:not(:disabled) {
+  background: var(--accent-hi);
+}
+.top-split-main:disabled {
+  background: var(--inset);
+  color: var(--ink-3);
+  cursor: default;
+}
+.top-split-caret {
+  padding: 4px 8px;
+  margin-inline-start: 1px;
+  background: var(--accent);
+  border: 0;
+  border-start-end-radius: var(--r-ctl);
+  border-end-end-radius: var(--r-ctl);
+  color: var(--accent-ink);
+  cursor: pointer;
+  font: inherit;
+}
+/* §6.4 gives SessionPicker no anchor prop, so it cannot be positioned from a rect. It is
+   placed under the top bar's trailing edge, where the split button that opens it sits. */
+.pick-panel {
+  inset-block-start: 52px;
+  inset-inline-end: 12px;
+}
+.pick {
+  display: grid;
+  gap: 8px;
+  min-inline-size: 300px;
+  padding: 4px;
+}
+.pick-field {
+  display: grid;
+  gap: 3px;
+}
+.pick-note {
+  color: var(--ink-3);
+  white-space: normal;
+}
+.pick-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.top {
+  min-inline-size: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 16px;
+}
+.top-btn,
+.top-seg-btn,
+.top-split-main,
+.top-split-caret,
+.top-projects {
+  min-block-size: 36px;
+}
+.top-projects {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  justify-content: center;
+  padding: 7px 9px;
+  color: var(--ink-2);
+  background: none;
+  border: 0;
+  border-radius: var(--r-ctl);
+  cursor: pointer;
+}
+.top-projects span {
+  display: none;
+}
+.top-projects:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+.top-tools {
+  flex-wrap: wrap;
+}
+.top-tools .top-btn {
+  background: none;
+  box-shadow: none;
+  color: var(--ink-2);
+}
+.top-tools .top-btn[aria-current] {
+  background: var(--inset);
+  color: var(--ink);
+}
+.top-title {
+  font-size: 13px;
+}
+.pick {
+  min-inline-size: min(300px, calc(100vw - 40px));
+}
+.pick-panel {
+  max-block-size: calc(100dvh - 100px);
+  overflow-y: auto;
+}
+@media (max-width: 760px) {
+  .top {
+    padding: 8px 12px;
+  }
+  .top-projects span {
+    display: inline;
+  }
+  .top-title {
+    margin-inline-start: auto;
+  }
+  .top-spacer {
+    display: none;
+  }
+  .top-seg {
+    margin-inline-start: auto;
+  }
+  .top-split {
+    margin-inline-start: auto;
+  }
+  .top-btn,
+  .top-seg-btn,
+  .top-split-main,
+  .top-split-caret,
+  .top-projects {
+    min-block-size: 44px;
+  }
+  .top-split-caret {
+    min-inline-size: 44px;
+  }
+  .pick-panel {
+    inset-block-start: 12px;
+  }
+}
+
+.top-split-main,
+.top-split-caret {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.top-title { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 760px) { .top > .luci-ui-button { min-block-size: 44px; } }

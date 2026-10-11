@@ -182,28 +182,28 @@
    phone, let the whole Develop journey scroll instead of dividing the space
    left below the toolbar between several independently clipped regions. */
 @media (max-width: 760px) {
-  .shell:has(.develop-workspace:not(.develop-workspace--planning)) {
+  .shell:not(.shell-luci):has(.develop-workspace:not(.develop-workspace--planning)) {
     grid-template-rows: auto auto;
     align-content: start;
     overflow-y: auto;
     scroll-padding-block: 12px;
   }
-  .shell:has(.develop-workspace:not(.develop-workspace--planning)) .shell-main,
-  .shell:has(.develop-workspace:not(.develop-workspace--planning)) .shell-workspace {
+  .shell:not(.shell-luci):has(.develop-workspace:not(.develop-workspace--planning)) .shell-main,
+  .shell:not(.shell-luci):has(.develop-workspace:not(.develop-workspace--planning)) .shell-workspace {
     display: block;
     overflow: visible;
   }
-  .shell:has(.develop-workspace:not(.develop-workspace--planning)) .shell-lens,
-  .shell:has(.develop-workspace:not(.develop-workspace--planning)) .orchestrator-body {
+  .shell:not(.shell-luci):has(.develop-workspace:not(.develop-workspace--planning)) .shell-lens,
+  .shell:not(.shell-luci):has(.develop-workspace:not(.develop-workspace--planning)) .orchestrator-body {
     overflow: visible;
   }
-  .shell:has(.develop-workspace:not(.develop-workspace--planning)) .develop-workspace,
-  .shell:has(.develop-workspace:not(.develop-workspace--planning)) .orchestrator-open {
+  .shell:not(.shell-luci):has(.develop-workspace:not(.develop-workspace--planning)) .develop-workspace,
+  .shell:not(.shell-luci):has(.develop-workspace:not(.develop-workspace--planning)) .orchestrator-open {
     block-size: auto;
     overflow: visible;
   }
-  .shell:has(.develop-workspace:not(.develop-workspace--planning)) .project-work,
-  .shell:has(.develop-workspace:not(.develop-workspace--planning)) .project-runs {
+  .shell:not(.shell-luci):has(.develop-workspace:not(.develop-workspace--planning)) .project-work,
+  .shell:not(.shell-luci):has(.develop-workspace:not(.develop-workspace--planning)) .project-runs {
     max-block-size: none;
     overflow: visible;
   }
@@ -222,4 +222,14 @@
        inspector action and exit details add space rather than taking it away. */
     grid-template-rows: auto minmax(240px, 1fr) auto auto;
   }
+}
+
+.shell-lens[hidden] { display: none; }
+.shell-workspace.shell-workspace-luci { min-block-size: 0; }
+.luci-start { padding: 24px 24px 0; max-inline-size: 880px; }
+.luci-start h1 { font-size: 24px; margin: 0 0 8px; }
+.luci-start p { color: var(--ink-2); line-height: 1.6; margin: 0; }
+@media (max-width: 760px) {
+  .shell-workspace-luci .orchestrator-primary { min-block-size: 60dvh; }
+  .luci-start { padding: 16px 16px 0; }
 }

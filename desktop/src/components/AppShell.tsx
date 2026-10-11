@@ -22,7 +22,7 @@ import { ColumnsLayout } from "./develop/ColumnsLayout";
 import { useSetup } from "./setup/SetupProvider";
 import { DraftNavigationDialog } from "./common/DraftNavigationDialog";
 import { BranchManager } from "./journey/BranchManager";
-import { OrchestratorPanel } from "./orchestrator/OrchestratorPanel";
+import { OrchestratorPanel, ORCHESTRATOR_OPEN, type OrchestratorOpenDetail } from "./orchestrator/OrchestratorPanel";
 
 // Each phase owns its workspace. Source checkout revisions remount them together
 // so a saved definition, design or file view cannot linger from the old branch.
@@ -52,11 +52,22 @@ export function AppShell(): JSX.Element {
   const projectId = useCockpit((s) => s.selection.projectId);
   const sourceRevision = useCockpit(s => projectId ? s.projectSourceRevisions[projectId] ?? 0 : 0);
   const lens = useCockpit((s) => s.lens);
+  const workspaceSurface = useCockpit(s => s.workspaceSurface);
+  const showLuci = useCockpit(s => s.showLuci);
+  const toolKey = `${projectId}:${sourceRevision}`;
+  const [visitedTool, setVisitedTool] = useState<string | null>(null);
   const sessionId = useCockpit((s) => s.selection.sessionId);
   const accountSession = useCockpit((s) =>
     s.selection.sessionId ? s.sessions[s.selection.sessionId] : undefined,
   );
   const toggleRail = useCockpit((s) => s.toggleRail);
+  const toolsVisible = workspaceSurface === "tools" || !!accountSession?.authOnly;
+  useEffect(() => { setVisitedTool(previous => toolsVisible ? toolKey : previous === toolKey ? previous : null); }, [toolsVisible, toolKey]);
+  useEffect(() => {
+    const open = (event: Event) => { const detail = (event as CustomEvent<OrchestratorOpenDetail>).detail; if (detail?.projectId === projectId) showLuci(); };
+    window.addEventListener(ORCHESTRATOR_OPEN, open);
+    return () => window.removeEventListener(ORCHESTRATOR_OPEN, open);
+  }, [projectId, showLuci]);
   const [compact, setCompact] = useState(
     () => window.matchMedia("(max-width: 760px)").matches,
   );
@@ -78,7 +89,7 @@ export function AppShell(): JSX.Element {
   }, []);
   useEffect(() => {
     setProjectsOpen(false);
-  }, [projectId, branchId, sessionId, lens]);
+  }, [projectId, branchId, sessionId, lens, workspaceSurface]);
   useEffect(() => {
     if (compact && previousRailCollapsed.current !== railCollapsed)
       setProjectsOpen((open) => !open);
@@ -97,6 +108,7 @@ export function AppShell(): JSX.Element {
   useKeyboardMap();
 
   const className = ["shell"]
+    .concat(toolsVisible ? [] : ["shell-luci"])
     .concat(projectId === null && branchId === null ? [] : ["shell-deep"])
     .concat(railCollapsed ? ["shell-rail-collapsed"] : [])
     .concat(drawerOpen ? ["shell-projects-open"] : [])
@@ -122,8 +134,8 @@ export function AppShell(): JSX.Element {
             compact ? setProjectsOpen((open) => !open) : toggleRail()
           }
         />
-        <div className="shell-workspace">
-        <div className="shell-lens">
+        <div className={`shell-workspace${toolsVisible ? "" : " shell-workspace-luci"}`}>
+        <div className="shell-lens" hidden={!!projectId && !toolsVisible} inert={!!projectId && !toolsVisible}>
           {projectId === null && accountSession?.authOnly ? (
             <section className="account-session-workspace">
               <header>
@@ -146,12 +158,15 @@ export function AppShell(): JSX.Element {
               </div>
             </section>
           ) : projectId === null && branchId === null ? (
-            <ProjectsHome />
+            <>
+              {workspaceSurface === "luci" && <header className="luci-start"><h1 tabIndex={-1}>Luci</h1><p>Choose a project to continue its conversation, or start a new project. Your context and work stay with the selected project.</p></header>}
+              <ProjectsHome />
+            </>
           ) : (
-            <LensRouter key={`${projectId}:${sourceRevision}`} lens={lens} />
+            (toolsVisible || visitedTool === toolKey) && <LensRouter key={toolKey} lens={lens} />
           )}
         </div>
-        {projectId && <OrchestratorPanel projectId={projectId} />}
+        {projectId && <OrchestratorPanel projectId={projectId} primary={!toolsVisible} />}
         </div>
       </main>
       {drawerOpen && <div className="shell-scrim" aria-hidden="true" />}

@@ -1,0 +1,62 @@
+[
+  {
+    "path": "desktop/src/components/AppShell.tsx",
+    "frozen": "source/desktop__src__components__AppShell.tsx.txt",
+    "bytes": 7733,
+    "sha256": "1fc9d83fd20ffe93e7df24ff0c2dcd569ee6fde5ff68008c1aea71f85ab9e145"
+  },
+  {
+    "path": "desktop/src/components/AppShell.test.tsx",
+    "frozen": "source/desktop__src__components__AppShell.test.tsx.txt",
+    "bytes": 18311,
+    "sha256": "3f511b3fa8ab717abd8fa8da2fa2950e796dcab084f7194cae02b053995dbcec"
+  },
+  {
+    "path": "desktop/src/components/LuciWorkspace.test.tsx",
+    "frozen": "source/desktop__src__components__LuciWorkspace.test.tsx.txt",
+    "bytes": 11065,
+    "sha256": "c6b9aba0c633badf27049293df25cf5c1fb7d5117fa66312dbb2276ba56a5551"
+  },
+  {
+    "path": "desktop/src/components/topbar/TopBar.tsx",
+    "frozen": "source/desktop__src__components__topbar__TopBar.tsx.txt",
+    "bytes": 4556,
+    "sha256": "d3d2f405019102dbd9f128b4ea137d0d6cc5af30173599be1d944aa1011926f1"
+  },
+  {
+    "path": "desktop/src/components/topbar/topbar.css",
+    "frozen": "source/desktop__src__components__topbar__topbar.css.txt",
+    "bytes": 4397,
+    "sha256": "ddf0b9fdbfc58c6b528d068d5dbffa8472c86c3f7d76147c52b37d13c4f524a4"
+  },
+  {
+    "path": "desktop/src/components/subrail/SubRail.tsx",
+    "frozen": "source/desktop__src__components__subrail__SubRail.tsx.txt",
+    "bytes": 2692,
+    "sha256": "510c187d2be1c7e15d43fe4d17d46f8dd212f267ccfa1933b42c0e7f180294f7"
+  },
+  {
+    "path": "desktop/src/components/orchestrator/OrchestratorPanel.tsx",
+    "frozen": "source/desktop__src__components__orchestrator__OrchestratorPanel.tsx.txt",
+    "bytes": 62035,
+    "sha256": "9dcd820430bd4b074784b98e205e05ef50ba731b658a5eac9b08da24729d675d"
+  },
+  {
+    "path": "desktop/src/components/orchestrator/OrchestratorPanel.test.tsx",
+    "frozen": "source/desktop__src__components__orchestrator__OrchestratorPanel.test.tsx.txt",
+    "bytes": 126171,
+    "sha256": "df2a451fb33bc38f65ece2f4b1f713ec42158d3301c70996429f4ce1fa80a3f7"
+  },
+  {
+    "path": "desktop/src/components/orchestrator/orchestrator.css",
+    "frozen": "source/desktop__src__components__orchestrator__orchestrator.css.txt",
+    "bytes": 6885,
+    "sha256": "af914a3d585ba92589b858e6012bba6afe22d3fbe4533942fdf13931d9fef089"
+  },
+  {
+    "path": "desktop/src/components/shell.css",
+    "frozen": "source/desktop__src__components__shell.css.txt",
+    "bytes": 6522,
+    "sha256": "6e494892fe2ce866a3bf202b0c8a2418209ef748c66fcc668713fe3cc4745f1e"
+  }
+]

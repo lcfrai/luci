@@ -1,0 +1,14 @@
+
+> @lcfr/luci-desktop@0.5.0 test
+> vitest run --maxWorkers=1 src/components/LuciWorkspace.test.tsx src/components/orchestrator/OrchestratorPanel.test.tsx
+
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+ Test Files  2 passed (2)
+      Tests  142 passed (142)
+   Start at  17:02:31
+   Duration  44.92s (tests 84%, transform 7%, environment 5%, import 4%, setup 1%)
+

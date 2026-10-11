@@ -52,6 +52,8 @@ vi.mock("./Terminal", () => ({
 
 function populate(): void {
   useCockpit.setState({
+    // These legacy composition cases explicitly inspect phase tools.
+    workspaceSurface: "tools",
     machines: [aMachine()],
     harnesses: [aHarness()],
     projects: [aProject({ id: "p-1", name: "portal" })],

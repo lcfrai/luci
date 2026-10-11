@@ -1,3 +1,4 @@
+import { aProject } from "../../test/fixtures";
 import { StrictMode } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -1650,4 +1651,41 @@ it("keeps post-send readback outside display cancellation ownership", async () =
   expect(readComposerRecovery(decisionScope()).pending).toHaveLength(0);
   mounted.unmount(); await act(async () => finish(view()));
   expect(orchestratorApi.send).toHaveBeenCalledOnce(); expect(orchestratorApi.cancel).not.toHaveBeenCalled();
+});
+
+
+it("opens the existing conversation as the primary pane without sending or granting permission", async () => {
+  useCockpit.setState({ projects: [aProject({ id: "p-1", name: "Atlas" })] });
+  render(<OrchestratorPanel projectId="p-1" primary />); await ready();
+  const pane = screen.getByRole("region", { name: "Luci conversation" });
+  expect(pane.classList.contains("orchestrator-primary")).toBe(true);
+  expect(screen.getByText(/Working in Atlas/)).not.toBeNull();
+  expect(screen.getByLabelText("Message Luci")).not.toBeNull();
+  expect(orchestratorApi.send).not.toHaveBeenCalled(); expect(orchestratorApi.apply).not.toHaveBeenCalled();
+  expect(screen.getByRole("region", { name: "Saved project understanding" })).not.toBeNull();
+  screen.getByRole("button", { name: "Talk to Luci" }).focus(); await userEvent.keyboard("{Enter}");
+  await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText("Message Luci")));
+});
+it("preserves the current unsent message through primary and phase-tool presentations", async () => {
+  const ui = render(<OrchestratorPanel projectId="p-1" primary />); await ready();
+  await userEvent.type(screen.getByLabelText("Message Luci"), "Add booking reminders");
+  ui.rerender(<OrchestratorPanel projectId="p-1" />); expect(screen.getByLabelText("Message Luci")).toHaveProperty("value", "Add booking reminders");
+  ui.rerender(<OrchestratorPanel projectId="p-1" primary />);
+  expect(screen.getByLabelText("Message Luci")).toHaveProperty("value", "Add booking reminders"); expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+it("keeps primary conversations isolated and recovers the original project draft explicitly", async () => {
+  const ui = render(<OrchestratorPanel projectId="p-1" primary />); await ready(); await userEvent.type(screen.getByLabelText("Message Luci"), "Atlas only");
+  ui.rerender(<OrchestratorPanel projectId="p-2" primary />); await ready(); expect(screen.getByLabelText("Message Luci")).toHaveProperty("value", "");
+  expect(screen.queryByText("Atlas only")).toBeNull(); ui.rerender(<OrchestratorPanel projectId="p-1" primary />);
+  await userEvent.click(await screen.findByRole("button", { name: "Restore unsent message" }));
+  expect(screen.getByLabelText("Message Luci")).toHaveProperty("value", "Atlas only"); expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+it("shows the main conversation on compact screens and hides its private contents when Read is revoked", async () => {
+  const media = vi.spyOn(window, "matchMedia").mockImplementation(query => ({ matches: true, media: query, onchange: null, addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn(), dispatchEvent: () => false }));
+  try { const ui = render(<OrchestratorPanel projectId="p-1" primary />); await ready();
+    await userEvent.type(screen.getByLabelText("Message Luci"), "Private amendment");
+    expect(screen.getByRole("region", { name: "Luci conversation" }).classList.contains("orchestrator-open")).toBe(true);
+    identity.read = false; identity.assist = false; ui.rerender(<OrchestratorPanel projectId="p-1" primary />);
+    expect(screen.queryByLabelText("Message Luci")).toBeNull(); expect(screen.queryByText("Private amendment")).toBeNull(); expect(orchestratorApi.send).not.toHaveBeenCalled();
+  } finally { media.mockRestore(); }
 });

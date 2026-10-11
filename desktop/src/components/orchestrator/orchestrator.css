@@ -76,3 +76,12 @@
   .orchestrator-header p { display: none; }
   .orchestrator-comparison { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* The same scoped conversation can own the main pane without creating a second history. */
+.orchestrator.orchestrator-primary { flex: 1 1 auto; inline-size: 100%; block-size: auto; border: 0; }
+.orchestrator-primary .orchestrator-body { flex: 1 1 auto; inline-size: 100%; max-inline-size: 1000px; align-self: center; box-sizing: border-box; }
+.orchestrator-primary .orchestrator-discussion { margin-block-start: 0; padding-block-start: 0; border-block-start: 0; }
+.orchestrator-primary .orchestrator-discussion > summary { display: none; }
+.orchestrator-primary .orchestrator-header p { display: block; }
+.orchestrator-primary .orchestrator-composer textarea { min-block-size: 110px; }
+.orchestrator-primary .orchestrator-header p { overflow-wrap: anywhere; }

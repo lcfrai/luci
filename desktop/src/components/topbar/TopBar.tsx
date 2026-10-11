@@ -6,6 +6,8 @@ import { NewSessionButton } from "./NewSessionButton";
 import { SessionPicker } from "./SessionPicker";
 import { NavigationIcon } from "../common/NavigationIcon";
 import "./topbar.css";
+import { Button } from "../fluid/components/button";
+import { ORCHESTRATOR_OPEN } from "../orchestrator/OrchestratorPanel";
 
 export function TopBar({
   projectsExpanded,
@@ -16,6 +18,11 @@ export function TopBar({
 } = {}): JSX.Element {
   const layout = useCockpit((s) => s.layout);
   const lens = useCockpit((s) => s.lens);
+  const surface = useCockpit(s => s.workspaceSurface);
+  const showLuci = useCockpit(s => s.showLuci);
+  const projectName = useCockpit(s => s.projects.find(project => project.id === s.selection.projectId)?.name ?? "");
+  const authOnly = useCockpit(s => !!s.selection.sessionId && !!s.sessions[s.selection.sessionId]?.authOnly);
+  const inTools = surface === "tools" || authOnly;
   const projectId = useCockpit((s) => s.selection.projectId);
   const setLens = useCockpit((s) => s.setLens);
   const openBranchManager = useCockpit(s => s.openBranchManager);
@@ -46,7 +53,12 @@ export function TopBar({
         <NavigationIcon name="projects" />
         <span>Projects</span>
       </button>
-      {projectId === null ? (
+      <Button variant={inTools ? "ghost" : "secondary"} size="compact" aria-current={!inTools ? "page" : undefined} onClick={() => {
+        showLuci();
+        if (projectId) window.dispatchEvent(new CustomEvent(ORCHESTRATOR_OPEN, { detail: { projectId } }));
+        else requestAnimationFrame(() => { const state = useCockpit.getState(); if (!state.selection.projectId && state.workspaceSurface === "luci") document.querySelector<HTMLElement>(".luci-start h1")?.focus(); });
+      }}>Luci</Button>
+      {!inTools && projectId ? <span className="top-title" title={projectName} aria-label={`Current project: ${projectName || "Selected project"}`}>{projectName || "Selected project"}</span> : projectId === null ? (
         <span className="top-title">Projects</span>
       ) : lens === "develop" || lens === "files" || lens === "merge" ? (
         <>
@@ -83,8 +95,8 @@ export function TopBar({
         </span>
       )}
       <span className="top-spacer" />
-      {projectId !== null && (lens === "develop" || lens === "files" || lens === "merge") && <button type="button" className="top-btn" aria-haspopup="dialog" onClick={() => openBranchManager({ projectId, action: "switch" })}>Branches</button>}
-      {projectId !== null && lens === "develop" && (
+      {inTools && projectId !== null && (lens === "develop" || lens === "files" || lens === "merge") && <button type="button" className="top-btn" aria-haspopup="dialog" onClick={() => openBranchManager({ projectId, action: "switch" })}>Branches</button>}
+      {inTools && projectId !== null && lens === "develop" && (
         <NewSessionButton worktreeId={worktreeId} />
       )}
       <SessionPicker

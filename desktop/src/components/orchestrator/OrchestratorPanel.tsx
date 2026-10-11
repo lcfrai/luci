@@ -38,13 +38,13 @@ const statuses: Record<OrchestratorTurn["status"], string> = {
   succeeded: "Response ready", failed: "Request failed", cancelled: "Request cancelled", unknown: "Outcome not confirmed",
 };
 
-export function OrchestratorPanel({ projectId }: { projectId: string }) {
+export function OrchestratorPanel({ projectId, primary = false }: { projectId: string; primary?: boolean }) {
   const scope = useProjectDraftScope(projectId);
   if (!scope) return null;
-  return <ProjectConversation key={scope} projectId={projectId} scope={scope} />;
+  return <ProjectConversation key={scope} projectId={projectId} scope={scope} primary={primary} />;
 }
 
-function ProjectConversation({ projectId, scope }: { projectId: string; scope: string }) {
+function ProjectConversation({ projectId, scope, primary }: { projectId: string; scope: string; primary: boolean }) {
   const access = useProjectAccess(projectId), setup = useSetup();
   const actorId = useAuth()?.profile.user.id ?? "";
   const [policyEpoch, setPolicyEpoch] = useState(0);
@@ -53,16 +53,17 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
   // The responsive default applies only until an explicit choice. Keep the
   // body mounted when collapsed so discussion, review and drafts are retained.
   const [openChoice, setOpenChoice] = useState<boolean | null>(null);
-  const open = openChoice ?? !compact;
+  const open = primary || (openChoice ?? !compact);
   const [view, setView] = useState<OrchestratorView | null>(null);
   // Defer the hidden discussion until it is requested. Once opened, preserve
   // its controls and focus targets through closing within this project scope.
   // Reads, request observation and draft recovery remain owned by this parent.
-  const [conversation, setConversation] = useState({ open: false, mounted: false });
-  const conversationOpen = conversation.open;
+  const [conversation, setConversation] = useState({ open: primary, mounted: primary });
+  const conversationOpen = primary || conversation.open;
   const setConversationOpen = useCallback((open: boolean) => {
     setConversation(current => current.open === open ? current : { open, mounted: current.mounted || open });
   }, []);
+  useEffect(() => { if (primary) setConversationOpen(true); }, [primary, setConversationOpen]);
   const [earlier, setEarlier] = useState<OrchestratorTurn[]>([]), [page, setPage] = useState<{ before: number; hasEarlier: boolean } | null>(null);
   const [message, setMessage] = useState(""), [replyTo, setReplyTo] = useState("");
   const [suggestedReply, setSuggestedReply] = useState<{ turnId: string; question: string; answer: string; message: string; replyTo: string; previousQuestion: string } | null>(null);
@@ -91,6 +92,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
     || (!catalogue ? connectionError || "Loading agent connections…" : !connection && !model.trim() ? "Choose a saved connection, or enter the exact model for your own agent settings." : "");
   const sourceRevision = useCockpit(state => state.projectSourceRevisions[projectId] ?? 0);
   const lens = useCockpit(state => state.lens), setLens = useCockpit(state => state.setLens);
+  const projectName = useCockpit(state => state.projects.find(project => project.id === projectId)?.name ?? "Selected project");
   const drafts = useCockpit(state => Object.values(state.unsavedProjectDrafts).filter(draft => draft.projectId === projectId).map(draft => draft.label).join(", "));
   const contextDrafts = useCockpit(state => Object.values(state.unsavedProjectDrafts).filter(draft => draft.projectId === projectId && draft.purpose !== "verification-setup" && draft.purpose !== "coordinator-setup").map(draft => draft.label).join(", "));
   const checkSetupDraft = useCockpit(state => Object.values(state.unsavedProjectDrafts).some(draft => draft.projectId === projectId && (draft.purpose === "verification-setup" || draft.purpose === "coordinator-setup")));
@@ -612,8 +614,9 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
   const replyQuestion = view?.blockingQuestions.find(question => question.turnId === replyTo)?.question || turns.find(turn => turn.id === replyTo)?.answer?.question;
   const reviewBlock = draftWarning || setupChangeWarning || (contextStale ? "Refresh project understanding before applying an amendment." : !canEdit ? "Editing access is required to apply an amendment." : review && view && review.revision !== view.revision ? "The conversation changed during review. Close this review, refresh and review the amendment again." : "");
 
-  return <aside className={`orchestrator${open ? " orchestrator-open" : ""}`} aria-label="Project understanding">
-    <header className="orchestrator-header"><div><h2>Project understanding</h2>{open ? <p>One conversation across your project.</p> : <p className="orchestrator-collapsed-stage">{canRead && view ? `${stageLabels[view.nextAction.lens]} · Saved context` : "Saved project context"}</p>}</div><Button variant="primary" size="compact" disabled={!canRead || access.loading || !!access.error} onClick={() => ask()}>Talk to Luci</Button><Button variant="secondary" size="compact" aria-expanded={open} aria-controls={contentId} onClick={() => setOpenChoice(!open)}>{open ? "Hide project overview" : "Show project overview"}</Button></header>
+  const understanding = view && <ProjectUnderstanding view={view} stale={contextStale || contextRefreshQueued} onAsk={ask} onReply={reply} onNavigate={setLens} onInspect={inspect} onEdit={edit} canEdit={canEdit} />;
+  return <aside className={`orchestrator${open ? " orchestrator-open" : ""}${primary ? " orchestrator-primary" : ""}`} role={primary ? "region" : undefined} aria-label={primary ? "Luci conversation" : "Project understanding"}>
+    <header className="orchestrator-header"><div><h2>{primary ? "Luci" : "Project understanding"}</h2>{primary ? <p>Working in {projectName}. Discover, Design, Develop and Deploy are your project tools.</p> : open ? <p>One conversation across your project.</p> : <p className="orchestrator-collapsed-stage">{canRead && view ? `${stageLabels[view.nextAction.lens]} · Saved context` : "Saved project context"}</p>}</div><Button variant="primary" size="compact" disabled={!canRead || access.loading || !!access.error} onClick={() => { useCockpit.getState().showLuci(); ask(); }}>Talk to Luci</Button>{primary ? <Button variant="secondary" size="compact" onClick={() => setLens(lens)}>Return to {stageLabels[lens as keyof typeof stageLabels] ?? "Develop"}</Button> : <Button variant="secondary" size="compact" aria-expanded={open} aria-controls={contentId} onClick={() => setOpenChoice(!open)}>{open ? "Hide project overview" : "Show project overview"}</Button>}</header>
     <div className="orchestrator-body" id={contentId} ref={overviewBody} hidden={!open}>
       {access.message && <p role="status">{access.message}</p>}
       {canRead && <>
@@ -623,8 +626,8 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
         {notice && <p role="status">{notice}</p>}
         {decisionNotice && <p ref={decisionNoticeNode} role="status" tabIndex={-1}>{decisionNotice}</p>}
         {(loading || contextRefreshQueued) && view && <p role="status">Updating saved project understanding…</p>}
-        {view && <ProjectUnderstanding view={view} stale={contextStale || contextRefreshQueued} onAsk={ask} onReply={reply} onNavigate={setLens} onInspect={inspect} onEdit={edit} canEdit={canEdit} />}
-        <details className="orchestrator-discussion" open={conversationOpen} onToggle={event => setConversationOpen(event.currentTarget.open)}><summary>Discuss or request a change</summary>
+        {!primary && understanding}
+        <details className="orchestrator-discussion" open={conversationOpen} onToggle={event => { if (!primary) setConversationOpen(event.currentTarget.open); }}><summary>Discuss or request a change</summary>
         {conversation.mounted && <div hidden={!conversationOpen}>
         {view && <>
           <div className="orchestrator-toolbar"><h3>Luci</h3><Button variant="ghost" size="compact" disabled={!!busy || loading} onClick={() => void refresh(true)}>Refresh conversation</Button></div>
@@ -689,6 +692,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
         </form>
         </div>}
         </details>
+        {primary && <section aria-label="Saved project understanding">{understanding}</section>}
         {view && <CoordinatorPolicy projectId={projectId} scope={scope} actorId={actorId} view={view} policyEpoch={policyEpoch} onPolicyUpdated={() => setPolicyEpoch(value => value + 1)}
           canRead={canRead && !access.loading && !access.error} canEdit={canEdit}
           blocked={draftWarning || setupChangeWarning || (contextStale || contextRefreshQueued || loading ? "Refresh saved project understanding first." : busy || pendingRequest || uncertain ? "Resolve the current conversation request first." : "")}

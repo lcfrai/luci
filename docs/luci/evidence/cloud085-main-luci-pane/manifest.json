@@ -1,0 +1,159 @@
+{
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 3514,
+      "sha256": "e7f8da6071a90f011dd02085f7eee8a6d2ce68e1f26007a433a1079a06a8c22d"
+    },
+    {
+      "path": "before-hidden-tool-return.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "before-hidden-tool-return.log",
+      "bytes": 1097,
+      "sha256": "1b0d0a8e62337ddc3376263e8ca8561ef74565e613644258690a13e3b954bbae"
+    },
+    {
+      "path": "before-hidden-tool-return.tsx.txt",
+      "bytes": 7683,
+      "sha256": "f4401d09301449e85ad423561f7b310fdd86495ed5ec5335e78a7a0000737f9d"
+    },
+    {
+      "path": "final-component-tests.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "final-component-tests.log",
+      "bytes": 457,
+      "sha256": "9e24959c177178fc22073494a36ffac4b1f0513473ea11003dadb1876fd651dd"
+    },
+    {
+      "path": "final-inputs-after-tests.json",
+      "bytes": 79658,
+      "sha256": "7e71403bb409516d2d8350780d449a4725919d7c23adb7aba5ba525c5e31079d"
+    },
+    {
+      "path": "final-inputs-before.json",
+      "bytes": 79658,
+      "sha256": "7e71403bb409516d2d8350780d449a4725919d7c23adb7aba5ba525c5e31079d"
+    },
+    {
+      "path": "final-shell-after-session.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "final-shell-after-session.log",
+      "bytes": 558,
+      "sha256": "b173d376e34cce3d59810ac008ada52fab18b58d7a7631fd239dc244024b30ed"
+    },
+    {
+      "path": "final-shell-tests.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "final-shell-tests.log",
+      "bytes": 400,
+      "sha256": "fa9eed1eca6531c9168586529a8d0cb72c3eccd67d9da06e2f0ab61b63b79a35"
+    },
+    {
+      "path": "final-typecheck.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "final-typecheck.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "hidden-tool-regression-binding.json",
+      "bytes": 242,
+      "sha256": "ab978855a7acce5610791bccf2b395d11ce41dd8805537087c1f25e4fad332a8"
+    },
+    {
+      "path": "initial-tests.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "initial-tests.log",
+      "bytes": 11992,
+      "sha256": "97069cd2821fadbe7b4333c87174f9f414e37fc093d34dbe07a24bd77641d915"
+    },
+    {
+      "path": "receipt.json",
+      "bytes": 3039,
+      "sha256": "16fae317139d21622525767f71b5224351a9b31d3e47f01b2cbefcd97b7b0338"
+    },
+    {
+      "path": "selected-source-bindings.json",
+      "bytes": 2474,
+      "sha256": "5fa841e98562bdea805ba7c64fc345bce21d706ba85f444e6bc5ba649846effb"
+    },
+    {
+      "path": "source/desktop__src__components__AppShell.test.tsx.txt",
+      "bytes": 18311,
+      "sha256": "3f511b3fa8ab717abd8fa8da2fa2950e796dcab084f7194cae02b053995dbcec"
+    },
+    {
+      "path": "source/desktop__src__components__AppShell.tsx.txt",
+      "bytes": 7733,
+      "sha256": "1fc9d83fd20ffe93e7df24ff0c2dcd569ee6fde5ff68008c1aea71f85ab9e145"
+    },
+    {
+      "path": "source/desktop__src__components__LuciWorkspace.test.tsx.txt",
+      "bytes": 11065,
+      "sha256": "c6b9aba0c633badf27049293df25cf5c1fb7d5117fa66312dbb2276ba56a5551"
+    },
+    {
+      "path": "source/desktop__src__components__orchestrator__OrchestratorPanel.test.tsx.txt",
+      "bytes": 126171,
+      "sha256": "df2a451fb33bc38f65ece2f4b1f713ec42158d3301c70996429f4ce1fa80a3f7"
+    },
+    {
+      "path": "source/desktop__src__components__orchestrator__OrchestratorPanel.tsx.txt",
+      "bytes": 62035,
+      "sha256": "9dcd820430bd4b074784b98e205e05ef50ba731b658a5eac9b08da24729d675d"
+    },
+    {
+      "path": "source/desktop__src__components__orchestrator__orchestrator.css.txt",
+      "bytes": 6885,
+      "sha256": "af914a3d585ba92589b858e6012bba6afe22d3fbe4533942fdf13931d9fef089"
+    },
+    {
+      "path": "source/desktop__src__components__shell.css.txt",
+      "bytes": 6522,
+      "sha256": "6e494892fe2ce866a3bf202b0c8a2418209ef748c66fcc668713fe3cc4745f1e"
+    },
+    {
+      "path": "source/desktop__src__components__subrail__SubRail.tsx.txt",
+      "bytes": 2692,
+      "sha256": "510c187d2be1c7e15d43fe4d17d46f8dd212f267ccfa1933b42c0e7f180294f7"
+    },
+    {
+      "path": "source/desktop__src__components__topbar__TopBar.tsx.txt",
+      "bytes": 4556,
+      "sha256": "d3d2f405019102dbd9f128b4ea137d0d6cc5af30173599be1d944aa1011926f1"
+    },
+    {
+      "path": "source/desktop__src__components__topbar__topbar.css.txt",
+      "bytes": 4397,
+      "sha256": "ddf0b9fdbfc58c6b528d068d5dbffa8472c86c3f7d76147c52b37d13c4f524a4"
+    },
+    {
+      "path": "typecheck-inputs-after.json",
+      "bytes": 79658,
+      "sha256": "7e71403bb409516d2d8350780d449a4725919d7c23adb7aba5ba525c5e31079d"
+    },
+    {
+      "path": "typecheck-inputs-before.json",
+      "bytes": 79658,
+      "sha256": "7e71403bb409516d2d8350780d449a4725919d7c23adb7aba5ba525c5e31079d"
+    }
+  ]
+}

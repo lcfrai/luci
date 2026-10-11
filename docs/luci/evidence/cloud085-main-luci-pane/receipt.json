@@ -1,0 +1,71 @@
+{
+  "scope": "Linux source component tests and TypeScript; not browser/native/provider/performance acceptance",
+  "sourceBaseAtFinalValidation": "0664275c0c39f27fe583e6aac55045f425bff685",
+  "sourceOverlay": [
+    "desktop/src/components/AppShell.tsx",
+    "desktop/src/components/AppShell.test.tsx",
+    "desktop/src/components/LuciWorkspace.test.tsx",
+    "desktop/src/components/topbar/TopBar.tsx",
+    "desktop/src/components/topbar/topbar.css",
+    "desktop/src/components/subrail/SubRail.tsx",
+    "desktop/src/components/orchestrator/OrchestratorPanel.tsx",
+    "desktop/src/components/orchestrator/OrchestratorPanel.test.tsx",
+    "desktop/src/components/orchestrator/orchestrator.css",
+    "desktop/src/components/shell.css"
+  ],
+  "testWorkingDirectory": "desktop",
+  "commands": [
+    {
+      "log": "initial-tests.log",
+      "command": "npm test -- --maxWorkers=1 src/components/LuciWorkspace.test.tsx src/components/AppShell.test.tsx src/components/orchestrator/OrchestratorPanel.test.tsx",
+      "pass": 157,
+      "fail": 2,
+      "note": "Both failures were shell fixture assertions: background hidden by Radix and jsdom inert attribute."
+    },
+    {
+      "log": "final-shell-tests.log",
+      "command": "npm test -- --maxWorkers=1 src/components/LuciWorkspace.test.tsx",
+      "pass": 7,
+      "fail": 0
+    },
+    {
+      "log": "final-component-tests.log",
+      "command": "npm test -- --maxWorkers=1 src/components/LuciWorkspace.test.tsx src/components/orchestrator/OrchestratorPanel.test.tsx",
+      "pass": 142,
+      "fail": 0,
+      "note": "Includes actual Orchestrator133 and shell9, before new hidden-tool-return regression/effect correction."
+    },
+    {
+      "log": "before-hidden-tool-return.log",
+      "command": "npm test -- --maxWorkers=1 src/components/LuciWorkspace.test.tsx -t \"does not remount\"",
+      "pass": 0,
+      "fail": 1,
+      "filtered": 9,
+      "note": "Same test as final, original AppShell retained in before-hidden-tool-return.tsx.txt."
+    },
+    {
+      "log": "final-shell-after-session.log",
+      "command": "node node_modules/vitest/vitest.mjs run src/components/AppShell.test.tsx src/components/LuciWorkspace.test.tsx --maxWorkers=1",
+      "pass": 29,
+      "fail": 0,
+      "files": 2
+    },
+    {
+      "log": "final-typecheck.log",
+      "command": "node node_modules/typescript/bin/tsc --noEmit",
+      "exitCode": 0
+    }
+  ],
+  "countsOverlap": true,
+  "finalSourceInputs": 468,
+  "finalInputsStableAcrossTestsAndTypecheck": true,
+  "relatedStoreCheckpoint": "f68fbfb2f704377ced872421462ad016c1ae009a",
+  "relatedSessionCheckpoint": "0664275c0c39f27fe583e6aac55045f425bff685",
+  "limits": [
+    "No real browser geometry, response-time or screenshot acceptance",
+    "No Windows/native packaging or provider execution",
+    "No merged cross-project conversation or autonomous full delivery claim",
+    "Retained phase editor remains mounted only within current project/source and can retain existing background reads",
+    "No full frontend suite claimed"
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "path": "desktop/src/components/LuciWorkspace.test.tsx",
+  "sha256": "c6b9aba0c633badf27049293df25cf5c1fb7d5117fa66312dbb2276ba56a5551",
+  "scope": "Exact same new hidden-tool-return regression before/after AppShell effect correction."
+}

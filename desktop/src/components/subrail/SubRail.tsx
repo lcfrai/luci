@@ -23,6 +23,7 @@ export const LENSES: ReadonlyArray<{
 
 export function SubRail({ inert }: { inert?: boolean } = {}): JSX.Element {
   const lens = useCockpit((s) => s.lens);
+  const inTools = useCockpit(s => s.workspaceSurface === "tools");
   const setLens = useCockpit((s) => s.setLens);
   const projectId = useCockpit((s) => s.selection.projectId);
   const selectProject = useCockpit((s) => s.selectProject);
@@ -55,8 +56,8 @@ export function SubRail({ inert }: { inert?: boolean } = {}): JSX.Element {
             type="button"
             className="sub-row"
             aria-current={
-              lens === entry.id ||
-              (entry.id === "develop" && (lens === "files" || lens === "merge"))
+              inTools && (lens === entry.id ||
+              (entry.id === "develop" && (lens === "files" || lens === "merge")))
                 ? "page"
                 : undefined
             }

@@ -1,0 +1,286 @@
+
+> @lcfr/luci-desktop@0.5.0 test
+> vitest run --maxWorkers=1 src/components/LuciWorkspace.test.tsx src/components/AppShell.test.tsx src/components/orchestrator/OrchestratorPanel.test.tsx
+
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+ ❯ src/components/LuciWorkspace.test.tsx (7 tests | 2 failed) 1282ms
+   × keeps project selection and context bound through guarded switches in the primary view 232ms
+   × keeps compact Projects navigation accessible, returns focus after Escape, and selects a scoped conversation 66ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/LuciWorkspace.test.tsx > keeps project selection and context bound through guarded switches in the primary view
+TestingLibraryElementError: Unable to find an accessible element with the role "region" and name "Luci conversation"
+
+Here are the accessible roles:
+
+  dialog:
+
+  Name "Keep your changes?":
+  [36m<div[39m
+    [33maria-describedby[39m=[32m"radix-_r_9_"[39m
+    [33maria-labelledby[39m=[32m"radix-_r_8_"[39m
+    [33maria-modal[39m=[32m"true"[39m
+    [33mclass[39m=[32m"luci-dialog fluid-dialog"[39m
+    [33mdata-contained[39m=[32m"false"[39m
+    [33mdata-density[39m=[32m"default"[39m
+    [33mdata-position[39m=[32m"center"[39m
+    [33mdata-size[39m=[32m"lg"[39m
+    [33mdata-slot[39m=[32m"dialog-content"[39m
+    [33mdata-state[39m=[32m"open"[39m
+    [33mid[39m=[32m"radix-_r_7_"[39m
+    [33mrole[39m=[32m"dialog"[39m
+    [33mstyle[39m=[32m"pointer-events: auto;"[39m
+    [33mtabindex[39m=[32m"-1"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  heading:
+
+  Name "Keep your changes?":
+  [36m<h2[39m
+    [33mclass[39m=[32m"luci-dialog-title"[39m
+    [33mdata-slot[39m=[32m"dialog-title"[39m
+    [33mid[39m=[32m"radix-_r_8_"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  paragraph:
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"luci-dialog-description"[39m
+    [33mdata-slot[39m=[32m"dialog-description"[39m
+    [33mid[39m=[32m"radix-_r_9_"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  button:
+
+  Name "Discard edits and continue":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"secondary"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Keep drafts and continue":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"secondary"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  Name "Keep editing":
+  [36m<button[39m
+    [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-primary h-9 px-4 py-2"[39m
+    [33mdata-size[39m=[32m"default"[39m
+    [33mdata-slot[39m=[32m"button"[39m
+    [33mdata-variant[39m=[32m"default"[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mdata-scroll-locked[39m=[32m"1"[39m
+  [33mstyle[39m=[32m"pointer-events: none;"[39m
+[36m>[39m
+  [36m<span[39m
+    [33maria-hidden[39m=[32m"true"[39m
+    [33mdata-aria-hidden[39m=[32m"true"[39m
+    [33mdata-radix-focus-guard[39m=[32m""[39m
+    [33mstyle[39m=[32m"outline: none; opacity: 0; position: fixed; pointer-events: none;"[39m
+    [33mtabindex[39m=[32m"0"[39m
+  [36m/>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"shell shell-luci shell-deep"[39m
+    [36m>[39m
+      [36m<nav[39m
+        [33maria-hidden[39m=[32m"true"[39m
+        [33maria-label[39m=[32m"Projects"[39m
+        [33mclass[39m=[32m"rail"[39m
+        [33mdata-aria-hidden[39m=[32m"true"[39m
+        [33mid[39m=[32m"project-navigation"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"rail-brand"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33maria-label[39m=[32m"All projects"[39m
+              [33mclass[39m=[32m"rail-home"[39m
+            [36m>[39m
+              [0mLuci[0m
+            [36m</button>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"rail-brand-actions"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33maria-label[39m=[32m"Create project"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"navigation-icon"[39m
+                  [33mfill[39m=[32m"none"[39m
+                  [33mfocusable[39m=[32m"false"[39m
+                  [33mheight[39m=[32m"18"[39m
+                  [33mstroke[39m=[32m"currentColor"[39m
+                  [33mstroke-linecap[39m=[32m"round"[39m
+                  [33mstroke-linejoin[39m=[32m"round"[39m
+                  [33mstroke-width[39m=[32m"1.4"[39m
+                  [33mviewBox[39m=[32m"0 0 16 16"[39m
+                  [33mwidth[39m=[32m"18"[39m
+                [36m>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M8 3v10M3 8h10"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+              [36m</button>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"rail-empty"[39m
+          [36m>[39m
+            [0mNo machine yet. The control plane reports none.[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33maria-label[39m=[32m"Projects"[39m
+          [33mclass[39m=[32m"rail-scroll"[39m
+          [33mrole[39m=[32m"tree"[39m
+        [36m>[39m
+          [36m<div>[39m
+            [36m<div[39m
+              [33maria-expanded[39m=[32m"false"[39m
+              [33maria-label[39m=[32m"Atlas"[39m
+              [33maria-level[39m=[32m"1"[39m
+              [33maria-selected[39m=[32m"true"[39m
+              [33mclass[39m=[32m"rail-row"[39m
+              [33mdata-id[39m=[32m"p-1"[39m
+              [33mdata-kind[39m=[32m"project"[39m
+              [33mrole[39m=[32m"treeitem"[39m
+              [33mtabindex[39m=[32m"-1"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33maria-expanded[39m=[32m"false"[39m
+                [33maria-label[39m=[32m"Expand Atlas"[39m
+                [33mclass[39m=[32m"rail-chev rail-project-toggle"[39m
+                [33mtabindex[39m=[32m"-1"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"navigation-icon"[39m
+                  [33mfill[39m=[32m"none"[39m
+                  [33mfocusable[39m=[32m"false"[39m
+                  [33mheight[39m=[32m"18"[39m
+                  [33mstroke[39m=[32m"currentColor"[39m
+                  [33mstroke-linecap[39m=[32m"round"[39m
+                  [33mstroke-linejoin[39m=[32m"round"[39m
+                  [33mstroke-width[39m=[32m"1.4"[39m
+                  [33mviewBox[39m=[32m"0 0 16 16"[39m
+                  [33mwidth[39m=[32m"18"[39m
+                [36m>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"m6 4 4 4-4 4"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+              [36m</button>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"rail-name"[39m
+              [36m>[39m
+                [0mAtlas[0m
+              [36m</span>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<div[39m
+              [33maria-expanded[39m=[32m"false"[39m
+              [33maria-label[39m=[32m"Beacon"[39m
+              [33maria-level[39m=[32m"1"[39m
+              [33maria-selected[39m=[32m"false"[39m
+              [33mclass[39m=[32m"rail-row"[39m
+              [33mdata-id[39m=[32m"p-2"[39m
+              [33mdata-kind[39m=[32m"project"[39m
+              [33mrole[39m=[32m"treeitem"[39m
+              [33mtabindex[39m=[32m"0"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33maria-expanded[39m=[32m"false"[39m
+                [33maria-label[39m=[32m"Expand Beacon"[39m
+                [33mclass[39m=[32m"rail-chev rail-project-toggle"[39m
+                [33mtabindex[39m=[32m"-1"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"navigation-icon"[39m
+                  [33mfill[39m=[32m"none"[39m
+                  [33mfocusable[39m=[32m"false"[39m
+                  [33mheight[39m=[32m"18"[39m
+                  [33mstroke[39m=[32m"currentColor"[39m
+                  [33mstroke-linecap[39m=[32m"round"[39m
+                  [33mstroke-linejoin[39m=[32m"round"[39m
+                  [33mstroke-width[39m=[32m"1.4"[39m
+                  [33mviewBox[39m=[32m"0 0 16 16"[39m
+                  [33mwidth[39m=[32m"18"[39m
+                [36m>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"m6 4 4 4-4 4"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+              [36m</button>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"rail-name"[39m
+              [36m>[39m
+                [0mBeacon[0m
+              [36m</span>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rail-footer"[39m
+        [36m>[39m
+          [36m<div>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"rail-settin...
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/components/LuciWorkspace.test.tsx:44:157
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/components/LuciWorkspace.test.tsx > keeps compact Projects navigation accessible, returns focus after Escape, and selects a scoped conversation
+AssertionError: expected <main class="shell-main" inert>…(2)</main> to have property "inert" with value true
+
+- Expected:
+true
+
++ Received:
+undefined
+
+ ❯ src/components/LuciWorkspace.test.tsx:55:205
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  2 failed | 157 passed (159)
+   Start at  16:59:16
+   Duration  47.42s (tests 82%, transform 8%, environment 5%, import 4%, setup 1%)
+
