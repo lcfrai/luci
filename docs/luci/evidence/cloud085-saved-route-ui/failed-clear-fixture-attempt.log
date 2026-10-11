@@ -1,0 +1,478 @@
+
+> @lcfr/luci-desktop@0.5.0 test
+> vitest run src/components/orchestrator/CoordinatorExecution.test.tsx -t discarding a retained command draft --maxWorkers=1
+
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+ ❯ src/components/orchestrator/CoordinatorExecution.test.tsx (42 tests | 1 failed | 41 skipped) 1535ms
+   × keeps automatic continuation paused when discarding a retained command draft cannot remove its bytes 1529ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/orchestrator/CoordinatorExecution.test.tsx > keeps automatic continuation paused when discarding a retained command draft cannot remove its bytes
+TestingLibraryElementError: Found multiple elements with the text: /This draft could not be removed/
+
+Here are the matching elements:
+
+Ignored nodes: comments, script, style
+[36m<p[39m
+  [33mclass[39m=[32m"journey-warning"[39m
+  [33mrole[39m=[32m"alert"[39m
+[36m>[39m
+  [0mBrowser storage is unavailable. This draft could not be removed from this browser.[0m
+[36m</p>[39m
+
+Ignored nodes: comments, script, style
+[36m<p[39m
+  [33mrole[39m=[32m"status"[39m
+[36m>[39m
+  [0mBrowser storage is unavailable. This draft could not be removed from this browser.[0m
+[36m</p>[39m
+
+(If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-label[39m=[32m"Continued work"[39m
+      [33mclass[39m=[32m"orchestrator-agent"[39m
+    [36m>[39m
+      [36m<h3>[39m
+        [0mContinue with Luci[0m
+      [36m</h3>[39m
+      [36m<p>[39m
+        [0mRun on: [0m
+        [0mThis computer · Docker[0m
+        [0m. Luci uses the selected upstream harness and the project’s reviewed tasks. Deploy to is chosen separately.[0m
+      [36m</p>[39m
+      [36m<p[39m
+        [33mrole[39m=[32m"status"[39m
+      [36m>[39m
+        [0mLuci continued this approved amendment using your saved route and exact check delegation. Completion and deployment remain subject to their own evidence and policy.[0m
+      [36m</p>[39m
+      [36m<label[39m
+        [33mclass[39m=[32m"luci-field"[39m
+      [36m>[39m
+        [0mRetained continuation[0m
+        [36m<select>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"continue-one"[39m
+          [36m>[39m
+            [0mTasks queued[0m
+            [0m · [0m
+            [0mturn-1[0m
+          [36m</option>[39m
+        [36m</select>[39m
+      [36m</label>[39m
+      [36m<article[39m
+        [33maria-label[39m=[32m"Selected continuation"[39m
+      [36m>[39m
+        [36m<p[39m
+          [33mrole[39m=[32m"status"[39m
+        [36m>[39m
+          [36m<strong>[39m
+            [0mTasks queued[0m
+          [36m</strong>[39m
+          [0m · [0m
+          [0mTasks queued[0m
+        [36m</p>[39m
+        [36m<ol />[39m
+        [36m<p>[39m
+          [0m1[0m
+          [0m queued task reservations. Completion, independent checks and release evidence remain separate.[0m
+        [36m</p>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"secondary"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mInspect this build[0m
+          [36m</span>[39m
+        [36m</button>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"secondary"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mContinue retained work[0m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</article>[39m
+      [36m<p>[39m
+        [0mSaved upstream route: [0m
+        [0mcodex[0m
+        [0m · [0m
+        [0mmodel[0m
+        [0m · up to [0m
+        [0m4[0m
+        [0m tasks. Luci reuses only this exact route and check delegation for your later approved amendments while reviewed-task permission remains enabled.[0m
+      [36m</p>[39m
+      [36m<details[39m
+        [33mopen[39m=[32m""[39m
+      [36m>[39m
+        [36m<summary>[39m
+          [0mIndependent checks for continued work[0m
+        [36m</summary>[39m
+        [36m<p>[39m
+          [0mChoose commands once and identify the reviewed criteria they exercise. Luci can run this exact plan after task integration under the current policy. Passing commands do not prove semantic acceptance or authorize deployment.[0m
+        [36m</p>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"draft-recovery"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"journey-warning"[39m
+            [33mrole[39m=[32m"alert"[39m
+          [36m>[39m
+            [0mBrowser storage is unavailable. This draft could not be removed from this browser.[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"journey-muted"[39m
+            [33mrole[39m=[32m"status"[39m
+          [36m>[39m
+            [0mCheck setup[0m
+            [0m · kept in this browser for up to 30 days. [0m
+            [0mCheck setup stays in this browser; running checks separately creates shared results.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<ul[39m
+          [33mclass[39m=[32m"check-commands"[39m
+        [36m/>[39m
+        [36m<details[39m
+          [33mopen[39m=[32m""[39m
+        [36m>[39m
+          [36m<summary>[39m
+            [0mAdvanced check commands[0m
+          [36m</summary>[39m
+          [36m<form[39m
+            [33mclass[39m=[32m"check-command-form"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"luci-field"[39m
+            [36m>[39m
+              [0mExecutable[0m
+              [36m<input[39m
+                [33mplaceholder[39m=[32m"npm"[39m
+                [33mrequired[39m=[32m""[39m
+                [33mvalue[39m=[32m""[39m
+              [36m/>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"luci-field"[39m
+            [36m>[39m
+              [0mArguments · JSON array[0m
+              [36m<input[39m
+                [33mplaceholder[39m=[32m"[\"test\"]"[39m
+                [33mrequired[39m=[32m""[39m
+                [33mvalue[39m=[32m"[]"[39m
+              [36m/>[39m
+            [36m</label>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+              [33mdata-size[39m=[32m"default"[39m
+              [33mdata-slot[39m=[32m"button"[39m
+              [33mdata-variant[39m=[32m"secondary"[39m
+              [33mdisabled[39m=[32m""[39m
+              [33mtype[39m=[32m"submit"[39m
+            [36m>[39m
+              [36m<span>[39m
+                [0mAdd check command[0m
+              [36m</span>[39m
+            [36m</button>[39m
+          [36m</form>[39m
+        [36m</details>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"requirement-choice"[39m
+        [36m>[39m
+          [36m<input[39m
+            [33mtype[39m=[32m"checkbox"[39m
+          [36m/>[39m
+          [36m<span>[39m
+            [0mREQ-1[0m
+            [0m · [0m
+            [0mBook[0m
+            [36m<small>[39m
+              [0mA visitor can book[0m
+            [36m</small>[39m
+          [36m</span>[39m
+        [36m</label>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"setup-check"[39m
+        [36m>[39m
+          [36m<input[39m
+            [33mdisabled[39m=[32m""[39m
+            [33mtype[39m=[32m"checkbox"[39m
+          [36m/>[39m
+          [0mI delegate these exact commands and their selected requirement coverage. They may write project files and use the network.[0m
+        [36m</label>[39m
+        [36m<p[39m
+          [33mrole[39m=[32m"status"[39m
+        [36m>[39m
+          [0mBrowser storage is unavailable. This draft could not be removed from this browser.[0m
+        [36m</p>[39m
+      [36m</details>[39m
+      [36m<p>[39m
+        [0mThis conversation already has a retained continuation. Inspect its recorded work instead of starting it again.[0m
+      [36m</p>[39m
+      [36m<button[39m
+        [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-primary h-9 px-4 py-2"[39m
+        [33mdata-size[39m=[32m"default"[39m
+        [33mdata-slot[39m=[32m"button"[39m
+        [33mdata-variant[39m=[32m"default"[39m
+        [33mdisabled[39m=[32m""[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mConfigure continued work[0m
+        [36m</span>[39m
+      [36m</button>[39m
+      [36m<button[39m
+        [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-ghost h-9 px-4 py-2"[39m
+        [33mdata-size[39m=[32m"default"[39m
+        [33mdata-slot[39m=[32m"button"[39m
+        [33mdata-variant[39m=[32m"ghost"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mRefresh continued work[0m
+        [36m</span>[39m
+      [36m</button>[39m
+    [36m</section>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-label[39m=[32m"Continued work"[39m
+      [33mclass[39m=[32m"orchestrator-agent"[39m
+    [36m>[39m
+      [36m<h3>[39m
+        [0mContinue with Luci[0m
+      [36m</h3>[39m
+      [36m<p>[39m
+        [0mRun on: [0m
+        [0mThis computer · Docker[0m
+        [0m. Luci uses the selected upstream harness and the project’s reviewed tasks. Deploy to is chosen separately.[0m
+      [36m</p>[39m
+      [36m<p[39m
+        [33mrole[39m=[32m"status"[39m
+      [36m>[39m
+        [0mLuci continued this approved amendment using your saved route and exact check delegation. Completion and deployment remain subject to their own evidence and policy.[0m
+      [36m</p>[39m
+      [36m<label[39m
+        [33mclass[39m=[32m"luci-field"[39m
+      [36m>[39m
+        [0mRetained continuation[0m
+        [36m<select>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"continue-one"[39m
+          [36m>[39m
+            [0mTasks queued[0m
+            [0m · [0m
+            [0mturn-1[0m
+          [36m</option>[39m
+        [36m</select>[39m
+      [36m</label>[39m
+      [36m<article[39m
+        [33maria-label[39m=[32m"Selected continuation"[39m
+      [36m>[39m
+        [36m<p[39m
+          [33mrole[39m=[32m"status"[39m
+        [36m>[39m
+          [36m<strong>[39m
+            [0mTasks queued[0m
+          [36m</strong>[39m
+          [0m · [0m
+          [0mTasks queued[0m
+        [36m</p>[39m
+        [36m<ol />[39m
+        [36m<p>[39m
+          [0m1[0m
+          [0m queued task reservations. Completion, independent checks and release evidence remain separate.[0m
+        [36m</p>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"secondary"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mInspect this build[0m
+          [36m</span>[39m
+        [36m</button>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+          [33mdata-size[39m=[32m"default"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"secondary"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mContinue retained work[0m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</article>[39m
+      [36m<p>[39m
+        [0mSaved upstream route: [0m
+        [0mcodex[0m
+        [0m · [0m
+        [0mmodel[0m
+        [0m · up to [0m
+        [0m4[0m
+        [0m tasks. Luci reuses only this exact route and check delegation for your later approved amendments while reviewed-task permission remains enabled.[0m
+      [36m</p>[39m
+      [36m<details[39m
+        [33mopen[39m=[32m""[39m
+      [36m>[39m
+        [36m<summary>[39m
+          [0mIndependent checks for continued work[0m
+        [36m</summary>[39m
+        [36m<p>[39m
+          [0mChoose commands once and identify the reviewed criteria they exercise. Luci can run this exact plan after task integration under the current policy. Passing commands do not prove semantic acceptance or authorize deployment.[0m
+        [36m</p>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"draft-recovery"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"journey-warning"[39m
+            [33mrole[39m=[32m"alert"[39m
+          [36m>[39m
+            [0mBrowser storage is unavailable. This draft could not be removed from this browser.[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"journey-muted"[39m
+            [33mrole[39m=[32m"status"[39m
+          [36m>[39m
+            [0mCheck setup[0m
+            [0m · kept in this browser for up to 30 days. [0m
+            [0mCheck setup stays in this browser; running checks separately creates shared results.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<ul[39m
+          [33mclass[39m=[32m"check-commands"[39m
+        [36m/>[39m
+        [36m<details[39m
+          [33mopen[39m=[32m""[39m
+        [36m>[39m
+          [36m<summary>[39m
+            [0mAdvanced check commands[0m
+          [36m</summary>[39m
+          [36m<form[39m
+            [33mclass[39m=[32m"check-command-form"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"luci-field"[39m
+            [36m>[39m
+              [0mExecutable[0m
+              [36m<input[39m
+                [33mplaceholder[39m=[32m"npm"[39m
+                [33mrequired[39m=[32m""[39m
+                [33mvalue[39m=[32m""[39m
+              [36m/>[39m
+            [36m</label>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"luci-field"[39m
+            [36m>[39m
+              [0mArguments · JSON array[0m
+              [36m<input[39m
+                [33mplaceholder[39m=[32m"[\"test\"]"[39m
+                [33mrequired[39m=[32m""[39m
+                [33mvalue[39m=[32m"[]"[39m
+              [36m/>[39m
+            [36m</label>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+              [33mdata-size[39m=[32m"default"[39m
+              [33mdata-slot[39m=[32m"button"[39m
+              [33mdata-variant[39m=[32m"secondary"[39m
+              [33mdisabled[39m=[32m""[39m
+              [33mtype[39m=[32m"submit"[39m
+            [36m>[39m
+              [36m<span>[39m
+                [0mAdd check command[0m
+              [36m</span>[39m
+            [36m</button>[39m
+          [36m</form>[39m
+        [36m</details>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"requirement-choice"[39m
+        [36m>[39m
+          [36m<input[39m
+            [33mtype[39m=[32m"checkbox"[39m
+          [36m/>[39m
+          [36m<span>[39m
+            [0mREQ-1[0m
+            [0m · [0m
+            [0mBook[0m
+            [36m<small>[39m
+              [0mA visitor can book[0m
+            [36m</small>[39m
+          [36m</span>[39m
+        [36m</label>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"setup-check"[39m
+        [36m>[39m
+          [36m<input[39m
+            [33mdisabled[39m=[32m""[39m
+            [33mtype[39m=[32m"checkbox"[39m
+          [36m/>[39m
+          [0mI delegate these exact commands and their selected requirement coverage. They may write project files and use the network.[0m
+        [36m</label>[39m
+        [36m<p[39m
+          [33mrole[39m=[32m"status"[39m
+        [36m>[39m
+          [0mBrowser storage is unavailable. This draft could not be removed from this browser.[0m
+        [36m</p>[39m
+      [36m</details>[39m
+      [36m<p>[39m
+        [0mThis conversation already has a retained continuation. Inspect its recorded work instead of starting it again.[0m
+      [36m</p>[39m
+      [36m<button[39m
+        [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-primary h-9 px-4 py-2"[39m
+        [33mdata-size[39m=[32m"default"[39m
+        [33mdata-slot[39m=[32m"button"[39m
+        [33mdata-variant[39m=[32m"default"[39m
+        [33mdisabled[39m=[32m""[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mConfigure continued work[0m
+        [36m</span>[39m
+      [36m</button>[39m
+      [36m<button[39m
+        [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-ghost h-9 px-4 py-2"[39m
+        [33mdata-size[39m=[32m"default"[39m
+        [33mdata-slot[39m=[32m"button"[39m
+        [33mdata-variant[39m=[32m"ghost"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mRefresh continued work[0m
+        [36m</span>[39m
+      [36m</button>[39m
+    [36m</section>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/components/orchestrator/CoordinatorExecution.test.tsx:243:16
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 41 skipped (42)
+   Start at  16:23:55
+   Duration  6.48s (environment 31%, transform 31%, tests 25%, import 8%, setup 4%)
+

@@ -1,4 +1,5 @@
-import { productApi } from './product';
+import { productApi, type CheckCommand } from './product';
+import { MAX_SWARM_PARALLEL_TASKS } from './swarmLimits';
 import type { CreateProjectRun } from './projectRuns';
 import type { OrchestratorView } from './orchestrator';
 
@@ -12,9 +13,22 @@ export interface CoordinatorContinuation {
   delivery?: { actionId: string; checkId: string; status: 'pending' | 'running' | 'verified' | 'unknown' | 'blocked'; commit: string; sourceDigest: string; integrationDigest: string; message: string; startedAt: string; updatedAt: string };
   createdAt: string; updatedAt: string; nextAction?: OrchestratorView['nextAction'];
 }
+export interface CoordinatorCheckPlan {
+  commands: CheckCommand[];
+  requirementIds: string[];
+  requirementSnapshots: { id: string; title: string; acceptance: string }[];
+  acknowledgeProjectCommands: true;
+}
+export interface CoordinatorSavedRoute {
+  revision: number;
+  route: Omit<CreateProjectRun, 'idempotencyKey' | 'implementationContext'>;
+  maxParallel: number; updatedAt: string; checkPlan?: CoordinatorCheckPlan;
+}
+export interface CoordinatorContinuationState { continuations: CoordinatorContinuation[]; savedRoute: CoordinatorSavedRoute | null }
 export interface CoordinatorContinuationRequest {
   idempotencyKey: string; originTurnId: string; expectedContextDigest: string; expectedPolicyRevision: number;
   run: Omit<CreateProjectRun, 'idempotencyKey'>; maxParallel: number;
+  rememberRoute?: boolean; expectedRouteRevision?: number; checkPlan?: CoordinatorCheckPlan;
 }
 const base = (project: string) => `/v1/product/projects/${encodeURIComponent(project)}/orchestrator/continuations`;
 const kinds: CoordinatorActionKind[] = ['create-run', 'prepare-tasks', 'queue-tasks'];
@@ -35,12 +49,40 @@ function verified(value: CoordinatorContinuation, project: string, actor: string
   }
   return value;
 }
+const bytes = (value: string) => new TextEncoder().encode(value).length;
+/** Same command bounds as the production check API; this does not confer execution authority. */
+export function coordinatorCheckCommandsValid(commands: unknown): commands is CheckCommand[] {
+  return Array.isArray(commands) && commands.length > 0 && commands.length <= 8 && commands.every(command => command &&
+    typeof command.label === 'string' && !!command.label.trim() && bytes(command.label) <= 200 &&
+    typeof command.executable === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9_.+-]{0,79}$/.test(command.executable) &&
+    Array.isArray(command.args) && command.args.length <= 100 && command.args.every((arg: unknown) => typeof arg === 'string' && !arg.includes('\0')) &&
+    command.args.reduce((total: number, arg: string) => total + bytes(arg), 0) <= 32768);
+}
+function checkPlanValid(value: CoordinatorCheckPlan) {
+  return value && value.acknowledgeProjectCommands === true && coordinatorCheckCommandsValid(value.commands) &&
+    Array.isArray(value.requirementIds) && value.requirementIds.length > 0 && value.requirementIds.length <= 1000 &&
+    new Set(value.requirementIds).size === value.requirementIds.length && value.requirementIds.every(id => text(id)) &&
+    Array.isArray(value.requirementSnapshots) && value.requirementSnapshots.length === value.requirementIds.length &&
+    value.requirementSnapshots.every((row, index) => row?.id === value.requirementIds[index] && typeof row.title === 'string' && bytes(row.title) <= 2000 && typeof row.acceptance === 'string' && bytes(row.acceptance) <= 8000);
+}
+function savedRoute(value: CoordinatorSavedRoute | null | undefined) {
+  if (value == null) return null;
+  const route = value.route;
+  if (!Number.isSafeInteger(value.revision) || value.revision < 1 || !Number.isSafeInteger(value.maxParallel) || value.maxParallel < 1 || value.maxParallel > MAX_SWARM_PARALLEL_TASKS ||
+      !Number.isFinite(Date.parse(value.updatedAt)) || !route || Object.keys(route).some(key => !['worktreeId', 'harness', 'model', 'permissionMode', 'effort', 'agentConnectionId', 'outcome'].includes(key)) || !text(route.worktreeId) || !text(route.harness) || typeof route.model !== 'string' ||
+      !['ask', 'bypass', 'plan'].includes(route.permissionMode) || !['preview', 'publish'].includes(route.outcome) ||
+      route.effort !== undefined && typeof route.effort !== 'string' || route.agentConnectionId !== undefined && typeof route.agentConnectionId !== 'string' ||
+      value.checkPlan !== undefined && !checkPlanValid(value.checkPlan)) throw new Error('The saved continuation route or check delegation could not be verified. Reconfigure it before continuing.');
+  return value;
+}
+async function listState(project: string, actor: string, signal?: AbortSignal): Promise<CoordinatorContinuationState> {
+  const result = await productApi.request<CoordinatorContinuationState>(base(project), undefined, 'GET', 30_000, signal);
+  if (!Array.isArray(result?.continuations) || result.continuations.length > 40 || new Set(result.continuations.map(row => row.id)).size !== result.continuations.length || new Set(result.continuations.map(row => row.idempotencyKey)).size !== result.continuations.length) throw new Error('The continuation history could not be verified. Refresh before continuing.');
+  return { continuations: result.continuations.map(row => verified(row, project, actor)), savedRoute: savedRoute(result.savedRoute) };
+}
 export const coordinatorContinuationsApi = {
-  async list(project: string, actor: string, signal?: AbortSignal) {
-    const result = await productApi.request<{ continuations: CoordinatorContinuation[] }>(base(project), undefined, 'GET', 30_000, signal);
-    if (!Array.isArray(result?.continuations) || result.continuations.length > 40 || new Set(result.continuations.map(row => row.id)).size !== result.continuations.length || new Set(result.continuations.map(row => row.idempotencyKey)).size !== result.continuations.length) throw new Error('The continuation history could not be verified. Refresh before continuing.');
-    return result.continuations.map(row => verified(row, project, actor));
-  },
+  listState,
+  async list(project: string, actor: string, signal?: AbortSignal) { return (await listState(project, actor, signal)).continuations; },
   async get(project: string, actor: string, id: string, signal?: AbortSignal) {
     return verified(await productApi.request<CoordinatorContinuation>(`${base(project)}/${encodeURIComponent(id)}`, undefined, 'GET', 30_000, signal), project, actor, id);
   },

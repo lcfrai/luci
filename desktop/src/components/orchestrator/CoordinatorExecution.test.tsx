@@ -1,9 +1,9 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import { CoordinatorExecution } from './CoordinatorExecution';
-import { coordinatorContinuationsApi as api, type CoordinatorContinuation } from '../../api/coordinatorContinuations';
+import { coordinatorContinuationsApi as api, type CoordinatorContinuation, type CoordinatorSavedRoute } from '../../api/coordinatorContinuations';
 import { coordinatorPolicyApi, type CoordinatorPolicy } from '../../api/coordinatorPolicy';
 import { ApiError } from '../../api/client';
 import type { CreateSessionRequest } from '../../api/client';
@@ -24,7 +24,7 @@ async function configure() { const button = await screen.findByRole('button', { 
 beforeEach(() => {
   vi.restoreAllMocks(); resetCockpit(); localStorage.clear();
   useCockpit.setState({ worktreesByBranch: { b: [aWorktree({ id: 'w-1', projectId: 'p-1', branchId: 'b', isPrimary: true })] }, selection: { projectId: 'p-1', branchId: 'b', worktreeId: 'w-1', sessionId: null } });
-  vi.spyOn(coordinatorPolicyApi, 'get').mockResolvedValue(policy()); vi.spyOn(api, 'list').mockResolvedValue([]);
+  vi.spyOn(coordinatorPolicyApi, 'get').mockResolvedValue(policy()); vi.spyOn(api, 'listState').mockResolvedValue({ continuations: [], savedRoute: null });
   vi.spyOn(api, 'create').mockImplementation(async (_project, _actor, input) => row({ idempotencyKey: input.idempotencyKey }));
   vi.spyOn(api, 'advance').mockResolvedValue(row());
   vi.spyOn(coordinatorPolicyApi, 'save').mockResolvedValue(policy({ revision: 3 }));
@@ -47,7 +47,7 @@ it.each(['unapproved', 'unsaved', 'question', 'foreign-turn', 'unapplied', 'no-e
   if (reason === 'no-execute') input.canExecute = false; if (reason === 'no-edit') input.canEdit = false;
   if (reason === 'plan-base') input.view.context.plan.specificationRevision = 1;
   if (reason === 'wrong-checkout') useCockpit.setState({ selection: { projectId: 'p-1', branchId: 'b', worktreeId: 'foreign', sessionId: null } });
-  render(<CoordinatorExecution {...input} />); await waitFor(() => expect(api.list).toHaveBeenCalledTimes(1));
+  render(<CoordinatorExecution {...input} />); await waitFor(() => expect(api.listState).toHaveBeenCalledTimes(1));
   expect(screen.getByRole('button', { name: 'Configure continued work' })).toHaveProperty('disabled', true); expect(api.create).not.toHaveBeenCalled();
 });
 it('requires explicit execution consent and preserves existing draft policy rather than treating credentials as authority', async () => {
@@ -65,10 +65,10 @@ it('retains a lost create through remount and requires exact key/actor/project r
   await userEvent.click(screen.getByRole('button', { name: 'Submit reviewed route' })); await screen.findByText(/Reply lost/);
   const sent = vi.mocked(api.create).mock.calls[0][2]; expect(records()).toHaveLength(1); first.unmount();
   render(<CoordinatorExecution {...input} />); await screen.findByText(/New requests are paused/);
-  vi.mocked(api.list).mockResolvedValue([row({ idempotencyKey: 'different-request' })]);
-  await userEvent.click(screen.getByRole('button', { name: 'Refresh continued work' })); await waitFor(() => expect(api.list).toHaveBeenCalledTimes(3));
+  vi.mocked(api.listState).mockResolvedValue({ continuations: [row({ idempotencyKey: 'different-request' })], savedRoute: null });
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh continued work' })); await waitFor(() => expect(api.listState).toHaveBeenCalledTimes(3));
   expect(records()).toHaveLength(1);
-  vi.mocked(api.list).mockResolvedValue([row({ idempotencyKey: sent.idempotencyKey })]);
+  vi.mocked(api.listState).mockResolvedValue({ continuations: [row({ idempotencyKey: sent.idempotencyKey })], savedRoute: null });
   await userEvent.click(screen.getByRole('button', { name: 'Refresh continued work' })); await screen.findByText(/exact retained request was observed/);
   expect(records()).toHaveLength(0); expect(api.create).toHaveBeenCalledTimes(1);
 });
@@ -80,16 +80,16 @@ it('preserves an uncertain create after permission churn even if its successful 
   expect(screen.queryByText(/continuation is retained/)).toBeNull();
 });
 it('hides cached private work on actual read denial while retaining unknown request bytes', async () => {
-  vi.mocked(api.list).mockResolvedValue([row()]); render(<CoordinatorExecution {...props()} />);
+  vi.mocked(api.listState).mockResolvedValue({ continuations: [row()], savedRoute: null }); render(<CoordinatorExecution {...props()} />);
   await screen.findByRole('article', { name: 'Selected continuation' });
-  vi.mocked(api.list).mockRejectedValue(new ApiError('conflict', 'Read revoked', 403));
+  vi.mocked(api.listState).mockRejectedValue(new ApiError('conflict', 'Read revoked', 403));
   await userEvent.click(screen.getByRole('button', { name: 'Refresh continued work' })); await screen.findByText(/Current access was refused/);
   expect(screen.queryByRole('article')).toBeNull(); expect(screen.queryByRole('button', { name: 'Inspect this build' })).toBeNull();
 });
 it('does not treat a client-generated scope 409 as a settled refusal', async () => {
   vi.mocked(api.create).mockRejectedValue(new ApiError('conflict', 'Workspace changed', 409)); render(<CoordinatorExecution {...props()} />); await configure();
   await userEvent.click(screen.getByRole('button', { name: 'Submit reviewed route' })); await screen.findByText(/Workspace changed/); await userEvent.click(screen.getByRole('button', { name: 'Close picker' }));
-  await userEvent.click(screen.getByRole('button', { name: 'Refresh continued work' })); await waitFor(() => expect(api.list).toHaveBeenCalledTimes(2));
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh continued work' })); await waitFor(() => expect(api.listState).toHaveBeenCalledTimes(2));
   expect(records()).toHaveLength(1); expect(api.create).toHaveBeenCalledTimes(1);
 });
 it('observes a definite refusal before allowing a freshly configured new request', async () => {
@@ -108,7 +108,7 @@ it('refuses launch when durable browser request storage cannot be written', asyn
   await userEvent.click(screen.getByRole('button', { name: 'Submit reviewed route' })); await screen.findByText('Disk unavailable'); expect(api.create).not.toHaveBeenCalled();
 });
 it('explicitly advances only the retained exact revision and never announces queued as successful delivery', async () => {
-  vi.mocked(api.list).mockResolvedValue([row({ status: 'unknown', revision: 3, message: 'Check exact action settlement' })]);
+  vi.mocked(api.listState).mockResolvedValue({ continuations: [row({ status: 'unknown', revision: 3, message: 'Check exact action settlement' })], savedRoute: null });
   const input = props(); render(<CoordinatorExecution {...input} />); await screen.findByRole('article');
   await userEvent.click(screen.getByRole('button', { name: 'Continue retained work' }));
   await waitFor(() => expect(api.advance).toHaveBeenCalledExactlyOnceWith('p-1', 'alice', 'continue-one', 3));
@@ -137,13 +137,13 @@ it('suppresses a late create response after switching to another project and pre
   expect(screen.queryByRole('article')).toBeNull(); expect(api.create).toHaveBeenCalledTimes(1);
 });
 it('revalidates through the server after ordinary source changes instead of permanently freezing the captured continuation', async () => {
-  vi.mocked(api.list).mockResolvedValue([row()]); const input = props(); input.view.context.digest = 'after-code-change';
+  vi.mocked(api.listState).mockResolvedValue({ continuations: [row()], savedRoute: null }); const input = props(); input.view.context.digest = 'after-code-change';
   render(<CoordinatorExecution {...input} />); await screen.findByText(/current context observation differs/);
   await userEvent.click(screen.getByRole('button', { name: 'Continue retained work' }));
   await waitFor(() => expect(api.advance).toHaveBeenCalledExactlyOnceWith('p-1', 'alice', 'continue-one', 4));
 });
 it('reports independent checks as separate from preview or successful deployment', async () => {
-  vi.mocked(api.list).mockResolvedValue([row({ status: 'checks-verified', delivery: { actionId: 'continue-one-checks', checkId: 'check-one', status: 'verified', commit: 'a'.repeat(40), sourceDigest: 'b'.repeat(64), integrationDigest: 'c'.repeat(64), message: 'The exact independent check passed', startedAt: '2026-10-12T00:00:00Z', updatedAt: '2026-10-12T00:00:01Z' } })]);
+  vi.mocked(api.listState).mockResolvedValue({ continuations: [row({ status: 'checks-verified', delivery: { actionId: 'continue-one-checks', checkId: 'check-one', status: 'verified', commit: 'a'.repeat(40), sourceDigest: 'b'.repeat(64), integrationDigest: 'c'.repeat(64), message: 'The exact independent check passed', startedAt: '2026-10-12T00:00:00Z', updatedAt: '2026-10-12T00:00:01Z' } })], savedRoute: null });
   render(<CoordinatorExecution {...props()} />); await screen.findByRole('region', { name: 'Independent check evidence' });
   expect(screen.getByText(/Preview, release and deployment remain separate/)).not.toBeNull(); expect(api.advance).not.toHaveBeenCalled();
 });
@@ -159,10 +159,88 @@ it('refreshes retained policy when the adjacent draft policy changes, clearing o
 });
 it('aborts explicit policy/history reads when the current project surface unmounts', async () => {
   const input = props(), ui = render(<CoordinatorExecution {...input} />); await configure(); await userEvent.click(screen.getByRole('button', { name: 'Close picker' }));
-  const held = deferred<CoordinatorContinuation[]>(); vi.mocked(api.list).mockReturnValue(held.promise);
+  const held = deferred<{ continuations: CoordinatorContinuation[]; savedRoute: null }>(); vi.mocked(api.listState).mockReturnValue(held.promise);
   await userEvent.click(screen.getByRole('button', { name: 'Refresh continued work' }));
-  const signal = vi.mocked(api.list).mock.calls[1][2]!;
+  const signal = vi.mocked(api.listState).mock.calls[1][2]!;
   expect(signal.aborted).toBe(false); expect(vi.mocked(coordinatorPolicyApi.get).mock.calls[1][1]).toBe(signal);
   ui.unmount(); expect(signal.aborted).toBe(true);
-  await act(async () => held.resolve([row()])); expect(api.create).not.toHaveBeenCalled();
+  await act(async () => held.resolve({ continuations: [row()], savedRoute: null })); expect(api.create).not.toHaveBeenCalled();
+});
+
+const savedRoute = (): CoordinatorSavedRoute => ({ revision: 5, route: { worktreeId: 'w-1', harness: 'codex', model: 'model', permissionMode: 'bypass', agentConnectionId: 'configured', outcome: 'preview' }, maxParallel: 4, updatedAt: '2026-10-12T00:00:00Z', checkPlan: { commands: [{ label: 'npm', executable: 'npm', args: ['test'] }], requirementIds: ['REQ-1'], requirementSnapshots: [{ id: 'REQ-1', title: 'Book', acceptance: 'A visitor can book' }], acknowledgeProjectCommands: true } });
+const withRequirements = () => { const input = props(); input.view.context.plan.tasks[0].requirementIds = ['REQ-1']; return input; };
+it('automatically continues one applied approved amendment using the exact delegated route, without reopening route controls', async () => {
+  const saved = savedRoute(); vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: saved });
+  const input = withRequirements(), ui = render(<CoordinatorExecution {...input} />);
+  await waitFor(() => expect(api.create).toHaveBeenCalledTimes(1));
+  expect(vi.mocked(api.create).mock.calls[0][2]).toMatchObject({ expectedRouteRevision: 5, expectedPolicyRevision: 2, checkPlan: saved.checkPlan, maxParallel: 4, run: { ...saved.route, implementationContext: { projectId: 'p-1', specificationRevision: 2, taskIds: ['T-1'] } } });
+  expect(screen.queryByRole('dialog')).toBeNull(); ui.rerender(<CoordinatorExecution {...input} />);
+  expect(api.create).toHaveBeenCalledTimes(1);
+});
+it.each(['acceptance', 'coverage', 'no-plan', 'manual-policy', 'unapplied', 'other-person', 'existing', 'draft', 'authority', 'checkout'])('does not automatically reuse a saved route when %s changed', async condition => {
+  const input = withRequirements(), saved = savedRoute(); let rows: CoordinatorContinuation[] = [];
+  if (condition === 'acceptance') input.view.context.specification.requirements[0].acceptance = 'Changed acceptance';
+  if (condition === 'coverage') saved.checkPlan!.requirementSnapshots[0].id = 'OLD';
+  if (condition === 'no-plan') delete saved.checkPlan;
+  if (condition === 'manual-policy') vi.mocked(coordinatorPolicyApi.get).mockResolvedValue(policy({ executionMode: 'manual' }));
+  if (condition === 'unapplied') delete input.view.turns[0].appliedRevision;
+  if (condition === 'other-person') input.actorId = 'bob'; if (condition === 'existing') rows = [row()];
+  if (condition === 'draft') input.blocked = 'Unsaved definition'; if (condition === 'authority') input.canExecute = false;
+  if (condition === 'checkout') saved.route.worktreeId = 'foreign';
+  vi.mocked(api.listState).mockResolvedValue({ continuations: rows, savedRoute: saved }); render(<CoordinatorExecution {...input} />);
+  await screen.findByText(/Saved upstream route/); expect(api.create).not.toHaveBeenCalled();
+});
+it('retains automatic-start uncertainty across refresh and remount without retrying a POST', async () => {
+  const saved = savedRoute(); vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: saved }); vi.mocked(api.create).mockRejectedValue(new Error('Reply lost'));
+  const input = withRequirements(), ui = render(<CoordinatorExecution {...input} />); await screen.findByText(/Reply lost/);
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh continued work' })); ui.unmount(); render(<CoordinatorExecution {...input} />);
+  await screen.findByText(/New requests are paused/); expect(api.create).toHaveBeenCalledTimes(1);
+});
+it('does not run automatically before resolving a retained browser command draft', async () => {
+  const input = withRequirements();
+  const key = 'luci.project-draft.v1:' + JSON.stringify([JSON.stringify([input.scope, 'coordinator-checks']), 'verification-setup']);
+  localStorage.setItem(key, JSON.stringify({ version: 1, base: 'old', value: { commands: [], executable: 'go', args: '[]', requirementIds: [], buildId: '' }, updatedAt: Date.now() }));
+  vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: savedRoute() }); render(<CoordinatorExecution {...input} />);
+  await userEvent.click(screen.getByText(/Independent checks for continued work/)); await screen.findByRole('region', { name: 'Continued-work checks draft recovery' }); await screen.findByText(/Saved upstream route/); expect(api.create).not.toHaveBeenCalled();
+});
+
+it('records one explicit route and exact command delegation, then clears only the authored command draft after confirmation', async () => {
+  const input = withRequirements(); render(<CoordinatorExecution {...input} />); await waitFor(() => expect(screen.getByRole('button', { name: 'Configure continued work' })).toHaveProperty('disabled', false));
+  await userEvent.click(screen.getByText('Independent checks for continued work')); await screen.findByLabelText('Executable'); await userEvent.type(screen.getByLabelText('Executable'), 'npm'); fireEvent.change(screen.getByLabelText('Arguments · JSON array'), { target: { value: '["test"]' } });
+  await userEvent.click(screen.getByRole('button', { name: 'Add check command' }));
+  expect(screen.getByRole('button', { name: 'Configure continued work' })).toHaveProperty('disabled', true);
+  await userEvent.click(screen.getByRole('checkbox', { name: /REQ-1/ })); await userEvent.click(screen.getByRole('checkbox', { name: /I delegate these exact/ })); await configure();
+  await userEvent.click(screen.getByRole('checkbox', { name: /Reuse this upstream route/ })); await userEvent.click(screen.getByRole('button', { name: 'Submit reviewed route' }));
+  await screen.findByText(/continuation is retained/); expect(vi.mocked(api.create).mock.calls[0][2]).toMatchObject({ rememberRoute: true, checkPlan: savedRoute().checkPlan });
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'Remove npm' })).toBeNull()); expect(api.create).toHaveBeenCalledTimes(1);
+});
+it('requires current new amendment approvals, then continues with fresh task IDs under unchanged saved coverage', async () => {
+  const input = withRequirements(); vi.mocked(api.listState).mockResolvedValue({ continuations: [row()], savedRoute: savedRoute() });
+  const ui = render(<CoordinatorExecution {...input} />); await screen.findByRole('article'); expect(api.create).not.toHaveBeenCalled();
+  const next = structuredClone(input.view); next.turns.push({ ...proposalTurn(), id: 'turn-2', appliedRevision: 4 }); next.context.digest = 'b'.repeat(64); next.context.plan.tasks[0].id = 'T-2'; next.context.specification.status = 'draft';
+  ui.rerender(<CoordinatorExecution {...input} view={next} />); await screen.findByText(/Review and approve/); expect(api.create).not.toHaveBeenCalled();
+  const approved = structuredClone(next); approved.context.specification.status = 'approved'; approved.context.digest = 'c'.repeat(64);
+  vi.mocked(api.create).mockImplementation(async (_p, _a, request) => row({ id: 'continue-two', originTurnId: request.originTurnId, contextDigest: request.expectedContextDigest, idempotencyKey: request.idempotencyKey }));
+  ui.rerender(<CoordinatorExecution {...input} view={approved} />); await waitFor(() => expect(api.create).toHaveBeenCalledTimes(1));
+  expect(vi.mocked(api.create).mock.calls[0][2]).toMatchObject({ originTurnId: 'turn-2', expectedContextDigest: approved.context.digest, expectedRouteRevision: 5, run: { implementationContext: { taskIds: ['T-2'] } } });
+});
+it('does not silently drop a newer saved delivery delegation when reusing a route', async () => {
+  const saved = { ...savedRoute(), previewPlan: { dockerfile: 'Dockerfile', port: 3000 } };
+  vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: saved }); render(<CoordinatorExecution {...withRequirements()} />);
+  await screen.findByText(/newer delivery delegation/); expect(api.create).not.toHaveBeenCalled();
+});
+
+it('keeps automatic continuation paused when discarding a retained command draft cannot remove its bytes', async () => {
+  const input = withRequirements(), requirements = savedRoute().checkPlan!.requirementSnapshots;
+  const key = 'luci.project-draft.v1:' + JSON.stringify([JSON.stringify([input.scope, 'coordinator-checks']), 'verification-setup']);
+  const base = JSON.stringify([input.view.context.specification.revision, input.view.context.designPlan.revision, input.view.context.plan.revision, requirements]);
+  localStorage.setItem(key, JSON.stringify({ version: 1, base, value: { commands: [{ label: 'npm', executable: 'npm', args: ['test'] }], executable: '', args: '[]', requirementIds: [], buildId: '' }, updatedAt: Date.now() }));
+  vi.mocked(api.listState).mockResolvedValue({ continuations: [], savedRoute: savedRoute() }); render(<CoordinatorExecution {...input} />);
+  await screen.findByText(/Saved upstream route/); await userEvent.click(screen.getByText(/Independent checks for continued work/));
+  await userEvent.click(await screen.findByRole('button', { name: 'Restore draft' })); expect(api.create).not.toHaveBeenCalled();
+  const remove = Storage.prototype.removeItem; vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(function (this: Storage, target: string) { if (target === key) throw new Error('Storage locked'); return remove.call(this, target); });
+  await userEvent.click(screen.getByRole('button', { name: 'Discard continued-work check setup' }));
+  await screen.findAllByText(/This draft could not be removed/); await act(async () => { await Promise.resolve(); });
+  expect(localStorage.getItem(key)).not.toBeNull(); expect(api.create).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: 'Configure continued work' })).toHaveProperty('disabled', true);
 });

@@ -1,0 +1,91 @@
+
+> @lcfr/luci-desktop@0.5.0 test
+> vitest run src/components/orchestrator/CoordinatorExecution.test.tsx -t discarding a retained command draft --maxWorkers=1
+
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+ ❯ src/components/orchestrator/CoordinatorExecution.test.tsx (42 tests | 1 failed | 41 skipped) 399ms
+   × keeps automatic continuation paused when discarding a retained command draft cannot remove its bytes 397ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/orchestrator/CoordinatorExecution.test.tsx > keeps automatic continuation paused when discarding a retained command draft cannot remove its bytes
+AssertionError: expected "create" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st create call:
+
+    Array [
+      "p-1",
+      "alice",
+      Object {
+        "checkPlan": Object {
+          "acknowledgeProjectCommands": true,
+          "commands": Array [
+            Object {
+              "args": Array [
+                "test",
+              ],
+              "executable": "npm",
+              "label": "npm",
+            },
+          ],
+          "requirementIds": Array [
+            "REQ-1",
+          ],
+          "requirementSnapshots": Array [
+            Object {
+              "acceptance": "A visitor can book",
+              "id": "REQ-1",
+              "title": "Book",
+            },
+          ],
+        },
+        "expectedContextDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "expectedPolicyRevision": 2,
+        "expectedRouteRevision": 5,
+        "idempotencyKey": "9b322caf-b390-4896-9618-dc6fb59c8d9b",
+        "maxParallel": 4,
+        "originTurnId": "turn-1",
+        "run": Object {
+          "agentConnectionId": "configured",
+          "harness": "codex",
+          "implementationContext": Object {
+            "briefRevision": 1,
+            "designPlanRevision": 1,
+            "planRevision": 1,
+            "projectId": "p-1",
+            "specificationRevision": 2,
+            "taskIds": Array [
+              "T-1",
+            ],
+          },
+          "model": "model",
+          "outcome": "preview",
+          "permissionMode": "bypass",
+          "worktreeId": "w-1",
+        },
+      },
+    ]
+
+
+Number of calls: 1
+
+ ❯ src/components/orchestrator/CoordinatorExecution.test.tsx:244:76
+    242|   await userEvent.click(screen.getByRole('button', { name: 'Discard co…
+    243|   await screen.findAllByText(/This draft could not be removed/); await…
+    244|   expect(localStorage.getItem(key)).not.toBeNull(); expect(api.create)…
+       |                                                                            ^
+    245|   expect(screen.getByRole('button', { name: 'Configure continued work'…
+    246| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 41 skipped (42)
+   Start at  16:24:25
+   Duration  3.02s (transform 41%, environment 34%, tests 14%, import 7%, setup 4%)
+

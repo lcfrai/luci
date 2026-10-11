@@ -1,0 +1,22 @@
+{
+  "scope": "282-case final broad run; selected input hashes stable before/after. Later failed-clear fix is separate.",
+  "files": {
+    "desktop/src/api/coordinatorContinuations.ts": "72f500c25eac14920c28b0ef94974d7bb98c2ea0311643fb5f007ff1d0e2614e",
+    "desktop/src/api/coordinatorContinuations.test.ts": "73c3fc1e368e6678e0a355fbd99885b83705e483c9fdb008f9d3d7fe19e01beb",
+    "desktop/src/components/orchestrator/CoordinatorExecution.tsx": "7c2839455025ef61aa1a52bbaa56a38ad5b2941592899fea14bbcce779e0c882",
+    "desktop/src/components/orchestrator/CoordinatorExecution.test.tsx": "0578eadd246580e95924e7140c49213000a13d3d4173affba00a9cb8a0342dff",
+    "desktop/src/components/orchestrator/CoordinatorCheckSetup.tsx": "13cedde1a61026429e375feeabc3237bbe2dac09d7e9e9d1af3e94a4e5d39d28",
+    "desktop/src/components/orchestrator/CoordinatorCheckSetup.test.tsx": "a5c52e2eda622ea0a2775a639426f4c948621df830ad70e289ea94c165bc020c",
+    "desktop/src/components/orchestrator/OrchestratorPanel.tsx": "115cb3bb2cc2a115b30bdd2596b2dfb02fee37b1be648ceb8c75d38a06002727",
+    "desktop/src/components/orchestrator/OrchestratorPanel.test.tsx": "9b0be99f4fed7b884705a028c4389906d5fb3e4c99f7d990a524dcdff5187aad",
+    "desktop/src/components/topbar/SessionPicker.tsx": "e77ce9b47ebcc854a3e5936f4f88be72547cbc56e6d455cc3c768171dd345807",
+    "desktop/src/components/topbar/SessionPicker.test.tsx": "4795f586b5cdd76550840cb5f5be266a65328fabf231dddafb29e06e237ade03",
+    "desktop/src/components/journey/CheckCommandEditor.tsx": "912a9ccfeb98975fb3c61353493ac0d7a3d9bf8d672bffba334bec2dcdf7f1d4",
+    "desktop/src/components/journey/CheckCommandEditor.test.tsx": "eeb876d51fa9e49ff84c6a59dc16031162a5d871c20f09380ed8ea4b745b73cd",
+    "desktop/src/components/journey/ProjectChecks.tsx": "036494c7a7588858d8096a83e47566cefc9fe6774dcd9a3dc9a889bcde35bf9d",
+    "desktop/src/components/journey/ProjectChecks.test.tsx": "b9405b3738238da9c8b251708f4df6b98c95f9c7cc88448d8a3673a4e29a78b0",
+    "desktop/src/store/slices/uiSlice.ts": "212be7b0423b8d2ad4bf65fc27359edd1adfc7917f3bd6617f1e0a1ab0a77d21",
+    "desktop/src/hooks/useProjectDraft.ts": "812c8e8eae1d0df9920f975680d5f1905742c7dc5c7e7bd584162251f18a6ed6",
+    "desktop/src/hooks/projectDraftValidation.ts": "7615bb1a8d86f9bd1b7e034830085bf46312d7a4524a01d8193ef47a7de5108e"
+  }
+}

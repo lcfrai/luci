@@ -37,7 +37,7 @@ const NO_SELECTION: Selection = Object.freeze({
 
 export interface ProjectRunDeploymentIntent { scope: string; projectId: ProjectId; runId: string; checkId: string; commit: string; sourceDigest: string; outcome: "preview" | "publish" }
 /** Unspecified purpose is unsaved shared context. Local check setup still needs navigation/source protection. */
-export interface UnsavedProjectDraft { projectId: ProjectId; label: string; lens: Lens; purpose?: "verification-setup"; retained?: boolean; discard?(): void }
+export interface UnsavedProjectDraft { projectId: ProjectId; label: string; lens: Lens; purpose?: "verification-setup" | "coordinator-setup"; retained?: boolean; discard?(): void }
 export type PendingNavigation =
   | { kind: "project"; projectId: ProjectId | null; lens?: Lens }
   | { kind: "branch"; projectId: ProjectId; branchId: BranchId; worktreeId?: WorktreeId }

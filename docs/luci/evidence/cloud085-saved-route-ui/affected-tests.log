@@ -1,0 +1,629 @@
+
+> @lcfr/luci-desktop@0.5.0 test
+> vitest run src/api/coordinatorContinuations.test.ts src/components/orchestrator/CoordinatorExecution.test.tsx src/components/orchestrator/CoordinatorCheckSetup.test.tsx src/components/orchestrator/OrchestratorPanel.test.tsx src/components/topbar/SessionPicker.test.tsx src/components/journey/CheckCommandEditor.test.tsx src/components/journey/ProjectChecks.test.tsx --maxWorkers=1
+
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+ ❯ src/components/orchestrator/OrchestratorPanel.test.tsx (129 tests | 3 failed) 42275ms
+   × lets a person ask for help beside an actual unfinished check draft without attaching it or weakening navigation protection 199ms
+   × keeps amendments blocked by a local check draft and shared context still blocks sending when both exist 167ms
+   × defers editor remount for a new local setup created while an amendment is saving 297ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/orchestrator/OrchestratorPanel.test.tsx > lets a person ask for help beside an actual unfinished check draft without attaching it or weakening navigation protection
+TestingLibraryElementError: Found multiple elements with the role "textbox" and name "Executable"
+
+Here are the matching elements:
+
+Ignored nodes: comments, script, style
+[36m<input[39m
+  [33mdisabled[39m=[32m""[39m
+  [33mplaceholder[39m=[32m"npm"[39m
+  [33mrequired[39m=[32m""[39m
+  [33mvalue[39m=[32m""[39m
+[36m/>[39m
+
+Ignored nodes: comments, script, style
+[36m<input[39m
+  [33mplaceholder[39m=[32m"npm"[39m
+  [33mrequired[39m=[32m""[39m
+  [33mvalue[39m=[32m""[39m
+[36m/>[39m
+
+(If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m""[39m
+[36m>[39m
+  [36m<div>[39m
+    [36m<aside[39m
+      [33maria-label[39m=[32m"Project understanding"[39m
+      [33mclass[39m=[32m"orchestrator orchestrator-open"[39m
+    [36m>[39m
+      [36m<header[39m
+        [33mclass[39m=[32m"orchestrator-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<h2>[39m
+            [0mProject understanding[0m
+          [36m</h2>[39m
+          [36m<p>[39m
+            [0mOne conversation across your project.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-md font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-primary h-7 gap-1.5 px-3 text-xs"[39m
+          [33mdata-size[39m=[32m"sm"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"default"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mTalk to Luci[0m
+          [36m</span>[39m
+        [36m</button>[39m
+        [36m<button[39m
+          [33maria-controls[39m=[32m"_r_ak_"[39m
+          [33maria-expanded[39m=[32m"true"[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-md font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-7 gap-1.5 px-3 text-xs"[39m
+          [33mdata-size[39m=[32m"sm"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"secondary"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mHide project overview[0m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</header>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"orchestrator-body"[39m
+        [33mid[39m=[32m"_r_ak_"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"orchestrator-toolbar"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"orchestrator-muted"[39m
+          [36m>[39m
+            [0mSaved shared context[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-md font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-ghost h-7 gap-1.5 px-3 text-xs"[39m
+            [33mdata-size[39m=[32m"sm"[39m
+            [33mdata-slot[39m=[32m"button"[39m
+            [33mdata-variant[39m=[32m"ghost"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<span>[39m
+              [0mRefresh project understanding[0m
+            [36m</span>[39m
+          [36m</button>[39m
+        [36m</div>[39m
+        [36m<section[39m
+          [33maria-label[39m=[32m"Current project understanding"[39m
+          [33mclass[39m=[32m"project-understanding"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"understanding-stage"[39m
+          [36m>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"understanding-label"[39m
+            [36m>[39m
+              [0mProject stage[0m
+            [36m</p>[39m
+            [36m<h3>[39m
+              [0mDesign[0m
+            [36m</h3>[39m
+            [36m<p>[39m
+              [0mDecide how it should work[0m
+            [36m</p>[39m
+            [36m<nav[39m
+              [33maria-label[39m=[32m"Project stages"[39m
+            [36m>[39m
+              [36m<ol>[39m
+                [36m<li>[39m
+                  [36m<button[39m
+                    [33maria-label[39m=[32m"Open Discover stage"[39m
+                    [33mtype[39m=[32m"button"[39m
+                  [36m>[39m
+                    [0mDiscover[0m
+                  [36m</button>[39m
+                [36m</li>[39m
+                [36m<li>[39m
+                  [36m<button[39m
+                    [33maria-current[39m=[32m"step"[39m
+                    [33maria-label[39m=[32m"Open Design stage"[39m
+                    [33mtype[39m=[32m"button"[39m
+                  [36m>[39m
+                    [0mDesign[0m
+                  [36m</button>[39m
+                [36m</li>[39m
+                [36m<li>[39m
+                  [36m<button[39m
+                    [33maria-label[39m=[32m"Open Develop stage"[39m
+                    [33mtype[39m=[32m"button"[39m
+                  [36m>[39m
+                    [0mDevelop[0m
+                  [36m</button>[39m
+                [36m</li>[39m
+                [36m<li>[39m
+                  [36m<button[39m
+                    [33maria-label[39m=[32m"Open Deploy stage"[39m
+                    [33mtype[39m=[32m"button"[39m
+                  [36m>[39m
+                    [0mDeploy[0m
+                  [36m</button>[39m
+                [36m</li>[39m
+              [36m</ol>[39m
+            [36m</nav>[39m
+            [36m<small>[39m
+              [0mYou can revisit any stage. The next step follows the saved context and verified work.[0m
+            [36m</small>[39m
+          [36m</div>[39m
+          [36m<section[39m
+            [33maria-labelledby[39m=[32m"understanding-idea-p-1"[39m
+          [36m>[39m
+            [36m<h3[39m
+              [33mid[39m=[32m"understanding-idea-p-1"[39m
+            [36m>[39m
+              [0mWhat we’re building[0m
+            [36m</h3>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"understanding-purpose"[39m
+            [36m>[39m
+              [0mA booking service[0m
+            [36m</p>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"understanding-label"[39m
+            [36m>[39m
+              [0mReviewed definition[0m
+              [0m · Revision 2[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [36m<strong>[39m
+                [0mFor [0m
+              [36m</strong>[39m
+              [0mVisitors[0m
+            [36m</p>[39m
+            [36m<button[39m
+              [33maria-controls[39m=[32m"_r_am_"[39m
+              [33maria-expanded[39m=[32m"false"[39m
+              [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+              [33mdata-size[39m=[32m"default"[39m
+              [33mdata-slot[39m=[32m"button"[39m
+              [33mdata-variant[39m=[32m...
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ getElementError node_modules/@testing-library/dom/dist/query-helpers.js:20:35
+ ❯ getMultipleElementsFoundError node_modules/@testing-library/dom/dist/query-helpers.js:23:10
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:55:13
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ authorLocalChecks src/components/orchestrator/OrchestratorPanel.test.tsx:867:27
+    865| async function authorLocalChecks() {
+    866|   await screen.findByRole("button", { name: "Remove Acceptance tests" …
+    867|   fireEvent.change(screen.getByRole("textbox", { name: "Executable" })…
+       |                           ^
+    868|   fireEvent.change(screen.getByRole("textbox", { name: "Arguments · JS…
+    869| }
+ ❯ src/components/orchestrator/OrchestratorPanel.test.tsx:874:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/components/orchestrator/OrchestratorPanel.test.tsx > keeps amendments blocked by a local check draft and shared context still blocks sending when both exist
+TestingLibraryElementError: Found multiple elements with the role "textbox" and name "Executable"
+
+Here are the matching elements:
+
+Ignored nodes: comments, script, style
+[36m<input[39m
+  [33mdisabled[39m=[32m""[39m
+  [33mplaceholder[39m=[32m"npm"[39m
+  [33mrequired[39m=[32m""[39m
+  [33mvalue[39m=[32m""[39m
+[36m/>[39m
+
+Ignored nodes: comments, script, style
+[36m<input[39m
+  [33mplaceholder[39m=[32m"npm"[39m
+  [33mrequired[39m=[32m""[39m
+  [33mvalue[39m=[32m""[39m
+[36m/>[39m
+
+(If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m""[39m
+[36m>[39m
+  [36m<div>[39m
+    [36m<aside[39m
+      [33maria-label[39m=[32m"Project understanding"[39m
+      [33mclass[39m=[32m"orchestrator orchestrator-open"[39m
+    [36m>[39m
+      [36m<header[39m
+        [33mclass[39m=[32m"orchestrator-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<h2>[39m
+            [0mProject understanding[0m
+          [36m</h2>[39m
+          [36m<p>[39m
+            [0mOne conversation across your project.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-md font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-primary h-7 gap-1.5 px-3 text-xs"[39m
+          [33mdata-size[39m=[32m"sm"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"default"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mTalk to Luci[0m
+          [36m</span>[39m
+        [36m</button>[39m
+        [36m<button[39m
+          [33maria-controls[39m=[32m"_r_ap_"[39m
+          [33maria-expanded[39m=[32m"true"[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-md font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-7 gap-1.5 px-3 text-xs"[39m
+          [33mdata-size[39m=[32m"sm"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"secondary"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mHide project overview[0m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</header>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"orchestrator-body"[39m
+        [33mid[39m=[32m"_r_ap_"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"orchestrator-toolbar"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"orchestrator-muted"[39m
+          [36m>[39m
+            [0mSaved shared context[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-md font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-ghost h-7 gap-1.5 px-3 text-xs"[39m
+            [33mdata-size[39m=[32m"sm"[39m
+            [33mdata-slot[39m=[32m"button"[39m
+            [33mdata-variant[39m=[32m"ghost"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<span>[39m
+              [0mRefresh project understanding[0m
+            [36m</span>[39m
+          [36m</button>[39m
+        [36m</div>[39m
+        [36m<section[39m
+          [33maria-label[39m=[32m"Current project understanding"[39m
+          [33mclass[39m=[32m"project-understanding"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"understanding-stage"[39m
+          [36m>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"understanding-label"[39m
+            [36m>[39m
+              [0mProject stage[0m
+            [36m</p>[39m
+            [36m<h3>[39m
+              [0mDesign[0m
+            [36m</h3>[39m
+            [36m<p>[39m
+              [0mDecide how it should work[0m
+            [36m</p>[39m
+            [36m<nav[39m
+              [33maria-label[39m=[32m"Project stages"[39m
+            [36m>[39m
+              [36m<ol>[39m
+                [36m<li>[39m
+                  [36m<button[39m
+                    [33maria-label[39m=[32m"Open Discover stage"[39m
+                    [33mtype[39m=[32m"button"[39m
+                  [36m>[39m
+                    [0mDiscover[0m
+                  [36m</button>[39m
+                [36m</li>[39m
+                [36m<li>[39m
+                  [36m<button[39m
+                    [33maria-current[39m=[32m"step"[39m
+                    [33maria-label[39m=[32m"Open Design stage"[39m
+                    [33mtype[39m=[32m"button"[39m
+                  [36m>[39m
+                    [0mDesign[0m
+                  [36m</button>[39m
+                [36m</li>[39m
+                [36m<li>[39m
+                  [36m<button[39m
+                    [33maria-label[39m=[32m"Open Develop stage"[39m
+                    [33mtype[39m=[32m"button"[39m
+                  [36m>[39m
+                    [0mDevelop[0m
+                  [36m</button>[39m
+                [36m</li>[39m
+                [36m<li>[39m
+                  [36m<button[39m
+                    [33maria-label[39m=[32m"Open Deploy stage"[39m
+                    [33mtype[39m=[32m"button"[39m
+                  [36m>[39m
+                    [0mDeploy[0m
+                  [36m</button>[39m
+                [36m</li>[39m
+              [36m</ol>[39m
+            [36m</nav>[39m
+            [36m<small>[39m
+              [0mYou can revisit any stage. The next step follows the saved context and verified work.[0m
+            [36m</small>[39m
+          [36m</div>[39m
+          [36m<section[39m
+            [33maria-labelledby[39m=[32m"understanding-idea-p-1"[39m
+          [36m>[39m
+            [36m<h3[39m
+              [33mid[39m=[32m"understanding-idea-p-1"[39m
+            [36m>[39m
+              [0mWhat we’re building[0m
+            [36m</h3>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"understanding-purpose"[39m
+            [36m>[39m
+              [0mA booking service[0m
+            [36m</p>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"understanding-label"[39m
+            [36m>[39m
+              [0mReviewed definition[0m
+              [0m · Revision 2[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [36m<strong>[39m
+                [0mFor [0m
+              [36m</strong>[39m
+              [0mVisitors[0m
+            [36m</p>[39m
+            [36m<button[39m
+              [33maria-controls[39m=[32m"_r_ar_"[39m
+              [33maria-expanded[39m=[32m"false"[39m
+              [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-9 px-4 py-2"[39m
+              [33mdata-size[39m=[32m"default"[39m
+              [33mdata-slot[39m=[32m"button"[39m
+              [33mdata-variant[39m=[32m...
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ getElementError node_modules/@testing-library/dom/dist/query-helpers.js:20:35
+ ❯ getMultipleElementsFoundError node_modules/@testing-library/dom/dist/query-helpers.js:23:10
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:55:13
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ authorLocalChecks src/components/orchestrator/OrchestratorPanel.test.tsx:867:27
+    865| async function authorLocalChecks() {
+    866|   await screen.findByRole("button", { name: "Remove Acceptance tests" …
+    867|   fireEvent.change(screen.getByRole("textbox", { name: "Executable" })…
+       |                           ^
+    868|   fireEvent.change(screen.getByRole("textbox", { name: "Arguments · JS…
+    869| }
+ ❯ src/components/orchestrator/OrchestratorPanel.test.tsx:896:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/components/orchestrator/OrchestratorPanel.test.tsx > defers editor remount for a new local setup created while an amendment is saving
+TestingLibraryElementError: Found multiple elements with the text of: Arguments · JSON array
+
+Here are the matching elements:
+
+Ignored nodes: comments, script, style
+[36m<input[39m
+  [33mdisabled[39m=[32m""[39m
+  [33mplaceholder[39m=[32m"[\"test\"]"[39m
+  [33mrequired[39m=[32m""[39m
+  [33mvalue[39m=[32m"[]"[39m
+[36m/>[39m
+
+Ignored nodes: comments, script, style
+[36m<input[39m
+  [33mplaceholder[39m=[32m"[\"test\"]"[39m
+  [33mrequired[39m=[32m""[39m
+  [33mvalue[39m=[32m"[]"[39m
+[36m/>[39m
+
+(If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mdata-scroll-locked[39m=[32m"1"[39m
+  [33mstyle[39m=[32m"pointer-events: none;"[39m
+[36m>[39m
+  [36m<span[39m
+    [33maria-hidden[39m=[32m"true"[39m
+    [33mdata-aria-hidden[39m=[32m"true"[39m
+    [33mdata-radix-focus-guard[39m=[32m""[39m
+    [33mstyle[39m=[32m"outline: none; opacity: 0; position: fixed; pointer-events: none;"[39m
+    [33mtabindex[39m=[32m"0"[39m
+  [36m/>[39m
+  [36m<div[39m
+    [33maria-hidden[39m=[32m"true"[39m
+    [33mdata-aria-hidden[39m=[32m"true"[39m
+  [36m>[39m
+    [36m<aside[39m
+      [33maria-label[39m=[32m"Project understanding"[39m
+      [33mclass[39m=[32m"orchestrator orchestrator-open"[39m
+    [36m>[39m
+      [36m<header[39m
+        [33mclass[39m=[32m"orchestrator-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<h2>[39m
+            [0mProject understanding[0m
+          [36m</h2>[39m
+          [36m<p>[39m
+            [0mOne conversation across your project.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-md font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-primary h-7 gap-1.5 px-3 text-xs"[39m
+          [33mdata-size[39m=[32m"sm"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"default"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mTalk to Luci[0m
+          [36m</span>[39m
+        [36m</button>[39m
+        [36m<button[39m
+          [33maria-controls[39m=[32m"_r_b2_"[39m
+          [33maria-expanded[39m=[32m"true"[39m
+          [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-md font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-secondary h-7 gap-1.5 px-3 text-xs"[39m
+          [33mdata-size[39m=[32m"sm"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mdata-variant[39m=[32m"secondary"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mHide project overview[0m
+          [36m</span>[39m
+        [36m</button>[39m
+      [36m</header>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"orchestrator-body"[39m
+        [33mid[39m=[32m"_r_b2_"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"orchestrator-toolbar"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"orchestrator-muted"[39m
+          [36m>[39m
+            [0mSaved shared context[0m
+          [36m</span>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"luci-ui-button inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-md font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 luci-ui-button-ghost h-7 gap-1.5 px-3 text-xs"[39m
+            [33mdata-size[39m=[32m"sm"[39m
+            [33mdata-slot[39m=[32m"button"[39m
+            [33mdata-variant[39m=[32m"ghost"[39m
+            [33mdisabled[39m=[32m""[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<span>[39m
+              [0mRefresh project understanding[0m
+            [36m</span>[39m
+          [36m</button>[39m
+        [36m</div>[39m
+        [36m<section[39m
+          [33maria-label[39m=[32m"Current project understanding"[39m
+          [33mclass[39m=[32m"project-understanding"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"understanding-stage"[39m
+          [36m>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"understanding-label"[39m
+            [36m>[39m
+              [0mProject stage[0m
+            [36m</p>[39m
+            [36m<h3>[39m
+              [0mDesign[0m
+            [36m</h3>[39m
+            [36m<p>[39m
+              [0mDecide how it should work[0m
+            [36m</p>[39m
+            [36m<nav[39m
+              [33maria-label[39m=[32m"Project stages"[39m
+            [36m>[39m
+              [36m<ol>[39m
+                [36m<li>[39m
+                  [36m<button[39m
+                    [33maria-label[39m=[32m"Open Discover stage"[39m
+                    [33mtype[39m=[32m"button"[39m
+                  [36m>[39m
+                    [0mDiscover[0m
+                  [36m</button>[39m
+                [36m</li>[39m
+                [36m<li>[39m
+                  [36m<button[39m
+                    [33maria-current[39m=[32m"step"[39m
+                    [33maria-label[39m=[32m"Open Design stage"[39m
+                    [33mtype[39m=[32m"button"[39m
+                  [36m>[39m
+                    [0mDesign[0m
+                  [36m</button>[39m
+                [36m</li>[39m
+                [36m<li>[39m
+                  [36m<button[39m
+                    [33maria-label[39m=[32m"Open Develop stage"[39m
+                    [33mtype[39m=[32m"button"[39m
+                  [36m>[39m
+                    [0mDevelop[0m
+                  [36m</button>[39m
+                [36m</li>[39m
+                [36m<li>[39m
+                  [36m<button[39m
+                    [33maria-label[39m=[32m"Open Deploy stage"[39m
+                    [33mtype[39m=[32m"button"[39m
+                  [36m>[39m
+                    [0mDeploy[0m
+                  [36m</button>[39m
+                [36m</li>[39m
+              [36m</ol>[39m
+            [36m</nav>[39m
+            [36m<small>[39m
+              [0mYou can revisit any stage. The next step follows the saved context and verified work.[0m
+            [36m</small>[39m
+          [36m</div>[39m
+          [36m<section[39m
+            [33maria-labelledby[39m=[32m"understanding-idea-p-1"[39m
+          [36m>[39m
+            [36m<h3[39m
+              [33mid[39m=[32m"understanding-idea-p-1"[39m
+            [36m>[39m
+              [0mWhat we’re building[0m
+            [36m</h3>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"understanding-purpose"[39m
+            [36m>[39m
+              [0mA booking service[0m
+            [36m</p>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"understanding-label"[39m
+            [36m>[39m
+              [0mReviewed definition[0m
+              [0m · Revision 2[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [36m<strong>[39m
+                [0mFor [0m
+              [36m</strong>[39m
+              [0mVisitors[0m
+            [36m</p>[39m
+            [36m<button[39m
+              [33maria-controls...
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ getElementError node_modules/@testing-library/dom/dist/query-helpers.js:20:35
+ ❯ getMultipleElementsFoundError node_modules/@testing-library/dom/dist/query-helpers.js:23:10
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:55:13
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/components/orchestrator/OrchestratorPanel.test.tsx:937:23
+    935|   await userEvent.click(within(dialog).getByRole("button", { name: "Ap…
+    936|   // An independently mounted editor can change while the network requ…
+    937|   const args = screen.getByLabelText("Arguments · JSON array") as HTML…
+       |                       ^
+    938|   fireEvent.change(args, { target: { value: '["new-draft' } });
+    939|   await act(async () => finish(view({ revision: 4 })));
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed | 6 passed (7)
+      Tests  3 failed | 278 passed (281)
+   Start at  16:19:44
+   Duration  80.90s (tests 79%, environment 12%, transform 6%, import 2%, setup 1%)
+
+    Isolate  7 workers spawned · ~1.70s startup each (spawn + environment, per file)
+             at least ~10.22s faster with isolate: false — reuses workers across files instead of one per file
+

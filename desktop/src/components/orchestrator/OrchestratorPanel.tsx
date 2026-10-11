@@ -92,9 +92,10 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
   const sourceRevision = useCockpit(state => state.projectSourceRevisions[projectId] ?? 0);
   const lens = useCockpit(state => state.lens), setLens = useCockpit(state => state.setLens);
   const drafts = useCockpit(state => Object.values(state.unsavedProjectDrafts).filter(draft => draft.projectId === projectId).map(draft => draft.label).join(", "));
-  const contextDrafts = useCockpit(state => Object.values(state.unsavedProjectDrafts).filter(draft => draft.projectId === projectId && draft.purpose !== "verification-setup").map(draft => draft.label).join(", "));
-  const checkSetupDraft = useCockpit(state => Object.values(state.unsavedProjectDrafts).some(draft => draft.projectId === projectId && draft.purpose === "verification-setup"));
-  const checkSetupRetained = useCockpit(state => Object.values(state.unsavedProjectDrafts).filter(draft => draft.projectId === projectId && draft.purpose === "verification-setup").every(draft => draft.retained));
+  const contextDrafts = useCockpit(state => Object.values(state.unsavedProjectDrafts).filter(draft => draft.projectId === projectId && draft.purpose !== "verification-setup" && draft.purpose !== "coordinator-setup").map(draft => draft.label).join(", "));
+  const checkSetupDraft = useCockpit(state => Object.values(state.unsavedProjectDrafts).some(draft => draft.projectId === projectId && (draft.purpose === "verification-setup" || draft.purpose === "coordinator-setup")));
+  const otherCheckSetup = useCockpit(state => Object.values(state.unsavedProjectDrafts).some(draft => draft.projectId === projectId && draft.purpose === "verification-setup"));
+  const checkSetupRetained = useCockpit(state => Object.values(state.unsavedProjectDrafts).filter(draft => draft.projectId === projectId && (draft.purpose === "verification-setup" || draft.purpose === "coordinator-setup")).every(draft => draft.retained));
   const draftWarning = contextDrafts ? `${contextDrafts} has unsaved edits. Save or discard those edits in the editor before sending or applying; Luci uses saved context.` : "";
   const setupChangeWarning = checkSetupDraft ? checkSetupRetained
     ? "Keep your verification setup for later by changing phase and choosing Keep drafts and continue, or discard the setup before applying this amendment."
@@ -698,7 +699,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
           }} />}
         {view && <CoordinatorExecution projectId={projectId} scope={scope} actorId={actorId} view={view} policyEpoch={policyEpoch} onPolicyUpdated={() => setPolicyEpoch(value => value + 1)}
           canRead={canRead && !access.loading && !access.error} canEdit={canEdit && !access.loading && !access.error} canExecute={access.canExecute && !access.loading && !access.error}
-          blocked={draftWarning || setupChangeWarning || (contextStale || contextRefreshQueued || loading ? "Refresh saved project understanding first." : busy || pendingRequest || uncertain ? "Resolve the current conversation request first." : "")}
+          blocked={draftWarning || (otherCheckSetup ? setupChangeWarning : "") || (contextStale || contextRefreshQueued || loading ? "Refresh saved project understanding first." : busy || pendingRequest || uncertain ? "Resolve the current conversation request first." : "")}
           runOn={setup?.workspace?.mode === "cloud" ? "Connected workspace · Docker compatibility" : "This computer · Docker"}
           onInspect={inspect} onNavigate={setLens} />}
         {view && <CoordinatorTeamIntents projectId={projectId} scope={scope} actorId={actorId} contextDigest={view.context.digest}

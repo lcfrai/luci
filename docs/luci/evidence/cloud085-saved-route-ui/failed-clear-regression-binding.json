@@ -1,0 +1,5 @@
+{
+  "regressionSha256": "468fce680b31de12464b587690638cd8a37fa634f028272beaf2086165d17261",
+  "beforeSourceSha256": "7c2839455025ef61aa1a52bbaa56a38ad5b2941592899fea14bbcce779e0c882",
+  "scope": "Same corrected regression: original unexpected create count1 with retained browser draft. Prior duplicate-text fixture assertion preserved separately."
+}

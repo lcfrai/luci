@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { coordinatorContinuationsApi, type CoordinatorContinuation, type CoordinatorContinuationRequest } from '../../api/coordinatorContinuations';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { coordinatorContinuationsApi, type CoordinatorContinuation, type CoordinatorContinuationRequest, type CoordinatorSavedRoute } from '../../api/coordinatorContinuations';
 import { coordinatorPolicyApi, type CoordinatorPolicy } from '../../api/coordinatorPolicy';
 import type { OrchestratorView } from '../../api/orchestrator';
 import type { CreateSessionRequest } from '../../api/client';
@@ -9,6 +9,7 @@ import { MAX_SWARM_PARALLEL_TASKS } from '../../api/swarmLimits';
 import { useCockpit } from '../../store/store';
 import { selectWorktreeById } from '../../store/selectors';
 import { Button } from '../fluid/components/button';
+import { CoordinatorCheckSetup, type CoordinatorCheckSelection } from './CoordinatorCheckSetup';
 import { SessionPicker } from '../topbar/SessionPicker';
 
 type Pending = { actorId: string; projectId: string; rejected?: true } & (
@@ -20,13 +21,14 @@ const refused = (error: unknown) => error instanceof ProductApiError && [400, 40
 const denied = (error: unknown) => error instanceof ApiError && [401, 403].includes(error.status);
 const states = { ready: 'Ready to continue', continuing: 'Continuing', queued: 'Tasks queued', checking: 'Independent checks running', 'checks-verified': 'Independent checks verified', blocked: 'Needs attention', unknown: 'Outcome unconfirmed', refused: 'Needs attention' };
 const steps = { 'create-run': 'Reviewed build', 'prepare-tasks': 'Task preparation', 'queue-tasks': 'Task dispatch' };
+const MAX_PENDING_BYTES = 512 * 1024;
 const keyFor = (scope: string) => `luci.coordinator-execution.v1:${scope}`;
 function initialRequest(key: string, projectId: string, actorId: string) {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return { raw, value: null as Pending | null, error: '' };
     const value = JSON.parse(raw) as Pending;
-    if (raw.length > 64000 || value.actorId !== actorId || value.projectId !== projectId || (value.rejected !== undefined && value.rejected !== true) || !['create', 'advance', 'policy'].includes(value.kind) ||
+    if (new TextEncoder().encode(raw).length > MAX_PENDING_BYTES || value.actorId !== actorId || value.projectId !== projectId || (value.rejected !== undefined && value.rejected !== true) || !['create', 'advance', 'policy'].includes(value.kind) ||
         value.kind === 'create' && (!value.input?.idempotencyKey || value.input.run?.implementationContext?.projectId !== projectId) ||
         value.kind === 'advance' && (!value.id || !Number.isSafeInteger(value.revision)) || value.kind === 'policy' && !Number.isSafeInteger(value.revision)) throw new Error('The retained continuation request cannot be read. Keep it for recovery; new work is paused.');
     return { raw, value, error: '' };
@@ -46,6 +48,10 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
   const [policy, setPolicy] = useState<CoordinatorPolicy | null>(null), [fresh, setFresh] = useState(false);
   const [error, setError] = useState(''), [notice, setNotice] = useState(''), [busy, setBusy] = useState(''), [readDenied, setReadDenied] = useState(false);
   const [consent, setConsent] = useState(false), [picker, setPicker] = useState<CoordinatorContinuationRequest | null>(null);
+  const [savedRoute, setSavedRoute] = useState<CoordinatorSavedRoute | null>(null), [rememberRoute, setRememberRoute] = useState(false);
+  const [checkSelection, setCheckSelection] = useState<CoordinatorCheckSelection>({ plan: null, dirty: true, problem: 'Reading retained check setup…', draftDigest: '' }), [recordedDraft, setRecordedDraft] = useState('');
+  const checkChanged = useCallback((value: CoordinatorCheckSelection) => setCheckSelection(value), []);
+  const automaticAttempts = useRef(new Set<string>());
   const [parallel, setParallel] = useState(2), [outcome, setOutcome] = useState<'preview' | 'publish'>('preview');
   const worktreeId = useCockpit(state => state.selection.worktreeId), worktree = useCockpit(selectWorktreeById(worktreeId ?? ''));
   const alive = useRef(true), generation = useRef(0), working = useRef(false), readController = useRef<AbortController | null>(null);
@@ -54,6 +60,7 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
     try {
       if (storageError || localStorage.getItem(key) !== rawRef.current) throw new Error('Another window changed the retained continuation. Reopen this project before starting more work.');
       const raw = value ? JSON.stringify(value) : null;
+      if (raw && new TextEncoder().encode(raw).length > MAX_PENDING_BYTES) throw new Error('The exact continuation request exceeds browser recovery limits. Reduce its commands before starting.');
       if (raw) localStorage.setItem(key, raw); else localStorage.removeItem(key);
       rawRef.current = raw; pendingRef.current = value; setPending(value);
     } catch (cause) { setStorageError(errorText(cause)); throw cause; }
@@ -68,22 +75,23 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
     const controller = new AbortController(); readController.current = controller; const signal = controller.signal;
     const ticket = ++generation.current; setFresh(false); setConsent(false); setBusy('read');
     try {
-      const [nextPolicy, nextRows] = await Promise.all([coordinatorPolicyApi.get(projectId, signal), coordinatorContinuationsApi.list(projectId, actorId, signal)]);
+      const [nextPolicy, state] = await Promise.all([coordinatorPolicyApi.get(projectId, signal), coordinatorContinuationsApi.listState(projectId, actorId, signal)]);
+      const nextRows = state.continuations;
       if (!current(ticket) || signal?.aborted) return;
       const retained = pendingRef.current;
       if (explicit && retained) {
         const match = retained.kind === 'create' ? nextRows.find(row => row.idempotencyKey === retained.input.idempotencyKey && row.originTurnId === retained.input.originTurnId && row.contextDigest === retained.input.expectedContextDigest && row.policyRevision === retained.input.expectedPolicyRevision) : retained.kind === 'advance' ? nextRows.find(row => row.id === retained.id && row.revision > retained.revision && !row.actions.some(action => action.status === 'pending' || action.status === 'unknown')) : undefined;
         if (retained.rejected || match || retained.kind === 'policy' && nextPolicy.revision > retained.revision) { persist(null); setNotice(match ? 'The exact retained request was observed. It was not submitted again.' : 'Current authoritative state was read. The retained request was not replayed.'); }
       }
-      setPolicy(nextPolicy); setRows(nextRows); setSelected(previous => nextRows.some(row => row.id === previous) ? previous : nextRows[nextRows.length - 1]?.id ?? '');
+      setPolicy(nextPolicy); setSavedRoute(state.savedRoute); setRows(nextRows); setSelected(previous => nextRows.some(row => row.id === previous) ? previous : nextRows[nextRows.length - 1]?.id ?? '');
       setFresh(true); setReadDenied(false); setError('');
-    } catch (cause) { if (current(ticket) && !signal?.aborted) { setError(errorText(cause)); if (denied(cause)) { setRows([]); setPolicy(null); setReadDenied(true); } } }
+    } catch (cause) { if (current(ticket) && !signal?.aborted) { setError(errorText(cause)); if (denied(cause)) { setRows([]); setPolicy(null); setSavedRoute(null); setReadDenied(true); } } }
     finally { if (readController.current === controller) readController.current = null; if (current(ticket)) setBusy(''); }
   }
   useEffect(() => { alive.current = true; return () => { alive.current = false; generation.current++; readController.current?.abort(); }; }, []);
   useEffect(() => {
     generation.current++; setConsent(false); setPicker(null); setFresh(false);
-    if (!canRead) { setRows([]); setPolicy(null); return; }
+    if (!canRead) { setRows([]); setPolicy(null); setSavedRoute(null); return; }
     void load(false);
     return () => readController.current?.abort();
   }, [projectId, actorId, canRead, canEdit, canExecute, view.context.digest, policyEpoch]);
@@ -93,7 +101,7 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
     working.current = true; const ticket = ++generation.current; setBusy(label); setConsent(false); setError('');
     try {
       const value = await operation();
-      if (!current(ticket) || !latest.current.canEdit) return false;
+      if (!current(ticket) || !latest.current.canEdit || !latest.current.canExecute) return false;
       persist(null); accept(value); return true;
     } catch (cause) {
       if (current(ticket)) {
@@ -110,19 +118,38 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
   const ownTurn = [...view.turns].reverse().find(turn => turn.actor.id === actorId);
   const tasks = view.context.plan.tasks.filter(task => task.status !== 'done');
   const issue = blocked || !canEdit ? blocked || 'Editing access is required to continue implementation.' : !canExecute ? 'Execution access is required to continue implementation.' : !fresh ? 'Read current continuation and policy status first.' : !ownTurn || ownTurn.status !== 'succeeded' || !ownTurn.answer || ownTurn.answer.blocking || ownTurn.answer.proposal && !ownTurn.appliedRevision ? 'Complete and save this conversation’s amendment before implementation.' : view.blockingQuestions.length ? 'Resolve the material project questions first.' : view.context.specification.status !== 'approved' || view.context.designPlan.status !== 'approved' ? 'Review and approve the current definition and design first.' : view.context.plan.briefRevision !== view.context.brief.revision || view.context.plan.specificationRevision !== view.context.specification.revision ? 'Review the implementation plan against the current approved context.' : !tasks.length ? 'No unfinished saved tasks are selected for this amendment.' : !worktree?.isPrimary || worktree.projectId !== projectId ? 'Choose this project’s main checkout before configuring continued work.' : policy?.executionMode !== 'reviewed-tasks' ? 'Enable reviewed-task continuation before starting work.' : rows.some(row => row.originTurnId === ownTurn.id) ? 'This conversation already has a retained continuation. Inspect its recorded work instead of starting it again.' : '';
+  const requirements = useMemo(() => {
+    const ids = new Set(view.context.plan.tasks.filter(task => task.status !== 'done').flatMap(task => task.requirementIds ?? []));
+    return view.context.specification.requirements.filter(row => ids.has(row.id)).map(({ id, title, acceptance }) => ({ id, title, acceptance })).sort((a, b) => a.id.localeCompare(b.id));
+  }, [view.context.plan, view.context.specification]);
+  const checkBase = JSON.stringify([view.context.specification.revision, view.context.designPlan.revision, view.context.plan.revision, requirements]);
+  const savedIssue = !savedRoute ? '' : Object.keys(savedRoute).some(key => !['revision', 'route', 'maxParallel', 'updatedAt', 'checkPlan'].includes(key)) ? 'The saved route includes a newer delivery delegation. Use a compatible client before continuing it; its configuration has not been changed.' : !savedRoute.checkPlan ? 'The saved route has no delegated independent checks. Configure exact commands and coverage before automatic continuation.' : savedRoute.route.worktreeId !== worktree?.id ? 'The saved route belongs to a different checkout. Reconfigure it for this project’s main checkout.' : requirements.length !== savedRoute.checkPlan.requirementSnapshots.length || !requirements.every(item => savedRoute.checkPlan!.requirementSnapshots.some(prior => prior.id === item.id && prior.title === item.title && prior.acceptance === item.acceptance)) ? 'The selected requirements or their acceptance text changed. Review the commands and delegate their new coverage before reusing this route.' : '';
   const row = rows.find(value => value.id === selected);
   const start = () => {
-    if (issue || pendingRef.current || working.current || storageError || !policy || !ownTurn || !worktree) return;
-    setParallel(Math.min(2, tasks.length)); setOutcome('preview');
+    if (issue || checkSelection.problem || pendingRef.current || working.current || storageError || !policy || !ownTurn || !worktree) return;
+    setParallel(Math.min(2, tasks.length)); setOutcome('preview'); setRememberRoute(false);
     setPicker({ idempotencyKey: crypto.randomUUID(), originTurnId: ownTurn.id, expectedContextDigest: view.context.digest, expectedPolicyRevision: policy.revision, maxParallel: Math.min(2, tasks.length), run: { worktreeId: worktree.id, harness: '', model: '', permissionMode: 'ask', outcome: 'preview', implementationContext: { projectId, briefRevision: view.context.brief.revision, planRevision: view.context.plan.revision, specificationRevision: view.context.specification.revision, designPlanRevision: view.context.designPlan.revision, taskIds: tasks.map(task => task.id) } } });
   };
   async function create(selection: CreateSessionRequest) {
     if (!picker || issue || latest.current.blocked || picker.expectedContextDigest !== latest.current.view.context.digest || !selection.implementationContext || JSON.stringify(selection.implementationContext) !== JSON.stringify(picker.run.implementationContext)) return { ok: false as const, message: 'The reviewed selection changed. Close this picker and read the current context before continuing.' };
     if (!Number.isInteger(parallel) || parallel < 1 || parallel > Math.min(MAX_SWARM_PARALLEL_TASKS, tasks.length)) return { ok: false as const, message: 'Choose a concurrency limit within the selected task count.' };
-    const input = { ...picker, maxParallel: parallel, run: { ...picker.run, worktreeId: selection.worktreeId, harness: selection.harness ?? '', model: selection.model ?? '', permissionMode: selection.permissionMode ?? 'ask', ...(selection.effort ? { effort: selection.effort } : {}), ...(selection.agentConnectionId !== undefined ? { agentConnectionId: selection.agentConnectionId } : {}), outcome } };
-    const ok = await mutate('create', { kind: 'create', projectId, actorId, input }, () => coordinatorContinuationsApi.create(projectId, actorId, input), value => { remember(value); setPicker(null); setNotice('The continuation is retained. Queued work is not yet verified or deployed.'); });
+    if (checkSelection.problem || checkSelection.dirty && !checkSelection.plan) return { ok: false as const, message: checkSelection.problem || 'Review the exact check command delegation first.' };
+    const input: CoordinatorContinuationRequest = { ...picker, rememberRoute, ...(checkSelection.plan ? { checkPlan: checkSelection.plan } : {}), maxParallel: parallel, run: { ...picker.run, worktreeId: selection.worktreeId, harness: selection.harness ?? '', model: selection.model ?? '', permissionMode: selection.permissionMode ?? 'ask', ...(selection.effort ? { effort: selection.effort } : {}), ...(selection.agentConnectionId !== undefined ? { agentConnectionId: selection.agentConnectionId } : {}), outcome } };
+    const ok = await mutate('create', { kind: 'create', projectId, actorId, input }, () => coordinatorContinuationsApi.create(projectId, actorId, input), value => { remember(value); if (input.checkPlan) setRecordedDraft(checkSelection.draftDigest); setPicker(null); setNotice('The continuation is retained. Queued work is not yet verified or deployed.'); });
     return ok ? { ok: true as const } : { ok: false as const, message: 'The continuation outcome needs readback in Luci. Close this picker and refresh continued work; do not submit it again.' };
   }
+  useEffect(() => {
+    if (issue || savedIssue || !savedRoute || !savedRoute.checkPlan || !ownTurn?.appliedRevision || !ownTurn.answer?.proposal || !policy || !worktree || !fresh || busy || pending || storageError || picker || checkSelection.dirty || checkSelection.problem) return;
+    const identity = `${actorId}:${projectId}:${ownTurn.id}`;
+    if (automaticAttempts.current.has(identity)) return;
+    automaticAttempts.current.add(identity);
+    const input: CoordinatorContinuationRequest = {
+      idempotencyKey: crypto.randomUUID(), originTurnId: ownTurn.id, expectedContextDigest: view.context.digest, expectedPolicyRevision: policy.revision,
+      expectedRouteRevision: savedRoute.revision, maxParallel: savedRoute.maxParallel, checkPlan: savedRoute.checkPlan,
+      run: { ...savedRoute.route, implementationContext: { projectId, briefRevision: view.context.brief.revision, planRevision: view.context.plan.revision, specificationRevision: view.context.specification.revision, designPlanRevision: view.context.designPlan.revision, taskIds: tasks.map(task => task.id) } },
+    };
+    void mutate('create', { kind: 'create', projectId, actorId, input }, () => coordinatorContinuationsApi.create(projectId, actorId, input), value => { remember(value); setNotice('Luci continued this approved amendment using your saved route and exact check delegation. Completion and deployment remain subject to their own evidence and policy.'); });
+  }, [issue, savedIssue, savedRoute, ownTurn, policy, worktree, fresh, busy, pending, storageError, picker, checkSelection.dirty, checkSelection.problem, actorId, projectId, view.context.digest]);
   async function advance() {
     if (!row || !canExecute || blocked) return;
     await mutate('advance', { kind: 'advance', actorId, projectId, id: row.id, revision: row.revision }, () => coordinatorContinuationsApi.advance(projectId, actorId, row.id, row.revision), remember);
@@ -144,8 +171,11 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
         {row.status !== 'checks-verified' && <Button variant="secondary" disabled={!canEdit || !canExecute || !fresh || !!busy || !!pending || !!storageError || !!blocked} onClick={() => void advance()}>Continue retained work</Button>}
       </article>}
       {policy && policy.executionMode !== 'reviewed-tasks' && <details><summary>Implementation permission</summary><p>Allow Luci to prepare and queue reviewed tasks with your chosen upstream route. Current access, approvals, resource and provider limits still apply. This does not authorize deployment or change draft policy.</p><label className="orchestrator-ack"><input type="checkbox" checked={consent} disabled={!canEdit || !canExecute || !fresh || !!busy || !!pending} onChange={event => setConsent(event.target.checked)} />Allow reviewed-task continuation in this project.</label><Button variant="secondary" disabled={!consent || !canEdit || !canExecute || !fresh || !!busy || !!pending || !!storageError} onClick={() => void enableExecution()}>Enable reviewed-task continuation</Button></details>}
+      {savedRoute && <p>Saved upstream route: {savedRoute.route.harness} · {savedRoute.route.model || 'configured model'} · up to {savedRoute.maxParallel} tasks. Luci reuses only this exact route and check delegation for your later approved amendments while reviewed-task permission remains enabled.</p>}
+      {savedIssue && <p role="status">{savedIssue}</p>}
+      <CoordinatorCheckSetup projectId={projectId} scope={scope} base={checkBase} requirements={requirements} disabled={!canEdit || !canExecute || !fresh || !!busy || !!pending || !!storageError || !!blocked} recordedDraft={recordedDraft} onChange={checkChanged} />
       {issue && <p>{issue}</p>}
-      <Button variant="primary" disabled={!!issue || !!pending || !!busy || !!storageError} onClick={start}>Configure continued work</Button>
+      <Button variant="primary" disabled={!!issue || !!pending || !!busy || !!storageError || !!checkSelection.problem} onClick={start}>Configure continued work</Button>
       {(view.context.specification.status !== 'approved' || view.context.designPlan.status !== 'approved') && <Button variant="ghost" onClick={() => onNavigate(view.context.specification.status !== 'approved' ? 'discover' : 'design')}>Review current context</Button>}
     </>}
     <Button variant="ghost" disabled={!!busy} onClick={() => void load(true)}>Refresh continued work</Button>
@@ -154,6 +184,8 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
       <p>Run on: {runOn}. This starts only the selected saved tasks; successful deployment is not implied.</p>
       <label className="luci-field">Maximum parallel tasks<input type="number" min={1} max={Math.min(MAX_SWARM_PARALLEL_TASKS, picker?.run.implementationContext.taskIds.length ?? 1)} value={parallel} onChange={event => setParallel(Number(event.target.value))} /></label>
       <label className="luci-field">Intended delivery outcome<select value={outcome} onChange={event => setOutcome(event.target.value as typeof outcome)}><option value="preview">Working preview</option><option value="publish">Published application</option></select></label>
+      <label className="setup-check"><input type="checkbox" checked={rememberRoute} onChange={event => setRememberRoute(event.target.checked)} />Reuse this upstream route and exact check delegation for my later approved amendments under the current policy.</label>
+      {!checkSelection.plan && <p>No independent check plan is delegated. Work will need check configuration after task integration.</p>}
       <p>Choosing an outcome does not approve deployment, grant cloud spend or bypass release checks.</p>
     </SessionPicker>
   </section>;

@@ -1,0 +1,22 @@
+{
+  "scope": "Selected final inputs captured during affected-test/TypeScript execution. Not a before-command capture or exhaustive compiler closure. Source unchanged by this owner during these commands.",
+  "files": {
+    "desktop/src/api/coordinatorContinuations.ts": "72f500c25eac14920c28b0ef94974d7bb98c2ea0311643fb5f007ff1d0e2614e",
+    "desktop/src/api/coordinatorContinuations.test.ts": "73c3fc1e368e6678e0a355fbd99885b83705e483c9fdb008f9d3d7fe19e01beb",
+    "desktop/src/components/orchestrator/CoordinatorExecution.tsx": "e22dc549a1a6c65c0b23717aef39bd1ae9f3055463222702dc535289210fbca0",
+    "desktop/src/components/orchestrator/CoordinatorExecution.test.tsx": "e2b841f4063bd4c0bc1f4f27c79da50e7dec01fc53624a914643354933771ea5",
+    "desktop/src/components/orchestrator/CoordinatorCheckSetup.tsx": "0e825dfbbb729cfba77d007eba17a4809c76b8bcf1680d1d1e1ae7f9fd6a726d",
+    "desktop/src/components/orchestrator/CoordinatorCheckSetup.test.tsx": "06f279e7c92dc7e993681ab5ff1bda2f3b4da6ab351a8df709f40696ad22240b",
+    "desktop/src/components/orchestrator/OrchestratorPanel.tsx": "115cb3bb2cc2a115b30bdd2596b2dfb02fee37b1be648ceb8c75d38a06002727",
+    "desktop/src/components/orchestrator/OrchestratorPanel.test.tsx": "9b0be99f4fed7b884705a028c4389906d5fb3e4c99f7d990a524dcdff5187aad",
+    "desktop/src/components/topbar/SessionPicker.tsx": "e77ce9b47ebcc854a3e5936f4f88be72547cbc56e6d455cc3c768171dd345807",
+    "desktop/src/components/topbar/SessionPicker.test.tsx": "4795f586b5cdd76550840cb5f5be266a65328fabf231dddafb29e06e237ade03",
+    "desktop/src/components/journey/CheckCommandEditor.tsx": "912a9ccfeb98975fb3c61353493ac0d7a3d9bf8d672bffba334bec2dcdf7f1d4",
+    "desktop/src/components/journey/CheckCommandEditor.test.tsx": "eeb876d51fa9e49ff84c6a59dc16031162a5d871c20f09380ed8ea4b745b73cd",
+    "desktop/src/components/journey/ProjectChecks.tsx": "036494c7a7588858d8096a83e47566cefc9fe6774dcd9a3dc9a889bcde35bf9d",
+    "desktop/src/components/journey/ProjectChecks.test.tsx": "b9405b3738238da9c8b251708f4df6b98c95f9c7cc88448d8a3673a4e29a78b0",
+    "desktop/src/store/slices/uiSlice.ts": "212be7b0423b8d2ad4bf65fc27359edd1adfc7917f3bd6617f1e0a1ab0a77d21",
+    "desktop/src/hooks/useProjectDraft.ts": "812c8e8eae1d0df9920f975680d5f1905742c7dc5c7e7bd584162251f18a6ed6",
+    "desktop/src/hooks/projectDraftValidation.ts": "7615bb1a8d86f9bd1b7e034830085bf46312d7a4524a01d8193ef47a7de5108e"
+  }
+}
