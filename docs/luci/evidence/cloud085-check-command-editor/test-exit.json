@@ -1,0 +1,4 @@
+{
+  "exitCode": 0,
+  "command": "npm --prefix desktop test -- src/components/journey/CheckCommandEditor.test.tsx src/components/journey/ProjectChecks.test.tsx --maxWorkers=1"
+}

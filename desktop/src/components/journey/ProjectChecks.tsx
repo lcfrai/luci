@@ -16,6 +16,7 @@ import { useCockpit } from "../../store/store";
 import { useProjectAccess } from "../../hooks/useProjectAccess";
 import { ApiError } from "../../api/client";
 import { CheckRecoveryDialog } from "./CheckRecoveryDialog";
+import { CheckCommandEditor } from "./CheckCommandEditor";
 import { Button } from "../fluid/components/button";
 import { RequirementsEvidence, commandStatus, evidenceLabel, watchRequirementEvidence } from "./RequirementsEvidence";
 
@@ -391,35 +392,21 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
         </label>)}
         {!!requirementIds.length && <Button type="button" variant="tertiary" disabled={!canExecute || busy || !!activeIds || !!draft.pending} onClick={() => { editSetup(); setRequirementIds([]); selectedContext.current = null; }}>Clear requirement selection</Button>}
       </details>
-      <ul className="check-commands">
-        {commands.map((command, index) => (
-          <li key={index}>
-            <div>
-              <strong>{command.label}</strong>
-              <code>
-                {command.executable}{" "}
-                {command.args.map((arg) => JSON.stringify(arg)).join(" ")}
-              </code>
-            </div>
-            <Button type="button" variant="tertiary"
-              disabled={!canExecute || busy || !!activeIds || !!draft.pending}
-              aria-label={`Remove ${command.label}`}
-              onClick={() => {
-                editSetup();
-                setCommands(commands.filter((_, i) => index !== i));
-                setTrusted(false);
-              }}
-            >
-              Remove
-            </Button>
-          </li>
-        ))}
-      </ul>
-      <details open={!scoped || undefined}><summary>Advanced check commands</summary>
-      <form
-        className="check-command-form"
-        onSubmit={(event) => {
-          event.preventDefault();
+      <CheckCommandEditor
+        commands={commands}
+        executable={executable}
+        args={args}
+        controlsDisabled={!canExecute || busy || !!activeIds || !!draft.pending}
+        fieldsDisabled={!canExecute || !!draft.pending}
+        openAdvanced={!scoped}
+        onRemove={(index) => {
+          editSetup();
+          setCommands(commands.filter((_, i) => index !== i));
+          setTrusted(false);
+        }}
+        onExecutableChange={(value) => { editSetup(); setExecutable(value); }}
+        onArgsChange={(value) => { editSetup(); setArgs(value); }}
+        onAdd={() => {
           if (!canExecute || draft.pending) return;
           try {
             const parsed: unknown = JSON.parse(args);
@@ -446,34 +433,7 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
             setError(errorText(cause));
           }
         }}
-      >
-        <label className="luci-field">
-          Executable
-          <input
-            required
-            disabled={!canExecute || !!draft.pending}
-            value={executable}
-            onChange={(event) => { editSetup(); setExecutable(event.target.value); }}
-            placeholder="npm"
-          />
-        </label>
-        <label className="luci-field">
-          Arguments · JSON array
-          <input
-            required
-            disabled={!canExecute || !!draft.pending}
-            value={args}
-            onChange={(event) => { editSetup(); setArgs(event.target.value); }}
-            placeholder={'["test"]'}
-          />
-        </label>
-        <Button type="submit" variant="secondary"
-          disabled={!canExecute || busy || !!activeIds || !!draft.pending || !executable.trim()}
-        >
-          Add check command
-        </Button>
-      </form>
-      </details>
+      />
       <label className="setup-check">
         <input
           type="checkbox"

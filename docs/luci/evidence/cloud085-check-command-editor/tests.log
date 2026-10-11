@@ -1,0 +1,16 @@
+
+> @lcfr/luci-desktop@0.5.0 test
+> vitest run src/components/journey/CheckCommandEditor.test.tsx src/components/journey/ProjectChecks.test.tsx --maxWorkers=1
+
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+
+ Test Files  2 passed (2)
+      Tests  66 passed (66)
+   Start at  16:12:25
+   Duration  11.50s (tests 63%, transform 16%, environment 16%, import 3%, setup 2%)
+
+    Isolate  2 workers spawned · ~1.05s startup each (spawn + environment, per file)
+             at least ~1.05s faster with isolate: false — reuses workers across files instead of one per file
+

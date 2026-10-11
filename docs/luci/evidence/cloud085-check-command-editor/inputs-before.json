@@ -1,0 +1,46 @@
+{
+  "baseRevision": "e3b7d5212db4455315c98d46a4703a5cff6813a7",
+  "scope": "Selected local component/test and runner inputs, not an exhaustive dependency or compiler manifest.",
+  "files": [
+    {
+      "path": "desktop/src/components/journey/CheckCommandEditor.tsx",
+      "sha256": "912a9ccfeb98975fb3c61353493ac0d7a3d9bf8d672bffba334bec2dcdf7f1d4",
+      "bytes": 2224
+    },
+    {
+      "path": "desktop/src/components/journey/CheckCommandEditor.test.tsx",
+      "sha256": "eeb876d51fa9e49ff84c6a59dc16031162a5d871c20f09380ed8ea4b745b73cd",
+      "bytes": 4443
+    },
+    {
+      "path": "desktop/src/components/journey/ProjectChecks.tsx",
+      "sha256": "036494c7a7588858d8096a83e47566cefc9fe6774dcd9a3dc9a889bcde35bf9d",
+      "bytes": 40049
+    },
+    {
+      "path": "desktop/src/components/journey/ProjectChecks.test.tsx",
+      "sha256": "b9405b3738238da9c8b251708f4df6b98c95f9c7cc88448d8a3673a4e29a78b0",
+      "bytes": 59300
+    },
+    {
+      "path": "desktop/package.json",
+      "sha256": "3423464851fd487363f89beca7a27df2654a94f6b70a74935841a851c9c66bd3",
+      "bytes": 1967
+    },
+    {
+      "path": "desktop/package-lock.json",
+      "sha256": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a",
+      "bytes": 247150
+    },
+    {
+      "path": "desktop/vitest.config.ts",
+      "sha256": "61fe9ff43762dadeb5666eca997ea6c73ef40d4306996ae30294552e1ca7024f",
+      "bytes": 2265
+    },
+    {
+      "path": "desktop/src/test/setup.ts",
+      "sha256": "6873458c092edb343b856df7c92cae4eeaa55caa397d5a908121184301812a57",
+      "bytes": 1173
+    }
+  ]
+}
