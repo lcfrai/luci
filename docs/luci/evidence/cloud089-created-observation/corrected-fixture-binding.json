@@ -1,0 +1,6 @@
+{
+  "path": "control-plane/internal/api/execution_created_inventory_test.go",
+  "sha256": "9d1d1ce0fe5b5958d4e5d9551396122ad10ab0bb82352cfb58991a9e789e9689",
+  "bytes": 6467,
+  "note": "Same corrected Ping fixture used for original production observer admission regression and final correction. First uncorrected fixture failure retained separately."
+}

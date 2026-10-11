@@ -1,0 +1,48 @@
+diff --git a/control-plane/internal/backend/dockerbe/resource_observer.go b/control-plane/internal/backend/dockerbe/resource_observer.go
+index ca69b5dc..c9e62001 100644
+--- a/control-plane/internal/backend/dockerbe/resource_observer.go
++++ b/control-plane/internal/backend/dockerbe/resource_observer.go
+@@ -112,6 +112,13 @@ func (b *Backend) ObserveResources(ctx context.Context) resourcebudget.Execution
+ 			usage.SandboxID = row.Labels[backend.LabelSandboxID]
+ 		}
+ 		inspect, e := b.api.ContainerInspect(ctx, row.ID)
++		if row.State == "created" && e == nil && resourceContainerNeverStarted(row.ID, row.Labels, inspect) {
++			// A verified never-started container has no live CPU/RAM demand or
++			// meaningful stats. Its storage remains in the measured disk bound.
++			// Do not emit a zero-usage row: absence from the live inventory keeps
++			// every owned pending allocation charged by the admission ledger.
++			continue
++		}
+ 		if e == nil && inspect.ContainerJSONBase != nil && inspect.HostConfig != nil {
+ 			if inspect.HostConfig.Memory > 0 {
+ 				v := uint64(inspect.HostConfig.Memory)
+@@ -192,6 +199,29 @@ func (b *Backend) ObserveResources(ctx context.Context) resourcebudget.Execution
+ 	return s
+ }
+ 
++func resourceContainerNeverStarted(id string, labels map[string]string, inspect container.InspectResponse) bool {
++	if _, marker := labels[backend.LabelLaunchFence]; marker {
++		return false // Only the separate full inert-fence shape check exempts markers.
++	}
++	if inspect.Config != nil {
++		if _, marker := inspect.Config.Labels[backend.LabelLaunchFence]; marker {
++			return false
++		}
++	}
++	if id == "" || inspect.ContainerJSONBase == nil || inspect.ID != id || inspect.State == nil {
++		return false
++	}
++	s := inspect.State
++	if s.Status != "created" || s.Running || s.Paused || s.Restarting || s.Dead || s.Pid != 0 || inspect.RestartCount != 0 {
++		return false
++	}
++	if s.StartedAt == "" {
++		return true
++	}
++	started, err := time.Parse(time.RFC3339Nano, s.StartedAt)
++	return err == nil && started.IsZero()
++}
++
+ func containerResourceKind(labels map[string]string) string {
+ 	switch {
+ 	case labels[backend.LabelManaged] == "true":

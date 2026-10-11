@@ -1,0 +1,88 @@
+{
+  "issue": "CLOUD-089",
+  "baseRevision": "03c7ca99",
+  "scope": "Controlled Linux source fixtures. Docker SDK-shaped read-only fake, actual production observer, admission and durable ledger. No Docker daemon/model/app/runtime build/Windows test.",
+  "finalSelectedSources": [
+    {
+      "path": "control-plane/internal/backend/dockerbe/resource_observer.go",
+      "sha256": "c09191a12030db062ba46f91ac6296da8e63f30b5104ae23e2bb944f72bd9dbf",
+      "bytes": 9688
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/resource_created_test.go",
+      "sha256": "dfe6a0745e4b9ae3717ceae0b74faef23745a74acfed5cc087502120b90ad686",
+      "bytes": 4200
+    },
+    {
+      "path": "control-plane/internal/api/execution_created_inventory_test.go",
+      "sha256": "9d1d1ce0fe5b5958d4e5d9551396122ad10ab0bb82352cfb58991a9e789e9689",
+      "bytes": 6467
+    }
+  ],
+  "provenanceLimit": "Selected changed source/test files captured, not full compiled-input provenance. Shared worktree contains separate concurrent uncommitted changes; this receipt does not assert clean whole-checkout tests or final integrated package.",
+  "commands": [
+    "GOMAXPROCS=2 go test -p 1 -count=1 -json ./control-plane/internal/backend/dockerbe -run '^TestResourceObserver(ConfirmedNeverStarted|CreatedExemption|CreatedInspection)'",
+    "GOMAXPROCS=2 go test -p 1 -count=1 -json ./control-plane/internal/api -run '^TestCreated(ContainerInventory|OwnedWorkerCharge)'",
+    "GOMAXPROCS=2 go test -p 1 -count=1 -json ./control-plane/internal/backend/dockerbe ./control-plane/internal/api -run '^(TestResourceObserver|TestLaunchFenceResourceObservation|TestCreatedContainerInventory|TestCreatedOwnedWorkerCharge|TestExecutionAdmissionNeverTreatsMissingAncillaryStatsAsZero|TestExecutionAdmissionDoesNotReplayUnconfirmedChildAfterReopen)'"
+  ],
+  "runs": [
+    {
+      "name": "before",
+      "counts": {
+        "fail_subtest": 2,
+        "fail_top_level": 1,
+        "pass_subtest": 13,
+        "pass_top_level": 2
+      },
+      "failedTests": [
+        "TestResourceObserverConfirmedNeverStartedContainersHaveNoLiveDemand/foreign",
+        "TestResourceObserverConfirmedNeverStartedContainersHaveNoLiveDemand/owned-pending",
+        "TestResourceObserverConfirmedNeverStartedContainersHaveNoLiveDemand"
+      ],
+      "skippedTests": [],
+      "exit": 1
+    },
+    {
+      "name": "before-admission",
+      "counts": {
+        "fail_subtest": 1,
+        "fail_top_level": 1
+      },
+      "failedTests": [
+        "TestCreatedContainerInventoryDoesNotBlockButLiveUnknownStillRefuses/created",
+        "TestCreatedContainerInventoryDoesNotBlockButLiveUnknownStillRefuses"
+      ],
+      "skippedTests": [],
+      "exit": 1
+    },
+    {
+      "name": "before-admission-corrected-fixture",
+      "counts": {
+        "fail_subtest": 1,
+        "pass_subtest": 3,
+        "fail_top_level": 2
+      },
+      "failedTests": [
+        "TestCreatedContainerInventoryDoesNotBlockButLiveUnknownStillRefuses/created",
+        "TestCreatedContainerInventoryDoesNotBlockButLiveUnknownStillRefuses",
+        "TestCreatedOwnedWorkerChargeSurvivesObservationAndReopenAcrossAdmissions"
+      ],
+      "skippedTests": [],
+      "exit": 1
+    },
+    {
+      "name": "after",
+      "counts": {
+        "pass_subtest": 26,
+        "pass_top_level": 11,
+        "skip_top_level": 1
+      },
+      "failedTests": [],
+      "skippedTests": [
+        "TestResourceObserverLiveDaemonReadOnly"
+      ],
+      "exit": 0
+    }
+  ],
+  "originalFailureDistinctFromC087": true
+}

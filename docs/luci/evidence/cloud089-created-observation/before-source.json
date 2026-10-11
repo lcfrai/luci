@@ -1,0 +1,20 @@
+{
+  "head": "f050b6cbc8adb738e57377a171877f6486f417f2",
+  "inputs": [
+    {
+      "path": "control-plane/internal/backend/dockerbe/resource_observer.go",
+      "bytes": 8480,
+      "sha256": "40a3aa49b96d2f72845ba0a7a2391f3a4de8c5f1cf05073f0932f6b08cd418dc"
+    },
+    {
+      "path": "control-plane/internal/backend/dockerbe/resource_created_test.go",
+      "bytes": 4200,
+      "sha256": "dfe6a0745e4b9ae3717ceae0b74faef23745a74acfed5cc087502120b90ad686"
+    },
+    {
+      "path": "control-plane/internal/api/execution_created_inventory_test.go",
+      "bytes": 6323,
+      "sha256": "02e307c1d2c50b47f1d3d8e0e9d378bab02b60133a362f65fd1377f32e416e99"
+    }
+  ]
+}
