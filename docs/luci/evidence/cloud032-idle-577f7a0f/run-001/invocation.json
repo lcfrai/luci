@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "preparedAt": "2026-10-11T12:31:08.584109+00:00",
+  "command": [
+    "node",
+    "/workspace/.luci-tools/cloud032-idle-577f7a0f-plain/actual/sustained.mjs",
+    "--task-context-version",
+    "2",
+    "--binary",
+    "/workspace/.luci-tools/package-577f7a0f/installed/luci",
+    "--web",
+    "/workspace/.luci-tools/package-577f7a0f/installed/web",
+    "--provenance",
+    "/workspace/.luci-tools/package-577f7a0f/verified/integrity.json",
+    "--expected-source",
+    "577f7a0fdb039b7f875901a6a567d62fdfee88c8",
+    "--expected-helper-source",
+    "64829123a5799858b57616b711c84c61b945871a",
+    "--image",
+    "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+    "--expected-image-id",
+    "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+    "--image-provenance",
+    "/workspace/.luci-tools/cloud032-long-frame-29931afc/image-provenance.json",
+    "--fixture-root",
+    "/workspace/.c32-idle-577-a1",
+    "--report",
+    "/workspace/.luci-tools/cloud032-idle-577f7a0f-plain/run-001/driver/result.json",
+    "--trace-after",
+    "no"
+  ],
+  "productSource": "577f7a0fdb039b7f875901a6a567d62fdfee88c8",
+  "helperSource": "64829123a5799858b57616b711c84c61b945871a",
+  "sourceBinding": {
+    "helperSourceCommit": "64829123a5799858b57616b711c84c61b945871a",
+    "productSourceCommit": "577f7a0fdb039b7f875901a6a567d62fdfee88c8",
+    "sources": {
+      "scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs": {
+        "sha256": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+        "bytes": 6811
+      },
+      "scripts/acceptance/four-project-queue/sample-linux-owned.py": {
+        "sha256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+        "bytes": 35379
+      },
+      "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs": {
+        "sha256": "b965b9a5d03f8a4cbc19b6e065559e1d9b10a2812453bfafb992e3f0041e448f",
+        "bytes": 39518
+      },
+      "scripts/acceptance/launch-recovery/worker-create-guard.mjs": {
+        "sha256": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+        "bytes": 5545
+      },
+      "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs": {
+        "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+        "bytes": 6670
+      },
+      "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs": {
+        "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+        "bytes": 4176
+      },
+      "scripts/acceptance/launch-recovery/acceptance-startup.mjs": {
+        "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+        "bytes": 4637
+      }
+    },
+    "originBindingSHA256": "b2b29dec8b6f23987cf2ddf94edbd317944c8c9f495b413d69973986cc7e5519"
+  },
+  "observedMutableCheckout": {
+    "head": "0c034834f5314edbfd17901e174a6e2ab5c46769",
+    "statusPorcelain": "M control-plane/internal/api/preview_execution.go\n M control-plane/internal/api/preview_execution_test.go\n M control-plane/internal/backend/dockerbe/classic_build_wire_test.go\n M control-plane/internal/backend/dockerbe/preview_context.go\n M control-plane/internal/backend/dockerbe/preview_terminal_regression_test.go\n M control-plane/internal/backend/dockerbe/previews.go\n M control-plane/internal/backend/dockerbe/previews_test.go\n M control-plane/internal/backend/previews.go\n M docs/luci/API.md\n M docs/luci/LOCAL-TEST-LOOP.md\n M docs/luci/QUALITY-WORKLIST.md\n?? control-plane/internal/api/preview_base_authority_test.go\n?? control-plane/internal/backend/dockerbe/preview_bases.go\n?? control-plane/internal/backend/dockerbe/preview_bases_test.go\n?? control-plane/internal/backend/dockerbe/preview_cold_base_regression_test.go\n?? control-plane/internal/backend/dockerbe/preview_copy_flags_regression_test.go",
+    "usedForProductOrHelpers": false
+  },
+  "frozenHelperCopyUsed": true,
+  "packagedWebIndexSHA256": "0ca305a9abea2fac7b56144afe768daef611fd1798ef43c7026d4225128a1e8d",
+  "driverSHA256": "4a3139e2b8d3af026f61e516f76d2dd62ce8eccc6108169c6dd2fac4ffdce6b5",
+  "bindingSHA256": "b530a4bce5c8016babec3aff78ba263e792bd43fc971ce2749c09dab210fbe5f",
+  "launcherSHA256": "cc7f9688a02a9f20ebba7e01400890a8ee195b13fd65cca71ddfc42753fd95d8",
+  "provenanceSHA256": "3b5ddda6d86425beb914f1fdeeba7178eb46c9c269a6bcfd9826b044bc4a0201",
+  "environment": {
+    "LUCI_ACCEPTANCE_REPO": "/workspace/luci",
+    "GOMAXPROCS": "2",
+    "NODE_OPTIONS": "--max-old-space-size=3072"
+  },
+  "scope": "Unmodified installed binary and packaged web; full original100-round idle performance sample only; no runtime allocation, no full sustained pass, no model quality or Windows acceptance.",
+  "fixedScope": {
+    "quietSeconds": 60,
+    "primarySwitches": 100,
+    "primaryInputs": 200,
+    "primaryResets": 100,
+    "extraTraceRounds": 0,
+    "homePhaseProbe": false,
+    "idlePerformanceAcceptanceSample": true,
+    "fullSustainedAcceptance": false,
+    "switchP95Ms": 300,
+    "inputP95Ms": 100,
+    "p99StrictlyBelowMs": 1000,
+    "allowedCreates": 0,
+    "allowedStarts": 0,
+    "preparationSeconds": 60,
+    "workflowSeconds": 210,
+    "cleanupSeconds": 120,
+    "outerDriverWaitSeconds": 450,
+    "outerTermGraceSeconds": 30,
+    "outerKillWaitSeconds": 10,
+    "linuxSampler": false
+  },
+  "engineIdentitySHA256": "9ccbe65e5da6fcbddb4f24a682abf7d4e4ddf8dff3a453fca0c0dbd34de76de5",
+  "rootFreeBytes": 6735204352,
+  "rawEvidence": "Retain result interactions and node/browser spans verbatim. Original raw evidence/private fixture may contain context; no Home overlay/probe is present; publish only separately bound allowlisted projections."
+}

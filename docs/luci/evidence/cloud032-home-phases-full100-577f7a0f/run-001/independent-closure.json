@@ -1,0 +1,50 @@
+{
+  "observedAt": "2026-10-11T12:48:39.491864+00:00",
+  "rawResultSHA256": "ea7a1722ba0e284ed9e123893b792305b8494579c834b06f842f31e924da4b99",
+  "observedOwnedIdentities": [
+    {
+      "pid": 2740762,
+      "kind": "driver",
+      "expectedStartTicks": "46861493",
+      "state": "absent"
+    },
+    {
+      "pid": 2740941,
+      "kind": "controller",
+      "expectedStartTicks": null,
+      "state": "absent"
+    },
+    {
+      "pid": 2741451,
+      "kind": "browser",
+      "expectedStartTicks": "46862064",
+      "state": "absent"
+    },
+    {
+      "pid": 2741466,
+      "kind": "browser",
+      "expectedStartTicks": "46862072",
+      "state": "Z",
+      "startTicks": "46862072",
+      "parentPID": 1,
+      "exactStartMatches": true
+    },
+    {
+      "pid": 2741471,
+      "kind": "browser",
+      "expectedStartTicks": "46862072",
+      "state": "Z",
+      "startTicks": "46862072",
+      "parentPID": 1,
+      "exactStartMatches": true
+    }
+  ],
+  "engineIdentityMatches": true,
+  "dockerContainerIDs": [],
+  "dockerVolumeIDs": [],
+  "mutationsPerformed": 0,
+  "limitations": [
+    "Observed browser identities came from startup/pre-cleanup snapshots; no exhaustive lifetime census.",
+    "Two same-start Chromium zombies adopted by PID1 remain explicitly recorded; no zero-process claim."
+  ]
+}

@@ -1,0 +1,115 @@
+{
+  "version": 1,
+  "scope": "Offline full100 numeric Home diagnostic analysis only; all400 action rows and1200 Home rows; no performance-gain or completion claim",
+  "rawPrivateSHA256": "ea7a1722ba0e284ed9e123893b792305b8494579c834b06f842f31e924da4b99",
+  "rawUnchanged": true,
+  "actions": 400,
+  "homes": 100,
+  "homePhaseRows": 1200,
+  "completedEntryRetirements": 84,
+  "additionalDrops": 0,
+  "browserLatencyRows": 2853,
+  "browserEventTimingRows": 18420,
+  "files": [
+    {
+      "path": "analysis.json",
+      "bytes": 58967,
+      "sha256": "5fe40ff903b51de93874c567709a162ace524f559258c31a6f94cffa52a3765c"
+    },
+    {
+      "path": "analysis.md",
+      "bytes": 4542,
+      "sha256": "1970835b0bd1deddbe0087c786b7594b107eef1fc0b66861b3941ecbad5fd85f"
+    },
+    {
+      "path": "analyze-all-actions.py",
+      "bytes": 2663,
+      "sha256": "e19691db22cb7eb70a878815649b61004aa6e1ebe30ed035b50a71eb7ce8f554"
+    },
+    {
+      "path": "analyze-home.py",
+      "bytes": 4898,
+      "sha256": "0defbff06a37d3b05bb0c3b3613b622ad151f066be23a0c59d9d5a4bdc59e05f"
+    },
+    {
+      "path": "analyze-tail.py",
+      "bytes": 4078,
+      "sha256": "4efae00d40529bd7c6748a3d1fd39c439870a344131612543cea954db9370872"
+    },
+    {
+      "path": "analyze.py",
+      "bytes": 19238,
+      "sha256": "8aff5dc60ad4667392c33937b7ba29eb9b5eaf7582a68b32ffb0c6e2267ee42a"
+    },
+    {
+      "path": "execution.json",
+      "bytes": 617,
+      "sha256": "81b5a81c53fda8f8c54c28dab5ed13db9125751d54168a52cf4c5fe3495f9367"
+    },
+    {
+      "path": "future-diagnostic-seam.json",
+      "bytes": 4079,
+      "sha256": "3a20f9208ca2d61e040d1bee69a481fc8e48d6c740f2b3b92544002df3ebaa6f"
+    },
+    {
+      "path": "home-completeness.json",
+      "bytes": 670,
+      "sha256": "feefee49b57a2348fa10e8899ef11456e4684a161a39db5ea6807be31823c142"
+    },
+    {
+      "path": "home-phases.all100.projection.json",
+      "bytes": 433889,
+      "sha256": "317539bda87bd3ac11ae45037d9f0d7326c2e2ef01ef269e5aee574f4cc63411"
+    },
+    {
+      "path": "homePhaseTiming.ts",
+      "bytes": 2561,
+      "sha256": "c9b657144d10cb4adc9d16996b8201c66ddbc8471676e3acba5a7f7df253ac94"
+    },
+    {
+      "path": "input-tail-browser-frames.json",
+      "bytes": 2473,
+      "sha256": "922c344c445edb4f08bcf9394bebd3150f41d58a16e00d95e88c73785a85a1bb"
+    },
+    {
+      "path": "node-stages.all400.json",
+      "bytes": 129662,
+      "sha256": "ab0274e75c2e2e1d0128c9008ee1a8c9b626b2311d155a49da6d6e7705c664e7"
+    },
+    {
+      "path": "probe-source-binding.json",
+      "bytes": 2421,
+      "sha256": "97969205fa14595e6737f180e3e610cb17d14c448dbf66ffbbcaae4464cc9a1c"
+    },
+    {
+      "path": "resource-event-phases.all100.json",
+      "bytes": 471106,
+      "sha256": "4886db012e06ab526cff177c271c9f954662b5d7a29f2e08aae8e8a956005f8f"
+    },
+    {
+      "path": "run-outcome.projection.json",
+      "bytes": 5156,
+      "sha256": "8365e6ebc1ceba9a9568e64301552aeb4ac07df4d81b9a0019ec75966e7d9238"
+    },
+    {
+      "path": "slow-decisive-breakdown.json",
+      "bytes": 8011,
+      "sha256": "e67370b9424b2e87b971e588321e4909a95dc10ff7e0367638f49edf9eb72992"
+    },
+    {
+      "path": "source-binding.json",
+      "bytes": 10910,
+      "sha256": "502bc984f6874400fa9dd29c2f10a28e7e36cde4dbd9cb63c82da1c035b80c49"
+    },
+    {
+      "path": "switches.all100.json",
+      "bytes": 772155,
+      "sha256": "5be020cb10820299d696fc0d36316b24a83bbe909800b2c2a07a9ce1374654d0"
+    },
+    {
+      "path": "timings.all400.projection.json.gz",
+      "bytes": 282744,
+      "sha256": "112c90b82bea62256b31b642924a92e9c41491bd3754132cb8a70b89b276fe3c"
+    }
+  ]
+}

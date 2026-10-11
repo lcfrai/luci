@@ -1,0 +1,119 @@
+{
+  "sourceCommit": "577f7a0fdb039b7f875901a6a567d62fdfee88c8",
+  "sourceDirty": false,
+  "capturePassed": true,
+  "idlePerformanceTargetsMet": false,
+  "fullSustainedAcceptance": false,
+  "wrapper": {
+    "exitCode": 0,
+    "externalMonitorTimeout": false,
+    "forcedExactDriver": false,
+    "preparedInputsUnchanged": true,
+    "rawResultSHA256": "92c533ae6cecb888be68f1644501d7e232c93dc490a8e0cb76e3b046dd102793",
+    "resultExists": true
+  },
+  "sourceBindings": {
+    "productSource": "577f7a0fdb039b7f875901a6a567d62fdfee88c8",
+    "helperSource": "64829123a5799858b57616b711c84c61b945871a",
+    "frozenHelperCopyUsed": true,
+    "packagedWebIndexSHA256": "0ca305a9abea2fac7b56144afe768daef611fd1798ef43c7026d4225128a1e8d",
+    "driverSHA256": "4a3139e2b8d3af026f61e516f76d2dd62ce8eccc6108169c6dd2fac4ffdce6b5",
+    "bindingSHA256": "b530a4bce5c8016babec3aff78ba263e792bd43fc971ce2749c09dab210fbe5f",
+    "launcherSHA256": "cc7f9688a02a9f20ebba7e01400890a8ee195b13fd65cca71ddfc42753fd95d8",
+    "provenanceSHA256": "3b5ddda6d86425beb914f1fdeeba7178eb46c9c269a6bcfd9826b044bc4a0201"
+  },
+  "fixedScope": {
+    "quietSeconds": 60,
+    "primarySwitches": 100,
+    "primaryInputs": 200,
+    "primaryResets": 100,
+    "extraTraceRounds": 0,
+    "homePhaseProbe": false,
+    "idlePerformanceAcceptanceSample": true,
+    "fullSustainedAcceptance": false,
+    "switchP95Ms": 300,
+    "inputP95Ms": 100,
+    "p99StrictlyBelowMs": 1000,
+    "allowedCreates": 0,
+    "allowedStarts": 0,
+    "preparationSeconds": 60,
+    "workflowSeconds": 210,
+    "cleanupSeconds": 120,
+    "outerDriverWaitSeconds": 450,
+    "outerTermGraceSeconds": 30,
+    "outerKillWaitSeconds": 10,
+    "linuxSampler": false
+  },
+  "image": {
+    "id": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8"
+  },
+  "engineIdentitySHA256": "9ccbe65e5da6fcbddb4f24a682abf7d4e4ddf8dff3a453fca0c0dbd34de76de5",
+  "packageIntegrity": {
+    "archiveSHA256": "98d8bea09b1476a09a290a6b53567f9ecdca8ced32099dbdcbf3b735a88b07ba",
+    "verifiedMembers": 967,
+    "allMembersMatch": true
+  },
+  "allActions": 400,
+  "allActionsSucceeded": true,
+  "originalReceiptComplete": true,
+  "runtimeCleanup": {
+    "containers": 0,
+    "volumes": 0,
+    "ownedServiceProcesses": 0,
+    "ownedBrowserProcesses": 0,
+    "protectedImagePackageAndHelpersUnchanged": true
+  },
+  "startupResources": [
+    {
+      "name": "provider",
+      "state": "closed",
+      "closeTimedOut": false
+    },
+    {
+      "name": "proxy",
+      "state": "closed",
+      "closeTimedOut": false
+    },
+    {
+      "name": "browser",
+      "state": "closed",
+      "closeTimedOut": false
+    },
+    {
+      "name": "browser-context",
+      "state": "closed",
+      "closeTimedOut": false
+    },
+    {
+      "name": "browser-page",
+      "state": "closed",
+      "closeTimedOut": false
+    }
+  ],
+  "browserIdentityClassification": {
+    "absent": 1,
+    "pid-reused": 0,
+    "same-identity-zombie": 2,
+    "same-identity-present": 0
+  },
+  "browserIdentityCensusExhaustive": false,
+  "cleanupLimits": "Helper-owned observations only. Two observed same-start zombies remain; zero active browser process is not zero browser zombies. Root independent closure is separate.",
+  "rawInputBindings": {
+    "invocation.json": {
+      "sha256": "3cf86ece0633b1a7318c945f58ef0967530aa039c4223436f7ed8b264594844a",
+      "bytes": 5712
+    },
+    "wrapper-result.json": {
+      "sha256": "130b0f7251b2376b96840b08b91f87fe1afdf761ca6b9efb1819dbaad9ae2268",
+      "bytes": 1829
+    },
+    "driver/result.json": {
+      "sha256": "92c533ae6cecb888be68f1644501d7e232c93dc490a8e0cb76e3b046dd102793",
+      "bytes": 7030186
+    },
+    "driver/owned-browser-identities.json": {
+      "sha256": "5fccc3ec4a86034f807fe1e29eedb17e6285909307a4bdd4dd65f2b1b12804cc",
+      "bytes": 2034
+    }
+  }
+}

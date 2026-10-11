@@ -1,0 +1,29 @@
+{
+  "startedAt": "2026-10-11T12:31:08.584634+00:00",
+  "finishedAt": "2026-10-11T12:33:43.941547+00:00",
+  "elapsedSeconds": 155.35699219501112,
+  "exitCode": 0,
+  "externalMonitorTimeout": false,
+  "forcedExactDriver": false,
+  "driverIdentity": {
+    "pid": 2735370,
+    "startTicks": 46793782,
+    "state": "R"
+  },
+  "finalDriverObservation": {
+    "pid": 2735370,
+    "state": "absent"
+  },
+  "events": [],
+  "ownedCleanupRequiresFinalReceipt": true,
+  "cleanupUnconfirmedByWrapper": true,
+  "resultExists": true,
+  "rawResultSHA256": "92c533ae6cecb888be68f1644501d7e232c93dc490a8e0cb76e3b046dd102793",
+  "preparedInputsUnchanged": true,
+  "observedMutableCheckoutAfter": {
+    "head": "0c034834f5314edbfd17901e174a6e2ab5c46769",
+    "statusPorcelain": "M control-plane/internal/api/preview_execution.go\n M control-plane/internal/api/preview_execution_test.go\n M control-plane/internal/backend/dockerbe/classic_build_wire_test.go\n M control-plane/internal/backend/dockerbe/preview_context.go\n M control-plane/internal/backend/dockerbe/preview_terminal_regression_test.go\n M control-plane/internal/backend/dockerbe/previews.go\n M control-plane/internal/backend/dockerbe/previews_test.go\n M control-plane/internal/backend/previews.go\n M docs/luci/API.md\n M docs/luci/LOCAL-TEST-LOOP.md\n M docs/luci/QUALITY-WORKLIST.md\n?? control-plane/internal/api/preview_base_authority_test.go\n?? control-plane/internal/backend/dockerbe/preview_bases.go\n?? control-plane/internal/backend/dockerbe/preview_bases_test.go\n?? control-plane/internal/backend/dockerbe/preview_cold_base_regression_test.go\n?? control-plane/internal/backend/dockerbe/preview_copy_flags_regression_test.go\n?? docs/luci/evidence/cloud032-home-phases-577f7a0f/",
+    "usedForProductOrHelpers": false
+  },
+  "noAutomaticFixtureOrLedgerMutation": true
+}

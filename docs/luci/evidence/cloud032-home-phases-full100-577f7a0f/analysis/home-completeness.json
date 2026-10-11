@@ -1,0 +1,27 @@
+{
+  "rawPrivateSHA256Before": "ea7a1722ba0e284ed9e123893b792305b8494579c834b06f842f31e924da4b99",
+  "rawPrivateSHA256After": "ea7a1722ba0e284ed9e123893b792305b8494579c834b06f842f31e924da4b99",
+  "scriptSHA256": "0defbff06a37d3b05bb0c3b3613b622ad151f066be23a0c59d9d5a4bdc59e05f",
+  "homes": 100,
+  "phaseRows": 1200,
+  "eachPhaseKindCount": {
+    "5": 100,
+    "10": 100,
+    "11": 100,
+    "6": 100,
+    "7": 100,
+    "4": 100,
+    "3": 100,
+    "9": 100,
+    "8": 100,
+    "1": 100,
+    "2": 100,
+    "12": 100
+  },
+  "completedStartEntryRetirements": 84,
+  "additionalDropsOrOverlaps": 0,
+  "pending": 0,
+  "active": 0,
+  "rawUnchanged": true,
+  "offlineOnly": true
+}

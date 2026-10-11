@@ -1,0 +1,31 @@
+{
+  "diagnosticProjectionSHA256": "656db4445bae4491e49a6e2019662d9d64b7d899342f6080e1b13a154f5980b8",
+  "rawPrivateSHA256": "3b4c7e81784fb67908700e305df0bf8352d4d80d46e1458c322edf0afbb3aec0",
+  "completeDiagnostic": true,
+  "homePhaseMaxMs": {
+    "handler": 2.099999964237213,
+    "handler_to_home_commit": 9.699999988079071,
+    "navigation_state": 1.0,
+    "scoped_navigation_write": 1.0,
+    "navigation_encode": 0.10000002384185791,
+    "scope_scan": 0.19999998807907104,
+    "navigation_set_item": 0.699999988079071,
+    "cockpit_serialize_write": 0.19999998807907104,
+    "cockpit_partialize": 0.10000002384185791,
+    "app_shell_render_entry_to_layout_effect": 7.5
+  },
+  "switch8Summary": {
+    "count": 8,
+    "p50": 227.04877799999667,
+    "p95": 337.11967100000766,
+    "p99": 337.11967100000766,
+    "max": 337.11967100000766
+  },
+  "conclusion": "Measured storage and Home handler/commit work is small. No storage optimization or product cause is supported. First switch337.12ms and seven subsequent184.81\u2013255.67ms do not replace the original full100-switch sample.",
+  "nextMeasurement": "Full unchanged100 switches,200 inputs,100 resets using original packaged577 web, original expected saved-value plus two frames, no added probe or generic trace, no threshold changes or overhead subtraction.",
+  "baselineFailureRetained": {
+    "source": "972d6864",
+    "switchP95Ms": 400.974902,
+    "rawPrivateSHA256": "5f25447b1f6dc7eca50e220f358a4a029bd311e7d368e15ec85d693198569a00"
+  }
+}

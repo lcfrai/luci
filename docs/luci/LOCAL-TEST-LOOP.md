@@ -1,10 +1,17 @@
-<!-- Current successor: 972d6864a30b742b12545c8e12f4ca3ae2faa884; matching Linux package verified; Windows adoption only between batches. -->
+<!-- Current source: 80462898735a191cceaa4cb33e486b42b0a35f3c; Windows adoption only between batches. -->
 # Windows testing and correction loop
 
+## Current source checkpoint — 80462898
 
-## Current packaged checkpoint — 78665270
+[Exact retrieval, setup and remaining checks](TEST-CHECKPOINT-80462898.md) accompany CLOUD-082's guarded preview-base preparation. The source is retrievable; its matching Linux package is being built in an isolated worktree, without replacing the earlier 577 package or evidence. No setup variable or credential name changed. Original failed timing, interruption and charged-fixture evidence remains intact.
 
-The latest packaged product checkpoint is `786652704fa8bebd1ba1af41cfa1d414d7def100`, with its consolidated evidence published at `078d0e99f9d1553a2233dfa51b368b415964766c`. [Exact Windows setup and focused cases](TEST-CHECKPOINT-78665270.md) preserve isolated state/projects, existing user data and shared Docker workloads. The clean Linux package matches 964 files with 347 licensed components. Scoped installed cold terminal restart and team permission-read checks pass; the warm restart check fails and retains its pending operation and charged lease. Known Chromium zombies remain explicit. Archives are publisher-held; this is retrievable source with build instructions, not a downloadable Windows binary or final local handoff.
+Windows has verified LOCAL-024's original forced-parent-death and same-state reopen at `577f7a0f`, with normal user-state preservation and final known process/listener cleanup. External `LUCI_API` and ordinary native close remain pending; do not repeat the completed original case solely for a documentation update. The same Windows revision has clean native/portable packaging and its separately recorded controlled tests. Actual installation, provider-driven build/review/check/preview, broader recovery and sustained resource/response acceptance remain open.
+
+The [plain packaged577 idle receipt](evidence/cloud032-idle-577f7a0f/README.md) retains all 400 actions and the failed switch p95 of 497.324950 ms against 300 ms. Input p95 is 87.794101 ms against 100 ms. Two same-start Chromium PID-1 zombies remain explicit. Home timing probes do not establish a correction; no target or guard is relaxed. The entries below retain earlier checkpoint observations rather than overriding this current state.
+
+## Prior packaged checkpoint — 78665270
+
+That packaged product checkpoint is `786652704fa8bebd1ba1af41cfa1d414d7def100`, with its consolidated evidence published at `078d0e99f9d1553a2233dfa51b368b415964766c`. [Exact Windows setup and focused cases](TEST-CHECKPOINT-78665270.md) preserve isolated state/projects, existing user data and shared Docker workloads. The clean Linux package matches 964 files with 347 licensed components. Scoped installed cold terminal restart and team permission-read checks pass; the warm restart check fails and retains its pending operation and charged lease. Known Chromium zombies remain explicit. Archives are publisher-held; this is retrievable source with build instructions, not a downloadable Windows binary or final local handoff.
 
 CLOUD-076 terminal preparation and CLOUD-078 unchanged-poll handling are now integrated after that checkpoint; source follow-ups pass and a matching package is pending. CLOUD-077's corrected bounded warm observer has scoped controlled evidence, with installed ordering still open. [The current worklist](QUALITY-WORKLIST.md) owns the latest issue states and exact evidence. Do not apply unpublished corrections to an active or already recorded local test batch. No configuration or credential changes are required for these corrections.
 

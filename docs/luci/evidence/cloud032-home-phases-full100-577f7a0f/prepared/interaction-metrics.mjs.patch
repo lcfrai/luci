@@ -1,0 +1,11 @@
+--- eight-round/interaction-metrics.mjs
++++ full100/interaction-metrics.mjs
+@@ -45,7 +45,7 @@
+    // Preserve an in-budget overflow/gap window before refusing acceptance.
+    receipt.browserEventWindows.push(row);count+=value.events.length;bytes+=size;
+    if(Object.hasOwn(value,'latency'))latencyLedger.append(value.latency);
+-   if(value.homePhase){const h=value.homePhase;const keys=['version','timeOrigin','homes','observed','dropped','pending','active'];if(!keys.every(key=>Number.isFinite(h[key]))||h.version!==1||!Array.isArray(h.rows)||h.rows.length>2048||h.dropped!==0||!h.rows.every(row=>Object.values(row).every(Number.isFinite)))fail('Invalid or overflowed numeric Home phase capture');}
++   if(value.homePhase){const h=value.homePhase;const keys=['version','timeOrigin','homes','observed','dropped','pending','active'];if(!keys.every(key=>Number.isFinite(h[key]))||h.version!==1||!Array.isArray(h.rows)||h.rows.length>2048||h.dropped!==Math.max(0,h.homes-16)||!h.rows.every(row=>Object.values(row).every(Number.isFinite)))fail('Invalid or overflowed numeric Home phase capture');}
+    Object.assign(receipt.browserTimingLedger,{events:count,bytes,documents:documents.size+(documents.has(value.timeOrigin)?0:1)});
+    let previous=documents.get(value.timeOrigin)??0;
+    for(const event of value.events){if(!Number.isSafeInteger(event.sequence)||event.sequence!==previous+1)fail('Passive browser event sequence contains a gap or duplicate');previous=event.sequence;}

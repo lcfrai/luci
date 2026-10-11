@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "scope": "Strict allowlisted offline timing analysis only; private raw fixture data and original receipts are not copied; runtime independent closure is separate",
+  "rawPrivateSHA256": "92c533ae6cecb888be68f1644501d7e232c93dc490a8e0cb76e3b046dd102793",
+  "rawUnchanged": true,
+  "actions": 400,
+  "browserLatencyRows": 2860,
+  "browserEventTimingRows": 18644,
+  "files": [
+    {
+      "path": "analysis.json",
+      "bytes": 96750,
+      "sha256": "6e798c08f2975cfc8806e4a5ff5ea6b0646214e2a88d0741de9c93d7e5e11b10"
+    },
+    {
+      "path": "analysis.md",
+      "bytes": 4791,
+      "sha256": "751d21abee8cab6367eead34094a567ed2f8de46206a4ed5b86d8e1324b4e8e7"
+    },
+    {
+      "path": "analyze-all-actions.py",
+      "bytes": 2663,
+      "sha256": "e19691db22cb7eb70a878815649b61004aa6e1ebe30ed035b50a71eb7ce8f554"
+    },
+    {
+      "path": "analyze-connection-coverage.py",
+      "bytes": 3269,
+      "sha256": "2a59f077bd38f96c80d04e40b2ba0ad1bb4305eaffb9cab61f94da801d7c21f0"
+    },
+    {
+      "path": "analyze-tail.py",
+      "bytes": 4079,
+      "sha256": "4d215341db20393c65b2c463a426340e79f7c0d189a215c9372d39107780fc87"
+    },
+    {
+      "path": "analyze.py",
+      "bytes": 19215,
+      "sha256": "ea3eb809d8d9c094f277ba96a50b30c7d2d4724240e84c0d08284023a59233d9"
+    },
+    {
+      "path": "connection-queue-coverage.json",
+      "bytes": 10603,
+      "sha256": "29dc9ac8876429b1b4fb170cbcb0bb4ab3d04cb254c92905c151ad5058c0618c"
+    },
+    {
+      "path": "execution.json",
+      "bytes": 617,
+      "sha256": "986c1091ed2c3ec03ffc22172311694f2fd967cb2662b53cb91ec0c626159158"
+    },
+    {
+      "path": "input-tail-browser-frames.json",
+      "bytes": 3231,
+      "sha256": "7c663bbe5bac4a6e017f31ffd2a9c71af5c01a0fc644aa4f219a5025762f0c6e"
+    },
+    {
+      "path": "node-stages.all400.json",
+      "bytes": 130304,
+      "sha256": "81f1b440843f297c081167ff9b8b31384f653341701fa6d9353ddba95ceaed17"
+    },
+    {
+      "path": "parser-adjustment.txt",
+      "bytes": 403,
+      "sha256": "ee140f9d4c2714c601c6cb0390ab7e783a8fb9a2e995e2acb04758f37bb2cda1"
+    },
+    {
+      "path": "request-guard-source.json",
+      "bytes": 921,
+      "sha256": "ab72525d7b20b0d3b58cde648f2eb797a09e6ba15624c1653e7bddbba25af0cb"
+    },
+    {
+      "path": "resource-event-phases.all100.json",
+      "bytes": 472341,
+      "sha256": "348bd8e55e37cba3165d3668d95eb77b5a138765edbe1b5db2bb2e11b33a5adb"
+    },
+    {
+      "path": "run-outcome.projection.json",
+      "bytes": 3818,
+      "sha256": "f5b3d0f589738766ac3d27663ae6e3b514b67956330e7f414b6a6e650d2e5fda"
+    },
+    {
+      "path": "slow-decisive-breakdown.json",
+      "bytes": 13065,
+      "sha256": "ef6900945ec3648b882014ba5221d51134ee84cfefec2aed25a7104c96559883"
+    },
+    {
+      "path": "source-binding.json",
+      "bytes": 10957,
+      "sha256": "830b942561c5ed739d42ef5e451b8344b723d0070f367690a3aeae83413b7214"
+    },
+    {
+      "path": "switches.all100.json",
+      "bytes": 770786,
+      "sha256": "595a3eca9171463b5bb4b6c5c619257d4c7ac60d304c8fefe155ebd5fdd5a3a0"
+    },
+    {
+      "path": "timings.all400.projection.json.gz",
+      "bytes": 284884,
+      "sha256": "c118c956a0257cbd60f400d7d231575862beadab709ebbc2045085393660fb9e"
+    }
+  ]
+}

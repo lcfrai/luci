@@ -1,0 +1,15 @@
+{
+  "scope": "Static syntax and immutable selected helper integrity only",
+  "pythonAST": true,
+  "modifiedNodeSyntax": true,
+  "localHelpers": 17,
+  "immutable648Dependencies": 7,
+  "interactionMetricHelperExactlyOriginalExceptDiscoverLabel": true,
+  "original100Rounds400Actions": true,
+  "homeProbeAbsent": true,
+  "genericTraceAbsent": true,
+  "buildExecuted": false,
+  "testsExecuted": false,
+  "runtimeExecuted": false,
+  "repositoryEdited": false
+}

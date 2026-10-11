@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "node",
+    "/workspace/.luci-tools/cloud032-home-phase-577-full100/counter-test.mjs"
+  ],
+  "cwd": "/workspace/.luci-tools/cloud032-home-phase-577-full100",
+  "timeoutSeconds": 20,
+  "nodeVersion": "v24.19.0",
+  "before": {
+    "/workspace/.luci-tools/cloud032-home-phase-577-full100/counter-test.mjs": "4d59da230b21791908d86448b736d3eade0aac10d3c28cca687e54384ff0078d",
+    "/workspace/.luci-tools/cloud032-home-phase-577-full100/actual/sustained.mjs": "c4312796c88ffe272f8dac9d14cb01d4040b2d040ba4262494daeccf2fb6ef56",
+    "/workspace/.luci-tools/cloud032-home-phase-577-full100/actual/interaction-metrics.mjs": "110eca9dd023f2c2cc94b86ac8cdfb4ec1725cc6763ec1946a04dd0791764b72",
+    "/workspace/.luci-tools/cloud032-home-phase-9536e417/overlay/desktop/src/diagnostics/homePhaseTiming.ts": "c9b657144d10cb4adc9d16996b8201c66ddbc8471676e3acba5a7f7df253ac94"
+  }
+}

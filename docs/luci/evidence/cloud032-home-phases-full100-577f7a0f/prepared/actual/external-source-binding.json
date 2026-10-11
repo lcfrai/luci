@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "executionDirectory": "/workspace/.luci-tools/cloud032-home-phase-577-full100/actual",
+  "helperSourceCommit": "64829123a5799858b57616b711c84c61b945871a",
+  "productSourceCommit": "577f7a0fdb039b7f875901a6a567d62fdfee88c8",
+  "scope": "Frozen helper copies at immutable helper commit; unrelated mutable checkout is recorded, not used or required clean. External numeric diagnostic web differs from packaged web.",
+  "templateSourceSHA256": "18429d2a6497cfec582c8565b572b3ca567b756f2f9d403efd79b6b405719dc2",
+  "localSources": {
+    "four-project-queue_native-terminal-diagnostics.mjs": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+    "four-project-queue_sample-linux-owned.py": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+    "interaction-metrics.mjs": "110eca9dd023f2c2cc94b86ac8cdfb4ec1725cc6763ec1946a04dd0791764b72",
+    "latency-diagnostics.mjs": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96",
+    "launch-recovery_acceptance-lifecycle.mjs": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+    "launch-recovery_acceptance-startup.mjs": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+    "launch-recovery_durable-acceptance-journal.mjs": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+    "launch-recovery_fenced-docker-proxy.mjs": "b965b9a5d03f8a4cbc19b6e065559e1d9b10a2812453bfafb992e3f0041e448f",
+    "launch-recovery_worker-create-guard.mjs": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+    "queue-controls.mjs": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0",
+    "receipt-transport.mjs": "6a676eefc02c4be569e65f6c3a16da50f750be67acaf4f1380a86739791c34a1",
+    "run-with-observer.py": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a",
+    "source-binding.mjs": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796",
+    "sustained.mjs": "c4312796c88ffe272f8dac9d14cb01d4040b2d040ba4262494daeccf2fb6ef56",
+    "task-command.mjs": "7557cc863201e136a6ea0f4d039472d6e225a8efb0fb2afe267b9d65e01a541f",
+    "task-context.mjs": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2",
+    "workloads.mjs": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306"
+  },
+  "repositoryDependencies": {
+    "scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+    "scripts/acceptance/four-project-queue/sample-linux-owned.py": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+    "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs": "b965b9a5d03f8a4cbc19b6e065559e1d9b10a2812453bfafb992e3f0041e448f",
+    "scripts/acceptance/launch-recovery/worker-create-guard.mjs": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+    "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+    "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+    "scripts/acceptance/launch-recovery/acceptance-startup.mjs": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680"
+  },
+  "originalTemplateFiles": {
+    "sustained.mjs": {
+      "source": "/workspace/.luci-tools/cloud032-idle-67a5b7c7/actual/sustained.mjs",
+      "sha256": "18429d2a6497cfec582c8565b572b3ca567b756f2f9d403efd79b6b405719dc2"
+    },
+    "task-command.mjs": {
+      "source": "/workspace/.luci-tools/cloud032-idle-67a5b7c7/actual/task-command.mjs",
+      "sha256": "7557cc863201e136a6ea0f4d039472d6e225a8efb0fb2afe267b9d65e01a541f"
+    },
+    "receipt-transport.mjs": {
+      "source": "/workspace/.luci-tools/cloud032-idle-67a5b7c7/actual/receipt-transport.mjs",
+      "sha256": "6a676eefc02c4be569e65f6c3a16da50f750be67acaf4f1380a86739791c34a1"
+    },
+    "workloads.mjs": {
+      "source": "/workspace/.luci-tools/cloud032-idle-67a5b7c7/actual/workloads.mjs",
+      "sha256": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306"
+    },
+    "interaction-metrics.mjs": {
+      "source": "/workspace/.luci-tools/cloud032-idle-67a5b7c7/actual/interaction-metrics.mjs",
+      "sha256": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502"
+    },
+    "latency-diagnostics.mjs": {
+      "source": "/workspace/.luci-tools/cloud032-idle-67a5b7c7/actual/latency-diagnostics.mjs",
+      "sha256": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96"
+    },
+    "task-context.mjs": {
+      "source": "/workspace/.luci-tools/cloud032-idle-67a5b7c7/actual/task-context.mjs",
+      "sha256": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2"
+    },
+    "source-binding.mjs": {
+      "source": "/workspace/.luci-tools/cloud032-idle-67a5b7c7/actual/source-binding.mjs",
+      "sha256": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796"
+    },
+    "queue-controls.mjs": {
+      "source": "/workspace/.luci-tools/cloud032-idle-67a5b7c7/actual/queue-controls.mjs",
+      "sha256": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0"
+    },
+    "run-with-observer.py": {
+      "source": "/workspace/.luci-tools/cloud032-idle-67a5b7c7/actual/run-with-observer.py",
+      "sha256": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a"
+    }
+  },
+  "originalTemplateBindingSHA256": "b2b29dec8b6f23987cf2ddf94edbd317944c8c9f495b413d69973986cc7e5519",
+  "changes": [
+    "Only diagnostic sample/capture assertions extended from8 to100 original rounds",
+    "Exact previously built numeric probe web reused byte-for-byte; no source or web build",
+    "Unchanged16-entry start map retirement accounted as max(0,homes\u221216), with complete sequence/100 phase sets/no pending or active Home independently required",
+    "Outside-action browser PID/start snapshots and final classifications copied from completed plain577 helper"
+  ],
+  "precedingEightRoundSourceBindingSHA256": "fae5f8c4d613fd58d70503470d0288f81408e8387853e95b19048ac46af38f55"
+}

@@ -1,0 +1,94 @@
+{
+  "scope": "Observed fixture-owned browser identities at startup and immediately before cleanup only; not an exhaustive lifetime census. Zombie states are retained, not treated as absent.",
+  "snapshots": [
+    {
+      "stage": "browser-ready",
+      "identities": [
+        {
+          "pid": 2736062,
+          "start": "46794320",
+          "group": 2736062,
+          "status": "S"
+        },
+        {
+          "pid": 2736077,
+          "start": "46794351",
+          "group": 2736076,
+          "status": "S"
+        },
+        {
+          "pid": 2736081,
+          "start": "46794352",
+          "group": 2736080,
+          "status": "S"
+        }
+      ]
+    },
+    {
+      "stage": "before-cleanup",
+      "identities": [
+        {
+          "pid": 2736062,
+          "start": "46794320",
+          "group": 2736062,
+          "status": "S"
+        },
+        {
+          "pid": 2736077,
+          "start": "46794351",
+          "group": 2736076,
+          "status": "S"
+        },
+        {
+          "pid": 2736081,
+          "start": "46794352",
+          "group": 2736080,
+          "status": "S"
+        }
+      ]
+    }
+  ],
+  "final": [
+    {
+      "identity": {
+        "pid": 2736062,
+        "start": "46794320",
+        "group": 2736062,
+        "status": "S"
+      },
+      "current": null,
+      "classification": "absent"
+    },
+    {
+      "identity": {
+        "pid": 2736077,
+        "start": "46794351",
+        "group": 2736076,
+        "status": "S"
+      },
+      "current": {
+        "pid": 2736077,
+        "start": "46794351",
+        "group": 2736076,
+        "status": "Z"
+      },
+      "classification": "same-identity-zombie"
+    },
+    {
+      "identity": {
+        "pid": 2736081,
+        "start": "46794352",
+        "group": 2736080,
+        "status": "S"
+      },
+      "current": {
+        "pid": 2736081,
+        "start": "46794352",
+        "group": 2736080,
+        "status": "Z"
+      },
+      "classification": "same-identity-zombie"
+    }
+  ],
+  "exhaustiveLifetimeCensus": false
+}

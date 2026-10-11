@@ -1,0 +1,89 @@
+--- eight-round/sustained.mjs
++++ full100/sustained.mjs
+@@ -21,7 +21,7 @@
+ const here=dirname(fileURLToPath(import.meta.url)),repo=resolve(process.env.LUCI_ACCEPTANCE_REPO??'/workspace/luci'),args=process.argv.slice(2);
+ const helperRoot=resolve(here,'../frozen-helpers');
+ const option = (name, fallback) => { const i = args.indexOf(name); if (i < 0) return fallback; assert(args[i + 1] && !args[i + 1].startsWith('--'), 'Missing value for ' + name); return args[i + 1]; };
+-if(args.includes('--help')){console.log('CLOUD-032 diagnostic only: frozen installed prefix through eight rounds (8 switches/16 inputs/8 draft resets), zero Create/Start hard guards. Original package/image/source/provenance arguments remain mandatory. No full sustained pass. Explicit controlled runtime window required.');process.exit(0);}
++if(args.includes('--help')){console.log('CLOUD-032 diagnostic only: frozen installed prefix through 100 rounds (100 switches/200 inputs/100 draft resets), zero Create/Start hard guards. Original package/image/source/provenance arguments remain mandatory. No full sustained pass. Explicit controlled runtime window required.');process.exit(0);}
+ const PREPARATION_MS=60000,WORKFLOW_MS=210000,CLEANUP_MS=120000,DRIVER_TOTAL_MS=PREPARATION_MS+WORKFLOW_MS+CLEANUP_MS;
+ const driverStarted=Date.now(),preparationDeadline=driverStarted+PREPARATION_MS;
+ let commandDeadline=preparationDeadline,preparationActive=true;
+@@ -156,7 +156,7 @@
+ Object.assign(receipt,{
+  mode:'installed-four-project-home-phase-diagnostic',diagnosticOnly:true,fullSustainedAcceptance:false,performanceAcceptance:false,
+  diagnosticWebBindingSHA256:sha(diagnosticWebBytes),packagedWebIndexSHA256:provenance.webIndexSHA256,instrumentedWebIndexSHA256:diagnosticWeb.webIndexSHA256,
+- scope:'Fresh installed package, exact original four saved contexts and paused queues, original draft/warm setup and eight rounds (8 switches/16 inputs/8 draft resets). No task execution or sustained completion claim.',
++ scope:'Fresh installed package, exact original four saved contexts and paused queues, original draft/warm setup and 100 rounds (100 switches/200 inputs/100 draft resets). No task execution or sustained completion claim.',
+  resourceScope:'One owned browser and installed app. Docker readiness/image inventory reads are required. Explicit guards reject every Create/Start before forwarding. No full Linux resource sampler; browser diagnostic collection is identical to the static control.',
+  limitations:[...receipt.limitations,'Diagnostic subset only; original sustained failure remains unchanged. No resource-cost subtraction.','No independent Linux observer in either prepared control arm; this is not a matched replay of the old observer load.'],
+  externalSourceBinding:externalBinding,dependencyCheckout:receipt.harnessCheckout,
+@@ -164,13 +164,13 @@
+ });
+ function validateHomeCapture(value){
+  const windows=value.browserEventWindows.map(row=>row.homePhase).filter(Boolean);
+- assert(windows.length>0);const last=windows.at(-1);assert.equal(last.homes,8);assert.equal(last.active,0);assert.equal(last.pending,0);assert.equal(last.dropped,0);
++ assert(windows.length>0);const last=windows.at(-1);assert.equal(last.homes,100);assert.equal(last.active,0);assert.equal(last.pending,0);assert.equal(last.dropped,84);
+  const rows=windows.flatMap(row=>row.rows);let previous=0;
+- for(const row of rows){assert.equal(row.sequence,++previous);assert(Object.values(row).every(Number.isFinite));assert(row.home>=1&&row.home<=8&&Number.isInteger(row.home));assert(row.kind>=1&&row.kind<=12&&Number.isInteger(row.kind));assert(row.end>=row.start);assert.equal(row.ok,1);}
++ for(const row of rows){assert.equal(row.sequence,++previous);assert(Object.values(row).every(Number.isFinite));assert(row.home>=1&&row.home<=100&&Number.isInteger(row.home));assert(row.kind>=1&&row.kind<=12&&Number.isInteger(row.kind));assert(row.end>=row.start);assert.equal(row.ok,1);}
+  assert.equal(previous,last.observed);
+- for(let home=1;home<=8;home++)for(const kind of [1,2,3,4,5,6,7,10,11,12])assert.equal(rows.filter(row=>row.home===home&&row.kind===kind).length,1,'One complete numeric phase per measured Home');
+- for(let home=1;home<=8;home++){const writes=rows.filter(row=>row.home===home&&row.kind===8).length;assert(writes>=1);assert.equal(writes,rows.filter(row=>row.home===home&&row.kind===9).length);}
+- value.homePhaseCapture={complete:true,homes:8,rows:rows.length,originalMetricUnchanged:true,diagnosticNotAcceptance:true,join:'home 1..8 matches project-switch 1..8 in action order',nestedDurationsNotAdditive:true};
++ for(let home=1;home<=100;home++)for(const kind of [1,2,3,4,5,6,7,10,11,12])assert.equal(rows.filter(row=>row.home===home&&row.kind===kind).length,1,'One complete numeric phase per measured Home');
++ for(let home=1;home<=100;home++){const writes=rows.filter(row=>row.home===home&&row.kind===8).length;assert(writes>=1);assert.equal(writes,rows.filter(row=>row.home===home&&row.kind===9).length);}
++ value.homePhaseCapture={complete:true,startMapCapacity:16,completedStartEntriesRetired:84,additionalDroppedRowsOrOverlaps:0,retirementAccounting:'Exact unchanged probe evicts already-completed start entries after16; all phase sequences and100 completed Home sets separately required.',homes:100,rows:rows.length,originalMetricUnchanged:true,diagnosticNotAcceptance:true,join:'home 1..100 matches project-switch 1..100 in action order',nestedDurationsNotAdditive:true};
+ }
+ const check = (name, details = {}) => { receipt.checks.push({ name, passed: true, ...details }); console.log('PASS ' + name); };
+ const names=contextFileNames(taskContextVersion);
+@@ -198,6 +198,19 @@
+   catch (error) { if (['ENOENT','ESRCH'].includes(error.code)) return null; throw error; }
+ }
+ function stillOwned(identity) { const now = processIdentity(identity.pid); return now && now.start === identity.start && now.status !== 'Z'; }
++function captureOwnedBrowserIdentities(stage){
++ const proof=receipt.browserProcessIdentities??={scope:'Observed fixture-owned browser identities at startup and immediately before cleanup only; not an exhaustive lifetime census. Zombie states are retained, not treated as absent.',snapshots:[],final:[]};
++ proof.snapshots.push({stage,identities:ownedProcesses('browser')});
++ writeFileSync(join(evidence,'owned-browser-identities.json'),JSON.stringify(proof,null,2)+'\n',{mode:0o600});
++}
++function finishOwnedBrowserIdentities(){
++ const proof=receipt.browserProcessIdentities;if(!proof)return;
++ const observed=new Map(proof.snapshots.flatMap(row=>row.identities).map(row=>[row.pid+':'+row.start,row]));
++ proof.final=[...observed.values()].map(identity=>{const current=processIdentity(identity.pid);return {identity,current,classification:!current?'absent':current.start!==identity.start?'pid-reused':current.status==='Z'?'same-identity-zombie':'same-identity-present'};});
++ proof.exhaustiveLifetimeCensus=false;
++ writeFileSync(join(evidence,'owned-browser-identities.json'),JSON.stringify(proof,null,2)+'\n',{mode:0o600});
++}
++
+ function ownedProcesses(family='service') {
+   const state = join(fixture, 'state'), rows = [];
+   for (const pid of readdirSync('/proc').filter(value => /^\d+$/.test(value))) {
+@@ -689,15 +702,15 @@
+   installRoutes:async context=>{await installBrowserTiming(context);assertWorkflowActive();await context.route('**/*',async route=>{const request=route.request(),url=new URL(request.url());if(closing||fixtureError||workflowControl?.failed){await route.abort('blockedbyclient');return;}if(url.origin!==base){stopOnFailure(Error('Browser external request refused'));await route.abort('blockedbyclient');return;}if(!['GET','HEAD','OPTIONS'].includes(request.method()))receipt.browserMutations.push({stage,method:request.method(),path:url.pathname});await route.continue();});assertWorkflowActive();},
+   newPage:context=>context.newPage(),adoptPage:handle=>{page=handle;},
+  });
+- assertWorkflowActive();receipt.browserVersion=browser.version();page.setDefaultTimeout(15000);page.on('pageerror',error=>{receipt.browserErrors.push(scrub(error));stopOnFailure(Error('Browser script error'));});
++ assertWorkflowActive();captureOwnedBrowserIdentities('browser-ready');receipt.browserVersion=browser.version();page.setDefaultTimeout(15000);page.on('pageerror',error=>{receipt.browserErrors.push(scrub(error));stopOnFailure(Error('Browser script error'));});
+  // END SUSTAINED BROWSER WIRING
+  for(const owner of projectStates){setStage('prepare-and-queue-'+owner.task);await prepare(owner);await queueOwner(owner);}
+  await protectCancellation();assert.equal(effects().create,0);await functionalDrafts();interactions=interactionRunner({page,owners:projectStates,receipt,assertHealthy:health,phase:()=>measuredPhase,observe:passiveTiming});await interactions.warm();
+- setStage('idle-baseline');await quietPhase('quiet-app-open-idle');await page.evaluate(()=>{if(!window.__luciHomePhase)throw Error('Missing diagnostic AppShell probe');window.__luciHomePhase.arm();});const idle=phaseStart('idle-interactive-calibration');await interactions.calibrate(8);phaseEnd(idle);await passiveTiming('end-idle-calibration');
++ setStage('idle-baseline');await quietPhase('quiet-app-open-idle');await page.evaluate(()=>{if(!window.__luciHomePhase)throw Error('Missing diagnostic AppShell probe');window.__luciHomePhase.arm();});const idle=phaseStart('idle-interactive-calibration');await interactions.calibrate(100);phaseEnd(idle);await passiveTiming('end-idle-calibration');
+  receipt.interactionSummary=summarizeInteractions(receipt.interactions);
+  receipt.latencyTargets={measurement:'Original All projects→open saved Discover context→two frames; input→expected field→two frames; no physical-input claim',projectSwitchP95Ms:300,inputP95Ms:100,p99StrictlyBelowMs:1000};
+- receipt.targetComparison=Object.fromEntries(['project-switch','input'].map(kind=>{const value=receipt.interactionSummary['idle-interactive-calibration:'+kind];assert.equal(value.count,kind==='input'?16:8);assert.equal(value.failed,0);return[kind,{...value,withinReference:value.p95Ms<=(kind==='input'?100:300)&&value.p99Ms<1000}];}));
+- assert.equal(receipt.interactions.length,32);assert.equal(receipt.interactions.filter(row=>row.kind==='draft-reset').length,8);
++ receipt.targetComparison=Object.fromEntries(['project-switch','input'].map(kind=>{const value=receipt.interactionSummary['idle-interactive-calibration:'+kind];assert.equal(value.count,kind==='input'?200:100);assert.equal(value.failed,0);return[kind,{...value,withinReference:value.p95Ms<=(kind==='input'?100:300)&&value.p99Ms<1000}];}));
++ assert.equal(receipt.interactions.length,400);assert.equal(receipt.interactions.filter(row=>row.kind==='draft-reset').length,100);
+  validateHomeCapture(receipt);
+  assert.equal(option('--trace-after','no'),'no','Generic tracing is deliberately disabled');
+  assert.deepEqual(effects(),{create:0,start:0,destroy:0});assert.equal(proxy.observations.failures.length,0);assert.equal(receipt.browserErrors.length,0);assert.equal(providerCalls,0);assert.equal(auxiliaryCalls,0);assert.equal(workerContainers().length,0);
+@@ -719,7 +732,8 @@
+   receipt.taskChildren=[...taskData.values()].map(value=>({task:value.task,projectID:value.owner.id,operationID:value.operation.id,sessionID:value.session.id,container:value.container,bundle:initialBundles.get(value.session.id)}));receipt.terminalObservations=terminalProbes.map(({id,attachedStage,probe})=>({sessionID:id,attachedStage,...probe.snapshot()}));
+  for(const value of taskData.values()){try{const file=join(value.checkout,'.luci-mixed-failure-'+value.task+'.json');if(existsSync(file)){const info=lstatSync(file);assert(info.isFile()&&!info.isSymbolicLink()&&info.size<=60*1024**2);const target=join(evidence,value.task+'-private-failure.json');writeFileSync(target,readFileSync(file),{mode:0o600,flag:'wx'});(receipt.failureDiagnostics??=[]).push({task:value.task,available:true,bytes:info.size,sha256:sha(readFileSync(target)),private:true});}else if(!observations.has(value.task)){(receipt.failureDiagnostics??=[]).push({task:value.task,available:false,reason:'No settled native failure bundle exists at cleanup. An active command may be interrupted by this failed fixture; its temporary corpus cannot be claimed retained.'});}}catch(error){cleanupFailure(error);}}
+ 
+-  receipt.cleanupPhases=await settleSustainedResources();receipt.startupResources=startupScope.snapshot();
++  captureOwnedBrowserIdentities('before-cleanup');
++  receipt.cleanupPhases=await settleSustainedResources();receipt.startupResources=startupScope.snapshot();finishOwnedBrowserIdentities();
+   if(proxy)receipt.dockerTransportObservations=structuredClone(proxy.observations);
+  if(receipt.controllersStopped&&receipt.dockerRequestsDrained&&receipt.dockerMutationStateCertain&&proxy){const created=proxy.observations.requests.filter(value=>value.method==='POST'&&/\/containers\/create$/.test(value.path)&&value.status===201&&/^[a-f0-9]{64}$/.test(value.id??''));for(const creation of created){try{const ids=docker('ps','-aq','--no-trunc').split(/\s+/).filter(Boolean);if(!ids.includes(creation.id))continue;const value=JSON.parse(docker('inspect',creation.id))[0];assert.equal(value.Id,creation.id);assert.equal(value.Name,'/'+creation.name);assert.equal(value.Config.Labels['luci.instance'],instanceID());assert.equal(value.Config.Labels['luci.session-id'],creation.labels['luci.session-id']);assert(ownedSessions.has(value.Config.Labels['luci.session-id']));assert.equal(value.Config.Labels['luci.managed'],'true');assert.equal(value.Image,imageInfo.Id);assert(value.Mounts.some(mount=>mount.Destination==='/home/dev/work'&&projectStates.some(owner=>realpathSync(mount.Source).startsWith(join(dirname(owner.owner.path),'.luci-swarms')+sep))));cleanupFailure(Error('Unexpected full worker remained; exact failed-fixture cleanup required'));if(value.State.Running)docker('stop','--time','5',value.Id);const current=JSON.parse(docker('inspect',value.Id))[0];assert.equal(current.Id,value.Id);assert.equal(current.State.Running,false);docker('rm',value.Id);}catch(error){cleanupFailure(error);}}}
+  try{assert(startupScope.snapshot().every(row=>row.state==='closed'&&!row.closeTimedOut),'Startup resource remains unsettled');assert(receipt.controllersStopped);assert.equal(receipt.dockerRequestsDrained,true);assert.equal(receipt.dockerMutationStateCertain,true);assert.equal(docker('ps','-aq'),'');assert.equal(docker('volume','ls','-q'),'');assert.equal(ownedProcesses().length,0);assert.equal(ownedProcesses('browser').length,0);assert.equal(JSON.parse(docker('image','inspect',image))[0].Id,imageInfo.Id);assert.equal(sha(readFileSync(binary)),provenance.binarySHA256);assert.equal(sha(readFileSync(join(dirname(binary),'web','index.html'))),provenance.webIndexSHA256);assert.deepEqual(verifyDiagnosticWeb(),diagnosticWebBefore);assert.equal(docker('info','--format','{{.ID}}'),engineID);for(const name of driverNames)assert.equal(sha(readFileSync(new URL(name,import.meta.url))),sha(readFileSync(join(evidence,'accepted-harness',name))));for(const name of reusedHelpers)assert.equal(sha(readFileSync(join(helperRoot,'scripts/acceptance',name))),sha(readFileSync(join(evidence,'accepted-harness',name.replaceAll('/','_')))));

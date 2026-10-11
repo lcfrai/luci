@@ -1,0 +1,8 @@
+{
+  "file": "sustained.mjs",
+  "sha256": "4a3139e2b8d3af026f61e516f76d2dd62ce8eccc6108169c6dd2fac4ffdce6b5",
+  "firstLine": 675,
+  "lastLine": 675,
+  "text": "  installRoutes:async context=>{await installBrowserTiming(context);assertWorkflowActive();await context.route('**/*',async route=>{const request=route.request(),url=new URL(request.url());if(closing||fixtureError||workflowControl?.failed){await route.abort('blockedbyclient');return;}if(url.origin!==base){stopOnFailure(Error('Browser external request refused'));await route.abort('blockedbyclient');return;}if(!['GET','HEAD','OPTIONS'].includes(request.method()))receipt.browserMutations.push({stage,method:request.method(),path:url.pathname});await route.continue();});assertWorkflowActive();},",
+  "scope": "All requests pass original exact-origin guard and await route.continue. No timing instrumentation exists around that routing callback in this run."
+}

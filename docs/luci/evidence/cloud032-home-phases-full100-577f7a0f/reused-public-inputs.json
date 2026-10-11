@@ -1,0 +1,156 @@
+{
+  "version": 1,
+  "pathBase": "This capsule directory",
+  "scope": "Previously published exact web/build/overlay/package inputs referenced instead of copied; no new build. The two preparedPathToRestore members complete the original 39-member prepared manifest.",
+  "references": [
+    {
+      "role": "Identical web member binding reused for full100",
+      "publicPath": "../cloud032-home-phases-577f7a0f/diagnostic-web-binding.json",
+      "bytes": 84821,
+      "sha256": "1fb6475f2cefd34f15ec9136f9cfcd4fb1cc04dba01bf17c8138c39b1a8fb407",
+      "originalSourcePath": "/workspace/.luci-tools/cloud032-home-phase-577-full100/diagnostic-web-binding.json",
+      "preparedPathToRestore": "diagnostic-web-binding.json"
+    },
+    {
+      "role": "Identical source overlay binding reused for full100",
+      "publicPath": "../cloud032-home-phases-577f7a0f/prepared/overlay-binding.json",
+      "bytes": 1828,
+      "sha256": "d74dd31ffa27059309f414fd6ad37a944c90f46bafe0a3981bd6a393861011b0",
+      "originalSourcePath": "/workspace/.luci-tools/cloud032-home-phase-577-full100/overlay-binding.json",
+      "preparedPathToRestore": "overlay-binding.json"
+    },
+    {
+      "role": "Identical installed package provenance",
+      "publicPath": "../cloud032-idle-577f7a0f/run-001/driver/package-provenance.json",
+      "bytes": 880,
+      "sha256": "3b5ddda6d86425beb914f1fdeeba7178eb46c9c269a6bcfd9826b044bc4a0201",
+      "originalSourcePath": "/workspace/.luci-tools/cloud032-home-phase-577-full100/run-001/driver/package-provenance.json"
+    },
+    {
+      "role": "Previously completed TypeScript/Vite build and dependency/input binding; no new full100 build",
+      "publicPath": "../cloud032-home-phases-577f7a0f/build/0-invocation.json",
+      "bytes": 252,
+      "sha256": "d9e76d6206f0f5e9ad04ac2fcd8aca9502d40815f43ba13ae8872e7fe1c78469"
+    },
+    {
+      "role": "Previously completed TypeScript/Vite build and dependency/input binding; no new full100 build",
+      "publicPath": "../cloud032-home-phases-577f7a0f/build/0.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "role": "Previously completed TypeScript/Vite build and dependency/input binding; no new full100 build",
+      "publicPath": "../cloud032-home-phases-577f7a0f/build/0.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "role": "Previously completed TypeScript/Vite build and dependency/input binding; no new full100 build",
+      "publicPath": "../cloud032-home-phases-577f7a0f/build/1-invocation.json",
+      "bytes": 347,
+      "sha256": "4650be8c08a8e88798675ff947fd8dad7c133e77edc52a6c99c4c364ac21bf33"
+    },
+    {
+      "role": "Previously completed TypeScript/Vite build and dependency/input binding; no new full100 build",
+      "publicPath": "../cloud032-home-phases-577f7a0f/build/1.stderr.log",
+      "bytes": 360,
+      "sha256": "351b524197fb492920789369e7f1a271420c757633fbb553b280a181ac4c31a4"
+    },
+    {
+      "role": "Previously completed TypeScript/Vite build and dependency/input binding; no new full100 build",
+      "publicPath": "../cloud032-home-phases-577f7a0f/build/1.stdout.log",
+      "bytes": 18183,
+      "sha256": "ef0ff1896fcdbde75aafd4a405d3b615742f54abadbe6edf1184505f03a326d2"
+    },
+    {
+      "role": "Previously completed TypeScript/Vite build and dependency/input binding; no new full100 build",
+      "publicPath": "../cloud032-home-phases-577f7a0f/build/dependencies-after.json",
+      "bytes": 1258,
+      "sha256": "65007fa42c46b545cfacc6fcdf4907cd51e9d19fd6e2d6fe95ae6498b44716ef"
+    },
+    {
+      "role": "Previously completed TypeScript/Vite build and dependency/input binding; no new full100 build",
+      "publicPath": "../cloud032-home-phases-577f7a0f/build/dependencies-before.json",
+      "bytes": 1258,
+      "sha256": "65007fa42c46b545cfacc6fcdf4907cd51e9d19fd6e2d6fe95ae6498b44716ef"
+    },
+    {
+      "role": "Previously completed TypeScript/Vite build and dependency/input binding; no new full100 build",
+      "publicPath": "../cloud032-home-phases-577f7a0f/build/inputs-after.json",
+      "bytes": 123774,
+      "sha256": "7345f1d929d7d45788a1fe42120566247f9e7ea3b9d9943aad74e6961c8d4c5e"
+    },
+    {
+      "role": "Previously completed TypeScript/Vite build and dependency/input binding; no new full100 build",
+      "publicPath": "../cloud032-home-phases-577f7a0f/build/inputs-before.json",
+      "bytes": 214614,
+      "sha256": "5b49343e5fdbf0b28b70c5b453323f94d479757f6a60f260ceb3b555c7332044"
+    },
+    {
+      "role": "Previously completed TypeScript/Vite build and dependency/input binding; no new full100 build",
+      "publicPath": "../cloud032-home-phases-577f7a0f/build/result.json",
+      "bytes": 816,
+      "sha256": "d409f29aa6ab190fbe078f6178ccabebbfbcce5603e4cee31de3d7f7cb5c3072"
+    },
+    {
+      "role": "Exact reused diagnostic source overlay",
+      "publicPath": "../cloud032-home-phases-577f7a0f/prepared/overlay/desktop/src/components/rail/Rail.tsx",
+      "bytes": 8719,
+      "sha256": "711d22fcef1b85f2bec1e83f5f3483ebb8de592f0693db639f3d07d1a91a7778"
+    },
+    {
+      "role": "Exact reused diagnostic source overlay",
+      "publicPath": "../cloud032-home-phases-577f7a0f/prepared/overlay/desktop/src/components/AppShell.tsx",
+      "bytes": 6657,
+      "sha256": "3f8b4d3e5b76b09a5e22213541317f900ebee59952660f8d51988b15b83abb4a"
+    },
+    {
+      "role": "Exact reused diagnostic source overlay",
+      "publicPath": "../cloud032-home-phases-577f7a0f/prepared/overlay/desktop/src/store/slices/uiSlice.ts",
+      "bytes": 17115,
+      "sha256": "033dce9633d019fc958e3728a28fe3b722a4b8dc8e7b68ccd204008905d67ba6"
+    },
+    {
+      "role": "Exact reused diagnostic source overlay",
+      "publicPath": "../cloud032-home-phases-577f7a0f/prepared/overlay/desktop/src/preferences/projectNavigation.ts",
+      "bytes": 4693,
+      "sha256": "1cdf0eaad09a87f49ad9ab920e034f9cf68b62a3f8eefc6940345921f0cbd1aa"
+    },
+    {
+      "role": "Exact reused diagnostic source overlay",
+      "publicPath": "../cloud032-home-phases-577f7a0f/prepared/overlay/desktop/src/store/store.ts",
+      "bytes": 5049,
+      "sha256": "81e7821507750c0e03bcbf9d56e185338d3cefa57b1f555b4070b9a114e58219"
+    },
+    {
+      "role": "Exact reused diagnostic source overlay",
+      "publicPath": "../cloud032-home-phases-577f7a0f/prepared/overlay/desktop/src/diagnostics/homePhaseTiming.ts",
+      "bytes": 2561,
+      "sha256": "c9b657144d10cb4adc9d16996b8201c66ddbc8471676e3acba5a7f7df253ac94"
+    },
+    {
+      "role": "Preceding eight-round reproducibility basis",
+      "publicPath": "../cloud032-home-phases-577f7a0f/prepared/overlay.patch",
+      "bytes": 9728,
+      "sha256": "c1f98ae0a57474e241df7700a82cfde00a363b0add7726dfb0de47d1bdd7bbf2"
+    },
+    {
+      "role": "Preceding eight-round reproducibility basis",
+      "publicPath": "../cloud032-home-phases-577f7a0f/prepared/build-web.py",
+      "bytes": 5796,
+      "sha256": "93f4fcc0e777e4aa86afde4a31460fe641ecba57dd3b897ffed152fd257de534"
+    },
+    {
+      "role": "Preceding eight-round reproducibility basis",
+      "publicPath": "../cloud032-home-phases-577f7a0f/prepared/stage.py",
+      "bytes": 5624,
+      "sha256": "3d9c874e791b3e73d79db4247a3563b8d872c0150ed02ca9485d4b5161727f21"
+    },
+    {
+      "role": "Preceding eight-round reproducibility basis",
+      "publicPath": "../cloud032-home-phases-577f7a0f/manifest.json",
+      "bytes": 11606,
+      "sha256": "b4897ff92d84d9e87d0cd2356af75c7212701cadaca3b2e26a74f8488b2ba8f8"
+    }
+  ]
+}

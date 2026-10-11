@@ -1,0 +1,338 @@
+{
+  "originalResultSHA256": "92c533ae6cecb888be68f1644501d7e232c93dc490a8e0cb76e3b046dd102793",
+  "rows": [
+    {
+      "originalActionIndex": 0,
+      "primarySwitchOrdinal": 1,
+      "elapsedMs": 468.47427700000117,
+      "largestRecordedNodeSpan": "allProjectsCommand",
+      "allProjectsCommandMs": 280.772094999993,
+      "verifyExpectedContextMs": 54.54514499999641,
+      "sourceConsistentHomePointerAvailable": false,
+      "homePointerToDestinationPointerMs": null,
+      "homeClickEventTiming": [],
+      "destinationPointerToDriverExpectedDOMWitnessMs": 73.60000002384186,
+      "associatedSpecificationResources": [
+        {
+          "sequence": 205,
+          "durationMs": 17.099999964237213,
+          "responseStatus": 200,
+          "responseEnd": 66143.69999998808
+        }
+      ],
+      "wholeCommandBeforeVersusAfterPointer": "Unknown; no shared command-boundary anchors."
+    },
+    {
+      "originalActionIndex": 108,
+      "primarySwitchOrdinal": 28,
+      "elapsedMs": 303.5259550000046,
+      "largestRecordedNodeSpan": "verifyExpectedContext",
+      "allProjectsCommandMs": 74.42998099999386,
+      "verifyExpectedContextMs": 96.88797900000645,
+      "sourceConsistentHomePointerAvailable": true,
+      "homePointerToDestinationPointerMs": 101.60000002384186,
+      "homeClickEventTiming": [
+        {
+          "sequence": 5844,
+          "interactionId": 2482,
+          "durationMs": 48,
+          "processingStart": 83706.5,
+          "processingEnd": 83722.89999997616,
+          "processingIntervalMs": 16.399999976158142
+        }
+      ],
+      "destinationPointerToDriverExpectedDOMWitnessMs": 110.0,
+      "associatedSpecificationResources": [
+        {
+          "sequence": 879,
+          "durationMs": 25.899999976158142,
+          "responseStatus": 200,
+          "responseEnd": 83843.5
+        }
+      ],
+      "wholeCommandBeforeVersusAfterPointer": "Unknown; no shared command-boundary anchors."
+    },
+    {
+      "originalActionIndex": 112,
+      "primarySwitchOrdinal": 29,
+      "elapsedMs": 407.96897299999546,
+      "largestRecordedNodeSpan": "verifyExpectedContext",
+      "allProjectsCommandMs": 70.96711699999287,
+      "verifyExpectedContextMs": 210.3668570000009,
+      "sourceConsistentHomePointerAvailable": true,
+      "homePointerToDestinationPointerMs": 88.5,
+      "homeClickEventTiming": [
+        {
+          "sequence": 5990,
+          "interactionId": 2538,
+          "durationMs": 48,
+          "processingStart": 84419.5,
+          "processingEnd": 84432.89999997616,
+          "processingIntervalMs": 13.399999976158142
+        }
+      ],
+      "destinationPointerToDriverExpectedDOMWitnessMs": 241.4000000357628,
+      "associatedSpecificationResources": [
+        {
+          "sequence": 904,
+          "durationMs": 58.69999998807907,
+          "responseStatus": 200,
+          "responseEnd": 84576.80000001192
+        }
+      ],
+      "wholeCommandBeforeVersusAfterPointer": "Unknown; no shared command-boundary anchors."
+    },
+    {
+      "originalActionIndex": 192,
+      "primarySwitchOrdinal": 49,
+      "elapsedMs": 497.3249499999947,
+      "largestRecordedNodeSpan": "openProjectCommand",
+      "allProjectsCommandMs": 57.74841300000844,
+      "verifyExpectedContextMs": 110.38744999999471,
+      "sourceConsistentHomePointerAvailable": true,
+      "homePointerToDestinationPointerMs": 106.89999997615814,
+      "homeClickEventTiming": [
+        {
+          "sequence": 9203,
+          "interactionId": 3658,
+          "durationMs": 48,
+          "processingStart": 99134.10000002384,
+          "processingEnd": 99146.60000002384,
+          "processingIntervalMs": 12.5
+        }
+      ],
+      "destinationPointerToDriverExpectedDOMWitnessMs": 321.80000001192093,
+      "associatedSpecificationResources": [
+        {
+          "sequence": 1404,
+          "durationMs": 199.5,
+          "responseStatus": 200,
+          "responseEnd": 99459.89999997616
+        }
+      ],
+      "wholeCommandBeforeVersusAfterPointer": "Unknown; no shared command-boundary anchors."
+    },
+    {
+      "originalActionIndex": 228,
+      "primarySwitchOrdinal": 58,
+      "elapsedMs": 583.7914289999899,
+      "largestRecordedNodeSpan": "openProjectCommand",
+      "allProjectsCommandMs": 81.63975500001106,
+      "verifyExpectedContextMs": 113.26989699999103,
+      "sourceConsistentHomePointerAvailable": true,
+      "homePointerToDestinationPointerMs": 90.0,
+      "homeClickEventTiming": [
+        {
+          "sequence": 10646,
+          "interactionId": 4162,
+          "durationMs": 48,
+          "processingStart": 104733.80000001192,
+          "processingEnd": 104749.39999997616,
+          "processingIntervalMs": 15.599999964237213
+        }
+      ],
+      "destinationPointerToDriverExpectedDOMWitnessMs": 395.5,
+      "associatedSpecificationResources": [
+        {
+          "sequence": 1629,
+          "durationMs": 298.80000001192093,
+          "responseStatus": 200,
+          "responseEnd": 105134.80000001192
+        }
+      ],
+      "wholeCommandBeforeVersusAfterPointer": "Unknown; no shared command-boundary anchors."
+    },
+    {
+      "originalActionIndex": 244,
+      "primarySwitchOrdinal": 62,
+      "elapsedMs": 350.0653489999968,
+      "largestRecordedNodeSpan": "verifyExpectedContext",
+      "allProjectsCommandMs": 89.56253599999764,
+      "verifyExpectedContextMs": 118.61357000000135,
+      "sourceConsistentHomePointerAvailable": true,
+      "homePointerToDestinationPointerMs": 98.89999997615814,
+      "homeClickEventTiming": [
+        {
+          "sequence": 11283,
+          "interactionId": 4386,
+          "durationMs": 40,
+          "processingStart": 108324.69999998808,
+          "processingEnd": 108340.19999998808,
+          "processingIntervalMs": 15.5
+        }
+      ],
+      "destinationPointerToDriverExpectedDOMWitnessMs": 148.89999997615814,
+      "associatedSpecificationResources": [
+        {
+          "sequence": 1729,
+          "durationMs": 33.09999996423721,
+          "responseStatus": 200,
+          "responseEnd": 108464.89999997616
+        }
+      ],
+      "wholeCommandBeforeVersusAfterPointer": "Unknown; no shared command-boundary anchors."
+    },
+    {
+      "originalActionIndex": 296,
+      "primarySwitchOrdinal": 75,
+      "elapsedMs": 564.659330000024,
+      "largestRecordedNodeSpan": "openProjectCommand",
+      "allProjectsCommandMs": 53.26048399999854,
+      "verifyExpectedContextMs": 53.08816400001524,
+      "sourceConsistentHomePointerAvailable": true,
+      "homePointerToDestinationPointerMs": 402.30000001192093,
+      "homeClickEventTiming": [
+        {
+          "sequence": 13383,
+          "interactionId": 5114,
+          "durationMs": 56,
+          "processingStart": 118747.80000001192,
+          "processingEnd": 118758.60000002384,
+          "processingIntervalMs": 10.800000011920929
+        }
+      ],
+      "destinationPointerToDriverExpectedDOMWitnessMs": 86.09999996423721,
+      "associatedSpecificationResources": [
+        {
+          "sequence": 2054,
+          "durationMs": 35,
+          "responseStatus": 200,
+          "responseEnd": 119194.19999998808
+        }
+      ],
+      "wholeCommandBeforeVersusAfterPointer": "Unknown; no shared command-boundary anchors."
+    },
+    {
+      "originalActionIndex": 344,
+      "primarySwitchOrdinal": 87,
+      "elapsedMs": 500.3014700000058,
+      "largestRecordedNodeSpan": "allProjectsCommand",
+      "allProjectsCommandMs": 271.4922039999801,
+      "verifyExpectedContextMs": 67.03415500000119,
+      "sourceConsistentHomePointerAvailable": true,
+      "homePointerToDestinationPointerMs": 318.5999999642372,
+      "homeClickEventTiming": [
+        {
+          "sequence": 15315,
+          "interactionId": 5786,
+          "durationMs": 200,
+          "processingStart": 126168.19999998808,
+          "processingEnd": 126197.10000002384,
+          "processingIntervalMs": 28.900000035762787
+        }
+      ],
+      "destinationPointerToDriverExpectedDOMWitnessMs": 88.30000001192093,
+      "associatedSpecificationResources": [
+        {
+          "sequence": 2358,
+          "durationMs": 18.19999998807907,
+          "responseStatus": 200,
+          "responseEnd": 126517.5
+        }
+      ],
+      "wholeCommandBeforeVersusAfterPointer": "Unknown; no shared command-boundary anchors."
+    },
+    {
+      "originalActionIndex": 356,
+      "primarySwitchOrdinal": 90,
+      "elapsedMs": 318.0117989999999,
+      "largestRecordedNodeSpan": "allProjectsCommand",
+      "allProjectsCommandMs": 110.91153300000587,
+      "verifyExpectedContextMs": 82.41082199997618,
+      "sourceConsistentHomePointerAvailable": true,
+      "homePointerToDestinationPointerMs": 113.60000002384186,
+      "homeClickEventTiming": [
+        {
+          "sequence": 15767,
+          "interactionId": 5954,
+          "durationMs": 48,
+          "processingStart": 128821.10000002384,
+          "processingEnd": 128837.69999998808,
+          "processingIntervalMs": 16.599999964237213
+        }
+      ],
+      "destinationPointerToDriverExpectedDOMWitnessMs": 89.89999997615814,
+      "associatedSpecificationResources": [
+        {
+          "sequence": 2433,
+          "durationMs": 20,
+          "responseStatus": 200,
+          "responseEnd": 128959.60000002384
+        }
+      ],
+      "wholeCommandBeforeVersusAfterPointer": "Unknown; no shared command-boundary anchors."
+    },
+    {
+      "originalActionIndex": 380,
+      "primarySwitchOrdinal": 96,
+      "elapsedMs": 539.971888,
+      "largestRecordedNodeSpan": "allProjectsCommand",
+      "allProjectsCommandMs": 319.52614600001834,
+      "verifyExpectedContextMs": 58.728647999989334,
+      "sourceConsistentHomePointerAvailable": true,
+      "homePointerToDestinationPointerMs": 227.69999998807907,
+      "homeClickEventTiming": [
+        {
+          "sequence": 16757,
+          "interactionId": 6290,
+          "durationMs": 152,
+          "processingStart": 133228,
+          "processingEnd": 133310.69999998808,
+          "processingIntervalMs": 82.69999998807907
+        }
+      ],
+      "destinationPointerToDriverExpectedDOMWitnessMs": 87.19999998807907,
+      "associatedSpecificationResources": [
+        {
+          "sequence": 2583,
+          "durationMs": 25.900000035762787,
+          "responseStatus": 200,
+          "responseEnd": 133485.80000001192
+        }
+      ],
+      "wholeCommandBeforeVersusAfterPointer": "Unknown; no shared command-boundary anchors."
+    },
+    {
+      "originalActionIndex": 392,
+      "primarySwitchOrdinal": 99,
+      "elapsedMs": 582.3309100000188,
+      "largestRecordedNodeSpan": "allProjectsCommand",
+      "allProjectsCommandMs": 367.82257699998445,
+      "verifyExpectedContextMs": 57.4714479999966,
+      "sourceConsistentHomePointerAvailable": true,
+      "homePointerToDestinationPointerMs": 220.9000000357628,
+      "homeClickEventTiming": [
+        {
+          "sequence": 17210,
+          "interactionId": 6458,
+          "durationMs": 152,
+          "processingStart": 135433.5,
+          "processingEnd": 135506.19999998808,
+          "processingIntervalMs": 72.69999998807907
+        }
+      ],
+      "destinationPointerToDriverExpectedDOMWitnessMs": 82.30000001192093,
+      "associatedSpecificationResources": [
+        {
+          "sequence": 2658,
+          "durationMs": 23.19999998807907,
+          "responseStatus": 200,
+          "responseEnd": 135685.80000001192
+        }
+      ],
+      "wholeCommandBeforeVersusAfterPointer": "Unknown; no shared command-boundary anchors."
+    }
+  ],
+  "limits": [
+    "Original end-to-end rows and thresholds are unchanged. No overhead subtraction, outlier exclusion, mixed-clock subtraction, additive percentile or causal attribution.",
+    "Node command spans include Playwright transport, scheduling and actionability; they do not isolate product functions.",
+    "The expected-DOM witness is driver-triggered after locator wait and value check; it is not autonomous React-commit or physical-paint timing.",
+    "The last-pointer reference is exact. A source-consistent first/Home pointer requires exactly two pointer rows after the previous action frame; it lacks explicit target identity.",
+    "No browser-clock command-start/end anchors were retained, so an All projects command cannot be divided into pre-pointer versus post-pointer delay.",
+    "Resource association is same-clock overlap only; route classes contain no exact project identity and do not prove request-to-action causality.",
+    "EventTiming association requires a unique interval-containing pointerdown and nonzero interactionId. Thresholded observations and clock precision limit coverage.",
+    "This run contains the complete primary400 actions only, without generic tracing or Home instrumentation. The previous eight-round Home probe did not sample these tail actions.",
+    "No new app, browser, tests, runtime measurement, CPU profile or private state mutation. No product-completion claim."
+  ],
+  "decision": "See analysis.md for the evidence-supported decision; node regions alone do not isolate product functions."
+}

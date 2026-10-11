@@ -1,0 +1,101 @@
+{
+  "rows": [
+    {
+      "index": 37,
+      "roundOrdinal": 10,
+      "elapsedMs": 230.88322500001232,
+      "nodeSpansMs": {
+        "action": 15.652795000001788,
+        "verification": 3.249116999999387,
+        "twoFrames": 211.6795279999933
+      },
+      "browserFrameRequestToSecondCallbackMs": 156.9000000357628,
+      "browserFrameRequestToFirstCallbackMs": 13.700000047683716
+    },
+    {
+      "index": 38,
+      "roundOrdinal": 10,
+      "elapsedMs": 154.9622670000099,
+      "nodeSpansMs": {
+        "action": 115.08506700000726,
+        "verification": 7.430698999989545,
+        "twoFrames": 32.11805600000662
+      },
+      "browserFrameRequestToSecondCallbackMs": 28.099999964237213,
+      "browserFrameRequestToFirstCallbackMs": 11.799999952316284
+    },
+    {
+      "index": 101,
+      "roundOrdinal": 26,
+      "elapsedMs": 239.17170999999507,
+      "nodeSpansMs": {
+        "action": 32.78419500000018,
+        "verification": 138.32410900000832,
+        "twoFrames": 67.81104600000253
+      },
+      "browserFrameRequestToSecondCallbackMs": 16.799999952316284,
+      "browserFrameRequestToFirstCallbackMs": 3.199999988079071
+    },
+    {
+      "index": 102,
+      "roundOrdinal": 26,
+      "elapsedMs": 112.61186099999759,
+      "nodeSpansMs": {
+        "action": 72.34442199999467,
+        "verification": 5.40430500000366,
+        "twoFrames": 34.64606699999422
+      },
+      "browserFrameRequestToSecondCallbackMs": 32.30000001192093,
+      "browserFrameRequestToFirstCallbackMs": 16.0
+    },
+    {
+      "index": 138,
+      "roundOrdinal": 35,
+      "elapsedMs": 280.8937580000056,
+      "nodeSpansMs": {
+        "action": 218.3609359999973,
+        "verification": 35.21093400000245,
+        "twoFrames": 27.154696999990847
+      },
+      "browserFrameRequestToSecondCallbackMs": 18.799999952316284,
+      "browserFrameRequestToFirstCallbackMs": 2.0
+    },
+    {
+      "index": 250,
+      "roundOrdinal": 63,
+      "elapsedMs": 359.49173500000325,
+      "nodeSpansMs": {
+        "action": 62.11795799998799,
+        "verification": 18.800260000003618,
+        "twoFrames": 278.1234589999949
+      },
+      "browserFrameRequestToSecondCallbackMs": 140.19999998807907,
+      "browserFrameRequestToFirstCallbackMs": 102.80000001192093
+    },
+    {
+      "index": 262,
+      "roundOrdinal": 66,
+      "elapsedMs": 364.1612779999996,
+      "nodeSpansMs": {
+        "action": 43.43936999999278,
+        "verification": 9.005122999995365,
+        "twoFrames": 311.44685700000264
+      },
+      "browserFrameRequestToSecondCallbackMs": 207.19999998807907,
+      "browserFrameRequestToFirstCallbackMs": 109.19999998807907
+    },
+    {
+      "index": 285,
+      "roundOrdinal": 72,
+      "elapsedMs": 648.1497110000055,
+      "nodeSpansMs": {
+        "action": 546.4500650000118,
+        "verification": 59.05899900000077,
+        "twoFrames": 42.55534899997292
+      },
+      "browserFrameRequestToSecondCallbackMs": 35.19999998807907,
+      "browserFrameRequestToFirstCallbackMs": 19.299999952316284
+    }
+  ],
+  "limits": "Node two-frame command includes RPC dispatch/return; browser requestedAt to second callback is separately retained browser-clock interval. No clock subtraction or causal attribution."
+}

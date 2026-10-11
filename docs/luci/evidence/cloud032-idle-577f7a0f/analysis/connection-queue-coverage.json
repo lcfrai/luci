@@ -1,0 +1,280 @@
+{
+  "originalResultSHA256": "92c533ae6cecb888be68f1644501d7e232c93dc490a8e0cb76e3b046dd102793",
+  "rows": [
+    {
+      "switchOrdinal": 49,
+      "sequence": 1404,
+      "route": "project-specification",
+      "beforeRequestStartMs": 170.10000002384186,
+      "earlierCapturedResourcesUnfinishedAtStart": 0,
+      "earlierCapturedRouteCounts": {},
+      "maxCapturedStartedButNotEndedDuringPreRequestInterval": 2,
+      "otherCapturedRequestsInRequestToResponseIntervalAtRequestStart": 0,
+      "nearestEarlierCapturedResponseEndToRequestStartMs": 265.19999998807907
+    },
+    {
+      "switchOrdinal": 49,
+      "sequence": 1405,
+      "route": "project-orchestrator",
+      "beforeRequestStartMs": 177.60000002384186,
+      "earlierCapturedResourcesUnfinishedAtStart": 1,
+      "earlierCapturedRouteCounts": {
+        "project-specification": 1
+      },
+      "maxCapturedStartedButNotEndedDuringPreRequestInterval": 2,
+      "otherCapturedRequestsInRequestToResponseIntervalAtRequestStart": 1,
+      "nearestEarlierCapturedResponseEndToRequestStartMs": 274.80000001192093
+    },
+    {
+      "switchOrdinal": 58,
+      "sequence": 1629,
+      "route": "project-specification",
+      "beforeRequestStartMs": 283.39999997615814,
+      "earlierCapturedResourcesUnfinishedAtStart": 0,
+      "earlierCapturedRouteCounts": {},
+      "maxCapturedStartedButNotEndedDuringPreRequestInterval": 2,
+      "otherCapturedRequestsInRequestToResponseIntervalAtRequestStart": 0,
+      "nearestEarlierCapturedResponseEndToRequestStartMs": 352.0999999642372
+    },
+    {
+      "switchOrdinal": 58,
+      "sequence": 1630,
+      "route": "project-orchestrator",
+      "beforeRequestStartMs": 282.0,
+      "earlierCapturedResourcesUnfinishedAtStart": 1,
+      "earlierCapturedRouteCounts": {
+        "project-specification": 1
+      },
+      "maxCapturedStartedButNotEndedDuringPreRequestInterval": 2,
+      "otherCapturedRequestsInRequestToResponseIntervalAtRequestStart": 1,
+      "nearestEarlierCapturedResponseEndToRequestStartMs": 352.89999997615814
+    },
+    {
+      "switchOrdinal": 87,
+      "sequence": 2352,
+      "route": "swarm-scheduler",
+      "beforeRequestStartMs": 192.89999997615814,
+      "earlierCapturedResourcesUnfinishedAtStart": 0,
+      "earlierCapturedRouteCounts": {},
+      "maxCapturedStartedButNotEndedDuringPreRequestInterval": 5,
+      "otherCapturedRequestsInRequestToResponseIntervalAtRequestStart": 0,
+      "nearestEarlierCapturedResponseEndToRequestStartMs": 309.0999999642372
+    },
+    {
+      "switchOrdinal": 87,
+      "sequence": 2353,
+      "route": "project-overview",
+      "beforeRequestStartMs": 192.9000000357628,
+      "earlierCapturedResourcesUnfinishedAtStart": 3,
+      "earlierCapturedRouteCounts": {
+        "swarm-scheduler": 1,
+        "project-overview": 2
+      },
+      "maxCapturedStartedButNotEndedDuringPreRequestInterval": 5,
+      "otherCapturedRequestsInRequestToResponseIntervalAtRequestStart": 3,
+      "nearestEarlierCapturedResponseEndToRequestStartMs": 311.30000001192093
+    },
+    {
+      "switchOrdinal": 87,
+      "sequence": 2354,
+      "route": "project-overview",
+      "beforeRequestStartMs": 193.19999998807907,
+      "earlierCapturedResourcesUnfinishedAtStart": 1,
+      "earlierCapturedRouteCounts": {
+        "swarm-scheduler": 1
+      },
+      "maxCapturedStartedButNotEndedDuringPreRequestInterval": 5,
+      "otherCapturedRequestsInRequestToResponseIntervalAtRequestStart": 1,
+      "nearestEarlierCapturedResponseEndToRequestStartMs": 310.0999999642372
+    },
+    {
+      "switchOrdinal": 87,
+      "sequence": 2355,
+      "route": "project-overview",
+      "beforeRequestStartMs": 193.10000002384186,
+      "earlierCapturedResourcesUnfinishedAtStart": 2,
+      "earlierCapturedRouteCounts": {
+        "swarm-scheduler": 1,
+        "project-overview": 1
+      },
+      "maxCapturedStartedButNotEndedDuringPreRequestInterval": 5,
+      "otherCapturedRequestsInRequestToResponseIntervalAtRequestStart": 2,
+      "nearestEarlierCapturedResponseEndToRequestStartMs": 310.69999998807907
+    },
+    {
+      "switchOrdinal": 87,
+      "sequence": 2356,
+      "route": "project-overview",
+      "beforeRequestStartMs": 192.39999997615814,
+      "earlierCapturedResourcesUnfinishedAtStart": 4,
+      "earlierCapturedRouteCounts": {
+        "swarm-scheduler": 1,
+        "project-overview": 3
+      },
+      "maxCapturedStartedButNotEndedDuringPreRequestInterval": 5,
+      "otherCapturedRequestsInRequestToResponseIntervalAtRequestStart": 4,
+      "nearestEarlierCapturedResponseEndToRequestStartMs": 311.69999998807907
+    },
+    {
+      "switchOrdinal": 96,
+      "sequence": 2577,
+      "route": "swarm-scheduler",
+      "beforeRequestStartMs": 80.0,
+      "earlierCapturedResourcesUnfinishedAtStart": 0,
+      "earlierCapturedRouteCounts": {},
+      "maxCapturedStartedButNotEndedDuringPreRequestInterval": 5,
+      "otherCapturedRequestsInRequestToResponseIntervalAtRequestStart": 0,
+      "nearestEarlierCapturedResponseEndToRequestStartMs": 360.80000001192093
+    },
+    {
+      "switchOrdinal": 96,
+      "sequence": 2578,
+      "route": "project-overview",
+      "beforeRequestStartMs": 79.09999996423721,
+      "earlierCapturedResourcesUnfinishedAtStart": 1,
+      "earlierCapturedRouteCounts": {
+        "swarm-scheduler": 1
+      },
+      "maxCapturedStartedButNotEndedDuringPreRequestInterval": 5,
+      "otherCapturedRequestsInRequestToResponseIntervalAtRequestStart": 1,
+      "nearestEarlierCapturedResponseEndToRequestStartMs": 361.5
+    },
+    {
+      "switchOrdinal": 96,
+      "sequence": 2579,
+      "route": "project-overview",
+      "beforeRequestStartMs": 72.60000002384186,
+      "earlierCapturedResourcesUnfinishedAtStart": 2,
+      "earlierCapturedRouteCounts": {
+        "swarm-scheduler": 1,
+        "project-overview": 1
+      },
+      "maxCapturedStartedButNotEndedDuringPreRequestInterval": 5,
+      "otherCapturedRequestsInRequestToResponseIntervalAtRequestStart": 2,
+      "nearestEarlierCapturedResponseEndToRequestStartMs": 361.60000002384186
+    },
+    {
+      "switchOrdinal": 96,
+      "sequence": 2580,
+      "route": "project-overview",
+      "beforeRequestStartMs": 71.89999997615814,
+      "earlierCapturedResourcesUnfinishedAtStart": 3,
+      "earlierCapturedRouteCounts": {
+        "swarm-scheduler": 1,
+        "project-overview": 2
+      },
+      "maxCapturedStartedButNotEndedDuringPreRequestInterval": 5,
+      "otherCapturedRequestsInRequestToResponseIntervalAtRequestStart": 3,
+      "nearestEarlierCapturedResponseEndToRequestStartMs": 361.80000001192093
+    },
+    {
+      "switchOrdinal": 96,
+      "sequence": 2581,
+      "route": "project-overview",
+      "beforeRequestStartMs": 71.0,
+      "earlierCapturedResourcesUnfinishedAtStart": 4,
+      "earlierCapturedRouteCounts": {
+        "swarm-scheduler": 1,
+        "project-overview": 3
+      },
+      "maxCapturedStartedButNotEndedDuringPreRequestInterval": 5,
+      "otherCapturedRequestsInRequestToResponseIntervalAtRequestStart": 4,
+      "nearestEarlierCapturedResponseEndToRequestStartMs": 361.9000000357628
+    },
+    {
+      "switchOrdinal": 99,
+      "sequence": 2652,
+      "route": "swarm-scheduler",
+      "beforeRequestStartMs": 64.39999997615814,
+      "earlierCapturedResourcesUnfinishedAtStart": 0,
+      "earlierCapturedRouteCounts": {},
+      "maxCapturedStartedButNotEndedDuringPreRequestInterval": 5,
+      "otherCapturedRequestsInRequestToResponseIntervalAtRequestStart": 0,
+      "nearestEarlierCapturedResponseEndToRequestStartMs": 426.5
+    },
+    {
+      "switchOrdinal": 99,
+      "sequence": 2653,
+      "route": "project-overview",
+      "beforeRequestStartMs": 65.19999998807907,
+      "earlierCapturedResourcesUnfinishedAtStart": 1,
+      "earlierCapturedRouteCounts": {
+        "swarm-scheduler": 1
+      },
+      "maxCapturedStartedButNotEndedDuringPreRequestInterval": 5,
+      "otherCapturedRequestsInRequestToResponseIntervalAtRequestStart": 1,
+      "nearestEarlierCapturedResponseEndToRequestStartMs": 429.10000002384186
+    },
+    {
+      "switchOrdinal": 99,
+      "sequence": 2654,
+      "route": "project-overview",
+      "beforeRequestStartMs": 64.19999998807907,
+      "earlierCapturedResourcesUnfinishedAtStart": 2,
+      "earlierCapturedRouteCounts": {
+        "swarm-scheduler": 1,
+        "project-overview": 1
+      },
+      "maxCapturedStartedButNotEndedDuringPreRequestInterval": 5,
+      "otherCapturedRequestsInRequestToResponseIntervalAtRequestStart": 2,
+      "nearestEarlierCapturedResponseEndToRequestStartMs": 429.5
+    },
+    {
+      "switchOrdinal": 99,
+      "sequence": 2655,
+      "route": "project-overview",
+      "beforeRequestStartMs": 63.5,
+      "earlierCapturedResourcesUnfinishedAtStart": 3,
+      "earlierCapturedRouteCounts": {
+        "swarm-scheduler": 1,
+        "project-overview": 2
+      },
+      "maxCapturedStartedButNotEndedDuringPreRequestInterval": 5,
+      "otherCapturedRequestsInRequestToResponseIntervalAtRequestStart": 3,
+      "nearestEarlierCapturedResponseEndToRequestStartMs": 429.60000002384186
+    },
+    {
+      "switchOrdinal": 99,
+      "sequence": 2656,
+      "route": "project-overview",
+      "beforeRequestStartMs": 62.80000001192093,
+      "earlierCapturedResourcesUnfinishedAtStart": 4,
+      "earlierCapturedRouteCounts": {
+        "swarm-scheduler": 1,
+        "project-overview": 3
+      },
+      "maxCapturedStartedButNotEndedDuringPreRequestInterval": 5,
+      "otherCapturedRequestsInRequestToResponseIntervalAtRequestStart": 4,
+      "nearestEarlierCapturedResponseEndToRequestStartMs": 429.7000000476837
+    }
+  ],
+  "retainedResourceFields": [
+    "at",
+    "decodedBodySize",
+    "duration",
+    "encodedBodySize",
+    "kind",
+    "requestStart",
+    "responseEnd",
+    "responseStart",
+    "responseStatus",
+    "route",
+    "sequence",
+    "timeOrigin",
+    "transferSize",
+    "windowIndex"
+  ],
+  "missingForConnectionAttribution": [
+    "nextHopProtocol",
+    "connectStart",
+    "connectEnd",
+    "domainLookupStart",
+    "domainLookupEnd",
+    "fetchStart",
+    "workerStart",
+    "connectionId",
+    "unclassified same-origin resource records",
+    "in-flight resources never completed before final capture"
+  ],
+  "conclusion": "No retained delayed49/58/87 resource has six captured outstanding route-class resources during its pre-request interval. This does not rule out an HTTP/1.1 slot queue: the collector retains only six route classes, no protocol/connection fields and no exhaustive outstanding-request census. Request routing/scheduling/connection queue cannot be separated from these retained fields."
+}

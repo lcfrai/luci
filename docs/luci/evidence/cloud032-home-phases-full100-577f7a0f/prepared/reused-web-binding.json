@@ -1,0 +1,13 @@
+{
+  "priorEightRoundRawSHA256": "3b4c7e81784fb67908700e305df0bf8352d4d80d46e1458c322edf0afbb3aec0",
+  "diagnosticWebBindingSHA256": "1fb6475f2cefd34f15ec9136f9cfcd4fb1cc04dba01bf17c8138c39b1a8fb407",
+  "overlayBindingSHA256": "d74dd31ffa27059309f414fd6ad37a944c90f46bafe0a3981bd6a393861011b0",
+  "webRoot": "/workspace/.luci-tools/cloud032-home-phase-9536e417/web",
+  "webAlias": "/workspace/.luci-tools/cloud032-home-phase-577-full100/web",
+  "webIndexSHA256": "7cf9ea424292833279df91ad7b072baf4fd620b1c0cd48b31d10d25c8368221a",
+  "builtWebUnchanged": true,
+  "newBuildPerformed": false,
+  "probeStartMapCapacity": 16,
+  "expectedRetirementCounterAt100": 84,
+  "retirementExplanation": "The original homeHandlerBegin increments dropped when starts.size>16, even though the previous Home completed. Full capture validates every Home and every sequence before calling these retirements completed. Additional missing/overlap/overflow still fails."
+}

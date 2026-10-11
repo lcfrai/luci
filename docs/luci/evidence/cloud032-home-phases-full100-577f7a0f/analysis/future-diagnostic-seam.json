@@ -1,0 +1,28 @@
+{
+  "productSourceCommit": "577f7a0fdb039b7f875901a6a567d62fdfee88c8",
+  "productFile": "desktop/src/components/definition/DefinitionWorkspace.tsx",
+  "productFileSHA256": "a9cf1aa5589a23f8072efdfb92f7dbef21e1d729d4fd6f8f023bc58b00468c3e",
+  "definitionLoadExcerpt": {
+    "firstLine": 125,
+    "lastLine": 155,
+    "text": "  const missingJourneyLinks = spec?.journeys.some(journey => journey.requirementIds.some(id => !spec.requirements.some(requirement => requirement.id === id))) ?? false;\n  const load = async () => {\n    if (!canRead || reading.current.pending || submitting.current) return;\n    const generation = ++reading.current.generation;\n    const controller = new AbortController(); readController.current = controller;\n    reading.current.pending = true; reading.current.ready = false; setSavedRead(\"loading\");\n    try {\n      const value = await definitionApi.get(projectId, controller.signal);\n      if (!alive.current || !readPermission.current || controller.signal.aborted || reading.current.generation !== generation) return;\n      savedSpec.current = value; setSpec(value); setBase({ revision: value.revision, briefRevision: value.briefRevision });\n      reading.current.ready = true; setSavedRead(\"ready\"); setDirty(false); setError(\"\");\n      if (value.purpose || value.revision) setTab(\"specification\");\n    } catch (cause) {\n      if (alive.current && readPermission.current && !controller.signal.aborted && reading.current.generation === generation) { setSavedRead(\"failed\"); setError(errorText(cause)); }\n    } finally {\n      if (readController.current === controller) readController.current = null;\n      if (reading.current.generation === generation) reading.current.pending = false;\n    }\n  };\n  useEffect(() => {\n    alive.current = true; readAfterGrant.current = true;\n    return () => { alive.current = false; abortRead(); };\n  }, [abortRead]);\n  useEffect(() => {\n    if (!canRead) { readAfterGrant.current = true; abortRead(); return; }\n    // Do not abandon a write or read an older baseline while its outcome is\n    // pending. A restored grant queues exactly one fresh display read after it.\n    if (!readAfterGrant.current || busy || submitting.current) return;\n    readAfterGrant.current = false;\n    // Preserve unsaved answers as an explicit recovery choice before replacing\n    // the saved view. Edit-only changes do not request a new baseline."
+  },
+  "metricHelperSHA256": "110eca9dd023f2c2cc94b86ac8cdfb4ec1725cc6763ec1946a04dd0791764b72",
+  "metricVerificationExcerpt": {
+    "firstLine": 77,
+    "lastLine": 81,
+    "text": "   const field=page.getByRole('textbox',{name:'The idea',exact:true});await field.waitFor();\n   await field.evaluate((el,value)=>new Promise((done,reject)=>{const until=performance.now()+10000;const sample=()=>{if(el.isConnected&&el.value===value){window.__luciAcceptanceLatency.markExpectedDOM('project-switch');return done();}if(performance.now()>=until)return reject(Error('Expected project context did not render'));requestAnimationFrame(sample);};sample();}),values.get(owner.owner.id));\n   assert.equal(await field.inputValue(),values.get(owner.owner.id));\n  });current=owner;\n }"
+  },
+  "retainedMarkers": [
+    "verify-start/end surround field.waitFor, locator.evaluate value loop and inputValue",
+    "Browser expected-dom marks only the first correct value seen inside the already-resolved locator evaluation",
+    "Home AppShell layout effect only with null project and branch"
+  ],
+  "missingMarkers": [
+    "first matching visible definition control",
+    "specification JSON consumer completion",
+    "destination DefinitionWorkspace commit",
+    "entry into locator evaluate before value-check loop"
+  ],
+  "futureSeamOnly": "If resumed later, preserve exact metric/actions. Timestamp after definitionApi.get resolves and the first layout effect committing that same project/revision/value; separately timestamp existing field.waitFor completion and browser entry to existing evaluate. No instrumentation implemented or run by this analysis."
+}

@@ -1,0 +1,77 @@
+{
+  "rows": [
+    {
+      "index": 9,
+      "roundOrdinal": 3,
+      "elapsedMs": 303.24586499998986,
+      "nodeSpansMs": {
+        "action": 255.79409000001033,
+        "verification": 10.376774000003934,
+        "twoFrames": 36.777052000004915
+      },
+      "browserFrameRequestToSecondCallbackMs": 30.400000035762787,
+      "browserFrameRequestToFirstCallbackMs": 13.800000011920929
+    },
+    {
+      "index": 142,
+      "roundOrdinal": 36,
+      "elapsedMs": 369.1627379999991,
+      "nodeSpansMs": {
+        "action": 39.55651599999692,
+        "verification": 266.8028730000078,
+        "twoFrames": 62.68175600000541
+      },
+      "browserFrameRequestToSecondCallbackMs": 28.0,
+      "browserFrameRequestToFirstCallbackMs": 13.300000011920929
+    },
+    {
+      "index": 225,
+      "roundOrdinal": 57,
+      "elapsedMs": 237.46591799998714,
+      "nodeSpansMs": {
+        "action": 170.6320379999961,
+        "verification": 33.735358999998425,
+        "twoFrames": 32.9389599999995
+      },
+      "browserFrameRequestToSecondCallbackMs": 27.400000035762787,
+      "browserFrameRequestToFirstCallbackMs": 11.300000011920929
+    },
+    {
+      "index": 294,
+      "roundOrdinal": 74,
+      "elapsedMs": 342.97693799997796,
+      "nodeSpansMs": {
+        "action": 277.1633349999902,
+        "verification": 30.778744999988703,
+        "twoFrames": 34.443135999987135
+      },
+      "browserFrameRequestToSecondCallbackMs": 22.799999952316284,
+      "browserFrameRequestToFirstCallbackMs": 6.199999988079071
+    },
+    {
+      "index": 321,
+      "roundOrdinal": 81,
+      "elapsedMs": 427.1111740000197,
+      "nodeSpansMs": {
+        "action": 382.4882600000128,
+        "verification": 16.59552399997483,
+        "twoFrames": 27.86781900000642
+      },
+      "browserFrameRequestToSecondCallbackMs": 23.600000023841858,
+      "browserFrameRequestToFirstCallbackMs": 21.900000035762787
+    },
+    {
+      "index": 333,
+      "roundOrdinal": 84,
+      "elapsedMs": 255.482714999991,
+      "nodeSpansMs": {
+        "action": 219.2976450000133,
+        "verification": 13.751329999999143,
+        "twoFrames": 22.099094000004698
+      },
+      "browserFrameRequestToSecondCallbackMs": 18.5,
+      "browserFrameRequestToFirstCallbackMs": 2.199999988079071
+    }
+  ],
+  "limits": "Node two-frame command includes RPC dispatch/return; browser requestedAt to second callback is separately retained browser-clock interval. No clock subtraction or causal attribution."
+}

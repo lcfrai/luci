@@ -1,0 +1,14 @@
+{
+  "startedFrom": "Completed private original result supplied by operator",
+  "originalResultSHA256Before": "ea7a1722ba0e284ed9e123893b792305b8494579c834b06f842f31e924da4b99",
+  "originalResultSHA256After": "ea7a1722ba0e284ed9e123893b792305b8494579c834b06f842f31e924da4b99",
+  "originalUnchanged": true,
+  "analysisScriptSHA256": "8aff5dc60ad4667392c33937b7ba29eb9b5eaf7582a68b32ffb0c6e2267ee42a",
+  "completedAt": "2026-10-11T12:48:05.100727+00:00",
+  "actionsProjected": 400,
+  "primaryActions": 400,
+  "followupActions": 0,
+  "browserLatencyRows": 2853,
+  "browserEventTimingRows": 18420,
+  "offlineOnly": true
+}

@@ -1,0 +1,20 @@
+#!/usr/bin/env python3
+"""Offline numeric-only browser-clock intervals from the frozen full projection."""
+from pathlib import Path
+import collections,gzip,json,math
+B=Path(__file__).resolve().parent
+switches=json.loads((B/'switches.all100.json').read_text());p=json.loads(gzip.decompress((B/'timings.all400.projection.json.gz').read_bytes()));br=p['browserLatencyRows'];out=[]
+def q(values):
+ values=sorted(values);return {'count':len(values),**({k:values[math.ceil(len(values)*percent)-1] for k,percent in [('p50',.5),('p95',.95),('max',1)]} if values else {})}
+def ep(assoc):return [{'name':e['name'],'durationMs':e['duration'],'dispatchQueueMs':e['processingStart']-e['startTime'],'processingMs':e['processingEnd']-e['processingStart']} for e in assoc.get('sameInteractionEvents',[]) if e['name'] in ['click','pointerdown','pointerup']]
+for row in switches:
+ home=row['homePointerAssociation'];homep=home.get('sourceConsistentHomePointer');ptr=row['browserReferences']['pointer'];expected=row['browserReferences']['expectedDOM'];origin=ptr['timeOrigin'];before=homep['at'] if homep else ptr['at']
+ resources=[r for r in br if r['timeOrigin']==origin and r['kind']=='resource' and r['at']<=expected['at'] and r['responseEnd']>=before]
+ def rp(r):return {'route':r['route'],'sequence':r['sequence'],'durationMs':r['duration'],'beforeRequestStartMs':r['requestStart']-r['at'] if r['requestStart'] else None,'requestStartToFirstByteMs':r['responseStart']-r['requestStart'] if r['requestStart'] and r['responseStart'] else None,'responseBodyMs':r['responseEnd']-r['responseStart'] if r['responseStart'] else None,'startAfterOpenPointerMs':r['at']-ptr['at'],'responseEndBeforeExpectedWitnessMs':expected['at']-r['responseEnd'],'responseStatus':r['responseStatus']}
+ out.append({'switchOrdinal':row['index']//4+1,'originalActionIndex':row['index'],'elapsedMs':row['elapsedMs'],'over300ms':row['elapsedMs']>300,'nodeSpansMs':row['nodeSpans'],'largestNodeSpan':row['largestRecordedNodeSpan'],'homePointerAvailable':bool(homep),'homePointerToOpenPointerMs':home.get('homePointerToOpenPointerMs'),'openPointerToExpectedWitnessMs':row['browserClockSpans']['lastPointerToDriverExpectedDOMWitnessMs'],'homeEvents':ep(home.get('homePointerEventAssociation',{})),'openEvents':ep(row['openPointerEventAssociation']),'resources':list(map(rp,resources))})
+summary={}
+for key,pred in [('all100',lambda r:True),('over300ms6',lambda r:r['over300ms']),('atMost300ms94',lambda r:not r['over300ms'])]:
+ rows=list(filter(pred,out));resources=[r for row in rows for r in row['resources']];summary[key]={'switches':len(rows),'associatedHomeClickProcessingMs':q([e['processingMs'] for row in rows for e in row['homeEvents'] if e['name']=='click']),'associatedOpenClickProcessingMs':q([e['processingMs'] for row in rows for e in row['openEvents'] if e['name']=='click']),'resourceBeforeRequestStartMs':q([r['beforeRequestStartMs'] for r in resources if r['beforeRequestStartMs'] is not None]),'switchesWithAssociatedResourceBeforeRequestStartOver100ms':[row['switchOrdinal'] for row in rows if any(r['beforeRequestStartMs'] is not None and r['beforeRequestStartMs']>100 for r in row['resources'])]}
+result={'originalResultSHA256':p['originalResultSHA256'],'rows':out,'summary':summary,'limits':['Browser event and resource intervals share their own recorded clock; no Node/browser subtraction.','Resource route class does not identify a project; associations are overlap only.','Before requestStart includes browser/protocol/connection work, not a proven route-handler delay.','The source-installed Playwright route guard pauses every request until route.continue; this source-supported path does not prove it caused a retained delay.','RequestStart to first byte includes service and scheduling, not isolated server compute.','Event processing covers browser dispatch, not one named React handler.','All100 switches retained; derived cohorts do not alter acceptance percentiles.']}
+(B/'resource-event-phases.all100.json').write_text(json.dumps(result,indent=2)+'\n')
+print(json.dumps(summary,indent=2))

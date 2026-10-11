@@ -1,0 +1,68 @@
+{
+  "originalResultSHA256": "ea7a1722ba0e284ed9e123893b792305b8494579c834b06f842f31e924da4b99",
+  "sourceCommit": "577f7a0fdb039b7f875901a6a567d62fdfee88c8",
+  "sourceDirty": false,
+  "driverSHA256": "c4312796c88ffe272f8dac9d14cb01d4040b2d040ba4262494daeccf2fb6ef56",
+  "recordedProductBinarySHA256": "6695f12aec9628316aeb2e9ea1901f313dc868d49d245384f075b729166383d7",
+  "recordedWebIndexSHA256": "7cf9ea424292833279df91ad7b072baf4fd620b1c0cd48b31d10d25c8368221a",
+  "recordedPackageArchiveSHA256": "98d8bea09b1476a09a290a6b53567f9ecdca8ced32099dbdcbf3b735a88b07ba",
+  "recordedPackageIntegrityAllMembersMatch": true,
+  "externalHelperHashes": {
+    "four-project-queue_native-terminal-diagnostics.mjs": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+    "four-project-queue_sample-linux-owned.py": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+    "interaction-metrics.mjs": "110eca9dd023f2c2cc94b86ac8cdfb4ec1725cc6763ec1946a04dd0791764b72",
+    "latency-diagnostics.mjs": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96",
+    "launch-recovery_acceptance-lifecycle.mjs": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+    "launch-recovery_acceptance-startup.mjs": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+    "launch-recovery_durable-acceptance-journal.mjs": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+    "launch-recovery_fenced-docker-proxy.mjs": "b965b9a5d03f8a4cbc19b6e065559e1d9b10a2812453bfafb992e3f0041e448f",
+    "launch-recovery_worker-create-guard.mjs": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+    "queue-controls.mjs": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0",
+    "receipt-transport.mjs": "6a676eefc02c4be569e65f6c3a16da50f750be67acaf4f1380a86739791c34a1",
+    "run-with-observer.py": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a",
+    "source-binding.mjs": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796",
+    "sustained.mjs": "c4312796c88ffe272f8dac9d14cb01d4040b2d040ba4262494daeccf2fb6ef56",
+    "task-command.mjs": "7557cc863201e136a6ea0f4d039472d6e225a8efb0fb2afe267b9d65e01a541f",
+    "task-context.mjs": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2",
+    "workloads.mjs": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306"
+  },
+  "repositoryDependencyHashes": {
+    "scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+    "scripts/acceptance/four-project-queue/sample-linux-owned.py": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+    "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs": "b965b9a5d03f8a4cbc19b6e065559e1d9b10a2812453bfafb992e3f0041e448f",
+    "scripts/acceptance/launch-recovery/worker-create-guard.mjs": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+    "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+    "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+    "scripts/acceptance/launch-recovery/acceptance-startup.mjs": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680"
+  },
+  "verifiedMetricSourceExcerpts": {
+    "interaction-metrics.mjs": {
+      "sha256": "110eca9dd023f2c2cc94b86ac8cdfb4ec1725cc6763ec1946a04dd0791764b72",
+      "bytes": 10420,
+      "lineExcerpts": [
+        {
+          "firstLine": 61,
+          "lastLine": 78,
+          "text": " receipt.interactions??=[];\n let current;\n const frames=()=>page.evaluate(browserFrameWitness);\n async function measured(kind,owner,action,verify){\n  assert(receipt.interactions.length<6000,'Bounded interaction measurement count');\n  const item={phase:phase(),kind,projectID:owner.owner.id,at:new Date().toISOString(),success:false};\n  const start=performance.now(),diagnostic=nodeStageRecorder(item,start);\n  let timeout;try {await Promise.race([(async()=>{diagnostic.mark('action-start');await action(diagnostic.mark);diagnostic.mark('action-end');diagnostic.mark('verify-start');await verify();diagnostic.mark('verify-end');diagnostic.mark('frames-start');diagnostic.frames(await frames());diagnostic.mark('frames-end');})(),new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Error('Interaction deadline exceeded after15seconds')),15000);})]);item.success=true;}\n  catch(error){item.error=String(error.message).slice(0,300);throw error;}\n  finally{clearTimeout(timeout);item.elapsedMs=performance.now()-start;diagnostic.close();receipt.interactions.push(item);}\n }\n async function switchTo(owner){\n  assertHealthy();\n  await measured('project-switch',owner,async mark=>{await page.getByRole('button',{name:'All projects',exact:true}).click();mark('all-projects-click-end');await page.getByRole('heading',{name:'Across your projects',exact:true}).waitFor();mark('overview-heading-ready');await page.getByRole('button',{name:'Open project '+owner.owner.name,exact:true}).click();mark('open-project-click-end');},async()=>{\n   // The calibrated lens is Discover. Its actual loaded value is the witness,\n   // rather than a title that could render before stale content is replaced.\n   const field=page.getByRole('textbox',{name:'The idea',exact:true});await field.waitFor();\n   await field.evaluate((el,value)=>new Promise((done,reject)=>{const until=performance.now()+10000;const sample=()=>{if(el.isConnected&&el.value===value){window.__luciAcceptanceLatency.markExpectedDOM('project-switch');return done();}if(performance.now()>=until)return reject(Error('Expected project context did not render'));requestAnimationFrame(sample);};sample();}),values.get(owner.owner.id));"
+        }
+      ]
+    },
+    "latency-diagnostics.mjs": {
+      "sha256": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96",
+      "bytes": 7545,
+      "lineExcerpts": [
+        {
+          "firstLine": 10,
+          "lastLine": 45,
+          "text": " const emit=row=>{const sequence=++data.observed;if(data.rows.length>=bound){data.dropped++;data.overflow=true;return null;}const value={sequence,...row};data.rows.push(value);return value;};\n const eventRef=row=>row?{sequence:row.sequence,at:row.at}:null;\n const input=event=>{if(!event.isTrusted)return;timed(()=>{\n  const row=emit({kind:'input-dispatch',at:performance.now()});lastInput=eventRef(row);\n  if(!row)return;\n  requestAnimationFrame(()=>timed(()=>{emit({kind:'input-frame-1',inputSequence:row.sequence,at:performance.now()});requestAnimationFrame(()=>timed(()=>emit({kind:'input-frame-2',inputSequence:row.sequence,at:performance.now()})));}));\n });};\n const pointer=event=>{if(event.isTrusted)timed(()=>{lastPointer=eventRef(emit({kind:'pointer-dispatch',at:performance.now()}));});};\n window.addEventListener('input',input,{capture:true,passive:true});\n window.addEventListener('pointerdown',pointer,{capture:true,passive:true});\n const markExpectedDOM=kind=>timed(()=>{\n  if(!['input','project-switch'].includes(kind))throw Error('Unknown diagnostic DOM witness');\n  const ref=eventRef(emit({kind:'expected-dom',actionKind:kind,at:performance.now(),input:lastInput,pointer:lastPointer}));lastExpected=ref?{...ref,actionKind:kind}:null;\n });\n const snapshot=()=>({...data,rows:data.rows.splice(0),visibility:document.visibilityState});\n const references=()=>({timeOrigin:data.timeOrigin,input:lastInput,pointer:lastPointer,expectedDOM:lastExpected});\n Object.defineProperty(window,'__luciAcceptanceLatency',{value:{snapshot,references,markExpectedDOM},configurable:false});\n // Only same-origin, known API route CLASSES are retained. No raw paths, names,\n // queries, identifiers, headers, body bytes, key strings or input values.\n const classify=name=>{\n  let url;try{url=new URL(name,location.href);}catch{return null;}\n  if(url.origin!==location.origin)return null;\n  const path=url.pathname.replace(/^\\/v1\\/teams\\/team-[A-Za-z0-9_-]{22}\\/workspace(?=\\/v1\\/)/,'');\n  const project='[A-Za-z0-9_-]+';\n  for(const [label,pattern] of [\n   ['project-overview',new RegExp('^/v1/product/projects/'+project+'/overview$')],\n   ['project-specification',new RegExp('^/v1/product/projects/'+project+'/specification$')],\n   ['project-orchestrator',new RegExp('^/v1/product/projects/'+project+'/orchestrator$')],\n   ['project-swarm-queue',new RegExp('^/v1/product/projects/'+project+'/swarm-queue$')],\n   ['project-runs',new RegExp('^/v1/product/projects/'+project+'/runs(?:/[A-Za-z0-9_-]+)?$')],\n   ['swarm-scheduler',/^\\/v1\\/product\\/swarm-scheduler$/],\n  ])if(pattern.test(path))return label;\n  return null;\n };\n try{\n  if(!PerformanceObserver.supportedEntryTypes.includes('resource')){data.resourceUnsupported=true;return;}"
+        },
+        {
+          "firstLine": 54,
+          "lastLine": 75,
+          "text": "// callback opportunities in the browser clock, not proof of physical painting.\nexport function browserFrameWitness() {\n const requestedAt=performance.now();\n return new Promise(resolve=>requestAnimationFrame(()=>{\n  const firstFrameAt=performance.now();\n  requestAnimationFrame(()=>resolve({requestedAt,firstFrameAt,secondFrameAt:performance.now(),references:window.__luciAcceptanceLatency?.references()??null}));\n }));\n}\n\n// Called synchronously at existing await boundaries: no added browser RPC.\nexport function nodeStageRecorder(item,start,clock=()=>performance.now()) {\n const stages=[];let closed=false;\n item.diagnostics={version:1,nodeStages:stages,nodeClockReads:0,browserFrames:null,limitations:['Node subspans include command transport and scheduler waits. Browser clock values are not subtracted from Node clock values. Two rAF callbacks are not physical paint or React commit proof. Instrumentation changes overhead; callback accounting excludes observer, clock and serialization overhead.']};\n return {\n  mark(stage){if(closed)return;assert(['action-start','action-end','verify-start','verify-end','frames-start','frames-end','all-projects-click-end','overview-heading-ready','open-project-click-end'].includes(stage));assert(stages.length<12);item.diagnostics.nodeClockReads++;stages.push({stage,offsetMs:clock()-start});},\n  frames(value){if(!closed)item.diagnostics.browserFrames=value;},\n  close(){closed=true;},\n };\n}\n\nexport function createLatencyLedger(receipt,limits={maxRows:50000,maxBytes:8*1024**2,maxWindows:2000,maxDocuments:128}) {\n const documents=new Map();let rows=0,bytes=0,windows=0;"
+        }
+      ]
+    }
+  },
+  "limits": "Metric helper bytes independently matched recorded hashes. Product/package identity is reported from the completed receipt, not independently re-executed. Private execution directories are omitted."
+}

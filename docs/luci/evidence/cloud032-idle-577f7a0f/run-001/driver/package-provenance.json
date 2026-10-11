@@ -1,0 +1,16 @@
+{
+  "sourceCommit": "577f7a0fdb039b7f875901a6a567d62fdfee88c8",
+  "sourceDirty": false,
+  "packageDir": "/workspace/.luci-tools/package-577f7a0f/installed",
+  "archive": "/workspace/luci/artifacts/releases/0.5.0/luci-linux-amd64.tar.gz",
+  "archiveSHA256": "98d8bea09b1476a09a290a6b53567f9ecdca8ced32099dbdcbf3b735a88b07ba",
+  "binarySHA256": "6695f12aec9628316aeb2e9ea1901f313dc868d49d245384f075b729166383d7",
+  "webIndexSHA256": "0ca305a9abea2fac7b56144afe768daef611fd1798ef43c7026d4225128a1e8d",
+  "packageIdentity": "6d69e5cebb2af7cbcf5f0c1ca12063b86f71d8f968cbffa007a40447a147592e",
+  "verifiedMembers": 967,
+  "runtimeSources": 106,
+  "licenseComponents": 347,
+  "missingLicenses": 0,
+  "allMembersMatch": true,
+  "scope": "Actual local archives and extracted files read and hashed. Does not establish Windows, runtime image, installed workflow or performance acceptance."
+}

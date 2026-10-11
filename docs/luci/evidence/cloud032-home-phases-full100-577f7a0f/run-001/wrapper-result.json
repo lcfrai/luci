@@ -1,0 +1,29 @@
+{
+  "startedAt": "2026-10-11T12:42:25.695507+00:00",
+  "finishedAt": "2026-10-11T12:44:55.410976+00:00",
+  "elapsedSeconds": 149.71552359499037,
+  "exitCode": 0,
+  "externalMonitorTimeout": false,
+  "forcedExactDriver": false,
+  "driverIdentity": {
+    "pid": 2740762,
+    "startTicks": 46861493,
+    "state": "R"
+  },
+  "finalDriverObservation": {
+    "pid": 2740762,
+    "state": "absent"
+  },
+  "events": [],
+  "ownedCleanupRequiresFinalReceipt": true,
+  "cleanupUnconfirmedByWrapper": true,
+  "resultExists": true,
+  "rawResultSHA256": "ea7a1722ba0e284ed9e123893b792305b8494579c834b06f842f31e924da4b99",
+  "preparedInputsUnchanged": true,
+  "observedMutableCheckoutAfter": {
+    "head": "80462898735a191cceaa4cb33e486b42b0a35f3c",
+    "statusPorcelain": "",
+    "usedForProductOrHelpers": false
+  },
+  "noAutomaticFixtureOrLedgerMutation": true
+}

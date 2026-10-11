@@ -1,0 +1,134 @@
+{
+  "rawPrivateSHA256": "ea7a1722ba0e284ed9e123893b792305b8494579c834b06f842f31e924da4b99",
+  "sourceCommit": "577f7a0fdb039b7f875901a6a567d62fdfee88c8",
+  "sourceDirty": false,
+  "capturePassed": true,
+  "diagnosticOnly": true,
+  "performanceAcceptance": false,
+  "targetComparison": {
+    "project-switch": {
+      "count": 100,
+      "successful": 100,
+      "failed": 0,
+      "p50Ms": 214.37393000000156,
+      "p95Ms": 300.4444239999866,
+      "p99Ms": 452.11358399999153,
+      "maxMs": 528.1355679999979,
+      "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+      "timeouts": [],
+      "withinReference": false
+    },
+    "input": {
+      "count": 200,
+      "successful": 200,
+      "failed": 0,
+      "p50Ms": 48.05511000000115,
+      "p95Ms": 73.00026799998886,
+      "p99Ms": 342.97693799997796,
+      "maxMs": 427.1111740000197,
+      "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+      "timeouts": [],
+      "withinReference": true
+    }
+  },
+  "homePhaseCapture": {
+    "complete": true,
+    "startMapCapacity": 16,
+    "completedStartEntriesRetired": 84,
+    "additionalDroppedRowsOrOverlaps": 0,
+    "retirementAccounting": "Exact unchanged probe evicts already-completed start entries after16; all phase sequences and100 completed Home sets separately required.",
+    "homes": 100,
+    "rows": 1200,
+    "originalMetricUnchanged": true,
+    "diagnosticNotAcceptance": true,
+    "join": "home 1..100 matches project-switch 1..100 in action order",
+    "nestedDurationsNotAdditive": true
+  },
+  "wrapper": {
+    "exitCode": 0,
+    "externalMonitorTimeout": false,
+    "forcedExactDriver": false,
+    "preparedInputsUnchanged": true,
+    "rawResultSHA256": "ea7a1722ba0e284ed9e123893b792305b8494579c834b06f842f31e924da4b99",
+    "resultExists": true
+  },
+  "sourceBindings": {
+    "productSource": "577f7a0fdb039b7f875901a6a567d62fdfee88c8",
+    "helperSource": "64829123a5799858b57616b711c84c61b945871a",
+    "frozenHelperCopyUsed": true,
+    "packagedWebIndexSHA256": "0ca305a9abea2fac7b56144afe768daef611fd1798ef43c7026d4225128a1e8d",
+    "diagnosticWebIndexSHA256": "7cf9ea424292833279df91ad7b072baf4fd620b1c0cd48b31d10d25c8368221a",
+    "diagnosticWebBindingSHA256": "1fb6475f2cefd34f15ec9136f9cfcd4fb1cc04dba01bf17c8138c39b1a8fb407",
+    "driverSHA256": "c4312796c88ffe272f8dac9d14cb01d4040b2d040ba4262494daeccf2fb6ef56",
+    "bindingSHA256": "723e8a66254002431b63610d034463b8936974509186022316eef39abc7cbb0c",
+    "launcherSHA256": "f52f53006c18e27241cadfb29d571583469043fbf911da17b3b0b6ca2741f65b",
+    "provenanceSHA256": "3b5ddda6d86425beb914f1fdeeba7178eb46c9c269a6bcfd9826b044bc4a0201"
+  },
+  "fixedScope": {
+    "quietSeconds": 60,
+    "primarySwitches": 100,
+    "primaryInputs": 200,
+    "primaryResets": 100,
+    "extraTraceRounds": 0,
+    "homePhaseNumericOnly": true,
+    "performanceAcceptance": false,
+    "switchP95Ms": 300,
+    "inputP95Ms": 100,
+    "p99StrictlyBelowMs": 1000,
+    "allowedCreates": 0,
+    "allowedStarts": 0,
+    "preparationSeconds": 60,
+    "workflowSeconds": 210,
+    "cleanupSeconds": 120,
+    "outerDriverWaitSeconds": 450,
+    "outerTermGraceSeconds": 30,
+    "outerKillWaitSeconds": 10,
+    "linuxSampler": false
+  },
+  "imageID": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+  "engineIdentitySHA256": "9ccbe65e5da6fcbddb4f24a682abf7d4e4ddf8dff3a453fca0c0dbd34de76de5",
+  "packageIntegrity": {
+    "archiveSHA256": "98d8bea09b1476a09a290a6b53567f9ecdca8ced32099dbdcbf3b735a88b07ba",
+    "verifiedMembers": 967,
+    "allMembersMatch": true
+  },
+  "allActions": 400,
+  "allActionsSucceeded": true,
+  "runtimeCleanup": {
+    "containers": 0,
+    "volumes": 0,
+    "ownedServiceProcesses": 0,
+    "ownedBrowserProcesses": 0,
+    "protectedImagePackageAndHelpersUnchanged": true
+  },
+  "browserIdentityClassification": {
+    "absent": 1,
+    "pid-reused": 0,
+    "same-identity-zombie": 2,
+    "same-identity-present": 0
+  },
+  "browserIdentityCensusExhaustive": false,
+  "rawReceiptBindings": {
+    "invocation.json": {
+      "sha256": "ed24a0a00998d2fc79af454837b894941ff4403ea4925aae9b372360022b12b2",
+      "bytes": 5211
+    },
+    "wrapper-result.json": {
+      "sha256": "04f7c88bce9e48a551ab0cd94f05e111d2fd559428f0d5d5bdd423e64c79d791",
+      "bytes": 851
+    },
+    "driver/result.json": {
+      "sha256": "ea7a1722ba0e284ed9e123893b792305b8494579c834b06f842f31e924da4b99",
+      "bytes": 7232092
+    },
+    "driver/owned-browser-identities.json": {
+      "sha256": "e8fa49dfcf20f3ee7787a30118b810c8ae075d68a8cda9338a52275cc34b21a1",
+      "bytes": 2034
+    },
+    "independent-closure.json": {
+      "sha256": "6b81f89827c6af1af447bd638bc23ecabb03693b6400b256ee0675eb4eea940e",
+      "bytes": 1308
+    }
+  },
+  "closureScope": "Independent closure is separately bound but not reproduced in this timing capsule; root owns its publication. Zero active browser processes does not mean zero zombies."
+}

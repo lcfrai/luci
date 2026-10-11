@@ -1,0 +1,2783 @@
+{
+  "originalResultSHA256": "92c533ae6cecb888be68f1644501d7e232c93dc490a8e0cb76e3b046dd102793",
+  "sourceCommit": "577f7a0fdb039b7f875901a6a567d62fdfee88c8",
+  "sourceDirty": false,
+  "quantileMethod": "Nearest rank: sorted[ceil(N*p)-1], including every successful row in its declared cohort.",
+  "cohorts": {
+    "idle-interactive-calibration:project-switch": {
+      "count": 100,
+      "p50Ms": 218.22562800000014,
+      "p95Ms": 497.3249499999947,
+      "p99Ms": 582.3309100000188,
+      "maxMs": 583.7914289999899,
+      "successful": 100,
+      "failed": 0
+    },
+    "idle-interactive-calibration:input": {
+      "count": 200,
+      "p50Ms": 48.120490000001155,
+      "p95Ms": 87.79410099999222,
+      "p99Ms": 359.49173500000325,
+      "maxMs": 648.1497110000055,
+      "successful": 200,
+      "failed": 0
+    },
+    "idle-interactive-calibration:draft-reset": {
+      "count": 100,
+      "p50Ms": 250.69961300000432,
+      "p95Ms": 568.0908390000113,
+      "p99Ms": 784.3672340000048,
+      "maxMs": 875.3142970000044,
+      "successful": 100,
+      "failed": 0
+    }
+  },
+  "pointerAssociationCoverage": {
+    "primarySourceConsistentHomePointers": 99,
+    "primarySlowSourceConsistentHomePointers": 10
+  },
+  "switchGroups": {
+    "primaryAll100": {
+      "elapsed": {
+        "count": 100,
+        "p50Ms": 218.22562800000014,
+        "p95Ms": 497.3249499999947,
+        "p99Ms": 582.3309100000188,
+        "maxMs": 583.7914289999899
+      },
+      "largestRecordedSpanCounts": {
+        "allProjectsCommand": 41,
+        "openProjectCommand": 54,
+        "twoFrameCommand": 1,
+        "verifyExpectedContext": 4
+      },
+      "nodeSpanQuantiles": {
+        "allProjectsCommand": {
+          "count": 100,
+          "p50Ms": 65.6594929999992,
+          "p95Ms": 95.23547499999404,
+          "p99Ms": 319.52614600001834,
+          "maxMs": 367.82257699998445
+        },
+        "overviewHeadingWait": {
+          "count": 100,
+          "p50Ms": 9.106334999989485,
+          "p95Ms": 22.361492999989423,
+          "p99Ms": 29.470433000009507,
+          "maxMs": 30.370777999982238
+        },
+        "openProjectCommand": {
+          "count": 100,
+          "p50Ms": 67.88293300000078,
+          "p95Ms": 106.27000200000475,
+          "p99Ms": 350.02955000000657,
+          "maxMs": 406.00120299999253
+        },
+        "verifyExpectedContext": {
+          "count": 100,
+          "p50Ms": 45.474422999992385,
+          "p95Ms": 96.88797900000645,
+          "p99Ms": 118.61357000000135,
+          "maxMs": 210.3668570000009
+        },
+        "twoFrameCommand": {
+          "count": 100,
+          "p50Ms": 28.325614000001224,
+          "p95Ms": 35.166164999987814,
+          "p99Ms": 37.897471999996924,
+          "maxMs": 118.15397299999313
+        }
+      },
+      "browserSpanQuantiles": {
+        "lastPointerToDriverExpectedDOMWitnessMs": {
+          "count": 100,
+          "p50Ms": 60.69999998807907,
+          "p95Ms": 110.0,
+          "p99Ms": 321.80000001192093,
+          "maxMs": 395.5
+        },
+        "driverExpectedDOMWitnessToFrameRequestMs": {
+          "count": 100,
+          "p50Ms": 5.699999988079071,
+          "p95Ms": 13.399999976158142,
+          "p99Ms": 15.200000047683716,
+          "maxMs": 23.099999964237213
+        },
+        "frameRequestToSecondCallbackMs": {
+          "count": 100,
+          "p50Ms": 24.69999998807907,
+          "p95Ms": 31.900000035762787,
+          "p99Ms": 33.10000002384186,
+          "maxMs": 33.30000001192093
+        }
+      }
+    },
+    "primaryOver300ms": {
+      "elapsed": {
+        "count": 11,
+        "p50Ms": 497.3249499999947,
+        "p95Ms": 583.7914289999899,
+        "p99Ms": 583.7914289999899,
+        "maxMs": 583.7914289999899
+      },
+      "largestRecordedSpanCounts": {
+        "allProjectsCommand": 5,
+        "verifyExpectedContext": 3,
+        "openProjectCommand": 3
+      },
+      "nodeSpanQuantiles": {
+        "allProjectsCommand": {
+          "count": 11,
+          "p50Ms": 89.56253599999764,
+          "p95Ms": 367.82257699998445,
+          "p99Ms": 367.82257699998445,
+          "maxMs": 367.82257699998445
+        },
+        "overviewHeadingWait": {
+          "count": 11,
+          "p50Ms": 18.93712100002449,
+          "p95Ms": 30.370777999982238,
+          "p99Ms": 30.370777999982238,
+          "maxMs": 30.370777999982238
+        },
+        "openProjectCommand": {
+          "count": 11,
+          "p50Ms": 97.00597900000867,
+          "p95Ms": 406.00120299999253,
+          "p99Ms": 406.00120299999253,
+          "maxMs": 406.00120299999253
+        },
+        "verifyExpectedContext": {
+          "count": 11,
+          "p50Ms": 82.41082199997618,
+          "p95Ms": 210.3668570000009,
+          "p99Ms": 210.3668570000009,
+          "maxMs": 210.3668570000009
+        },
+        "twoFrameCommand": {
+          "count": 11,
+          "p50Ms": 28.48916399999871,
+          "p95Ms": 34.23805200000061,
+          "p99Ms": 34.23805200000061,
+          "maxMs": 34.23805200000061
+        }
+      },
+      "browserSpanQuantiles": {
+        "lastPointerToDriverExpectedDOMWitnessMs": {
+          "count": 11,
+          "p50Ms": 89.89999997615814,
+          "p95Ms": 395.5,
+          "p99Ms": 395.5,
+          "maxMs": 395.5
+        },
+        "driverExpectedDOMWitnessToFrameRequestMs": {
+          "count": 11,
+          "p50Ms": 8.5,
+          "p95Ms": 23.099999964237213,
+          "p99Ms": 23.099999964237213,
+          "maxMs": 23.099999964237213
+        },
+        "frameRequestToSecondCallbackMs": {
+          "count": 11,
+          "p50Ms": 24.80000001192093,
+          "p95Ms": 30.5,
+          "p99Ms": 30.5,
+          "maxMs": 30.5
+        }
+      }
+    },
+    "primaryAtMost300ms": {
+      "elapsed": {
+        "count": 89,
+        "p50Ms": 215.4810909999942,
+        "p95Ms": 286.5895179999934,
+        "p99Ms": 299.56269799999427,
+        "maxMs": 299.56269799999427
+      },
+      "largestRecordedSpanCounts": {
+        "openProjectCommand": 51,
+        "allProjectsCommand": 36,
+        "twoFrameCommand": 1,
+        "verifyExpectedContext": 1
+      },
+      "nodeSpanQuantiles": {
+        "allProjectsCommand": {
+          "count": 89,
+          "p50Ms": 64.69188999998732,
+          "p95Ms": 81.9110639999999,
+          "p99Ms": 95.23547499999404,
+          "maxMs": 95.23547499999404
+        },
+        "overviewHeadingWait": {
+          "count": 89,
+          "p50Ms": 8.803406999999424,
+          "p95Ms": 18.957322000002023,
+          "p99Ms": 29.470433000009507,
+          "maxMs": 29.470433000009507
+        },
+        "openProjectCommand": {
+          "count": 89,
+          "p50Ms": 66.84688399999868,
+          "p95Ms": 93.66932200000156,
+          "p99Ms": 132.10566699999617,
+          "maxMs": 132.10566699999617
+        },
+        "verifyExpectedContext": {
+          "count": 89,
+          "p50Ms": 44.48826199999894,
+          "p95Ms": 65.31416100001661,
+          "p99Ms": 99.61623399998643,
+          "maxMs": 99.61623399998643
+        },
+        "twoFrameCommand": {
+          "count": 89,
+          "p50Ms": 27.81085900000471,
+          "p95Ms": 35.21360399998957,
+          "p99Ms": 118.15397299999313,
+          "maxMs": 118.15397299999313
+        }
+      },
+      "browserSpanQuantiles": {
+        "lastPointerToDriverExpectedDOMWitnessMs": {
+          "count": 89,
+          "p50Ms": 58.5,
+          "p95Ms": 89.19999998807907,
+          "p99Ms": 137.5,
+          "maxMs": 137.5
+        },
+        "driverExpectedDOMWitnessToFrameRequestMs": {
+          "count": 89,
+          "p50Ms": 5.5,
+          "p95Ms": 11.400000035762787,
+          "p99Ms": 15.200000047683716,
+          "maxMs": 15.200000047683716
+        },
+        "frameRequestToSecondCallbackMs": {
+          "count": 89,
+          "p50Ms": 24.69999998807907,
+          "p95Ms": 32.30000001192093,
+          "p99Ms": 33.30000001192093,
+          "maxMs": 33.30000001192093
+        }
+      }
+    }
+  },
+  "primarySlowSwitches": [
+    {
+      "index": 0,
+      "phase": "idle-interactive-calibration",
+      "elapsedMs": 468.47427700000117,
+      "nodeSpans": {
+        "allProjectsCommand": 280.772094999993,
+        "overviewHeadingWait": 8.949076000004425,
+        "openProjectCommand": 88.0274219999992,
+        "verifyExpectedContext": 54.54514499999641,
+        "twoFrameCommand": 33.217201999999816
+      },
+      "largestRecordedNodeSpan": "allProjectsCommand",
+      "browserClockSpans": {
+        "lastPointerToDriverExpectedDOMWitnessMs": 73.60000002384186,
+        "driverExpectedDOMWitnessToFrameRequestMs": 5.399999976158142,
+        "frameRequestToSecondCallbackMs": 29.80000001192093
+      },
+      "browserReferences": {
+        "pointer": {
+          "windowIndex": 9,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 204,
+          "kind": "pointer-dispatch",
+          "at": 66119.39999997616
+        },
+        "expectedDOM": {
+          "windowIndex": 9,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 207,
+          "kind": "expected-dom",
+          "at": 66193,
+          "actionKind": "project-switch",
+          "input": {
+            "sequence": 147,
+            "at": 4192
+          },
+          "pointer": {
+            "sequence": 204,
+            "at": 66119.39999997616
+          }
+        },
+        "frames": {
+          "requestedAt": 66198.39999997616,
+          "firstFrameAt": 66211.39999997616,
+          "secondFrameAt": 66228.19999998808,
+          "references": {
+            "timeOrigin": 1791721884512.7,
+            "input": {
+              "sequence": 147,
+              "at": 4192
+            },
+            "pointer": {
+              "sequence": 204,
+              "at": 66119.39999997616
+            },
+            "expectedDOM": {
+              "sequence": 207,
+              "at": 66193,
+              "actionKind": "project-switch"
+            }
+          }
+        }
+      },
+      "openPointerEventAssociation": {
+        "method": "Unique EventTiming pointerdown whose recorded processing interval contains the logger timestamp; same nonzero interactionId joins subsequent events.",
+        "matchingPointerdownCount": 1,
+        "pointerdownWitnesses": [
+          {
+            "windowIndex": 9,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 1511,
+            "name": "pointerdown",
+            "startTime": 66117.69999998808,
+            "duration": 64,
+            "processingStart": 66119.39999997616,
+            "processingEnd": 66119.89999997616,
+            "interactionId": 977
+          }
+        ],
+        "sameInteractionEvents": [
+          {
+            "windowIndex": 9,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 1511,
+            "name": "pointerdown",
+            "startTime": 66117.69999998808,
+            "duration": 64,
+            "processingStart": 66119.39999997616,
+            "processingEnd": 66119.89999997616,
+            "interactionId": 977
+          },
+          {
+            "windowIndex": 9,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 1513,
+            "name": "pointerup",
+            "startTime": 66118,
+            "duration": 64,
+            "processingStart": 66120.30000001192,
+            "processingEnd": 66120.39999997616,
+            "interactionId": 977
+          },
+          {
+            "windowIndex": 9,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 1515,
+            "name": "click",
+            "startTime": 66118,
+            "duration": 64,
+            "processingStart": 66120.5,
+            "processingEnd": 66128.10000002384,
+            "interactionId": 977
+          }
+        ],
+        "limits": "Coverage is thresholded and timestamp precision can prevent a match. Event duration is not a Node command boundary or product function duration."
+      },
+      "homePointerAssociation": {
+        "status": "No immediately preceding recorded action with same browser clock."
+      },
+      "temporallyOverlappingResources": [
+        {
+          "windowIndex": 9,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 205,
+          "kind": "resource",
+          "route": "project-specification",
+          "at": 66126.60000002384,
+          "duration": 17.099999964237213,
+          "responseStatus": 200,
+          "requestStart": 66137.69999998808,
+          "responseStart": 66139,
+          "responseEnd": 66143.69999998808,
+          "transferSize": 1072,
+          "encodedBodySize": 772,
+          "decodedBodySize": 772
+        },
+        {
+          "windowIndex": 9,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 206,
+          "kind": "resource",
+          "route": "project-orchestrator",
+          "at": 66127.80000001192,
+          "duration": 46.39999997615814,
+          "responseStatus": 200,
+          "requestStart": 66144,
+          "responseStart": 66172.69999998808,
+          "responseEnd": 66174.19999998808,
+          "transferSize": 4706,
+          "encodedBodySize": 4406,
+          "decodedBodySize": 4406
+        }
+      ],
+      "commandDelayBeforeVersusAfterPointer": "Unknown: no browser-clock command-start/end anchors; Node and browser clock values are not aligned or subtracted."
+    },
+    {
+      "index": 108,
+      "phase": "idle-interactive-calibration",
+      "elapsedMs": 303.5259550000046,
+      "nodeSpans": {
+        "allProjectsCommand": 74.42998099999386,
+        "overviewHeadingWait": 20.21176700000069,
+        "openProjectCommand": 85.31851100000495,
+        "verifyExpectedContext": 96.88797900000645,
+        "twoFrameCommand": 26.65511300000071
+      },
+      "largestRecordedNodeSpan": "verifyExpectedContext",
+      "browserClockSpans": {
+        "lastPointerToDriverExpectedDOMWitnessMs": 110.0,
+        "driverExpectedDOMWitnessToFrameRequestMs": 23.099999964237213,
+        "frameRequestToSecondCallbackMs": 20.400000035762787
+      },
+      "browserReferences": {
+        "pointer": {
+          "windowIndex": 36,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 878,
+          "kind": "pointer-dispatch",
+          "at": 83807.10000002384
+        },
+        "expectedDOM": {
+          "windowIndex": 36,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 881,
+          "kind": "expected-dom",
+          "at": 83917.10000002384,
+          "actionKind": "project-switch",
+          "input": {
+            "sequence": 861,
+            "at": 83367.69999998808
+          },
+          "pointer": {
+            "sequence": 878,
+            "at": 83807.10000002384
+          }
+        },
+        "frames": {
+          "requestedAt": 83940.19999998808,
+          "firstFrameAt": 83943.69999998808,
+          "secondFrameAt": 83960.60000002384,
+          "references": {
+            "timeOrigin": 1791721884512.7,
+            "input": {
+              "sequence": 861,
+              "at": 83367.69999998808
+            },
+            "pointer": {
+              "sequence": 878,
+              "at": 83807.10000002384
+            },
+            "expectedDOM": {
+              "sequence": 881,
+              "at": 83917.10000002384,
+              "actionKind": "project-switch"
+            }
+          }
+        }
+      },
+      "openPointerEventAssociation": {
+        "method": "Unique EventTiming pointerdown whose recorded processing interval contains the logger timestamp; same nonzero interactionId joins subsequent events.",
+        "matchingPointerdownCount": 1,
+        "pointerdownWitnesses": [
+          {
+            "windowIndex": 36,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 5862,
+            "name": "pointerdown",
+            "startTime": 83803.80000001192,
+            "duration": 48,
+            "processingStart": 83807,
+            "processingEnd": 83808.69999998808,
+            "interactionId": 2489
+          }
+        ],
+        "sameInteractionEvents": [
+          {
+            "windowIndex": 36,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 5862,
+            "name": "pointerdown",
+            "startTime": 83803.80000001192,
+            "duration": 48,
+            "processingStart": 83807,
+            "processingEnd": 83808.69999998808,
+            "interactionId": 2489
+          },
+          {
+            "windowIndex": 36,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 5864,
+            "name": "pointerup",
+            "startTime": 83803.80000001192,
+            "duration": 48,
+            "processingStart": 83809.60000002384,
+            "processingEnd": 83809.69999998808,
+            "interactionId": 2489
+          },
+          {
+            "windowIndex": 36,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 5866,
+            "name": "click",
+            "startTime": 83803.80000001192,
+            "duration": 48,
+            "processingStart": 83809.69999998808,
+            "processingEnd": 83819.30000001192,
+            "interactionId": 2489
+          }
+        ],
+        "limits": "Coverage is thresholded and timestamp precision can prevent a match. Event duration is not a Node command boundary or product function duration."
+      },
+      "homePointerAssociation": {
+        "status": "Sequential browser-clock bracket, not explicit target identity.",
+        "previousActionIndex": 107,
+        "previousSecondFrameAt": 83629.19999998808,
+        "pointerCount": 2,
+        "pointers": [
+          {
+            "windowIndex": 36,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 872,
+            "kind": "pointer-dispatch",
+            "at": 83705.5
+          },
+          {
+            "windowIndex": 36,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 878,
+            "kind": "pointer-dispatch",
+            "at": 83807.10000002384
+          }
+        ],
+        "sourceConsistentHomePointer": {
+          "windowIndex": 36,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 872,
+          "kind": "pointer-dispatch",
+          "at": 83705.5
+        },
+        "homePointerToOpenPointerMs": 101.60000002384186,
+        "homePointerEventAssociation": {
+          "method": "Unique EventTiming pointerdown whose recorded processing interval contains the logger timestamp; same nonzero interactionId joins subsequent events.",
+          "matchingPointerdownCount": 1,
+          "pointerdownWitnesses": [
+            {
+              "windowIndex": 36,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 5840,
+              "name": "pointerdown",
+              "startTime": 83703.69999998808,
+              "duration": 48,
+              "processingStart": 83705.5,
+              "processingEnd": 83705.80000001192,
+              "interactionId": 2482
+            }
+          ],
+          "sameInteractionEvents": [
+            {
+              "windowIndex": 36,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 5840,
+              "name": "pointerdown",
+              "startTime": 83703.69999998808,
+              "duration": 48,
+              "processingStart": 83705.5,
+              "processingEnd": 83705.80000001192,
+              "interactionId": 2482
+            },
+            {
+              "windowIndex": 36,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 5842,
+              "name": "pointerup",
+              "startTime": 83703.80000001192,
+              "duration": 48,
+              "processingStart": 83706.39999997616,
+              "processingEnd": 83706.5,
+              "interactionId": 2482
+            },
+            {
+              "windowIndex": 36,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 5844,
+              "name": "click",
+              "startTime": 83703.80000001192,
+              "duration": 48,
+              "processingStart": 83706.5,
+              "processingEnd": 83722.89999997616,
+              "interactionId": 2482
+            }
+          ],
+          "limits": "Coverage is thresholded and timestamp precision can prevent a match. Event duration is not a Node command boundary or product function duration."
+        }
+      },
+      "temporallyOverlappingResources": [
+        {
+          "windowIndex": 36,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 879,
+          "kind": "resource",
+          "route": "project-specification",
+          "at": 83817.60000002384,
+          "duration": 25.899999976158142,
+          "responseStatus": 200,
+          "requestStart": 83833.89999997616,
+          "responseStart": 83836.19999998808,
+          "responseEnd": 83843.5,
+          "transferSize": 1096,
+          "encodedBodySize": 796,
+          "decodedBodySize": 796
+        },
+        {
+          "windowIndex": 36,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 880,
+          "kind": "resource",
+          "route": "project-orchestrator",
+          "at": 83819,
+          "duration": 53.80000001192093,
+          "responseStatus": 200,
+          "requestStart": 83834.19999998808,
+          "responseStart": 83870.89999997616,
+          "responseEnd": 83872.80000001192,
+          "transferSize": 4512,
+          "encodedBodySize": 4212,
+          "decodedBodySize": 4212
+        }
+      ],
+      "commandDelayBeforeVersusAfterPointer": "Unknown: no browser-clock command-start/end anchors; Node and browser clock values are not aligned or subtracted."
+    },
+    {
+      "index": 112,
+      "phase": "idle-interactive-calibration",
+      "elapsedMs": 407.96897299999546,
+      "nodeSpans": {
+        "allProjectsCommand": 70.96711699999287,
+        "overviewHeadingWait": 20.033007999998517,
+        "openProjectCommand": 79.94266400000197,
+        "verifyExpectedContext": 210.3668570000009,
+        "twoFrameCommand": 26.490883999998914
+      },
+      "largestRecordedNodeSpan": "verifyExpectedContext",
+      "browserClockSpans": {
+        "lastPointerToDriverExpectedDOMWitnessMs": 241.4000000357628,
+        "driverExpectedDOMWitnessToFrameRequestMs": 6.799999952316284,
+        "frameRequestToSecondCallbackMs": 21.600000023841858
+      },
+      "browserReferences": {
+        "pointer": {
+          "windowIndex": 37,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 903,
+          "kind": "pointer-dispatch",
+          "at": 84507.19999998808
+        },
+        "expectedDOM": {
+          "windowIndex": 37,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 906,
+          "kind": "expected-dom",
+          "at": 84748.60000002384,
+          "actionKind": "project-switch",
+          "input": {
+            "sequence": 886,
+            "at": 84040.10000002384
+          },
+          "pointer": {
+            "sequence": 903,
+            "at": 84507.19999998808
+          }
+        },
+        "frames": {
+          "requestedAt": 84755.39999997616,
+          "firstFrameAt": 84760.60000002384,
+          "secondFrameAt": 84777,
+          "references": {
+            "timeOrigin": 1791721884512.7,
+            "input": {
+              "sequence": 886,
+              "at": 84040.10000002384
+            },
+            "pointer": {
+              "sequence": 903,
+              "at": 84507.19999998808
+            },
+            "expectedDOM": {
+              "sequence": 906,
+              "at": 84748.60000002384,
+              "actionKind": "project-switch"
+            }
+          }
+        }
+      },
+      "openPointerEventAssociation": {
+        "method": "Unique EventTiming pointerdown whose recorded processing interval contains the logger timestamp; same nonzero interactionId joins subsequent events.",
+        "matchingPointerdownCount": 1,
+        "pointerdownWitnesses": [
+          {
+            "windowIndex": 37,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 6008,
+            "name": "pointerdown",
+            "startTime": 84502.60000002384,
+            "duration": 144,
+            "processingStart": 84507.10000002384,
+            "processingEnd": 84508.19999998808,
+            "interactionId": 2545
+          }
+        ],
+        "sameInteractionEvents": [
+          {
+            "windowIndex": 37,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 6008,
+            "name": "pointerdown",
+            "startTime": 84502.60000002384,
+            "duration": 144,
+            "processingStart": 84507.10000002384,
+            "processingEnd": 84508.19999998808,
+            "interactionId": 2545
+          },
+          {
+            "windowIndex": 37,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 6010,
+            "name": "pointerup",
+            "startTime": 84502.89999997616,
+            "duration": 144,
+            "processingStart": 84509.60000002384,
+            "processingEnd": 84509.69999998808,
+            "interactionId": 2545
+          },
+          {
+            "windowIndex": 37,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 6012,
+            "name": "click",
+            "startTime": 84502.89999997616,
+            "duration": 144,
+            "processingStart": 84509.80000001192,
+            "processingEnd": 84519.80000001192,
+            "interactionId": 2545
+          }
+        ],
+        "limits": "Coverage is thresholded and timestamp precision can prevent a match. Event duration is not a Node command boundary or product function duration."
+      },
+      "homePointerAssociation": {
+        "status": "Sequential browser-clock bracket, not explicit target identity.",
+        "previousActionIndex": 111,
+        "previousSecondFrameAt": 84343.60000002384,
+        "pointerCount": 2,
+        "pointers": [
+          {
+            "windowIndex": 37,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 897,
+            "kind": "pointer-dispatch",
+            "at": 84418.69999998808
+          },
+          {
+            "windowIndex": 37,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 903,
+            "kind": "pointer-dispatch",
+            "at": 84507.19999998808
+          }
+        ],
+        "sourceConsistentHomePointer": {
+          "windowIndex": 37,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 897,
+          "kind": "pointer-dispatch",
+          "at": 84418.69999998808
+        },
+        "homePointerToOpenPointerMs": 88.5,
+        "homePointerEventAssociation": {
+          "method": "Unique EventTiming pointerdown whose recorded processing interval contains the logger timestamp; same nonzero interactionId joins subsequent events.",
+          "matchingPointerdownCount": 1,
+          "pointerdownWitnesses": [
+            {
+              "windowIndex": 37,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 5986,
+              "name": "pointerdown",
+              "startTime": 84417.5,
+              "duration": 48,
+              "processingStart": 84418.60000002384,
+              "processingEnd": 84419,
+              "interactionId": 2538
+            }
+          ],
+          "sameInteractionEvents": [
+            {
+              "windowIndex": 37,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 5986,
+              "name": "pointerdown",
+              "startTime": 84417.5,
+              "duration": 48,
+              "processingStart": 84418.60000002384,
+              "processingEnd": 84419,
+              "interactionId": 2538
+            },
+            {
+              "windowIndex": 37,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 5988,
+              "name": "pointerup",
+              "startTime": 84417.60000002384,
+              "duration": 48,
+              "processingStart": 84419.39999997616,
+              "processingEnd": 84419.5,
+              "interactionId": 2538
+            },
+            {
+              "windowIndex": 37,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 5990,
+              "name": "click",
+              "startTime": 84417.60000002384,
+              "duration": 48,
+              "processingStart": 84419.5,
+              "processingEnd": 84432.89999997616,
+              "interactionId": 2538
+            }
+          ],
+          "limits": "Coverage is thresholded and timestamp precision can prevent a match. Event duration is not a Node command boundary or product function duration."
+        }
+      },
+      "temporallyOverlappingResources": [
+        {
+          "windowIndex": 37,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 904,
+          "kind": "resource",
+          "route": "project-specification",
+          "at": 84518.10000002384,
+          "duration": 58.69999998807907,
+          "responseStatus": 200,
+          "requestStart": 84538.60000002384,
+          "responseStart": 84548,
+          "responseEnd": 84576.80000001192,
+          "transferSize": 1072,
+          "encodedBodySize": 772,
+          "decodedBodySize": 772
+        },
+        {
+          "windowIndex": 37,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 905,
+          "kind": "resource",
+          "route": "project-orchestrator",
+          "at": 84519.60000002384,
+          "duration": 157.5999999642372,
+          "responseStatus": 200,
+          "requestStart": 84547.60000002384,
+          "responseStart": 84672.80000001192,
+          "responseEnd": 84677.19999998808,
+          "transferSize": 4706,
+          "encodedBodySize": 4406,
+          "decodedBodySize": 4406
+        }
+      ],
+      "commandDelayBeforeVersusAfterPointer": "Unknown: no browser-clock command-start/end anchors; Node and browser clock values are not aligned or subtracted."
+    },
+    {
+      "index": 192,
+      "phase": "idle-interactive-calibration",
+      "elapsedMs": 497.3249499999947,
+      "nodeSpans": {
+        "allProjectsCommand": 57.74841300000844,
+        "overviewHeadingWait": 8.82183499999519,
+        "openProjectCommand": 291.83882200000517,
+        "verifyExpectedContext": 110.38744999999471,
+        "twoFrameCommand": 28.325614000001224
+      },
+      "largestRecordedNodeSpan": "openProjectCommand",
+      "browserClockSpans": {
+        "lastPointerToDriverExpectedDOMWitnessMs": 321.80000001192093,
+        "driverExpectedDOMWitnessToFrameRequestMs": 6.199999988079071,
+        "frameRequestToSecondCallbackMs": 24.69999998807907
+      },
+      "browserReferences": {
+        "pointer": {
+          "windowIndex": 57,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 1403,
+          "kind": "pointer-dispatch",
+          "at": 99240.19999998808
+        },
+        "expectedDOM": {
+          "windowIndex": 57,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 1406,
+          "kind": "expected-dom",
+          "at": 99562,
+          "actionKind": "project-switch",
+          "input": {
+            "sequence": 1386,
+            "at": 98802.89999997616
+          },
+          "pointer": {
+            "sequence": 1403,
+            "at": 99240.19999998808
+          }
+        },
+        "frames": {
+          "requestedAt": 99568.19999998808,
+          "firstFrameAt": 99576.30000001192,
+          "secondFrameAt": 99592.89999997616,
+          "references": {
+            "timeOrigin": 1791721884512.7,
+            "input": {
+              "sequence": 1386,
+              "at": 98802.89999997616
+            },
+            "pointer": {
+              "sequence": 1403,
+              "at": 99240.19999998808
+            },
+            "expectedDOM": {
+              "sequence": 1406,
+              "at": 99562,
+              "actionKind": "project-switch"
+            }
+          }
+        }
+      },
+      "openPointerEventAssociation": {
+        "method": "Unique EventTiming pointerdown whose recorded processing interval contains the logger timestamp; same nonzero interactionId joins subsequent events.",
+        "matchingPointerdownCount": 1,
+        "pointerdownWitnesses": [
+          {
+            "windowIndex": 57,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 9221,
+            "name": "pointerdown",
+            "startTime": 99232.10000002384,
+            "duration": 240,
+            "processingStart": 99240.10000002384,
+            "processingEnd": 99241.30000001192,
+            "interactionId": 3665
+          }
+        ],
+        "sameInteractionEvents": [
+          {
+            "windowIndex": 57,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 9221,
+            "name": "pointerdown",
+            "startTime": 99232.10000002384,
+            "duration": 240,
+            "processingStart": 99240.10000002384,
+            "processingEnd": 99241.30000001192,
+            "interactionId": 3665
+          },
+          {
+            "windowIndex": 57,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 9223,
+            "name": "pointerup",
+            "startTime": 99232.19999998808,
+            "duration": 240,
+            "processingStart": 99243,
+            "processingEnd": 99243.30000001192,
+            "interactionId": 3665
+          },
+          {
+            "windowIndex": 57,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 9225,
+            "name": "click",
+            "startTime": 99232.19999998808,
+            "duration": 240,
+            "processingStart": 99243.39999997616,
+            "processingEnd": 99263,
+            "interactionId": 3665
+          }
+        ],
+        "limits": "Coverage is thresholded and timestamp precision can prevent a match. Event duration is not a Node command boundary or product function duration."
+      },
+      "homePointerAssociation": {
+        "status": "Sequential browser-clock bracket, not explicit target identity.",
+        "previousActionIndex": 191,
+        "previousSecondFrameAt": 99076.19999998808,
+        "pointerCount": 2,
+        "pointers": [
+          {
+            "windowIndex": 57,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 1397,
+            "kind": "pointer-dispatch",
+            "at": 99133.30000001192
+          },
+          {
+            "windowIndex": 57,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 1403,
+            "kind": "pointer-dispatch",
+            "at": 99240.19999998808
+          }
+        ],
+        "sourceConsistentHomePointer": {
+          "windowIndex": 57,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 1397,
+          "kind": "pointer-dispatch",
+          "at": 99133.30000001192
+        },
+        "homePointerToOpenPointerMs": 106.89999997615814,
+        "homePointerEventAssociation": {
+          "method": "Unique EventTiming pointerdown whose recorded processing interval contains the logger timestamp; same nonzero interactionId joins subsequent events.",
+          "matchingPointerdownCount": 1,
+          "pointerdownWitnesses": [
+            {
+              "windowIndex": 57,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 9199,
+              "name": "pointerdown",
+              "startTime": 99131.69999998808,
+              "duration": 48,
+              "processingStart": 99133.30000001192,
+              "processingEnd": 99133.5,
+              "interactionId": 3658
+            }
+          ],
+          "sameInteractionEvents": [
+            {
+              "windowIndex": 57,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 9199,
+              "name": "pointerdown",
+              "startTime": 99131.69999998808,
+              "duration": 48,
+              "processingStart": 99133.30000001192,
+              "processingEnd": 99133.5,
+              "interactionId": 3658
+            },
+            {
+              "windowIndex": 57,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 9201,
+              "name": "pointerup",
+              "startTime": 99131.80000001192,
+              "duration": 48,
+              "processingStart": 99133.89999997616,
+              "processingEnd": 99134,
+              "interactionId": 3658
+            },
+            {
+              "windowIndex": 57,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 9203,
+              "name": "click",
+              "startTime": 99131.80000001192,
+              "duration": 48,
+              "processingStart": 99134.10000002384,
+              "processingEnd": 99146.60000002384,
+              "interactionId": 3658
+            }
+          ],
+          "limits": "Coverage is thresholded and timestamp precision can prevent a match. Event duration is not a Node command boundary or product function duration."
+        }
+      },
+      "temporallyOverlappingResources": [
+        {
+          "windowIndex": 57,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 1404,
+          "kind": "resource",
+          "route": "project-specification",
+          "at": 99260.39999997616,
+          "duration": 199.5,
+          "responseStatus": 200,
+          "requestStart": 99430.5,
+          "responseStart": 99458.39999997616,
+          "responseEnd": 99459.89999997616,
+          "transferSize": 1072,
+          "encodedBodySize": 772,
+          "decodedBodySize": 772
+        },
+        {
+          "windowIndex": 57,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 1405,
+          "kind": "resource",
+          "route": "project-orchestrator",
+          "at": 99262.5,
+          "duration": 237.89999997615814,
+          "responseStatus": 200,
+          "requestStart": 99440.10000002384,
+          "responseStart": 99498.80000001192,
+          "responseEnd": 99500.39999997616,
+          "transferSize": 4706,
+          "encodedBodySize": 4406,
+          "decodedBodySize": 4406
+        }
+      ],
+      "commandDelayBeforeVersusAfterPointer": "Unknown: no browser-clock command-start/end anchors; Node and browser clock values are not aligned or subtracted."
+    },
+    {
+      "index": 228,
+      "phase": "idle-interactive-calibration",
+      "elapsedMs": 583.7914289999899,
+      "nodeSpans": {
+        "allProjectsCommand": 81.63975500001106,
+        "overviewHeadingWait": 7.4932929999922635,
+        "openProjectCommand": 350.02955000000657,
+        "verifyExpectedContext": 113.26989699999103,
+        "twoFrameCommand": 31.27824200000032
+      },
+      "largestRecordedNodeSpan": "openProjectCommand",
+      "browserClockSpans": {
+        "lastPointerToDriverExpectedDOMWitnessMs": 395.5,
+        "driverExpectedDOMWitnessToFrameRequestMs": 13.900000035762787,
+        "frameRequestToSecondCallbackMs": 27.399999976158142
+      },
+      "browserReferences": {
+        "pointer": {
+          "windowIndex": 66,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 1628,
+          "kind": "pointer-dispatch",
+          "at": 104822.69999998808
+        },
+        "expectedDOM": {
+          "windowIndex": 66,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 1631,
+          "kind": "expected-dom",
+          "at": 105218.19999998808,
+          "actionKind": "project-switch",
+          "input": {
+            "sequence": 1611,
+            "at": 104369.60000002384
+          },
+          "pointer": {
+            "sequence": 1628,
+            "at": 104822.69999998808
+          }
+        },
+        "frames": {
+          "requestedAt": 105232.10000002384,
+          "firstFrameAt": 105242.80000001192,
+          "secondFrameAt": 105259.5,
+          "references": {
+            "timeOrigin": 1791721884512.7,
+            "input": {
+              "sequence": 1611,
+              "at": 104369.60000002384
+            },
+            "pointer": {
+              "sequence": 1628,
+              "at": 104822.69999998808
+            },
+            "expectedDOM": {
+              "sequence": 1631,
+              "at": 105218.19999998808,
+              "actionKind": "project-switch"
+            }
+          }
+        }
+      },
+      "openPointerEventAssociation": {
+        "method": "Unique EventTiming pointerdown whose recorded processing interval contains the logger timestamp; same nonzero interactionId joins subsequent events.",
+        "matchingPointerdownCount": 1,
+        "pointerdownWitnesses": [
+          {
+            "windowIndex": 66,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 10664,
+            "name": "pointerdown",
+            "startTime": 104818.30000001192,
+            "duration": 312,
+            "processingStart": 104822.5,
+            "processingEnd": 104825.30000001192,
+            "interactionId": 4169
+          }
+        ],
+        "sameInteractionEvents": [
+          {
+            "windowIndex": 66,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 10664,
+            "name": "pointerdown",
+            "startTime": 104818.30000001192,
+            "duration": 312,
+            "processingStart": 104822.5,
+            "processingEnd": 104825.30000001192,
+            "interactionId": 4169
+          },
+          {
+            "windowIndex": 66,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 10666,
+            "name": "pointerup",
+            "startTime": 104818.39999997616,
+            "duration": 312,
+            "processingStart": 104826.19999998808,
+            "processingEnd": 104826.39999997616,
+            "interactionId": 4169
+          },
+          {
+            "windowIndex": 66,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 10668,
+            "name": "click",
+            "startTime": 104818.39999997616,
+            "duration": 312,
+            "processingStart": 104826.39999997616,
+            "processingEnd": 104839.19999998808,
+            "interactionId": 4169
+          }
+        ],
+        "limits": "Coverage is thresholded and timestamp precision can prevent a match. Event duration is not a Node command boundary or product function duration."
+      },
+      "homePointerAssociation": {
+        "status": "Sequential browser-clock bracket, not explicit target identity.",
+        "previousActionIndex": 227,
+        "previousSecondFrameAt": 104660.10000002384,
+        "pointerCount": 2,
+        "pointers": [
+          {
+            "windowIndex": 66,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 1622,
+            "kind": "pointer-dispatch",
+            "at": 104732.69999998808
+          },
+          {
+            "windowIndex": 66,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 1628,
+            "kind": "pointer-dispatch",
+            "at": 104822.69999998808
+          }
+        ],
+        "sourceConsistentHomePointer": {
+          "windowIndex": 66,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 1622,
+          "kind": "pointer-dispatch",
+          "at": 104732.69999998808
+        },
+        "homePointerToOpenPointerMs": 90.0,
+        "homePointerEventAssociation": {
+          "method": "Unique EventTiming pointerdown whose recorded processing interval contains the logger timestamp; same nonzero interactionId joins subsequent events.",
+          "matchingPointerdownCount": 1,
+          "pointerdownWitnesses": [
+            {
+              "windowIndex": 66,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 10642,
+              "name": "pointerdown",
+              "startTime": 104731.30000001192,
+              "duration": 48,
+              "processingStart": 104732.69999998808,
+              "processingEnd": 104733.30000001192,
+              "interactionId": 4162
+            }
+          ],
+          "sameInteractionEvents": [
+            {
+              "windowIndex": 66,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 10642,
+              "name": "pointerdown",
+              "startTime": 104731.30000001192,
+              "duration": 48,
+              "processingStart": 104732.69999998808,
+              "processingEnd": 104733.30000001192,
+              "interactionId": 4162
+            },
+            {
+              "windowIndex": 66,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 10644,
+              "name": "pointerup",
+              "startTime": 104731.39999997616,
+              "duration": 48,
+              "processingStart": 104733.69999998808,
+              "processingEnd": 104733.80000001192,
+              "interactionId": 4162
+            },
+            {
+              "windowIndex": 66,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 10646,
+              "name": "click",
+              "startTime": 104731.39999997616,
+              "duration": 48,
+              "processingStart": 104733.80000001192,
+              "processingEnd": 104749.39999997616,
+              "interactionId": 4162
+            }
+          ],
+          "limits": "Coverage is thresholded and timestamp precision can prevent a match. Event duration is not a Node command boundary or product function duration."
+        }
+      },
+      "temporallyOverlappingResources": [
+        {
+          "windowIndex": 66,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 1629,
+          "kind": "resource",
+          "route": "project-specification",
+          "at": 104836,
+          "duration": 298.80000001192093,
+          "responseStatus": 200,
+          "requestStart": 105119.39999997616,
+          "responseStart": 105130.39999997616,
+          "responseEnd": 105134.80000001192,
+          "transferSize": 1084,
+          "encodedBodySize": 784,
+          "decodedBodySize": 784
+        },
+        {
+          "windowIndex": 66,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 1630,
+          "kind": "resource",
+          "route": "project-orchestrator",
+          "at": 104838.19999998808,
+          "duration": 343.30000001192093,
+          "responseStatus": 200,
+          "requestStart": 105120.19999998808,
+          "responseStart": 105179.60000002384,
+          "responseEnd": 105181.5,
+          "transferSize": 4463,
+          "encodedBodySize": 4163,
+          "decodedBodySize": 4163
+        }
+      ],
+      "commandDelayBeforeVersusAfterPointer": "Unknown: no browser-clock command-start/end anchors; Node and browser clock values are not aligned or subtracted."
+    },
+    {
+      "index": 244,
+      "phase": "idle-interactive-calibration",
+      "elapsedMs": 350.0653489999968,
+      "nodeSpans": {
+        "allProjectsCommand": 89.56253599999764,
+        "overviewHeadingWait": 14.833938000010676,
+        "openProjectCommand": 93.11073400000168,
+        "verifyExpectedContext": 118.61357000000135,
+        "twoFrameCommand": 33.917098999998416
+      },
+      "largestRecordedNodeSpan": "verifyExpectedContext",
+      "browserClockSpans": {
+        "lastPointerToDriverExpectedDOMWitnessMs": 148.89999997615814,
+        "driverExpectedDOMWitnessToFrameRequestMs": 8.300000011920929,
+        "frameRequestToSecondCallbackMs": 30.5
+      },
+      "browserReferences": {
+        "pointer": {
+          "windowIndex": 70,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 1728,
+          "kind": "pointer-dispatch",
+          "at": 108423
+        },
+        "expectedDOM": {
+          "windowIndex": 70,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 1731,
+          "kind": "expected-dom",
+          "at": 108571.89999997616,
+          "actionKind": "project-switch",
+          "input": {
+            "sequence": 1711,
+            "at": 107886.60000002384
+          },
+          "pointer": {
+            "sequence": 1728,
+            "at": 108423
+          }
+        },
+        "frames": {
+          "requestedAt": 108580.19999998808,
+          "firstFrameAt": 108593.39999997616,
+          "secondFrameAt": 108610.69999998808,
+          "references": {
+            "timeOrigin": 1791721884512.7,
+            "input": {
+              "sequence": 1711,
+              "at": 107886.60000002384
+            },
+            "pointer": {
+              "sequence": 1728,
+              "at": 108423
+            },
+            "expectedDOM": {
+              "sequence": 1731,
+              "at": 108571.89999997616,
+              "actionKind": "project-switch"
+            }
+          }
+        }
+      },
+      "openPointerEventAssociation": {
+        "method": "Unique EventTiming pointerdown whose recorded processing interval contains the logger timestamp; same nonzero interactionId joins subsequent events.",
+        "matchingPointerdownCount": 1,
+        "pointerdownWitnesses": [
+          {
+            "windowIndex": 70,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 11301,
+            "name": "pointerdown",
+            "startTime": 108420.30000001192,
+            "duration": 56,
+            "processingStart": 108423,
+            "processingEnd": 108423.39999997616,
+            "interactionId": 4393
+          }
+        ],
+        "sameInteractionEvents": [
+          {
+            "windowIndex": 70,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 11301,
+            "name": "pointerdown",
+            "startTime": 108420.30000001192,
+            "duration": 56,
+            "processingStart": 108423,
+            "processingEnd": 108423.39999997616,
+            "interactionId": 4393
+          },
+          {
+            "windowIndex": 70,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 11303,
+            "name": "pointerup",
+            "startTime": 108420.39999997616,
+            "duration": 56,
+            "processingStart": 108423.89999997616,
+            "processingEnd": 108424,
+            "interactionId": 4393
+          },
+          {
+            "windowIndex": 70,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 11305,
+            "name": "click",
+            "startTime": 108420.39999997616,
+            "duration": 56,
+            "processingStart": 108424.10000002384,
+            "processingEnd": 108433,
+            "interactionId": 4393
+          }
+        ],
+        "limits": "Coverage is thresholded and timestamp precision can prevent a match. Event duration is not a Node command boundary or product function duration."
+      },
+      "homePointerAssociation": {
+        "status": "Sequential browser-clock bracket, not explicit target identity.",
+        "previousActionIndex": 243,
+        "previousSecondFrameAt": 108226.30000001192,
+        "pointerCount": 2,
+        "pointers": [
+          {
+            "windowIndex": 70,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 1722,
+            "kind": "pointer-dispatch",
+            "at": 108324.10000002384
+          },
+          {
+            "windowIndex": 70,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 1728,
+            "kind": "pointer-dispatch",
+            "at": 108423
+          }
+        ],
+        "sourceConsistentHomePointer": {
+          "windowIndex": 70,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 1722,
+          "kind": "pointer-dispatch",
+          "at": 108324.10000002384
+        },
+        "homePointerToOpenPointerMs": 98.89999997615814,
+        "homePointerEventAssociation": {
+          "method": "Unique EventTiming pointerdown whose recorded processing interval contains the logger timestamp; same nonzero interactionId joins subsequent events.",
+          "matchingPointerdownCount": 1,
+          "pointerdownWitnesses": [
+            {
+              "windowIndex": 70,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 11279,
+              "name": "pointerdown",
+              "startTime": 108321,
+              "duration": 40,
+              "processingStart": 108324,
+              "processingEnd": 108324.30000001192,
+              "interactionId": 4386
+            }
+          ],
+          "sameInteractionEvents": [
+            {
+              "windowIndex": 70,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 11279,
+              "name": "pointerdown",
+              "startTime": 108321,
+              "duration": 40,
+              "processingStart": 108324,
+              "processingEnd": 108324.30000001192,
+              "interactionId": 4386
+            },
+            {
+              "windowIndex": 70,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 11281,
+              "name": "pointerup",
+              "startTime": 108321.10000002384,
+              "duration": 40,
+              "processingStart": 108324.69999998808,
+              "processingEnd": 108324.69999998808,
+              "interactionId": 4386
+            },
+            {
+              "windowIndex": 70,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 11283,
+              "name": "click",
+              "startTime": 108321.10000002384,
+              "duration": 40,
+              "processingStart": 108324.69999998808,
+              "processingEnd": 108340.19999998808,
+              "interactionId": 4386
+            }
+          ],
+          "limits": "Coverage is thresholded and timestamp precision can prevent a match. Event duration is not a Node command boundary or product function duration."
+        }
+      },
+      "temporallyOverlappingResources": [
+        {
+          "windowIndex": 70,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 1729,
+          "kind": "resource",
+          "route": "project-specification",
+          "at": 108431.80000001192,
+          "duration": 33.09999996423721,
+          "responseStatus": 200,
+          "requestStart": 108457.80000001192,
+          "responseStart": 108460.60000002384,
+          "responseEnd": 108464.89999997616,
+          "transferSize": 1084,
+          "encodedBodySize": 784,
+          "decodedBodySize": 784
+        },
+        {
+          "windowIndex": 70,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 1730,
+          "kind": "resource",
+          "route": "project-orchestrator",
+          "at": 108432.69999998808,
+          "duration": 71,
+          "responseStatus": 200,
+          "requestStart": 108458,
+          "responseStart": 108502.80000001192,
+          "responseEnd": 108503.69999998808,
+          "transferSize": 4463,
+          "encodedBodySize": 4163,
+          "decodedBodySize": 4163
+        }
+      ],
+      "commandDelayBeforeVersusAfterPointer": "Unknown: no browser-clock command-start/end anchors; Node and browser clock values are not aligned or subtracted."
+    },
+    {
+      "index": 296,
+      "phase": "idle-interactive-calibration",
+      "elapsedMs": 564.659330000024,
+      "nodeSpans": {
+        "allProjectsCommand": 53.26048399999854,
+        "overviewHeadingWait": 18.93712100002449,
+        "openProjectCommand": 406.00120299999253,
+        "verifyExpectedContext": 53.08816400001524,
+        "twoFrameCommand": 33.28835199997411
+      },
+      "largestRecordedNodeSpan": "openProjectCommand",
+      "browserClockSpans": {
+        "lastPointerToDriverExpectedDOMWitnessMs": 86.09999996423721,
+        "driverExpectedDOMWitnessToFrameRequestMs": 11.100000023841858,
+        "frameRequestToSecondCallbackMs": 29.100000023841858
+      },
+      "browserReferences": {
+        "pointer": {
+          "windowIndex": 83,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 2053,
+          "kind": "pointer-dispatch",
+          "at": 119149.30000001192
+        },
+        "expectedDOM": {
+          "windowIndex": 83,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 2056,
+          "kind": "expected-dom",
+          "at": 119235.39999997616,
+          "actionKind": "project-switch",
+          "input": {
+            "sequence": 2036,
+            "at": 118417.30000001192
+          },
+          "pointer": {
+            "sequence": 2053,
+            "at": 119149.30000001192
+          }
+        },
+        "frames": {
+          "requestedAt": 119246.5,
+          "firstFrameAt": 119259,
+          "secondFrameAt": 119275.60000002384,
+          "references": {
+            "timeOrigin": 1791721884512.7,
+            "input": {
+              "sequence": 2036,
+              "at": 118417.30000001192
+            },
+            "pointer": {
+              "sequence": 2053,
+              "at": 119149.30000001192
+            },
+            "expectedDOM": {
+              "sequence": 2056,
+              "at": 119235.39999997616,
+              "actionKind": "project-switch"
+            }
+          }
+        }
+      },
+      "openPointerEventAssociation": {
+        "method": "Unique EventTiming pointerdown whose recorded processing interval contains the logger timestamp; same nonzero interactionId joins subsequent events.",
+        "matchingPointerdownCount": 1,
+        "pointerdownWitnesses": [
+          {
+            "windowIndex": 83,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 13401,
+            "name": "pointerdown",
+            "startTime": 119145.89999997616,
+            "duration": 56,
+            "processingStart": 119149.30000001192,
+            "processingEnd": 119149.80000001192,
+            "interactionId": 5121
+          }
+        ],
+        "sameInteractionEvents": [
+          {
+            "windowIndex": 83,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 13401,
+            "name": "pointerdown",
+            "startTime": 119145.89999997616,
+            "duration": 56,
+            "processingStart": 119149.30000001192,
+            "processingEnd": 119149.80000001192,
+            "interactionId": 5121
+          },
+          {
+            "windowIndex": 83,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 13403,
+            "name": "pointerup",
+            "startTime": 119146.30000001192,
+            "duration": 56,
+            "processingStart": 119150.69999998808,
+            "processingEnd": 119150.80000001192,
+            "interactionId": 5121
+          },
+          {
+            "windowIndex": 83,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 13405,
+            "name": "click",
+            "startTime": 119146.30000001192,
+            "duration": 56,
+            "processingStart": 119150.80000001192,
+            "processingEnd": 119160.60000002384,
+            "interactionId": 5121
+          }
+        ],
+        "limits": "Coverage is thresholded and timestamp precision can prevent a match. Event duration is not a Node command boundary or product function duration."
+      },
+      "homePointerAssociation": {
+        "status": "Sequential browser-clock bracket, not explicit target identity.",
+        "previousActionIndex": 295,
+        "previousSecondFrameAt": 118692.30000001192,
+        "pointerCount": 2,
+        "pointers": [
+          {
+            "windowIndex": 83,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 2047,
+            "kind": "pointer-dispatch",
+            "at": 118747
+          },
+          {
+            "windowIndex": 83,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 2053,
+            "kind": "pointer-dispatch",
+            "at": 119149.30000001192
+          }
+        ],
+        "sourceConsistentHomePointer": {
+          "windowIndex": 83,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 2047,
+          "kind": "pointer-dispatch",
+          "at": 118747
+        },
+        "homePointerToOpenPointerMs": 402.30000001192093,
+        "homePointerEventAssociation": {
+          "method": "Unique EventTiming pointerdown whose recorded processing interval contains the logger timestamp; same nonzero interactionId joins subsequent events.",
+          "matchingPointerdownCount": 1,
+          "pointerdownWitnesses": [
+            {
+              "windowIndex": 83,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 13379,
+              "name": "pointerdown",
+              "startTime": 118745.89999997616,
+              "duration": 56,
+              "processingStart": 118747,
+              "processingEnd": 118747.30000001192,
+              "interactionId": 5114
+            }
+          ],
+          "sameInteractionEvents": [
+            {
+              "windowIndex": 83,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 13379,
+              "name": "pointerdown",
+              "startTime": 118745.89999997616,
+              "duration": 56,
+              "processingStart": 118747,
+              "processingEnd": 118747.30000001192,
+              "interactionId": 5114
+            },
+            {
+              "windowIndex": 83,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 13381,
+              "name": "pointerup",
+              "startTime": 118745.89999997616,
+              "duration": 56,
+              "processingStart": 118747.69999998808,
+              "processingEnd": 118747.80000001192,
+              "interactionId": 5114
+            },
+            {
+              "windowIndex": 83,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 13383,
+              "name": "click",
+              "startTime": 118745.89999997616,
+              "duration": 56,
+              "processingStart": 118747.80000001192,
+              "processingEnd": 118758.60000002384,
+              "interactionId": 5114
+            }
+          ],
+          "limits": "Coverage is thresholded and timestamp precision can prevent a match. Event duration is not a Node command boundary or product function duration."
+        }
+      },
+      "temporallyOverlappingResources": [
+        {
+          "windowIndex": 83,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 2054,
+          "kind": "resource",
+          "route": "project-specification",
+          "at": 119159.19999998808,
+          "duration": 35,
+          "responseStatus": 200,
+          "requestStart": 119186.30000001192,
+          "responseStart": 119191.30000001192,
+          "responseEnd": 119194.19999998808,
+          "transferSize": 1102,
+          "encodedBodySize": 802,
+          "decodedBodySize": 802
+        },
+        {
+          "windowIndex": 83,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 2055,
+          "kind": "resource",
+          "route": "project-orchestrator",
+          "at": 119160.30000001192,
+          "duration": 64.80000001192093,
+          "responseStatus": 200,
+          "requestStart": 119189.5,
+          "responseStart": 119223.89999997616,
+          "responseEnd": 119225.10000002384,
+          "transferSize": 4536,
+          "encodedBodySize": 4236,
+          "decodedBodySize": 4236
+        }
+      ],
+      "commandDelayBeforeVersusAfterPointer": "Unknown: no browser-clock command-start/end anchors; Node and browser clock values are not aligned or subtracted."
+    },
+    {
+      "index": 344,
+      "phase": "idle-interactive-calibration",
+      "elapsedMs": 500.3014700000058,
+      "nodeSpans": {
+        "allProjectsCommand": 271.4922039999801,
+        "overviewHeadingWait": 26.38980500001344,
+        "openProjectCommand": 110.11260399999446,
+        "verifyExpectedContext": 67.03415500000119,
+        "twoFrameCommand": 25.20719299998018
+      },
+      "largestRecordedNodeSpan": "allProjectsCommand",
+      "browserClockSpans": {
+        "lastPointerToDriverExpectedDOMWitnessMs": 88.30000001192093,
+        "driverExpectedDOMWitnessToFrameRequestMs": 13.399999976158142,
+        "frameRequestToSecondCallbackMs": 21.600000023841858
+      },
+      "browserReferences": {
+        "pointer": {
+          "windowIndex": 95,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 2357,
+          "kind": "pointer-dispatch",
+          "at": 126485.19999998808
+        },
+        "expectedDOM": {
+          "windowIndex": 95,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 2360,
+          "kind": "expected-dom",
+          "at": 126573.5,
+          "actionKind": "project-switch",
+          "input": {
+            "sequence": 2340,
+            "at": 125832.69999998808
+          },
+          "pointer": {
+            "sequence": 2357,
+            "at": 126485.19999998808
+          }
+        },
+        "frames": {
+          "requestedAt": 126586.89999997616,
+          "firstFrameAt": 126591.69999998808,
+          "secondFrameAt": 126608.5,
+          "references": {
+            "timeOrigin": 1791721884512.7,
+            "input": {
+              "sequence": 2340,
+              "at": 125832.69999998808
+            },
+            "pointer": {
+              "sequence": 2357,
+              "at": 126485.19999998808
+            },
+            "expectedDOM": {
+              "sequence": 2360,
+              "at": 126573.5,
+              "actionKind": "project-switch"
+            }
+          }
+        }
+      },
+      "openPointerEventAssociation": {
+        "method": "Unique EventTiming pointerdown whose recorded processing interval contains the logger timestamp; same nonzero interactionId joins subsequent events.",
+        "matchingPointerdownCount": 1,
+        "pointerdownWitnesses": [
+          {
+            "windowIndex": 95,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 15333,
+            "name": "pointerdown",
+            "startTime": 126481.80000001192,
+            "duration": 32,
+            "processingStart": 126485.10000002384,
+            "processingEnd": 126485.60000002384,
+            "interactionId": 5793
+          }
+        ],
+        "sameInteractionEvents": [
+          {
+            "windowIndex": 95,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 15333,
+            "name": "pointerdown",
+            "startTime": 126481.80000001192,
+            "duration": 32,
+            "processingStart": 126485.10000002384,
+            "processingEnd": 126485.60000002384,
+            "interactionId": 5793
+          },
+          {
+            "windowIndex": 95,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 15335,
+            "name": "pointerup",
+            "startTime": 126483.39999997616,
+            "duration": 32,
+            "processingStart": 126486.5,
+            "processingEnd": 126486.69999998808,
+            "interactionId": 5793
+          },
+          {
+            "windowIndex": 95,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 15337,
+            "name": "click",
+            "startTime": 126483.39999997616,
+            "duration": 32,
+            "processingStart": 126486.69999998808,
+            "processingEnd": 126501.10000002384,
+            "interactionId": 5793
+          }
+        ],
+        "limits": "Coverage is thresholded and timestamp precision can prevent a match. Event duration is not a Node command boundary or product function duration."
+      },
+      "homePointerAssociation": {
+        "status": "Sequential browser-clock bracket, not explicit target identity.",
+        "previousActionIndex": 343,
+        "previousSecondFrameAt": 126091.80000001192,
+        "pointerCount": 2,
+        "pointers": [
+          {
+            "windowIndex": 95,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 2351,
+            "kind": "pointer-dispatch",
+            "at": 126166.60000002384
+          },
+          {
+            "windowIndex": 95,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 2357,
+            "kind": "pointer-dispatch",
+            "at": 126485.19999998808
+          }
+        ],
+        "sourceConsistentHomePointer": {
+          "windowIndex": 95,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 2351,
+          "kind": "pointer-dispatch",
+          "at": 126166.60000002384
+        },
+        "homePointerToOpenPointerMs": 318.5999999642372,
+        "homePointerEventAssociation": {
+          "method": "Unique EventTiming pointerdown whose recorded processing interval contains the logger timestamp; same nonzero interactionId joins subsequent events.",
+          "matchingPointerdownCount": 1,
+          "pointerdownWitnesses": [
+            {
+              "windowIndex": 95,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 15311,
+              "name": "pointerdown",
+              "startTime": 126164.89999997616,
+              "duration": 200,
+              "processingStart": 126166.60000002384,
+              "processingEnd": 126167,
+              "interactionId": 5786
+            }
+          ],
+          "sameInteractionEvents": [
+            {
+              "windowIndex": 95,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 15311,
+              "name": "pointerdown",
+              "startTime": 126164.89999997616,
+              "duration": 200,
+              "processingStart": 126166.60000002384,
+              "processingEnd": 126167,
+              "interactionId": 5786
+            },
+            {
+              "windowIndex": 95,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 15313,
+              "name": "pointerup",
+              "startTime": 126165,
+              "duration": 200,
+              "processingStart": 126168,
+              "processingEnd": 126168.19999998808,
+              "interactionId": 5786
+            },
+            {
+              "windowIndex": 95,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 15315,
+              "name": "click",
+              "startTime": 126165,
+              "duration": 200,
+              "processingStart": 126168.19999998808,
+              "processingEnd": 126197.10000002384,
+              "interactionId": 5786
+            }
+          ],
+          "limits": "Coverage is thresholded and timestamp precision can prevent a match. Event duration is not a Node command boundary or product function duration."
+        }
+      },
+      "temporallyOverlappingResources": [
+        {
+          "windowIndex": 95,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 2358,
+          "kind": "resource",
+          "route": "project-specification",
+          "at": 126499.30000001192,
+          "duration": 18.19999998807907,
+          "responseStatus": 200,
+          "requestStart": 126514.39999997616,
+          "responseStart": 126515.80000001192,
+          "responseEnd": 126517.5,
+          "transferSize": 1102,
+          "encodedBodySize": 802,
+          "decodedBodySize": 802
+        },
+        {
+          "windowIndex": 95,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 2359,
+          "kind": "resource",
+          "route": "project-orchestrator",
+          "at": 126500.89999997616,
+          "duration": 54.80000001192093,
+          "responseStatus": 200,
+          "requestStart": 126520,
+          "responseStart": 126554.5,
+          "responseEnd": 126555.69999998808,
+          "transferSize": 4536,
+          "encodedBodySize": 4236,
+          "decodedBodySize": 4236
+        }
+      ],
+      "commandDelayBeforeVersusAfterPointer": "Unknown: no browser-clock command-start/end anchors; Node and browser clock values are not aligned or subtracted."
+    },
+    {
+      "index": 356,
+      "phase": "idle-interactive-calibration",
+      "elapsedMs": 318.0117989999999,
+      "nodeSpans": {
+        "allProjectsCommand": 110.91153300000587,
+        "overviewHeadingWait": 16.94474400000763,
+        "openProjectCommand": 79.14225499998429,
+        "verifyExpectedContext": 82.41082199997618,
+        "twoFrameCommand": 28.48916399999871
+      },
+      "largestRecordedNodeSpan": "allProjectsCommand",
+      "browserClockSpans": {
+        "lastPointerToDriverExpectedDOMWitnessMs": 89.89999997615814,
+        "driverExpectedDOMWitnessToFrameRequestMs": 13.0,
+        "frameRequestToSecondCallbackMs": 24.80000001192093
+      },
+      "browserReferences": {
+        "pointer": {
+          "windowIndex": 98,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 2432,
+          "kind": "pointer-dispatch",
+          "at": 128933.60000002384
+        },
+        "expectedDOM": {
+          "windowIndex": 98,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 2435,
+          "kind": "expected-dom",
+          "at": 129023.5,
+          "actionKind": "project-switch",
+          "input": {
+            "sequence": 2415,
+            "at": 128118.19999998808
+          },
+          "pointer": {
+            "sequence": 2432,
+            "at": 128933.60000002384
+          }
+        },
+        "frames": {
+          "requestedAt": 129036.5,
+          "firstFrameAt": 129042.30000001192,
+          "secondFrameAt": 129061.30000001192,
+          "references": {
+            "timeOrigin": 1791721884512.7,
+            "input": {
+              "sequence": 2415,
+              "at": 128118.19999998808
+            },
+            "pointer": {
+              "sequence": 2432,
+              "at": 128933.60000002384
+            },
+            "expectedDOM": {
+              "sequence": 2435,
+              "at": 129023.5,
+              "actionKind": "project-switch"
+            }
+          }
+        }
+      },
+      "openPointerEventAssociation": {
+        "method": "Unique EventTiming pointerdown whose recorded processing interval contains the logger timestamp; same nonzero interactionId joins subsequent events.",
+        "matchingPointerdownCount": 1,
+        "pointerdownWitnesses": [
+          {
+            "windowIndex": 98,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 15785,
+            "name": "pointerdown",
+            "startTime": 128930.69999998808,
+            "duration": 56,
+            "processingStart": 128933.5,
+            "processingEnd": 128934,
+            "interactionId": 5961
+          }
+        ],
+        "sameInteractionEvents": [
+          {
+            "windowIndex": 98,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 15785,
+            "name": "pointerdown",
+            "startTime": 128930.69999998808,
+            "duration": 56,
+            "processingStart": 128933.5,
+            "processingEnd": 128934,
+            "interactionId": 5961
+          },
+          {
+            "windowIndex": 98,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 15787,
+            "name": "pointerup",
+            "startTime": 128930.80000001192,
+            "duration": 56,
+            "processingStart": 128934.30000001192,
+            "processingEnd": 128934.39999997616,
+            "interactionId": 5961
+          },
+          {
+            "windowIndex": 98,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 15789,
+            "name": "click",
+            "startTime": 128930.80000001192,
+            "duration": 56,
+            "processingStart": 128934.39999997616,
+            "processingEnd": 128940.69999998808,
+            "interactionId": 5961
+          }
+        ],
+        "limits": "Coverage is thresholded and timestamp precision can prevent a match. Event duration is not a Node command boundary or product function duration."
+      },
+      "homePointerAssociation": {
+        "status": "Sequential browser-clock bracket, not explicit target identity.",
+        "previousActionIndex": 355,
+        "previousSecondFrameAt": 128678.39999997616,
+        "pointerCount": 2,
+        "pointers": [
+          {
+            "windowIndex": 98,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 2426,
+            "kind": "pointer-dispatch",
+            "at": 128820
+          },
+          {
+            "windowIndex": 98,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 2432,
+            "kind": "pointer-dispatch",
+            "at": 128933.60000002384
+          }
+        ],
+        "sourceConsistentHomePointer": {
+          "windowIndex": 98,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 2426,
+          "kind": "pointer-dispatch",
+          "at": 128820
+        },
+        "homePointerToOpenPointerMs": 113.60000002384186,
+        "homePointerEventAssociation": {
+          "method": "Unique EventTiming pointerdown whose recorded processing interval contains the logger timestamp; same nonzero interactionId joins subsequent events.",
+          "matchingPointerdownCount": 1,
+          "pointerdownWitnesses": [
+            {
+              "windowIndex": 98,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 15763,
+              "name": "pointerdown",
+              "startTime": 128817.30000001192,
+              "duration": 48,
+              "processingStart": 128820,
+              "processingEnd": 128820.30000001192,
+              "interactionId": 5954
+            }
+          ],
+          "sameInteractionEvents": [
+            {
+              "windowIndex": 98,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 15763,
+              "name": "pointerdown",
+              "startTime": 128817.30000001192,
+              "duration": 48,
+              "processingStart": 128820,
+              "processingEnd": 128820.30000001192,
+              "interactionId": 5954
+            },
+            {
+              "windowIndex": 98,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 15765,
+              "name": "pointerup",
+              "startTime": 128817.69999998808,
+              "duration": 48,
+              "processingStart": 128821,
+              "processingEnd": 128821.10000002384,
+              "interactionId": 5954
+            },
+            {
+              "windowIndex": 98,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 15767,
+              "name": "click",
+              "startTime": 128817.69999998808,
+              "duration": 48,
+              "processingStart": 128821.10000002384,
+              "processingEnd": 128837.69999998808,
+              "interactionId": 5954
+            }
+          ],
+          "limits": "Coverage is thresholded and timestamp precision can prevent a match. Event duration is not a Node command boundary or product function duration."
+        }
+      },
+      "temporallyOverlappingResources": [
+        {
+          "windowIndex": 98,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 2433,
+          "kind": "resource",
+          "route": "project-specification",
+          "at": 128939.60000002384,
+          "duration": 20,
+          "responseStatus": 200,
+          "requestStart": 128952.19999998808,
+          "responseStart": 128956.69999998808,
+          "responseEnd": 128959.60000002384,
+          "transferSize": 1084,
+          "encodedBodySize": 784,
+          "decodedBodySize": 784
+        },
+        {
+          "windowIndex": 98,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 2434,
+          "kind": "resource",
+          "route": "project-orchestrator",
+          "at": 128940.60000002384,
+          "duration": 72,
+          "responseStatus": 200,
+          "requestStart": 128956.80000001192,
+          "responseStart": 129011.5,
+          "responseEnd": 129012.60000002384,
+          "transferSize": 4463,
+          "encodedBodySize": 4163,
+          "decodedBodySize": 4163
+        }
+      ],
+      "commandDelayBeforeVersusAfterPointer": "Unknown: no browser-clock command-start/end anchors; Node and browser clock values are not aligned or subtracted."
+    },
+    {
+      "index": 380,
+      "phase": "idle-interactive-calibration",
+      "elapsedMs": 539.971888,
+      "nodeSpans": {
+        "allProjectsCommand": 319.52614600001834,
+        "overviewHeadingWait": 30.370777999982238,
+        "openProjectCommand": 97.00597900000867,
+        "verifyExpectedContext": 58.728647999989334,
+        "twoFrameCommand": 34.23805200000061
+      },
+      "largestRecordedNodeSpan": "allProjectsCommand",
+      "browserClockSpans": {
+        "lastPointerToDriverExpectedDOMWitnessMs": 87.19999998807907,
+        "driverExpectedDOMWitnessToFrameRequestMs": 8.5,
+        "frameRequestToSecondCallbackMs": 28.900000035762787
+      },
+      "browserReferences": {
+        "pointer": {
+          "windowIndex": 104,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 2582,
+          "kind": "pointer-dispatch",
+          "at": 133450.5
+        },
+        "expectedDOM": {
+          "windowIndex": 104,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 2585,
+          "kind": "expected-dom",
+          "at": 133537.69999998808,
+          "actionKind": "project-switch",
+          "input": {
+            "sequence": 2565,
+            "at": 132751
+          },
+          "pointer": {
+            "sequence": 2582,
+            "at": 133450.5
+          }
+        },
+        "frames": {
+          "requestedAt": 133546.19999998808,
+          "firstFrameAt": 133558.89999997616,
+          "secondFrameAt": 133575.10000002384,
+          "references": {
+            "timeOrigin": 1791721884512.7,
+            "input": {
+              "sequence": 2565,
+              "at": 132751
+            },
+            "pointer": {
+              "sequence": 2582,
+              "at": 133450.5
+            },
+            "expectedDOM": {
+              "sequence": 2585,
+              "at": 133537.69999998808,
+              "actionKind": "project-switch"
+            }
+          }
+        }
+      },
+      "openPointerEventAssociation": {
+        "method": "Unique EventTiming pointerdown whose recorded processing interval contains the logger timestamp; same nonzero interactionId joins subsequent events.",
+        "matchingPointerdownCount": 1,
+        "pointerdownWitnesses": [
+          {
+            "windowIndex": 104,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 16775,
+            "name": "pointerdown",
+            "startTime": 133448.39999997616,
+            "duration": 64,
+            "processingStart": 133450.39999997616,
+            "processingEnd": 133451,
+            "interactionId": 6297
+          }
+        ],
+        "sameInteractionEvents": [
+          {
+            "windowIndex": 104,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 16775,
+            "name": "pointerdown",
+            "startTime": 133448.39999997616,
+            "duration": 64,
+            "processingStart": 133450.39999997616,
+            "processingEnd": 133451,
+            "interactionId": 6297
+          },
+          {
+            "windowIndex": 104,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 16777,
+            "name": "pointerup",
+            "startTime": 133448.5,
+            "duration": 64,
+            "processingStart": 133451.5,
+            "processingEnd": 133451.60000002384,
+            "interactionId": 6297
+          },
+          {
+            "windowIndex": 104,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 16779,
+            "name": "click",
+            "startTime": 133448.5,
+            "duration": 64,
+            "processingStart": 133451.60000002384,
+            "processingEnd": 133461.80000001192,
+            "interactionId": 6297
+          }
+        ],
+        "limits": "Coverage is thresholded and timestamp precision can prevent a match. Event duration is not a Node command boundary or product function duration."
+      },
+      "homePointerAssociation": {
+        "status": "Sequential browser-clock bracket, not explicit target identity.",
+        "previousActionIndex": 379,
+        "previousSecondFrameAt": 133024.69999998808,
+        "pointerCount": 2,
+        "pointers": [
+          {
+            "windowIndex": 104,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 2576,
+            "kind": "pointer-dispatch",
+            "at": 133222.80000001192
+          },
+          {
+            "windowIndex": 104,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 2582,
+            "kind": "pointer-dispatch",
+            "at": 133450.5
+          }
+        ],
+        "sourceConsistentHomePointer": {
+          "windowIndex": 104,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 2576,
+          "kind": "pointer-dispatch",
+          "at": 133222.80000001192
+        },
+        "homePointerToOpenPointerMs": 227.69999998807907,
+        "homePointerEventAssociation": {
+          "method": "Unique EventTiming pointerdown whose recorded processing interval contains the logger timestamp; same nonzero interactionId joins subsequent events.",
+          "matchingPointerdownCount": 1,
+          "pointerdownWitnesses": [
+            {
+              "windowIndex": 104,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 16753,
+              "name": "pointerdown",
+              "startTime": 133209.39999997616,
+              "duration": 152,
+              "processingStart": 133222.39999997616,
+              "processingEnd": 133223.80000001192,
+              "interactionId": 6290
+            }
+          ],
+          "sameInteractionEvents": [
+            {
+              "windowIndex": 104,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 16753,
+              "name": "pointerdown",
+              "startTime": 133209.39999997616,
+              "duration": 152,
+              "processingStart": 133222.39999997616,
+              "processingEnd": 133223.80000001192,
+              "interactionId": 6290
+            },
+            {
+              "windowIndex": 104,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 16755,
+              "name": "pointerup",
+              "startTime": 133210.5,
+              "duration": 152,
+              "processingStart": 133227.30000001192,
+              "processingEnd": 133227.89999997616,
+              "interactionId": 6290
+            },
+            {
+              "windowIndex": 104,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 16757,
+              "name": "click",
+              "startTime": 133210.5,
+              "duration": 152,
+              "processingStart": 133228,
+              "processingEnd": 133310.69999998808,
+              "interactionId": 6290
+            }
+          ],
+          "limits": "Coverage is thresholded and timestamp precision can prevent a match. Event duration is not a Node command boundary or product function duration."
+        }
+      },
+      "temporallyOverlappingResources": [
+        {
+          "windowIndex": 104,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 2583,
+          "kind": "resource",
+          "route": "project-specification",
+          "at": 133459.89999997616,
+          "duration": 25.900000035762787,
+          "responseStatus": 200,
+          "requestStart": 133477.69999998808,
+          "responseStart": 133481.89999997616,
+          "responseEnd": 133485.80000001192,
+          "transferSize": 1096,
+          "encodedBodySize": 796,
+          "decodedBodySize": 796
+        },
+        {
+          "windowIndex": 104,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 2584,
+          "kind": "resource",
+          "route": "project-orchestrator",
+          "at": 133461.5,
+          "duration": 58.39999997615814,
+          "responseStatus": 200,
+          "requestStart": 133480.10000002384,
+          "responseStart": 133518.89999997616,
+          "responseEnd": 133519.89999997616,
+          "transferSize": 4512,
+          "encodedBodySize": 4212,
+          "decodedBodySize": 4212
+        }
+      ],
+      "commandDelayBeforeVersusAfterPointer": "Unknown: no browser-clock command-start/end anchors; Node and browser clock values are not aligned or subtracted."
+    },
+    {
+      "index": 392,
+      "phase": "idle-interactive-calibration",
+      "elapsedMs": 582.3309100000188,
+      "nodeSpans": {
+        "allProjectsCommand": 367.82257699998445,
+        "overviewHeadingWait": 28.00757099999464,
+        "openProjectCommand": 106.27000200000475,
+        "verifyExpectedContext": 57.4714479999966,
+        "twoFrameCommand": 22.667983999999706
+      },
+      "largestRecordedNodeSpan": "allProjectsCommand",
+      "browserClockSpans": {
+        "lastPointerToDriverExpectedDOMWitnessMs": 82.30000001192093,
+        "driverExpectedDOMWitnessToFrameRequestMs": 6.699999988079071,
+        "frameRequestToSecondCallbackMs": 18.69999998807907
+      },
+      "browserReferences": {
+        "pointer": {
+          "windowIndex": 107,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 2657,
+          "kind": "pointer-dispatch",
+          "at": 135650.80000001192
+        },
+        "expectedDOM": {
+          "windowIndex": 107,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 2660,
+          "kind": "expected-dom",
+          "at": 135733.10000002384,
+          "actionKind": "project-switch",
+          "input": {
+            "sequence": 2640,
+            "at": 134867.10000002384
+          },
+          "pointer": {
+            "sequence": 2657,
+            "at": 135650.80000001192
+          }
+        },
+        "frames": {
+          "requestedAt": 135739.80000001192,
+          "firstFrameAt": 135742,
+          "secondFrameAt": 135758.5,
+          "references": {
+            "timeOrigin": 1791721884512.7,
+            "input": {
+              "sequence": 2640,
+              "at": 134867.10000002384
+            },
+            "pointer": {
+              "sequence": 2657,
+              "at": 135650.80000001192
+            },
+            "expectedDOM": {
+              "sequence": 2660,
+              "at": 135733.10000002384,
+              "actionKind": "project-switch"
+            }
+          }
+        }
+      },
+      "openPointerEventAssociation": {
+        "method": "Unique EventTiming pointerdown whose recorded processing interval contains the logger timestamp; same nonzero interactionId joins subsequent events.",
+        "matchingPointerdownCount": 1,
+        "pointerdownWitnesses": [
+          {
+            "windowIndex": 107,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 17228,
+            "name": "pointerdown",
+            "startTime": 135648,
+            "duration": 64,
+            "processingStart": 135650.69999998808,
+            "processingEnd": 135651.30000001192,
+            "interactionId": 6465
+          }
+        ],
+        "sameInteractionEvents": [
+          {
+            "windowIndex": 107,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 17228,
+            "name": "pointerdown",
+            "startTime": 135648,
+            "duration": 64,
+            "processingStart": 135650.69999998808,
+            "processingEnd": 135651.30000001192,
+            "interactionId": 6465
+          },
+          {
+            "windowIndex": 107,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 17230,
+            "name": "pointerup",
+            "startTime": 135648.10000002384,
+            "duration": 64,
+            "processingStart": 135651.80000001192,
+            "processingEnd": 135651.89999997616,
+            "interactionId": 6465
+          },
+          {
+            "windowIndex": 107,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 17232,
+            "name": "click",
+            "startTime": 135648.10000002384,
+            "duration": 64,
+            "processingStart": 135652,
+            "processingEnd": 135664.89999997616,
+            "interactionId": 6465
+          }
+        ],
+        "limits": "Coverage is thresholded and timestamp precision can prevent a match. Event duration is not a Node command boundary or product function duration."
+      },
+      "homePointerAssociation": {
+        "status": "Sequential browser-clock bracket, not explicit target identity.",
+        "previousActionIndex": 391,
+        "previousSecondFrameAt": 135158.30000001192,
+        "pointerCount": 2,
+        "pointers": [
+          {
+            "windowIndex": 107,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 2651,
+            "kind": "pointer-dispatch",
+            "at": 135429.89999997616
+          },
+          {
+            "windowIndex": 107,
+            "timeOrigin": 1791721884512.7,
+            "sequence": 2657,
+            "kind": "pointer-dispatch",
+            "at": 135650.80000001192
+          }
+        ],
+        "sourceConsistentHomePointer": {
+          "windowIndex": 107,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 2651,
+          "kind": "pointer-dispatch",
+          "at": 135429.89999997616
+        },
+        "homePointerToOpenPointerMs": 220.9000000357628,
+        "homePointerEventAssociation": {
+          "method": "Unique EventTiming pointerdown whose recorded processing interval contains the logger timestamp; same nonzero interactionId joins subsequent events.",
+          "matchingPointerdownCount": 1,
+          "pointerdownWitnesses": [
+            {
+              "windowIndex": 107,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 17206,
+              "name": "pointerdown",
+              "startTime": 135412.5,
+              "duration": 152,
+              "processingStart": 135429.60000002384,
+              "processingEnd": 135431.5,
+              "interactionId": 6458
+            }
+          ],
+          "sameInteractionEvents": [
+            {
+              "windowIndex": 107,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 17206,
+              "name": "pointerdown",
+              "startTime": 135412.5,
+              "duration": 152,
+              "processingStart": 135429.60000002384,
+              "processingEnd": 135431.5,
+              "interactionId": 6458
+            },
+            {
+              "windowIndex": 107,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 17208,
+              "name": "pointerup",
+              "startTime": 135413.5,
+              "duration": 152,
+              "processingStart": 135433.30000001192,
+              "processingEnd": 135433.39999997616,
+              "interactionId": 6458
+            },
+            {
+              "windowIndex": 107,
+              "timeOrigin": 1791721884512.7,
+              "sequence": 17210,
+              "name": "click",
+              "startTime": 135413.5,
+              "duration": 152,
+              "processingStart": 135433.5,
+              "processingEnd": 135506.19999998808,
+              "interactionId": 6458
+            }
+          ],
+          "limits": "Coverage is thresholded and timestamp precision can prevent a match. Event duration is not a Node command boundary or product function duration."
+        }
+      },
+      "temporallyOverlappingResources": [
+        {
+          "windowIndex": 107,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 2658,
+          "kind": "resource",
+          "route": "project-specification",
+          "at": 135662.60000002384,
+          "duration": 23.19999998807907,
+          "responseStatus": 200,
+          "requestStart": 135678,
+          "responseStart": 135684.5,
+          "responseEnd": 135685.80000001192,
+          "transferSize": 1102,
+          "encodedBodySize": 802,
+          "decodedBodySize": 802
+        },
+        {
+          "windowIndex": 107,
+          "timeOrigin": 1791721884512.7,
+          "sequence": 2659,
+          "kind": "resource",
+          "route": "project-orchestrator",
+          "at": 135664.60000002384,
+          "duration": 52.09999996423721,
+          "responseStatus": 200,
+          "requestStart": 135678.19999998808,
+          "responseStart": 135715.60000002384,
+          "responseEnd": 135716.69999998808,
+          "transferSize": 4536,
+          "encodedBodySize": 4236,
+          "decodedBodySize": 4236
+        }
+      ],
+      "commandDelayBeforeVersusAfterPointer": "Unknown: no browser-clock command-start/end anchors; Node and browser clock values are not aligned or subtracted."
+    }
+  ],
+  "limits": [
+    "Original end-to-end rows and thresholds are unchanged. No overhead subtraction, outlier exclusion, mixed-clock subtraction, additive percentile or causal attribution.",
+    "Node command spans include Playwright transport, scheduling and actionability; they do not isolate product functions.",
+    "The expected-DOM witness is driver-triggered after locator wait and value check; it is not autonomous React-commit or physical-paint timing.",
+    "The last-pointer reference is exact. A source-consistent first/Home pointer requires exactly two pointer rows after the previous action frame; it lacks explicit target identity.",
+    "No browser-clock command-start/end anchors were retained, so an All projects command cannot be divided into pre-pointer versus post-pointer delay.",
+    "Resource association is same-clock overlap only; route classes contain no exact project identity and do not prove request-to-action causality.",
+    "EventTiming association requires a unique interval-containing pointerdown and nonzero interactionId. Thresholded observations and clock precision limit coverage.",
+    "This run contains the complete primary400 actions only, without generic tracing or Home instrumentation. The previous eight-round Home probe did not sample these tail actions.",
+    "No new app, browser, tests, runtime measurement, CPU profile or private state mutation. No product-completion claim."
+  ]
+}

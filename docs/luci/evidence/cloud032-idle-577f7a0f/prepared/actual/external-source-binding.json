@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "executionDirectory": "/workspace/.luci-tools/cloud032-idle-577f7a0f-plain/actual",
+  "helperSourceCommit": "64829123a5799858b57616b711c84c61b945871a",
+  "productSourceCommit": "577f7a0fdb039b7f875901a6a567d62fdfee88c8",
+  "scope": "Full original100-round idle sample against unmodified packaged binary/web; frozen648 lifecycle/helper copies; unrelated mutable checkout recorded, not used or gated clean.",
+  "templateSourceSHA256": "18429d2a6497cfec582c8565b572b3ca567b756f2f9d403efd79b6b405719dc2",
+  "originalTemplateBindingSHA256": "b2b29dec8b6f23987cf2ddf94edbd317944c8c9f495b413d69973986cc7e5519",
+  "localSources": {
+    "four-project-queue_native-terminal-diagnostics.mjs": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+    "four-project-queue_sample-linux-owned.py": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+    "interaction-metrics.mjs": "a17f817dd7ac4b6303a15699d20ead245157f2eb8e1f3d66d8f78f5b2ffa8a89",
+    "latency-diagnostics.mjs": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96",
+    "launch-recovery_acceptance-lifecycle.mjs": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+    "launch-recovery_acceptance-startup.mjs": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+    "launch-recovery_durable-acceptance-journal.mjs": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+    "launch-recovery_fenced-docker-proxy.mjs": "b965b9a5d03f8a4cbc19b6e065559e1d9b10a2812453bfafb992e3f0041e448f",
+    "launch-recovery_worker-create-guard.mjs": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+    "queue-controls.mjs": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0",
+    "receipt-transport.mjs": "6a676eefc02c4be569e65f6c3a16da50f750be67acaf4f1380a86739791c34a1",
+    "run-with-observer.py": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a",
+    "source-binding.mjs": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796",
+    "sustained.mjs": "4a3139e2b8d3af026f61e516f76d2dd62ce8eccc6108169c6dd2fac4ffdce6b5",
+    "task-command.mjs": "7557cc863201e136a6ea0f4d039472d6e225a8efb0fb2afe267b9d65e01a541f",
+    "task-context.mjs": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2",
+    "workloads.mjs": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306"
+  },
+  "repositoryDependencies": {
+    "scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+    "scripts/acceptance/four-project-queue/sample-linux-owned.py": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+    "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs": "b965b9a5d03f8a4cbc19b6e065559e1d9b10a2812453bfafb992e3f0041e448f",
+    "scripts/acceptance/launch-recovery/worker-create-guard.mjs": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+    "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+    "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+    "scripts/acceptance/launch-recovery/acceptance-startup.mjs": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680"
+  },
+  "changes": [
+    "Frozen648 helper copies and exact immutable product577 source binding",
+    "Discover visible naming only",
+    "Full100 original rounds, no extra8 trace followup",
+    "Additional exact100 draft-reset count and explicit idle target flag; original spans/thresholds/expected values/frames/quiet/deadlines/zero-allocation guards/cleanup unchanged",
+    "Outside timed actions only: retain existing fixture-owned browser PID/start identity snapshots before workload/cleanup and final exact states; explicitly incomplete lifetime census, no zero-zombie claim"
+  ]
+}
