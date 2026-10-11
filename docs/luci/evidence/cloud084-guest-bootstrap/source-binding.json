@@ -1,0 +1,85 @@
+{
+  "scope": "Exact Linux guest/bootstrap source matches the already retained final transport follow-up; no full compiler or external dependency claim.",
+  "finalRaceReceipt": "../cloud084-guest-transport/followup/fixed-result.json",
+  "source": {
+    "control-plane/internal/microvmguest/permissions_linux.go": {
+      "sha256": "3fa302e7d8ef7dfa390bf8767b17cb2a76f135772af17c5a3bb4dd548a3289a7",
+      "bytes": 1844
+    },
+    "control-plane/internal/microvmguest/permissions_linux_test.go": {
+      "sha256": "c2832fc8f26a45d5310312cc1ebfda4c82040dbcc8902d3f1de5c7ed0d7656f4",
+      "bytes": 2224
+    },
+    "control-plane/internal/microvmguest/prepare.go": {
+      "sha256": "e85ef329d9243a754fea4abec6ccbfb29147bb88ca5e873571bbea582c31c931",
+      "bytes": 8087
+    },
+    "control-plane/internal/microvmguest/prepare_test.go": {
+      "sha256": "ef86d3d59fb7f30ab076167d1c499b153eebf9614de3b8aeed5efed412d0cefc",
+      "bytes": 7651
+    },
+    "control-plane/internal/microvmguest/repository_linux.go": {
+      "sha256": "7142abb91e899391d44fadb59882a6555b29e152733ec40abb80eab3b8f350f3",
+      "bytes": 3569
+    },
+    "control-plane/cmd/microvm-bootstrap/main_linux.go": {
+      "sha256": "a4404545cfff995310a53c8b027173390d3570fe46d5b1c67115e77749a9df83",
+      "bytes": 3222
+    },
+    "control-plane/cmd/microvm-bootstrap/main_other.go": {
+      "sha256": "9cbe1117e32aed60ead31c58372986563a40da81a0712f689ff674114bb0ab1d",
+      "bytes": 178
+    }
+  },
+  "originalArtifacts": {
+    "initial-wrapper-error.json": {
+      "sha256": "e6057d0674c384fca2b9e004d28c2c6c52ae76da6cabdc1556a4fc81d4397155",
+      "bytes": 230
+    },
+    "summary.json": {
+      "sha256": "e19a43f318860b6aa2dd56c2bf6060ce6db5e3866c2b787c997d4d51db5abaf9",
+      "bytes": 481
+    },
+    "joined.exit": {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    "joined.stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "source-before.json": {
+      "sha256": "256900691d6d6030b41a96e4d1950b85c0112a3b13817b045a3d8ee2288d10f4",
+      "bytes": 4750
+    },
+    "container-compile.exit": {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    "container-compile.stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "container-compile.stdout.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "permission-container.json": {
+      "sha256": "b4f421e1807a97449bed8dac1ddfc238c74dc4ecbaf1e067169d2346a9635d8b",
+      "bytes": 3734
+    },
+    "permission-container.py": {
+      "sha256": "a38b40418cf713dd1a15d07713282479f5b1805f1c68914ff597c7c4ca9a5180",
+      "bytes": 4169
+    },
+    "permission-create-failure-closure.json": {
+      "sha256": "b29fa6d11e2ee81cbb4e51df9f2c8fe036c5ba56e125526aee5b677cca91a4c9",
+      "bytes": 1414
+    },
+    "joined.jsonl": {
+      "sha256": "b5a7af5635638220dd438aa7c28eeea9140af1fdf7a8a6005f1a5aa97831719b",
+      "bytes": 140081,
+      "storedAs": "joined.jsonl.gz"
+    }
+  }
+}

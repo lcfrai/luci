@@ -1,0 +1,108 @@
+{
+  "scope": "existing-image Linux ownership and real Git fixture; not live microVM or provider acceptance",
+  "image": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+  "binarySHA256": "fb651beab497c4aab4c07908b955087d7b0a01135b671b552c9800137a7ac807",
+  "steps": [
+    {
+      "args": [
+        "ps",
+        "-a",
+        "--no-trunc",
+        "--format",
+        "{{.ID}} {{.State}}"
+      ],
+      "started": 1791736233.9451041,
+      "elapsed": 0.05427360534667969,
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "image",
+        "inspect",
+        "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+        "--format",
+        "{{.Id}}"
+      ],
+      "started": 1791736233.9996924,
+      "elapsed": 0.0542294979095459,
+      "exit": 0,
+      "stdout": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "create",
+        "--name",
+        "luci-guest-permission-c976cd535e1a46599b6b5bda636ed879",
+        "--label",
+        "luci.controlled-guest-test=luci-guest-permission-c976cd535e1a46599b6b5bda636ed879",
+        "--network",
+        "none",
+        "--memory",
+        "384m",
+        "--memory-swap",
+        "384m",
+        "--cpus",
+        "0.5",
+        "--pids-limit",
+        "64",
+        "--read-only",
+        "--cap-drop",
+        "ALL",
+        "--cap-add",
+        "CHOWN",
+        "--cap-add",
+        "DAC_OVERRIDE",
+        "--cap-add",
+        "FOWNER",
+        "--cap-add",
+        "SETUID",
+        "--cap-add",
+        "SETGID",
+        "--security-opt",
+        "no-new-privileges",
+        "--user",
+        "0:0",
+        "--tmpfs",
+        "/tmp:rw,nosuid,nodev,size=64m,mode=1777",
+        "--mount",
+        "type=bind,src=/workspace/luci/artifacts/microvm-guest-bootstrap/microvmguest.test,dst=/probe/guest.test,readonly",
+        "--entrypoint",
+        "/probe/guest.test",
+        "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+        "-test.run",
+        "^TestProtectedGuestContextCannotBeReplacedByUpstreamUser$",
+        "-test.v",
+        "-test.timeout",
+        "20s"
+      ],
+      "started": 1791736234.054466,
+      "elapsed": 25.02998971939087,
+      "timeout": true,
+      "stdout": null,
+      "stderr": null
+    },
+    {
+      "args": [
+        "ps",
+        "-a",
+        "--no-trunc",
+        "--format",
+        "{{.ID}} {{.State}}"
+      ],
+      "started": 1791736259.0870135,
+      "elapsed": 0.08187651634216309,
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "passed": false,
+  "forced": false,
+  "inventoryBefore": [],
+  "error": "Command '['docker', 'create', '--name', 'luci-guest-permission-c976cd535e1a46599b6b5bda636ed879', '--label', 'luci.controlled-guest-test=luci-guest-permission-c976cd535e1a46599b6b5bda636ed879', '--network', 'none', '--memory', '384m', '--memory-swap', '384m', '--cpus', '0.5', '--pids-limit', '64', '--read-only', '--cap-drop', 'ALL', '--cap-add', 'CHOWN', '--cap-add', 'DAC_OVERRIDE', '--cap-add', 'FOWNER', '--cap-add', 'SETUID', '--cap-add', 'SETGID', '--security-opt', 'no-new-privileges', '--user', '0:0', '--tmpfs', '/tmp:rw,nosuid,nodev,size=64m,mode=1777', '--mount', 'type=bind,src=/workspace/luci/artifacts/microvm-guest-bootstrap/microvmguest.test,dst=/probe/guest.test,readonly', '--entrypoint', '/probe/guest.test', 'sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8', '-test.run', '^TestProtectedGuestContextCannotBeReplacedByUpstreamUser$', '-test.v', '-test.timeout', '20s']' timed out after 25 seconds",
+  "inventoryAfter": [],
+  "unrelatedInventoryUnchanged": true
+}

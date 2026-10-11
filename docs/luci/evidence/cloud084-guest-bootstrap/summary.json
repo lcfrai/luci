@@ -1,0 +1,21 @@
+{
+  "exit": "0",
+  "results": {
+    "github.com/lcfrai/luci/control-plane/internal/microvmguest": {
+      "skip-top": 1,
+      "pass-top": 4,
+      "pass-sub": 7,
+      "pass-package": 1
+    },
+    "github.com/lcfrai/luci/control-plane/cmd/microvm-bootstrap": {
+      "skip-package": 1
+    },
+    "github.com/lcfrai/luci/control-plane/internal/backend/e2bbe": {
+      "pass-top": 49,
+      "pass-sub": 73,
+      "pass-package": 1
+    }
+  },
+  "inputs": 29,
+  "changedInputs": []
+}

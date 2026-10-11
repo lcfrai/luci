@@ -1,0 +1,33 @@
+{
+  "observedAt": 1791736575.7457695,
+  "originalCreate": "timed out before acknowledgement; no Start was requested; original failed receipt preserved",
+  "daemonEvents": [
+    {
+      "status": "destroy",
+      "id": "af1584d8168d4675578247ba58b16026769577b4ed6c231b11845f0d37bc91b6",
+      "from": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+      "Type": "container",
+      "Action": "destroy",
+      "Actor": {
+        "ID": "af1584d8168d4675578247ba58b16026769577b4ed6c231b11845f0d37bc91b6",
+        "Attributes": {
+          "image": "sha256:76043c5d0f30207c05343e1dbc0f450658eb52726590c8c47c714c67371acec8",
+          "luci.controlled-guest-test": "luci-guest-permission-c976cd535e1a46599b6b5bda636ed879",
+          "name": "luci-guest-permission-c976cd535e1a46599b6b5bda636ed879"
+        }
+      },
+      "scope": "local",
+      "time": 1791736261,
+      "timeNano": 1791736261400870501
+    }
+  ],
+  "exactReadOnlyObservations": [
+    {
+      "id": "af1584d8168d4675578247ba58b16026769577b4ed6c231b11845f0d37bc91b6",
+      "exit": 1,
+      "stdout": "[]\n",
+      "stderr": "Error: No such object: af1584d8168d4675578247ba58b16026769577b4ed6c231b11845f0d37bc91b6\n"
+    }
+  ],
+  "scope": "Docker destroy event bound by exact attempt label and image; exact subsequent inspect absence. No guest test executed; no resource/permission pass; no manual Docker cleanup or retry."
+}
