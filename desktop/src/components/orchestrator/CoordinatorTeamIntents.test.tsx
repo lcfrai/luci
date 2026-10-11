@@ -154,3 +154,20 @@ it("omits different document targets and replacements waiting on the withdrawn i
   expect(screen.queryByRole("option", { name: /Dependent replacement/ })).toBeNull();
   expect(screen.getByRole("option", { name: /Bob: Use red buttons/ })).not.toBeNull();
 });
+it.each([401, 403])("hides cached private intents after read denial %s without losing an unknown decision", async status => {
+  vi.mocked(coordinatorIntentsApi.resolve).mockRejectedValue(new ApiError("timeout", "Original outcome unknown", 0));
+  render(<CoordinatorTeamIntents {...props()} />); await openDecision();
+  await userEvent.click(screen.getByRole("button", { name: "Record my decision" })); await screen.findByText(/Original outcome unknown/);
+  const raw = localStorage.getItem(localStorage.key(0)!);
+  vi.mocked(coordinatorIntentsApi.get).mockRejectedValue(new ProductApiError("forbidden_origin", "Read access refused", status, { error: "forbidden" }));
+  await userEvent.click(screen.getByRole("button", { name: "Refresh coordination" }));
+  await screen.findByRole("alert");
+  await waitFor(() => expect((screen.getByRole("button", { name: "Refresh coordination" }) as HTMLButtonElement).disabled).toBe(false));
+  expect(screen.queryByText("Alice’s Luci · Design")).toBeNull();
+  expect(screen.queryByLabelText("Why this resolves your request")).toBeNull();
+  expect(localStorage.getItem(localStorage.key(0)!)).toBe(raw);
+  vi.mocked(coordinatorIntentsApi.get).mockResolvedValue(resolvedView());
+  await userEvent.click(screen.getByRole("button", { name: "Refresh coordination" }));
+  await screen.findByText(/Your recorded decision is confirmed/);
+  expect(coordinatorIntentsApi.resolve).toHaveBeenCalledTimes(1);
+});

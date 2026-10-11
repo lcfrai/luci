@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { coordinatorIntentsApi, type CoordinatorIntent, type CoordinatorIntentsView, type ResolveCoordinatorIntent } from "../../api/coordinatorIntents";
+import { ApiError } from "../../api/client";
 import { errorText, ProductApiError } from "../../api/product";
 import { Button } from "../fluid/components/button";
 
@@ -53,6 +54,7 @@ function TeamIntents({ projectId, scope, actorId, contextDigest, canRead, canEdi
   const [retained, setRetained] = useState(initial.value), retainedRef = useRef(initial.value), rawRef = useRef(initial.raw);
   const [storageError, setStorageError] = useState(initial.error);
   const [view, setView] = useState<CoordinatorIntentsView | null>(null), [fresh, setFresh] = useState(false);
+  const [readDenied, setReadDenied] = useState(false);
   const [error, setError] = useState(""), [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false), [consent, setConsent] = useState(false);
   const alive = useRef(true), generation = useRef(0), working = useRef(false);
@@ -68,12 +70,16 @@ function TeamIntents({ projectId, scope, actorId, contextDigest, canRead, canEdi
     } catch (cause) { setStorageError(errorText(cause)); throw cause; }
   }
   function accept(next: CoordinatorIntentsView) {
-    setView(next); setFresh(true); setError("");
+    setView(next); setFresh(true); setReadDenied(false); setError("");
     const pending = retainedRef.current.pending;
     if (pending && confirms(next, pending, actorId)) {
       persist({ version: 1, projectId, actorId });
       setNotice("Your recorded decision is confirmed. No request was sent again; implementation and delivery retain their own checks.");
     }
+  }
+  function readFailed(cause: unknown) {
+    setFresh(false); setError(errorText(cause));
+    if (cause instanceof ApiError && [401, 403].includes(cause.status)) { setView(null); setReadDenied(true); }
   }
   useEffect(() => { alive.current = true; return () => { alive.current = false; generation.current++; displayRead.current?.abort(); }; }, []);
   useEffect(() => {
@@ -82,7 +88,7 @@ function TeamIntents({ projectId, scope, actorId, contextDigest, canRead, canEdi
     setFresh(false); setConsent(false);
     void coordinatorIntentsApi.get(projectId, controller.signal).then(next => {
       if (alive.current && ticket === generation.current && !controller.signal.aborted && latest.current.canRead) accept(next);
-    }).catch(cause => { if (alive.current && ticket === generation.current && !controller.signal.aborted) setError(errorText(cause)); });
+    }).catch(cause => { if (alive.current && ticket === generation.current && !controller.signal.aborted) readFailed(cause); });
     return () => controller.abort();
   }, [projectId, canRead, canEdit, contextDigest]);
 
@@ -93,7 +99,7 @@ function TeamIntents({ projectId, scope, actorId, contextDigest, canRead, canEdi
     try {
       const next = await coordinatorIntentsApi.get(projectId, controller.signal);
       if (alive.current && ticket === generation.current && !controller.signal.aborted && latest.current.canRead) accept(next);
-    } catch (cause) { if (alive.current && ticket === generation.current && !controller.signal.aborted && latest.current.canRead) setError(errorText(cause)); }
+    } catch (cause) { if (alive.current && ticket === generation.current && !controller.signal.aborted && latest.current.canRead) readFailed(cause); }
     finally { working.current = false; if (alive.current) setBusy(false); }
   }
   function updateDraft(draft?: Draft) {
@@ -117,8 +123,12 @@ function TeamIntents({ projectId, scope, actorId, contextDigest, canRead, canEdi
       if (!alive.current || ticket !== generation.current || !latest.current.canRead || !latest.current.canEdit) return;
       persist({ version: 1, projectId, actorId });
       setNotice("Your request was superseded by the selected request. This records your decision; it does not claim agreement from anyone else or completed delivery.");
-      const next = await coordinatorIntentsApi.get(projectId);
-      if (alive.current && ticket === generation.current && latest.current.canRead) accept(next);
+      try {
+        const next = await coordinatorIntentsApi.get(projectId);
+        if (alive.current && ticket === generation.current && latest.current.canRead) accept(next);
+      } catch (cause) {
+        if (alive.current && ticket === generation.current && latest.current.canRead) readFailed(cause);
+      }
     } catch (cause) {
       if (!alive.current || ticket !== generation.current || !latest.current.canRead) return;
       // Only an authoritative refusal settles a submitted mutation without a
@@ -130,6 +140,7 @@ function TeamIntents({ projectId, scope, actorId, contextDigest, canRead, canEdi
     } finally { working.current = false; if (alive.current) setBusy(false); }
   }
 
+  if (readDenied) return <section aria-label="Team coordination unavailable"><p role="alert">Current access to team coordination was refused. Saved decisions remain retained.</p><Button variant="secondary" disabled={busy} onClick={() => void refresh()}>Refresh coordination</Button></section>;
   const pendingCount = view?.intents.filter(intent => intent.status === "pending").length ?? 0;
   const selected = view?.intents.find(intent => intent.id === retained.draft?.intentId);
   const current = fresh && !!view && view.contextDigest === contextDigest;
