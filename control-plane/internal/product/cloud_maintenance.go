@@ -165,6 +165,9 @@ func (s *Server) rollbackCloudRelease(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	row := original
+	// A manual historical rebuild is a new action, outside the original
+	// coordinator reservation. Keep that authority on its original receipt.
+	row.CoordinatorOriginDigest = ""
 	row.ID = newID("cloud-rel-")
 	row.ConfigurationRevision = configuration.Revision
 	row.DataDomainRevision, row.DataBindingFingerprint = data.DomainRevision, dataFingerprint

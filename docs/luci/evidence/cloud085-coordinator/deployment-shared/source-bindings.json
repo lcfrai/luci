@@ -1,0 +1,55 @@
+{
+  "scope": "Ten selected shared deployment/API/policy/backend test files; full raw validation and dependency scopes are in the sibling git-deployment capsule.",
+  "files": [
+    {
+      "path": "control-plane/internal/api/api.go",
+      "sha256": "0305dd28d168104fbf4dd8b0016489324181cf5012723d00c5e77b0ab0110df0",
+      "bytes": 27446
+    },
+    {
+      "path": "control-plane/internal/api/coordinator_deployment_authority_test.go",
+      "sha256": "03d030a7d087ad39259f339c9674f681e1640cdc5d3c36ffb4a8966a498ee935",
+      "bytes": 2315
+    },
+    {
+      "path": "control-plane/internal/management/team_authorization.go",
+      "sha256": "3999133c435416db95f2420f129935fcbecfa067ecc8851a18f526e3f9dbd900",
+      "bytes": 19139
+    },
+    {
+      "path": "control-plane/internal/management/coordinator_deployment_team_test.go",
+      "sha256": "830c17a00c3b9dfe9718602574a2b61ee92bbfb3c8da8a54badb4198cbac9526",
+      "bytes": 991
+    },
+    {
+      "path": "control-plane/internal/product/server.go",
+      "sha256": "8f479781ab46eb4f2bef6783fb2cc055181d12298a4ef6921566f22a8e0a4827",
+      "bytes": 22801
+    },
+    {
+      "path": "control-plane/internal/product/orchestrator_policy.go",
+      "sha256": "4f0d2642b959439018abb8483f59325d4489b450c0b3ea5d886c20b331e66be0",
+      "bytes": 10971
+    },
+    {
+      "path": "control-plane/internal/product/coordinator_continuation.go",
+      "sha256": "ac94faeaecaa16e0bc14242acfed8cb26f752bc4838d245f37985f38ba9e0619",
+      "bytes": 32328
+    },
+    {
+      "path": "control-plane/internal/product/coordinator_route.go",
+      "sha256": "72fbb53570e0c1f6dfb6821fee9e05639cc0b5eba310fd8c11c0ac2ff03a7765",
+      "bytes": 2586
+    },
+    {
+      "path": "control-plane/internal/product/coordinator_background.go",
+      "sha256": "c0d107644c1573477f23bee7b6dbf004936fa827b1dfbd5817f546e0b8e84fff",
+      "bytes": 6163
+    },
+    {
+      "path": "control-plane/internal/product/coordinator_deployment_policy_test.go",
+      "sha256": "731ba5d840259a51d48533a3a04a794c7ce145c5c1fd18c9eca7634a0a639f5e",
+      "bytes": 11258
+    }
+  ]
+}

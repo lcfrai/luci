@@ -1,0 +1,167 @@
+{
+  "scope": "Controlled existing-target delivery continuation; full C085 product contract remains open.",
+  "passedFinalAffectedOutcomes": {
+    "top": 23,
+    "sub": 39,
+    "total": 62
+  },
+  "ownedDeploymentCasesWithinSharedProductRun": {
+    "top": 6,
+    "sub": 10
+  },
+  "ownedManualRollbackRegression": {
+    "top": 1,
+    "sub": 0
+  },
+  "captures": [
+    {
+      "capture": "../../cloud085-coordinator/git-deployment/before-readback",
+      "result": {
+        "exitCode": 1,
+        "stopReason": null,
+        "elapsedSeconds": 35.46907436399488,
+        "effectiveRepositoryInputsStable": true,
+        "sourceCountBefore": 874,
+        "sourceCountAfter": 874,
+        "freeBytesAfter": {
+          "root": 672161792,
+          "tmp": 382398464
+        },
+        "completedAt": "2026-10-11T17:07:42.196401+00:00"
+      },
+      "completedTestOutcomesByPackage": {
+        "github.com/lcfrai/luci/control-plane/internal/product": {
+          "passTop": 0,
+          "passSub": 0,
+          "failTop": 1,
+          "failSub": 0,
+          "skipTop": 0,
+          "skipSub": 0
+        }
+      }
+    },
+    {
+      "capture": "../../cloud085-coordinator/git-deployment/product-fixed-1",
+      "result": {
+        "exitCode": 0,
+        "stopReason": null,
+        "elapsedSeconds": 103.63438441097969,
+        "effectiveRepositoryInputsStable": false,
+        "sourceCountBefore": 874,
+        "sourceCountAfter": 874,
+        "freeBytesAfter": {
+          "root": 670482432,
+          "tmp": 374808576
+        },
+        "completedAt": "2026-10-11T17:13:25.918186+00:00"
+      },
+      "completedTestOutcomesByPackage": {
+        "github.com/lcfrai/luci/control-plane/internal/product": {
+          "passTop": 20,
+          "passSub": 35,
+          "failTop": 0,
+          "failSub": 0,
+          "skipTop": 0,
+          "skipSub": 0
+        }
+      }
+    },
+    {
+      "capture": "../../cloud085-coordinator/git-deployment/rollback-before",
+      "result": {
+        "exitCode": 1,
+        "stopReason": null,
+        "elapsedSeconds": 23.119118466041982,
+        "effectiveRepositoryInputsStable": true,
+        "sourceCountBefore": 874,
+        "sourceCountAfter": 874,
+        "freeBytesAfter": {
+          "root": 669106176,
+          "tmp": 374808576
+        },
+        "completedAt": "2026-10-11T17:16:00.034074+00:00"
+      },
+      "completedTestOutcomesByPackage": {
+        "github.com/lcfrai/luci/control-plane/internal/product": {
+          "passTop": 0,
+          "passSub": 0,
+          "failTop": 1,
+          "failSub": 0,
+          "skipTop": 0,
+          "skipSub": 0
+        }
+      }
+    },
+    {
+      "capture": "../../cloud085-coordinator/git-deployment/integration-fixed",
+      "result": {
+        "exitCode": -15,
+        "stopReason": "resource-during-run:root-floor",
+        "elapsedSeconds": 66.17300741595682,
+        "effectiveRepositoryInputsStable": true,
+        "sourceCountBefore": 874,
+        "sourceCountAfter": 874,
+        "freeBytesAfter": {
+          "root": 496173056,
+          "tmp": 374808576
+        },
+        "completedAt": "2026-10-11T17:17:40.021695+00:00"
+      },
+      "completedTestOutcomesByPackage": {
+        "github.com/lcfrai/luci/control-plane/internal/api": {
+          "passTop": 1,
+          "passSub": 0,
+          "failTop": 0,
+          "failSub": 0,
+          "skipTop": 0,
+          "skipSub": 0
+        },
+        "github.com/lcfrai/luci/control-plane/internal/management": {
+          "passTop": 1,
+          "passSub": 4,
+          "failTop": 0,
+          "failSub": 0,
+          "skipTop": 0,
+          "skipSub": 0
+        }
+      }
+    },
+    {
+      "capture": "../../cloud085-coordinator/git-deployment/rollback-fixed",
+      "result": {
+        "exitCode": 0,
+        "stopReason": null,
+        "elapsedSeconds": 8.470854997052811,
+        "effectiveRepositoryInputsStable": true,
+        "sourceCountBefore": 874,
+        "sourceCountAfter": 874,
+        "freeBytesAfter": {
+          "root": 866611200,
+          "tmp": 374808576
+        },
+        "completedAt": "2026-10-11T17:19:11.788075+00:00"
+      },
+      "completedTestOutcomesByPackage": {
+        "github.com/lcfrai/luci/control-plane/internal/product": {
+          "passTop": 1,
+          "passSub": 0,
+          "failTop": 0,
+          "failSub": 0,
+          "skipTop": 0,
+          "skipSub": 0
+        }
+      }
+    }
+  ],
+  "sourceNotes": [
+    "The 20-top/35-sub product capture preserved two changed e2bbe files in its full manifests. Product files were stable, and a post-run dependency declaration excluded those changed files; this is not exact compiler/binary attestation.",
+    "API and management tests completed in an invocation subsequently interrupted at the unchanged root disk floor before product rollback compilation finished. The fixed rollback then passed alone after exact disposable scratch cleanup.",
+    "The suspended-allocation original and manual-rollback original each failed their same-body regression; both original source states and raw receipts are retained by the shared capsule."
+  ],
+  "limitations": [
+    "Native Git/checks, controlled provider HTTP and verified test HTTPS are fixtures, not live provider/public deployment acceptance.",
+    "Real target/provider compatibility, current public reachability, costs, cloud microVM/Windows behavior and performance remain unverified.",
+    "Candidate source review/integration still requires its existing explicit step; automatic delegated candidate review is a separate open contract gap.",
+    "No run acceptance is synthesized from Git publication, command exit, provider queuing or HTTPS availability."
+  ]
+}

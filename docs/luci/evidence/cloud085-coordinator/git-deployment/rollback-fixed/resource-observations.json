@@ -1,0 +1,37 @@
+[
+  {
+    "rootFreeBytes": 866902016,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 9067008000,
+    "cacheBytes": 897333803,
+    "monotonicSeconds": 0.011203102010767907
+  },
+  {
+    "rootFreeBytes": 866902016,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 9065156608,
+    "cacheBytes": 897333803,
+    "monotonicSeconds": 0.020127638010308146
+  },
+  {
+    "rootFreeBytes": 865615872,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8980324352,
+    "cacheBytes": 897333803,
+    "monotonicSeconds": 2.0845257000182755
+  },
+  {
+    "rootFreeBytes": 822759424,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8832782336,
+    "cacheBytes": 897333803,
+    "monotonicSeconds": 4.094719825021457
+  },
+  {
+    "rootFreeBytes": 866201600,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 9047461888,
+    "cacheBytes": 897334153,
+    "monotonicSeconds": 6.16865772404708
+  }
+]

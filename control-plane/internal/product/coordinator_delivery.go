@@ -150,6 +150,9 @@ func (s *Server) continueCoordinatorDelivery(ctx context.Context, p project.Proj
 		return row, ErrOrchestratorConflict
 	}
 	if row.Delivery.Status == "verified" {
+		if row.Delivery.Deployment != nil || row.Delivery.Preview != nil && row.Delivery.Preview.Status == "ready" && row.DeploymentPlan != nil {
+			return s.continueCoordinatorDeployment(ctx, p, row)
+		}
 		return s.continueCoordinatorPreview(ctx, p, row)
 	}
 	var invokeErr error

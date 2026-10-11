@@ -1,0 +1,6 @@
+{
+  "test": "TestPrivateCloudReleaseStopObservesProviderAndRollbackPinsHistory",
+  "wholeTestFileIdenticalBeforeAndFixed": true,
+  "sha256": "28d2ecf2903d92b16a341350bbf4ea2d99a7cefc2310872f78349eb783b6a4cc",
+  "bytes": 4546
+}

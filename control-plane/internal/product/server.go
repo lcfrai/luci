@@ -65,6 +65,8 @@ type Options struct {
 type Server struct {
 	coordinatorAuthorize            func(context.Context, string) error
 	coordinatorExecuteAuthorize     func(context.Context, string, string, bool) error
+	coordinatorDeploymentAuthorize  management.DeploymentAuthorizer
+	cloudReleaseHealthObserver      func(context.Context, string) error
 	coordinatorActions              map[string]bool
 	coordinatorBackground           coordinatorBackground
 	externalHandoffAuthorize        func(context.Context, string) error

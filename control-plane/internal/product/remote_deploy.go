@@ -33,6 +33,8 @@ type CloudReleaseRequest struct {
 // CloudRelease stores provider identifiers outside the project repository. It
 // never contains the target's token or connection URL.
 type CloudRelease struct {
+	CoordinatorOriginDigest string `json:"-"`
+
 	Release
 	CloudReleaseRequest    `json:"-"`
 	ProviderProjectID      string `json:"providerProjectId,omitempty"`
@@ -49,6 +51,8 @@ type CloudRelease struct {
 // The persisted/public wire shape has one commit, from Release provenance.
 // Keep the original request separately in memory for idempotency comparisons.
 type cloudReleaseWire struct {
+	CoordinatorOriginDigest string `json:"coordinatorOriginDigest,omitempty"`
+
 	Release
 	TargetID               string `json:"targetId"`
 	Repository             string `json:"repository"`
@@ -73,7 +77,8 @@ type cloudReleaseWire struct {
 
 func (row CloudRelease) MarshalJSON() ([]byte, error) {
 	return json.Marshal(cloudReleaseWire{
-		Release: row.Release, TargetID: row.TargetID, Repository: row.Repository,
+		CoordinatorOriginDigest: row.CoordinatorOriginDigest,
+		Release:                 row.Release, TargetID: row.TargetID, Repository: row.Repository,
 		Branch: row.Branch, Domain: row.Domain, Port: row.Port,
 		HealthPath: row.HealthPath, Dockerfile: row.Dockerfile,
 		Source: row.Source, PrivateKeyUUID: row.PrivateKeyUUID,
@@ -92,7 +97,8 @@ func (row *CloudRelease) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	*row = CloudRelease{
-		Release: decoded.Release,
+		CoordinatorOriginDigest: decoded.CoordinatorOriginDigest,
+		Release:                 decoded.Release,
 		CloudReleaseRequest: CloudReleaseRequest{
 			TargetID: decoded.TargetID, Repository: decoded.Repository,
 			Branch: decoded.Branch, Commit: decoded.Commit, Domain: decoded.Domain,
@@ -196,7 +202,13 @@ func (s *Server) reserveCloudRelease(row CloudRelease) (CloudRelease, bool, erro
 		return row, false, err
 	}
 	for _, previous := range rows {
-		if previous.TargetID == row.TargetID && previous.CloudReleaseRequest == row.CloudReleaseRequest && previous.BriefRevision == row.BriefRevision && previous.ConfigurationRevision == row.ConfigurationRevision && previous.DataDomainRevision == row.DataDomainRevision && previous.DataBindingFingerprint == row.DataBindingFingerprint && previous.Status != "failed" && previous.Status != "cancelled" {
+		if row.CoordinatorOriginDigest != "" && previous.ID == row.ID {
+			if previous.CoordinatorOriginDigest != row.CoordinatorOriginDigest || previous.CloudReleaseRequest != row.CloudReleaseRequest || previous.TargetFingerprint != row.TargetFingerprint || previous.ConfigurationRevision != row.ConfigurationRevision || previous.DataDomainRevision != row.DataDomainRevision || previous.DataBindingFingerprint != row.DataBindingFingerprint || previous.BriefRevision != row.BriefRevision {
+				return row, false, errors.New("the exact coordinator deployment identity changed")
+			}
+			return previous, false, nil
+		}
+		if row.CoordinatorOriginDigest == "" && previous.TargetID == row.TargetID && previous.CloudReleaseRequest == row.CloudReleaseRequest && previous.BriefRevision == row.BriefRevision && previous.ConfigurationRevision == row.ConfigurationRevision && previous.DataDomainRevision == row.DataDomainRevision && previous.DataBindingFingerprint == row.DataBindingFingerprint && previous.Status != "failed" && previous.Status != "cancelled" {
 			if previous.TargetFingerprint != row.TargetFingerprint {
 				return row, false, errors.New("the deployment target changed; reconnect the original target before refreshing")
 			}
@@ -339,6 +351,20 @@ func (s *Server) createCloudRelease(w http.ResponseWriter, r *http.Request) {
 		if err != nil || len(dockerfile) > 1<<20 || requireDataClientDockerfileArgs(dockerfile, req.DataClientFramework) != nil {
 			journeyError(w, 409, "data_build_arguments_required", "Declare the selected public Data URL and anon key as Dockerfile ARG inputs in the framework build stage, then commit and push before deploying.")
 			return
+		}
+	}
+	reservedID, originDigest, err := s.admitCoordinatorDeployment(ctx, p, row)
+	if err != nil {
+		journeyError(w, 409, "coordinator_deployment_changed", "The reserved deployment no longer matches current source, target, authority, cost policy or configuration.")
+		return
+	}
+	if reservedID != "" {
+		row.ID, row.CoordinatorOriginDigest = reservedID, originDigest
+		client.beforeMutation = func(verify context.Context) error {
+			if err := s.validateCoordinatorDeploymentApplication(verify, p, client); err != nil {
+				return err
+			}
+			return s.validateCoordinatorDeploymentMutation(verify, p)
 		}
 	}
 	row, created, err := s.reserveCloudRelease(row)
@@ -501,7 +527,7 @@ func (s *Server) refreshCloudRelease(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 40*time.Second)
 	defer cancel()
-	row, err = observeCloudRelease(ctx, row, client, checkPublicReleaseHealth)
+	row, err = observeCloudRelease(ctx, row, client, s.cloudReleaseHealth)
 	if err != nil {
 		journeyError(w, 502, "deployment_check_failed", err.Error())
 		return

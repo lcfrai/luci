@@ -1,0 +1,13 @@
+{
+  "exitCode": -15,
+  "stopReason": "resource-during-run:root-floor",
+  "elapsedSeconds": 66.17300741595682,
+  "effectiveRepositoryInputsStable": true,
+  "sourceCountBefore": 874,
+  "sourceCountAfter": 874,
+  "freeBytesAfter": {
+    "root": 496173056,
+    "tmp": 374808576
+  },
+  "completedAt": "2026-10-11T17:17:40.021695+00:00"
+}

@@ -1,0 +1,17 @@
+[
+  {
+    "path": "control-plane/internal/product/coordinator_delivery_git.go",
+    "sha256": "d313c311aeb85ee064abd952f6fbd53993085ab80abc795d8462e5766b437bbc",
+    "bytes": 7297
+  },
+  {
+    "path": "control-plane/internal/product/coordinator_delivery_git_test.go",
+    "sha256": "8185e21aac5a35fedea5c5b7eaa95de191e028413a6e523a7922aad6e318fdf1",
+    "bytes": 12543
+  },
+  {
+    "path": "control-plane/internal/product/coordinator_delivery_deployment.go",
+    "sha256": "907b022195b38649c5acf6eac318d924355a77586011d331c1501175597d4f87",
+    "bytes": 9063
+  }
+]

@@ -140,7 +140,7 @@ func (s *Server) readCoordinatorPolicy(p project.Project) (CoordinatorPolicy, er
 		stored.Policy.DeploymentMode = "manual"
 	}
 	targets, err := coordinatorTargets(stored.Policy.AllowedTargets)
-	if err != nil || (stored.Policy.ExecutionMode != "manual" && stored.Policy.ExecutionMode != "reviewed-tasks") || (stored.Policy.PreviewMode != "manual" && stored.Policy.PreviewMode != "checked-source") || stored.Policy.DeploymentMode != "manual" || stored.Version != 1 || stored.AccountScope != scope.AccountScope || stored.ProjectScope != scope.ProjectScope || stored.Policy.ProjectID != p.ID || stored.Policy.Revision < 1 || (stored.Policy.Mode != "review" && stored.Policy.Mode != "auto-drafts") || (stored.Policy.Mode == "auto-drafts" && len(targets) == 0) || strings.Join(targets, ",") != strings.Join(stored.Policy.AllowedTargets, ",") || stored.Policy.Actor == nil || stored.Policy.Actor.ID == "" {
+	if err != nil || (stored.Policy.ExecutionMode != "manual" && stored.Policy.ExecutionMode != "reviewed-tasks") || (stored.Policy.PreviewMode != "manual" && stored.Policy.PreviewMode != "checked-source") || (stored.Policy.DeploymentMode != "manual" && stored.Policy.DeploymentMode != "existing-target") || stored.Version != 1 || stored.AccountScope != scope.AccountScope || stored.ProjectScope != scope.ProjectScope || stored.Policy.ProjectID != p.ID || stored.Policy.Revision < 1 || (stored.Policy.Mode != "review" && stored.Policy.Mode != "auto-drafts") || (stored.Policy.Mode == "auto-drafts" && len(targets) == 0) || strings.Join(targets, ",") != strings.Join(stored.Policy.AllowedTargets, ",") || stored.Policy.Actor == nil || stored.Policy.Actor.ID == "" {
 		return policy, ErrOrchestratorInvalid
 	}
 	return stored.Policy, nil
@@ -190,7 +190,7 @@ func (s *Server) saveCoordinatorPolicy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	targets, err := coordinatorTargets(req.AllowedTargets)
-	if err != nil || (req.ExecutionMode != nil && *req.ExecutionMode != "manual" && *req.ExecutionMode != "reviewed-tasks") || (req.PreviewMode != nil && *req.PreviewMode != "manual" && *req.PreviewMode != "checked-source") || (req.DeploymentMode != nil && *req.DeploymentMode != "manual") || req.ExpectedRevision < 0 || (req.Mode != "review" && req.Mode != "auto-drafts") || (req.Mode == "auto-drafts" && len(targets) == 0) {
+	if err != nil || (req.ExecutionMode != nil && *req.ExecutionMode != "manual" && *req.ExecutionMode != "reviewed-tasks") || (req.PreviewMode != nil && *req.PreviewMode != "manual" && *req.PreviewMode != "checked-source") || (req.DeploymentMode != nil && *req.DeploymentMode != "manual" && *req.DeploymentMode != "existing-target") || req.ExpectedRevision < 0 || (req.Mode != "review" && req.Mode != "auto-drafts") || (req.Mode == "auto-drafts" && len(targets) == 0) {
 		journeyError(w, 400, "invalid_coordinator_policy", "Choose review-only or automatic draft saving with explicit document targets. This grants no approval or execution permission.")
 		return
 	}

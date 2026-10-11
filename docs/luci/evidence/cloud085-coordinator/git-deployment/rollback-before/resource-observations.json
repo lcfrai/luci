@@ -1,0 +1,86 @@
+[
+  {
+    "rootFreeBytes": 669347840,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 9116237824,
+    "cacheBytes": 732802327,
+    "monotonicSeconds": 0.010565597040113062
+  },
+  {
+    "rootFreeBytes": 669347840,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 9115779072,
+    "cacheBytes": 732802327,
+    "monotonicSeconds": 0.020480322011280805
+  },
+  {
+    "rootFreeBytes": 668139520,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8966213632,
+    "cacheBytes": 732802677,
+    "monotonicSeconds": 2.032843273016624
+  },
+  {
+    "rootFreeBytes": 668135424,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8917315584,
+    "cacheBytes": 732802677,
+    "monotonicSeconds": 4.048476923024282
+  },
+  {
+    "rootFreeBytes": 668135424,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8772640768,
+    "cacheBytes": 732802677,
+    "monotonicSeconds": 6.074883185036015
+  },
+  {
+    "rootFreeBytes": 668135424,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8647786496,
+    "cacheBytes": 732802677,
+    "monotonicSeconds": 8.09288114903029
+  },
+  {
+    "rootFreeBytes": 668135424,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8598470656,
+    "cacheBytes": 732802677,
+    "monotonicSeconds": 10.104231345001608
+  },
+  {
+    "rootFreeBytes": 668135424,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8527740928,
+    "cacheBytes": 732802677,
+    "monotonicSeconds": 12.117691406048834
+  },
+  {
+    "rootFreeBytes": 668135424,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8474890240,
+    "cacheBytes": 732802677,
+    "monotonicSeconds": 14.127881147025619
+  },
+  {
+    "rootFreeBytes": 668135424,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8449196032,
+    "cacheBytes": 732802677,
+    "monotonicSeconds": 16.13801204401534
+  },
+  {
+    "rootFreeBytes": 632786944,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 9055899648,
+    "cacheBytes": 732802852,
+    "monotonicSeconds": 18.147336660011206
+  },
+  {
+    "rootFreeBytes": 589447168,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8837537792,
+    "cacheBytes": 768585595,
+    "monotonicSeconds": 20.52242183103226
+  }
+]

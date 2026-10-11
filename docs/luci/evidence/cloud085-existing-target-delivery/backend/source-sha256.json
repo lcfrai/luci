@@ -1,0 +1,89 @@
+{
+  "scope": "Owned source only; repository manifests do not attest the exact compiler or executed binary.",
+  "files": [
+    {
+      "path": "control-plane/internal/product/coordinator_delivery_deployment.go",
+      "sha256": "915d25ba843234a4c69da688b89f9d20ac1fd0f80e6595ef6cd34bbcbc9364f8",
+      "bytes": 9101,
+      "matchingAffectedTestCapture": "product-fixed-1",
+      "alsoMatchesFinalRepositoryManifest": true
+    },
+    {
+      "path": "control-plane/internal/product/coordinator_delivery_deployment_admission.go",
+      "sha256": "35cbb7b6997cb1e7968986064fc4ba3ce29d1a967ebfc7227f79263a124d60ce",
+      "bytes": 21054,
+      "matchingAffectedTestCapture": "product-fixed-1",
+      "alsoMatchesFinalRepositoryManifest": true
+    },
+    {
+      "path": "control-plane/internal/product/coordinator_delivery_deployment_test.go",
+      "sha256": "dc8c6ebbb8c0de7b982020438bb657a13a7064dda213c847c2b8b8276effc077",
+      "bytes": 16962,
+      "matchingAffectedTestCapture": "product-fixed-1",
+      "alsoMatchesFinalRepositoryManifest": true
+    },
+    {
+      "path": "control-plane/internal/product/coordinator_delivery.go",
+      "sha256": "cab034843d5b76e7bd55540d1af990a4bdfe26c0140719cb095434b0a4b10b4b",
+      "bytes": 10284,
+      "matchingAffectedTestCapture": "product-fixed-1",
+      "alsoMatchesFinalRepositoryManifest": true
+    },
+    {
+      "path": "control-plane/internal/product/coordinator_delivery_checks.go",
+      "sha256": "bd39e25107736fb759fa89365cfcd074cee074bc04cf82e36f8ca0aa11e40616",
+      "bytes": 10324,
+      "matchingAffectedTestCapture": "product-fixed-1",
+      "alsoMatchesFinalRepositoryManifest": true
+    },
+    {
+      "path": "control-plane/internal/product/coordinator_delivery_preview.go",
+      "sha256": "dadab5f7aaedcb8900d9cfb426fcefae915f47f880507bf07eb4fda3800c9273",
+      "bytes": 9112,
+      "matchingAffectedTestCapture": "product-fixed-1",
+      "alsoMatchesFinalRepositoryManifest": true
+    },
+    {
+      "path": "control-plane/internal/product/coordinator_delivery_preview_test.go",
+      "sha256": "dd77e8264a970f35a33767a8ace9252604258295308dd58485b66bcc8ef5258f",
+      "bytes": 16311,
+      "matchingAffectedTestCapture": "product-fixed-1",
+      "alsoMatchesFinalRepositoryManifest": true
+    },
+    {
+      "path": "control-plane/internal/product/coolify.go",
+      "sha256": "f3db58f55cd01503aa3d97d37d15d50edaf9f634ab1e55a2f6b75994086d5438",
+      "bytes": 17370,
+      "matchingAffectedTestCapture": "product-fixed-1",
+      "alsoMatchesFinalRepositoryManifest": true
+    },
+    {
+      "path": "control-plane/internal/product/remote_deploy.go",
+      "sha256": "fdc3d72e38e678c51ddf8e15e040be1c475b0b722d38ca88b805de196b4d7842",
+      "bytes": 27294,
+      "matchingAffectedTestCapture": "product-fixed-1",
+      "alsoMatchesFinalRepositoryManifest": true
+    },
+    {
+      "path": "control-plane/internal/product/project_runs_evidence.go",
+      "sha256": "5868f6990a8e48cd01bef6852176f4da3dc66f138c092ededb2c7acca4af9336",
+      "bytes": 21087,
+      "matchingAffectedTestCapture": "product-fixed-1",
+      "alsoMatchesFinalRepositoryManifest": true
+    },
+    {
+      "path": "control-plane/internal/product/cloud_maintenance.go",
+      "sha256": "19eb45276ead04f01b7fdd8ee768ee3096ce25fa6138f6eaf1daa6fc31c8a7d1",
+      "bytes": 9841,
+      "matchingAffectedTestCapture": "rollback-fixed",
+      "alsoMatchesFinalRepositoryManifest": true
+    },
+    {
+      "path": "control-plane/internal/product/cloud_maintenance_test.go",
+      "sha256": "28d2ecf2903d92b16a341350bbf4ea2d99a7cefc2310872f78349eb783b6a4cc",
+      "bytes": 4546,
+      "matchingAffectedTestCapture": "rollback-fixed",
+      "alsoMatchesFinalRepositoryManifest": true
+    }
+  ]
+}

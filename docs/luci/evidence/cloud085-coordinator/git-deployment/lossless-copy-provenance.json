@@ -1,0 +1,268 @@
+[
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/before-readback/inputs-after.json",
+    "published": "before-readback/inputs-after.json.gz",
+    "originalBytes": 230152,
+    "originalSHA256": "e57701584e318846e359ea1c4a24b5e93afcec324b9608527495aeccf48e6096",
+    "losslessGzip": true
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/before-readback/inputs-before.json",
+    "published": "before-readback/inputs-before.json.gz",
+    "originalBytes": 230152,
+    "originalSHA256": "e57701584e318846e359ea1c4a24b5e93afcec324b9608527495aeccf48e6096",
+    "losslessGzip": true
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/before-readback/invocation.json",
+    "published": "before-readback/invocation.json",
+    "originalBytes": 3916,
+    "originalSHA256": "880232a24177b6dd46ec4eac1380fb79fb9ac7f395224333e5ecab4e1a4d7fa8",
+    "losslessGzip": false
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/before-readback/resource-observations.json",
+    "published": "before-readback/resource-observations.json",
+    "originalBytes": 3310,
+    "originalSHA256": "4e0b115673c0705204037061a72b0e56ef3e2fb5782bc30954c0f13cb4479ab5",
+    "losslessGzip": false
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/before-readback/result.json",
+    "published": "before-readback/result.json",
+    "originalBytes": 303,
+    "originalSHA256": "572bc2d526e078d353c9540037d2e3a5f6f6c46df7b3cb6205988834f83f916d",
+    "losslessGzip": false
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/before-readback/stderr.txt",
+    "published": "before-readback/stderr.txt",
+    "originalBytes": 0,
+    "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "losslessGzip": false
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/before-readback/stdout.jsonl",
+    "published": "before-readback/stdout.jsonl",
+    "originalBytes": 2115,
+    "originalSHA256": "233e33387c9299ffc24c2584b078f1a71d2047ce6e6e8ae0bb5e1a9bfd972733",
+    "losslessGzip": false
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/product-fixed-1/dependency-drift-scope.json",
+    "published": "product-fixed-1/dependency-drift-scope.json",
+    "originalBytes": 30809,
+    "originalSHA256": "9c8b92fa1aa4fd52b316c074abbfbbd8450e6046c2abd8a28e42017ffca7ee82",
+    "losslessGzip": false
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/product-fixed-1/dependency-list-after.json",
+    "published": "product-fixed-1/dependency-list-after.json.gz",
+    "originalBytes": 731191,
+    "originalSHA256": "77525c039c54ac9a9ee20096b3a1431e5e9e6322fcc9e3638e09e29155a494fa",
+    "losslessGzip": true
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/product-fixed-1/inputs-after.json",
+    "published": "product-fixed-1/inputs-after.json.gz",
+    "originalBytes": 230153,
+    "originalSHA256": "c08ac84895a281ba0e11e28adfa0974e2296cd11e29125765fc10873526d8e70",
+    "losslessGzip": true
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/product-fixed-1/inputs-before.json",
+    "published": "product-fixed-1/inputs-before.json.gz",
+    "originalBytes": 230153,
+    "originalSHA256": "019ded06a73da7cad290eac1e62a548f006a692da425842f21d8039445197e2a",
+    "losslessGzip": true
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/product-fixed-1/invocation.json",
+    "published": "product-fixed-1/invocation.json",
+    "originalBytes": 3150,
+    "originalSHA256": "a69ade6efb08a169b8e698cd5670584d9067660dc534d1f01c2448bac78eea36",
+    "losslessGzip": false
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/product-fixed-1/resource-observations.json",
+    "published": "product-fixed-1/resource-observations.json",
+    "originalBytes": 9531,
+    "originalSHA256": "677fd3769ee2c636be1f3b821896aeede0208093a9748ce71d1f8771349c1bee",
+    "losslessGzip": false
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/product-fixed-1/result.json",
+    "published": "product-fixed-1/result.json",
+    "originalBytes": 305,
+    "originalSHA256": "6319644fd30b7581ba2958fa8708f888741d2cd97c54e9cdd5ac401723c48058",
+    "losslessGzip": false
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/product-fixed-1/stderr.txt",
+    "published": "product-fixed-1/stderr.txt",
+    "originalBytes": 0,
+    "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "losslessGzip": false
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/product-fixed-1/stdout.jsonl",
+    "published": "product-fixed-1/stdout.jsonl",
+    "originalBytes": 59411,
+    "originalSHA256": "19b88d0dabae3e62a1fc3e6f61c864c468e176b681e4608c618908f474c97ddc",
+    "losslessGzip": false
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/rollback-before/inputs-after.json",
+    "published": "rollback-before/inputs-after.json.gz",
+    "originalBytes": 230162,
+    "originalSHA256": "1056d94212b95f9815a7449bbfccb7a76af2af5bc8e619c699f961b2c18f994b",
+    "losslessGzip": true
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/rollback-before/inputs-before.json",
+    "published": "rollback-before/inputs-before.json.gz",
+    "originalBytes": 230162,
+    "originalSHA256": "1056d94212b95f9815a7449bbfccb7a76af2af5bc8e619c699f961b2c18f994b",
+    "losslessGzip": true
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/rollback-before/invocation.json",
+    "published": "rollback-before/invocation.json",
+    "originalBytes": 3694,
+    "originalSHA256": "9c28b7f5b75bf5ee063e373fdf46ad6b79458c5ccb6ce7972fafe4605f545aa3",
+    "losslessGzip": false
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/rollback-before/overlay.json",
+    "published": "rollback-before/overlay.json",
+    "originalBytes": 177,
+    "originalSHA256": "4e260356cb7a7ea064c7f1cc4dfb544eeebaf43d6f3f4cd708bd4e8db154bdeb",
+    "losslessGzip": false
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/rollback-before/resource-observations.json",
+    "published": "rollback-before/resource-observations.json",
+    "originalBytes": 2208,
+    "originalSHA256": "142a9df05a3220a02cbaf7819d8a32d3ad565a67d1512d3feb32613f01470777",
+    "losslessGzip": false
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/rollback-before/result.json",
+    "published": "rollback-before/result.json",
+    "originalBytes": 304,
+    "originalSHA256": "b948ffc173011f35ac83390f9d517ee37cc531a16a927744b15d6dc9f81205bb",
+    "losslessGzip": false
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/rollback-before/stderr.txt",
+    "published": "rollback-before/stderr.txt",
+    "originalBytes": 0,
+    "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "losslessGzip": false
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/rollback-before/stdout.jsonl",
+    "published": "rollback-before/stdout.jsonl",
+    "originalBytes": 3282,
+    "originalSHA256": "8d0ac96c2903af1ca4eccc6475920bed490d802c8b64c1fa100f0cde843356ad",
+    "losslessGzip": false
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/integration-fixed/inputs-after.json",
+    "published": "integration-fixed/inputs-after.json.gz",
+    "originalBytes": 230153,
+    "originalSHA256": "0b2047427591ceede2be7d102f48f9ee1de21d2bfb1b0281b33184d8cea4789c",
+    "losslessGzip": true
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/integration-fixed/inputs-before.json",
+    "published": "integration-fixed/inputs-before.json.gz",
+    "originalBytes": 230153,
+    "originalSHA256": "0b2047427591ceede2be7d102f48f9ee1de21d2bfb1b0281b33184d8cea4789c",
+    "losslessGzip": true
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/integration-fixed/invocation.json",
+    "published": "integration-fixed/invocation.json",
+    "originalBytes": 3793,
+    "originalSHA256": "cf02231ba2d9980f6165a3d171573bc470af3ffbe3878ac863e0c7e447468188",
+    "losslessGzip": false
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/integration-fixed/resource-observations.json",
+    "published": "integration-fixed/resource-observations.json",
+    "originalBytes": 6240,
+    "originalSHA256": "709a6df80aed28afb9dcefe7f3938563b78ce2428d7364d97dbd2d446404b218",
+    "losslessGzip": false
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/integration-fixed/result.json",
+    "published": "integration-fixed/result.json",
+    "originalBytes": 333,
+    "originalSHA256": "ae60cc42a837a11f047b1a2158b16d953ac8e2acdf7ad8eaf182863e24e4dfd9",
+    "losslessGzip": false
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/integration-fixed/stderr.txt",
+    "published": "integration-fixed/stderr.txt",
+    "originalBytes": 0,
+    "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "losslessGzip": false
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/integration-fixed/stdout.jsonl",
+    "published": "integration-fixed/stdout.jsonl",
+    "originalBytes": 7393,
+    "originalSHA256": "98a466b9e34e69346ae87694da2622de7d2fa9b6b18d9cee8579e3e558dc0892",
+    "losslessGzip": false
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/rollback-fixed/inputs-after.json",
+    "published": "rollback-fixed/inputs-after.json.gz",
+    "originalBytes": 230153,
+    "originalSHA256": "0b2047427591ceede2be7d102f48f9ee1de21d2bfb1b0281b33184d8cea4789c",
+    "losslessGzip": true
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/rollback-fixed/inputs-before.json",
+    "published": "rollback-fixed/inputs-before.json.gz",
+    "originalBytes": 230153,
+    "originalSHA256": "0b2047427591ceede2be7d102f48f9ee1de21d2bfb1b0281b33184d8cea4789c",
+    "losslessGzip": true
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/rollback-fixed/invocation.json",
+    "published": "rollback-fixed/invocation.json",
+    "originalBytes": 3792,
+    "originalSHA256": "5b162f3ad8fb84056a0c2aea55922334eff0a5c07936e29c73b97f9803c95aec",
+    "losslessGzip": false
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/rollback-fixed/resource-observations.json",
+    "published": "rollback-fixed/resource-observations.json",
+    "originalBytes": 924,
+    "originalSHA256": "04791df565a27fa1b398b5c62eb6faa090ce6606303e7a2c8c23752dec94bbb0",
+    "losslessGzip": false
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/rollback-fixed/result.json",
+    "published": "rollback-fixed/result.json",
+    "originalBytes": 303,
+    "originalSHA256": "f065a516dceacbb5cc8e70f3b8e8b2d22015a6493281b7ad0d8c7d2eecfed359",
+    "losslessGzip": false
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/rollback-fixed/stderr.txt",
+    "published": "rollback-fixed/stderr.txt",
+    "originalBytes": 0,
+    "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "losslessGzip": false
+  },
+  {
+    "original": "/workspace/.luci-tools/coordinator-git/evidence/rollback-fixed/stdout.jsonl",
+    "published": "rollback-fixed/stdout.jsonl",
+    "originalBytes": 1615,
+    "originalSHA256": "d7d227e04d9ffd2718714c8ed9eac1a18f66f1e2e9e00b8f0e648e405330ec0d",
+    "losslessGzip": false
+  }
+]

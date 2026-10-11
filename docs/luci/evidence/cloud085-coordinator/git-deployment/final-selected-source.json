@@ -1,0 +1,98 @@
+{
+  "control-plane/internal/api/api.go": {
+    "bytes": 27446,
+    "sha256": "0305dd28d168104fbf4dd8b0016489324181cf5012723d00c5e77b0ab0110df0"
+  },
+  "control-plane/internal/api/coordinator_deployment_authority_test.go": {
+    "bytes": 2315,
+    "sha256": "03d030a7d087ad39259f339c9674f681e1640cdc5d3c36ffb4a8966a498ee935"
+  },
+  "control-plane/internal/management/coordinator_deployment_team_test.go": {
+    "bytes": 991,
+    "sha256": "830c17a00c3b9dfe9718602574a2b61ee92bbfb3c8da8a54badb4198cbac9526"
+  },
+  "control-plane/internal/management/team_authorization.go": {
+    "bytes": 19139,
+    "sha256": "3999133c435416db95f2420f129935fcbecfa067ecc8851a18f526e3f9dbd900"
+  },
+  "control-plane/internal/product/cloud_maintenance.go": {
+    "bytes": 9841,
+    "sha256": "19eb45276ead04f01b7fdd8ee768ee3096ce25fa6138f6eaf1daa6fc31c8a7d1"
+  },
+  "control-plane/internal/product/cloud_maintenance_test.go": {
+    "bytes": 4546,
+    "sha256": "28d2ecf2903d92b16a341350bbf4ea2d99a7cefc2310872f78349eb783b6a4cc"
+  },
+  "control-plane/internal/product/coolify.go": {
+    "bytes": 17370,
+    "sha256": "f3db58f55cd01503aa3d97d37d15d50edaf9f634ab1e55a2f6b75994086d5438"
+  },
+  "control-plane/internal/product/coordinator_background.go": {
+    "bytes": 6163,
+    "sha256": "c0d107644c1573477f23bee7b6dbf004936fa827b1dfbd5817f546e0b8e84fff"
+  },
+  "control-plane/internal/product/coordinator_continuation.go": {
+    "bytes": 32328,
+    "sha256": "ac94faeaecaa16e0bc14242acfed8cb26f752bc4838d245f37985f38ba9e0619"
+  },
+  "control-plane/internal/product/coordinator_delivery.go": {
+    "bytes": 10284,
+    "sha256": "cab034843d5b76e7bd55540d1af990a4bdfe26c0140719cb095434b0a4b10b4b"
+  },
+  "control-plane/internal/product/coordinator_delivery_checks.go": {
+    "bytes": 10324,
+    "sha256": "bd39e25107736fb759fa89365cfcd074cee074bc04cf82e36f8ca0aa11e40616"
+  },
+  "control-plane/internal/product/coordinator_delivery_deployment.go": {
+    "bytes": 9101,
+    "sha256": "915d25ba843234a4c69da688b89f9d20ac1fd0f80e6595ef6cd34bbcbc9364f8"
+  },
+  "control-plane/internal/product/coordinator_delivery_deployment_admission.go": {
+    "bytes": 21054,
+    "sha256": "35cbb7b6997cb1e7968986064fc4ba3ce29d1a967ebfc7227f79263a124d60ce"
+  },
+  "control-plane/internal/product/coordinator_delivery_deployment_test.go": {
+    "bytes": 16962,
+    "sha256": "dc8c6ebbb8c0de7b982020438bb657a13a7064dda213c847c2b8b8276effc077"
+  },
+  "control-plane/internal/product/coordinator_delivery_git.go": {
+    "bytes": 7484,
+    "sha256": "2beec904df9f27c7ee6c2e7e7008b60c7dc219fe191fbf9ff7a1a8f6833234ea"
+  },
+  "control-plane/internal/product/coordinator_delivery_git_test.go": {
+    "bytes": 12543,
+    "sha256": "8185e21aac5a35fedea5c5b7eaa95de191e028413a6e523a7922aad6e318fdf1"
+  },
+  "control-plane/internal/product/coordinator_delivery_preview.go": {
+    "bytes": 9112,
+    "sha256": "dadab5f7aaedcb8900d9cfb426fcefae915f47f880507bf07eb4fda3800c9273"
+  },
+  "control-plane/internal/product/coordinator_delivery_preview_test.go": {
+    "bytes": 16311,
+    "sha256": "dd77e8264a970f35a33767a8ace9252604258295308dd58485b66bcc8ef5258f"
+  },
+  "control-plane/internal/product/coordinator_deployment_policy_test.go": {
+    "bytes": 11258,
+    "sha256": "731ba5d840259a51d48533a3a04a794c7ce145c5c1fd18c9eca7634a0a639f5e"
+  },
+  "control-plane/internal/product/coordinator_route.go": {
+    "bytes": 2586,
+    "sha256": "72fbb53570e0c1f6dfb6821fee9e05639cc0b5eba310fd8c11c0ac2ff03a7765"
+  },
+  "control-plane/internal/product/orchestrator_policy.go": {
+    "bytes": 10971,
+    "sha256": "4f0d2642b959439018abb8483f59325d4489b450c0b3ea5d886c20b331e66be0"
+  },
+  "control-plane/internal/product/project_runs_evidence.go": {
+    "bytes": 21087,
+    "sha256": "5868f6990a8e48cd01bef6852176f4da3dc66f138c092ededb2c7acca4af9336"
+  },
+  "control-plane/internal/product/remote_deploy.go": {
+    "bytes": 27294,
+    "sha256": "fdc3d72e38e678c51ddf8e15e040be1c475b0b722d38ca88b805de196b4d7842"
+  },
+  "control-plane/internal/product/server.go": {
+    "bytes": 22801,
+    "sha256": "8f479781ab46eb4f2bef6783fb2cc055181d12298a4ef6921566f22a8e0a4827"
+  }
+}

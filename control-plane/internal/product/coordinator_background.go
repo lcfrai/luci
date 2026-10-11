@@ -185,8 +185,22 @@ func (s *Server) RunCoordinatorOnce(ctx context.Context) error {
 				if (pass == 0 && key <= cursor) || (pass == 1 && key > cursor) {
 					continue
 				}
-				if row.ExecutionActor.UserID == "" || row.Status == "refused" || row.Status == "blocked" || row.Status == "preview-ready" || row.Status == "preview-blocked" {
+				if row.ExecutionActor.UserID == "" || row.Status == "refused" || row.Status == "blocked" || row.Status == "deployed" || row.Status == "deployment-blocked" || row.Status == "preview-blocked" {
 					continue
+				}
+				if row.Status == "preview-ready" {
+					if row.DeploymentPlan == nil || row.Run.Outcome != "publish" {
+						continue
+					}
+					s.mu.RLock()
+					policy, policyErr := s.readCoordinatorPolicy(p)
+					s.mu.RUnlock()
+					if policyErr != nil {
+						return policyErr
+					}
+					if policy.DeploymentMode != "existing-target" {
+						continue
+					}
 				}
 				if row.Status == "checks-verified" {
 					if row.PreviewPlan == nil {
@@ -206,7 +220,12 @@ func (s *Server) RunCoordinatorOnce(ctx context.Context) error {
 				b.mu.Lock()
 				b.cursor = key
 				b.mu.Unlock()
-				fresh, e := authorize(ctx, row.ExecutionActor, row.Run.Harness, row.Run.AgentConnectionID != nil && *row.Run.AgentConnectionID != "")
+				var fresh context.Context
+				if coordinatorRetainedDeploymentObservation(row) {
+					fresh, e = s.reauthorizeCoordinatorDeploymentActor(ctx, p, row, false)
+				} else {
+					fresh, e = authorize(ctx, row.ExecutionActor, row.Run.Harness, row.Run.AgentConnectionID != nil && *row.Run.AgentConnectionID != "")
+				}
 				if e != nil {
 					return e
 				}

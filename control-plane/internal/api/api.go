@@ -438,6 +438,7 @@ func New(d Deps) (*API, error) {
 		a.deps.Product.SetExternalHandoffAuthorizer(a.authorizeExecutionRetirement)
 		d.Product.SetCoordinatorAuthorizer(a.authorizeExecutionRetirement)
 		d.Product.SetCoordinatorExecutionAuthorizer(a.authorizeCoordinatorExecution)
+		d.Product.SetCoordinatorDeploymentAuthorizer(a.authorizePreview)
 		checkRuntime := product.ProjectCheckRuntime{AcknowledgeCompleted: a.acknowledgeProjectCheckResults, CaptureActor: a.captureCheckActor, AuthorizeControl: a.authorizeExecutionRetirement, Execute: a.executeProjectCheck, Busy: a.projectCheckBusy, Recovery: a.projectCheckRecovery, Recover: a.recoverProjectCheck}
 		if d.ObserveTaskCompletions {
 			checkRuntime.Observe = a.ObserveChecksOnce

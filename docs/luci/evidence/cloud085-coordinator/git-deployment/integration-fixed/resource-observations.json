@@ -1,0 +1,240 @@
+[
+  {
+    "rootFreeBytes": 668852224,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 9080201216,
+    "cacheBytes": 768585945,
+    "monotonicSeconds": 0.012421968975104392
+  },
+  {
+    "rootFreeBytes": 668852224,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 9079656448,
+    "cacheBytes": 768585945,
+    "monotonicSeconds": 0.021246730990242213
+  },
+  {
+    "rootFreeBytes": 665407488,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8995078144,
+    "cacheBytes": 771875209,
+    "monotonicSeconds": 2.033013727981597
+  },
+  {
+    "rootFreeBytes": 665305088,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8927244288,
+    "cacheBytes": 771875209,
+    "monotonicSeconds": 4.112418719974812
+  },
+  {
+    "rootFreeBytes": 650412032,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 9004859392,
+    "cacheBytes": 786557975,
+    "monotonicSeconds": 6.1259871869697236
+  },
+  {
+    "rootFreeBytes": 643796992,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8959688704,
+    "cacheBytes": 793040797,
+    "monotonicSeconds": 8.17608244199073
+  },
+  {
+    "rootFreeBytes": 639594496,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8931831808,
+    "cacheBytes": 797208881,
+    "monotonicSeconds": 10.224431968992576
+  },
+  {
+    "rootFreeBytes": 636162048,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8857698304,
+    "cacheBytes": 800440481,
+    "monotonicSeconds": 12.303805564995855
+  },
+  {
+    "rootFreeBytes": 636162048,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8731807744,
+    "cacheBytes": 800440481,
+    "monotonicSeconds": 14.313906174967997
+  },
+  {
+    "rootFreeBytes": 636162048,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8682119168,
+    "cacheBytes": 800440481,
+    "monotonicSeconds": 16.324971373949666
+  },
+  {
+    "rootFreeBytes": 636162048,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8631775232,
+    "cacheBytes": 800440481,
+    "monotonicSeconds": 18.40428031195188
+  },
+  {
+    "rootFreeBytes": 617455616,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8827645952,
+    "cacheBytes": 819107188,
+    "monotonicSeconds": 20.416670510952827
+  },
+  {
+    "rootFreeBytes": 617455616,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8697548800,
+    "cacheBytes": 819107188,
+    "monotonicSeconds": 22.498957267962396
+  },
+  {
+    "rootFreeBytes": 617455616,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8609550336,
+    "cacheBytes": 819107188,
+    "monotonicSeconds": 24.573825476982165
+  },
+  {
+    "rootFreeBytes": 617455616,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8560087040,
+    "cacheBytes": 819107188,
+    "monotonicSeconds": 26.58529285795521
+  },
+  {
+    "rootFreeBytes": 617443328,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8538497024,
+    "cacheBytes": 819107188,
+    "monotonicSeconds": 28.595826590957586
+  },
+  {
+    "rootFreeBytes": 591142912,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8809762816,
+    "cacheBytes": 845343213,
+    "monotonicSeconds": 30.608887277951
+  },
+  {
+    "rootFreeBytes": 544292864,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8843345920,
+    "cacheBytes": 845360248,
+    "monotonicSeconds": 32.64576073398348
+  },
+  {
+    "rootFreeBytes": 544043008,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8721973248,
+    "cacheBytes": 845367598,
+    "monotonicSeconds": 34.7266593319946
+  },
+  {
+    "rootFreeBytes": 591114240,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8838709248,
+    "cacheBytes": 845371932,
+    "monotonicSeconds": 36.76675615395652
+  },
+  {
+    "rootFreeBytes": 591093760,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8703111168,
+    "cacheBytes": 845371932,
+    "monotonicSeconds": 38.86615640297532
+  },
+  {
+    "rootFreeBytes": 591093760,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8640851968,
+    "cacheBytes": 845371932,
+    "monotonicSeconds": 40.968441987992264
+  },
+  {
+    "rootFreeBytes": 591093760,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8594501632,
+    "cacheBytes": 845371932,
+    "monotonicSeconds": 43.07832263194723
+  },
+  {
+    "rootFreeBytes": 574861312,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8802562048,
+    "cacheBytes": 861550181,
+    "monotonicSeconds": 45.17299745598575
+  },
+  {
+    "rootFreeBytes": 575127552,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8859111424,
+    "cacheBytes": 861550706,
+    "monotonicSeconds": 47.352813770994544
+  },
+  {
+    "rootFreeBytes": 575107072,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8673415168,
+    "cacheBytes": 861550881,
+    "monotonicSeconds": 49.44744801794877
+  },
+  {
+    "rootFreeBytes": 575107072,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8626864128,
+    "cacheBytes": 861550881,
+    "monotonicSeconds": 51.53881017299136
+  },
+  {
+    "rootFreeBytes": 575107072,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8465608704,
+    "cacheBytes": 861550881,
+    "monotonicSeconds": 53.55153423099546
+  },
+  {
+    "rootFreeBytes": 575107072,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8356700160,
+    "cacheBytes": 861550881,
+    "monotonicSeconds": 55.56492696295027
+  },
+  {
+    "rootFreeBytes": 575107072,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8299458560,
+    "cacheBytes": 861550881,
+    "monotonicSeconds": 57.57604004396126
+  },
+  {
+    "rootFreeBytes": 575107072,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8259870720,
+    "cacheBytes": 861550881,
+    "monotonicSeconds": 59.58830945298541
+  },
+  {
+    "rootFreeBytes": 575094784,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8238927872,
+    "cacheBytes": 861550881,
+    "monotonicSeconds": 61.598638409981504
+  },
+  {
+    "rootFreeBytes": 539746304,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8691953664,
+    "cacheBytes": 861550881,
+    "monotonicSeconds": 63.609181946958415
+  },
+  {
+    "rootFreeBytes": 496406528,
+    "tmpFreeBytes": 374808576,
+    "cgroupRemainingBytes": 8595898368,
+    "cacheBytes": 897333803,
+    "monotonicSeconds": 65.78224524698453
+  }
+]

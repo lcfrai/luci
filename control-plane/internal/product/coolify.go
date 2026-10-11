@@ -19,6 +19,8 @@ import (
 // upstream errors. The caller owns persistence, cloud consent and health checks.
 // It deliberately does not retry mutations after an ambiguous network failure.
 type CoolifyClient struct {
+	beforeMutation func(context.Context) error
+
 	base  *url.URL
 	token string
 	http  *http.Client
@@ -173,6 +175,11 @@ func (c *CoolifyClient) request(ctx context.Context, method, path string, query 
 	req.Header.Set("Accept", "application/json")
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
+	}
+	if method != http.MethodGet && method != http.MethodHead && c.beforeMutation != nil {
+		if err := c.beforeMutation(ctx); err != nil {
+			return err
+		}
 	}
 	resp, err := c.http.Do(req)
 	if err != nil {

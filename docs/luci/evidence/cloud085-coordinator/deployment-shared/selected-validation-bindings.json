@@ -1,0 +1,20 @@
+{
+  "scope": "Selected ten shared files match each raw invocation before and after. This does not override the broader E2B drift recorded for product-fixed-1 or the interrupted integration outcome.",
+  "comparisons": [
+    {
+      "invocation": "product-fixed-1",
+      "selectedMatchesBeforeAndAfter": 10,
+      "rawResultSHA256": "6319644fd30b7581ba2958fa8708f888741d2cd97c54e9cdd5ac401723c48058"
+    },
+    {
+      "invocation": "integration-fixed",
+      "selectedMatchesBeforeAndAfter": 10,
+      "rawResultSHA256": "ae60cc42a837a11f047b1a2158b16d953ac8e2acdf7ad8eaf182863e24e4dfd9"
+    },
+    {
+      "invocation": "rollback-fixed",
+      "selectedMatchesBeforeAndAfter": 10,
+      "rawResultSHA256": "f065a516dceacbb5cc8e70f3b8e8b2d22015a6493281b7ad0d8c7d2eecfed359"
+    }
+  ]
+}

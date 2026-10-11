@@ -1,0 +1,12 @@
+[
+  {
+    "path": "control-plane/internal/product/cloud_maintenance.go",
+    "sha256": "60717ca299d179f91dc688f026d08f6e3478e980f581b31286b102a182be83aa",
+    "bytes": 9663
+  },
+  {
+    "path": "control-plane/internal/product/cloud_maintenance_test.go",
+    "sha256": "b34d01d3abad5dbfaa8b1fccb358ebb956efd019e08e115a3a35cb181c0c0150",
+    "bytes": 4090
+  }
+]

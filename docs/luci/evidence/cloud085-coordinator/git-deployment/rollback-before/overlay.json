@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "/workspace/luci/control-plane/internal/product/cloud_maintenance.go": "/workspace/.luci-tools/delivery-staging/rollback-before/cloud_maintenance.go"
+  }
+}

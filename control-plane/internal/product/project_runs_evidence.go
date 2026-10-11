@@ -385,7 +385,10 @@ func (s *Server) observeProjectRunCloud(ctx context.Context, projectID, releaseI
 		return "", "", err
 	}
 	for _, row := range rows {
-		if row.ID != releaseID || row.ProjectID != projectID || row.TargetID != targetID || row.Target != targetID || row.Release.Commit != commit || row.Status != "ready" {
+		if row.ID != releaseID || row.ProjectID != projectID || row.TargetID != targetID || row.Target != targetID || row.Release.Commit != commit || row.Status != "ready" && row.CoordinatorOriginDigest == "" {
+			continue
+		}
+		if row.Status == "stopped" || row.Status == "stopping" || row.Status == "cancelled" || row.Status == "failed" {
 			continue
 		}
 		for _, other := range rows {
@@ -407,7 +410,7 @@ func (s *Server) observeProjectRunCloud(ctx context.Context, projectID, releaseI
 		if err = s.recheckCloudApplicationData(ctx, row); err != nil {
 			return "", "", err
 		}
-		observed, err := observeCloudRelease(ctx, row, client, checkPublicReleaseHealth)
+		observed, err := observeCloudRelease(ctx, row, client, s.cloudReleaseHealth)
 		if err != nil || observed.Status != "ready" {
 			return "", "", errors.New("The provider and public health have not freshly confirmed this exact release.")
 		}
@@ -425,6 +428,7 @@ func verifyProjectRunCloudApplication(ctx context.Context, client *CoolifyClient
 	}
 	var app struct {
 		UUID       string `json:"uuid"`
+		ServerUUID string `json:"server_uuid"`
 		Status     string `json:"status"`
 		Repository string `json:"git_repository"`
 		Branch     string `json:"git_branch"`
@@ -434,7 +438,20 @@ func verifyProjectRunCloudApplication(ctx context.Context, client *CoolifyClient
 	if err := client.request(ctx, "GET", "/applications/"+row.ApplicationID, nil, nil, &app); err != nil {
 		return errors.New("The release's current application ownership could not be observed.")
 	}
-	if app.UUID != row.ApplicationID || app.Repository != row.Repository || app.Branch != row.Branch || app.Commit != row.Release.Commit || strings.TrimSuffix(app.Domain, "/") != row.Domain || strings.Split(app.Status, ":")[0] != "running" {
+	repository := row.Repository
+	if row.CoordinatorOriginDigest != "" {
+		if app.ServerUUID != row.ServerUUID {
+			return errors.New("The provider application moved from the exact delegated target.")
+		}
+		if row.Source == "private" {
+			owner, name, err := githubDeploymentRepository(repository)
+			if err != nil {
+				return err
+			}
+			repository = "git@github.com:" + owner + "/" + name + ".git"
+		}
+	}
+	if app.UUID != row.ApplicationID || app.Repository != repository || app.Branch != row.Branch || app.Commit != row.Release.Commit || strings.TrimSuffix(app.Domain, "/") != row.Domain || strings.Split(app.Status, ":")[0] != "running" {
 		return errors.New("The provider's current application identity or configured source does not match this release.")
 	}
 	return nil

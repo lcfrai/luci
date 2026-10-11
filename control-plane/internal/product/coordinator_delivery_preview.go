@@ -133,7 +133,11 @@ func (s *Server) continueCoordinatorPreview(ctx context.Context, p project.Proje
 	if err != nil {
 		return row, err
 	}
-	return s.persistCoordinatorPreview(ctx, p, row, "ready", "The exact checked local preview passed fresh ownership and HTTP health observation. Public deployment and full behavior acceptance remain separate.", &evidence)
+	row, err = s.persistCoordinatorPreview(ctx, p, row, "ready", "The exact checked local preview passed fresh ownership and HTTP health observation. Public deployment and full behavior acceptance remain separate.", &evidence)
+	if err != nil {
+		return row, err
+	}
+	return s.continueCoordinatorDeployment(ctx, p, row)
 }
 
 func (s *Server) startCoordinatorPreview(ctx context.Context, p project.Project, row coordinatorContinuationRecord) {

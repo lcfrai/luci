@@ -21,7 +21,7 @@ import (
 // Native Git review/integration, committed archives, checks and HTTP health are
 // real. Only the admitted container runtime is controlled; this is not Docker,
 // provider, public deployment or application behavior acceptance evidence.
-func coordinatorPreviewFixture(t *testing.T, outcome string, lostResult bool) (*Server, project.Project, http.Handler, context.Context, CoordinatorContinuation, *atomic.Int32) {
+func coordinatorPreviewFixture(t *testing.T, outcome string, lostResult bool, configure ...func(*Server, project.Project, http.Handler, context.Context, *coordinatorContinuationRequest)) (*Server, project.Project, http.Handler, context.Context, CoordinatorContinuation, *atomic.Int32) {
 	t.Helper()
 	s, p, h, ctx, request, _ := coordinatorContinuationFixture(t)
 	if err := os.WriteFile(filepath.Join(p.Path, "Dockerfile"), []byte("FROM scratch\n"), 0600); err != nil {
@@ -43,6 +43,9 @@ func coordinatorPreviewFixture(t *testing.T, outcome string, lostResult bool) (*
 	request.OriginTurnID, request.ExpectedContextDigest, request.ExpectedPolicyRevision = turn.ID, view.Context.Digest, policy.Revision
 	request.Run.Outcome = outcome
 	request.PreviewPlan = &CoordinatorPreviewPlan{Dockerfile: "Dockerfile", Port: 3000, ExpectedConfigurationRevision: 0, AcknowledgePreviewBuild: true}
+	for _, prepare := range configure {
+		prepare(s, p, h, ctx, &request)
+	}
 	s, p, h, ctx, row, _ := coordinatorDeliveryRequestFixture(t, s, p, h, ctx, request)
 	starts := &atomic.Int32{}
 	health := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("owned fixture health")) }))

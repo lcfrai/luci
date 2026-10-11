@@ -18,6 +18,7 @@ func TestPrivateCloudReleaseStopObservesProviderAndRollbackPinsHistory(t *testin
 	if provider.privateRepository != "git@github.com:example/project.git" || provider.privateKey != "key-owned" || first.Repository != req.Repository {
 		t.Fatal("private source mapping lost HTTPS provenance or deploy-key ownership")
 	}
+	first.CoordinatorOriginDigest = strings.Repeat("c", 64)
 	first.Status = "ready"
 	if err := s.storeCloudRelease(first); err != nil {
 		t.Fatal(err)
@@ -55,8 +56,23 @@ func TestPrivateCloudReleaseStopObservesProviderAndRollbackPinsHistory(t *testin
 	_ = s.storeCloudRelease(first)
 	journeyRequest(t, mux, "POST", base+"/"+first.ID+"/stop", nil, 409)
 	rolled := decodeCloudRelease(t, journeyRequest(t, mux, "POST", base+"/"+first.ID+"/rollback", map[string]any{}, 202))
-	if rolled.ID == first.ID || rolled.RollbackOf != first.ID || rolled.Release.Commit != first.Release.Commit || rolled.BriefRevision != first.BriefRevision || rolled.ApplicationID != first.ApplicationID || rolled.Status != "queued" || rolled.URL != "" {
+	if rolled.CoordinatorOriginDigest != "" || rolled.ID == first.ID || rolled.RollbackOf != first.ID || rolled.Release.Commit != first.Release.Commit || rolled.BriefRevision != first.BriefRevision || rolled.ApplicationID != first.ApplicationID || rolled.Status != "queued" || rolled.URL != "" {
 		t.Fatalf("rollback lost historical provenance: %+v", rolled)
+	}
+	s.mu.RLock()
+	retained, err := s.readCloudReleases(p.ID)
+	s.mu.RUnlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	preserved := false
+	for _, row := range retained {
+		if row.ID == first.ID {
+			preserved = row.CoordinatorOriginDigest == first.CoordinatorOriginDigest
+		}
+	}
+	if !preserved {
+		t.Fatal("manual rebuild changed the original coordinator receipt")
 	}
 	count := provider.deployments
 	repeated := decodeCloudRelease(t, journeyRequest(t, mux, "POST", base+"/"+first.ID+"/rollback", map[string]any{}, 202))

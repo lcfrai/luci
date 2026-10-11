@@ -1,0 +1,6 @@
+{
+  "test": "TestCoordinatorGitRetainedReadbackSurvivesAllocationSuspensionWithoutNewEffect",
+  "wholeTestFileIdenticalBeforeAndFixed": true,
+  "sha256": "8185e21aac5a35fedea5c5b7eaa95de191e028413a6e523a7922aad6e318fdf1",
+  "bytes": 12543
+}

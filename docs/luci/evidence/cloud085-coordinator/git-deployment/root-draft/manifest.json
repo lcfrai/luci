@@ -1,0 +1,12 @@
+[
+  {
+    "path": "coordinator_delivery_git.go",
+    "bytes": 7297,
+    "sha256": "d313c311aeb85ee064abd952f6fbd53993085ab80abc795d8462e5766b437bbc"
+  },
+  {
+    "path": "coordinator_delivery_git_test.go",
+    "bytes": 9814,
+    "sha256": "64b125567be5c2519f0f540f098cc35a105604ce3b12ad92a8c2d5abc78b7e7f"
+  }
+]
